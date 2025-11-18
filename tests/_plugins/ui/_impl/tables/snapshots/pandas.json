@@ -3,9 +3,9 @@
         "strings": "a",
         "bool": true,
         "int": 1,
-        "float": 1,
+        "float": 1.0,
         "datetime": "2021-01-01T00:00:00.000",
-        "date": "2021-01-01T00:00:00.000",
+        "date": "2021-01-01",
         "struct": {
             "a": 1,
             "b": 2
@@ -33,9 +33,9 @@
         "strings": "b",
         "bool": false,
         "int": 2,
-        "float": 2,
+        "float": 2.0,
         "datetime": "2021-01-02T00:00:00.000",
-        "date": "2021-01-02T00:00:00.000",
+        "date": "2021-01-02",
         "struct": {
             "a": 3,
             "b": 4
@@ -54,7 +54,7 @@
         "time": "13:45:00",
         "duration": "2 days 00:00:00",
         "mixed_list": [
-            3,
+            3.0,
             false
         ],
         "bytes": "b'world'"
@@ -63,9 +63,9 @@
         "strings": "c",
         "bool": true,
         "int": 3,
-        "float": 3,
+        "float": 3.0,
         "datetime": "2021-01-03T00:00:00.000",
-        "date": "2021-01-03T00:00:00.000",
+        "date": "2021-01-03",
         "struct": {
             "a": 5,
             "b": 6

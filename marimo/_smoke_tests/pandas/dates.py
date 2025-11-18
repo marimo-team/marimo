@@ -14,18 +14,14 @@ def _():
 
 @app.cell
 def _(mo, pd):
-    test = pd.DataFrame({"Dates": ["10/6/2025 14:17", "10/6/2025 14:18"]})
-    test["Dates2Date"] = pd.to_datetime(test.Dates).dt.date
-    mo.vstack([mo.plain(test), test])
-    return
-
-
-@app.cell
-def _(pd):
-    year_month_day = pd.DataFrame(
-        {"year": [2015, 2016], "month": [2, 3], "day": [4, 5]}
+    date_df = pd.DataFrame(
+        {
+            "dates": ["10/6/2025 14:17", "10/6/2025 14:18"],
+            "date_series": pd.Series(pd.date_range("2000", freq="D", periods=2)),
+        }
     )
-    year_month_day
+    date_df["date_only"] = pd.to_datetime(date_df.dates).dt.date
+    mo.vstack([mo.plain(date_df), date_df])
     return
 
 
