@@ -3552,15 +3552,13 @@ class TestMarkdownHandling:
         stream = mocked_kernel.stream
 
         # Create execution requests with markdown and regular cells
-        markdown_cell_code = (
-            'mo.md(mo.ui)'
-        )
+        markdown_cell_code = "mo.md(mo.ui)"
         regular_cell_code = "x = 0"
 
         execution_requests = [
             ExecutionRequest(cell_id="md_cell", code=markdown_cell_code),
             ExecutionRequest(cell_id="regular_cell", code=regular_cell_code),
-            ExecutionRequest(cell_id="mo_import", code="import marimo as mo")
+            ExecutionRequest(cell_id="mo_import", code="import marimo as mo"),
         ]
 
         # Add a cell that exports 'mo' to enable markdown processing
