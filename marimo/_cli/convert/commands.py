@@ -24,9 +24,20 @@ from marimo._utils.paths import maybe_make_dirs
         "If not provided, the converted notebook will be printed to stdout."
     ),
 )
+@click.option(
+    "-f",
+    "--force",
+    type=click.BOOL,
+    is_flag=True,
+    default=False,
+    help=(
+        "Force conversion even if the file is already a valid marimo notebook."
+    ),
+)
 def convert(
     filename: str,
     output: Optional[Path],
+    force: bool,
 ) -> None:
     r"""Convert a Jupyter notebook, Markdown file, or Python script to a marimo notebook.
 
@@ -120,7 +131,7 @@ def convert(
 
     if output:
         output_path = Path(output)
-        if prompt_to_overwrite(output_path):
+        if force or prompt_to_overwrite(output_path):
             # Make dirs if needed
             maybe_make_dirs(output)
             Path(output).write_text(notebook, encoding="utf-8")
