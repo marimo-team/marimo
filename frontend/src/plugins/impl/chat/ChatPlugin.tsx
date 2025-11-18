@@ -5,7 +5,6 @@ import { z } from "zod";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { createPlugin } from "@/plugins/core/builder";
 import { rpc } from "@/plugins/core/rpc";
-import type { IPluginProps } from "@/plugins/types";
 import { Arrays } from "@/utils/arrays";
 import { Chatbot } from "./chat-ui";
 import type { ChatMessage, SendMessageRequest } from "./types";
@@ -75,14 +74,7 @@ export const ChatPlugin = createPlugin<{ messages: ChatMessage[] }>(
       )
       .output(z.string()),
   })
-  .renderer(
-    (
-      props: IPluginProps<
-        { messages: ChatMessage[] },
-        typeof props.data,
-        PluginFunctions
-      >,
-    ) => (
+  .renderer((props) => (
       <TooltipProvider>
         <Suspense>
           <Chatbot

@@ -251,14 +251,15 @@ export const Chatbot: React.FC<Props> = (props) => {
         }
 
         // Only process chunks for the current streaming message
+        const frontendIndex = streamingStateRef.current.frontendMessageIndex;
         if (
           streamingStateRef.current.backendMessageId ===
             chunkMessage.message_id &&
-          streamingStateRef.current.frontendMessageIndex !== null
+          frontendIndex !== null
         ) {
           setMessages((prev) => {
             const updated = [...prev];
-            const index = streamingStateRef.current.frontendMessageIndex!;
+            const index = frontendIndex;
 
             // Update the message at the tracked index
             if (index < updated.length) {
