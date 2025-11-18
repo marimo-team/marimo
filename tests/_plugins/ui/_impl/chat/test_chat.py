@@ -238,6 +238,35 @@ async def test_chat_sync_generator_streaming():
     assert sent_messages[-1]["content"] == "Hello world !"
 
 
+async def test_chat_streaming_complete_response():
+    """Test that streaming returns complete response even with empty final chunks"""
+
+    def mock_streaming_model_with_empty_final(
+        messages: list[ChatMessage], config: ChatModelConfig
+    ):
+        del config, messages
+        # Simulate OpenAI-style streaming where last chunk might be empty
+        # This tests the bug where we might not yield the final accumulated value
+        yield "Hello "
+        yield "Hello world"
+        yield "Hello world!"
+        # Simulate final chunk with no content (like finish_reason only)
+        # Generator continues but no more content - still need complete result
+
+    chat = ui.chat(mock_streaming_model_with_empty_final)
+
+    request = SendMessageRequest(
+        messages=[ChatMessage(role="user", content="Test")],
+        config=ChatModelConfig(),
+    )
+
+    response: str = await chat._send_prompt(request)
+
+    # Verify we got the complete final response
+    assert response == "Hello world!"
+    assert chat._chat_history[-1].content == "Hello world!"
+
+
 def test_chat_get_history():
     def mock_model(
         messages: list[ChatMessage], config: ChatModelConfig

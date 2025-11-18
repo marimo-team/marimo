@@ -105,12 +105,17 @@ class openai(ChatModel):
     def _stream_response(self, response):
         """Helper method for streaming - separate to avoid mixing yield/return."""
         accumulated = ""
+        chunk_count = 0
         for chunk in response:
+            chunk_count += 1
             if chunk.choices and len(chunk.choices) > 0:
                 delta = chunk.choices[0].delta
                 if delta.content:
                     accumulated += delta.content
                     yield accumulated
+        # Always yield final accumulated result to ensure complete response
+        # This handles cases where the last chunk has no content
+        yield accumulated
 
     def __call__(
         self, messages: list[ChatMessage], config: ChatModelConfig
@@ -240,6 +245,9 @@ class anthropic(ChatModel):
             for text in stream.text_stream:
                 accumulated += text
                 yield accumulated
+        # Yield final accumulated result to ensure complete response
+        if accumulated:
+            yield accumulated
 
     def __call__(
         self, messages: list[ChatMessage], config: ChatModelConfig
@@ -392,6 +400,9 @@ class google(ChatModel):
             if chunk.text:
                 accumulated += chunk.text
                 yield accumulated
+        # Yield final accumulated result to ensure complete response
+        if accumulated:
+            yield accumulated
 
 
 class groq(ChatModel):
@@ -473,6 +484,9 @@ class groq(ChatModel):
                 if delta.content:
                     accumulated += delta.content
                     yield accumulated
+        # Yield final accumulated result to ensure complete response
+        if accumulated:
+            yield accumulated
 
     def __call__(
         self, messages: list[ChatMessage], config: ChatModelConfig
@@ -585,6 +599,9 @@ class bedrock(ChatModel):
                 if delta.content:
                     accumulated += delta.content
                     yield accumulated
+        # Yield final accumulated result to ensure complete response
+        if accumulated:
+            yield accumulated
 
     def __call__(
         self, messages: list[ChatMessage], config: ChatModelConfig

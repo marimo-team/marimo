@@ -21,7 +21,7 @@ from marimo._runtime.functions import EmptyArgs, Function
 from marimo._runtime.requests import SetUIElementValueRequest
 
 DEFAULT_CONFIG = ChatModelConfigDict(
-    max_tokens=100,
+    max_tokens=4096,
     temperature=0.5,
     top_p=1,
     top_k=40,
@@ -206,6 +206,52 @@ class chat(UIElement[dict[str, Any], list[ChatMessage]]):
         del self._chat_history[index]
         self._value = self._chat_history
 
+    async def _handle_streaming_response(self, response):
+        """Handle streaming from both sync and async generators."""
+        message_id = str(uuid.uuid4())
+        latest_response = None
+        accumulated_text = ""
+
+        # Use async for if it's an async generator, otherwise regular for
+        if inspect.isasyncgen(response):
+            async for latest_response in response:  # noqa: B007
+                accumulated_text = str(latest_response)
+                self._send_message(
+                    {
+                        "type": "stream_chunk",
+                        "message_id": message_id,
+                        "content": accumulated_text,
+                        "is_final": False,
+                    },
+                    buffers=None,
+                )
+        else:
+            for latest_response in response:  # noqa: B007
+                accumulated_text = str(latest_response)
+                self._send_message(
+                    {
+                        "type": "stream_chunk",
+                        "message_id": message_id,
+                        "content": accumulated_text,
+                        "is_final": False,
+                    },
+                    buffers=None,
+                )
+
+        # Send final message to indicate streaming is complete
+        if latest_response is not None:
+            self._send_message(
+                {
+                    "type": "stream_chunk",
+                    "message_id": message_id,
+                    "content": accumulated_text,
+                    "is_final": True,
+                },
+                buffers=None,
+            )
+
+        return latest_response
+
     async def _send_prompt(self, args: SendMessageRequest) -> str:
         messages = args.messages
 
@@ -223,76 +269,11 @@ class chat(UIElement[dict[str, Any], list[ChatMessage]]):
 
         if inspect.isawaitable(response):
             response = await response
-        elif inspect.isasyncgen(response):
-            # We support functions that stream the response with an async
-            # generator; each yielded value is the latest representation of the
-            # response, and the last value is the full value
-            message_id = str(uuid.uuid4())
-            latest_response = None
-            accumulated_text = ""
-
-            async for latest_response in response:  # noqa: B007
-                # Convert the response to string for streaming
-                accumulated_text = str(latest_response)
-
-                # Send incremental update to frontend
-                self._send_message(
-                    {
-                        "type": "stream_chunk",
-                        "message_id": message_id,
-                        "content": accumulated_text,
-                        "is_final": False,
-                    },
-                    buffers=None,
-                )
-
-            # Send final message to indicate streaming is complete
-            if latest_response is not None:
-                self._send_message(
-                    {
-                        "type": "stream_chunk",
-                        "message_id": message_id,
-                        "content": accumulated_text,
-                        "is_final": True,
-                    },
-                    buffers=None,
-                )
-
-            response = latest_response
-        elif inspect.isgenerator(response):
-            # We also support regular (sync) generators for streaming
-            message_id = str(uuid.uuid4())
-            latest_response = None
-            accumulated_text = ""
-
-            for latest_response in response:  # noqa: B007
-                # Convert the response to string for streaming
-                accumulated_text = str(latest_response)
-
-                # Send incremental update to frontend
-                self._send_message(
-                    {
-                        "type": "stream_chunk",
-                        "message_id": message_id,
-                        "content": accumulated_text,
-                        "is_final": False,
-                    },
-                    buffers=None,
-                )
-
-            # Send final message to indicate streaming is complete
-            if latest_response is not None:
-                self._send_message(
-                    {
-                        "type": "stream_chunk",
-                        "message_id": message_id,
-                        "content": accumulated_text,
-                        "is_final": True,
-                    },
-                    buffers=None,
-                )
-
-            response = latest_response
+        elif inspect.isasyncgen(response) or inspect.isgenerator(response):
+            # We support functions that stream the response with generators
+            # (both sync and async); each yielded value is the latest
+            # representation of the response, and the last value is the full value
+            response = await self._handle_streaming_response(response)
 
         response_message = ChatMessage(role="assistant", content=response)
         self._chat_history = messages + [response_message]
