@@ -3575,7 +3575,8 @@ class TestMarkdownHandling:
         # Instantiate the kernel
         await k.instantiate(creation_request)
 
-        # Check that markdown cell was removed from uninstantiated requests
+        # Check that markdown cell is also in uninstantiated requests-
+        # since it does not contain a string
         assert "md_cell" in k._uninstantiated_execution_requests
         # Regular cell should still be there
         assert "regular_cell" in k._uninstantiated_execution_requests
