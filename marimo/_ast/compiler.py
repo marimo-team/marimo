@@ -8,6 +8,7 @@ import io
 import linecache
 import os
 import re
+import sys
 import textwrap
 import token as token_types
 import warnings
@@ -149,9 +150,11 @@ def fix_source_position(node: Any, source_position: SourcePosition) -> Any:
 def _extract_const_string(args: list[ast.stmt]) -> str:
     (inner,) = args
     # Various string types may need to be unpacked
-    if hasattr(inner, "values"):
+    if isinstance(inner, ast.JoinedStr) or (
+        sys.version_info >= (3, 14) and isinstance(inner, ast.TemplateStr)
+    ):
         # But we only match if there is 1 entry.
-        (inner,) = inner.values
+        (inner,) = inner.values  # type: ignore[attr-defined]
     assert isinstance(inner, ast.Constant)
     assert isinstance(inner.value, str)
     return inner.value
