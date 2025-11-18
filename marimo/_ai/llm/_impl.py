@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import os
-from typing import Any, Callable, Optional, cast
+from typing import Any, Callable, Generator, Optional, cast
 
 from marimo._ai._convert import (
     convert_to_anthropic_messages,
@@ -102,7 +102,7 @@ class openai(ChatModel):
             "set OPENAI_API_KEY as an environment variable"
         )
 
-    def _stream_response(self, response):
+    def _stream_response(self, response) -> Generator[str, None, None]:
         """Helper method for streaming - separate to avoid mixing yield/return."""
         accumulated = ""
         chunk_count = 0
@@ -238,7 +238,7 @@ class anthropic(ChatModel):
             "set ANTHROPIC_API_KEY as an environment variable"
         )
 
-    def _stream_response(self, client, params):
+    def _stream_response(self, client, params) -> Generator[str, None, None]:
         """Helper method for streaming - separate to avoid mixing yield/return."""
         accumulated = ""
         with client.messages.stream(**params) as stream:
@@ -390,7 +390,7 @@ class google(ChatModel):
             content = response.text
             return content or ""
 
-    def _stream_response(self, client, google_messages, generation_config):
+    def _stream_response(self, client, google_messages, generation_config) -> Generator[str, None, None]:
         """Helper method for streaming - separate to avoid mixing yield/return."""
         accumulated = ""
         response = client.models.generate_content_stream(
@@ -467,7 +467,7 @@ class groq(ChatModel):
             "set GROQ_API_KEY as an environment variable"
         )
 
-    def _stream_response(self, client, groq_messages, config):
+    def _stream_response(self, client, groq_messages, config) -> Generator[str, None, None]:
         """Helper method for streaming - separate to avoid mixing yield/return."""
         stream = client.chat.completions.create(
             model=self.model,
@@ -576,7 +576,7 @@ class bedrock(ChatModel):
         else:
             pass  # Use default credential chain
 
-    def _stream_response(self, messages, config):
+    def _stream_response(self, messages, config) -> Generator[str, None, None]:
         """Helper method for streaming - separate to avoid mixing yield/return."""
         from litellm import completion as litellm_completion
 

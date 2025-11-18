@@ -206,7 +206,7 @@ class chat(UIElement[dict[str, Any], list[ChatMessage]]):
         del self._chat_history[index]
         self._value = self._chat_history
 
-    async def _handle_streaming_response(self, response):
+    async def _handle_streaming_response(self, response) -> str:
         """Handle streaming from both sync and async generators."""
         message_id = str(uuid.uuid4())
         latest_response = None
