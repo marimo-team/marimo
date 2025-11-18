@@ -188,7 +188,6 @@ print('Hello from Markdown!')
         assert p.returncode == 0, p.stderr
         assert output_path.exists()
 
-        # Check that adding the force flag doesn't cause an error
         p = subprocess.run(
             [
                 "marimo",
@@ -203,7 +202,6 @@ print('Hello from Markdown!')
         )
         assert p.returncode == 0, p.stderr
 
-        # Check it does error without the extra flag
         p = subprocess.run(
             ["marimo", "convert", str(notebook_path), "-o", str(output_path)],
             capture_output=True,
