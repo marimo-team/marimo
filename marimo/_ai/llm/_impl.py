@@ -376,7 +376,9 @@ class google(ChatModel):
 
         if self.stream:
             # Return generator for streaming
-            return self._stream_response(client, google_messages, generation_config)
+            return self._stream_response(
+                client, google_messages, generation_config
+            )
         else:
             # Non-streaming response - return directly
             response = client.models.generate_content(
@@ -625,7 +627,11 @@ class bedrock(ChatModel):
                 response = litellm_completion(
                     model=self.model,
                     messages=convert_to_openai_messages(
-                        [ChatMessage(role="system", content=self.system_message)]
+                        [
+                            ChatMessage(
+                                role="system", content=self.system_message
+                            )
+                        ]
                         + messages
                     ),
                     max_tokens=config.max_tokens,
