@@ -105,7 +105,7 @@ class openai(ChatModel):
             "set OPENAI_API_KEY as an environment variable"
         )
 
-    def _stream_response(self, response) -> Generator[str, None, None]:
+    def _stream_response(self, response: Any) -> Generator[str, None, None]:
         """Helper method for streaming - separate to avoid mixing yield/return."""
         accumulated = ""
         chunk_count = 0
@@ -176,7 +176,7 @@ class openai(ChatModel):
             return self._stream_response(response)
         else:
             # Non-streaming response - return string directly
-            choice = response.choices[0]
+            choice = cast(Any, response).choices[0]
             content = choice.message.content
             return content or ""
 
@@ -241,7 +241,7 @@ class anthropic(ChatModel):
             "set ANTHROPIC_API_KEY as an environment variable"
         )
 
-    def _stream_response(self, client, params) -> Generator[str, None, None]:
+    def _stream_response(self, client: Any, params: Any) -> Generator[str, None, None]:
         """Helper method for streaming - separate to avoid mixing yield/return."""
         accumulated = ""
         with client.messages.stream(**params) as stream:
@@ -293,6 +293,8 @@ class anthropic(ChatModel):
                     return content[0].text
                 elif content[0].type == "tool_use":
                     return content
+                else:
+                    return ""
             else:
                 return ""
 
@@ -387,14 +389,14 @@ class google(ChatModel):
             response = client.models.generate_content(
                 model=self.model,
                 contents=google_messages,
-                config=generation_config,
+                config=cast(Any, generation_config),
             )
 
             content = response.text
             return content or ""
 
     def _stream_response(
-        self, client, google_messages, generation_config
+        self, client: Any, google_messages: Any, generation_config: Any
     ) -> Generator[str, None, None]:
         """Helper method for streaming - separate to avoid mixing yield/return."""
         accumulated = ""
@@ -473,7 +475,7 @@ class groq(ChatModel):
         )
 
     def _stream_response(
-        self, client, groq_messages, config
+        self, client: Any, groq_messages: Any, config: ChatModelConfig
     ) -> Generator[str, None, None]:
         """Helper method for streaming - separate to avoid mixing yield/return."""
         stream = client.chat.completions.create(
@@ -583,7 +585,7 @@ class bedrock(ChatModel):
         else:
             pass  # Use default credential chain
 
-    def _stream_response(self, messages, config) -> Generator[str, None, None]:
+    def _stream_response(self, messages: list[ChatMessage], config: ChatModelConfig) -> Generator[str, None, None]:
         """Helper method for streaming - separate to avoid mixing yield/return."""
         from litellm import completion as litellm_completion
 
