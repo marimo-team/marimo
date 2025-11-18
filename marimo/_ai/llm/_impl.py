@@ -2,8 +2,10 @@
 from __future__ import annotations
 
 import os
-from collections.abc import Generator
-from typing import Any, Callable, Optional, cast
+from typing import TYPE_CHECKING, Any, Callable, Optional, cast
+
+if TYPE_CHECKING:
+    from collections.abc import Generator
 
 from marimo._ai._convert import (
     convert_to_anthropic_messages,
