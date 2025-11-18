@@ -141,7 +141,7 @@ describe("sanitizeHtml", () => {
     const html =
       "<marimo-mermaid data-diagram='&quot;sequenceDiagram&#92;n    Alice-&gt;&gt;John&#92;n    John--&gt;&gt;Alice&#92;n    &quot;'></marimo-mermaid>";
     expect(sanitizeHtml(html)).toMatchInlineSnapshot(
-      `"<marimo-mermaid></marimo-mermaid>"`,
+      `"<marimo-mermaid data-diagram="&quot;sequenceDiagram\\n    Alice->>John\\n    John-->>Alice\\n    &quot;"></marimo-mermaid>"`,
     );
   });
 
