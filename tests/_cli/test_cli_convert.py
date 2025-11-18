@@ -157,6 +157,61 @@ print('Hello from Markdown!')
         snapshot("ipynb_to_marimo_with_output.txt", output_content)
 
     @staticmethod
+    def test_convert_with_output_force_flag(tmp_path: Path) -> None:
+        notebook_path = tmp_path / "test_notebook.ipynb"
+        notebook_content = """
+{
+ "cells": [
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "print('Hello, Output!')"
+   ]
+  }
+ ],
+ "metadata": {},
+ "nbformat": 4,
+ "nbformat_minor": 4
+}
+"""
+        notebook_path.write_text(notebook_content)
+        output_path = tmp_path / "output.py"
+
+        p = subprocess.run(
+            ["marimo", "convert", str(notebook_path), "-o", str(output_path)],
+            capture_output=True,
+            text=True,
+        )
+        assert p.returncode == 0, p.stderr
+        assert output_path.exists()
+
+        # Check that adding the force flag doesn't cause an error
+        p = subprocess.run(
+            [
+                "marimo",
+                "convert",
+                str(notebook_path),
+                "-o",
+                str(output_path),
+                "-f",
+            ],
+            capture_output=True,
+            text=True,
+        )
+        assert p.returncode == 0, p.stderr
+
+        # Check it does error without the extra flag
+        p = subprocess.run(
+            ["marimo", "convert", str(notebook_path), "-o", str(output_path)],
+            capture_output=True,
+            text=True,
+        )
+        assert p.returncode == 0, "Expected a graceful exit with no errors"
+
+    @staticmethod
     def test_convert_invalid_file(tmp_path: Path) -> None:
         invalid_file = tmp_path / "invalid.txt"
         invalid_file.touch()
