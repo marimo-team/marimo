@@ -78,13 +78,21 @@ class chat(UIElement[dict[str, Any], list[ChatMessage]]):
             return await my_async_function(messages)
         ```
 
+        Regular (sync) generators for streaming:
         ```python
-        async def my_rag_model(messages):
-            for response in my_async_iterator(messages):
-                yield response
+        def my_streaming_model(messages, config):
+            for chunk in process_stream():
+                yield chunk  # Each yield updates the UI
         ```
 
-        The last value yielded by the async generator is treated as the model
+        Async generators for streaming with async operations:
+        ```python
+        async def my_async_streaming_model(messages, config):
+            async for chunk in async_process_stream():
+                yield chunk  # Each yield updates the UI
+        ```
+
+        The last value yielded by the generator is treated as the model
         response. Streaming responses are automatically streamed to the frontend
         as they are generated.
 

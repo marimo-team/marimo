@@ -165,13 +165,15 @@ This works for all built-in models:
 
 ### With Custom Models
 
-For custom models, create an async generator function that yields intermediate results:
+For custom models, you can use either regular (sync) or async generator functions that yield intermediate results:
+
+**Sync generator (simpler):**
 
 ```python
 import marimo as mo
-import asyncio
+import time
 
-async def streaming_model(messages, config):
+def streaming_model(messages, config):
     """Stream responses word by word."""
     response = "This response will appear word by word!"
     words = response.split()
@@ -180,9 +182,30 @@ async def streaming_model(messages, config):
     for word in words:
         accumulated += word + " "
         yield accumulated
-        await asyncio.sleep(0.1)  # Simulate processing delay
+        time.sleep(0.1)  # Simulate processing delay
 
 chat = mo.ui.chat(streaming_model)
+chat
+```
+
+**Async generator (for async operations):**
+
+```python
+import marimo as mo
+import asyncio
+
+async def async_streaming_model(messages, config):
+    """Stream responses word by word asynchronously."""
+    response = "This response will appear word by word!"
+    words = response.split()
+    accumulated = ""
+    
+    for word in words:
+        accumulated += word + " "
+        yield accumulated
+        await asyncio.sleep(0.1)  # Async processing delay
+
+chat = mo.ui.chat(async_streaming_model)
 chat
 ```
 
