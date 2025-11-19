@@ -119,6 +119,7 @@ export const UserConfigSchema = z
         auto_instantiate: z.boolean().prefault(true),
         on_cell_change: z.enum(["lazy", "autorun"]).prefault("autorun"),
         auto_reload: z.enum(["off", "lazy", "autorun"]).prefault("off"),
+        reactive_tests: z.boolean().prefault(true),
         watcher_on_save: z.enum(["lazy", "autorun"]).prefault("lazy"),
         default_sql_output: z.enum(VALID_SQL_OUTPUT_FORMATS).prefault("auto"),
         default_auto_download: z
