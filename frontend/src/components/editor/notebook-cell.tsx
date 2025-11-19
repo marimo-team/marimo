@@ -489,7 +489,7 @@ const EditableCellComponent = ({
 
   const outputArea = hasOutput && (
     <div className="relative" onDoubleClick={showHiddenCodeIfMarkdown}>
-      <div className="absolute top-5 -left-8 z-10 print:hidden">
+      <div className="absolute top-5 -left-8 z-20 print:hidden">
         <CollapseToggle
           isCollapsed={isCollapsed}
           onClick={() => {
@@ -841,7 +841,7 @@ const CellLeftSideActions = memo(
             onClick={isConnected ? createAbove : undefined}
           />
         </div>
-        <div className="flex-1" />
+        <div className="flex-1 pointer-events-none" />
         {/* <div className="flex-1 bg-border w-px mx-auto hover-action opacity-70" /> */}
         <div className="-mb-2">
           <CreateCellButton
