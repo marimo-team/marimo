@@ -73,6 +73,17 @@ See login and authentication instructions in the [Gemini CLI documentation](http
 
     If you have terminal access enabled in marimo, you can run agent connection commands directly from the agent panel using the terminal button.
 
+!!! tip "Auto-run on agent edits"
+
+    By default, when an agent modifies your notebook, cells are marked as stale instead of running automatically. To have cells run automatically when the agent saves changes, add this configuration to your `pyproject.toml`:
+
+    ```toml
+    [tool.marimo.runtime]
+    watcher_on_save = "autorun"
+    ```
+
+    This provides a more seamless experience when working with agents, as you'll see results immediately after the agent makes changes.
+
 ## Custom agents
 
 !!! info "Custom agents"
