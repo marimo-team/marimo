@@ -432,6 +432,8 @@ You can use any Python package. marimo cells run arbitrary Python code.
 
 ### How do I use marimo on a remote server?
 
+> We recorded a video tutorial on how to use marimo on a remote server. Check it out [here](https://youtu.be/pam9Hw8rbaA).
+
 Use SSH port-forwarding to run marimo on a remote server
 and connect to it from a browser on your local machine. Make sure
 to pass the `--headless` flag when starting marimo on remote; on the remote

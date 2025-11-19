@@ -537,6 +537,50 @@ class TestExecution:
         assert not k._uninstantiated_execution_requests
         assert k.globals["z"] == 3
 
+    async def test_instantiate_autorun_false_empty_cells_not_stale(
+        self, any_kernel: Kernel
+    ) -> None:
+        """Tests that empty cells are not marked as stale during instantiation."""
+        k = any_kernel
+        await k.instantiate(
+            CreationRequest(
+                execution_requests=(
+                    ExecutionRequest(cell_id="0", code="x=0"),
+                    ExecutionRequest(cell_id="1", code=""),
+                    ExecutionRequest(cell_id="2", code="  \n  "),
+                    ExecutionRequest(cell_id="3", code="y=x+1"),
+                ),
+                set_ui_element_value_request=SetUIElementValueRequest.from_ids_and_values(
+                    []
+                ),
+                auto_run=False,
+            )
+        )
+
+        # Check that all cells are in uninstantiated requests
+        assert len(k._uninstantiated_execution_requests) == 4
+
+        # Check the stream for stale broadcasts
+        stream = MockStream(k.stream)
+        cell_ops = [
+            op for op in stream.parsed_operations if isinstance(op, CellOp)
+        ]
+
+        # Filter for stale broadcasts
+        stale_broadcasts = [
+            op
+            for op in cell_ops
+            if op.stale_inputs is not None and op.stale_inputs
+        ]
+
+        # Only cells 0 and 3 should be marked as stale (non-empty cells)
+        stale_cell_ids = {op.cell_id for op in stale_broadcasts}
+        assert stale_cell_ids == {"0", "3"}
+
+        # Cells 1 and 2 (empty/whitespace) should not be marked as stale
+        assert "1" not in stale_cell_ids
+        assert "2" not in stale_cell_ids
+
     # Test errors in marimo semantics
     async def test_kernel_simultaneous_multiple_definition_error(
         self,
@@ -1583,7 +1627,7 @@ except NameError:
         assert m1["status"] == "queued"
         assert m2["status"] == "running"
         assert m3["status"] is None
-        assert m3["output"]["data"] == "<pre style='font-size: 12px'>1</pre>"
+        assert m3["output"]["data"] == "<pre class='text-xs'>1</pre>"
         assert m4["status"] == "idle"
         # Does not pollute globals
         assert "x" not in k.globals
@@ -1610,8 +1654,7 @@ except NameError:
         messages = stream.operations
         output_message = messages[-2]
         assert (
-            output_message["output"]["data"]
-            == "<pre style='font-size: 12px'>20</pre>"
+            output_message["output"]["data"] == "<pre class='text-xs'>20</pre>"
         )
         assert "z" in k.globals
         # Does not pollute globals
@@ -1639,8 +1682,7 @@ except NameError:
         messages = stream.operations
         output_message = messages[-2]
         assert (
-            output_message["output"]["data"]
-            == "<pre style='font-size: 12px'>20</pre>"
+            output_message["output"]["data"] == "<pre class='text-xs'>20</pre>"
         )
         assert "z" in k.globals
         # Does not pollute globals, reverts back to 10
@@ -3501,6 +3543,92 @@ class TestMarkdownHandling:
         ]
         assert len(regular_stale_ops) == 1
         assert regular_stale_ops[0].stale_inputs is True
+
+    @pytest.mark.skipif(
+        sys.version_info < (3, 14), reason="Template strings only on 3.14"
+    )
+    async def test_non_markdown_cells_alt_strings(
+        self, mocked_kernel: MockedKernel
+    ) -> None:
+        """Test that non-markdown cells are not affected by markdown handling."""
+        k = mocked_kernel.k
+        stream = mocked_kernel.stream
+
+        # Create execution requests with markdown and regular cells
+        r_markdown_cell_code = "mo.md(r'\\n')"
+        f_markdown_cell_code = "mo.md(f'{10*10}')"
+        t_markdown_cell_code = "mo.md(t'{10*10}')"
+        f_markdown_cell_code_escaped = "mo.md(f'{{mo}}')"
+        t_markdown_cell_code_escaped = "mo.md(t'{{mo}}')"
+
+        execution_requests = [
+            ExecutionRequest(cell_id="md_cell_r", code=r_markdown_cell_code),
+            ExecutionRequest(cell_id="md_cell_f", code=f_markdown_cell_code),
+            ExecutionRequest(cell_id="md_cell_t", code=t_markdown_cell_code),
+            ExecutionRequest(
+                cell_id="md_cell_fe", code=f_markdown_cell_code_escaped
+            ),
+            ExecutionRequest(
+                cell_id="md_cell_te", code=t_markdown_cell_code_escaped
+            ),
+            ExecutionRequest(cell_id="mo_import", code="import marimo as mo"),
+        ]
+
+        creation_request = CreationRequest(
+            execution_requests=execution_requests,
+            auto_run=False,
+            set_ui_element_value_request=SetUIElementValueRequest(
+                object_ids=[],
+                values=[],
+            ),
+        )
+
+        # Instantiate the kernel
+        await k.instantiate(creation_request)
+
+        # Check that interpolated markdown cells are not matched
+        assert "md_cell_f" in k._uninstantiated_execution_requests
+        assert "md_cell_t" in k._uninstantiated_execution_requests
+
+        # Without any interpolation can match for rendering
+        assert "md_cell_fe" not in k._uninstantiated_execution_requests
+        assert "md_cell_te" not in k._uninstantiated_execution_requests
+        assert "md_cell_r" not in k._uninstantiated_execution_requests
+
+    async def test_non_markdown_cells_single_call(
+        self, mocked_kernel: MockedKernel
+    ) -> None:
+        """Test that non-markdown cells are not affected by markdown handling."""
+        k = mocked_kernel.k
+        stream = mocked_kernel.stream
+
+        # Create execution requests with markdown and regular cells
+        markdown_cell_code = "mo.md(mo.ui)"
+        regular_cell_code = "x = 0"
+
+        execution_requests = [
+            ExecutionRequest(cell_id="md_cell", code=markdown_cell_code),
+            ExecutionRequest(cell_id="regular_cell", code=regular_cell_code),
+            ExecutionRequest(cell_id="mo_import", code="import marimo as mo"),
+        ]
+
+        creation_request = CreationRequest(
+            execution_requests=execution_requests,
+            auto_run=False,
+            set_ui_element_value_request=SetUIElementValueRequest(
+                object_ids=[],
+                values=[],
+            ),
+        )
+
+        # Instantiate the kernel
+        await k.instantiate(creation_request)
+
+        # Check that markdown cell is also in uninstantiated requests-
+        # since it does not contain a string
+        assert "md_cell" in k._uninstantiated_execution_requests
+        # Regular cell should still be there
+        assert "regular_cell" in k._uninstantiated_execution_requests
 
     async def test_non_markdown_cells_not_affected(
         self, mocked_kernel: MockedKernel

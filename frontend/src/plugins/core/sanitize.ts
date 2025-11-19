@@ -80,7 +80,9 @@ export function sanitizeHtml(html: string) {
       tagNameCheck: /^(marimo-[A-Za-z][\w-]*|iconify-icon)$/,
       attributeNameCheck: /^[A-Za-z][\w-]*$/,
     },
-    SAFE_FOR_XML: html.includes("marimo-mermaid"),
+    // This flag means we should sanitize such that is it safe for XML,
+    // but this is only used for HTML content.
+    SAFE_FOR_XML: !html.includes("marimo-mermaid"),
   };
   return DOMPurify.sanitize(html, sanitizationOptions);
 }

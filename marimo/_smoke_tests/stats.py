@@ -17,10 +17,20 @@ def _(mo):
     _stats = [
         mo.stat("$100", label="Revenue", caption="+ 10%", direction="increase"),
         mo.stat(
-            "$20", label="Marketing spend", caption="+ 10%", direction="increase"
+            "$20",
+            label="Marketing spend",
+            caption="+ 10%",
+            direction="increase",
+            target_direction="decrease",
         ),
-        mo.stat("$80", label="Profit", caption="+ 10%", direction="increase"),
-        mo.stat("2%", label="Churn", caption="- 2%", direction="decrease"),
+        mo.stat("$80", label="Profit", caption="- 10%", direction="decrease"),
+        mo.stat(
+            "2%",
+            label="Churn",
+            caption="- 2%",
+            direction="decrease",
+            target_direction="decrease",
+        ),
     ]
     mo.hstack(_stats)
     return
@@ -42,12 +52,13 @@ def _(mo):
             caption="+ 10%",
             direction="increase",
             bordered=True,
+            target_direction="decrease",
         ),
         mo.stat(
             "$80",
             label="Profit",
-            caption="+ 10%",
-            direction="increase",
+            caption="- 10%",
+            direction="decrease",
             bordered=True,
         ),
         mo.stat(
@@ -56,6 +67,7 @@ def _(mo):
             caption="- 2%",
             direction="decrease",
             bordered=True,
+            target_direction="decrease",
         ),
     ]
     mo.hstack(_stats, widths="equal", gap=1)

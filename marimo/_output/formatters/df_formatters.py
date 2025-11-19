@@ -335,8 +335,16 @@ class IbisFormatter(FormatterFactory):
                 mode = _get_display_mode(expr)
 
                 if mode == IbisDisplayMode.INTERACTIVE:
-                    return table(
-                        expr, selection=None, pagination=True
+                    # Even though interactive mode is enabled and the expression may not be unbound,
+                    # it could be an extremely large query (e.g. s3 bucket)
+                    # Without lazy, this tries to load the entire dataframe into memory
+                    #
+                    # If a user does want the full dataframe, they can call .execute() manually
+                    # or use `mo.ui.table(df)`
+                    return table.lazy(
+                        expr,
+                        # Lazy, but preload the first page of data (since interactive is true)
+                        preload=True,
                     )._mime_()
                 else:
                     return _format_lazy_expression(expr, mode)

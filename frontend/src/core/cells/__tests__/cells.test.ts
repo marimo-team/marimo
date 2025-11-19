@@ -1092,7 +1092,7 @@ describe("cell reducer", () => {
     expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
 
     cell = cells[0];
-    expect(cell.consoleOutputs).toEqual([STDOUT]);
+    expect(cell.consoleOutputs[0]).toMatchObject(STDOUT);
     expect(cell.status).toBe("running");
     expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
 
@@ -1106,7 +1106,8 @@ describe("cell reducer", () => {
       timestamp: new Date(22).getTime() as Seconds,
     });
     cell = cells[0];
-    expect(cell.consoleOutputs).toEqual([STDOUT, STD_IN_1]);
+    expect(cell.consoleOutputs[0]).toMatchObject(STDOUT);
+    expect(cell.consoleOutputs[1]).toMatchObject(STD_IN_1);
     expect(cell.status).toBe("running");
     expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
 
@@ -1117,13 +1118,10 @@ describe("cell reducer", () => {
       outputIndex: 1,
     });
     cell = cells[0];
-    expect(cell.consoleOutputs).toEqual([
-      STDOUT,
-      {
-        ...STD_IN_1,
-        response: "Marimo!",
-      },
-    ]);
+    expect(cell.consoleOutputs[1]).toMatchObject({
+      ...STD_IN_1,
+      response: "Marimo!",
+    });
     expect(cell.status).toBe("running");
     expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
 
@@ -1137,7 +1135,7 @@ describe("cell reducer", () => {
       timestamp: new Date(22).getTime() as Seconds,
     });
     cell = cells[0];
-    expect(cell.consoleOutputs).toEqual([
+    expect(cell.consoleOutputs).toMatchObject([
       STDOUT,
       { ...STD_IN_1, response: "Marimo!" },
       STD_IN_2,
@@ -1161,7 +1159,7 @@ describe("cell reducer", () => {
     });
     cell = cells[0];
     expect(cell.status).toBe("idle");
-    expect(cell.consoleOutputs).toEqual([
+    expect(cell.consoleOutputs).toMatchObject([
       STDOUT,
       { ...STD_IN_1, response: "Marimo!" },
       { ...STD_IN_2, response: "" },
@@ -1204,7 +1202,7 @@ describe("cell reducer", () => {
     });
     cell = cells[0];
     expect(cell.status).toBe("queued");
-    expect(cell.consoleOutputs).toEqual([OLD_STDOUT]); // Old stays there until it starts running
+    expect(cell.consoleOutputs).toMatchObject([OLD_STDOUT]); // Old stays there until it starts running
     expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
 
     // Receive queued messages
@@ -1218,7 +1216,7 @@ describe("cell reducer", () => {
     });
     cell = cells[0];
     expect(cell.status).toBe("queued");
-    expect(cell.consoleOutputs).toEqual([OLD_STDOUT]); // Old stays there until it starts running
+    expect(cell.consoleOutputs).toMatchObject([OLD_STDOUT]); // Old stays there until it starts running
     expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
 
     // Receive running messages
@@ -1232,7 +1230,7 @@ describe("cell reducer", () => {
     });
     cell = cells[0];
     expect(cell.status).toBe("running");
-    expect(cell.consoleOutputs).toEqual([]);
+    expect(cell.consoleOutputs).toMatchObject([]);
     expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
 
     // Add console
@@ -1245,7 +1243,7 @@ describe("cell reducer", () => {
       timestamp: new Date(22).getTime() as Seconds,
     });
     cell = cells[0];
-    expect(cell.consoleOutputs).toEqual([STDOUT]);
+    expect(cell.consoleOutputs).toMatchObject([STDOUT]);
     expect(cell.status).toBe("idle");
     expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
   });
@@ -1640,7 +1638,16 @@ describe("cell reducer", () => {
     });
 
     const cell = cells[0];
-    expect(cell.consoleOutputs).toEqual([STDOUT1, STDOUT2]);
+    expect(cell.consoleOutputs).toMatchInlineSnapshot(`
+      [
+        {
+          "channel": "stdout",
+          "data": "output1output2",
+          "mimetype": "text/plain",
+          "timestamp": 1,
+        },
+      ]
+    `);
   });
 
   it("can add a column breakpoint", () => {

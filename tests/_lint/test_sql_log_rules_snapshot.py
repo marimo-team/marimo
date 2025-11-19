@@ -11,7 +11,7 @@ snapshot = snapshotter(__file__)
 
 
 # Only run this in 3.12 since the formatting may differ in other versions
-@pytest.mark.skipif("sys.version_info < (3, 13)")
+@pytest.mark.skipif("sys.version_info != (3, 12)")
 def test_sql_parsing_errors_snapshot():
     """Test snapshot for SQL parsing log errors with positioning."""
     file = "tests/_lint/test_files/sql_parsing_errors.py"

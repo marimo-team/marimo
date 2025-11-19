@@ -57,7 +57,7 @@ ChartDataType = Union[
 ]
 
 # Union of all possible chart types
-AltairChartType: TypeAlias = "altair.vegalite.v5.api.ChartType"
+AltairChartType: TypeAlias = "altair.vegalite.v6.api.ChartType"
 
 
 def _has_binning(spec: VegaSpec) -> bool:

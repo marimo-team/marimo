@@ -24,13 +24,41 @@ export const CopilotConfig = memo(() => {
     evt.preventDefault();
     setLoading(true);
     try {
-      const { verificationUri, status, userCode } = await initiateSignIn();
+      const result = await initiateSignIn();
+
+      // Validate the response has required fields
+      if (!result || !result.verificationUri || !result.userCode) {
+        Logger.error("Copilot#trySignIn: Invalid response from sign-in", {
+          result,
+        });
+        setStep("connectionError");
+        toast({
+          title: "GitHub Copilot Connection Error",
+          description:
+            "Unable to connect to GitHub Copilot. Please check your settings and try again.",
+          variant: "danger",
+        });
+        return;
+      }
+
+      const { verificationUri, status, userCode } = result;
       if (isSignedIn(status)) {
         copilotChangeSignIn(true);
       } else {
         setStep("signingIn");
         setLocalData({ url: verificationUri, code: userCode });
       }
+    } catch (error) {
+      Logger.error("Copilot#trySignIn: Error during sign-in", error);
+      setStep("connectionError");
+      toast({
+        title: "GitHub Copilot Connection Error",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Unable to connect to GitHub Copilot. Please check your settings and try again.",
+        variant: "danger",
+      });
     } finally {
       setLoading(false);
     }

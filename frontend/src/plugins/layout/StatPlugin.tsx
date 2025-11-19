@@ -17,6 +17,7 @@ interface Data {
   caption?: string;
   bordered?: boolean;
   direction?: "increase" | "decrease";
+  target_direction?: "increase" | "decrease";
 }
 
 export class StatPlugin implements IStatelessPlugin<Data> {
@@ -28,6 +29,7 @@ export class StatPlugin implements IStatelessPlugin<Data> {
     caption: z.string().optional(),
     bordered: z.boolean().default(false),
     direction: z.enum(["increase", "decrease"]).optional(),
+    target_direction: z.enum(["increase", "decrease"]).default("increase"),
   });
 
   render({ data }: IStatelessPluginProps<Data>): JSX.Element {
@@ -41,6 +43,7 @@ export const StatComponent: React.FC<Data> = ({
   caption,
   bordered,
   direction,
+  target_direction,
 }) => {
   const { locale } = useLocale();
 
@@ -64,6 +67,10 @@ export const StatComponent: React.FC<Data> = ({
     return String(value);
   };
 
+  const onTarget = direction === target_direction;
+  const fillColor = onTarget ? "var(--grass-8)" : "var(--red-8)";
+  const strokeColor = onTarget ? "var(--grass-9)" : "var(--red-9)";
+
   return (
     <div
       className={cn(
@@ -83,15 +90,15 @@ export const StatComponent: React.FC<Data> = ({
             {direction === "increase" && (
               <TriangleIcon
                 className="w-4 h-4 mr-1 p-0.5"
-                fill="var(--grass-8)"
-                stroke="var(--grass-9)"
+                fill={fillColor}
+                stroke={strokeColor}
               />
             )}
             {direction === "decrease" && (
               <TriangleIcon
                 className="w-4 h-4 mr-1 p-0.5 transform rotate-180"
-                fill="var(--red-8)"
-                stroke="var(--red-9)"
+                fill={fillColor}
+                stroke={strokeColor}
               />
             )}
             {caption}

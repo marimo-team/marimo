@@ -8,48 +8,46 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.17.8"
 app = marimo.App(width="medium")
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
-        # Bayes' Theorem
+    mo.md(r"""
+    # Bayes' Theorem
 
-        _This interactive notebook was made with [marimo](https://github.com/marimo-team/marimo), and is [based on an explanation of Bayes' Theorem by Grant Sanderson](https://www.youtube.com/watch?v=HZGCoVF3YvM&list=PLzq7odmtfKQw2KIbQq0rzWrqgifHKkPG1&index=1&t=3s)_.
+    _This interactive notebook was made with [marimo](https://github.com/marimo-team/marimo), and is [based on an explanation of Bayes' Theorem by Grant Sanderson](https://www.youtube.com/watch?v=HZGCoVF3YvM&list=PLzq7odmtfKQw2KIbQq0rzWrqgifHKkPG1&index=1&t=3s)_.
 
-        Bayes theorem provides a convenient way to calculate the probability
-        of a hypothesis event $H$ given evidence $E$:
+    Bayes theorem provides a convenient way to calculate the probability
+    of a hypothesis event $H$ given evidence $E$:
 
-        \[
-        P(H \mid E) = \frac{P(H) P(E \mid H)}{P(E)}.
-        \]
-
-
-        **The numerator.** The numerator is the probability of events $E$ and $H$ happening
-        together; that is,
-
-        \[
-           P(H) P(E \mid H) = P(E \cap H).
-        \]
-
-        **The denominator.**
-        In most calculations, it is helpful to rewrite the denominator $P(E)$ as 
-
-        \[
-        P(E) = P(H)P(E \mid H) + P(\neg H) P (E \mid \neg H),
-        \]
-
-        which in turn can also be written as
+    \[
+    P(H \mid E) = \frac{P(H) P(E \mid H)}{P(E)}.
+    \]
 
 
-        \[
-        P(E) = P(E \cap H) + P(E \cap \neg H).
-        \]
-        """
-    ).left()
+    **The numerator.** The numerator is the probability of events $E$ and $H$ happening
+    together; that is,
+
+    \[
+       P(H) P(E \mid H) = P(E \cap H).
+    \]
+
+    **The denominator.**
+    In most calculations, it is helpful to rewrite the denominator $P(E)$ as
+
+    \[
+    P(E) = P(H)P(E \mid H) + P(\neg H) P (E \mid \neg H),
+    \]
+
+    which in turn can also be written as
+
+
+    \[
+    P(E) = P(E \cap H) + P(E \cap \neg H).
+    \]
+    """)
     return
 
 
@@ -115,7 +113,7 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(p_e_given_h, p_e_given_not_h, p_h):
-    p_e = p_h.value*p_e_given_h.value + (1 - p_h.value)*p_e_given_not_h.value
+    p_e = p_h.value * p_e_given_h.value + (1 - p_h.value) * p_e_given_not_h.value
     bayes_result = p_h.value * p_e_given_h.value / p_e
     return bayes_result, p_e
 
@@ -128,7 +126,7 @@ def _(p_e_given_h, p_e_given_not_h, p_h):
         plt.axes()
 
         # Radius: 1, face-color: red, edge-color: blue
-        plt.figure(figsize=(6,6))
+        plt.figure(figsize=(6, 6))
         base = plt.Rectangle((0, 0), 1, 1, fc="black", ec="white", alpha=0.25)
         h = plt.Rectangle((0, 0), p_h.value, 1, fc="yellow", ec="white", label="H")
         e_given_h = plt.Rectangle(
@@ -141,7 +139,12 @@ def _(p_e_given_h, p_e_given_not_h, p_h):
             label="E",
         )
         e_given_not_h = plt.Rectangle(
-            (p_h.value, 0), 1 - p_h.value, p_e_given_not_h.value, fc="teal", ec="white", alpha=0.5
+            (p_h.value, 0),
+            1 - p_h.value,
+            p_e_given_not_h.value,
+            fc="teal",
+            ec="white",
+            alpha=0.5,
         )
         plt.gca().add_patch(base)
         plt.gca().add_patch(h)

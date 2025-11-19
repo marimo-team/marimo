@@ -8,6 +8,7 @@ import io
 import linecache
 import os
 import re
+import sys
 import textwrap
 import token as token_types
 import warnings
@@ -146,11 +147,17 @@ def fix_source_position(node: Any, source_position: SourcePosition) -> Any:
     return node
 
 
-def const_string(args: list[ast.stmt]) -> str:
+def _extract_const_string(args: list[ast.stmt]) -> str:
     (inner,) = args
-    if hasattr(inner, "values"):
-        (inner,) = inner.values
-    return f"{inner.value}"  # type: ignore[attr-defined]
+    # Various string types may need to be unpacked
+    if isinstance(inner, ast.JoinedStr) or (
+        sys.version_info >= (3, 14) and isinstance(inner, ast.TemplateStr)
+    ):
+        # But we only match if there is 1 entry.
+        (inner,) = inner.values  # type: ignore[attr-defined]
+    assert isinstance(inner, ast.Constant)
+    assert isinstance(inner.value, str)
+    return inner.value
 
 
 def const_or_id(args: ast.stmt) -> str:
@@ -171,7 +178,7 @@ def _extract_markdown(tree: ast.Module) -> Optional[str]:
         assert value.func.value.id == "mo"
         if not value.args:  # Handle mo.md() with no arguments
             return None
-        md_lines = const_string(value.args).split("\n")
+        md_lines = _extract_const_string(value.args).split("\n")
     except (AssertionError, AttributeError, ValueError):
         # No reason to explicitly catch exceptions if we can't parse out
         # markdown. Just handle it as a code block.

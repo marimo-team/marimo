@@ -56,6 +56,7 @@ module.exports = {
     "no-empty": "off", // → noEmptyBlockStatements in Biome
     "no-inner-declarations": "off", // → noInnerDeclarations in Biome
     "no-useless-constructor": "off", // → noUselessConstructor in Biome
+    "no-control-regex": "off", // → noControlRegex in Biome
     "no-var": "off", // → noVar in Biome
     "prefer-const": "off", // → useConst in Biome
     "prefer-template": "off", // → useTemplate in Biome

@@ -7,7 +7,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.17.8"
 app = marimo.App()
 
 
@@ -50,15 +50,19 @@ def _(mo):
 
 @app.cell
 def _(graph, mo):
-    mo.md(
-        f"""
-        You can render mermaid directly inside `mo.md`. Using
+    mo.mermaid(graph.value).text
+    return
 
-        `mo.mermaid()`
 
-        {mo.mermaid(graph.value)}
-        """
-    )
+@app.cell
+def _(graph, mo):
+    mo.md(f"""
+    You can render mermaid directly inside `mo.md`. Using
+
+    `mo.mermaid()`
+
+    {mo.mermaid(graph.value).text}
+    """)
     return
 
 

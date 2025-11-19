@@ -411,6 +411,38 @@ class SessionView:
         self.auto_export_state.mark_all_stale()
 
 
+def _merge_consecutive_console_outputs(
+    console: list[CellOutput],
+) -> list[CellOutput]:
+    """Merge consecutive text/plain outputs with the same channel."""
+    if not console:
+        return console
+
+    merged: list[CellOutput] = []
+
+    for output in console:
+        # Check if we can merge with the last output
+        if (
+            merged
+            and merged[-1].mimetype == "text/plain"
+            and output.mimetype == "text/plain"
+            and merged[-1].channel == output.channel
+            and isinstance(merged[-1].data, str)
+            and isinstance(output.data, str)
+        ):
+            # Merge by concatenating the data
+            merged[-1] = CellOutput(
+                channel=merged[-1].channel,
+                mimetype=merged[-1].mimetype,
+                data=merged[-1].data + output.data,
+                timestamp=merged[-1].timestamp,
+            )
+        else:
+            merged.append(output)
+
+    return merged
+
+
 def merge_cell_operation(
     previous: Optional[CellOp],
     next_: CellOp,
@@ -430,7 +462,7 @@ def merge_cell_operation(
     else:
         combined_console: list[CellOutput] = as_list(previous.console)
         combined_console.extend(as_list(next_.console))
-        next_.console = combined_console
+        next_.console = _merge_consecutive_console_outputs(combined_console)
 
     # If we went from running to running, use the previous timestamp.
     if next_.status == "running" and previous.status == "running":
