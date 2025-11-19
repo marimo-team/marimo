@@ -49,6 +49,10 @@ export function isUrl(value: unknown): boolean {
  * // Returns: "/?file=test.py#/about"
  *
  * @example
+ * appendQueryParams({ href: "#/about?existing=1", queryParams: "file=test.py" })
+ * // Returns: "#/about?existing=1&file=test.py"
+ *
+ * @example
  * appendQueryParams({ href: "/about?existing=1", queryParams: "file=test.py" })
  * // Returns: "/about?existing=1&file=test.py"
  *
@@ -90,8 +94,8 @@ export function appendQueryParams({
     // put query params on the main path before the hash: /?params#/route
     // This is common in SPAs where query params on the main URL need to be preserved
     const paramsToAdd = keys
-      ? Array.from(params.entries()).filter(([key]) => keys.includes(key))
-      : Array.from(params.entries());
+      ? [...params.entries()].filter(([key]) => keys.includes(key))
+      : [...params.entries()];
 
     const queryParams = new URLSearchParams();
     for (const [key, value] of paramsToAdd) {
@@ -132,8 +136,8 @@ export function appendQueryParams({
 
   // Filter params by keys if provided
   const paramsToAdd = keys
-    ? Array.from(params.entries()).filter(([key]) => keys.includes(key))
-    : Array.from(params.entries());
+    ? [...params.entries()].filter(([key]) => keys.includes(key))
+    : [...params.entries()];
 
   for (const [key, value] of paramsToAdd) {
     mergedParams.set(key, value);

@@ -98,6 +98,15 @@ describe("appendQueryParams", () => {
     expect(result).toBe("/about?file=test.py&mode=edit");
   });
 
+  it("should filter params by keys in the middle of the query string", () => {
+    const result = appendQueryParams({
+      href: "/about",
+      queryParams: "file=test.py&mode=edit&extra=data",
+      keys: ["file", "extra"],
+    });
+    expect(result).toBe("/about?file=test.py&extra=data");
+  });
+
   it("should preserve existing query params", () => {
     const result = appendQueryParams({
       href: "/about?existing=1",
