@@ -1627,7 +1627,7 @@ except NameError:
         assert m1["status"] == "queued"
         assert m2["status"] == "running"
         assert m3["status"] is None
-        assert m3["output"]["data"] == "<pre style='font-size: 12px'>1</pre>"
+        assert m3["output"]["data"] == "<pre class='text-xs'>1</pre>"
         assert m4["status"] == "idle"
         # Does not pollute globals
         assert "x" not in k.globals
@@ -1654,8 +1654,7 @@ except NameError:
         messages = stream.operations
         output_message = messages[-2]
         assert (
-            output_message["output"]["data"]
-            == "<pre style='font-size: 12px'>20</pre>"
+            output_message["output"]["data"] == "<pre class='text-xs'>20</pre>"
         )
         assert "z" in k.globals
         # Does not pollute globals
@@ -1683,8 +1682,7 @@ except NameError:
         messages = stream.operations
         output_message = messages[-2]
         assert (
-            output_message["output"]["data"]
-            == "<pre style='font-size: 12px'>20</pre>"
+            output_message["output"]["data"] == "<pre class='text-xs'>20</pre>"
         )
         assert "z" in k.globals
         # Does not pollute globals, reverts back to 10

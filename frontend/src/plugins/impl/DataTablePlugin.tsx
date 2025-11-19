@@ -63,6 +63,7 @@ import { type CellId, findCellId } from "@/core/cells/ids";
 import { slotsController } from "@/core/slots/slots";
 import { store } from "@/core/state/jotai";
 import { isStaticNotebook } from "@/core/static/static-state";
+import { isInVscodeExtension } from "@/core/vscode/is-in-vscode";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { useDeepCompareMemoize } from "@/hooks/useDeepCompareMemoize";
 import { useEffectSkipFirstRender } from "@/hooks/useEffectSkipFirstRender";
@@ -179,6 +180,7 @@ interface Data<T> {
   showDataTypes: boolean;
   showPageSizeSelector: boolean;
   showColumnExplorer: boolean;
+  showRowExplorer: boolean;
   showChartBuilder: boolean;
   rowHeaders: FieldTypesWithExternalType;
   fieldTypes?: FieldTypesWithExternalType | null;
@@ -250,6 +252,7 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
       showDataTypes: z.boolean().default(true),
       showPageSizeSelector: z.boolean().default(true),
       showColumnExplorer: z.boolean().default(true),
+      showRowExplorer: z.boolean().default(true),
       showChartBuilder: z.boolean().default(true),
       rowHeaders: columnToFieldTypesSchema,
       freezeColumnsLeft: z.array(z.string()).optional(),
@@ -718,6 +721,7 @@ const DataTableComponent = ({
   showDownload,
   showPageSizeSelector,
   showColumnExplorer,
+  showRowExplorer,
   showChartBuilder,
   showDataTypes,
   rowHeaders,
@@ -899,6 +903,8 @@ const DataTableComponent = ({
   const showColExplorer =
     showColumnExplorer && preview_column && isPanelOpen("column-explorer");
 
+  const isInVscode = isInVscodeExtension();
+
   return (
     <>
       {/* When the totalRows is "too_many" and the pageSize is the same as the
@@ -988,7 +994,10 @@ const DataTableComponent = ({
             toggleDisplayHeader={toggleDisplayHeader}
             showChartBuilder={showChartBuilder}
             showPageSizeSelector={showPageSizeSelector}
-            showColumnExplorer={showColumnExplorer}
+            // Hidden in VSCode (for now) because we don't have a panel to show
+            // the column/row explorer.
+            showColumnExplorer={showColumnExplorer && !isInVscode}
+            showRowExplorer={showRowExplorer && !isInVscode}
             togglePanel={togglePanel}
             isPanelOpen={isPanelOpen}
             viewedRowIdx={viewedRowIdx}

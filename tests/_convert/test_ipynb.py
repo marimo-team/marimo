@@ -388,6 +388,8 @@ def test_transform_exclamation_mark_complex():
         "!ls -l",
         "!echo 'Hello, World!'",
         "!python script.py arg1 arg2",
+        "!python -m pip3 install package1 package2",
+        "!uv pip install package1 package2",
     ]
     result = transform_exclamation_mark(sources)
     assert result.transformed_sources == [
@@ -395,6 +397,8 @@ def test_transform_exclamation_mark_complex():
         "#! ls -l\nsubprocess.call(['ls', '-l'])",
         "#! echo 'Hello, World!'\nsubprocess.call(['echo', 'Hello, World!'])",
         "#! python script.py arg1 arg2\nsubprocess.call(['python', 'script.py', 'arg1', 'arg2'])",
+        "# packages added via marimo's package management: package1 package2 !python -m pip3 install package1 package2",
+        "# packages added via marimo's package management: package1 package2 !uv pip install package1 package2",
     ]
 
 

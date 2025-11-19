@@ -89,9 +89,29 @@ class LazyWebsocketTransport extends Transport {
     data: JSONRPCRequestData,
     timeout: number | null | undefined,
   ) {
+    // If delegate is undefined, try to reconnect
+    if (!this.delegate) {
+      Logger.log("Copilot#sendData: Delegate not initialized, reconnecting...");
+      try {
+        await this.tryConnect();
+      } catch (error) {
+        Logger.error("Copilot#sendData: Failed to reconnect transport", error);
+        throw new Error(
+          "Unable to connect to GitHub Copilot. Please check your settings and try again.",
+        );
+      }
+    }
+
+    // After reconnection, delegate should be initialized
+    if (!this.delegate) {
+      throw new Error(
+        "Failed to initialize GitHub Copilot connection. Please try again.",
+      );
+    }
+
     // Clamp timeout to 5 seconds
     timeout = Math.min(timeout ?? 5000, 5000);
-    return this.delegate?.sendData(data, timeout);
+    return this.delegate.sendData(data, timeout);
   }
 }
 

@@ -1113,3 +1113,49 @@ class TestTransformHandler:
         )
         # Check that the transformations were applied correctly
         assert_frame_equal(result, expected)
+
+    @staticmethod
+    @pytest.mark.parametrize(
+        ("df", "expected"),
+        list(
+            zip(
+                create_test_dataframes(
+                    {"date": [date(2001, 1, 1), date(2001, 1, 2)]},
+                    exclude=["pyarrow"],
+                ),
+                create_test_dataframes(
+                    {"date": [date(2001, 1, 1)]}, exclude=["pyarrow"]
+                ),
+            )
+        ),
+    )
+    def test_filter_rows_date(
+        df: DataFrameType, expected: DataFrameType
+    ) -> None:
+        eq_transform = FilterRowsTransform(
+            type=TransformType.FILTER_ROWS,
+            operation="keep_rows",
+            where=[
+                Condition(
+                    column_id="date",
+                    operator="==",
+                    value="2001-01-01",
+                )
+            ],
+        )
+        result = apply(df, eq_transform)
+        assert_frame_equal(result, expected)
+
+        in_transform = FilterRowsTransform(
+            type=TransformType.FILTER_ROWS,
+            operation="keep_rows",
+            where=[
+                Condition(
+                    column_id="date",
+                    operator="in",
+                    value=["2001-01-01"],
+                )
+            ],
+        )
+        result = apply(df, in_transform)
+        assert_frame_equal(result, expected)
