@@ -2,11 +2,11 @@
 import { DatabaseIcon, DiamondPlusIcon, PlusIcon } from "lucide-react";
 import { Button } from "@/components/editor/inputs/Inputs";
 import {
-  ContextMenu,
-  ContextMenuContent,
-  ContextMenuItem,
-  ContextMenuTrigger,
-} from "@/components/ui/context-menu";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { maybeAddMarimoImport } from "@/core/cells/add-missing-import";
 import { useCellActions } from "@/core/cells/cells";
 import { LanguageAdapters } from "@/core/codemirror/language/LanguageAdapters";
@@ -29,26 +29,51 @@ export const CreateCellButton = ({
   tooltipContent: React.ReactNode;
   onClick: ((opts: { code: string; hideCode?: boolean }) => void) | undefined;
 }) => {
+  const { createNewCell, addSetupCellIfDoesntExist } = useCellActions();
+
   const baseTooltipContent =
     getConnectionTooltip(connectionState) || tooltipContent;
   const finalTooltipContent = isAppInteractionDisabled(connectionState) ? (
     baseTooltipContent
   ) : (
-    <div className="flex flex-col gap-4">
-      <div>{baseTooltipContent}</div>
-      <div className="text-xs text-muted-foreground font-medium pt-1 -mt-2 border-t border-border">
-        Right-click for cell types
-      </div>
-    </div>
+    <div>{baseTooltipContent}</div>
   );
 
+  const addPythonCell = () => {
+    onClick?.({ code: "" });
+  };
+
+  // NB: When adding the marimo import for markdown and SQL, we run it
+  // automatically regardless of whether autoinstantiate or lazy execution is
+  // enabled; the user experience is confusing otherwise (how does the user
+  // know they need to run import marimo as mo. first?).
+  const addMarkdownCell = () => {
+    maybeAddMarimoImport({ autoInstantiate: true, createNewCell });
+    onClick?.({
+      code: LanguageAdapters.markdown.defaultCode,
+      hideCode: true,
+    });
+  };
+
+  const addSQLCell = () => {
+    maybeAddMarimoImport({ autoInstantiate: true, createNewCell });
+    onClick?.({ code: LanguageAdapters.sql.defaultCode });
+  };
+
+  const addSetupCell = () => {
+    addSetupCellIfDoesntExist({});
+  };
+
+  const renderIcon = (icon: React.ReactNode) => {
+    return <div className="mr-3 text-muted-foreground">{icon}</div>;
+  };
+
   return (
-    <CreateCellButtonContextMenu onClick={onClick}>
-      <Tooltip content={finalTooltipContent}>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild={true}>
         <Button
-          onClick={() => onClick?.({ code: "" })}
           className={cn(
-            "shoulder-button hover-action border-none shadow-none! bg-transparent!",
+            "shoulder-button hover-action border-none shadow-none! bg-transparent! focus-visible:outline-none",
             isAppInteractionDisabled(connectionState) && " inactive-button",
           )}
           onMouseDown={Events.preventFocus}
@@ -56,91 +81,33 @@ export const CreateCellButton = ({
           color="hint-green"
           data-testid="create-cell-button"
         >
-          <PlusIcon
-            strokeWidth={3.2}
-            size={16}
-            className="opacity-60 hover:opacity-90"
-          />
+          <Tooltip content={finalTooltipContent}>
+            <PlusIcon
+              strokeWidth={3.2}
+              size={16}
+              className="opacity-60 hover:opacity-90"
+            />
+          </Tooltip>
         </Button>
-      </Tooltip>
-    </CreateCellButtonContextMenu>
-  );
-};
-
-const CreateCellButtonContextMenu = (props: {
-  onClick: ((opts: { code: string; hideCode?: boolean }) => void) | undefined;
-  children: React.ReactNode;
-}) => {
-  const { children, onClick } = props;
-  const { createNewCell, addSetupCellIfDoesntExist } = useCellActions();
-
-  if (!onClick) {
-    return children;
-  }
-
-  // NB: When adding the marimo import for markdown and SQL, we run it
-  // automatically regardless of whether autoinstantiate or lazy execution is
-  // enabled; the user experience is confusing otherwise (how does the user
-  // know they need to run import marimo as mo. first?).
-  return (
-    <ContextMenu>
-      <ContextMenuTrigger>{children}</ContextMenuTrigger>
-      <ContextMenuContent>
-        <ContextMenuItem
-          key="python"
-          onSelect={(evt) => {
-            evt.stopPropagation();
-            onClick({ code: "" });
-          }}
-        >
-          <div className="mr-3 text-muted-foreground">
-            <PythonIcon />
-          </div>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent>
+        <DropdownMenuItem onClick={addPythonCell}>
+          {renderIcon(<PythonIcon />)}
           Python cell
-        </ContextMenuItem>
-
-        <ContextMenuItem
-          key="markdown"
-          onSelect={(evt) => {
-            evt.stopPropagation();
-            maybeAddMarimoImport({ autoInstantiate: true, createNewCell });
-            onClick({
-              code: LanguageAdapters.markdown.defaultCode,
-              hideCode: true,
-            });
-          }}
-        >
-          <div className="mr-3 text-muted-foreground">
-            <MarkdownIcon />
-          </div>
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={addMarkdownCell}>
+          {renderIcon(<MarkdownIcon />)}
           Markdown cell
-        </ContextMenuItem>
-        <ContextMenuItem
-          key="sql"
-          onSelect={(evt) => {
-            evt.stopPropagation();
-            maybeAddMarimoImport({ autoInstantiate: true, createNewCell });
-            onClick({ code: LanguageAdapters.sql.defaultCode });
-          }}
-        >
-          <div className="mr-3 text-muted-foreground">
-            <DatabaseIcon size={13} strokeWidth={1.5} />
-          </div>
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={addSQLCell}>
+          {renderIcon(<DatabaseIcon size={13} strokeWidth={1.5} />)}
           SQL cell
-        </ContextMenuItem>
-        <ContextMenuItem
-          key="setup"
-          onSelect={(evt) => {
-            evt.stopPropagation();
-            addSetupCellIfDoesntExist({});
-          }}
-        >
-          <div className="mr-3 text-muted-foreground">
-            <DiamondPlusIcon size={13} strokeWidth={1.5} />
-          </div>
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={addSetupCell}>
+          {renderIcon(<DiamondPlusIcon size={13} strokeWidth={1.5} />)}
           Setup cell
-        </ContextMenuItem>
-      </ContextMenuContent>
-    </ContextMenu>
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 };
