@@ -8,6 +8,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Events } from "@/utils/events";
+import { MarkdownRenderer } from "../chat/markdown-renderer";
 
 const urlRegex = /(https?:\/\/\S+)/;
 const imageRegex = /\.(png|jpe?g|gif|webp|svg|ico)(\?.*)?$/i;
@@ -138,4 +139,18 @@ const URLAnchor = ({ url }: { url: string }) => {
       {url}
     </a>
   );
+};
+
+// Wrapper component so that we call isMarkdown only on trigger
+export const MarkdownUrlDetector = ({
+  content,
+  parts,
+}: {
+  content: string;
+  parts: ContentPart[];
+}) => {
+  if (isMarkdown(content)) {
+    return <MarkdownRenderer content={content} />;
+  }
+  return <UrlDetector parts={parts} />;
 };
