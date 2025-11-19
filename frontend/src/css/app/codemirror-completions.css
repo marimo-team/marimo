@@ -6,12 +6,14 @@
   .cm-tooltip-autocomplete {
     /* CodeMirror's default is too wide. */
     max-width: 250px;
+
     @apply bg-popover shadow-md border border-border;
   }
 
   /* Autocomplete list */
   .cm-tooltip-autocomplete > ul {
     @apply max-h-[300px] overflow-y-auto;
+
     scrollbar-width: thin;
     min-width: unset;
   }
@@ -22,6 +24,7 @@
     padding-right: 6px;
     height: 18px;
     min-width: 60px;
+
     @apply flex items-center gap-2 cursor-pointer;
   }
 
@@ -29,6 +32,7 @@
     padding-top: 1px;
     padding-bottom: 1px;
     padding-right: 12px;
+
     @apply text-xs font-mono;
   }
 
@@ -61,6 +65,7 @@
     font-weight: bold;
     opacity: 0.9;
     padding: 0 1px;
+
     /* Default colors */
     color: var(--gray-11);
     background-color: var(--gray-3);
@@ -206,6 +211,7 @@
 
   .cm-completionDetail {
     font-style: normal;
+
     @apply text-xs text-muted-foreground;
   }
 
@@ -272,6 +278,7 @@
   overflow-y: auto;
   max-height: 400px;
   scrollbar-width: thin;
+
   @apply bg-popover shadow-md border border-border rounded-md text-sm;
 
   .cm-signature {
@@ -307,6 +314,7 @@
   code:not(:empty) {
     width: 100%;
     white-space: pre-wrap;
+
     @apply bg-[var(--slate-2)] border rounded-sm px-1 font-mono;
   }
 
@@ -314,6 +322,7 @@
     width: 100%;
     display: inline-block;
     white-space: pre-wrap;
+
     @apply bg-[var(--slate-2)] border p-2 rounded-md font-mono text-sm my-2;
   }
 

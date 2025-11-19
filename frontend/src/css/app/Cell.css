@@ -30,7 +30,7 @@
     border-radius: 10px;
     pointer-events: none;
     opacity: 0.5;
-    box-shadow: 0px 0px 10px 0px var(--cyan-9);
+    box-shadow: 0 0 10px 0 var(--cyan-9);
     z-index: 1;
   }
 
@@ -53,7 +53,7 @@
       border-radius: 10px;
       pointer-events: none;
       opacity: 0.6;
-      box-shadow: 0px 0px 10px 0px var(--red-9);
+      box-shadow: 0 0 10px 0 var(--red-9);
       z-index: 1;
     }
 
@@ -179,6 +179,7 @@
   &.has-error,
   &.error-outline {
     outline: 1px solid var(--red-4);
+
     @apply shadow-md-solid shadow-[var(--red-8)];
   }
 
@@ -202,6 +203,7 @@
   &.needs-run {
     /* TODO(akshayka): Can give this an outline to make more visible. */
     outline: none;
+
     @apply divide-stale shadow-md-solid shadow-stale;
 
     &:hover {
@@ -282,6 +284,7 @@
 
     &:hover {
       border: 1px solid var(--gray-4);
+
       @apply shadow-sm-solid shadow-shade;
     }
   }
@@ -323,6 +326,7 @@
 
     &:hover {
       border: 1px solid var(--gray-4);
+
       @apply shadow-sm-solid shadow-shade;
     }
   }
@@ -399,6 +403,7 @@
 
 :root {
   /* Set a fixed gutter width to ensure the hover area is always wide enough */
+
   /* And make the gutter bigger when the window is super wide */
   --gutter-width: 100px;
 }
@@ -468,7 +473,6 @@
      * the editor. */
   clear: both;
   display: flow-root;
-
   overflow: auto;
 }
 

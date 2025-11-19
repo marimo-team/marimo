@@ -14,11 +14,12 @@
 
   .auto-collapse-nav .paragraph iconify-icon {
     visibility: visible;
+
     @apply text-xl;
+
     line-height: 1;
     margin: 0;
-    margin-inline-end: 0 !important;
-    margin-inline-start: 0 !important;
+    margin-inline: 0 !important;
   }
 
   .auto-collapse-nav li > * {

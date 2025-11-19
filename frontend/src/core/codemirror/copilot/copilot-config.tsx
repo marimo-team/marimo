@@ -27,7 +27,7 @@ export const CopilotConfig = memo(() => {
       const result = await initiateSignIn();
 
       // Validate the response has required fields
-      if (!result || !result.verificationUri || !result.userCode) {
+      if (!result?.verificationUri || !result.userCode) {
         Logger.error("Copilot#trySignIn: Invalid response from sign-in", {
           result,
         });

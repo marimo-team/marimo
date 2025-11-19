@@ -28,8 +28,7 @@ body.printing #App {
   #App {
     /* Full screen print */
     height: fit-content !important;
-    overflow-y: visible !important;
-    overflow-x: hidden !important;
+    overflow: hidden visible !important;
   }
 
   h1,

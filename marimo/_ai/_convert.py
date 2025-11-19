@@ -466,6 +466,77 @@ def _extract_data(url: str) -> str:
         return url
 
 
+def _simplify_schema_for_google(schema: dict[str, Any]) -> dict[str, Any]:
+    def _merge_union(branches: list[dict[str, Any]]) -> dict[str, Any]:
+        types: set[str] = set()
+        enums: set[Any] = set()
+        for branch in branches:
+            branch = _simplify_schema_for_google(branch)
+            branch_type = branch.get("type")
+            if isinstance(branch_type, str):
+                types.add(branch_type)
+            enum_vals = branch.get("enum")
+            if isinstance(enum_vals, list):
+                enums.update(enum_vals)
+        if len(types) == 1:
+            merged: dict[str, Any] = {"type": next(iter(types))}
+            if enums:
+                merged["enum"] = sorted(enums)
+            return merged
+        # Heterogeneous types: fall back to a generic object.
+        return {"type": "object"}
+
+    if not isinstance(schema, dict):
+        return schema
+
+    simplified: dict[str, Any] = {}
+
+    # First, handle const -> enum where possible.
+    const_value = schema.get("const")
+    if const_value is not None:
+        simplified["enum"] = [const_value]
+
+    # Handle oneOf/anyOf unions.
+    for union_key in ("oneOf", "anyOf"):
+        if union_key in schema and isinstance(schema[union_key], list):
+            branches = [
+                b for b in schema[union_key] if isinstance(b, dict)
+            ]
+            if branches:
+                merged = _merge_union(branches)
+                simplified.update(merged)
+            # Do not keep the original union key; Gemini rejects it.
+
+    # Copy through other keys, recursing into nested schemas.
+    for key, value in schema.items():
+        if key in {"const", "oneOf", "anyOf"}:
+            continue
+        if key == "properties" and isinstance(value, dict):
+            simplified_props: dict[str, Any] = {}
+            for prop_name, prop_schema in value.items():
+                if isinstance(prop_schema, dict):
+                    simplified_props[prop_name] = _simplify_schema_for_google(
+                        prop_schema
+                    )
+                else:
+                    simplified_props[prop_name] = prop_schema
+            simplified[key] = simplified_props
+        elif key == "items" and isinstance(value, dict):
+            simplified[key] = _simplify_schema_for_google(value)
+        else:
+            simplified[key] = value
+
+    # Ensure there is always a top-level type for Gemini.
+    if "type" not in simplified:
+        if "properties" in simplified:
+            simplified["type"] = "object"
+        elif "enum" in simplified:
+            # Assume string enums by default.
+            simplified["type"] = "string"
+
+    return simplified
+
+
 def convert_to_ai_sdk_messages(
     content_text: Union[str, dict[str, Any]],
     content_type: Literal[
@@ -595,13 +666,19 @@ def convert_to_google_tools(
                 {
                     "name": tool.name,
                     "description": tool.description,
-                    "parameters": {
-                        # Pydantic will raise validation errors if unknown keys are present
-                        # So we only include necessary keys
-                        "type": tool.parameters.get("type", "object"),
-                        "properties": tool.parameters.get("properties", {}),
-                        "required": tool.parameters.get("required", []),
-                    },
+                    "parameters": _simplify_schema_for_google(
+                        {
+                            # Pydantic will raise validation errors if unknown keys are present
+                            # So we only include necessary keys
+                            "type": tool.parameters.get("type", "object"),
+                            "properties": tool.parameters.get(
+                                "properties", {}
+                            ),
+                            "required": tool.parameters.get(
+                                "required", []
+                            ),
+                        }
+                    ),
                 }
             ]
         }
