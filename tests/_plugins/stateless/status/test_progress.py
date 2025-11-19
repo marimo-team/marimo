@@ -67,6 +67,33 @@ def test_update_progress(mock_flush: Any) -> None:
     mock_flush.assert_called_once()
 
 
+# Test update_progress method slow
+@patch("marimo._runtime.output._output.flush")
+def test_update_progress_slowly(mock_flush: Any) -> None:
+    progress = _Progress(
+        title="Test",
+        subtitle="Running Slowly",
+        total=5,
+        show_rate=True,
+        show_eta=True,
+    )
+    # sleep 12s
+    time.sleep(12)
+    progress.update_progress(
+        increment=1, title="Updated", subtitle="Still Running Slowly"
+    )
+    assert progress.current == 1
+    assert progress.title == "Updated"
+    assert progress.subtitle == "Still Running Slowly"
+    rate = progress._get_rate()
+    assert rate is not None
+    assert rate > 0.0
+    eta = progress._get_eta()
+    assert eta is not None
+    assert eta > 0.0
+    mock_flush.assert_called_once()
+
+
 # Test update_progress without arguments
 @patch("marimo._runtime.output._output.flush")
 def test_update_progress_no_args(mock_flush: Any) -> None:

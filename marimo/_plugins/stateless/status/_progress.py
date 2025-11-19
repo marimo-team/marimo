@@ -135,7 +135,9 @@ class _Progress(Html):
         if diff == 0:
             return None
         rate = self.current / diff
-        return round(rate, 2)
+        # If rate is less than 1, return as is (e.g., 0.5)
+        # As the UI will format it as "2s per iter"
+        return round(rate, 2) if rate >= 1 else rate
 
     def _get_rate(self) -> Optional[float]:
         if self.show_rate:
@@ -309,7 +311,7 @@ class progress_bar(Generic[S]):
         completion_title (str, optional): Optional title to show during completion.
         completion_subtitle (str, optional): Optional subtitle to show during completion.
         total (int, optional): Optional total number of items to iterate over.
-        show_rate (bool, optional): If True, show the rate of progress (items per second).
+        show_rate (bool, optional): If True, show the rate of progress (items per second or duration per iteration).
         show_eta (bool, optional): If True, show the estimated time of completion.
         remove_on_exit (bool, optional): If True, remove the progress bar from output on exit.
         disabled (bool, optional): If True, disable the progress bar.
