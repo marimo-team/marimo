@@ -48,16 +48,19 @@ export const CreateCellButton = ({
         <Button
           onClick={() => onClick?.({ code: "" })}
           className={cn(
-            "shoulder-button hover-action",
+            "shoulder-button hover-action border-none shadow-none! bg-transparent!",
             isAppInteractionDisabled(connectionState) && " inactive-button",
           )}
           onMouseDown={Events.preventFocus}
-          shape="circle"
           size="small"
           color="hint-green"
           data-testid="create-cell-button"
         >
-          <PlusIcon strokeWidth={1.8} />
+          <PlusIcon
+            strokeWidth={3.2}
+            size={16}
+            className="opacity-60 hover:opacity-90"
+          />
         </Button>
       </Tooltip>
     </CreateCellButtonContextMenu>

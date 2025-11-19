@@ -580,6 +580,7 @@ const EditableCellComponent = ({
             ref={cellContainerRef}
             {...cellDomProps(cellId, cellData.name)}
           >
+            <CellLeftSideActions cellId={cellId} actions={actions} />
             {cellOutput === "above" && outputArea}
             <div className={cn("tray")} data-hidden={isMarkdownCodeHidden}>
               <StagedAICellBackground cellId={cellId} />
@@ -598,17 +599,6 @@ const EditableCellComponent = ({
                   onRun={runCell}
                 />
               </div>
-              <CellLeftSideActions
-                cellId={cellId}
-                className={cn(
-                  isMarkdownCodeHidden && hasOutputAbove && "-top-7",
-                  isMarkdownCodeHidden && hasOutputBelow && "-bottom-8",
-                  isMarkdownCodeHidden &&
-                    isCellButtonsInline &&
-                    "-left-[3.8rem]",
-                )}
-                actions={actions}
-              />
               <CellEditor
                 theme={theme}
                 showPlaceholder={showPlaceholder}
@@ -840,21 +830,26 @@ const CellLeftSideActions = memo(
     return (
       <div
         className={cn(
-          "absolute flex flex-col gap-[2px] justify-center h-full left-[-34px] z-20",
+          "absolute flex flex-col justify-center h-full left-[-26px] z-20 border-b-0!",
           className,
         )}
       >
-        <CreateCellButton
-          tooltipContent={renderShortcut("cell.createAbove")}
-          connectionState={connection.state}
-          onClick={isConnected ? createAbove : undefined}
-        />
+        <div className="-mt-1">
+          <CreateCellButton
+            tooltipContent={renderShortcut("cell.createAbove")}
+            connectionState={connection.state}
+            onClick={isConnected ? createAbove : undefined}
+          />
+        </div>
         <div className="flex-1" />
-        <CreateCellButton
-          tooltipContent={renderShortcut("cell.createBelow")}
-          connectionState={connection.state}
-          onClick={isConnected ? createBelow : undefined}
-        />
+        {/* <div className="flex-1 bg-border w-px mx-auto hover-action opacity-70" /> */}
+        <div className="-mb-2">
+          <CreateCellButton
+            tooltipContent={renderShortcut("cell.createBelow")}
+            connectionState={connection.state}
+            onClick={isConnected ? createBelow : undefined}
+          />
+        </div>
       </div>
     );
   },
