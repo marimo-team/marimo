@@ -499,9 +499,7 @@ def _simplify_schema_for_google(schema: dict[str, Any]) -> dict[str, Any]:
     # Handle oneOf/anyOf unions.
     for union_key in ("oneOf", "anyOf"):
         if union_key in schema and isinstance(schema[union_key], list):
-            branches = [
-                b for b in schema[union_key] if isinstance(b, dict)
-            ]
+            branches = [b for b in schema[union_key] if isinstance(b, dict)]
             if branches:
                 merged = _merge_union(branches)
                 simplified.update(merged)
@@ -674,9 +672,7 @@ def convert_to_google_tools(
                             "properties": tool.parameters.get(
                                 "properties", {}
                             ),
-                            "required": tool.parameters.get(
-                                "required", []
-                            ),
+                            "required": tool.parameters.get("required", []),
                         }
                     ),
                 }
