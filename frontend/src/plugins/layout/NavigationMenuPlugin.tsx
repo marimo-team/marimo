@@ -14,11 +14,13 @@ import {
 import { Tooltip, TooltipProvider } from "@/components/ui/tooltip";
 import { renderHTML } from "@/plugins/core/RenderHTML";
 import { cn } from "@/utils/cn";
+import { appendQueryParams } from "@/utils/urls";
 import type {
   IStatelessPlugin,
   IStatelessPluginProps,
 } from "../stateless-plugin";
 import "./navigation-menu.css";
+import { KnownQueryParams } from "@/core/constants";
 
 interface MenuItem {
   label: string;
@@ -99,6 +101,15 @@ const NavMenuComponent = ({
     return "_self";
   };
 
+  const preserveQueryParams = (href: string) => {
+    const currentUrl = new URL(globalThis.location.href);
+    return appendQueryParams({
+      href,
+      queryParams: currentUrl.search,
+      keys: [KnownQueryParams.filePath],
+    });
+  };
+
   const renderMenuItem = (item: MenuItem | MenuItemGroup) => {
     if ("items" in item) {
       return orientation === "horizontal" ? (
@@ -113,7 +124,7 @@ const NavMenuComponent = ({
                   <ListItem
                     key={subItem.label}
                     label={subItem.label}
-                    href={subItem.href}
+                    href={preserveQueryParams(subItem.href)}
                     target={target(subItem.href)}
                   >
                     {subItem.description &&
@@ -142,7 +153,7 @@ const NavMenuComponent = ({
                 {maybeWithTooltip(
                   <NavigationMenuLink
                     key={subItem.label}
-                    href={subItem.href}
+                    href={preserveQueryParams(subItem.href)}
                     target={target(subItem.href)}
                     className={navigationMenuTriggerStyle({
                       orientation: orientation,
@@ -162,7 +173,7 @@ const NavMenuComponent = ({
     return (
       <NavigationMenuItem key={item.label}>
         <NavigationMenuLink
-          href={item.href}
+          href={preserveQueryParams(item.href)}
           target={target(item.href)}
           className={navigationMenuTriggerStyle({
             orientation: orientation,

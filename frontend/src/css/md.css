@@ -78,6 +78,11 @@ a .markdown iconify-icon:first-child {
   margin-inline-end: 0.4em;
 }
 
+/* make links and their contents inline-flex to avoid extra gaps */
+a > .markdown > .paragraph {
+  display: inline-flex;
+}
+
 iconify-icon {
   display: inline-flex;
   align-items: center;
