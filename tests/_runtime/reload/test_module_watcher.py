@@ -536,3 +536,143 @@ async def test_reload_function_in_import_block(
     assert not k.graph.cells[er_3.cell_id].stale
     assert k.globals["x"] == 2
     assert k.globals["y"] == y
+
+
+class TestIsSubmodule:
+    """Unit tests for the is_submodule utility function"""
+
+    def test_parent_child_relationship(self):
+        from marimo._runtime.reload.module_watcher import is_submodule
+
+        # Parent is a submodule of child
+        assert is_submodule("marimo", "marimo.plugins")
+        assert is_submodule("marimo.plugins", "marimo.plugins.ui")
+        assert is_submodule("a.b", "a.b.c.d")
+
+    def test_exact_match(self):
+        from marimo._runtime.reload.module_watcher import is_submodule
+
+        # Module is a submodule of itself
+        assert is_submodule("marimo", "marimo")
+        assert is_submodule("marimo.plugins", "marimo.plugins")
+        assert is_submodule("a.b.c", "a.b.c")
+
+    def test_not_submodule(self):
+        from marimo._runtime.reload.module_watcher import is_submodule
+
+        # Different modules
+        assert not is_submodule("marimo", "numpy")
+        assert not is_submodule("marimo.plugins", "marimo.runtime")
+        assert not is_submodule("a.b.c", "a.b.d")
+
+    def test_longer_src_than_target(self):
+        from marimo._runtime.reload.module_watcher import is_submodule
+
+        # Src is longer than target - can't be parent
+        assert not is_submodule("marimo.plugins.ui", "marimo.plugins")
+        assert not is_submodule("marimo.plugins", "marimo")
+        assert not is_submodule("a.b.c", "a.b")
+
+    def test_similar_names_not_submodule(self):
+        from marimo._runtime.reload.module_watcher import is_submodule
+
+        # Make sure "foo" doesn't match "foobar"
+        assert not is_submodule("foo", "foobar")
+        assert not is_submodule("marimo", "marimo_extra")
+        assert not is_submodule("a.b", "a.bc")
+
+    def test_empty_strings(self):
+        from marimo._runtime.reload.module_watcher import is_submodule
+
+        # Edge cases with empty strings
+        assert is_submodule("", "")
+        # Empty string is not a valid parent module
+        assert not is_submodule("", "marimo")
+        assert not is_submodule("marimo", "")
+
+
+class TestIsThirdPartyModule:
+    """Unit tests for the _is_third_party_module utility function"""
+
+    def test_module_without_file(self):
+        import types
+
+        from marimo._runtime.reload.module_watcher import (
+            _is_third_party_module,
+        )
+
+        # Module without __file__ attribute
+        mod = types.ModuleType("test_module")
+        assert not _is_third_party_module(mod)
+
+    def test_module_with_none_file(self):
+        import types
+
+        from marimo._runtime.reload.module_watcher import (
+            _is_third_party_module,
+        )
+
+        # Module with __file__ = None
+        mod = types.ModuleType("test_module")
+        mod.__file__ = None
+        assert not _is_third_party_module(mod)
+
+    def test_site_packages_module(self):
+        import types
+
+        from marimo._runtime.reload.module_watcher import (
+            _is_third_party_module,
+        )
+
+        # Module in site-packages
+        mod = types.ModuleType("test_module")
+        mod.__file__ = "/usr/lib/python3.10/site-packages/numpy/__init__.py"
+        assert _is_third_party_module(mod)
+
+    def test_local_module(self):
+        import types
+
+        from marimo._runtime.reload.module_watcher import (
+            _is_third_party_module,
+        )
+
+        # Local module not in site-packages
+        mod = types.ModuleType("test_module")
+        mod.__file__ = "/home/user/project/mymodule.py"
+        assert not _is_third_party_module(mod)
+
+    def test_site_packages_in_path_but_not_directory(self):
+        import types
+
+        from marimo._runtime.reload.module_watcher import (
+            _is_third_party_module,
+        )
+
+        # Edge case: "site-packages" appears in filename but not as directory
+        mod = types.ModuleType("test_module")
+        mod.__file__ = "/home/user/site-packages.py"
+        assert _is_third_party_module(mod)
+
+    def test_actual_third_party_module(self):
+        from marimo._runtime.reload.module_watcher import (
+            _is_third_party_module,
+        )
+
+        # Test with an actual third-party module if available
+        try:
+            import pytest
+
+            # pytest should be in site-packages
+            assert _is_third_party_module(pytest)
+        except ImportError:
+            pytest.skip("pytest not available")
+
+    def test_builtin_module(self):
+        import sys
+
+        from marimo._runtime.reload.module_watcher import (
+            _is_third_party_module,
+        )
+
+        # Builtin modules typically don't have __file__ or have None
+        assert not _is_third_party_module(sys)
