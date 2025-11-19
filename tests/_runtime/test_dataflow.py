@@ -1445,7 +1445,9 @@ def test_prune_cells_for_overrides_single_cell() -> None:
     execution_order = ["0", "1", "2"]
 
     # Override x - should prune cell 0
-    result = dataflow.prune_cells_for_overrides(graph, execution_order, {"x": 100})
+    result = dataflow.prune_cells_for_overrides(
+        graph, execution_order, {"x": 100}
+    )
     assert result == ["1", "2"]
 
 
@@ -1537,7 +1539,9 @@ def test_prune_cells_for_overrides_partial_override() -> None:
     execution_order = ["0", "1", "2"]
 
     # Override only x - should prune only cell 0
-    result = dataflow.prune_cells_for_overrides(graph, execution_order, {"x": 100})
+    result = dataflow.prune_cells_for_overrides(
+        graph, execution_order, {"x": 100}
+    )
     assert result == ["1", "2"]
 
 
@@ -1581,5 +1585,7 @@ def test_prune_cells_for_overrides_preserves_order() -> None:
     execution_order = ["0", "1", "2", "3"]
 
     # Override b - should prune only cell 1, preserving order
-    result = dataflow.prune_cells_for_overrides(graph, execution_order, {"b": 100})
+    result = dataflow.prune_cells_for_overrides(
+        graph, execution_order, {"b": 100}
+    )
     assert result == ["0", "2", "3"]

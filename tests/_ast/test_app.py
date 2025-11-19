@@ -1150,6 +1150,108 @@ class TestAppComposition:
         assert result.defs["y"] == 10  # y cell still ran
         assert "x=100, y=10" in result.output.text
 
+    async def test_app_embed_with_defs_stale_outputs(self) -> None:
+        """Test that embed() doesn't return stale cached outputs with different defs."""
+        app = App()
+
+        @app.cell
+        def __() -> tuple[int]:
+            x = 10
+            return (x,)
+
+        @app.cell
+        def __(x: int) -> None:
+            "x is small" if x == 10 else "x is large"
+
+        # First call - no override
+        result_initial = await app.embed()
+        assert result_initial.defs["x"] == 10
+        assert "x is small" in result_initial.output.text
+
+        # Second call - with first override
+        result_override = await app.embed(defs={"x": 100})
+        assert result_override.defs["x"] == 100
+        assert "x is large" in result_override.output.text
+        assert "x is small" not in result_override.output.text
+
+        # Third call - with second override
+        result_override2 = await app.embed(defs={"x": 200})
+        assert result_override2.defs["x"] == 200
+        assert "x is large" in result_override2.output.text
+        assert "x is small" not in result_override2.output.text
+
+        # Check that initial result wasn't mutated by subsequent calls
+        assert result_initial.defs["x"] == 10
+        assert "x is small" in result_initial.output.text
+        assert "x is large" not in result_initial.output.text
+
+    async def test_app_embed_with_defs_stale_outputs_kernel(
+        self, k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        """Test embed() with different defs through kernel (tests caching code path)."""
+        await k.run(
+            [
+                exec_req.get(
+                    """
+                    from marimo import App
+
+                    app = App()
+
+                    @app.cell
+                    def __() -> tuple[int]:
+                        x = 10
+                        return (x,)
+
+                    @app.cell
+                    def __(x: int) -> None:
+                        "x is small" if x == 10 else "x is large"
+                    """
+                ),
+                exec_req.get(
+                    """
+                    # First call - no override
+                    result_initial = await app.embed()
+                    """
+                ),
+                exec_req.get(
+                    """
+                    # Second call - with first override
+                    result_override = await app.embed(defs={"x": 100})
+                    """
+                ),
+                exec_req.get(
+                    """
+                    # Third call - with second override
+                    result_override2 = await app.embed(defs={"x": 200})
+                    """
+                ),
+            ]
+        )
+        assert not k.errors
+
+        result_initial = k.globals["result_initial"]
+        result_override = k.globals["result_override"]
+        result_override2 = k.globals["result_override2"]
+
+        # Check first result - output then defs
+        assert "x is small" in result_initial.output.text
+        assert result_initial.defs["x"] == 10
+
+        # Check second result with first override - output then defs
+        assert "x is large" in result_override.output.text
+        assert "x is small" not in result_override.output.text
+        assert result_override.defs["x"] == 100
+
+        # Check third result with second override - output then defs
+        assert "x is large" in result_override2.output.text
+        assert "x is small" not in result_override2.output.text
+        assert result_override2.defs["x"] == 200
+
+        # Check that initial result wasn't mutated by subsequent calls
+        assert "x is small" in result_initial.output.text
+        assert "x is large" not in result_initial.output.text
+        assert result_initial.defs["x"] == 10
+
     @pytest.mark.xfail(
         True, reason="Flaky in CI, can't repro locally", strict=False
     )

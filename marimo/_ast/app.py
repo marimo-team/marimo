@@ -336,15 +336,15 @@ class App:
 
         ```
         @app.cell
-        def __(mo):
+        def _(mo):
             # ...
 
         @app.cell()
-        def __(mo):
+        def _(mo):
             # ...
 
         @app.cell(disabled=True)
-        def __(mo):
+        def _(mo):
             # ...
         ```
 
@@ -759,7 +759,6 @@ class App:
     async def embed(
         self,
         defs: dict[str, Any] | None = None,
-        **kwargs: Any,
     ) -> AppEmbedResult:
         """Embed a notebook into another notebook.
 
@@ -823,8 +822,6 @@ class App:
                 arguments. marimo will use these values instead of executing
                 the cells that would normally define them. Cells that depend
                 on these variables will use your provided values.
-            **kwargs (Any):
-                For forward-compatibility with future arguments.
 
         Returns:
             An object `result` with two attributes: `result.output` (visual
@@ -832,7 +829,6 @@ class App:
             variable names defined by the notebook to their values).
 
         """
-        del kwargs
         from marimo._plugins.stateless.flex import vstack
         from marimo._runtime.context.utils import running_in_notebook
 
