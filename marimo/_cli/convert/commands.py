@@ -64,7 +64,7 @@ def convert(
 
     You can also pass global flags to the command line app.
     For example, you can add the `-q` flag to make the command quiet or the `-y` flag
-    to automatically accept prompts any command.
+    to automatically accept all prompts of the command.
 
         marimo -q -y convert script.py -o your_nb.py
 
