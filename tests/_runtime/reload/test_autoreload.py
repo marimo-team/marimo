@@ -124,10 +124,10 @@ class TestModuleDependencyFinder:
         from tests._runtime.reload.reload_data import a, b, c, d
 
         finder = ModuleDependencyFinder()
-        a_deps = set(list(finder.find_dependencies(a, excludes=[]).keys()))
-        b_deps = set(list(finder.find_dependencies(b, excludes=[]).keys()))
-        c_deps = set(list(finder.find_dependencies(c, excludes=[]).keys()))
-        d_deps = set(list(finder.find_dependencies(d, excludes=[]).keys()))
+        a_deps = set(list(finder.find_dependencies(a, excludes=set()).keys()))
+        b_deps = set(list(finder.find_dependencies(b, excludes=set()).keys()))
+        c_deps = set(list(finder.find_dependencies(c, excludes=set()).keys()))
+        d_deps = set(list(finder.find_dependencies(d, excludes=set()).keys()))
 
         assert a_deps == set(["__main__", "reload_data", "reload_data.c"])
         assert b_deps == set(["__main__", "reload_data", "reload_data.d"])
@@ -140,7 +140,7 @@ class TestModuleDependencyFinder:
         finder = ModuleDependencyFinder()
         assert not finder.cached(a)
 
-        finder.find_dependencies(a, excludes=[])
+        finder.find_dependencies(a, excludes=set())
         assert finder.cached(a)
 
         finder.evict_from_cache(a)
@@ -150,7 +150,7 @@ class TestModuleDependencyFinder:
         """Test handling modules without __file__ attribute"""
         finder = ModuleDependencyFinder()
         mod = types.ModuleType("test_no_file")
-        deps = finder.find_dependencies(mod, excludes=[])
+        deps = finder.find_dependencies(mod, excludes=set())
         assert deps == {}
         assert not finder.cached(mod)
 
@@ -165,7 +165,7 @@ class TestModuleDependencyFinder:
 
         finder = ModuleDependencyFinder()
         # First call should work
-        deps = finder.find_dependencies(mod, excludes=[])
+        deps = finder.find_dependencies(mod, excludes=set())
         assert finder.cached(mod)
 
         # Introduce syntax error
@@ -173,7 +173,7 @@ class TestModuleDependencyFinder:
         finder.evict_from_cache(mod)
 
         # Should return empty dict on syntax error
-        deps = finder.find_dependencies(mod, excludes=[])
+        deps = finder.find_dependencies(mod, excludes=set())
         assert deps == {}
 
     def test_dependencies_failed_module_cached(
@@ -198,12 +198,12 @@ class TestModuleDependencyFinder:
 
         modulefinder.ModuleFinder.run_script = failing_run_script
         try:
-            deps = finder.find_dependencies(mod, excludes=[])
+            deps = finder.find_dependencies(mod, excludes=set())
             assert deps == {}
             assert mod.__file__ in finder._failed_module_filenames
 
             # Second call should use failed cache
-            deps2 = finder.find_dependencies(mod, excludes=[])
+            deps2 = finder.find_dependencies(mod, excludes=set())
             assert deps2 == {}
         finally:
             modulefinder.ModuleFinder.run_script = original_run_script

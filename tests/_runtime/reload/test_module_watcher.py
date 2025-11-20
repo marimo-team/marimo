@@ -602,8 +602,6 @@ class TestIsThirdPartyModule:
     """Unit tests for the _is_third_party_module utility function"""
 
     def test_module_without_file(self):
-        import types
-
         from marimo._runtime.reload.module_watcher import (
             _is_third_party_module,
         )
@@ -613,8 +611,6 @@ class TestIsThirdPartyModule:
         assert not _is_third_party_module(mod)
 
     def test_module_with_none_file(self):
-        import types
-
         from marimo._runtime.reload.module_watcher import (
             _is_third_party_module,
         )
@@ -625,8 +621,6 @@ class TestIsThirdPartyModule:
         assert not _is_third_party_module(mod)
 
     def test_site_packages_module(self):
-        import types
-
         from marimo._runtime.reload.module_watcher import (
             _is_third_party_module,
         )
@@ -637,8 +631,6 @@ class TestIsThirdPartyModule:
         assert _is_third_party_module(mod)
 
     def test_local_module(self):
-        import types
-
         from marimo._runtime.reload.module_watcher import (
             _is_third_party_module,
         )
@@ -649,8 +641,6 @@ class TestIsThirdPartyModule:
         assert not _is_third_party_module(mod)
 
     def test_site_packages_in_path_but_not_directory(self):
-        import types
-
         from marimo._runtime.reload.module_watcher import (
             _is_third_party_module,
         )
@@ -658,25 +648,17 @@ class TestIsThirdPartyModule:
         # Edge case: "site-packages" appears in filename but not as directory
         mod = types.ModuleType("test_module")
         mod.__file__ = "/home/user/site-packages.py"
-        assert _is_third_party_module(mod)
+        assert not _is_third_party_module(mod)
 
     def test_actual_third_party_module(self):
         from marimo._runtime.reload.module_watcher import (
             _is_third_party_module,
         )
 
-        # Test with an actual third-party module if available
-        try:
-            import pytest
-
-            # pytest should be in site-packages
-            assert _is_third_party_module(pytest)
-        except ImportError:
-            pytest.skip("pytest not available")
+        # pytest should be in site-packages
+        assert _is_third_party_module(pytest)
 
     def test_builtin_module(self):
-        import sys
-
         from marimo._runtime.reload.module_watcher import (
             _is_third_party_module,
         )
@@ -697,7 +679,7 @@ class TestDependsOn:
         reloader = ModuleReloader()
 
         result = _depends_on(
-            src_module, target_modules, target_filenames, [], reloader
+            src_module, target_modules, target_filenames, set(), reloader
         )
         assert result is True
 
@@ -715,7 +697,7 @@ class TestDependsOn:
         reloader = ModuleReloader()
 
         result = _depends_on(
-            src_module, target_modules, target_filenames, [], reloader
+            src_module, target_modules, target_filenames, set(), reloader
         )
         assert result is True
 
@@ -735,7 +717,7 @@ class TestDependsOn:
         reloader = ModuleReloader()
 
         result = _depends_on(
-            src_module, target_modules, target_filenames, [], reloader
+            src_module, target_modules, target_filenames, set(), reloader
         )
         assert result is True
 
@@ -752,7 +734,7 @@ class TestDependsOn:
         reloader = ModuleReloader()
 
         result = _depends_on(
-            src_module, target_modules, target_filenames, [], reloader
+            src_module, target_modules, target_filenames, set(), reloader
         )
         assert result is False
 
@@ -766,7 +748,7 @@ class TestDependsOn:
         reloader = ModuleReloader()
 
         result = _depends_on(
-            src_module, target_modules, target_filenames, [], reloader
+            src_module, target_modules, target_filenames, set(), reloader
         )
         assert result is False
 
@@ -830,7 +812,7 @@ class TestGetExcludedModules:
         modules = {"local_mod": mod1}
 
         result = _get_excluded_modules(modules)
-        assert result == []
+        assert result == set()
 
 
 class TestCheckModules:

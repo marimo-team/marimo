@@ -43,8 +43,8 @@ def is_submodule(src_name: str, target_name: str) -> bool:
 def _depends_on(
     src_module: types.ModuleType,
     target_modules: set[types.ModuleType],
-    target_filenames: set[str],
-    excludes: list[str],
+    target_filenames: set[str | None],
+    excludes: set[str],
     reloader: ModuleReloader,
 ) -> bool:
     """Returns whether src_module depends on any of target_filenames"""
@@ -85,10 +85,10 @@ def _is_third_party_module(module: types.ModuleType) -> bool:
 
 # Cache for excluded modules to avoid recomputing on every check
 # Only caches most recent result to prevent memory bloat
-_excluded_modules_cache: tuple[frozenset[str], list[str]] | None = None
+_excluded_modules_cache: tuple[frozenset[str], set[str]] | None = None
 
 
-def _get_excluded_modules(modules: dict[str, types.ModuleType]) -> list[str]:
+def _get_excluded_modules(modules: dict[str, types.ModuleType]) -> set[str]:
     global _excluded_modules_cache
     # Use module names as cache key - if same modules, use cached result
     cache_key = frozenset(modules.keys())
@@ -98,12 +98,12 @@ def _get_excluded_modules(modules: dict[str, types.ModuleType]) -> list[str]:
     ):
         return _excluded_modules_cache[1]
 
-    result = [
+    result = set(
         modname
         for modname in modules
         if (m := modules.get(modname)) is not None
         and _is_third_party_module(m)
-    ]
+    )
     _excluded_modules_cache = (cache_key, result)
     return result
 

@@ -96,7 +96,7 @@ class ModuleDependencyFinder:
         self._failed_module_filenames: set[str] = set()
 
     def find_dependencies(
-        self, module: types.ModuleType, excludes: list[str]
+        self, module: types.ModuleType, excludes: set[str]
     ) -> dict[str, types.ModuleType]:
         if not hasattr(module, "__file__") or module.__file__ is None:
             return {}
@@ -279,7 +279,7 @@ class ModuleReloader:
         return modified_modules
 
     def get_module_dependencies(
-        self, module: types.ModuleType, excludes: list[str]
+        self, module: types.ModuleType, excludes: set[str]
     ) -> dict[str, types.ModuleType]:
         return self._module_dependency_finder.find_dependencies(
             module, excludes
