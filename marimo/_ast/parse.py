@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import ast
 import io
+import sys
 import token as token_types
 import warnings
 from pathlib import Path
@@ -187,7 +188,9 @@ class Extractor:
         if node.lineno - node.body[0].lineno == 0:
             # Quirk where the ellipse token seems to have a line index at
             # the end of the dots ...<
-            if isinstance(getattr(node.body[0], "value", None), ast.Ellipsis):
+            if sys.version_info < (3, 14) and isinstance(
+                getattr(node.body[0], "value", None), ast.Ellipsis
+            ):
                 col_offset += node.body[0].col_offset - 3
             else:
                 col_offset += node.body[0].col_offset - 1
