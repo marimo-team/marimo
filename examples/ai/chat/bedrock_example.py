@@ -192,7 +192,6 @@ def _(config_form, max_tokens, mo, temperature):
                 "model": model,
                 "region_name": region,
                 "system_message": system_message,
-                # "stream": True,  # Uncomment to enable streaming responses
             }
 
             # Add profile if specified
