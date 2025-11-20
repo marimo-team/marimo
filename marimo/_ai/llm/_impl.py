@@ -2,7 +2,10 @@
 from __future__ import annotations
 
 import os
-from typing import Any, Callable, Optional, cast
+from typing import TYPE_CHECKING, Any, Callable, Optional, cast
+
+if TYPE_CHECKING:
+    from collections.abc import Generator
 
 from marimo._ai._convert import (
     convert_to_anthropic_messages,
@@ -55,6 +58,10 @@ class openai(ChatModel):
             If not provided, the API key will be retrieved
             from the OPENAI_API_KEY environment variable or the user's config.
         base_url: The base URL to use
+        stream: Whether to stream the response token-by-token as it's generated.
+            When True, the response appears progressively (like ChatGPT), creating
+            a more responsive user experience. When False, the complete response
+            is returned all at once. Defaults to False for backward compatibility.
     """
 
     def __init__(
@@ -64,11 +71,13 @@ class openai(ChatModel):
         system_message: str = DEFAULT_SYSTEM_MESSAGE,
         api_key: Optional[str] = None,
         base_url: Optional[str] = None,
+        stream: bool = False,
     ):
         self.model = model
         self.system_message = system_message
         self.api_key = api_key
         self.base_url = base_url
+        self.stream = stream
 
     @property
     def _require_api_key(self) -> str:
@@ -95,6 +104,21 @@ class openai(ChatModel):
             "openai api key not provided. Pass it as an argument or "
             "set OPENAI_API_KEY as an environment variable"
         )
+
+    def _stream_response(self, response: Any) -> Generator[str, None, None]:
+        """Helper method for streaming - separate to avoid mixing yield/return."""
+        accumulated = ""
+        chunk_count = 0
+        for chunk in response:
+            chunk_count += 1
+            if chunk.choices and len(chunk.choices) > 0:
+                delta = chunk.choices[0].delta
+                if delta.content:
+                    accumulated += delta.content
+                    yield accumulated
+        # Always yield final accumulated result to ensure complete response
+        # This handles cases where the last chunk has no content
+        yield accumulated
 
     def __call__(
         self, messages: list[ChatMessage], config: ChatModelConfig
@@ -135,6 +159,7 @@ class openai(ChatModel):
             [ChatMessage(role="system", content=self.system_message)]
             + messages
         )
+
         response = client.chat.completions.create(
             model=self.model,
             messages=openai_messages,
@@ -143,12 +168,17 @@ class openai(ChatModel):
             top_p=config.top_p,
             frequency_penalty=config.frequency_penalty,
             presence_penalty=config.presence_penalty,
-            stream=False,
+            stream=self.stream,
         )
 
-        choice = response.choices[0]
-        content = choice.message.content
-        return content or ""
+        if self.stream:
+            # Return generator for streaming
+            return self._stream_response(response)
+        else:
+            # Non-streaming response - return string directly
+            choice = cast(Any, response).choices[0]
+            content = choice.message.content
+            return content or ""
 
 
 class anthropic(ChatModel):
@@ -164,6 +194,10 @@ class anthropic(ChatModel):
             from the ANTHROPIC_API_KEY environment variable
             or the user's config.
         base_url: The base URL to use
+        stream: Whether to stream the response token-by-token as it's generated.
+            When True, the response appears progressively (like ChatGPT), creating
+            a more responsive user experience. When False, the complete response
+            is returned all at once. Defaults to False for backward compatibility.
     """
 
     def __init__(
@@ -173,11 +207,13 @@ class anthropic(ChatModel):
         system_message: str = DEFAULT_SYSTEM_MESSAGE,
         api_key: Optional[str] = None,
         base_url: Optional[str] = None,
+        stream: bool = False,
     ):
         self.model = model
         self.system_message = system_message
         self.api_key = api_key
         self.base_url = base_url
+        self.stream = stream
 
     @property
     def _require_api_key(self) -> str:
@@ -205,6 +241,19 @@ class anthropic(ChatModel):
             "set ANTHROPIC_API_KEY as an environment variable"
         )
 
+    def _stream_response(
+        self, client: Any, params: Any
+    ) -> Generator[str, None, None]:
+        """Helper method for streaming - separate to avoid mixing yield/return."""
+        accumulated = ""
+        with client.messages.stream(**params) as stream:
+            for text in stream.text_stream:
+                accumulated += text
+                yield accumulated
+        # Yield final accumulated result to ensure complete response
+        if accumulated:
+            yield accumulated
+
     def __call__(
         self, messages: list[ChatMessage], config: ChatModelConfig
     ) -> object:
@@ -224,7 +273,7 @@ class anthropic(ChatModel):
             "system": self.system_message,
             "max_tokens": config.max_tokens or 4096,
             "messages": anthropic_messages,
-            "stream": False,
+            "stream": self.stream,
         }
         if config.top_p is not None:
             params["top_p"] = config.top_p
@@ -233,15 +282,23 @@ class anthropic(ChatModel):
         if config.temperature is not None:
             params["temperature"] = config.temperature
 
-        response = client.messages.create(**params)
+        if self.stream:
+            # Return generator for streaming
+            return self._stream_response(client, params)
+        else:
+            # Non-streaming response - return directly
+            response = client.messages.create(**params)
 
-        content = response.content
-        if len(content) > 0:
-            if content[0].type == "text":
-                return content[0].text
-            elif content[0].type == "tool_use":
-                return content
-        return ""
+            content = response.content
+            if len(content) > 0:
+                if content[0].type == "text":
+                    return content[0].text
+                elif content[0].type == "tool_use":
+                    return content
+                else:
+                    return ""
+            else:
+                return ""
 
 
 class google(ChatModel):
@@ -256,6 +313,10 @@ class google(ChatModel):
             If not provided, the API key will be retrieved
             from the GOOGLE_AI_API_KEY environment variable
             or the user's config.
+        stream: Whether to stream the response token-by-token as it's generated.
+            When True, the response appears progressively (like ChatGPT), creating
+            a more responsive user experience. When False, the complete response
+            is returned all at once. Defaults to False for backward compatibility.
     """
 
     def __init__(
@@ -264,10 +325,12 @@ class google(ChatModel):
         *,
         system_message: str = DEFAULT_SYSTEM_MESSAGE,
         api_key: Optional[str] = None,
+        stream: bool = False,
     ):
         self.model = model
         self.system_message = system_message
         self.api_key = api_key
+        self.stream = stream
 
     @property
     def _require_api_key(self) -> str:
@@ -306,22 +369,51 @@ class google(ChatModel):
         client = genai.Client(api_key=self._require_api_key)
 
         google_messages = convert_to_google_messages(messages)
-        response = client.models.generate_content(
+
+        # Build config once to avoid duplication
+        generation_config = {
+            "system_instruction": self.system_message,
+            "max_output_tokens": config.max_tokens,
+            "temperature": config.temperature,
+            "top_p": config.top_p,
+            "top_k": config.top_k,
+            "frequency_penalty": config.frequency_penalty,
+            "presence_penalty": config.presence_penalty,
+        }
+
+        if self.stream:
+            # Return generator for streaming
+            return self._stream_response(
+                client, google_messages, generation_config
+            )
+        else:
+            # Non-streaming response - return directly
+            response = client.models.generate_content(
+                model=self.model,
+                contents=google_messages,
+                config=cast(Any, generation_config),
+            )
+
+            content = response.text
+            return content or ""
+
+    def _stream_response(
+        self, client: Any, google_messages: Any, generation_config: Any
+    ) -> Generator[str, None, None]:
+        """Helper method for streaming - separate to avoid mixing yield/return."""
+        accumulated = ""
+        response = client.models.generate_content_stream(
             model=self.model,
             contents=google_messages,
-            config={
-                "system_instruction": self.system_message,
-                "max_output_tokens": config.max_tokens,
-                "temperature": config.temperature,
-                "top_p": config.top_p,
-                "top_k": config.top_k,
-                "frequency_penalty": config.frequency_penalty,
-                "presence_penalty": config.presence_penalty,
-            },
+            config=generation_config,
         )
-
-        content = response.text
-        return content or ""
+        for chunk in response:
+            if chunk.text:
+                accumulated += chunk.text
+                yield accumulated
+        # Yield final accumulated result to ensure complete response
+        if accumulated:
+            yield accumulated
 
 
 class groq(ChatModel):
@@ -336,6 +428,10 @@ class groq(ChatModel):
             If not provided, the API key will be retrieved
             from the GROQ_API_KEY environment variable or the user's config.
         base_url: The base URL to use
+        stream: Whether to stream the response token-by-token as it's generated.
+            When True, the response appears progressively (like ChatGPT), creating
+            a more responsive user experience. When False, the complete response
+            is returned all at once. Defaults to False for backward compatibility.
     """
 
     def __init__(
@@ -345,11 +441,13 @@ class groq(ChatModel):
         system_message: str = DEFAULT_SYSTEM_MESSAGE,
         api_key: Optional[str] = None,
         base_url: Optional[str] = None,
+        stream: bool = False,
     ):
         self.model = model
         self.system_message = system_message
         self.api_key = api_key
         self.base_url = base_url
+        self.stream = stream
 
     @property
     def _require_api_key(self) -> str:
@@ -378,6 +476,31 @@ class groq(ChatModel):
             "set GROQ_API_KEY as an environment variable"
         )
 
+    def _stream_response(
+        self, client: Any, groq_messages: Any, config: ChatModelConfig
+    ) -> Generator[str, None, None]:
+        """Helper method for streaming - separate to avoid mixing yield/return."""
+        stream = client.chat.completions.create(
+            model=self.model,
+            messages=groq_messages,
+            max_tokens=config.max_tokens,
+            temperature=config.temperature,
+            top_p=config.top_p,
+            stop=None,
+            stream=True,
+        )
+
+        accumulated = ""
+        for chunk in stream:
+            if chunk.choices and len(chunk.choices) > 0:
+                delta = chunk.choices[0].delta
+                if delta.content:
+                    accumulated += delta.content
+                    yield accumulated
+        # Yield final accumulated result to ensure complete response
+        if accumulated:
+            yield accumulated
+
     def __call__(
         self, messages: list[ChatMessage], config: ChatModelConfig
     ) -> object:
@@ -392,19 +515,25 @@ class groq(ChatModel):
             [ChatMessage(role="system", content=self.system_message)]
             + messages
         )
-        response = client.chat.completions.create(
-            model=self.model,
-            messages=groq_messages,
-            max_tokens=config.max_tokens,
-            temperature=config.temperature,
-            top_p=config.top_p,
-            stop=None,
-            stream=False,
-        )
 
-        choice = response.choices[0]
-        content = choice.message.content
-        return content or ""
+        if self.stream:
+            # Return generator for streaming
+            return self._stream_response(client, groq_messages, config)
+        else:
+            # Non-streaming response - return directly
+            response = client.chat.completions.create(
+                model=self.model,
+                messages=groq_messages,
+                max_tokens=config.max_tokens,
+                temperature=config.temperature,
+                top_p=config.top_p,
+                stop=None,
+                stream=False,
+            )
+
+            choice = response.choices[0]
+            content = choice.message.content
+            return content or ""
 
 
 class bedrock(ChatModel):
@@ -421,6 +550,10 @@ class bedrock(ChatModel):
             Dict with keys: "aws_access_key_id" and "aws_secret_access_key"
             If not provided, credentials will be retrieved from the environment
             or the AWS configuration files.
+        stream: Whether to stream the response token-by-token as it's generated.
+            When True, the response appears progressively (like ChatGPT), creating
+            a more responsive user experience. When False, the complete response
+            is returned all at once. Defaults to False for backward compatibility.
     """
 
     def __init__(
@@ -432,6 +565,7 @@ class bedrock(ChatModel):
         profile_name: Optional[str] = None,
         aws_access_key_id: Optional[str] = None,
         aws_secret_access_key: Optional[str] = None,
+        stream: bool = False,
     ):
         if not model.startswith("bedrock/"):
             model = f"bedrock/{model}"
@@ -441,6 +575,7 @@ class bedrock(ChatModel):
         self.profile_name = profile_name
         self.aws_access_key_id = aws_access_key_id
         self.aws_secret_access_key = aws_secret_access_key
+        self.stream = stream
 
     def _setup_credentials(self) -> None:
         # Use profile name if provided, otherwise use API key
@@ -451,6 +586,37 @@ class bedrock(ChatModel):
             os.environ["AWS_SECRET_ACCESS_KEY"] = self.aws_secret_access_key
         else:
             pass  # Use default credential chain
+
+    def _stream_response(
+        self, messages: list[ChatMessage], config: ChatModelConfig
+    ) -> Generator[str, None, None]:
+        """Helper method for streaming - separate to avoid mixing yield/return."""
+        from litellm import completion as litellm_completion
+
+        response = litellm_completion(
+            model=self.model,
+            messages=convert_to_openai_messages(
+                [ChatMessage(role="system", content=self.system_message)]
+                + messages
+            ),
+            max_tokens=config.max_tokens,
+            temperature=config.temperature,
+            top_p=config.top_p,
+            frequency_penalty=config.frequency_penalty,
+            presence_penalty=config.presence_penalty,
+            stream=True,
+        )
+
+        accumulated = ""
+        for chunk in response:
+            if chunk.choices and len(chunk.choices) > 0:
+                delta = chunk.choices[0].delta
+                if delta.content:
+                    accumulated += delta.content
+                    yield accumulated
+        # Yield final accumulated result to ensure complete response
+        if accumulated:
+            yield accumulated
 
     def __call__(
         self, messages: list[ChatMessage], config: ChatModelConfig
@@ -466,22 +632,29 @@ class bedrock(ChatModel):
         self._setup_credentials()
 
         try:
-            # Make API call
-            response = litellm_completion(
-                model=self.model,
-                messages=convert_to_openai_messages(
-                    [ChatMessage(role="system", content=self.system_message)]
-                    + messages
-                ),
-                max_tokens=config.max_tokens,
-                temperature=config.temperature,
-                top_p=config.top_p,
-                frequency_penalty=config.frequency_penalty,
-                presence_penalty=config.presence_penalty,
-                stream=False,
-            )
-
-            return response.choices[0].message.content
+            if self.stream:
+                # Return generator for streaming
+                return self._stream_response(messages, config)
+            else:
+                # Non-streaming response - return directly
+                response = litellm_completion(
+                    model=self.model,
+                    messages=convert_to_openai_messages(
+                        [
+                            ChatMessage(
+                                role="system", content=self.system_message
+                            )
+                        ]
+                        + messages
+                    ),
+                    max_tokens=config.max_tokens,
+                    temperature=config.temperature,
+                    top_p=config.top_p,
+                    frequency_penalty=config.frequency_penalty,
+                    presence_penalty=config.presence_penalty,
+                    stream=False,
+                )
+                return response.choices[0].message.content
 
         except Exception as e:
             # Handle common AWS exceptions with helpful messages

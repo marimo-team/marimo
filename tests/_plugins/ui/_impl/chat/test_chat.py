@@ -139,6 +139,134 @@ async def test_chat_send_prompt_async_generator():
     assert chat._chat_history[1].content == "2"
 
 
+async def test_chat_streaming_sends_messages():
+    """Test that streaming async generators send messages via _send_message"""
+    sent_messages = []
+
+    async def mock_streaming_model(
+        messages: list[ChatMessage], config: ChatModelConfig
+    ) -> AsyncIterator[str]:
+        del config, messages
+        # Simulate streaming response
+        accumulated = ""
+        for word in ["Hello", "world", "!"]:
+            accumulated += word + " "
+            yield accumulated.strip()
+
+    chat = ui.chat(mock_streaming_model)
+
+    # Mock _send_message to capture calls
+    original_send_message = chat._send_message
+
+    def capture_send_message(message: dict[str, object], buffers):  # noqa: ARG001
+        sent_messages.append(message)
+        # Don't actually send to avoid needing kernel context
+
+    chat._send_message = capture_send_message
+
+    request = SendMessageRequest(
+        messages=[ChatMessage(role="user", content="Test")],
+        config=ChatModelConfig(),
+    )
+
+    response: str = await chat._send_prompt(request)
+
+    # Verify final response
+    assert response == "Hello world !"
+
+    # Verify streaming messages were sent
+    # Should have sent chunks for each yield, plus final message
+    assert len(sent_messages) >= 3
+
+    # Check that messages have streaming structure
+    for msg in sent_messages[:-1]:  # All but last
+        assert msg["type"] == "stream_chunk"
+        assert "message_id" in msg
+        assert "content" in msg
+        assert not msg["is_final"]
+
+    # Last message should be final
+    assert sent_messages[-1]["type"] == "stream_chunk"
+    assert sent_messages[-1]["is_final"]
+    assert sent_messages[-1]["content"] == "Hello world !"
+
+
+async def test_chat_sync_generator_streaming():
+    """Test that sync generators also work for streaming"""
+    sent_messages = []
+
+    def mock_streaming_model(
+        messages: list[ChatMessage], config: ChatModelConfig
+    ):
+        del config, messages
+        # Simulate streaming response with sync generator
+        accumulated = ""
+        for word in ["Hello", "world", "!"]:
+            accumulated += word + " "
+            yield accumulated.strip()
+
+    chat = ui.chat(mock_streaming_model)
+
+    def capture_send_message(message: dict[str, object], buffers):  # noqa: ARG001
+        sent_messages.append(message)
+
+    chat._send_message = capture_send_message
+
+    request = SendMessageRequest(
+        messages=[ChatMessage(role="user", content="Test")],
+        config=ChatModelConfig(),
+    )
+
+    response: str = await chat._send_prompt(request)
+
+    # Verify final response
+    assert response == "Hello world !"
+
+    # Verify streaming messages were sent
+    assert len(sent_messages) >= 3
+
+    # Check that messages have streaming structure
+    for msg in sent_messages[:-1]:  # All but last
+        assert msg["type"] == "stream_chunk"
+        assert "message_id" in msg
+        assert "content" in msg
+        assert not msg["is_final"]
+
+    # Last message should be final
+    assert sent_messages[-1]["type"] == "stream_chunk"
+    assert sent_messages[-1]["is_final"]
+    assert sent_messages[-1]["content"] == "Hello world !"
+
+
+async def test_chat_streaming_complete_response():
+    """Test that streaming returns complete response even with empty final chunks"""
+
+    def mock_streaming_model_with_empty_final(
+        messages: list[ChatMessage], config: ChatModelConfig
+    ):
+        del config, messages
+        # Simulate OpenAI-style streaming where last chunk might be empty
+        # This tests the bug where we might not yield the final accumulated value
+        yield "Hello "
+        yield "Hello world"
+        yield "Hello world!"
+        # Simulate final chunk with no content (like finish_reason only)
+        # Generator continues but no more content - still need complete result
+
+    chat = ui.chat(mock_streaming_model_with_empty_final)
+
+    request = SendMessageRequest(
+        messages=[ChatMessage(role="user", content="Test")],
+        config=ChatModelConfig(),
+    )
+
+    response: str = await chat._send_prompt(request)
+
+    # Verify we got the complete final response
+    assert response == "Hello world!"
+    assert chat._chat_history[-1].content == "Hello world!"
+
+
 def test_chat_get_history():
     def mock_model(
         messages: list[ChatMessage], config: ChatModelConfig

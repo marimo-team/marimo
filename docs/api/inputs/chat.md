@@ -132,6 +132,92 @@ mo.ui.chat(
 )
 ```
 
+## Streaming Responses
+
+Chatbots can stream responses in real-time, creating a more interactive experience 
+similar to ChatGPT where you see the response appear word-by-word as it's generated.
+
+### With Built-in Models
+
+For built-in models (OpenAI, Anthropic, Google, Groq, Bedrock), set `stream=True` in the model constructor:
+
+```python
+import marimo as mo
+
+chat = mo.ui.chat(
+    mo.ai.llm.openai(
+        "gpt-4o",
+        system_message="You are a helpful assistant.",
+        stream=True,  # Enable streaming
+    ),
+    show_configuration_controls=True
+)
+chat
+```
+
+This works for all built-in models:
+
+- `mo.ai.llm.openai("gpt-4o", stream=True)`
+- `mo.ai.llm.anthropic("claude-3-5-sonnet-20240620", stream=True)`  
+- `mo.ai.llm.google("gemini-1.5-pro-latest", stream=True)`
+- `mo.ai.llm.groq("llama-3.1-70b-versatile", stream=True)`
+- `mo.ai.llm.bedrock("anthropic.claude-3-7-sonnet-20250219-v1:0", stream=True)`
+
+### With Custom Models
+
+For custom models, you can use either regular (sync) or async generator functions that yield intermediate results:
+
+**Sync generator (simpler):**
+
+```python
+import marimo as mo
+import time
+
+def streaming_model(messages, config):
+    """Stream responses word by word."""
+    response = "This response will appear word by word!"
+    words = response.split()
+    accumulated = ""
+    
+    for word in words:
+        accumulated += word + " "
+        yield accumulated
+        time.sleep(0.1)  # Simulate processing delay
+
+chat = mo.ui.chat(streaming_model)
+chat
+```
+
+**Async generator (for async operations):**
+
+```python
+import marimo as mo
+import asyncio
+
+async def async_streaming_model(messages, config):
+    """Stream responses word by word asynchronously."""
+    response = "This response will appear word by word!"
+    words = response.split()
+    accumulated = ""
+    
+    for word in words:
+        accumulated += word + " "
+        yield accumulated
+        await asyncio.sleep(0.1)  # Async processing delay
+
+chat = mo.ui.chat(async_streaming_model)
+chat
+```
+
+Each `yield` sends an update to the frontend, and the chat UI will display
+the progressively accumulated response in real-time.
+
+!!! tip "See streaming examples"
+    For complete working examples, check out:
+    
+    - [`streaming_openai.py`](https://github.com/marimo-team/marimo/blob/main/examples/ai/chat/streaming_openai.py) - Streaming with OpenAI models
+    - [`streaming_custom.py`](https://github.com/marimo-team/marimo/blob/main/examples/ai/chat/streaming_custom.py) - Custom streaming chatbot
+
 ## Built-in Models
 
 marimo provides several built-in AI models that you can use with the chat UI

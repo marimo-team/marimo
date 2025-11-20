@@ -3,7 +3,9 @@
 These examples show how to make chatbots with marimo, using [`mo.ui.chat`](https://docs.marimo.io/api/inputs/chat.html#marimo.ui.chat).
 
 - `custom.py` shows how to make a custom chatbot.
+- `streaming_custom.py` shows how to make a custom chatbot with streaming responses.
 - `openai_example.py` shows how to make a chatbot powered by OpenAI models.
+- `streaming_openai.py` shows how to make a chatbot powered by OpenAI models with streaming responses.
 - `anthropic_example.py` shows how to make a chatbot powered by Anthropic models.
 - `gemini.py` shows how to make a chatbot powered by Google models like Gemini.
 - `groq_example.py` shows how to make a chatbot powered by Groq models.
@@ -13,6 +15,15 @@ These examples show how to make chatbots with marimo, using [`mo.ui.chat`](https
 - `recipe_bot.py` shows how to make a chatbot that can parse recipes from images.
 - `simplemind_example.py` shows how to integrate [simplemind](https://github.com/kennethreitz/simplemind).
 - `generative_ui.py` shows how to make a chatbot that can generate UI code.
+
+## Streaming Responses
+
+Chatbots can stream responses in real-time, creating a more interactive experience similar to ChatGPT. To enable streaming:
+
+- For **custom models**: create an async generator function that yields intermediate results
+- For **built-in models** (OpenAI, Anthropic, etc.): set `stream=True` in the model constructor
+
+See `streaming_custom.py` and `streaming_openai.py` for complete examples.
 
 Chatbot's in marimo are _reactive_: when the chatbot responds with a message,
 all other cells referencing the chatbot are automatically run or marked
