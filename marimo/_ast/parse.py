@@ -188,9 +188,7 @@ class Extractor:
         if node.lineno - node.body[0].lineno == 0:
             # Quirk where the ellipse token seems to have a line index at
             # the end of the dots ...<
-            if sys.version_info < (3, 14) and isinstance(
-                getattr(node.body[0], "value", None), ast.Ellipsis
-            ):
+            if _is_ellipsis(getattr(node.body[0], "value", None)):
                 col_offset += node.body[0].col_offset - 3
             else:
                 col_offset += node.body[0].col_offset - 1
@@ -910,6 +908,14 @@ def is_body_cell(node: Node) -> bool:
             decorator, allowed=("cell", "function", "class_definition")
         )
     ) or is_unparsable_cell(node)
+
+
+def _is_ellipsis(node: Optional[Node]) -> bool:
+    if node is None:
+        return False
+    if sys.version_info < (3, 14):
+        return isinstance(node, ast.Ellipsis)
+    return isinstance(node, ast.Constant) and node.value == ...
 
 
 def _is_setup_call(node: Node) -> bool:
