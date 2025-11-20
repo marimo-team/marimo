@@ -2,12 +2,13 @@
 # requires-python = ">=3.11"
 # dependencies = [
 #     "marimo",
+#     "google-genai>=1.20.0",
 # ]
 # ///
 
 import marimo
 
-__generated_with = "0.17.4"
+__generated_with = "0.17.8"
 app = marimo.App(width="medium")
 
 
@@ -52,7 +53,7 @@ def _(input_key, mo, os_key):
 def _(key, mo):
     chatbot = mo.ui.chat(
        mo.ai.llm.google(
-            "gemini-1.5-pro-latest",
+            "gemini-2.5-flash",
             system_message="You are a helpful assistant.",
             api_key=key,
        ),

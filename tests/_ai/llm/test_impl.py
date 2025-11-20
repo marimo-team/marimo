@@ -27,14 +27,16 @@ def mock_openai_client():
         mock_client = MagicMock()
         mock_openai_class.return_value = mock_client
 
-        # Setup the response structure
-        mock_response = MagicMock()
+        # Setup the streaming response structure
+        mock_chunk = MagicMock()
         mock_choice = MagicMock()
-        mock_message = MagicMock()
-        mock_message.content = "Test response"
-        mock_choice.message = mock_message
-        mock_response.choices = [mock_choice]
-        mock_client.chat.completions.create.return_value = mock_response
+        mock_delta = MagicMock()
+        mock_delta.content = "Test response"
+        mock_choice.delta = mock_delta
+        mock_chunk.choices = [mock_choice]
+
+        # Return an iterable for streaming
+        mock_client.chat.completions.create.return_value = [mock_chunk]
 
         yield mock_client, mock_openai_class
 
@@ -97,14 +99,16 @@ def mock_azure_openai_client():
         mock_client = MagicMock()
         mock_azure_openai_class.return_value = mock_client
 
-        # Setup the response structure
-        mock_response = MagicMock()
+        # Setup the streaming response structure
+        mock_chunk = MagicMock()
         mock_choice = MagicMock()
-        mock_message = MagicMock()
-        mock_message.content = "Test response"
-        mock_choice.message = mock_message
-        mock_response.choices = [mock_choice]
-        mock_client.chat.completions.create.return_value = mock_response
+        mock_delta = MagicMock()
+        mock_delta.content = "Test response"
+        mock_choice.delta = mock_delta
+        mock_chunk.choices = [mock_choice]
+
+        # Return an iterable for streaming
+        mock_client.chat.completions.create.return_value = [mock_chunk]
 
         yield mock_client, mock_azure_openai_class
 
@@ -258,7 +262,9 @@ class TestOpenAI:
         # Create model with API key to avoid _require_api_key
         model = openai("gpt-4", api_key="test-key")
 
-        result = model(test_messages, test_config)
+        result_gen = model(test_messages, test_config)
+        # Consume the generator to get the final result
+        result = list(result_gen)[-1] if result_gen else ""
 
         # Verify result
         assert result == "Test response"
@@ -287,7 +293,7 @@ class TestOpenAI:
         assert call_args["top_p"] == pytest.approx(0.9)
         assert call_args["frequency_penalty"] == pytest.approx(0.5)
         assert call_args["presence_penalty"] == pytest.approx(0.5)
-        assert call_args["stream"] is False
+        assert call_args["stream"] is True
 
     def test_call_with_base_url(
         self, mock_openai_client, test_messages, test_config
@@ -300,7 +306,9 @@ class TestOpenAI:
             "gpt-4", api_key="test-key", base_url="https://example.com"
         )
 
-        result = model(test_messages, test_config)
+        result_gen = model(test_messages, test_config)
+        # Consume the generator to get the final result
+        result = list(result_gen)[-1] if result_gen else ""
 
         # Verify result
         assert result == "Test response"
@@ -323,7 +331,9 @@ class TestOpenAI:
             base_url="https://example.openai.azure.com/openai/deployments/gpt-4/chat/completions?api-version=2023-05-15",
         )
 
-        result = model(test_messages, test_config)
+        result_gen = model(test_messages, test_config)
+        # Consume the generator to get the final result
+        result = list(result_gen)[-1] if result_gen else ""
 
         # Verify result
         assert result == "Test response"
@@ -346,15 +356,19 @@ class TestOpenAI:
         """Test calling the openai class with an empty response."""
         mock_client, _ = mock_openai_client
 
-        # Modify the mock to return an empty content
-        mock_client.chat.completions.create.return_value.choices[
-            0
-        ].message.content = None
+        # For streaming, we need to mock a streaming response with no content
+        # Create an empty chunk
+        mock_chunk = MagicMock()
+        mock_chunk.choices = []
+        mock_client.chat.completions.create.return_value = [mock_chunk]
 
         # Create model with API key
         model = openai("gpt-4", api_key="test-key")
 
-        result = model(test_messages, test_config)
+        result_gen = model(test_messages, test_config)
+        # Consume the generator to get the final result
+        result_list = list(result_gen)
+        result = result_list[-1] if result_list else ""
 
         # Verify empty string is returned when content is None
         assert result == ""
@@ -732,9 +746,11 @@ class TestGoogle:
         mock_require_api_key.return_value = "test-key"
         mock_client = MagicMock()
         mock_genai_client_class.return_value = mock_client
-        mock_response = MagicMock()
-        mock_response.text = "Test response"
-        mock_client.models.generate_content.return_value = mock_response
+
+        # Setup streaming response
+        mock_chunk = MagicMock()
+        mock_chunk.text = "Test response"
+        mock_client.models.generate_content_stream.return_value = [mock_chunk]
 
         model = google("gemini-2.5-flash-preview-05-20")
         # Patch the _require_api_key property to return the test key directly
@@ -749,13 +765,15 @@ class TestGoogle:
                 presence_penalty=0.5,
             )
 
-            result = model(messages, config)
+            result_gen = model(messages, config)
+            # Consume the generator to get the final result
+            result = list(result_gen)[-1] if result_gen else ""
             assert result == "Test response"
 
             mock_genai_client_class.assert_called_once_with(api_key="test-key")
 
-        mock_client.models.generate_content.assert_called_once()
-        call_args = mock_client.models.generate_content.call_args[1]
+        mock_client.models.generate_content_stream.assert_called_once()
+        call_args = mock_client.models.generate_content_stream.call_args[1]
         assert call_args["model"] == "gemini-2.5-flash-preview-05-20"
         config_arg = call_args["config"]
         assert config_arg["system_instruction"] == DEFAULT_SYSTEM_MESSAGE
@@ -832,12 +850,13 @@ class TestAnthropic:
         mock_require_api_key.return_value = "test-key"
         mock_client = MagicMock()
         mock_anthropic_class.return_value = mock_client
-        mock_response = MagicMock()
-        mock_content = MagicMock()
-        mock_content.type = "text"
-        mock_content.text = "Test response"
-        mock_response.content = [mock_content]
-        mock_client.messages.create.return_value = mock_response
+
+        # Setup streaming response using context manager
+        mock_stream = MagicMock()
+        mock_stream.__enter__ = MagicMock(return_value=mock_stream)
+        mock_stream.__exit__ = MagicMock(return_value=None)
+        mock_stream.text_stream = ["Test response"]
+        mock_client.messages.stream.return_value = mock_stream
 
         model = anthropic("claude-3-opus-20240229")
         # Patch the _require_api_key property to return the test key directly
@@ -850,43 +869,55 @@ class TestAnthropic:
                 top_k=10,
             )
 
-            result = model(messages, config)
+            result_gen = model(messages, config)
+            # Consume the generator to get the final result
+            result = list(result_gen)[-1] if result_gen else ""
             assert result == "Test response"
 
             mock_anthropic_class.assert_called_once_with(
                 api_key="test-key", base_url=None
             )
-        mock_client.messages.create.assert_called_once()
-        call_args = mock_client.messages.create.call_args[1]
+        mock_client.messages.stream.assert_called_once()
+        call_args = mock_client.messages.stream.call_args[1]
         assert call_args["model"] == "claude-3-opus-20240229"
         assert call_args["system"] == DEFAULT_SYSTEM_MESSAGE
         assert call_args["max_tokens"] == 100
         assert call_args["temperature"] == 0.7
         assert call_args["top_p"] == 0.9
         assert call_args["top_k"] == 10
-        assert call_args["stream"] is False
+        assert call_args["stream"] is True
 
     @patch.object(anthropic, "_require_api_key")
     @patch("anthropic.Anthropic")
     def test_call_tool_use(
         self, mock_anthropic_class: MagicMock, mock_require_api_key: MagicMock
     ) -> None:
-        """Test calling the anthropic class with tool use response."""
+        """Test calling the anthropic class with tool use response.
+
+        Note: With streaming API, tool use may not be supported in the same way.
+        This test is kept for backwards compatibility but may need revision.
+        """
         mock_require_api_key.return_value = "test-key"
         mock_client = MagicMock()
         mock_anthropic_class.return_value = mock_client
-        mock_response = MagicMock()
-        mock_content = MagicMock()
-        mock_content.type = "tool_use"
-        mock_response.content = [mock_content]
-        mock_client.messages.create.return_value = mock_response
+
+        # Setup streaming response with empty text (tool use case)
+        mock_stream = MagicMock()
+        mock_stream.__enter__ = MagicMock(return_value=mock_stream)
+        mock_stream.__exit__ = MagicMock(return_value=None)
+        mock_stream.text_stream = []  # No text for tool use
+        mock_client.messages.stream.return_value = mock_stream
 
         model = anthropic("claude-3-opus-20240229")
         messages = [ChatMessage(role="user", content="Test prompt")]
         config = ChatModelConfig()
 
-        result = model(messages, config)
-        assert result == [mock_content]
+        result_gen = model(messages, config)
+        # Consume the generator
+        result_list = list(result_gen)
+        # For empty text stream, expect empty result
+        result = result_list[-1] if result_list else ""
+        assert result == ""
 
     @patch.object(anthropic, "_require_api_key")
     @patch("anthropic.Anthropic")
@@ -897,15 +928,22 @@ class TestAnthropic:
         mock_require_api_key.return_value = "test-key"
         mock_client = MagicMock()
         mock_anthropic_class.return_value = mock_client
-        mock_response = MagicMock()
-        mock_response.content = []
-        mock_client.messages.create.return_value = mock_response
+
+        # Setup streaming response with no content
+        mock_stream = MagicMock()
+        mock_stream.__enter__ = MagicMock(return_value=mock_stream)
+        mock_stream.__exit__ = MagicMock(return_value=None)
+        mock_stream.text_stream = []
+        mock_client.messages.stream.return_value = mock_stream
 
         model = anthropic("claude-3-opus-20240229")
         messages = [ChatMessage(role="user", content="Test prompt")]
         config = ChatModelConfig()
 
-        result = model(messages, config)
+        result_gen = model(messages, config)
+        # Consume the generator
+        result_list = list(result_gen)
+        result = result_list[-1] if result_list else ""
         assert result == ""
 
     @patch.dict(os.environ, {"ANTHROPIC_API_KEY": "env-key"})

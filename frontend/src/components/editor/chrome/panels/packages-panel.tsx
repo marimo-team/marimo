@@ -23,6 +23,7 @@ import { toast } from "@/components/ui/use-toast";
 import { useResolvedMarimoConfig } from "@/core/config/config";
 import { useRequestClient } from "@/core/network/requests";
 import type { DependencyTreeNode } from "@/core/network/types";
+import { stripPackageManagerPrefix } from "@/core/packages/package-input-utils";
 import {
   showRemovePackageToast,
   showUpgradePackageToast,
@@ -191,8 +192,9 @@ const InstallPackageForm: React.FC<{
   };
 
   const installPackages = () => {
+    const cleanedInput = stripPackageManagerPrefix(input);
     handleInstallPackages(
-      input.split(",").map((p) => p.trim()),
+      cleanedInput.split(",").map((p) => p.trim()),
       onSuccessInstallPackages,
     );
   };

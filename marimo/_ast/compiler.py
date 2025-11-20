@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import ast
-import copy
 import inspect
 import io
 import linecache
@@ -41,6 +40,21 @@ def ast_compile(*args: Any, **kwargs: Any) -> CodeType:
         warnings.simplefilter("ignore", category=SyntaxWarning)
         # The SyntaxWarning is suppressed only inside this `with` block
         return cast(CodeType, compile(*args, **kwargs))  # type: ignore[call-overload]
+
+
+def module_compile(code: str) -> ast.Module:
+    # Overloads on compile are strange, cast for proper typing.
+    return cast(
+        ast.Module,
+        ast_compile(
+            code,
+            "<unknown>",
+            mode="exec",
+            # don't inherit compiler flags, in particular future annotations
+            dont_inherit=True,
+            flags=ast.PyCF_ONLY_AST | ast.PyCF_ALLOW_TOP_LEVEL_AWAIT,
+        ),
+    )
 
 
 def code_key(code: str) -> int:
@@ -236,18 +250,7 @@ def compile_cell(
     # See https://github.com/pyodide/pyodide/issues/3337,
     #     https://github.com/marimo-team/marimo/issues/1546
     code = code.replace("\u00a0", " ")
-    # Overloads on compile are strange, cast for proper typing.
-    module = cast(
-        ast.Module,
-        ast_compile(
-            code,
-            "<unknown>",
-            mode="exec",
-            # don't inherit compiler flags, in particular future annotations
-            dont_inherit=True,
-            flags=ast.PyCF_ONLY_AST | ast.PyCF_ALLOW_TOP_LEVEL_AWAIT,
-        ),
-    )
+    module = module_compile(code)
 
     if not module.body:
         # either empty code or just comments
@@ -277,7 +280,9 @@ def compile_cell(
 
     expr: ast.Expression
     final_expr = module.body[-1]
-    original_module = copy.deepcopy(module)
+    # Compile again as an effective copy since copying directly seems slow and
+    # error prone.
+    original_module = module_compile(code)
     # Use final expression if it exists doesn't end in a
     # semicolon. Evaluates expression to "None" otherwise.
     if isinstance(final_expr, ast.Expr) and not ends_with_semicolon(code):

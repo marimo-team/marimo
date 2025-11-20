@@ -170,8 +170,8 @@ class TestGetCodes:
         app = load_app(get_filepath("test_get_codes_single_line_fn"))
         assert app is not None
         cell_manager = app._cell_manager
-        assert list(cell_manager.names()) == ["one"]
-        assert list(cell_manager.codes()) == ["c = a + b; print(c); "]
+        assert list(cell_manager.names()) == ["one", "two"]
+        assert list(cell_manager.codes()) == ["c = a + b; print(c); ", "..."]
 
     @staticmethod
     def test_get_codes_multiline_string(load_app) -> None:

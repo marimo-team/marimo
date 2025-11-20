@@ -12,6 +12,7 @@ import {
   DownloadIcon,
   HelpCircleIcon,
   PaperclipIcon,
+  RotateCwIcon,
   SendIcon,
   SettingsIcon,
   Trash2Icon,
@@ -42,7 +43,12 @@ import {
 import { Tooltip } from "@/components/ui/tooltip";
 import { toast } from "@/components/ui/use-toast";
 import { moveToEndOfEditor } from "@/core/codemirror/utils";
+import { MarimoIncomingMessageEvent } from "@/core/dom/events";
 import { useAsyncData } from "@/hooks/useAsyncData";
+import {
+  type HTMLElementNotDerivedFromRef,
+  useEventListener,
+} from "@/hooks/useEventListener";
 import { cn } from "@/utils/cn";
 import { copyToClipboard } from "@/utils/copy";
 import { Logger } from "@/utils/Logger";
@@ -63,6 +69,7 @@ interface Props extends PluginFunctions {
   allowAttachments: boolean | string[];
   value: ChatMessage[];
   setValue: (messages: ChatMessage[]) => void;
+  host: HTMLElement;
 }
 
 export const Chatbot: React.FC<Props> = (props) => {
@@ -73,6 +80,12 @@ export const Chatbot: React.FC<Props> = (props) => {
   const formRef = useRef<HTMLFormElement>(null);
   const codeMirrorInputRef = useRef<ReactCodeMirrorRef>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  // Track streaming state - maps backend message_id to frontend message index
+  const streamingStateRef = useRef<{
+    backendMessageId: string | null;
+    frontendMessageIndex: number | null;
+  }>({ backendMessageId: null, frontendMessageIndex: null });
 
   const { data: initialMessages } = useAsyncData(async () => {
     const chatMessages = await props.get_chat_history({});
@@ -113,6 +126,19 @@ export const Chatbot: React.FC<Props> = (props) => {
               .join("\n"),
             parts: m.parts,
           }));
+
+          // Create a placeholder message for streaming
+          const messageId = Date.now().toString();
+
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: messageId,
+              role: "assistant",
+              parts: [{ type: "text", text: "" }],
+            },
+          ]);
+
           const response = await props.send_prompt({
             messages: messages,
             config: {
@@ -124,18 +150,35 @@ export const Chatbot: React.FC<Props> = (props) => {
               presence_penalty: config.presence_penalty,
             },
           });
-          // Update local state with AI response
-          setMessages((prev) => [
-            ...prev,
-            {
-              id: Date.now().toString(),
-              role: "assistant",
-              parts: [{ type: "text", text: response }],
-            },
-          ]);
+
+          // If streaming didn't happen (non-generator response), update the message
+          // Check if streaming state is still set (meaning no chunks were received)
+          if (
+            streamingStateRef.current.backendMessageId === null &&
+            streamingStateRef.current.frontendMessageIndex === null
+          ) {
+            setMessages((prev) => {
+              const updated = [...prev];
+              const index = updated.findIndex((m) => m.id === messageId);
+              if (index !== -1) {
+                updated[index] = {
+                  ...updated[index],
+                  parts: [{ type: "text", text: response }],
+                };
+              }
+              return updated;
+            });
+          }
+
           return new Response(response);
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } catch (error: any) {
+          // Clear streaming state on error
+          streamingStateRef.current = {
+            backendMessageId: null,
+            frontendMessageIndex: null,
+          };
+
           // HACK: strip the error message to clean up the response
           const strippedError = error.message
             .split("failed with exception ")
@@ -152,11 +195,97 @@ export const Chatbot: React.FC<Props> = (props) => {
         fileInputRef.current.value = "";
       }
       Logger.debug("Finished streaming message:", message);
+
+      // Clear streaming state
+      streamingStateRef.current = {
+        backendMessageId: null,
+        frontendMessageIndex: null,
+      };
     },
     onError: (error) => {
       Logger.error("An error occurred:", error);
+      // Clear streaming state on error
+      streamingStateRef.current = {
+        backendMessageId: null,
+        frontendMessageIndex: null,
+      };
     },
   });
+
+  // Listen for streaming chunks from backend
+  useEventListener(
+    props.host as HTMLElementNotDerivedFromRef,
+    MarimoIncomingMessageEvent.TYPE,
+    (e) => {
+      const message = e.detail.message;
+      if (
+        typeof message === "object" &&
+        message !== null &&
+        "type" in message &&
+        message.type === "stream_chunk"
+      ) {
+        const chunkMessage = message as {
+          type: string;
+          message_id: string;
+          content: string;
+          is_final: boolean;
+        };
+
+        // Initialize streaming state on first chunk if not already set
+        if (streamingStateRef.current.backendMessageId === null) {
+          // Find the last assistant message (which should be the placeholder we created)
+          setMessages((prev) => {
+            const updated = [...prev];
+            // Find the last assistant message
+            for (let i = updated.length - 1; i >= 0; i--) {
+              if (updated[i].role === "assistant") {
+                streamingStateRef.current = {
+                  backendMessageId: chunkMessage.message_id,
+                  frontendMessageIndex: i,
+                };
+                break;
+              }
+            }
+            return updated;
+          });
+        }
+
+        // Only process chunks for the current streaming message
+        const frontendIndex = streamingStateRef.current.frontendMessageIndex;
+        if (
+          streamingStateRef.current.backendMessageId ===
+            chunkMessage.message_id &&
+          frontendIndex !== null
+        ) {
+          setMessages((prev) => {
+            const updated = [...prev];
+            const index = frontendIndex;
+
+            // Update the message at the tracked index
+            if (index < updated.length) {
+              const messageToUpdate = updated[index];
+              if (messageToUpdate.role === "assistant") {
+                updated[index] = {
+                  ...messageToUpdate,
+                  parts: [{ type: "text", text: chunkMessage.content }],
+                };
+              }
+            }
+
+            return updated;
+          });
+
+          // Clear streaming state when final chunk arrives
+          if (chunkMessage.is_final) {
+            streamingStateRef.current = {
+              backendMessageId: null,
+              frontendMessageIndex: null,
+            };
+          }
+        }
+      }
+    },
+  );
 
   const isLoading = status === "submitted" || status === "streaming";
 
@@ -283,13 +412,14 @@ export const Chatbot: React.FC<Props> = (props) => {
         <Button
           variant="text"
           size="icon"
+          disabled={messages.length === 0}
           onClick={() => {
             setMessages([]);
             props.setValue([]);
             props.delete_chat_history({});
           }}
         >
-          <Trash2Icon className="h-3 w-3" />
+          <RotateCwIcon className="h-3 w-3" />
         </Button>
       </div>
       <div

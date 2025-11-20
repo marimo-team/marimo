@@ -63,7 +63,7 @@ describe("FrontendToolRegistry", () => {
   it("returns tool schemas with expected shape and memoizes the result", () => {
     const registry = new FrontendToolRegistry([new TestFrontendTool()]);
 
-    const schemas1 = registry.getToolSchemas();
+    const schemas1 = registry.getToolSchemas("ask");
     expect(Array.isArray(schemas1)).toBe(true);
     expect(schemas1.length).toBe(1);
 
@@ -80,7 +80,11 @@ describe("FrontendToolRegistry", () => {
     expect(properties && typeof properties === "object").toBe(true);
     expect("name" in (properties ?? {})).toBe(true);
 
-    const schemas2 = registry.getToolSchemas();
+    const schemas2 = registry.getToolSchemas("ask");
     expect(schemas2).toBe(schemas1);
+
+    // Should not include tools for other modes
+    const schemas3 = registry.getToolSchemas("agent");
+    expect(schemas3.length).toBe(0);
   });
 });
