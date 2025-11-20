@@ -42,6 +42,41 @@
         ]
     ],
     [
+        "nanosecond",
+        [
+            "datetime",
+            "datetime64[ns]"
+        ]
+    ],
+    [
+        "datetime_index",
+        [
+            "string",
+            "object"
+        ]
+    ],
+    [
+        "delta",
+        [
+            "string",
+            "object"
+        ]
+    ],
+    [
+        "none",
+        [
+            "string",
+            "object"
+        ]
+    ],
+    [
+        "infs",
+        [
+            "number",
+            "float64"
+        ]
+    ],
+    [
         "struct",
         [
             "string",
