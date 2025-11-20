@@ -2,7 +2,7 @@
 # requires-python = ">=3.11"
 # dependencies = [
 #     "marimo",
-#     "openai>=1.55.3",
+#     "openai==2.8.1",
 # ]
 # ///
 
@@ -26,7 +26,7 @@ def _(mo):
     This example shows how to use OpenAI's API with streaming responses.
     The built-in `mo.ai.llm.openai()` model automatically streams tokens
     as they arrive from the API!
-    
+
     Enter your API key below to try it out.
     """)
     return
@@ -70,14 +70,14 @@ def _(chatbot):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo):
     mo.md("""
     ## How it works
 
     The built-in OpenAI model returns an async generator that yields tokens
     as they stream from the API:
-    
+
     ```python
     mo.ui.chat(
         mo.ai.llm.openai(
@@ -86,7 +86,7 @@ def _(mo):
         )
     )
     ```
-    
+
     Other built-in models (`anthropic`, `google`, `groq`) work the same way.
     """)
     return
@@ -95,7 +95,7 @@ def _(mo):
 @app.cell
 def _(chatbot, mo):
     # Show chat history
-    if hasattr(chatbot, 'value'):
+    if hasattr(chatbot, "value"):
         mo.md(f"**Chat history:** {len(chatbot.value)} messages")
     return
 
@@ -103,11 +103,10 @@ def _(chatbot, mo):
 @app.cell
 def _(chatbot):
     # Display full history
-    if hasattr(chatbot, 'value'):
+    if hasattr(chatbot, "value"):
         chatbot.value
     return
 
 
 if __name__ == "__main__":
     app.run()
-
