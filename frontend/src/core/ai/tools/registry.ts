@@ -123,8 +123,11 @@ export class FrontendToolRegistry {
   }
 
   @Memoize()
-  getToolSchemas(): FrontendToolDefinition[] {
-    return [...this.tools.values()].map((tool) => ({
+  getToolSchemas(mode: CopilotMode): FrontendToolDefinition[] {
+    const tools = [...this.tools.values()].filter((tool) =>
+      tool.mode.includes(mode),
+    );
+    return tools.map((tool) => ({
       name: tool.name,
       description: formatToolDescription(tool.description),
       parameters: z.toJSONSchema(tool.schema),

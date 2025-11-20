@@ -182,7 +182,7 @@ const ChatMessageDisplay: React.FC<ChatMessageProps> = memo(
       const content = textParts.map((p) => p.text).join("\n");
 
       return (
-        <div className="w-[95%] break-words">
+        <div className="w-[95%] wrap-break-word">
           <div className="absolute right-1 top-1 opacity-0 group-hover:opacity-100 transition-opacity">
             <CopyClipboardIcon className="h-3 w-3" value={content || ""} />
           </div>
@@ -567,9 +567,13 @@ const ChatPanelBody = () => {
           options.messages,
         );
 
+        // Call this here to ensure the value is not stale
+        const chatMode = store.get(aiAtom)?.mode || DEFAULT_MODE;
+        const tools = FRONTEND_TOOL_REGISTRY.getToolSchemas(chatMode);
+
         return {
           body: {
-            tools: FRONTEND_TOOL_REGISTRY.getToolSchemas(),
+            tools,
             ...options,
             ...completionBody,
           },
