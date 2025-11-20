@@ -668,11 +668,14 @@ def test_poetry_list_packages_uses_utf8_encoding(mock_run: MagicMock):
 
     packages = mgr.list_packages()
 
-    # Verify encoding='utf-8' is passed
-    mock_run.assert_called_once()
-    call_kwargs = mock_run.call_args[1]
-    assert call_kwargs.get("encoding") == "utf-8"
-    assert call_kwargs.get("text") is True
+    # Verify encoding='utf-8' is passed (PoetryPackageManager does multiple subprocess calls)
+    encoding_calls = [
+        kwargs
+        for _, kwargs in mock_run.call_args_list
+        if kwargs.get("encoding") == "utf-8"
+    ]
+    assert encoding_calls, "Expected at least one call with encoding='utf-8'"
+    assert all(call.get("text") is True for call in encoding_calls)
 
 
 @pytest.mark.skipif(
