@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import itertools
+import pathlib
 import sys
 import threading
 import time
@@ -79,7 +80,7 @@ def _is_third_party_module(module: types.ModuleType) -> bool:
     filepath = safe_getattr(module, "__file__", None)
     if filepath is None:
         return False
-    return "site-packages" in filepath
+    return "site-packages" in pathlib.Path(filepath).parts
 
 
 # Cache for excluded modules to avoid recomputing on every check
