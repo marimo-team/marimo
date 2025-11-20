@@ -308,7 +308,13 @@ async def test_reload_nested_module_import_module_autorun(
     update_file(nested_module, "func = lambda: 2")
 
     # wait for the watcher to pick up the change
-    queue.get(timeout=3)
+    retries = 0
+    while retries < 15:
+        await asyncio.sleep(INTERVAL)
+        retries += 1
+        if k.graph.cells[er_1.cell_id].stale:
+            break
+
     assert k.graph.cells[er_1.cell_id].stale
     assert k.graph.cells[er_2.cell_id].stale
     assert not k.graph.cells[er_3.cell_id].stale
