@@ -12,6 +12,7 @@ import {
   DownloadIcon,
   Edit3Icon,
   ExternalLinkIcon,
+  EyeOffIcon,
   FilePlus2Icon,
   FolderPlusIcon,
   ListTreeIcon,
@@ -67,6 +68,15 @@ import {
   PYTHON_CODE_FOR_FILE_TYPE,
 } from "./types";
 import { useFileExplorerUpload } from "./upload";
+import { atomWithStorage } from "jotai/utils";
+import { jotaiJsonStorage } from "@/utils/storage/jotai";
+
+const hiddenFilesState = atomWithStorage("marimo:showHiddenFiles", true,
+  jotaiJsonStorage,
+  {
+    getOnInit: true,
+  },
+)
 
 const RequestingTreeContext = React.createContext<RequestingTree | null>(null);
 
@@ -77,6 +87,9 @@ export const FileExplorer: React.FC<{
   const [tree] = useAtom(treeAtom);
   const [data, setData] = useState<FileInfo[]>([]);
   const [openFile, setOpenFile] = useState<FileInfo | null>(null);
+  const [showHiddenFiles, setShowHiddenFiles] = useAtom<boolean>(hiddenFilesState);
+
+
   const { openPrompt } = useImperativeModal();
   // Keep external state to remember which folders are open
   // when this component is unmounted
@@ -85,6 +98,11 @@ export const FileExplorer: React.FC<{
 
   const handleRefresh = useEvent(() => {
     tree.refreshAll(Object.keys(openState).filter((id) => openState[id]));
+  });
+
+  const handleHiddenFilesToggle = useEvent(() => {
+    const newValue = !showHiddenFiles;
+    setShowHiddenFiles(newValue);
   });
 
   const handleCreateFolder = useEvent(async () => {
@@ -148,10 +166,12 @@ export const FileExplorer: React.FC<{
     );
   }
 
+  const visibleData = React.useMemo(() => filterHiddenTree(data, showHiddenFiles), [data, showHiddenFiles]);
   return (
     <>
       <Toolbar
         onRefresh={handleRefresh}
+        onHidden={handleHiddenFilesToggle}
         onCreateFile={handleCreateFile}
         onCreateFolder={handleCreateFolder}
         onCollapseAll={handleCollapseAll}
@@ -163,7 +183,7 @@ export const FileExplorer: React.FC<{
           ref={treeRef}
           height={height - 33}
           className="h-full"
-          data={data}
+          data={visibleData}
           initialOpenState={openState}
           openByDefault={false}
           // Hide the drop cursor
@@ -215,6 +235,7 @@ const INDENT_STEP = 15;
 
 interface ToolbarProps {
   onRefresh: () => void;
+  onHidden: () => void;
   onCreateFile: () => void;
   onCreateFolder: () => void;
   onCollapseAll: () => void;
@@ -223,6 +244,7 @@ interface ToolbarProps {
 
 const Toolbar = ({
   onRefresh,
+  onHidden,
   onCreateFile,
   onCreateFolder,
   onCollapseAll,
@@ -275,6 +297,16 @@ const Toolbar = ({
           size="xs"
         >
           <RefreshCcwIcon size={16} />
+        </Button>
+      </Tooltip>
+      <Tooltip content="Toggle hidden files">
+        <Button
+          data-testid="file-explorer-hidden-files-button"
+          onClick={onHidden}
+          variant="text"
+          size="xs"
+        >
+          <EyeOffIcon size={16} />
         </Button>
       </Tooltip>
       <Tooltip content="Collapse all folders">
@@ -612,8 +644,8 @@ const Node = ({ node, style, dragHandle }: NodeRendererProps<FileInfo>) => {
         className={cn(
           "flex items-center pl-1 py-1 cursor-pointer hover:bg-accent/50 hover:text-accent-foreground rounded-l flex-1 overflow-hidden group",
           node.willReceiveDrop &&
-            node.data.isDirectory &&
-            "bg-accent/80 hover:bg-accent/80 text-accent-foreground",
+          node.data.isDirectory &&
+          "bg-accent/80 hover:bg-accent/80 text-accent-foreground",
         )}
       >
         {node.data.isMarimoFile ? (
@@ -676,4 +708,34 @@ function openMarimoNotebook(
   event.stopPropagation();
   event.preventDefault();
   openNotebook(path);
+}
+
+export function filterHiddenTree(list: FileInfo[], showHidden: boolean): FileInfo[] {
+  if (showHidden) {
+    return list
+  }
+
+  const out: FileInfo[] = [];
+  for (const item of list) {
+    if (isDirectoryOrFileHidden(item.name)) {
+      continue
+    };
+    let next = item;
+    if (item.children && item.children.length) {
+      const kids = filterHiddenTree(item.children, showHidden);
+      if (kids !== item.children) {
+        next = { ...item, children: kids }
+
+      };
+    }
+    out.push(next);
+  }
+  return out;
+}
+
+export function isDirectoryOrFileHidden(filename: string): boolean {
+  if (filename.startsWith('.')) {
+    return true
+  }
+  return false
 }
