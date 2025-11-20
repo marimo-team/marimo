@@ -1,6 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import { useAtom } from "jotai";
+import { atomWithStorage } from "jotai/utils";
 import {
   ArrowLeftIcon,
   BetweenHorizontalStartIcon,
@@ -57,6 +58,7 @@ import { downloadBlob } from "@/utils/download";
 import { openNotebook } from "@/utils/links";
 import type { FilePath } from "@/utils/paths";
 import { fileSplit } from "@/utils/pathUtils";
+import { jotaiJsonStorage } from "@/utils/storage/jotai";
 import marimoIcon from "../../../assets/icon-32x32.png";
 import { FileViewer } from "./file-viewer";
 import type { RequestingTree } from "./requesting-tree";
@@ -68,15 +70,15 @@ import {
   PYTHON_CODE_FOR_FILE_TYPE,
 } from "./types";
 import { useFileExplorerUpload } from "./upload";
-import { atomWithStorage } from "jotai/utils";
-import { jotaiJsonStorage } from "@/utils/storage/jotai";
 
-const hiddenFilesState = atomWithStorage("marimo:showHiddenFiles", true,
+const hiddenFilesState = atomWithStorage(
+  "marimo:showHiddenFiles",
+  true,
   jotaiJsonStorage,
   {
     getOnInit: true,
   },
-)
+);
 
 const RequestingTreeContext = React.createContext<RequestingTree | null>(null);
 
@@ -87,8 +89,8 @@ export const FileExplorer: React.FC<{
   const [tree] = useAtom(treeAtom);
   const [data, setData] = useState<FileInfo[]>([]);
   const [openFile, setOpenFile] = useState<FileInfo | null>(null);
-  const [showHiddenFiles, setShowHiddenFiles] = useAtom<boolean>(hiddenFilesState);
-
+  const [showHiddenFiles, setShowHiddenFiles] =
+    useAtom<boolean>(hiddenFilesState);
 
   const { openPrompt } = useImperativeModal();
   // Keep external state to remember which folders are open
@@ -166,7 +168,10 @@ export const FileExplorer: React.FC<{
     );
   }
 
-  const visibleData = React.useMemo(() => filterHiddenTree(data, showHiddenFiles), [data, showHiddenFiles]);
+  const visibleData = React.useMemo(
+    () => filterHiddenTree(data, showHiddenFiles),
+    [data, showHiddenFiles],
+  );
   return (
     <>
       <Toolbar
@@ -644,8 +649,8 @@ const Node = ({ node, style, dragHandle }: NodeRendererProps<FileInfo>) => {
         className={cn(
           "flex items-center pl-1 py-1 cursor-pointer hover:bg-accent/50 hover:text-accent-foreground rounded-l flex-1 overflow-hidden group",
           node.willReceiveDrop &&
-          node.data.isDirectory &&
-          "bg-accent/80 hover:bg-accent/80 text-accent-foreground",
+            node.data.isDirectory &&
+            "bg-accent/80 hover:bg-accent/80 text-accent-foreground",
         )}
       >
         {node.data.isMarimoFile ? (
@@ -710,23 +715,25 @@ function openMarimoNotebook(
   openNotebook(path);
 }
 
-export function filterHiddenTree(list: FileInfo[], showHidden: boolean): FileInfo[] {
+export function filterHiddenTree(
+  list: FileInfo[],
+  showHidden: boolean,
+): FileInfo[] {
   if (showHidden) {
-    return list
+    return list;
   }
 
   const out: FileInfo[] = [];
   for (const item of list) {
     if (isDirectoryOrFileHidden(item.name)) {
-      continue
-    };
+      continue;
+    }
     let next = item;
     if (item.children && item.children.length) {
       const kids = filterHiddenTree(item.children, showHidden);
       if (kids !== item.children) {
-        next = { ...item, children: kids }
-
-      };
+        next = { ...item, children: kids };
+      }
     }
     out.push(next);
   }
@@ -734,8 +741,8 @@ export function filterHiddenTree(list: FileInfo[], showHidden: boolean): FileInf
 }
 
 export function isDirectoryOrFileHidden(filename: string): boolean {
-  if (filename.startsWith('.')) {
-    return true
+  if (filename.startsWith(".")) {
+    return true;
   }
-  return false
+  return false;
 }
