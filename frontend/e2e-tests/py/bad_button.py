@@ -2,28 +2,27 @@
 # [tool.marimo.runtime]
 # auto_instantiate = true
 # ///
-
 import marimo
 
-__generated_with = "0.17.6"
+__generated_with = "0.0.1"
 app = marimo.App()
 
 
 @app.cell
-def _():
+def __():
     import marimo as mo
-    return (mo,)
+    return mo,
 
 
 @app.cell
-def _(mo):
-    b = mo.ui.button(value=None, label="Bad button", on_click=lambda v: v + 1)
+def __(mo):
+    b = mo.ui.button(value=None, label='Bad button', on_click=lambda v: v + 1)
     b
-    return (b,)
+    return b,
 
 
 @app.cell
-def _(b):
+def __(b):
     b.value
     return
 
