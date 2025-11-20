@@ -545,8 +545,6 @@ class bedrock(ChatModel):
         DependencyManager.litellm.require(
             "bedrock chat model requires litellm. `pip install litellm`"
         )
-        from litellm import completion as litellm_completion
-
         self._setup_credentials()
 
         try:
