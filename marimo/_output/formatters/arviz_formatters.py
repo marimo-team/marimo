@@ -43,11 +43,9 @@ class ArviZFormatter(FormatterFactory):
         if arr.dtype == object and cls._contains_axes(arr):
             fig = plt.gcf()
             if fig.get_axes():  # Only process if there are axes to show
-                axes_info = cls._get_axes_info(fig)
                 plot_html = cls._get_plot_html(fig)
                 plt.close(fig)  # Safely close the figure after saving
-                combined_html = f"<pre>{axes_info}</pre><br>{plot_html}"
-                return ("text/html", combined_html)
+                return ("text/html", plot_html)
         # Fallback to plain text if no axes or plot are present
         return ("text/plain", str(arr))
 
@@ -82,17 +80,6 @@ class ArviZFormatter(FormatterFactory):
         return False
 
     @staticmethod
-    def _get_axes_info(fig: Figure) -> str:  # type: ignore
-        axes_info = []
-        for _, ax in enumerate(fig.axes):
-            bbox = ax.get_position()
-            axes_info.append(
-                f"Axes({bbox.x0:.3f},{bbox.y0:.3f};"
-                f"{bbox.width:.3f}x{bbox.height:.3f})"
-            )
-        return "\n".join(axes_info)
-
-    @staticmethod
     def _get_plot_html(fig: Figure) -> str:  # type: ignore
         import base64
         from io import BytesIO
@@ -106,8 +93,6 @@ class ArviZFormatter(FormatterFactory):
     def format_figure(cls, fig: Figure) -> tuple[KnownMimeType, str]:  # type: ignore
         import matplotlib.pyplot as plt  # type: ignore
 
-        axes_info = cls._get_axes_info(fig)
         plot_html = cls._get_plot_html(fig)
         plt.close(fig)
-        combined_html = f"<pre>{axes_info}</pre><br>{plot_html}"
-        return ("text/html", combined_html)
+        return ("text/html", plot_html)
