@@ -144,6 +144,11 @@ def _inject_service_worker(html: str, file_key: str) -> str:
                     .catch(error => {{
                         console.error('Error updating service worker:', error);
                     }});
+            }} else {{
+                console.warn(
+                    '[marimo] Service workers are not supported at this URL. Displaying files from the /public/ directory may be disabled. ' +
+                    'To fix this, enable service workers by using a secure connection (https) or localhost.'
+                );
             }}
             """,
     )
