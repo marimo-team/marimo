@@ -1004,6 +1004,42 @@ def test_convert_to_google_tools(sample_tools):
     ]
 
 
+def test_convert_to_google_tools_with_unnecessary_parameters():
+    tools = [
+        ToolDefinition(
+            name="test_tool",
+            description="A test tool",
+            parameters={
+                "type": "object",
+                "properties": {
+                    "x": {
+                        "type": "integer",
+                        "additionalProperties": True,
+                    }  # additionalProperties is not supported by Google
+                },
+            },
+            source="mcp",
+            mode=["manual"],
+        )
+    ]
+    result = convert_to_google_tools(tools)
+    assert result == [
+        {
+            "function_declarations": [
+                {
+                    "name": "test_tool",
+                    "description": "A test tool",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {"x": {"type": "integer"}},
+                        "required": [],
+                    },
+                }
+            ]
+        }
+    ]
+
+
 def test_convert_to_ai_sdk_messages():
     # Test text type
     text = "hello world"
