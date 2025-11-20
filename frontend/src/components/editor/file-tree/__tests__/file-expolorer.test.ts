@@ -1,6 +1,6 @@
-import { describe, it, expect } from "vitest";
-import { isDirectoryOrFileHidden, filterHiddenTree } from "../file-explorer";
+import { describe, expect, it } from "vitest";
 import type { FileInfo } from "@/core/network/types";
+import { filterHiddenTree, isDirectoryOrFileHidden } from "../file-explorer";
 
 // Helpers to build FileInfo objects for tests
 const file = (name: string, path: string): FileInfo => ({
