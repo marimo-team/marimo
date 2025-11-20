@@ -51,7 +51,6 @@ def _(api_key_input, mo):
                 "gpt-4o-mini",
                 system_message="You are a helpful assistant. Keep responses concise and friendly.",
                 api_key=api_key_input.value,
-                stream=True,  # Enable streaming
             ),
             prompts=[
                 "Tell me a short joke",
@@ -84,12 +83,9 @@ def _(mo):
         mo.ai.llm.openai(
             "gpt-4o-mini",
             api_key="your-key",
-            stream=True,  # Enable streaming!
         )
     )
     ```
-    
-    Set `stream=True` to enable streaming responses. 🚀
     
     Other built-in models (`anthropic`, `google`, `groq`) work the same way.
     """)
