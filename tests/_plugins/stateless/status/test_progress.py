@@ -77,18 +77,21 @@ def test_update_progress_slowly(mock_flush: Any) -> None:
         show_rate=True,
         show_eta=True,
     )
-    # sleep 12s
-    time.sleep(12)
-    progress.update_progress(
-        increment=1, title="Updated", subtitle="Still Running Slowly"
-    )
+
+    # Mock sleep 120 seconds
+    with patch("time.time", return_value=progress.start_time + 120):
+        progress.update_progress(
+            increment=1, title="Updated", subtitle="Still Running Slowly"
+        )
+
+        rate = progress._get_rate()
+        eta = progress._get_eta()
+
     assert progress.current == 1
     assert progress.title == "Updated"
     assert progress.subtitle == "Still Running Slowly"
-    rate = progress._get_rate()
     assert rate is not None
     assert rate > 0.0
-    eta = progress._get_eta()
     assert eta is not None
     assert eta > 0.0
     mock_flush.assert_called_once()
