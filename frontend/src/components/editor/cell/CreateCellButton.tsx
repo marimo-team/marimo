@@ -83,8 +83,8 @@ export const CreateCellButton = ({
         >
           <Tooltip content={finalTooltipContent}>
             <PlusIcon
-              strokeWidth={3.2}
-              size={16}
+              strokeWidth={3}
+              size={14}
               className="opacity-60 hover:opacity-90"
             />
           </Tooltip>
