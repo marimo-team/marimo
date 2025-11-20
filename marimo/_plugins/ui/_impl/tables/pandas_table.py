@@ -124,7 +124,7 @@ class PandasTableManagerFactory(TableManagerFactory):
                         exc_info=e,
                     )
                     return sanitize_json_bigint(
-                        result.to_dict(orient="records")
+                        result.to_dict(orient="records")  # type: ignore
                     )
 
                 # Flatten row multi-index
@@ -178,7 +178,7 @@ class PandasTableManagerFactory(TableManagerFactory):
                                 "Indexes with more than one level are not well supported, call reset_index() or use mo.plain(df)"
                             )
 
-                return sanitize_json_bigint(result.to_dict(orient="records"))
+                return sanitize_json_bigint(result.to_dict(orient="records"))  # type: ignore
 
             def _infer_dtype(self, column: ColumnName) -> str:
                 # Typically, pandas dtypes returns a generic dtype
