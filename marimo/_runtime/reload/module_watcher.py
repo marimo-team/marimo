@@ -162,26 +162,13 @@ def watch_modules(
     # in CPython, dict.copy() is atomic
     sys_modules = sys.modules.copy()
     sleep_interval = _TEST_SLEEP_INTERVAL or MODULE_WATCHER_SLEEP_INTERVAL
-    # Cache for cell import analysis to avoid recomputing on every iteration
-    cell_modules_cache: dict[CellId_t, set[str]] = {}
     while not should_exit.is_set():
         # Collect the modules used by each cell
         modules: dict[str, types.ModuleType] = {}
         modname_to_cell_id: dict[str, CellId_t] = {}
         with graph.lock:
-            # Clear cache for cells that no longer exist
-            cell_modules_cache = {
-                cid: mods
-                for cid, mods in cell_modules_cache.items()
-                if cid in graph.cells
-            }
             for cell_id, cell in graph.cells.items():
-                # Use cached result if available, otherwise compute and cache
-                if cell_id not in cell_modules_cache:
-                    cell_modules_cache[cell_id] = modules_imported_by_cell(
-                        cell, sys_modules
-                    )
-                for modname in cell_modules_cache[cell_id]:
+                for modname in modules_imported_by_cell(cell, sys_modules):
                     if modname in sys_modules:
                         modules[modname] = sys_modules[modname]
                         modname_to_cell_id[modname] = cell_id
@@ -208,8 +195,6 @@ def watch_modules(
                         if import_data.module == modname
                     ]
                     cell.import_workspace.imported_defs -= set(defs_to_prune)
-                    # Invalidate cache for this cell in case imports changed
-                    cell_modules_cache.pop(cell_id, None)
 
                 # If any modules are stale, communicate that to the FE
                 # and update the backend's view of the importing cells'
