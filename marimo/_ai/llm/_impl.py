@@ -193,7 +193,9 @@ class _LiteLLMBase(ChatModel):
         except Exception as e:
             # If streaming fails due to model not supporting it, retry without streaming
             error_msg = str(e).lower()
-            if self.stream and ("stream" in error_msg or "streaming" in error_msg):
+            if self.stream and (
+                "stream" in error_msg or "streaming" in error_msg
+            ):
                 params["stream"] = False
                 response = completion(drop_params=True, **params)
                 return response.choices[0].message.content
