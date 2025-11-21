@@ -30,17 +30,21 @@ def is_submodule(src_name: str, target_name: str) -> bool:
 
     eg: "marimo.plugins" is a parent of "marimo.plugins.ui", returns True
     """
-    src_parts = src_name.split(".")
-    target_parts = target_name.split(".")
-    if len(src_parts) > len(target_parts):
+    # Fast path: check if target starts with src
+    if not target_name.startswith(src_name):
         return False
-    return all(src_parts[i] == target_parts[i] for i in range(len(src_parts)))
+    # Exact match means it's the same module, which counts as submodule
+    if target_name == src_name:
+        return True
+    # Must be followed by a dot to be a true submodule (prevents matching "foo" with "foobar")
+    return target_name[len(src_name)] == "."
 
 
 def _depends_on(
     src_module: types.ModuleType,
     target_modules: set[types.ModuleType],
-    excludes: list[str],
+    target_filenames: set[str | None],
+    excludes: set[str],
     reloader: ModuleReloader,
 ) -> bool:
     """Returns whether src_module depends on any of target_filenames"""
@@ -49,10 +53,6 @@ def _depends_on(
 
     module_dependencies = reloader.get_module_dependencies(
         src_module, excludes=excludes
-    )
-
-    target_filenames = set(
-        t.__file__ for t in target_modules if hasattr(t, "__file__")
     )
     for found_module in itertools.chain(
         [src_module], module_dependencies.values()
@@ -83,13 +83,29 @@ def _is_third_party_module(module: types.ModuleType) -> bool:
     return "site-packages" in pathlib.Path(filepath).parts
 
 
-def _get_excluded_modules(modules: dict[str, types.ModuleType]) -> list[str]:
-    return [
+# Cache for excluded modules to avoid recomputing on every check
+# Only caches most recent result to prevent memory bloat
+_excluded_modules_cache: tuple[frozenset[str], set[str]] | None = None
+
+
+def _get_excluded_modules(modules: dict[str, types.ModuleType]) -> set[str]:
+    global _excluded_modules_cache
+    # Use module names as cache key - if same modules, use cached result
+    cache_key = frozenset(modules.keys())
+    if (
+        _excluded_modules_cache is not None
+        and _excluded_modules_cache[0] == cache_key
+    ):
+        return _excluded_modules_cache[1]
+
+    result = set(
         modname
         for modname in modules
         if (m := modules.get(modname)) is not None
         and _is_third_party_module(m)
-    ]
+    )
+    _excluded_modules_cache = (cache_key, result)
+    return result
 
 
 def _check_modules(
@@ -103,10 +119,17 @@ def _check_modules(
     # TODO(akshayka): could also exclude modules part of the standard library;
     # haven't found a reliable way to do this, however.
     excludes = _get_excluded_modules(sys_modules)
+
+    target_modules = set(m for m in modified_modules if m is not None)
+    target_filenames = set(
+        t.__file__ for t in target_modules if hasattr(t, "__file__")
+    )
+
     for modname, module in modules.items():
         if _depends_on(
             src_module=module,
-            target_modules=set(m for m in modified_modules if m is not None),
+            target_modules=target_modules,
+            target_filenames=target_filenames,
             excludes=excludes,
             reloader=reloader,
         ):
@@ -164,7 +187,8 @@ def watch_modules(
                 LOGGER.debug("Acquired graph lock.")
                 for modname in stale_modules.keys():
                     # prune definitions that are derived from stale modules
-                    cell = graph.cells[modname_to_cell_id[modname]]
+                    cell_id = modname_to_cell_id[modname]
+                    cell = graph.cells[cell_id]
                     defs_to_prune = [
                         import_data.definition
                         for import_data in cell.imports
