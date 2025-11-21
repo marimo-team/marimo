@@ -128,7 +128,7 @@ describe("EditNotebookTool", () => {
         {
           edit: {
             type: "update_cell",
-            cellId: cellId1,
+            position: { type: "relative", cellId: cellId1 },
             code: newCode,
           },
         },
@@ -154,7 +154,7 @@ describe("EditNotebookTool", () => {
         {
           edit: {
             type: "update_cell",
-            cellId: cellId1,
+            position: { type: "relative", cellId: cellId1 },
             code: "x = 3",
           },
         },
@@ -188,7 +188,7 @@ describe("EditNotebookTool", () => {
           {
             edit: {
               type: "update_cell",
-              cellId: "nonexistent" as CellId,
+              position: { cellId: "nonexistent" as CellId },
               code: "x = 2",
             },
           },
@@ -201,7 +201,7 @@ describe("EditNotebookTool", () => {
           {
             edit: {
               type: "update_cell",
-              cellId: "nonexistent" as CellId,
+              position: { cellId: "nonexistent" as CellId },
               code: "x = 2",
             },
           },
@@ -225,13 +225,58 @@ describe("EditNotebookTool", () => {
           {
             edit: {
               type: "update_cell",
-              cellId: cellId1,
+              position: { type: "relative", cellId: cellId1 },
               code: "x = 2",
             },
           },
           toolContext as never,
         ),
       ).rejects.toThrow("Cell editor not found");
+    });
+
+    it("should throw error when cellId is missing for update_cell", async () => {
+      const notebook = MockNotebook.notebookState({
+        cellData: {
+          [cellId1]: { code: "x = 1" },
+        },
+      });
+      store.set(notebookAtom, notebook);
+
+      await expect(
+        tool.handler(
+          {
+            edit: {
+              type: "update_cell",
+              position: {},
+              code: "x = 2",
+            },
+          },
+          toolContext as never,
+        ),
+      ).rejects.toThrow("Cell ID is required for update_cell");
+    });
+
+    it("should throw error when code is missing for update_cell", async () => {
+      const editorView = createMockEditorView("x = 1");
+      const notebook = MockNotebook.notebookState({
+        cellData: {
+          [cellId1]: { code: "x = 1" },
+        },
+      });
+      notebook.cellHandles[cellId1] = { current: { editorView } } as never;
+      store.set(notebookAtom, notebook);
+
+      await expect(
+        tool.handler(
+          {
+            edit: {
+              type: "update_cell",
+              position: { cellId: cellId1 },
+            },
+          },
+          toolContext as never,
+        ),
+      ).rejects.toThrow("Code is required for update_cell");
     });
   });
 
@@ -404,6 +449,86 @@ describe("EditNotebookTool", () => {
         ),
       ).rejects.toThrow("Column index is out of range");
     });
+
+    it("should throw error when cellId is missing for add_cell with relative position", async () => {
+      const notebook = MockNotebook.notebookState({
+        cellData: {
+          [cellId1]: { code: "x = 1" },
+        },
+      });
+      store.set(notebookAtom, notebook);
+
+      await expect(
+        tool.handler(
+          {
+            edit: {
+              type: "add_cell",
+              position: {
+                type: "relative",
+                before: true,
+              },
+              code: "y = 2",
+            },
+          },
+          toolContext as never,
+        ),
+      ).rejects.toThrow(
+        "Cell ID is required for add_cell with relative position",
+      );
+    });
+
+    it("should throw error when before is missing for add_cell with relative position", async () => {
+      const notebook = MockNotebook.notebookState({
+        cellData: {
+          [cellId1]: { code: "x = 1" },
+        },
+      });
+      store.set(notebookAtom, notebook);
+
+      await expect(
+        tool.handler(
+          {
+            edit: {
+              type: "add_cell",
+              position: {
+                type: "relative",
+                cellId: cellId1,
+              },
+              code: "y = 2",
+            },
+          },
+          toolContext as never,
+        ),
+      ).rejects.toThrow(
+        "Before is required for add_cell with relative position",
+      );
+    });
+
+    it("should throw error when columnIndex is missing for add_cell with column_end position", async () => {
+      const notebook = MockNotebook.notebookState({
+        cellData: {
+          [cellId1]: { code: "x = 1" },
+        },
+      });
+      store.set(notebookAtom, notebook);
+
+      await expect(
+        tool.handler(
+          {
+            edit: {
+              type: "add_cell",
+              position: {
+                type: "column_end",
+              },
+              code: "y = 2",
+            },
+          },
+          toolContext as never,
+        ),
+      ).rejects.toThrow(
+        "Column index is required for add_cell with column_end position",
+      );
+    });
   });
 
   describe("delete_cell operation", () => {
@@ -423,7 +548,7 @@ describe("EditNotebookTool", () => {
         {
           edit: {
             type: "delete_cell",
-            cellId: cellId1,
+            position: { cellId: cellId1 },
           },
         },
         toolContext as never,
@@ -453,7 +578,7 @@ describe("EditNotebookTool", () => {
           {
             edit: {
               type: "delete_cell",
-              cellId: "nonexistent" as CellId,
+              position: { cellId: "nonexistent" as CellId },
             },
           },
           toolContext as never,
@@ -476,12 +601,33 @@ describe("EditNotebookTool", () => {
           {
             edit: {
               type: "delete_cell",
-              cellId: cellId1,
+              position: { cellId: cellId1 },
             },
           },
           toolContext as never,
         ),
       ).rejects.toThrow("Cell editor not found");
+    });
+
+    it("should throw error when cellId is missing for delete_cell", async () => {
+      const notebook = MockNotebook.notebookState({
+        cellData: {
+          [cellId1]: { code: "x = 1" },
+        },
+      });
+      store.set(notebookAtom, notebook);
+
+      await expect(
+        tool.handler(
+          {
+            edit: {
+              type: "delete_cell",
+              position: {},
+            },
+          },
+          toolContext as never,
+        ),
+      ).rejects.toThrow("Cell ID is required for delete_cell");
     });
   });
 
@@ -508,7 +654,7 @@ describe("EditNotebookTool", () => {
           {
             edit: {
               type: "update_cell",
-              cellId: cellId1,
+              position: { cellId: cellId1 },
               code: "y = 1",
             },
           },
@@ -521,7 +667,7 @@ describe("EditNotebookTool", () => {
           {
             edit: {
               type: "update_cell",
-              cellId: cellId3,
+              position: { cellId: cellId3 },
               code: "y = 3",
             },
           },
