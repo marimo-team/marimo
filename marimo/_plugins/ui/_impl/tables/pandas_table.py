@@ -83,11 +83,11 @@ class PandasTableManagerFactory(TableManagerFactory):
                 return self.apply_formatting(
                     format_mapping
                 )._original_data.to_csv(
-                    # By adding %H:%M:%S and %z, we ensure that the
+                    # By adding %H:%M:%S.%f and %z, we ensure that the
                     # datetime is displayed in the frontend with the
-                    # correct timezone.
+                    # correct timezone and millisecond precision.
                     index=has_headers,
-                    date_format="%Y-%m-%d %H:%M:%S%z",
+                    date_format="%Y-%m-%d %H:%M:%S.%f%z",
                 )
 
             def to_json_str(

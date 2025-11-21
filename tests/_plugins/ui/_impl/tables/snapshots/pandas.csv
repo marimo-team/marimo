@@ -1,4 +1,4 @@
 strings,bool,int,float,datetime,date,struct,list,nulls,category,set,imaginary,time,duration,mixed_list,bytes
-a,True,1,1.0,2021-01-01 00:00:00,2021-01-01,"{'a': 1, 'b': 2}","[1, 2]",,cat,"{1, 2}",(1+2j),12:30:00,1 days,"[1, 'two']",b'\x00\x00\x00\x00\x01\xc0U\xe8\xb1n1\xc0T@D\xf1?Bc\x95\x83'
-b,False,2,2.0,2021-01-02 00:00:00,2021-01-02,"{'a': 3, 'b': 4}","[3, 4]",data,dog,"{3, 4}",(3+4j),13:45:00,2 days,"[3.0, False]",b'world'
-c,True,3,3.0,2021-01-03 00:00:00,2021-01-03,"{'a': 5, 'b': 6}","[5, 6]",,mouse,"{5, 6}",(5+6j),14:15:00,3 days,"[None, datetime.datetime(2021, 1, 1, 0, 0)]",b'bytes'
+a,True,1,1.0,2021-01-01 00:00:00.000000,2021-01-01,"{'a': 1, 'b': 2}","[1, 2]",,cat,"{1, 2}",(1+2j),12:30:00,1 days,"[1, 'two']",b'\x00\x00\x00\x00\x01\xc0U\xe8\xb1n1\xc0T@D\xf1?Bc\x95\x83'
+b,False,2,2.0,2021-01-02 00:00:00.000000,2021-01-02,"{'a': 3, 'b': 4}","[3, 4]",data,dog,"{3, 4}",(3+4j),13:45:00,2 days,"[3.0, False]",b'world'
+c,True,3,3.0,2021-01-03 00:00:00.000000,2021-01-03,"{'a': 5, 'b': 6}","[5, 6]",,mouse,"{5, 6}",(5+6j),14:15:00,3 days,"[None, datetime.datetime(2021, 1, 1, 0, 0)]",b'bytes'
