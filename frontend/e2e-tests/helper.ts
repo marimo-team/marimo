@@ -19,12 +19,9 @@ export async function createCellBelow(opts: {
     page.getByTestId("create-cell-button").locator(":visible"),
   ).toHaveCount(2);
 
-  // Clicking the first button creates a new cell below
-  await page
-    .getByTestId("create-cell-button")
-    .locator(":visible")
-    .last()
-    .click();
+  // Clicking the first button opens a dropdown menu with the cell types
+  await page.getByTestId("create-cell-button").click();
+  await page.getByText("Python cell").click();
   // Type into the currently focused cell
   if (content) {
     await page.locator("*:focus").type(content);

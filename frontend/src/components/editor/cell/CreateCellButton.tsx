@@ -1,5 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { DatabaseIcon, DiamondPlusIcon, PlusIcon } from "lucide-react";
+import { useState } from "react";
 import { Button } from "@/components/editor/inputs/Inputs";
 import { MinimalHotkeys } from "@/components/shortcuts/renderShortcut";
 import {
@@ -34,6 +35,7 @@ export const CreateCellButton = ({
 }) => {
   const { createNewCell, addSetupCellIfDoesntExist } = useCellActions();
   const shortcut = `${oneClickShortcut}-Click`;
+  const [justOpened, setJustOpened] = useState(false);
 
   const baseTooltipContent =
     getConnectionTooltip(connectionState) || tooltipContent;
@@ -86,8 +88,28 @@ export const CreateCellButton = ({
     }
   };
 
+  const handleOpenChange = (open: boolean) => {
+    if (open) {
+      setJustOpened(true);
+      // Allow interactions after a brief delay
+      setTimeout(() => {
+        setJustOpened(false);
+      }, 200);
+    }
+  };
+
+  const handleFirstItemClick = (e: React.MouseEvent) => {
+    // Hack to prevent the first item from being clicked when the dropdown is opened
+    if (justOpened) {
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
+    addPythonCell();
+  };
+
   return (
-    <DropdownMenu>
+    <DropdownMenu onOpenChange={handleOpenChange}>
       <DropdownMenuTrigger asChild={true} onPointerDown={handleButtonClick}>
         <Button
           className={cn(
@@ -108,8 +130,8 @@ export const CreateCellButton = ({
           </Tooltip>
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent>
-        <DropdownMenuItem onClick={addPythonCell}>
+      <DropdownMenuContent side="bottom" sideOffset={-30}>
+        <DropdownMenuItem onClick={handleFirstItemClick}>
           {renderIcon(<PythonIcon />)}
           Python cell
         </DropdownMenuItem>
