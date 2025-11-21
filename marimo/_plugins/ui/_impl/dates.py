@@ -6,6 +6,7 @@ from typing import (
     Any,
     Callable,
     Final,
+    Literal,
     Optional,
     Union,
     cast,
@@ -472,3 +473,249 @@ class date_range(UIElement[tuple[str, str], tuple[dt.date, dt.date]]):
                 or 12-31-9999 if no stop date was specified.
         """
         return self._stop
+
+
+@mddoc
+class date_slider(UIElement[list[str], tuple[dt.date, dt.date]]):
+    """A date slider picker over an interval.
+
+    Examples:
+        ```python
+        date_slider = mo.ui.date_slider(
+            start=dt.date(2023, 1, 1),
+            stop=dt.date(2023, 12, 31),
+            step=dt.timedelta(days=7),
+        )
+        ```
+
+        Or from a dataframe series:
+
+        ```python
+        date_slider = mo.ui.date_slider.from_series(
+            df["date_column"], step=dt.timedelta(days=7)
+        )
+        ```
+
+    Attributes:
+        value (Tuple[datetime.date, datetime.date]): A tuple of (start_date, end_date) representing the selected range.
+        start (datetime.date): The minimum selectable date.
+        stop (datetime.date): The maximum selectable date.
+        step (Optional[datetime.timedelta]): The slider increment.
+
+    Args:
+        start (datetime.date | str, optional): Minimum date selectable. If None, defaults to 01-01-0001.
+        stop (datetime.date | str, optional): Maximum date selectable. If None, defaults to 12-31-9999.
+        step (Optional[datetime.timedelta]): The slider increment. If None, defaults to 1 day.
+        value (Tuple[datetime.date | str, datetime.date | str], optional): Default value as (start_date, end_date).
+            If None, defaults to (start, stop) if provided, otherwise today's date for both.
+        debounce (bool, optional): Whether to debounce the slider to only send the value on mouse-up or drag-end.
+            Defaults to False.
+        orientation (Literal["horizontal", "vertical"], optional): The orientation of the slider, either "horizontal"
+            or "vertical". Defaults to "horizontal".
+        show_value (bool, optional): Whether to display the current value of the slider. Defaults to False.
+        label (str, optional): Markdown label for the element.
+        on_change (Callable[[Tuple[datetime.date, datetime.date]], None], optional): Optional callback to run when
+            this element's value changes.
+        full_width (bool, optional): Whether the input should take up the full width of its container.
+        disabled (bool, optional): Whether the input should be disabled.
+
+    Methods:
+        from_series(series: DataFrameSeries, **kwargs: Any) -> date_slider:
+            Create a date slider from a dataframe series.
+    """
+
+    _name: Final[str] = "marimo-date-slider"
+    DATEFORMAT: Final[str] = "%Y-%m-%d"
+    _mapping: Optional[dict[int, dt.date]] = None
+
+    def __init__(
+        self,
+        start: Optional[dt.date | str] = None,
+        stop: Optional[dt.date | str] = None,
+        step: Optional[dt.timedelta] = None,
+        value: Optional[tuple[dt.date, dt.date] | tuple[str, str]] = None,
+        debounce: bool = False,
+        orientation: Literal["horizontal", "vertical"] = "horizontal",
+        show_value: bool = False,
+        *,
+        label: Optional[str] = None,
+        on_change: Optional[Callable[[tuple[dt.date, dt.date]], None]] = None,
+        full_width: bool = False,
+        disabled: bool = False,
+    ):
+        if isinstance(start, str):
+            start = self._convert_single_value(start)
+        if isinstance(stop, str):
+            stop = self._convert_single_value(stop)
+        if value is not None:
+            value = self._convert_value_tuple(value)
+
+        self._start = dt.date(dt.MINYEAR, 1, 1) if start is None else start
+        self._stop = dt.date(dt.MAXYEAR, 12, 31) if stop is None else stop
+        self._step = dt.timedelta(days=1) if step is None else step
+
+        if self._stop < self._start:
+            raise ValueError(
+                f"The stop date ({stop}) must be greater than "
+                f"the start date ({start})"
+            )
+
+        if self._step.total_seconds() <= 0:
+            raise ValueError(f"The step ({step}) must be a positive timedelta")
+
+        # Generate list of dates based on start, stop, and step
+        dates_list = []
+        current = self._start
+        while current <= self._stop:
+            dates_list.append(current)
+            current += self._step
+
+        if not dates_list:
+            raise ValueError(
+                f"No valid dates generated between {start} and {stop} "
+                f"with step {step}"
+            )
+
+        # Create mapping from indices to dates
+        self._mapping = dict(enumerate(dates_list))
+
+        # Handle default value
+        if value is None:
+            if start is None or stop is None:
+                value = (dt.date.today(), dt.date.today())
+            else:
+                value = (start, stop)
+
+        # Validate value is within bounds
+        if (
+            value[0] < self._start
+            or value[1] > self._stop
+            or value[0] > value[1]
+        ):
+            raise ValueError(
+                f"The default value ({value}) must be within "
+                f"the range [{start}, {stop}] and the first date "
+                f"must not be greater than the second date."
+            )
+
+        # Find closest dates for the value
+        try:
+            start_date = dates_list[
+                self._find_closest_index(value[0], dates_list)
+            ]
+            stop_date = dates_list[
+                self._find_closest_index(value[1], dates_list)
+            ]
+        except ValueError as exc:
+            raise ValueError(
+                f"Could not find valid dates for value {value}: {exc}"
+            ) from exc
+
+        super().__init__(
+            component_name=date_slider._name,
+            initial_value=[start_date.isoformat(), stop_date.isoformat()],
+            label=label,
+            args={
+                "start": 0,
+                "stop": len(dates_list) - 1,
+                "step": 1,
+                "steps": [d.isoformat() for d in dates_list],
+                "debounce": debounce,
+                "orientation": orientation,
+                "show-value": show_value,
+                "full-width": full_width,
+                "disabled": disabled,
+            },
+            on_change=on_change,
+        )
+
+    @staticmethod
+    def from_series(series: DataFrameSeries, **kwargs: Any) -> date_slider:
+        """Create a date slider from a dataframe series.
+
+        Args:
+            series (DataFrameSeries): A pandas Series containing datetime values.
+            **kwargs: Additional keyword arguments passed to the date slider constructor.
+                Supported arguments: start, stop, step, label, and any other date slider parameters.
+
+        Returns:
+            date_slider: A date slider initialized with the series' min and max dates as bounds.
+        """
+        info = get_date_series_info(series)
+        start = kwargs.pop("start", info.min)
+        stop = kwargs.pop("stop", info.max)
+        label = kwargs.pop("label", info.label)
+        return date_slider(start=start, stop=stop, label=label, **kwargs)
+
+    def _convert_value(self, value: list[str]) -> tuple[dt.date, dt.date]:
+        # Convert ISO format strings back to dates
+        return (
+            self._convert_single_value(value[0]),
+            self._convert_single_value(value[1]),
+        )
+
+    def _convert_value_tuple(
+        self, value: tuple[str, str] | tuple[dt.date, dt.date]
+    ) -> tuple[dt.date, dt.date]:
+        return (
+            self._convert_single_value(value[0]),
+            self._convert_single_value(value[1]),
+        )
+
+    def _convert_single_value(self, value: str | dt.date) -> dt.date:
+        if isinstance(value, dt.date):
+            return value
+        if isinstance(value, dt.datetime):
+            return value.date()
+        return dt.datetime.strptime(value, self.DATEFORMAT).date()
+
+    def _find_closest_index(
+        self, target_date: dt.date, dates_list: list[dt.date]
+    ) -> int:
+        """Find the index of the closest date in the list."""
+        if not dates_list:
+            raise ValueError("Empty dates list")
+
+        # Binary search for closest date
+        closest_idx = 0
+        min_diff = abs((target_date - dates_list[0]).days)
+
+        for idx, date in enumerate(dates_list):
+            diff = abs((target_date - date).days)
+            if diff < min_diff:
+                min_diff = diff
+                closest_idx = idx
+            elif diff > min_diff:
+                # List is sorted, so we can stop early
+                break
+
+        return closest_idx
+
+    @property
+    def start(self) -> dt.date:
+        """Get the minimum selectable date.
+
+        Returns:
+            datetime.date: The start date, which is either the user-specified minimum date
+                or 01-01-0001 if no start date was specified.
+        """
+        return self._start
+
+    @property
+    def stop(self) -> dt.date:
+        """Get the maximum selectable date.
+
+        Returns:
+            datetime.date: The stop date, which is either the user-specified maximum date
+                or 12-31-9999 if no stop date was specified.
+        """
+        return self._stop
+
+    @property
+    def step(self) -> Optional[dt.timedelta]:
+        """Get the slider increment.
+
+        Returns:
+            Optional[datetime.timedelta]: The step timedelta, or None if not specified.
+        """
+        return self._step

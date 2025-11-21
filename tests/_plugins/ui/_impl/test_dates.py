@@ -192,3 +192,153 @@ def test_date_range_from_dataframe() -> None:
     )
     assert date_range_ui.start == datetime.date(2024, 1, 1)
     assert date_range_ui.stop == datetime.date(2024, 1, 31)
+
+
+def test_date_slider_basic() -> None:
+    # Test default initialization
+    ds = ui.date_slider(
+        start=datetime.date(2024, 1, 1),
+        stop=datetime.date(2024, 1, 31),
+    )
+    assert ds.value == (datetime.date(2024, 1, 1), datetime.date(2024, 1, 31))
+    assert ds.start == datetime.date(2024, 1, 1)
+    assert ds.stop == datetime.date(2024, 1, 31)
+    assert ds.step == datetime.timedelta(days=1)
+
+    # Test initialization with specific values
+    ds = ui.date_slider(
+        start=datetime.date(2024, 1, 1),
+        stop=datetime.date(2024, 1, 31),
+        value=(datetime.date(2024, 1, 10), datetime.date(2024, 1, 20)),
+    )
+    assert ds.value == (datetime.date(2024, 1, 10), datetime.date(2024, 1, 20))
+
+    # Test updating the value
+    ds._update(["2024-01-05", "2024-01-25"])
+    assert ds.value == (datetime.date(2024, 1, 5), datetime.date(2024, 1, 25))
+
+
+def test_date_slider_with_step() -> None:
+    # Test with weekly step
+    ds = ui.date_slider(
+        start=datetime.date(2024, 1, 1),
+        stop=datetime.date(2024, 1, 31),
+        step=datetime.timedelta(days=7),
+    )
+    assert ds.step == datetime.timedelta(days=7)
+    # Value should snap to nearest step
+    assert ds.value == (datetime.date(2024, 1, 1), datetime.date(2024, 1, 29))
+
+    # Test value snapping to closest step
+    ds = ui.date_slider(
+        start=datetime.date(2024, 1, 1),
+        stop=datetime.date(2024, 1, 31),
+        step=datetime.timedelta(days=7),
+        value=(datetime.date(2024, 1, 10), datetime.date(2024, 1, 20)),
+    )
+    # Closest steps to Jan 10 is Jan 8, closest to Jan 20 is Jan 22
+    assert ds.value == (datetime.date(2024, 1, 8), datetime.date(2024, 1, 22))
+
+
+def test_date_slider_with_strings() -> None:
+    # Test initialization with string dates
+    ds = ui.date_slider(
+        start="2024-01-01",
+        stop="2024-01-31",
+        value=("2024-01-10", "2024-01-20"),
+    )
+    assert ds.value == (datetime.date(2024, 1, 10), datetime.date(2024, 1, 20))
+    assert ds.start == datetime.date(2024, 1, 1)
+    assert ds.stop == datetime.date(2024, 1, 31)
+
+
+def test_date_slider_invalid_bounds() -> None:
+    # Test stop before start
+    with pytest.raises(ValueError, match="stop date.*must be greater"):
+        ui.date_slider(
+            start=datetime.date(2024, 1, 31),
+            stop=datetime.date(2024, 1, 1),
+        )
+
+    # Test negative step
+    with pytest.raises(ValueError, match="step.*must be a positive"):
+        ui.date_slider(
+            start=datetime.date(2024, 1, 1),
+            stop=datetime.date(2024, 1, 31),
+            step=datetime.timedelta(days=-1),
+        )
+
+    # Test value out of bounds
+    with pytest.raises(ValueError, match="default value.*must be within"):
+        ui.date_slider(
+            start=datetime.date(2024, 1, 10),
+            stop=datetime.date(2024, 1, 20),
+            value=(datetime.date(2024, 1, 1), datetime.date(2024, 1, 15)),
+        )
+
+    # Test first date after second date
+    with pytest.raises(ValueError, match="first date.*must not be greater"):
+        ui.date_slider(
+            start=datetime.date(2024, 1, 1),
+            stop=datetime.date(2024, 1, 31),
+            value=(datetime.date(2024, 1, 20), datetime.date(2024, 1, 10)),
+        )
+
+
+def test_date_slider_properties() -> None:
+    ds = ui.date_slider(
+        start=datetime.date(2024, 1, 1),
+        stop=datetime.date(2024, 12, 31),
+        step=datetime.timedelta(weeks=1),
+    )
+    assert ds.start == datetime.date(2024, 1, 1)
+    assert ds.stop == datetime.date(2024, 12, 31)
+    assert ds.step == datetime.timedelta(weeks=1)
+
+
+def test_date_slider_args() -> None:
+    # Test that args are properly set for frontend
+    ds = ui.date_slider(
+        start=datetime.date(2024, 1, 1),
+        stop=datetime.date(2024, 1, 31),
+        step=datetime.timedelta(days=2),
+        debounce=True,
+        orientation="vertical",
+        show_value=True,
+        full_width=True,
+        disabled=True,
+        label="Select dates",
+    )
+    args = ds._args.args
+    assert args["debounce"] is True
+    assert args["orientation"] == "vertical"
+    assert args["show-value"] is True
+    assert args["full-width"] is True
+    assert args["disabled"] is True
+    assert ds._args.label == "Select dates"
+    # Check that steps are generated
+    assert "steps" in args
+    assert isinstance(args["steps"], list)
+    assert len(args["steps"]) > 0
+
+
+@pytest.mark.skipif(not HAS_PANDAS, reason="pandas not installed")
+def test_date_slider_from_dataframe() -> None:
+    import pandas as pd
+
+    # Test from_series for date_slider
+    df = pd.DataFrame(
+        {"D": [pd.Timestamp("2024-01-01"), pd.Timestamp("2024-01-31")]}
+    )
+    date_slider_ui = ui.date_slider.from_series(
+        df["D"],
+        step=datetime.timedelta(days=7),
+        value=(datetime.date(2024, 1, 8), datetime.date(2024, 1, 22)),
+    )
+    assert date_slider_ui.value == (
+        datetime.date(2024, 1, 8),
+        datetime.date(2024, 1, 22),
+    )
+    assert date_slider_ui.start == datetime.date(2024, 1, 1)
+    assert date_slider_ui.stop == datetime.date(2024, 1, 31)
+    assert date_slider_ui.step == datetime.timedelta(days=7)
