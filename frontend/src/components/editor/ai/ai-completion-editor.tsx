@@ -255,7 +255,6 @@ export const AiCompletionEditor: React.FC<Props> = ({
 
   return (
     <div
-      data-test-id="ai-completion-editor"
       data-ai-input-open={showInput}
       className={cn("flex flex-col w-full rounded-[inherit]", className)}
     >

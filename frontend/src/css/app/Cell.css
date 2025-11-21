@@ -364,8 +364,7 @@
     border-top-left-radius: 9px;
     border-top-right-radius: 9px;
   }
-  div[data-test-id="ai-completion-editor"][data-ai-input-open="true"]
-    .cm-editor {
+  div[data-ai-input-open="true"] .cm-editor {
     border-top-left-radius: 0;
     border-top-right-radius: 0;
   }
