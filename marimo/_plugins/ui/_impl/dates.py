@@ -8,8 +8,10 @@ from typing import (
     Final,
     Literal,
     Optional,
+    TypeVar,
     Union,
     cast,
+    overload,
 )
 
 from marimo import _loggers
@@ -24,6 +26,155 @@ from marimo._plugins.ui._core.ui_element import UIElement
 LOGGER = _loggers.marimo_logger()
 
 Numeric = Union[int, float]
+TypeName = Literal["date", "datetime"]
+
+T = TypeVar("T", dt.date, dt.datetime)
+
+DATE_FORMAT = "%Y-%m-%d"
+
+
+def convert_str_to_date(value: Union[str, dt.date, dt.datetime]) -> dt.date:
+    """Convert a string or date to a date object.
+
+    Args:
+        value: A string in YYYY-MM-DD format, a date, or a datetime object.
+
+    Returns:
+        A date object.
+    """
+    if isinstance(value, dt.date) and not isinstance(value, dt.datetime):
+        return value
+    if isinstance(value, dt.datetime):
+        return value.date()
+    return dt.datetime.strptime(value, DATE_FORMAT).date()
+
+
+@overload
+def convert_str_to_datetime(value: str) -> dt.datetime: ...
+
+
+@overload
+def convert_str_to_datetime(value: None) -> None: ...
+
+
+def convert_str_to_datetime(
+    value: Union[str, None],
+) -> Union[dt.datetime, None]:
+    """Convert a string to a datetime object.
+
+    Args:
+        value: A string in various datetime formats or None.
+
+    Returns:
+        A datetime object or None.
+    """
+    if value is None:
+        return None
+    POSSIBLE_FORMATS = (
+        "%Y-%m-%dT%H:%M:%S",
+        "%Y-%m-%d",
+        "%Y-%m-%dT%H",
+        "%Y-%m-%dT%H:%M",
+        "%Y-%m-%dT%H:%M:%S",
+        "%Y-%m-%dT%H:%M:%S.%f",
+    )
+    for fmt in POSSIBLE_FORMATS:
+        try:
+            return dt.datetime.strptime(value, fmt)
+        except ValueError:
+            pass
+    raise ValueError(f"Invalid datetime format: {value}")
+
+
+def validate_start_stop(
+    start: T, stop: T, type_name: TypeName = "date"
+) -> None:
+    """Validate that stop is greater than start.
+
+    Args:
+        start: The start date/datetime.
+        stop: The stop date/datetime.
+        type_name: The type name for error messages ('date' or 'datetime').
+
+    Raises:
+        ValueError: If stop is not greater than start.
+    """
+    if stop < start:
+        raise ValueError(
+            f"The stop {type_name} ({stop}) must be greater than "
+            f"the start {type_name} ({start})"
+        )
+
+
+def get_default_value(
+    start: Optional[T],
+    stop: Optional[T],
+    today_value: T,
+) -> T:
+    """Get the default value when none is provided.
+
+    Args:
+        start: The start date/datetime, or None.
+        stop: The stop date/datetime, or None.
+        today_value: The value to use when both start and stop are None.
+
+    Returns:
+        The default value.
+    """
+    if start is None and stop is None:
+        return today_value
+    elif start is not None:
+        return start
+    else:
+        return cast(T, stop)
+
+
+def validate_value_within_bounds(
+    value: T, start: T, stop: T, type_name: TypeName = "date"
+) -> None:
+    """Validate that a value is within the start/stop bounds.
+
+    Args:
+        value: The value to validate.
+        start: The minimum allowed value.
+        stop: The maximum allowed value.
+        type_name: The type name for error messages ('date' or 'datetime').
+
+    Raises:
+        ValueError: If value is outside the bounds.
+    """
+    if value < start or value > stop:
+        raise ValueError(
+            f"The default value ({value}) must be greater than "
+            f"the start {type_name} ({start}) and less than the stop "
+            f"{type_name} ({stop})."
+        )
+
+
+def validate_range_within_bounds(
+    range_value: tuple[T, T],
+    start: T,
+    stop: T,
+    type_name: TypeName = "date",
+) -> None:
+    """Validate that a range value is within bounds and properly ordered.
+
+    Args:
+        range_value: A tuple of (start_value, end_value).
+        start: The minimum allowed value.
+        stop: The maximum allowed value.
+        type_name: The type name for error messages ('date' or 'datetime').
+
+    Raises:
+        ValueError: If value is outside bounds or improperly ordered.
+    """
+    left, right = range_value
+    if left < start or right > stop or left > right:
+        raise ValueError(
+            f"The default value ({range_value}) must be within "
+            f"the range [{start}, {stop}] and the first {type_name} "
+            f"must not be greater than the second {type_name}."
+        )
 
 
 @mddoc
@@ -90,35 +241,22 @@ class date(UIElement[str, dt.date]):
         disabled: bool = False,
     ) -> None:
         if isinstance(start, str):
-            start = self._convert_value(start)
+            start = convert_str_to_date(start)
         if isinstance(stop, str):
-            stop = self._convert_value(stop)
+            stop = convert_str_to_date(stop)
         if isinstance(value, str):
-            value = self._convert_value(value)
-
-        if value is None:
-            if start is None and stop is None:
-                value = dt.date.today()
-            elif start is not None:
-                value = start
-            else:
-                value = stop
-        value = cast(dt.date, value)
+            value = convert_str_to_date(value)
 
         self._start = dt.date(dt.MINYEAR, 1, 1) if start is None else start
         self._stop = dt.date(dt.MAXYEAR, 12, 31) if stop is None else stop
 
-        if self._stop < self._start:
-            raise ValueError(
-                f"The stop date ({stop}) must be greater than "
-                f"the start date ({start})"
-            )
-        elif value < self._start or value > self._stop:
-            raise ValueError(
-                f"The default value ({value}) must be greater than "
-                f"the start date ({start}) and less than the stop "
-                f"date ({stop})."
-            )
+        validate_start_stop(self._start, self._stop, "date")
+
+        if value is None:
+            value = get_default_value(start, stop, dt.date.today())
+        value = cast(dt.date, value)
+
+        validate_value_within_bounds(value, self._start, self._stop, "date")
 
         super().__init__(
             component_name=date._name,
@@ -150,14 +288,6 @@ class date(UIElement[str, dt.date]):
         stop = kwargs.pop("stop", info.max)
         label = kwargs.pop("label", info.label)
         return date(start=start, stop=stop, label=label, **kwargs)
-
-    def _convert_value(self, value: str) -> dt.date:
-        # Catch different initialization formats
-        if isinstance(value, dt.date):
-            return value
-        if isinstance(value, dt.datetime):
-            return value.date()
-        return dt.datetime.strptime(value, self.DATE_FORMAT).date()
 
     @property
     def start(self) -> dt.date:
@@ -228,36 +358,24 @@ class datetime(UIElement[Optional[str], Optional[dt.datetime]]):
         disabled: bool = False,
     ):
         if isinstance(start, str):
-            start = self._convert_value(start)
+            start = convert_str_to_datetime(start)
         if isinstance(stop, str):
-            stop = self._convert_value(stop)
+            stop = convert_str_to_datetime(stop)
         if isinstance(value, str):
-            value = self._convert_value(value)
+            value = convert_str_to_datetime(value)
 
         self._start = dt.datetime.min if start is None else start
         self._stop = dt.datetime.max if stop is None else stop
 
-        if self._stop < self._start:
-            raise ValueError(
-                f"The stop datetime ({stop}) must be greater than "
-                f"the start datetime ({start})"
-            )
+        validate_start_stop(self._start, self._stop, "datetime")
 
         if value is None:
-            if start is None and stop is None:
-                value = dt.datetime.today()
-            elif start is not None:
-                value = start
-            else:
-                value = stop
+            value = get_default_value(start, stop, dt.datetime.today())
         value = cast(dt.datetime, value)
 
-        if value < self._start or value > self._stop:
-            raise ValueError(
-                f"The default value ({value}) must be greater than "
-                f"the start datetime ({start}) and less than the stop "
-                f"datetime ({stop})."
-            )
+        validate_value_within_bounds(
+            value, self._start, self._stop, "datetime"
+        )
 
         super().__init__(
             component_name=datetime._name,
@@ -289,24 +407,6 @@ class datetime(UIElement[Optional[str], Optional[dt.datetime]]):
         stop = kwargs.pop("stop", info.max)
         label = kwargs.pop("label", info.label)
         return datetime(start=start, stop=stop, label=label, **kwargs)
-
-    def _convert_value(self, value: Optional[str]) -> Optional[dt.datetime]:
-        if value is None:
-            return None
-        POSSIBLE_FORMATS = [
-            self.DATETIME_FORMAT,
-            "%Y-%m-%d",
-            "%Y-%m-%dT%H",
-            "%Y-%m-%dT%H:%M",
-            "%Y-%m-%dT%H:%M:%S",
-            "%Y-%m-%dT%H:%M:%S.%f",
-        ]
-        for fmt in POSSIBLE_FORMATS:
-            try:
-                return dt.datetime.strptime(value, fmt)
-            except ValueError:
-                pass
-        raise ValueError(f"Invalid datetime format: {value}")
 
     @property
     def start(self) -> dt.datetime:
@@ -377,36 +477,27 @@ class date_range(UIElement[tuple[str, str], tuple[dt.date, dt.date]]):
         disabled: bool = False,
     ):
         if isinstance(start, str):
-            start = self._convert_single_value(start)
+            start = convert_str_to_date(start)
         if isinstance(stop, str):
-            stop = self._convert_single_value(stop)
+            stop = convert_str_to_date(stop)
         if value is not None:
-            value = self._convert_value(value)
+            value = (
+                convert_str_to_date(value[0]),
+                convert_str_to_date(value[1]),
+            )
 
         self._start = dt.date(dt.MINYEAR, 1, 1) if start is None else start
         self._stop = dt.date(dt.MAXYEAR, 12, 31) if stop is None else stop
 
-        if self._stop < self._start:
-            raise ValueError(
-                f"The stop date ({stop}) must be greater than "
-                f"the start date ({start})"
-            )
+        validate_start_stop(self._start, self._stop, "date")
 
         if value is None:
             if start is None or stop is None:
                 value = (dt.date.today(), dt.date.today())
             else:
                 value = (start, stop)
-        elif (
-            value[0] < self._start
-            or value[1] > self._stop
-            or value[0] > value[1]
-        ):
-            raise ValueError(
-                f"The default value ({value}) must be within "
-                f"the range [{start}, {stop}] and the first date "
-                f"must not be greater than the second date."
-            )
+
+        validate_range_within_bounds(value, self._start, self._stop, "date")
 
         super().__init__(
             component_name=date_range._name,
@@ -438,21 +529,6 @@ class date_range(UIElement[tuple[str, str], tuple[dt.date, dt.date]]):
         stop = kwargs.pop("stop", info.max)
         label = kwargs.pop("label", info.label)
         return date_range(start=start, stop=stop, label=label, **kwargs)
-
-    def _convert_value(
-        self, value: tuple[str, str] | tuple[dt.date, dt.date]
-    ) -> tuple[dt.date, dt.date]:
-        return (
-            self._convert_single_value(value[0]),
-            self._convert_single_value(value[1]),
-        )
-
-    def _convert_single_value(self, value: str | dt.date) -> dt.date:
-        if isinstance(value, dt.date):
-            return value
-        if isinstance(value, dt.datetime):
-            return value.date()
-        return dt.datetime.strptime(value, self.DATEFORMAT).date()
 
     @property
     def start(self) -> dt.date:
@@ -544,21 +620,24 @@ class date_slider(UIElement[list[str], tuple[dt.date, dt.date]]):
         disabled: bool = False,
     ):
         if isinstance(start, str):
-            start = self._convert_single_value(start)
+            start = convert_str_to_date(start)
         if isinstance(stop, str):
-            stop = self._convert_single_value(stop)
+            stop = convert_str_to_date(stop)
+        # TODO(FBruzzesi): Allow step to be in string format (e.g. 1d) instead of timedelta
+        if step is not None and not isinstance(step, dt.timedelta):
+            msg = f"Expected `step` of type datetime.timedelta. Found {type(step)} instead."
+            raise TypeError(msg)
         if value is not None:
-            value = self._convert_value_tuple(value)
+            value = (
+                convert_str_to_date(value[0]),
+                convert_str_to_date(value[1]),
+            )
 
         self._start = dt.date(dt.MINYEAR, 1, 1) if start is None else start
         self._stop = dt.date(dt.MAXYEAR, 12, 31) if stop is None else stop
         self._step = dt.timedelta(days=1) if step is None else step
 
-        if self._stop < self._start:
-            raise ValueError(
-                f"The stop date ({stop}) must be greater than "
-                f"the start date ({start})"
-            )
+        validate_start_stop(self._start, self._stop, "date")
 
         if self._step.total_seconds() <= 0:
             raise ValueError(f"The step ({step}) must be a positive timedelta")
@@ -576,27 +655,16 @@ class date_slider(UIElement[list[str], tuple[dt.date, dt.date]]):
                 f"with step {step}"
             )
 
-        # Create mapping from indices to dates
+        # Indices to dates mapping
         self._mapping = dict(enumerate(dates_list))
 
-        # Handle default value
         if value is None:
             if start is None or stop is None:
                 value = (dt.date.today(), dt.date.today())
             else:
                 value = (start, stop)
 
-        # Validate value is within bounds
-        if (
-            value[0] < self._start
-            or value[1] > self._stop
-            or value[0] > value[1]
-        ):
-            raise ValueError(
-                f"The default value ({value}) must be within "
-                f"the range [{start}, {stop}] and the first date "
-                f"must not be greater than the second date."
-            )
+        validate_range_within_bounds(value, self._start, self._stop, "date")
 
         # Find closest dates for the value
         try:
@@ -647,36 +715,13 @@ class date_slider(UIElement[list[str], tuple[dt.date, dt.date]]):
         label = kwargs.pop("label", info.label)
         return date_slider(start=start, stop=stop, label=label, **kwargs)
 
-    def _convert_value(self, value: list[str]) -> tuple[dt.date, dt.date]:
-        # Convert ISO format strings back to dates
-        return (
-            self._convert_single_value(value[0]),
-            self._convert_single_value(value[1]),
-        )
-
-    def _convert_value_tuple(
-        self, value: tuple[str, str] | tuple[dt.date, dt.date]
-    ) -> tuple[dt.date, dt.date]:
-        return (
-            self._convert_single_value(value[0]),
-            self._convert_single_value(value[1]),
-        )
-
-    def _convert_single_value(self, value: str | dt.date) -> dt.date:
-        if isinstance(value, dt.date):
-            return value
-        if isinstance(value, dt.datetime):
-            return value.date()
-        return dt.datetime.strptime(value, self.DATEFORMAT).date()
-
     def _find_closest_index(
         self, target_date: dt.date, dates_list: list[dt.date]
     ) -> int:
-        """Find the index of the closest date in the list."""
+        """Find the index of the closest date in the list via binary search."""
         if not dates_list:
             raise ValueError("Empty dates list")
 
-        # Binary search for closest date
         closest_idx = 0
         min_diff = abs((target_date - dates_list[0]).days)
 
@@ -697,7 +742,7 @@ class date_slider(UIElement[list[str], tuple[dt.date, dt.date]]):
 
         Returns:
             datetime.date: The start date, which is either the user-specified minimum date
-                or 01-01-0001 if no start date was specified.
+                or 0001-01-01 if no start date was specified.
         """
         return self._start
 
@@ -707,15 +752,15 @@ class date_slider(UIElement[list[str], tuple[dt.date, dt.date]]):
 
         Returns:
             datetime.date: The stop date, which is either the user-specified maximum date
-                or 12-31-9999 if no stop date was specified.
+                or 9999-12-31 if no stop date was specified.
         """
         return self._stop
 
     @property
-    def step(self) -> Optional[dt.timedelta]:
+    def step(self) -> dt.timedelta:
         """Get the slider increment.
 
         Returns:
-            Optional[datetime.timedelta]: The step timedelta, or None if not specified.
+            datetime.timedelta: The step timedelta.
         """
         return self._step

@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import { render } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { initialModeAtom } from "@/core/mode";
 import { store } from "@/core/state/jotai";
 import type { IPluginProps } from "../../types";
@@ -19,6 +19,20 @@ interface DateSliderData {
   fullWidth: boolean;
   disabled?: boolean;
 }
+
+beforeAll(() => {
+  global.ResizeObserver = class ResizeObserver {
+    observe() {
+      // do nothing
+    }
+    unobserve() {
+      // do nothing
+    }
+    disconnect() {
+      // do nothing
+    }
+  };
+});
 
 describe("DateSliderPlugin", () => {
   beforeEach(() => {
@@ -60,11 +74,14 @@ describe("DateSliderPlugin", () => {
     };
     const { container } = render(plugin.render(props));
 
-    // Check if the component renders
+    // Check if the component renders successfully
     expect(container.innerHTML).not.toBe("");
+    // Check for the slider component
+    const slider = container.querySelector('[role="slider"]');
+    expect(slider).not.toBeNull();
   });
 
-  it("should render with weekly steps", () => {
+  it("should render with weekly steps and debounce", () => {
     const plugin = new DateSliderPlugin();
     const host = document.createElement("div");
     const steps = [
@@ -98,8 +115,10 @@ describe("DateSliderPlugin", () => {
     };
     const { container } = render(plugin.render(props));
 
-    // Check if the component renders
+    // Check if the component renders successfully
     expect(container.innerHTML).not.toBe("");
+    const slider = container.querySelector('[role="slider"]');
+    expect(slider).not.toBeNull();
   });
 
   it("should render with vertical orientation", () => {
@@ -130,8 +149,51 @@ describe("DateSliderPlugin", () => {
     };
     const { container } = render(plugin.render(props));
 
-    // Check if the component renders
+    // Check if the component renders successfully
     expect(container.innerHTML).not.toBe("");
+    const slider = container.querySelector('[role="slider"]');
+    expect(slider).not.toBeNull();
+  });
+
+  it("should handle edge case with large date range", () => {
+    // Test with a large number of steps (daily over a year)
+    const plugin = new DateSliderPlugin();
+    const host = document.createElement("div");
+    const steps = Array.from({ length: 365 }, (_, i) => {
+      const date = new Date(2024, 0, 1);
+      date.setDate(date.getDate() + i);
+      return date.toISOString().split("T")[0];
+    });
+    const props: IPluginProps<string[], DateSliderData> = {
+      host,
+      value: [steps[0], steps[steps.length - 1]],
+      setValue: (valueOrFn) => {
+        if (typeof valueOrFn === "function") {
+          valueOrFn([steps[0], steps[steps.length - 1]]);
+        }
+      },
+      data: {
+        label: null,
+        start: 0,
+        stop: steps.length - 1,
+        step: 1,
+        steps: steps,
+        debounce: false,
+        orientation: "horizontal",
+        showValue: false,
+        fullWidth: false,
+        disabled: false,
+      },
+      functions: {},
+    };
+
+    // This should not throw an error
+    const { container } = render(plugin.render(props));
+
+    // Check if the component renders successfully
+    expect(container.innerHTML).not.toBe("");
+    const slider = container.querySelector('[role="slider"]');
+    expect(slider).not.toBeNull();
   });
 
   it("should handle disabled state", () => {
@@ -162,7 +224,9 @@ describe("DateSliderPlugin", () => {
     };
     const { container } = render(plugin.render(props));
 
-    // Check if the component renders
+    // Check if the component renders successfully
     expect(container.innerHTML).not.toBe("");
+    const slider = container.querySelector('[role="slider"]');
+    expect(slider).not.toBeNull();
   });
 });
