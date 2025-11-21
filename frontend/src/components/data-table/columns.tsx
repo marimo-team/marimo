@@ -332,7 +332,7 @@ const PopoutColumn = ({
     <EmotionCacheProvider container={null}>
       <Popover>
         <PopoverTrigger
-          className={cn(cellStyles, "w-fit outline-hidden")}
+          className={cn(cellStyles, "max-w-fit outline-hidden")}
           onClick={selectCell}
           onMouseDown={(e) => {
             // Prevent cell underneath from being selected
@@ -477,6 +477,8 @@ export function renderCellValue<TData, TValue>({
   const dataType = column.columnDef.meta?.dataType;
   const dtype = column.columnDef.meta?.dtype;
 
+  const isWrapped = column.getColumnWrapping?.() === "wrap";
+
   if (dataType === "datetime" && typeof value === "string") {
     try {
       const date = new Date(value);
@@ -508,10 +510,13 @@ export function renderCellValue<TData, TValue>({
       : String(renderValue());
 
     const parts = parseContent(stringValue);
-    const hasMarkup = parts.some((part) => part.type !== "text");
-    if (hasMarkup || stringValue.length < MAX_STRING_LENGTH) {
+    const allMarkup = parts.every((part) => part.type !== "text");
+    if (allMarkup || stringValue.length < MAX_STRING_LENGTH || isWrapped) {
       return (
-        <div onClick={selectCell} className={cellStyles}>
+        <div
+          onClick={selectCell}
+          className={cn(cellStyles, isWrapped && COLUMN_WRAPPING_STYLES)}
+        >
           <UrlDetector parts={parts} />
         </div>
       );
@@ -522,9 +527,9 @@ export function renderCellValue<TData, TValue>({
         cellStyles={cellStyles}
         selectCell={selectCell}
         rawStringValue={stringValue}
-        contentClassName="max-h-64 overflow-auto whitespace-pre-wrap break-words text-sm"
+        contentClassName="max-h-64 overflow-auto whitespace-pre-wrap break-words text-sm w-96"
         buttonText="X"
-        wrapped={column.getColumnWrapping?.() === "wrap"}
+        wrapped={isWrapped}
       >
         <UrlDetector parts={parts} />
       </PopoutColumn>
@@ -575,7 +580,7 @@ export function renderCellValue<TData, TValue>({
         cellStyles={cellStyles}
         selectCell={selectCell}
         rawStringValue={rawStringValue}
-        wrapped={column.getColumnWrapping?.() === "wrap"}
+        wrapped={isWrapped}
       >
         <JsonOutput data={value} format="tree" className="max-h-64" />
       </PopoutColumn>
