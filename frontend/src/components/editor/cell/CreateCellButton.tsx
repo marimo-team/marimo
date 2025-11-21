@@ -1,6 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { DatabaseIcon, DiamondPlusIcon, PlusIcon } from "lucide-react";
 import { Button } from "@/components/editor/inputs/Inputs";
+import { MinimalHotkeys } from "@/components/shortcuts/renderShortcut";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -24,19 +25,28 @@ export const CreateCellButton = ({
   connectionState,
   onClick,
   tooltipContent,
+  oneClickShortcut,
 }: {
   connectionState: WebSocketState;
   tooltipContent: React.ReactNode;
   onClick: ((opts: { code: string; hideCode?: boolean }) => void) | undefined;
+  oneClickShortcut: "shift" | "mod";
 }) => {
   const { createNewCell, addSetupCellIfDoesntExist } = useCellActions();
+  const shortcut = `${oneClickShortcut}-Click`;
 
   const baseTooltipContent =
     getConnectionTooltip(connectionState) || tooltipContent;
   const finalTooltipContent = isAppInteractionDisabled(connectionState) ? (
     baseTooltipContent
   ) : (
-    <div>{baseTooltipContent}</div>
+    <div className="flex flex-col gap-4">
+      <div>{baseTooltipContent}</div>
+      <div className="text-xs text-muted-foreground font-medium pt-1 -mt-2 border-t border-border">
+        {<MinimalHotkeys shortcut={shortcut} className="inline" />}{" "}
+        <span>to auto insert a cell</span>
+      </div>
+    </div>
   );
 
   const addPythonCell = () => {
@@ -68,9 +78,17 @@ export const CreateCellButton = ({
     return <div className="mr-3 text-muted-foreground">{icon}</div>;
   };
 
+  const handleButtonClick = (e: React.MouseEvent) => {
+    if (oneClickShortcut === "shift" ? e.shiftKey : e.metaKey || e.ctrlKey) {
+      e.preventDefault();
+      e.stopPropagation();
+      addPythonCell();
+    }
+  };
+
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger asChild={true}>
+      <DropdownMenuTrigger asChild={true} onPointerDown={handleButtonClick}>
         <Button
           className={cn(
             "shoulder-button hover-action border-none shadow-none! bg-transparent! focus-visible:outline-none",
@@ -83,8 +101,8 @@ export const CreateCellButton = ({
         >
           <Tooltip content={finalTooltipContent}>
             <PlusIcon
-              strokeWidth={3.2}
-              size={16}
+              strokeWidth={4}
+              size={14}
               className="opacity-60 hover:opacity-90"
             />
           </Tooltip>

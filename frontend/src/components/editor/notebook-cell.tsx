@@ -489,7 +489,7 @@ const EditableCellComponent = ({
 
   const outputArea = hasOutput && (
     <div className="relative" onDoubleClick={showHiddenCodeIfMarkdown}>
-      <div className="absolute top-5 -left-8 z-20 print:hidden">
+      <div className="absolute top-5 -left-7 z-20 print:hidden">
         <CollapseToggle
           isCollapsed={isCollapsed}
           onClick={() => {
@@ -830,6 +830,7 @@ const CellLeftSideActions = memo(
     );
 
     const isConnected = isAppConnected(connection.state);
+    const oneClickShortcut = "mod";
 
     return (
       <div
@@ -843,6 +844,7 @@ const CellLeftSideActions = memo(
             tooltipContent={renderShortcut("cell.createAbove")}
             connectionState={connection.state}
             onClick={isConnected ? createAbove : undefined}
+            oneClickShortcut={oneClickShortcut}
           />
         </div>
         <div className="flex-1 pointer-events-none w-3" />
@@ -852,6 +854,7 @@ const CellLeftSideActions = memo(
             tooltipContent={renderShortcut("cell.createBelow")}
             connectionState={connection.state}
             onClick={isConnected ? createBelow : undefined}
+            oneClickShortcut={oneClickShortcut}
           />
         </div>
       </div>
