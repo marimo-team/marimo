@@ -14,6 +14,7 @@ interface Data {
   start: string;
   stop: string;
   step?: string;
+  precision: "hour" | "minute" | "second";
   fullWidth: boolean;
   disabled?: boolean;
 }
@@ -27,6 +28,7 @@ export class DateTimePickerPlugin implements IPlugin<T, Data> {
     start: z.string(),
     stop: z.string(),
     step: z.string().optional(),
+    precision: z.enum(["hour", "minute", "second"]).default("minute"),
     fullWidth: z.boolean().default(false),
     disabled: z.boolean().optional(),
   });
@@ -63,7 +65,7 @@ const DateTimePickerComponent = (props: DateTimePickerProps): JSX.Element => {
   return (
     <Labeled label={props.label} fullWidth={props.fullWidth}>
       <DatePicker
-        granularity="minute"
+        granularity={props.precision}
         value={parsedValue}
         onChange={handleInput}
         aria-label={props.label ?? "date time picker"}
