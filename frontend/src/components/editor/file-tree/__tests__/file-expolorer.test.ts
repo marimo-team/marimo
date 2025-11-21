@@ -1,3 +1,4 @@
+/* Copyright 2024 Marimo. All rights reserved. */
 import { describe, expect, it } from "vitest";
 import type { FileInfo } from "@/core/network/types";
 import { filterHiddenTree, isDirectoryOrFileHidden } from "../file-explorer";
