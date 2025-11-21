@@ -278,15 +278,16 @@ def test_complex_exclamation_mark():
             openpipe-art[backend,langgraph]==0.4.11 langchain-core langgraph langchain_openai tenacity datasets pillow==11.3.0 protobuf==5.29.5 {get_vllm} {get_numpy} --prerelease allow --no-cache-dir"""
     ]
     result = transform_exclamation_mark(sources)
+    # Packages are unpinned and sorted
     assert result.pip_packages == [
-        "openpipe-art[backend,langgraph]==0.4.11",
-        "langchain-core",
-        "langgraph",
-        "langchain_openai",
-        "tenacity",
         "datasets",
-        "pillow==11.3.0",
-        "protobuf==5.29.5",
+        "langchain-core",
+        "langchain_openai",
+        "langgraph",
+        "openpipe-art",
+        "pillow",
+        "protobuf",
+        "tenacity",
     ]
     assert result.transformed_sources == [
         "# packages added via marimo's package management: openpipe-art[backend,langgraph]==0.4.11 langchain-core langgraph langchain_openai tenacity datasets pillow==11.3.0 protobuf==5.29.5 !uv pip install --upgrade openpipe-art[backend,langgraph]==0.4.11 langchain-core langgraph langchain_openai tenacity datasets pillow==11.3.0 protobuf==5.29.5 {get_vllm} {get_numpy} --prerelease allow --no-cache-dir",
@@ -676,7 +677,10 @@ def test_transform_exclamation_mark_indented_pip_install():
     ]
     result = transform_exclamation_mark(sources)
     # Should use marimo's package management with pass
-    assert "pass  # packages added via marimo's package management" in result.transformed_sources[0]
+    assert (
+        "pass  # packages added via marimo's package management"
+        in result.transformed_sources[0]
+    )
     assert "weave" in result.transformed_sources[0]
     assert result.pip_packages == ["weave"]  # Packages extracted
     assert result.needs_subprocess is False
@@ -684,13 +688,14 @@ def test_transform_exclamation_mark_indented_pip_install():
 
 def test_transform_exclamation_mark_indented_invalid_command():
     """Test that indented invalid commands get pass statement"""
-    sources = [
-        "if False:\n    !wget {1+*2}\n\nprint('done')"
-    ]
+    sources = ["if False:\n    !wget {1+*2}\n\nprint('done')"]
     result = transform_exclamation_mark(sources)
     # Invalid expression in indented context gets pass statement
     assert "pass  # !wget {1+*2}" in result.transformed_sources[0]
-    assert "Note: Command contains invalid template expression" in result.transformed_sources[0]
+    assert (
+        "Note: Command contains invalid template expression"
+        in result.transformed_sources[0]
+    )
     assert result.pip_packages == []
     assert result.needs_subprocess is False
 

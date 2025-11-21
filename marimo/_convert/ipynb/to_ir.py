@@ -460,7 +460,9 @@ def _extract_pip_install(
 ) -> ExclamationCommandResult:
     pip_packages: list[str] = []
     if "install" not in command_tokens:
-        return _shlex_to_subprocess_call(command_line, command_tokens, indent_level)
+        return _shlex_to_subprocess_call(
+            command_line, command_tokens, indent_level
+        )
 
     install_idx = command_tokens.index("install")
 
@@ -515,7 +517,7 @@ def _is_compilable_expression(expr: str) -> bool:
 
 
 def _shlex_to_subprocess_call(
-    command_line: str, command_tokens: list[str], indent_level: int = 0
+    command_line: str, command_tokens: list[str]
 ) -> ExclamationCommandResult:
     """Convert a shell command to subprocess.call([...])
 
@@ -592,7 +594,88 @@ def _handle_exclamation_command(
             )
 
     # Replace with subprocess.call()
-    return _shlex_to_subprocess_call(command_line, command_tokens, indent_level)
+    return _shlex_to_subprocess_call(
+        command_line, command_tokens, indent_level
+    )
+
+
+def _resolve_pip_packages(packages: list[str]) -> list[str]:
+    """Resolve pip packages using uv, or unpin if uv unavailable.
+
+    Args:
+        packages: List of package specifications (may have duplicates/conflicts)
+
+    Returns:
+        Resolved and sorted list of packages
+    """
+    if not packages:
+        return []
+
+    import subprocess
+    import tempfile
+    from pathlib import Path
+
+    # Try using uv pip compile to resolve
+    try:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            req_file = Path(tmpdir) / "requirements.in"
+            out_file = Path(tmpdir) / "requirements.txt"
+
+            # Write packages to temp file
+            req_file.write_text("\n".join(packages))
+
+            # Run uv pip compile
+            result = subprocess.run(
+                [
+                    "uv",
+                    "pip",
+                    "compile",
+                    str(req_file),
+                    "--output-file",
+                    str(out_file),
+                ],
+                capture_output=True,
+                text=True,
+                timeout=10,
+            )
+
+            if result.returncode == 0 and out_file.exists():
+                # Parse resolved requirements
+                resolved = []
+                for line in out_file.read_text().splitlines():
+                    line = line.strip()
+                    # Skip comments and empty lines
+                    if line and not line.startswith("#"):
+                        # Extract package name (first part before any operators)
+                        pkg = (
+                            line.split("==")[0]
+                            .split(">=")[0]
+                            .split("<=")[0]
+                            .strip()
+                        )
+                        if pkg:
+                            resolved.append(pkg)
+                return sorted(set(resolved))
+    except (FileNotFoundError, subprocess.TimeoutExpired, Exception):
+        # uv not available or failed, fall through to unpinning
+        pass
+
+    # Fallback: unpin versions and deduplicate
+    unpinned = set()
+    for pkg in packages:
+        # Strip version specifiers
+        name = (
+            pkg.split("==")[0]
+            .split(">=")[0]
+            .split("<=")[0]
+            .split("~=")[0]
+            .split("[")[0]
+            .strip()
+        )
+        if name:
+            unpinned.add(name)
+
+    return sorted(unpinned)
 
 
 def transform_exclamation_mark(sources: list[str]) -> ExclamationMarkResult:
@@ -648,7 +731,9 @@ def transform_exclamation_mark(sources: list[str]) -> ExclamationMarkResult:
                 exclaim_tokens = []
                 trailing_comment = None
                 exclaim_line_num = token.start[0]
-                exclaim_indent_level = token.start[1]  # Column position = indentation
+                exclaim_indent_level = token.start[
+                    1
+                ]  # Column position = indentation
                 continue  # Skip the ! token
 
             elif in_exclaim:
@@ -763,9 +848,12 @@ def transform_exclamation_mark(sources: list[str]) -> ExclamationMarkResult:
         else:
             transformed_sources.append(cell)
 
+    # Resolve packages using uv (or unpin if unavailable)
+    resolved_packages = _resolve_pip_packages(all_pip_packages)
+
     return ExclamationMarkResult(
         transformed_sources=transformed_sources,
-        pip_packages=all_pip_packages,
+        pip_packages=resolved_packages,
         needs_subprocess=any_needs_subprocess,
     )
 
