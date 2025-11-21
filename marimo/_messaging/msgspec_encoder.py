@@ -142,6 +142,12 @@ def enc_hook(obj: Any) -> Any:
 
     # Handle custom objects with `__dict__`
     if hasattr(obj, "__dict__"):
+        # Manually process the dict to ensure enc_hook is called for all nested values
+        # msgspec.to_builtins might not call enc_hook for native types
+        result = {}
+        for key, value in obj.__dict__.items():
+            result[key] = enc_hook(value)
+        return result
         # Convert the __dict__ using msgspec.to_builtins for proper handling
         return msgspec.to_builtins(obj.__dict__, enc_hook=enc_hook)
 
