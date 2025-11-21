@@ -751,7 +751,7 @@ class date_slider(UIElement[list[str], tuple[dt.date, dt.date]]):
 
         Returns:
             datetime.date: The start date, which is either the user-specified minimum date
-                or 0001-01-01 if no start date was specified.
+                or 01-01-0001 if no start date was specified.
         """
         return self._start
 
@@ -761,7 +761,7 @@ class date_slider(UIElement[list[str], tuple[dt.date, dt.date]]):
 
         Returns:
             datetime.date: The stop date, which is either the user-specified maximum date
-                or 9999-12-31 if no stop date was specified.
+                or 12-31-9999 if no stop date was specified.
         """
         return self._stop
 
