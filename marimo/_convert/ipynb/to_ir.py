@@ -463,26 +463,85 @@ def _extract_pip_install(
         return _shlex_to_subprocess_call(command_line, command_tokens)
 
     install_idx = command_tokens.index("install")
-    packages = [
-        p for p in command_tokens[install_idx + 1 :] if not p.startswith("-")
-    ]
+
+    # Collect packages and items for display, skipping flags
+    packages = []  # Actual packages (no templates)
+    templates = []  # Template placeholders
+    for token in command_tokens[install_idx + 1 :]:
+        # Skip flags (starting with -)
+        if token.startswith("-"):
+            continue
+        # Template placeholders stop package collection
+        if token.startswith("{") and token.endswith("}"):
+            templates.append(token)
+            break
+        packages.append(token)
+
     # Normalize git URLs to PEP 508 format
     pip_packages = [_normalize_git_url_package(p) for p in packages]
 
-    # Comment out the pip command
+    # For display: show templates only if there are no real packages
+    display_items = packages if packages else templates
+
+    # Comment out the pip command, showing items in comment
     replacement = (
         "# packages added via marimo's package management: "
-        f"{' '.join(packages)} !{command_line}"
+        f"{' '.join(display_items)} !{command_line}"
     )
     return ExclamationCommandResult(replacement, pip_packages, False)
+
+
+def _is_compilable_expression(expr: str) -> bool:
+    """Check if expression is valid Python that can be compiled.
+
+    Args:
+        expr: The expression to check (without surrounding braces)
+
+    Returns:
+        True if the expression can be compiled as valid Python, False otherwise
+    """
+    try:
+        compile(expr, "<string>", "eval")
+        return True
+    except (SyntaxError, ValueError):
+        return False
 
 
 def _shlex_to_subprocess_call(
     command_line: str, command_tokens: list[str]
 ) -> ExclamationCommandResult:
-    """Convert a shell command to subprocess.call([...])"""
+    """Convert a shell command to subprocess.call([...])
+
+    Template placeholders {expr} are converted to str(expr) if expr is valid Python.
+    If any template contains invalid Python, the entire command is commented out.
+    """
+    # First pass: check if any template is invalid
+    for token in command_tokens:
+        if token.startswith("{") and token.endswith("}"):
+            expr = token[1:-1]
+            if not _is_compilable_expression(expr):
+                # Comment out entire command if any template is invalid
+                return ExclamationCommandResult(
+                    f"# !{command_line}\n"
+                    f"# Note: Command contains invalid template expression",
+                    [],
+                    False,  # No subprocess needed
+                )
+
+    # Second pass: convert templates to str() calls
+    processed_tokens = []
+    for token in command_tokens:
+        if token.startswith("{") and token.endswith("}"):
+            expr = token[1:-1]
+            # Convert to str() call
+            processed_tokens.append(f"str({expr})")
+        else:
+            processed_tokens.append(repr(token))
+
+    # Build the subprocess call with processed tokens
+    tokens_str = "[" + ", ".join(processed_tokens) + "]"
     command = "\n".join(
-        [f"#! {command_line}", f"subprocess.call({command_tokens!r})"]
+        [f"#! {command_line}", f"subprocess.call({tokens_str})"]
     )
     return ExclamationCommandResult(command, [], True)
 
@@ -577,16 +636,52 @@ def transform_exclamation_mark(sources: list[str]) -> ExclamationMarkResult:
                     if exclaim_tokens and exclaim_tokens[-1].type == COMMENT:
                         trailing_comment = exclaim_tokens.pop()
 
-                    # Extract command from collected tokens by joining their strings
+                    # Extract command from collected tokens by reconstructing from source
                     if exclaim_tokens:
-                        # Reconstruct command from tokens
+                        # Reconstruct command from original source using token positions
+                        # This properly handles multi-line commands with backslash continuations
                         first_token = exclaim_tokens[0]
                         last_token = exclaim_tokens[-1]
-                        # Get the source line and extract the command portion
-                        line_text = first_token.line
+
+                        # Get line numbers (1-indexed)
+                        start_line_num = first_token.start[0]
+                        end_line_num = last_token.end[0]
                         start_col = first_token.start[1]
                         end_col = last_token.end[1]
-                        command_line = line_text[start_col:end_col].strip()
+
+                        # Split cell into lines for extraction
+                        cell_lines = cell.split("\n")
+
+                        if start_line_num == end_line_num:
+                            # Single line command
+                            command_line = cell_lines[start_line_num - 1][
+                                start_col:end_col
+                            ].strip()
+                        else:
+                            # Multi-line command - extract across lines
+                            parts = []
+                            # First line
+                            parts.append(
+                                cell_lines[start_line_num - 1][start_col:]
+                            )
+                            # Middle lines
+                            for line_idx in range(
+                                start_line_num, end_line_num - 1
+                            ):
+                                parts.append(cell_lines[line_idx])
+                            # Last line
+                            parts.append(
+                                cell_lines[end_line_num - 1][:end_col]
+                            )
+
+                            # Join and remove backslash continuations
+                            full_text = "\n".join(parts)
+                            # Remove backslash line continuations
+                            command_line = full_text.replace(
+                                "\\\n", " "
+                            ).strip()
+                            # Normalize whitespace
+                            command_line = " ".join(command_line.split())
                     else:
                         command_line = ""
 
@@ -605,6 +700,16 @@ def transform_exclamation_mark(sources: list[str]) -> ExclamationMarkResult:
                                 "\n" + trailing_comment.string
                             )
 
+                        # For multi-line commands, mark continuation lines for removal
+                        if exclaim_tokens:
+                            last_token = exclaim_tokens[-1]
+                            end_line_num = last_token.end[0]
+                            # Mark all continuation lines (after the first) as removed
+                            for line_num in range(
+                                exclaim_line_num + 1, end_line_num + 1
+                            ):
+                                line_replacements[line_num] = None  # type: ignore
+
                     in_exclaim = False
                 else:
                     # Collect tokens that are part of the command
@@ -616,9 +721,13 @@ def transform_exclamation_mark(sources: list[str]) -> ExclamationMarkResult:
             new_lines = []
             for line_num, line in enumerate(lines, start=1):
                 if line_num in line_replacements:
+                    replacement = line_replacements[line_num]
+                    # None means skip this line (multi-line continuation)
+                    if replacement is None:
+                        continue
                     # Preserve indentation from original line
                     indent = (len(line) - len(line.lstrip())) * " "
-                    replacements = line_replacements[line_num].split("\n")
+                    replacements = replacement.split("\n")
                     # Add indentation to replacement
                     indented_replacement = [
                         indent + replacement for replacement in replacements

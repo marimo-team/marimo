@@ -272,6 +272,28 @@ def test_transform_exclamation_mark():
     assert result.needs_subprocess is True
 
 
+def test_complex_exclamation_mark():
+    sources = [
+        """!uv pip install --upgrade \\
+            openpipe-art[backend,langgraph]==0.4.11 langchain-core langgraph langchain_openai tenacity datasets pillow==11.3.0 protobuf==5.29.5 {get_vllm} {get_numpy} --prerelease allow --no-cache-dir"""
+    ]
+    result = transform_exclamation_mark(sources)
+    assert result.pip_packages == [
+        "openpipe-art[backend,langgraph]==0.4.11",
+        "langchain-core",
+        "langgraph",
+        "langchain_openai",
+        "tenacity",
+        "datasets",
+        "pillow==11.3.0",
+        "protobuf==5.29.5",
+    ]
+    assert result.transformed_sources == [
+        "# packages added via marimo's package management: openpipe-art[backend,langgraph]==0.4.11 langchain-core langgraph langchain_openai tenacity datasets pillow==11.3.0 protobuf==5.29.5 !uv pip install --upgrade openpipe-art[backend,langgraph]==0.4.11 langchain-core langgraph langchain_openai tenacity datasets pillow==11.3.0 protobuf==5.29.5 {get_vllm} {get_numpy} --prerelease allow --no-cache-dir",
+    ]
+    assert result.needs_subprocess is False
+
+
 def test_transform_duplicate_definitions():
     sources = [
         "a = 1",
@@ -578,13 +600,68 @@ def test_transform_exclamation_mark_with_variables():
     sources = [
         "package = 'numpy'\n!pip install {package}",
         "command = 'echo \"Hello, World!\"'\n!{command}",
+        "value = 42\n!echo {value}",
     ]
     result = transform_exclamation_mark(sources)
-    # These get transformed (the {var} syntax won't work in subprocess.call anyway)
+    # These get transformed (template variables become str() calls in subprocess)
     assert result.transformed_sources == [
         "package = 'numpy'\n# packages added via marimo's package management: {package} !pip install {package}",
-        "command = 'echo \"Hello, World!\"'\n#! {command}\nsubprocess.call(['{command}'])",
+        "command = 'echo \"Hello, World!\"'\n#! {command}\nsubprocess.call([str(command)])",
+        "value = 42\n#! echo {value}\nsubprocess.call(['echo', str(value)])",
     ]
+
+
+def test_transform_exclamation_mark_with_malformed_templates():
+    # Test that malformed template placeholders don't break Python syntax
+    # These commands contain syntax errors that prevent tokenization,
+    # so they are left unchanged (tokenizer fails)
+    sources = [
+        "!echo {p'strope}",
+        '!echo {a"quote}',
+        "!echo {both'\"mixed}",
+    ]
+    result = transform_exclamation_mark(sources)
+    # Commands with syntax errors that prevent tokenization remain unchanged
+    assert result.transformed_sources == sources
+    assert result.pip_packages == []
+    assert result.needs_subprocess is False
+
+
+def test_transform_exclamation_mark_with_invalid_expressions():
+    # Test that invalid Python expressions in templates are caught
+    # Most syntax errors fail tokenization and remain unchanged
+    # But some pass tokenization and are caught by compilation check
+    sources = [
+        "!wget {1+*2}",  # Invalid operator sequence - caught by compilation check
+        "!echo {1/0}",  # Valid syntax but would fail at runtime - still converts
+    ]
+    result = transform_exclamation_mark(sources)
+    # First is invalid and gets commented out
+    # Second is valid Python syntax (runtime error is OK)
+    assert result.transformed_sources == [
+        "# !wget {1+*2}\n# Note: Command contains invalid template expression",
+        "#! echo {1/0}\nsubprocess.call(['echo', str(1/0)])",
+    ]
+    assert result.pip_packages == []
+    # Second command needs subprocess
+    assert result.needs_subprocess is True
+
+
+def test_transform_exclamation_mark_with_safe_templates():
+    # Test that safe template placeholders are converted to str() calls
+    sources = [
+        "!echo {value}",
+        "!ls {directory}",
+        "!cat {config[file]}",  # Note: shlex removes quotes, so use unquoted
+    ]
+    result = transform_exclamation_mark(sources)
+    # Safe templates are converted to str() calls
+    assert result.transformed_sources == [
+        "#! echo {value}\nsubprocess.call(['echo', str(value)])",
+        "#! ls {directory}\nsubprocess.call(['ls', str(directory)])",
+        "#! cat {config[file]}\nsubprocess.call(['cat', str(config[file])])",
+    ]
+    assert result.needs_subprocess is True
 
 
 def test_transform_duplicate_definitions_with_comprehensions():
