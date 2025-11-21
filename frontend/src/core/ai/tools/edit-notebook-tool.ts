@@ -30,13 +30,22 @@ const description: ToolDescription = {
   ],
   additionalInfo: `
   Args:
-    edit (object): The editing operation to perform. Must be one of:
-    - update_cell: Update the code of an existing cell, pass cellId and the new code.
-    - add_cell: Add a new cell to the notebook. The position is specified by the position object with a "type" field:
-        { type: "notebook_end" } - Add at the end of the notebook
-        { type: "relative", cellId: "...", before: true } - Add before the specified cell (before: false for after)
-        { type: "column_end", columnIndex: 0 } - Add at the end of a specific column (0-based index)
-    - delete_cell: Delete an existing cell, pass cellId. For deleting cells, the user needs to accept the deletion to actually delete the cell, so you may still see the cell in the notebook on subsequent edits which is fine.
+    edit (object): The editing operation to perform with the following structure:
+      - type: One of "update_cell", "add_cell", or "delete_cell"
+      - code (string, optional): Required for "update_cell" and "add_cell" operations. The code content for the cell.
+      - position (object): Always present, with the following structure:
+        - type: One of "relative", "column_end", or "notebook_end". Not needed for "delete_cell" or "update_cell" operations.
+        - cellId (string, optional): Required for "update_cell", "delete_cell", and "add_cell" with "relative" position type
+        - columnIndex (number, optional): Required for "add_cell" with "column_end" position type (0-based index)
+        - before (boolean, optional): Required for "add_cell" with "relative" position type (true to add before, false to add after)
+
+    Operation types:
+    - update_cell: Update the code of an existing cell. Requires: code, position.cellId
+    - add_cell: Add a new cell to the notebook. Requires: code, and position based on position.type:
+        - position.type "notebook_end": Add at the end of the notebook (no additional position fields needed)
+        - position.type "relative": Add relative to an existing cell. Requires: position.cellId, position.before
+        - position.type "column_end": Add at the end of a specific column. Requires: position.columnIndex
+    - delete_cell: Delete an existing cell. Requires: position.cellId. For deleting cells, the user needs to accept the deletion to actually delete the cell, so you may still see the cell in the notebook on subsequent edits which is fine.
 
     For adding code, use the following guidelines:
     - Markdown cells: use mo.md(f"""{content}""") function to insert content.
@@ -46,41 +55,17 @@ const description: ToolDescription = {
     - A result object containing standard tool metadata.`,
 };
 
-type CellPosition =
-  | { type: "relative"; cellId: CellId; before: boolean }
-  | { type: "column_end"; columnIndex: number }
-  | { type: "notebook_end" };
-
 const editNotebookSchema = z.object({
-  edit: z.discriminatedUnion("type", [
-    z.object({
-      type: z.literal("update_cell"),
-      cellId: z.string() as unknown as z.ZodType<CellId>,
-      code: z.string(),
+  edit: z.object({
+    type: z.enum(["update_cell", "add_cell", "delete_cell"]),
+    code: z.string().optional(),
+    position: z.object({
+      type: z.enum(["relative", "column_end", "notebook_end"]).optional(),
+      cellId: z.string().optional(),
+      columnIndex: z.number().optional(),
+      before: z.boolean().optional(),
     }),
-    z.object({
-      type: z.literal("add_cell"),
-      position: z.discriminatedUnion("type", [
-        z.object({
-          type: z.literal("relative"),
-          cellId: z.string() as unknown as z.ZodType<CellId>,
-          before: z.boolean(),
-        }),
-        z.object({
-          type: z.literal("column_end"),
-          columnIndex: z.number(),
-        }),
-        z.object({
-          type: z.literal("notebook_end"),
-        }),
-      ]) satisfies z.ZodType<CellPosition>,
-      code: z.string(),
-    }),
-    z.object({
-      type: z.literal("delete_cell"),
-      cellId: z.string() as unknown as z.ZodType<CellId>,
-    }),
-  ]),
+  }),
 });
 
 type EditNotebookInput = z.infer<typeof editNotebookSchema>;
@@ -104,7 +89,24 @@ export class EditNotebookTool
 
     switch (edit.type) {
       case "update_cell": {
-        const { cellId, code } = edit;
+        const { position, code } = edit;
+        const cellId = position.cellId as CellId;
+
+        if (!cellId) {
+          throw new ToolExecutionError(
+            "Cell ID is required for update_cell",
+            "CELL_ID_REQUIRED_FOR_UPDATE_CELL",
+            true,
+            "Provide a cell ID to update",
+          );
+        } else if (!code) {
+          throw new ToolExecutionError(
+            "Code is required for update_cell",
+            "CODE_REQUIRED_FOR_UPDATE_CELL",
+            true,
+            "Provide the new code to update the cell",
+          );
+        }
 
         const notebook = store.get(notebookAtom);
         this.validateCellIdExists(cellId, notebook);
@@ -144,12 +146,41 @@ export class EditNotebookTool
         const notebook = store.get(notebookAtom);
 
         switch (position.type) {
-          case "relative":
-            this.validateCellIdExists(position.cellId, notebook);
-            notebookPosition = position.cellId;
+          case "relative": {
+            const cellId = position.cellId as CellId;
+            if (!cellId) {
+              throw new ToolExecutionError(
+                "Cell ID is required for add_cell with relative position",
+                "TOOL_ERROR",
+                true,
+                "Provide a cell ID to add the cell before",
+              );
+            }
+
+            if (position.before === undefined) {
+              throw new ToolExecutionError(
+                "Before is required for add_cell with relative position",
+                "TOOL_ERROR",
+                true,
+                `Provide a boolean value for before, true to add before cell ${cellId}, false to add after the cell`,
+              );
+            }
+
+            this.validateCellIdExists(cellId, notebook);
+            notebookPosition = cellId;
             before = position.before;
             break;
+          }
           case "column_end": {
+            if (!position.columnIndex) {
+              throw new ToolExecutionError(
+                "Column index is required for add_cell with column_end position",
+                "TOOL_ERROR",
+                true,
+                "Provide a column index to add the cell at the end of",
+              );
+            }
+
             const columnId = this.getColumnId(position.columnIndex, notebook);
             notebookPosition = { type: "__end__", columnId };
             break;
@@ -177,7 +208,17 @@ export class EditNotebookTool
         break;
       }
       case "delete_cell": {
-        const { cellId } = edit;
+        const { position } = edit;
+        const cellId = position.cellId as CellId;
+
+        if (!cellId) {
+          throw new ToolExecutionError(
+            "Cell ID is required for delete_cell",
+            "CELL_ID_REQUIRED_FOR_DELETE_CELL",
+            true,
+            "Provide a cell ID to delete",
+          );
+        }
 
         const notebook = store.get(notebookAtom);
         this.validateCellIdExists(cellId, notebook);

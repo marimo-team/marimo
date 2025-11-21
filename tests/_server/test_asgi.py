@@ -309,6 +309,30 @@ class TestASGIAppBuilder(unittest.TestCase):
         state = AppStateBase.from_app(app)
         assert state.asset_url is None
 
+    def test_redirect_console_to_browser_parameter(self):
+        """Test that redirect_console_to_browser parameter is passed to SessionManager."""
+        builder = create_asgi_app(
+            quiet=True, include_code=True, redirect_console_to_browser=True
+        )
+        builder = builder.with_app(path="/app1", root=self.app1)
+        builder.build()
+
+        # Access the app state to verify redirect_console_to_browser was set
+        starlette_app = builder._app_cache[self.app1]
+        session_manager = starlette_app.state.session_manager
+        assert session_manager.redirect_console_to_browser is True
+
+    def test_redirect_console_to_browser_defaults_to_false(self):
+        """Test that redirect_console_to_browser defaults to False when not specified."""
+        builder = create_asgi_app(quiet=True, include_code=True)
+        builder = builder.with_app(path="/app1", root=self.app1)
+        builder.build()
+
+        # Access the app state to verify default value
+        starlette_app = builder._app_cache[self.app1]
+        session_manager = starlette_app.state.session_manager
+        assert session_manager.redirect_console_to_browser is False
+
 
 class TestDynamicDirectoryMiddleware(unittest.TestCase):
     def setUp(self):
