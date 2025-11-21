@@ -131,7 +131,7 @@ class PackageManager(abc.ABC):
             return completed_process.returncode == 0
 
         # Stream output to both the callback and the terminal
-        proc = subprocess.Popen(
+        proc = subprocess.Popen(  # noqa: ASYNC220
             command,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
