@@ -33,18 +33,21 @@ def _(mo):
 @app.cell
 def _(asyncio, mo):
     async def streaming_echo_model(messages, config):
-        """This chatbot echoes what the user says, word by word."""
+        """This chatbot echoes what the user says, word by word.
+        
+        Yields individual delta chunks that are accumulated by marimo.
+        This follows the standard streaming pattern used by OpenAI, Anthropic,
+        and other AI providers.
+        """
         # Get the user's message
         user_message = messages[-1].content
 
         # Stream the response word by word
         response = f"You said: '{user_message}'. Here's my response streaming word by word!"
         words = response.split()
-        accumulated = ""
 
         for word in words:
-            accumulated += word + " "
-            yield accumulated
+            yield word + " "  # Yield delta chunks
             await asyncio.sleep(0.2)  # Delay to make streaming visible
 
     chatbot = mo.ui.chat(
@@ -66,19 +69,20 @@ def _(mo):
     mo.md("""
     ## How it works
 
-    The key is to make your model function an **async generator**:
+    The key is to make your model function an **async generator** that yields **delta chunks**:
 
     ```python
     async def my_model(messages, config):
-        response = 'Building up text...'
-        accumulated = ''
-        for part in response.split():
-            accumulated += part + ' '
-            yield accumulated  # Each yield updates the UI
+        # Yield individual pieces of content (deltas)
+        for word in ['Building', 'up', 'text...']:
+            yield word + ' '  # Each yield is a delta
             await asyncio.sleep(0.1)
     ```
 
-    Each `yield` sends an update to the frontend, creating a smooth streaming effect!
+    Each `yield` sends a new chunk to marimo, which accumulates and displays them.
+    This follows the standard streaming pattern used by OpenAI, Anthropic, and other AI providers.
+    
+    **Important**: Yield delta chunks (new content only), not accumulated text.
     """)
     return
 

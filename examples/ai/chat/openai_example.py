@@ -53,7 +53,7 @@ def _(input_key, mo, os_key):
 def _(mo, openai_key):
     chatbot = mo.ui.chat(
        mo.ai.llm.openai(
-            "gpt-4o",
+            "gpt-5-mini",
             system_message="You are a helpful assistant.",
             api_key=openai_key,
        ),
