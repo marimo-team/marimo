@@ -4,7 +4,7 @@ import { isEqual } from "lodash-es";
 import { type JSX, useEffect, useId, useState } from "react";
 import { z } from "zod";
 import { cn } from "@/utils/cn";
-import { RangeSlider } from "../../components/ui/range-slider";
+import { DateSlider } from "../../components/ui/date-slider";
 import type { IPlugin, IPluginProps, Setter } from "../types";
 import { Labeled } from "./common/labeled";
 
@@ -94,32 +94,31 @@ const DateSliderComponent = ({
 
   // Convert internal value (indices) to value (date strings)
   const indicesToValue = (indices: number[]): T => {
-    return [indexToDate(indices[0]), indexToDate(indices[1])];
+    // Ensure the indices are in the correct order (min, max)
+    const [idx0, idx1] = indices;
+    const minIdx = Math.min(idx0, idx1);
+    const maxIdx = Math.max(idx0, idx1);
+    return [indexToDate(minIdx), indexToDate(maxIdx)];
   };
 
   // Hold internal value as indices
-  const [internalValue, setInternalValue] = useState<number[]>(
-    valueToIndices(value),
-  );
+  const [internalValue, setInternalValue] = useState<number[]>(() => {
+    const indices = valueToIndices(value);
+    // Ensure initial value is ordered correctly
+    return [Math.min(indices[0], indices[1]), Math.max(indices[0], indices[1])];
+  });
 
   // Update internal value when prop changes
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
-    setInternalValue(valueToIndices(value));
-  }, [value]);
-
-  // Format date for display
-  const formatDate = (dateStr: string): string => {
-    try {
-      const date = new Date(dateStr);
-      return date.toLocaleDateString(undefined, {
-        year: "numeric",
-        month: "short",
-        day: "numeric",
-      });
-    } catch {
-      return dateStr;
-    }
-  };
+    const indices = valueToIndices(value);
+    // Ensure the values are ordered correctly
+    const orderedIndices = [
+      Math.min(indices[0], indices[1]),
+      Math.max(indices[0], indices[1]),
+    ];
+    setInternalValue(orderedIndices);
+  }, [value, steps]);
 
   return (
     <Labeled
@@ -137,7 +136,7 @@ const DateSliderComponent = ({
           fullWidth && "w-full",
         )}
       >
-        <RangeSlider
+        <DateSlider
           id={id}
           className={cn(
             "relative flex items-center select-none",
@@ -176,11 +175,14 @@ const DateSliderComponent = ({
               setValue(indicesToValue(internalValue));
             }
           }}
-          valueMap={(idx: number) => idx}
+          valueMap={(idx: number) => {
+            // Convert index to date string for tooltip display
+            return indexToDate(idx);
+          }}
         />
         {showValue && (
           <div className="text-xs text-muted-foreground min-w-[16px]">
-            {`${formatDate(indexToDate(internalValue[0]))}, ${formatDate(indexToDate(internalValue[1]))}`}
+            {`(${indexToDate(internalValue[0])}, ${indexToDate(internalValue[1])})`}
           </div>
         )}
       </div>
