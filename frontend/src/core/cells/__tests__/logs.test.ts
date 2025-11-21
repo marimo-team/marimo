@@ -7,7 +7,9 @@ import { formatLogTimestamp, getCellLogsForMessage } from "../logs";
 describe("getCellLogsForMessage", () => {
   beforeEach(() => {
     // Mock console.log to avoid cluttering test output
-    vi.spyOn(console, "log").mockImplementation(() => {});
+    vi.spyOn(console, "log").mockImplementation(() => {
+      // no-op
+    });
   });
 
   afterEach(() => {
@@ -243,7 +245,7 @@ describe("getCellLogsForMessage", () => {
       console: [
         {
           mimetype: "text/plain",
-          channel: "pdb" as any, // Non-logging channel
+          channel: "pdb" as unknown as "stdout", // Non-logging channel
           data: "Should be ignored",
           timestamp: 1234567890,
         },
@@ -262,7 +264,7 @@ describe("getCellLogsForMessage", () => {
   test("returns empty array when console is null", () => {
     const cellMessage: CellMessage = {
       cell_id: "cell-11",
-      console: null as any,
+      console: null as unknown as CellMessage["console"],
       output: null,
       status: "idle",
       stale_inputs: null,
