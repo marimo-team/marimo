@@ -426,15 +426,20 @@ def test_transform_exclamation_mark_complex():
 
 
 def test_transform_exclamation_mark_with_indentation():
+    # Indented pip installs get pass, non-pip commands use subprocess
     sources = [
         "if True:\n    !pip install numpy",
         "for i in range(10):\n    !echo test",
     ]
     result = transform_exclamation_mark(sources)
+    # Pip gets pass + package management, echo uses subprocess
     assert result.transformed_sources == [
-        "if True:\n    # packages added via marimo's package management: numpy !pip install numpy",
+        "if True:\n    pass  # packages added via marimo's package management: numpy !pip install numpy",
         "for i in range(10):\n    #! echo test\n    subprocess.call(['echo', 'test'])",
     ]
+    # Packages extracted even when indented
+    assert result.pip_packages == ["numpy"]
+    assert result.needs_subprocess is True
 
 
 def test_transform_exclamation_mark_preserves_comments():
@@ -636,10 +641,10 @@ def test_transform_exclamation_mark_with_invalid_expressions():
         "!echo {1/0}",  # Valid syntax but would fail at runtime - still converts
     ]
     result = transform_exclamation_mark(sources)
-    # First is invalid and gets commented out
+    # First is invalid and gets pass (always for invalid commands)
     # Second is valid Python syntax (runtime error is OK)
     assert result.transformed_sources == [
-        "# !wget {1+*2}\n# Note: Command contains invalid template expression",
+        "pass  # !wget {1+*2}\n# Note: Command contains invalid template expression",
         "#! echo {1/0}\nsubprocess.call(['echo', str(1/0)])",
     ]
     assert result.pip_packages == []
@@ -662,6 +667,32 @@ def test_transform_exclamation_mark_with_safe_templates():
         "#! cat {config[file]}\nsubprocess.call(['cat', str(config[file])])",
     ]
     assert result.needs_subprocess is True
+
+
+def test_transform_exclamation_mark_indented_pip_install():
+    """Test that indented pip installs use package management with pass"""
+    sources = [
+        "if True:\n    !python -m uv pip install --upgrade weave\n\nprint('done')"
+    ]
+    result = transform_exclamation_mark(sources)
+    # Should use marimo's package management with pass
+    assert "pass  # packages added via marimo's package management" in result.transformed_sources[0]
+    assert "weave" in result.transformed_sources[0]
+    assert result.pip_packages == ["weave"]  # Packages extracted
+    assert result.needs_subprocess is False
+
+
+def test_transform_exclamation_mark_indented_invalid_command():
+    """Test that indented invalid commands get pass statement"""
+    sources = [
+        "if False:\n    !wget {1+*2}\n\nprint('done')"
+    ]
+    result = transform_exclamation_mark(sources)
+    # Invalid expression in indented context gets pass statement
+    assert "pass  # !wget {1+*2}" in result.transformed_sources[0]
+    assert "Note: Command contains invalid template expression" in result.transformed_sources[0]
+    assert result.pip_packages == []
+    assert result.needs_subprocess is False
 
 
 def test_transform_duplicate_definitions_with_comprehensions():

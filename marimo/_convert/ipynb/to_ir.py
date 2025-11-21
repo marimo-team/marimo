@@ -456,11 +456,11 @@ def _normalize_git_url_package(package: str) -> str:
 
 
 def _extract_pip_install(
-    command_line: str, command_tokens: list[str]
+    command_line: str, command_tokens: list[str], indent_level: int = 0
 ) -> ExclamationCommandResult:
     pip_packages: list[str] = []
     if "install" not in command_tokens:
-        return _shlex_to_subprocess_call(command_line, command_tokens)
+        return _shlex_to_subprocess_call(command_line, command_tokens, indent_level)
 
     install_idx = command_tokens.index("install")
 
@@ -484,10 +484,17 @@ def _extract_pip_install(
     display_items = packages if packages else templates
 
     # Comment out the pip command, showing items in comment
-    replacement = (
-        "# packages added via marimo's package management: "
-        f"{' '.join(display_items)} !{command_line}"
-    )
+    # Add pass for indented commands to prevent empty blocks
+    if indent_level > 0:
+        replacement = (
+            "pass  # packages added via marimo's package management: "
+            f"{' '.join(display_items)} !{command_line}"
+        )
+    else:
+        replacement = (
+            "# packages added via marimo's package management: "
+            f"{' '.join(display_items)} !{command_line}"
+        )
     return ExclamationCommandResult(replacement, pip_packages, False)
 
 
@@ -508,12 +515,17 @@ def _is_compilable_expression(expr: str) -> bool:
 
 
 def _shlex_to_subprocess_call(
-    command_line: str, command_tokens: list[str]
+    command_line: str, command_tokens: list[str], indent_level: int = 0
 ) -> ExclamationCommandResult:
     """Convert a shell command to subprocess.call([...])
 
     Template placeholders {expr} are converted to str(expr) if expr is valid Python.
     If any template contains invalid Python, the entire command is commented out.
+
+    Args:
+        command_line: The command string
+        command_tokens: Tokenized command
+        indent_level: Indentation level (0 = top-level, >0 = indented)
     """
     # First pass: check if any template is invalid
     for token in command_tokens:
@@ -521,8 +533,9 @@ def _shlex_to_subprocess_call(
             expr = token[1:-1]
             if not _is_compilable_expression(expr):
                 # Comment out entire command if any template is invalid
+                # Always add pass to prevent empty blocks
                 return ExclamationCommandResult(
-                    f"# !{command_line}\n"
+                    f"pass  # !{command_line}\n"
                     f"# Note: Command contains invalid template expression",
                     [],
                     False,  # No subprocess needed
@@ -547,10 +560,14 @@ def _shlex_to_subprocess_call(
 
 
 def _handle_exclamation_command(
-    command_line: str,
+    command_line: str, indent_level: int = 0
 ) -> ExclamationCommandResult:
     """
     Process an exclamation command line.
+
+    Args:
+        command_line: The command to process (without the leading !)
+        indent_level: Column position of the ! (0 = top-level, >0 = indented)
 
     Returns: (replacement_text, pip_packages, needs_subprocess)
     """
@@ -569,10 +586,13 @@ def _handle_exclamation_command(
     # For instance in the case `uv pip install ...`
     for i, token in enumerate(command_tokens):
         if token.startswith("pip"):
-            return _extract_pip_install(command_line, command_tokens[i:])
+            # Pip installs always use marimo's package management (never subprocess)
+            return _extract_pip_install(
+                command_line, command_tokens[i:], indent_level
+            )
 
     # Replace with subprocess.call()
-    return _shlex_to_subprocess_call(command_line, command_tokens)
+    return _shlex_to_subprocess_call(command_line, command_tokens, indent_level)
 
 
 def transform_exclamation_mark(sources: list[str]) -> ExclamationMarkResult:
@@ -612,6 +632,7 @@ def transform_exclamation_mark(sources: list[str]) -> ExclamationMarkResult:
         exclaim_tokens: list[TokenInfo] = []
         trailing_comment = None
         exclaim_line_num = None
+        exclaim_indent_level = 0
 
         for i, token in enumerate(tokens):
             # Check for newline + ! pattern (or ! at start after ENCODING)
@@ -627,6 +648,7 @@ def transform_exclamation_mark(sources: list[str]) -> ExclamationMarkResult:
                 exclaim_tokens = []
                 trailing_comment = None
                 exclaim_line_num = token.start[0]
+                exclaim_indent_level = token.start[1]  # Column position = indentation
                 continue  # Skip the ! token
 
             elif in_exclaim:
@@ -685,7 +707,9 @@ def transform_exclamation_mark(sources: list[str]) -> ExclamationMarkResult:
                     else:
                         command_line = ""
 
-                    result = _handle_exclamation_command(command_line)
+                    result = _handle_exclamation_command(
+                        command_line, indent_level=exclaim_indent_level
+                    )
 
                     all_pip_packages.extend(result.pip_packages)
                     any_needs_subprocess |= result.needs_subprocess
