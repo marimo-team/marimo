@@ -289,6 +289,9 @@ class date(UIElement[str, dt.date]):
         label = kwargs.pop("label", info.label)
         return date(start=start, stop=stop, label=label, **kwargs)
 
+    def _convert_value(self, value: str) -> dt.date:
+        return convert_str_to_date(value)
+
     @property
     def start(self) -> dt.date:
         """Get the minimum selectable date.
@@ -417,6 +420,9 @@ class datetime(UIElement[Optional[str], Optional[dt.datetime]]):
         label = kwargs.pop("label", info.label)
         return datetime(start=start, stop=stop, label=label, **kwargs)
 
+    def _convert_value(self, value: Optional[str]) -> Optional[dt.datetime]:
+        return convert_str_to_datetime(value)
+
     @property
     def start(self) -> dt.datetime:
         """Get the minimum selectable datetime.
@@ -538,6 +544,11 @@ class date_range(UIElement[tuple[str, str], tuple[dt.date, dt.date]]):
         stop = kwargs.pop("stop", info.max)
         label = kwargs.pop("label", info.label)
         return date_range(start=start, stop=stop, label=label, **kwargs)
+
+    def _convert_value(
+        self, value: tuple[str, str]
+    ) -> tuple[dt.date, dt.date]:
+        return convert_str_to_date(value[0]), convert_str_to_date(value[1])
 
     @property
     def start(self) -> dt.date:
@@ -775,3 +786,6 @@ class date_slider(UIElement[list[str], tuple[dt.date, dt.date]]):
             datetime.timedelta: The step timedelta.
         """
         return self._step
+
+    def _convert_value(self, value: list[str]) -> tuple[dt.date, dt.date]:
+        return convert_str_to_date(value[0]), convert_str_to_date(value[1])
