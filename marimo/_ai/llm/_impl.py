@@ -2,17 +2,13 @@
 from __future__ import annotations
 
 import os
-from typing import TYPE_CHECKING, Any, Callable, Optional, cast
+from typing import TYPE_CHECKING, Any, Callable, Optional
+from urllib.parse import parse_qs, urlparse
 
 if TYPE_CHECKING:
     from collections.abc import Generator
 
-from marimo._ai._convert import (
-    convert_to_anthropic_messages,
-    convert_to_google_messages,
-    convert_to_groq_messages,
-    convert_to_openai_messages,
-)
+from marimo._ai._convert import convert_to_openai_messages
 from marimo._ai._types import (
     ChatMessage,
     ChatModel,
@@ -46,18 +42,12 @@ class simple(ChatModel):
         return self.delegate(prompt)
 
 
-class openai(ChatModel):
+class _LiteLLMBase(ChatModel):
     """
-    OpenAI ChatModel
-
-    Args:
-        model: The model to use.
-            Can be found on the [OpenAI models page](https://platform.openai.com/docs/models)
-        system_message: The system message to use
-        api_key: The API key to use.
-            If not provided, the API key will be retrieved
-            from the OPENAI_API_KEY environment variable or the user's config.
-        base_url: The base URL to use
+    Base class for ChatModel implementations using litellm.
+    
+    litellm provides a unified interface for 100+ LLM providers,
+    reducing code duplication and dependency overhead.
     """
 
     def __init__(
@@ -67,43 +57,49 @@ class openai(ChatModel):
         system_message: str = DEFAULT_SYSTEM_MESSAGE,
         api_key: Optional[str] = None,
         base_url: Optional[str] = None,
+        provider_name: str = "provider",
+        env_var_name: str = "API_KEY",
+        config_key: Optional[str] = None,
     ):
         self.model = model
         self.system_message = system_message
         self.api_key = api_key
         self.base_url = base_url
+        self._provider_name = provider_name
+        self._env_var_name = env_var_name
+        self._config_key = config_key
 
-    @property
-    def _require_api_key(self) -> str:
-        # If the api key is provided, use it
+    def _get_api_key(self) -> Optional[str]:
+        """Get API key from various sources in order of precedence."""
+        # 1. Explicitly provided
         if self.api_key is not None:
             return self.api_key
 
-        # Then check the environment variable
-        env_key = os.environ.get("OPENAI_API_KEY")
+        # 2. Check environment variable
+        env_key = os.environ.get(self._env_var_name)
         if env_key is not None:
             return env_key
 
-        # Then check the user's config
-        try:
-            from marimo._runtime.context.types import get_context
+        # 3. Check marimo config if config_key is provided
+        if self._config_key:
+            try:
+                from marimo._runtime.context.types import get_context
 
-            api_key = get_context().marimo_config["ai"]["open_ai"]["api_key"]
-            if api_key:
-                return api_key
-        except Exception:
-            pass
+                api_key = get_context().marimo_config["ai"][self._config_key][
+                    "api_key"
+                ]
+                if api_key:
+                    return api_key
+            except Exception:
+                pass
 
-        raise ValueError(
-            "openai api key not provided. Pass it as an argument or "
-            "set OPENAI_API_KEY as an environment variable"
-        )
+        return None
 
     def _stream_response(self, response: Any) -> Generator[str, None, None]:
-        """Helper method for streaming - yields delta chunks.
+        """Yield delta chunks from litellm stream.
         
         Each yield is a new piece of content (delta) to be accumulated
-        by the consumer. This follows the standard OpenAI streaming pattern.
+        by the consumer. This follows the standard streaming pattern.
         """
         for chunk in response:
             if chunk.choices and len(chunk.choices) > 0:
@@ -114,60 +110,118 @@ class openai(ChatModel):
     def __call__(
         self, messages: list[ChatMessage], config: ChatModelConfig
     ) -> object:
-        DependencyManager.openai.require(
-            "chat model requires openai. `pip install openai`"
+        DependencyManager.litellm.require(
+            f"chat model requires litellm. `pip install litellm`"
         )
-        from urllib.parse import parse_qs, urlparse
+        from litellm import completion
 
-        from openai import (  # type: ignore[import-not-found]
-            AzureOpenAI,
-            OpenAI,
-        )
-
-        # Azure OpenAI clients are instantiated slightly differently
-        # To check if we're using Azure, we check the base_url for the format
-        # https://[subdomain].openai.azure.com/openai/deployments/[model]/chat/completions?api-version=[api_version]
-        parsed_url = urlparse(self.base_url)
-        if parsed_url.hostname and cast(str, parsed_url.hostname).endswith(
-            ".openai.azure.com"
-        ):
-            self.model = cast(str, parsed_url.path).split("/")[3]
-            api_version = parse_qs(cast(str, parsed_url.query))["api-version"][
-                0
-            ]
-            client: AzureOpenAI | OpenAI = AzureOpenAI(
-                api_key=self._require_api_key,
-                api_version=api_version,
-                azure_endpoint=f"{cast(str, parsed_url.scheme)}://{cast(str, parsed_url.hostname)}",
-            )
-        else:
-            client = OpenAI(
-                api_key=self._require_api_key,
-                base_url=self.base_url or None,
+        # Get API key
+        api_key = self._get_api_key()
+        if not api_key:
+            raise ValueError(
+                f"{self._provider_name} api key not provided. "
+                f"Pass it as an argument or set {self._env_var_name} "
+                f"as an environment variable"
             )
 
+        # Convert messages to OpenAI format (litellm expects this)
         openai_messages = convert_to_openai_messages(
             [ChatMessage(role="system", content=self.system_message)]
             + messages
         )
 
-        response = client.chat.completions.create(
-            model=self.model,
-            messages=openai_messages,
-            max_completion_tokens=config.max_tokens,
-            temperature=config.temperature,
-            top_p=config.top_p,
-            frequency_penalty=config.frequency_penalty,
-            presence_penalty=config.presence_penalty,
-            stream=True,
-        )
+        # Build completion parameters
+        params: dict[str, Any] = {
+            "model": self.model,
+            "messages": openai_messages,
+            "stream": True,
+            "api_key": api_key,
+        }
 
+        # Add optional parameters
+        if self.base_url:
+            params["base_url"] = self.base_url
+        if config.max_tokens:
+            params["max_tokens"] = config.max_tokens
+        if config.temperature is not None:
+            params["temperature"] = config.temperature
+        if config.top_p is not None:
+            params["top_p"] = config.top_p
+        if config.frequency_penalty is not None:
+            params["frequency_penalty"] = config.frequency_penalty
+        if config.presence_penalty is not None:
+            params["presence_penalty"] = config.presence_penalty
+        if config.top_k is not None:
+            # litellm passes this through to providers that support it
+            params["top_k"] = config.top_k
+
+        response = completion(**params)
         return self._stream_response(response)
 
 
-class anthropic(ChatModel):
+class openai(_LiteLLMBase):
     """
-    Anthropic ChatModel
+    OpenAI ChatModel (powered by litellm)
+
+    Args:
+        model: The model to use.
+            Can be found on the [OpenAI models page](https://platform.openai.com/docs/models)
+        system_message: The system message to use
+        api_key: The API key to use.
+            If not provided, the API key will be retrieved
+            from the OPENAI_API_KEY environment variable or the user's config.
+        base_url: The base URL to use. Supports Azure OpenAI endpoints.
+    """
+
+    def __init__(
+        self,
+        model: str,
+        *,
+        system_message: str = DEFAULT_SYSTEM_MESSAGE,
+        api_key: Optional[str] = None,
+        base_url: Optional[str] = None,
+    ):
+        # Handle Azure OpenAI URL format
+        # https://[subdomain].openai.azure.com/openai/deployments/[model]/...
+        if base_url:
+            parsed_url = urlparse(base_url)
+            if parsed_url.hostname and parsed_url.hostname.endswith(
+                ".openai.azure.com"
+            ):
+                # Extract deployment name and convert to azure/ prefix for litellm
+                try:
+                    deployment = parsed_url.path.split("/")[3]
+                    api_version = parse_qs(parsed_url.query).get(
+                        "api-version", [""]
+                    )[0]
+                    model = f"azure/{deployment}"
+                    # Set Azure-specific env vars for litellm
+                    if api_version:
+                        os.environ["AZURE_API_VERSION"] = api_version
+                    azure_endpoint = (
+                        f"{parsed_url.scheme}://{parsed_url.hostname}"
+                    )
+                    os.environ["AZURE_API_BASE"] = azure_endpoint
+                    # Clear base_url since we're using env vars
+                    base_url = None
+                except (IndexError, KeyError):
+                    # If parsing fails, let litellm try to handle it
+                    pass
+
+        super().__init__(
+            model=model,
+            system_message=system_message,
+            api_key=api_key,
+            base_url=base_url,
+            provider_name="OpenAI",
+            env_var_name="OPENAI_API_KEY",
+            config_key="open_ai",
+        )
+
+
+class anthropic(_LiteLLMBase):
+    """
+    Anthropic ChatModel (powered by litellm)
 
     Args:
         model: The model to use.
@@ -188,83 +242,25 @@ class anthropic(ChatModel):
         api_key: Optional[str] = None,
         base_url: Optional[str] = None,
     ):
-        self.model = model
-        self.system_message = system_message
-        self.api_key = api_key
-        self.base_url = base_url
+        # litellm expects model names without provider prefix for anthropic
+        # unless using anthropic/ prefix explicitly
+        if not model.startswith("anthropic/"):
+            model = f"anthropic/{model}"
 
-    @property
-    def _require_api_key(self) -> str:
-        # If the api key is provided, use it
-        if self.api_key is not None:
-            return self.api_key
-
-        # Then check the user's config
-        try:
-            from marimo._runtime.context.types import get_context
-
-            api_key = get_context().marimo_config["ai"]["anthropic"]["api_key"]
-            if api_key:
-                return api_key
-        except Exception:
-            pass
-
-        # Then check the environment variable
-        env_key = os.environ.get("ANTHROPIC_API_KEY")
-        if env_key is not None:
-            return env_key
-
-        raise ValueError(
-            "anthropic api key not provided. Pass it as an argument or "
-            "set ANTHROPIC_API_KEY as an environment variable"
+        super().__init__(
+            model=model,
+            system_message=system_message,
+            api_key=api_key,
+            base_url=base_url,
+            provider_name="Anthropic",
+            env_var_name="ANTHROPIC_API_KEY",
+            config_key="anthropic",
         )
 
-    def _stream_response(
-        self, client: Any, params: Any
-    ) -> Generator[str, None, None]:
-        """Helper method for streaming - yields delta chunks.
-        
-        Each yield is a new piece of content (delta) to be accumulated
-        by the consumer. This follows the standard Anthropic streaming pattern.
-        """
-        with client.messages.stream(**params) as stream:
-            for text in stream.text_stream:
-                yield text
 
-    def __call__(
-        self, messages: list[ChatMessage], config: ChatModelConfig
-    ) -> object:
-        DependencyManager.anthropic.require(
-            "chat model requires anthropic. `pip install anthropic`"
-        )
-        from anthropic import Anthropic
-
-        client = Anthropic(
-            api_key=self._require_api_key,
-            base_url=self.base_url,
-        )
-
-        anthropic_messages = convert_to_anthropic_messages(messages)
-        params: dict[str, Any] = {
-            "model": self.model,
-            "system": self.system_message,
-            "max_tokens": config.max_tokens or 4096,
-            "messages": anthropic_messages,
-            "stream": True,
-        }
-        if config.top_p is not None:
-            params["top_p"] = config.top_p
-        if config.top_k is not None:
-            params["top_k"] = config.top_k
-        if config.temperature is not None:
-            params["temperature"] = config.temperature
-
-        return self._stream_response(client, params)
-
-
-class google(ChatModel):
+class google(_LiteLLMBase):
     """
-    Google AI ChatModel
+    Google AI ChatModel (powered by litellm)
 
     Args:
         model: The model to use.
@@ -283,84 +279,24 @@ class google(ChatModel):
         system_message: str = DEFAULT_SYSTEM_MESSAGE,
         api_key: Optional[str] = None,
     ):
-        self.model = model
-        self.system_message = system_message
-        self.api_key = api_key
+        # litellm uses gemini/ prefix for Google AI
+        if not model.startswith("gemini/"):
+            model = f"gemini/{model}"
 
-    @property
-    def _require_api_key(self) -> str:
-        # If the api key is provided, use it
-        if self.api_key is not None:
-            return self.api_key
-
-        # Then check the user's config
-        try:
-            from marimo._runtime.context.types import get_context
-
-            api_key = get_context().marimo_config["ai"]["google"]["api_key"]
-            if api_key:
-                return api_key
-        except Exception:
-            pass
-
-        # Then check the environment variable
-        env_key = os.environ.get("GOOGLE_AI_API_KEY")
-        if env_key is not None:
-            return env_key
-
-        raise ValueError(
-            "Google AI api key not provided. Pass it as an argument or "
-            "set GOOGLE_AI_API_KEY as an environment variable"
-        )
-
-    def _stream_response(
-        self, client: Any, google_messages: Any, generation_config: Any
-    ) -> Generator[str, None, None]:
-        """Helper method for streaming - yields delta chunks.
-        
-        Each yield is a new piece of content (delta) to be accumulated
-        by the consumer. This follows the standard Google AI streaming pattern.
-        """
-        response = client.models.generate_content_stream(
-            model=self.model,
-            contents=google_messages,
-            config=generation_config,
-        )
-        for chunk in response:
-            if chunk.text:
-                yield chunk.text
-
-    def __call__(
-        self, messages: list[ChatMessage], config: ChatModelConfig
-    ) -> object:
-        DependencyManager.google_ai.require(
-            "chat model requires google. `pip install google-genai`"
-        )
-        from google import genai  # type: ignore[import-not-found]
-
-        client = genai.Client(api_key=self._require_api_key)
-
-        google_messages = convert_to_google_messages(messages)
-
-        # Build config once to avoid duplication
-        generation_config = {
-            "system_instruction": self.system_message,
-            "max_output_tokens": config.max_tokens,
-            "temperature": config.temperature,
-            "top_p": config.top_p,
-            "top_k": config.top_k,
-            "frequency_penalty": config.frequency_penalty,
-            "presence_penalty": config.presence_penalty,
-        }
-
-        return self._stream_response(
-            client, google_messages, generation_config
+        super().__init__(
+            model=model,
+            system_message=system_message,
+            api_key=api_key,
+            base_url=None,
+            provider_name="Google AI",
+            env_var_name="GOOGLE_AI_API_KEY",
+            config_key="google",
         )
 
 
-class groq(ChatModel):
+class groq(_LiteLLMBase):
     """
-    Groq ChatModel
+    Groq ChatModel (powered by litellm)
 
     Args:
         model: The model to use.
@@ -380,94 +316,34 @@ class groq(ChatModel):
         api_key: Optional[str] = None,
         base_url: Optional[str] = None,
     ):
-        self.model = model
-        self.system_message = system_message
-        self.api_key = api_key
-        self.base_url = base_url
+        # litellm expects groq/ prefix
+        if not model.startswith("groq/"):
+            model = f"groq/{model}"
 
-    @property
-    def _require_api_key(self) -> str:
-        # If the api key is provided, use it
-        if self.api_key is not None:
-            return self.api_key
-
-        # Then check the environment variable
-        env_key = os.environ.get("GROQ_API_KEY")
-        if env_key is not None:
-            return env_key
-
-        # TODO(haleshot): Add config support later
-        # # Then check the user's config
-        # try:
-        #     from marimo._runtime.context.types import get_context
-        #
-        #     api_key = get_context().user_config["ai"]["groq"]["api_key"]
-        #     if api_key:
-        #         return api_key
-        # except Exception:
-        #     pass
-
-        raise ValueError(
-            "groq api key not provided. Pass it as an argument or "
-            "set GROQ_API_KEY as an environment variable"
+        super().__init__(
+            model=model,
+            system_message=system_message,
+            api_key=api_key,
+            base_url=base_url,
+            provider_name="Groq",
+            env_var_name="GROQ_API_KEY",
+            config_key=None,  # No marimo config for Groq yet
         )
 
-    def _stream_response(
-        self, client: Any, groq_messages: Any, config: ChatModelConfig
-    ) -> Generator[str, None, None]:
-        """Helper method for streaming - yields delta chunks.
-        
-        Each yield is a new piece of content (delta) to be accumulated
-        by the consumer. This follows the standard Groq streaming pattern.
-        """
-        stream = client.chat.completions.create(
-            model=self.model,
-            messages=groq_messages,
-            max_tokens=config.max_tokens,
-            temperature=config.temperature,
-            top_p=config.top_p,
-            stop=None,
-            stream=True,
-        )
 
-        for chunk in stream:
-            if chunk.choices and len(chunk.choices) > 0:
-                delta = chunk.choices[0].delta
-                if delta.content:
-                    yield delta.content
-
-    def __call__(
-        self, messages: list[ChatMessage], config: ChatModelConfig
-    ) -> object:
-        DependencyManager.groq.require(
-            "chat model requires groq. `pip install groq`"
-        )
-        from groq import Groq  # type: ignore[import-not-found]
-
-        client = Groq(api_key=self._require_api_key, base_url=self.base_url)
-
-        groq_messages = convert_to_groq_messages(
-            [ChatMessage(role="system", content=self.system_message)]
-            + messages
-        )
-
-        return self._stream_response(client, groq_messages, config)
-
-
-class bedrock(ChatModel):
+class bedrock(_LiteLLMBase):
     """
-    AWS Bedrock ChatModel
+    AWS Bedrock ChatModel (powered by litellm)
 
     Args:
         model: The model ID to use.
-            Format: [<cross-region>.]<provider>.<model> (e.g., "us.anthropic.claude-3-7-sonnet-20250219-v1:0")
+            Format: [<cross-region>.]<provider>.<model> 
+            (e.g., "us.anthropic.claude-3-7-sonnet-20250219-v1:0")
         system_message: The system message to use
         region_name: The AWS region to use (e.g., "us-east-1")
         profile_name: The AWS profile to use for credentials (optional)
-        credentials: AWS credentials (optional)
-            Dict with keys: "aws_access_key_id" and "aws_secret_access_key"
-            If not provided, credentials will be retrieved from the environment
-            or the AWS configuration files.
+        aws_access_key_id: AWS access key ID (optional)
+        aws_secret_access_key: AWS secret access key (optional)
     """
 
     def __init__(
@@ -480,54 +356,38 @@ class bedrock(ChatModel):
         aws_access_key_id: Optional[str] = None,
         aws_secret_access_key: Optional[str] = None,
     ):
+        # litellm expects bedrock/ prefix
         if not model.startswith("bedrock/"):
             model = f"bedrock/{model}"
-        self.model = model
-        self.system_message = system_message
+
         self.region_name = region_name
         self.profile_name = profile_name
         self.aws_access_key_id = aws_access_key_id
         self.aws_secret_access_key = aws_secret_access_key
 
+        super().__init__(
+            model=model,
+            system_message=system_message,
+            api_key=None,  # Bedrock uses AWS credentials, not API key
+            base_url=None,
+            provider_name="AWS Bedrock",
+            env_var_name="AWS_ACCESS_KEY_ID",  # Not actually used
+            config_key=None,
+        )
+
     def _setup_credentials(self) -> None:
-        # Use profile name if provided, otherwise use API key
+        """Setup AWS credentials for litellm."""
+        # Use profile name if provided
         if self.profile_name:
             os.environ["AWS_PROFILE"] = self.profile_name
+        # Use explicit credentials if provided
         elif self.aws_access_key_id and self.aws_secret_access_key:
             os.environ["AWS_ACCESS_KEY_ID"] = self.aws_access_key_id
             os.environ["AWS_SECRET_ACCESS_KEY"] = self.aws_secret_access_key
-        else:
-            pass  # Use default credential chain
+        # Otherwise, use default credential chain
 
-    def _stream_response(
-        self, messages: list[ChatMessage], config: ChatModelConfig
-    ) -> Generator[str, None, None]:
-        """Helper method for streaming - yields delta chunks.
-        
-        Each yield is a new piece of content (delta) to be accumulated
-        by the consumer. This follows the standard AWS Bedrock streaming pattern.
-        """
-        from litellm import completion as litellm_completion
-
-        response = litellm_completion(
-            model=self.model,
-            messages=convert_to_openai_messages(
-                [ChatMessage(role="system", content=self.system_message)]
-                + messages
-            ),
-            max_tokens=config.max_tokens,
-            temperature=config.temperature,
-            top_p=config.top_p,
-            frequency_penalty=config.frequency_penalty,
-            presence_penalty=config.presence_penalty,
-            stream=True,
-        )
-
-        for chunk in response:
-            if chunk.choices and len(chunk.choices) > 0:
-                delta = chunk.choices[0].delta
-                if delta.content:
-                    yield delta.content
+        # Set region for litellm
+        os.environ["AWS_REGION_NAME"] = self.region_name
 
     def __call__(
         self, messages: list[ChatMessage], config: ChatModelConfig
@@ -538,10 +398,12 @@ class bedrock(ChatModel):
         DependencyManager.litellm.require(
             "bedrock chat model requires litellm. `pip install litellm`"
         )
+
         self._setup_credentials()
 
         try:
-            return self._stream_response(messages, config)
+            # Call parent implementation
+            return super().__call__(messages, config)
         except Exception as e:
             # Handle common AWS exceptions with helpful messages
             error_msg = str(e)
@@ -567,3 +429,8 @@ class bedrock(ChatModel):
             else:
                 # Re-raise original exception if not handled
                 raise
+
+    def _get_api_key(self) -> Optional[str]:
+        """Override to skip API key check for Bedrock (uses AWS credentials)."""
+        # Return a dummy value to bypass the API key check in parent
+        return "not-used-for-bedrock"
