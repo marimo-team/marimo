@@ -364,6 +364,12 @@
     border-top-right-radius: 9px;
   }
 
+  /* When the AI prompt input is open (above the cell) */
+  &:first-child:has([data-ai-input-open="true"]) .cm-editor {
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+  }
+
   &:last-child .cm-editor {
     border-bottom-left-radius: 9px;
     border-bottom-right-radius: 9px;
