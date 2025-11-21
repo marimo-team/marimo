@@ -2,7 +2,7 @@
 # requires-python = ">=3.11"
 # dependencies = [
 #     "marimo",
-#     "groq==0.11.0",
+#     "litellm",
 # ]
 # ///
 

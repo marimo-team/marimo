@@ -216,7 +216,7 @@ class chat(UIElement[dict[str, Any], list[ChatMessage]]):
 
     async def _handle_streaming_response(self, response: Any) -> str:
         """Handle streaming from both sync and async generators.
-        
+
         Generators should yield delta chunks (new content only), which this
         method accumulates and sends to the frontend as complete text.
         This follows the standard streaming pattern used by OpenAI, Anthropic,

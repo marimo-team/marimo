@@ -4,7 +4,7 @@
 #     "dagger-io==0.14.0",
 #     "ell-ai==0.0.14",
 #     "marimo",
-#     "openai==1.55.0",
+#     "litellm",
 #     "pydantic==2.8.2",
 # ]
 # ///

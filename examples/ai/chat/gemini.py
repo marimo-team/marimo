@@ -2,7 +2,7 @@
 # requires-python = ">=3.11"
 # dependencies = [
 #     "marimo",
-#     "google-genai>=1.20.0",
+#     "litellm",
 # ]
 # ///
 

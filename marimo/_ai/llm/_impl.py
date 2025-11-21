@@ -45,7 +45,7 @@ class simple(ChatModel):
 class _LiteLLMBase(ChatModel):
     """
     Base class for ChatModel implementations using litellm.
-    
+
     litellm provides a unified interface for 100+ LLM providers,
     reducing code duplication and dependency overhead.
     """
@@ -57,6 +57,7 @@ class _LiteLLMBase(ChatModel):
         system_message: str = DEFAULT_SYSTEM_MESSAGE,
         api_key: Optional[str] = None,
         base_url: Optional[str] = None,
+        stream: bool = True,
         provider_name: str = "provider",
         env_var_name: str = "API_KEY",
         config_key: Optional[str] = None,
@@ -65,6 +66,7 @@ class _LiteLLMBase(ChatModel):
         self.system_message = system_message
         self.api_key = api_key
         self.base_url = base_url
+        self.stream = stream
         self._provider_name = provider_name
         self._env_var_name = env_var_name
         self._config_key = config_key
@@ -97,7 +99,7 @@ class _LiteLLMBase(ChatModel):
 
     def _stream_response(self, response: Any) -> Generator[str, None, None]:
         """Yield delta chunks from litellm stream.
-        
+
         Each yield is a new piece of content (delta) to be accumulated
         by the consumer. This follows the standard streaming pattern.
         """
@@ -111,7 +113,7 @@ class _LiteLLMBase(ChatModel):
         self, messages: list[ChatMessage], config: ChatModelConfig
     ) -> object:
         DependencyManager.litellm.require(
-            f"chat model requires litellm. `pip install litellm`"
+            "chat model requires litellm. `pip install litellm`"
         )
         from litellm import completion
 
@@ -134,9 +136,8 @@ class _LiteLLMBase(ChatModel):
         params: dict[str, Any] = {
             "model": self.model,
             "messages": openai_messages,
-            "stream": True,
+            "stream": self.stream,
             "api_key": api_key,
-            "drop_params": True,  # Drop unsupported params for this provider
         }
 
         # Add optional parameters
@@ -153,11 +154,27 @@ class _LiteLLMBase(ChatModel):
         if config.presence_penalty is not None:
             params["presence_penalty"] = config.presence_penalty
         if config.top_k is not None:
-            # litellm passes this through to providers that support it
             params["top_k"] = config.top_k
 
-        response = completion(**params)
-        return self._stream_response(response)
+        # Try with streaming first, fall back to non-streaming if unsupported
+        try:
+            # Pass drop_params=True to automatically drop unsupported params
+            response = completion(drop_params=True, **params)
+            if self.stream:
+                return self._stream_response(response)
+            else:
+                # Non-streaming response - return the content directly
+                return response.choices[0].message.content
+        except Exception as e:
+            # If streaming fails due to model not supporting it, retry without streaming
+            error_msg = str(e).lower()
+            if self.stream and ("stream" in error_msg or "streaming" in error_msg):
+                params["stream"] = False
+                response = completion(drop_params=True, **params)
+                return response.choices[0].message.content
+            else:
+                # Re-raise if it's a different error
+                raise
 
 
 class openai(_LiteLLMBase):
@@ -172,6 +189,8 @@ class openai(_LiteLLMBase):
             If not provided, the API key will be retrieved
             from the OPENAI_API_KEY environment variable or the user's config.
         base_url: The base URL to use. Supports Azure OpenAI endpoints.
+        stream: Whether to stream responses. Defaults to True.
+            If the model doesn't support streaming, it will automatically fall back to non-streaming.
     """
 
     def __init__(
@@ -181,6 +200,7 @@ class openai(_LiteLLMBase):
         system_message: str = DEFAULT_SYSTEM_MESSAGE,
         api_key: Optional[str] = None,
         base_url: Optional[str] = None,
+        stream: bool = True,
     ):
         # Handle Azure OpenAI URL format
         # https://[subdomain].openai.azure.com/openai/deployments/[model]/...
@@ -214,6 +234,7 @@ class openai(_LiteLLMBase):
             system_message=system_message,
             api_key=api_key,
             base_url=base_url,
+            stream=stream,
             provider_name="OpenAI",
             env_var_name="OPENAI_API_KEY",
             config_key="open_ai",
@@ -233,6 +254,8 @@ class anthropic(_LiteLLMBase):
             from the ANTHROPIC_API_KEY environment variable
             or the user's config.
         base_url: The base URL to use
+        stream: Whether to stream responses. Defaults to True.
+            If the model doesn't support streaming, it will automatically fall back to non-streaming.
     """
 
     def __init__(
@@ -242,6 +265,7 @@ class anthropic(_LiteLLMBase):
         system_message: str = DEFAULT_SYSTEM_MESSAGE,
         api_key: Optional[str] = None,
         base_url: Optional[str] = None,
+        stream: bool = True,
     ):
         # litellm expects model names without provider prefix for anthropic
         # unless using anthropic/ prefix explicitly
@@ -253,6 +277,7 @@ class anthropic(_LiteLLMBase):
             system_message=system_message,
             api_key=api_key,
             base_url=base_url,
+            stream=stream,
             provider_name="Anthropic",
             env_var_name="ANTHROPIC_API_KEY",
             config_key="anthropic",
@@ -271,6 +296,8 @@ class google(_LiteLLMBase):
             If not provided, the API key will be retrieved
             from the GOOGLE_AI_API_KEY environment variable
             or the user's config.
+        stream: Whether to stream responses. Defaults to True.
+            If the model doesn't support streaming, it will automatically fall back to non-streaming.
     """
 
     def __init__(
@@ -279,6 +306,7 @@ class google(_LiteLLMBase):
         *,
         system_message: str = DEFAULT_SYSTEM_MESSAGE,
         api_key: Optional[str] = None,
+        stream: bool = True,
     ):
         # litellm uses gemini/ prefix for Google AI
         if not model.startswith("gemini/"):
@@ -289,6 +317,7 @@ class google(_LiteLLMBase):
             system_message=system_message,
             api_key=api_key,
             base_url=None,
+            stream=stream,
             provider_name="Google AI",
             env_var_name="GOOGLE_AI_API_KEY",
             config_key="google",
@@ -307,6 +336,8 @@ class groq(_LiteLLMBase):
             If not provided, the API key will be retrieved
             from the GROQ_API_KEY environment variable or the user's config.
         base_url: The base URL to use
+        stream: Whether to stream responses. Defaults to True.
+            If the model doesn't support streaming, it will automatically fall back to non-streaming.
     """
 
     def __init__(
@@ -316,6 +347,7 @@ class groq(_LiteLLMBase):
         system_message: str = DEFAULT_SYSTEM_MESSAGE,
         api_key: Optional[str] = None,
         base_url: Optional[str] = None,
+        stream: bool = True,
     ):
         # litellm expects groq/ prefix
         if not model.startswith("groq/"):
@@ -326,6 +358,7 @@ class groq(_LiteLLMBase):
             system_message=system_message,
             api_key=api_key,
             base_url=base_url,
+            stream=stream,
             provider_name="Groq",
             env_var_name="GROQ_API_KEY",
             config_key=None,  # No marimo config for Groq yet
@@ -338,13 +371,15 @@ class bedrock(_LiteLLMBase):
 
     Args:
         model: The model ID to use.
-            Format: [<cross-region>.]<provider>.<model> 
+            Format: [<cross-region>.]<provider>.<model>
             (e.g., "us.anthropic.claude-3-7-sonnet-20250219-v1:0")
         system_message: The system message to use
         region_name: The AWS region to use (e.g., "us-east-1")
         profile_name: The AWS profile to use for credentials (optional)
         aws_access_key_id: AWS access key ID (optional)
         aws_secret_access_key: AWS secret access key (optional)
+        stream: Whether to stream responses. Defaults to True.
+            If the model doesn't support streaming, it will automatically fall back to non-streaming.
     """
 
     def __init__(
@@ -356,6 +391,7 @@ class bedrock(_LiteLLMBase):
         profile_name: Optional[str] = None,
         aws_access_key_id: Optional[str] = None,
         aws_secret_access_key: Optional[str] = None,
+        stream: bool = True,
     ):
         # litellm expects bedrock/ prefix
         if not model.startswith("bedrock/"):
@@ -371,6 +407,7 @@ class bedrock(_LiteLLMBase):
             system_message=system_message,
             api_key=None,  # Bedrock uses AWS credentials, not API key
             base_url=None,
+            stream=stream,
             provider_name="AWS Bedrock",
             env_var_name="AWS_ACCESS_KEY_ID",  # Not actually used
             config_key=None,
@@ -440,15 +477,16 @@ class bedrock(_LiteLLMBase):
 class litellm(_LiteLLMBase):
     """
     Generic LiteLLM ChatModel - supports any litellm provider.
-    
+
     Use this to access any of the 100+ providers supported by litellm
     without needing a specific marimo wrapper. Perfect for local models,
     niche providers, or experimental setups.
-    
+
     Args:
         model: The full litellm model identifier with provider prefix.
             See https://docs.litellm.ai/docs/providers for the complete list.
-            Examples:
+
+    Examples:
             - "ollama/llama3" - Local Ollama
             - "together_ai/meta-llama/Llama-3-70b" - Together AI
             - "openrouter/anthropic/claude-3-opus" - OpenRouter
@@ -458,38 +496,48 @@ class litellm(_LiteLLMBase):
         system_message: The system message to use
         api_key: The API key (provider-specific, may not be needed for local providers)
         base_url: Optional base URL override (useful for local deployments)
-    
+        stream: Whether to stream responses. Defaults to True.
+            If the model doesn't support streaming, it will automatically fall back to non-streaming.
+
     Examples:
         ```python
         import marimo as mo
         import os
-        
+
         # Local Ollama (no API key needed)
         mo.ui.chat(mo.ai.llm.litellm("ollama/llama3"))
-        
+
         # Together AI
-        mo.ui.chat(mo.ai.llm.litellm(
-            "together_ai/meta-llama/Llama-3-70b",
-            api_key=os.environ["TOGETHER_API_KEY"]
-        ))
-        
+        mo.ui.chat(
+            mo.ai.llm.litellm(
+                "together_ai/meta-llama/Llama-3-70b",
+                api_key=os.environ["TOGETHER_API_KEY"],
+            )
+        )
+
         # OpenRouter (access to 100+ models with one API key)
-        mo.ui.chat(mo.ai.llm.litellm(
-            "openrouter/anthropic/claude-3-opus",
-            api_key=os.environ["OPENROUTER_API_KEY"]
-        ))
-        
+        mo.ui.chat(
+            mo.ai.llm.litellm(
+                "openrouter/anthropic/claude-3-opus",
+                api_key=os.environ["OPENROUTER_API_KEY"],
+            )
+        )
+
         # Replicate
-        mo.ui.chat(mo.ai.llm.litellm(
-            "replicate/meta/llama-2-70b-chat",
-            api_key=os.environ["REPLICATE_API_KEY"]
-        ))
-        
+        mo.ui.chat(
+            mo.ai.llm.litellm(
+                "replicate/meta/llama-2-70b-chat",
+                api_key=os.environ["REPLICATE_API_KEY"],
+            )
+        )
+
         # Local vLLM server
-        mo.ui.chat(mo.ai.llm.litellm(
-            "openai/mistral-7b",  # Use openai/ prefix for OpenAI-compatible servers
-            base_url="http://localhost:8000/v1"
-        ))
+        mo.ui.chat(
+            mo.ai.llm.litellm(
+                "openai/mistral-7b",  # Use openai/ prefix for OpenAI-compatible servers
+                base_url="http://localhost:8000/v1",
+            )
+        )
         ```
     """
 
@@ -500,39 +548,47 @@ class litellm(_LiteLLMBase):
         system_message: str = DEFAULT_SYSTEM_MESSAGE,
         api_key: Optional[str] = None,
         base_url: Optional[str] = None,
+        stream: bool = True,
     ):
         # Extract provider from model string (e.g., "ollama/llama3" -> "ollama")
         provider = model.split("/")[0] if "/" in model else "unknown"
-        
+
         # Determine environment variable name based on provider
         # Common patterns: OPENAI_API_KEY, ANTHROPIC_API_KEY, etc.
         env_var = f"{provider.upper()}_API_KEY"
-        
+
         super().__init__(
             model=model,  # Use model as-is, with provider prefix
             system_message=system_message,
             api_key=api_key,
             base_url=base_url,
+            stream=stream,
             provider_name=provider.title(),
             env_var_name=env_var,
             config_key=None,  # No marimo config for generic models
         )
-    
+
     def _get_api_key(self) -> Optional[str]:
         """Override to be more lenient - some providers don't need API keys.
-        
+
         Local providers like Ollama, vLLM, etc. often don't require API keys.
         """
         key = super()._get_api_key()
-        
+
         # For local/self-hosted providers, API key is optional
         if key is None:
             provider = self.model.split("/")[0] if "/" in self.model else ""
             local_providers = {
-                "ollama", "vllm", "koboldai", "petals", "text-generation-inference",
-                "tgi", "llamacpp", "openrouter"  # openrouter can work with free tier
+                "ollama",
+                "vllm",
+                "koboldai",
+                "petals",
+                "text-generation-inference",
+                "tgi",
+                "llamacpp",
+                "openrouter",  # openrouter can work with free tier
             }
             if provider.lower() in local_providers:
                 return "not-required"  # Return dummy key for local providers
-        
+
         return key

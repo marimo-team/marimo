@@ -2,7 +2,7 @@
 # requires-python = ">=3.11"
 # dependencies = [
 #     "marimo",
-#     "openai==1.60.2",
+#     "litellm",
 # ]
 # ///
 

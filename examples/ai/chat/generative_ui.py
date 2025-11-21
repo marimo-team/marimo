@@ -3,7 +3,7 @@
 # dependencies = [
 #     "ell-ai==0.0.14",
 #     "marimo",
-#     "openai==1.53.0",
+#     "litellm",
 #     "polars==1.12.0",
 # ]
 # ///
