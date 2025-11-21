@@ -1,11 +1,8 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import { describe, expect, it } from "vitest";
-import {
-  COPILOT_MODES,
-  FRONTEND_TOOL_REGISTRY,
-  FrontendToolRegistry,
-} from "../registry";
+import { COPILOT_MODES } from "@/core/config/config-schema";
+import { FRONTEND_TOOL_REGISTRY, FrontendToolRegistry } from "../registry";
 import { TestFrontendTool } from "../sample-tool";
 
 // Tools that have these keys in their parameters are likely not supported by Google

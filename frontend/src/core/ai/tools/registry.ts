@@ -27,7 +27,6 @@ interface InvokeResult<TName> {
 
 type ToolDefinition = components["schemas"]["ToolDefinition"];
 export type CopilotMode = ToolDefinition["mode"][number];
-export const COPILOT_MODES: CopilotMode[] = ["ask", "agent", "manual"];
 
 export interface FrontendToolDefinition extends ToolDefinition {
   source: "frontend";
