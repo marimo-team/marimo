@@ -581,7 +581,11 @@ const EditableCellComponent = ({
             {...cellDomProps(cellId, cellData.name)}
           >
             {cellOutput === "above" && outputArea}
-            <div className={cn("tray")} data-hidden={isMarkdownCodeHidden}>
+            <div
+              className={cn("tray")}
+              data-has-output-above={hasOutputAbove}
+              data-hidden={isMarkdownCodeHidden}
+            >
               <StagedAICellBackground cellId={cellId} />
               <div className="absolute right-2 -top-4 z-10">
                 <CellToolbar
