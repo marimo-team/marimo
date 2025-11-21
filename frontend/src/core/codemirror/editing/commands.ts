@@ -1,7 +1,8 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { foldAll, unfoldAll } from "@codemirror/language";
 import type { Command, EditorView } from "@codemirror/view";
-import type { Nullable } from "vitest";
+
+type Nullable<T> = T | null;
 
 export type BulkCommand = (targets: Nullable<EditorView>[]) => boolean;
 
