@@ -70,6 +70,8 @@ class _LiteLLMBase(ChatModel):
         self._provider_name = provider_name
         self._env_var_name = env_var_name
         self._config_key = config_key
+        # Cache supported params since they don't change for a given model
+        self._supported_params: list[str] | None = None
 
     def _get_api_key(self) -> Optional[str]:
         """Get API key from various sources in order of precedence."""
@@ -116,6 +118,9 @@ class _LiteLLMBase(ChatModel):
             "chat model requires litellm. `pip install litellm`"
         )
         from litellm import completion
+        from litellm.litellm_core_utils.get_supported_openai_params import (
+            get_supported_openai_params,
+        )
 
         # Get API key
         api_key = self._get_api_key()
@@ -132,6 +137,11 @@ class _LiteLLMBase(ChatModel):
             + messages
         )
 
+        # Get supported parameters for this model (cached after first call)
+        # This ensures we only send parameters that the model actually supports
+        if self._supported_params is None:
+            self._supported_params = get_supported_openai_params(self.model)
+
         # Build completion parameters
         params: dict[str, Any] = {
             "model": self.model,
@@ -140,25 +150,40 @@ class _LiteLLMBase(ChatModel):
             "api_key": api_key,
         }
 
-        # Add optional parameters
+        # Add optional parameters only if supported by this model
+        # Type checker doesn't narrow the type after the None check above,
+        # so we use a local variable to avoid type errors
+        supported = self._supported_params
         if self.base_url:
             params["base_url"] = self.base_url
-        if config.max_tokens:
+        if config.max_tokens and supported and "max_tokens" in supported:
             params["max_tokens"] = config.max_tokens
-        if config.temperature is not None:
+        if (
+            config.temperature is not None
+            and supported
+            and "temperature" in supported
+        ):
             params["temperature"] = config.temperature
-        if config.top_p is not None:
+        if config.top_p is not None and supported and "top_p" in supported:
             params["top_p"] = config.top_p
-        if config.frequency_penalty is not None:
+        if (
+            config.frequency_penalty is not None
+            and supported
+            and "frequency_penalty" in supported
+        ):
             params["frequency_penalty"] = config.frequency_penalty
-        if config.presence_penalty is not None:
+        if (
+            config.presence_penalty is not None
+            and supported
+            and "presence_penalty" in supported
+        ):
             params["presence_penalty"] = config.presence_penalty
-        if config.top_k is not None:
+        if config.top_k is not None and supported and "top_k" in supported:
             params["top_k"] = config.top_k
 
         # Try with streaming first, fall back to non-streaming if unsupported
         try:
-            # Pass drop_params=True to automatically drop unsupported params
+            # Pass drop_params=True as an extra safety net
             response = completion(drop_params=True, **params)
             if self.stream:
                 return self._stream_response(response)
