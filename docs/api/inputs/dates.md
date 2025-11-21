@@ -59,3 +59,27 @@
 
 ::: marimo.ui.date_range
   :members:
+
+## Date slider
+
+/// marimo-embed
+
+```python
+    @app.cell
+    def __():
+        date_slider = mo.ui.date_slider(
+            start="2025-01-01",
+            stop="2025-01-15",
+        )
+        return
+
+    @app.cell
+    def __():
+        mo.hstack([date_slider, mo.md(f"Has value: {date_slider.value}")])
+        return
+```
+
+///
+
+::: marimo.ui.date_slider
+  :members:

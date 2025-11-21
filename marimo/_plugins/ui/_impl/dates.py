@@ -578,8 +578,8 @@ class date_slider(UIElement[list[str], tuple[dt.date, dt.date]]):
     Examples:
         ```python
         date_slider = mo.ui.date_slider(
-            start=dt.date(2023, 1, 1),
-            stop=dt.date(2023, 12, 31),
+            start=dt.date(2025, 1, 1),
+            stop=dt.date(2025, 1, 31),
             step=dt.timedelta(days=7),
         )
         ```
