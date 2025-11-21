@@ -6,6 +6,7 @@ import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogContent,
+  AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
@@ -48,9 +49,12 @@ export const ErrorBanner = ({
           <AlertDialogHeader>
             <AlertDialogTitle className="text-error">Error</AlertDialogTitle>
           </AlertDialogHeader>
-          <pre className="text-error text-sm p-2 font-mono overflow-auto whitespace-pre-wrap">
-            {message}
-          </pre>
+          <AlertDialogDescription
+            asChild={true}
+            className="text-error text-sm p-2 font-mono overflow-auto whitespace-pre-wrap"
+          >
+            <pre>{message}</pre>
+          </AlertDialogDescription>
           <AlertDialogFooter>
             <AlertDialogAction autoFocus={true} onClick={() => setOpen(false)}>
               Ok
