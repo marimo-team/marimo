@@ -360,10 +360,14 @@
   z-index: 1;
 
   /* Round the top of the code editor unless there is output above or the AI prompt input is open */
-  &:has([data-has-output-above="false"]):has([data-ai-input-open="false"])
-    .cm-editor {
+  &[data-has-output-above="false"] .cm-editor {
     border-top-left-radius: 9px;
     border-top-right-radius: 9px;
+  }
+  div[data-test-id="ai-completion-editor"][data-ai-input-open="true"]
+    .cm-editor {
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
   }
 
   &:last-child .cm-editor {
