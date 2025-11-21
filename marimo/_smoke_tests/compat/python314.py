@@ -11,12 +11,11 @@ def _():
 
     def blocking():
         return "done"
-
-    return asyncio, blocking_oh_snap, concurrent
+    return asyncio, blocking, concurrent
 
 
 @app.cell
-async def _(asyncio, blocking_oh_snap, concurrent):
+async def _(asyncio, blocking, concurrent):
     loop = asyncio.get_running_loop()
     with concurrent.futures.ProcessPoolExecutor() as pool:
         res = await loop.run_in_executor(pool, blocking)
