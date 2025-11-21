@@ -128,9 +128,7 @@ class TestPandasTableManager(unittest.TestCase):
         assert self.factory.package_name() == "pandas"
 
     def test_to_csv(self) -> None:
-        expected_csv = self.data.to_csv(
-            index=False, date_format="%Y-%m-%d %H:%M:%S.%f%z"
-        ).encode("utf-8")
+        expected_csv = self.data.to_csv(index=False).encode("utf-8")
         assert self.manager.to_csv() == expected_csv
 
     def test_to_csv_datetime(self) -> None:
@@ -141,7 +139,7 @@ class TestPandasTableManager(unittest.TestCase):
         }
         df = pd.DataFrame(data)
         manager = PandasTableManagerFactory.create()(df)
-        assert "2024-12-17 00:00:00.000000" in manager.to_csv().decode("utf-8")
+        assert "2024-12-17" in manager.to_csv().decode("utf-8")
 
     def test_to_csv_datetime_with_timezone(self) -> None:
         D = pd.to_datetime("2024-12-17", errors="coerce").tz_localize("UTC")
@@ -151,9 +149,18 @@ class TestPandasTableManager(unittest.TestCase):
         }
         df = pd.DataFrame(data)
         manager = PandasTableManagerFactory.create()(df)
-        assert "2024-12-17 00:00:00.000000+0000" in manager.to_csv().decode(
-            "utf-8"
+        assert "2024-12-17 00:00:00+00:00" in manager.to_csv().decode("utf-8")
+
+        # Different timezone
+        D = pd.to_datetime("2024-12-17", errors="coerce").tz_localize(
+            "America/New_York"
         )
+        data = {
+            "D timestamp": [D],
+        }
+        df = pd.DataFrame(data)
+        manager = PandasTableManagerFactory.create()(df)
+        assert "2024-12-17 00:00:00-05:00" in manager.to_csv().decode("utf-8")
 
     def test_to_csv_datetime_with_milliseconds(self) -> None:
         # Test that millisecond precision is preserved in CSV export
@@ -171,9 +178,26 @@ class TestPandasTableManager(unittest.TestCase):
         csv_output = manager.to_csv().decode("utf-8")
 
         # Verify millisecond precision is preserved
-        assert "2024-11-21 12:34:56.123000" in csv_output
-        assert "2024-11-21 12:34:56.127000" in csv_output
-        assert "2024-11-21 12:34:56.132000" in csv_output
+        assert "2024-11-21 12:34:56.123" in csv_output
+        assert "2024-11-21 12:34:56.127" in csv_output
+        assert "2024-11-21 12:34:56.132" in csv_output
+
+    def test_to_csv_datetime_with_nanoseconds(self) -> None:
+        base = pd.Timestamp("2024-11-21T12:34:56.123456789")
+        data = {
+            "event": ["start", "middle", "end"],
+            "timestamp": [
+                base,
+                base + pd.Timedelta(nanoseconds=4),
+                base + pd.Timedelta(nanoseconds=9),
+            ],
+        }
+        df = pd.DataFrame(data)
+        manager = PandasTableManagerFactory.create()(df)
+        csv_output = manager.to_csv().decode("utf-8")
+        assert "2024-11-21 12:34:56.123456789" in csv_output
+        assert "2024-11-21 12:34:56.123456793" in csv_output
+        assert "2024-11-21 12:34:56.123456798" in csv_output
 
     def test_to_csv_complex(self) -> None:
         complex_data = self.get_complex_data()
