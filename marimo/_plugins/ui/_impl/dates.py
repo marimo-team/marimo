@@ -632,10 +632,8 @@ class date_slider(UIElement[list[str], tuple[dt.date, dt.date]]):
             start = convert_str_to_date(start)
         if isinstance(stop, str):
             stop = convert_str_to_date(stop)
-        # TODO(FBruzzesi): Allow step to be in string format (e.g. 1d) instead of timedelta
-        if step is not None and not isinstance(step, dt.timedelta):
-            msg = f"Expected `step` of type datetime.timedelta. Found {type(step)} instead."
-            raise TypeError(msg)
+        # TODO(FBruzzesi): Allow `step` to be in string format (e.g. 1d) instead of timedelta
+        # and parse it into timedelta?
         if value is not None:
             value = (
                 convert_str_to_date(value[0]),
@@ -647,6 +645,10 @@ class date_slider(UIElement[list[str], tuple[dt.date, dt.date]]):
         self._step = dt.timedelta(days=1) if step is None else step
 
         validate_start_stop(self._start, self._stop, "date")
+
+        if not isinstance(self._step, dt.timedelta):
+            msg = f"Expected `step` of type datetime.timedelta. Found {type(self._step)} instead."
+            raise TypeError(msg)
 
         if self._step.total_seconds() <= 0:
             raise ValueError(f"The step ({step}) must be a positive timedelta")
