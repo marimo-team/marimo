@@ -19,7 +19,7 @@ def _():
 async def _(asyncio, blocking_oh_snap, concurrent):
     loop = asyncio.get_running_loop()
     with concurrent.futures.ProcessPoolExecutor() as pool:
-        res = await loop.run_in_executor(pool, blocking_oh_snap)
+        res = await loop.run_in_executor(pool, blocking)
     return
 
 
