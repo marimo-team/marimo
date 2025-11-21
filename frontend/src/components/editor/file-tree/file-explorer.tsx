@@ -130,6 +130,11 @@ export const FileExplorer: React.FC<{
     setOpenState({});
   });
 
+  const visibleData = React.useMemo(
+    () => filterHiddenTree(data, showHiddenFiles),
+    [data, showHiddenFiles],
+  );
+
   if (isPending) {
     return <Spinner size="medium" centered={true} />;
   }
@@ -168,10 +173,6 @@ export const FileExplorer: React.FC<{
     );
   }
 
-  const visibleData = React.useMemo(
-    () => filterHiddenTree(data, showHiddenFiles),
-    [data, showHiddenFiles],
-  );
   return (
     <>
       <Toolbar
@@ -729,7 +730,7 @@ export function filterHiddenTree(
       continue;
     }
     let next = item;
-    if (item.children && item.children.length) {
+    if (item.children?.length) {
       const kids = filterHiddenTree(item.children, showHidden);
       if (kids !== item.children) {
         next = { ...item, children: kids };
