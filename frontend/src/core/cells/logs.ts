@@ -2,7 +2,8 @@
 
 import { fromUnixTime } from "date-fns";
 import { toast } from "@/components/ui/use-toast";
-import { invariant } from "@/utils/invariant";
+import { parseHtmlContent } from "@/utils/dom";
+import { Strings } from "@/utils/strings";
 import type { CellMessage, OutputMessage } from "../kernel/messages";
 import { isErrorMime } from "../mime";
 import type { CellId } from "./ids";
@@ -21,21 +22,31 @@ export function getCellLogsForMessage(cell: CellMessage): CellLog[] {
   const consoleOutputs: OutputMessage[] = [cell.console].filter(Boolean).flat();
 
   for (const output of consoleOutputs) {
-    if (output.mimetype === "text/plain") {
-      invariant(typeof output.data === "string", "expected string");
+    // Handle text/plain, text/html, and traceback MIME types
+    const isTextPlain = output.mimetype === "text/plain";
+    const isHtml =
+      output.mimetype === "text/html" ||
+      output.mimetype === "application/vnd.marimo+traceback";
+
+    if (isTextPlain || isHtml) {
       const isError =
         output.channel === "stderr" || output.channel === "marimo-error";
       switch (output.channel) {
         case "stdout":
         case "stderr":
-        case "marimo-error":
+        case "marimo-error": {
+          // Convert data to string and process based on MIME type
+          const rawData = Strings.asString(output.data);
+          const message = isHtml ? parseHtmlContent(rawData) : rawData;
+
           logs.push({
             timestamp: output.timestamp || Date.now(),
             level: isError ? "stderr" : "stdout",
-            message: output.data,
+            message: message,
             cellId: cell.cell_id as CellId,
           });
           break;
+        }
         default:
           break;
       }
