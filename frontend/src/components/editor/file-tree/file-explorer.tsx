@@ -730,7 +730,7 @@ export function filterHiddenTree(
       continue;
     }
     let next = item;
-    if (item.children?.length) {
+    if (item.children) {
       const kids = filterHiddenTree(item.children, showHidden);
       if (kids !== item.children) {
         next = { ...item, children: kids };
