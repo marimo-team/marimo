@@ -8,6 +8,7 @@ import { RangeSlider } from "../../components/ui/range-slider";
 import type { IPlugin, IPluginProps, Setter } from "../types";
 import { Labeled } from "./common/labeled";
 
+// Value type is array of two date strings
 type T = string[];
 
 interface Data {
@@ -41,19 +42,11 @@ export class DateSliderPlugin implements IPlugin<T, Data> {
   });
 
   render(props: IPluginProps<T, Data>): JSX.Element {
-    const valueMap = (sliderValue: number): string => {
-      if (props.data.steps && props.data.steps.length > 0) {
-        return props.data.steps[sliderValue];
-      }
-      return sliderValue.toString();
-    };
-
     return (
       <DateSliderComponent
         {...props.data}
         value={props.value}
         setValue={props.setValue}
-        valueMap={valueMap}
       />
     );
   }
@@ -62,7 +55,6 @@ export class DateSliderPlugin implements IPlugin<T, Data> {
 interface DateSliderProps extends Data {
   value: T;
   setValue: Setter<T>;
-  valueMap: (sliderValue: number) => string;
 }
 
 const DateSliderComponent = ({
@@ -78,36 +70,44 @@ const DateSliderComponent = ({
   showValue,
   fullWidth,
   disabled,
-  valueMap,
 }: DateSliderProps): JSX.Element => {
   const id = useId();
 
-  // Convert date strings to indices
+  // Convert date string to index in steps array
   const dateToIndex = (dateStr: string): number => {
     const index = steps.indexOf(dateStr);
     return index !== -1 ? index : 0;
   };
 
-  // Convert internal slider value (indices) to date strings
-  const internalValueToDates = (indices: number[]): string[] => {
-    return indices.map((idx) => valueMap(idx));
+  // Convert index to date string
+  const indexToDate = (index: number): string => {
+    return steps[index] || steps[0];
   };
 
-  // Convert date strings to internal slider value (indices)
-  const datesToInternalValue = (dates: string[]): number[] => {
-    return dates.map((date) => dateToIndex(date));
+  // Convert value (date strings) to internal value (indices)
+  const valueToIndices = (dateValue: T): number[] => {
+    if (!dateValue || dateValue.length !== 2) {
+      return [start, stop];
+    }
+    return [dateToIndex(dateValue[0]), dateToIndex(dateValue[1])];
   };
 
-  // Hold internal value (as indices)
+  // Convert internal value (indices) to value (date strings)
+  const indicesToValue = (indices: number[]): T => {
+    return [indexToDate(indices[0]), indexToDate(indices[1])];
+  };
+
+  // Hold internal value as indices
   const [internalValue, setInternalValue] = useState<number[]>(
-    datesToInternalValue(value),
+    valueToIndices(value),
   );
 
-  // Update internal value on prop change
+  // Update internal value when prop changes
   useEffect(() => {
-    setInternalValue(datesToInternalValue(value));
+    setInternalValue(valueToIndices(value));
   }, [value]);
 
+  // Format date for display
   const formatDate = (dateStr: string): string => {
     try {
       const date = new Date(dateStr);
@@ -121,7 +121,7 @@ const DateSliderComponent = ({
     }
   };
 
-  const sliderElement = (
+  return (
     <Labeled
       label={label}
       id={id}
@@ -154,44 +154,36 @@ const DateSliderComponent = ({
           onValueChange={(nextValue: number[]) => {
             setInternalValue(nextValue);
             if (!debounce) {
-              setValue(internalValueToDates(nextValue));
+              setValue(indicesToValue(nextValue));
             }
           }}
           // Triggered on mouse up
           onValueCommit={(nextValue: number[]) => {
             if (debounce) {
-              setValue(internalValueToDates(nextValue));
+              setValue(indicesToValue(nextValue));
             }
           }}
           // Sometimes onValueCommit doesn't trigger
           // see https://github.com/radix-ui/primitives/issues/1760
           // So we also set the value on pointer/mouse up
           onPointerUp={() => {
-            if (
-              debounce &&
-              !isEqual(internalValue, datesToInternalValue(value))
-            ) {
-              setValue(internalValueToDates(internalValue));
+            if (debounce && !isEqual(internalValue, valueToIndices(value))) {
+              setValue(indicesToValue(internalValue));
             }
           }}
           onMouseUp={() => {
-            if (
-              debounce &&
-              !isEqual(internalValue, datesToInternalValue(value))
-            ) {
-              setValue(internalValueToDates(internalValue));
+            if (debounce && !isEqual(internalValue, valueToIndices(value))) {
+              setValue(indicesToValue(internalValue));
             }
           }}
           valueMap={(idx: number) => idx}
         />
         {showValue && (
           <div className="text-xs text-muted-foreground min-w-[16px]">
-            {`${formatDate(valueMap(internalValue[0]))}, ${formatDate(valueMap(internalValue[1]))}`}
+            {`${formatDate(indexToDate(internalValue[0]))}, ${formatDate(indexToDate(internalValue[1]))}`}
           </div>
         )}
       </div>
     </Labeled>
   );
-
-  return sliderElement;
 };
