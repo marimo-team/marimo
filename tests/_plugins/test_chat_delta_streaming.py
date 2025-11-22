@@ -8,8 +8,8 @@ from typing import AsyncGenerator, Generator
 
 import pytest
 
+from marimo._ai._types import ChatMessage
 from marimo._plugins.ui._impl.chat.chat import chat
-from marimo._plugins.ui._impl.chat.types import ChatMessage
 
 
 class TestDeltaStreaming:
