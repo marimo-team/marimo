@@ -236,4 +236,3 @@ class TestStreamingFallback:
             # These should not contain "stream" or "streaming"
             assert "stream" not in lower_msg
             assert "streaming" not in lower_msg
-

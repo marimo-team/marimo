@@ -4,7 +4,7 @@
 from __future__ import annotations
 
 import asyncio
-from typing import AsyncGenerator, Generator
+from collections.abc import AsyncGenerator, Generator
 
 import pytest
 
@@ -207,8 +207,18 @@ class TestDeltaStreaming:
 
         async def delta_generator() -> AsyncGenerator[str, None]:
             # Simulate many small tokens like real AI models
-            words = ["This", " is", " a", " long", " streaming", 
-                     " response", " with", " many", " deltas", "."]
+            words = [
+                "This",
+                " is",
+                " a",
+                " long",
+                " streaming",
+                " response",
+                " with",
+                " many",
+                " deltas",
+                ".",
+            ]
             for word in words:
                 yield word
                 await asyncio.sleep(0.001)  # Tiny delay
@@ -226,7 +236,7 @@ class TestDeltaStreaming:
         expected = "This is a long streaming response with many deltas."
         assert result == expected
         assert len(sent_messages) == 11  # 10 deltas + 1 final
-        
+
         # Verify progressive accumulation
         assert sent_messages[0]["content"] == "This"
         assert sent_messages[1]["content"] == "This is"
@@ -262,7 +272,7 @@ class TestStreamingWithChatModels:
         # Simulate calling the model
         test_messages = [ChatMessage(role="user", content="Hello")]
         generator = custom_model(test_messages, {})
-        
+
         result = await chat_ui._handle_streaming_response(generator)
 
         assert result == "You said: Hello"
@@ -297,10 +307,8 @@ class TestStreamingEfficiency:
 
         # Calculate bytes sent with delta streaming
         # Backend sends accumulated text, but receives deltas
-        delta_bytes_received = sum(
-            len(word + " ") for word in words
-        )
-        
+        delta_bytes_received = sum(len(word + " ") for word in words)
+
         # Each message sends the accumulated content
         delta_bytes_sent = sum(
             len(msg["content"]) for msg in delta_sent_messages
@@ -309,19 +317,18 @@ class TestStreamingEfficiency:
         # With old accumulated approach, model would yield:
         # "word0 ", "word0 word1 ", "word0 word1 word2 ", etc.
         accumulated_bytes_received = sum(
-            len(" ".join(words[:i+1]) + " ") for i in range(len(words))
+            len(" ".join(words[: i + 1]) + " ") for i in range(len(words))
         )
 
         # Delta mode receives much less data from the model
         assert delta_bytes_received < accumulated_bytes_received
-        
+
         # For 100 words, delta receives ~100 words worth of data
         # while accumulated receives ~5000 words worth (1+2+3+...+100)
         efficiency_ratio = accumulated_bytes_received / delta_bytes_received
         assert efficiency_ratio > 40  # Should be ~50x more efficient
 
-        print(f"\nEfficiency Test Results:")
+        print("\nEfficiency Test Results:")
         print(f"Delta bytes received: {delta_bytes_received}")
         print(f"Accumulated bytes received: {accumulated_bytes_received}")
         print(f"Efficiency ratio: {efficiency_ratio:.1f}x")
-

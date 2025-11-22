@@ -658,12 +658,21 @@ class bedrock(ChatModel):
                     return self._stream_response(messages, config)
                 except Exception as stream_error:
                     # Fall back to non-streaming if streaming fails
-                    if "streaming" in str(stream_error).lower() or "stream" in str(stream_error).lower():
+                    if (
+                        "streaming" in str(stream_error).lower()
+                        or "stream" in str(stream_error).lower()
+                    ):
                         from litellm import completion as litellm_completion
+
                         response = litellm_completion(
                             model=self.model,
                             messages=convert_to_openai_messages(
-                                [ChatMessage(role="system", content=self.system_message)]
+                                [
+                                    ChatMessage(
+                                        role="system",
+                                        content=self.system_message,
+                                    )
+                                ]
                                 + messages
                             ),
                             max_tokens=config.max_tokens,
@@ -677,10 +686,15 @@ class bedrock(ChatModel):
                     raise
             else:
                 from litellm import completion as litellm_completion
+
                 response = litellm_completion(
                     model=self.model,
                     messages=convert_to_openai_messages(
-                        [ChatMessage(role="system", content=self.system_message)]
+                        [
+                            ChatMessage(
+                                role="system", content=self.system_message
+                            )
+                        ]
                         + messages
                     ),
                     max_tokens=config.max_tokens,
