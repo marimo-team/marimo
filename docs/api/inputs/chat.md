@@ -212,7 +212,7 @@ the progressively building response in real-time.
 !!! tip "See streaming examples"
     For complete working examples, check out:
     
-    - [`streaming_openai.py`](https://github.com/marimo-team/marimo/blob/main/examples/ai/chat/streaming_openai.py) - Streaming with OpenAI models
+    - [`openai_example.py`](https://github.com/marimo-team/marimo/blob/main/examples/ai/chat/openai_example.py) - OpenAI chatbot with streaming (default)
     - [`streaming_custom.py`](https://github.com/marimo-team/marimo/blob/main/examples/ai/chat/streaming_custom.py) - Custom streaming chatbot
 
 ## Built-in Models
