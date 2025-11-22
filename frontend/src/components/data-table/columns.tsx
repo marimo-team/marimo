@@ -4,7 +4,7 @@
 import { PopoverClose } from "@radix-ui/react-popover";
 import type { Column, ColumnDef } from "@tanstack/react-table";
 import { formatDate } from "date-fns";
-import { useNumberFormatter } from "react-aria";
+import { useLocale, useNumberFormatter } from "react-aria";
 import { WithLocale } from "@/core/i18n/with-locale";
 import type { DataType } from "@/core/kernel/messages";
 import type { CalculateTopKRows } from "@/plugins/impl/DataTablePlugin";
@@ -12,6 +12,7 @@ import { cn } from "@/utils/cn";
 import { type DateFormat, exactDateTime, getDateFormat } from "@/utils/dates";
 import { Logger } from "@/utils/Logger";
 import { Maps } from "@/utils/maps";
+import { maxFractionalDigits } from "@/utils/numbers";
 import { Objects } from "@/utils/objects";
 import { EmotionCacheProvider } from "../editor/output/EmotionCacheProvider";
 import { JsonOutput } from "../editor/output/JsonOutput";
@@ -595,6 +596,7 @@ export function renderCellValue<TData, TValue>({
 }
 
 const LocaleNumber = ({ value }: { value: number }) => {
-  const format = useNumberFormatter();
+  const digits = maxFractionalDigits(useLocale().locale);
+  const format = useNumberFormatter({ maximumFractionDigits: digits });
   return format.format(value);
 };
