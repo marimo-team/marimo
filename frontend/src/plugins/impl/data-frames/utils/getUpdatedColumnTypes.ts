@@ -2,7 +2,8 @@
 import { logNever } from "@/utils/assertNever";
 import { Maps } from "@/utils/maps";
 import type { TransformType } from "../schema";
-import type { ColumnDataTypes } from "../types";
+import type { ColumnDataTypes, ColumnId } from "../types";
+
 
 /**
  * Given a list of transforms, return the updated column names/types.

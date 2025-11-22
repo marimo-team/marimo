@@ -29,8 +29,6 @@ def python_print_transforms(
 def python_print_pandas(
     df_name: str, all_columns: list[str], transform: Transform
 ) -> str:
-    del all_columns
-
     def generate_where_clause(df_name: str, where: Condition) -> str:
         column_id, operator, value = (
             where.column_id,
@@ -144,6 +142,7 @@ def python_print_pandas(
             transform.aggregation,
             transform.drop_na,
         )
+        aggregation_columns = transform.aggregation_column_ids
         args = _args_list(_list_of_strings(column_ids), f"dropna={drop_na}")
         group_by = f"{df_name}.groupby({args})"
         # Narwhals adds suffixes to aggregated columns like 'column_count'
@@ -162,7 +161,16 @@ def python_print_pandas(
             agg_func = "max"
         else:
             assert_never(aggregation)
-        # Use pandas pipe to add suffixes
+
+        # If specific aggregation columns are provided, only aggregate those and rename explicitly.
+        if aggregation_columns:
+            agg_dict = ", ".join(
+                f"{_as_literal(f'{col}_{aggregation}')} : ({_as_literal(col)}, {_as_literal(agg_func)})"
+                for col in aggregation_columns
+            )
+            return f"{group_by}.agg({{{agg_dict}}}).reset_index()"
+
+        # Otherwise, follow pandas default across all applicable columns and suffix the result
         if aggregation in ["mean", "median"]:
             agg_call = f"{group_by}.{agg_func}(numeric_only=True)"
         else:
@@ -307,6 +315,9 @@ def python_print_polars(
             if transform.aggregation_column_ids
             else [col for col in all_columns if col not in column_ids]
         )
+        aggregation_columns = [
+            col for col in aggregation_columns if col not in column_ids
+        ]
         aggs: list[str] = []
         # Use _as_literal to properly escape column names
         for column_id in aggregation_columns:
@@ -469,6 +480,9 @@ def python_print_ibis(
             if transform.aggregation_column_ids
             else [col for col in all_columns if col not in column_ids]
         )
+        aggregation_columns = [
+            col for col in aggregation_columns if col not in column_ids
+        ]
         aggs: list[str] = []
         for column_id in aggregation_columns:
             agg_alias = f"{column_id}_{aggregation}"
