@@ -299,17 +299,16 @@ class anthropic(ChatModel):
         # Try streaming first if enabled, fall back to non-streaming on error
         if self.stream:
             try:
-                params["stream"] = True
+                # Note: client.messages.stream() doesn't take a 'stream' parameter
+                # It's already a streaming method
                 return self._stream_response(client, params)
             except Exception as e:
                 # Fall back to non-streaming mode if streaming fails
                 if "streaming" in str(e).lower() or "stream" in str(e).lower():
-                    params["stream"] = False
                     response = client.messages.create(**params)
                     return response.content[0].text
                 raise
         else:
-            params["stream"] = False
             response = client.messages.create(**params)
             return response.content[0].text
 
