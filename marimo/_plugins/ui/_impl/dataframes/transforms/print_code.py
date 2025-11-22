@@ -142,7 +142,11 @@ def python_print_pandas(
             transform.aggregation,
             transform.drop_na,
         )
-        aggregation_columns = transform.aggregation_column_ids
+        aggregation_columns = (
+            transform.aggregation_column_ids
+            if transform.aggregation_column_ids
+            else [col for col in all_columns if col not in column_ids]
+        )
         args = _args_list(_list_of_strings(column_ids), f"dropna={drop_na}")
         group_by = f"{df_name}.groupby({args})"
         # Narwhals adds suffixes to aggregated columns like 'column_count'
