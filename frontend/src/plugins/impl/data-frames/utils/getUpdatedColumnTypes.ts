@@ -4,7 +4,6 @@ import { Maps } from "@/utils/maps";
 import type { TransformType } from "../schema";
 import type { ColumnDataTypes, ColumnId } from "../types";
 
-
 /**
  * Given a list of transforms, return the updated column names/types.
  */
@@ -50,7 +49,8 @@ function handleTransform(
     case "group_by": {
       const groupColumns = transform.column_ids ?? [];
       const aggregationColumns =
-        transform.aggregation_column_ids && transform.aggregation_column_ids.length > 0
+        transform.aggregation_column_ids &&
+        transform.aggregation_column_ids.length > 0
           ? transform.aggregation_column_ids
           : [...next.keys()].filter((key) => !groupColumns.includes(key));
       const filteredAggregationColumns = aggregationColumns.filter(
@@ -69,10 +69,7 @@ function handleTransform(
       for (const columnId of filteredAggregationColumns) {
         const type = next.get(columnId);
         if (type !== undefined) {
-          updated.set(
-            `${columnId}_${transform.aggregation}` as ColumnId,
-            type,
-          );
+          updated.set(`${columnId}_${transform.aggregation}` as ColumnId, type);
         }
       }
 
