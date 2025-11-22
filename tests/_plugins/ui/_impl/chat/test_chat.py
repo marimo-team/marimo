@@ -119,6 +119,7 @@ async def test_chat_send_prompt_async_generator():
     ) -> AsyncIterator[str]:
         del config
         del messages
+        # Yield delta chunks (new content only)
         for i in range(3):
             await asyncio.sleep(0.01)
             yield str(i)
@@ -130,13 +131,13 @@ async def test_chat_send_prompt_async_generator():
     )
     response: str = await chat._send_prompt(request)
 
-    # the last yielded value is the response
-    assert response == "2"
+    # All deltas are accumulated: "0" + "1" + "2" = "012"
+    assert response == "012"
     assert len(chat._chat_history) == 2
     assert chat._chat_history[0].role == "user"
     assert chat._chat_history[0].content == "Hello"
     assert chat._chat_history[1].role == "assistant"
-    assert chat._chat_history[1].content == "2"
+    assert chat._chat_history[1].content == "012"
 
 
 async def test_chat_streaming_sends_messages():
@@ -147,11 +148,9 @@ async def test_chat_streaming_sends_messages():
         messages: list[ChatMessage], config: ChatModelConfig
     ) -> AsyncIterator[str]:
         del config, messages
-        # Simulate streaming response
-        accumulated = ""
-        for word in ["Hello", "world", "!"]:
-            accumulated += word + " "
-            yield accumulated.strip()
+        # Simulate streaming response with delta chunks (new content only)
+        for word in ["Hello", " ", "world", " ", "!"]:
+            yield word
 
     chat = ui.chat(mock_streaming_model)
 
@@ -171,7 +170,7 @@ async def test_chat_streaming_sends_messages():
 
     response: str = await chat._send_prompt(request)
 
-    # Verify final response
+    # Verify final response (deltas accumulated)
     assert response == "Hello world !"
 
     # Verify streaming messages were sent
@@ -199,11 +198,9 @@ async def test_chat_sync_generator_streaming():
         messages: list[ChatMessage], config: ChatModelConfig
     ):
         del config, messages
-        # Simulate streaming response with sync generator
-        accumulated = ""
-        for word in ["Hello", "world", "!"]:
-            accumulated += word + " "
-            yield accumulated.strip()
+        # Simulate streaming response with delta chunks (new content only)
+        for word in ["Hello", " ", "world", " ", "!"]:
+            yield word
 
     chat = ui.chat(mock_streaming_model)
 
@@ -219,7 +216,7 @@ async def test_chat_sync_generator_streaming():
 
     response: str = await chat._send_prompt(request)
 
-    # Verify final response
+    # Verify final response (deltas accumulated)
     assert response == "Hello world !"
 
     # Verify streaming messages were sent
@@ -245,13 +242,11 @@ async def test_chat_streaming_complete_response():
         messages: list[ChatMessage], config: ChatModelConfig
     ):
         del config, messages
-        # Simulate OpenAI-style streaming where last chunk might be empty
-        # This tests the bug where we might not yield the final accumulated value
+        # Simulate delta-based streaming
         yield "Hello "
-        yield "Hello world"
-        yield "Hello world!"
-        # Simulate final chunk with no content (like finish_reason only)
-        # Generator continues but no more content - still need complete result
+        yield "world"
+        yield "!"
+        # No more content - generator ends
 
     chat = ui.chat(mock_streaming_model_with_empty_final)
 
@@ -262,7 +257,7 @@ async def test_chat_streaming_complete_response():
 
     response: str = await chat._send_prompt(request)
 
-    # Verify we got the complete final response
+    # Verify we got the complete final response (all deltas accumulated)
     assert response == "Hello world!"
     assert chat._chat_history[-1].content == "Hello world!"
 
