@@ -2,16 +2,16 @@
 import { foldAll, unfoldAll } from "@codemirror/language";
 import type { Command, EditorView } from "@codemirror/view";
 
-type Nullable<T> = T | null;
+type MaybeEditorView = EditorView | undefined | null;
 
-export type BulkCommand = (targets: Nullable<EditorView>[]) => boolean;
+export type BulkCommand = (targets: MaybeEditorView[]) => boolean;
 
 /**
  * Make a bulk command from a single {@type Command} that applies
  * the given command to all targets.
  */
 export function makeBulkCommand(command: Command) {
-  return (targets: Nullable<EditorView>[]) => {
+  return (targets: MaybeEditorView[]) => {
     let changed = false;
     for (const target of targets) {
       if (target) {
