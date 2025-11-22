@@ -13,6 +13,7 @@ import { type DateFormat, exactDateTime, getDateFormat } from "@/utils/dates";
 import { Logger } from "@/utils/Logger";
 import { Maps } from "@/utils/maps";
 import { Objects } from "@/utils/objects";
+import { maxFractionalDigits } from "@/utils/numbers";
 import { EmotionCacheProvider } from "../editor/output/EmotionCacheProvider";
 import { JsonOutput } from "../editor/output/JsonOutput";
 import { Button } from "../ui/button";
@@ -595,6 +596,7 @@ export function renderCellValue<TData, TValue>({
 }
 
 const LocaleNumber = ({ value }: { value: number }) => {
-  const format = useNumberFormatter();
+  const digits = maxFractionalDigits(navigator.language);
+  const format = useNumberFormatter({maximumFractionDigits:digits});
   return format.format(value);
 };
