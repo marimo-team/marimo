@@ -58,6 +58,8 @@ class openai(ChatModel):
             If not provided, the API key will be retrieved
             from the OPENAI_API_KEY environment variable or the user's config.
         base_url: The base URL to use
+        stream: Whether to stream responses. Defaults to True.
+            If the model doesn't support streaming, will automatically fall back to non-streaming.
     """
 
     def __init__(
@@ -67,11 +69,13 @@ class openai(ChatModel):
         system_message: str = DEFAULT_SYSTEM_MESSAGE,
         api_key: Optional[str] = None,
         base_url: Optional[str] = None,
+        stream: bool = True,
     ):
         self.model = model
         self.system_message = system_message
         self.api_key = api_key
         self.base_url = base_url
+        self.stream = stream
 
     @property
     def _require_api_key(self) -> str:
@@ -151,18 +155,48 @@ class openai(ChatModel):
             + messages
         )
 
-        response = client.chat.completions.create(
-            model=self.model,
-            messages=openai_messages,
-            max_completion_tokens=config.max_tokens,
-            temperature=config.temperature,
-            top_p=config.top_p,
-            frequency_penalty=config.frequency_penalty,
-            presence_penalty=config.presence_penalty,
-            stream=True,
-        )
-
-        return self._stream_response(response)
+        # Try streaming first if enabled, fall back to non-streaming on error
+        if self.stream:
+            try:
+                response = client.chat.completions.create(
+                    model=self.model,
+                    messages=openai_messages,
+                    max_completion_tokens=config.max_tokens,
+                    temperature=config.temperature,
+                    top_p=config.top_p,
+                    frequency_penalty=config.frequency_penalty,
+                    presence_penalty=config.presence_penalty,
+                    stream=True,
+                )
+                return self._stream_response(response)
+            except Exception as e:
+                # Some models (like o1-preview) don't support streaming
+                # Fall back to non-streaming mode
+                if "streaming" in str(e).lower() or "stream" in str(e).lower():
+                    response = client.chat.completions.create(
+                        model=self.model,
+                        messages=openai_messages,
+                        max_completion_tokens=config.max_tokens,
+                        temperature=config.temperature,
+                        top_p=config.top_p,
+                        frequency_penalty=config.frequency_penalty,
+                        presence_penalty=config.presence_penalty,
+                        stream=False,
+                    )
+                    return response.choices[0].message.content or ""
+                raise
+        else:
+            response = client.chat.completions.create(
+                model=self.model,
+                messages=openai_messages,
+                max_completion_tokens=config.max_tokens,
+                temperature=config.temperature,
+                top_p=config.top_p,
+                frequency_penalty=config.frequency_penalty,
+                presence_penalty=config.presence_penalty,
+                stream=False,
+            )
+            return response.choices[0].message.content or ""
 
 
 class anthropic(ChatModel):
@@ -178,6 +212,8 @@ class anthropic(ChatModel):
             from the ANTHROPIC_API_KEY environment variable
             or the user's config.
         base_url: The base URL to use
+        stream: Whether to stream responses. Defaults to True.
+            If the model doesn't support streaming, will automatically fall back to non-streaming.
     """
 
     def __init__(
@@ -187,11 +223,13 @@ class anthropic(ChatModel):
         system_message: str = DEFAULT_SYSTEM_MESSAGE,
         api_key: Optional[str] = None,
         base_url: Optional[str] = None,
+        stream: bool = True,
     ):
         self.model = model
         self.system_message = system_message
         self.api_key = api_key
         self.base_url = base_url
+        self.stream = stream
 
     @property
     def _require_api_key(self) -> str:
@@ -250,7 +288,6 @@ class anthropic(ChatModel):
             "system": self.system_message,
             "max_tokens": config.max_tokens or 4096,
             "messages": anthropic_messages,
-            "stream": True,
         }
         if config.top_p is not None:
             params["top_p"] = config.top_p
@@ -259,7 +296,22 @@ class anthropic(ChatModel):
         if config.temperature is not None:
             params["temperature"] = config.temperature
 
-        return self._stream_response(client, params)
+        # Try streaming first if enabled, fall back to non-streaming on error
+        if self.stream:
+            try:
+                params["stream"] = True
+                return self._stream_response(client, params)
+            except Exception as e:
+                # Fall back to non-streaming mode if streaming fails
+                if "streaming" in str(e).lower() or "stream" in str(e).lower():
+                    params["stream"] = False
+                    response = client.messages.create(**params)
+                    return response.content[0].text
+                raise
+        else:
+            params["stream"] = False
+            response = client.messages.create(**params)
+            return response.content[0].text
 
 
 class google(ChatModel):
@@ -274,6 +326,8 @@ class google(ChatModel):
             If not provided, the API key will be retrieved
             from the GOOGLE_AI_API_KEY environment variable
             or the user's config.
+        stream: Whether to stream responses. Defaults to True.
+            If the model doesn't support streaming, will automatically fall back to non-streaming.
     """
 
     def __init__(
@@ -282,10 +336,12 @@ class google(ChatModel):
         *,
         system_message: str = DEFAULT_SYSTEM_MESSAGE,
         api_key: Optional[str] = None,
+        stream: bool = True,
     ):
         self.model = model
         self.system_message = system_message
         self.api_key = api_key
+        self.stream = stream
 
     @property
     def _require_api_key(self) -> str:
@@ -353,9 +409,29 @@ class google(ChatModel):
             "presence_penalty": config.presence_penalty,
         }
 
-        return self._stream_response(
-            client, google_messages, generation_config
-        )
+        # Try streaming first if enabled, fall back to non-streaming on error
+        if self.stream:
+            try:
+                return self._stream_response(
+                    client, google_messages, generation_config
+                )
+            except Exception as e:
+                # Fall back to non-streaming mode if streaming fails
+                if "streaming" in str(e).lower() or "stream" in str(e).lower():
+                    response = client.models.generate_content(
+                        model=self.model,
+                        contents=google_messages,
+                        config=generation_config,
+                    )
+                    return response.text
+                raise
+        else:
+            response = client.models.generate_content(
+                model=self.model,
+                contents=google_messages,
+                config=generation_config,
+            )
+            return response.text
 
 
 class groq(ChatModel):
@@ -370,6 +446,8 @@ class groq(ChatModel):
             If not provided, the API key will be retrieved
             from the GROQ_API_KEY environment variable or the user's config.
         base_url: The base URL to use
+        stream: Whether to stream responses. Defaults to True.
+            If the model doesn't support streaming, will automatically fall back to non-streaming.
     """
 
     def __init__(
@@ -379,11 +457,13 @@ class groq(ChatModel):
         system_message: str = DEFAULT_SYSTEM_MESSAGE,
         api_key: Optional[str] = None,
         base_url: Optional[str] = None,
+        stream: bool = True,
     ):
         self.model = model
         self.system_message = system_message
         self.api_key = api_key
         self.base_url = base_url
+        self.stream = stream
 
     @property
     def _require_api_key(self) -> str:
@@ -451,7 +531,35 @@ class groq(ChatModel):
             + messages
         )
 
-        return self._stream_response(client, groq_messages, config)
+        # Try streaming first if enabled, fall back to non-streaming on error
+        if self.stream:
+            try:
+                return self._stream_response(client, groq_messages, config)
+            except Exception as e:
+                # Fall back to non-streaming mode if streaming fails
+                if "streaming" in str(e).lower() or "stream" in str(e).lower():
+                    response = client.chat.completions.create(
+                        model=self.model,
+                        messages=groq_messages,
+                        max_tokens=config.max_tokens,
+                        temperature=config.temperature,
+                        top_p=config.top_p,
+                        stop=None,
+                        stream=False,
+                    )
+                    return response.choices[0].message.content or ""
+                raise
+        else:
+            response = client.chat.completions.create(
+                model=self.model,
+                messages=groq_messages,
+                max_tokens=config.max_tokens,
+                temperature=config.temperature,
+                top_p=config.top_p,
+                stop=None,
+                stream=False,
+            )
+            return response.choices[0].message.content or ""
 
 
 class bedrock(ChatModel):
@@ -468,6 +576,8 @@ class bedrock(ChatModel):
             Dict with keys: "aws_access_key_id" and "aws_secret_access_key"
             If not provided, credentials will be retrieved from the environment
             or the AWS configuration files.
+        stream: Whether to stream responses. Defaults to True.
+            If the model doesn't support streaming, will automatically fall back to non-streaming.
     """
 
     def __init__(
@@ -479,6 +589,7 @@ class bedrock(ChatModel):
         profile_name: Optional[str] = None,
         aws_access_key_id: Optional[str] = None,
         aws_secret_access_key: Optional[str] = None,
+        stream: bool = True,
     ):
         if not model.startswith("bedrock/"):
             model = f"bedrock/{model}"
@@ -488,6 +599,7 @@ class bedrock(ChatModel):
         self.profile_name = profile_name
         self.aws_access_key_id = aws_access_key_id
         self.aws_secret_access_key = aws_secret_access_key
+        self.stream = stream
 
     def _setup_credentials(self) -> None:
         # Use profile name if provided, otherwise use API key
@@ -541,7 +653,45 @@ class bedrock(ChatModel):
         self._setup_credentials()
 
         try:
-            return self._stream_response(messages, config)
+            # Try streaming first if enabled, fall back to non-streaming on error
+            if self.stream:
+                try:
+                    return self._stream_response(messages, config)
+                except Exception as stream_error:
+                    # Fall back to non-streaming if streaming fails
+                    if "streaming" in str(stream_error).lower() or "stream" in str(stream_error).lower():
+                        from litellm import completion as litellm_completion
+                        response = litellm_completion(
+                            model=self.model,
+                            messages=convert_to_openai_messages(
+                                [ChatMessage(role="system", content=self.system_message)]
+                                + messages
+                            ),
+                            max_tokens=config.max_tokens,
+                            temperature=config.temperature,
+                            top_p=config.top_p,
+                            frequency_penalty=config.frequency_penalty,
+                            presence_penalty=config.presence_penalty,
+                            stream=False,
+                        )
+                        return response.choices[0].message.content or ""
+                    raise
+            else:
+                from litellm import completion as litellm_completion
+                response = litellm_completion(
+                    model=self.model,
+                    messages=convert_to_openai_messages(
+                        [ChatMessage(role="system", content=self.system_message)]
+                        + messages
+                    ),
+                    max_tokens=config.max_tokens,
+                    temperature=config.temperature,
+                    top_p=config.top_p,
+                    frequency_penalty=config.frequency_penalty,
+                    presence_penalty=config.presence_penalty,
+                    stream=False,
+                )
+                return response.choices[0].message.content or ""
         except Exception as e:
             # Handle common AWS exceptions with helpful messages
             error_msg = str(e)
