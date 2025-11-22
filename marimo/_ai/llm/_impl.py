@@ -100,19 +100,16 @@ class openai(ChatModel):
         )
 
     def _stream_response(self, response: Any) -> Generator[str, None, None]:
-        """Helper method for streaming - separate to avoid mixing yield/return."""
-        accumulated = ""
-        chunk_count = 0
+        """Helper method for streaming - yields delta chunks.
+
+        Each yield is a new piece of content (delta) to be accumulated
+        by the consumer. This follows the standard OpenAI streaming pattern.
+        """
         for chunk in response:
-            chunk_count += 1
             if chunk.choices and len(chunk.choices) > 0:
                 delta = chunk.choices[0].delta
                 if delta.content:
-                    accumulated += delta.content
-                    yield accumulated
-        # Always yield final accumulated result to ensure complete response
-        # This handles cases where the last chunk has no content
-        yield accumulated
+                    yield delta.content
 
     def __call__(
         self, messages: list[ChatMessage], config: ChatModelConfig
@@ -225,15 +222,14 @@ class anthropic(ChatModel):
     def _stream_response(
         self, client: Any, params: Any
     ) -> Generator[str, None, None]:
-        """Helper method for streaming - separate to avoid mixing yield/return."""
-        accumulated = ""
+        """Helper method for streaming - yields delta chunks.
+
+        Each yield is a new piece of content (delta) to be accumulated
+        by the consumer. This follows the standard Anthropic streaming pattern.
+        """
         with client.messages.stream(**params) as stream:
             for text in stream.text_stream:
-                accumulated += text
-                yield accumulated
-        # Yield final accumulated result to ensure complete response
-        if accumulated:
-            yield accumulated
+                yield text
 
     def __call__(
         self, messages: list[ChatMessage], config: ChatModelConfig
@@ -320,8 +316,11 @@ class google(ChatModel):
     def _stream_response(
         self, client: Any, google_messages: Any, generation_config: Any
     ) -> Generator[str, None, None]:
-        """Helper method for streaming - separate to avoid mixing yield/return."""
-        accumulated = ""
+        """Helper method for streaming - yields delta chunks.
+
+        Each yield is a new piece of content (delta) to be accumulated
+        by the consumer. This follows the standard Google AI streaming pattern.
+        """
         response = client.models.generate_content_stream(
             model=self.model,
             contents=google_messages,
@@ -329,11 +328,7 @@ class google(ChatModel):
         )
         for chunk in response:
             if chunk.text:
-                accumulated += chunk.text
-                yield accumulated
-        # Yield final accumulated result to ensure complete response
-        if accumulated:
-            yield accumulated
+                yield chunk.text
 
     def __call__(
         self, messages: list[ChatMessage], config: ChatModelConfig
@@ -420,7 +415,11 @@ class groq(ChatModel):
     def _stream_response(
         self, client: Any, groq_messages: Any, config: ChatModelConfig
     ) -> Generator[str, None, None]:
-        """Helper method for streaming - separate to avoid mixing yield/return."""
+        """Helper method for streaming - yields delta chunks.
+
+        Each yield is a new piece of content (delta) to be accumulated
+        by the consumer. This follows the standard Groq streaming pattern.
+        """
         stream = client.chat.completions.create(
             model=self.model,
             messages=groq_messages,
@@ -431,16 +430,11 @@ class groq(ChatModel):
             stream=True,
         )
 
-        accumulated = ""
         for chunk in stream:
             if chunk.choices and len(chunk.choices) > 0:
                 delta = chunk.choices[0].delta
                 if delta.content:
-                    accumulated += delta.content
-                    yield accumulated
-        # Yield final accumulated result to ensure complete response
-        if accumulated:
-            yield accumulated
+                    yield delta.content
 
     def __call__(
         self, messages: list[ChatMessage], config: ChatModelConfig
@@ -508,7 +502,11 @@ class bedrock(ChatModel):
     def _stream_response(
         self, messages: list[ChatMessage], config: ChatModelConfig
     ) -> Generator[str, None, None]:
-        """Helper method for streaming - separate to avoid mixing yield/return."""
+        """Helper method for streaming - yields delta chunks.
+
+        Each yield is a new piece of content (delta) to be accumulated
+        by the consumer. This follows the standard AWS Bedrock streaming pattern.
+        """
         from litellm import completion as litellm_completion
 
         response = litellm_completion(
@@ -525,16 +523,11 @@ class bedrock(ChatModel):
             stream=True,
         )
 
-        accumulated = ""
         for chunk in response:
             if chunk.choices and len(chunk.choices) > 0:
                 delta = chunk.choices[0].delta
                 if delta.content:
-                    accumulated += delta.content
-                    yield accumulated
-        # Yield final accumulated result to ensure complete response
-        if accumulated:
-            yield accumulated
+                    yield delta.content
 
     def __call__(
         self, messages: list[ChatMessage], config: ChatModelConfig
