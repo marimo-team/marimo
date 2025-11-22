@@ -101,7 +101,9 @@ describe("getUpdatedColumnTypes", () => {
     );
     expect(result).toMatchInlineSnapshot(`
       Map {
-        2 => "bool",
+        "col1" => "str",
+        "col3" => "int",
+        "2_max" => "bool",
       }
     `);
   });
@@ -184,10 +186,7 @@ describe("getUpdatedColumnTypes", () => {
       INITIAL_COLUMN_TYPES,
     );
     expect(result).toMatchInlineSnapshot(`
-      Map {
-        "col1" => "bool",
-        "col3" => "int",
-      }
+      Map {}
     `);
   });
 });
