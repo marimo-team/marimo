@@ -29,7 +29,7 @@ export const column_id_array = z
   .array(column_id.describe(FieldOptions.of({ special: "column_id" })))
   .min(1, "At least one column is required")
   .default([])
-  .describe(FieldOptions.of({ label: "Columns", minLength: 1 }));
+  .describe(FieldOptions.of({ label: "Group by columns", minLength: 1 }));
 
 const ColumnConversionTransformSchema = z
   .object({
@@ -108,6 +108,10 @@ const GroupByTransformSchema = z
   .object({
     type: z.literal("group_by"),
     column_ids: column_id_array,
+    aggregation_column_ids: z
+      .array(column_id.describe(FieldOptions.of({ special: "column_id" })))
+      .default([])
+      .describe(FieldOptions.of({ label: "Aggregate on columns" })),
     aggregation: z
       .enum(AGGREGATION_FNS)
       .default("count")

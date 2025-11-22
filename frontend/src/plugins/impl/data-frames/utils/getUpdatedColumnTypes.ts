@@ -46,8 +46,37 @@ function handleTransform(
       }
       return next;
     }
-    case "group_by":
-      return Maps.filterMap(next, (_v, k) => !transform.column_ids.includes(k));
+    case "group_by": {
+      const groupColumns = transform.column_ids ?? [];
+      const aggregationColumns =
+        transform.aggregation_column_ids && transform.aggregation_column_ids.length > 0
+          ? transform.aggregation_column_ids
+          : [...next.keys()].filter((key) => !groupColumns.includes(key));
+      const filteredAggregationColumns = aggregationColumns.filter(
+        (columnId) => !groupColumns.includes(columnId),
+      );
+
+      const updated = new Map<ColumnId, string>();
+
+      for (const columnId of groupColumns) {
+        const type = next.get(columnId);
+        if (type !== undefined) {
+          updated.set(columnId, type);
+        }
+      }
+
+      for (const columnId of filteredAggregationColumns) {
+        const type = next.get(columnId);
+        if (type !== undefined) {
+          updated.set(
+            `${columnId}_${transform.aggregation}` as ColumnId,
+            type,
+          );
+        }
+      }
+
+      return updated;
+    }
     case "aggregate":
       return Maps.filterMap(next, (_v, k) => transform.column_ids.includes(k));
     case "select_columns":

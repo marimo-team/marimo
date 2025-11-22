@@ -20,7 +20,7 @@ exports[`renderZodSchema > should render a form aggregate 1`] = `
           class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
           for="«r24»-form-item"
         >
-          Columns
+          Group by columns
         </label>
         <div
           aria-describedby="«r24»-form-item-description"
