@@ -251,12 +251,15 @@ export function generateColumns<T>({
           isCellSelected,
         );
 
+        const maxDisplayPrecision = maxFractionalDigits(useLocale().locale);
+
         const renderedCell = renderCellValue({
           column,
           renderValue,
           getValue,
           selectCell,
           cellStyles,
+          maxDisplayPrecision,
         });
 
         // Row headers are bold
@@ -465,12 +468,14 @@ export function renderCellValue<TData, TValue>({
   getValue,
   selectCell,
   cellStyles,
+  maxDisplayPrecision,
 }: {
   column: Column<TData, TValue>;
   renderValue: () => TValue | null;
   getValue: () => TValue;
   selectCell?: () => void;
   cellStyles?: string;
+  maxDisplayPrecision: number;
 }) {
   const value = getValue();
   const format = column.getColumnFormatting?.();
@@ -549,7 +554,7 @@ export function renderCellValue<TData, TValue>({
   if (typeof value === "number") {
     return (
       <div onClick={selectCell} className={cellStyles}>
-        <LocaleNumber value={value} />
+        <LocaleNumber value={value} maxDisplayPrecision={maxDisplayPrecision}/>
       </div>
     );
   }
@@ -595,8 +600,7 @@ export function renderCellValue<TData, TValue>({
   );
 }
 
-const LocaleNumber = ({ value }: { value: number }) => {
-  const digits = maxFractionalDigits(useLocale().locale);
-  const format = useNumberFormatter({ maximumFractionDigits: digits });
+const LocaleNumber = ({ value, maxDisplayPrecision }: { value: number, maxDisplayPrecision: number }) => {
+  const format = useNumberFormatter({ maximumFractionDigits: maxDisplayPrecision });
   return format.format(value);
 };
