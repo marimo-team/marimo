@@ -554,7 +554,7 @@ export function renderCellValue<TData, TValue>({
   if (typeof value === "number") {
     return (
       <div onClick={selectCell} className={cellStyles}>
-        <LocaleNumber value={value} maxDisplayPrecision={maxDisplayPrecision}/>
+        <LocaleNumber value={value} maxDisplayPrecision={maxDisplayPrecision} />
       </div>
     );
   }
@@ -600,7 +600,15 @@ export function renderCellValue<TData, TValue>({
   );
 }
 
-const LocaleNumber = ({ value, maxDisplayPrecision }: { value: number, maxDisplayPrecision: number }) => {
-  const format = useNumberFormatter({ maximumFractionDigits: maxDisplayPrecision });
+const LocaleNumber = ({
+  value,
+  maxDisplayPrecision,
+}: {
+  value: number;
+  maxDisplayPrecision: number;
+}) => {
+  const format = useNumberFormatter({
+    maximumFractionDigits: maxDisplayPrecision,
+  });
   return format.format(value);
 };
