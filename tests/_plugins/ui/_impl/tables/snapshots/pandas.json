@@ -10,7 +10,7 @@
         "datetime_index": "DatetimeIndex(['1960-01-02', '1960-01-03', '1960-01-04'], dtype='datetime64[ns]', freq=None)",
         "delta": "TimedeltaIndex(['1 days 06:05:01.000030'], dtype='timedelta64[ns]', freq=None)",
         "none": "NaT",
-        "infs":NaN,
+        "infs": "inf",
         "struct": {
             "a": 1,
             "b": 2

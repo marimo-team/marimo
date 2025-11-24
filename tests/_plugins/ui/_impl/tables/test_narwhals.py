@@ -13,6 +13,7 @@ import pytest
 from marimo._data.models import BinValue, ColumnStats
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._output.data.data import BIGINT_KEY
+from marimo._plugins.ui._impl.input import button
 from marimo._plugins.ui._impl.table import SortArgs
 from marimo._plugins.ui._impl.tables.format import FormatMapping
 from marimo._plugins.ui._impl.tables.narwhals_table import (
@@ -1714,3 +1715,23 @@ class TestSanitizeTableValue:
 
         data = pl.DataFrame({"A": [1, 2, 3]})
         return NarwhalsTableManager.from_dataframe(data)
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+@pytest.mark.parametrize(
+    "df",
+    create_dataframes({"button": [button()]}, include=["polars", "pandas"]),
+)
+def test_rich_elements(df: Any) -> None:
+    manager = NarwhalsTableManager.from_dataframe(df)
+    print(manager.to_json_str())
+    json_data = json.loads(manager.to_json_str())
+    assert isinstance(json_data, list)
+    assert isinstance(json_data[0], dict)
+    assert isinstance(json_data[0]["button"], dict)
+    assert isinstance(json_data[0]["button"]["_serialized_mime_bundle"], dict)
+
+    serialized_mime_bundle = json_data[0]["button"]["_serialized_mime_bundle"]
+    assert serialized_mime_bundle["mimetype"] == "text/html"
+    assert serialized_mime_bundle["data"].startswith("<marimo-ui-element")
+    assert serialized_mime_bundle["data"].endswith("</marimo-ui-element>")

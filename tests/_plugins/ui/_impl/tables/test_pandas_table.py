@@ -106,7 +106,7 @@ class TestPandasTableManager(unittest.TestCase):
                     np.nan,
                     pd.NA,
                 ],
-                "infs": [None, np.inf, -np.inf],
+                "infs": [float("inf"), np.inf, -np.inf],
                 "struct": [
                     {"a": 1, "b": 2},
                     {"a": 3, "b": 4},
@@ -414,6 +414,48 @@ class TestPandasTableManager(unittest.TestCase):
             {"": "cat", " ": "m", "weight": nan, "height": 2.0},
             {"": "dog", " ": "kg", "weight": 3.0, "height": nan},
             {"": "dog", " ": "m", "weight": nan, "height": 4.0},
+        ]
+        assert_rows_equal_with_nan(json_data, expected)
+
+    @pytest.mark.skipif(
+        not DependencyManager.numpy.has(), reason="numpy not installed"
+    )
+    def test_infs(self) -> None:
+        import numpy as np
+
+        df = pd.DataFrame(
+            {
+                "A": [
+                    float("inf"),
+                    float("-inf"),
+                    np.inf,
+                    -np.inf,
+                ]
+            }
+        )
+        json_data = self.factory_create_json_from_df(df)
+        expected = [
+            {"A": "inf"},
+            {"A": "-inf"},
+            {"A": "inf"},
+            {"A": "-inf"},
+        ]
+        assert_rows_equal_with_nan(json_data, expected)
+
+    @pytest.mark.skipif(
+        not DependencyManager.numpy.has(), reason="numpy not installed"
+    )
+    def test_nans(self) -> None:
+        import numpy as np
+
+        df = pd.DataFrame({"A": [float("nan"), np.nan, pd.NaT, pd.NA, None]})
+        json_data = self.factory_create_json_from_df(df)
+        expected = [
+            {"A": nan},
+            {"A": nan},
+            {"A": "NaT"},
+            {"A": None},  # pd.NA is treated as None
+            {"A": None},
         ]
         assert_rows_equal_with_nan(json_data, expected)
 
