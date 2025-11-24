@@ -112,7 +112,6 @@ const LoadedVegaComponent = ({
     return {
       source: false,
       compiled: false,
-      ...embedOptions,
     };
   }, [embedOptions]);
 
