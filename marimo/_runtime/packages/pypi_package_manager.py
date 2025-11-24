@@ -162,6 +162,18 @@ class UvPackageManager(PypiPackageManager):
     def _uv_bin(self) -> str:
         return find_uv_bin()
 
+    def _is_cache_write_error(self, output_text: str) -> bool:
+        """Check if the output text indicates a cache write error.
+
+        This is somewhat fragile and could break with new uv output.
+        This was tested with uv ~0.9.7
+        """
+        output_text = output_text.lower()
+        return (
+            "failed to write to the distribution cache" in output_text
+            or "operation not permitted" in output_text
+        )
+
     def is_manager_installed(self) -> bool:
         return self._uv_bin != "uv" or super().is_manager_installed()
 
@@ -195,15 +207,67 @@ class UvPackageManager(PypiPackageManager):
         upgrade: bool,
         log_callback: Optional[LogCallback] = None,
     ) -> bool:
-        """Installation logic."""
+        """Installation logic with fallback to --no-cache on cache write errors."""
         LOGGER.info(
             f"Installing in {package} with 'uv {'add' if self.is_in_uv_project else 'pip install'}'"
         )
-        return await super()._install(
-            package,
-            upgrade=upgrade,
-            log_callback=log_callback,
+
+        # For uv projects, use the standard install flow without fallback
+        if self.is_in_uv_project:
+            return await super()._install(
+                package,
+                upgrade=upgrade,
+                log_callback=log_callback,
+            )
+
+        # For uv pip install, try with output capture to enable fallback
+        cmd = self.install_command(package, upgrade=upgrade)
+
+        # Run the command and capture output
+        proc = subprocess.Popen(  # noqa: ASYNC220
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            universal_newlines=False,
+            bufsize=0,
         )
+
+        output_lines: list[str] = []
+        if proc.stdout:
+            for line in iter(proc.stdout.readline, b""):
+                # Send to terminal
+                sys.stdout.buffer.write(line)
+                sys.stdout.buffer.flush()
+                decoded_line = line.decode("utf-8", errors="replace")
+                # Send to callback for streaming
+                if log_callback:
+                    log_callback(decoded_line)
+                # Store for error checking
+                output_lines.append(decoded_line)
+            proc.stdout.close()
+
+        return_code = proc.wait()
+
+        # If successful, we're done
+        if return_code == 0:
+            return True
+
+        # Check if we should retry with --no-cache
+        output_text = "".join(output_lines)
+        if self._is_cache_write_error(output_text):
+            LOGGER.info(
+                f"Retrying installation of {package} with --no-cache due to cache write error"
+            )
+            if log_callback:
+                log_callback(
+                    "\nRetrying with --no-cache due to cache write permission error...\n"
+                )
+
+            # Retry with --no-cache flag
+            cmd_with_no_cache = cmd + ["--no-cache"]
+            return self.run(cmd_with_no_cache, log_callback=log_callback)
+
+        return False
 
     def update_notebook_script_metadata(
         self,
