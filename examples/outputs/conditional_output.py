@@ -34,18 +34,18 @@ def _(checkbox):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md("""
-    The next cell does **not** show anything, since an if statement does not
+    The folling cell would **not** show anything, since an if statement does not
     have a value:
-    """)
-    return
 
-
-@app.cell
-def _(checkbox, mo):
+    ```python
+    # Intentionally demonstrates that if statements don't display expressions
+    # Using _ to suppress the lint warning while keeping the example
     if checkbox.value:
         mo.md("Checkbox is checked")
     else:
         mo.md("Checkbox is not checked")
+    ```
+    """)
     return
 
 

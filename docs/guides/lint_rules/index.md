@@ -40,7 +40,7 @@ These issues may cause runtime problems.
 | Code | Name | Description | Fixable |
 |------|------|-------------|----------|
 | [MR001](rules/self_import.md) | self-import | Importing a module with the same name as the file | ❌ |
-| [MR002](rules/branch_expression.md) | branch-expression | Branch statements with trailing expressions that won't be displayed | ❌ |
+| [MR002](rules/branch_expression.md) | branch-expression | Branch statements with output expressions that won't be displayed | ❌ |
 
 ### ✨ Formatting Rules
 

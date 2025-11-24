@@ -14,19 +14,19 @@ if TYPE_CHECKING:
 
 
 class BranchExpressionRule(LintRule):
-    """MR002: Branch statements ending with expressions that won't be displayed.
+    """MR002: Branch statements with output expressions that won't be displayed.
 
     This rule detects when the last statement in a cell is a branch (if/elif/else,
-    match, or try/except/finally) where all branches end with expressions. In marimo,
-    only the last expression at the top level of a cell is displayed. Expressions
-    nested inside branches will execute but not be shown to the user, which can be
-    confusing if the user expected to see output.
+    match, or try/except/finally) containing expressions that produce output. In
+    marimo, only the last expression at the top level of a cell is displayed.
+    Expressions nested inside branches will execute but not be shown to the user,
+    which can be confusing if the user expected to see output.
 
     ## Why is this bad?
 
-    When expressions are nested inside branches at the end of a cell:
+    When output expressions are nested inside branches at the end of a cell:
     - The expressions execute but produce no visible output
-    - Users may expect to see the result (like `mo.md()` calls) but won't
+    - Users expect to see the result (like mo.md(), string literals, etc.)
     - This can lead to confusion about whether code is running correctly
     - It violates the principle of least surprise
 
@@ -52,10 +52,12 @@ class BranchExpressionRule(LintRule):
             "Just right"  # Won't be displayed
     ```
 
-    **Problematic:**
+    **Not flagged (side effects only):**
     ```python
-    if invalid:
-        mo.md("Error message")  # Won't be displayed even without else clause
+    if condition:
+        print("Debug message")  # Side effect only, not flagged
+    else:
+        logger.info("Something")  # Side effect only, not flagged
     ```
 
     **Solution:**
@@ -76,15 +78,13 @@ class BranchExpressionRule(LintRule):
     result
     ```
 
-    In the case where no output is expected:
-
-    **Alternative Solution:**
+    **Alternative Solution (if no output intended):**
     ```python
     # Use a dummy variable to indicate intentional suppression
     if condition:
-        _ = print("Result A")
+        _ = expr()
     else:
-        _ = print("Result B")
+        _ = other()
     ```
 
     ## References
@@ -96,7 +96,7 @@ class BranchExpressionRule(LintRule):
     code = "MR002"
     name = "branch-expression"
     description = (
-        "Branch statements with trailing expressions that won't be displayed"
+        "Branch statements with output expressions that won't be displayed"
     )
     severity = Severity.RUNTIME
     fixable = False
@@ -133,33 +133,33 @@ class BranchExpressionRule(LintRule):
     async def _check_if_statement(
         self, node: ast.If, cell: CellDef, ctx: RuleContext
     ) -> None:
-        """Check if an if statement has all branches ending with expressions."""
+        """Check if an if statement has branches with output expressions."""
         branches = self._collect_if_branches(node)
 
-        # Check if ALL branches end with expressions
+        # Check if ANY branch has an output expression
         if not branches:
             return
 
-        if all(self._ends_with_expression(branch) for branch in branches):
+        if any(self._has_output_expression(branch) for branch in branches):
             await self._report_diagnostic(node, cell, ctx, "if statement")
 
     async def _check_match_statement(
         self, node: ast.Match, cell: CellDef, ctx: RuleContext
     ) -> None:
-        """Check if a match statement has all cases ending with expressions."""
+        """Check if a match statement has cases with output expressions."""
         if not node.cases:
             return
 
         branches = [case.body for case in node.cases]
 
-        # Check if ALL cases end with expressions
-        if all(self._ends_with_expression(branch) for branch in branches):
+        # Check if ANY case has an output expression
+        if any(self._has_output_expression(branch) for branch in branches):
             await self._report_diagnostic(node, cell, ctx, "match statement")
 
     async def _check_try_statement(
         self, node: ast.Try, cell: CellDef, ctx: RuleContext
     ) -> None:
-        """Check if a try statement has all branches ending with expressions."""
+        """Check if a try statement has branches with output expressions."""
         branches = [node.body]
 
         # Add exception handlers
@@ -174,8 +174,8 @@ class BranchExpressionRule(LintRule):
         if node.finalbody:
             branches.append(node.finalbody)
 
-        # Check if ALL branches end with expressions
-        if all(self._ends_with_expression(branch) for branch in branches):
+        # Check if ANY branch has an output expression
+        if any(self._has_output_expression(branch) for branch in branches):
             await self._report_diagnostic(node, cell, ctx, "try statement")
 
     def _collect_if_branches(self, node: ast.If) -> list[list[ast.stmt]]:
@@ -198,13 +198,84 @@ class BranchExpressionRule(LintRule):
 
         return branches
 
-    def _ends_with_expression(self, stmts: list[ast.stmt]) -> bool:
-        """Check if a list of statements ends with an expression statement."""
+    def _has_output_expression(self, stmts: list[ast.stmt]) -> bool:
+        """Check if a branch has a trailing expression that produces output.
+
+        Returns True for any expression EXCEPT known side-effect-only calls
+        (print, logger.*, sys.*, mo.stop, mo.output.*).
+        """
         if not stmts:
             return False
 
         last_stmt = stmts[-1]
-        return isinstance(last_stmt, ast.Expr)
+        if not isinstance(last_stmt, ast.Expr):
+            return False
+
+        # Check if this is a side-effect call that shouldn't be flagged
+        return not self._is_side_effect_only(last_stmt.value)
+
+    def _is_side_effect_only(self, node: ast.expr) -> bool:
+        """Check if an expression is a side-effect-only call.
+
+        Returns True for:
+        - print(), input(), exec(), eval()
+        - logger.*/log.*/logging.* calls
+        - sys.stdout.write(), sys.stderr.write()
+        - mo.stop()
+        - mo.output.append/replace/clear()
+
+        Returns False for everything else (including mo.md(), string literals, etc.)
+        """
+        if not isinstance(node, ast.Call):
+            return False
+
+        func = node.func
+
+        # Builtin side-effect functions
+        if isinstance(func, ast.Name) and func.id in {
+            "print",
+            "input",
+            "exec",
+            "eval",
+        }:
+            return True
+
+        if isinstance(func, ast.Attribute):
+            # mo.stop()
+            if (
+                isinstance(func.value, ast.Name)
+                and func.value.id == "mo"
+                and func.attr == "stop"
+            ):
+                return True
+
+            # mo.output.*
+            if isinstance(func.value, ast.Attribute):
+                if (
+                    isinstance(func.value.value, ast.Name)
+                    and func.value.value.id == "mo"
+                    and func.value.attr == "output"
+                ):
+                    return True
+
+            # logger.*, log.*, logging.*
+            if isinstance(func.value, ast.Name) and func.value.id in {
+                "logger",
+                "log",
+                "logging",
+            }:
+                return True
+
+            # sys.stdout.*, sys.stderr.*
+            if isinstance(func.value, ast.Attribute):
+                if (
+                    isinstance(func.value.value, ast.Name)
+                    and func.value.value.id == "sys"
+                    and func.value.attr in {"stdout", "stderr"}
+                ):
+                    return True
+
+        return False
 
     async def _report_diagnostic(
         self, node: ast.stmt, cell: CellDef, ctx: RuleContext, stmt_type: str

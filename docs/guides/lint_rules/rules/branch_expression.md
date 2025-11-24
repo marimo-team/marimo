@@ -2,13 +2,13 @@
 
 ⚠️ **Runtime** ❌ Not Fixable
 
-MR002: Branch statements ending with expressions that won't be displayed.
+MR002: Branch statements with output expressions that won't be displayed.
 
 ## Why is this bad?
 
-When expressions are nested inside branches at the end of a cell:
+When output expressions are nested inside branches at the end of a cell:
 - The expressions execute but produce no visible output
-- Users may expect to see the result (like `mo.md()` calls) but won't
+- Users expect to see the result (like mo.md(), string literals, etc.)
 - This can lead to confusion about whether code is running correctly
 - It violates the principle of least surprise
 
@@ -34,10 +34,12 @@ match value:
         "Just right"  # Won't be displayed
 ```
 
-**Problematic:**
+**Not flagged (side effects only):**
 ```python
-if invalid:
-    mo.md("Error message")  # Won't be displayed even without else clause
+if condition:
+    print("Debug message")  # Side effect only, not flagged
+else:
+    logger.info("Something")  # Side effect only, not flagged
 ```
 
 **Solution:**
@@ -58,15 +60,13 @@ else:
 result
 ```
 
-In the case where no output is expected:
-
-**Alternative Solution:**
+**Alternative Solution (if no output intended):**
 ```python
 # Use a dummy variable to indicate intentional suppression
 if condition:
-    _ = print("Result A")
+    _ = expr()
 else:
-    _ = print("Result B")
+    _ = other()
 ```
 
 ## References
