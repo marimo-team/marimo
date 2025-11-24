@@ -533,7 +533,10 @@ class ScopedVisitor(ast.NodeVisitor):
                     else:
                         # For non-function/non-class variables (e.g., class attributes),
                         # exclude references to variables already defined in class scope
-                        unbounded_refs |= data.required_refs - class_def
+                        # Also exclude self-references (e.g., TypeAlias can reference itself)
+                        unbounded_refs |= (
+                            data.required_refs - class_def - {var}
+                        )
                         # Add the variable to class_def so that later references
                         # to it don't create unbounded refs
                         class_def.add(var)
