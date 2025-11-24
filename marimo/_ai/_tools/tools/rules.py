@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Optional
 
 import marimo._utils.requests as requests
@@ -11,9 +12,12 @@ from marimo._ai._tools.types import EmptyArgs, SuccessResult, ToolGuidelines
 
 LOGGER = _loggers.marimo_logger()
 
-# We load the rules remotely, so we can update these without requiring a new release.
-# If requested, we can bundle this into the library instead.
+# We ship the rules with the package in _static/CLAUDE.md
+# If the file doesn't exist (development or edge cases), we fallback to fetching from the URL
 MARIMO_RULES_URL = "https://docs.marimo.io/CLAUDE.md"
+MARIMO_RULES_PATH = (
+    Path(__file__).parent.parent.parent.parent / "_static" / "CLAUDE.md"
+)
 
 
 @dataclass
@@ -41,6 +45,26 @@ class GetMarimoRules(ToolBase[EmptyArgs, GetMarimoRulesOutput]):
     def handle(self, args: EmptyArgs) -> GetMarimoRulesOutput:
         del args
 
+        # First, try to load from the bundled file
+        if MARIMO_RULES_PATH.exists():
+            try:
+                rules_content = MARIMO_RULES_PATH.read_text(encoding="utf-8")
+                return GetMarimoRulesOutput(
+                    rules_content=rules_content,
+                    source_url="bundled",
+                    next_steps=[
+                        "Follow the guidelines in the rules when working with marimo notebooks",
+                    ],
+                )
+            except Exception as e:
+                LOGGER.warning(
+                    "Failed to read bundled marimo rules from %s: %s",
+                    MARIMO_RULES_PATH,
+                    str(e),
+                )
+                # Fall through to fetch from URL
+
+        # Fallback: fetch from the URL
         try:
             response = requests.get(MARIMO_RULES_URL, timeout=10)
             response.raise_for_status()
