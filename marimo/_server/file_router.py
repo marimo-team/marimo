@@ -210,6 +210,60 @@ class LazyListOfFilesAppFileRouter(AppFileRouter):
     def mark_stale(self) -> None:
         self._lazy_files = None
 
+    def get_file_manager(
+        self,
+        key: MarimoFileKey,
+        default_width: WidthType | None = None,
+        default_auto_download: list[ExportType] | None = None,
+        default_sql_output: SqlOutputType | None = None,
+    ) -> AppFileManager:
+        """
+        Given a key, return an AppFileManager.
+
+        For directory routers, if the key is a relative path, resolve it
+        relative to the router's directory. Absolute paths must be within
+        the router's directory for security.
+        """
+        if key.startswith(AppFileRouter.NEW_FILE):
+            return AppFileManager(
+                None,
+                default_width=default_width,
+                default_auto_download=default_auto_download,
+                default_sql_output=default_sql_output,
+            )
+
+        directory = pathlib.Path(self._directory)
+        filepath = pathlib.Path(key)
+
+        # If directory is absolute, ensure the filepath is a child of the directory
+        if directory.is_absolute():
+            # Make filepath absolute if it's not
+            if not filepath.is_absolute():
+                filepath = directory / filepath
+            else:
+                # Ensure the filepath is within the directory
+                try:
+                    filepath.relative_to(directory)
+                except (ValueError, OSError):
+                    raise HTTPException(
+                        status_code=HTTPStatus.FORBIDDEN,
+                        detail=f"Access denied: File {key} is outside the allowed directory",
+                    ) from None
+
+        # First try the key as-is (handles absolute paths within directory)
+        if filepath.exists():
+            return AppFileManager(
+                str(filepath),
+                default_width=default_width,
+                default_auto_download=default_auto_download,
+                default_sql_output=default_sql_output,
+            )
+
+        raise HTTPException(
+            status_code=HTTPStatus.NOT_FOUND,
+            detail=f"File {key} not found",
+        )
+
     @property
     def files(self) -> list[FileInfo]:
         if self._lazy_files is None:
