@@ -105,6 +105,27 @@
         ]
     ],
     [
+        "nested_lists",
+        [
+            "string",
+            "object"
+        ]
+    ],
+    [
+        "objects",
+        [
+            "string",
+            "object"
+        ]
+    ],
+    [
+        "nested_objects",
+        [
+            "string",
+            "object"
+        ]
+    ],
+    [
         "nulls",
         [
             "string",
