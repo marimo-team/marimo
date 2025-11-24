@@ -34,8 +34,8 @@ def _(checkbox):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md("""
-    The folling cell would **not** show anything, since an if statement does not
-    have a value:
+    The following cell would **not** show anything, since an if statement does
+    not have a value:
 
     ```python
     # Intentionally demonstrates that if statements don't display expressions
