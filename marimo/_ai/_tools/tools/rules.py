@@ -2,22 +2,20 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Optional
 
 import marimo._utils.requests as requests
 from marimo import _loggers
 from marimo._ai._tools.base import ToolBase
 from marimo._ai._tools.types import EmptyArgs, SuccessResult, ToolGuidelines
+from marimo._utils.paths import marimo_package_path
 
 LOGGER = _loggers.marimo_logger()
 
 # We ship the rules with the package in _static/CLAUDE.md
 # If the file doesn't exist (development or edge cases), we fallback to fetching from the URL
 MARIMO_RULES_URL = "https://docs.marimo.io/CLAUDE.md"
-MARIMO_RULES_PATH = (
-    Path(__file__).parent.parent.parent.parent / "_static" / "CLAUDE.md"
-)
+MARIMO_RULES_PATH = marimo_package_path() / "_static" / "CLAUDE.md"
 
 
 @dataclass
