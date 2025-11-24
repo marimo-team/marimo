@@ -531,7 +531,12 @@ class ScopedVisitor(ast.NodeVisitor):
                         # Thus, if it has been declared, it's not "unbounded"
                         class_def.add(var)
                     else:
-                        unbounded_refs |= data.required_refs
+                        # For non-function/non-class variables (e.g., class attributes),
+                        # exclude references to variables already defined in class scope
+                        unbounded_refs |= data.required_refs - class_def
+                        # Add the variable to class_def so that later references
+                        # to it don't create unbounded refs
+                        class_def.add(var)
                 unbounded_refs |= mock_visitor.refs - ignore_refs
 
         # Handle function/class refs that are evaluated in the outer scope

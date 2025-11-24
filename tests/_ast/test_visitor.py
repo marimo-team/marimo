@@ -1593,3 +1593,48 @@ def test_sql_pivot_unpivot_commands(
 
     assert v.defs == {"df"}, f"Failed for: {description}"
     assert v.refs == expected_refs, f"Failed for: {description}"
+
+
+def test_class_with_class_var_in_method_default() -> None:
+    """Test that class variables used in method defaults don't create unbounded refs (issue #7265)."""
+    code = cleandoc(
+        """
+        class K:
+            A: int = 1
+            def b(a: int = A) -> int:
+                return a
+        """
+    )
+    v = visitor.ScopedVisitor()
+    mod = ast.parse(code)
+    v.visit(mod)
+
+    # K should be a def
+    assert v.defs == set(["K"])
+    # A should NOT be a ref (it's defined in class scope), but int is (type annotation)
+    assert v.refs == set(["int"])
+    # K should have unbounded_refs only for int, not A
+    assert v.variable_data["K"][0].unbounded_refs == set(["int"])
+
+
+def test_class_with_class_var_referencing_another() -> None:
+    """Test that class variables used in other class variable definitions don't create unbounded refs (issue #7265)."""
+    code = cleandoc(
+        """
+        class K:
+            A: int = 1
+            B: int = A
+            def b(a: int = B) -> int:
+                return a
+        """
+    )
+    v = visitor.ScopedVisitor()
+    mod = ast.parse(code)
+    v.visit(mod)
+
+    # K should be a def
+    assert v.defs == set(["K"])
+    # A should NOT be a ref (it's defined in class scope), but int is (type annotation)
+    assert v.refs == set(["int"])
+    # K should have unbounded_refs only for int, not A
+    assert v.variable_data["K"][0].unbounded_refs == set(["int"])
