@@ -8,11 +8,21 @@
     display: none !important;
   }
 
+  /* Instead of hiding the element, we hide the opacity. Prevents layout shift. */
+  .hover-action-hidden {
+    opacity: 0;
+  }
+
   [data-is-dragging="true"] {
     .hover-actions-parent.hover-actions-parent .hover-action:not(:hover) {
       display: none !important;
     }
   }
+}
+
+.hover-actions-parent:hover .hover-action-hidden,
+.hover-actions-parent:focus .hover-action-hidden {
+  opacity: 1;
 }
 
 .hover-action:hover,
