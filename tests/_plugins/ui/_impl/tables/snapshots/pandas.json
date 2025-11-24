@@ -7,8 +7,16 @@
         "datetime": "2021-01-01 00:00:00",
         "date": "2021-01-01",
         "nanosecond": "2017-03-22 15:16:45",
-        "datetime_index": "DatetimeIndex(['1960-01-02', '1960-01-03', '1960-01-04'], dtype='datetime64[ns]', freq=None)",
-        "delta": "TimedeltaIndex(['1 days 06:05:01.000030'], dtype='timedelta64[ns]', freq=None)",
+        "datetime_index": [
+            "1960-01-02",
+            "1960-01-03",
+            "1960-01-04"
+        ],
+        "period_range": "2017Q1",
+        "interval_range": "(2017-01-01 00:00:00, 2017-01-02 00:00:00]",
+        "delta": [
+            "1 days 06:05:01.000030"
+        ],
         "none": "NaT",
         "infs": "inf",
         "struct": {
@@ -39,8 +47,17 @@
         "datetime": "2021-01-02 00:00:00",
         "date": "2021-01-02",
         "nanosecond": "2017-07-14 02:40:00",
-        "datetime_index": "DatetimeIndex(['1970-01-02', '1970-01-03', '1970-01-04'], dtype='datetime64[ns]', freq=None)",
-        "delta": "TimedeltaIndex(['1 days 06:05:01.000030', '0 days 00:00:00.000015500'], dtype='timedelta64[ns]', freq=None)",
+        "datetime_index": [
+            "1970-01-02",
+            "1970-01-03",
+            "1970-01-04"
+        ],
+        "period_range": "2017Q2",
+        "interval_range": "(2017-01-02 00:00:00, 2017-01-03 00:00:00]",
+        "delta": [
+            "1 days 06:05:01.000030",
+            "0 days 00:00:00.000015500"
+        ],
         "none":NaN,
         "infs": "inf",
         "struct": {
@@ -71,8 +88,18 @@
         "datetime": "2021-01-03 00:00:00",
         "date": "2021-01-03",
         "nanosecond": "2017-11-06 20:26:40",
-        "datetime_index": "DatetimeIndex(['1970-01-02', '1970-01-03', '1970-01-04'], dtype='datetime64[ns]', freq=None)",
-        "delta": "TimedeltaIndex(['1 days 06:05:01.000030', '0 days 00:00:00.000015500', NaT], dtype='timedelta64[ns]', freq=None)",
+        "datetime_index": [
+            "1970-01-02",
+            "1970-01-03",
+            "1970-01-04"
+        ],
+        "period_range": "2017Q3",
+        "interval_range": "(2017-01-03 00:00:00, 2017-01-04 00:00:00]",
+        "delta": [
+            "1 days 06:05:01.000030",
+            "0 days 00:00:00.000015500",
+            "NaT"
+        ],
         "none": null,
         "infs": "-inf",
         "struct": {

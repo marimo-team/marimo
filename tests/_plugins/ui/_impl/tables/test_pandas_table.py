@@ -94,6 +94,15 @@ class TestPandasTableManager(unittest.TestCase):
                     pd.to_datetime([1, 2, 3], unit="D"),
                     pd.to_datetime([1, 2, 3], unit="D"),
                 ],
+                "period_range": pd.period_range(
+                    start=pd.Period("2017Q1", freq="Q"),
+                    end=pd.Period("2017Q3", freq="Q"),
+                    freq="Q",
+                ),
+                "interval_range": pd.interval_range(
+                    start=pd.Timestamp("2017-01-01"),
+                    end=pd.Timestamp("2017-01-04"),
+                ),
                 "delta": [
                     pd.to_timedelta(["1 days 06:05:01.00003"]),
                     pd.to_timedelta(["1 days 06:05:01.00003", "15.5us"]),
