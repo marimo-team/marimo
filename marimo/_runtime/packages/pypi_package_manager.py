@@ -163,9 +163,15 @@ class UvPackageManager(PypiPackageManager):
         return find_uv_bin()
 
     def _is_cache_write_error(self, output_text: str) -> bool:
+        """Check if the output text indicates a cache write error.
+
+        This is somewhat fragile and could break with new uv output.
+        This was tested with uv ~0.9.7
+        """
+        output_text = output_text.lower()
         return (
-            "Failed to write to the distribution cache" in output_text
-            or "Operation not permitted" in output_text
+            "failed to write to the distribution cache" in output_text
+            or "operation not permitted" in output_text
         )
 
     def is_manager_installed(self) -> bool:
