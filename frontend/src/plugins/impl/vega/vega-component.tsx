@@ -105,7 +105,7 @@ const LoadedVegaComponent = ({
   const actions = useMemo(() => {
     // If embedOptions contains 'actions', use it directly
     if (embedOptions && "actions" in embedOptions) {
-      return embedOptions.actions;
+      return embedOptions.actions as boolean | { source?: boolean; compiled?: boolean } | undefined;
     }
 
     // Otherwise use defaults
