@@ -1718,20 +1718,52 @@ class TestSanitizeTableValue:
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
-@pytest.mark.parametrize(
-    "df",
-    create_dataframes({"button": [button()]}, include=["polars", "pandas"]),
-)
-def test_rich_elements(df: Any) -> None:
-    manager = NarwhalsTableManager.from_dataframe(df)
-    print(manager.to_json_str())
-    json_data = json.loads(manager.to_json_str())
-    assert isinstance(json_data, list)
-    assert isinstance(json_data[0], dict)
-    assert isinstance(json_data[0]["button"], dict)
-    assert isinstance(json_data[0]["button"]["_serialized_mime_bundle"], dict)
+class TestRichElements:
+    """Tests for rich elements."""
 
-    serialized_mime_bundle = json_data[0]["button"]["_serialized_mime_bundle"]
-    assert serialized_mime_bundle["mimetype"] == "text/html"
-    assert serialized_mime_bundle["data"].startswith("<marimo-ui-element")
-    assert serialized_mime_bundle["data"].endswith("</marimo-ui-element>")
+    @pytest.fixture
+    def rich_data(self) -> dict[str, Any]:
+        return {"button": [button()]}
+
+    @pytest.mark.skipif(
+        not DependencyManager.pandas.has(), reason="Pandas not installed"
+    )
+    def test_pandas(self, rich_data: dict[str, Any]) -> None:
+        import pandas as pd
+
+        df = pd.DataFrame(rich_data)
+        manager = NarwhalsTableManager.from_dataframe(df)
+        json_data = json.loads(manager.to_json_str())
+
+        # Pandas uses mimetype and data instead of _serialized_mime_bundle
+        assert isinstance(json_data, list)
+        assert isinstance(json_data[0], dict)
+        assert isinstance(json_data[0]["button"], dict)
+
+        assert json_data[0]["button"]["mimetype"] == "text/html"
+        assert json_data[0]["button"]["data"].startswith("<marimo-ui-element")
+        assert json_data[0]["button"]["data"].endswith("</marimo-ui-element>")
+
+    @pytest.mark.parametrize(
+        "df",
+        create_dataframes(
+            {"button": [button()]}, include=["duckdb", "polars", "lazy-polars"]
+        ),
+    )
+    def test_rich_elements_default(self, df: Any) -> None:
+        manager = NarwhalsTableManager.from_dataframe(df)
+        json_data = json.loads(manager.to_json_str())
+
+        assert isinstance(json_data, list)
+        assert isinstance(json_data[0], dict)
+        assert isinstance(json_data[0]["button"], dict)
+        assert isinstance(
+            json_data[0]["button"]["_serialized_mime_bundle"], dict
+        )
+
+        serialized_mime_bundle = json_data[0]["button"][
+            "_serialized_mime_bundle"
+        ]
+        assert serialized_mime_bundle["mimetype"] == "text/html"
+        assert serialized_mime_bundle["data"].startswith("<marimo-ui-element")
+        assert serialized_mime_bundle["data"].endswith("</marimo-ui-element>")
