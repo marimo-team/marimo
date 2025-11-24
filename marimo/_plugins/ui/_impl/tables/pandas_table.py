@@ -84,6 +84,11 @@ class PandasTableManagerFactory(TableManagerFactory):
             def to_json_str(
                 self, format_mapping: Optional[FormatMapping] = None
             ) -> str:
+                def to_json(result: pd.DataFrame) -> list[dict[str, Any]]:
+                    # Use to_dict instead of to_json
+                    # nans, infs, -infs are properly serialized
+                    return result.to_dict(orient="records")  # type: ignore
+
                 from pandas.api.types import (
                     is_complex_dtype,
                     is_object_dtype,
@@ -123,13 +128,7 @@ class PandasTableManagerFactory(TableManagerFactory):
                         "Error handling complex or timedelta64 dtype",
                         exc_info=e,
                     )
-                    return sanitize_json_bigint(
-                        result.to_json(
-                            orient="records",
-                            date_format="iso",
-                            default_handler=str,
-                        )
-                    )
+                    return sanitize_json_bigint(to_json(result))
 
                 # Flatten row multi-index
                 if isinstance(result.index, pd.MultiIndex) or (
@@ -182,13 +181,7 @@ class PandasTableManagerFactory(TableManagerFactory):
                                 "Indexes with more than one level are not well supported, call reset_index() or use mo.plain(df)"
                             )
 
-                return sanitize_json_bigint(
-                    result.to_json(
-                        orient="records",
-                        date_format="iso",
-                        default_handler=str,
-                    )
-                )
+                return sanitize_json_bigint(to_json(result))
 
             def _infer_dtype(self, column: ColumnName) -> str:
                 # Typically, pandas dtypes returns a generic dtype

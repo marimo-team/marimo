@@ -13,6 +13,7 @@ import pytest
 from marimo._data.models import BinValue, ColumnStats
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._output.data.data import BIGINT_KEY
+from marimo._plugins.ui._impl.input import button
 from marimo._plugins.ui._impl.table import SortArgs
 from marimo._plugins.ui._impl.tables.format import FormatMapping
 from marimo._plugins.ui._impl.tables.narwhals_table import (
@@ -1714,3 +1715,55 @@ class TestSanitizeTableValue:
 
         data = pl.DataFrame({"A": [1, 2, 3]})
         return NarwhalsTableManager.from_dataframe(data)
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+class TestRichElements:
+    """Tests for rich elements."""
+
+    @pytest.fixture
+    def rich_data(self) -> dict[str, Any]:
+        return {"button": [button()]}
+
+    @pytest.mark.skipif(
+        not DependencyManager.pandas.has(), reason="Pandas not installed"
+    )
+    def test_pandas(self, rich_data: dict[str, Any]) -> None:
+        import pandas as pd
+
+        df = pd.DataFrame(rich_data)
+        manager = NarwhalsTableManager.from_dataframe(df)
+        json_data = json.loads(manager.to_json_str())
+
+        # Pandas uses mimetype and data instead of _serialized_mime_bundle
+        assert isinstance(json_data, list)
+        assert isinstance(json_data[0], dict)
+        assert isinstance(json_data[0]["button"], dict)
+
+        assert json_data[0]["button"]["mimetype"] == "text/html"
+        assert json_data[0]["button"]["data"].startswith("<marimo-ui-element")
+        assert json_data[0]["button"]["data"].endswith("</marimo-ui-element>")
+
+    @pytest.mark.parametrize(
+        "df",
+        create_dataframes(
+            {"button": [button()]}, include=["duckdb", "polars", "lazy-polars"]
+        ),
+    )
+    def test_rich_elements_default(self, df: Any) -> None:
+        manager = NarwhalsTableManager.from_dataframe(df)
+        json_data = json.loads(manager.to_json_str())
+
+        assert isinstance(json_data, list)
+        assert isinstance(json_data[0], dict)
+        assert isinstance(json_data[0]["button"], dict)
+        assert isinstance(
+            json_data[0]["button"]["_serialized_mime_bundle"], dict
+        )
+
+        serialized_mime_bundle = json_data[0]["button"][
+            "_serialized_mime_bundle"
+        ]
+        assert serialized_mime_bundle["mimetype"] == "text/html"
+        assert serialized_mime_bundle["data"].startswith("<marimo-ui-element")
+        assert serialized_mime_bundle["data"].endswith("</marimo-ui-element>")
