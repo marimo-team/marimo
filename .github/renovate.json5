@@ -64,6 +64,8 @@
         "!/.*react-aria.*/",
         // react-hook-form is pinned to 7.54.2
         "!/.*react-hook-form.*/",
+        // vega-lite is pinned to 6.3.1
+        "!/.*vega-lite.*/",
         // pyodide needs to be manually updated
         "!/.*pyodide.*/"
       ],
