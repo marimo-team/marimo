@@ -40,6 +40,7 @@ These issues may cause runtime problems.
 | Code | Name | Description | Fixable |
 |------|------|-------------|----------|
 | [MR001](rules/self_import.md) | self-import | Importing a module with the same name as the file | ❌ |
+| [MR002](rules/branch_expression.md) | branch-expression | Branch statements with trailing expressions that won't be displayed | ❌ |
 
 ### ✨ Formatting Rules
 
@@ -53,7 +54,7 @@ These are style and formatting issues.
 | [MF004](rules/empty_cells.md) | empty-cells | Empty cells that can be safely removed. | ⚠️ |
 | [MF005](rules/sql_parse_error.md) | sql-parse-error | SQL parsing errors during dependency analysis | ❌ |
 | [MF006](rules/misc_log_capture.md) | misc-log-capture | Miscellaneous log messages during processing | ❌ |
-| [MF007](rules/markdown_indentation.md) | markdown-indentation | Markdown cells in `mo.md()` should be dedented. | 🛠️ |
+| [MF007](rules/markdown_indentation.md) | markdown-indentation | Markdown cells in `mo.md()` should be properly indented. | 🛠️ |
 
 ## Legend
 
