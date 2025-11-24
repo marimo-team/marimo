@@ -44,14 +44,16 @@ describe("renderZodSchema", () => {
     [...TransformTypeSchema.options],
     (z) => getUnionLiteral(z).value,
   );
-  it.each(Object.entries(options))(
-    "should render a form %s",
-    (name, schema: z.ZodType<unknown, FieldValues>) => {
-      const expected = render(<Subject schema={schema} />);
+  it.each(
+    Object.entries(options),
+  )("should render a form %s", (name, schema: z.ZodType<
+    unknown,
+    FieldValues
+  >) => {
+    const expected = render(<Subject schema={schema} />);
 
-      expect(expected.asFragment()).toMatchSnapshot();
-    },
-  );
+    expect(expected.asFragment()).toMatchSnapshot();
+  });
 });
 
 const options = [

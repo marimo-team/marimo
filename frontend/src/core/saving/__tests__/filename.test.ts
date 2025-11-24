@@ -5,13 +5,12 @@ import { EDGE_CASE_FILENAMES } from "../../../__tests__/mocks";
 import { Paths } from "../../../utils/paths";
 
 describe("filename handling logic", () => {
-  it.each(EDGE_CASE_FILENAMES)(
-    "should extract basename correctly for document title: %s",
-    (filename) => {
-      const basename = Paths.basename(filename);
-      expect(basename).toBe(filename); // Since no path separator
-    },
-  );
+  it.each(
+    EDGE_CASE_FILENAMES,
+  )("should extract basename correctly for document title: %s", (filename) => {
+    const basename = Paths.basename(filename);
+    expect(basename).toBe(filename); // Since no path separator
+  });
 
   it("should handle full paths with unicode filenames", () => {
     EDGE_CASE_FILENAMES.forEach((filename) => {

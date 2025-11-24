@@ -78,12 +78,11 @@ describe("parseIslandCode", () => {
 
   codes = [...codes, ...codes.map(encodeURIComponent)];
 
-  it.each(codes)(
-    "should return the code without leading or trailing whitespace",
-    (code) => {
-      const result = parseIslandCode(code);
-      const expected = 'def __():\n    print("Hello, World!")\n    return';
-      expect(result).toBe(expected);
-    },
-  );
+  it.each(
+    codes,
+  )("should return the code without leading or trailing whitespace", (code) => {
+    const result = parseIslandCode(code);
+    const expected = 'def __():\n    print("Hello, World!")\n    return';
+    expect(result).toBe(expected);
+  });
 });
