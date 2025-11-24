@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import sys
-from typing import Optional
+from typing import Any, Optional
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -287,21 +287,28 @@ def test_update_script_metadata_marimo_packages() -> None:
 async def test_uv_pip_install() -> None:
     runs_calls: list[list[str]] = []
 
-    class MockUvPackageManager(UvPackageManager):
-        def run(
-            self,
-            command: list[str],
-            log_callback: Optional[LogCallback] = None,
-        ) -> bool:
-            del log_callback
-            runs_calls.append(command)
-            return True
+    with (
+        patch("subprocess.Popen") as mock_popen,
+        patch("sys.stdout.buffer.write"),
+    ):
+        mock_proc = MagicMock()
+        mock_proc.stdout.readline.return_value = b""
+        mock_proc.wait.return_value = 0
+        mock_popen.return_value = mock_proc
 
-    pm = MockUvPackageManager()
-    await pm._install("foo", upgrade=False)
-    assert runs_calls == [
-        ["uv", "pip", "install", "--compile", "foo", "-p", PY_EXE],
-    ]
+        def capture_command(*args: Any, **kwargs: Any):
+            del kwargs
+            runs_calls.append(args[0])
+            return mock_proc
+
+        mock_popen.side_effect = capture_command
+
+        pm = UvPackageManager()
+        await pm._install("foo", upgrade=False)
+
+        assert runs_calls == [
+            ["uv", "pip", "install", "--compile", "foo", "-p", PY_EXE],
+        ]
 
 
 def test_log_callback_type() -> None:
@@ -438,28 +445,30 @@ async def test_uv_install_with_log_callback() -> None:
     def log_callback(log_line: str) -> None:
         captured_logs.append(log_line)
 
-    class MockUvPackageManager(UvPackageManager):
-        def run(
-            self,
-            command: list[str],
-            log_callback: Optional[LogCallback] = None,
-        ) -> bool:
-            del command
-            if log_callback:
-                log_callback("Resolving dependencies...\n")
-                log_callback("Installing packages...\n")
-            return True
-
-    pm = MockUvPackageManager()
-    result = await pm._install(
-        "pandas", upgrade=False, log_callback=log_callback
-    )
-
-    assert result is True
-    assert captured_logs == [
-        "Resolving dependencies...\n",
-        "Installing packages...\n",
+    mock_stdout_lines = [
+        b"Resolving dependencies...\n",
+        b"Installing packages...\n",
     ]
+
+    with (
+        patch("subprocess.Popen") as mock_popen,
+        patch("sys.stdout.buffer.write"),
+    ):
+        mock_proc = MagicMock()
+        mock_proc.stdout.readline.side_effect = mock_stdout_lines + [b""]
+        mock_proc.wait.return_value = 0
+        mock_popen.return_value = mock_proc
+
+        pm = UvPackageManager()
+        result = await pm._install(
+            "pandas", upgrade=False, log_callback=log_callback
+        )
+
+        assert result is True
+        assert captured_logs == [
+            "Resolving dependencies...\n",
+            "Installing packages...\n",
+        ]
 
 
 async def test_micropip_install_with_log_callback() -> None:
