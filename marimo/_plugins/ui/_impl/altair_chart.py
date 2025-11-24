@@ -428,6 +428,11 @@ class altair_chart(UIElement[ChartSelection, ChartDataType]):
 
         import altair as alt
 
+        # Capture any global altair embed options that may have been set
+        embed_options = {}
+        if alt.renderers.options.get("embed_options"):
+            embed_options = alt.renderers.options["embed_options"]
+
         register_transformers()
 
         # Make a copy
@@ -539,6 +544,7 @@ class altair_chart(UIElement[ChartSelection, ChartDataType]):
                 "spec": vega_spec,
                 "chart-selection": chart_selection,
                 "field-selection": legend_selection,
+                "embed-options": embed_options,
             },
             on_change=on_change,
         )
