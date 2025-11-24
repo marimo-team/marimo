@@ -839,7 +839,7 @@ const CellLeftSideActions = memo(
           className,
         )}
       >
-        <div className="-mt-1">
+        <div className="-mt-1 min-h-7">
           <CreateCellButton
             tooltipContent={renderShortcut("cell.createAbove")}
             connectionState={connection.state}
@@ -849,7 +849,7 @@ const CellLeftSideActions = memo(
         </div>
         <div className="flex-1 pointer-events-none w-3" />
         {/* <div className="flex-1 pointer-events-none bg-border w-px mx-auto hover-action opacity-70" /> */}
-        <div className="-mb-2">
+        <div className="-mb-2 min-h-7">
           <CreateCellButton
             tooltipContent={renderShortcut("cell.createBelow")}
             connectionState={connection.state}
