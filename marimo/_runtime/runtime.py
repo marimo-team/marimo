@@ -53,6 +53,7 @@ from marimo._messaging.errors import (
     MarimoSyntaxError,
     UnknownError,
 )
+from marimo._messaging.msgspec_encoder import enc_hook
 from marimo._messaging.ops import (
     CacheCleared,
     CacheInfoFetched,
@@ -2252,6 +2253,12 @@ class Kernel:
         async def handle_function_call(request: FunctionCallRequest) -> None:
             status, ret, _ = await self.function_call_request(request)
             LOGGER.debug("Function returned with status %s", status)
+            # Convert return value using encoder hook to ensure nan -> "NaN" conversion
+            # msgspec doesn't call enc_hook for native types, so we need to pre-process
+            # dataclasses and nested structures before putting them in the Struct
+            # Call enc_hook directly to ensure it processes the dataclass and all nested values
+            if ret is not None:
+                ret = enc_hook(ret)
             FunctionCallResult(
                 function_call_id=request.function_call_id,
                 return_value=ret,
