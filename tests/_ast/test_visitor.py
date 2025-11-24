@@ -1808,3 +1808,47 @@ def test_class_with_method_using_external_var() -> None:
     )
     # But not in unbounded_refs (it's in method body, not signature)
     assert v.variable_data["K"][0].unbounded_refs == set(["int"])
+
+
+def test_class_with_forward_reference_to_method() -> None:
+    """Test that class variables can reference methods defined earlier (valid)."""
+    code = cleandoc(
+        """
+        class A:
+            def method(self):
+                return 42
+            bound = method
+        """
+    )
+    v = visitor.ScopedVisitor()
+    mod = ast.parse(code)
+    v.visit(mod)
+
+    # A should be a def
+    assert v.defs == set(["A"])
+    # No external refs - method is defined within class scope
+    assert v.refs == set()
+    # A should have no unbounded refs (forward reference is valid)
+    assert v.variable_data["A"][0].unbounded_refs == set()
+
+
+def test_class_with_backward_reference_to_method() -> None:
+    """Test that class variables cannot reference methods defined later (invalid for top-level)."""
+    code = cleandoc(
+        """
+        class B:
+            bound = method
+            def method(self):
+                return 42
+        """
+    )
+    v = visitor.ScopedVisitor()
+    mod = ast.parse(code)
+    v.visit(mod)
+
+    # B should be a def
+    assert v.defs == set(["B"])
+    # method is referenced before it's defined, so it's an external ref
+    assert v.refs == set(["method"])
+    # B should have method in unbounded refs (backward reference is invalid)
+    assert v.variable_data["B"][0].unbounded_refs == set(["method"])
