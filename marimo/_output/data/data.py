@@ -5,6 +5,7 @@ import base64
 import io
 from typing import Any, Union
 
+from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins.core.media import is_data_empty
 from marimo._runtime.virtual_file import (
     EMPTY_VIRTUAL_FILE,
@@ -237,5 +238,27 @@ def sanitize_json_bigint(
         convert_bigint(as_json),
         indent=None,
         separators=(",", ":"),
-        default=str,
+        default=custom_json,
     )
+
+
+def custom_json(obj: Any) -> Any:
+    if hasattr(obj, "_mime_"):
+        mimetype, data = obj._mime_()
+        return {"mimetype": mimetype, "data": data}
+
+    if DependencyManager.pandas.imported():
+        import pandas as pd
+
+        # TODO: Port this logic over to msgspec encoder
+        if isinstance(
+            obj,
+            (
+                pd.TimedeltaIndex,
+                pd.DatetimeIndex,
+                pd.IntervalIndex,
+                pd.PeriodIndex,
+            ),
+        ):
+            return obj.astype(str).tolist()
+    return str(obj)
