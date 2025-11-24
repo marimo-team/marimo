@@ -241,3 +241,20 @@ def test_markdown_dedent_snapshot():
         error_output.append(error.format())
 
     snapshot("markdown_dedent_errors.txt", "\n".join(error_output))
+
+
+def test_branch_expression_snapshot():
+    """Test snapshot for branch expression error."""
+    file = "tests/_lint/test_files/branch_expression.py"
+    with open(file) as f:
+        code = f.read()
+
+    notebook = parse_notebook(code, filepath=file)
+    errors = lint_notebook(notebook)
+
+    # Format errors for snapshot
+    error_output = []
+    for error in errors:
+        error_output.append(error.format())
+
+    snapshot("branch_expression_errors.txt", "\n".join(error_output))
