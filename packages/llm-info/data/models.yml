@@ -53,6 +53,13 @@
 
 # Google
 
+- name: Gemini 3.0 Pro
+  model: gemini-3-pro-preview
+  description: Most capable Gemini model with advanced reasoning and large context support
+  providers: [google]
+  roles: [chat, edit]
+  thinking: true
+
 - name: Gemini 2.5 Pro
   model: gemini-2.5-pro
   description: Most capable Gemini model with advanced reasoning and large context support
