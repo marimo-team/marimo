@@ -42,6 +42,55 @@
         ]
     ],
     [
+        "nanosecond",
+        [
+            "datetime",
+            "datetime64[ns]"
+        ]
+    ],
+    [
+        "datetime_index",
+        [
+            "string",
+            "object"
+        ]
+    ],
+    [
+        "period_range",
+        [
+            "unknown",
+            "period[Q-DEC]"
+        ]
+    ],
+    [
+        "interval_range",
+        [
+            "string",
+            "interval[datetime64[ns], right]"
+        ]
+    ],
+    [
+        "delta",
+        [
+            "string",
+            "object"
+        ]
+    ],
+    [
+        "none",
+        [
+            "string",
+            "object"
+        ]
+    ],
+    [
+        "infs",
+        [
+            "number",
+            "float64"
+        ]
+    ],
+    [
         "struct",
         [
             "string",
@@ -50,6 +99,27 @@
     ],
     [
         "list",
+        [
+            "string",
+            "object"
+        ]
+    ],
+    [
+        "nested_lists",
+        [
+            "string",
+            "object"
+        ]
+    ],
+    [
+        "objects",
+        [
+            "string",
+            "object"
+        ]
+    ],
+    [
+        "nested_objects",
         [
             "string",
             "object"
