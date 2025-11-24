@@ -26,7 +26,15 @@ const htmlDevPlugin = (): Plugin => {
         path.resolve(__dirname, "__demo__", "index.html"),
         "utf-8",
       );
-      return `<!DOCTYPE html>\n${indexHtml}`;
+      const preamble = `<!DOCTYPE html>\n
+<script type="module">import { injectIntoGlobalHook } from "/@react-refresh";
+injectIntoGlobalHook(window);
+window.$RefreshReg$ = () => {};
+window.$RefreshSig$ = () => (type) => type;</script>
+
+<script type="module" src="/@vite/client"></script>
+      `;
+      return `${preamble}\n${indexHtml}`;
     }
   };
 

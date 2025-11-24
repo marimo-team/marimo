@@ -20,8 +20,6 @@ import { getGlobalBridge } from "./bridge";
 
 /**
  * Initialize the Marimo app.
- *
- * @deprecated Use IslandsBootstrap class directly for better testability
  */
 export async function initialize() {
   const bootstrap = new IslandsBootstrap({
