@@ -27,9 +27,32 @@
             1,
             2
         ],
+        "nested_lists": [
+            [
+                1,
+                2
+            ]
+        ],
+        "objects": {
+            "a": 1,
+            "b": 2
+        },
+        "nested_objects": [
+            {
+                "a": 1,
+                "b": 2
+            },
+            {
+                "a": 3,
+                "b": 4
+            }
+        ],
         "nulls": null,
         "category": "cat",
-        "set": "{1, 2}",
+        "set": [
+            1,
+            2
+        ],
         "imaginary": "(1+2j)",
         "time": "12:30:00",
         "duration": "1 days 00:00:00",
@@ -68,9 +91,32 @@
             3,
             4
         ],
+        "nested_lists": [
+            [
+                3,
+                4
+            ]
+        ],
+        "objects": {
+            "a": 3,
+            "b": 4
+        },
+        "nested_objects": [
+            {
+                "a": 5,
+                "b": 6
+            },
+            {
+                "a": 7,
+                "b": 8
+            }
+        ],
         "nulls": "data",
         "category": "dog",
-        "set": "{3, 4}",
+        "set": [
+            3,
+            4
+        ],
         "imaginary": "(3+4j)",
         "time": "13:45:00",
         "duration": "2 days 00:00:00",
@@ -110,9 +156,32 @@
             5,
             6
         ],
+        "nested_lists": [
+            [
+                5,
+                6
+            ]
+        ],
+        "objects": {
+            "a": 5,
+            "b": 6
+        },
+        "nested_objects": [
+            {
+                "a": 9,
+                "b": 10
+            },
+            {
+                "a": 11,
+                "b": 12
+            }
+        ],
         "nulls": null,
         "category": "mouse",
-        "set": "{5, 6}",
+        "set": [
+            5,
+            6
+        ],
         "imaginary": "(5+6j)",
         "time": "14:15:00",
         "duration": "3 days 00:00:00",

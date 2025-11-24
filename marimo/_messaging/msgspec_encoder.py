@@ -6,6 +6,7 @@ from __future__ import annotations
 import collections
 import datetime
 import fractions
+import uuid
 from math import isnan
 from pathlib import PurePath
 from typing import Any
@@ -29,13 +30,7 @@ def enc_hook(obj: Any) -> Any:
     if isinstance(obj, range):
         return list(obj)
 
-    if isinstance(obj, complex):
-        return str(obj)
-
-    if isinstance(obj, fractions.Fraction):
-        return str(obj)
-
-    if isinstance(obj, PurePath):
+    if isinstance(obj, (complex, fractions.Fraction, PurePath, uuid.UUID)):
         return str(obj)
 
     if DependencyManager.numpy.imported():
@@ -87,7 +82,17 @@ def enc_hook(obj: Any) -> Any:
             ),
         ):
             return str(obj)
-        if isinstance(obj, (pd.TimedeltaIndex, pd.DatetimeIndex)):
+        if obj is pd.NaT:
+            return str(obj)
+        if isinstance(
+            obj,
+            (
+                pd.TimedeltaIndex,
+                pd.DatetimeIndex,
+                pd.IntervalIndex,
+                pd.PeriodIndex,
+            ),
+        ):
             return obj.astype(str).tolist()
         if isinstance(obj, pd.MultiIndex):
             return obj.to_list()
@@ -190,7 +195,10 @@ def enc_hook(obj: Any) -> Any:
         return obj
 
     # Handle datetime types
-    if isinstance(obj, (datetime.datetime, datetime.timedelta, datetime.date)):
+    if isinstance(
+        obj,
+        (datetime.datetime, datetime.timedelta, datetime.date, datetime.time),
+    ):
         return str(obj)
 
     # Handle None

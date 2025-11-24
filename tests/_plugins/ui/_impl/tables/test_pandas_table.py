@@ -122,6 +122,17 @@ class TestPandasTableManager(unittest.TestCase):
                     {"a": 5, "b": 6},
                 ],
                 "list": pd.Series([[1, 2], [3, 4], [5, 6]]),
+                "nested_lists": pd.Series([[[1, 2]], [[3, 4]], [[5, 6]]]),
+                "objects": pd.Series(
+                    [{"a": 1, "b": 2}, {"a": 3, "b": 4}, {"a": 5, "b": 6}]
+                ),
+                "nested_objects": pd.Series(
+                    [
+                        [{"a": 1, "b": 2}, {"a": 3, "b": 4}],
+                        [{"a": 5, "b": 6}, {"a": 7, "b": 8}],
+                        [{"a": 9, "b": 10}, {"a": 11, "b": 12}],
+                    ]
+                ),
                 "nulls": pd.Series([None, "data", None]),
                 "category": pd.Categorical(["cat", "dog", "mouse"]),
                 "set": [set([1, 2]), set([3, 4]), set([5, 6])],
