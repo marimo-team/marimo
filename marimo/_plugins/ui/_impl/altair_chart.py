@@ -429,9 +429,7 @@ class altair_chart(UIElement[ChartSelection, ChartDataType]):
         import altair as alt
 
         # Capture any global altair embed options that may have been set
-        embed_options = {}
-        if alt.renderers.options.get("embed_options"):
-            embed_options = alt.renderers.options["embed_options"]
+        embed_options = alt.renderers.options.get("embed_options") or {}
 
         register_transformers()
 
