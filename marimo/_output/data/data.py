@@ -237,5 +237,12 @@ def sanitize_json_bigint(
         convert_bigint(as_json),
         indent=None,
         separators=(",", ":"),
-        default=str,
+        default=custom_json,
     )
+
+
+def custom_json(obj: Any) -> Any:
+    if hasattr(obj, "_mime_"):
+        mimetype, data = obj._mime_()
+        return {"mimetype": mimetype, "data": data}
+    return str(obj)
