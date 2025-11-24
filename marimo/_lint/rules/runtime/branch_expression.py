@@ -131,7 +131,7 @@ class BranchExpressionRule(LintRule):
                 continue
 
     async def _check_if_statement(
-        self, node: ast.If, cell, ctx: RuleContext
+        self, node: ast.If, cell: CellDef, ctx: RuleContext
     ) -> None:
         """Check if an if statement has all branches ending with expressions."""
         branches = self._collect_if_branches(node)
@@ -144,7 +144,7 @@ class BranchExpressionRule(LintRule):
             await self._report_diagnostic(node, cell, ctx, "if statement")
 
     async def _check_match_statement(
-        self, node: ast.Match, cell, ctx: RuleContext
+        self, node: ast.Match, cell: CellDef, ctx: RuleContext
     ) -> None:
         """Check if a match statement has all cases ending with expressions."""
         if not node.cases:
@@ -157,7 +157,7 @@ class BranchExpressionRule(LintRule):
             await self._report_diagnostic(node, cell, ctx, "match statement")
 
     async def _check_try_statement(
-        self, node: ast.Try, cell, ctx: RuleContext
+        self, node: ast.Try, cell: CellDef, ctx: RuleContext
     ) -> None:
         """Check if a try statement has all branches ending with expressions."""
         branches = [node.body]
