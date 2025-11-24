@@ -276,7 +276,9 @@ class TopLevelExtraction:
         unresolved: set[Name] = set()
         for status in self.statuses:
             if status.is_unresolved or status.is_cell:
-                self._statuses[status.type].pop(status.name)
+                # Use pop with default to handle duplicate definitions gracefully
+                # If there are duplicates, only the last one is in the dict
+                self._statuses[status.type].pop(status.name, None)
                 status.update(
                     self.allowed_refs,
                     unresolved,
