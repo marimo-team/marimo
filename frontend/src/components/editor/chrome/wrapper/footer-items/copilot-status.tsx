@@ -112,7 +112,7 @@ const GitHubCopilotStatus: React.FC = () => {
   // Determine icon color based on status
   const iconColorClass =
     status.kind === "Warning" || status.kind === "Error"
-      ? "text-[var(--yellow-11)]"
+      ? "text-(--yellow-11)"
       : !isGitHubCopilotSignedIn
         ? "opacity-60"
         : "";
