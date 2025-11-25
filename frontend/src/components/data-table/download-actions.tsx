@@ -12,7 +12,8 @@ import { useLocale } from "react-aria";
 import { logNever } from "@/utils/assertNever";
 import { copyToClipboard } from "@/utils/copy";
 import { downloadByURL } from "@/utils/download";
-import { jsonToTSV } from "@/utils/json/json-parser";
+import { prettyError } from "@/utils/errors";
+import { jsonParseWithSpecialChar, jsonToTSV } from "@/utils/json/json-parser";
 import { Button } from "../ui/button";
 import {
   DropdownMenu,
@@ -152,7 +153,17 @@ export const DownloadAs: React.FC<DownloadActionProps> = (props) => {
             {clipboardOptions.map((option) => (
               <DropdownMenuItem
                 key={option.label}
-                onSelect={() => handleClipboardCopy(option.format)}
+                onSelect={async () => {
+                  try {
+                    await handleClipboardCopy(option.format);
+                  } catch (error) {
+                    toast({
+                      title: "Failed to copy to clipboard",
+                      description: prettyError(error),
+                      variant: "danger",
+                    });
+                  }
+                }}
               >
                 <option.icon className="mo-dropdown-icon" />
                 <div className="flex flex-col">
@@ -171,12 +182,9 @@ export const DownloadAs: React.FC<DownloadActionProps> = (props) => {
 };
 
 function fetchJson(url: string): Promise<Record<string, unknown>[]> {
-  return fetch(url).then((res) => {
-    if (!res.ok) {
-      throw new Error(res.statusText);
-    }
-    return res.json();
-  });
+  return fetchText(url).then(
+    jsonParseWithSpecialChar<Record<string, unknown>[]>,
+  );
 }
 
 function fetchText(url: string): Promise<string> {
