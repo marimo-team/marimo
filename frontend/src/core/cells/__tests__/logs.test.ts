@@ -24,7 +24,7 @@ describe("getCellLogsForMessage", () => {
           mimetype: "text/plain",
           channel: "stdout",
           data: "Hello, World!",
-          timestamp: 1234567890,
+          timestamp: 1_234_567_890,
         },
       ],
       output: null,
@@ -37,7 +37,7 @@ describe("getCellLogsForMessage", () => {
 
     expect(logs).toHaveLength(1);
     expect(logs[0]).toEqual({
-      timestamp: 1234567890,
+      timestamp: 1_234_567_890,
       level: "stdout",
       message: "Hello, World!",
       cellId: "cell-1",
@@ -52,7 +52,7 @@ describe("getCellLogsForMessage", () => {
           mimetype: "text/plain",
           channel: "stderr",
           data: "Error occurred",
-          timestamp: 1234567890,
+          timestamp: 1_234_567_890,
         },
       ],
       output: null,
@@ -65,7 +65,7 @@ describe("getCellLogsForMessage", () => {
 
     expect(logs).toHaveLength(1);
     expect(logs[0]).toEqual({
-      timestamp: 1234567890,
+      timestamp: 1_234_567_890,
       level: "stderr",
       message: "Error occurred",
       cellId: "cell-2",
@@ -80,7 +80,7 @@ describe("getCellLogsForMessage", () => {
           mimetype: "text/html",
           channel: "stdout",
           data: '<span style="color: red;">Error: Something went wrong</span>',
-          timestamp: 1234567890,
+          timestamp: 1_234_567_890,
         },
       ],
       output: null,
@@ -93,7 +93,7 @@ describe("getCellLogsForMessage", () => {
 
     expect(logs).toHaveLength(1);
     expect(logs[0]).toEqual({
-      timestamp: 1234567890,
+      timestamp: 1_234_567_890,
       level: "stdout",
       message: "Error: Something went wrong",
       cellId: "cell-3",
@@ -108,7 +108,7 @@ describe("getCellLogsForMessage", () => {
           mimetype: "text/html",
           channel: "stderr",
           data: "<div><strong>Critical Error:</strong> System failure</div>",
-          timestamp: 1234567890,
+          timestamp: 1_234_567_890,
         },
       ],
       output: null,
@@ -121,7 +121,7 @@ describe("getCellLogsForMessage", () => {
 
     expect(logs).toHaveLength(1);
     expect(logs[0]).toEqual({
-      timestamp: 1234567890,
+      timestamp: 1_234_567_890,
       level: "stderr",
       message: "Critical Error: System failure",
       cellId: "cell-4",
@@ -136,7 +136,7 @@ describe("getCellLogsForMessage", () => {
           mimetype: "application/vnd.marimo+traceback",
           channel: "marimo-error",
           data: '<div class="traceback"><span style="color: red;">Traceback (most recent call last):</span><pre>  File "test.py", line 1</pre></div>',
-          timestamp: 1234567890,
+          timestamp: 1_234_567_890,
         },
       ],
       output: null,
@@ -162,19 +162,19 @@ describe("getCellLogsForMessage", () => {
           mimetype: "text/plain",
           channel: "stdout",
           data: "Plain text output",
-          timestamp: 1234567890,
+          timestamp: 1_234_567_890,
         },
         {
           mimetype: "text/html",
           channel: "stdout",
           data: "<span>HTML output</span>",
-          timestamp: 1234567891,
+          timestamp: 1_234_567_891,
         },
         {
           mimetype: "application/vnd.marimo+traceback",
           channel: "stderr",
           data: "<div>Traceback error</div>",
-          timestamp: 1234567892,
+          timestamp: 1_234_567_892,
         },
       ],
       output: null,
@@ -225,7 +225,7 @@ describe("getCellLogsForMessage", () => {
           mimetype: "application/json",
           channel: "stdout",
           data: '{"key": "value"}',
-          timestamp: 1234567890,
+          timestamp: 1_234_567_890,
         },
       ],
       output: null,
@@ -247,7 +247,7 @@ describe("getCellLogsForMessage", () => {
           mimetype: "text/plain",
           channel: "pdb" as unknown as "stdout", // Non-logging channel
           data: "Should be ignored",
-          timestamp: 1234567890,
+          timestamp: 1_234_567_890,
         },
       ],
       output: null,
@@ -284,7 +284,7 @@ describe("getCellLogsForMessage", () => {
           mimetype: "text/html",
           channel: "stdout",
           data: "<div><span>Nested</span> <strong>HTML</strong> <em>content</em></div>",
-          timestamp: 1234567890,
+          timestamp: 1_234_567_890,
         },
       ],
       output: null,
@@ -307,7 +307,7 @@ describe("getCellLogsForMessage", () => {
           mimetype: "text/plain",
           channel: "marimo-error",
           data: "Internal error",
-          timestamp: 1234567890,
+          timestamp: 1_234_567_890,
         },
       ],
       output: null,
@@ -326,7 +326,7 @@ describe("getCellLogsForMessage", () => {
 describe("formatLogTimestamp", () => {
   test("formats unix timestamp correctly", () => {
     // January 1, 2024, 12:00:00 PM UTC
-    const timestamp = 1704110400;
+    const timestamp = 1_704_110_400;
     const result = formatLogTimestamp(timestamp);
 
     // The result depends on the timezone, so we just check it's not empty
@@ -336,7 +336,7 @@ describe("formatLogTimestamp", () => {
   });
 
   test("formats timestamp with AM/PM notation", () => {
-    const timestamp = 1704110400; // Noon
+    const timestamp = 1_704_110_400; // Noon
     const result = formatLogTimestamp(timestamp);
 
     // Should contain AM or PM
