@@ -95,16 +95,14 @@ def _(mo):
 @app.cell
 def _(chatbot, mo):
     # Show chat history
-    if hasattr(chatbot, "value"):
-        mo.md(f"**Chat history:** {len(chatbot.value)} messages")
+    mo.md(f"**Chat history:** {len(chatbot.value)} messages") if hasattr(chatbot, "value") else None
     return
 
 
 @app.cell
 def _(chatbot):
     # Display full history
-    if hasattr(chatbot, "value"):
-        chatbot.value
+    chatbot.value if hasattr(chatbot, "value") else None
     return
 
 

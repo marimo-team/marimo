@@ -50,7 +50,7 @@ def _(mo, os):
 @app.cell
 def _(database_url, duckdb):
     if database_url.value:
-        duckdb.sql(
+        _ = duckdb.sql(
             f"""
                 INSTALL postgres; 
                 LOAD postgres;
