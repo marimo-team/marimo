@@ -249,6 +249,8 @@ export const GridLayoutRenderer: React.FC<Props> = ({
     </ReactGridLayout>
   );
 
+  const notInGrid = cells.filter((cell) => !inGridIds.has(cell.id));
+
   if (isReading) {
     if (layout.bordered) {
       grid = (
@@ -262,10 +264,27 @@ export const GridLayoutRenderer: React.FC<Props> = ({
         </div>
       );
     }
-    return grid;
+    // Render cells not in grid (hidden) so sidebar elements can be created
+    return (
+      <>
+        {grid}
+        <div className="hidden">
+          {notInGrid.map((cell) => (
+            <GridCell
+              key={cell.id}
+              code={cell.code}
+              mode={mode}
+              cellId={cell.id}
+              output={cell.output}
+              status={cell.status}
+              isScrollable={false}
+              hidden={false}
+            />
+          ))}
+        </div>
+      </>
+    );
   }
-
-  const notInGrid = cells.filter((cell) => !inGridIds.has(cell.id));
 
   if (layout.bordered) {
     grid = (
