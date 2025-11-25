@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+import re
 from typing import TYPE_CHECKING, Any, Callable, Optional, cast
 
 if TYPE_CHECKING:
@@ -23,6 +24,16 @@ from marimo._dependencies.dependencies import DependencyManager
 DEFAULT_SYSTEM_MESSAGE = (
     "You are a helpful assistant specializing in data science."
 )
+
+
+def _looks_like_streaming_error(e: Exception) -> bool:
+    """Check if an exception appears to be related to streaming not being supported."""
+    error_msg = str(e).lower()
+    # Use word boundaries to match whole words only (not substrings like "downstream")
+    return bool(
+        re.search(r"\bstreaming\b", error_msg)
+        or re.search(r"\bstream\b", error_msg)
+    )
 
 
 class simple(ChatModel):
@@ -100,19 +111,16 @@ class openai(ChatModel):
         )
 
     def _stream_response(self, response: Any) -> Generator[str, None, None]:
-        """Helper method for streaming - separate to avoid mixing yield/return."""
-        accumulated = ""
-        chunk_count = 0
+        """Helper method for streaming - yields delta chunks.
+
+        Each yield is a new piece of content (delta) to be accumulated
+        by the consumer. This follows the standard OpenAI streaming pattern.
+        """
         for chunk in response:
-            chunk_count += 1
             if chunk.choices and len(chunk.choices) > 0:
                 delta = chunk.choices[0].delta
                 if delta.content:
-                    accumulated += delta.content
-                    yield accumulated
-        # Always yield final accumulated result to ensure complete response
-        # This handles cases where the last chunk has no content
-        yield accumulated
+                    yield delta.content
 
     def __call__(
         self, messages: list[ChatMessage], config: ChatModelConfig
@@ -154,18 +162,35 @@ class openai(ChatModel):
             + messages
         )
 
-        response = client.chat.completions.create(
-            model=self.model,
-            messages=openai_messages,
-            max_completion_tokens=config.max_tokens,
-            temperature=config.temperature,
-            top_p=config.top_p,
-            frequency_penalty=config.frequency_penalty,
-            presence_penalty=config.presence_penalty,
-            stream=True,
-        )
-
-        return self._stream_response(response)
+        # Try streaming first, fall back to non-streaming on error
+        try:
+            response = client.chat.completions.create(
+                model=self.model,
+                messages=openai_messages,
+                max_completion_tokens=config.max_tokens,
+                temperature=config.temperature,
+                top_p=config.top_p,
+                frequency_penalty=config.frequency_penalty,
+                presence_penalty=config.presence_penalty,
+                stream=True,
+            )
+            return self._stream_response(response)
+        except Exception as e:
+            # Some models (like o1-preview) don't support streaming
+            # Fall back to non-streaming mode
+            if _looks_like_streaming_error(e):
+                non_stream_response = client.chat.completions.create(
+                    model=self.model,
+                    messages=openai_messages,
+                    max_completion_tokens=config.max_tokens,
+                    temperature=config.temperature,
+                    top_p=config.top_p,
+                    frequency_penalty=config.frequency_penalty,
+                    presence_penalty=config.presence_penalty,
+                    stream=False,
+                )
+                return non_stream_response.choices[0].message.content or ""
+            raise
 
 
 class anthropic(ChatModel):
@@ -225,15 +250,13 @@ class anthropic(ChatModel):
     def _stream_response(
         self, client: Any, params: Any
     ) -> Generator[str, None, None]:
-        """Helper method for streaming - separate to avoid mixing yield/return."""
-        accumulated = ""
+        """Helper method for streaming - yields delta chunks.
+
+        Each yield is a new piece of content (delta) to be accumulated
+        by the consumer. This follows the standard Anthropic streaming pattern.
+        """
         with client.messages.stream(**params) as stream:
-            for text in stream.text_stream:
-                accumulated += text
-                yield accumulated
-        # Yield final accumulated result to ensure complete response
-        if accumulated:
-            yield accumulated
+            yield from stream.text_stream
 
     def __call__(
         self, messages: list[ChatMessage], config: ChatModelConfig
@@ -254,7 +277,6 @@ class anthropic(ChatModel):
             "system": self.system_message,
             "max_tokens": config.max_tokens or 4096,
             "messages": anthropic_messages,
-            "stream": True,
         }
         if config.top_p is not None:
             params["top_p"] = config.top_p
@@ -263,7 +285,17 @@ class anthropic(ChatModel):
         if config.temperature is not None:
             params["temperature"] = config.temperature
 
-        return self._stream_response(client, params)
+        # Try streaming first, fall back to non-streaming on error
+        try:
+            # Note: client.messages.stream() doesn't take a 'stream' parameter
+            # It's already a streaming method
+            return self._stream_response(client, params)
+        except Exception as e:
+            # Fall back to non-streaming mode if streaming fails
+            if _looks_like_streaming_error(e):
+                response = client.messages.create(**params)
+                return response.content[0].text
+            raise
 
 
 class google(ChatModel):
@@ -320,8 +352,11 @@ class google(ChatModel):
     def _stream_response(
         self, client: Any, google_messages: Any, generation_config: Any
     ) -> Generator[str, None, None]:
-        """Helper method for streaming - separate to avoid mixing yield/return."""
-        accumulated = ""
+        """Helper method for streaming - yields delta chunks.
+
+        Each yield is a new piece of content (delta) to be accumulated
+        by the consumer. This follows the standard Google AI streaming pattern.
+        """
         response = client.models.generate_content_stream(
             model=self.model,
             contents=google_messages,
@@ -329,11 +364,7 @@ class google(ChatModel):
         )
         for chunk in response:
             if chunk.text:
-                accumulated += chunk.text
-                yield accumulated
-        # Yield final accumulated result to ensure complete response
-        if accumulated:
-            yield accumulated
+                yield chunk.text
 
     def __call__(
         self, messages: list[ChatMessage], config: ChatModelConfig
@@ -358,9 +389,21 @@ class google(ChatModel):
             "presence_penalty": config.presence_penalty,
         }
 
-        return self._stream_response(
-            client, google_messages, generation_config
-        )
+        # Try streaming first, fall back to non-streaming on error
+        try:
+            return self._stream_response(
+                client, google_messages, generation_config
+            )
+        except Exception as e:
+            # Fall back to non-streaming mode if streaming fails
+            if _looks_like_streaming_error(e):
+                response = client.models.generate_content(
+                    model=self.model,
+                    contents=google_messages,
+                    config=generation_config,  # type: ignore[arg-type]
+                )
+                return response.text
+            raise
 
 
 class groq(ChatModel):
@@ -420,7 +463,11 @@ class groq(ChatModel):
     def _stream_response(
         self, client: Any, groq_messages: Any, config: ChatModelConfig
     ) -> Generator[str, None, None]:
-        """Helper method for streaming - separate to avoid mixing yield/return."""
+        """Helper method for streaming - yields delta chunks.
+
+        Each yield is a new piece of content (delta) to be accumulated
+        by the consumer. This follows the standard Groq streaming pattern.
+        """
         stream = client.chat.completions.create(
             model=self.model,
             messages=groq_messages,
@@ -431,16 +478,11 @@ class groq(ChatModel):
             stream=True,
         )
 
-        accumulated = ""
         for chunk in stream:
             if chunk.choices and len(chunk.choices) > 0:
                 delta = chunk.choices[0].delta
                 if delta.content:
-                    accumulated += delta.content
-                    yield accumulated
-        # Yield final accumulated result to ensure complete response
-        if accumulated:
-            yield accumulated
+                    yield delta.content
 
     def __call__(
         self, messages: list[ChatMessage], config: ChatModelConfig
@@ -457,7 +499,23 @@ class groq(ChatModel):
             + messages
         )
 
-        return self._stream_response(client, groq_messages, config)
+        # Try streaming first, fall back to non-streaming on error
+        try:
+            return self._stream_response(client, groq_messages, config)
+        except Exception as e:
+            # Fall back to non-streaming mode if streaming fails
+            if _looks_like_streaming_error(e):
+                response = client.chat.completions.create(
+                    model=self.model,
+                    messages=groq_messages,
+                    max_tokens=config.max_tokens,
+                    temperature=config.temperature,
+                    top_p=config.top_p,
+                    stop=None,
+                    stream=False,
+                )
+                return response.choices[0].message.content or ""
+            raise
 
 
 class bedrock(ChatModel):
@@ -508,7 +566,11 @@ class bedrock(ChatModel):
     def _stream_response(
         self, messages: list[ChatMessage], config: ChatModelConfig
     ) -> Generator[str, None, None]:
-        """Helper method for streaming - separate to avoid mixing yield/return."""
+        """Helper method for streaming - yields delta chunks.
+
+        Each yield is a new piece of content (delta) to be accumulated
+        by the consumer. This follows the standard AWS Bedrock streaming pattern.
+        """
         from litellm import completion as litellm_completion
 
         response = litellm_completion(
@@ -525,16 +587,11 @@ class bedrock(ChatModel):
             stream=True,
         )
 
-        accumulated = ""
         for chunk in response:
             if chunk.choices and len(chunk.choices) > 0:
                 delta = chunk.choices[0].delta
                 if delta.content:
-                    accumulated += delta.content
-                    yield accumulated
-        # Yield final accumulated result to ensure complete response
-        if accumulated:
-            yield accumulated
+                    yield delta.content
 
     def __call__(
         self, messages: list[ChatMessage], config: ChatModelConfig
@@ -548,7 +605,34 @@ class bedrock(ChatModel):
         self._setup_credentials()
 
         try:
-            return self._stream_response(messages, config)
+            # Try streaming first, fall back to non-streaming on error
+            try:
+                return self._stream_response(messages, config)
+            except Exception as stream_error:
+                # Fall back to non-streaming if streaming fails
+                if _looks_like_streaming_error(stream_error):
+                    from litellm import completion as litellm_completion
+
+                    response = litellm_completion(
+                        model=self.model,
+                        messages=convert_to_openai_messages(
+                            [
+                                ChatMessage(
+                                    role="system",
+                                    content=self.system_message,
+                                )
+                            ]
+                            + messages
+                        ),
+                        max_tokens=config.max_tokens,
+                        temperature=config.temperature,
+                        top_p=config.top_p,
+                        frequency_penalty=config.frequency_penalty,
+                        presence_penalty=config.presence_penalty,
+                        stream=False,
+                    )
+                    return response.choices[0].message.content or ""
+                raise
         except Exception as e:
             # Handle common AWS exceptions with helpful messages
             error_msg = str(e)

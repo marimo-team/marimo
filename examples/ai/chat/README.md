@@ -3,12 +3,11 @@
 These examples show how to make chatbots with marimo, using [`mo.ui.chat`](https://docs.marimo.io/api/inputs/chat.html#marimo.ui.chat).
 
 - `custom.py` shows how to make a custom chatbot.
-- `streaming_custom.py` shows how to make a custom chatbot with streaming responses.
-- `openai_example.py` shows how to make a chatbot powered by OpenAI models.
-- `streaming_openai.py` shows how to make a chatbot powered by OpenAI models with streaming responses.
-- `anthropic_example.py` shows how to make a chatbot powered by Anthropic models.
-- `gemini.py` shows how to make a chatbot powered by Google models like Gemini.
-- `groq_example.py` shows how to make a chatbot powered by Groq models.
+- `streaming_custom.py` shows how to make a custom chatbot with streaming responses (delta-based).
+- `openai_example.py` shows how to make a chatbot powered by OpenAI models (streaming by default).
+- `anthropic_example.py` shows how to make a chatbot powered by Anthropic models (streaming by default).
+- `gemini.py` shows how to make a chatbot powered by Google models like Gemini (streaming by default).
+- `groq_example.py` shows how to make a chatbot powered by Groq models (streaming by default).
 - `mlx_chat.py` shows a simple chatbot using local on-device models with Apple's [MLX](https://github.com/ml-explore/mlx), a machine learning framework from Apple that is similar to JAX and PyTorch. This specific example uses the [mlx-lm](https://github.com/ml-explore/mlx-examples/tree/main/llms) library. Note that Apple Silicon chips are required for using MLX.
 - `llm_datasette.py` shows how to make a chatbot powered by Simon W's LLM library.
 - `dagger_code_interpreter.py` shows how to make a basic code-interpreter chatbot powered by Dagger containers.
@@ -18,12 +17,11 @@ These examples show how to make chatbots with marimo, using [`mo.ui.chat`](https
 
 ## Streaming Responses
 
-Chatbots can stream responses in real-time, creating a more interactive experience similar to ChatGPT. To enable streaming:
+All built-in models (OpenAI, Anthropic, Google, Groq, Bedrock) stream responses using delta-based streaming. If a model doesn't support streaming, it will automatically fall back to non-streaming mode.
 
-- For **custom models**: create an async generator function that yields intermediate results
-- For **built-in models** (OpenAI, Anthropic, etc.): set `stream=True` in the model constructor
+For custom models, create an async generator function that yields delta chunks (new content only).
 
-See `streaming_custom.py` and `streaming_openai.py` for complete examples.
+See `streaming_custom.py` for a complete example of custom streaming.
 
 Chatbot's in marimo are _reactive_: when the chatbot responds with a message,
 all other cells referencing the chatbot are automatically run or marked

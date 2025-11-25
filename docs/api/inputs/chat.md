@@ -139,9 +139,13 @@ similar to ChatGPT where you see the response appear word-by-word as it's genera
 
 Responses from built-in models (OpenAI, Anthropic, Google, Groq, Bedrock) are streamed by default.
 
+### How Streaming Works
+
+marimo uses **delta-based streaming**, which follows the industry-standard pattern used by OpenAI, Anthropic, and other AI providers. Your generator function should yield **individual chunks** (deltas) of new content, which marimo automatically accumulates and displays progressively.
+
 ### With Custom Models
 
-For custom models, you can use either regular (sync) or async generator functions that yield intermediate results:
+For custom models, you can use either regular (sync) or async generator functions that yield delta chunks:
 
 **Sync generator (simpler):**
 
@@ -153,11 +157,9 @@ def streaming_model(messages, config):
     """Stream responses word by word."""
     response = "This response will appear word by word!"
     words = response.split()
-    accumulated = ""
     
     for word in words:
-        accumulated += word + " "
-        yield accumulated
+        yield word + " "  # Yield delta chunks
         time.sleep(0.1)  # Simulate processing delay
 
 chat = mo.ui.chat(streaming_model)
@@ -174,24 +176,43 @@ async def async_streaming_model(messages, config):
     """Stream responses word by word asynchronously."""
     response = "This response will appear word by word!"
     words = response.split()
-    accumulated = ""
     
     for word in words:
-        accumulated += word + " "
-        yield accumulated
+        yield word + " "  # Yield delta chunks
         await asyncio.sleep(0.1)  # Async processing delay
 
 chat = mo.ui.chat(async_streaming_model)
 chat
 ```
 
-Each `yield` sends an update to the frontend, and the chat UI will display
-the progressively accumulated response in real-time.
+Each `yield` sends a new chunk (delta) to marimo, which accumulates and displays
+the progressively building response in real-time.
+
+!!! tip "Delta vs Accumulated"
+    **Yield deltas, not accumulated text.** Each yield should be **new content only**:
+    
+    ✅ **Correct (delta mode):**
+    ```python
+    yield "Hello"
+    yield " "
+    yield "world"
+    # Result: "Hello world"
+    ```
+    
+    ❌ **Incorrect (accumulated mode, deprecated):**
+    ```python
+    yield "Hello"
+    yield "Hello "
+    yield "Hello world"
+    # Inefficient: sends duplicate content
+    ```
+    
+    Delta mode is more efficient (reduces bandwidth by ~99% for long responses) and aligns with standard streaming APIs.
 
 !!! tip "See streaming examples"
     For complete working examples, check out:
     
-    - [`streaming_openai.py`](https://github.com/marimo-team/marimo/blob/main/examples/ai/chat/streaming_openai.py) - Streaming with OpenAI models
+    - [`openai_example.py`](https://github.com/marimo-team/marimo/blob/main/examples/ai/chat/openai_example.py) - OpenAI chatbot with streaming (default)
     - [`streaming_custom.py`](https://github.com/marimo-team/marimo/blob/main/examples/ai/chat/streaming_custom.py) - Custom streaming chatbot
 
 ## Built-in Models

@@ -215,15 +215,22 @@ class chat(UIElement[dict[str, Any], list[ChatMessage]]):
         self._value = self._chat_history
 
     async def _handle_streaming_response(self, response: Any) -> str:
-        """Handle streaming from both sync and async generators."""
+        """Handle streaming from both sync and async generators.
+
+        Generators should yield delta chunks (new content only), which this
+        method accumulates and sends to the frontend as complete text.
+        This follows the standard streaming pattern used by OpenAI, Anthropic,
+        and other AI providers.
+        """
         message_id = str(uuid.uuid4())
-        latest_response = None
         accumulated_text = ""
 
         # Use async for if it's an async generator, otherwise regular for
         if inspect.isasyncgen(response):
-            async for latest_response in response:  # noqa: B007
-                accumulated_text = str(latest_response)
+            async for delta in response:
+                # Accumulate each delta chunk
+                delta_str = str(delta)
+                accumulated_text += delta_str
                 self._send_message(
                     {
                         "type": "stream_chunk",
@@ -234,8 +241,10 @@ class chat(UIElement[dict[str, Any], list[ChatMessage]]):
                     buffers=None,
                 )
         else:
-            for latest_response in response:  # noqa: B007
-                accumulated_text = str(latest_response)
+            for delta in response:
+                # Accumulate each delta chunk
+                delta_str = str(delta)
+                accumulated_text += delta_str
                 self._send_message(
                     {
                         "type": "stream_chunk",
@@ -247,7 +256,7 @@ class chat(UIElement[dict[str, Any], list[ChatMessage]]):
                 )
 
         # Send final message to indicate streaming is complete
-        if latest_response is not None:
+        if accumulated_text:
             self._send_message(
                 {
                     "type": "stream_chunk",
@@ -258,11 +267,7 @@ class chat(UIElement[dict[str, Any], list[ChatMessage]]):
                 buffers=None,
             )
 
-        return (
-            str(latest_response)
-            if latest_response is not None
-            else accumulated_text
-        )
+        return accumulated_text
 
     async def _send_prompt(self, args: SendMessageRequest) -> str:
         messages = args.messages
