@@ -203,6 +203,9 @@ def convert_to_anthropic_messages(
         )
 
         if not message.parts:
+            if not message.content:
+                continue
+
             # Convert content to string
             text_block: TextBlockParam = {
                 "type": "text",
@@ -222,12 +225,18 @@ def convert_to_anthropic_messages(
 
         for part in message.parts:
             if isinstance(part, TextPart):
+                if not part.text:
+                    continue
+
                 text_part: TextBlockParam = {
                     "type": "text",
                     "text": part.text,
                 }
                 current_parts.append(text_part)
             elif isinstance(part, ReasoningPart):
+                if not part.text:
+                    continue
+
                 signature = ""
                 if part.details and len(part.details) > 0:
                     signature = part.details[0].signature or ""
