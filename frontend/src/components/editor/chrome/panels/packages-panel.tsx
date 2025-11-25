@@ -194,7 +194,7 @@ const InstallPackageForm: React.FC<{
   const installPackages = () => {
     const cleanedInput = stripPackageManagerPrefix(input);
     handleInstallPackages(
-      cleanedInput.split(",").map((p) => p.trim()),
+      [cleanedInput], // the backend will handle splitting the packages
       onSuccessInstallPackages,
     );
   };
