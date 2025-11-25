@@ -17,7 +17,7 @@ These examples show how to make chatbots with marimo, using [`mo.ui.chat`](https
 
 ## Streaming Responses
 
-All built-in models (OpenAI, Anthropic, Google, Groq, Bedrock) stream responses by default using delta-based streaming. To disable streaming, set `stream=False` in the model constructor.
+All built-in models (OpenAI, Anthropic, Google, Groq, Bedrock) stream responses using delta-based streaming. If a model doesn't support streaming, it will automatically fall back to non-streaming mode.
 
 For custom models, create an async generator function that yields delta chunks (new content only).
 
