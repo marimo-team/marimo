@@ -173,7 +173,7 @@ class openai(ChatModel):
                 # Some models (like o1-preview) don't support streaming
                 # Fall back to non-streaming mode
                 if "streaming" in str(e).lower() or "stream" in str(e).lower():
-                    response = client.chat.completions.create(
+                    non_stream_response = client.chat.completions.create(
                         model=self.model,
                         messages=openai_messages,
                         max_completion_tokens=config.max_tokens,
@@ -183,10 +183,10 @@ class openai(ChatModel):
                         presence_penalty=config.presence_penalty,
                         stream=False,
                     )
-                    return response.choices[0].message.content or ""
+                    return non_stream_response.choices[0].message.content or ""
                 raise
         else:
-            response = client.chat.completions.create(
+            non_stream_response = client.chat.completions.create(
                 model=self.model,
                 messages=openai_messages,
                 max_completion_tokens=config.max_tokens,
@@ -196,7 +196,7 @@ class openai(ChatModel):
                 presence_penalty=config.presence_penalty,
                 stream=False,
             )
-            return response.choices[0].message.content or ""
+            return non_stream_response.choices[0].message.content or ""
 
 
 class anthropic(ChatModel):
@@ -419,7 +419,7 @@ class google(ChatModel):
                     response = client.models.generate_content(
                         model=self.model,
                         contents=google_messages,
-                        config=generation_config,
+                        config=generation_config,  # type: ignore[arg-type]
                     )
                     return response.text
                 raise
@@ -427,7 +427,7 @@ class google(ChatModel):
             response = client.models.generate_content(
                 model=self.model,
                 contents=google_messages,
-                config=generation_config,
+                config=generation_config,  # type: ignore[arg-type]
             )
             return response.text
 
