@@ -116,9 +116,6 @@ class PandasTableManagerFactory(TableManagerFactory):
                             if inferred_dtype == "date":
                                 result[col] = result[col].apply(str)
 
-                            result[col] = result[col].apply(
-                                self._sanitize_table_value
-                            )
                             # Cast bytes to string to avoid overflow error
                             if self._infer_dtype(col) == "bytes":
                                 result[col] = result[col].apply(str)

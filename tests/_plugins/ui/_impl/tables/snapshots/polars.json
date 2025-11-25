@@ -3,7 +3,9 @@
         "strings": "a",
         "bool": true,
         "int": 1,
-        "large_int": "18446744073709551616",
+        "large_int": {
+            "$bigint": "18446744073709551616"
+        },
         "float": 1.0,
         "datetime": "2021-01-01 00:00:00",
         "date": "2021-01-01",
@@ -32,7 +34,10 @@
         ],
         "nulls": null,
         "category": "cat",
-        "set": "{1, 2}",
+        "set": [
+            1,
+            2
+        ],
         "imaginary": "(1+2j)",
         "time": "12:30:00",
         "duration": "1d",
@@ -62,13 +67,15 @@
             "B",
             "C"
         ],
-        "binary": "b'\\x00\\x00\\x00\\x00\\x01\\xc0U\\xe8\\xb1n1\\xc0T@D\\xf1?Bc\\x95\\x83'"
+        "binary": "\u0000\u0000\u0000\u0000\u0001\u00c0U\u00e8\u00b1n1\u00c0T@D\u00f1?Bc\u0095\u0083"
     },
     {
         "strings": "b",
         "bool": false,
         "int": 2,
-        "large_int": "36893488147419103233",
+        "large_int": {
+            "$bigint": "36893488147419103233"
+        },
         "float": 2.0,
         "datetime": "2021-01-02 00:00:00",
         "date": "2021-01-02",
@@ -97,7 +104,10 @@
         ],
         "nulls": "data",
         "category": "dog",
-        "set": "{3, 4}",
+        "set": [
+            3,
+            4
+        ],
         "imaginary": "(3+4j)",
         "time": "13:45:00",
         "duration": "315\u00b5s",
@@ -123,13 +133,15 @@
             "B",
             "C"
         ],
-        "binary": "b'world'"
+        "binary": "world"
     },
     {
         "strings": "c",
         "bool": true,
         "int": 3,
-        "large_int": "73786976294838206466",
+        "large_int": {
+            "$bigint": "73786976294838206466"
+        },
         "float": 3.0,
         "datetime": "2021-01-03 00:00:00",
         "date": "2021-01-03",
@@ -158,7 +170,10 @@
         ],
         "nulls": null,
         "category": "mouse",
-        "set": "{5, 6}",
+        "set": [
+            5,
+            6
+        ],
         "imaginary": "(5+6j)",
         "time": "14:15:00",
         "duration": "2h 30m",
@@ -176,6 +191,6 @@
             "B",
             "C"
         ],
-        "binary": "b'foo'"
+        "binary": "foo"
     }
 ]
