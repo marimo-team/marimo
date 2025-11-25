@@ -2,7 +2,7 @@
 import { expect, test } from "vitest";
 import { prettyTime } from "../ProgressPlugin";
 
-const Cases: Array<[number, string]> = [
+const Cases: [number, string][] = [
   // exact values
   [0, "0s"],
   [1, "1s"],

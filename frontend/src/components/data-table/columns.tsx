@@ -4,7 +4,7 @@
 import { PopoverClose } from "@radix-ui/react-popover";
 import type { Column, ColumnDef } from "@tanstack/react-table";
 import { formatDate } from "date-fns";
-import { useLocale, useNumberFormatter } from "react-aria";
+import { useLocale } from "react-aria";
 import { WithLocale } from "@/core/i18n/with-locale";
 import type { DataType } from "@/core/kernel/messages";
 import type { CalculateTopKRows } from "@/plugins/impl/DataTablePlugin";
@@ -251,15 +251,12 @@ export function generateColumns<T>({
           isCellSelected,
         );
 
-        const maxDisplayPrecision = maxFractionalDigits(useLocale().locale);
-
         const renderedCell = renderCellValue({
           column,
           renderValue,
           getValue,
           selectCell,
           cellStyles,
-          maxDisplayPrecision,
         });
 
         // Row headers are bold
@@ -468,14 +465,12 @@ export function renderCellValue<TData, TValue>({
   getValue,
   selectCell,
   cellStyles,
-  maxDisplayPrecision,
 }: {
   column: Column<TData, TValue>;
   renderValue: () => TValue | null;
   getValue: () => TValue;
   selectCell?: () => void;
   cellStyles?: string;
-  maxDisplayPrecision: number;
 }) {
   const value = getValue();
   const format = column.getColumnFormatting?.();
@@ -554,7 +549,7 @@ export function renderCellValue<TData, TValue>({
   if (typeof value === "number") {
     return (
       <div onClick={selectCell} className={cellStyles}>
-        <LocaleNumber value={value} maxDisplayPrecision={maxDisplayPrecision} />
+        <LocaleNumber value={value} />
       </div>
     );
   }
@@ -600,15 +595,10 @@ export function renderCellValue<TData, TValue>({
   );
 }
 
-const LocaleNumber = ({
-  value,
-  maxDisplayPrecision,
-}: {
-  value: number;
-  maxDisplayPrecision: number;
-}) => {
-  const format = useNumberFormatter({
+const LocaleNumber = ({ value }: { value: number }) => {
+  const { locale } = useLocale();
+  const maxDisplayPrecision = maxFractionalDigits(locale);
+  return value.toLocaleString(locale, {
     maximumFractionDigits: maxDisplayPrecision,
   });
-  return format.format(value);
 };
