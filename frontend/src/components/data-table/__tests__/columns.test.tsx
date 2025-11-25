@@ -383,7 +383,7 @@ describe("LocaleNumber", () => {
   it("should format numbers correctly for en-US locale", () => {
     const { container } = render(
       <I18nProvider locale="en-US">
-        <LocaleNumber value={1234567.89} />
+        <LocaleNumber value={1_234_567.89} />
       </I18nProvider>,
     );
     expect(container.textContent).toMatchInlineSnapshot(`"1,234,567.89"`);
@@ -392,7 +392,7 @@ describe("LocaleNumber", () => {
   it("should format numbers correctly for de-DE locale", () => {
     const { container } = render(
       <I18nProvider locale="de-DE">
-        <LocaleNumber value={1234567.89} />
+        <LocaleNumber value={1_234_567.89} />
       </I18nProvider>,
     );
     expect(container.textContent).toMatchInlineSnapshot(`"1.234.567,89"`);
@@ -428,7 +428,7 @@ describe("LocaleNumber", () => {
   it("should format small decimal numbers correctly", () => {
     const { container } = render(
       <I18nProvider locale="en-US">
-        <LocaleNumber value={0.123456789} />
+        <LocaleNumber value={0.123_456_789} />
       </I18nProvider>,
     );
     expect(container.textContent).toMatchInlineSnapshot(`"0.123456789"`);
@@ -437,7 +437,7 @@ describe("LocaleNumber", () => {
   it("should format large numbers correctly", () => {
     const { container } = render(
       <I18nProvider locale="en-US">
-        <LocaleNumber value={999999999.99} />
+        <LocaleNumber value={999_999_999.99} />
       </I18nProvider>,
     );
     expect(container.textContent).toMatchInlineSnapshot(`"999,999,999.99"`);
@@ -446,16 +446,17 @@ describe("LocaleNumber", () => {
   it("should format numbers correctly for fr-FR locale", () => {
     const { container } = render(
       <I18nProvider locale="fr-FR">
-        <LocaleNumber value={1234567.89} />
+        <LocaleNumber value={1_234_567.89} />
       </I18nProvider>,
     );
+    // eslint-disable-next-line no-irregular-whitespace
     expect(container.textContent).toMatchInlineSnapshot(`"1 234 567,89"`);
   });
 
   it("should format numbers correctly for ja-JP locale", () => {
     const { container } = render(
       <I18nProvider locale="ja-JP">
-        <LocaleNumber value={1234567.89} />
+        <LocaleNumber value={1_234_567.89} />
       </I18nProvider>,
     );
     expect(container.textContent).toMatchInlineSnapshot(`"1,234,567.89"`);
@@ -465,7 +466,7 @@ describe("LocaleNumber", () => {
     // Test with a number that has many decimal places
     const { container } = render(
       <I18nProvider locale="en-US">
-        <LocaleNumber value={1.1234567890123457} />
+        <LocaleNumber value={1.123_456_789_012_345_7} />
       </I18nProvider>,
     );
     expect(container.textContent).toMatchInlineSnapshot(`"1.1234567890123457"`);
@@ -474,7 +475,7 @@ describe("LocaleNumber", () => {
   it("should handle very large numbers", () => {
     const { container } = render(
       <I18nProvider locale="en-US">
-        <LocaleNumber value={123456789012345.67} />
+        <LocaleNumber value={123_456_789_012_345.67} />
       </I18nProvider>,
     );
     expect(container.textContent).toMatchInlineSnapshot(
@@ -503,7 +504,7 @@ describe("LocaleNumber", () => {
   it("should handle NaN", () => {
     const { container } = render(
       <I18nProvider locale="en-US">
-        <LocaleNumber value={NaN} />
+        <LocaleNumber value={Number.NaN} />
       </I18nProvider>,
     );
     expect(container.textContent).toMatchInlineSnapshot(`"NaN"`);
