@@ -390,7 +390,6 @@ if __name__ == "__main__":
             files = router.files
             assert len(files) > 0
             file_info = files[0]
-            print(f"File path from router.files: {file_info.path}")
 
             # This should work - using the full absolute path
             file_manager = router.get_file_manager(file_info.path)
@@ -400,7 +399,6 @@ if __name__ == "__main__":
             # Now simulate the frontend sending just the basename
             # (This is what might be happening in the bug)
             basename = "notebook.py"
-            print(f"Attempting to open with basename: {basename}")
 
             # This currently fails but should succeed
             # The router should resolve the basename relative to its directory
@@ -408,9 +406,7 @@ if __name__ == "__main__":
                 file_manager_from_basename = router.get_file_manager(basename)
                 assert file_manager_from_basename is not None
                 assert file_manager_from_basename.is_notebook_named
-                print("SUCCESS: Opened file with basename")
             except HTTPException as e:
-                print(f"FAILED: {e.detail}")
                 # This is the bug - it should have resolved relative to router.directory
                 pytest.fail(
                     f"Should be able to open file with basename '{basename}' "
@@ -464,15 +460,12 @@ if __name__ == "__main__":
 
             # Try to open with relative path
             relative_path = "subdir/notebook.py"
-            print(f"Attempting to open with relative path: {relative_path}")
 
             try:
                 file_manager = router.get_file_manager(relative_path)
                 assert file_manager is not None
                 assert file_manager.is_notebook_named
-                print("SUCCESS: Opened file with relative path")
             except HTTPException as e:
-                print(f"FAILED: {e.detail}")
                 pytest.fail(
                     f"Should be able to open file with relative path '{relative_path}' "
                     f"when router has absolute directory '{absolute_dir}'"
@@ -503,7 +496,6 @@ if __name__ == "__main__":
 
         # All paths should be absolute
         for file_info in files:
-            print(f"File: {file_info.name}, Path: {file_info.path}")
             assert Path(file_info.path).is_absolute()
             assert file_info.path.startswith(absolute_dir)
 
