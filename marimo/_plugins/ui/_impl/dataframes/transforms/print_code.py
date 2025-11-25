@@ -142,11 +142,10 @@ def python_print_pandas(
             transform.aggregation,
             transform.drop_na,
         )
-        aggregation_columns = (
-            transform.aggregation_column_ids
-            if transform.aggregation_column_ids
-            else [col for col in all_columns if col not in column_ids]
-        )
+        # Use explicit aggregation columns if provided, otherwise all except group-by columns
+        aggregation_columns = transform.aggregation_column_ids or [
+            col for col in all_columns if col not in column_ids
+        ]
         args = _args_list(_list_of_strings(column_ids), f"dropna={drop_na}")
         group_by = f"{df_name}.groupby({args})"
         # Narwhals adds suffixes to aggregated columns like 'column_count'
@@ -172,7 +171,7 @@ def python_print_pandas(
                 f"{_as_literal(f'{col}_{aggregation}')} : ({_as_literal(col)}, {_as_literal(agg_func)})"
                 for col in aggregation_columns
             )
-            return f"{group_by}.agg({{{agg_dict}}}).reset_index()"
+            return f"{group_by}.agg(**{{{agg_dict}}}).reset_index()"
 
         # Otherwise, follow pandas default across all applicable columns and suffix the result
         if aggregation in ["mean", "median"]:
@@ -314,13 +313,9 @@ def python_print_polars(
 
     elif transform.type == TransformType.GROUP_BY:
         column_ids, aggregation = transform.column_ids, transform.aggregation
-        aggregation_columns = (
-            transform.aggregation_column_ids
-            if transform.aggregation_column_ids
-            else [col for col in all_columns if col not in column_ids]
-        )
+        columns = transform.aggregation_column_ids or all_columns
         aggregation_columns = [
-            col for col in aggregation_columns if col not in column_ids
+            col for col in columns if col not in column_ids
         ]
         aggs: list[str] = []
         # Use _as_literal to properly escape column names
@@ -479,13 +474,9 @@ def python_print_ibis(
 
     elif transform.type == TransformType.GROUP_BY:
         column_ids, aggregation = transform.column_ids, transform.aggregation
-        aggregation_columns = (
-            transform.aggregation_column_ids
-            if transform.aggregation_column_ids
-            else [col for col in all_columns if col not in column_ids]
-        )
+        columns = transform.aggregation_column_ids or all_columns
         aggregation_columns = [
-            col for col in aggregation_columns if col not in column_ids
+            col for col in columns if col not in column_ids
         ]
         aggs: list[str] = []
         for column_id in aggregation_columns:

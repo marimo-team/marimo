@@ -47,29 +47,26 @@ function handleTransform(
       return next;
     }
     case "group_by": {
-      const groupColumns = transform.column_ids ?? [];
+      const groupColumns = new Set(transform.column_ids ?? []);
       const aggregationColumns =
         transform.aggregation_column_ids &&
         transform.aggregation_column_ids.length > 0
-          ? transform.aggregation_column_ids
-          : [...next.keys()].filter((key) => !groupColumns.includes(key));
-      const filteredAggregationColumns = aggregationColumns.filter(
-        (columnId) => !groupColumns.includes(columnId),
-      );
+          ? new Set(transform.aggregation_column_ids)
+          : null;
 
       const updated = new Map<ColumnId, string>();
 
-      for (const columnId of groupColumns) {
-        const type = next.get(columnId);
-        if (type !== undefined) {
+      for (const [columnId, type] of next.entries()) {
+        if (groupColumns.has(columnId)) {
           updated.set(columnId, type);
+          continue;
         }
-      }
 
-      for (const columnId of filteredAggregationColumns) {
-        const type = next.get(columnId);
-        if (type !== undefined) {
-          updated.set(`${columnId}_${transform.aggregation}` as ColumnId, type);
+        if (aggregationColumns === null || aggregationColumns.has(columnId)) {
+          updated.set(
+            `${columnId}_${transform.aggregation}` as ColumnId,
+            type,
+          );
         }
       }
 

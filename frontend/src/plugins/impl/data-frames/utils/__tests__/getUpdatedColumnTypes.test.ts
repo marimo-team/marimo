@@ -102,8 +102,8 @@ describe("getUpdatedColumnTypes", () => {
     expect(result).toMatchInlineSnapshot(`
       Map {
         "col1" => "str",
-        "col3" => "int",
         "2_max" => "bool",
+        "col3" => "int",
       }
     `);
   });
