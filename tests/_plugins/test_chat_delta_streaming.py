@@ -3,10 +3,12 @@
 
 from __future__ import annotations
 
-import asyncio
-from collections.abc import AsyncGenerator, Generator
+from typing import TYPE_CHECKING
 
-import pytest
+import asyncio
+
+if TYPE_CHECKING:
+    from collections.abc import AsyncGenerator, Generator
 
 from marimo._ai._types import ChatMessage
 from marimo._plugins.ui._impl.chat.chat import chat
@@ -31,7 +33,8 @@ class TestDeltaStreaming:
         # Track messages sent
         sent_messages: list[dict] = []
 
-        def capture_send(msg: dict, **kwargs):  # type: ignore
+        def capture_send(msg: dict, **kwargs: object) -> None:
+            del kwargs  # Unused
             sent_messages.append(msg)
 
         chat_ui._send_message = capture_send  # type: ignore
@@ -68,7 +71,8 @@ class TestDeltaStreaming:
         # Track messages sent
         sent_messages: list[dict] = []
 
-        def capture_send(msg: dict, **kwargs):  # type: ignore
+        def capture_send(msg: dict, **kwargs: object) -> None:
+            del kwargs  # Unused
             sent_messages.append(msg)
 
         chat_ui._send_message = capture_send  # type: ignore
@@ -102,7 +106,8 @@ class TestDeltaStreaming:
         chat_ui = chat(delta_generator)
         sent_messages: list[dict] = []
 
-        def capture_send(msg: dict, **kwargs):  # type: ignore
+        def capture_send(msg: dict, **kwargs: object) -> None:
+            del kwargs  # Unused
             sent_messages.append(msg)
 
         chat_ui._send_message = capture_send  # type: ignore
@@ -122,7 +127,8 @@ class TestDeltaStreaming:
         chat_ui = chat(delta_generator)
         sent_messages: list[dict] = []
 
-        def capture_send(msg: dict, **kwargs):  # type: ignore
+        def capture_send(msg: dict, **kwargs: object) -> None:
+            del kwargs  # Unused
             sent_messages.append(msg)
 
         chat_ui._send_message = capture_send  # type: ignore
@@ -145,7 +151,8 @@ class TestDeltaStreaming:
         chat_ui = chat(delta_generator)
         sent_messages: list[dict] = []
 
-        def capture_send(msg: dict, **kwargs):  # type: ignore
+        def capture_send(msg: dict, **kwargs: object) -> None:
+            del kwargs  # Unused
             sent_messages.append(msg)
 
         chat_ui._send_message = capture_send  # type: ignore
@@ -169,7 +176,8 @@ class TestDeltaStreaming:
         chat_ui = chat(delta_generator)
         sent_messages: list[dict] = []
 
-        def capture_send(msg: dict, **kwargs):  # type: ignore
+        def capture_send(msg: dict, **kwargs: object) -> None:
+            del kwargs  # Unused
             sent_messages.append(msg)
 
         chat_ui._send_message = capture_send  # type: ignore
@@ -190,7 +198,8 @@ class TestDeltaStreaming:
         chat_ui = chat(delta_generator)
         sent_messages: list[dict] = []
 
-        def capture_send(msg: dict, **kwargs):  # type: ignore
+        def capture_send(msg: dict, **kwargs: object) -> None:
+            del kwargs  # Unused
             sent_messages.append(msg)
 
         chat_ui._send_message = capture_send  # type: ignore
@@ -226,7 +235,8 @@ class TestDeltaStreaming:
         chat_ui = chat(delta_generator)
         sent_messages: list[dict] = []
 
-        def capture_send(msg: dict, **kwargs):  # type: ignore
+        def capture_send(msg: dict, **kwargs: object) -> None:
+            del kwargs  # Unused
             sent_messages.append(msg)
 
         chat_ui._send_message = capture_send  # type: ignore
@@ -252,7 +262,8 @@ class TestStreamingWithChatModels:
         """Test that custom model functions work with delta streaming."""
 
         async def custom_model(
-            messages: list[ChatMessage], config: dict
+            messages: list[ChatMessage],
+            config: dict,  # noqa: ARG001
         ) -> AsyncGenerator[str, None]:
             """Custom model that yields deltas."""
             user_msg = messages[-1].content
@@ -264,7 +275,8 @@ class TestStreamingWithChatModels:
         chat_ui = chat(custom_model)
         sent_messages: list[dict] = []
 
-        def capture_send(msg: dict, **kwargs):  # type: ignore
+        def capture_send(msg: dict, **kwargs: object) -> None:
+            del kwargs  # Unused
             sent_messages.append(msg)
 
         chat_ui._send_message = capture_send  # type: ignore
@@ -298,7 +310,8 @@ class TestStreamingEfficiency:
         chat_ui = chat(delta_stream)
         delta_sent_messages: list[dict] = []
 
-        def capture_delta(msg: dict, **kwargs):  # type: ignore
+        def capture_delta(msg: dict, **kwargs: object) -> None:
+            del kwargs  # Unused
             delta_sent_messages.append(msg)
 
         chat_ui._send_message = capture_delta  # type: ignore

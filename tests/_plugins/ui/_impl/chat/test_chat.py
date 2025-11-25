@@ -199,8 +199,7 @@ async def test_chat_sync_generator_streaming():
     ):
         del config, messages
         # Simulate streaming response with delta chunks (new content only)
-        for word in ["Hello", " ", "world", " ", "!"]:
-            yield word
+        yield from ["Hello", " ", "world", " ", "!"]
 
     chat = ui.chat(mock_streaming_model)
 

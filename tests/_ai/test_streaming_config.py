@@ -3,8 +3,6 @@
 
 from __future__ import annotations
 
-import pytest
-
 from marimo._ai.llm._impl import anthropic, bedrock, google, groq, openai
 
 

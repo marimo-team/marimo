@@ -266,8 +266,7 @@ class anthropic(ChatModel):
         by the consumer. This follows the standard Anthropic streaming pattern.
         """
         with client.messages.stream(**params) as stream:
-            for text in stream.text_stream:
-                yield text
+            yield from stream.text_stream
 
     def __call__(
         self, messages: list[ChatMessage], config: ChatModelConfig
