@@ -86,7 +86,7 @@ class AnyProviderConfig:
     @classmethod
     def for_github(cls, config: AiConfig) -> AnyProviderConfig:
         fallback_key = cls.os_key("GITHUB_TOKEN")
-        return cls._for_openai_like(
+        result = cls._for_openai_like(
             config,
             "github",
             "GitHub",
@@ -95,6 +95,21 @@ class AnyProviderConfig:
             fallback_base_url="https://api.githubcopilot.com/",
             require_key=True,
         )
+
+        # Add default extra headers for GitHub, but allow user to override
+        default_headers = {
+            "editor-version": "vscode/1.95.0",
+            "Copilot-Integration-Id": "vscode-chat",
+        }
+
+        # Merge: user headers override defaults
+        if result.extra_headers:
+            merged_headers = {**default_headers, **result.extra_headers}
+        else:
+            merged_headers = default_headers
+
+        result.extra_headers = merged_headers
+        return result
 
     @classmethod
     def for_openrouter(cls, config: AiConfig) -> AnyProviderConfig:
