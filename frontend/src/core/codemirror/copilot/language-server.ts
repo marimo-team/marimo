@@ -76,7 +76,14 @@ export class CopilotLanguageServerClient extends LanguageServerClient {
     method: Method,
     params: LSPRequestMap[Method][0],
   ): Promise<LSPRequestMap[Method][1]> {
-    return await (this as any).request(method, params);
+    return await (
+      this as unknown as {
+        request: (
+          method: Method,
+          params: LSPRequestMap[Method][0],
+        ) => Promise<LSPRequestMap[Method][1]>;
+      }
+    ).request(method, params);
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -285,18 +292,12 @@ export class CopilotLanguageServerClient extends LanguageServerClient {
 
     // Handle statusNotification
     if (notification.method === "statusNotification") {
-      store.set(
-        copilotStatusState,
-        notification.params as GitHubCopilotStatusNotificationParams,
-      );
+      store.set(copilotStatusState, notification.params);
     }
 
     // Handle didChangeStatus
     if (notification.method === "didChangeStatus") {
-      store.set(
-        copilotStatusState,
-        notification.params as GitHubCopilotStatusNotificationParams,
-      );
+      store.set(copilotStatusState, notification.params);
     }
 
     // Handle window/logMessage
@@ -315,8 +316,7 @@ export class CopilotLanguageServerClient extends LanguageServerClient {
         case 3: // Info
           logger.debug("[GitHub Copilot]", message);
           break;
-        case 4: // Log
-        default:
+        default: // Log (type 4 and others)
           logger.log("[GitHub Copilot]", message);
           break;
       }

@@ -113,9 +113,9 @@ const GitHubCopilotStatus: React.FC = () => {
   const iconColorClass =
     status.kind === "Warning" || status.kind === "Error"
       ? "text-(--yellow-11)"
-      : !isGitHubCopilotSignedIn
-        ? "opacity-60"
-        : "";
+      : isGitHubCopilotSignedIn
+        ? ""
+        : "opacity-60";
 
   return (
     <FooterItem

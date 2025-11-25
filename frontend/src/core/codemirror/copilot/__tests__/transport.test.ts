@@ -67,7 +67,7 @@ describe("LazyWebsocketTransport", () => {
         showError: mockShowError,
         retries: 5,
         retryDelayMs: 2000,
-        maxTimeoutMs: 10000,
+        maxTimeoutMs: 10_000,
       });
 
       expect(transport).toBeDefined();
@@ -376,7 +376,7 @@ describe("LazyWebsocketTransport", () => {
       await transport.connect();
 
       const data: any = { method: "test", params: [] };
-      await transport.sendData(data, 10000);
+      await transport.sendData(data, 10_000);
 
       const delegate = (transport as any).delegate;
       expect(delegate.sendData).toHaveBeenCalledWith(data, 5000);

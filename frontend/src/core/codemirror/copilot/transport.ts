@@ -41,10 +41,10 @@ export interface LazyWebsocketTransportOptions {
   maxTimeoutMs?: number;
 }
 
-type Subscription = {
+interface Subscription {
   event: "pending" | "notification" | "response" | "error";
   handler: Parameters<Transport["subscribe"]>[1];
-};
+}
 
 /**
  * A WebSocket transport that lazily connects after waiting for prerequisites.
@@ -186,7 +186,7 @@ export class LazyWebsocketTransport extends Transport {
   override async sendData(
     data: JSONRPCRequestData,
     timeout: number | null | undefined,
-  ): Promise<any> {
+  ): Promise<unknown> {
     // If delegate is undefined, try to reconnect
     if (!this.delegate) {
       Logger.log("Copilot#sendData: Delegate not initialized, reconnecting...");
