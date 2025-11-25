@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+import re
 from typing import TYPE_CHECKING, Any, Callable, Optional, cast
 
 if TYPE_CHECKING:
@@ -28,7 +29,11 @@ DEFAULT_SYSTEM_MESSAGE = (
 def _looks_like_streaming_error(e: Exception) -> bool:
     """Check if an exception appears to be related to streaming not being supported."""
     error_msg = str(e).lower()
-    return "streaming" in error_msg or "stream" in error_msg
+    # Use word boundaries to match whole words only (not substrings like "downstream")
+    return bool(
+        re.search(r"\bstreaming\b", error_msg)
+        or re.search(r"\bstream\b", error_msg)
+    )
 
 
 class simple(ChatModel):

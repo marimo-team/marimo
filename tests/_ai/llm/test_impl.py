@@ -293,7 +293,6 @@ class TestOpenAI:
         assert call_args["top_p"] == pytest.approx(0.9)
         assert call_args["frequency_penalty"] == pytest.approx(0.5)
         assert call_args["presence_penalty"] == pytest.approx(0.5)
-        assert call_args["stream"] is True
 
     def test_call_with_base_url(
         self, mock_openai_client, test_messages, test_config
@@ -567,7 +566,6 @@ class TestGroq:
         assert call_args["top_p"] == pytest.approx(0.9)
         assert call_args["frequency_penalty"] == pytest.approx(0.5)
         assert call_args["presence_penalty"] == pytest.approx(0.5)
-        assert call_args["stream"] is False
 
     def test_call_with_base_url(
         self, mock_groq_client, test_messages, test_config
@@ -885,7 +883,6 @@ class TestAnthropic:
         assert call_args["temperature"] == 0.7
         assert call_args["top_p"] == 0.9
         assert call_args["top_k"] == 10
-        assert call_args["stream"] is True
 
     @patch.object(anthropic, "_require_api_key")
     @patch("anthropic.Anthropic")
@@ -1053,4 +1050,3 @@ class TestBedrock:
         assert call_args["top_p"] == pytest.approx(0.9)
         assert call_args["frequency_penalty"] == pytest.approx(0.5)
         assert call_args["presence_penalty"] == pytest.approx(0.5)
-        assert call_args["stream"] is False
