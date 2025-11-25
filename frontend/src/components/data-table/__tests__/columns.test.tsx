@@ -1,9 +1,10 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import { render } from "@testing-library/react";
+import { I18nProvider } from "react-aria";
 import { describe, expect, it, test } from "vitest";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { generateColumns, inferFieldTypes } from "../columns";
+import { generateColumns, inferFieldTypes, LocaleNumber } from "../columns";
 import { getMimeValues, isMimeValue, MimeCell } from "../mime-cell";
 import type { FieldTypesWithExternalType } from "../types";
 import { uniformSample } from "../uniformSample";
@@ -375,5 +376,145 @@ describe("getMimeValues", () => {
       "not a mime value",
     ];
     expect(getMimeValues(values)).toBeUndefined();
+  });
+});
+
+describe("LocaleNumber", () => {
+  it("should format numbers correctly for en-US locale", () => {
+    const { container } = render(
+      <I18nProvider locale="en-US">
+        <LocaleNumber value={1234567.89} />
+      </I18nProvider>,
+    );
+    expect(container.textContent).toMatchInlineSnapshot(`"1,234,567.89"`);
+  });
+
+  it("should format numbers correctly for de-DE locale", () => {
+    const { container } = render(
+      <I18nProvider locale="de-DE">
+        <LocaleNumber value={1234567.89} />
+      </I18nProvider>,
+    );
+    expect(container.textContent).toMatchInlineSnapshot(`"1.234.567,89"`);
+  });
+
+  it("should format integers correctly", () => {
+    const { container } = render(
+      <I18nProvider locale="en-US">
+        <LocaleNumber value={1000} />
+      </I18nProvider>,
+    );
+    expect(container.textContent).toMatchInlineSnapshot(`"1,000"`);
+  });
+
+  it("should format zero correctly", () => {
+    const { container } = render(
+      <I18nProvider locale="en-US">
+        <LocaleNumber value={0} />
+      </I18nProvider>,
+    );
+    expect(container.textContent).toMatchInlineSnapshot(`"0"`);
+  });
+
+  it("should format negative numbers correctly", () => {
+    const { container } = render(
+      <I18nProvider locale="en-US">
+        <LocaleNumber value={-1234.56} />
+      </I18nProvider>,
+    );
+    expect(container.textContent).toMatchInlineSnapshot(`"-1,234.56"`);
+  });
+
+  it("should format small decimal numbers correctly", () => {
+    const { container } = render(
+      <I18nProvider locale="en-US">
+        <LocaleNumber value={0.123456789} />
+      </I18nProvider>,
+    );
+    expect(container.textContent).toMatchInlineSnapshot(`"0.123456789"`);
+  });
+
+  it("should format large numbers correctly", () => {
+    const { container } = render(
+      <I18nProvider locale="en-US">
+        <LocaleNumber value={999999999.99} />
+      </I18nProvider>,
+    );
+    expect(container.textContent).toMatchInlineSnapshot(`"999,999,999.99"`);
+  });
+
+  it("should format numbers correctly for fr-FR locale", () => {
+    const { container } = render(
+      <I18nProvider locale="fr-FR">
+        <LocaleNumber value={1234567.89} />
+      </I18nProvider>,
+    );
+    expect(container.textContent).toMatchInlineSnapshot(`"1 234 567,89"`);
+  });
+
+  it("should format numbers correctly for ja-JP locale", () => {
+    const { container } = render(
+      <I18nProvider locale="ja-JP">
+        <LocaleNumber value={1234567.89} />
+      </I18nProvider>,
+    );
+    expect(container.textContent).toMatchInlineSnapshot(`"1,234,567.89"`);
+  });
+
+  it("should respect maximumFractionDigits based on locale", () => {
+    // Test with a number that has many decimal places
+    const { container } = render(
+      <I18nProvider locale="en-US">
+        <LocaleNumber value={1.1234567890123457} />
+      </I18nProvider>,
+    );
+    expect(container.textContent).toMatchInlineSnapshot(`"1.1234567890123457"`);
+  });
+
+  it("should handle very large numbers", () => {
+    const { container } = render(
+      <I18nProvider locale="en-US">
+        <LocaleNumber value={123456789012345.67} />
+      </I18nProvider>,
+    );
+    expect(container.textContent).toMatchInlineSnapshot(
+      `"123,456,789,012,345.67"`,
+    );
+  });
+
+  it("should handle Infinity", () => {
+    const { container } = render(
+      <I18nProvider locale="en-US">
+        <LocaleNumber value={Infinity} />
+      </I18nProvider>,
+    );
+    expect(container.textContent).toMatchInlineSnapshot(`"∞"`);
+  });
+
+  it("should handle negative Infinity", () => {
+    const { container } = render(
+      <I18nProvider locale="en-US">
+        <LocaleNumber value={-Infinity} />
+      </I18nProvider>,
+    );
+    expect(container.textContent).toMatchInlineSnapshot(`"-∞"`);
+  });
+
+  it("should handle NaN", () => {
+    const { container } = render(
+      <I18nProvider locale="en-US">
+        <LocaleNumber value={NaN} />
+      </I18nProvider>,
+    );
+    expect(container.textContent).toMatchInlineSnapshot(`"NaN"`);
+  });
+
+  it("should handle numbers with scientific notation", () => {
+    const { container } = render(
+      <I18nProvider locale="en-US">
+        <LocaleNumber value={1e10} />
+      </I18nProvider>,
+    );
+    expect(container.textContent).toMatchInlineSnapshot(`"10,000,000,000"`);
   });
 });
