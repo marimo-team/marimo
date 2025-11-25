@@ -264,23 +264,28 @@ export const GridLayoutRenderer: React.FC<Props> = ({
         </div>
       );
     }
-    // Render cells not in grid (hidden) so sidebar elements can be created
+
+    const sidebarCells = notInGrid.filter((cell) => isSidebarCell(cell));
+
     return (
       <>
         {grid}
+        {/* Render sidebar outputs even if they are not in grid (hidden) */}
         <div className="hidden">
-          {notInGrid.map((cell) => (
-            <GridCell
-              key={cell.id}
-              code={cell.code}
-              mode={mode}
-              cellId={cell.id}
-              output={cell.output}
-              status={cell.status}
-              isScrollable={false}
-              hidden={false}
-            />
-          ))}
+          {sidebarCells.map((cell) => {
+            return (
+              <GridCell
+                key={cell.id}
+                code={cell.code}
+                mode={mode}
+                cellId={cell.id}
+                output={cell.output}
+                status={cell.status}
+                isScrollable={false}
+                hidden={false}
+              />
+            );
+          })}
         </div>
       </>
     );
@@ -659,6 +664,13 @@ const GridHoverActions: React.FC<GridHoverActionsProps> = ({
     </div>
   );
 };
+
+function isSidebarCell(cell: CellRuntimeState) {
+  return (
+    typeof cell.output?.data === "string" &&
+    cell.output.data.includes("marimo-sidebar")
+  );
+}
 
 const SIDE_TO_ICON = {
   // We are only showing horizontal sides for now

@@ -35,16 +35,20 @@ def _(mo):
 
 @app.cell
 def _(mo):
-    # Sidebar cell (not in grid)
-    mo.sidebar([
-        mo.md("# Sidebar Title"),
-        mo.md("This sidebar should be visible in run mode"),
-        mo.nav_menu({
-            "#section1": "Section 1",
-            "#section2": "Section 2",
-            "#section3": "Section 3",
-        }, orientation="vertical")
-    ])
+    mo.sidebar(
+        [
+            mo.md("# Sidebar Title"),
+            mo.md("This sidebar should be visible in run mode"),
+            mo.nav_menu(
+                {
+                    "#section1": "Section 1",
+                    "#section2": "Section 2",
+                    "#section3": "Section 3",
+                },
+                orientation="vertical",
+            ),
+        ]
+    )
     return
 
 
