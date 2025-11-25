@@ -14,7 +14,11 @@ from typing import Any
 import msgspec
 import msgspec.json
 
+from marimo import _loggers
 from marimo._dependencies.dependencies import DependencyManager
+from marimo._plugins.core.media import io_to_data_url
+
+LOGGER = _loggers.marimo_logger()
 
 
 def enc_hook(obj: Any) -> Any:
@@ -125,6 +129,39 @@ def enc_hook(obj: Any) -> Any:
                 obj, pl.datatypes.DataType
             ):
                 return str(obj)
+
+    # Handle Pillow images
+    if DependencyManager.pillow.imported():
+        try:
+            from PIL import Image
+
+            if isinstance(obj, Image.Image):
+                return io_to_data_url(obj, "image/png")
+        except Exception:
+            LOGGER.debug("Unable to convert image to data URL", exc_info=True)
+
+    # Handle Matplotlib figures
+    if DependencyManager.matplotlib.imported():
+        try:
+            import matplotlib.figure
+            from matplotlib.axes import Axes
+
+            from marimo._output.formatting import as_html
+            from marimo._plugins.stateless.flex import vstack
+
+            if isinstance(obj, matplotlib.figure.Figure):
+                html = as_html(vstack([str(obj), obj]))
+                mimetype, data = html._mime_()
+
+            if isinstance(obj, Axes):
+                html = as_html(vstack([str(obj), obj]))
+                mimetype, data = html._mime_()
+                return {"mimetype": mimetype, "data": data}
+        except Exception:
+            LOGGER.debug(
+                "Error converting matplotlib figures to HTML",
+                exc_info=True,
+            )
 
     # Handle objects with __slots__
     slots = getattr(obj, "__slots__", None)

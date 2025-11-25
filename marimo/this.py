@@ -1,3 +1,4 @@
+# Copyright 2025 Marimo. All rights reserved.
 print("""The marimo contract
 
 To use marimo means entering into a social contract.
