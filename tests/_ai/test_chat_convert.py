@@ -693,6 +693,93 @@ class TestAnthropic:
             "content": [{"type": "text", "text": "Hi there!"}],
         }
 
+    def test_convert_to_anthropic_messages_empty_content(self):
+        """Test converting messages with empty content."""
+        messages = [
+            ChatMessage(
+                role="user",
+                content="",
+                parts=None,
+            ),
+            ChatMessage(
+                role="assistant",
+                content="Hi there!",
+                parts=None,
+            ),
+        ]
+
+        result = convert_to_anthropic_messages(messages)
+
+        # Empty content message should be skipped
+        assert len(result) == 1
+        assert result[0] == {
+            "role": "assistant",
+            "content": [{"type": "text", "text": "Hi there!"}],
+        }
+
+    def test_convert_to_anthropic_messages_empty_text_parts(self):
+        """Test converting messages with empty text parts."""
+        messages = [
+            ChatMessage(
+                role="user",
+                content="Hello",
+                parts=[
+                    TextPart(type="text", text="Hello"),
+                    TextPart(type="text", text=""),  # Empty text part
+                    TextPart(type="text", text="World"),
+                    TextPart(type="text", text=""),  # Another empty text part
+                ],
+            ),
+        ]
+
+        result = convert_to_anthropic_messages(messages)
+
+        # Empty text parts should be skipped
+        assert result == [
+            {
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": "Hello"},
+                    {"type": "text", "text": "World"},
+                ],
+            },
+        ]
+
+    def test_convert_to_anthropic_messages_empty_reasoning_parts(self):
+        """Test converting messages with empty reasoning parts."""
+        messages = [
+            ChatMessage(
+                role="assistant",
+                content="",
+                parts=[
+                    ReasoningPart(
+                        type="reasoning",
+                        text="Valid reasoning",
+                        details=[],
+                    ),
+                    ReasoningPart(
+                        type="reasoning",
+                        text="",  # Empty reasoning part
+                        details=[],
+                    ),
+                    TextPart(type="text", text="Response"),
+                ],
+            ),
+        ]
+
+        result = convert_to_anthropic_messages(messages)
+
+        # Empty reasoning parts should be skipped
+        assert len(result) == 1
+        assert result[0]["role"] == "assistant"
+        assert len(result[0]["content"]) == 2
+        assert result[0]["content"][0] == {
+            "type": "thinking",
+            "thinking": "Valid reasoning",
+            "signature": "",
+        }
+        assert result[0]["content"][1] == {"type": "text", "text": "Response"}
+
     def test_convert_to_anthropic_messages_file_part(self):
         """Test converting messages with file parts."""
         messages = [

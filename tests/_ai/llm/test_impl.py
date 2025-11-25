@@ -943,6 +943,57 @@ class TestAnthropic:
         result = result_list[-1] if result_list else ""
         assert result == ""
 
+    def test_supports_temperature(self) -> None:
+        """Test supports_temperature method."""
+        model = anthropic("claude-3-opus-20240229")
+        assert model.supports_temperature("claude-3-opus-20240229") is True
+        assert model.supports_temperature("claude-3-sonnet-20240229") is True
+        assert model.supports_temperature("claude-3-haiku-20240307") is True
+
+        # Reasoning models (>4.0) don't support temperature
+        assert model.supports_temperature("claude-sonnet-4-5") is False
+        assert model.supports_temperature("claude-opus-4-5") is False
+        assert model.supports_temperature("claude-4-opus") is False
+
+    @patch.object(anthropic, "_require_api_key")
+    @patch("anthropic.Anthropic")
+    def test_call_without_temperature_for_reasoning_model(
+        self, mock_anthropic_class: MagicMock, mock_require_api_key: MagicMock
+    ) -> None:
+        """Test that temperature is not included for reasoning models."""
+        mock_require_api_key.return_value = "test-key"
+        mock_client = MagicMock()
+        mock_anthropic_class.return_value = mock_client
+
+        # Setup streaming response
+        mock_stream = MagicMock()
+        mock_stream.__enter__ = MagicMock(return_value=mock_stream)
+        mock_stream.__exit__ = MagicMock(return_value=None)
+        mock_stream.text_stream = ["Test response"]
+        mock_client.messages.stream.return_value = mock_stream
+
+        model = anthropic("claude-sonnet-4-5")
+        messages = [ChatMessage(role="user", content="Test prompt")]
+        config = ChatModelConfig(
+            max_tokens=100,
+            temperature=0.7,
+            top_p=0.9,
+            top_k=10,
+        )
+
+        result_gen = model(messages, config)
+        list(result_gen)  # Consume the generator
+
+        mock_client.messages.stream.assert_called_once()
+        call_args = mock_client.messages.stream.call_args[1]
+        assert call_args["model"] == "claude-sonnet-4-5"
+        assert call_args["system"] == DEFAULT_SYSTEM_MESSAGE
+        assert call_args["max_tokens"] == 100
+        # Temperature should not be included for reasoning models
+        assert "temperature" not in call_args
+        assert call_args["top_p"] == 0.9
+        assert call_args["top_k"] == 10
+
     @patch.dict(os.environ, {"ANTHROPIC_API_KEY": "env-key"})
     def test_require_api_key_env(self) -> None:
         """Test _require_api_key with environment variable."""

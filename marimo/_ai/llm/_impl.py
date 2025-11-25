@@ -208,6 +208,10 @@ class anthropic(ChatModel):
         base_url: The base URL to use
     """
 
+    def supports_temperature(self, model: str) -> bool:
+        # Reasoning models (>4.0) don't support temperature
+        return model.startswith("claude-3")
+
     def __init__(
         self,
         model: str,
@@ -282,7 +286,9 @@ class anthropic(ChatModel):
             params["top_p"] = config.top_p
         if config.top_k is not None:
             params["top_k"] = config.top_k
-        if config.temperature is not None:
+        if config.temperature is not None and self.supports_temperature(
+            self.model
+        ):
             params["temperature"] = config.temperature
 
         # Try streaming first, fall back to non-streaming on error
