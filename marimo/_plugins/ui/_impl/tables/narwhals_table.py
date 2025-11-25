@@ -13,9 +13,7 @@ from narwhals.typing import IntoDataFrameT, IntoLazyFrameT
 
 from marimo import _loggers
 from marimo._data.models import BinValue, ColumnStats, ExternalDataType
-from marimo._dependencies.dependencies import DependencyManager
 from marimo._output.data.data import sanitize_json_bigint
-from marimo._plugins.core.media import io_to_data_url
 from marimo._plugins.ui._impl.tables.format import (
     FormatMapping,
     format_value,
@@ -702,50 +700,3 @@ class NarwhalsTableManager(
         if rows is None:
             return f"{df_type}: {columns:,} columns"
         return f"{df_type}: {rows:,} rows x {columns:,} columns"
-
-    def _sanitize_table_value(self, value: Any) -> Any:
-        """
-        Sanitize a value for display in a table cell.
-
-        Most values are unchanged, but some values are for better
-        display such as Images.
-        """
-        if value is None:
-            return None
-
-        # Handle Pillow images
-        if DependencyManager.pillow.imported():
-            try:
-                from PIL import Image
-
-                if isinstance(value, Image.Image):
-                    return io_to_data_url(value, "image/png")
-            except Exception:
-                LOGGER.debug(
-                    "Unable to convert image to data URL", exc_info=True
-                )
-
-        # Handle Matplotlib figures
-        if DependencyManager.matplotlib.imported():
-            try:
-                import matplotlib.figure
-                from matplotlib.axes import Axes
-
-                from marimo._output.formatting import as_html
-                from marimo._plugins.stateless.flex import vstack
-
-                if isinstance(value, matplotlib.figure.Figure):
-                    html = as_html(vstack([str(value), value]))
-                    mimetype, data = html._mime_()
-
-                if isinstance(value, Axes):
-                    html = as_html(vstack([str(value), value]))
-                    mimetype, data = html._mime_()
-                    return {"mimetype": mimetype, "data": data}
-            except Exception:
-                LOGGER.debug(
-                    "Error converting matplotlib figures to HTML",
-                    exc_info=True,
-                )
-
-        return value

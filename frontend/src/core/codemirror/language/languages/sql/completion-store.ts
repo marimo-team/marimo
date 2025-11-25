@@ -122,7 +122,7 @@ class SQLCompletionStore {
     if (!connection) {
       return null;
     }
-    return connection.dialect;
+    return connection.dialect.toLowerCase();
   }
 
   /**

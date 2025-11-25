@@ -101,7 +101,7 @@ export const LanguagePanelComponent: React.FC<{
               variant="text"
               size="icon"
               onClick={async () => {
-                await formatSQL(view);
+                await formatSQL(view, metadata.engine);
               }}
             >
               <PaintRollerIcon className="h-3 w-3" />

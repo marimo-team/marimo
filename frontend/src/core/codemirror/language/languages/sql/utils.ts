@@ -23,7 +23,10 @@ import { Logger } from "@/utils/Logger";
 const KNOWN_DIALECTS_ARRAY = [
   "postgresql",
   "postgres",
+  "couchbase",
   "db2",
+  "db2i",
+  "tidb",
   "mysql",
   "sqlite",
   "mssql",
@@ -32,6 +35,8 @@ const KNOWN_DIALECTS_ARRAY = [
   "mariadb",
   "cassandra",
   "noql",
+  "spark",
+  "awsathena",
   "athena",
   "bigquery",
   "hive",
@@ -39,8 +44,10 @@ const KNOWN_DIALECTS_ARRAY = [
   "snowflake",
   "flink",
   "mongodb",
+  "trino",
   "oracle",
   "oracledb",
+  "singlestoredb",
   "timescaledb",
 ] as const;
 const KNOWN_DIALECTS: ReadonlySet<string> = new Set(KNOWN_DIALECTS_ARRAY);
@@ -59,6 +66,7 @@ export function guessDialect(
 ): SQLDialect {
   const dialect = connection.dialect;
   if (!isKnownDialect(dialect)) {
+    Logger.debug("Unknown dialect", { dialect });
     return ModifiedStandardSQL;
   }
 
@@ -86,7 +94,9 @@ export function guessDialect(
       return BigQueryDialect;
     case "timescaledb":
       return PostgreSQL; // TimescaleDB is a PostgreSQL dialect
+    case "awsathena":
     case "athena":
+    case "db2i":
     case "db2":
     case "hive":
     case "redshift":
@@ -94,6 +104,11 @@ export function guessDialect(
     case "flink":
     case "mongodb":
     case "noql":
+    case "couchbase":
+    case "trino":
+    case "tidb":
+    case "singlestoredb":
+    case "spark":
       Logger.debug("Unsupported dialect", { dialect });
       return ModifiedStandardSQL;
     default:

@@ -3,16 +3,21 @@
 import { getIndentUnit } from "@codemirror/language";
 import { StateEffect } from "@codemirror/state";
 import type { EditorView } from "@codemirror/view";
+import type { DialectOptions } from "sql-formatter";
+import { logNever } from "@/utils/assertNever";
 import { Logger } from "@/utils/Logger";
 import { Objects } from "../../utils/objects";
 import { getNotebook } from "../cells/cells";
 import type { CellId } from "../cells/ids";
 import { notebookCellEditorViews } from "../cells/utils";
 import { getResolvedMarimoConfig } from "../config/config";
+import type { ConnectionName } from "../datasets/engines";
 import { getRequestClient } from "../network/requests";
 import { cellActionsState } from "./cells/state";
 import { cellIdState } from "./config/extension";
 import { languageAdapterState } from "./language/extension";
+import { SCHEMA_CACHE } from "./language/languages/sql/completion-store";
+import { isKnownDialect } from "./language/languages/sql/utils";
 import {
   getEditorCodeAsPython,
   updateEditorCodeFromPython,
@@ -77,9 +82,12 @@ export function formatAll() {
  * SQL formatting is much more opinionated than Python formatting, and we
  * don't want to tie the two together (just yet).
  */
-export async function formatSQL(editor: EditorView) {
+export async function formatSQL(editor: EditorView, engine: ConnectionName) {
   // Lazy import sql-formatter
-  const { formatDialect, duckdb } = await import("sql-formatter");
+  const { formatDialect } = await import("sql-formatter");
+
+  const sqlDialect = SCHEMA_CACHE.getInternalDialect(engine);
+  const formatterDialect = await getSqlFormatterDialect(sqlDialect);
 
   // Get language adapter
   const languageAdapter = editor.state.field(languageAdapterState);
@@ -90,11 +98,17 @@ export async function formatSQL(editor: EditorView) {
   }
 
   const codeAsSQL = editor.state.doc.toString();
-  const formattedSQL = formatDialect(codeAsSQL, {
-    dialect: duckdb,
-    tabWidth: tabWidth,
-    useTabs: false,
-  });
+  let formattedSQL: string;
+  try {
+    formattedSQL = formatDialect(codeAsSQL, {
+      dialect: formatterDialect,
+      tabWidth: tabWidth,
+      useTabs: false,
+    });
+  } catch (error) {
+    Logger.error("Error formatting SQL", { error });
+    return;
+  }
 
   // Update Python in the notebook state
   const codeAsPython = languageAdapter.transformIn(formattedSQL)[0];
@@ -110,4 +124,88 @@ export async function formatSQL(editor: EditorView) {
   replaceEditorContent(editor, formattedSQL, {
     effects: [formattingChangeEffect.of(true)],
   });
+}
+
+async function getSqlFormatterDialect(
+  sqlDialect: string | null,
+): Promise<DialectOptions> {
+  const {
+    bigquery,
+    db2,
+    db2i,
+    duckdb,
+    hive,
+    mariadb,
+    mysql,
+    tidb,
+    n1ql,
+    plsql,
+    postgresql,
+    redshift,
+    spark,
+    sqlite,
+    sql,
+    trino,
+    transactsql,
+    singlestoredb,
+    snowflake,
+  } = await import("sql-formatter");
+
+  const defaultDialect = sql;
+
+  if (!sqlDialect || !isKnownDialect(sqlDialect)) {
+    return defaultDialect;
+  }
+  switch (sqlDialect) {
+    case "mysql":
+      return mysql;
+    case "mariadb":
+      return mariadb;
+    case "postgres":
+    case "postgresql":
+      return postgresql;
+    case "sqlite":
+      return sqlite;
+    case "db2":
+      return db2;
+    case "db2i":
+      return db2i;
+    case "hive":
+      return hive;
+    case "redshift":
+      return redshift;
+    case "snowflake":
+      return snowflake;
+    case "trino":
+      return trino;
+    case "tidb":
+      return tidb;
+    case "oracle":
+    case "oracledb":
+      return plsql;
+    case "spark":
+      return spark;
+    case "singlestoredb":
+      return singlestoredb;
+    case "couchbase":
+      return n1ql;
+    case "bigquery":
+      return bigquery;
+    case "duckdb":
+      return duckdb;
+    case "mssql":
+    case "sqlserver":
+      return transactsql;
+    case "athena":
+    case "awsathena":
+    case "cassandra":
+    case "noql":
+    case "flink":
+    case "mongodb":
+    case "timescaledb":
+      return sql;
+    default:
+      logNever(sqlDialect);
+      return defaultDialect;
+  }
 }

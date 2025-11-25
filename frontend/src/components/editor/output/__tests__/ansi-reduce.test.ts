@@ -47,6 +47,14 @@ describe("TerminalBuffer", () => {
     `);
   });
 
+  test("control handles tab", () => {
+    const buffer = new TerminalBuffer();
+    buffer.writeChar("a");
+    buffer.control("\t");
+    buffer.writeChar("b");
+    expect(buffer.render()).toMatchInlineSnapshot(`"a	b"`);
+  });
+
   test("control handles carriage return", () => {
     const buffer = new TerminalBuffer();
     buffer.writeChar("a");

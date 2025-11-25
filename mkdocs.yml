@@ -103,6 +103,7 @@ nav:
               - Setup cell dependencies: guides/lint_rules/rules/setup_cell_dependencies.md
               - Syntax error: guides/lint_rules/rules/invalid_syntax.md
               - Self Import: guides/lint_rules/rules/self_import.md
+              - Branch expression: guides/lint_rules/rules/branch_expression.md
               - General formatting: guides/lint_rules/rules/general_formatting.md
               - Parse stdout: guides/lint_rules/rules/parse_stdout.md
               - Parse stderr: guides/lint_rules/rules/parse_stderr.md
