@@ -2,13 +2,13 @@
 
 import { marked } from "marked";
 import { useState } from "react";
+import { MarkdownRenderer } from "@/components/markdown/markdown-renderer";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Events } from "@/utils/events";
-import { MarkdownRenderer } from "../chat/markdown-renderer";
 
 const urlRegex = /(https?:\/\/\S+)/;
 const imageRegex = /\.(png|jpe?g|gif|webp|svg|ico)(\?.*)?$/i;
@@ -87,7 +87,7 @@ export function parseContent(text: string): ContentPart[] {
 export function isMarkdown(text: string): boolean {
   const tokens = marked.lexer(text);
 
-  const commonMarkdownIndicators = [
+  const commonMarkdownIndicators = new Set([
     "space",
     "code",
     "fences",
@@ -106,11 +106,9 @@ export function isMarkdown(text: string): boolean {
     "strong",
     "codespan",
     "url",
-  ];
+  ]);
 
-  return commonMarkdownIndicators.some((type) =>
-    tokens.some((token) => token.type === type),
-  );
+  return tokens.some((token) => commonMarkdownIndicators.has(token.type));
 }
 
 // Wrapper component so that we call isMarkdown only on trigger

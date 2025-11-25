@@ -26,6 +26,7 @@ import { JsonRpcError, mergeToolCalls } from "use-acp";
 import { z } from "zod";
 import { ReadonlyDiff } from "@/components/editor/code/readonly-diff";
 import { JsonOutput } from "@/components/editor/output/JsonOutput";
+import { MarkdownRenderer } from "@/components/markdown/markdown-renderer";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
@@ -36,7 +37,6 @@ import { uniqueByTakeLast } from "@/utils/arrays";
 import { logNever } from "@/utils/assertNever";
 import { cn } from "@/utils/cn";
 import { Strings } from "@/utils/strings";
-import { MarkdownRenderer } from "../markdown-renderer";
 import { SimpleAccordion } from "./common";
 import type {
   AgentNotificationEvent,
