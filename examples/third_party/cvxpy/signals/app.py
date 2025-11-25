@@ -250,7 +250,7 @@ def _(complib, radios, solved_ever):
         [complib.Components.TREND_LINE, complib.Components.PERIODIC]
     )
     if solved.now:
-        _ = solved_ever.set()
+        solved_ever.set()
     return (solved,)
 
 

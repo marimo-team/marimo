@@ -49,15 +49,13 @@ class BranchExpressionRule(LintRule):
         case 1:
             "Too short"  # Won't be displayed
         case _:
-            "Just right"  # Won't be displayed
+            value  # Won't be displayed
     ```
 
-    **Not flagged (side effects only):**
+    **Not flagged:**
     ```python
     if condition:
-        print("Debug message")  # Side effect only, not flagged
-    else:
-        logger.info("Something")  # Side effect only, not flagged
+        print("Debug message")  # Function calls
     ```
 
     **Solution:**
@@ -72,9 +70,9 @@ class BranchExpressionRule(LintRule):
     # Create a default variable for response.
     result = None
     if condition:
-        result = expr()
+        result = expr
     else:
-        result = other()
+        result = other
     result
     ```
 
@@ -82,9 +80,9 @@ class BranchExpressionRule(LintRule):
     ```python
     # Use a dummy variable to indicate intentional suppression
     if condition:
-        _ = expr()
+        _ = expr
     else:
-        _ = other()
+        _ = other
     ```
 
     ## References
@@ -199,10 +197,18 @@ class BranchExpressionRule(LintRule):
         return branches
 
     def _has_output_expression(self, stmts: list[ast.stmt]) -> bool:
-        """Check if a branch has a trailing expression that produces output.
+        """Check if a branch has a trailing value expression.
 
-        Returns True for any expression EXCEPT known side-effect-only calls
-        (print, logger.*, sys.*, mo.stop, mo.output.*).
+        Returns True for expressions that produce values:
+        - Constants: 42, "string", True, None
+        - Names: x, obj, slider
+        - Attributes: obj.attr, slider.value
+        - Operations: a + b, a == b, not x
+        - Marimo output calls: mo.md(), mo.ui.button()
+
+        Returns False for:
+        - All function calls (assumed side effects): func(), obj.method()
+        - Except marimo output calls which ARE flagged
         """
         if not stmts:
             return False
@@ -211,68 +217,40 @@ class BranchExpressionRule(LintRule):
         if not isinstance(last_stmt, ast.Expr):
             return False
 
-        # Check if this is a side-effect call that shouldn't be flagged
-        return not self._is_side_effect_only(last_stmt.value)
+        expr = last_stmt.value
 
-    def _is_side_effect_only(self, node: ast.expr) -> bool:
-        """Check if an expression is a side-effect-only call.
+        # For calls, only flag marimo output calls
+        if isinstance(expr, ast.Call):
+            func = expr.func
 
-        Returns True for:
-        - print(), input(), exec(), eval()
-        - logger.*/log.*/logging.* calls
-        - sys.stdout.write(), sys.stderr.write()
-        - mo.stop()
-        - mo.output.append/replace/clear()
+            # Marimo output calls should be flagged (mo.md, mo.ui.*, etc.)
+            return self._is_marimo_output_call(func)
 
-        Returns False for everything else (including mo.md(), string literals, etc.)
+        # All other expressions (constants, names, attributes, operations) are flagged
+        return True
+
+    def _is_marimo_output_call(self, func: ast.expr) -> bool:
+        """Check if a call is a marimo output function (mo.md, mo.ui.*, etc.).
+
+        Excludes control flow and side-effect calls like mo.stop() and mo.output.*.
         """
-        if not isinstance(node, ast.Call):
-            return False
-
-        func = node.func
-
-        # Builtin side-effect functions
-        if isinstance(func, ast.Name) and func.id in {
-            "print",
-            "input",
-            "exec",
-            "eval",
-        }:
-            return True
-
         if isinstance(func, ast.Attribute):
-            # mo.stop()
-            if (
-                isinstance(func.value, ast.Name)
-                and func.value.id == "mo"
-                and func.attr == "stop"
-            ):
+            # Direct mo.* calls (mo.md, mo.Html, etc.)
+            if isinstance(func.value, ast.Name) and func.value.id == "mo":
+                # Exclude mo.stop()
+                if func.attr == "stop":
+                    return False
                 return True
 
-            # mo.output.*
+            # mo.ui.* or other nested mo.* calls
             if isinstance(func.value, ast.Attribute):
                 if (
                     isinstance(func.value.value, ast.Name)
                     and func.value.value.id == "mo"
-                    and func.value.attr == "output"
                 ):
-                    return True
-
-            # logger.*, log.*, logging.*
-            if isinstance(func.value, ast.Name) and func.value.id in {
-                "logger",
-                "log",
-                "logging",
-            }:
-                return True
-
-            # sys.stdout.*, sys.stderr.*
-            if isinstance(func.value, ast.Attribute):
-                if (
-                    isinstance(func.value.value, ast.Name)
-                    and func.value.value.id == "sys"
-                    and func.value.attr in {"stdout", "stderr"}
-                ):
+                    # Exclude mo.output.* calls (append, replace, clear)
+                    if func.value.attr == "output":
+                        return False
                     return True
 
         return False

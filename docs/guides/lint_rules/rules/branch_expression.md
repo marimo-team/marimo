@@ -31,15 +31,13 @@ match value:
     case 1:
         "Too short"  # Won't be displayed
     case _:
-        "Just right"  # Won't be displayed
+        value  # Won't be displayed
 ```
 
-**Not flagged (side effects only):**
+**Not flagged:**
 ```python
 if condition:
-    print("Debug message")  # Side effect only, not flagged
-else:
-    logger.info("Something")  # Side effect only, not flagged
+    print("Debug message")  # Function calls
 ```
 
 **Solution:**
@@ -54,9 +52,9 @@ result
 # Create a default variable for response.
 result = None
 if condition:
-    result = expr()
+    result = expr
 else:
-    result = other()
+    result = other
 result
 ```
 
@@ -64,9 +62,9 @@ result
 ```python
 # Use a dummy variable to indicate intentional suppression
 if condition:
-    _ = expr()
+    _ = expr
 else:
-    _ = other()
+    _ = other
 ```
 
 ## References
