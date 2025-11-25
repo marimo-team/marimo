@@ -314,9 +314,7 @@ def python_print_polars(
     elif transform.type == TransformType.GROUP_BY:
         column_ids, aggregation = transform.column_ids, transform.aggregation
         columns = transform.aggregation_column_ids or all_columns
-        aggregation_columns = [
-            col for col in columns if col not in column_ids
-        ]
+        aggregation_columns = [col for col in columns if col not in column_ids]
         aggs: list[str] = []
         # Use _as_literal to properly escape column names
         for column_id in aggregation_columns:
@@ -475,9 +473,7 @@ def python_print_ibis(
     elif transform.type == TransformType.GROUP_BY:
         column_ids, aggregation = transform.column_ids, transform.aggregation
         columns = transform.aggregation_column_ids or all_columns
-        aggregation_columns = [
-            col for col in columns if col not in column_ids
-        ]
+        aggregation_columns = [col for col in columns if col not in column_ids]
         aggs: list[str] = []
         for column_id in aggregation_columns:
             agg_alias = f"{column_id}_{aggregation}"

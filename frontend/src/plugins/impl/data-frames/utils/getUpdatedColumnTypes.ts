@@ -63,10 +63,7 @@ function handleTransform(
         }
 
         if (aggregationColumns === null || aggregationColumns.has(columnId)) {
-          updated.set(
-            `${columnId}_${transform.aggregation}` as ColumnId,
-            type,
-          );
+          updated.set(`${columnId}_${transform.aggregation}` as ColumnId, type);
         }
       }
 
