@@ -1,5 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
+import { marked } from "marked";
 import { useState } from "react";
 import {
   Popover,
@@ -7,6 +8,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Events } from "@/utils/events";
+import { MarkdownRenderer } from "../chat/markdown-renderer";
 
 const urlRegex = /(https?:\/\/\S+)/;
 const imageRegex = /\.(png|jpe?g|gif|webp|svg|ico)(\?.*)?$/i;
@@ -81,6 +83,49 @@ export function parseContent(text: string): ContentPart[] {
     return { type: "text", value: part };
   });
 }
+
+export function isMarkdown(text: string): boolean {
+  const tokens = marked.lexer(text);
+
+  const commonMarkdownIndicators = [
+    "space",
+    "code",
+    "fences",
+    "heading",
+    "hr",
+    "link",
+    "blockquote",
+    "list",
+    "html",
+    "def",
+    "table",
+    "lheading",
+    "escape",
+    "tag",
+    "reflink",
+    "strong",
+    "codespan",
+    "url",
+  ];
+
+  return commonMarkdownIndicators.some((type) =>
+    tokens.some((token) => token.type === type),
+  );
+}
+
+// Wrapper component so that we call isMarkdown only on trigger
+export const MarkdownUrlDetector = ({
+  content,
+  parts,
+}: {
+  content: string;
+  parts: ContentPart[];
+}) => {
+  if (isMarkdown(content)) {
+    return <MarkdownRenderer content={content} />;
+  }
+  return <UrlDetector parts={parts} />;
+};
 
 export const UrlDetector = ({ parts }: { parts: ContentPart[] }) => {
   const markup = parts.map((part, idx) => {

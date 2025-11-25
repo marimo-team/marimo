@@ -15,6 +15,7 @@ import { Maps } from "@/utils/maps";
 import { Objects } from "@/utils/objects";
 import { EmotionCacheProvider } from "../editor/output/EmotionCacheProvider";
 import { JsonOutput } from "../editor/output/JsonOutput";
+import { CopyClipboardIcon } from "../icons/copy-icon";
 import { Button } from "../ui/button";
 import { Checkbox } from "../ui/checkbox";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
@@ -33,7 +34,7 @@ import {
   INDEX_COLUMN_NAME,
 } from "./types";
 import { uniformSample } from "./uniformSample";
-import { parseContent, UrlDetector } from "./url-detector";
+import { MarkdownUrlDetector, parseContent, UrlDetector } from "./url-detector";
 
 // Artificial limit to display long strings
 const MAX_STRING_LENGTH = 50;
@@ -354,11 +355,18 @@ const PopoutColumn = ({
           align="start"
           alignOffset={10}
         >
-          <PopoverClose className="absolute top-2 right-2">
-            <Button variant="link" size="xs">
-              {buttonText ?? "Close"}
-            </Button>
-          </PopoverClose>
+          <div className="absolute top-2 right-2">
+            <CopyClipboardIcon
+              value={rawStringValue}
+              className="w-2.5 h-2.5"
+              tooltip={false}
+            />
+            <PopoverClose>
+              <Button variant="link" size="xs">
+                {buttonText ?? "Close"}
+              </Button>
+            </PopoverClose>
+          </div>
           {children}
         </PopoverContent>
       </Popover>
@@ -531,7 +539,7 @@ export function renderCellValue<TData, TValue>({
         buttonText="X"
         wrapped={isWrapped}
       >
-        <UrlDetector parts={parts} />
+        <MarkdownUrlDetector content={stringValue} parts={parts} />
       </PopoutColumn>
     );
   }

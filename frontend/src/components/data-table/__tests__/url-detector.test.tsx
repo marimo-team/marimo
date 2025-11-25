@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { parseContent, UrlDetector } from "../url-detector";
+import { isMarkdown, parseContent, UrlDetector } from "../url-detector";
 
 describe("parseContent", () => {
   it("handles data URIs", () => {
@@ -165,5 +165,96 @@ describe("UrlDetector", () => {
     });
 
     expect(mockStopPropagation).toHaveBeenCalled();
+  });
+});
+
+describe("isMarkdown", () => {
+  it("returns true for headings", () => {
+    expect(isMarkdown("# Heading 1")).toBe(true);
+    expect(isMarkdown("## Heading 2")).toBe(true);
+    expect(isMarkdown("### Heading 3")).toBe(true);
+    expect(isMarkdown("Heading\n===")).toBe(true);
+    expect(isMarkdown("Heading\n---")).toBe(true);
+  });
+
+  it.fails("returns true for bold text", () => {
+    expect(isMarkdown("**bold**")).toBe(true);
+    expect(isMarkdown("__bold__")).toBe(true);
+  });
+
+  it.fails("returns true for italic text", () => {
+    expect(isMarkdown("*italic*")).toBe(true);
+    expect(isMarkdown("_italic_")).toBe(true);
+  });
+
+  it("returns false for inline code", () => {
+    expect(isMarkdown("`code`")).toBe(false);
+    expect(isMarkdown("Text with `inline code` in it")).toBe(false);
+  });
+
+  it("returns true for code blocks", () => {
+    expect(isMarkdown("```\ncode block\n```")).toBe(true);
+    expect(isMarkdown("```python\ndef hello():\n    pass\n```")).toBe(true);
+  });
+
+  it("returns true for lists", () => {
+    expect(isMarkdown("- item 1\n- item 2")).toBe(true);
+    expect(isMarkdown("* item 1\n* item 2")).toBe(true);
+    expect(isMarkdown("1. item 1\n2. item 2")).toBe(true);
+  });
+
+  it("returns true for blockquotes", () => {
+    expect(isMarkdown("> This is a quote")).toBe(true);
+    expect(isMarkdown("> Quote line 1\n> Quote line 2")).toBe(true);
+  });
+
+  it("returns true for horizontal rules", () => {
+    expect(isMarkdown("---")).toBe(true);
+    expect(isMarkdown("***")).toBe(true);
+    expect(isMarkdown("___")).toBe(true);
+  });
+
+  it("returns true for tables", () => {
+    expect(
+      isMarkdown("| col1 | col2 |\n|------|------|\n| val1 | val2 |"),
+    ).toBe(true);
+  });
+
+  it("returns true for HTML tags", () => {
+    expect(isMarkdown("<div>content</div>")).toBe(true);
+    expect(isMarkdown("<br />")).toBe(true);
+  });
+
+  it.fails("returns true for escaped characters", () => {
+    expect(isMarkdown("\\*not bold\\*")).toBe(true);
+    expect(isMarkdown("\\# not a heading")).toBe(true);
+  });
+
+  it("returns false for plain text", () => {
+    expect(isMarkdown("Just plain text")).toBe(false);
+    expect(isMarkdown("No markdown here")).toBe(false);
+  });
+
+  it("returns false for empty string", () => {
+    expect(isMarkdown("")).toBe(false);
+  });
+
+  it("returns false for plain URLs without markdown syntax", () => {
+    expect(isMarkdown("https://example.com")).toBe(false);
+    expect(isMarkdown("Visit https://marimo.io for more")).toBe(false);
+  });
+
+  it("returns false for plain text with numbers", () => {
+    expect(isMarkdown("123 456 789")).toBe(false);
+  });
+
+  it.fails("returns true for mixed markdown and plain text", () => {
+    expect(isMarkdown("Plain text with **bold** in it")).toBe(true);
+    expect(isMarkdown("Start with text\n\n# Then a heading")).toBe(true);
+  });
+
+  it.fails("returns true for markdown with URLs", () => {
+    expect(isMarkdown("[Link](https://example.com)")).toBe(true);
+    expect(isMarkdown("Visit [marimo](https://marimo.io)")).toBe(true);
   });
 });
