@@ -666,6 +666,7 @@ const GridHoverActions: React.FC<GridHoverActionsProps> = ({
 };
 
 function isSidebarCell(cell: CellRuntimeState) {
+  // False-positives are ok here because we rendering these cells in a hidden div
   return (
     typeof cell.output?.data === "string" &&
     cell.output.data.includes("marimo-sidebar")
