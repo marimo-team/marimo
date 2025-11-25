@@ -18,6 +18,8 @@ if $cmd; then
   mkdir -p marimo/_static/
   cp -R frontend/dist/* marimo/_static/
   rm -rf marimo/_static/files/wasm-intro.py
+  echo "Copying CLAUDE.md documentation..."
+  cp docs/_static/CLAUDE.md marimo/_static/CLAUDE.md
   echo "Compilation succeeded.\n"
 else
   echo "Frontend compilation failed.\n"
