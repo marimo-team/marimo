@@ -41,7 +41,7 @@ const appToOptions = {
   "kitchen_sink.py": { command: "edit" },
   "layout_grid.py": { command: "edit" },
   "stdin.py": { command: "edit" },
-  "layout_grid_with_sidebar.py//edit": { command: "edit" },
+  "layout_grid_with_sidebar.py": { command: "edit" },
   // Custom server for shutdown
   "shutdown.py": { command: "edit", port: port() },
   // Run
