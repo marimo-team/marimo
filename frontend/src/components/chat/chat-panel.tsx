@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { memo, useEffect, useRef, useState } from "react";
 import useEvent from "react-use-event-hook";
+import { MarkdownRenderer } from "@/components/markdown/markdown-renderer";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -74,7 +75,6 @@ import {
   hasPendingToolCalls,
   isLastMessageReasoning,
 } from "./chat-utils";
-import { MarkdownRenderer } from "./markdown-renderer";
 import { ReasoningAccordion } from "./reasoning-accordion";
 import { ToolCallAccordion } from "./tool-call-accordion";
 
