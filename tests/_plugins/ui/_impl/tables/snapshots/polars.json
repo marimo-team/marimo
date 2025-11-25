@@ -41,6 +41,8 @@
         "imaginary": "(1+2j)",
         "time": "12:30:00",
         "duration": "1d",
+        "nans":NaN,
+        "infs": "inf",
         "mixed_list": [
             "1",
             "two"
@@ -111,6 +113,8 @@
         "imaginary": "(3+4j)",
         "time": "13:45:00",
         "duration": "315\u00b5s",
+        "nans":NaN,
+        "infs": "-inf",
         "mixed_list": [
             "3.0",
             "0.0"
@@ -177,6 +181,8 @@
         "imaginary": "(5+6j)",
         "time": "14:15:00",
         "duration": "2h 30m",
+        "nans":NaN,
+        "infs": "inf",
         "mixed_list": [
             null,
             "2021-01-01 00:00:00.000000"
