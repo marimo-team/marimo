@@ -453,9 +453,6 @@ def _get_duckdb_database_names(
         return []
 
 
-# JSON bigint binary bit bitstring blob bool boolean bpchar bytea char date datetime dec decimal double enum float float4 float8 guid hugeint int int1 int128 int16 int2 int32 int4 int64 int8 integer integral interval list logical long map null numeric nvarchar oid real row short signed smallint string struct text time timestamp timestamp_ms timestamp_ns timestamp_s timestamp_us timestamptz timetz tinyint ubigint uhugeint uint128 uint16 uint32 uint64 uint8 uinteger union usmallint utinyint uuid varbinary varchar varint
-
-
 def _db_type_to_data_type(db_type: str) -> DataType:
     """Convert a DuckDB type to a Marimo data type.
     Reference: https://duckdb.org/docs/stable/sql/data_types/overview
