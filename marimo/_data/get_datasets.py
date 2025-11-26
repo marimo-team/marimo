@@ -460,26 +460,22 @@ def _db_type_to_data_type(db_type: str) -> DataType:
     """
     db_type = db_type.lower()
     # Integer types
-    if (
-        db_type
-        in [
-            "tinyint",
-            "smallint",
-            "integer",
-            "bigint",
-            "hugeint",
-            "integral",
-            "long",
-            "short",
-            "signed",
-            "oid",
-            "varint",
-        ]
-        or db_type.startswith("int")
-        # unsigned integers
-        or db_type.startswith("uint")
-        or db_type in ["ubigint", "uhugeint", "usmallint", "utinyint"]
-    ):
+    if db_type in [
+        "tinyint",
+        "smallint",
+        "integer",
+        "bigint",
+        "hugeint",
+        "integral",
+        "signed",
+        "oid",
+        "varint",
+        "uinteger",
+        "ubigint",
+        "uhugeint",
+        "usmallint",
+        "utinyint",
+    ]:
         return "integer"
     # Numeric types (float, decimal, etc.)
     if (

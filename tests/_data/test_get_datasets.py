@@ -628,18 +628,17 @@ def test_db_type_to_data_type_various() -> None:
     # Integer types
     assert _db_type_to_data_type("integer") == "integer"
     assert _db_type_to_data_type("bigint") == "integer"
-    assert _db_type_to_data_type("int") == "integer"
-    assert _db_type_to_data_type("int128") == "integer"
     assert _db_type_to_data_type("integral") == "integer"
-    assert _db_type_to_data_type("long") == "integer"
-    assert _db_type_to_data_type("short") == "integer"
     assert _db_type_to_data_type("signed") == "integer"
     assert _db_type_to_data_type("oid") == "integer"
     assert _db_type_to_data_type("varint") == "integer"
 
     # Unsigned integers
-    assert _db_type_to_data_type("uint8") == "integer"
-    assert _db_type_to_data_type("uint128") == "integer"
+    assert _db_type_to_data_type("utinyint") == "integer"
+    assert _db_type_to_data_type("usmallint") == "integer"
+    assert _db_type_to_data_type("uinteger") == "integer"
+    assert _db_type_to_data_type("ubigint") == "integer"
+    assert _db_type_to_data_type("uhugeint") == "integer"
 
     # Numeric types
     assert _db_type_to_data_type("float") == "number"
