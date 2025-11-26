@@ -453,6 +453,9 @@ def _get_duckdb_database_names(
         return []
 
 
+# JSON bigint binary bit bitstring blob bool boolean bpchar bytea char date datetime dec decimal double enum float float4 float8 guid hugeint int int1 int128 int16 int2 int32 int4 int64 int8 integer integral interval list logical long map null numeric nvarchar oid real row short signed smallint string struct text time timestamp timestamp_ms timestamp_ns timestamp_s timestamp_us timestamptz timetz tinyint ubigint uhugeint uint128 uint16 uint32 uint64 uint8 uinteger union usmallint utinyint uuid varbinary varchar varint
+
+
 def _db_type_to_data_type(db_type: str) -> DataType:
     """Convert a DuckDB type to a Marimo data type.
     Reference: https://duckdb.org/docs/stable/sql/data_types/overview
@@ -460,22 +463,37 @@ def _db_type_to_data_type(db_type: str) -> DataType:
     """
     db_type = db_type.lower()
     # Integer types
-    if db_type in [
-        "tinyint",
-        "smallint",
-        "integer",
-        "bigint",
-        "hugeint",
-        "integral",
-        "signed",
-        "oid",
-        "varint",
-        "uinteger",
-        "ubigint",
-        "uhugeint",
-        "usmallint",
-        "utinyint",
-    ]:
+    if (
+        db_type
+        in [
+            "tinyint",
+            "smallint",
+            "integer",
+            "bigint",
+            "hugeint",
+            "integral",
+            "long",
+            "short",
+            "signed",
+            "oid",
+            "varint",
+        ]
+        or db_type
+        in [
+            "int",
+            "int1",
+            "int2",
+            "int4",
+            "int8",
+            "int16",
+            "int32",
+            "int64",
+            "int128",
+        ]
+        # unsigned integers
+        or db_type.startswith("uint")
+        or db_type in ["ubigint", "uhugeint", "usmallint", "utinyint"]
+    ):
         return "integer"
     # Numeric types (float, decimal, etc.)
     if (
@@ -486,6 +504,7 @@ def _db_type_to_data_type(db_type: str) -> DataType:
             "double",
             "decimal",
             "numeric",
+            "dec",
         ]
         or db_type.startswith("decimal")
         or db_type.startswith("float")
