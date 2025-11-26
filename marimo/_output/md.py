@@ -24,6 +24,7 @@ from marimo._output.md_extensions.flexible_indent import (
 )
 from marimo._output.md_extensions.iconify import IconifyExtension
 from marimo._output.rich_help import mddoc
+from marimo._utils.platform import is_pyodide
 from marimo._utils.url import is_url
 
 
@@ -143,6 +144,14 @@ def _get_extension_configs() -> dict[str, dict[str, Any]]:
         },
     }
 
+    # In WASM, inline images as base64 since file paths are not accessible
+    if is_pyodide():
+        from marimo._runtime.runtime import notebook_dir
+
+        extension_configs["pymdownx.b64"] = {
+            "base_path": str(notebook_dir()),
+        }
+
     return extension_configs
 
 
@@ -158,7 +167,7 @@ def _has_module(module_name: str) -> bool:
 
 @cache
 def _get_extensions() -> list[Union[str, markdown.Extension]]:
-    return [
+    extensions: list[Union[str, markdown.Extension]] = [
         # Syntax highlighting
         PyconDetectorExtension(),  # Python console detection (run before highlight)
         "pymdownx.highlight",
@@ -166,9 +175,6 @@ def _get_extensions() -> list[Union[str, markdown.Extension]]:
         "tables",
         # LaTeX
         "pymdownx.arithmatex",
-        # Base64 is not enabled, since app users could potentially
-        # use it to grab files they shouldn't have access to.
-        # "pymdownx.b64",
         # Subscripts and strikethrough
         "pymdownx.tilde",
         # Superscripts and insert
@@ -215,6 +221,14 @@ def _get_extensions() -> list[Union[str, markdown.Extension]]:
         IconifyExtension(),
     ]
 
+    # In WASM, enable base64 image inlining since file paths are not accessible
+    # In other environments, base64 is not enabled since app users could
+    # potentially use it to grab files they shouldn't have access to.
+    if is_pyodide():
+        extensions.insert(4, "pymdownx.b64")
+
+    return extensions
+
 
 class _md(Html):
     def __init__(
@@ -228,14 +242,6 @@ class _md(Html):
         # indented multiline strings
         text = cleandoc(text)
         self._markdown_text = text
-
-        # Lazily add mo.notebook_dir() as the bas64 base path
-        # if "pymdownx.b64" not in extension_configs:
-        #     from marimo._runtime.runtime import notebook_dir
-
-        #     extension_configs["pymdownx.b64"] = {
-        #         "base_path": str(notebook_dir()),
-        #     }
 
         # markdown.markdown appends a newline, hence strip
         html_text = markdown.markdown(
