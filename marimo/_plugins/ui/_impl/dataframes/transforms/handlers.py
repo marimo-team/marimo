@@ -347,7 +347,7 @@ class NarwhalsTransformHandler(TransformHandler[DataFrame]):
             return python_print_transforms(
                 df_name, columns, transforms, python_print_pandas
             )
-        elif nw.dependencies.is_polars_dataframe(native_df):
+        elif _is_polars_dataframe_or_lazyframe(native_df):
             return python_print_transforms(
                 df_name, columns, transforms, python_print_polars
             )
