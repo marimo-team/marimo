@@ -55,6 +55,34 @@ describe("TerminalBuffer", () => {
     expect(buffer.render()).toMatchInlineSnapshot(`"a	b"`);
   });
 
+  test("control handles vertical tab", () => {
+    const buffer = new TerminalBuffer();
+    buffer.writeChar("a");
+    buffer.writeChar("b");
+    buffer.control("\v");
+    buffer.writeChar("c");
+    expect(buffer.render()).toMatchInlineSnapshot(`
+      "ab
+        c"
+    `); // This means we expect the "c" to be the column _after_ the "b"
+  });
+
+  test("control handles backspace", () => {
+    const buffer = new TerminalBuffer();
+    buffer.writeChar("a");
+    buffer.writeChar("b");
+    buffer.control("\b");
+    buffer.writeChar("X");
+    expect(buffer.render()).toMatchInlineSnapshot(`"aX"`);
+  });
+
+  test("control handles backspace at start of line", () => {
+    const buffer = new TerminalBuffer();
+    buffer.control("\b");
+    buffer.writeChar("a");
+    expect(buffer.render()).toMatchInlineSnapshot(`"a"`);
+  });
+
   test("control handles carriage return", () => {
     const buffer = new TerminalBuffer();
     buffer.writeChar("a");
