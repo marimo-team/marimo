@@ -456,22 +456,32 @@ def _get_duckdb_database_names(
 def _db_type_to_data_type(db_type: str) -> DataType:
     """Convert a DuckDB type to a Marimo data type.
     Reference: https://duckdb.org/docs/stable/sql/data_types/overview
+    Latest types: https://github.com/marimo-team/codemirror-sql/blob/caa7c664135988b634f55a3e57a1327a5ffeede2/src/dialects/duckdb/duckdb.ts
     """
     db_type = db_type.lower()
-    # Numeric types
-    if db_type in [
-        "tinyint",
-        "smallint",
-        "integer",
-        "bigint",
-        "hugeint",
-        "utinyint",
-        "usmallint",
-        "uinteger",
-        "ubigint",
-        "uhugeint",
-    ]:
+    # Integer types
+    if (
+        db_type
+        in [
+            "tinyint",
+            "smallint",
+            "integer",
+            "bigint",
+            "hugeint",
+            "integral",
+            "long",
+            "short",
+            "signed",
+            "oid",
+            "varint",
+        ]
+        or db_type.startswith("int")
+        # unsigned integers
+        or db_type.startswith("uint")
+        or db_type in ["ubigint", "uhugeint", "usmallint", "utinyint"]
+    ):
         return "integer"
+    # Numeric types (float, decimal, etc.)
     if (
         db_type
         in [
@@ -480,13 +490,14 @@ def _db_type_to_data_type(db_type: str) -> DataType:
             "double",
             "decimal",
             "numeric",
+            "dec",
         ]
         or db_type.startswith("decimal")
         or db_type.startswith("float")
     ):
         return "number"
-    # Boolean type
-    if db_type == "boolean":
+    # Boolean types
+    if db_type in ["boolean", "bool", "logical"]:
         return "boolean"
     # String types
     if db_type in [
@@ -497,12 +508,14 @@ def _db_type_to_data_type(db_type: str) -> DataType:
         "string",
         "blob",
         "uuid",
+        "guid",
+        "nvarchar",
     ]:
         return "string"
     # Date and Time types
     if db_type == "date":
         return "date"
-    if db_type in ["time", "time with time zone"]:
+    if db_type in ["time", "time with time zone", "timetz"]:
         return "time"
     if db_type in ["datetime", "interval"] or db_type.startswith("timestamp"):
         return "datetime"
@@ -516,11 +529,12 @@ def _db_type_to_data_type(db_type: str) -> DataType:
         or db_type.startswith("list")
         or db_type.startswith("array")
         or db_type.startswith("json")
+        or db_type == "row"
     ):
         return "unknown"
     # Special types
-    if db_type == "bit":
-        return "string"  # Representing bit as string
+    if db_type in ["bit", "bitstring", "binary", "varbinary", "bytea"]:
+        return "string"  # Representing binary data types as string
     if db_type == "enum" or db_type.startswith("enum"):
         return "string"  # Representing enum as string
     # Geometry types
