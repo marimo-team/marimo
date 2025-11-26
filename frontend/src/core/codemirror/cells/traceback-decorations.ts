@@ -1,6 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import type { EditorState, Extension } from "@codemirror/state";
+import { foldedRanges, unfoldEffect } from "@codemirror/language";
+import type { EditorState, Extension, StateEffect } from "@codemirror/state";
 import { RangeSetBuilder } from "@codemirror/state";
 import {
   Decoration,
@@ -44,6 +45,43 @@ function createErrorDecorations(state: EditorState, errors: TracebackInfos) {
 }
 
 /**
+ * Unfolds any folded regions that contain error lines.
+ */
+function unfoldErrorLines(view: EditorView, errors: TracebackInfos) {
+  if (!errors?.length) {
+    return;
+  }
+
+  const cellId = view.state.facet(cellIdState);
+  const relevantErrors = errors.filter(
+    (error) => error.kind === "cell" && error.cellId === cellId,
+  );
+
+  if (relevantErrors.length === 0) {
+    return;
+  }
+
+  const folded = foldedRanges(view.state);
+  const effects: StateEffect<unknown>[] = [];
+
+  for (const error of relevantErrors) {
+    try {
+      const line = view.state.doc.line(error.lineNumber);
+      // Check if this line is inside a folded region
+      folded.between(line.from, line.to, (from, to) => {
+        effects.push(unfoldEffect.of({ from, to }));
+      });
+    } catch {
+      // Ignore errors for invalid line numbers
+    }
+  }
+
+  if (effects.length > 0) {
+    view.dispatch({ effects });
+  }
+}
+
+/**
  * A view plugin that highlights error lines in the editor.
  */
 class ErrorHighlighter implements PluginValue {
@@ -51,15 +89,15 @@ class ErrorHighlighter implements PluginValue {
   decorations: DecorationSet;
 
   constructor(view: EditorView, errorsObservable: Observable<TracebackInfos>) {
-    this.decorations = createErrorDecorations(
-      view.state,
-      errorsObservable.get(),
-    );
+    const errors = errorsObservable.get();
+    this.decorations = createErrorDecorations(view.state, errors);
+    unfoldErrorLines(view, errors);
 
     this.unsubscribe = errorsObservable.sub((errors) => {
       // Prev length
       const prevLength = this.decorations.size;
       this.decorations = createErrorDecorations(view.state, errors);
+      unfoldErrorLines(view, errors);
 
       if (prevLength !== this.decorations.size) {
         // Force a re-render
