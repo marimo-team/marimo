@@ -131,7 +131,7 @@ test = [
     "dirty-equals~=0.9.0",
     "hypothesis~=6.102.1",
     # For server testing
-    "httpx~=0.27.0",
+    "httpx>=0.27.0",
     "urllib3~=2.5.0",
     "matplotlib~=3.10.7",
     # Forced for modern matplotlib.
