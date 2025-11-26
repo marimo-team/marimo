@@ -526,6 +526,9 @@ def _db_type_to_data_type(db_type: str) -> DataType:
     # Geometry types
     if db_type == "geometry":
         return "unknown"
+    # Null type (can occur when attaching databases or with unknown column types)
+    if db_type == "null" or db_type == '"null"':
+        return "unknown"
 
     LOGGER.warning("Unknown DuckDB type: %s", db_type)
     # Unknown type
