@@ -1,6 +1,7 @@
 {
-  "[javascript]": {
-    "editor.defaultFormatter": "biomejs.biome"
+  // These match our linters
+  "[python]": {
+    "editor.defaultFormatter": "charliermarsh.ruff",
   },
   "[typescript]": {
     "editor.defaultFormatter": "biomejs.biome"
@@ -8,10 +9,24 @@
   "[typescriptreact]": {
     "editor.defaultFormatter": "biomejs.biome"
   },
+  "[javascript]": {
+    "editor.defaultFormatter": "biomejs.biome"
+  },
+  "[javascriptreact]": {
+    "editor.defaultFormatter": "biomejs.biome"
+  },
   "[json]": {
     "editor.defaultFormatter": "biomejs.biome"
   },
-  "[python]": {
-    "editor.defaultFormatter": "charliermarsh.ruff"
-  }
+  "[jsonc]": {
+    "editor.defaultFormatter": "biomejs.biome"
+  },
+  "[markdown]": {
+    "editor.defaultFormatter": "biomejs.biome",
+  },
+
+  // Other settings that match our linters
+  "files.trimTrailingWhitespace": true,
+  "files.insertFinalNewline": true,
+  "files.trimFinalNewlines": true,
 }
