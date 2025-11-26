@@ -1101,8 +1101,8 @@ packages:
   timestamp: 1727801725384
 - pypi: ./
   name: marimo
-  version: 0.18.0
-  sha256: 38a7a4e5f4bd2017f356d0959dc2b5f0049990f4e416e6bf9ea6d35eeb67c9e7
+  version: 0.18.1
+  sha256: b6a4a94ac8910881a7f5a74cfe037b899a0a33b860a2166bac7f65c4e9092a7e
   requires_dist:
   - click>=8.0,<9
   - jedi>=0.18.0
@@ -1133,14 +1133,6 @@ packages:
   - google-genai>=1.20.0 ; extra == 'recommended'
   - ruff ; extra == 'recommended'
   - nbformat>=5.7.0 ; extra == 'recommended'
-  - click>=8.0,<9 ; extra == 'dev'
-  - black~=23.12.1 ; extra == 'dev'
-  - opentelemetry-api~=1.26.0 ; extra == 'dev'
-  - opentelemetry-sdk~=1.26.0 ; extra == 'dev'
-  - duckdb>=1.0.0 ; extra == 'dev'
-  - sqlglot[rs]>=26.2.0 ; extra == 'dev'
-  - ruff>=0.13.2 ; extra == 'dev'
-  - openai>=1.55.3 ; extra == 'dev'
   - python-lsp-server>=1.13.0 ; extra == 'lsp'
   - python-lsp-ruff>=2.0.0 ; extra == 'lsp'
   - mcp>=1.0.0 ; python_full_version >= '3.10' and extra == 'mcp'
