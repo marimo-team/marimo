@@ -225,9 +225,12 @@ class NarwhalsTransformHandler(TransformHandler[DataFrame]):
     ) -> DataFrame:
         aggs: list[Expr] = []
         group_by_column_id_set = set(transform.column_ids)
+        columns = (
+            transform.aggregation_column_ids or df.collect_schema().names()
+        )
         agg_columns = [
             column_id
-            for column_id in df.collect_schema().names()
+            for column_id in columns
             if column_id not in group_by_column_id_set
         ]
 

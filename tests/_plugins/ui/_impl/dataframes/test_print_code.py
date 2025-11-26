@@ -76,6 +76,10 @@ def create_transform_strategy(
     df_size: int = 3,
 ) -> st.SearchStrategy[Transform]:
     column_ids = st.lists(column_id, min_size=1)
+    aggregation_column_ids = st.one_of(
+        st.just([]),
+        st.lists(column_id, min_size=1),
+    )
 
     if string_column_id is None:
         string_column_id = column_id
@@ -174,6 +178,7 @@ def create_transform_strategy(
         column_ids=column_ids,
         drop_na=st.booleans(),
         aggregation=aggregation,
+        aggregation_column_ids=aggregation_column_ids,
     )
 
     aggregate_transform_strategy = st.builds(
@@ -749,6 +754,7 @@ class TestCombinedTransforms:
                     column_ids=["a"],
                     drop_na=False,
                     aggregation="sum",
+                    aggregation_column_ids=["b"],
                 ),
             ]
         )
@@ -775,6 +781,7 @@ class TestCombinedTransforms:
                     column_ids=["x"],
                     drop_na=False,
                     aggregation="mean",
+                    aggregation_column_ids=["b"],
                 ),
             ]
         )

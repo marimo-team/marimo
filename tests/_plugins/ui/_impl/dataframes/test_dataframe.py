@@ -448,6 +448,7 @@ class TestDataframes:
             column_ids=["group"],
             drop_na=True,
             aggregation="max",
+            aggregation_column_ids=["age"],
         )
         transformations = Transformations([transform])
         transformed_df = transform_container.apply(transformations)
@@ -524,6 +525,7 @@ class TestDataframes:
             column_ids=["group"],
             drop_na=True,
             aggregation="max",
+            aggregation_column_ids=["age"],
         )
 
         # Create and apply the sort transformation
