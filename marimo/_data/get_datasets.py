@@ -486,7 +486,6 @@ def _db_type_to_data_type(db_type: str) -> DataType:
             "double",
             "decimal",
             "numeric",
-            "dec",
         ]
         or db_type.startswith("decimal")
         or db_type.startswith("float")

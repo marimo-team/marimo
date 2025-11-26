@@ -644,7 +644,6 @@ def test_db_type_to_data_type_various() -> None:
     assert _db_type_to_data_type("float") == "number"
     assert _db_type_to_data_type("double") == "number"
     assert _db_type_to_data_type("float4") == "number"
-    assert _db_type_to_data_type("dec") == "number"
     assert _db_type_to_data_type("decimal") == "number"
 
     # String types
