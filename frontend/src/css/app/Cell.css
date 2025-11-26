@@ -359,9 +359,14 @@
   position: relative;
   z-index: 1;
 
-  &:first-child .cm-editor {
+  /* Round the top of the code editor unless there is output above or the AI prompt input is open */
+  &[data-has-output-above="false"] .cm-editor {
     border-top-left-radius: 9px;
     border-top-right-radius: 9px;
+  }
+  div[data-ai-input-open="true"] .cm-editor {
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
   }
 
   &:last-child .cm-editor {

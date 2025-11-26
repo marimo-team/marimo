@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import datetime
 import json
+import math
 import unittest
 from enum import Enum
 from math import isnan
@@ -95,6 +96,8 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
                     datetime.timedelta(microseconds=315),
                     datetime.timedelta(hours=2, minutes=30),
                 ],
+                "nans": [float("nan"), -float("nan"), float("nan") + 1],
+                "infs": [float("inf"), -float("inf"), float("inf") + 1],
                 "mixed_list": [
                     [1, "two"],
                     [3.0, False],
@@ -227,6 +230,14 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
         assert json_data[0]["duration"] == "1d"
         assert json_data[1]["duration"] == "315µs"
         assert json_data[2]["duration"] == "2h 30m"
+
+        # Check nans and infs
+        assert math.isnan(json_data[0]["nans"])
+        assert math.isnan(json_data[1]["nans"])
+        assert math.isnan(json_data[2]["nans"])
+        assert json_data[0]["infs"] == "inf"
+        assert json_data[1]["infs"] == "-inf"
+        assert json_data[2]["infs"] == "inf"
 
     def test_complex_data_field_types(self) -> None:
         complex_data = self.get_complex_data()

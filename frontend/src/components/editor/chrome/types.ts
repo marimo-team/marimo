@@ -14,6 +14,7 @@ import {
   type LucideIcon,
   NetworkIcon,
   NotebookPenIcon,
+  ScrollTextIcon,
   SquareDashedBottomCodeIcon,
   TextSearchIcon,
   XCircleIcon,
@@ -133,6 +134,12 @@ export const PANELS: PanelDescriptor[] = [
   // observability panels are less crucial than variables
   // or datasets, so they are positioned at the end of the
   // sidebar.
+  {
+    type: "outline",
+    Icon: ScrollTextIcon,
+    tooltip: "View outline",
+    position: "sidebar",
+  },
   {
     type: "documentation",
     Icon: TextSearchIcon,

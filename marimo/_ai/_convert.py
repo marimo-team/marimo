@@ -203,6 +203,9 @@ def convert_to_anthropic_messages(
         )
 
         if not message.parts:
+            if not message.content:
+                continue
+
             # Convert content to string
             text_block: TextBlockParam = {
                 "type": "text",
@@ -222,12 +225,18 @@ def convert_to_anthropic_messages(
 
         for part in message.parts:
             if isinstance(part, TextPart):
+                if not part.text:
+                    continue
+
                 text_part: TextBlockParam = {
                     "type": "text",
                     "text": part.text,
                 }
                 current_parts.append(text_part)
             elif isinstance(part, ReasoningPart):
+                if not part.text:
+                    continue
+
                 signature = ""
                 if part.details and len(part.details) > 0:
                     signature = part.details[0].signature or ""
@@ -595,15 +604,41 @@ def convert_to_google_tools(
                 {
                     "name": tool.name,
                     "description": tool.description,
-                    "parameters": {
-                        # Pydantic will raise validation errors if unknown keys are present
-                        # So we only include necessary keys
-                        "type": tool.parameters.get("type", "object"),
-                        "properties": tool.parameters.get("properties", {}),
-                        "required": tool.parameters.get("required", []),
-                    },
+                    "parameters": _clean_google_parameters(
+                        {
+                            # Pydantic will raise validation errors if unknown keys are present
+                            # So we only include necessary keys
+                            "type": tool.parameters.get("type", "object"),
+                            "properties": tool.parameters.get(
+                                "properties", {}
+                            ),
+                            "required": tool.parameters.get("required", []),
+                        }
+                    ),
                 }
             ]
         }
         for tool in tools
     ]
+
+
+def _clean_google_parameters(parameters: dict[str, Any]) -> dict[str, Any]:
+    """
+    Recursively remove unsupported keys from Google tool parameters.
+    Google has strict parameter validation, so we should remove any keys that are not supported.
+    """
+    cleaned = {}
+    for key, value in parameters.items():
+        if key in ("additionalProperties"):
+            continue
+        if key == "properties" and isinstance(value, dict):
+            # Recursively clean nested properties
+            cleaned[key] = {
+                k: _clean_google_parameters(v) if isinstance(v, dict) else v
+                for k, v in value.items()
+            }
+        elif isinstance(value, dict):
+            cleaned[key] = _clean_google_parameters(value)
+        else:
+            cleaned[key] = value
+    return cleaned

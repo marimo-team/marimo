@@ -168,6 +168,55 @@ class TestAnyProviderConfig:
         assert provider_config.api_key == "test-github-key"
         assert provider_config.base_url == "https://api.githubcopilot.com/"
 
+    def test_for_github_default_extra_headers(self):
+        """Test GitHub configuration includes default extra headers."""
+        config: AiConfig = {
+            "github": {
+                "api_key": "test-github-key",
+            }
+        }
+
+        provider_config = AnyProviderConfig.for_github(config)
+
+        assert provider_config.extra_headers is not None
+        assert (
+            provider_config.extra_headers["editor-version"] == "vscode/1.95.0"
+        )
+        assert (
+            provider_config.extra_headers["Copilot-Integration-Id"]
+            == "vscode-chat"
+        )
+
+    def test_for_github_user_headers_override_defaults(self):
+        """Test GitHub configuration allows user headers to override defaults."""
+        config: AiConfig = {
+            "github": {
+                "api_key": "test-github-key",
+                "extra_headers": {
+                    "editor-version": "custom-editor/2.0.0",
+                    "X-Custom-Header": "custom-value",
+                },
+            }
+        }
+
+        provider_config = AnyProviderConfig.for_github(config)
+
+        assert provider_config.extra_headers is not None
+        # User header should override default
+        assert (
+            provider_config.extra_headers["editor-version"]
+            == "custom-editor/2.0.0"
+        )
+        # Default header not overridden should remain
+        assert (
+            provider_config.extra_headers["Copilot-Integration-Id"]
+            == "vscode-chat"
+        )
+        # Custom user header should be preserved
+        assert (
+            provider_config.extra_headers["X-Custom-Header"] == "custom-value"
+        )
+
     def test_for_openrouter(self):
         """Test OpenRouter configuration."""
         config: AiConfig = {
@@ -1105,9 +1154,18 @@ class TestSSLConfiguration:
         assert provider_config.client_pem == "/custom/path/to/client.pem", (
             f"{provider_name}: client_pem should match"
         )
-        assert provider_config.extra_headers == {"X-Custom": "header"}, (
-            f"{provider_name}: extra_headers should match"
-        )
+        # GitHub includes default headers that are merged with user headers
+        if provider_name == "github":
+            assert provider_config.extra_headers is not None
+            assert "X-Custom" in provider_config.extra_headers
+            assert provider_config.extra_headers["X-Custom"] == "header"
+            # GitHub should also include default headers
+            assert "editor-version" in provider_config.extra_headers
+            assert "Copilot-Integration-Id" in provider_config.extra_headers
+        else:
+            assert provider_config.extra_headers == {"X-Custom": "header"}, (
+                f"{provider_name}: extra_headers should match"
+            )
 
     @pytest.mark.parametrize(
         ("provider_name", "provider_method", "api_key_config"),

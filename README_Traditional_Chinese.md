@@ -51,6 +51,7 @@
 - 🧩 **可重用：** [匯入函式和類別](https://docs.marimo.io/guides/reusing_functions/)從一個筆記本到另一個筆記本
 - 🧪 **可測試：** 在筆記本上[執行 pytest](https://docs.marimo.io/guides/testing/)
 - ⌨️ **現代化編輯器：** [GitHub Copilot](https://docs.marimo.io/guides/editor_features/ai_completion.html#github-copilot)、[AI 助手](https://docs.marimo.io/guides/editor_features/ai_completion.html#using-ollama)、vim 鍵盤綁定、變數瀏覽器，以及[更多功能](https://docs.marimo.io/guides/editor_features/index.html)
+- 🧑‍💻 **使用您喜愛的編輯器**：在 [VS Code 或 Cursor](https://marketplace.visualstudio.com/items?itemName=marimo-team.vscode-marimo) 中執行，或在 neovim、Zed [或任何其他文字編輯器](https://docs.marimo.io/guides/editor_features/watching/)中編輯
 
 ```python
 pip install marimo && marimo tutorial intro
@@ -58,7 +59,7 @@ pip install marimo && marimo tutorial intro
 
 _在我們的[線上體驗平台](https://marimo.app/l/c7h6pz)用試用 marimo，完全在瀏覽器中執行！_
 
-_跳到[快速開始](#快速開始)了解我們的 CLI 工具。
+_跳到[快速開始](#快速開始)了解我們的 CLI 工具。_
 
 ## 響應式程式設計環境
 
@@ -105,7 +106,7 @@ marimo 保證您的筆記本程式碼、輸出和程式狀態保持一致。這[
 
 _我們 [YouTube 頻道](https://www.youtube.com/@marimo-team)上的 [marimo 概念播放清單](https://www.youtube.com/watch?v=3N6lInzq5MI&list=PLNJXGo8e1XT9jP7gPbRdm1XwloZVFvLEq)提供了許多功能的概覽。_
 
-**安裝。** 
+**安裝。**
 
 在終端機中執行
 
@@ -120,7 +121,7 @@ marimo tutorial intro
 pip install marimo[recommended]
 ```
 
-**建立新筆記本** 
+**建立新筆記本**
 
 使用以下指令建立或編輯筆記本
 
@@ -128,7 +129,7 @@ pip install marimo[recommended]
 marimo edit
 ```
 
-**作為應用程式執行** 
+**作為應用程式執行**
 
 運行應用程式。將您的筆記本作為網頁應用程式運行，Python 程式碼將被隱藏且不可編輯：
 
@@ -138,7 +139,7 @@ marimo run your_notebook.py
 
 <img src="https://raw.githubusercontent.com/marimo-team/marimo/main/docs/_static/docs-model-comparison.gif" style="border-radius: 8px" width="450px" />
 
-**作為腳本執行** 
+**作為腳本執行**
 
 作為腳本執行。 在命令列中將筆記本作為腳本執行
 
@@ -146,7 +147,7 @@ marimo run your_notebook.py
 python your_notebook.py
 ```
 
-**自動轉換現有的 Jupyter 筆記本** 
+**自動轉換現有的 Jupyter 筆記本**
 
 自動轉換 Jupyter 筆記本。 使用 CLI 自動將 Jupyter 筆記本轉換為 marimo 筆記本
 
@@ -156,7 +157,7 @@ marimo convert your_notebook.ipynb > your_notebook.py
 
 或使用我們的[網頁介面](https://marimo.io/convert)。
 
-**教學** 
+**教學**
 
 列出所有教學：
 
@@ -164,7 +165,7 @@ marimo convert your_notebook.ipynb > your_notebook.py
 marimo tutorial --help
 ```
 
-**分享雲端筆記本。** 
+**分享雲端筆記本。**
 
 使用 [molab](https://molab.marimo.io/notebooks)，一個類似於 Google Colab 的雲端 marimo 筆記本服務，
 來創建和分享筆記本連結。
@@ -262,11 +263,6 @@ marimo 容易上手，並為進階使用者提供了許多強大功能。
 - 🌟 [在 GitHub 上為我們加星](https://github.com/marimo-team/marimo)
 
 有關如何貢獻的更多資訊，請參見[貢獻指南](https://docs.marimo.io/guides/contributing.html)。
-
-> [!TIP]
-> 💡 **marimo 是為您和我們這樣的研究人員和工程師而建立的。**
-
-marimo 是一個 [NumFOCUS 附屬項目](https://numfocus.org/sponsored-projects/affiliated-projects)，我們致力於長期維護。我們的使命是 _將筆記本重新塑造成[可重現、交互式和可共享的 Python 程式](https://docs.marimo.io/faq.html#faq-why)，為研究和交流提供更好的程式設計環境。_
 
 ## 社群
 

@@ -29,7 +29,7 @@ jobs:
           path-to-document: "https://marimo.io/cla" # e.g. a CLA or a DCO document
           # branch should not be protected
           branch: "main"
-          allowlist: user1,bot*
+          allowlist: bot*,copilot
 
           # the followings are the optional inputs - If the optional inputs are not given, then default values will be taken
           remote-organization-name: marimo-team

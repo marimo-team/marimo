@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import subprocess
 import sys
 from functools import partial
 from typing import TYPE_CHECKING
@@ -10,6 +11,7 @@ from marimo._ast import compiler
 from marimo._runtime.packages.pypi_package_manager import (
     PackageDescription,
     PipPackageManager,
+    PoetryPackageManager,
     UvPackageManager,
 )
 
@@ -120,6 +122,90 @@ def test_list_packages_failure(mock_run: MagicMock):
     assert len(packages) == 0
 
 
+# Poetry Package Manager Tests
+
+
+def test_poetry_generate_cmd_version_one():
+    mgr = PoetryPackageManager()
+    assert mgr._generate_list_packages_cmd(1) == [
+        "poetry",
+        "show",
+        "--no-dev",
+    ]
+
+
+@patch("subprocess.run")
+def test_poetry_generate_cmd_version_two_prefers_without_dev(
+    mock_run: MagicMock,
+):
+    mock_run.return_value = MagicMock(returncode=0, stderr="")
+    mgr = PoetryPackageManager()
+
+    cmd = mgr._generate_list_packages_cmd(2)
+
+    assert cmd == ["poetry", "show", "--without", "dev"]
+    mock_run.assert_called_once_with(
+        ["poetry", "show", "--without", "dev"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+
+@patch("subprocess.run")
+def test_poetry_generate_cmd_version_two_falls_back_when_missing_group(
+    mock_run: MagicMock,
+):
+    mock_run.return_value = MagicMock(
+        returncode=1, stderr="Group(s) not found"
+    )
+    mgr = PoetryPackageManager()
+
+    cmd = mgr._generate_list_packages_cmd(2)
+
+    assert cmd == ["poetry", "show"]
+
+
+@patch("subprocess.run")
+def test_poetry_generate_cmd_default_for_other_versions(
+    mock_run: MagicMock,
+):
+    mock_run.return_value = MagicMock(returncode=1, stderr="")
+    mgr = PoetryPackageManager()
+
+    cmd = mgr._generate_list_packages_cmd(3)
+
+    assert cmd == ["poetry", "show"]
+
+
+@patch("subprocess.run")
+def test_poetry_list_packages_parses_output(mock_run: MagicMock):
+    mock_run.side_effect = [
+        MagicMock(returncode=0, stdout="Poetry (1.8.2)"),
+        MagicMock(
+            returncode=0,
+            stdout="package-1    1.0.0\npackage-two    2.0.0\n",
+        ),
+    ]
+    mgr = PoetryPackageManager()
+
+    with patch.object(
+        PoetryPackageManager, "is_manager_installed", return_value=True
+    ):
+        packages = mgr.list_packages()
+
+    assert packages == [
+        PackageDescription(name="package-1", version="1.0.0"),
+        PackageDescription(name="package-two", version="2.0.0"),
+    ]
+
+    # Last subprocess call should be the list invocation with UTF-8 encoding
+    cmd_args, cmd_kwargs = mock_run.call_args_list[-1]
+    assert cmd_args[0] == ["poetry", "show", "--no-dev"]
+    assert cmd_kwargs.get("encoding") == "utf-8"
+    assert cmd_kwargs.get("text") is True
+
+
 # UV Package Manager Tests
 
 
@@ -200,16 +286,19 @@ def test_uv_is_in_uv_project_cached(mock_exists: MagicMock):
     assert mock_exists.call_count == 2
 
 
-@patch("subprocess.run")
+@patch("subprocess.Popen")
 @patch.object(UvPackageManager, "is_in_uv_project", False)
-async def test_uv_install_not_in_project(mock_run: MagicMock):
+async def test_uv_install_not_in_project(mock_popen: MagicMock):
     """Test UV install uses pip subcommand when not in UV project"""
-    mock_run.return_value = MagicMock(returncode=0)
+    mock_process = MagicMock()
+    mock_process.wait.return_value = 0
+    mock_process.stdout.readline.return_value = b""
+    mock_popen.return_value = mock_process
     mgr = UvPackageManager()
 
     result = await mgr._install("package1 package2", upgrade=False)
 
-    mock_run.assert_called_once_with(
+    mock_popen.assert_called_once_with(
         [
             "uv",
             "pip",
@@ -220,15 +309,22 @@ async def test_uv_install_not_in_project(mock_run: MagicMock):
             "-p",
             PY_EXE,
         ],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        universal_newlines=False,
+        bufsize=0,
     )
     assert result is True
 
 
-@patch("subprocess.run")
+@patch("subprocess.Popen")
 @patch.object(UvPackageManager, "is_in_uv_project", False)
-async def test_uv_install_not_in_project_with_target(mock_run: MagicMock):
+async def test_uv_install_not_in_project_with_target(mock_popen: MagicMock):
     """Test UV install uses pip with target"""
-    mock_run.return_value = MagicMock(returncode=0)
+    mock_process = MagicMock()
+    mock_process.wait.return_value = 0
+    mock_process.stdout.readline.return_value = b""
+    mock_popen.return_value = mock_process
     mgr = UvPackageManager()
 
     # Explicitly set environ, since patch doesn't work in an asynchronous
@@ -239,7 +335,7 @@ async def test_uv_install_not_in_project_with_target(mock_run: MagicMock):
     result = await mgr._install("package1 package2", upgrade=False)
     del os.environ["MARIMO_UV_TARGET"]
 
-    mock_run.assert_called_once_with(
+    mock_popen.assert_called_once_with(
         [
             "uv",
             "pip",
@@ -251,6 +347,10 @@ async def test_uv_install_not_in_project_with_target(mock_run: MagicMock):
             "-p",
             PY_EXE,
         ],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        universal_newlines=False,
+        bufsize=0,
     )
     assert result is True
 
@@ -580,3 +680,108 @@ def test_has_script_metadata_binary_file(tmp_path: Path):
 
     mgr = UvPackageManager()
     assert mgr._has_script_metadata(str(binary_file)) is False
+
+
+@patch("subprocess.Popen")
+@patch("subprocess.run")
+@patch.object(UvPackageManager, "is_in_uv_project", False)
+async def test_uv_install_cache_error_fallback(
+    mock_run: MagicMock, mock_popen: MagicMock
+):
+    """Test UV install retries with --no-cache on cache write errors"""
+    # Mock the first install attempt (via Popen) to fail with cache error
+    mock_process = MagicMock()
+    mock_process.wait.return_value = 1  # Failure
+    mock_process.stdout.readline.side_effect = [
+        b"  \xc3\x97 Failed to download and build `pyqtree==1.0.0`\n",
+        b"  \xe2\x94\x9c\xe2\x94\x80\xe2\x96\xb6 Failed to write to the distribution cache\n",
+        b"  \xe2\x95\xb0\xe2\x94\x80\xe2\x96\xb6 Operation not permitted (os error 1)\n",
+        b"",  # End of output
+    ]
+    mock_popen.return_value = mock_process
+
+    # Mock the retry (via run) to succeed
+    mock_run.return_value = MagicMock(returncode=0)
+
+    mgr = UvPackageManager()
+    with patch.object(mgr, "is_manager_installed", return_value=True):
+        result = await mgr._install("datamapplot", upgrade=False)
+
+    # First attempt should use Popen
+    mock_popen.assert_called_once_with(
+        [
+            "uv",
+            "pip",
+            "install",
+            "--compile",
+            "datamapplot",
+            "-p",
+            PY_EXE,
+        ],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        universal_newlines=False,
+        bufsize=0,
+    )
+
+    # Retry should add --no-cache flag
+    mock_run.assert_called_once_with(
+        [
+            "uv",
+            "pip",
+            "install",
+            "--compile",
+            "datamapplot",
+            "-p",
+            PY_EXE,
+            "--no-cache",
+        ],
+    )
+
+    # Should ultimately succeed
+    assert result is True
+
+
+@patch("subprocess.Popen")
+@patch.object(UvPackageManager, "is_in_uv_project", False)
+async def test_uv_install_no_fallback_on_different_error(
+    mock_popen: MagicMock,
+):
+    """Test UV install does not retry when error is not cache-related"""
+    # Mock the install attempt to fail with a different error
+    mock_process = MagicMock()
+    mock_process.wait.return_value = 1  # Failure
+    mock_process.stdout.readline.side_effect = [
+        b"  \xc3\x97 Failed to download package\n",
+        b"  \xe2\x94\x9c\xe2\x94\x80\xe2\x96\xb6 Network error\n",
+        b"",  # End of output
+    ]
+    mock_popen.return_value = mock_process
+
+    mgr = UvPackageManager()
+    with patch.object(mgr, "is_manager_installed", return_value=True):
+        result = await mgr._install("nonexistent-package", upgrade=False)
+
+    # Should only call Popen once (no retry)
+    mock_popen.assert_called_once()
+
+    # Should fail
+    assert result is False
+
+
+@patch("subprocess.run")
+@patch.object(UvPackageManager, "is_in_uv_project", True)
+async def test_uv_install_in_project_no_fallback(mock_run: MagicMock):
+    """Test UV install in a project does not use fallback mechanism"""
+    mock_run.return_value = MagicMock(returncode=1)  # Failure
+    mgr = UvPackageManager()
+
+    result = await mgr._install("package1", upgrade=False)
+
+    # Should only call run once (no fallback for project mode)
+    mock_run.assert_called_once_with(
+        ["uv", "add", "--compile", "package1", "-p", PY_EXE],
+    )
+
+    # Should fail without retry
+    assert result is False

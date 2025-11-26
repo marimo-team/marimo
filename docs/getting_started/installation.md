@@ -36,6 +36,15 @@ detailed information on using marimo with `uv`, see our [uv
 guide](../guides/package_management/using_uv.md).
 ///
 
+/// admonition | Prefer VS Code/Cursor?
+    type: tip
+
+[Try our extension](https://marketplace.visualstudio.com/items?itemName=marimo-team.vscode-marimo),
+which works in VS Code, Cursor, and other VS Code forks.
+///
+
+
+
 ## Install with minimal dependencies
 
 To install marimo, run the following in a terminal:

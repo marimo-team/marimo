@@ -331,7 +331,7 @@ export function useMarimoWebSocket(opts: {
       try {
         handleMessage(e);
       } catch (error) {
-        Logger.error("Failed to handle message", error);
+        Logger.error("Failed to handle message", e.data, error);
         toast({
           title: "Failed to handle message",
           description: prettyError(error),

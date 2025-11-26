@@ -16,6 +16,7 @@ from marimo._config.manager import get_default_config_manager
 from marimo._output.utils import uri_decode_component, uri_encode_component
 from marimo._runtime.virtual_file import EMPTY_VIRTUAL_FILE, read_virtual_file
 from marimo._server.api.deps import AppState
+from marimo._server.file_router import validate_inside_directory
 from marimo._server.router import APIRouter
 from marimo._server.templates.templates import (
     home_page_template,
@@ -144,6 +145,11 @@ def _inject_service_worker(html: str, file_key: str) -> str:
                     .catch(error => {{
                         console.error('Error updating service worker:', error);
                     }});
+            }} else {{
+                console.warn(
+                    '[marimo] Service workers are not supported at this URL. Displaying files from the /public/ directory may be disabled. ' +
+                    'To fix this, enable service workers by using a secure connection (https) or localhost.'
+                );
             }}
             """,
     )
@@ -265,8 +271,8 @@ async def serve_public_file(request: Request) -> Response:
 
         # Security check: ensure file is inside public directory
         try:
-            file_path.relative_to(public_dir.resolve())
-        except ValueError:
+            validate_inside_directory(public_dir, file_path)
+        except HTTPException:
             return Response(status_code=403, content="Access denied")
 
         if file_path.is_file() and not file_path.is_symlink():

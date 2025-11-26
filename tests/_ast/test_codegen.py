@@ -281,6 +281,20 @@ class TestGeneration:
             "test_generate_filecontents_shadowed_builtin"
         )
 
+    @staticmethod
+    def test_generate_filecontents_duplicate_definitions() -> None:
+        """Test that duplicate top-level definitions don't cause KeyError during codegen."""
+        cell_one = "def Two(): return 2"
+        cell_two = "def Two(): return 'two'"
+        codes = [cell_one, cell_two]
+        names = ["one", "two"]
+        # This should not raise a KeyError during TopLevelExtraction
+        # (duplicate validation happens at app.run(), not during codegen)
+        contents = wrap_generate_filecontents(codes, names)
+        # Should successfully generate file contents
+        assert "import marimo" in contents
+        assert contents is not None
+
     def test_with_second_type_noop(self) -> None:
         referring = "x = 1; x: int = 0"
         ref_vars = compile_cell(referring).init_variable_data

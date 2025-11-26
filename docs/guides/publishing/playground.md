@@ -191,7 +191,7 @@ providing your users with an interactive code playground.
   width="100%"
   height="500"
   frameborder="0"
-  sandbox="allow-scripts"
+  sandbox="allow-scripts allow-same-origin"
 ></iframe>
 ```
 
@@ -213,7 +213,7 @@ URL to your notebook](#creating-and-sharing-playground-notebooks), then put it i
   width="100%"
   height="500"
   frameborder="0"
-  sandbox="allow-scripts"
+  sandbox="allow-scripts allow-same-origin"
 ></iframe>
 ```
 
@@ -230,7 +230,7 @@ You can optionally render embedded notebooks in read-only mode by appending
   width="100%"
   height="500"
   frameborder="0"
-  sandbox="allow-scripts"
+  sandbox="allow-scripts allow-same-origin"
 ></iframe>
 ```
 

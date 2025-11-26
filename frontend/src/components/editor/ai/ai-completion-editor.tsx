@@ -254,11 +254,14 @@ export const AiCompletionEditor: React.FC<Props> = ({
   };
 
   return (
-    <div className={cn("flex flex-col w-full rounded-[inherit]", className)}>
+    <div
+      data-ai-input-open={showInput}
+      className={cn("flex flex-col w-full rounded-[inherit]", className)}
+    >
       <div
         className={cn(
-          "flex items-center gap-2 border-b px-3 transition-all rounded-[inherit] rounded-b-none duration-300",
-          showInput && "max-h-[400px] min-h-11 visible",
+          "flex items-center gap-2 px-3 transition-all rounded-[inherit] rounded-b-none duration-300",
+          showInput && "max-h-[400px] border-b min-h-11 visible",
           !showInput && "max-h-0 min-h-0 invisible",
         )}
       >

@@ -2931,10 +2931,13 @@ class TestAsyncIO:
 
     @staticmethod
     @pytest.mark.xfail(
-        condition=sys.platform == "win32" or sys.platform == "darwin",
+        condition=sys.platform == "win32"
+        or sys.platform == "darwin"
+        or sys.version_info >= (3, 14),
         reason=(
             "Bug in interaction with multiprocessing on Windows, macOS; "
-            "doesn't work in Jupyter either."
+            "doesn't work in Jupyter either. Seems to have issue in 3.14 "
+            "as well (pool doesn't copy vars from patched module correctly)."
         ),
     )
     async def test_run_in_processpool_executor(
@@ -2965,6 +2968,8 @@ class TestAsyncIO:
             ]
         )
         assert not k.errors
+        assert not k.stderr.messages, k.stderr
+        assert not k.stdout.messages, k.stdout
         assert k.globals["res"] == "done"
 
 
@@ -3543,6 +3548,92 @@ class TestMarkdownHandling:
         ]
         assert len(regular_stale_ops) == 1
         assert regular_stale_ops[0].stale_inputs is True
+
+    @pytest.mark.skipif(
+        sys.version_info < (3, 14), reason="Template strings only on 3.14"
+    )
+    async def test_non_markdown_cells_alt_strings(
+        self, mocked_kernel: MockedKernel
+    ) -> None:
+        """Test that non-markdown cells are not affected by markdown handling."""
+        k = mocked_kernel.k
+        stream = mocked_kernel.stream
+
+        # Create execution requests with markdown and regular cells
+        r_markdown_cell_code = "mo.md(r'\\n')"
+        f_markdown_cell_code = "mo.md(f'{10*10}')"
+        t_markdown_cell_code = "mo.md(t'{10*10}')"
+        f_markdown_cell_code_escaped = "mo.md(f'{{mo}}')"
+        t_markdown_cell_code_escaped = "mo.md(t'{{mo}}')"
+
+        execution_requests = [
+            ExecutionRequest(cell_id="md_cell_r", code=r_markdown_cell_code),
+            ExecutionRequest(cell_id="md_cell_f", code=f_markdown_cell_code),
+            ExecutionRequest(cell_id="md_cell_t", code=t_markdown_cell_code),
+            ExecutionRequest(
+                cell_id="md_cell_fe", code=f_markdown_cell_code_escaped
+            ),
+            ExecutionRequest(
+                cell_id="md_cell_te", code=t_markdown_cell_code_escaped
+            ),
+            ExecutionRequest(cell_id="mo_import", code="import marimo as mo"),
+        ]
+
+        creation_request = CreationRequest(
+            execution_requests=execution_requests,
+            auto_run=False,
+            set_ui_element_value_request=SetUIElementValueRequest(
+                object_ids=[],
+                values=[],
+            ),
+        )
+
+        # Instantiate the kernel
+        await k.instantiate(creation_request)
+
+        # Check that interpolated markdown cells are not matched
+        assert "md_cell_f" in k._uninstantiated_execution_requests
+        assert "md_cell_t" in k._uninstantiated_execution_requests
+
+        # Without any interpolation can match for rendering
+        assert "md_cell_fe" not in k._uninstantiated_execution_requests
+        assert "md_cell_te" not in k._uninstantiated_execution_requests
+        assert "md_cell_r" not in k._uninstantiated_execution_requests
+
+    async def test_non_markdown_cells_single_call(
+        self, mocked_kernel: MockedKernel
+    ) -> None:
+        """Test that non-markdown cells are not affected by markdown handling."""
+        k = mocked_kernel.k
+        stream = mocked_kernel.stream
+
+        # Create execution requests with markdown and regular cells
+        markdown_cell_code = "mo.md(mo.ui)"
+        regular_cell_code = "x = 0"
+
+        execution_requests = [
+            ExecutionRequest(cell_id="md_cell", code=markdown_cell_code),
+            ExecutionRequest(cell_id="regular_cell", code=regular_cell_code),
+            ExecutionRequest(cell_id="mo_import", code="import marimo as mo"),
+        ]
+
+        creation_request = CreationRequest(
+            execution_requests=execution_requests,
+            auto_run=False,
+            set_ui_element_value_request=SetUIElementValueRequest(
+                object_ids=[],
+                values=[],
+            ),
+        )
+
+        # Instantiate the kernel
+        await k.instantiate(creation_request)
+
+        # Check that markdown cell is also in uninstantiated requests-
+        # since it does not contain a string
+        assert "md_cell" in k._uninstantiated_execution_requests
+        # Regular cell should still be there
+        assert "regular_cell" in k._uninstantiated_execution_requests
 
     async def test_non_markdown_cells_not_affected(
         self, mocked_kernel: MockedKernel

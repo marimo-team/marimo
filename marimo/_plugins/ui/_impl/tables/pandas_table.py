@@ -77,22 +77,18 @@ class PandasTableManagerFactory(TableManagerFactory):
                 self, format_mapping: Optional[FormatMapping] = None
             ) -> str:
                 has_headers = len(self.get_row_headers()) > 0
-                # Pandas omits H:M:S for datetimes when H:M:S is identically
-                # 0; this doesn't play well with our frontend table component,
-                # so we use an explicit date format.
                 return self.apply_formatting(
                     format_mapping
-                )._original_data.to_csv(
-                    # By adding %H:%M:%S and %z, we ensure that the
-                    # datetime is displayed in the frontend with the
-                    # correct timezone.
-                    index=has_headers,
-                    date_format="%Y-%m-%d %H:%M:%S%z",
-                )
+                )._original_data.to_csv(index=has_headers)
 
             def to_json_str(
                 self, format_mapping: Optional[FormatMapping] = None
             ) -> str:
+                def to_json(result: pd.DataFrame) -> list[dict[str, Any]]:
+                    # Use to_dict instead of to_json
+                    # nans, infs, -infs are properly serialized
+                    return result.to_dict(orient="records")  # type: ignore
+
                 from pandas.api.types import (
                     is_complex_dtype,
                     is_object_dtype,
@@ -120,9 +116,6 @@ class PandasTableManagerFactory(TableManagerFactory):
                             if inferred_dtype == "date":
                                 result[col] = result[col].apply(str)
 
-                            result[col] = result[col].apply(
-                                self._sanitize_table_value
-                            )
                             # Cast bytes to string to avoid overflow error
                             if self._infer_dtype(col) == "bytes":
                                 result[col] = result[col].apply(str)
@@ -132,13 +125,7 @@ class PandasTableManagerFactory(TableManagerFactory):
                         "Error handling complex or timedelta64 dtype",
                         exc_info=e,
                     )
-                    return sanitize_json_bigint(
-                        result.to_json(
-                            orient="records",
-                            date_format="iso",
-                            default_handler=str,
-                        )
-                    )
+                    return sanitize_json_bigint(to_json(result))
 
                 # Flatten row multi-index
                 if isinstance(result.index, pd.MultiIndex) or (
@@ -191,13 +178,7 @@ class PandasTableManagerFactory(TableManagerFactory):
                                 "Indexes with more than one level are not well supported, call reset_index() or use mo.plain(df)"
                             )
 
-                return sanitize_json_bigint(
-                    result.to_json(
-                        orient="records",
-                        date_format="iso",
-                        default_handler=str,
-                    )
-                )
+                return sanitize_json_bigint(to_json(result))
 
             def _infer_dtype(self, column: ColumnName) -> str:
                 # Typically, pandas dtypes returns a generic dtype

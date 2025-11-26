@@ -96,7 +96,7 @@ class ModuleDependencyFinder:
         self._failed_module_filenames: set[str] = set()
 
     def find_dependencies(
-        self, module: types.ModuleType, excludes: list[str]
+        self, module: types.ModuleType, excludes: set[str]
     ) -> dict[str, types.ModuleType]:
         if not hasattr(module, "__file__") or module.__file__ is None:
             return {}
@@ -231,15 +231,14 @@ class ModuleReloader:
                     continue
                 py_filename, pymtime = module_mtime.name, module_mtime.mtime
 
-                try:
-                    if pymtime <= self.modules_mtimes[modname]:
-                        continue
-                except KeyError:
+                existing_mtime = self.modules_mtimes.get(modname)
+                if existing_mtime is None:
                     self.modules_mtimes[modname] = pymtime
                     continue
-                else:
-                    if self.failed.get(py_filename, None) == pymtime:
-                        continue
+                if pymtime <= existing_mtime:
+                    continue
+                if self.failed.get(py_filename, None) == pymtime:
+                    continue
 
                 self.modules_mtimes[modname] = pymtime
                 modified_modules.add(m)
@@ -249,12 +248,12 @@ class ModuleReloader:
             if not reload:
                 return modified_modules
 
-            for modname in self.stale_modules:
+            # Pre-filter stale modules to only those present in modules dict
+            relevant_stale_modules = self.stale_modules & modules.keys()
+            for modname in relevant_stale_modules:
                 # Reload after the check loop: if there are any
                 # previously discovered stale modules, reload those as well
-                m = modules.get(modname, None)
-                if m is None:
-                    continue
+                m = modules[modname]
 
                 module_mtime = self.filename_and_mtime(m)
                 if module_mtime is None:
@@ -280,7 +279,7 @@ class ModuleReloader:
         return modified_modules
 
     def get_module_dependencies(
-        self, module: types.ModuleType, excludes: list[str]
+        self, module: types.ModuleType, excludes: set[str]
     ) -> dict[str, types.ModuleType]:
         return self._module_dependency_finder.find_dependencies(
             module, excludes
@@ -340,8 +339,9 @@ def update_class(old: object, new: object) -> None:
         except (AttributeError, TypeError):
             pass  # skip non-writable attributes
 
-    for key in list(new.__dict__.keys()):
-        if key not in list(old.__dict__.keys()):
+    old_dict_keys = set(old.__dict__.keys())
+    for key in new.__dict__.keys():
+        if key not in old_dict_keys:
             try:
                 setattr(old, key, getattr(new, key))
             except (AttributeError, TypeError):
@@ -432,14 +432,8 @@ def superreload(
         old_objects = {}
 
     # collect old objects in the module
-    for name, obj in list(module.__dict__.items()):
-        if not append_obj(module, old_objects, name, obj):
-            continue
-        key = (module.__name__, name)
-        try:
-            old_objects.setdefault(key, []).append(weakref.ref(obj))
-        except TypeError:
-            pass
+    for name, obj in module.__dict__.items():
+        append_obj(module, old_objects, name, obj)
 
     # reload module
     old_dict: dict[str, Any] | None = None
@@ -472,7 +466,7 @@ def superreload(
         raise
 
     # iterate over all objects and update functions & classes
-    for name, new_obj in list(module.__dict__.items()):
+    for name, new_obj in module.__dict__.items():
         key = (module.__name__, name)
         if key not in old_objects:
             continue

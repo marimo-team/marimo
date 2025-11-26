@@ -137,7 +137,7 @@ export class SQLLanguageAdapter
     _completionConfig: CompletionConfig,
     _hotkeys: HotkeyProvider,
     _placeholderType: PlaceholderType,
-    lspConfig: LSPConfig & { diagnostics: DiagnosticsConfig },
+    _lspConfig: LSPConfig & { diagnostics: DiagnosticsConfig },
   ): Extension[] {
     const extensions = [
       // This can be updated with a dispatch effect
@@ -366,6 +366,7 @@ function connectionNameToParserDialect(
     case "postgres":
       return "PostgreSQL";
     case "db2":
+    case "db2i":
       return "DB2";
     case "mysql":
       return "MySQL";
@@ -381,6 +382,7 @@ function connectionNameToParserDialect(
     case "cassandra":
       return "Noql";
     case "athena":
+    case "awsathena":
       return "Athena";
     case "bigquery":
       return "BigQuery";
@@ -398,6 +400,11 @@ function connectionNameToParserDialect(
     case "oracle":
     case "oracledb":
     case "timescaledb":
+    case "couchbase":
+    case "trino":
+    case "tidb":
+    case "singlestoredb":
+    case "spark":
       Logger.debug("Unsupported dialect", { dialect });
       return null;
     default:

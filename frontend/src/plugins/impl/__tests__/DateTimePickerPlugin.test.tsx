@@ -11,6 +11,7 @@ interface DateTimeData {
   label: string | null;
   start: string;
   stop: string;
+  precision: "hour" | "minute" | "second";
   fullWidth: boolean;
 }
 
@@ -37,6 +38,7 @@ describe("DateTimePickerPlugin", () => {
         label: null,
         start: "2024-01-01T00:00:00",
         stop: "2024-12-31T23:59:59",
+        precision: "minute",
         fullWidth: false,
       },
       functions: {},
@@ -68,6 +70,7 @@ describe("DateTimePickerPlugin", () => {
         // These are the exact values that datetime.min and datetime.max produce
         start: "0001-01-01T00:00:00",
         stop: "9999-12-31T23:59:59",
+        precision: "minute",
         fullWidth: false,
       },
       functions: {},

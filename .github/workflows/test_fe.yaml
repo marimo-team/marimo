@@ -115,6 +115,10 @@ jobs:
             echo "Error: react-hook-form version in package.json must be exactly 7.54.2. As it breaks mo.ui.dataframe"
             exit 1
           fi
+          if ! grep -q '"vega-lite": "6.3.1"' package.json; then
+            echo "Error: vega-lite version in package.json must be exactly 6.3.1. Newer versions break numeric tooltips"
+            exit 1
+          fi
 
       - name: 📦 Build
         run: pnpm turbo build

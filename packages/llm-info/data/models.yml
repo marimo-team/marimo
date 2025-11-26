@@ -2,6 +2,13 @@
 
 # Anthropic
 
+- name: Claude 4.5 Opus
+  model: claude-opus-4-5
+  description: Latest Opus model with enhanced capabilities and performance improvements
+  providers: [anthropic]
+  roles: [chat, edit]
+  thinking: true
+  
 - name: Claude 4.5 Sonnet
   model: claude-sonnet-4-5
   description: Latest Sonnet model with enhanced capabilities and performance improvements
@@ -52,6 +59,13 @@
   thinking: false
 
 # Google
+
+- name: Gemini 3.0 Pro
+  model: gemini-3-pro-preview
+  description: Most capable Gemini model with advanced reasoning and large context support
+  providers: [google]
+  roles: [chat, edit]
+  thinking: true
 
 - name: Gemini 2.5 Pro
   model: gemini-2.5-pro
@@ -135,14 +149,14 @@
 - name: GPT-5
   model: gpt-5
   description: The best model for coding and agentic tasks across domains
-  providers: [openai, azure]
+  providers: [openai, azure, github]
   roles: [chat, edit]
   thinking: false
 
 - name: GPT-5 Mini
   model: gpt-5-mini
   description: A faster, cost-efficient version of GPT-5 for well-defined tasks
-  providers: [openai, azure]
+  providers: [openai, azure, github]
   roles: [chat, edit]
   thinking: false
 

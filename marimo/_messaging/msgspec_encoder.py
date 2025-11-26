@@ -6,6 +6,7 @@ from __future__ import annotations
 import collections
 import datetime
 import fractions
+import uuid
 from math import isnan
 from pathlib import PurePath
 from typing import Any
@@ -13,7 +14,11 @@ from typing import Any
 import msgspec
 import msgspec.json
 
+from marimo import _loggers
 from marimo._dependencies.dependencies import DependencyManager
+from marimo._plugins.core.media import io_to_data_url
+
+LOGGER = _loggers.marimo_logger()
 
 
 def enc_hook(obj: Any) -> Any:
@@ -29,13 +34,7 @@ def enc_hook(obj: Any) -> Any:
     if isinstance(obj, range):
         return list(obj)
 
-    if isinstance(obj, complex):
-        return str(obj)
-
-    if isinstance(obj, fractions.Fraction):
-        return str(obj)
-
-    if isinstance(obj, PurePath):
+    if isinstance(obj, (complex, fractions.Fraction, PurePath, uuid.UUID)):
         return str(obj)
 
     if DependencyManager.numpy.imported():
@@ -87,7 +86,17 @@ def enc_hook(obj: Any) -> Any:
             ),
         ):
             return str(obj)
-        if isinstance(obj, (pd.TimedeltaIndex, pd.DatetimeIndex)):
+        if obj is pd.NaT:
+            return str(obj)
+        if isinstance(
+            obj,
+            (
+                pd.TimedeltaIndex,
+                pd.DatetimeIndex,
+                pd.IntervalIndex,
+                pd.PeriodIndex,
+            ),
+        ):
             return obj.astype(str).tolist()
         if isinstance(obj, pd.MultiIndex):
             return obj.to_list()
@@ -120,6 +129,39 @@ def enc_hook(obj: Any) -> Any:
                 obj, pl.datatypes.DataType
             ):
                 return str(obj)
+
+    # Handle Pillow images
+    if DependencyManager.pillow.imported():
+        try:
+            from PIL import Image
+
+            if isinstance(obj, Image.Image):
+                return io_to_data_url(obj, "image/png")
+        except Exception:
+            LOGGER.debug("Unable to convert image to data URL", exc_info=True)
+
+    # Handle Matplotlib figures
+    if DependencyManager.matplotlib.imported():
+        try:
+            import matplotlib.figure
+            from matplotlib.axes import Axes
+
+            from marimo._output.formatting import as_html
+            from marimo._plugins.stateless.flex import vstack
+
+            if isinstance(obj, matplotlib.figure.Figure):
+                html = as_html(vstack([str(obj), obj]))
+                mimetype, data = html._mime_()
+
+            if isinstance(obj, Axes):
+                html = as_html(vstack([str(obj), obj]))
+                mimetype, data = html._mime_()
+                return {"mimetype": mimetype, "data": data}
+        except Exception:
+            LOGGER.debug(
+                "Error converting matplotlib figures to HTML",
+                exc_info=True,
+            )
 
     # Handle objects with __slots__
     slots = getattr(obj, "__slots__", None)
@@ -190,7 +232,10 @@ def enc_hook(obj: Any) -> Any:
         return obj
 
     # Handle datetime types
-    if isinstance(obj, (datetime.datetime, datetime.timedelta, datetime.date)):
+    if isinstance(
+        obj,
+        (datetime.datetime, datetime.timedelta, datetime.date, datetime.time),
+    ):
         return str(obj)
 
     # Handle None

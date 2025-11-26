@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.17.6"
+__generated_with = "0.17.8"
 app = marimo.App(width="medium")
 
 
@@ -145,6 +145,26 @@ def _():
 @app.cell
 def _(df, mo):
     mo.ui.dataframe(df)
+    return
+
+
+@app.cell
+def _(mo, pd, pl):
+    import uuid
+
+    uuid_data = {
+        "id": [
+            uuid.UUID("00000000-0000-0000-0000-000000000000"),
+            uuid.UUID("ffffffff-ffff-ffff-ffff-ffffffffffff"),
+            uuid.UUID("123e4567-e89b-12d3-a456-426614174000"),
+        ],
+        "name": ["test1", "test2", "test3"],
+    }
+
+    uuid_df = pd.DataFrame(uuid_data)
+    uuid_polars = pl.DataFrame(uuid_data)
+
+    mo.vstack([mo.plain(uuid_df), uuid_df, uuid_polars])
     return
 
 

@@ -7,6 +7,9 @@ app = marimo.App()
 @app.cell
 def one(a: int, b: int) -> None: c = a + b; print(c); return (c,)
 
+@app.cell
+def two(a: int, b: int) -> None: ...
+
 
 if __name__ == "__main__":
     app.run()

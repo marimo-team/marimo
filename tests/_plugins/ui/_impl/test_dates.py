@@ -192,3 +192,29 @@ def test_date_range_from_dataframe() -> None:
     )
     assert date_range_ui.start == datetime.date(2024, 1, 1)
     assert date_range_ui.stop == datetime.date(2024, 1, 31)
+
+
+def test_datetime_precision_default() -> None:
+    """Test that datetime precision defaults to 'minute'."""
+    dt = ui.datetime(value="2024-01-01T12:30:45")
+
+    # Check that precision is set to "minute" by default in the args
+    precision = dt._args.args.get("precision")
+    assert precision == "minute"
+
+
+def test_datetime_precision_validation() -> None:
+    """Test that datetime precision validation raises ValueError for invalid values."""
+    # Valid precisions should work
+    dt_hour = ui.datetime(value="2024-01-01T12:30:45", precision="hour")
+    assert dt_hour._args.args.get("precision") == "hour"
+
+    dt_minute = ui.datetime(value="2024-01-01T12:30:45", precision="minute")
+    assert dt_minute._args.args.get("precision") == "minute"
+
+    dt_second = ui.datetime(value="2024-01-01T12:30:45", precision="second")
+    assert dt_second._args.args.get("precision") == "second"
+
+    # Invalid precision should raise ValueError
+    with pytest.raises(ValueError, match="precision must be"):
+        ui.datetime(value="2024-01-01T12:30:45", precision="millisecond")  # type: ignore[arg-type]

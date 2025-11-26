@@ -2,7 +2,7 @@
 import { z } from "zod";
 import { invariant } from "@/utils/invariant";
 import { Logger } from "@/utils/Logger";
-import type { MarimoConfig } from "../network/types";
+import type { MarimoConfig, schemas } from "../network/types";
 
 // This has to be defined in the same file as the zod schema to satisfy zod
 export const PackageManagerNames = [
@@ -44,8 +44,8 @@ export const DEFAULT_AI_MODEL = "openai/gpt-4o";
  */
 const AUTO_DOWNLOAD_FORMATS = ["html", "markdown", "ipynb"] as const;
 
-const COPILOT_MODES = ["manual", "ask", "agent"] as const;
-export type CopilotMode = (typeof COPILOT_MODES)[number];
+export type CopilotMode = NonNullable<schemas["AiConfig"]["mode"]>;
+export const COPILOT_MODES: CopilotMode[] = ["manual", "ask", "agent"];
 
 const AiConfigSchema = z
   .object({
@@ -119,6 +119,7 @@ export const UserConfigSchema = z
         auto_instantiate: z.boolean().prefault(true),
         on_cell_change: z.enum(["lazy", "autorun"]).prefault("autorun"),
         auto_reload: z.enum(["off", "lazy", "autorun"]).prefault("off"),
+        reactive_tests: z.boolean().prefault(true),
         watcher_on_save: z.enum(["lazy", "autorun"]).prefault("lazy"),
         default_sql_output: z.enum(VALID_SQL_OUTPUT_FORMATS).prefault("auto"),
         default_auto_download: z

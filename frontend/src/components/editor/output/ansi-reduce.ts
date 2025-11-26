@@ -69,7 +69,7 @@ export class TerminalBuffer {
     this.cursor.col += str.length;
   }
 
-  /** Handle simple control characters (\n, \r). */
+  /** Handle simple control characters (\n, \r, \t). */
   control(ch: string) {
     switch (ch) {
       case "\n":
@@ -79,6 +79,9 @@ export class TerminalBuffer {
         break;
       case "\r":
         this.cursor.col = 0;
+        break;
+      case "\t":
+        this.writeChar("\t");
         break;
     }
   }
@@ -268,11 +271,11 @@ export class AnsiReducer {
       const ch = text[i];
 
       // Handle control characters
-      if (ch === "\n" || ch === "\r") {
+      if (ch === "\n" || ch === "\r" || ch === "\t") {
         // Write accumulated text before the control character
         if (i > start) {
           const segment = text.slice(start, i);
-          // Filter out characters below space (but we already have \n and \r handled)
+          // Filter out characters below space (but we already have \n, \r, \t handled)
           const filtered = this.filterControlChars(segment);
           if (filtered.length > 0) {
             this.buffer.writeString(filtered);
@@ -302,7 +305,7 @@ export class AnsiReducer {
     }
   }
 
-  /** Filter out control characters below space (except \n and \r which are handled separately). */
+  /** Filter out control characters below space (except \n, \r, \t which are handled separately). */
   private filterControlChars(text: string): string {
     // Fast path: if no control chars, return as-is
     let hasControlChars = false;
