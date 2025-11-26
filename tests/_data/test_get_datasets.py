@@ -6,6 +6,7 @@ from typing import Any
 import pytest
 
 from marimo._data.get_datasets import (
+    _db_type_to_data_type,
     get_databases_from_duckdb,
     get_datasets_from_variables,
     get_duckdb_databases_agg_query,
@@ -612,3 +613,38 @@ def test_get_databases_with_context_manager_closed_connection() -> None:
 
     # Should return empty list for closed connection
     assert result == []
+
+
+def test_db_type_to_data_type_null() -> None:
+    """Test that the 'null' DuckDB type is handled without warnings."""
+    # Test that null type maps to unknown
+    assert _db_type_to_data_type("null") == "unknown"
+    assert _db_type_to_data_type("NULL") == "unknown"
+    assert _db_type_to_data_type('"null"') == "unknown"
+
+
+def test_db_type_to_data_type_various() -> None:
+    """Test various DuckDB type mappings."""
+    # Integer types
+    assert _db_type_to_data_type("integer") == "integer"
+    assert _db_type_to_data_type("bigint") == "integer"
+
+    # Numeric types
+    assert _db_type_to_data_type("float") == "number"
+    assert _db_type_to_data_type("double") == "number"
+
+    # String types
+    assert _db_type_to_data_type("varchar") == "string"
+    assert _db_type_to_data_type("text") == "string"
+
+    # Boolean
+    assert _db_type_to_data_type("boolean") == "boolean"
+
+    # Date/Time
+    assert _db_type_to_data_type("date") == "date"
+    assert _db_type_to_data_type("timestamp") == "datetime"
+
+    # Special types
+    assert _db_type_to_data_type("geometry") == "unknown"
+    assert _db_type_to_data_type("null") == "unknown"
+    assert _db_type_to_data_type("json") == "unknown"
