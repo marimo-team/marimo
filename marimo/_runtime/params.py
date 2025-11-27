@@ -27,7 +27,7 @@ from marimo._runtime.requests import (
 from marimo._runtime.state import State, StateRegistry
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator
+    from collections.abc import Iterable, Iterator
 
 
 @mddoc
@@ -251,8 +251,8 @@ class CLIArgs:
     def to_dict(self) -> SerializedCLIArgs:
         return self._params
 
-    def items(self) -> Iterator[tuple[str, ListOrValue[Primitive]]]:
+    def items(self) -> Iterable[tuple[str, ListOrValue[Primitive]]]:
         return self._params.items()
 
-    def keys(self) -> Iterator[str]:
+    def keys(self) -> Iterable[str]:
         return self._params.keys()
