@@ -292,8 +292,8 @@ export class PythonLanguageAdapter implements LanguageAdapter<{}> {
               rename: hotkeys.getHotkey("cell.renameSymbol").key,
             },
             // Match completions before the cursor is at the end of a word,
-            // after a dot, after a slash, after a comma.
-            completionMatchBefore: /(\w+|\w+\.|\(|\/|,)$/,
+            // after a dot, after a slash.
+            completionMatchBefore: /(\w+|\w+\.|\/)$/,
             onGoToDefinition: (result) => {
               Logger.debug("onGoToDefinition", result);
               if (client.documentUri === result.uri) {

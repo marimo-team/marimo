@@ -81,8 +81,20 @@ async function requestDocumentation({
 }
 
 export function getPositionAtWordBounds(doc: Text, pos: number) {
-  let startToken = pos;
-  let endToken = pos;
+  let cursorPos = pos;
+
+  const charBefore =
+    cursorPos > 0 ? doc.sliceString(cursorPos - 1, cursorPos) : "";
+  const charAfter =
+    cursorPos < doc.length ? doc.sliceString(cursorPos, cursorPos + 1) : "";
+
+  // If the cursor is inside function call parentheses, move the cursor to the start of the function call
+  if (charBefore === "(" && charAfter === ")") {
+    cursorPos -= 1;
+  }
+
+  let startToken = cursorPos;
+  let endToken = cursorPos;
 
   // Start of word
   while (startToken > 0) {
