@@ -254,3 +254,17 @@ class TestCLIArgs(unittest.TestCase):
     def test_delete(self):
         with pytest.raises(TypeError):
             del self.params["key1"]
+
+    def test_items(self):
+        items = list(self.params.items())
+        assert items == [("key1", "value1"), ("key2", ["value2", "value3"])]
+
+    def test_keys(self):
+        keys = list(self.params.keys())
+        assert keys == ["key1", "key2"]
+
+    def test_dict_generic(self):
+        assert dict(self.params) == {
+            "key1": "value1",
+            "key2": ["value2", "value3"],
+        }

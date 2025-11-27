@@ -250,3 +250,9 @@ class CLIArgs:
 
     def to_dict(self) -> SerializedCLIArgs:
         return self._params
+
+    def items(self) -> Iterator[tuple[str, ListOrValue[Primitive]]]:
+        return self._params.items()
+
+    def keys(self) -> Iterator[str]:
+        return self._params.keys()
