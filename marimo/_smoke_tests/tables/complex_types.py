@@ -111,7 +111,7 @@ def _(df):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo, pd, pl):
     complex = [1 + 2j, 2 + 3j]
 
@@ -131,7 +131,38 @@ def _(mo, pd, pl):
             "large_floats": [[125339796295248046.9], [-12533979629524804.69]],
         }
     )
-    mo.vstack([additional_types_pd, additional_types_pl])
+    mo.vstack([mo.md("#### BigInts"), additional_types_pd, additional_types_pl])
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo, pd):
+    from decimal import Decimal
+
+    _data = {
+        "decimals": [
+            Decimal("23.546"),
+            Decimal("12.431"),
+            Decimal("-12.3232"),
+            Decimal("NaN"),
+            Decimal("Infinity"),
+            Decimal("-0"),
+            Decimal("-Infinity"),
+        ]
+    }
+
+    mo.vstack(
+        [
+            mo.md("#### Decimals"),
+            mo.hstack(
+                [
+                    mo.plain(pd.DataFrame(_data)),
+                    pd.DataFrame(_data),
+                ],
+                justify="start",
+            ),
+        ]
+    )
     return
 
 
@@ -148,7 +179,7 @@ def _(df, mo):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo, pd, pl):
     import uuid
 
@@ -164,7 +195,7 @@ def _(mo, pd, pl):
     uuid_df = pd.DataFrame(uuid_data)
     uuid_polars = pl.DataFrame(uuid_data)
 
-    mo.vstack([mo.plain(uuid_df), uuid_df, uuid_polars])
+    mo.vstack([mo.md("#### UUIDs"), mo.plain(uuid_df), uuid_df, uuid_polars])
     return
 
 

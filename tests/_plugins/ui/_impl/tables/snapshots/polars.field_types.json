@@ -35,6 +35,13 @@
         ]
     ],
     [
+        "decimals",
+        [
+            "number",
+            "decimal[38,2]"
+        ]
+    ],
+    [
         "datetime",
         [
             "datetime",

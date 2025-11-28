@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import datetime
+import decimal
 import json
 import math
 import unittest
@@ -51,6 +52,11 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
                 "int": [1, 2, 3],
                 "large_int": [2**64, 2**65 + 1, 2**66 + 2],
                 "float": [1.0, 2.0, 3.0],
+                "decimals": [
+                    decimal.Decimal("1.23"),
+                    decimal.Decimal("4.56"),
+                    decimal.Decimal("7.89"),
+                ],
                 "datetime": [
                     datetime.datetime(2021, 1, 1),
                     datetime.datetime(2021, 1, 2),

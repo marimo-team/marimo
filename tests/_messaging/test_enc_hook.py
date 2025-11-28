@@ -1,5 +1,6 @@
 # Copyright 2025 Marimo. All rights reserved.
 
+import decimal
 import json
 
 import pytest
@@ -63,3 +64,20 @@ def test_serialize_matplotlib_figure() -> None:
         image_data = json.loads(result["data"])
         assert "image/png" in image_data
         assert image_data["image/png"].startswith("data:image/png;base64,")
+
+
+def test_serialize_decimal() -> None:
+    decimal_obj = decimal.Decimal("123.45")
+    result = enc_hook(decimal_obj)
+    assert result == "123.45"
+
+    # Nans, infinities, and -0
+    decimal_obj = decimal.Decimal("NaN")
+    result = enc_hook(decimal_obj)
+    assert result == "NaN"
+    decimal_obj = decimal.Decimal("Infinity")
+    result = enc_hook(decimal_obj)
+    assert result == "Infinity"
+    decimal_obj = decimal.Decimal("-0")
+    result = enc_hook(decimal_obj)
+    assert result == "-0"
