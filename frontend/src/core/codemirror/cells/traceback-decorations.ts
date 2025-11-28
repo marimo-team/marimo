@@ -12,6 +12,7 @@ import {
   type ViewUpdate,
 } from "@codemirror/view";
 import type { Observable } from "@/core/state/observable";
+import { Logger } from "@/utils/Logger";
 import type { TracebackInfo } from "@/utils/traceback";
 import { cellIdState } from "./state";
 
@@ -71,8 +72,8 @@ function unfoldErrorLines(view: EditorView, errors: TracebackInfos) {
       folded.between(line.from, line.to, (from, to) => {
         effects.push(unfoldEffect.of({ from, to }));
       });
-    } catch {
-      Logger.debug("Invalid line numbers", e);
+    } catch (error) {
+      Logger.debug("Invalid line numbers", { error });
     }
   }
 
