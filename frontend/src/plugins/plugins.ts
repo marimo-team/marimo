@@ -14,6 +14,7 @@ import { DataEditorPlugin } from "./impl/DataEditorPlugin";
 import { DataTablePlugin } from "./impl/DataTablePlugin";
 import { DatePickerPlugin } from "./impl/DatePickerPlugin";
 import { DateRangePickerPlugin } from "./impl/DateRangePlugin";
+import { DateSliderPlugin } from "./impl/DateSliderPlugin";
 import { DateTimePickerPlugin } from "./impl/DateTimePickerPlugin";
 import { DictPlugin } from "./impl/DictPlugin";
 import { DropdownPlugin } from "./impl/DropdownPlugin";
@@ -61,6 +62,7 @@ export const UI_PLUGINS: IPlugin<any, unknown>[] = [
   new DatePickerPlugin(),
   new DateTimePickerPlugin(),
   new DateRangePickerPlugin(),
+  new DateSliderPlugin(),
   new DictPlugin(),
   new CodeEditorPlugin(),
   new DropdownPlugin(),
