@@ -2,14 +2,13 @@
 
 import {
   ActivityIcon,
-  BotMessageSquareIcon,
+  BotIcon,
   BoxIcon,
   DatabaseIcon,
   DatabaseZapIcon,
   FileTextIcon,
   FolderTreeIcon,
   FunctionSquareIcon,
-  HatGlassesIcon,
   KeyRoundIcon,
   type LucideIcon,
   NetworkIcon,
@@ -34,8 +33,7 @@ export type PanelType =
   | "snippets"
   | "datasources"
   | "scratchpad"
-  | "chat"
-  | "agents"
+  | "ai"
   | "cache"
   | "secrets"
   | "logs";
@@ -91,24 +89,14 @@ export const PANELS: PanelDescriptor[] = [
     tooltip: "Manage packages",
     position: "sidebar",
   },
-  // 2. "Add cells" panels.
+  // 2. "AI" panel.
   //
-  // We start with chat because it's the easiest
-  // way to add new cells to the editor.
+  // The AI panel holds both agents and in-editor chat.
   {
-    type: "chat",
-    Icon: BotMessageSquareIcon,
-    tooltip: "Chat with AI",
+    type: "ai",
+    Icon: BotIcon,
+    tooltip: "Chat & Agents",
     position: "sidebar",
-  },
-  {
-    // TODO(akshayka): Consider merging with chat panel
-    // before release.
-    type: "agents",
-    Icon: HatGlassesIcon,
-    tooltip: "Agents",
-    position: "sidebar",
-    hidden: !getFeatureFlag("external_agents"),
   },
   // Scratchpad is the only way users can
   // code without DAG restrictions, so it is

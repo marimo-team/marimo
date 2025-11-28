@@ -94,9 +94,7 @@ interface AgentTitleProps {
 }
 
 const AgentTitle = memo<AgentTitleProps>(({ currentAgentId }) => (
-  <span className="text-sm font-medium">
-    {currentAgentId ? capitalize(currentAgentId) : "Agents"}
-  </span>
+  <span className="text-sm font-medium">{capitalize(currentAgentId)}</span>
 ));
 AgentTitle.displayName = "AgentTitle";
 
@@ -134,7 +132,7 @@ const HeaderInfo = memo<HeaderInfoProps>(
   ({ currentAgentId, connectionStatus, shouldShowConnectionControl }) => (
     <div className="flex items-center gap-2">
       <BotMessageSquareIcon className="h-4 w-4 text-muted-foreground" />
-      <AgentTitle currentAgentId={currentAgentId} />
+      {currentAgentId && <AgentTitle currentAgentId={currentAgentId} />}
       {shouldShowConnectionControl && (
         <ConnectionStatus status={connectionStatus} />
       )}
