@@ -583,6 +583,7 @@ pre_commit = ">=4.2.0,<5"
 uv = ">=0.6.12,<0.7"
 python = "3.12.*"
 pip = ">=25.0.1,<26"
+pixi-pycharm = ">=0.0.9,<0.0.10"
 
 [tool.pixi.pypi-dependencies]
 marimo = {path = ".", editable = true}
