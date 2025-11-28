@@ -72,7 +72,7 @@ function unfoldErrorLines(view: EditorView, errors: TracebackInfos) {
         effects.push(unfoldEffect.of({ from, to }));
       });
     } catch {
-      Logger.debug("Invalid line numbers", e)
+      Logger.debug("Invalid line numbers", e);
     }
   }
 
