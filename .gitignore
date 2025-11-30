@@ -128,3 +128,4 @@ __marimo__
 
 # mkdocs
 site
+.claude/settings.local.json
