@@ -1,3 +1,10 @@
 {
-  "recommendations": ["biomejs.biome"]
+  "recommendations": [
+    // Python
+    "charliermarsh.ruff",
+
+    // TypeScript/JavaScript/React
+    "biomejs.biome",
+    "ms-vscode.vscode-typescript-next",
+  ],
 }
