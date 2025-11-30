@@ -92,30 +92,27 @@ describe("cell-urls utilities", () => {
   });
 
   describe("edge case cell names with unicode and special characters", () => {
-    it.each(EDGE_CASE_CELL_NAMES)(
-      "should handle unicode cell names in createCellLink: %s",
-      (cellName) => {
-        const url = createCellLink(cellName);
-        expect(url).toContain("scrollTo=");
-        expect(url).toContain(encodeURIComponent(cellName));
-      },
-    );
+    it.each(
+      EDGE_CASE_CELL_NAMES,
+    )("should handle unicode cell names in createCellLink: %s", (cellName) => {
+      const url = createCellLink(cellName);
+      expect(url).toContain("scrollTo=");
+      expect(url).toContain(encodeURIComponent(cellName));
+    });
 
-    it.each(EDGE_CASE_CELL_NAMES)(
-      "should round-trip unicode cell names correctly: %s",
-      (cellName) => {
-        const url = createCellLink(cellName);
-        const hash = url.split("#")[1];
-        const extracted = extractCellNameFromHash(`#${hash}`);
-        expect(extracted).toBe(cellName);
-      },
-    );
+    it.each(
+      EDGE_CASE_CELL_NAMES,
+    )("should round-trip unicode cell names correctly: %s", (cellName) => {
+      const url = createCellLink(cellName);
+      const hash = url.split("#")[1];
+      const extracted = extractCellNameFromHash(`#${hash}`);
+      expect(extracted).toBe(cellName);
+    });
 
-    it.each(EDGE_CASE_CELL_NAMES)(
-      "should allow linking to unicode cell names: %s",
-      (cellName) => {
-        expect(canLinkToCell(cellName)).toBe(true);
-      },
-    );
+    it.each(
+      EDGE_CASE_CELL_NAMES,
+    )("should allow linking to unicode cell names: %s", (cellName) => {
+      expect(canLinkToCell(cellName)).toBe(true);
+    });
   });
 });
