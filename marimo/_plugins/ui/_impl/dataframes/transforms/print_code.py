@@ -212,6 +212,12 @@ def python_print_pandas(
         column_ids = transform.column_ids
         return f"{df_name}.drop_duplicates({_list_of_strings(column_ids)}, keep={_as_literal(transform.keep)})"
 
+    elif transform.type == TransformType.PIVOT:
+        column_ids = transform.column_ids
+        index_column_ids = transform.index_column_ids
+        value_column_ids = transform.value_column_ids
+        return f"{df_name}.pivot_table(columns={_list_of_strings(column_ids)}, index={_list_of_strings(index_column_ids)}, values={_list_of_strings(value_column_ids)}, aggfunc={transform.aggregation})"
+
     assert_never(transform.type)
 
 
@@ -372,6 +378,12 @@ def python_print_polars(
         column_ids = transform.column_ids
         return f"{df_name}.unique(subset={_list_of_strings(column_ids)}, keep={_as_literal(transform.keep)})"  # noqa: E501
 
+    elif transform.type == TransformType.PIVOT:
+        column_ids = transform.column_ids
+        index_column_ids = transform.index_column_ids
+        value_column_ids = transform.value_column_ids
+        return f"{df_name}.pivot(on={_list_of_strings(column_ids)}, index={_list_of_strings(index_column_ids)}, values={_list_of_strings(value_column_ids)}, aggregate_function={transform.aggregation})"
+
     assert_never(transform.type)
 
 
@@ -504,6 +516,12 @@ def python_print_ibis(
     elif transform.type == TransformType.UNIQUE:
         column_ids = transform.column_ids
         return f"{df_name}.distinct(on={_list_of_strings(column_ids)}, keep={_as_literal(transform.keep)})"  # noqa: E501
+
+    elif transform.type == TransformType.PIVOT:
+        column_ids = transform.column_ids
+        index_column_ids = transform.index_column_ids
+        value_column_ids = transform.value_column_ids
+        return f"{df_name}.pivot_wider(names_from={_list_of_strings(column_ids)}, id_cols={_list_of_strings(index_column_ids)}, values_from={_list_of_strings(value_column_ids)}, values_agg={transform.aggregation})"
 
     assert_never(transform.type)
 

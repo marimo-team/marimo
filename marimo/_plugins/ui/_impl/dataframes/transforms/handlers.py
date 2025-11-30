@@ -21,6 +21,7 @@ from marimo._plugins.ui._impl.dataframes.transforms.types import (
     ExplodeColumnsTransform,
     FilterRowsTransform,
     GroupByTransform,
+    PivotTransform,
     RenameColumnTransform,
     SampleRowsTransform,
     SelectColumnsTransform,
@@ -333,6 +334,19 @@ class NarwhalsTransformHandler(TransformHandler[DataFrame]):
                 .lazy()
             )
         assert_never(keep)
+
+    @staticmethod
+    def handle_pivot(df: DataFrame, transform: PivotTransform) -> DataFrame:
+        return (
+            df.collect()
+            .pivot(
+                on=transform.column_ids,
+                index=transform.index_column_ids,
+                values=transform.value_column_ids,
+                aggregate_function=transform.aggregation,
+            )
+            .lazy()
+        )
 
     @staticmethod
     def as_python_code(

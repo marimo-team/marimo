@@ -49,6 +49,8 @@ def _handle(df: T, handler: TransformHandler[T], transform: Transform) -> T:
         return handler.handle_expand_dict(df, transform)
     if transform.type is TransformType.UNIQUE:
         return handler.handle_unique(df, transform)
+    if transform.type is TransformType.PIVOT:
+        return handler.handle_pivot(df, transform)
     assert_never(transform.type)
 
 
