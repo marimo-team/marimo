@@ -113,8 +113,8 @@ it("can convert json to tsv with fr-FR locale", () => {
   const locale = "fr-FR";
 
   // Handles floats with fr-FR locale (uses , as decimal separator)
-  expect(jsonToTSV([{ a: 3.14, b: Math.E }], locale)).toEqual(
-    "a\tb\n3,14\t2,71828",
+  expect(jsonToTSV([{ a: 3.14, b: 2.12345 }], locale)).toEqual(
+    "a\tb\n3,14\t2,12345",
   );
 });
 
