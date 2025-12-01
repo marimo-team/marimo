@@ -5,6 +5,7 @@ name: 🏷️ Pull Request Labeler
 
 on:
   pull_request_target:
+    types: [labeled, unlabeled, opened, edited, synchronize, reopened]
   pull_request:
     types: [labeled, unlabeled, opened, edited, synchronize]
 
@@ -22,8 +23,6 @@ jobs:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
   enforce-label:
-    needs: [label]
-    if: always() && (needs.label.result == 'success' || needs.label.result == 'skipped')
     runs-on: ubuntu-latest
     steps:
       - uses: yogevbd/enforce-label-action@2.2.2
