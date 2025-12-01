@@ -1,10 +1,16 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
+import type { Column } from "@tanstack/react-table";
 import { render } from "@testing-library/react";
 import { I18nProvider } from "react-aria";
 import { describe, expect, it, test } from "vitest";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { generateColumns, inferFieldTypes, LocaleNumber } from "../columns";
+import {
+  generateColumns,
+  inferFieldTypes,
+  LocaleNumber,
+  renderCellValue,
+} from "../columns";
 import { getMimeValues, isMimeValue, MimeCell } from "../mime-cell";
 import type { FieldTypesWithExternalType } from "../types";
 import { uniformSample } from "../uniformSample";
@@ -517,5 +523,163 @@ describe("LocaleNumber", () => {
       </I18nProvider>,
     );
     expect(container.textContent).toMatchInlineSnapshot(`"10,000,000,000"`);
+  });
+});
+
+describe("renderCellValue with datetime values", () => {
+  const createMockColumn = () =>
+    ({
+      id: "created",
+      columnDef: {
+        meta: {
+          dataType: "datetime" as const,
+          dtype: "datetime64[ns]",
+        },
+      },
+      getColumnFormatting: () => undefined,
+      getColumnWrapping: () => undefined,
+      applyColumnFormatting: (value: unknown) => value,
+    }) as unknown as Column<unknown>;
+
+  it("should handle null, empty string, and 'null' string datetime values without throwing RangeError", () => {
+    const mockColumn = createMockColumn();
+
+    // Test null, empty string, and "null" string (as they might come from SQL)
+    const nullishValues = [null, "", "null"];
+
+    nullishValues.forEach((value) => {
+      const result = renderCellValue({
+        column: mockColumn,
+        renderValue: () => value,
+        getValue: () => value,
+        selectCell: undefined,
+        cellStyles: "",
+      });
+
+      expect(result).toBeDefined();
+      // Should not throw RangeError when rendering
+      expect(() => {
+        render(
+          <I18nProvider locale="en-US">
+            <TooltipProvider>{result}</TooltipProvider>
+          </I18nProvider>,
+        );
+      }).not.toThrow();
+    });
+  });
+
+  it("should handle invalid date strings without throwing RangeError", () => {
+    const mockColumn = createMockColumn();
+
+    const invalidDates = [
+      "invalid-date",
+      "2024-13-45", // Invalid month/day
+      "not-a-date",
+      "2024-06-14 12:34:20.665332",
+    ];
+
+    invalidDates.forEach((invalidDate) => {
+      const result = renderCellValue({
+        column: mockColumn,
+        renderValue: () => invalidDate,
+        getValue: () => invalidDate,
+        selectCell: undefined,
+        cellStyles: "",
+      });
+      expect(result).toBeDefined();
+      // Should not throw RangeError when rendering
+      expect(() => {
+        render(
+          <I18nProvider locale="en-US">
+            <TooltipProvider>{result}</TooltipProvider>
+          </I18nProvider>,
+        );
+      }).not.toThrow();
+    });
+  });
+
+  it("should still render valid datetime strings correctly", () => {
+    const mockColumn = createMockColumn();
+
+    const validDates = [
+      "2024-06-14T12:34:20Z",
+      "2024-06-14 12:34:20",
+      "2024-06-14",
+    ];
+
+    validDates.forEach((validDate) => {
+      const result = renderCellValue({
+        column: mockColumn,
+        renderValue: () => validDate,
+        getValue: () => validDate,
+        selectCell: undefined,
+        cellStyles: "",
+      });
+      expect(result).toBeDefined();
+      // Should render as a date component, not as plain string
+      expect(result).not.toBeNull();
+      // Should not throw when rendering
+      expect(() => {
+        render(
+          <I18nProvider locale="en-US">
+            <TooltipProvider>{result}</TooltipProvider>
+          </I18nProvider>,
+        );
+      }).not.toThrow();
+    });
+  });
+
+  it("should handle invalid Date instances without throwing RangeError", () => {
+    const mockColumn = createMockColumn();
+
+    const invalidDate = new Date("invalid");
+
+    const result = renderCellValue({
+      column: mockColumn,
+      renderValue: () => invalidDate,
+      getValue: () => invalidDate,
+      selectCell: undefined,
+      cellStyles: "",
+    });
+    expect(result).toBeDefined();
+    // Should not throw RangeError when rendering
+    expect(() => {
+      render(
+        <I18nProvider locale="en-US">
+          <TooltipProvider>{result}</TooltipProvider>
+        </I18nProvider>,
+      );
+    }).not.toThrow();
+  });
+
+  it("should handle mixed valid and null datetime values in a column", () => {
+    const mockColumn = createMockColumn();
+
+    const values = [
+      "2024-06-14T12:34:20Z", // Valid
+      null,
+      "2024-06-15T12:34:20Z", // Valid
+      "",
+      "2024-06-16T12:34:20Z", // Valid
+    ];
+
+    values.forEach((value) => {
+      const result = renderCellValue({
+        column: mockColumn,
+        renderValue: () => value,
+        getValue: () => value,
+        selectCell: undefined,
+        cellStyles: "",
+      });
+      expect(result).toBeDefined();
+      // Should not throw RangeError when rendering
+      expect(() => {
+        render(
+          <I18nProvider locale="en-US">
+            <TooltipProvider>{result}</TooltipProvider>
+          </I18nProvider>,
+        );
+      }).not.toThrow();
+    });
   });
 });
