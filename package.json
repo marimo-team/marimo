@@ -9,7 +9,7 @@
     "dev": "pnpm run --filter @marimo-team/frontend dev"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.2.2",
+    "@biomejs/biome": "2.3.8",
     "@testing-library/jest-dom": "^6.9.1",
     "@typescript/native-preview": "7.0.0-dev.20251029.1",
     "turbo": "^2.5.6",

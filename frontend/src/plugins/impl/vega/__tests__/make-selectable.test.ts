@@ -578,19 +578,20 @@ describe("makeSelectable", () => {
     `);
   });
 
-  it.each(["errorbar", "errorband", "boxplot"])(
-    "should return the same spec if mark is %s",
-    (mark) => {
-      const spec = {
-        mark,
-      } as unknown as VegaLiteSpec;
-      const newSpec = makeSelectable(spec, {});
-      expect(newSpec).toEqual(spec);
-      expect(getSelectionParamNames(newSpec)).toEqual([]);
-      expect(newSpec).toMatchSnapshot();
-      expect(parse(newSpec)).toBeDefined();
-    },
-  );
+  it.each([
+    "errorbar",
+    "errorband",
+    "boxplot",
+  ])("should return the same spec if mark is %s", (mark) => {
+    const spec = {
+      mark,
+    } as unknown as VegaLiteSpec;
+    const newSpec = makeSelectable(spec, {});
+    expect(newSpec).toEqual(spec);
+    expect(getSelectionParamNames(newSpec)).toEqual([]);
+    expect(newSpec).toMatchSnapshot();
+    expect(parse(newSpec)).toBeDefined();
+  });
 
   it("should add legend selection to composite charts (issue #6676)", () => {
     // Test case from https://github.com/marimo-team/marimo/issues/6676

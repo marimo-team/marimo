@@ -32,7 +32,7 @@ export function parseArgsKwargs(
   code: string,
 ): ParsedArgs {
   if (argCursor.name !== "ArgList") {
-    // biome-ignore lint/suspicious/noConsole: <explanation>
+    // biome-ignore lint/suspicious/noConsole: useful for debugging AST parsing issues
     console.warn(`Not an ArgList, name: ${argCursor.name}`);
     return { args: [], kwargs: [] };
   }
