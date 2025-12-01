@@ -55,6 +55,7 @@ import {
   getPageIndexForRow,
   loadTableData,
 } from "@/components/data-table/utils";
+import { ErrorBoundary } from "@/components/editor/boundary/ErrorBoundary";
 import { ContextAwarePanelItem } from "@/components/editor/chrome/panels/context-aware-panel/context-aware-panel";
 import { Alert, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -1016,10 +1017,12 @@ export const TableProviders: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
   return (
-    <Provider store={store}>
-      <SlotzProvider controller={slotsController}>
-        <TooltipProvider>{children}</TooltipProvider>
-      </SlotzProvider>
-    </Provider>
+    <ErrorBoundary>
+      <Provider store={store}>
+        <SlotzProvider controller={slotsController}>
+          <TooltipProvider>{children}</TooltipProvider>
+        </SlotzProvider>
+      </Provider>
+    </ErrorBoundary>
   );
 };
