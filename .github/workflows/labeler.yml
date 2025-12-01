@@ -28,5 +28,5 @@ jobs:
     steps:
       - uses: yogevbd/enforce-label-action@2.2.2
         with:
-          REQUIRED_LABELS_ANY: "enhancement,bug,documentation,internal,preview"
-          REQUIRED_LABELS_ANY_DESCRIPTION: "Select at least one label ['enhancement','bug','documentation','internal','preview']"
+          REQUIRED_LABELS_ANY: "enhancement,bug,documentation,internal,preview,other"
+          REQUIRED_LABELS_ANY_DESCRIPTION: "Select at least one label ['enhancement','bug','documentation','internal','preview','other']"
