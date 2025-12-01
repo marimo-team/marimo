@@ -45,18 +45,20 @@ describe("main", () => {
     store.set(configOverridesAtom, {});
   });
 
-  it.each(["edit", "read", "home", "run"])(
-    "should mount with mode %s",
-    (_mode) => {
-      const el = document.createElement("div");
-      mount({ mode: "edit" }, el);
+  it.each([
+    "edit",
+    "read",
+    "home",
+    "run",
+  ])("should mount with mode %s", (_mode) => {
+    const el = document.createElement("div");
+    mount({ mode: "edit" }, el);
 
-      expect(store.get(viewStateAtom).mode).toBe("edit");
-      expect(store.get(filenameAtom)).toBeDefined();
-      expect(store.get(marimoVersionAtom)).toBe("unknown");
-      expect(store.get(showCodeInRunModeAtom)).toBe(true);
-    },
-  );
+    expect(store.get(viewStateAtom).mode).toBe("edit");
+    expect(store.get(filenameAtom)).toBeDefined();
+    expect(store.get(marimoVersionAtom)).toBe("unknown");
+    expect(store.get(showCodeInRunModeAtom)).toBe(true);
+  });
 
   it("should not mount with invalid mode", () => {
     const el = document.createElement("div");

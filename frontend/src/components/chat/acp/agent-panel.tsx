@@ -511,7 +511,7 @@ const ChatContent = memo<ChatContentProps>(
     onResolvePermission,
     onRetryConnection,
     onRetryLastAction,
-    onDismissError,
+    onDismissError: _onDismissError,
     sessionId,
   }) => {
     const [isScrolledToBottom, setIsScrolledToBottom] = useState(true);

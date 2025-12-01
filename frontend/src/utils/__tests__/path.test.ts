@@ -170,39 +170,36 @@ describe("PathBuilder", () => {
   });
 
   describe("edge case filenames", () => {
-    it.each(EDGE_CASE_FILENAMES)(
-      "should handle unicode and spaces in basename: %s",
-      (filename) => {
-        const basename = Paths.basename(filename);
-        expect(basename).toBe(filename);
-        expect(typeof basename).toBe("string");
-        expect(basename).not.toBe("");
-      },
-    );
+    it.each(
+      EDGE_CASE_FILENAMES,
+    )("should handle unicode and spaces in basename: %s", (filename) => {
+      const basename = Paths.basename(filename);
+      expect(basename).toBe(filename);
+      expect(typeof basename).toBe("string");
+      expect(basename).not.toBe("");
+    });
 
-    it.each(EDGE_CASE_FILENAMES)(
-      "should handle unicode and spaces in dirname: %s",
-      (filename) => {
-        const fullPath = `/path/to/${filename}`;
-        const dirname = Paths.dirname(fullPath);
-        expect(dirname).toBe("/path/to");
-      },
-    );
+    it.each(
+      EDGE_CASE_FILENAMES,
+    )("should handle unicode and spaces in dirname: %s", (filename) => {
+      const fullPath = `/path/to/${filename}`;
+      const dirname = Paths.dirname(fullPath);
+      expect(dirname).toBe("/path/to");
+    });
 
-    it.each(EDGE_CASE_FILENAMES)(
-      "should handle unicode and spaces in path operations: %s",
-      (filename) => {
-        const baseName = Paths.basename(filename);
-        const extension = Paths.extension(filename);
+    it.each(
+      EDGE_CASE_FILENAMES,
+    )("should handle unicode and spaces in path operations: %s", (filename) => {
+      const baseName = Paths.basename(filename);
+      const extension = Paths.extension(filename);
 
-        // Should preserve unicode characters in basename
-        expect(baseName).toContain(filename.split(".")[0]);
+      // Should preserve unicode characters in basename
+      expect(baseName).toContain(filename.split(".")[0]);
 
-        // Should correctly extract extension
-        if (filename.includes(".")) {
-          expect(extension).toBe(filename.split(".").pop());
-        }
-      },
-    );
+      // Should correctly extract extension
+      if (filename.includes(".")) {
+        expect(extension).toBe(filename.split(".").pop());
+      }
+    });
   });
 });

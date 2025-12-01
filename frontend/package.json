@@ -205,7 +205,7 @@
   "devDependencies": {
     "@babel/plugin-proposal-decorators": "^7.27.1",
     "@babel/preset-typescript": "^7.25.9",
-    "@biomejs/biome": "2.2.2",
+    "@biomejs/biome": "2.3.8",
     "@codecov/vite-plugin": "^1.9.1",
     "@csstools/postcss-light-dark-function": "^2.0.10",
     "@playwright/test": "^1.56.1",
