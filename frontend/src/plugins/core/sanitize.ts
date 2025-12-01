@@ -62,7 +62,7 @@ DOMPurify.addHook("afterSanitizeAttributes", (node) => {
     node.setAttribute("target", node.getAttribute(TEMPORARY_ATTRIBUTE) || "");
     node.removeAttribute(TEMPORARY_ATTRIBUTE);
     if (node.getAttribute("target") === "_blank") {
-      node.setAttribute("rel", "noopener");
+      node.setAttribute("rel", "noopener noreferrer");
     }
   }
 });
