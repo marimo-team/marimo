@@ -469,7 +469,9 @@ describe("NumberPlugin", () => {
     });
 
     // Check that the NumberField has the full width class
-    const numberField = container.querySelector('[data-testid="marimo-plugin-number-input"]');
-    expect(numberField?.classList.contains('w-full')).toBe(true);
+    const numberField = container.querySelector(
+      '[data-testid="marimo-plugin-number-input"]',
+    );
+    expect(numberField?.classList.contains("w-full")).toBe(true);
   });
 });

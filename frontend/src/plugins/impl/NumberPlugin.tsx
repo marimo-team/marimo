@@ -67,7 +67,7 @@ const NumberComponent = (props: NumberComponentProps): JSX.Element => {
 
   const handleChange = (newValue: number) => {
     onChange(withoutNaN(newValue));
-  }
+  };
 
   return (
     <Labeled label={props.label} id={id} fullWidth={props.fullWidth}>
