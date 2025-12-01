@@ -21,6 +21,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/utils/cn";
+import { getCellDomProps } from "./cell-utils";
 import { COLUMN_WRAPPING_STYLES } from "./column-wrapping/feature";
 import { DataTableContextMenu } from "./context-menu";
 import { CellRangeSelectionIndicator } from "./range-focus/cell-selection-indicator";
@@ -136,7 +137,7 @@ export const DataTableBody = <TData,>({
       return (
         <TableCell
           tabIndex={0}
-          data-cell-id={cell.id}
+          {...getCellDomProps(cell.id)}
           key={cell.id}
           className={cn(
             "whitespace-pre truncate max-w-[300px] outline-hidden",

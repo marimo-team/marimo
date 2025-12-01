@@ -15,6 +15,7 @@ import {
   ContextMenuSeparator,
   ContextMenuTrigger,
 } from "../ui/context-menu";
+import { DATA_CELL_ID } from "./cell-utils";
 import { Filter } from "./filters";
 import { selectedCellsAtom } from "./range-focus/atoms";
 import { stringifyUnknownValue } from "./utils";
@@ -38,7 +39,7 @@ export const DataTableContextMenu = <TData,>({
 
     // Add a background color to the cell when the context menu is open
     const cellElement = tableRef.current?.querySelector(
-      `[data-cell-id="${cell.id}"]`,
+      `[${DATA_CELL_ID}="${cell.id}"]`,
     );
     if (!cellElement) {
       Logger.error("Context menu cell not found in table");
