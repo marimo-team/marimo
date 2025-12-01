@@ -265,15 +265,6 @@ DATABASE_URL = "sqlite:////path/to/db.sqlite"
 engine = sqlmodel.create_engine(DATABASE_URL)"
 `;
 
-exports[`generateDatabaseCode > basic connections > supabase with SQLAlchemy 1`] = `
-"import os
-import sqlalchemy
-
-_password = os.environ.get("SUPABASE_PASSWORD", "my_password")
-DATABASE_URL = f"postgresql+psycopg2://postgres:{_password}@db.example.supabase.co:5432/postgres?sslmode=require"
-engine = sqlalchemy.create_engine(DATABASE_URL)"
-`;
-
 exports[`generateDatabaseCode > basic connections > supabase with SQLModel 1`] = `
 "import os
 import sqlmodel
