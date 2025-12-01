@@ -74,9 +74,7 @@ export function useDebounceControlledState<T>(opts: {
   return {
     value: internalValue,
     debouncedValue,
-    onChange: (value: T) => {
-      setInternalValue(value);
-    },
+    onChange: setInternalValue,
   };
 }
 
