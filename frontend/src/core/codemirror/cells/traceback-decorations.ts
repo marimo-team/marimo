@@ -35,11 +35,15 @@ function createErrorDecorations(state: EditorState, errors: TracebackInfos) {
     .sort((a, b) => a.lineNumber - b.lineNumber);
 
   for (const error of relevantErrors) {
-    const line = state.doc.line(error.lineNumber);
-    const deco = Decoration.line({
-      class: "cm-error-line",
-    });
-    builder.add(line.from, line.from, deco);
+    try {
+      const line = state.doc.line(error.lineNumber);
+      const deco = Decoration.line({
+        class: "cm-error-line",
+      });
+      builder.add(line.from, line.from, deco);
+    } catch (error) {
+      Logger.debug("Invalid line number in error decoration", { error });
+    }
   }
 
   return builder.finish();
