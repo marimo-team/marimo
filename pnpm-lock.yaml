@@ -26,8 +26,8 @@ importers:
         specifier: ^6.9.1
         version: 6.9.1
       '@typescript/native-preview':
-        specifier: 7.0.0-dev.20251029.1
-        version: 7.0.0-dev.20251029.1
+        specifier: 7.0.0-dev.20251128.1
+        version: 7.0.0-dev.20251128.1
       turbo:
         specifier: ^2.6.1
         version: 2.6.1
@@ -4457,43 +4457,43 @@ packages:
     resolution: {integrity: sha512-YzfhzcTnZVPiLfP/oeKtDp2evwvHLMe0LOy7oe+hb9KKIumLNohYS9Hgp1ifwpu42YWxhZE8yieggz6JpqO/1w==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
 
-  '@typescript/native-preview-darwin-arm64@7.0.0-dev.20251029.1':
-    resolution: {integrity: sha512-DBJ3jFP6/MaQj/43LN1TC7tjR4SXZUNDnREiVjtFzpOG4Q71D1LB6QryskkRZsNtxLaTuVV57l2ubCE8tNmz0w==}
+  '@typescript/native-preview-darwin-arm64@7.0.0-dev.20251128.1':
+    resolution: {integrity: sha512-O9dvEAR5988SE1GGQgGUT0mJfi8ztmKMaAM46z3ue9oe0uypEo94++5g/tZyZ6CMoIhbxtbwVoBDN5j+HzNwIg==}
     cpu: [arm64]
     os: [darwin]
 
-  '@typescript/native-preview-darwin-x64@7.0.0-dev.20251029.1':
-    resolution: {integrity: sha512-fnxZZtlXeud6f3bev3q50QMR+FrnuTyVr5akp5G2/o4jfkqLV6cKzseGnY6so+ftwfwP/PX3GOkfL6Ag8NzR0Q==}
+  '@typescript/native-preview-darwin-x64@7.0.0-dev.20251128.1':
+    resolution: {integrity: sha512-oSuo4ty52I0V1n/NImWJMR5kH07xUUzD2xOzvU0Y5M34VNMW+qzbiVHLVo/uaXVLpflyiU1rM9Luan69VVdxdA==}
     cpu: [x64]
     os: [darwin]
 
-  '@typescript/native-preview-linux-arm64@7.0.0-dev.20251029.1':
-    resolution: {integrity: sha512-WK/N4Tk9nxI+k6AwJ7d80Gnd4+8kbBwmryIgOGPQNNvNJticYg6QiQsFGgC+HnCqvWDQ0fAyW+wdcPG6fwn/EA==}
+  '@typescript/native-preview-linux-arm64@7.0.0-dev.20251128.1':
+    resolution: {integrity: sha512-PW9vZorzVp22hVSm8Hd8Q6Uwokb28GUbpRZ+Ff2Rifm/fUafxuzjs6INZWfd+mwi7IuqAIbKvlmdKHieNQC9oA==}
     cpu: [arm64]
     os: [linux]
 
-  '@typescript/native-preview-linux-arm@7.0.0-dev.20251029.1':
-    resolution: {integrity: sha512-1ok8pxcIlwMTMggySPIVt926lymLWNhCgPTzO751zKFTDTJcmpzmpmSWbiFQQ3fcPzO8LocsLXRfBwYDd/uqQA==}
+  '@typescript/native-preview-linux-arm@7.0.0-dev.20251128.1':
+    resolution: {integrity: sha512-OjtVdR2gEyj5x8eJ7l9WEmRBgdYBXwqqMUyV25eWkW/NBC89EKMwMNvJnMSMxeIDdMwi0jOPo5XV2doC2HuI7A==}
     cpu: [arm]
     os: [linux]
 
-  '@typescript/native-preview-linux-x64@7.0.0-dev.20251029.1':
-    resolution: {integrity: sha512-GvTl9BeItX0Ox0wXiMIHkktl9sCTkTPBe6f6hEs4XfJlAKm+JHbYtB9UEs62QyPYBFMx2phCytVNejpaUZRJmQ==}
+  '@typescript/native-preview-linux-x64@7.0.0-dev.20251128.1':
+    resolution: {integrity: sha512-BlGrr1GgWGNwyY5kc0qh9BabqcDKeUhqxtXis/bG95rxQLGFCACiCwqXUC2LUp9TfaTIjzc/hxbcEQRsAOl1XQ==}
     cpu: [x64]
     os: [linux]
 
-  '@typescript/native-preview-win32-arm64@7.0.0-dev.20251029.1':
-    resolution: {integrity: sha512-BUEC+M6gViaa/zDzOjAOEqpOZeUJxuwrjwOokqxXyUavX+mC6zb6ALqx4r7GAWrfY9sSvGUacW4ZbqDTXe8KAg==}
+  '@typescript/native-preview-win32-arm64@7.0.0-dev.20251128.1':
+    resolution: {integrity: sha512-dpscn71w6hCXuNDSu5aRnBSqZyNjIxUsIGkW/In5v+8/dEDKmOkIrEkkBPLTVjeQn6OWKmnCY02Wt8OLTGc1sw==}
     cpu: [arm64]
     os: [win32]
 
-  '@typescript/native-preview-win32-x64@7.0.0-dev.20251029.1':
-    resolution: {integrity: sha512-ODcXFgM62KpXxHqG5NMG+ipBqTbQ1pGkrzSByBwgRx0c/gTUhgML8UT7iK3nTrTtp9OBgPYPLLDNwiSLyzaIxA==}
+  '@typescript/native-preview-win32-x64@7.0.0-dev.20251128.1':
+    resolution: {integrity: sha512-96XD3QoGGzvuaK3FWk8dZoam9O3r0mFZngahmuWXs4IAMWv1Y9AUkXmGUlfwOgB0tgmDnbfv3jA2QZcV+idYAg==}
     cpu: [x64]
     os: [win32]
 
-  '@typescript/native-preview@7.0.0-dev.20251029.1':
-    resolution: {integrity: sha512-IRmYCDgwZQEfjy2GNJnQbqoRUrvdCbzLE0sLhwc6TP4I0Hx5TnHv3sJGKAgdmcbHmKHtwJeppXjgTRGtFTWRHQ==}
+  '@typescript/native-preview@7.0.0-dev.20251128.1':
+    resolution: {integrity: sha512-VCrCHJ+TWWDwjGlZIQbcx5sg+IkNmRYviDf+9gjXvNNrK6PSnCoOSHuWDBIpGUdCWUg9uq4Mn2H5y3CvTQCriQ==}
     hasBin: true
 
   '@uidotdev/usehooks@2.4.1':
@@ -15044,36 +15044,36 @@ snapshots:
       '@typescript-eslint/types': 8.37.0
       eslint-visitor-keys: 4.2.1
 
-  '@typescript/native-preview-darwin-arm64@7.0.0-dev.20251029.1':
+  '@typescript/native-preview-darwin-arm64@7.0.0-dev.20251128.1':
     optional: true
 
-  '@typescript/native-preview-darwin-x64@7.0.0-dev.20251029.1':
+  '@typescript/native-preview-darwin-x64@7.0.0-dev.20251128.1':
     optional: true
 
-  '@typescript/native-preview-linux-arm64@7.0.0-dev.20251029.1':
+  '@typescript/native-preview-linux-arm64@7.0.0-dev.20251128.1':
     optional: true
 
-  '@typescript/native-preview-linux-arm@7.0.0-dev.20251029.1':
+  '@typescript/native-preview-linux-arm@7.0.0-dev.20251128.1':
     optional: true
 
-  '@typescript/native-preview-linux-x64@7.0.0-dev.20251029.1':
+  '@typescript/native-preview-linux-x64@7.0.0-dev.20251128.1':
     optional: true
 
-  '@typescript/native-preview-win32-arm64@7.0.0-dev.20251029.1':
+  '@typescript/native-preview-win32-arm64@7.0.0-dev.20251128.1':
     optional: true
 
-  '@typescript/native-preview-win32-x64@7.0.0-dev.20251029.1':
+  '@typescript/native-preview-win32-x64@7.0.0-dev.20251128.1':
     optional: true
 
-  '@typescript/native-preview@7.0.0-dev.20251029.1':
+  '@typescript/native-preview@7.0.0-dev.20251128.1':
     optionalDependencies:
-      '@typescript/native-preview-darwin-arm64': 7.0.0-dev.20251029.1
-      '@typescript/native-preview-darwin-x64': 7.0.0-dev.20251029.1
-      '@typescript/native-preview-linux-arm': 7.0.0-dev.20251029.1
-      '@typescript/native-preview-linux-arm64': 7.0.0-dev.20251029.1
-      '@typescript/native-preview-linux-x64': 7.0.0-dev.20251029.1
-      '@typescript/native-preview-win32-arm64': 7.0.0-dev.20251029.1
-      '@typescript/native-preview-win32-x64': 7.0.0-dev.20251029.1
+      '@typescript/native-preview-darwin-arm64': 7.0.0-dev.20251128.1
+      '@typescript/native-preview-darwin-x64': 7.0.0-dev.20251128.1
+      '@typescript/native-preview-linux-arm': 7.0.0-dev.20251128.1
+      '@typescript/native-preview-linux-arm64': 7.0.0-dev.20251128.1
+      '@typescript/native-preview-linux-x64': 7.0.0-dev.20251128.1
+      '@typescript/native-preview-win32-arm64': 7.0.0-dev.20251128.1
+      '@typescript/native-preview-win32-x64': 7.0.0-dev.20251128.1
 
   '@uidotdev/usehooks@2.4.1(react-dom@19.2.0(react@19.2.0))(react@19.2.0)':
     dependencies:
