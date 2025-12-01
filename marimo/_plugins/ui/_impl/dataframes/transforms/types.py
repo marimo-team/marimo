@@ -192,6 +192,7 @@ Transform = Union[
     AggregateTransform,
     ColumnConversionTransform,
     FilterRowsTransform,
+    PivotTransform,
     GroupByTransform,
     RenameColumnTransform,
     SelectColumnsTransform,
@@ -201,7 +202,6 @@ Transform = Union[
     ExplodeColumnsTransform,
     ExpandDictTransform,
     UniqueTransform,
-    PivotTransform,
 ]
 
 

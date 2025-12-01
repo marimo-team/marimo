@@ -23,6 +23,7 @@ from marimo._plugins.ui._impl.dataframes.transforms.types import (
     ExplodeColumnsTransform,
     FilterRowsTransform,
     GroupByTransform,
+    PivotTransform,
     RenameColumnTransform,
     SampleRowsTransform,
     SelectColumnsTransform,
@@ -1036,6 +1037,181 @@ class TestTransformHandler:
             nw_expected.sort("A"),
             nw_result.sort("A"),
         )
+
+    @staticmethod
+    @pytest.mark.parametrize(
+        ("df", "expected", "transform"),
+        [
+            *zip(
+                create_test_dataframes(
+                    {
+                        "A": [
+                            "foo",
+                            "foo",
+                            "foo",
+                            "foo",
+                            "foo",
+                            "bar",
+                            "bar",
+                            "bar",
+                            "bar",
+                        ],
+                        "B": [
+                            "one",
+                            "one",
+                            "one",
+                            "two",
+                            "two",
+                            "one",
+                            "one",
+                            "two",
+                            "two",
+                        ],
+                        "C": [
+                            "small",
+                            "large",
+                            "large",
+                            "small",
+                            "small",
+                            "large",
+                            "small",
+                            "small",
+                            "large",
+                        ],
+                        "D": [1, 2, 2, 3, 3, 4, 5, 6, 7],
+                    }
+                ),
+                create_test_dataframes(
+                    {"B": ["one", "two"], "foo": [5, 6], "bar": [9, 13]}
+                ),
+                PivotTransform(
+                    type=TransformType.PIVOT,
+                    index_column_ids=["A"],
+                    column_is=["B"],
+                    value_column_ids=["D"],
+                    aggregation="sum",
+                ),
+            ),
+            *zip(
+                create_test_dataframes(
+                    {
+                        "A": [
+                            "foo",
+                            "foo",
+                            "foo",
+                            "foo",
+                            "foo",
+                            "bar",
+                            "bar",
+                            "bar",
+                            "bar",
+                        ],
+                        "B": [
+                            "one",
+                            "one",
+                            "one",
+                            "two",
+                            "two",
+                            "one",
+                            "one",
+                            "two",
+                            "two",
+                        ],
+                        "C": [
+                            "small",
+                            "large",
+                            "large",
+                            "small",
+                            "small",
+                            "large",
+                            "small",
+                            "small",
+                            "large",
+                        ],
+                        "D": [1, 2, 2, 3, 3, 4, 5, 6, 7],
+                    }
+                ),
+                create_test_dataframes(
+                    {
+                        "B": ["one", "one", "two", "two"],
+                        "C": ["small", "large", "small", "large"],
+                        "foo": [1, 4, 6, 0],
+                        "bar": [5, 4, 6, 7],
+                    }
+                ),
+                PivotTransform(
+                    type=TransformType.PIVOT,
+                    index_column_ids=["A"],
+                    column_is=["B", "C"],
+                    value_column_ids=["D"],
+                    aggregation="sum",
+                ),
+            ),
+            *zip(
+                create_test_dataframes(
+                    {
+                        "A": [
+                            "foo",
+                            "foo",
+                            "foo",
+                            "foo",
+                            "foo",
+                            "bar",
+                            "bar",
+                            "bar",
+                            "bar",
+                        ],
+                        "B": [
+                            "one",
+                            "one",
+                            "one",
+                            "two",
+                            "two",
+                            "one",
+                            "one",
+                            "two",
+                            "two",
+                        ],
+                        "C": [
+                            "small",
+                            "large",
+                            "large",
+                            "small",
+                            "small",
+                            "large",
+                            "small",
+                            "small",
+                            "large",
+                        ],
+                        "D": [1, 2, 2, 3, 3, 4, 5, 6, 7],
+                    }
+                ),
+                create_test_dataframes(
+                    {
+                        "C": ["small", "large"],
+                        {"foo", "one"}: [1, 4],
+                        {"foo", "two"}: [6, 0],
+                        {"bar", "one"}: [5, 4],
+                        {"bar", "two"}: [6, 7],
+                    }
+                ),
+                PivotTransform(
+                    type=TransformType.PIVOT,
+                    index_column_ids=["A", "B"],
+                    column_is=["C"],
+                    value_column_ids=["D"],
+                    aggregation="sum",
+                ),
+            ),
+        ],
+    )
+    def test_handle_pivot(
+        df: DataFrameType, expected: DataFrameType, transform: PivotTransform
+    ) -> None:
+        result = apply(df, transform)
+        if not isinstance(result, pd.DataFrame):
+            result = result.sort(transform.index_column_ids)
+        assert_frame_equal(result, expected)
 
     @staticmethod
     @pytest.mark.parametrize(
