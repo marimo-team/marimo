@@ -1,6 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import asyncio
 import os
 import tempfile
 from typing import TYPE_CHECKING
@@ -11,7 +12,11 @@ from starlette.responses import JSONResponse
 from marimo import _loggers
 from marimo._server.api.deps import AppState
 from marimo._server.api.utils import parse_request
-from marimo._server.file_router import LazyListOfFilesAppFileRouter
+from marimo._server.file_router import (
+    MAX_FILES,
+    LazyListOfFilesAppFileRouter,
+    count_files,
+)
 from marimo._server.model import ConnectionState
 from marimo._server.models.home import (
     MarimoFile,
@@ -89,8 +94,18 @@ async def workspace_files(
         )
         root = session_manager.file_router.directory
 
-    files = session_manager.file_router.files
-    return WorkspaceFilesResponse(files=files, root=root)
+    # Run file scanning in thread pool to avoid blocking the server
+    files = await asyncio.to_thread(lambda: session_manager.file_router.files)
+
+    file_count = count_files(files)
+    has_more = file_count >= MAX_FILES
+
+    return WorkspaceFilesResponse(
+        files=files,
+        root=root,
+        has_more=has_more,
+        file_count=file_count,
+    )
 
 
 def _get_active_sessions(app_state: AppState) -> list[MarimoFile]:

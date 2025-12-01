@@ -4750,7 +4750,11 @@ export interface components {
     };
     /** WorkspaceFilesResponse */
     WorkspaceFilesResponse: {
+      /** @default 0 */
+      fileCount?: number;
       files: components["schemas"]["FileInfo"][];
+      /** @default false */
+      hasMore?: boolean;
       root: string;
     };
     /**
