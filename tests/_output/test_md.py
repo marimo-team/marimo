@@ -73,7 +73,7 @@ def test_md_latex() -> None:
 def test_md_links() -> None:
     # Test external link conversion
     link_input = "[Google](https://google.com)"
-    expected_output = '<span class="paragraph"><a href="https://google.com" rel="noopener" target="_blank">Google</a></span>'  # noqa: E501
+    expected_output = '<span class="paragraph"><a href="https://google.com" rel="noopener noreferrer" target="_blank">Google</a></span>'  # noqa: E501
     assert _md(link_input, apply_markdown_class=False).text == (
         expected_output
     )
