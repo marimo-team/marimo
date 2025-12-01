@@ -111,22 +111,8 @@
     }
 
     &:focus-within {
-      border: 1px solid var(--gray-5);
-
-      /* a sharp box shadow with a slight blur to outline the element */
-      @apply shadow-lg-solid shadow-shade;
-
-      /* a little bit of motion
-            *
-            * Note: we use left/top instead of transform because transform creates a new
-            * stacking context and makes completion tooltip appear below surrounding
-            * cells/outputs. See
-            *
-            * https://stackoverflow.com/questions/20851452/z-index-is-canceled-by-setting-transformrotate,
-            * https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_Positioning/Understanding_z_index/The_stacking_context
-            * */
-      left: -1px;
-      top: -1px;
+      /* Similar to var(--blue-8) */
+      border: 1px solid rgba(40, 112, 189, 0.7);
     }
 
     .cm {
@@ -163,7 +149,7 @@
     @apply shadow-sm-solid shadow-shade;
 
     &:focus-within {
-      @apply shadow-lg-solid shadow-shade;
+      @apply shadow-md-solid shadow-shade;
     }
 
     .output-area,
@@ -179,22 +165,11 @@
   &.has-error,
   &.error-outline {
     outline: 1px solid var(--red-4);
-    @apply shadow-md-solid shadow-[var(--red-8)];
+    @apply shadow-sm-solid shadow-[var(--red-8)];
   }
 
   &.has-error:hover {
-    @apply shadow-lg-solid shadow-[var(--red-8)];
-  }
-
-  &.has-error:focus-within,
-  &.has-error:focus-within:hover {
-    @apply shadow-xl-solid shadow-[var(--red-8)];
-  }
-
-  &.error-outline,
-  &.error-outline:focus-within {
-    box-shadow: 8px 8px 0 0 color-mix(in srgb, var(--error), transparent 80%);
-    background-color: var(--red-2);
+    @apply shadow-md-solid shadow-[var(--red-8)];
   }
 
   /* Needs Run */
@@ -202,15 +177,16 @@
   &.needs-run {
     /* TODO(akshayka): Can give this an outline to make more visible. */
     outline: none;
-    @apply divide-stale shadow-md-solid shadow-stale;
+    @apply divide-stale shadow-sm-solid shadow-stale;
+    border: 1px solid color-mix(in srgb, var(--yellow-7), transparent 60%);
 
     &:hover {
-      @apply shadow-lg-solid shadow-stale;
+      @apply shadow-md-solid shadow-stale;
     }
 
-    &:focus-within:hover,
     &:focus-within {
-      @apply shadow-xl-solid shadow-stale;
+      @apply shadow-md-solid shadow-stale;
+      border: 1px solid color-mix(in srgb, var(--yellow-7), transparent 10%);
     }
 
     &:focus-within .cm-editor {
@@ -230,7 +206,7 @@
     border-color: var(--blue-8) !important;
 
     /* custom shadow until our theme overrides can support colored shadow */
-    @apply shadow-lg shadow-[var(--blue-8)];
+    @apply shadow-md shadow-[var(--blue-8)];
   }
 
   /* Published - when its just the output */
