@@ -632,6 +632,7 @@ class OpenAIProvider(
                     if (
                         tool_call.function
                         and tool_call.function.arguments
+                        and tool_index < len(tool_call_ids)
                         and tool_call_ids[tool_index]
                     ):
                         tool_delta = {
@@ -1193,6 +1194,7 @@ class BedrockProvider(
                         and tool_call.function
                         and hasattr(tool_call.function, "arguments")
                         and tool_call.function.arguments
+                        and tool_index < len(tool_call_ids)
                         and tool_call_ids[tool_index]
                     ):
                         tool_delta = {
