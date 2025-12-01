@@ -178,7 +178,7 @@
     /* TODO(akshayka): Can give this an outline to make more visible. */
     outline: none;
     @apply divide-stale shadow-sm-solid shadow-stale;
-    border: 1px solid color-mix(in srgb, var(--yellow-7), transparent 60%);
+    border: 1px solid color-mix(in srgb, var(--yellow-7), transparent 50%);
 
     &:hover {
       @apply shadow-md-solid shadow-stale;
@@ -186,7 +186,8 @@
 
     &:focus-within {
       @apply shadow-md-solid shadow-stale;
-      border: 1px solid color-mix(in srgb, var(--yellow-7), transparent 10%);
+      border: 1px solid
+        color-mix(in srgb, var(--yellow-7) 50%, rgba(40, 112, 189, 0.7) 50%);
     }
 
     &:focus-within .cm-editor {
