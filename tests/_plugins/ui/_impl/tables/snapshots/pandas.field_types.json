@@ -28,6 +28,13 @@
         ]
     ],
     [
+        "decimals",
+        [
+            "string",
+            "object"
+        ]
+    ],
+    [
         "datetime",
         [
             "datetime",

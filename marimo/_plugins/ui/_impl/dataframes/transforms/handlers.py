@@ -225,9 +225,12 @@ class NarwhalsTransformHandler(TransformHandler[DataFrame]):
     ) -> DataFrame:
         aggs: list[Expr] = []
         group_by_column_id_set = set(transform.column_ids)
+        columns = (
+            transform.aggregation_column_ids or df.collect_schema().names()
+        )
         agg_columns = [
             column_id
-            for column_id in df.collect_schema().names()
+            for column_id in columns
             if column_id not in group_by_column_id_set
         ]
 
@@ -347,7 +350,7 @@ class NarwhalsTransformHandler(TransformHandler[DataFrame]):
             return python_print_transforms(
                 df_name, columns, transforms, python_print_pandas
             )
-        elif nw.dependencies.is_polars_dataframe(native_df):
+        elif _is_polars_dataframe_or_lazyframe(native_df):
             return python_print_transforms(
                 df_name, columns, transforms, python_print_polars
             )

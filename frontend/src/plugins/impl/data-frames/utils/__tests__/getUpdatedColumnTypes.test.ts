@@ -27,12 +27,14 @@ const Transforms = {
     column_ids: ["col1", "col3"] as ColumnId[],
     aggregation: "max",
     drop_na: true,
+    aggregation_column_ids: [],
   } satisfies TransformType,
   GROUP_BY_CHAINED: {
     type: "group_by",
     column_ids: ["newCol2"] as ColumnId[],
     aggregation: "max",
     drop_na: true,
+    aggregation_column_ids: [],
   } satisfies TransformType,
   AGGREGATE: {
     type: "aggregate",
@@ -99,7 +101,9 @@ describe("getUpdatedColumnTypes", () => {
     );
     expect(result).toMatchInlineSnapshot(`
       Map {
-        2 => "bool",
+        "col1" => "str",
+        "2_max" => "bool",
+        "col3" => "int",
       }
     `);
   });
@@ -182,10 +186,7 @@ describe("getUpdatedColumnTypes", () => {
       INITIAL_COLUMN_TYPES,
     );
     expect(result).toMatchInlineSnapshot(`
-      Map {
-        "col1" => "bool",
-        "col3" => "int",
-      }
+      Map {}
     `);
   });
 });
