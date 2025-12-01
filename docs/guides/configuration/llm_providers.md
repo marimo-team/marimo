@@ -40,6 +40,18 @@ Add custom entries to the model dropdown:
 custom_models = ["ollama/somemodel"]
 ```
 
+## Rules and Max tokens
+
+Add custom rules or set the maximum number of tokens that the AI model can use.
+
+```toml title="marimo.toml"
+[ai]
+rules = """
+- Always use type hints; prefer polars over pandas
+"""
+max_tokens = 1000
+```
+
 ## Supported providers
 
 <div align="center">
