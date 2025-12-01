@@ -170,6 +170,7 @@ format = "ruff format"
 [tool.hatch.envs.typecheck]
 python = "3.12"
 installer = "uv"
+dependency-groups = ["dev"]
 dependencies = [
     "mypy~=1.15.0",
     # Types for mypy
