@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.17.6"
+__generated_with = "0.17.8"
 app = marimo.App(width="medium")
 
 
@@ -96,6 +96,13 @@ def _(mo, pd):
         }
     ).transpose()
     mo.vstack([mo.plain(date_ranges), date_ranges])
+    return
+
+
+@app.cell
+def _(datetime, pd):
+    dates_with_null = pd.DataFrame({"mixed": [datetime.now(), None]})
+    dates_with_null
     return
 
 
