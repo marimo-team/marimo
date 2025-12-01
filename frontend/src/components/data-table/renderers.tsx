@@ -11,9 +11,7 @@ import {
   type Table,
   type Table as TanStackTable,
 } from "@tanstack/react-table";
-import { useAtomValue } from "jotai";
-import { CopyIcon, FilterIcon, SquareStack } from "lucide-react";
-import { type JSX, type RefObject, useRef } from "react";
+import { type JSX, useRef } from "react";
 import useEvent from "react-use-event-hook";
 import {
   TableBody,
@@ -23,19 +21,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/utils/cn";
-import { copyToClipboard } from "@/utils/copy";
-import { Logger } from "@/utils/Logger";
-import {
-  ContextMenu,
-  ContextMenuContent,
-  ContextMenuItem,
-  ContextMenuPortal,
-  ContextMenuSeparator,
-  ContextMenuTrigger,
-} from "../ui/context-menu";
 import { COLUMN_WRAPPING_STYLES } from "./column-wrapping/feature";
-import { Filter } from "./filters";
-import { selectedCellsAtom } from "./range-focus/atoms";
+import { DataTableContextMenu } from "./context-menu";
 import { CellRangeSelectionIndicator } from "./range-focus/cell-selection-indicator";
 import { useCellRangeSelection } from "./range-focus/use-cell-range-selection";
 import { useScrollIntoViewOnFocus } from "./range-focus/use-scroll-into-view";
@@ -114,29 +101,6 @@ export const DataTableBody = <TData,>({
   const contextMenuCell = useRef<Cell<TData, unknown> | null>(null);
   const handleContextMenu = useEvent((cell: Cell<TData, unknown>) => {
     contextMenuCell.current = cell;
-  });
-
-  const handleContextMenuChange = useEvent((open: boolean) => {
-    const cell = contextMenuCell.current;
-    if (!cell) {
-      return;
-    }
-
-    // Add a background color to the cell when the context menu is open
-    const cellElement = tableRef.current?.querySelector(
-      `[data-cell-id="${cell.id}"]`,
-    );
-    if (!cellElement) {
-      Logger.error("Context menu cell not found in table");
-      return;
-    }
-
-    if (open) {
-      cellElement.classList.add("bg-(--green-4)");
-    } else {
-      cellElement.classList.remove("bg-(--green-4)");
-      contextMenuCell.current = null;
-    }
   });
 
   function applyHoverTemplate(
@@ -261,78 +225,12 @@ export const DataTableBody = <TData,>({
   );
 
   return (
-    <ContextMenu onOpenChange={handleContextMenuChange}>
-      <ContextMenuTrigger asChild={true}>{tableBody}</ContextMenuTrigger>
-      <ContextMenuPortal>
-        <CellContextMenu
-          cellRef={contextMenuCell}
-          copySelectedCells={handleCopyAllCells}
-        />
-      </ContextMenuPortal>
-    </ContextMenu>
-  );
-};
-
-const CellContextMenu = <TData,>({
-  cellRef,
-  copySelectedCells,
-}: {
-  cellRef: RefObject<Cell<TData, unknown> | null>;
-  copySelectedCells: () => void;
-}) => {
-  const selectedCells = useAtomValue(selectedCellsAtom);
-  const multipleSelectedCells = selectedCells.size > 1;
-
-  const cell = cellRef.current;
-  if (!cell) {
-    Logger.error("No cell found in context menu");
-    return;
-  }
-
-  const handleCopyCell = () => {
-    try {
-      const value = cell.getValue();
-      const stringValue = renderUnknownValue({ value });
-      copyToClipboard(stringValue);
-    } catch (error) {
-      Logger.error("Failed to copy context menu cell", error);
-    }
-  };
-
-  const column = cell.column;
-  const canFilter = column.getCanFilter() && column.columnDef.meta?.filterType;
-
-  const handleFilterCell = () => {
-    column.setFilterValue(
-      Filter.select({
-        options: [cell.getValue()],
-        operator: "in",
-      }),
-    );
-  };
-
-  return (
-    <ContextMenuContent>
-      <ContextMenuItem onClick={handleCopyCell}>
-        <CopyIcon className="mo-dropdown-icon h-3 w-3" />
-        Copy cell
-      </ContextMenuItem>
-      {multipleSelectedCells && (
-        <ContextMenuItem onClick={copySelectedCells}>
-          <SquareStack className="mo-dropdown-icon h-3 w-3" />
-          Copy selected cells
-        </ContextMenuItem>
-      )}
-      {canFilter && (
-        <>
-          <ContextMenuSeparator />
-          <ContextMenuItem onClick={handleFilterCell}>
-            <FilterIcon className="mo-dropdown-icon h-3 w-3" />
-            Filter by this value
-          </ContextMenuItem>
-        </>
-      )}
-    </ContextMenuContent>
+    <DataTableContextMenu
+      tableBody={tableBody}
+      contextMenuRef={contextMenuCell}
+      tableRef={tableRef}
+      copyAllCells={handleCopyAllCells}
+    />
   );
 };
 
