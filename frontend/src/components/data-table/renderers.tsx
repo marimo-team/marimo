@@ -264,12 +264,10 @@ export const DataTableBody = <TData,>({
     <ContextMenu onOpenChange={handleContextMenuChange}>
       <ContextMenuTrigger asChild={true}>{tableBody}</ContextMenuTrigger>
       <ContextMenuPortal>
-        <ContextMenuContent>
-          <CellContextMenu
-            cellRef={contextMenuCell}
-            copySelectedCells={handleCopyAllCells}
-          />
-        </ContextMenuContent>
+        <CellContextMenu
+          cellRef={contextMenuCell}
+          copySelectedCells={handleCopyAllCells}
+        />
       </ContextMenuPortal>
     </ContextMenu>
   );
@@ -314,7 +312,7 @@ const CellContextMenu = <TData,>({
   };
 
   return (
-    <>
+    <ContextMenuContent>
       <ContextMenuItem onClick={handleCopyCell}>
         <CopyIcon className="mo-dropdown-icon h-3 w-3" />
         Copy cell
@@ -334,7 +332,7 @@ const CellContextMenu = <TData,>({
           </ContextMenuItem>
         </>
       )}
-    </>
+    </ContextMenuContent>
   );
 };
 
