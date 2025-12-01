@@ -17,7 +17,7 @@ import {
 } from "../ui/context-menu";
 import { Filter } from "./filters";
 import { selectedCellsAtom } from "./range-focus/atoms";
-import { renderUnknownValue } from "./renderers";
+import { stringifyUnknownValue } from "./utils";
 
 export const DataTableContextMenu = <TData,>({
   contextMenuRef,
@@ -84,7 +84,7 @@ export const CellContextMenu = <TData,>({
   const handleCopyCell = () => {
     try {
       const value = cell.getValue();
-      const stringValue = renderUnknownValue({ value });
+      const stringValue = stringifyUnknownValue({ value });
       copyToClipboard(stringValue);
     } catch (error) {
       Logger.error("Failed to copy context menu cell", error);

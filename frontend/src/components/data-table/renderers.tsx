@@ -26,6 +26,7 @@ import { DataTableContextMenu } from "./context-menu";
 import { CellRangeSelectionIndicator } from "./range-focus/cell-selection-indicator";
 import { useCellRangeSelection } from "./range-focus/use-cell-range-selection";
 import { useScrollIntoViewOnFocus } from "./range-focus/use-scroll-into-view";
+import { stringifyUnknownValue } from "./utils";
 
 export function renderTableHeader<TData>(
   table: Table<TData>,
@@ -113,7 +114,7 @@ export const DataTableBody = <TData,>({
     for (const c of cells) {
       const v = c.getValue();
       // Prefer empty string for nulls to keep tooltip clean
-      const s = renderUnknownValue({ value: v, nullAsEmptyString: true });
+      const s = stringifyUnknownValue({ value: v, nullAsEmptyString: true });
       idToValue.set(c.column.id, s);
     }
     return template.replaceAll(variableRegex, (_substr, varName: string) => {
@@ -283,24 +284,4 @@ function columnSizingHandler<TData>(
     ...prevSizes,
     [column.id]: thead.getBoundingClientRect().width,
   }));
-}
-
-/**
- * Stringify an unknown value. Converts objects to JSON strings.
- * @param opts.value - The value to stringify.
- * @param opts.nullAsEmptyString - If true, null values will be "". Else, stringify.
- */
-export function renderUnknownValue(opts: {
-  value: unknown;
-  nullAsEmptyString?: boolean;
-}): string {
-  const { value, nullAsEmptyString = false } = opts;
-
-  if (typeof value === "object" && value !== null) {
-    return JSON.stringify(value);
-  }
-  if (value === null && nullAsEmptyString) {
-    return "";
-  }
-  return String(value);
 }
