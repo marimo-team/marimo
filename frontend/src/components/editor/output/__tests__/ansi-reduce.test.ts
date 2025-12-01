@@ -391,9 +391,7 @@ describe("ansiReduce", () => {
         "Processing: |██        | 20/100\r" +
         "Processing: |██████████| 100/100",
     );
-    expect(result).toMatchInlineSnapshot(
-      `"Processing: |██████████| 100/100"`,
-    );
+    expect(result).toMatchInlineSnapshot(`"Processing: |██████████| 100/100"`);
   });
 
   test("cursor positioning with absolute coordinates", () => {
