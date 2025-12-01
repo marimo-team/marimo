@@ -11,7 +11,10 @@ import {
   type Table,
   type Table as TanStackTable,
 } from "@tanstack/react-table";
-import { type JSX, useRef } from "react";
+import { useAtomValue } from "jotai";
+import { CopyIcon, FilterIcon, SquareStack } from "lucide-react";
+import { type JSX, type RefObject, useRef } from "react";
+import useEvent from "react-use-event-hook";
 import {
   TableBody,
   TableCell,
@@ -20,7 +23,19 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/utils/cn";
+import { copyToClipboard } from "@/utils/copy";
+import { Logger } from "@/utils/Logger";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuPortal,
+  ContextMenuSeparator,
+  ContextMenuTrigger,
+} from "../ui/context-menu";
 import { COLUMN_WRAPPING_STYLES } from "./column-wrapping/feature";
+import { Filter } from "./filters";
+import { selectedCellsAtom } from "./range-focus/atoms";
 import { CellRangeSelectionIndicator } from "./range-focus/cell-selection-indicator";
 import { useCellRangeSelection } from "./range-focus/use-cell-range-selection";
 import { useScrollIntoViewOnFocus } from "./range-focus/use-scroll-into-view";
@@ -93,7 +108,36 @@ export const DataTableBody = <TData,>({
     handleCellMouseUp,
     handleCellMouseOver,
     handleCellsKeyDown,
+    handleCopy: handleCopyAllCells,
   } = useCellRangeSelection({ table });
+
+  const contextMenuCell = useRef<Cell<TData, unknown> | null>(null);
+  const handleContextMenu = useEvent((cell: Cell<TData, unknown>) => {
+    contextMenuCell.current = cell;
+  });
+
+  const handleContextMenuChange = useEvent((open: boolean) => {
+    const cell = contextMenuCell.current;
+    if (!cell) {
+      return;
+    }
+
+    // Add a background color to the cell when the context menu is open
+    const cellElement = tableRef.current?.querySelector(
+      `[data-cell-id="${cell.id}"]`,
+    );
+    if (!cellElement) {
+      Logger.error("Context menu cell not found in table");
+      return;
+    }
+
+    if (open) {
+      cellElement.classList.add("bg-(--green-4)");
+    } else {
+      cellElement.classList.remove("bg-(--green-4)");
+      contextMenuCell.current = null;
+    }
+  });
 
   function applyHoverTemplate(
     template: string,
@@ -127,6 +171,7 @@ export const DataTableBody = <TData,>({
       return (
         <TableCell
           tabIndex={0}
+          data-cell-id={cell.id}
           key={cell.id}
           className={cn(
             "whitespace-pre truncate max-w-[300px] outline-hidden",
@@ -141,6 +186,7 @@ export const DataTableBody = <TData,>({
           onMouseDown={(e) => handleCellMouseDown(e, cell)}
           onMouseUp={handleCellMouseUp}
           onMouseOver={(e) => handleCellMouseOver(e, cell)}
+          onContextMenu={() => handleContextMenu(cell)}
         >
           <CellRangeSelectionIndicator cellId={cell.id} />
           <div className="relative">
@@ -160,7 +206,7 @@ export const DataTableBody = <TData,>({
 
   const hoverTemplate = table.getState().cellHoverTemplate || null;
 
-  return (
+  const tableBody = (
     <TableBody onKeyDown={handleCellsKeyDown} ref={tableRef}>
       {table.getRowModel().rows?.length ? (
         table.getRowModel().rows.map((row) => {
@@ -212,6 +258,83 @@ export const DataTableBody = <TData,>({
         </TableRow>
       )}
     </TableBody>
+  );
+
+  return (
+    <ContextMenu onOpenChange={handleContextMenuChange}>
+      <ContextMenuTrigger asChild={true}>{tableBody}</ContextMenuTrigger>
+      <ContextMenuPortal>
+        <ContextMenuContent>
+          <CellContextMenu
+            cellRef={contextMenuCell}
+            copySelectedCells={handleCopyAllCells}
+          />
+        </ContextMenuContent>
+      </ContextMenuPortal>
+    </ContextMenu>
+  );
+};
+
+const CellContextMenu = <TData,>({
+  cellRef,
+  copySelectedCells,
+}: {
+  cellRef: RefObject<Cell<TData, unknown> | null>;
+  copySelectedCells: () => void;
+}) => {
+  const selectedCells = useAtomValue(selectedCellsAtom);
+  const multipleSelectedCells = selectedCells.size > 1;
+
+  const cell = cellRef.current;
+  if (!cell) {
+    Logger.error("No cell found in context menu");
+    return;
+  }
+
+  const handleCopyCell = () => {
+    try {
+      const value = cell.getValue();
+      const stringValue = renderUnknownValue({ value });
+      copyToClipboard(stringValue);
+    } catch (error) {
+      Logger.error("Failed to copy context menu cell", error);
+    }
+  };
+
+  const column = cell.column;
+  const canFilter = column.getCanFilter() && column.columnDef.meta?.filterType;
+
+  const handleFilterCell = () => {
+    column.setFilterValue(
+      Filter.select({
+        options: [cell.getValue()],
+        operator: "in",
+      }),
+    );
+  };
+
+  return (
+    <>
+      <ContextMenuItem onClick={handleCopyCell}>
+        <CopyIcon className="mo-dropdown-icon h-3 w-3" />
+        Copy cell
+      </ContextMenuItem>
+      {multipleSelectedCells && (
+        <ContextMenuItem onClick={copySelectedCells}>
+          <SquareStack className="mo-dropdown-icon h-3 w-3" />
+          Copy selected cells
+        </ContextMenuItem>
+      )}
+      {canFilter && (
+        <>
+          <ContextMenuSeparator />
+          <ContextMenuItem onClick={handleFilterCell}>
+            <FilterIcon className="mo-dropdown-icon h-3 w-3" />
+            Filter by this value
+          </ContextMenuItem>
+        </>
+      )}
+    </>
   );
 };
 
@@ -267,8 +390,8 @@ function columnSizingHandler<TData>(
 }
 
 /**
- * Render an unknown value as a string. Converts objects to JSON strings.
- * @param opts.value - The value to render.
+ * Stringify an unknown value. Converts objects to JSON strings.
+ * @param opts.value - The value to stringify.
  * @param opts.nullAsEmptyString - If true, null values will be "". Else, stringify.
  */
 export function renderUnknownValue(opts: {
