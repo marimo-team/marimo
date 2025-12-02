@@ -799,25 +799,13 @@ const AgentPanel: React.FC = () => {
       return;
     }
 
+    // If there is an available session, resume it, otherwise create a new one
     const createOrResumeSession = async () => {
+      const availableSession = activeSessionId ?? tabLastActiveSessionId;
       try {
-        // Check if we need to create a new session
-        if (tabLastActiveSessionId) {
-          // Try to resume existing session
-          try {
-            await handleResumeSession(tabLastActiveSessionId);
-          } catch (resumeError) {
-            logger.debug("Failed to resume session, creating new session", {
-              externalSessionId: tabLastActiveSessionId,
-              error: resumeError,
-            });
-            // Fall back to creating new session
-            await handleNewSession();
-          }
-        } else {
-          // No existing session, create new one
-          await handleNewSession();
-        }
+        await (availableSession
+          ? handleResumeSession(availableSession)
+          : handleNewSession());
       } catch (error) {
         logger.error("Failed to create or resume session:", error);
       }

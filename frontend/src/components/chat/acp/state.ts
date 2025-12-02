@@ -190,7 +190,7 @@ export function updateSessionLastUsed(
 }
 
 /**
- * Update the sessionId for the current;y selected tab
+ * Update the sessionId for the currently selected tab
  */
 export function updateSessionExternalAgentSessionId(
   state: AgentSessionState,
