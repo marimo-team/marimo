@@ -11,7 +11,7 @@ import type { ExternalAgentSessionId, SessionSupportType } from "./types";
 
 // Types
 export type TabId = TypedString<"TabId">;
-export type ExternalAgentId = "claude" | "gemini" | "codex";
+export type ExternalAgentId = "claude" | "gemini" | "codex" | "opencode";
 
 // No agents support loading sessions, so we limit to 1, otherwise
 // this is confusing to the user when switching between sessions
@@ -220,7 +220,7 @@ export function getSessionsByAgent(
 }
 
 export function getAllAgentIds(): ExternalAgentId[] {
-  return ["claude", "gemini", "codex"];
+  return ["claude", "gemini", "codex", "opencode"];
 }
 
 export function getAgentDisplayName(agentId: ExternalAgentId): string {
@@ -255,6 +255,12 @@ const AGENT_CONFIG: Record<ExternalAgentId, AgentConfig> = {
     port: 3021,
     command: "npx @zed-industries/codex-acp",
     webSocketUrl: "ws://localhost:3021/message",
+    sessionSupport: "single",
+  },
+  opencode: {
+    port: 3023,
+    command: "npx opencode-ai acp",
+    webSocketUrl: "ws://localhost:3023/message",
     sessionSupport: "single",
   },
 };
