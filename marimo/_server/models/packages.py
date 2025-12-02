@@ -29,6 +29,7 @@ class AddPackageRequest(msgspec.Struct, rename="camel"):
 
 class RemovePackageRequest(msgspec.Struct, rename="camel"):
     package: str
+    dev: Optional[bool] = False
 
 
 class ListPackagesResponse(msgspec.Struct, rename="camel"):

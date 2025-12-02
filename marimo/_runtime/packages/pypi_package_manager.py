@@ -70,7 +70,7 @@ class PipPackageManager(PypiPackageManager):
             *split_packages(package),
         ]
 
-    async def uninstall(self, package: str) -> bool:
+    async def uninstall(self, package: str, dev: bool = False) -> bool:
         LOGGER.info(f"Uninstalling {package} with pip")
         return self.run(
             [
@@ -130,7 +130,7 @@ class MicropipPackageManager(PypiPackageManager):
                 log_callback(f"Failed to install {package}: {e}\n")
             return False
 
-    async def uninstall(self, package: str) -> bool:
+    async def uninstall(self, package: str, dev: bool = False) -> bool:
         assert is_pyodide()
         import micropip  # type: ignore
 
@@ -501,11 +501,13 @@ class UvPackageManager(PypiPackageManager):
         pyproject_path = Path(venv_path).parent / "pyproject.toml"
         return uv_lock_path.exists() and pyproject_path.exists()
 
-    async def uninstall(self, package: str) -> bool:
+    async def uninstall(self, package: str, dev: bool = False) -> bool:
         uninstall_cmd: list[str]
         if self.is_in_uv_project:
             LOGGER.info(f"Uninstalling {package} with 'uv remove'")
             uninstall_cmd = [self._uv_bin, "remove"]
+            if dev:
+                uninstall_cmd.append("--dev")
         else:
             LOGGER.info(f"Uninstalling {package} with 'uv pip uninstall'")
             uninstall_cmd = [self._uv_bin, "pip", "uninstall"]
@@ -600,7 +602,7 @@ class RyePackageManager(PypiPackageManager):
             *split_packages(package),
         ]
 
-    async def uninstall(self, package: str) -> bool:
+    async def uninstall(self, package: str, dev: bool = False) -> bool:
         return self.run(
             ["rye", "remove", *split_packages(package)], log_callback=None
         )
@@ -634,7 +636,7 @@ class PoetryPackageManager(PypiPackageManager):
             *split_packages(package),
         ]
 
-    async def uninstall(self, package: str) -> bool:
+    async def uninstall(self, package: str, dev: bool = False) -> bool:
         return self.run(
             ["poetry", "remove", "--no-interaction", *split_packages(package)],
             log_callback=None,

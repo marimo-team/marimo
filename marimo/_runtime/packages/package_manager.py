@@ -110,8 +110,12 @@ class PackageManager(abc.ABC):
         )
 
     @abc.abstractmethod
-    async def uninstall(self, package: str) -> bool:
+    async def uninstall(self, package: str, dev: bool = False) -> bool:
         """Attempt to uninstall a package
+
+        Args:
+            package: The package to uninstall
+            dev: Whether this is a dev dependency
 
         Returns True if the package was uninstalled, else False.
         """
