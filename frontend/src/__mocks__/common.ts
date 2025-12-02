@@ -78,18 +78,29 @@ export const SetupMocks = {
       writable: true,
     });
 
-    // Mock ClipboardItem
+    // Mock ClipboardItem - use a class so it can be called with `new`
     // @ts-expect-error - ClipboardItem types not exact
-    global.ClipboardItem = vi
-      .fn()
-      .mockImplementation((data) => Mocks.clipboardItem(data));
+    global.ClipboardItem = class MockClipboardItem {
+      types: string[];
+      _data: Record<string, unknown>;
+      constructor(data: Record<string, unknown>) {
+        this._data = data;
+        this.types = Object.keys(data);
+      }
+      getType(type: string): Promise<Blob> {
+        const value = this._data[type];
+        if (value instanceof Blob) {
+          return Promise.resolve(value);
+        }
+        return Promise.resolve(
+          new Blob([String(value || "")], { type }),
+        );
+      }
+      static supports = vi.fn().mockReturnValue(true);
+    };
 
-    global.ClipboardItem.supports = vi.fn().mockReturnValue(true);
-
-    // Mock Blob
-    global.Blob = vi
-      .fn()
-      .mockImplementation((parts, options) => Mocks.blob(parts, options));
+    // Don't mock Blob - use the real one from jsdom/node
+    // Tests that need Blob will use the real implementation
 
     return mockClipboard;
   },
