@@ -803,9 +803,19 @@ const AgentPanel: React.FC = () => {
     const createOrResumeSession = async () => {
       const availableSession = activeSessionId ?? tabLastActiveSessionId;
       try {
-        await (availableSession
-          ? handleResumeSession(availableSession)
-          : handleNewSession());
+        if (availableSession) {
+          try {
+            await handleResumeSession(availableSession);
+          } catch (error) {
+            logger.error("Failed to resume session", {
+              sessionId: availableSession,
+              error,
+            });
+            await handleNewSession();
+          }
+        } else {
+          await handleNewSession();
+        }
       } catch (error) {
         logger.error("Failed to create or resume session:", error);
       }
