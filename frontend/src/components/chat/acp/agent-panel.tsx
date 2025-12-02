@@ -801,7 +801,7 @@ const AgentPanel: React.FC = () => {
 
     // If there is an available session, resume it, otherwise create a new one
     const createOrResumeSession = async () => {
-      const availableSession = activeSessionId ?? tabLastActiveSessionId;
+      const availableSession = tabLastActiveSessionId ?? activeSessionId;
       try {
         if (availableSession) {
           try {
