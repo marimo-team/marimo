@@ -52,7 +52,7 @@ def test_add_package(client: TestClient, mock_package_manager: Mock) -> None:
     assert response.status_code == 200
     assert response.json() == {"success": True, "error": None}
     mock_package_manager.install.assert_called_once_with(
-        "test-package", version=None, upgrade=False
+        "test-package", version=None, upgrade=False, dev=False
     )
 
 
@@ -149,7 +149,7 @@ def test_add_package_with_upgrade(
     assert response.status_code == 200
     assert response.json() == {"success": True, "error": None}
     mock_package_manager.install.assert_called_once_with(
-        "test-package", version=None, upgrade=True
+        "test-package", version=None, upgrade=True, dev=False
     )
 
 
@@ -165,7 +165,7 @@ def test_add_package_without_upgrade(
     assert response.status_code == 200
     assert response.json() == {"success": True, "error": None}
     mock_package_manager.install.assert_called_once_with(
-        "test-package", version=None, upgrade=False
+        "test-package", version=None, upgrade=False, dev=False
     )
 
 
@@ -571,3 +571,20 @@ def test_add_package_with_git_dependency(
                 "git+https://github.com/user/repo.git"
                 in call_args.kwargs["packages_to_add"]
             )
+
+
+def test_add_package_with_dev_dependency(
+    client: TestClient, mock_package_manager: Mock
+) -> None:
+    """Test add_package with dev dependency calls metadata update correctly."""
+    assert isinstance(mock_package_manager, MagicMock)
+    response = client.post(
+        "/api/packages/add",
+        headers=HEADERS,
+        json={"package": "test-package", "upgrade": True, "dev": True},
+    )
+    assert response.status_code == 200
+    assert response.json() == {"success": True, "error": None}
+    mock_package_manager.install.assert_called_once_with(
+        "test-package", version=None, upgrade=True, dev=True
+    )

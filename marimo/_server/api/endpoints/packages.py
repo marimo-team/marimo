@@ -55,8 +55,9 @@ async def add_package(request: Request) -> PackageOperationResponse:
         )
 
     upgrade = body.upgrade or False
+    dev = body.dev or False
     success = await package_manager.install(
-        body.package, version=None, upgrade=upgrade
+        body.package, version=None, upgrade=upgrade, dev=dev
     )
 
     # Update the script metadata
