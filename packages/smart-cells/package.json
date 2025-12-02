@@ -24,7 +24,7 @@
     "@marimo-team/tsconfig": "workspace:*",
     "@types/node": "^20.19.25",
     "typescript": "^5.9.3",
-    "vitest": "^3.2.4"
+    "vitest": "^4.0.14"
   },
   "keywords": [
     "marimo",
