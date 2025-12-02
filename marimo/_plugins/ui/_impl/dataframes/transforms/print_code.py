@@ -386,13 +386,9 @@ def python_print_ibis(
         )
 
         if operator == "==" or operator == "equals":
-            return (
-                f"({df_name}[{_as_literal(column_id)}] == {_as_literal(value)})"
-            )
+            return f"({df_name}[{_as_literal(column_id)}] == {_as_literal(value)})"
         elif operator == "does_not_equal" or operator == "!=":
-            return (
-                f"({df_name}[{_as_literal(column_id)}] != {_as_literal(value)}))"  # noqa: E501
-            )
+            return f"({df_name}[{_as_literal(column_id)}] != {_as_literal(value)}))"  # noqa: E501
         elif operator == "contains":
             return f"({df_name}[{_as_literal(column_id)}].contains({_as_literal(value)}))"  # noqa: E501
         elif operator == "regex":
