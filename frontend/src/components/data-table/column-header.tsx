@@ -59,7 +59,7 @@ import {
   renderSortFilterIcon,
   renderSorts,
 } from "./header-items";
-import { renderUnknownValue } from "./renderers";
+import { stringifyUnknownValue } from "./utils";
 
 const TOP_K_ROWS = 30;
 
@@ -616,7 +616,7 @@ const PopoverFilterByValues = <TData, TValue>({
             )}
             {filteredData.map(([value, count], rowIndex) => {
               const isSelected = chosenValues.has(value);
-              const valueString = renderUnknownValue({ value });
+              const valueString = stringifyUnknownValue({ value });
 
               return (
                 <CommandItem
