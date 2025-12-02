@@ -112,6 +112,8 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
             dataframes via Ibis.
         show_download (bool, optional): Whether to show the download button.
             Defaults to True.
+        download_encoding (Optional[str], optional): Encoding used when downloading CSV.
+            Defaults to "utf-8". Set to "utf-8-sig" to include BOM for Excel.
         on_change (Optional[Callable[[DataFrameType], None]], optional): Optional callback
             to run when this element's value changes.
     """
@@ -125,6 +127,7 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
         page_size: Optional[int] = 5,
         limit: Optional[int] = None,
         show_download: bool = True,
+        download_encoding: Optional[str] = "utf-8",
     ) -> None:
         validate_no_integer_columns(df)
         # This will raise an error if the dataframe type is not supported.
@@ -153,6 +156,7 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
         self._limit = limit
         self._dataframe_name = dataframe_name
         self._data = df
+        self._download_encoding = download_encoding
         self._handler = handler
         self._manager = self._get_cached_table_manager(df, self._limit)
         self._transform_container = TransformsContainer(nw_df, handler)
@@ -175,6 +179,8 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
                 "total": self._manager.get_num_rows(force=False),
                 "page-size": page_size,
                 "show-download": show_download,
+                # Reserved for future frontend use (encoding-aware downloads)
+                "download-encoding": download_encoding,
             },
             functions=(
                 Function(
@@ -313,7 +319,11 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
 
         # Get the table manager for the transformed data
         manager = self._get_cached_table_manager(df, self._limit)
-        return download_as(manager, args.format)
+        return download_as(
+            manager,
+            args.format,
+            encoding=self._download_encoding,
+        )
 
     def _apply_filters_query_sort(
         self,

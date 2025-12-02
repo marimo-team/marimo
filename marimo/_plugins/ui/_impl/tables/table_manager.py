@@ -103,8 +103,10 @@ class TableManager(abc.ABC, Generic[T]):
     def to_csv(
         self,
         format_mapping: Optional[FormatMapping] = None,
+        encoding: str | None = "utf-8",
     ) -> bytes:
-        return self.to_csv_str(format_mapping).encode("utf-8")
+        resolved_encoding = encoding or "utf-8"
+        return self.to_csv_str(format_mapping).encode(resolved_encoding)
 
     def to_arrow_ipc(self) -> bytes:
         raise NotImplementedError("Arrow format not supported")
@@ -115,8 +117,13 @@ class TableManager(abc.ABC, Generic[T]):
     ) -> str:
         pass
 
-    def to_json(self, format_mapping: Optional[FormatMapping] = None) -> bytes:
-        return self.to_json_str(format_mapping).encode("utf-8")
+    def to_json(
+        self,
+        format_mapping: Optional[FormatMapping] = None,
+        encoding: str | None = "utf-8",
+    ) -> bytes:
+        resolved_encoding = encoding or "utf-8"
+        return self.to_json_str(format_mapping).encode(resolved_encoding)
 
     @abc.abstractmethod
     def to_parquet(self) -> bytes:
