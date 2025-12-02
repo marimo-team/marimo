@@ -386,33 +386,29 @@ def python_print_ibis(
         )
 
         if operator == "==" or operator == "equals":
-            return (
-                f"{df_name}[{_as_literal(column_id)}] == {_as_literal(value)}"
-            )
+            return f"({df_name}[{_as_literal(column_id)}] == {_as_literal(value)})"
         elif operator == "does_not_equal" or operator == "!=":
-            return (
-                f"{df_name}[{_as_literal(column_id)}] != {_as_literal(value)})"  # noqa: E501
-            )
+            return f"({df_name}[{_as_literal(column_id)}] != {_as_literal(value)}))"  # noqa: E501
         elif operator == "contains":
-            return f"{df_name}[{_as_literal(column_id)}].contains({_as_literal(value)})"  # noqa: E501
+            return f"({df_name}[{_as_literal(column_id)}].contains({_as_literal(value)}))"  # noqa: E501
         elif operator == "regex":
-            return f"{df_name}[{_as_literal(column_id)}].re_search({_as_literal(value)})"  # noqa: E501
+            return f"({df_name}[{_as_literal(column_id)}].re_search({_as_literal(value)}))"  # noqa: E501
         elif operator == "starts_with":
-            return f"{df_name}[{_as_literal(column_id)}].startswith({_as_literal(value)})"  # noqa: E501
+            return f"({df_name}[{_as_literal(column_id)}].startswith({_as_literal(value)}))"  # noqa: E501
         elif operator == "ends_with":
-            return f"{df_name}[{_as_literal(column_id)}].endswith({_as_literal(value)})"  # noqa: E501
+            return f"({df_name}[{_as_literal(column_id)}].endswith({_as_literal(value)}))"  # noqa: E501
         elif operator == "in":
-            return f"{df_name}[{_as_literal(column_id)}].isin({_list_of_strings(value)})"  # noqa: E501
+            return f"({df_name}[{_as_literal(column_id)}].isin({_list_of_strings(value)}))"  # noqa: E501
         elif operator in [">", ">=", "<", "<="]:
-            return f"{df_name}[{_as_literal(column_id)}] {operator} {_as_literal(value)}"  # noqa: E501
+            return f"({df_name}[{_as_literal(column_id)}] {operator} {_as_literal(value)})"  # noqa: E501
         elif operator == "is_null":
-            return f"{df_name}[{_as_literal(column_id)}].isnull()"
+            return f"({df_name}[{_as_literal(column_id)}].isnull())"
         elif operator == "is_not_null":
-            return f"{df_name}[{_as_literal(column_id)}].notnull()"
+            return f"({df_name}[{_as_literal(column_id)}].notnull())"
         elif operator == "is_true":
-            return f"{df_name}[{_as_literal(column_id)}] == True"
+            return f"({df_name}[{_as_literal(column_id)}] == True)"
         elif operator == "is_false":
-            return f"{df_name}[{_as_literal(column_id)}] == False"
+            return f"({df_name}[{_as_literal(column_id)}] == False)"
         else:
             raise ValueError(f"Unknown operator: {operator}")
 
