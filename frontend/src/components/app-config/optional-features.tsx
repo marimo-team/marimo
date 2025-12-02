@@ -211,7 +211,10 @@ const InstallButton: React.FC<{
           return pkg.name;
         })
         .join(" ");
-      const response = await addPackage({ package: packageSpec, dev: true } as any);
+      const response = await addPackage({
+        package: packageSpec,
+        dev: true,
+      } as any);
       if (response.success) {
         onSuccess();
         toast({
