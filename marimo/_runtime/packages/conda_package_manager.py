@@ -23,7 +23,7 @@ class PixiPackageManager(CondaPackageManager):
     name = "pixi"
 
     def install_command(
-        self, package: str, *, upgrade: bool, dev: bool
+        self, package: str, *, upgrade: bool, _dev: bool
     ) -> list[str]:
         return [
             "pixi",
@@ -31,7 +31,7 @@ class PixiPackageManager(CondaPackageManager):
             *split_packages(package),
         ]
 
-    async def uninstall(self, package: str, dev: bool = False) -> bool:
+    async def uninstall(self, package: str, _dev: bool = False) -> bool:
         return self.run(
             ["pixi", "remove", *split_packages(package)], log_callback=None
         )

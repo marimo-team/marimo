@@ -59,7 +59,7 @@ class PipPackageManager(PypiPackageManager):
     docs_url = "https://pip.pypa.io/"
 
     def install_command(
-        self, package: str, *, upgrade: bool, dev: bool
+        self, package: str, *, upgrade: bool, _dev: bool
     ) -> list[str]:
         return [
             "pip",
@@ -70,7 +70,7 @@ class PipPackageManager(PypiPackageManager):
             *split_packages(package),
         ]
 
-    async def uninstall(self, package: str, dev: bool = False) -> bool:
+    async def uninstall(self, package: str, _dev: bool = False) -> bool:
         LOGGER.info(f"Uninstalling {package} with pip")
         return self.run(
             [
@@ -104,7 +104,7 @@ class MicropipPackageManager(PypiPackageManager):
         package: str,
         *,
         upgrade: bool,
-        dev: bool,
+        _dev: bool,
         log_callback: Optional[LogCallback] = None,
     ) -> bool:
         assert is_pyodide()
@@ -130,7 +130,7 @@ class MicropipPackageManager(PypiPackageManager):
                 log_callback(f"Failed to install {package}: {e}\n")
             return False
 
-    async def uninstall(self, package: str, dev: bool = False) -> bool:
+    async def uninstall(self, package: str, _dev: bool = False) -> bool:
         assert is_pyodide()
         import micropip  # type: ignore
 
@@ -594,7 +594,7 @@ class RyePackageManager(PypiPackageManager):
     docs_url = "https://rye.astral.sh/"
 
     def install_command(
-        self, package: str, *, upgrade: bool, dev: bool
+        self, package: str, *, upgrade: bool, _dev: bool
     ) -> list[str]:
         return [
             "rye",
@@ -602,7 +602,7 @@ class RyePackageManager(PypiPackageManager):
             *split_packages(package),
         ]
 
-    async def uninstall(self, package: str, dev: bool = False) -> bool:
+    async def uninstall(self, package: str, _dev: bool = False) -> bool:
         return self.run(
             ["rye", "remove", *split_packages(package)], log_callback=None
         )
@@ -627,7 +627,7 @@ class PoetryPackageManager(PypiPackageManager):
         return major
 
     def install_command(
-        self, package: str, *, upgrade: bool, dev: bool
+        self, package: str, *, upgrade: bool, _dev: bool
     ) -> list[str]:
         return [
             "poetry",
@@ -636,7 +636,7 @@ class PoetryPackageManager(PypiPackageManager):
             *split_packages(package),
         ]
 
-    async def uninstall(self, package: str, dev: bool = False) -> bool:
+    async def uninstall(self, package: str, _dev: bool = False) -> bool:
         return self.run(
             ["poetry", "remove", "--no-interaction", *split_packages(package)],
             log_callback=None,
