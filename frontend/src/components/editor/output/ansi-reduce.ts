@@ -96,10 +96,17 @@ export class TerminalBuffer {
   /**
    * Handle a basic ANSI escape sequence.
    * Supports cursor movement and line erasing.
+   * For other sequences (like color codes), preserve them by writing to the buffer.
    */
   handleEscape(seq: string) {
     const match = TerminalBuffer.ESCAPE_REGEX.exec(seq);
     if (!match) {
+      // If it doesn't match the cursor movement pattern, it might be:
+      // - A color/styling code (SGR sequences ending in 'm')
+      // - A character set selection sequence (ESC(B)
+      // - Other escape sequences
+      // Preserve these by writing them as regular text
+      this.writeString(seq);
       return;
     }
 
@@ -159,6 +166,11 @@ export class TerminalBuffer {
           // No default
         }
         break;
+      default:
+        // For other CSI sequences we don't handle (like SGR color codes ending in 'm'),
+        // preserve them by writing as regular text
+        this.writeString(seq);
+        break;
     }
   }
 
@@ -172,8 +184,9 @@ export class TerminalBuffer {
  * Parses ANSI escape sequences into tokens for processing.
  */
 export class AnsiParser {
+  // Matches both CSI sequences (ESC[...letter) and other escape sequences like character set selection (ESC(B)
   // biome-ignore lint/suspicious/noControlCharactersInRegex: Needed for ANSI parsing
-  private ESC_REGEX = /\u001B\[[0-9;]*[A-Za-z]/gu;
+  private ESC_REGEX = /\u001B(?:\[[0-9;]*[A-Za-z]|\([0-9A-Za-z])/gu;
 
   parse(input: string): { type: "text" | "escape"; value: string }[] {
     const tokens: { type: "text" | "escape"; value: string }[] = [];
