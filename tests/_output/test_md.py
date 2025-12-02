@@ -540,3 +540,85 @@ def test_latex_via_url(mock_urlopen: MagicMock, output: MagicMock) -> None:
         output.append.call_args[0][0].text
         == '<span class="markdown prose dark:prose-invert contents"><marimo-tex class="arithmatex">||[\n\\newcommand{\\\foo}{bar}\n||]</marimo-tex></span>'
     )
+
+
+@patch("marimo._output.md.is_pyodide")
+def test_b64_extension_not_in_non_wasm(mock_is_pyodide: MagicMock) -> None:
+    # Test that b64 extension is NOT included in non-WASM mode
+    from marimo._output.md import _get_extension_configs, _get_extensions
+
+    mock_is_pyodide.return_value = False
+
+    # Clear the cache to ensure fresh evaluation
+    _get_extensions.cache_clear()
+    _get_extension_configs.cache_clear()
+
+    extensions = _get_extensions()
+    configs = _get_extension_configs()
+
+    # b64 should not be in the extensions list
+    assert "pymdownx.b64" not in extensions
+    # b64 should not be in the config
+    assert "pymdownx.b64" not in configs
+
+
+@patch("marimo._runtime.runtime.notebook_dir")
+@patch("marimo._output.md.is_pyodide")
+def test_b64_extension_in_wasm(
+    mock_is_pyodide: MagicMock, mock_notebook_dir: MagicMock
+) -> None:
+    # Test that b64 extension IS included in WASM mode
+    from marimo._output.md import _get_extension_configs, _get_extensions
+
+    mock_is_pyodide.return_value = True
+    mock_notebook_dir.return_value = "/fake/notebook/dir"
+
+    # Clear the cache to ensure fresh evaluation
+    _get_extensions.cache_clear()
+    _get_extension_configs.cache_clear()
+
+    extensions = _get_extensions()
+    configs = _get_extension_configs()
+
+    # b64 should be in the extensions list
+    assert "pymdownx.b64" in extensions
+    # b64 should be in the config with the correct base_path
+    assert "pymdownx.b64" in configs
+    assert configs["pymdownx.b64"]["base_path"] == "/fake/notebook/dir"
+
+
+@patch("marimo._runtime.runtime.notebook_dir")
+@patch("marimo._output.md.is_pyodide")
+def test_md_with_b64_in_wasm(
+    mock_is_pyodide: MagicMock,
+    mock_notebook_dir: MagicMock,
+    tmp_path: Path,
+) -> None:
+    # Test that markdown with image paths gets base64 encoded in WASM mode
+    from marimo._output.md import _get_extension_configs, _get_extensions
+
+    mock_is_pyodide.return_value = True
+    mock_notebook_dir.return_value = str(tmp_path)
+
+    # Create a small test image (1x1 transparent PNG)
+    image_path = tmp_path / "test.png"
+    # This is a minimal valid 1x1 transparent PNG
+    png_data = (
+        b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00"
+        b"\x00\x01\x08\x06\x00\x00\x00\x1f\x15\xc4\x89\x00\x00\x00\nIDATx"
+        b"\x9cc\x00\x01\x00\x00\x05\x00\x01\r\n-\xb4\x00\x00\x00\x00IEND\xaeB`\x82"
+    )
+    image_path.write_bytes(png_data)
+
+    # Clear the cache to ensure fresh evaluation
+    _get_extensions.cache_clear()
+    _get_extension_configs.cache_clear()
+
+    # Test markdown with image reference using b64 syntax
+    # The pymdownx.b64 extension uses ![](test.png) syntax and converts to base64
+    md_input = "![alt text](test.png)"
+    result = _md(md_input, apply_markdown_class=False).text
+
+    # In WASM mode with b64 extension, the image should be base64 encoded
+    assert "data:image/png;base64," in result
+    assert "alt text" in result
