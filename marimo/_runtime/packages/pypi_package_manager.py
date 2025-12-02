@@ -8,7 +8,7 @@ import sys
 import tempfile
 from functools import cached_property
 from pathlib import Path
-from typing import Optional
+from typing import Optional, override
 
 from marimo import _loggers
 from marimo._runtime.packages.module_name_to_pypi_name import (
@@ -58,8 +58,9 @@ class PipPackageManager(PypiPackageManager):
     name = "pip"
     docs_url = "https://pip.pypa.io/"
 
+    @override
     def install_command(
-        self, package: str, *, upgrade: bool, _dev: bool
+        self, package: str, *, upgrade: bool, dev: bool
     ) -> list[str]:
         return [
             "pip",
@@ -70,7 +71,8 @@ class PipPackageManager(PypiPackageManager):
             *split_packages(package),
         ]
 
-    async def uninstall(self, package: str, _dev: bool = False) -> bool:
+    @override
+    async def uninstall(self, package: str, dev: bool = False) -> bool:
         LOGGER.info(f"Uninstalling {package} with pip")
         return self.run(
             [
@@ -99,12 +101,13 @@ class MicropipPackageManager(PypiPackageManager):
     def is_manager_installed(self) -> bool:
         return is_pyodide()
 
+    @override
     async def _install(
         self,
         package: str,
         *,
         upgrade: bool,
-        _dev: bool,
+        dev: bool,
         log_callback: Optional[LogCallback] = None,
     ) -> bool:
         assert is_pyodide()
@@ -130,7 +133,8 @@ class MicropipPackageManager(PypiPackageManager):
                 log_callback(f"Failed to install {package}: {e}\n")
             return False
 
-    async def uninstall(self, package: str, _dev: bool = False) -> bool:
+    @override
+    async def uninstall(self, package: str, dev: bool = False) -> bool:
         assert is_pyodide()
         import micropip  # type: ignore
 
@@ -593,8 +597,9 @@ class RyePackageManager(PypiPackageManager):
     name = "rye"
     docs_url = "https://rye.astral.sh/"
 
+    @override
     def install_command(
-        self, package: str, *, upgrade: bool, _dev: bool
+        self, package: str, *, upgrade: bool, dev: bool
     ) -> list[str]:
         return [
             "rye",
@@ -602,7 +607,8 @@ class RyePackageManager(PypiPackageManager):
             *split_packages(package),
         ]
 
-    async def uninstall(self, package: str, _dev: bool = False) -> bool:
+    @override
+    async def uninstall(self, package: str, dev: bool = False) -> bool:
         return self.run(
             ["rye", "remove", *split_packages(package)], log_callback=None
         )
@@ -626,8 +632,9 @@ class PoetryPackageManager(PypiPackageManager):
         major, *_ = map(int, version_str.split("."))
         return major
 
+    @override
     def install_command(
-        self, package: str, *, upgrade: bool, _dev: bool
+        self, package: str, *, upgrade: bool, dev: bool
     ) -> list[str]:
         return [
             "poetry",
@@ -636,7 +643,8 @@ class PoetryPackageManager(PypiPackageManager):
             *split_packages(package),
         ]
 
-    async def uninstall(self, package: str, _dev: bool = False) -> bool:
+    @override
+    async def uninstall(self, package: str, dev: bool = False) -> bool:
         return self.run(
             ["poetry", "remove", "--no-interaction", *split_packages(package)],
             log_callback=None,
