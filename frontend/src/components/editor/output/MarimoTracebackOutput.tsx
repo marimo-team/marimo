@@ -27,6 +27,7 @@ import { Kbd } from "@/components/ui/kbd";
 import { Tooltip } from "@/components/ui/tooltip";
 import { getCellEditorView } from "@/core/cells/cells";
 import type { CellId } from "@/core/cells/ids";
+import { SCRATCH_CELL_ID } from "@/core/cells/ids";
 import { insertDebuggerAtLine } from "@/core/codemirror/editing/debugging";
 import { aiEnabledAtom } from "@/core/config/config";
 import { getRequestClient } from "@/core/network/requests";
@@ -58,6 +59,7 @@ const KEY = "item";
 export const MarimoTracebackOutput = ({
   onRefactorWithAI,
   traceback,
+  cellId,
 }: Props): JSX.Element => {
   const htmlTraceback = renderHTML({
     html: traceback,
@@ -71,12 +73,13 @@ export const MarimoTracebackOutput = ({
   // Get last traceback info
   const tracebackInfo = extractAllTracebackInfo(traceback)?.at(0);
 
-  // Don't show in wasm or static notebooks
+  // Don't show in wasm, static notebooks, or scratchpad
   const showDebugger =
     tracebackInfo &&
     tracebackInfo.kind === "cell" &&
     !isWasm() &&
-    !isStaticNotebook();
+    !isStaticNotebook() &&
+    cellId !== SCRATCH_CELL_ID;
 
   const showAIFix = onRefactorWithAI && aiEnabled && !isStaticNotebook();
 
