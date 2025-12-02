@@ -149,7 +149,7 @@ def _get_extension_configs() -> dict[str, dict[str, Any]]:
         from marimo._runtime.runtime import notebook_dir
 
         extension_configs["pymdownx.b64"] = {
-            "base_path": str(notebook_dir()),
+            "base_path": str(notebook_dir() or Path.cwd()),
         }
 
     return extension_configs
@@ -225,7 +225,7 @@ def _get_extensions() -> list[Union[str, markdown.Extension]]:
     # In other environments, base64 is not enabled since app users could
     # potentially use it to grab files they shouldn't have access to.
     if is_pyodide():
-        extensions.insert(4, "pymdownx.b64")
+        extensions.append("pymdownx.b64")
 
     return extensions
 
