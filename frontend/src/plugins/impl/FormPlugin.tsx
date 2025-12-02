@@ -230,7 +230,8 @@ const Form = ({
   // wrapped `elementId`, meaning the value of the wrapped element
   // can change without the plugin generating an event
   const wrappedValue = UI_ELEMENT_REGISTRY.lookupValue(elementId);
-  if (wrappedValue !== internalValue) {
+  // Use Object.is as there can be NaN values
+  if (!Object.is(wrappedValue, internalValue)) {
     setInternalValue(wrappedValue);
   }
 
