@@ -888,6 +888,20 @@ class TestPandasTableManager(unittest.TestCase):
         assert manager.search("yyy").get_num_rows() == 0
         assert manager.search("y").get_num_rows() == 0
 
+    def test_search_string_column_with_nulls(self) -> None:
+        """
+        Test that string columns with null values can be searched after casting.
+        """
+        df = pd.DataFrame(
+            {"name": [float("nan")] * 4 + ["Alice"]},
+        )
+        manager = self.factory.create()(df)
+
+        # Search without raising errors
+        assert manager.search("alice").get_num_rows() == 1
+        assert manager.search("bob").get_num_rows() == 0
+        assert manager.search("nan").get_num_rows() == 4
+
     def test_apply_formatting_does_not_modify_original_data(self) -> None:
         original_data = self.data.copy()
         format_mapping = {
