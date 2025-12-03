@@ -101,7 +101,8 @@ class DefaultTableManager(TableManager[JsonTableData]):
         return self._as_table_manager().to_csv_str(format_mapping)
 
     def to_json_str(
-        self, format_mapping: Optional[FormatMapping] = None
+        self,
+        format_mapping: Optional[FormatMapping] = None,
     ) -> str:
         normalized = self._normalize_data(
             self.apply_formatting(format_mapping).data

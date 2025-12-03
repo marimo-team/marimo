@@ -86,10 +86,14 @@ class NarwhalsTableManager(
         return dataframe_to_csv(_data)
 
     def to_json_str(
-        self, format_mapping: Optional[FormatMapping] = None
+        self,
+        format_mapping: Optional[FormatMapping] = None,
+        ensure_ascii: bool = True,
     ) -> str:
         frame = self.apply_formatting(format_mapping).as_frame()
-        return sanitize_json_bigint(frame.rows(named=True))
+        return sanitize_json_bigint(
+            frame.rows(named=True), ensure_ascii=ensure_ascii
+        )
 
     def to_parquet(self) -> bytes:
         stream = io.BytesIO()

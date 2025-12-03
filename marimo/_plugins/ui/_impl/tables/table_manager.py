@@ -113,7 +113,9 @@ class TableManager(abc.ABC, Generic[T]):
 
     @abc.abstractmethod
     def to_json_str(
-        self, format_mapping: Optional[FormatMapping] = None
+        self,
+        format_mapping: Optional[FormatMapping] = None,
+        ensure_ascii: bool = True,
     ) -> str:
         pass
 
@@ -121,9 +123,12 @@ class TableManager(abc.ABC, Generic[T]):
         self,
         format_mapping: Optional[FormatMapping] = None,
         encoding: str | None = "utf-8",
+        ensure_ascii: bool = True,
     ) -> bytes:
         resolved_encoding = encoding or "utf-8"
-        return self.to_json_str(format_mapping).encode(resolved_encoding)
+        return self.to_json_str(
+            format_mapping=format_mapping, ensure_ascii=ensure_ascii
+        ).encode(resolved_encoding)
 
     @abc.abstractmethod
     def to_parquet(self) -> bytes:

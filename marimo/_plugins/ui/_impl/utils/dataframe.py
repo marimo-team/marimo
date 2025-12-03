@@ -32,7 +32,8 @@ def download_as(
     manager: TableManager[Any],
     ext: str,
     drop_marimo_index: bool = False,
-    encoding: str | None = "utf-8",
+    csv_encoding: str | None = "utf-8",
+    json_ensure_ascii: bool = True,
 ) -> str:
     """Download the table data in the specified format.
 
@@ -41,8 +42,10 @@ def download_as(
         ext (str): The format to download the table data in.
         drop_marimo_index (bool, optional): Whether to drop the marimo selection column.
             Defaults to False.
-        encoding (str | None, optional): Encoding used when generating CSV bytes.
+        csv_encoding (str | None, optional): Encoding used when generating CSV bytes.
             Defaults to "utf-8". Ignored for non-CSV formats.
+        json_ensure_ascii (bool, optional): Whether to escape non-ASCII characters
+            in JSON output. Defaults to True.
 
     Raises:
         ValueError: If unrecognized format.
@@ -56,9 +59,11 @@ def download_as(
         manager = manager.drop_columns([INDEX_COLUMN_NAME])
 
     if ext == "csv":
-        return mo_data.csv(manager.to_csv(encoding=encoding)).url
+        return mo_data.csv(manager.to_csv(encoding=csv_encoding)).url
     elif ext == "json":
-        return mo_data.json(manager.to_json(encoding=encoding)).url
+        return mo_data.json(
+            manager.to_json(encoding=None, ensure_ascii=json_ensure_ascii)
+        ).url
     elif ext == "parquet":
         return mo_data.parquet(manager.to_parquet()).url
     else:

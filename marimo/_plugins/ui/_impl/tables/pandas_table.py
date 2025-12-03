@@ -82,7 +82,9 @@ class PandasTableManagerFactory(TableManagerFactory):
                 )._original_data.to_csv(index=has_headers)
 
             def to_json_str(
-                self, format_mapping: Optional[FormatMapping] = None
+                self,
+                format_mapping: Optional[FormatMapping] = None,
+                ensure_ascii: bool = True,
             ) -> str:
                 def to_json(result: pd.DataFrame) -> list[dict[str, Any]]:
                     # Use to_dict instead of to_json
@@ -125,7 +127,9 @@ class PandasTableManagerFactory(TableManagerFactory):
                         "Error handling complex or timedelta64 dtype",
                         exc_info=e,
                     )
-                    return sanitize_json_bigint(to_json(result))
+                    return sanitize_json_bigint(
+                        to_json(result), ensure_ascii=ensure_ascii
+                    )
 
                 # Flatten row multi-index
                 if isinstance(result.index, pd.MultiIndex) or (
@@ -178,7 +182,9 @@ class PandasTableManagerFactory(TableManagerFactory):
                                 "Indexes with more than one level are not well supported, call reset_index() or use mo.plain(df)"
                             )
 
-                return sanitize_json_bigint(to_json(result))
+                return sanitize_json_bigint(
+                    to_json(result), ensure_ascii=ensure_ascii
+                )
 
             def _infer_dtype(self, column: ColumnName) -> str:
                 # Typically, pandas dtypes returns a generic dtype
