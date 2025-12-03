@@ -475,8 +475,8 @@ const ModelListItem: React.FC<ModelListItemProps> = ({
       onAction={handleToggle}
     >
       <TreeItemContent>
-        <div className="flex items-center justify-between px-4 py-3 border-b last:border-b-0 cursor-pointer outline-none">
-          <ModelInfoCard model={model} qualifiedId={qualifiedId} />
+        <div className="flex items-center justify-between px-3 py-2.5 border-b last:border-b-0 cursor-pointer outline-none">
+          <ModelInfoCard model={model} />
           {model.custom && (
             <Button
               variant="ghost"
@@ -494,35 +494,18 @@ const ModelListItem: React.FC<ModelListItemProps> = ({
   );
 };
 
-const ModelInfoCard = ({
-  model,
-  qualifiedId,
-}: {
-  model: AiModel;
-  qualifiedId: QualifiedModelId;
-}) => {
+const ModelInfoCard = ({ model }: { model: AiModel }) => {
   return (
-    <div className="flex items-center gap-3 flex-1">
-      <div className="flex flex-col flex-1">
-        <div className="flex items-center gap-2">
-          <h3 className="font-medium">{model.name}</h3>
-          <Tooltip content="Custom model">
-            {model.custom && <BotIcon className="h-4 w-4" />}
-          </Tooltip>
-        </div>
-        <span className="text-xs text-muted-foreground font-mono">
-          {qualifiedId}
-        </span>
-        {model.description && !model.custom && (
-          <p className="text-sm text-muted-secondary mt-1 line-clamp-2">
-            {model.description}
-          </p>
-        )}
-
+    <div className="flex flex-col flex-1 gap-0.5">
+      <div className="flex items-center gap-2">
+        <h3 className="font-medium text-sm">{model.name}</h3>
+        <Tooltip content="Custom model">
+          {model.custom && <BotIcon className="h-4 w-4" />}
+        </Tooltip>
         {model.thinking && (
           <div
             className={cn(
-              "flex items-center gap-1 rounded px-1 py-0.5 w-fit mt-1.5",
+              "flex items-center gap-1 rounded px-1 py-0.5 w-fit",
               getTagColour("thinking"),
             )}
           >
@@ -531,6 +514,11 @@ const ModelInfoCard = ({
           </div>
         )}
       </div>
+      {model.description && !model.custom && (
+        <p className="text-sm text-muted-foreground line-clamp-2">
+          {model.description}
+        </p>
+      )}
     </div>
   );
 };
@@ -1100,7 +1088,7 @@ const ProviderTreeItem: React.FC<ProviderTreeItemProps> = ({
       className="outline-none data-focused:bg-muted/50 group"
     >
       <TreeItemContent>
-        <div className="flex items-center gap-3 px-3 py-3 hover:bg-muted/50 cursor-pointer outline-none focus-visible:outline-none">
+        <div className="flex items-center gap-3 px-2 py-3 hover:bg-muted/50 cursor-pointer outline-none focus-visible:outline-none border-b group-data-expanded:border-b-0 rounded-sm">
           <Checkbox
             checked={checkboxState}
             onCheckedChange={handleProviderToggle}
@@ -1114,7 +1102,7 @@ const ProviderTreeItem: React.FC<ProviderTreeItemProps> = ({
             </p>
           </div>
           <AriaButton slot="chevron">
-            <ChevronRightIcon className="h-4 w-4 text-muted-foreground shrink-0 transition-transform duration-200 group-data-[expanded]:rotate-90" />
+            <ChevronRightIcon className="h-4 w-4 text-muted-foreground shrink-0 transition-transform duration-200 group-data-expanded:rotate-90" />
           </AriaButton>
         </div>
       </TreeItemContent>
@@ -1197,12 +1185,12 @@ export const AiModelDisplayConfig: React.FC<AiConfigProps> = ({
 
   return (
     <SettingGroup className="gap-2">
-      <p className="text-sm text-muted-secondary mb-6">
+      <p className="text-sm text-muted-secondary">
         Control which AI models are displayed in model selection dropdowns. When
         no models are selected, all available models will be shown.
       </p>
 
-      <div className="border rounded-md bg-background">
+      <div className="bg-background">
         <Tree
           aria-label="AI Models by Provider"
           className="flex-1 overflow-auto outline-none focus-visible:outline-none"

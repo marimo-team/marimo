@@ -9,6 +9,7 @@ import {
 import { store, waitFor } from "@/core/state/jotai";
 import { jotaiJsonStorage } from "@/utils/storage/jotai";
 import { availableStorage } from "@/utils/storage/storage";
+import type { GitHubCopilotStatusNotificationParams } from "./types";
 
 const KEY = "marimo:copilot:signedIn";
 
@@ -33,6 +34,12 @@ type Step =
 export const copilotSignedInState = atom<Step | null>(null);
 
 export const githubCopilotLoadingVersion = atom<number | null>(null);
+
+export const copilotStatusState = atom<GitHubCopilotStatusNotificationParams>({
+  busy: false,
+  kind: null,
+  message: null,
+});
 
 /**
  * Set the currently loading document version

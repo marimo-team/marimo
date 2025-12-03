@@ -29,8 +29,8 @@ export function patchFetch(
         const base64 = vfile;
         // Convert data URL to blob
         const response = await originalFetch(base64);
-        const blob = await response.blob();
-        return new Response(blob, {
+        const buffer = await response.arrayBuffer();
+        return new Response(buffer, {
           headers: {
             "Content-Type": getContentType(urlString),
           },

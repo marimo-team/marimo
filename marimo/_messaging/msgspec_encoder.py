@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import collections
 import datetime
+import decimal
 import fractions
 import uuid
 from math import isnan
@@ -34,7 +35,10 @@ def enc_hook(obj: Any) -> Any:
     if isinstance(obj, range):
         return list(obj)
 
-    if isinstance(obj, (complex, fractions.Fraction, PurePath, uuid.UUID)):
+    if isinstance(
+        obj,
+        (complex, fractions.Fraction, decimal.Decimal, PurePath, uuid.UUID),
+    ):
         return str(obj)
 
     if DependencyManager.numpy.imported():

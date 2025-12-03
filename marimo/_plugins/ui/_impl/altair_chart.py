@@ -446,6 +446,9 @@ class altair_chart(UIElement[ChartSelection, ChartDataType]):
         # Make full-width if no width is specified
         chart = maybe_make_full_width(chart)
 
+        # Fix vegafusion background to be transparent
+        chart = maybe_fix_vegafusion_background(chart)
+
         # Fix the sizing for vconcat charts
         if isinstance(chart, alt.VConcatChart) and _has_no_nested_hconcat(
             chart
@@ -748,6 +751,31 @@ def maybe_make_full_width(chart: AltairChartType) -> AltairChartType:
         LOGGER.exception(
             "Failed to set width to full container. "
             "This is likely due to a missing dependency or an invalid chart."
+        )
+        return chart
+
+
+def maybe_fix_vegafusion_background(chart: AltairChartType) -> AltairChartType:
+    """Fix vegafusion background to be transparent.
+
+    Vegafusion defaults to white background, which causes issues in dark mode.
+    See: https://github.com/marimo-team/marimo/issues/6601
+    """
+    import altair as alt
+
+    try:
+        if not _using_vegafusion():
+            return chart
+
+        # Only set background if it's not already set
+        if chart._get("background") is alt.Undefined:  # type: ignore
+            LOGGER.debug("setting background to transparent for vegafusion")
+            return chart.properties(background="transparent")
+        return chart
+    except Exception:
+        LOGGER.exception(
+            "Failed to set vegafusion background to transparent. "
+            "Using chart as-is."
         )
         return chart
 

@@ -782,6 +782,7 @@ class TestTransformHandler:
             column_ids=["A"],
             drop_na=False,
             aggregation="sum",
+            aggregation_column_ids=[],
         )
         result = apply(df, transform)
         if not isinstance(result, pd.DataFrame):

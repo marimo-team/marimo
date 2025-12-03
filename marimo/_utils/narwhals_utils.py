@@ -51,7 +51,7 @@ def assert_narwhals_dataframe_or_lazyframe(
         raise ValueError(f"Unsupported dataframe type. Got {type(df)}")
 
 
-def assert_narwhals_series(series: nw.Series) -> None:
+def assert_narwhals_series(series: nw.Series[Any]) -> None:
     """
     Assert that the given series is a valid narwhals series.
     """

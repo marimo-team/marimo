@@ -25,7 +25,9 @@ from marimo._plugins.ui._impl.altair_chart import (
     _has_selection_param,
     _parse_spec,
     _update_vconcat_width,
+    _using_vegafusion,
     altair_chart,
+    maybe_fix_vegafusion_background,
 )
 from marimo._runtime.runtime import Kernel
 from marimo._utils.narwhals_utils import is_narwhals_lazyframe
@@ -1733,3 +1735,102 @@ def test_embed_options_empty_dict() -> None:
 
     # Clean up
     del alt.renderers.options["embed_options"]
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+def test_maybe_fix_vegafusion_background_not_using_vegafusion() -> None:
+    """Test that background is NOT changed when vegafusion is not active."""
+    import altair as alt
+
+    # Ensure vegafusion is not active
+    alt.data_transformers.enable("default")
+
+    data = pd.DataFrame({"x": [1, 2, 3], "y": [4, 5, 6]})
+    chart = alt.Chart(data).mark_point().encode(x="x", y="y")
+
+    # Store original background
+    original_background = chart.background
+
+    # Apply the function
+    result_chart = maybe_fix_vegafusion_background(chart)
+
+    # Background should remain unchanged
+    assert result_chart.background == original_background
+    assert result_chart.background is alt.Undefined
+
+
+@pytest.mark.skipif(
+    not HAS_DEPS or not DependencyManager.vegafusion.has(),
+    reason="optional dependencies not installed",
+)
+def test_maybe_fix_vegafusion_background_with_vegafusion() -> None:
+    """Test that background is set to transparent when vegafusion is active."""
+    import altair as alt
+
+    # Enable vegafusion
+    alt.data_transformers.enable("vegafusion")
+
+    data = pd.DataFrame({"x": [1, 2, 3], "y": [4, 5, 6]})
+    chart = alt.Chart(data).mark_point().encode(x="x", y="y")
+
+    # Verify background is undefined initially
+    assert chart.background is alt.Undefined
+
+    # Apply the function
+    result_chart = maybe_fix_vegafusion_background(chart)
+
+    # Background should be set to transparent
+    assert result_chart.background == "transparent"
+
+    # Clean up
+    alt.data_transformers.enable("default")
+
+
+@pytest.mark.skipif(
+    not HAS_DEPS or not DependencyManager.vegafusion.has(),
+    reason="optional dependencies not installed",
+)
+def test_maybe_fix_vegafusion_background_preserves_user_background() -> None:
+    """Test that user-set background is preserved even with vegafusion."""
+    import altair as alt
+
+    # Enable vegafusion
+    alt.data_transformers.enable("vegafusion")
+
+    data = pd.DataFrame({"x": [1, 2, 3], "y": [4, 5, 6]})
+    chart = (
+        alt.Chart(data)
+        .mark_point()
+        .encode(x="x", y="y")
+        .properties(background="#ffffff")
+    )
+
+    # Verify background is set by user
+    assert chart.background == "#ffffff"
+
+    # Apply the function
+    result_chart = maybe_fix_vegafusion_background(chart)
+
+    # Background should remain as user set it
+    assert result_chart.background == "#ffffff"
+
+    # Clean up
+    alt.data_transformers.enable("default")
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+def test_using_vegafusion() -> None:
+    """Test the _using_vegafusion helper function."""
+    import altair as alt
+
+    # Test with default transformer
+    alt.data_transformers.enable("default")
+    assert _using_vegafusion() is False
+
+    # Test with vegafusion (if available)
+    if DependencyManager.vegafusion.has():
+        alt.data_transformers.enable("vegafusion")
+        assert _using_vegafusion() is True
+
+        # Clean up
+        alt.data_transformers.enable("default")
