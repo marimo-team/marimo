@@ -243,23 +243,44 @@ describe("getCopyValue", () => {
 
     const bigintRaw = BigInt(2 ** 64);
     const bigintRawResult = getCopyValue(bigintRaw);
-    expect(bigintRawResult).toMatchInlineSnapshot(`"18446744073709551616"`);
+    // When JSON.rawJSON is available, BigInt is serialized as raw JSON number
+    // When JSON.rawJSON is not available (Node < 21), BigInt.toJSON returns a string
+    // and JSON.stringify adds quotes around it
+    if (typeof JSON.rawJSON === "function") {
+      expect(bigintRawResult).toMatchInlineSnapshot(`"18446744073709551616"`);
+    } else {
+      expect(bigintRawResult).toMatchInlineSnapshot(`""18446744073709551616""`);
+    }
 
     const nestedBigIntRaw = {
-      key1: bigintRaw, // raw number
+      key1: bigintRaw, // raw BigInt - with JSON.rawJSON it's a raw number, without it's a quoted string
       key2: `text/plain+bigint:${bigintRaw}`,
       key3: true,
     };
     const nestedBigIntRawResult = getCopyValue(nestedBigIntRaw);
-    expect(nestedBigIntRawResult).toMatchInlineSnapshot(
-      `
-      "{
-        "key1": 18446744073709551616,
-        "key2": 18446744073709551616,
-        "key3": True
-      }"
-      `,
-    );
+    // When JSON.rawJSON is available, BigInt is serialized as raw JSON number
+    // When JSON.rawJSON is not available (Node < 21), BigInt.toJSON returns a string
+    if (typeof JSON.rawJSON === "function") {
+      expect(nestedBigIntRawResult).toMatchInlineSnapshot(
+        `
+        "{
+          "key1": 18446744073709551616,
+          "key2": 18446744073709551616,
+          "key3": True
+        }"
+        `,
+      );
+    } else {
+      expect(nestedBigIntRawResult).toMatchInlineSnapshot(
+        `
+        "{
+          "key1": "18446744073709551616",
+          "key2": 18446744073709551616,
+          "key3": True
+        }"
+        `,
+      );
+    }
   });
 });
 

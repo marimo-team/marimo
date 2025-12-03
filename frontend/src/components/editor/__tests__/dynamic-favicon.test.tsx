@@ -114,48 +114,52 @@ describe("DynamicFavicon", () => {
   });
 
   describe("notifications", () => {
+    let notificationSpy: ReturnType<typeof vi.fn>;
+
     beforeEach(() => {
       vi.spyOn(document, "visibilityState", "get").mockReturnValue("hidden");
+      notificationSpy = vi.fn();
+      // Create a class mock that can be called with `new`
       // @ts-expect-error ok in tests
-      global.Notification = vi.fn();
-      // @ts-expect-error ok in tests
-      global.Notification.permission = "granted";
+      // eslint-disable-next-line @typescript-eslint/no-extraneous-class
+      global.Notification = class MockNotification {
+        constructor(title: string, options?: NotificationOptions) {
+          notificationSpy(title, options);
+        }
+
+        static permission: NotificationPermission = "granted";
+        static requestPermission = vi.fn().mockResolvedValue("granted");
+      };
     });
 
-    it("should send success notification when run completes without errors", () => {
-      // @ts-expect-error ok in tests
-      global.Notification = vi.fn().mockImplementation((title, options) => {
-        expect(title).toBe("Execution completed");
-        expect(options).toEqual({
-          body: "Your notebook run completed successfully.",
-          icon: "/src/assets/circle-check.ico",
-        });
-      });
-      // @ts-expect-error ok in tests
-      global.Notification.permission = "granted";
-
+    it("should send success notification when run completes without errors", async () => {
       const { rerender } = render(<DynamicFavicon isRunning={true} />);
       rerender(<DynamicFavicon isRunning={false} />);
+
+      // Wait for async notification
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      expect(notificationSpy).toHaveBeenCalledWith("Execution completed", {
+        body: "Your notebook run completed successfully.",
+        icon: "/src/assets/circle-check.ico",
+      });
     });
 
-    it("should send error notification when run completes with errors", () => {
+    it("should send error notification when run completes with errors", async () => {
       (useCellErrors as ReturnType<typeof vi.fn>).mockReturnValue([
         { error: "mock error" },
       ]);
 
-      // @ts-expect-error ok in tests
-      global.Notification = vi.fn().mockImplementation((title, options) => {
-        expect(title).toBe("Execution failed");
-        expect(options).toEqual({
-          body: "Your notebook run encountered 1 error(s).",
-          icon: "/src/assets/circle-x.ico",
-        });
-      });
-      // @ts-expect-error ok in tests
-      global.Notification.permission = "granted";
-
       const { rerender } = render(<DynamicFavicon isRunning={true} />);
       rerender(<DynamicFavicon isRunning={false} />);
+
+      // Wait for async notification
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      expect(notificationSpy).toHaveBeenCalledWith("Execution failed", {
+        body: "Your notebook run encountered 1 error(s).",
+        icon: "/src/assets/circle-x.ico",
+      });
     });
 
     it("should not send notification when document is visible", () => {
@@ -163,15 +167,12 @@ describe("DynamicFavicon", () => {
       const { rerender } = render(<DynamicFavicon isRunning={true} />);
       rerender(<DynamicFavicon isRunning={false} />);
 
-      expect(Notification).not.toHaveBeenCalled();
+      expect(notificationSpy).not.toHaveBeenCalled();
     });
 
     it("should request permission if not granted", () => {
       // @ts-expect-error ok in tests
       global.Notification.permission = "default";
-      global.Notification.requestPermission = vi
-        .fn()
-        .mockResolvedValue("granted");
 
       const { rerender } = render(<DynamicFavicon isRunning={true} />);
       rerender(<DynamicFavicon isRunning={false} />);

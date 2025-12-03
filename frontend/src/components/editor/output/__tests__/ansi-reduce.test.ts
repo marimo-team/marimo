@@ -534,13 +534,13 @@ describe("AnsiReducer streaming with append()", () => {
 describe("AnsiReducer color preservation", () => {
   const CASES = [
     // SGR sequences
-    "\u001b[34mBlue text\u001b[m normal text\u001b[31mRed text\u001b[0m",
+    "\u001B[34mBlue text\u001B[m normal text\u001B[31mRed text\u001B[0m",
     // Complex SGR with parameters
-    "\u001b[1;31mBold Red\u001b[0m \u001b[48;5;240mGray bg\u001b[0m",
+    "\u001B[1;31mBold Red\u001B[0m \u001B[48;5;240mGray bg\u001B[0m",
     // Character set selection
-    "Text\u001b(BMore\u001b(0Graphics\u001b(B",
+    "Text\u001B(BMore\u001B(0Graphics\u001B(B",
     // Complex case
-    "\u001b[34m[D 251201 15:32:24 cell_runner:695]\u001b(B\u001b[m Running post_execution hooks in context\n\u001b[34m[D 251201 15:32:24 hooks_post_execution:65]\u001b(B\u001b[m Acquiring graph lock to update cell import workspace\n\u001b[34m[D 251201 15:32:24 hooks_post_execution:67]\u001b(B\u001b[m Acquired graph lock to update import workspace.\n",
+    "\u001B[34m[D 251201 15:32:24 cell_runner:695]\u001B(B\u001B[m Running post_execution hooks in context\n\u001B[34m[D 251201 15:32:24 hooks_post_execution:65]\u001B(B\u001B[m Acquiring graph lock to update cell import workspace\n\u001B[34m[D 251201 15:32:24 hooks_post_execution:67]\u001B(B\u001B[m Acquired graph lock to update import workspace.\n",
   ];
 
   test.each(CASES)("preserves ANSI color codes", (input) => {
@@ -554,12 +554,12 @@ describe("AnsiReducer color preservation", () => {
     // Test that color codes work alongside cursor movements
     // Note: when cursor moves up, lines below are discarded (tqdm behavior)
     const result = reducer.reduce(
-      "Line1\n\u001b[31mRed\u001b[0m\u001b[1A\u001b[32mGreen\u001b[0m",
+      "Line1\n\u001B[31mRed\u001B[0m\u001B[1A\u001B[32mGreen\u001B[0m",
     );
     // After moving up from row 1 to row 0, row 1 is discarded
     // Green is written at the end of row 0
     expect(result).toMatchInlineSnapshot(
-      `"Line1       \u001b[32mGreen\u001b[0m"`,
+      `"Line1       \u001B[32mGreen\u001B[0m"`,
     );
   });
 });

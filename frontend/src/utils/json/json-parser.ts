@@ -11,7 +11,13 @@ declare global {
 // Treat BigInts as numbers
 // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON#using_json_numbers
 BigInt.prototype.toJSON = function () {
-  return JSON.rawJSON(this.toString());
+  // JSON.rawJSON is available in Node 21+ and some browsers
+  // Fall back to returning the string directly when not available
+  if (typeof JSON.rawJSON === "function") {
+    return JSON.rawJSON(this.toString());
+  }
+  // Fallback: return as string (loses raw JSON semantics but works)
+  return this.toString();
 };
 
 /**
