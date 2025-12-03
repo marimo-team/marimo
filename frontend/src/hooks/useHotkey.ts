@@ -31,6 +31,10 @@ export function useHotkey(shortcut: HotkeyAction, callback: HotkeyHandler) {
   const memoizeCallback = useEvent((evt?: KeyboardEvent) => callback(evt));
 
   const listener = useEvent((e: KeyboardEvent) => {
+    if (e.defaultPrevented) {
+      return;
+    }
+
     const key = hotkeys.getHotkey(shortcut).key;
     if (parseShortcut(key)(e)) {
       const response = callback(e);
@@ -62,6 +66,10 @@ export function useKeydownOnElement(
   handlers: Record<string, HotkeyHandler>,
 ) {
   useEventListener(element, "keydown", (e) => {
+    if (e.defaultPrevented) {
+      return;
+    }
+
     for (const [key, callback] of Objects.entries(handlers)) {
       if (parseShortcut(key)(e)) {
         Logger.debug("Satisfied", key, e);
