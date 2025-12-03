@@ -109,8 +109,8 @@ Count: {str(data["items"][0]["count"])}`.trim(),
       const { code: pythonCode, offset } = parser.transformOut(code, {
         quotePrefix: "",
       });
-      expect(pythonCode).toBe(`mo.md("""Hello world""")`);
-      expect(offset).toBe(9);
+      expect(pythonCode).toBe(`mo.md("""\nHello world\n""")`);
+      expect(offset).toBe(11);
     });
 
     it("should wrap multiline markdown", () => {
@@ -134,7 +134,7 @@ Count: {str(data["items"][0]["count"])}`.trim(),
         quotePrefix: "r",
       });
       expect(pythonCode).toBe(
-        `mo.md(r"""$\\nu = \\mathllap{}\\cdot\\mathllap{\\alpha}$""")`,
+        `mo.md(r"""\n$\\nu = \\mathllap{}\\cdot\\mathllap{\\alpha}$\n""")`,
       );
     });
 
@@ -157,7 +157,7 @@ Count: {str(data["items"][0]["count"])}`.trim(),
         quotePrefix: "",
       });
       expect(pythonCode).toBe(
-        `mo.md("""Markdown with an escaped \\"""quote\\"""!!""")`,
+        `mo.md("""\nMarkdown with an escaped "\\""quote"\\""!!\n""")`,
       );
     });
 
@@ -165,7 +165,7 @@ Count: {str(data["items"][0]["count"])}`.trim(),
       const { code: pythonCode } = parser.transformOut("", {
         quotePrefix: "r",
       });
-      expect(pythonCode).toBe(`mo.md(r""" """)`);
+      expect(pythonCode).toBe(`mo.md(r"""\n \n""")`);
     });
   });
 
