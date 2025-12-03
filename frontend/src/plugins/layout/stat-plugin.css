@@ -1,0 +1,8 @@
+/* For slots, we do not want to apply custom css */
+.slot-wrapper .vega-embed {
+  min-width: unset;
+
+  @media (min-width: 500px) {
+    min-width: unset;
+  }
+}
