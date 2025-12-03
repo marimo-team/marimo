@@ -64,9 +64,12 @@ def stat(
 
 
 def try_convert_to_html(slot: Any) -> Optional[Html]:
+    if slot is None:
+        return None
+
     try:
-        if slot is not None and not isinstance(slot, Html):
-            slot = as_html(slot)
+        if not isinstance(slot, Html):
+            return as_html(slot)
         return slot
     except Exception as e:
         Logger.error(
