@@ -529,6 +529,57 @@ class TestNarwhalsTableManagerFactory(unittest.TestCase):
         assert manager.search("yyy").get_num_rows() == 0
         assert manager.search("y").get_num_rows() == 0
 
+    def test_search_with_pandas_object_dtype(self) -> None:
+        import pandas as pd
+
+        # Create a pandas DataFrame with object dtype columns (mimicking real-world data)
+        df = pd.DataFrame(
+            {
+                "metric": ["AdrAct30dCnt", "AdrAct7dCnt", "AdrActBlobCnt"],
+                "full_name": [
+                    "Addresses, active, monthly, count",
+                    "Addresses, active, weekly, count",
+                    "Addresses, active, blob, count",
+                ],
+                "description": [
+                    "The sum count of unique addresses",
+                    "The sum count of unique addresses",
+                    "The sum count of unique addresses",
+                ],
+                "product": ["Network Data", "Network Data", "Network Data"],
+                "category": ["Addresses", "Addresses", "Transactions"],
+                "subcategory": ["Active", "Active", "Blobs"],
+            }
+        )
+
+        manager = NarwhalsTableManager.from_dataframe(df)
+
+        # This should work but might fail with "Can only use .str accessor with string values!"
+        result = manager.search("flow")
+        assert result.get_num_rows() == 0
+
+        result = manager.search("active")
+        assert (
+            result.get_num_rows() == 3
+        )  # Should match "active" in full_name (all rows) and subcategory
+
+    def test_search_with_pandas_categorical(self) -> None:
+        import pandas as pd
+
+        # Create a pandas DataFrame with categorical columns
+        df = pd.DataFrame(
+            {
+                "category": pd.Categorical(["cat1", "cat2", "cat3"]),
+                "value": [1, 2, 3],
+            }
+        )
+
+        manager = NarwhalsTableManager.from_dataframe(df)
+
+        # Search for "cat" should match all rows
+        result = manager.search("cat")
+        assert result.get_num_rows() == 3
+
     def test_apply_formatting_does_not_modify_original_data(self) -> None:
         original_data = self.data.clone()
         format_mapping: FormatMapping = {

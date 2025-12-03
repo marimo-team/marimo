@@ -281,7 +281,7 @@ class NarwhalsTableManager(
         for column, dtype in self.nw_schema.items():
             if column == INDEX_COLUMN_NAME:
                 continue
-            if dtype == nw.String:
+            if is_narwhals_string_type(dtype):
                 expressions.append(nw.col(column).str.contains(f"(?i){query}"))
             elif dtype == nw.List(nw.String):
                 # TODO: Narwhals doesn't support list.contains
