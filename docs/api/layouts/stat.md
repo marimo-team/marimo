@@ -60,7 +60,7 @@ def _():
         caption="QoQ Growth",
         direction="increase",
         bordered=True,
-        slot=mo.as_html(chart),
+        slot=chart,
     )
     return
 ```
