@@ -68,9 +68,7 @@ def try_convert_to_html(slot: Any) -> Optional[Html]:
         return None
 
     try:
-        if not isinstance(slot, Html):
-            return as_html(slot)
-        return slot
+        return as_html(slot)
     except Exception as e:
         Logger.error(
             f"Error converting slot to Html: {e}. Please ensure it is a valid Html object."
