@@ -55,15 +55,19 @@ const NumberComponent = (props: NumberComponentProps): JSX.Element => {
     id = "test-id";
   }
 
+  const initialValue = withoutNaN(props.value);
+
   // Create a debounced value of 200
   const { value, onChange } = useDebounceControlledState({
-    initialValue: props.value,
+    initialValue: initialValue,
     delay: 200,
     disabled: !props.debounce,
-    onChange: (v) => {
-      props.setValue(v);
-    },
+    onChange: props.setValue,
   });
+
+  const handleChange = (newValue: number) => {
+    onChange(withoutNaN(newValue));
+  };
 
   return (
     <Labeled label={props.label} id={id} fullWidth={props.fullWidth}>
@@ -72,9 +76,12 @@ const NumberComponent = (props: NumberComponentProps): JSX.Element => {
         className={cn("min-w-[3em]", props.fullWidth && "w-full")}
         minValue={props.start ?? undefined}
         maxValue={props.stop ?? undefined}
-        value={value ?? undefined}
+        // This needs to be `?? NaN` since `?? undefined` makes  uncontrolled component
+        // and can lead to leaving the old value in forms (https://github.com/marimo-team/marimo/issues/7352)
+        // We out NaNs later
+        value={value ?? NaN}
         step={props.step}
-        onChange={onChange}
+        onChange={handleChange}
         id={id}
         aria-label={props.label || "Number input"}
         isDisabled={props.disabled}
@@ -82,3 +89,10 @@ const NumberComponent = (props: NumberComponentProps): JSX.Element => {
     </Labeled>
   );
 };
+
+function withoutNaN(value: number | null | undefined): number | null {
+  if (value == null || Number.isNaN(value)) {
+    return null;
+  }
+  return value;
+}
