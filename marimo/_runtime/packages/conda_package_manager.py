@@ -1,6 +1,8 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+from typing import override
+
 from marimo._runtime.packages.module_name_to_conda_name import (
     module_name_to_conda_name,
 )
@@ -22,14 +24,18 @@ class CondaPackageManager(CanonicalizingPackageManager):
 class PixiPackageManager(CondaPackageManager):
     name = "pixi"
 
-    def install_command(self, package: str, *, upgrade: bool) -> list[str]:
+    @override
+    def install_command(
+        self, package: str, *, upgrade: bool, dev: bool
+    ) -> list[str]:
         return [
             "pixi",
             "upgrade" if upgrade else "add",
             *split_packages(package),
         ]
 
-    async def uninstall(self, package: str) -> bool:
+    @override
+    async def uninstall(self, package: str, dev: bool = False) -> bool:
         return self.run(
             ["pixi", "remove", *split_packages(package)], log_callback=None
         )
