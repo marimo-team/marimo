@@ -79,6 +79,20 @@ def test_write_text(tmp_path: Path):
     assert tmp_file.read_text() == text
 
 
+def test_read_bytes(tmp_path: Path):
+    # Create a temporary file with binary content
+    tmp_file = tmp_path / "test.py"
+    binary_content = b"import marimo\napp = marimo.App()\n"
+    tmp_file.write_bytes(binary_content)
+
+    mp = MarimoPath(tmp_file)
+
+    # Read bytes and verify
+    content = mp.read_bytes()
+    assert content == binary_content
+    assert isinstance(content, bytes)
+
+
 def test_properties():
     mp = MarimoPath(__file__)
 
