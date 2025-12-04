@@ -21,7 +21,12 @@ else:
 
 
 if TYPE_CHECKING:
-    from narwhals.typing import IntoDataFrame, IntoFrame, IntoLazyFrame
+    from narwhals.typing import (
+        IntoBackend,
+        IntoDataFrame,
+        IntoFrame,
+        IntoLazyFrame,
+    )
     from typing_extensions import TypeIs
 
 
@@ -253,7 +258,7 @@ if TYPE_CHECKING:
 
 def _to_lazyframe(
     df: Union[nw.DataFrame[Any], nw.LazyFrame[Any]],
-    original_backend: nw.Implementation,
+    original_backend: IntoBackend[Any],
 ) -> nw.LazyFrame[Any]:
     if is_narwhals_lazyframe(df):
         return df
