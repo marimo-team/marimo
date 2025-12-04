@@ -4,6 +4,7 @@ from __future__ import annotations
 import datetime
 import functools
 import io
+import math
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Literal, Optional, Union, cast
 
@@ -44,6 +45,11 @@ if TYPE_CHECKING:
 
 LOGGER = _loggers.marimo_logger()
 UNSTABLE_API_WARNING = "`Series.hist` is being called from the stable API although considered an unstable feature."
+
+# Standardize this across libraries
+NAN_VALUE = "NaN"
+POSITIVE_INF = "Infinity"
+NEGATIVE_INF = "-Infinity"
 
 
 class NarwhalsTableManager(
@@ -218,10 +224,22 @@ class NarwhalsTableManager(
                 ]
 
         result = _calculate_top_k_rows(frame)
-        return [
-            (unwrap_py_scalar(row[0]), int(unwrap_py_scalar(row[1])))
-            for row in result.rows()
-        ]
+        value_counts: list[tuple[Any, int]] = []
+
+        # NaNs and Infs serialize to null, which isn't distingushable from normal nulls
+        # so instead we set to string values
+        for row in result.rows():
+            value = unwrap_py_scalar(row[0])
+            count = int(unwrap_py_scalar(row[1]))
+            if isinstance(value, float) and math.isnan(value):
+                value = NAN_VALUE
+            elif isinstance(value, float) and math.isinf(value) and value > 0:
+                value = POSITIVE_INF
+            elif isinstance(value, float) and math.isinf(value) and value < 0:
+                value = NEGATIVE_INF
+            value_counts.append((value, count))
+
+        return value_counts
 
     @staticmethod
     def is_type(value: Any) -> bool:
