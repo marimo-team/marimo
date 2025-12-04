@@ -11,12 +11,14 @@ from marimo._utils.narwhals_utils import (
     assert_narwhals_series,
     can_narwhalify,
     can_narwhalify_lazyframe,
+    collect_and_preserve_type,
     dataframe_to_csv,
     empty_df,
     is_narwhals_integer_type,
     is_narwhals_lazyframe,
     is_narwhals_string_type,
     is_narwhals_temporal_type,
+    make_lazy,
     unwrap_narwhals_dataframe,
     unwrap_py_scalar,
     upgrade_narwhals_df,
@@ -172,3 +174,94 @@ def test_can_narwhalify_lazyframe():
     con = duckdb.connect(":memory:")
     rel = con.sql("SELECT 1")
     assert can_narwhalify_lazyframe(rel) is True
+
+
+@pytest.mark.parametrize(
+    "df",
+    create_dataframes(
+        {"a": [1, 2, 3], "b": ["x", "y", "z"]},
+    ),
+)
+def test_make_lazy_with_all_dataframes(df: IntoDataFrame) -> None:
+    """Test make_lazy() with eager dataframes - should collect back to eager."""
+    original_type = type(df)
+    original_namespace = nw.get_native_namespace(df)
+
+    lazy_df, undo = make_lazy(df)
+    assert is_narwhals_lazyframe(lazy_df)
+
+    # Call undo to convert back
+    result = undo(lazy_df)
+
+    # The result should be the same type as the original
+    assert type(result) is original_type
+    assert nw.get_native_namespace(result) == original_namespace
+
+    # Verify data is preserved
+    result_nw = nw.from_native(result)
+    if is_narwhals_lazyframe(result_nw):
+        result_nw = result_nw.collect()
+
+    assert result_nw.shape == (3, 2)
+    assert set(result_nw.columns) == {"a", "b"}
+
+    # Call undo on a collected DataFrame
+    collected_df = lazy_df.collect()
+    result_from_collected = undo(collected_df)
+    assert type(result_from_collected) is type(df)
+
+
+def test_passing_as_different_df_to_undo():
+    """Test that passing a different dataframe type to undo raises an error."""
+    import polars as pl
+
+    df = pl.DataFrame({"a": [1, 2, 3]})
+    lazy_df = pl.DataFrame({"a": [1, 2, 3]}).lazy()
+
+    _, undo = make_lazy(df)
+    _, undo_lazy = make_lazy(lazy_df)
+
+    assert type(undo(nw.from_native(df))) is pl.DataFrame
+    assert type(undo(nw.from_native(lazy_df))) is pl.DataFrame
+
+    assert type(undo_lazy(nw.from_native(df))) is pl.LazyFrame
+    assert type(undo_lazy(nw.from_native(lazy_df))) is pl.LazyFrame
+
+
+@pytest.mark.parametrize(
+    "df",
+    create_dataframes(
+        {"a": [1, 2, 3], "b": ["x", "y", "z"]},
+    ),
+)
+def test_collect_and_preserve_type_dataframes(
+    df: IntoDataFrame,
+) -> None:
+    # Get the original backend
+    original_namespace = nw.get_native_namespace(df)
+
+    # Convert to narwhals LazyFrame
+    lazy_nw = nw.from_native(df).lazy()
+    assert is_narwhals_lazyframe(lazy_nw)
+
+    # Collect and get undo function
+    collected_df, undo = collect_and_preserve_type(lazy_nw)
+
+    # The collected result should be a narwhals DataFrame
+    assert not is_narwhals_lazyframe(collected_df)
+    assert collected_df.shape == (3, 2)
+
+    # Call undo to convert back to LazyFrame
+    result = undo(collected_df)
+
+    # The result should be a LazyFrame
+    assert is_narwhals_lazyframe(result)
+
+    # The result should have the same backend as the original
+    result_namespace = nw.get_native_namespace(result.to_native())
+    assert result_namespace == original_namespace
+
+    # Verify data is preserved
+    result_collected = result.collect()
+    assert result_collected.shape == (3, 2)
+    assert set(result_collected.columns) == {"a", "b"}

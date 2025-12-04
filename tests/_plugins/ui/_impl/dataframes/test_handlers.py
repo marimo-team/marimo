@@ -33,7 +33,7 @@ from marimo._plugins.ui._impl.dataframes.transforms.types import (
     TransformType,
     UniqueTransform,
 )
-from marimo._utils.narwhals_utils import is_narwhals_lazyframe
+from marimo._utils.narwhals_utils import is_narwhals_lazyframe, make_lazy
 from tests._data.mocks import create_dataframes
 
 pytest.importorskip("ibis")
@@ -72,6 +72,7 @@ def collect_df(df: DataFrameType) -> nw.DataFrame[Any]:
 def assert_frame_equal(a: DataFrameType, b: DataFrameType) -> None:
     nw_a = collect_df(a)
     nw_b = collect_df(b)
+    assert type(a) is type(b)
     assert nw_a.to_dict(as_series=False) == nw_b.to_dict(as_series=False)
 
 
@@ -896,6 +897,7 @@ class TestTransformHandler:
         nw_result = collect_df(result)
         assert "A" in nw_result.columns
         assert "B" in nw_result.columns
+        assert type(result) is type(expected)
 
     @staticmethod
     @pytest.mark.parametrize(
@@ -911,6 +913,7 @@ class TestTransformHandler:
         nw_result = collect_df(result)
         assert "A" in nw_result.columns
         assert "B" in nw_result.columns
+        assert type(result) is type(df)
 
     @staticmethod
     @pytest.mark.parametrize(
@@ -1036,6 +1039,7 @@ class TestTransformHandler:
             nw_expected.sort("A"),
             nw_result.sort("A"),
         )
+        assert type(result) is type(df)
 
     @staticmethod
     @pytest.mark.parametrize(
@@ -1051,7 +1055,7 @@ class TestTransformHandler:
     def test_transforms_container(
         df: DataFrameType, expected: DataFrameType, expected2: DataFrameType
     ) -> None:
-        nw_df = nw.from_native(df).lazy()
+        nw_df, undo = make_lazy(df)
         container = TransformsContainer(nw_df, NarwhalsTransformHandler())
 
         # Define some transformations
@@ -1079,7 +1083,7 @@ class TestTransformHandler:
 
         # Get the transformed dataframe
         # Check that the transformations were applied correctly
-        assert_frame_equal(result, expected)
+        assert_frame_equal(undo(result), expected)
 
         # Reapply transforms by adding a new one
         filter_again_transform = FilterRowsTransform(
@@ -1099,7 +1103,7 @@ class TestTransformHandler:
             transformations,
         )
         # Check that the transformations were applied correctly
-        assert_frame_equal(result, expected2)
+        assert_frame_equal(undo(result), expected2)
 
         transformations = Transformations([sort_transform, filter_transform])
         # Verify the next transformation
@@ -1113,7 +1117,7 @@ class TestTransformHandler:
             transformations,
         )
         # Check that the transformations were applied correctly
-        assert_frame_equal(result, expected)
+        assert_frame_equal(undo(result), expected)
 
     @staticmethod
     @pytest.mark.parametrize(
