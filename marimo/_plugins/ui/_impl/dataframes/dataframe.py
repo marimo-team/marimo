@@ -250,8 +250,7 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
         if value is None:
             self._error = None
             # Return the original data using the undo callback
-            lazy_data, _ = make_lazy(self._data)
-            return self._undo(lazy_data)
+            return self._undo(self._transform_container._original_df)
 
         try:
             transformations = parse_raw(value, Transformations)
@@ -263,8 +262,7 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
             error = f"Error applying dataframe transform: {str(e)}\n\n"
             sys.stderr.write(error)
             self._error = error
-            lazy_data, _ = make_lazy(self._data)
-            return self._undo(lazy_data)
+            return self._undo(self._transform_container._original_df)
 
     def _search(self, args: SearchTableArgs) -> SearchTableResponse:
         offset = args.page_number * args.page_size

@@ -211,8 +211,8 @@ def test_make_lazy_with_all_dataframes(df: IntoDataFrame) -> None:
     assert type(result_from_collected) is type(df)
 
 
-def test_passing_as_different_df_to_undo():
-    """Test that passing a different dataframe type to undo raises an error."""
+def test_undo_preserves_lazy_or_eager_type():
+    """Test that the undo callback returns the correct type (eager or lazy) matching the original input."""
     import polars as pl
 
     df = pl.DataFrame({"a": [1, 2, 3]})

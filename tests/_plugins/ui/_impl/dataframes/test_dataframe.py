@@ -646,11 +646,10 @@ def test_dataframe_with_int_column_names():
     "df",
     create_dataframes(
         {"A": [1, 2, 3], "B": ["a", "b", "c"]},
-        # exclude=["duckdb", "ibis", "lazy-polars"],
     ),
 )
-def test_ibis_dataframe_types_is_preserved(df: IntoDataFrame):
-    """Test that Ibis tables remain lazy after using mo.ui.dataframe."""
+def test_dataframe_types_are_preserved(df: IntoDataFrame):
+    """Test that dataframe types are preserved after using mo.ui.dataframe."""
     ui_limit = 3
     # Create a marimo UI dataframe with a preview limit
     ui_df = ui.dataframe(df, limit=ui_limit)

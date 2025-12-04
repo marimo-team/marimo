@@ -246,7 +246,9 @@ def is_narwhals_dataframe(df: Any) -> TypeIs[nw.DataFrame[Any]]:
 
 
 if TYPE_CHECKING:
-    UndoCallback = Callable[[nw.LazyFrame[Any]], IntoFrame]
+    UndoCallback = Callable[
+        [Union[nw.LazyFrame[Any], nw.DataFrame[Any]]], IntoFrame
+    ]
 
 
 def _to_lazyframe(
@@ -257,9 +259,13 @@ def _to_lazyframe(
         return df
     else:
         try:
-            # Try to convert to the original backend, otherwise fallback to default
+            # Try to convert to the original backend. This backend must be a "lazy backend"
+            # e.g., Ibis, DuckDB, etc.
             return df.lazy(backend=original_backend)
         except ValueError:
+            # This error is expected in most cases. For example, if the original
+            # backend was not a "lazy backend" (e.g., Pandas), Narwhals will
+            # raise a ValueError. In this case, we just make a default lazyframe.
             return df.lazy()
 
 
@@ -330,8 +336,7 @@ def collect_and_preserve_type(
     This is useful since when you collect an Ibis or DuckDB dataframe, making them
     lazy does not convert them back to their original backend.
     """
-    nw_df = nw.from_native(df, pass_through=False)
-    original_backend = nw_df.implementation
+    original_backend = df.implementation
 
     def undo(result: nw.DataFrame[Any]) -> nw.LazyFrame[Any]:
         """Convert back to the original backend as a LazyFrame."""
@@ -341,10 +346,6 @@ def collect_and_preserve_type(
             )
             return result.lazy()
 
-        try:
-            # Try to convert to the original backend, otherwise fallback to default
-            return result.lazy(backend=original_backend)
-        except ValueError:
-            return result.lazy()
+        return _to_lazyframe(result, original_backend)
 
     return df.collect(), undo
