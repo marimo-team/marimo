@@ -113,28 +113,30 @@ const NavMenuComponent = ({
   const renderMenuItem = (item: MenuItem | MenuItemGroup) => {
     if ("items" in item) {
       return orientation === "horizontal" ? (
-        <NavigationMenuItem key={item.label}>
-          <NavigationMenuTrigger>
-            {renderHTML({ html: item.label })}
-          </NavigationMenuTrigger>
-          <NavigationMenuContent>
-            <NavigationMenuList>
-              <ul className="grid w-[400px] gap-3 p-4 md:w-[500px] md:grid-cols-2 lg:w-[600px] ">
-                {item.items.map((subItem) => (
-                  <ListItem
-                    key={subItem.label}
-                    label={subItem.label}
-                    href={preserveQueryParams(subItem.href)}
-                    target={target(subItem.href)}
-                  >
-                    {subItem.description &&
-                      renderHTML({ html: subItem.description })}
-                  </ListItem>
-                ))}
-              </ul>
-            </NavigationMenuList>
-          </NavigationMenuContent>
-        </NavigationMenuItem>
+        <NavigationMenu orientation="horizontal" key={item.label}>
+          <NavigationMenuList>
+            <NavigationMenuItem>
+              <NavigationMenuTrigger>
+                {renderHTML({ html: item.label })}
+              </NavigationMenuTrigger>
+              <NavigationMenuContent>
+                <ul className="grid w-[400px] gap-3 p-4 md:w-[500px] md:grid-cols-2 lg:w-[600px] ">
+                  {item.items.map((subItem) => (
+                    <ListItem
+                      key={subItem.label}
+                      label={subItem.label}
+                      href={preserveQueryParams(subItem.href)}
+                      target={target(subItem.href)}
+                    >
+                      {subItem.description &&
+                        renderHTML({ html: subItem.description })}
+                    </ListItem>
+                  ))}
+                </ul>
+              </NavigationMenuContent>
+            </NavigationMenuItem>
+          </NavigationMenuList>
+        </NavigationMenu>
       ) : (
         <NavigationMenuItem key={item.label}>
           <div
