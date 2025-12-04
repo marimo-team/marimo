@@ -47,9 +47,10 @@ LOGGER = _loggers.marimo_logger()
 UNSTABLE_API_WARNING = "`Series.hist` is being called from the stable API although considered an unstable feature."
 
 # Standardize this across libraries
+# It should match the table value as closely as possible
 NAN_VALUE = "NaN"
-POSITIVE_INF = "Infinity"
-NEGATIVE_INF = "-Infinity"
+POSITIVE_INF = str(float("inf"))
+NEGATIVE_INF = str(float("-inf"))
 
 
 class NarwhalsTableManager(
