@@ -4,6 +4,7 @@ import datetime
 import json
 import time
 import unittest
+from decimal import Decimal
 from math import isnan
 from typing import TYPE_CHECKING, Any
 
@@ -1100,6 +1101,45 @@ def _round_bin_values(bin_values: list[BinValue]) -> list[BinValue]:
         )
         for bin_value in bin_values
     ]
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+@pytest.mark.parametrize(
+    "df",
+    create_dataframes(
+        {"decimals": [Decimal(i) for i in range(201)]},
+        exclude=[
+            # Pandas doesn't support decimal types (instead is Object)
+            "pandas"
+        ],
+    ),
+)
+def test_get_bin_values_decimal(df: Any) -> None:
+    """Test that get_bin_values works correctly with decimal columns."""
+    dtype = nw.from_native(df).collect_schema()["decimals"]
+    assert dtype.is_decimal(), (
+        f"Decimal column not found in schema: {dtype} (type {type(df)})"
+    )
+
+    manager = NarwhalsTableManager.from_dataframe(df)
+
+    # This should not raise an error
+    bin_values = manager.get_bin_values("decimals", 5)
+
+    # Verify we got valid bin values
+    assert len(bin_values) == 5
+    assert all(isinstance(bv, BinValue) for bv in bin_values)
+    assert all(isinstance(bv.count, int) for bv in bin_values)
+    assert all(isinstance(bv.bin_start, (int, float)) for bv in bin_values)
+    assert all(isinstance(bv.bin_end, (int, float)) for bv in bin_values)
+
+    # Verify the bins cover the expected range (0 to 200)
+    assert bin_values[0].bin_start == 0.0
+    assert bin_values[-1].bin_end == 200.0
+
+    # Verify all rows are counted
+    total_count = sum(bv.count for bv in bin_values)
+    assert total_count == 201
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
