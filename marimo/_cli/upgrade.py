@@ -41,7 +41,8 @@ def print_latest_version(current_version: str, state: MarimoCLIState) -> None:
 def _is_in_uv() -> bool:
     try:
         import psutil
-    except ImportError:
+    except Exception:
+        # No warning, since this is just used for cosmetics.
         return False
     return psutil.Process(os.getppid()).name() == "uv"
 
