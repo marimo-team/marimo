@@ -156,7 +156,6 @@ def test_get_variable_preview() -> None:
 def test_get_variable_preview_memory_numpy() -> None:
     # Test memory usage with large array
     import numpy as np
-
     import psutil
 
     process = psutil.Process(os.getpid())
