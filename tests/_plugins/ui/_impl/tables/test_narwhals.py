@@ -1532,7 +1532,7 @@ def _normalize_result(result: list[tuple[Any, int]]) -> list[tuple[Any, int]]:
     """Normalize None and NaN values for comparison."""
     out: list[tuple[Any, int]] = []
     for val, count in result:
-        if isinstance(val, (float, int)) and isnan(val):
+        if isinstance(val, float) and isnan(val):
             val = NAN_VALUE
         out.append((val, count))
     return out
