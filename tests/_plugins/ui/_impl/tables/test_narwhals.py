@@ -1421,8 +1421,7 @@ def test_calculate_top_k_rows(df: Any) -> None:
     normalized_result = _normalize_result(result)
 
     # Pandas considers None as nan sometimes
-    df_type = get_df_type(df)
-    none_value = NAN_VALUE if df_type == "pandas" else None
+    none_value = NAN_VALUE if nw.dependencies.is_pandas_dataframe(df) else None
     assert normalized_result == [(3, 3), (none_value, 2), (1, 1), (2, 1)]
 
     # Test with limit
@@ -1472,10 +1471,8 @@ def test_calculate_top_k_rows_with_nan(df: Any) -> None:
     manager = NarwhalsTableManager.from_dataframe(df)
     result = manager.calculate_top_k_rows("A", 10)
 
-    df_type = get_df_type(df)
-
     # Ibis serializes nans as None
-    none_value = None if df_type == "ibis" else NAN_VALUE
+    none_value = None if nw.dependencies.is_ibis_table(df) else NAN_VALUE
     # NaN values should be converted to NAN_VALUE string
     assert result == [(none_value, 3), (2.0, 2), (1.0, 1)]
 
@@ -1503,13 +1500,17 @@ def test_calculate_top_k_rows_with_all_special_floats(df: Any) -> None:
     manager = NarwhalsTableManager.from_dataframe(df)
     result = manager.calculate_top_k_rows("A", 10)
 
-    df_type = get_df_type(df)
-
     # Ibis serializes nans as None
-    none_value = None if df_type == "ibis" else NAN_VALUE
+    none_value = None if nw.dependencies.is_ibis_table(df) else NAN_VALUE
+
+    pandas_pyarrow_ibis = (
+        nw.dependencies.is_pandas_dataframe(df)
+        or nw.dependencies.is_pyarrow_table(df)
+        or nw.dependencies.is_ibis_table(df)
+    )
 
     # Different libraries order NaNs and Infs differently
-    if df_type in ["pandas", "pyarrow", "ibis"]:
+    if pandas_pyarrow_ibis:
         assert result == [
             (none_value, 2),
             (POSITIVE_INF, 2),
@@ -1782,48 +1783,3 @@ class TestRichElements:
         assert serialized_mime_bundle["mimetype"] == "text/html"
         assert serialized_mime_bundle["data"].startswith("<marimo-ui-element")
         assert serialized_mime_bundle["data"].endswith("</marimo-ui-element>")
-
-
-def get_df_type(df: Any) -> DFType:
-    import pandas as pd
-
-    if DependencyManager.pandas.has() and isinstance(df, pd.DataFrame):
-        return "pandas"  # type: ignore
-
-    if DependencyManager.polars.has():
-        import polars as pl
-
-        if isinstance(df, pl.DataFrame):
-            return "polars"  # type: ignore
-        if isinstance(df, pl.LazyFrame):
-            return "lazy-polars"  # type: ignore
-
-    if DependencyManager.ibis.has():
-        import ibis
-
-        if hasattr(ibis, "expr") and hasattr(ibis.expr, "types"):
-            if hasattr(ibis.expr.types, "relations"):
-                t = ibis.expr.types.relations.Table
-                if isinstance(df, t):
-                    return "ibis"  # type: ignore
-
-    if DependencyManager.pyarrow.has():
-        try:
-            import pyarrow as pa
-
-            if isinstance(df, pa.Table):
-                return "pyarrow"  # type: ignore
-        except ImportError:
-            pass
-
-    if DependencyManager.duckdb.has():
-        try:
-            import duckdb
-
-            if hasattr(duckdb, "DuckDBPyRelation"):
-                if isinstance(df, duckdb.DuckDBPyRelation):
-                    return "duckdb"  # type: ignore
-        except ImportError:
-            pass
-
-    raise ValueError(f"Unknown DataFrame type: {type(df)}")

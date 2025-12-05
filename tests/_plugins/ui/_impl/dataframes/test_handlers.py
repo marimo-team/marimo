@@ -1235,6 +1235,40 @@ class TestTransformHandler:
         assert_frame_equal_with_nans(result, expected)
 
     @staticmethod
+    @pytest.mark.xfail(
+        reason="NaN filtering for object dtypes in pandas aren't implemented"
+    )
+    @pytest.mark.parametrize(
+        ("df", "expected"),
+        list(
+            zip(
+                create_test_dataframes(
+                    {"nulls": [1, 2, 3, None, "hello"]}, include=["pandas"]
+                ),
+                create_test_dataframes(
+                    {"nulls": [float("nan")]}, include=["pandas"]
+                ),
+            )
+        ),
+    )
+    def test_filter_rows_null_pandas_object(
+        df: DataFrameType, expected: DataFrameType
+    ) -> None:
+        in_transform = FilterRowsTransform(
+            type=TransformType.FILTER_ROWS,
+            operation="keep_rows",
+            where=[
+                Condition(
+                    column_id="nulls",
+                    operator="in",
+                    value=[NAN_VALUE],
+                )
+            ],
+        )
+        result = apply(df, in_transform)
+        assert_frame_equal(result, expected)
+
+    @staticmethod
     @pytest.mark.parametrize(
         ("df", "expected"),
         list(

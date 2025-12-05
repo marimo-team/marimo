@@ -161,7 +161,7 @@ class NarwhalsTransformHandler(TransformHandler[DataFrame]):
                 elif dtype == nw.Time:
                     value = convert_value(value, datetime.time.fromisoformat)
 
-            # If the value includes NaNs or infs, we convert to floats so the
+            # If the value includes NaNs or infs, we convert to floats so the filters apply correctly
             if (
                 value is not None
                 and any(
