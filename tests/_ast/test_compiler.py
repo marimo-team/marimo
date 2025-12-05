@@ -602,3 +602,82 @@ class TestIrCellFactoryDebugpy:
             assert cell._name == "_"
             assert cell._cell.code == "x = 1"
             assert cell._cell.defs == {"x"}
+
+
+class TestSolveSourcePositionToplevelCells:
+    """Test solve_source_position with toplevel cells (@app.function).
+    The lineno should point to where cell.code actually starts in the file.
+    """
+
+    DATA_FILE = os.path.join(
+        os.path.dirname(__file__),
+        "codegen_data",
+        "test_stacked_decorators_toplevel.py",
+    )
+
+    def test_solve_source_position_stacked_decorators_lineno_offset(
+        self,
+    ) -> None:
+        """Test solve_source_position returns correct lineno for toplevel cells.
+
+        This test exposes the bug where solve_source_position returns the
+        lineno of the `def` statement instead of where cell.code actually
+        starts (at the first decorator after @app.function).
+        """
+        from marimo._ast.parse import parse_notebook
+
+        with open(self.DATA_FILE) as f:
+            notebook_content = f.read()
+
+        notebook = parse_notebook(notebook_content)
+        assert notebook is not None and notebook.valid
+
+        # Find the function cell (skip setup cell)
+        function_cells = [
+            c for c in notebook.cells if "def cached_func" in c.code
+        ]
+        assert len(function_cells) == 1
+        function_cell = function_cells[0]
+
+        # Verify @app.function is stripped but @mo.cache is kept
+        assert "@app.function" not in function_cell.code
+        assert "@mo.cache" in function_cell.code
+
+        with open(self.DATA_FILE) as f:
+            file_lines = f.readlines()
+
+        # Find line numbers in file
+        app_function_line = next(
+            i + 1
+            for i, line in enumerate(file_lines)
+            if "@app.function" in line
+        )
+        def_line = next(
+            i + 1
+            for i, line in enumerate(file_lines)
+            if "def cached_func" in line
+        )
+
+        # Find where cell.code actually starts in the file
+        cell_code_first_line = function_cell.code.split("\n")[0]
+        expected_lineno = next(
+            i + 1
+            for i, line in enumerate(file_lines)
+            if cell_code_first_line.strip() in line
+        )
+
+        # solve_source_position returns lineno from parsed notebook
+        source_position = compiler.solve_source_position(
+            function_cell.code, self.DATA_FILE
+        )
+        assert source_position is not None
+
+        # The lineno should point to where cell.code actually starts
+        assert source_position.lineno == expected_lineno, (
+            f"solve_source_position returned lineno={source_position.lineno}, "
+            f"but cell.code starts at line {expected_lineno}. "
+            f"@app.function is on line {app_function_line}, "
+            f"def is on line {def_line}. "
+            f"cell.code first line: {cell_code_first_line!r}. "
+            f"This offset will break debugger line mappings."
+        )
