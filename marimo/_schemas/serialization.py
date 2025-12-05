@@ -47,8 +47,12 @@ class CellDef(Node):
     _ast: Optional[NodeRef] = None
 
     def __post_init__(self) -> None:
+        from marimo._ast.parse import extract_lineno
+
         if self._ast:
-            self.lineno = self._ast.lineno if self.lineno == 0 else self.lineno
+            self.lineno = (
+                extract_lineno(self._ast) if self.lineno == 0 else self.lineno
+            )
             self.col_offset = (
                 self._ast.col_offset
                 if self.col_offset == 0

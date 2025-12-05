@@ -78,6 +78,15 @@ def fixed_dedent(text: str) -> str:
     return dedent("\n".join(map(refill, lines)))
 
 
+def extract_lineno(node: Node):
+    # In the case of a decorated function etc., we should not point to the body,
+    # but instead the first line.
+    decorator = get_valid_decorator(node)
+    if not decorator:
+        return node.lineno
+    return decorator.end_lineno + 1
+
+
 class MarimoFileError(Exception):
     pass
 
