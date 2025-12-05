@@ -542,6 +542,12 @@ class NarwhalsTableManager(
         downgraded_df = downgrade_narwhals_df_to_v1(self.as_frame())
         col = downgraded_df.get_column(column)
 
+        # If the column is decimal, we need to convert it to float
+        if dtype.is_decimal():
+            import narwhals.stable.v1 as nw1
+
+            col = col.cast(nw1.Float64)
+
         bin_start = col.min()
         bin_values: list[BinValue] = []
 
