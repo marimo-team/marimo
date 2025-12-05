@@ -561,6 +561,14 @@ class ScopedVisitor(ast.NodeVisitor):
         # the variable `foo` needs to be aware that it may require the ref `x`
         # during execution.
         self.ref_stack[-1].update(refs)
+
+        # Prune type_params
+        if sys.version_info >= (3, 12):
+            type_params = getattr(node, "type_params", [])
+            generics = {param.name for param in type_params}
+            refs -= generics
+            unbounded_refs -= generics
+
         # Return both sets of refs
         return refs, unbounded_refs
 

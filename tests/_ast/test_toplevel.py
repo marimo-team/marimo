@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+import sys
+
+import pytest
+
 from marimo._ast import toplevel
 from marimo._ast.app import App, InternalApp
 from marimo._ast.toplevel import (
@@ -567,6 +571,23 @@ class TestTopLevelClasses:
             TopLevelType.TOPLEVEL,
             TopLevelType.TOPLEVEL,
         ] == [s.type for s in extraction], [s.hint for s in extraction]
+
+    @staticmethod
+    @pytest.mark.skipif(
+        sys.version_info < (3, 12),
+        reason="Requires Python 3.12+ for generic type parameter syntax",
+    )
+    def test_class_generic_type_parameter() -> None:
+        from marimo._ast.compiler import compile_cell
+
+        code = """\
+class GenericTypeParameter[T]:
+    def __init__(self, value: T):
+        self.value = value
+"""
+        cell = compile_cell(code, cell_id="test")
+        status = TopLevelStatus.from_cell(cell, BUILTINS)
+        assert status.type == TopLevelType.TOPLEVEL, status.hint
 
 
 class TestTopLevelHook:
