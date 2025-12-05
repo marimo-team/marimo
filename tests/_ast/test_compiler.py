@@ -681,7 +681,8 @@ class TestSolveSourcePositionToplevelCells:
             source = f.read()
 
         notebook = parse_notebook(source)
-        assert notebook is not None and notebook.valid
+        assert notebook is not None
+        assert notebook.valid
 
         cell = next(c for c in notebook.cells if "def cached_func" in c.code)
         assert "@app.function" not in cell.code
@@ -699,7 +700,8 @@ class TestSolveSourcePositionToplevelCells:
             source = f.read()
 
         notebook = parse_notebook(source)
-        assert notebook is not None and notebook.valid
+        assert notebook is not None
+        assert notebook.valid
 
         cell = next(
             c for c in notebook.cells if "import marimo as mo" in c.code
@@ -717,7 +719,8 @@ class TestSolveSourcePositionToplevelCells:
             source = f.read()
 
         notebook = parse_notebook(source)
-        assert notebook is not None and notebook.valid
+        assert notebook is not None
+        assert notebook.valid
 
         cell = next(c for c in notebook.cells if "class Foo" in c.code)
         assert "@app.class_definition" not in cell.code
@@ -735,7 +738,8 @@ class TestSolveSourcePositionToplevelCells:
             source = f.read()
 
         notebook = parse_notebook(source)
-        assert notebook is not None and notebook.valid
+        assert notebook is not None
+        assert notebook.valid
 
         cell = next(c for c in notebook.cells if c.code.strip() == "a = 1")
         assert "@app.cell" not in cell.code
@@ -752,7 +756,8 @@ class TestSolveSourcePositionToplevelCells:
             source = f.read()
 
         notebook = parse_notebook(source)
-        assert notebook is not None and notebook.valid
+        assert notebook is not None
+        assert notebook.valid
 
         cell = next(
             c for c in notebook.cells if 'mo.cache("example")' in c.code
@@ -841,7 +846,8 @@ class TestCellAstMatchesRawAst:
             source = f.read()
 
         notebook = parse_notebook(source)
-        assert notebook is not None and notebook.valid
+        assert notebook is not None
+        assert notebook.valid
 
         cell = next(c for c in notebook.cells if "def cached_func" in c.code)
         pos = compiler.solve_source_position(cell.code, self.DATA_FILE)
@@ -857,7 +863,8 @@ class TestCellAstMatchesRawAst:
             source = f.read()
 
         notebook = parse_notebook(source)
-        assert notebook is not None and notebook.valid
+        assert notebook is not None
+        assert notebook.valid
 
         cell = next(
             c for c in notebook.cells if "import marimo as mo" in c.code
@@ -875,7 +882,8 @@ class TestCellAstMatchesRawAst:
             source = f.read()
 
         notebook = parse_notebook(source)
-        assert notebook is not None and notebook.valid
+        assert notebook is not None
+        assert notebook.valid
 
         cell = next(c for c in notebook.cells if "class Foo" in c.code)
         pos = compiler.solve_source_position(cell.code, self.DATA_FILE)
@@ -891,7 +899,8 @@ class TestCellAstMatchesRawAst:
             source = f.read()
 
         notebook = parse_notebook(source)
-        assert notebook is not None and notebook.valid
+        assert notebook is not None
+        assert notebook.valid
 
         cell = next(c for c in notebook.cells if c.code.strip() == "a = 1")
         pos = compiler.solve_source_position(cell.code, self.DATA_FILE)
@@ -907,7 +916,8 @@ class TestCellAstMatchesRawAst:
             source = f.read()
 
         notebook = parse_notebook(source)
-        assert notebook is not None and notebook.valid
+        assert notebook is not None
+        assert notebook.valid
 
         cell = next(
             c for c in notebook.cells if 'mo.cache("example")' in c.code
