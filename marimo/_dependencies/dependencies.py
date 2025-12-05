@@ -193,7 +193,7 @@ class DependencyManager:
     ibis = Dependency("ibis")
     dotenv = Dependency("dotenv")
     numpy = Dependency("numpy")
-    altair = Dependency("altair", min_version="5.3.0", max_version="6.0.0")
+    altair = Dependency("altair", min_version="5.3.0", max_version="7.0.0")
     duckdb = Dependency("duckdb")
     chdb = Dependency("chdb")
     clickhouse_connect = Dependency("clickhouse_connect")
