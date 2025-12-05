@@ -163,9 +163,9 @@ class NarwhalsTransformHandler(TransformHandler[DataFrame]):
 
             # If the value includes NaNs or infs, we convert to floats so the filters apply correctly
             if (
-                value is not None
+                isinstance(value, tuple)
                 and any(
-                    token in str(value)
+                    token in value
                     for token in [NAN_VALUE, POSITIVE_INF, NEGATIVE_INF]
                 )
                 and dtype is not None
