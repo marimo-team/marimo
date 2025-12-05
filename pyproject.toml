@@ -472,6 +472,7 @@ banned-module-level-imports = [
     "packaging",
     "pandas",
     "polars",
+    "psutil",
     "pyarrow",
     "redis",
     "sqlalchemy",
