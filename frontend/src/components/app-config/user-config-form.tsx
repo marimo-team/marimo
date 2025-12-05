@@ -41,6 +41,7 @@ import {
 } from "@/core/config/config-schema";
 import { getAppWidths } from "@/core/config/widths";
 import { marimoVersionAtom } from "@/core/meta/state";
+import { viewStateAtom } from "@/core/mode";
 import { useRequestClient } from "@/core/network/requests";
 import { isWasm } from "@/core/wasm/utils";
 import { useDebouncedCallback } from "@/hooks/useDebounce";
@@ -119,7 +120,19 @@ export const UserConfigForm: React.FC = () => {
   const [activeCategory, setActiveCategory] = useAtom(
     activeUserConfigCategoryAtom,
   );
-  const capabilities = useAtomValue(capabilitiesAtom);
+
+  let capabilities = useAtomValue(capabilitiesAtom);
+  const isHome = useAtomValue(viewStateAtom).mode === "home";
+  // The home page does not fetch kernel capabilities, so we just turn them all on
+  if (isHome) {
+    capabilities = {
+      terminal: true,
+      pylsp: true,
+      ty: true,
+      basedpyright: true,
+    };
+  }
+
   const marimoVersion = useAtomValue(marimoVersionAtom);
   const { locale } = useLocale();
   const { saveUserConfig } = useRequestClient();
