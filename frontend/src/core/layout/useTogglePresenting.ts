@@ -4,17 +4,15 @@ import { useSetAtom } from "jotai";
 import { useCallback } from "react";
 import { Logger } from "@/utils/Logger";
 import { type CellId, HTMLCellId } from "../cells/ids";
+import { CSSClasses } from "../constants";
 import { toggleAppMode, viewStateAtom } from "../mode";
-
-const OUTPUT_AREA_CLASS = "output-area";
 
 interface ScrollAnchor {
   cellId: CellId;
-  offsetFromViewportTop: number;
 }
 
 function findScrollAnchor(): ScrollAnchor | null {
-  const outputAreas = document.getElementsByClassName(OUTPUT_AREA_CLASS);
+  const outputAreas = document.getElementsByClassName(CSSClasses.outputArea);
 
   for (const elem of Array.from(outputAreas)) {
     const rect = elem.getBoundingClientRect();
@@ -28,7 +26,6 @@ function findScrollAnchor(): ScrollAnchor | null {
       }
       return {
         cellId: HTMLCellId.parse(cellEl.id),
-        offsetFromViewportTop: rect.top,
       };
     }
   }
@@ -54,7 +51,7 @@ function restoreScrollPosition(anchor: ScrollAnchor | null): void {
   }
 
   // Find its output area
-  const outputArea = cellElement.querySelector(`.${OUTPUT_AREA_CLASS}`);
+  const outputArea = cellElement.querySelector(`.${CSSClasses.outputArea}`);
   if (!outputArea) {
     Logger.warn(
       "Could not find output area to restore scroll position",
@@ -64,15 +61,7 @@ function restoreScrollPosition(anchor: ScrollAnchor | null): void {
   }
 
   // Adjust scroll to restore visual position
-  const cellEl = document.getElementById(HTMLCellId.create(anchor.cellId));
-  if (!cellEl) {
-    Logger.warn(
-      "Could not find cell element to scroll into view",
-      anchor.cellId,
-    );
-    return;
-  }
-  cellEl.scrollIntoView({ block: "start", behavior: "auto" });
+  cellElement.scrollIntoView({ block: "start", behavior: "auto" });
 }
 
 /**
@@ -95,7 +84,7 @@ export function useTogglePresenting() {
     // Restore scroll position AFTER DOM updates
     // Double RAF ensures React commits changes and browser completes layout
     requestAnimationFrame(() => {
-      requestAnimationFrame(async () => {
+      requestAnimationFrame(() => {
         restoreScrollPosition(scrollAnchor);
       });
     });
