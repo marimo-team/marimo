@@ -17,6 +17,7 @@ import { HTMLCellId, SCRATCH_CELL_ID } from "@/core/cells/ids";
 import { DEFAULT_CELL_NAME } from "@/core/cells/names";
 import type { LanguageAdapterType } from "@/core/codemirror/language/types";
 import { useResolvedMarimoConfig } from "@/core/config/config";
+import { CSSClasses } from "@/core/constants";
 import { useRequestClient } from "@/core/network/requests";
 import type { CellConfig } from "@/core/network/types";
 import { LazyAnyLanguageCodeMirror } from "@/plugins/impl/code/LazyAnyLanguageCodeMirror";
@@ -149,7 +150,7 @@ export const ScratchPad: React.FC = () => {
           <OutputArea
             allowExpand={false}
             output={output}
-            className="output-area"
+            className={CSSClasses.outputArea}
             cellId={cellId}
             stale={false}
             loading={false}
