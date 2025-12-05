@@ -46,5 +46,13 @@ def _(pd):
     return
 
 
+@app.cell
+def _():
+    import math
+
+    math.isnan(1)
+    return
+
+
 if __name__ == "__main__":
     app.run()
