@@ -7,8 +7,6 @@ import urllib.error
 from datetime import datetime
 from typing import Any, Callable, cast
 
-import psutil
-
 import marimo._utils.requests as requests
 from marimo import _loggers
 from marimo._cli.print import echo, green, orange
@@ -41,6 +39,10 @@ def print_latest_version(current_version: str, state: MarimoCLIState) -> None:
 
 
 def _is_in_uv() -> bool:
+    try:
+        import psutil
+    except ImportError:
+        return False
     return psutil.Process(os.getppid()).name() == "uv"
 
 
