@@ -211,6 +211,7 @@ def test_make_lazy_with_all_dataframes(df: IntoDataFrame) -> None:
     assert type(result_from_collected) is type(df)
 
 
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
 def test_undo_preserves_lazy_or_eager_type():
     """Test that the undo callback returns the correct type (eager or lazy) matching the original input."""
     import polars as pl
