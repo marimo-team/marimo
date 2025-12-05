@@ -17,6 +17,9 @@ from marimo._plugins.ui._impl.input import button
 from marimo._plugins.ui._impl.table import SortArgs
 from marimo._plugins.ui._impl.tables.format import FormatMapping
 from marimo._plugins.ui._impl.tables.narwhals_table import (
+    NAN_VALUE,
+    NEGATIVE_INF,
+    POSITIVE_INF,
     NarwhalsTableManager,
 )
 from marimo._plugins.ui._impl.tables.table_manager import (
@@ -1416,12 +1419,15 @@ def test_calculate_top_k_rows(df: Any) -> None:
     manager = NarwhalsTableManager.from_dataframe(df)
     result = manager.calculate_top_k_rows("A", 10)
     normalized_result = _normalize_result(result)
-    assert normalized_result == [(3, 3), (None, 2), (1, 1), (2, 1)]
+
+    # Pandas considers None as nan sometimes
+    none_value = NAN_VALUE if nw.dependencies.is_pandas_dataframe(df) else None
+    assert normalized_result == [(3, 3), (none_value, 2), (1, 1), (2, 1)]
 
     # Test with limit
     result = manager.calculate_top_k_rows("A", 2)
     normalized_result = _normalize_result(result)
-    assert normalized_result == [(3, 3), (None, 2)]
+    assert normalized_result == [(3, 3), (none_value, 2)]
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
@@ -1451,12 +1457,85 @@ def test_calculate_top_k_rows_dicts(df: Any) -> None:
     assert result == [({"a": 1, "b": 2}, 2), ({"a": 3, "b": 4}, 1)]
 
 
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+@pytest.mark.parametrize(
+    "df",
+    create_dataframes(
+        {"A": [float("nan"), float("nan"), float("nan"), 1.0, 2.0, 2.0]},
+        include=SUPPORTED_LIBS,
+    ),
+)
+def test_calculate_top_k_rows_with_nan(df: Any) -> None:
+    """Test that NaN values are converted to NAN_VALUE string in calculate_top_k_rows."""
+
+    manager = NarwhalsTableManager.from_dataframe(df)
+    result = manager.calculate_top_k_rows("A", 10)
+
+    # Ibis serializes nans as None
+    none_value = None if nw.dependencies.is_ibis_table(df) else NAN_VALUE
+    # NaN values should be converted to NAN_VALUE string
+    assert result == [(none_value, 3), (2.0, 2), (1.0, 1)]
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+@pytest.mark.parametrize(
+    "df",
+    create_dataframes(
+        {
+            "A": [
+                float("nan"),
+                float("nan"),
+                float("inf"),
+                float("inf"),
+                float("-inf"),
+                1.0,
+                2.0,
+            ]
+        },
+        include=SUPPORTED_LIBS,
+    ),
+)
+def test_calculate_top_k_rows_with_all_special_floats(df: Any) -> None:
+    """Test that NaN, positive infinity, and negative infinity are all handled correctly."""
+    manager = NarwhalsTableManager.from_dataframe(df)
+    result = manager.calculate_top_k_rows("A", 10)
+
+    # Ibis serializes nans as None
+    none_value = None if nw.dependencies.is_ibis_table(df) else NAN_VALUE
+
+    pandas_pyarrow_ibis = (
+        nw.dependencies.is_pandas_dataframe(df)
+        or nw.dependencies.is_pyarrow_table(df)
+        or nw.dependencies.is_ibis_table(df)
+    )
+
+    # Different libraries order NaNs and Infs differently
+    if pandas_pyarrow_ibis:
+        assert result == [
+            (none_value, 2),
+            (POSITIVE_INF, 2),
+            (NEGATIVE_INF, 1),
+            (1.0, 1),
+            (2.0, 1),
+        ]
+    else:
+        assert result == [
+            (POSITIVE_INF, 2),
+            (NAN_VALUE, 2),
+            (NEGATIVE_INF, 1),
+            (1.0, 1),
+            (2.0, 1),
+        ]
+
+
 def _normalize_result(result: list[tuple[Any, int]]) -> list[tuple[Any, int]]:
     """Normalize None and NaN values for comparison."""
-    return [
-        (None if val is None or isnan(val) else val, count)
-        for val, count in result
-    ]
+    out: list[tuple[Any, int]] = []
+    for val, count in result:
+        if isinstance(val, (float, int)) and isnan(val):
+            val = NAN_VALUE
+        out.append((val, count))
+    return out
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
