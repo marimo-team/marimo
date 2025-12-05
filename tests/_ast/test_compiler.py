@@ -630,7 +630,8 @@ class TestSolveSourcePositionToplevelCells:
             notebook_content = f.read()
 
         notebook = parse_notebook(notebook_content)
-        assert notebook is not None and notebook.valid
+        assert notebook is not None
+        assert notebook.valid
 
         # Find the function cell (skip setup cell)
         function_cells = [

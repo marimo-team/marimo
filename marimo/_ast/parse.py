@@ -78,11 +78,16 @@ def fixed_dedent(text: str) -> str:
     return dedent("\n".join(map(refill, lines)))
 
 
-def extract_lineno(node: Node):
+def extract_lineno(node: Node) -> int:
+    if not isinstance(
+        node, (ast.AsyncFunctionDef, ast.FunctionDef, ast.ClassDef)
+    ):
+        return node.lineno
+
     # In the case of a decorated function etc., we should not point to the body,
     # but instead the first line.
     decorator = get_valid_decorator(node)
-    if not decorator:
+    if not decorator or not decorator.end_lineno:
         return node.lineno
     return decorator.end_lineno + 1
 
