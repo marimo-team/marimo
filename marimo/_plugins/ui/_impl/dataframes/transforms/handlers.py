@@ -31,6 +31,7 @@ from marimo._plugins.ui._impl.dataframes.transforms.types import (
     UniqueTransform,
 )
 from marimo._utils.assert_never import assert_never
+from marimo._utils.narwhals_utils import collect_and_preserve_type
 
 if TYPE_CHECKING:
     import polars as pl
@@ -293,20 +294,22 @@ class NarwhalsTransformHandler(TransformHandler[DataFrame]):
         df: DataFrame, transform: ShuffleRowsTransform
     ) -> DataFrame:
         # Note: narwhals sample requires collecting first for shuffle with seed
-        result = df.collect().sample(fraction=1, seed=transform.seed)
-        return result.lazy()
+        collected_df, undo = collect_and_preserve_type(df)
+        result = collected_df.sample(fraction=1, seed=transform.seed)
+        return undo(result)
 
     @staticmethod
     def handle_sample_rows(
         df: DataFrame, transform: SampleRowsTransform
     ) -> DataFrame:
         # Note: narwhals sample requires collecting first for shuffle with seed
-        result = df.collect().sample(
+        collected_df, undo = collect_and_preserve_type(df)
+        result = collected_df.sample(
             n=transform.n,
             seed=transform.seed,
             with_replacement=transform.replace,
         )
-        return result.lazy()
+        return undo(result)
 
     @staticmethod
     def handle_explode_columns(
