@@ -3,7 +3,6 @@ from __future__ import annotations
 import os
 from typing import Any
 
-import psutil
 import pytest
 
 from marimo._dependencies.dependencies import DependencyManager
@@ -158,6 +157,8 @@ def test_get_variable_preview_memory_numpy() -> None:
     # Test memory usage with large array
     import numpy as np
 
+    import psutil
+
     process = psutil.Process(os.getpid())
 
     # Create 100MB array
@@ -177,6 +178,8 @@ def test_get_variable_preview_memory_numpy() -> None:
 
 
 def test_get_variable_preview_bytesarray() -> None:
+    import psutil
+
     process = psutil.Process(os.getpid())
 
     # Create 100MB bytesarray
@@ -203,6 +206,8 @@ def test_get_variable_preview_bytesarray() -> None:
     create_dataframes({"A": list(range(1000000)), "B": ["x"] * 1000000}),
 )
 def test_get_variable_preview_dataframe(df: Any) -> None:
+    import psutil
+
     process = psutil.Process(os.getpid())
 
     mem_before = process.memory_info().rss
