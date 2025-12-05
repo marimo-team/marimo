@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import os
 from functools import partial
+from typing import Any
 from unittest.mock import patch
 
 import pytest
@@ -605,8 +606,10 @@ class TestIrCellFactoryDebugpy:
 
 
 class TestSolveSourcePositionToplevelCells:
-    """Test solve_source_position with toplevel cells (@app.function).
-    The lineno should point to where cell.code actually starts in the file.
+    """Test solve_source_position returns correct lineno for all cell types.
+
+    The key invariant: the first AST-meaningful line of cell.code should be
+    contained in the source file at the reported lineno.
     """
 
     DATA_FILE = os.path.join(
@@ -615,70 +618,301 @@ class TestSolveSourcePositionToplevelCells:
         "test_stacked_decorators_toplevel.py",
     )
 
-    def test_solve_source_position_stacked_decorators_lineno_offset(
-        self,
+    def _assert_lineno_matches_source(
+        self, cell_code: str, source: str, lineno: int
     ) -> None:
-        """Test solve_source_position returns correct lineno for toplevel cells.
+        """Assert cell AST maps correctly to source after applying lineno offset.
 
-        This test exposes the bug where solve_source_position returns the
-        lineno of the `def` statement instead of where cell.code actually
-        starts (at the first decorator after @app.function).
+        lineno is a base offset: cell AST line N maps to raw source line (lineno + N).
         """
+        import ast
+
+        cell_ast = ast.parse(cell_code)
+        source_lines = source.split("\n")
+
+        # Get the first AST line number (accounting for decorators)
+        first_stmt = cell_ast.body[0]
+        if isinstance(
+            first_stmt, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)
+        ):
+            if first_stmt.decorator_list:
+                first_ast_lineno = min(
+                    d.lineno for d in first_stmt.decorator_list
+                )
+            else:
+                first_ast_lineno = first_stmt.lineno
+        else:
+            first_ast_lineno = first_stmt.lineno
+
+        # After fix_source_position: cell line N becomes lineno + N
+        raw_lineno = lineno + first_ast_lineno
+
+        # Find the first non-comment line in cell.code (what the AST represents)
+        cell_lines = cell_code.split("\n")
+        first_ast_content = next(
+            (
+                ln.strip()
+                for ln in cell_lines
+                if ln.strip() and not ln.strip().startswith("#")
+            ),
+            cell_lines[0].strip(),
+        )
+
+        # Check the source line at the computed position
+        raw_line = (
+            source_lines[raw_lineno - 1]
+            if raw_lineno <= len(source_lines)
+            else ""
+        )
+
+        assert first_ast_content in raw_line, (
+            f"Cell AST does not map correctly to source.\n"
+            f"lineno={lineno}, first_ast_lineno={first_ast_lineno}, "
+            f"raw_lineno={raw_lineno}\n"
+            f"first AST content: {first_ast_content!r}\n"
+            f"source line: {raw_line!r}"
+        )
+
+    def test_function_cell(self) -> None:
+        """@app.function with stacked decorators."""
         from marimo._ast.parse import parse_notebook
 
         with open(self.DATA_FILE) as f:
-            notebook_content = f.read()
+            source = f.read()
 
-        notebook = parse_notebook(notebook_content)
-        assert notebook is not None
-        assert notebook.valid
+        notebook = parse_notebook(source)
+        assert notebook is not None and notebook.valid
 
-        # Find the function cell (skip setup cell)
-        function_cells = [
-            c for c in notebook.cells if "def cached_func" in c.code
-        ]
-        assert len(function_cells) == 1
-        function_cell = function_cells[0]
+        cell = next(c for c in notebook.cells if "def cached_func" in c.code)
+        assert "@app.function" not in cell.code
+        assert "@mo.cache" in cell.code
 
-        # Verify @app.function is stripped but @mo.cache is kept
-        assert "@app.function" not in function_cell.code
-        assert "@mo.cache" in function_cell.code
+        pos = compiler.solve_source_position(cell.code, self.DATA_FILE)
+        assert pos is not None
+        self._assert_lineno_matches_source(cell.code, source, pos.lineno)
+
+    def test_setup_cell(self) -> None:
+        """with app.setup: block."""
+        from marimo._ast.parse import parse_notebook
 
         with open(self.DATA_FILE) as f:
-            file_lines = f.readlines()
+            source = f.read()
 
-        # Find line numbers in file
-        app_function_line = next(
-            i + 1
-            for i, line in enumerate(file_lines)
-            if "@app.function" in line
-        )
-        def_line = next(
-            i + 1
-            for i, line in enumerate(file_lines)
-            if "def cached_func" in line
+        notebook = parse_notebook(source)
+        assert notebook is not None and notebook.valid
+
+        cell = next(
+            c for c in notebook.cells if "import marimo as mo" in c.code
         )
 
-        # Find where cell.code actually starts in the file
-        cell_code_first_line = function_cell.code.split("\n")[0]
-        expected_lineno = next(
-            i + 1
-            for i, line in enumerate(file_lines)
-            if cell_code_first_line.strip() in line
+        pos = compiler.solve_source_position(cell.code, self.DATA_FILE)
+        assert pos is not None
+        self._assert_lineno_matches_source(cell.code, source, pos.lineno)
+
+    def test_class_definition_cell(self) -> None:
+        """@app.class_definition with stacked decorator."""
+        from marimo._ast.parse import parse_notebook
+
+        with open(self.DATA_FILE) as f:
+            source = f.read()
+
+        notebook = parse_notebook(source)
+        assert notebook is not None and notebook.valid
+
+        cell = next(c for c in notebook.cells if "class Foo" in c.code)
+        assert "@app.class_definition" not in cell.code
+        assert "@wrap" in cell.code
+
+        pos = compiler.solve_source_position(cell.code, self.DATA_FILE)
+        assert pos is not None
+        self._assert_lineno_matches_source(cell.code, source, pos.lineno)
+
+    def test_normal_cell(self) -> None:
+        """@app.cell basic."""
+        from marimo._ast.parse import parse_notebook
+
+        with open(self.DATA_FILE) as f:
+            source = f.read()
+
+        notebook = parse_notebook(source)
+        assert notebook is not None and notebook.valid
+
+        cell = next(c for c in notebook.cells if c.code.strip() == "a = 1")
+        assert "@app.cell" not in cell.code
+
+        pos = compiler.solve_source_position(cell.code, self.DATA_FILE)
+        assert pos is not None
+        self._assert_lineno_matches_source(cell.code, source, pos.lineno)
+
+    def test_normal_cell_with_options(self) -> None:
+        """@app.cell(hide_code=True)."""
+        from marimo._ast.parse import parse_notebook
+
+        with open(self.DATA_FILE) as f:
+            source = f.read()
+
+        notebook = parse_notebook(source)
+        assert notebook is not None and notebook.valid
+
+        cell = next(
+            c for c in notebook.cells if 'mo.cache("example")' in c.code
+        )
+        assert "@app.cell" not in cell.code
+
+        pos = compiler.solve_source_position(cell.code, self.DATA_FILE)
+        assert pos is not None
+        self._assert_lineno_matches_source(cell.code, source, pos.lineno)
+
+
+class TestCellAstMatchesRawAst:
+    """Test that fix_source_position correctly maps cell AST to raw file positions.
+
+    After fix_source_position, the first AST node's lineno should point to the
+    containing line in the raw source file.
+    """
+
+    DATA_FILE = os.path.join(
+        os.path.dirname(__file__),
+        "codegen_data",
+        "test_stacked_decorators_toplevel.py",
+    )
+
+    def _get_first_ast_lineno(self, node: Any) -> int:
+        """Get the first line number of an AST node, including decorators."""
+        import ast
+
+        # For decorated nodes, check decorator line numbers
+        if isinstance(
+            node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)
+        ):
+            if node.decorator_list:
+                return min(d.lineno for d in node.decorator_list)
+        return node.lineno
+
+    def _assert_fixed_ast_contains_line(
+        self,
+        cell_code: str,
+        raw_source: str,
+        source_position: compiler.SourcePosition,
+    ) -> None:
+        """Assert cell AST after fix_source_position points to containing line."""
+        import ast
+
+        cell_ast = ast.parse(cell_code)
+        source_lines = raw_source.split("\n")
+
+        # Apply fix_source_position to adjust cell AST line numbers
+        compiler.fix_source_position(cell_ast, source_position)
+
+        # Get the first statement's line number after fix (including decorators)
+        first_stmt = cell_ast.body[0]
+        fixed_lineno = self._get_first_ast_lineno(first_stmt)
+
+        # The line in raw source at fixed_lineno should contain the first AST line of cell.code
+        # Find the first non-comment line in cell.code
+        cell_lines = cell_code.split("\n")
+        first_ast_line = next(
+            (
+                ln.strip()
+                for ln in cell_lines
+                if ln.strip() and not ln.strip().startswith("#")
+            ),
+            cell_lines[0].strip(),
+        )
+        # lineno is 1-indexed
+        raw_line = (
+            source_lines[fixed_lineno - 1]
+            if fixed_lineno <= len(source_lines)
+            else ""
         )
 
-        # solve_source_position returns lineno from parsed notebook
-        source_position = compiler.solve_source_position(
-            function_cell.code, self.DATA_FILE
+        assert first_ast_line in raw_line, (
+            f"Fixed AST lineno={fixed_lineno} does not contain cell code.\n"
+            f"first AST line: {first_ast_line!r}\n"
+            f"raw source line: {raw_line!r}\n"
+            f"source_position.lineno={source_position.lineno}"
         )
-        assert source_position is not None
 
-        # The lineno should point to where cell.code actually starts
-        assert source_position.lineno == expected_lineno, (
-            f"solve_source_position returned lineno={source_position.lineno}, "
-            f"but cell.code starts at line {expected_lineno}. "
-            f"@app.function is on line {app_function_line}, "
-            f"def is on line {def_line}. "
-            f"cell.code first line: {cell_code_first_line!r}. "
-            f"This offset will break debugger line mappings."
+    def test_function_cell_ast(self) -> None:
+        """@app.function cell AST after fix_source_position points to containing line."""
+        from marimo._ast.parse import parse_notebook
+
+        with open(self.DATA_FILE) as f:
+            source = f.read()
+
+        notebook = parse_notebook(source)
+        assert notebook is not None and notebook.valid
+
+        cell = next(c for c in notebook.cells if "def cached_func" in c.code)
+        pos = compiler.solve_source_position(cell.code, self.DATA_FILE)
+        assert pos is not None
+
+        self._assert_fixed_ast_contains_line(cell.code, source, pos)
+
+    def test_setup_cell_ast(self) -> None:
+        """Setup cell AST after fix_source_position points to containing line."""
+        from marimo._ast.parse import parse_notebook
+
+        with open(self.DATA_FILE) as f:
+            source = f.read()
+
+        notebook = parse_notebook(source)
+        assert notebook is not None and notebook.valid
+
+        cell = next(
+            c for c in notebook.cells if "import marimo as mo" in c.code
         )
+        pos = compiler.solve_source_position(cell.code, self.DATA_FILE)
+        assert pos is not None
+
+        self._assert_fixed_ast_contains_line(cell.code, source, pos)
+
+    def test_class_definition_cell_ast(self) -> None:
+        """@app.class_definition cell AST after fix_source_position points to containing line."""
+        from marimo._ast.parse import parse_notebook
+
+        with open(self.DATA_FILE) as f:
+            source = f.read()
+
+        notebook = parse_notebook(source)
+        assert notebook is not None and notebook.valid
+
+        cell = next(c for c in notebook.cells if "class Foo" in c.code)
+        pos = compiler.solve_source_position(cell.code, self.DATA_FILE)
+        assert pos is not None
+
+        self._assert_fixed_ast_contains_line(cell.code, source, pos)
+
+    def test_normal_cell_ast(self) -> None:
+        """@app.cell AST after fix_source_position points to containing line."""
+        from marimo._ast.parse import parse_notebook
+
+        with open(self.DATA_FILE) as f:
+            source = f.read()
+
+        notebook = parse_notebook(source)
+        assert notebook is not None and notebook.valid
+
+        cell = next(c for c in notebook.cells if c.code.strip() == "a = 1")
+        pos = compiler.solve_source_position(cell.code, self.DATA_FILE)
+        assert pos is not None
+
+        self._assert_fixed_ast_contains_line(cell.code, source, pos)
+
+    def test_normal_cell_with_options_ast(self) -> None:
+        """@app.cell(hide_code=True) AST after fix_source_position points to containing line."""
+        from marimo._ast.parse import parse_notebook
+
+        with open(self.DATA_FILE) as f:
+            source = f.read()
+
+        notebook = parse_notebook(source)
+        assert notebook is not None and notebook.valid
+
+        cell = next(
+            c for c in notebook.cells if 'mo.cache("example")' in c.code
+        )
+        pos = compiler.solve_source_position(cell.code, self.DATA_FILE)
+        assert pos is not None
+
+        self._assert_fixed_ast_contains_line(cell.code, source, pos)

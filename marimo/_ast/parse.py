@@ -89,7 +89,7 @@ def extract_lineno(node: Node) -> int:
     decorator = get_valid_decorator(node)
     if not decorator or not decorator.end_lineno:
         return node.lineno
-    return decorator.end_lineno + 1
+    return decorator.end_lineno
 
 
 class MarimoFileError(Exception):
