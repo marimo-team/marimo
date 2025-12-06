@@ -17,6 +17,7 @@ import {
   ShuffleIcon,
   SquareMousePointerIcon,
   Trash2Icon,
+  Table2Icon,
 } from "lucide-react";
 import React, { type PropsWithChildren, useEffect, useMemo } from "react";
 import { useFieldArray, useForm } from "react-hook-form";
@@ -305,4 +306,5 @@ const ICONS: Record<TransformType["type"], React.FC<{ className?: string }>> = {
   explode_columns: BracketsIcon,
   expand_dict: FileJsonIcon,
   unique: CopySlashIcon,
+  pivot: Table2Icon,
 };

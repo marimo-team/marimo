@@ -69,6 +69,23 @@ function handleTransform(
 
       return updated;
     }
+    case "pivot": {
+      const updated = new Map<ColumnId, string>();
+      
+      for (const [columnId, type] of next.entries()) {
+        if (transform.index_column_ids.includes(columnId)) {
+          updated.set(columnId, type);
+          continue;
+        }
+
+        updated.set(
+          `${columnId}_${transform.aggregation}` as ColumnId,
+          transform.aggregation === "count" ? "int" : type
+        );
+      }
+
+      return updated;
+    }
     case "aggregate":
       return Maps.filterMap(next, (_v, k) => transform.column_ids.includes(k));
     case "select_columns":

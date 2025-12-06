@@ -193,6 +193,25 @@ const UniqueTransformSchema = z
   })
   .describe(FieldOptions.of({ direction: "row" }));
 
+  const PivotTransformSchema = z
+  .object({
+    type: z.literal("pivot"),
+    column_ids: column_id_array,
+    index_column_ids: z
+      .array(column_id.describe(FieldOptions.of({ special: "column_id" })))
+      .default([])
+      .describe(FieldOptions.of({ label: "Index on columns" })),
+    value_column_ids: z
+      .array(column_id.describe(FieldOptions.of({ special: "column_id" })))
+      .default([])
+      .describe(FieldOptions.of({ label: "Aggregate on columns" })),
+    aggregation: z
+      .enum(AGGREGATION_FNS)
+      .default("count")
+      .describe(FieldOptions.of({ label: "Aggregation" })),
+  })
+  .describe(FieldOptions.of({}));
+
 export const TransformTypeSchema = z.union([
   FilterRowsTransformSchema,
   SelectColumnsTransformSchema,
@@ -206,6 +225,7 @@ export const TransformTypeSchema = z.union([
   ExplodeColumnsTransformSchema,
   ExpandDictTransformSchema,
   UniqueTransformSchema,
+  PivotTransformSchema,
 ]);
 
 export type TransformType = z.infer<typeof TransformTypeSchema>;

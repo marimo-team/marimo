@@ -50,9 +50,7 @@ Aggregation = Literal[
     "max",
 ]
 UniqueKeep = Literal["first", "last", "none", "any"]
-PivotAggregation = Literal[
-    "min", "max", "first", "last", "sum", "mean", "median", "len"
-]
+
 
 
 class TransformType(Enum):
@@ -185,7 +183,7 @@ class PivotTransform:
     index_column_ids: ColumnIds
     column_ids: ColumnIds
     value_column_ids: ColumnIds
-    aggregation: PivotAggregation
+    aggregation: Aggregation
 
 
 Transform = Union[
