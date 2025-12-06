@@ -2,7 +2,7 @@
 
 import marimo
 
-__generated_with = "0.18.1"
+__generated_with = "0.18.2"
 app = marimo.App()
 
 
@@ -93,6 +93,8 @@ def _(alt, mo, pl):
             ],
         }
     )
+
+    alt.renderers.set_embed_options(actions=False)
 
 
     def create_chart(mark: str) -> alt.Chart:

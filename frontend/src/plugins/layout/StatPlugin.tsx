@@ -5,15 +5,14 @@ import type { JSX } from "react";
 import { useLocale } from "react-aria";
 import { z } from "zod";
 import { getMimeValues } from "@/components/data-table/mime-cell";
-import { OutputRenderer } from "@/components/editor/Output";
-import type { OutputMessage } from "@/core/kernel/messages";
 import { cn } from "@/utils/cn";
 import { prettyNumber } from "@/utils/numbers";
 import type {
   IStatelessPlugin,
   IStatelessPluginProps,
 } from "../stateless-plugin";
-import statPluginCss from "./stat-plugin.css?inline";
+import { renderHTML } from "../core/RenderHTML";
+import { Logger } from "@/utils/Logger";
 
 interface Data {
   value?: string | number | boolean | null;
@@ -37,8 +36,6 @@ export class StatPlugin implements IStatelessPlugin<Data> {
     target_direction: z.enum(["increase", "decrease"]).default("increase"),
     slot: z.any().optional(),
   });
-
-  cssStyles = [statPluginCss];
 
   render({ data }: IStatelessPluginProps<Data>): JSX.Element {
     return <StatComponent {...data} />;
@@ -84,12 +81,10 @@ export const StatComponent: React.FC<Data> = ({
     const mimeValues = getMimeValues(slot);
     if (mimeValues?.[0]) {
       const { mimetype, data } = mimeValues[0];
-      const message = {
-        channel: "output",
-        data,
-        mimetype,
-      } as OutputMessage;
-      return <OutputRenderer message={message} />;
+      if (mimetype !== "text/html") {
+        Logger.warn(`Expected text/html, got ${mimetype}`)
+      }
+      return renderHTML({ html: data, alwaysSanitizeHtml: true})
     }
   };
 
@@ -128,7 +123,7 @@ export const StatComponent: React.FC<Data> = ({
             </p>
           )}
         </div>
-        {slot && <div className="slot-wrapper">{renderSlot()}</div>}
+        {slot && <div className="[--slot:true]">{renderSlot()}</div>}
       </div>
     </div>
   );
