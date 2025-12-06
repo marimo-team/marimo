@@ -134,6 +134,14 @@ def _(alt, mo, pl):
             target_direction="decrease",
             slot=create_chart("bar"),
         ),
+        mo.stat(
+            "$80",
+            label="Profit",
+            caption="- 10%",
+            direction="decrease",
+            bordered=True,
+            slot="🚀🧑‍🚀💰",
+        ),
     ]
 
     _rich = [
