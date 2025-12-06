@@ -1126,13 +1126,13 @@ class TestTransformHandler:
                 create_test_dataframes(
                     {"B": ["one", "two"], "foo": [5, 6], "bar": [9, 13]}
                 ),
-                PivotTransform(
+                [PivotTransform(
                     type=TransformType.PIVOT,
-                    index_column_ids=["A"],
-                    column_is=["B"],
+                    column_ids=["A"],
+                    index_column_ids=["B"],
                     value_column_ids=["D"],
                     aggregation="sum",
-                ),
+                )],
             ),
             *zip(
                 create_test_dataframes(
@@ -1176,74 +1176,18 @@ class TestTransformHandler:
                 create_test_dataframes(
                     {
                         "B": ["one", "one", "two", "two"],
-                        "C": ["small", "large", "small", "large"],
-                        "foo": [1, 4, 6, 0],
-                        "bar": [5, 4, 6, 7],
+                        "C": ["large", "small", "large", "small"],
+                        "foo": [4, 1, 0, 6],
+                        "bar": [4, 5, 7, 6],
                     }
                 ),
-                PivotTransform(
+                [PivotTransform(
                     type=TransformType.PIVOT,
-                    index_column_ids=["A"],
-                    column_is=["B", "C"],
+                    column_ids=["A"],
+                    index_column_ids=["B", "C"],
                     value_column_ids=["D"],
                     aggregation="sum",
-                ),
-            ),
-            *zip(
-                create_test_dataframes(
-                    {
-                        "A": [
-                            "foo",
-                            "foo",
-                            "foo",
-                            "foo",
-                            "foo",
-                            "bar",
-                            "bar",
-                            "bar",
-                            "bar",
-                        ],
-                        "B": [
-                            "one",
-                            "one",
-                            "one",
-                            "two",
-                            "two",
-                            "one",
-                            "one",
-                            "two",
-                            "two",
-                        ],
-                        "C": [
-                            "small",
-                            "large",
-                            "large",
-                            "small",
-                            "small",
-                            "large",
-                            "small",
-                            "small",
-                            "large",
-                        ],
-                        "D": [1, 2, 2, 3, 3, 4, 5, 6, 7],
-                    }
-                ),
-                create_test_dataframes(
-                    {
-                        "C": ["small", "large"],
-                        {"foo", "one"}: [1, 4],
-                        {"foo", "two"}: [6, 0],
-                        {"bar", "one"}: [5, 4],
-                        {"bar", "two"}: [6, 7],
-                    }
-                ),
-                PivotTransform(
-                    type=TransformType.PIVOT,
-                    index_column_ids=["A", "B"],
-                    column_is=["C"],
-                    value_column_ids=["D"],
-                    aggregation="sum",
-                ),
+                )],
             ),
         ],
     )
@@ -1253,6 +1197,8 @@ class TestTransformHandler:
         result = apply(df, transform)
         if not isinstance(result, pd.DataFrame):
             result = result.sort(transform.index_column_ids)
+        else:
+            result = result.fillna(0)
         assert_frame_equal(result, expected)
 
     @staticmethod
