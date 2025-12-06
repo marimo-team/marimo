@@ -47,7 +47,9 @@ Open `http://localhost:3000` in your browser.
 
 ## Running as Batch Jobs
 
-marimo notebooks can run as batch jobs using `app.run()`. Use `mo.cli_args()` to pass parameters:
+Because marimo notebooks are just Python scripts, they can readily be run as
+batch jobs. This simple example uses [`mo.cli_args()`][marimo.cli_args] to pass
+parameters:
 
 ```python
 # /// script
@@ -86,9 +88,29 @@ Submit as a job:
 python notebook.py --learning-rate 0.01 --epochs 100
 ```
 
-## GPU Jobs
+### Using GPUs
 
 Add GPU resources to your SBATCH directives:
+
+/// tab | Interactive development
+```bash
+#!/bin/bash
+#SBATCH --job-name=marimo
+#SBATCH --output=marimo-%j.out
+#SBATCH --partition=gpu
+#SBATCH --gres=gpu:1
+#SBATCH --cpus-per-task=4
+#SBATCH --mem=16GB
+#SBATCH --time=4:00:00
+
+# module load or otherwise set up environment
+
+python -m marimo edit notebook.py --headless --port 3000
+```
+
+/// 
+
+/// tab | Batch jobs
 
 ```bash
 #!/bin/bash
@@ -101,9 +123,15 @@ Add GPU resources to your SBATCH directives:
 python notebook.py
 ```
 
-## Self-contained notebooks
+///
 
-You can embed SBATCH directives directly in your notebook file, making it fully self-contained:
+## Inlining configuration in notebook files
+
+You can inline SBATCH directives in your notebook file. If used alongside marimo's support for
+[inlining package dependencies](../package_management/inlining_dependencies.md) ("sandboxing"),
+this lets you create fully self-contained notebooks.
+
+/// tab | Interactive development
 
 ```python
 #!/usr/bin/env -S python -m marimo edit --sandbox
@@ -135,6 +163,41 @@ if __name__ == "__main__":
     app.run()
 ```
 
+/// tab | Batch job
+
+```
+#!/usr/bin/env -S python
+#SBATCH --job-name=marimo-job
+#SBATCH --output=marimo-%j.out
+#SBATCH --cpus-per-task=4
+#SBATCH --mem=16GB
+
+# /// script
+# requires-python = ">=3.12"
+# dependencies = [
+#     "marimo",
+# ]
+# ///
+
+import marimo
+
+app = marimo.App()
+
+
+@app.cell
+def _():
+    import marimo as mo
+    print("Hello World!")
+    return
+
+
+if __name__ == "__main__":
+    app.run()
+```
+
+///
+
+
 Make executable and submit directly:
 
 ```bash
@@ -142,8 +205,7 @@ chmod +x notebook.py
 sbatch notebook.py
 ```
 
-For this sandboxing to work correctly, [uv](https://docs.astral.sh/uv/getting-started/installation/) should be installed.
-Alternatively, following hashbang `#!/usr/bin/env -S uv run marimo edit --sandbox`.
+Sandboxing requires [uv](https://docs.astral.sh/uv/getting-started/installation/) to be installed.
 
 ## Learn more
 
