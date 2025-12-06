@@ -35,6 +35,8 @@ def _():
     import altair as alt
     import polars as pl
 
+    alt.renderers.set_embed_options(actions=False)
+
     df = pl.DataFrame(
         {
             "revenue": [30, 20, 70, 45],
