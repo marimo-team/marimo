@@ -6,13 +6,13 @@ import { useLocale } from "react-aria";
 import { z } from "zod";
 import { getMimeValues } from "@/components/data-table/mime-cell";
 import { cn } from "@/utils/cn";
+import { Logger } from "@/utils/Logger";
 import { prettyNumber } from "@/utils/numbers";
+import { renderHTML } from "../core/RenderHTML";
 import type {
   IStatelessPlugin,
   IStatelessPluginProps,
 } from "../stateless-plugin";
-import { renderHTML } from "../core/RenderHTML";
-import { Logger } from "@/utils/Logger";
 
 interface Data {
   value?: string | number | boolean | null;
@@ -82,9 +82,9 @@ export const StatComponent: React.FC<Data> = ({
     if (mimeValues?.[0]) {
       const { mimetype, data } = mimeValues[0];
       if (mimetype !== "text/html") {
-        Logger.warn(`Expected text/html, got ${mimetype}`)
+        Logger.warn(`Expected text/html, got ${mimetype}`);
       }
-      return renderHTML({ html: data, alwaysSanitizeHtml: true})
+      return renderHTML({ html: data, alwaysSanitizeHtml: true });
     }
   };
 
