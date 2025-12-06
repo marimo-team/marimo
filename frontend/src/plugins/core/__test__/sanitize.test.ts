@@ -64,7 +64,7 @@ describe("sanitizeHtml", () => {
   test("preserves safe anchor with target=_blank", () => {
     const html = '<a href="https://example.com" target="_blank">Link</a>';
     expect(sanitizeHtml(html)).toMatchInlineSnapshot(
-      `"<a href="https://example.com" target="_blank" rel="noopener">Link</a>"`,
+      `"<a href="https://example.com" target="_blank" rel="noopener noreferrer">Link</a>"`,
     );
   });
 

@@ -3692,10 +3692,16 @@ components:
       type: object
     WorkspaceFilesResponse:
       properties:
+        fileCount:
+          default: 0
+          type: integer
         files:
           items:
             $ref: '#/components/schemas/FileInfo'
           type: array
+        hasMore:
+          default: false
+          type: boolean
         root:
           type: string
       required:
@@ -3755,7 +3761,7 @@ components:
       type: object
 info:
   title: marimo API
-  version: 0.17.6
+  version: 0.18.1
 openapi: 3.1.0
 paths:
   /@file/{filename_and_length}:

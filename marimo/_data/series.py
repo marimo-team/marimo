@@ -48,14 +48,14 @@ class DateSeriesInfo:
     label: str
 
 
-def _get_name(series: nw.Series) -> str:
+def _get_name(series: nw.Series[Any]) -> str:
     if series.name is None:
         return ""
     return str(series.name)
 
 
 @nw.narwhalify(eager_only=True, series_only=True)
-def get_number_series_info(series: nw.Series) -> NumberSeriesInfo:
+def get_number_series_info(series: nw.Series[Any]) -> NumberSeriesInfo:
     """
     Get the summary of a numeric series.
     """
@@ -78,7 +78,7 @@ def get_number_series_info(series: nw.Series) -> NumberSeriesInfo:
 
 
 @nw.narwhalify(eager_only=True, series_only=True)
-def get_category_series_info(series: nw.Series) -> CategorySeriesInfo:
+def get_category_series_info(series: nw.Series[Any]) -> CategorySeriesInfo:
     """
     Get the summary of a categorical series.
     """
@@ -93,7 +93,7 @@ def get_category_series_info(series: nw.Series) -> CategorySeriesInfo:
 
 
 @nw.narwhalify(eager_only=True, series_only=True)
-def get_date_series_info(series: nw.Series) -> DateSeriesInfo:
+def get_date_series_info(series: nw.Series[Any]) -> DateSeriesInfo:
     """
     Get the summary of a date series.
     """
@@ -117,7 +117,7 @@ def get_date_series_info(series: nw.Series) -> DateSeriesInfo:
 
 
 @nw.narwhalify(eager_only=True, series_only=True)
-def get_datetime_series_info(series: nw.Series) -> DateSeriesInfo:
+def get_datetime_series_info(series: nw.Series[Any]) -> DateSeriesInfo:
     """
     Get the summary of a datetime series.
     """

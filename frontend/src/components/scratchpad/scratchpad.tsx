@@ -17,6 +17,7 @@ import { HTMLCellId, SCRATCH_CELL_ID } from "@/core/cells/ids";
 import { DEFAULT_CELL_NAME } from "@/core/cells/names";
 import type { LanguageAdapterType } from "@/core/codemirror/language/types";
 import { useResolvedMarimoConfig } from "@/core/config/config";
+import { CSSClasses } from "@/core/constants";
 import { useRequestClient } from "@/core/network/requests";
 import type { CellConfig } from "@/core/network/types";
 import { LazyAnyLanguageCodeMirror } from "@/plugins/impl/code/LazyAnyLanguageCodeMirror";
@@ -149,7 +150,7 @@ export const ScratchPad: React.FC = () => {
           <OutputArea
             allowExpand={false}
             output={output}
-            className="output-area"
+            className={CSSClasses.outputArea}
             cellId={cellId}
             stale={false}
             loading={false}
@@ -208,7 +209,7 @@ export const ScratchPad: React.FC = () => {
       className="flex flex-col h-full overflow-hidden divide-y"
       id={HTMLCellId.create(cellId)}
     >
-      <p className="mx-2 my-2 text-muted-foreground text-sm">
+      <p className="p-2 text-muted-foreground text-sm">
         Use this scratchpad cell to experiment with code without restrictions on
         variable names. Scratchpad code is ephemeral: variables defined in the
         scratchpad aren't saved to notebook memory, and the code is not saved in

@@ -511,7 +511,7 @@ const ChatContent = memo<ChatContentProps>(
     onResolvePermission,
     onRetryConnection,
     onRetryLastAction,
-    onDismissError,
+    onDismissError: _onDismissError,
     sessionId,
   }) => {
     const [isScrolledToBottom, setIsScrolledToBottom] = useState(true);
@@ -799,23 +799,21 @@ const AgentPanel: React.FC = () => {
       return;
     }
 
+    // If there is an available session, resume it, otherwise create a new one
     const createOrResumeSession = async () => {
+      const availableSession = tabLastActiveSessionId ?? activeSessionId;
       try {
-        // Check if we need to create a new session
-        if (tabLastActiveSessionId) {
-          // Try to resume existing session
+        if (availableSession) {
           try {
-            await handleResumeSession(tabLastActiveSessionId);
-          } catch (resumeError) {
-            logger.debug("Failed to resume session, creating new session", {
-              externalSessionId: tabLastActiveSessionId,
-              error: resumeError,
+            await handleResumeSession(availableSession);
+          } catch (error) {
+            logger.error("Failed to resume session", {
+              sessionId: availableSession,
+              error,
             });
-            // Fall back to creating new session
             await handleNewSession();
           }
         } else {
-          // No existing session, create new one
           await handleNewSession();
         }
       } catch (error) {

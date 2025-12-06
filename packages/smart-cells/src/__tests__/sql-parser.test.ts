@@ -262,6 +262,13 @@ WHERE id IN ({str(data["items"][0]["id"])})`.trim(),
         'df := mo.sql("")', // Wrong assignment operator
         // Multiple SQL calls
         'df = mo.sql("""SELECT 1""")\ndf2 = mo.sql("""SELECT 2""")',
+        // Conditional expressions - issue #7386
+        'df = mo.sql("""SELECT 1""") if condition else None',
+        'df = mo.sql(f"""SELECT * FROM table""") if x.value else None',
+        'test_df = (mo.sql(f"""SELECT * FROM table""", output=False) if true_false_widget.value else None)',
+        // Binary operations
+        'df = mo.sql("""SELECT 1""") or default_value',
+        'df = mo.sql("""SELECT 1""") and process_it()',
       ];
 
       for (const pythonCode of invalidCases) {
@@ -271,6 +278,18 @@ WHERE id IN ({str(data["items"][0]["id"])})`.trim(),
 
     it("should return true for empty string", () => {
       expect(parser.isSupported("")).toBe(true);
+    });
+
+    it("should not support mo.sql() wrapped in parentheses", () => {
+      // We could change this in the future if needed
+      const shouldBeSupportedCases = [
+        'df = (mo.sql("""SELECT 1"""))',
+        'df = (\n    mo.sql("""SELECT 1""")\n)',
+      ];
+
+      for (const pythonCode of shouldBeSupportedCases) {
+        expect(parser.isSupported(pythonCode)).toBe(true);
+      }
     });
   });
 

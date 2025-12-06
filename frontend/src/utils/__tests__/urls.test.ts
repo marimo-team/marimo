@@ -14,25 +14,24 @@ describe("isUrl", () => {
 });
 
 describe("URL parameter handling with edge case filenames", () => {
-  it.each(EDGE_CASE_FILENAMES)(
-    "should handle unicode filenames in URL parameters: %s",
-    (filename) => {
-      // Test that updateQueryParams can handle unicode filenames
-      updateQueryParams((params) => {
-        params.set("file", filename);
-      });
+  it.each(
+    EDGE_CASE_FILENAMES,
+  )("should handle unicode filenames in URL parameters: %s", (filename) => {
+    // Test that updateQueryParams can handle unicode filenames
+    updateQueryParams((params) => {
+      params.set("file", filename);
+    });
 
-      // Verify URL encoding/decoding works with unicode
-      const encoded = encodeURIComponent(filename);
-      const decoded = decodeURIComponent(encoded);
-      expect(decoded).toBe(filename);
+    // Verify URL encoding/decoding works with unicode
+    const encoded = encodeURIComponent(filename);
+    const decoded = decodeURIComponent(encoded);
+    expect(decoded).toBe(filename);
 
-      // Verify filename can be safely added to URL parameters
-      const url = new URL("https://example.com");
-      url.searchParams.set("file", filename);
-      expect(url.searchParams.get("file")).toBe(filename);
-    },
-  );
+    // Verify filename can be safely added to URL parameters
+    const url = new URL("https://example.com");
+    url.searchParams.set("file", filename);
+    expect(url.searchParams.get("file")).toBe(filename);
+  });
 
   it("should preserve unicode in query string round-trip", () => {
     EDGE_CASE_FILENAMES.forEach((filename) => {

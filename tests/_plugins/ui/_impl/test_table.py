@@ -250,6 +250,7 @@ def test_value() -> None:
     data = ["banana", "apple", "cherry", "date", "elderberry"]
     table = ui.table(data)
     assert list(table.value) == []
+    assert type(table.value) is type(data)
 
 
 def test_value_with_selection() -> None:
@@ -259,12 +260,14 @@ def test_value_with_selection() -> None:
         "banana",
         "cherry",
     ]
+    assert type(table.value) is type(data)
 
 
 def test_value_with_initial_selection() -> None:
     data = ["banana", "apple", "cherry", "date", "elderberry"]
     table = ui.table(data, initial_selection=[0, 2])
     assert table.value == ["banana", "cherry"]
+    assert type(table.value) is type(data)
 
 
 def test_value_does_not_include_index_column() -> None:
@@ -286,6 +289,7 @@ def test_value_does_not_include_index_column() -> None:
         {"name": "Alice", "age": 30},
         {"name": "Charlie", "age": 35},
     ]
+    assert type(table.value) is type(data)
 
 
 def test_invalid_initial_selection() -> None:
@@ -326,6 +330,7 @@ def test_value_with_sorting_then_selection() -> None:
     assert list(table._convert_value(["0"])) == [
         {"value": "apple"},
     ]
+    assert type(table.value) is type(data)
 
 
 @pytest.mark.parametrize(
@@ -361,6 +366,7 @@ def test_value_with_sorting_then_selection_dfs(df: Any) -> None:
     assert not isinstance(value, nw.DataFrame)
     assert INDEX_COLUMN_NAME not in value.columns
     assert nw.from_native(value)["a"][0] == "x"
+    assert type(table.value) is type(df)
 
 
 def test_value_with_search_then_selection() -> None:
@@ -401,6 +407,7 @@ def test_value_with_search_then_selection() -> None:
         )
     )
     assert list(table._convert_value(["2"])) == ["cherry"]
+    assert type(table.value) is type(data)
 
 
 @pytest.mark.parametrize(
@@ -449,6 +456,7 @@ def test_value_with_search_then_selection_dfs(df: Any) -> None:
     value = table._convert_value(["2"])
     assert not isinstance(value, nw.DataFrame)
     assert nw.from_native(value)["a"][0] == "baz"
+    assert type(table.value) is type(df)
 
 
 @pytest.mark.parametrize(
@@ -536,6 +544,7 @@ def test_value_with_selection_then_sorting_dict_of_lists() -> None:
         "Company B",
         "Company E",
     ]
+    assert type(table.value) is type(data)
 
 
 def test_value_with_cell_selection_then_sorting_dict_of_lists() -> None:
@@ -584,6 +593,7 @@ def test_value_with_cell_selection_then_sorting_dict_of_lists() -> None:
         TableCell(row="0", column="company", value="Company B"),
         TableCell(row="2", column="company", value="Company E"),
     ]
+    assert type(table.value) is list
 
 
 def test_search_sort_nonexistent_columns() -> None:
@@ -600,6 +610,7 @@ def test_search_sort_nonexistent_columns() -> None:
     )
 
     assert table._convert_value(["0"]) == ["banana"]
+    assert type(table.value) is type(data)
 
 
 def test_invalid_index_in_initial_selection() -> None:
@@ -807,6 +818,7 @@ def test_can_get_second_page_with_search_df(df: Any) -> None:
     assert len(result_data) == 5
     assert int(result_data[0]["a"]) == 23
     assert int(result_data[-1]["a"]) == 27
+    assert type(table.value) is type(df)
 
 
 def test_with_no_pagination() -> None:
@@ -816,6 +828,7 @@ def test_with_no_pagination() -> None:
     assert table._component_args["page-size"] == 20
     assert table._component_args["total-rows"] == 20
     assert len(json.loads(table._component_args["data"])) == 20
+    assert type(table.value) is type(data)
 
 
 def test_table_with_too_many_rows_and_custom_total() -> None:
@@ -1806,6 +1819,7 @@ def test_json_multi_col_idx_table() -> None:
             "('basic_amt', 'QLD')": 2,
         }
     ]
+    assert type(table.value) is type(df)
 
 
 LAZY_DATAFRAMES = ["lazy-polars", "duckdb", "ibis"]

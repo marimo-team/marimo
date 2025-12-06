@@ -192,21 +192,20 @@ describe("patchVegaLoader - loader.http", () => {
     "http://foo.com/virtual-file.json",
   ];
 
-  it.each(pathsToTest)(
-    "should return file content for virtual files for %s",
-    async (s) => {
-      const virtualFiles = {
-        "/virtual-file.json":
-          "data:application/json;base64,eyJrZXkiOiAidmFsdWUifQ==" as DataURLString,
-      };
+  it.each(
+    pathsToTest,
+  )("should return file content for virtual files for %s", async (s) => {
+    const virtualFiles = {
+      "/virtual-file.json":
+        "data:application/json;base64,eyJrZXkiOiAidmFsdWUifQ==" as DataURLString,
+    };
 
-      const loader = createLoader();
-      const unpatch = patchVegaLoader(loader, virtualFiles);
-      const content = await loader.http(s);
-      unpatch();
-      expect(content).toBe('{"key": "value"}');
-    },
-  );
+    const loader = createLoader();
+    const unpatch = patchVegaLoader(loader, virtualFiles);
+    const content = await loader.http(s);
+    unpatch();
+    expect(content).toBe('{"key": "value"}');
+  });
 
   it("should fallback to original http method for non-virtual files", async () => {
     const loader = createLoader();
@@ -237,21 +236,20 @@ describe("patchVegaLoader - loader.load", () => {
     "http://foo.com/virtual-file.json",
   ];
 
-  it.each(pathsToTest)(
-    "should return file content for virtual files for %s",
-    async (s) => {
-      const virtualFiles = {
-        "/virtual-file.json":
-          "data:application/json;base64,eyJrZXkiOiAidmFsdWUifQ==" as DataURLString,
-      };
+  it.each(
+    pathsToTest,
+  )("should return file content for virtual files for %s", async (s) => {
+    const virtualFiles = {
+      "/virtual-file.json":
+        "data:application/json;base64,eyJrZXkiOiAidmFsdWUifQ==" as DataURLString,
+    };
 
-      const loader = createLoader();
-      const unpatch = patchVegaLoader(loader, virtualFiles);
-      const content = await loader.load(s);
-      unpatch();
-      expect(content).toBe('{"key": "value"}');
-    },
-  );
+    const loader = createLoader();
+    const unpatch = patchVegaLoader(loader, virtualFiles);
+    const content = await loader.load(s);
+    unpatch();
+    expect(content).toBe('{"key": "value"}');
+  });
 
   it("should fallback to original load method for non-virtual  files", async () => {
     const loader = createLoader();

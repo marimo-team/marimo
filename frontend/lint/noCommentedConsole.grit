@@ -2,9 +2,5 @@ language js
 
 // Match commented out console statements
 `// console.$method` where {
-  register_diagnostic(
-    span=.,
-    message="Remove commented out console statement instead of leaving it in the code",
-    severity="error"
-  )
+  register_diagnostic(span=., message="Remove commented out console statement instead of leaving it in the code", severity="error")
 }

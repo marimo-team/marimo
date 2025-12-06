@@ -34,7 +34,12 @@ from marimo._plugins.ui._impl.dataframes.transforms.types import (
     TransformType,
     UniqueTransform,
 )
-from marimo._utils.narwhals_utils import is_narwhals_lazyframe
+from marimo._plugins.ui._impl.tables.narwhals_table import (
+    NAN_VALUE,
+    NEGATIVE_INF,
+    POSITIVE_INF,
+)
+from marimo._utils.narwhals_utils import is_narwhals_lazyframe, make_lazy
 from tests._data.mocks import create_dataframes
 
 pytest.importorskip("ibis")
@@ -73,7 +78,41 @@ def collect_df(df: DataFrameType) -> nw.DataFrame[Any]:
 def assert_frame_equal(a: DataFrameType, b: DataFrameType) -> None:
     nw_a = collect_df(a)
     nw_b = collect_df(b)
+    assert type(a) is type(b)
     assert nw_a.to_dict(as_series=False) == nw_b.to_dict(as_series=False)
+
+
+def assert_frame_equal_with_nans(a: DataFrameType, b: DataFrameType) -> None:
+    """
+    Assert two dataframes are equal, treating NaNs in the same locations as equal.
+    """
+    import math
+
+    nw_a = collect_df(a)
+    nw_b = collect_df(b)
+
+    dict_a = nw_a.to_dict(as_series=False)
+    dict_b = nw_b.to_dict(as_series=False)
+
+    assert dict_a.keys() == dict_b.keys(), "DataFrame columns do not match."
+
+    for col in dict_a:
+        values_a = dict_a[col]
+        values_b = dict_b[col]
+        assert len(values_a) == len(values_b), (
+            f"Length mismatch in column {col}"
+        )
+        for idx, (val_a, val_b) in enumerate(zip(values_a, values_b)):
+            both_nan = (
+                isinstance(val_a, float)
+                and isinstance(val_b, float)
+                and math.isnan(val_a)
+                and math.isnan(val_b)
+            )
+            if not (val_a == val_b or both_nan):
+                raise AssertionError(
+                    f"DataFrame values differ at column '{col}', row {idx}: {val_a} != {val_b}"
+                )
 
 
 def assert_frame_not_equal(df1: DataFrameType, df2: DataFrameType) -> None:
@@ -897,6 +936,7 @@ class TestTransformHandler:
         nw_result = collect_df(result)
         assert "A" in nw_result.columns
         assert "B" in nw_result.columns
+        assert type(result) is type(expected)
 
     @staticmethod
     @pytest.mark.parametrize(
@@ -912,6 +952,7 @@ class TestTransformHandler:
         nw_result = collect_df(result)
         assert "A" in nw_result.columns
         assert "B" in nw_result.columns
+        assert type(result) is type(df)
 
     @staticmethod
     @pytest.mark.parametrize(
@@ -1037,6 +1078,7 @@ class TestTransformHandler:
             nw_expected.sort("A"),
             nw_result.sort("A"),
         )
+        assert type(result) is type(df)
 
     @staticmethod
     @pytest.mark.parametrize(
@@ -1227,7 +1269,7 @@ class TestTransformHandler:
     def test_transforms_container(
         df: DataFrameType, expected: DataFrameType, expected2: DataFrameType
     ) -> None:
-        nw_df = nw.from_native(df).lazy()
+        nw_df, undo = make_lazy(df)
         container = TransformsContainer(nw_df, NarwhalsTransformHandler())
 
         # Define some transformations
@@ -1255,7 +1297,7 @@ class TestTransformHandler:
 
         # Get the transformed dataframe
         # Check that the transformations were applied correctly
-        assert_frame_equal(result, expected)
+        assert_frame_equal(undo(result), expected)
 
         # Reapply transforms by adding a new one
         filter_again_transform = FilterRowsTransform(
@@ -1275,7 +1317,7 @@ class TestTransformHandler:
             transformations,
         )
         # Check that the transformations were applied correctly
-        assert_frame_equal(result, expected2)
+        assert_frame_equal(undo(result), expected2)
 
         transformations = Transformations([sort_transform, filter_transform])
         # Verify the next transformation
@@ -1289,7 +1331,7 @@ class TestTransformHandler:
             transformations,
         )
         # Check that the transformations were applied correctly
-        assert_frame_equal(result, expected)
+        assert_frame_equal(undo(result), expected)
 
     @staticmethod
     @pytest.mark.parametrize(
@@ -1336,3 +1378,244 @@ class TestTransformHandler:
         )
         result = apply(df, in_transform)
         assert_frame_equal(result, expected)
+
+    @staticmethod
+    @pytest.mark.parametrize(
+        ("df", "expected"),
+        list(
+            zip(
+                create_test_dataframes(
+                    {"nulls": [1, 2, 3, None]}, include=["pandas"]
+                ),
+                create_test_dataframes(
+                    {"nulls": [float("nan")]}, include=["pandas"]
+                ),
+            )
+        ),
+    )
+    def test_filter_rows_nulls_pandas(
+        df: DataFrameType, expected: DataFrameType
+    ) -> None:
+        in_transform = FilterRowsTransform(
+            type=TransformType.FILTER_ROWS,
+            operation="keep_rows",
+            where=[
+                Condition(
+                    column_id="nulls",
+                    operator="in",
+                    value=[NAN_VALUE],
+                )
+            ],
+        )
+        result = apply(df, in_transform)
+        assert_frame_equal_with_nans(result, expected)
+
+    @staticmethod
+    @pytest.mark.xfail(
+        reason="NaN filtering for object dtypes in pandas aren't implemented"
+    )
+    @pytest.mark.parametrize(
+        ("df", "expected"),
+        list(
+            zip(
+                create_test_dataframes(
+                    {"nulls": [1, 2, 3, None, "hello"]}, include=["pandas"]
+                ),
+                create_test_dataframes(
+                    {"nulls": [float("nan")]}, include=["pandas"]
+                ),
+            )
+        ),
+    )
+    def test_filter_rows_null_pandas_object(
+        df: DataFrameType, expected: DataFrameType
+    ) -> None:
+        in_transform = FilterRowsTransform(
+            type=TransformType.FILTER_ROWS,
+            operation="keep_rows",
+            where=[
+                Condition(
+                    column_id="nulls",
+                    operator="in",
+                    value=[NAN_VALUE],
+                )
+            ],
+        )
+        result = apply(df, in_transform)
+        assert_frame_equal(result, expected)
+
+    @staticmethod
+    @pytest.mark.parametrize(
+        ("df", "expected"),
+        list(
+            zip(
+                create_test_dataframes(
+                    {"nulls": [1, 2, 3, float("nan")]},
+                    exclude=["pandas", "ibis"],  # Ibis serializes nans to None
+                    strict=False,
+                ),
+                create_test_dataframes(
+                    {"nulls": [float("nan")]}, exclude=["pandas", "ibis"]
+                ),
+            )
+        ),
+    )
+    def test_filter_rows_nulls_others(
+        df: DataFrameType, expected: DataFrameType
+    ) -> None:
+        in_transform = FilterRowsTransform(
+            type=TransformType.FILTER_ROWS,
+            operation="keep_rows",
+            where=[
+                Condition(
+                    column_id="nulls",
+                    operator="in",
+                    value=[NAN_VALUE],
+                )
+            ],
+        )
+        result = apply(df, in_transform)
+        assert_frame_equal_with_nans(result, expected)
+
+    @staticmethod
+    @pytest.mark.parametrize(
+        ("df", "expected"),
+        list(
+            zip(
+                create_test_dataframes(
+                    {"nulls": [1, 2, 3, float("nan"), float("inf")]},
+                    strict=False,
+                ),
+                create_test_dataframes({"nulls": [float("inf")]}),
+            )
+        ),
+    )
+    def test_filter_rows_infs(
+        df: DataFrameType, expected: DataFrameType
+    ) -> None:
+        in_transform = FilterRowsTransform(
+            type=TransformType.FILTER_ROWS,
+            operation="keep_rows",
+            where=[
+                Condition(
+                    column_id="nulls",
+                    operator="in",
+                    value=[POSITIVE_INF],
+                )
+            ],
+        )
+        result = apply(df, in_transform)
+        assert_frame_equal_with_nans(result, expected)
+
+    @staticmethod
+    @pytest.mark.parametrize(
+        ("df", "expected"),
+        list(
+            zip(
+                create_test_dataframes(
+                    {"nulls": [1, float("nan"), float("inf"), float("-inf")]},
+                    strict=False,
+                ),
+                create_test_dataframes({"nulls": [float("-inf")]}),
+            )
+        ),
+    )
+    def test_filter_rows_neg_infs(
+        df: DataFrameType, expected: DataFrameType
+    ) -> None:
+        in_transform = FilterRowsTransform(
+            type=TransformType.FILTER_ROWS,
+            operation="keep_rows",
+            where=[
+                Condition(
+                    column_id="nulls",
+                    operator="in",
+                    value=[NEGATIVE_INF],
+                )
+            ],
+        )
+        result = apply(df, in_transform)
+        assert_frame_equal_with_nans(result, expected)
+
+    @staticmethod
+    @pytest.mark.parametrize(
+        ("df", "expected"),
+        list(
+            zip(
+                create_test_dataframes(
+                    {
+                        "nulls": [
+                            1,
+                            float("nan"),
+                            float("inf"),
+                            float("-inf"),
+                            None,
+                        ]
+                    },
+                    include=["pandas"],
+                ),
+                create_test_dataframes(
+                    {"nulls": [float("nan"), float("inf"), None]},
+                    include=["pandas"],
+                ),
+            )
+        ),
+    )
+    def test_filter_rows_infs_and_nulls_pandas(
+        df: DataFrameType, expected: DataFrameType
+    ) -> None:
+        in_transform = FilterRowsTransform(
+            type=TransformType.FILTER_ROWS,
+            operation="keep_rows",
+            where=[
+                Condition(
+                    column_id="nulls",
+                    operator="in",
+                    value=[NAN_VALUE, POSITIVE_INF, None],
+                )
+            ],
+        )
+        result = apply(df, in_transform)
+        assert_frame_equal_with_nans(result, expected)
+
+    @staticmethod
+    @pytest.mark.parametrize(
+        ("df", "expected"),
+        list(
+            zip(
+                create_test_dataframes(
+                    {
+                        "nulls": [
+                            1,
+                            float("nan"),
+                            float("inf"),
+                            float("-inf"),
+                            None,
+                        ]
+                    },
+                    exclude=["pandas", "ibis"],  # Ibis serializes nans to None
+                    strict=False,
+                ),
+                create_test_dataframes(
+                    {"nulls": [float("nan"), float("inf"), None]},
+                    exclude=["pandas", "ibis"],
+                ),
+            )
+        ),
+    )
+    def test_filter_rows_infs_and_nulls_others(
+        df: DataFrameType, expected: DataFrameType
+    ) -> None:
+        in_transform = FilterRowsTransform(
+            type=TransformType.FILTER_ROWS,
+            operation="keep_rows",
+            where=[
+                Condition(
+                    column_id="nulls",
+                    operator="in",
+                    value=[NAN_VALUE, POSITIVE_INF, None],
+                )
+            ],
+        )
+        result = apply(df, in_transform)
+        assert_frame_equal_with_nans(result, expected)

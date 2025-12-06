@@ -14,6 +14,8 @@ from marimo._server.file_router import (
     LazyListOfFilesAppFileRouter,
     ListOfFilesAppFileRouter,
     NewFileAppFileRouter,
+    count_files,
+    is_marimo_app,
     validate_inside_directory,
 )
 from marimo._server.models.home import MarimoFile
@@ -402,3 +404,133 @@ class TestValidateInsideDirectory(unittest.TestCase):
         with pytest.raises(HTTPException) as exc_info:
             validate_inside_directory(directory, filepath)
         assert exc_info.value.status_code == HTTPStatus.FORBIDDEN
+
+
+def test_python_app_detected_in_header(tmp_path: Path):
+    f = tmp_path / "app.py"
+    content = b"import marimo\napp = marimo.App()\n"
+    f.write_bytes(content)
+    assert is_marimo_app(str(f)) is True
+
+
+def test_python_app_detected_with_script_header_full_read(tmp_path: Path):
+    f = tmp_path / "script_app.py"
+    header = b"# /// script\n# lots of stuff before markers\n" + (b"x" * 600)
+    # Ensure markers are only in full content beyond header limit
+    body = b"\nimport marimo\napp = marimo.App()\n"
+    f.write_bytes(header + body)
+    assert is_marimo_app(str(f)) is True
+
+
+def test_python_non_app_returns_false(tmp_path: Path):
+    f = tmp_path / "not_app.py"
+    f.write_bytes(b"print('hello')\n")
+    assert is_marimo_app(str(f)) is False
+
+
+def test_markdown_with_marimo_version_detected(tmp_path: Path):
+    f = tmp_path / "notebook.md"
+    # Place marker in the first 512 bytes
+    f.write_bytes(b"---\nmarimo-version: 0.1\n---\n")
+    assert is_marimo_app(str(f)) is True
+
+
+def test_markdown_without_marimo_version_returns_false(tmp_path: Path):
+    f = tmp_path / "plain.md"
+    f.write_bytes(b"# Title\nSome content\n")
+    assert is_marimo_app(str(f)) is False
+
+
+def test_error_path_returns_false_and_logs(tmp_path: Path):
+    # Point to a directory to trigger open error
+    d = tmp_path / "adir"
+    d.mkdir()
+    assert is_marimo_app(str(d)) is False
+
+
+def test_lazy_router_respects_max_files(tmp_path: Path):
+    """Test that LazyListOfFilesAppFileRouter enforces MAX_FILES limit"""
+    # Create a directory with more files than MAX_FILES
+    # To make this test fast, we'll use a monkey-patch approach
+    # by temporarily reducing MAX_FILES
+    import marimo._server.file_router as file_router_module
+
+    original_max_files = file_router_module.MAX_FILES
+    try:
+        # Set a small limit for testing
+        file_router_module.MAX_FILES = 5
+
+        # Create 10 marimo files
+        for i in range(10):
+            f = tmp_path / f"app_{i}.py"
+            f.write_text("import marimo\napp = marimo.App()\n")
+
+        router = LazyListOfFilesAppFileRouter(
+            str(tmp_path), include_markdown=False
+        )
+        files = router.files
+
+        # Should only get MAX_FILES worth of files
+        # Count actual marimo files (not directories)
+        file_count = sum(1 for f in files if not f.is_directory)
+        assert file_count <= 5
+
+    finally:
+        # Restore original value
+        file_router_module.MAX_FILES = original_max_files
+
+
+def test_lazy_router_skips_common_dirs(tmp_path: Path):
+    """Test that LazyListOfFilesAppFileRouter skips common directories"""
+    # Create directories that should be skipped
+    skip_dirs = [
+        ".venv",
+        ".git",
+        "__pycache__",
+        "node_modules",
+        ".tox",
+        ".pytest_cache",
+    ]
+
+    for skip_dir in skip_dirs:
+        dir_path = tmp_path / skip_dir
+        dir_path.mkdir()
+        # Create a marimo file inside
+        f = dir_path / "app.py"
+        f.write_text("import marimo\napp = marimo.App()\n")
+
+    # Create a valid marimo file in the root
+    root_file = tmp_path / "root_app.py"
+    root_file.write_text("import marimo\napp = marimo.App()\n")
+
+    router = LazyListOfFilesAppFileRouter(
+        str(tmp_path), include_markdown=False
+    )
+    files = router.files
+
+    # Should only find the root file, not files in skipped directories
+    file_paths = [f.path for f in files if not f.is_directory]
+    assert len(file_paths) == 1
+    assert str(root_file) in file_paths
+
+
+def test_lazy_router_counts_nested_files(tmp_path: Path):
+    """Test that file counting works correctly with nested directories"""
+    # Create nested structure
+    nested_dir = tmp_path / "subdir"
+    nested_dir.mkdir()
+
+    # Create files at different levels
+    root_file = tmp_path / "root.py"
+    root_file.write_text("import marimo\napp = marimo.App()\n")
+
+    nested_file = nested_dir / "nested.py"
+    nested_file.write_text("import marimo\napp = marimo.App()\n")
+
+    router = LazyListOfFilesAppFileRouter(
+        str(tmp_path), include_markdown=False
+    )
+    files = router.files
+
+    total_files = count_files(files)
+    assert total_files == 2

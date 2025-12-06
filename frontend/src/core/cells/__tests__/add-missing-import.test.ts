@@ -48,29 +48,28 @@ describe("maybeAddMissingImport", () => {
     "import marimo as mo\nimport marimo as mo",
     "import   marimo    as   mo",
   ];
-  it.each(VALID_IMPORTS)(
-    "should not add an import if the import statement already exists in the notebook",
-    (code) => {
-      const appStore = createStore();
-      appStore.set(variablesAtom, {} as Variables);
-      appStore.set(
-        notebookAtom,
-        MockNotebook.notebookState({
-          cellData: {
-            [Cell1]: { code: code },
-          },
-        }),
-      );
-      const onAddImport = vi.fn();
-      maybeAddMissingImport({
-        moduleName: "marimo",
-        variableName: "mo",
-        onAddImport,
-        appStore,
-      });
-      expect(onAddImport).not.toHaveBeenCalled();
-    },
-  );
+  it.each(
+    VALID_IMPORTS,
+  )("should not add an import if the import statement already exists in the notebook", (code) => {
+    const appStore = createStore();
+    appStore.set(variablesAtom, {} as Variables);
+    appStore.set(
+      notebookAtom,
+      MockNotebook.notebookState({
+        cellData: {
+          [Cell1]: { code: code },
+        },
+      }),
+    );
+    const onAddImport = vi.fn();
+    maybeAddMissingImport({
+      moduleName: "marimo",
+      variableName: "mo",
+      onAddImport,
+      appStore,
+    });
+    expect(onAddImport).not.toHaveBeenCalled();
+  });
 
   it("should add an import if the variable is not in the variables state and the import statement does not exist in the notebook", () => {
     const appStore = createStore();

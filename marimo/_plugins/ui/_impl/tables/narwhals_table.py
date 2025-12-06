@@ -4,6 +4,7 @@ from __future__ import annotations
 import datetime
 import functools
 import io
+import math
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Literal, Optional, Union, cast
 
@@ -44,6 +45,12 @@ if TYPE_CHECKING:
 
 LOGGER = _loggers.marimo_logger()
 UNSTABLE_API_WARNING = "`Series.hist` is being called from the stable API although considered an unstable feature."
+
+# Standardize this across libraries
+# It should match the table value as closely as possible
+NAN_VALUE = "NaN"
+POSITIVE_INF = str(float("inf"))
+NEGATIVE_INF = str(float("-inf"))
 
 
 class NarwhalsTableManager(
@@ -218,10 +225,22 @@ class NarwhalsTableManager(
                 ]
 
         result = _calculate_top_k_rows(frame)
-        return [
-            (unwrap_py_scalar(row[0]), int(unwrap_py_scalar(row[1])))
-            for row in result.rows()
-        ]
+        value_counts: list[tuple[Any, int]] = []
+
+        # NaNs and Infs serialize to null, which isn't distingushable from normal nulls
+        # so instead we set to string values
+        for row in result.rows():
+            value = unwrap_py_scalar(row[0])
+            count = int(unwrap_py_scalar(row[1]))
+            if isinstance(value, float) and math.isnan(value):
+                value = NAN_VALUE
+            elif isinstance(value, float) and math.isinf(value) and value > 0:
+                value = POSITIVE_INF
+            elif isinstance(value, float) and math.isinf(value) and value < 0:
+                value = NEGATIVE_INF
+            value_counts.append((value, count))
+
+        return value_counts
 
     @staticmethod
     def is_type(value: Any) -> bool:
@@ -281,8 +300,11 @@ class NarwhalsTableManager(
         for column, dtype in self.nw_schema.items():
             if column == INDEX_COLUMN_NAME:
                 continue
-            if dtype == nw.String:
-                expressions.append(nw.col(column).str.contains(f"(?i){query}"))
+            if is_narwhals_string_type(dtype):
+                # Cast to string as pandas may fail for certain values
+                expressions.append(
+                    nw.col(column).cast(nw.String).str.contains(f"(?i){query}")
+                )
             elif dtype == nw.List(nw.String):
                 # TODO: Narwhals doesn't support list.contains
                 # expressions.append(
@@ -519,6 +541,12 @@ class NarwhalsTableManager(
         # Downgrade to v1 since v2 does not support the hist() method yet
         downgraded_df = downgrade_narwhals_df_to_v1(self.as_frame())
         col = downgraded_df.get_column(column)
+
+        # If the column is decimal, we need to convert it to float
+        if dtype.is_decimal():
+            import narwhals.stable.v1 as nw1
+
+            col = col.cast(nw1.Float64)
 
         bin_start = col.min()
         bin_values: list[BinValue] = []

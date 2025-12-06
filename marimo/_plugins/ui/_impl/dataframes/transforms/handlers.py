@@ -31,7 +31,13 @@ from marimo._plugins.ui._impl.dataframes.transforms.types import (
     TransformHandler,
     UniqueTransform,
 )
+from marimo._plugins.ui._impl.tables.narwhals_table import (
+    NAN_VALUE,
+    NEGATIVE_INF,
+    POSITIVE_INF,
+)
 from marimo._utils.assert_never import assert_never
+from marimo._utils.narwhals_utils import collect_and_preserve_type
 
 if TYPE_CHECKING:
     import polars as pl
@@ -122,31 +128,51 @@ class NarwhalsTransformHandler(TransformHandler[DataFrame]):
         filter_expr: nw.Expr | None = None
 
         def convert_value(v: Any, converter: Callable[[str], Any]) -> Any:
-            # Convert a value whether it's a list or single value
+            """
+            Convert a value whether it's a list or single value.
+            Ignore None as they usually raise errors when converted
+            """
             if isinstance(v, (tuple, list)):
-                return [converter(str(item)) for item in v]
+                return [
+                    converter(str(item)) if item is not None else None
+                    for item in v
+                ]
+            if v is None:
+                return None
             return converter(str(v))
 
         for condition in transform.where:
             # Don't convert to string if already a string or int
             # Narwhals col() can handle both strings and integers
             column = col(condition.column_id)
+            column_name = str(condition.column_id)
             value = condition.value
 
-            # For polars, we need to convert the values based on dtype
             native_df = df.to_native()
-            if _is_polars_dataframe_or_lazyframe(native_df):
-                import polars as pl
+            dtype = df.collect_schema().get(column_name)
 
-                dtype = native_df.collect_schema()[str(condition.column_id)]
-                if dtype == pl.Datetime:
+            # For polars, we need to convert the values based on dtype
+            if _is_polars_dataframe_or_lazyframe(native_df):
+                if dtype == nw.Datetime:
                     value = convert_value(
                         value, datetime.datetime.fromisoformat
                     )
-                elif dtype == pl.Date:
+                elif dtype == nw.Date:
                     value = convert_value(value, datetime.date.fromisoformat)
-                elif dtype == pl.Time:
+                elif dtype == nw.Time:
                     value = convert_value(value, datetime.time.fromisoformat)
+
+            # If the value includes NaNs or infs, we convert to floats so the filters apply correctly
+            if (
+                isinstance(value, tuple)
+                and any(
+                    token in value
+                    for token in [NAN_VALUE, POSITIVE_INF, NEGATIVE_INF]
+                )
+                and dtype is not None
+                and dtype.is_float()  # Note: this doesn't cover Object types for pandas
+            ):
+                value = convert_value(value, float)
 
             # Build the expression based on the operator
             condition_expr: nw.Expr
@@ -294,20 +320,22 @@ class NarwhalsTransformHandler(TransformHandler[DataFrame]):
         df: DataFrame, transform: ShuffleRowsTransform
     ) -> DataFrame:
         # Note: narwhals sample requires collecting first for shuffle with seed
-        result = df.collect().sample(fraction=1, seed=transform.seed)
-        return result.lazy()
+        collected_df, undo = collect_and_preserve_type(df)
+        result = collected_df.sample(fraction=1, seed=transform.seed)
+        return undo(result)
 
     @staticmethod
     def handle_sample_rows(
         df: DataFrame, transform: SampleRowsTransform
     ) -> DataFrame:
         # Note: narwhals sample requires collecting first for shuffle with seed
-        result = df.collect().sample(
+        collected_df, undo = collect_and_preserve_type(df)
+        result = collected_df.sample(
             n=transform.n,
             seed=transform.seed,
             with_replacement=transform.replace,
         )
-        return result.lazy()
+        return undo(result)
 
     @staticmethod
     def handle_explode_columns(
