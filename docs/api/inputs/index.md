@@ -16,6 +16,7 @@ powerful notebooks and apps. These elements are available in `marimo.ui`.
 | [`marimo.ui.date`][marimo.ui.date] | Date picker |
 | [`marimo.ui.datetime`][marimo.ui.datetime] | Date and time picker |
 | [`marimo.ui.date_range`][marimo.ui.date_range] | Date range picker |
+| [`marimo.ui.date_slider`][marimo.ui.date_slider] | Date slider |
 | [`marimo.ui.dictionary`][marimo.ui.dictionary] | Dictionary inputs |
 | [`marimo.ui.dropdown`][marimo.ui.dropdown] | Create dropdowns |
 | [`marimo.ui.file`][marimo.ui.file] | File uploads |
