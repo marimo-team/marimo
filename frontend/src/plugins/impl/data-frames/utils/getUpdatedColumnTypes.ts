@@ -10,6 +10,7 @@ import type { ColumnDataTypes, ColumnId } from "../types";
 export function getUpdatedColumnTypes(
   transforms: TransformType[],
   columnTypes: ColumnDataTypes,
+  uniqueColumnValues: Record<string, any[]>,
 ): ColumnDataTypes {
   if (!transforms || transforms.length === 0) {
     return columnTypes;
@@ -17,7 +18,7 @@ export function getUpdatedColumnTypes(
 
   let next: ColumnDataTypes = new Map(columnTypes);
   for (const transform of transforms) {
-    next = handleTransform(transform, next);
+    next = handleTransform(transform, next, uniqueColumnValues);
   }
 
   return next;
@@ -26,6 +27,7 @@ export function getUpdatedColumnTypes(
 function handleTransform(
   transform: TransformType,
   next: ColumnDataTypes,
+  uniqueColumnValues: Record<string, any[]>
 ): ColumnDataTypes {
   switch (transform.type) {
     case "column_conversion":
@@ -71,17 +73,22 @@ function handleTransform(
     }
     case "pivot": {
       const updated = new Map<ColumnId, string>();
-      
+
+
       for (const [columnId, type] of next.entries()) {
         if (transform.index_column_ids.includes(columnId)) {
           updated.set(columnId, type);
-          continue;
         }
+      }
 
-        updated.set(
-          `${columnId}_${transform.aggregation}` as ColumnId,
-          transform.aggregation === "count" ? "int" : type
-        );
+      const uniqueValues = transform.column_ids.map((columnId) => {
+        const values = uniqueColumnValues[columnId.toString()] || [];
+        return values;
+      })
+
+      const newColumns = uniqueValues.reduce((acc, curr) => acc.flatMap(a => curr.map(b => [...a, b])),[[]]).map(comb => comb.join("_"));
+      for (const newCol of newColumns) {
+        updated.set(newCol as ColumnId, transform.aggregation === "count" ? "int64" : "float64");
       }
 
       return updated;

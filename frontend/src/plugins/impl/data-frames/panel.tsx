@@ -19,7 +19,7 @@ import {
   Trash2Icon,
   Table2Icon,
 } from "lucide-react";
-import React, { type PropsWithChildren, useEffect, useMemo } from "react";
+import React, { type PropsWithChildren, useEffect, useMemo, useState } from "react";
 import { useFieldArray, useForm } from "react-hook-form";
 import useEvent from "react-use-event-hook";
 import type { z } from "zod";
@@ -118,9 +118,41 @@ export const TransformPanel: React.FC<Props> = ({
     return getUnionLiteral(option).value === selectedTransformType;
   });
 
+  const [columnValueCache, setColumnValueCache] = useState<Record<string, any[]>>({});
+
+  useEffect(() => {
+    async function fetchUniqueValues() {
+      if (transforms.length === 0 || selectedTransform === undefined) {
+        return;
+      }
+      const previousTransform =
+      selectedTransform > 0 ? transforms[selectedTransform - 1] : undefined;
+
+      if (!previousTransform) {
+        return; // nothing before this transform
+      }
+
+      const newCache: Record<string, unknown[]> = { ...columnValueCache };
+
+      // Example: handle transforms that have column lists
+      if ("column_ids" in previousTransform && previousTransform.column_ids) {
+        for (const col of previousTransform.column_ids) {
+          if (!newCache[col]) {
+            const { values } = await getColumnValues({ column: String(col) });
+            newCache[col] = [...new Set(values)];
+          }
+        }
+      }
+
+      setColumnValueCache(newCache);
+    }
+
+    fetchUniqueValues();
+  }, [transforms, selectedTransform, getColumnValues]);
+
   const effectiveColumns = useMemo(() => {
     const transformsBeforeSelected = transforms.slice(0, selectedTransform);
-    return getUpdatedColumnTypes(transformsBeforeSelected, columns);
+    return getUpdatedColumnTypes(transformsBeforeSelected, columns, columnValueCache);
   }, [columns, transforms, selectedTransform]);
 
   const handleAddTransform = (transform: z.ZodType) => {
