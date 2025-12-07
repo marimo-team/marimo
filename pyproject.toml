@@ -95,7 +95,6 @@ recommended = [
     "polars[pyarrow]>=1.9.0",   # SQL output back in Python
     "sqlglot[rs]>=26.2.0",      # SQL cells parsing
     "openai>=1.55.3",           # AI features
-    "google-genai>=1.20.0",      # Google AI features
     "ruff",                     # Formatting
     "nbformat>=5.7.0",          # Export as IPYNB
 ]
@@ -104,8 +103,8 @@ dev = [
     "click>=8.0,<9",
     "black~=23.12.1",
     # For tracing debugging
-    "opentelemetry-api~=1.26.0",
-    "opentelemetry-sdk~=1.26.0",
+    "opentelemetry-api~=1.28.0",
+    "opentelemetry-sdk~=1.28.0",
     # For SQL
     "duckdb>=1.0.0",
     "sqlglot[rs]>=26.2.0",
@@ -162,7 +161,7 @@ dependencies = [
     "matplotlib>=3.8.0",
     "sqlglot[rs]>=26.2.0",
     "sqlalchemy>=2.0.40",
-    "google-genai>=1.0.0",
+    "pydantic-ai-slim[google]>=1.27.0",
     "openai>=1.55.3",
     "anthropic>=0.52.2",
     "loro>=1.5.0",
@@ -194,7 +193,7 @@ extra-dependencies = [
     "dirty-equals~=0.9.0",
     "hypothesis~=6.102.1",
     # For server testing
-    "httpx~=0.27.0",
+    "httpx~=0.28.0",
     "urllib3~=2.5.0",
     "matplotlib~=3.10.7",
     # Forced for modern matplotlib.
@@ -229,7 +228,7 @@ template = "test"
 extra-dependencies = [
     "dirty-equals~=0.9.0",
     "hypothesis~=6.102.1",
-    "httpx~=0.27.0",
+    "httpx~=0.28.0",
     "matplotlib~=3.9.2",
     "pytest~=8.3.4",
     "pytest-timeout~=2.3.1",
@@ -270,7 +269,7 @@ extra-dependencies = [
     # testing gen ai
     "openai>=1.55.3",
     "anthropic==0.52.2",
-    "google-genai>=0.2.0",
+    "pydantic-ai-slim[google]>=1.27.0",
     "boto3>=1.38.46",
     "litellm>=1.70.0",
     # exporting as ipynb

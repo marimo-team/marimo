@@ -26,36 +26,46 @@ from marimo._ai._convert import (
     convert_to_ai_sdk_messages,
     convert_to_anthropic_messages,
     convert_to_anthropic_tools,
-    convert_to_google_messages,
-    convert_to_google_tools,
     convert_to_openai_messages,
     convert_to_openai_tools,
+)
+from marimo._ai._pydantic_ai_utils import (
+    FinishMessagePart,
+    ReasoningDeltaPart,
+    ReasoningEndPart,
+    ReasoningStartPart,
+    TextDeltaPart,
+    TextEndPart,
+    TextStartPart,
+    ToolInputDeltaPart,
+    ToolInputStartPart,
+    ToolOutputAvailablePart,
+    form_message_history,
+    form_toolsets,
+    generate_id,
 )
 from marimo._ai._types import ChatMessage
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._server.ai.config import AnyProviderConfig
 from marimo._server.ai.ids import AiModelId
+from marimo._server.ai.tools.tool_manager import ToolManager, get_tool_manager
 from marimo._server.ai.tools.types import ToolDefinition
 from marimo._server.api.status import HTTPStatus
+from marimo._utils.assert_never import log_never
 
 TIMEOUT = 30
 # Long-thinking models can take a long time to complete, so we set a longer timeout
 LONG_THINKING_TIMEOUT = 120
 
 if TYPE_CHECKING:
+    from contextlib import AbstractAsyncContextManager
+
     from anthropic import (  # type: ignore[import-not-found]
         AsyncClient,
         AsyncStream as AnthropicStream,
     )
     from anthropic.types import (  # type: ignore[import-not-found]
         RawMessageStreamEvent,
-    )
-    from google.genai.client import (  # type: ignore[import-not-found]
-        AsyncClient as GoogleClient,
-    )
-    from google.genai.types import (  # type: ignore[import-not-found]
-        GenerateContentConfig,
-        GenerateContentResponse,
     )
 
     # Used for Bedrock, unified interface for all models
@@ -72,6 +82,9 @@ if TYPE_CHECKING:
     from openai.types.chat import (  # type: ignore[import-not-found]
         ChatCompletionChunk,
     )
+    from pydantic_ai import Agent, AgentRun
+    from pydantic_ai.providers.google import GoogleProvider
+    from pydantic_ai.result import AgentStream
 
 
 ResponseT = TypeVar("ResponseT")
@@ -121,6 +134,365 @@ class ActiveToolCall:
     tool_call_id: str
     tool_call_name: str
     tool_call_args: str
+
+
+class PydanticGoogleProvider:
+    def __init__(self, model: str, config: AnyProviderConfig):
+        DependencyManager.pydantic_ai.require(why="for AI assistance")
+        DependencyManager.google_ai.require(
+            why="for AI assistance with Google AI"
+        )
+
+        self.model = model
+        self.config = config
+        self.provider = self._create_provider(config)
+
+    def _create_provider(self, config: AnyProviderConfig) -> GoogleProvider:
+        from pydantic_ai.providers.google import GoogleProvider
+
+        if config.api_key:
+            return GoogleProvider(api_key=config.api_key)
+
+        # Try to use environment variables and ADC
+        # This supports Google Vertex AI usage without explicit API keys
+        use_vertex = (
+            os.getenv("GOOGLE_GENAI_USE_VERTEXAI", "").lower() == "true"
+        )
+        if use_vertex:
+            project = os.getenv("GOOGLE_CLOUD_PROJECT")
+            location = os.getenv("GOOGLE_CLOUD_LOCATION", "us-central1")
+            provider = GoogleProvider(  # pyright: ignore[reportCallIssue]
+                vertexai=True, project=project, location=location
+            )
+        else:
+            # Try default initialization which may work with environment variables
+            provider = GoogleProvider()
+        return provider
+
+    def _create_agent(
+        self,
+        model_name: str,
+        provider: GoogleProvider,
+        max_tokens: int,
+        tools: list[ToolDefinition],
+        tool_manager: ToolManager,
+    ) -> Agent:
+        from pydantic_ai import Agent, ModelSettings
+        from pydantic_ai.models.google import GoogleModel
+
+        toolsets = (
+            [form_toolsets(tools, tool_manager.invoke_tool)] if tools else None
+        )
+
+        return Agent(
+            GoogleModel(
+                model_name=model_name,
+                provider=provider,
+                settings=ModelSettings(max_tokens=max_tokens),
+            ),
+            toolsets=toolsets,
+        )
+
+    async def stream_completion(
+        self,
+        messages: list[ChatMessage],
+        system_prompt: str,
+        max_tokens: int,
+        additional_tools: list[ToolDefinition],
+    ) -> AbstractAsyncContextManager[AgentRun]:
+        tools = (self.config.tools or []) + additional_tools
+        agent = self._create_agent(
+            model_name=self.model,
+            provider=self.provider,
+            max_tokens=max_tokens,
+            tools=tools,
+            tool_manager=get_tool_manager(),
+        )
+        message_history = form_message_history(messages)
+        return agent.iter(
+            message_history=message_history,
+            instructions=system_prompt,
+        )
+
+    async def as_stream_response(
+        self,
+        response: AbstractAsyncContextManager[AgentRun],
+        options: Optional[StreamOptions] = None,
+    ) -> AsyncGenerator[str, None]:
+        from pydantic_ai import (
+            Agent,
+            BuiltinToolCallPart,
+            BuiltinToolReturnPart,
+            FilePart,
+            FinalResultEvent,
+            FunctionToolCallEvent,
+            FunctionToolResultEvent,
+            HandleResponseEvent,
+            PartDeltaEvent,
+            PartEndEvent,
+            PartStartEvent,
+            RetryPromptPart,
+            TextPart,
+            TextPartDelta,
+            ThinkingPart,
+            ThinkingPartDelta,
+            ToolCallPart,
+            ToolCallPartDelta,
+            ToolReturnPart,
+        )
+
+        # TODO: Handle options
+        options = options or StreamOptions()
+
+        def handle_response_event(event: HandleResponseEvent) -> str | None:
+            if isinstance(event, FunctionToolCallEvent):
+                return ToolInputStartPart(
+                    event.part.tool_name, event.tool_call_id
+                ).to_str()
+            elif isinstance(event, FunctionToolResultEvent):
+                if isinstance(event.result, RetryPromptPart):
+                    return ToolOutputAvailablePart(
+                        event.tool_call_id,
+                        output=event.result.model_response(),
+                    ).to_str()
+                elif isinstance(event.result, ToolReturnPart):
+                    return ToolOutputAvailablePart(
+                        event.tool_call_id,
+                        output=event.result.model_response_object(),
+                    ).to_str()
+                else:
+                    log_never(event.result)
+            else:
+                LOGGER.warning(
+                    f"Unknown HandleResponseEvent not supported yet: {event}"
+                )
+
+        async def handle_request_stream(
+            request_stream: AgentStream[None, Any],
+        ) -> AsyncGenerator[str, None]:
+            # Track the current text and reasoning ids
+            current_text_id: str | None = None
+            current_reasoning_id: str | None = None
+
+            final_result_found = False
+
+            async for event in request_stream:
+                if isinstance(event, PartStartEvent):
+                    if isinstance(event.part, TextPart):
+                        current_text_id = event.part.id or generate_id("text")
+                        yield TextStartPart(current_text_id).to_str()
+                    elif isinstance(event.part, ThinkingPart):
+                        current_reasoning_id = event.part.id or generate_id(
+                            "reasoning"
+                        )
+                        yield ReasoningStartPart(current_reasoning_id).to_str()
+                    elif isinstance(
+                        event.part,
+                        (ToolCallPart, BuiltinToolCallPart),
+                    ):
+                        yield ToolInputStartPart(
+                            event.part.tool_name,
+                            event.part.tool_call_id,
+                        ).to_str()
+                    elif isinstance(event.part, FilePart):
+                        LOGGER.warning(
+                            f"FilePart starts not supported yet: {event.part}"
+                        )
+                    elif isinstance(event.part, BuiltinToolReturnPart):
+                        yield ToolOutputAvailablePart(
+                            event.part.tool_call_id,
+                            event.part.model_response_object(),
+                        ).to_str()
+                    else:
+                        log_never(event.part)
+
+                elif isinstance(event, PartDeltaEvent):
+                    if isinstance(event.delta, TextPartDelta):
+                        if not current_text_id:
+                            LOGGER.error(
+                                f"TextPartDelta without text_id: {event.delta}"
+                            )
+                            continue
+                        yield TextDeltaPart(
+                            current_text_id,
+                            event.delta.content_delta,
+                        ).to_str()
+                    elif isinstance(event.delta, ThinkingPartDelta):
+                        if not current_reasoning_id:
+                            LOGGER.error(
+                                f"ThinkingPartDelta without reasoning_id: {event.delta}"
+                            )
+                            continue
+                        yield ReasoningDeltaPart(
+                            current_reasoning_id,
+                            event.delta.content_delta or "",
+                        ).to_str()
+                    elif isinstance(event.delta, ToolCallPartDelta):
+                        tool_call_id = event.delta.tool_call_id
+                        if not tool_call_id:
+                            LOGGER.debug(
+                                f"ToolCallPartDelta without tool_call_id: {event.delta}"
+                            )
+                            tool_call_id = generate_id("tool_call")
+
+                        if event.delta.tool_name_delta:
+                            LOGGER.debug(
+                                f"ToolCallPartDelta updating tool_call_name: {event.delta.tool_name_delta}"
+                            )
+
+                        args_delta = event.delta.args_delta
+                        args_delta_str = (
+                            args_delta
+                            if isinstance(args_delta, str)
+                            else json.dumps(args_delta)
+                        )
+                        yield ToolInputDeltaPart(
+                            tool_call_id, args_delta_str
+                        ).to_str()
+                    else:
+                        log_never(event.delta)
+
+                elif isinstance(event, PartEndEvent):
+                    if isinstance(event.part, TextPart):
+                        if event.part.has_content():
+                            LOGGER.warning(
+                                f"TextPartEnd has unexpected content: {event.part.content}"
+                            )
+                        if not current_text_id:
+                            LOGGER.error(
+                                f"TextPartEnd without text_id: {event.part}"
+                            )
+                            continue
+                        yield TextEndPart(current_text_id).to_str()
+                        # Reset for next text part
+                        current_text_id = None
+                    elif isinstance(event.part, ThinkingPart):
+                        if event.part.has_content():
+                            LOGGER.warning(
+                                f"ThinkingPartEnd has unexpected content: {event.part.content}"
+                            )
+                        if not current_reasoning_id:
+                            LOGGER.error(
+                                f"ThinkingPartEnd without reasoning_id: {event.part}"
+                            )
+                            continue
+                        yield ReasoningEndPart(current_reasoning_id).to_str()
+                        # Reset for next reasoning part
+                        current_reasoning_id = None
+                    elif isinstance(
+                        event.part,
+                        (ToolCallPart, BuiltinToolCallPart),
+                    ):
+                        yield ToolOutputAvailablePart(
+                            event.part.tool_call_id,
+                            event.part.args_as_dict(),
+                        ).to_str()
+                    elif isinstance(event.part, FilePart):
+                        LOGGER.warning(
+                            f"FilePart ends not supported yet: {event.part}"
+                        )
+                    elif isinstance(event.part, BuiltinToolReturnPart):
+                        yield ToolOutputAvailablePart(
+                            event.part.tool_call_id,
+                            event.part.model_response_object(),
+                        ).to_str()
+                    else:
+                        log_never(event.part)
+
+                elif isinstance(event, FinalResultEvent):
+                    if event.tool_name:
+                        # Final event is a tool output event
+                        if not event.tool_call_id:
+                            LOGGER.error(
+                                "FinalResultEvent is a tool output event without tool_call_id"
+                            )
+                            continue
+                        yield ToolOutputAvailablePart(
+                            event.tool_call_id, output={}
+                        ).to_str()
+                    final_result_found = True
+                    break
+                else:
+                    log_never(event)
+
+            # Response of the model
+            if final_result_found:
+                # Reset the current text and reasoning ids
+                current_text_id = None
+                current_reasoning_id = None
+
+                async for text_stream in request_stream.stream_text(
+                    delta=True
+                ):
+                    if current_text_id is None:
+                        current_text_id = generate_id("text")
+                        yield TextStartPart(current_text_id).to_str()
+                        yield TextDeltaPart(
+                            current_text_id, text_stream
+                        ).to_str()
+                    else:
+                        yield TextDeltaPart(
+                            current_text_id, text_stream
+                        ).to_str()
+
+                # Close the text part
+                if current_text_id:
+                    yield TextEndPart(current_text_id).to_str()
+
+                # Can also use stream_output for structured outputs
+                # async for stream_response in request_stream.stream_responses():
+                #     LOGGER.debug(f"Usage cost: {stream_response.cost()}")
+                #     for part in stream_response.parts:
+                #         if isinstance(part, TextPart):
+                #             if current_text_id is None:
+                #                 current_text_id = part.id or generate_id("text")
+                #                 yield TextStartPart(current_text_id).to_str()
+                #             else:
+                #                 yield TextDeltaPart(current_text_id, part.content).to_str()
+                #         elif isinstance(part, ThinkingPart):
+                #             if current_reasoning_id is None:
+                #                 current_reasoning_id = part.id or generate_id("reasoning")
+                #                 yield ReasoningStartPart(current_reasoning_id).to_str()
+                #             else:
+                #                 yield ReasoningDeltaPart(current_reasoning_id, part.content).to_str()
+                #         elif isinstance(part, (ToolCallPart, BuiltinToolCallPart)):
+                #             LOGGER.warning(f"ToolCallPart or BuiltinToolCallPart not supported yet: {part}")
+                #         elif isinstance(part, BuiltinToolReturnPart):
+                #             yield ToolOutputAvailablePart(part.tool_call_id, part.model_response_object()).to_str()
+                #         elif isinstance(part, FilePart):
+                #             LOGGER.warning(f"FilePart not supported yet: {part}")
+                #         else:
+                #             LOGGER.warning(f"Unknown response part not supported yet: {part}")
+
+        async with response as run:
+            async for node in run:
+                if Agent.is_user_prompt_node(node):
+                    LOGGER.debug("User prompt node received, handling...")
+                elif Agent.is_model_request_node(node):
+                    # Stream tokens from the model's request
+                    async with node.stream(run.ctx) as request_stream:
+                        async for value in handle_request_stream(
+                            request_stream
+                        ):
+                            yield value
+
+                elif Agent.is_call_tools_node(node):
+                    # A handle-response node => The model returned some data, potentially calls a tool
+                    async with node.stream(run.ctx) as handle_stream:
+                        async for event in handle_stream:
+                            if value := handle_response_event(event):
+                                yield value
+
+                elif Agent.is_end_node(node):
+                    # Agent run is complete
+                    assert run.result is not None
+                    assert run.result.output == node.data.output
+                    yield FinishMessagePart().to_str()
+
+                else:
+                    LOGGER.warning(
+                        f"Unknown AgentNode not supported yet: {node}"
+                    )
 
 
 class CompletionProvider(Generic[ResponseT, StreamT], ABC):
@@ -359,15 +731,8 @@ class CompletionProvider(Generic[ResponseT, StreamT], ABC):
                     if not tool_call:
                         continue
 
-                    if isinstance(self, GoogleProvider):
-                        # For GoogleProvider, each chunk contains the full (possibly updated) args dict as a JSON string.
-                        # Example: first chunk: {"location": "San Francisco"}
-                        #          second chunk: {"location": "San Francisco", "zip": "94107"}
-                        # We overwrite tool_call_args with the latest chunk.
-                        tool_call.tool_call_args = tool_call_delta
-                    else:
-                        # For other providers, tool_call_args is built up incrementally from deltas.
-                        tool_call.tool_call_args += tool_call_delta
+                    # tool_call_args is built up incrementally from deltas.
+                    tool_call.tool_call_args += tool_call_delta
                     # update tool_call_delta to ai-sdk-ui structure
                     # based on https://ai-sdk.dev/docs/ai-sdk-ui/stream-protocol#tool-call-delta-part
                     content_data = {
@@ -909,191 +1274,6 @@ class AnthropicProvider(
         return None
 
 
-class GoogleProvider(
-    CompletionProvider[
-        "GenerateContentResponse", "AsyncIterator[GenerateContentResponse]"
-    ]
-):
-    # Based on the docs:
-    # https://cloud.google.com/vertex-ai/generative-ai/docs/thinking
-    THINKING_MODEL_PREFIXES = [
-        "gemini-2.5-pro",
-        "gemini-2.5-flash",
-    ]
-
-    # Keep a persistent async client to avoid closing during stream iteration
-    _client: Optional[GoogleClient] = None
-
-    def is_thinking_model(self, model: str) -> bool:
-        return any(
-            model.startswith(prefix) for prefix in self.THINKING_MODEL_PREFIXES
-        )
-
-    def get_config(
-        self,
-        system_prompt: str,
-        max_tokens: int,
-        additional_tools: list[ToolDefinition],
-    ) -> GenerateContentConfig:
-        tools = self.config.tools
-        config = {
-            "system_instruction": system_prompt,
-            "temperature": 0,
-            "max_output_tokens": max_tokens,
-        }
-        if tools:
-            all_tools = tools + additional_tools
-            config["tools"] = convert_to_google_tools(all_tools)
-        if self.is_thinking_model(self.model):
-            config["thinking_config"] = {
-                "include_thoughts": True,
-            }
-        return cast("GenerateContentConfig", config)
-
-    def get_client(self, config: AnyProviderConfig) -> GoogleClient:
-        try:
-            from google import genai
-        except ImportError:
-            DependencyManager.google_ai.require(
-                why="for AI assistance with Google AI"
-            )
-            from google import genai  # type: ignore
-
-        # Reuse a stored async client if already created
-        if self._client is not None:
-            return self._client
-
-        # If no API key is provided, try to use environment variables and ADC
-        # This supports Google Vertex AI usage without explicit API keys
-        if not config.api_key:
-            # Check if GOOGLE_GENAI_USE_VERTEXAI is set to enable Vertex AI mode
-            use_vertex = (
-                os.getenv("GOOGLE_GENAI_USE_VERTEXAI", "").lower() == "true"
-            )
-            if use_vertex:
-                project = os.getenv("GOOGLE_CLOUD_PROJECT")
-                location = os.getenv("GOOGLE_CLOUD_LOCATION", "us-central1")
-                self._client = genai.Client(
-                    vertexai=True, project=project, location=location
-                ).aio
-            else:
-                # Try default initialization which may work with environment variables
-                self._client = genai.Client().aio
-
-            # Return vertex or default client
-            return self._client
-
-        self._client = genai.Client(api_key=config.api_key).aio
-        return self._client
-
-    async def stream_completion(
-        self,
-        messages: list[ChatMessage],
-        system_prompt: str,
-        max_tokens: int,
-        additional_tools: list[ToolDefinition],
-    ) -> AsyncIterator[GenerateContentResponse]:
-        client = self.get_client(self.config)
-        return await client.models.generate_content_stream(  # type: ignore[reportReturnType]
-            model=self.model,
-            contents=convert_to_google_messages(messages),
-            config=self.get_config(
-                system_prompt=system_prompt,
-                max_tokens=max_tokens,
-                additional_tools=additional_tools,
-            ),
-        )
-
-    def _get_tool_call_id(self, tool_call_id: Optional[str]) -> str:
-        # Custom tools don't have an id, so we have to generate a random uuid
-        # https://ai.google.dev/gemini-api/docs/function-calling?example=meeting
-        if not tool_call_id:
-            # generate a random uuid
-            return str(uuid.uuid4())
-        return tool_call_id
-
-    def extract_content(
-        self,
-        response: GenerateContentResponse,
-        tool_call_ids: Optional[list[str]] = None,
-    ) -> Optional[ExtractedContentList]:
-        tool_call_ids = tool_call_ids or []
-        if not response.candidates:
-            return None
-
-        candidate = response.candidates[0]
-        if not candidate or not candidate.content:
-            return None
-
-        if not candidate.content.parts:
-            return None
-
-        # Build events by first scanning parts and rectifying tool calls by position
-        content: ExtractedContentList = []
-        function_call_index = -1
-        seen_in_frame: set[int] = set()
-
-        for part in candidate.content.parts:
-            # Handle function calls (may appear multiple times per chunk)
-            if part.function_call:
-                function_call_index += 1
-                # Resolve a stable id by position if provided from the caller; else synthesize
-                stable_id = (
-                    tool_call_ids[function_call_index]
-                    if function_call_index < len(tool_call_ids)
-                    and tool_call_ids[function_call_index]
-                    else self._get_tool_call_id(part.function_call.id)
-                )
-
-                # First sight of this call index in this frame => emit start
-                if function_call_index not in seen_in_frame:
-                    tool_info = {
-                        "toolCallId": stable_id,
-                        "toolName": part.function_call.name,
-                        "args": json.dumps(part.function_call.args),
-                    }
-                    content.append((tool_info, "tool_call_start"))
-                    seen_in_frame.add(function_call_index)
-                else:
-                    # Subsequent occurrences for the same index => treat as delta (snapshot semantics)
-                    if part.function_call.args is not None:
-                        tool_delta = {
-                            "toolCallId": stable_id,
-                            "inputTextDelta": json.dumps(
-                                part.function_call.args
-                            ),
-                        }
-                        content.append((tool_delta, "tool_call_delta"))
-                continue
-
-            # Text/Reasoning handling
-            if part.text:
-                if part.thought:
-                    content.append((part.text, "reasoning"))
-                else:
-                    content.append((part.text, "text"))
-                continue
-
-            # Ignore other non-text parts (e.g., images) at this layer
-            continue
-
-        return content
-
-    def get_finish_reason(
-        self, response: GenerateContentResponse
-    ) -> Optional[FinishReason]:
-        if not response.candidates:
-            return None
-        first_candidate = response.candidates[0]
-        if first_candidate.content and first_candidate.content.parts:
-            for part in first_candidate.content.parts:
-                if part.function_call:
-                    return "tool_calls"
-        if response.candidates and response.candidates[0].finish_reason:
-            return "stop"
-        return None
-
-
 class BedrockProvider(
     CompletionProvider[
         "LitellmStreamResponse",
@@ -1226,13 +1406,13 @@ class BedrockProvider(
 
 def get_completion_provider(
     config: AnyProviderConfig, model: str
-) -> CompletionProvider[Any, Any]:
+) -> CompletionProvider[Any, Any] | PydanticGoogleProvider:
     model_id = AiModelId.from_model(model)
 
     if model_id.provider == "anthropic":
         return AnthropicProvider(model_id.model, config)
     elif model_id.provider == "google":
-        return GoogleProvider(model_id.model, config)
+        return PydanticGoogleProvider(model_id.model, config)
     elif model_id.provider == "bedrock":
         return BedrockProvider(model_id.model, config)
     elif model_id.provider == "azure":
