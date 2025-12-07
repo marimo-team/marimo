@@ -161,8 +161,11 @@ class PydanticGoogleProvider:
         if use_vertex:
             project = os.getenv("GOOGLE_CLOUD_PROJECT")
             location = os.getenv("GOOGLE_CLOUD_LOCATION", "us-central1")
-            provider = GoogleProvider(  # pyright: ignore[reportCallIssue]
-                vertexai=True, project=project, location=location
+            provider = GoogleProvider(
+                # pyright: ignore[reportCallIssue]
+                vertexai=True,
+                project=project,
+                location=location,
             )
         else:
             # Try default initialization which may work with environment variables
