@@ -375,7 +375,7 @@ def form_toolsets(
     tool_invoker: Callable[[str, dict[str, Any]], Any],
 ) -> FunctionToolset:
     """
-    Because we have a list of tool defintions and call them in a separate event loop,
+    Because we have a list of tool definitions and call them in a separate event loop,
     we create a toolset that will call the tool invoker for each tool.
     Ref: https://ai.pydantic.dev/toolsets/#function-toolset
     """
