@@ -14,4 +14,3 @@ def assert_never(value: NoReturn) -> NoReturn:
 
 def log_never(value: NoReturn) -> None:
     LOGGER.warning("Unexpected value: %s (%s)", value, type(value).__name__)
-    return value
