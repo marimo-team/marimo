@@ -365,7 +365,7 @@ class NarwhalsTransformHandler(TransformHandler[DataFrame]):
 
     @staticmethod
     def handle_pivot(df: DataFrame, transform: PivotTransform) -> DataFrame:
-        return (
+        pivot_df = (
             df.collect()
             .pivot(
                 on=transform.column_ids,
@@ -375,6 +375,9 @@ class NarwhalsTransformHandler(TransformHandler[DataFrame]):
             )
             .lazy()
         )
+        rename_column = lambda column: f'{column.translate(str.maketrans({'{': '', '}': '', '"': '', ',': '_'}))}_{transform.aggregation}'
+        pivot_df = pivot_df.rename({column: rename_column(column) for column in pivot_df.columns})
+        return pivot_df
 
     @staticmethod
     def as_python_code(

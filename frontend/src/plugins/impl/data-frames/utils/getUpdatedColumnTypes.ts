@@ -10,7 +10,7 @@ import type { ColumnDataTypes, ColumnId } from "../types";
 export function getUpdatedColumnTypes(
   transforms: TransformType[],
   columnTypes: ColumnDataTypes,
-  uniqueColumnValues: Record<string, any[]>,
+  uniqueColumnValues: Record<string, unknown[]>,
 ): ColumnDataTypes {
   if (!transforms || transforms.length === 0) {
     return columnTypes;
@@ -24,10 +24,18 @@ export function getUpdatedColumnTypes(
   return next;
 }
 
+function cartesianProduct<T>(arrays: T[][]): T[][] {
+  return arrays.reduce<T[][]>(
+    (acc, curr) =>
+      acc.flatMap(a => curr.map(c => [...a, c])),
+    [[]]
+  );
+}
+
 function handleTransform(
   transform: TransformType,
   next: ColumnDataTypes,
-  uniqueColumnValues: Record<string, any[]>
+  uniqueColumnValues: Record<string, unknown[]>
 ): ColumnDataTypes {
   switch (transform.type) {
     case "column_conversion":
@@ -86,9 +94,10 @@ function handleTransform(
         return values;
       })
 
-      const newColumns = uniqueValues.reduce((acc, curr) => acc.flatMap(a => curr.map(b => [...a, b])),[[]]).map(comb => comb.join("_"));
-      for (const newCol of newColumns) {
-        updated.set(newCol as ColumnId, transform.aggregation === "count" ? "int64" : "float64");
+      const rawColumns = [transform.value_column_ids, ...uniqueValues]
+      const newColumns = cartesianProduct(rawColumns).map(comb => `${(comb as string[]).join("_")}_${transform.aggregation}`);
+      for (const newColumn of newColumns) {
+        updated.set(newColumn as ColumnId, transform.aggregation === "count" ? "int64" : "float64");
       }
 
       return updated;

@@ -118,7 +118,7 @@ export const TransformPanel: React.FC<Props> = ({
     return getUnionLiteral(option).value === selectedTransformType;
   });
 
-  const [columnValueCache, setColumnValueCache] = useState<Record<string, any[]>>({});
+  const [columnValueCache, setColumnValueCache] = useState<Record<string, unknown[]>>({});
 
   useEffect(() => {
     async function fetchUniqueValues() {
