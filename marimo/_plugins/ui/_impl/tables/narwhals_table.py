@@ -93,8 +93,11 @@ class NarwhalsTableManager(
         return dataframe_to_csv(_data)
 
     def to_json_str(
-        self, format_mapping: Optional[FormatMapping] = None
+        self,
+        format_mapping: Optional[FormatMapping] = None,
+        strict_json: bool = False,
     ) -> str:
+        del strict_json
         frame = self.apply_formatting(format_mapping).as_frame()
         return sanitize_json_bigint(frame.rows(named=True))
 
