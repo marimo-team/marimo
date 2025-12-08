@@ -1,6 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import { closeCompletion, completionStatus } from "@codemirror/autocomplete";
+import { simplifySelection } from "@codemirror/commands";
 import type { EditorView } from "@codemirror/view";
 import { useAtomValue, useSetAtom, useStore } from "jotai";
 import { useMemo } from "react";
@@ -34,7 +35,6 @@ import {
 } from "./selection";
 import { useTemporarilyShownCodeActions } from "./state";
 import { handleVimKeybinding } from "./vim-bindings";
-import { simplifySelection } from "@codemirror/commands";
 
 interface HotkeyHandler {
   handle: (cellId: CellId) => boolean;
