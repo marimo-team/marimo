@@ -25,6 +25,8 @@ export interface AgentSession {
   lastUsedAt: number;
   // Store the actual agent session ID for resumption
   externalAgentSessionId: ExternalAgentSessionId | null;
+  // Selected model for this session (null = agent default)
+  selectedModel: string | null;
 }
 
 export interface AgentSessionState {
@@ -82,6 +84,7 @@ export function addSession(
   session: {
     agentId: ExternalAgentId;
     firstMessage?: string;
+    model?: string | null;
   },
 ): AgentSessionState {
   const sessionSupport = getAgentSessionSupport(session.agentId);
@@ -111,6 +114,7 @@ export function addSession(
         lastUsedAt: now,
         tabId: existingSession.tabId, // Keep the same ID to maintain tab reference
         externalAgentSessionId: null, // Clear the external session ID
+        selectedModel: session.model ?? existingSession.selectedModel ?? null,
       };
 
       return {
@@ -133,6 +137,7 @@ export function addSession(
         createdAt: now,
         lastUsedAt: now,
         externalAgentSessionId: null,
+        selectedModel: session.model ?? null,
       },
     ],
     activeTabId: tabId,
@@ -276,4 +281,25 @@ export function getAgentConnectionCommand(agentId: ExternalAgentId): string {
   const command = AGENT_CONFIG[agentId].command;
   const wrappedCommand = isPlatformWindows() ? `cmd /c ${command}` : command;
   return `npx stdio-to-ws "${wrappedCommand}" --port ${port}`;
+}
+
+/**
+ * Update the selected model for the currently active session
+ */
+export function updateSessionModel(
+  state: AgentSessionState,
+  model: string | null,
+): AgentSessionState {
+  const selectedTab = state.activeTabId;
+  if (!selectedTab) {
+    return state;
+  }
+  return {
+    ...state,
+    sessions: state.sessions.map((session) =>
+      session.tabId === selectedTab
+        ? { ...session, selectedModel: model }
+        : session,
+    ),
+  };
 }

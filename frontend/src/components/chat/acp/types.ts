@@ -2,6 +2,12 @@
 import type { ContentBlock } from "@zed-industries/agent-client-protocol";
 import type { groupNotifications, useAcpClient } from "use-acp";
 
+// Re-export model types for use in the app
+export type {
+  ModelInfo,
+  SessionModelState,
+} from "@zed-industries/agent-client-protocol";
+
 export type SessionMode = ReturnType<typeof useAcpClient>["sessionMode"];
 
 export type NotificationEvent = Awaited<
