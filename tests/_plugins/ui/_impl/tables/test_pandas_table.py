@@ -4,6 +4,7 @@ import datetime
 import decimal
 import json
 import unittest
+import warnings
 from math import isnan, nan
 from typing import Any
 from unittest.mock import Mock
@@ -888,6 +889,20 @@ class TestPandasTableManager(unittest.TestCase):
         assert manager.search("yyy").get_num_rows() == 0
         assert manager.search("y").get_num_rows() == 0
 
+    def test_search_string_column_with_nulls(self) -> None:
+        """
+        Test that string columns with null values can be searched after casting.
+        """
+        df = pd.DataFrame(
+            {"name": [float("nan")] * 4 + ["Alice"]},
+        )
+        manager = self.factory.create()(df)
+
+        # Search without raising errors
+        assert manager.search("alice").get_num_rows() == 1
+        assert manager.search("bob").get_num_rows() == 0
+        assert manager.search("nan").get_num_rows() == 4
+
     def test_apply_formatting_does_not_modify_original_data(self) -> None:
         original_data = self.data.copy()
         format_mapping = {
@@ -1498,6 +1513,40 @@ class TestPandasTableManager(unittest.TestCase):
 
         assert json_data[0]["date_series"] == "2000-01-01"
         assert json_data[1]["date_series"] == "2000-01-02"
+
+    def test_to_json_str_strict_json(self) -> None:
+        import pandas as pd
+
+        df = pd.DataFrame({"A": [1, 2, 3]})
+        manager = self.factory.create()(df)
+        json_str = manager.to_json_str(strict_json=True)
+        assert json_str == '[{"A":1},{"A":2},{"A":3}]'
+
+    def test_to_json_str_strict_json_with_nans(self) -> None:
+        import pandas as pd
+
+        df_with_nans_infs = pd.DataFrame(
+            {"A": [1, 2, 3, float("nan"), float("inf")]}
+        )
+        manager = self.factory.create()(df_with_nans_infs)
+        json_str = manager.to_json_str(strict_json=True)
+        assert (
+            json_str == '[{"A":1.0},{"A":2.0},{"A":3.0},{"A":null},{"A":null}]'
+        )
+
+    def test_to_json_str_strict_json_with_complex_data(self) -> None:
+        # Ensure does not fail with complex data
+        complex_data = self.get_complex_data()
+        json_str = complex_data.to_json_str(strict_json=True)
+
+        # Snapshot complex data without erroring cols
+        with warnings.catch_warnings(record=True) as w:
+            complex_data_strict = complex_data.drop_columns(
+                ["bytes", "decimals"]
+            )
+            json_str_strict = complex_data_strict.to_json_str(strict_json=True)
+            snapshot("pandas.download.json", json_str_strict)
+            assert len(w) == 0, "Unexpected warnings raised"
 
     def test_handle_integer_column_names_no_mutation(self) -> None:
         import pandas as pd

@@ -103,7 +103,9 @@ class DefaultTableManager(TableManager[JsonTableData]):
     def to_json_str(
         self,
         format_mapping: Optional[FormatMapping] = None,
+        strict_json: bool = False,
     ) -> str:
+        del strict_json
         normalized = self._normalize_data(
             self.apply_formatting(format_mapping).data
         )

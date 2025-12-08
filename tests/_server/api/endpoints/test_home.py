@@ -35,6 +35,11 @@ def test_workspace_files(client: TestClient) -> None:
     files = body["files"]
     assert len(files) == 1
     assert files[0]["path"] == current_filename
+    # Check that new fields are present
+    assert "hasMore" in body
+    assert "fileCount" in body
+    assert body["hasMore"] is False
+    assert body["fileCount"] == 1
 
 
 @with_session(SESSION_ID)

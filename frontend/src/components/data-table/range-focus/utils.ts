@@ -1,8 +1,8 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import type { Table } from "@tanstack/react-table";
-import { renderUnknownValue } from "../renderers";
 import { SELECT_COLUMN_ID } from "../types";
+import { stringifyUnknownValue } from "../utils";
 import type { SelectedCell } from "./atoms";
 
 /**
@@ -32,7 +32,7 @@ export function getCellValues<TData>(
     }
 
     const values = rowValues.get(rowId) ?? [];
-    values.push(renderUnknownValue({ value: tableCell.getValue() }));
+    values.push(stringifyUnknownValue({ value: tableCell.getValue() }));
     rowValues.set(rowId, values);
   }
 

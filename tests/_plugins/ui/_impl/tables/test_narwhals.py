@@ -4,6 +4,7 @@ import datetime
 import json
 import time
 import unittest
+from decimal import Decimal
 from math import isnan
 from typing import TYPE_CHECKING, Any
 
@@ -17,6 +18,9 @@ from marimo._plugins.ui._impl.input import button
 from marimo._plugins.ui._impl.table import SortArgs
 from marimo._plugins.ui._impl.tables.format import FormatMapping
 from marimo._plugins.ui._impl.tables.narwhals_table import (
+    NAN_VALUE,
+    NEGATIVE_INF,
+    POSITIVE_INF,
     NarwhalsTableManager,
 )
 from marimo._plugins.ui._impl.tables.table_manager import (
@@ -528,6 +532,57 @@ class TestNarwhalsTableManagerFactory(unittest.TestCase):
         # TODO: Unsupported by narwhals
         assert manager.search("yyy").get_num_rows() == 0
         assert manager.search("y").get_num_rows() == 0
+
+    def test_search_with_pandas_object_dtype(self) -> None:
+        import pandas as pd
+
+        # Create a pandas DataFrame with object dtype columns (mimicking real-world data)
+        df = pd.DataFrame(
+            {
+                "metric": ["AdrAct30dCnt", "AdrAct7dCnt", "AdrActBlobCnt"],
+                "full_name": [
+                    "Addresses, active, monthly, count",
+                    "Addresses, active, weekly, count",
+                    "Addresses, active, blob, count",
+                ],
+                "description": [
+                    "The sum count of unique addresses",
+                    "The sum count of unique addresses",
+                    "The sum count of unique addresses",
+                ],
+                "product": ["Network Data", "Network Data", "Network Data"],
+                "category": ["Addresses", "Addresses", "Transactions"],
+                "subcategory": ["Active", "Active", "Blobs"],
+            }
+        )
+
+        manager = NarwhalsTableManager.from_dataframe(df)
+
+        # This should work but might fail with "Can only use .str accessor with string values!"
+        result = manager.search("flow")
+        assert result.get_num_rows() == 0
+
+        result = manager.search("active")
+        assert (
+            result.get_num_rows() == 3
+        )  # Should match "active" in full_name (all rows) and subcategory
+
+    def test_search_with_pandas_categorical(self) -> None:
+        import pandas as pd
+
+        # Create a pandas DataFrame with categorical columns
+        df = pd.DataFrame(
+            {
+                "category": pd.Categorical(["cat1", "cat2", "cat3"]),
+                "value": [1, 2, 3],
+            }
+        )
+
+        manager = NarwhalsTableManager.from_dataframe(df)
+
+        # Search for "cat" should match all rows
+        result = manager.search("cat")
+        assert result.get_num_rows() == 3
 
     def test_apply_formatting_does_not_modify_original_data(self) -> None:
         original_data = self.data.clone()
@@ -1052,6 +1107,45 @@ def _round_bin_values(bin_values: list[BinValue]) -> list[BinValue]:
 @pytest.mark.parametrize(
     "df",
     create_dataframes(
+        {"decimals": [Decimal(i) for i in range(201)]},
+        exclude=[
+            # Pandas doesn't support decimal types (instead is Object)
+            "pandas"
+        ],
+    ),
+)
+def test_get_bin_values_decimal(df: Any) -> None:
+    """Test that get_bin_values works correctly with decimal columns."""
+    dtype = nw.from_native(df).collect_schema()["decimals"]
+    assert dtype.is_decimal(), (
+        f"Decimal column not found in schema: {dtype} (type {type(df)})"
+    )
+
+    manager = NarwhalsTableManager.from_dataframe(df)
+
+    # This should not raise an error
+    bin_values = manager.get_bin_values("decimals", 5)
+
+    # Verify we got valid bin values
+    assert len(bin_values) == 5
+    assert all(isinstance(bv, BinValue) for bv in bin_values)
+    assert all(isinstance(bv.count, int) for bv in bin_values)
+    assert all(isinstance(bv.bin_start, (int, float)) for bv in bin_values)
+    assert all(isinstance(bv.bin_end, (int, float)) for bv in bin_values)
+
+    # Verify the bins cover the expected range (0 to 200)
+    assert bin_values[0].bin_start == 0.0
+    assert bin_values[-1].bin_end == 200.0
+
+    # Verify all rows are counted
+    total_count = sum(bv.count for bv in bin_values)
+    assert total_count == 201
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+@pytest.mark.parametrize(
+    "df",
+    create_dataframes(
         {
             "int": [1, 2, 3, 4, 5],
             "time": [
@@ -1365,12 +1459,15 @@ def test_calculate_top_k_rows(df: Any) -> None:
     manager = NarwhalsTableManager.from_dataframe(df)
     result = manager.calculate_top_k_rows("A", 10)
     normalized_result = _normalize_result(result)
-    assert normalized_result == [(3, 3), (None, 2), (1, 1), (2, 1)]
+
+    # Pandas considers None as nan sometimes
+    none_value = NAN_VALUE if nw.dependencies.is_pandas_dataframe(df) else None
+    assert normalized_result == [(3, 3), (none_value, 2), (1, 1), (2, 1)]
 
     # Test with limit
     result = manager.calculate_top_k_rows("A", 2)
     normalized_result = _normalize_result(result)
-    assert normalized_result == [(3, 3), (None, 2)]
+    assert normalized_result == [(3, 3), (none_value, 2)]
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
@@ -1400,12 +1497,85 @@ def test_calculate_top_k_rows_dicts(df: Any) -> None:
     assert result == [({"a": 1, "b": 2}, 2), ({"a": 3, "b": 4}, 1)]
 
 
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+@pytest.mark.parametrize(
+    "df",
+    create_dataframes(
+        {"A": [float("nan"), float("nan"), float("nan"), 1.0, 2.0, 2.0]},
+        include=SUPPORTED_LIBS,
+    ),
+)
+def test_calculate_top_k_rows_with_nan(df: Any) -> None:
+    """Test that NaN values are converted to NAN_VALUE string in calculate_top_k_rows."""
+
+    manager = NarwhalsTableManager.from_dataframe(df)
+    result = manager.calculate_top_k_rows("A", 10)
+
+    # Ibis serializes nans as None
+    none_value = None if nw.dependencies.is_ibis_table(df) else NAN_VALUE
+    # NaN values should be converted to NAN_VALUE string
+    assert result == [(none_value, 3), (2.0, 2), (1.0, 1)]
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+@pytest.mark.parametrize(
+    "df",
+    create_dataframes(
+        {
+            "A": [
+                float("nan"),
+                float("nan"),
+                float("inf"),
+                float("inf"),
+                float("-inf"),
+                1.0,
+                2.0,
+            ]
+        },
+        include=SUPPORTED_LIBS,
+    ),
+)
+def test_calculate_top_k_rows_with_all_special_floats(df: Any) -> None:
+    """Test that NaN, positive infinity, and negative infinity are all handled correctly."""
+    manager = NarwhalsTableManager.from_dataframe(df)
+    result = manager.calculate_top_k_rows("A", 10)
+
+    # Ibis serializes nans as None
+    none_value = None if nw.dependencies.is_ibis_table(df) else NAN_VALUE
+
+    pandas_pyarrow_ibis = (
+        nw.dependencies.is_pandas_dataframe(df)
+        or nw.dependencies.is_pyarrow_table(df)
+        or nw.dependencies.is_ibis_table(df)
+    )
+
+    # Different libraries order NaNs and Infs differently
+    if pandas_pyarrow_ibis:
+        assert result == [
+            (none_value, 2),
+            (POSITIVE_INF, 2),
+            (NEGATIVE_INF, 1),
+            (1.0, 1),
+            (2.0, 1),
+        ]
+    else:
+        assert result == [
+            (POSITIVE_INF, 2),
+            (NAN_VALUE, 2),
+            (NEGATIVE_INF, 1),
+            (1.0, 1),
+            (2.0, 1),
+        ]
+
+
 def _normalize_result(result: list[tuple[Any, int]]) -> list[tuple[Any, int]]:
     """Normalize None and NaN values for comparison."""
-    return [
-        (None if val is None or isnan(val) else val, count)
-        for val, count in result
-    ]
+    out: list[tuple[Any, int]] = []
+    for val, count in result:
+        if isinstance(val, (float, int)) and isnan(val):
+            val = NAN_VALUE
+        out.append((val, count))
+    return out
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")

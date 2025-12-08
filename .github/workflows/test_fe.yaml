@@ -35,7 +35,6 @@ jobs:
     timeout-minutes: 10
     defaults:
       run:
-        working-directory: ./frontend
         shell: bash
 
     steps:
@@ -84,7 +83,7 @@ jobs:
         run: pnpm turbo typecheck
 
       - name: 🧪 Test
-        run: pnpm test
+        run: pnpm turbo test
 
   build_frontend:
     needs: changes
@@ -128,8 +127,8 @@ jobs:
       - name: 📦 Build islands frontend
         env:
           NODE_ENV: production
-          VITE_MARIMO_ISLANDS: 'true'
-          VITE_MARIMO_VERSION: '0.0.0'
+          VITE_MARIMO_ISLANDS: "true"
+          VITE_MARIMO_VERSION: "0.0.0"
         run: |
           npm version 0.0.0 --no-git-tag-version
           pnpm turbo build:islands

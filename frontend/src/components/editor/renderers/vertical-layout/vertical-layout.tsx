@@ -29,7 +29,7 @@ import { isOutputEmpty } from "@/core/cells/outputs";
 import type { CellData, CellRuntimeState } from "@/core/cells/types";
 import { MarkdownLanguageAdapter } from "@/core/codemirror/language/languages/markdown";
 import { useResolvedMarimoConfig } from "@/core/config/config";
-import { KnownQueryParams } from "@/core/constants";
+import { CSSClasses, KnownQueryParams } from "@/core/constants";
 import type { OutputMessage } from "@/core/kernel/messages";
 import { showCodeInRunModeAtom } from "@/core/meta/state";
 import { isErrorMime } from "@/core/mime";
@@ -339,7 +339,7 @@ const VerticalCell = memo(
         <OutputArea
           allowExpand={true}
           output={output}
-          className="output-area"
+          className={CSSClasses.outputArea}
           cellId={cellId}
           stale={outputStale}
           loading={loading}
@@ -394,7 +394,7 @@ const VerticalCell = memo(
         <OutputArea
           allowExpand={mode === "edit"}
           output={output}
-          className="output-area"
+          className={CSSClasses.outputArea}
           cellId={cellId}
           stale={outputStale}
           loading={loading}

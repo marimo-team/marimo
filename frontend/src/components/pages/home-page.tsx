@@ -169,6 +169,12 @@ const WorkspaceNotebooks: React.FC = () => {
   return (
     <WorkspaceRootContext value={workspace.root}>
       <div className="flex flex-col gap-2">
+        {workspace.hasMore && (
+          <Banner kind="warn" className="rounded p-4">
+            Showing first {workspace.fileCount} files. Your workspace has more
+            files.
+          </Banner>
+        )}
         <Header
           Icon={BookTextIcon}
           control={

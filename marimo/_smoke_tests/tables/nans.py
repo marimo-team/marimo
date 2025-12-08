@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.17.6"
+__generated_with = "0.18.2"
 app = marimo.App(width="medium")
 
 
@@ -31,10 +31,18 @@ def _(np, pd, pl):
 
 @app.cell
 def _(mo, np, pd):
-    pandas_df = pd.DataFrame(
+    pandas_df_obj = pd.DataFrame(
         {"nans": [1, None, pd.NaT, np.nan, pd.NA, np.inf, -np.inf]}
     )
-    mo.vstack([mo.plain(pandas_df), pandas_df])
+    mo.vstack([mo.plain(pandas_df_obj), pandas_df_obj])
+    return
+
+
+@app.cell
+def _(pd):
+    # Filtering NaNs work for float types
+    pandas_nan_float = pd.DataFrame({"nans": [1, 2, 3, 4, float("nan")]})
+    pandas_nan_float
     return
 
 

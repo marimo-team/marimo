@@ -85,10 +85,29 @@ class PandasTableManagerFactory(TableManagerFactory):
                 self,
                 format_mapping: Optional[FormatMapping] = None,
                 ensure_ascii: bool = True,
+                strict_json: bool = False,
             ) -> str:
-                def to_json(result: pd.DataFrame) -> list[dict[str, Any]]:
-                    # Use to_dict instead of to_json
-                    # nans, infs, -infs are properly serialized
+                def to_json(
+                    result: pd.DataFrame,
+                ) -> list[dict[str, Any]] | str:
+                    """
+                    to_dict preserves nans, infs and is more accurate than to_json.
+                    By default, we use to_dict unless strict_json is True
+                    """
+                    if strict_json:
+                        try:
+                            json_str = result.to_json(
+                                orient="records",
+                                date_format="iso",
+                                default_handler=str,
+                            )
+                            assert json_str is not None
+                            return json_str
+                        except Exception as e:
+                            LOGGER.warning(
+                                "Error serializing to JSON. Falling back to to_dict. Error: %s",
+                                e,
+                            )
                     return result.to_dict(orient="records")  # type: ignore
 
                 from pandas.api.types import (

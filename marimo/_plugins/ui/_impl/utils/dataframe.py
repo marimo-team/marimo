@@ -61,8 +61,9 @@ def download_as(
     if ext == "csv":
         return mo_data.csv(manager.to_csv(encoding=csv_encoding)).url
     elif ext == "json":
+        # Use strict JSON to ensure compliance with JSON spec
         return mo_data.json(
-            manager.to_json(encoding=None, ensure_ascii=json_ensure_ascii)
+            manager.to_json(encoding=None, ensure_ascii=json_ensure_ascii, strict_json=True)
         ).url
     elif ext == "parquet":
         return mo_data.parquet(manager.to_parquet()).url
