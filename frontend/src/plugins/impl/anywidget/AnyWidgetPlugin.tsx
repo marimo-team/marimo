@@ -2,7 +2,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import type { AnyWidget, Experimental } from "@anywidget/types";
-import { get, isEqual, set } from "lodash-es";
+import { isEqual } from "lodash-es";
 import { useEffect, useMemo, useRef } from "react";
 import { z } from "zod";
 import { MarimoIncomingMessageEvent } from "@/core/dom/events";
@@ -17,10 +17,10 @@ import { createPlugin } from "@/plugins/core/builder";
 import { rpc } from "@/plugins/core/rpc";
 import type { IPluginProps } from "@/plugins/types";
 import {
-  type Base64String,
-  byteStringToBinary,
-  typedAtob,
-} from "@/utils/json/base64";
+  decodeFromWire,
+  isWireFormat,
+  serializeBuffersToBase64,
+} from "@/utils/data-views";
 import { Logger } from "@/utils/Logger";
 import { ErrorBanner } from "../common/error-banner";
 import { MODEL_MANAGER, Model } from "./model";
@@ -29,8 +29,6 @@ interface Data {
   jsUrl: string;
   jsHash: string;
   css?: string | null;
-  bufferPaths?: (string | number)[][] | null;
-  initialValue: T;
 }
 
 type T = Record<string, any>;
@@ -46,10 +44,6 @@ export const AnyWidgetPlugin = createPlugin<T>("marimo-anywidget")
       jsUrl: z.string(),
       jsHash: z.string(),
       css: z.string().nullish(),
-      bufferPaths: z
-        .array(z.array(z.union([z.string(), z.number()])))
-        .nullish(),
-      initialValue: z.object({}).passthrough(),
     }),
   )
   .withFunctions<PluginFunctions>({
@@ -62,11 +56,22 @@ export const AnyWidgetPlugin = createPlugin<T>("marimo-anywidget")
 type Props = IPluginProps<T, Data, PluginFunctions>;
 
 const AnyWidgetSlot = (props: Props) => {
-  const { css, jsUrl, jsHash, bufferPaths } = props.data;
+  const { css, jsUrl, jsHash } = props.data;
 
+  // Decode wire format { state, bufferPaths, buffers } to state with DataViews
   const valueWithBuffers = useMemo(() => {
-    return resolveInitialValue(props.value, bufferPaths ?? []);
-  }, [props.value, bufferPaths]);
+    if (isWireFormat(props.value)) {
+      const decoded = decodeFromWire(props.value);
+      Logger.debug("AnyWidget decoded wire format:", {
+        bufferPaths: props.value.bufferPaths,
+        buffersCount: props.value.buffers?.length,
+        decodedKeys: Object.keys(decoded),
+      });
+      return decoded;
+    }
+    Logger.debug("AnyWidget value is not wire format:", props.value);
+    return props.value;
+  }, [props.value]);
 
   // JS is an ESM file with a render function on it
   // export function render({ model, el }) {
@@ -228,15 +233,23 @@ const LoadedSlot = ({
 }: Props & { widget: AnyWidget }) => {
   const htmlRef = useRef<HTMLDivElement>(null);
 
+  // Wrap setValue to serialize DataViews back to base64 before sending
+  // Structure matches ipywidgets protocol: { state, bufferPaths, buffers }
+  const wrappedSetValue = useMemo(() => {
+    return (partialValue: Partial<T>) => {
+      const { state, bufferPaths: dynamicBufferPaths, buffers } =
+        serializeBuffersToBase64(partialValue);
+      setValue({
+        state,
+        bufferPaths: dynamicBufferPaths,
+        buffers,
+      } as Partial<T>);
+    };
+  }, [setValue]);
+
+  // value is already decoded from wire format
   const model = useRef<Model<T>>(
-    new Model(
-      // Merge the initial value with the current value
-      // since we only send partial updates to the backend
-      { ...data.initialValue, ...value },
-      setValue,
-      functions.send_to_widget,
-      getDirtyFields(value, data.initialValue),
-    ),
+    new Model(value, wrappedSetValue, functions.send_to_widget, new Set()),
   );
 
   // Listen to incoming messages
@@ -289,16 +302,3 @@ export const visibleForTesting = {
   isAnyWidgetModule,
   getDirtyFields,
 };
-
-export function resolveInitialValue(
-  raw: Record<string, any>,
-  bufferPaths: readonly (readonly (string | number)[])[],
-) {
-  const out = structuredClone(raw);
-  for (const bufferPath of bufferPaths) {
-    const base64String: Base64String = get(raw, bufferPath);
-    const bytes = byteStringToBinary(typedAtob(base64String));
-    set(out, bufferPath, new DataView(bytes.buffer));
-  }
-  return out;
-}

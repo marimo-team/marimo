@@ -8,7 +8,10 @@ import { z } from "zod";
 import { getRequestClient } from "@/core/network/requests";
 import { assertNever } from "@/utils/assertNever";
 import { Deferred } from "@/utils/Deferred";
-import { updateBufferPaths } from "@/utils/data-views";
+import {
+  serializeBuffersToBase64,
+  updateBufferPaths,
+} from "@/utils/data-views";
 import { throwNotImplemented } from "@/utils/functions";
 import { Logger } from "@/utils/Logger";
 
@@ -283,20 +286,15 @@ export async function handleWidgetMessage({
 
   if (method === "open") {
     const handleDataChange = (changeData: Record<string, any>) => {
-      if (buffer_paths) {
-        Logger.warn(
-          "Changed data with buffer paths may not be supported",
-          changeData,
-        );
-        // TODO: we may want to extract/undo DataView, to get back buffers and buffer_paths
-      }
+      const { state, buffers, bufferPaths } =
+        serializeBuffersToBase64(changeData);
       getRequestClient().sendModelValue({
         modelId: modelId,
         message: {
-          state: changeData,
-          bufferPaths: [],
+          state,
+          bufferPaths,
         },
-        buffers: [],
+        buffers,
       });
     };
 

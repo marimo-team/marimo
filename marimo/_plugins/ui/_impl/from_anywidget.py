@@ -1,6 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import base64
 import hashlib
 import weakref
 from copy import deepcopy
@@ -17,6 +18,40 @@ from marimo._plugins.ui._impl.anywidget.utils import (
 )
 from marimo._plugins.ui._impl.comm import MarimoComm
 from marimo._runtime.functions import Function
+
+
+def decode_from_wire(
+    wire: dict[str, Any],
+) -> dict[str, Any]:
+    """Decode wire format { state, bufferPaths, buffers } to plain state with bytes."""
+    if "state" not in wire or "bufferPaths" not in wire:
+        return wire  # Not wire format, return as-is
+
+    state = wire.get("state", {})
+    buffer_paths = wire.get("bufferPaths", [])
+    buffers_base64: list[str] = wire.get("buffers", [])
+
+    if buffer_paths and buffers_base64:
+        decoded_buffers = [base64.b64decode(b) for b in buffers_base64]
+        insert_buffer_paths(state, buffer_paths, decoded_buffers)
+
+    return state
+
+
+def encode_to_wire(
+    state: dict[str, Any],
+) -> dict[str, Any]:
+    """Encode plain state with bytes to wire format { state, bufferPaths, buffers }."""
+    state_no_buffers, buffer_paths, buffers = extract_buffer_paths(state)
+
+    # Convert bytes to base64
+    buffers_base64 = [base64.b64encode(b).decode("utf-8") for b in buffers]
+
+    return {
+        "state": state_no_buffers,
+        "bufferPaths": buffer_paths,
+        "buffers": buffers_base64,
+    }
 
 if TYPE_CHECKING:
     from anywidget import (  # type: ignore [import-not-found,unused-ignore]  # noqa: E501
@@ -151,31 +186,41 @@ class anywidget(UIElement[T, T]):
         css: str = widget._css if hasattr(widget, "_css") else ""  # type: ignore [unused-ignore]  # noqa: E501
 
         def on_change(change: T) -> None:
-            insert_buffer_paths(change, buffer_paths, buffers)
+            # Decode wire format to plain state with bytes
+            state = decode_from_wire(change)
+
+            # Only update traits that have actually changed
             current_state: dict[str, Any] = widget.get_state()
             changed_state: dict[str, Any] = {}
-            for k, v in change.items():
+
+            for k, v in state.items():
                 if k not in current_state:
                     changed_state[k] = v
                 elif current_state[k] != v:
                     changed_state[k] = v
-            widget.set_state(changed_state)
+
+            if changed_state:
+                widget.set_state(changed_state)
+
 
         js_hash: str = hashlib.md5(
             js.encode("utf-8"), usedforsecurity=False
         ).hexdigest()
 
+        # Store plain state with bytes for merging
         self._prev_state = json_args
+
+        # Initial value is wire format: { state, bufferPaths, buffers }
+        initial_wire = encode_to_wire(json_args)
 
         super().__init__(
             component_name="marimo-anywidget",
-            initial_value=self._prev_state,
+            initial_value=initial_wire,
             label="",
             args={
                 "js-url": mo_data.js(js).url if js else "",  # type: ignore [unused-ignore]  # noqa: E501
                 "js-hash": js_hash,
                 "css": css,
-                "buffer-paths": buffer_paths,
             },
             on_change=on_change,
             functions=(
@@ -204,9 +249,15 @@ class anywidget(UIElement[T, T]):
 
     def _convert_value(self, value: T) -> T:
         if isinstance(value, dict) and isinstance(self._prev_state, dict):
-            merged = {**self._prev_state, **value}
+            # Decode wire format to plain state with bytes
+            decoded_state = decode_from_wire(value)
+
+            # Merge with previous state
+            merged = {**self._prev_state, **decoded_state}
             self._prev_state = merged
-            return merged
+
+            # Encode back to wire format for frontend
+            return encode_to_wire(merged)
 
         LOGGER.warning(
             f"Expected anywidget value to be a dict, got {type(value)}"
