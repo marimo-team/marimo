@@ -424,7 +424,7 @@ class _cache_call(CacheContext):
         try:
             if attempt.hit:
                 attempt.restore(scope)
-                return attempt.meta["return"]
+                return attempt.meta.get("return")
 
             start_time = time.time()
             response = self.__wrapped__(*args, **kwargs)

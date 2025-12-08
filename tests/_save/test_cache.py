@@ -2500,6 +2500,349 @@ class TestCacheDecorator:
             assert g() == 2
             return (g, arr)
 
+    @staticmethod
+    def test_shadowed_cell_variable_as_param(app) -> None:
+        """Test that a cell variable passed to a function with same-named parameter works.
+
+        This is a minimized version of git_arch.py that reproduces the bug.
+        The bug manifests as KeyError: 'extensions' because the scope has
+        '*extensions' (with ARG_PREFIX) but the hash lookup uses 'extensions'.
+        """
+
+        @app.cell
+        def _():
+            import marimo as mo
+
+            return (mo,)
+
+        @app.cell
+        def _():
+            from datetime import datetime
+
+            return (datetime,)
+
+        @app.cell
+        def _(datetime, mo):
+            from concurrent.futures import ThreadPoolExecutor, as_completed
+
+            def get_tracked_files(
+                repo_path: str,
+                commit_hash: str,
+                extensions: list[str] | None = None,
+            ) -> list[str]:
+                return ["file1.py", "file2.py"]
+
+            @mo.persistent_cache()
+            def sample_commits(
+                commits: list[tuple[str, datetime]], n_samples: int
+            ) -> list[tuple[str, datetime]]:
+                return commits[:n_samples]
+
+            @mo.persistent_cache()
+            def analyze_single_commit(
+                repo_path: str,
+                commit_hash: str,
+                commit_date: datetime,
+                extensions: list[str] | None,
+                file_workers: int = 4,
+            ) -> list[tuple[datetime, int]]:
+                files = get_tracked_files(repo_path, commit_hash, extensions)
+                return [(commit_date, len(files))]
+
+            @mo.persistent_cache()
+            def collect_blame_data(
+                repo_path: str,
+                sampled_commits: list[tuple[str, datetime]],
+                extensions: list[str] | None,
+                progress_bar=None,
+                max_workers: int = 8,
+            ) -> list[tuple[datetime, int]]:
+                raw_data = []
+                with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                    futures = {
+                        executor.submit(
+                            analyze_single_commit,
+                            str(repo_path),
+                            h,
+                            d,
+                            extensions,
+                        ): (h, d)
+                        for h, d in sampled_commits
+                    }
+                    for future in as_completed(futures):
+                        raw_data.extend(future.result())
+                return raw_data
+
+            return collect_blame_data, sample_commits
+
+        @app.cell
+        def _(datetime, sample_commits):
+            # Create more commits to force parallel execution
+            all_commits = [(f"commit{i}", datetime.now()) for i in range(10)]
+            sampled = sample_commits(all_commits, 10)
+            extensions = [".py", ".js"]
+            repo_path = "/tmp/test"
+            return extensions, sampled, repo_path
+
+        @app.cell
+        def _(collect_blame_data, extensions, repo_path, sampled):
+            result = collect_blame_data(repo_path, sampled, extensions)
+            assert len(result) == 10
+            return
+
+    @staticmethod
+    def test_shadowed_cell_variable_as_typed_param(app) -> None:
+        """Test shadowing with type-annotated parameters (git_arch.py pattern).
+
+        This reproduces the exact pattern from git_arch.py:
+        - Cell creates `extensions` variable (list[str] | None)
+        - @mo.cache function has typed `extensions: list[str] | None`
+        - Same object passed as argument
+
+        The bug manifests as KeyError: 'extensions' because the scope has
+        '*extensions' (with ARG_PREFIX) but the hash lookup uses 'extensions'.
+        """
+
+        @app.cell
+        def __():
+            from typing import List, Optional
+
+            import marimo as mo
+
+            return mo, list, Optional
+
+        # Cell that defines `extensions` as a cell variable (mimics git_arch.py)
+        @app.cell
+        def __(List, Optional):
+            extensions_str = ".py,.js,.ts"
+            extensions: Optional[List[str]] = (
+                [ext.strip() for ext in extensions_str.split(",")]
+                if extensions_str
+                else None
+            )
+            return (extensions,)
+
+        # Cell with cached function that has typed parameter with same name
+        @app.cell
+        def __(mo, extensions, List, Optional):
+            @mo.cache
+            def analyze_files(
+                extensions: Optional[List[str]],
+            ) -> int:
+                if extensions is None:
+                    return 0
+                return len(extensions)
+
+            return (analyze_files,)
+
+        @app.cell
+        def __(analyze_files, extensions):
+            # Call with the cell variable (same name as param)
+            result1 = analyze_files(extensions)
+
+            # Call with different value
+            result2 = analyze_files([".md"])
+
+            # Call with None
+            result3 = analyze_files(None)
+
+            # Call again with original
+            result4 = analyze_files(extensions)
+
+            assert result1 == 3, f"Expected 3, got {result1}"
+            assert result2 == 1, f"Expected 1, got {result2}"
+            assert result3 == 0, f"Expected 0, got {result3}"
+            assert result4 == 3, f"Expected 3, got {result4}"
+
+            # Should have one cache hit (result4 reusing result1)
+            assert analyze_files.hits == 1, (
+                f"Expected 1 hit, got {analyze_files.hits}"
+            )
+            return
+
+    @staticmethod
+    def test_shadowed_cell_variable_as_param_persistent(app) -> None:
+        """Test persistent_cache with cell variable passed as same-named parameter.
+
+        This is the exact pattern from git_arch.py where:
+        - Cell creates `extensions` variable
+        - @mo.persistent_cache function has `extensions` parameter
+        - Same object is passed as argument
+
+        The cache should correctly hash based on the parameter value.
+        """
+
+        @app.cell
+        def __():
+            import marimo as mo
+            from tests._save.loaders.mocks import MockLoader
+
+            return mo, MockLoader
+
+        # Cell that defines `extensions` as a cell variable
+        @app.cell
+        def __():
+            extensions = [".py", ".js", ".ts"]
+            return (extensions,)
+
+        # Cell that defines a function with `extensions` parameter (same name)
+        @app.cell
+        def __(mo, MockLoader, extensions):
+            @mo.persistent_cache(_loader=MockLoader)
+            def analyze_files(extensions):
+                return sum(len(ext) for ext in extensions)
+
+            return (analyze_files,)
+
+        @app.cell
+        def __(analyze_files, extensions):
+            # Call with the cell variable
+            result1 = analyze_files(extensions)
+            hash1 = analyze_files._last_hash
+
+            # Call with a different list
+            result2 = analyze_files([".md"])
+            hash2 = analyze_files._last_hash
+
+            # Call again with original to verify correct caching
+            result3 = analyze_files(extensions)
+            hash3 = analyze_files._last_hash
+
+            # Verify results
+            assert result1 == 9, (
+                f"Expected 9 (.py=3 + .js=3 + .ts=3), got {result1}"
+            )
+            assert result2 == 3, f"Expected 3 (.md=3), got {result2}"
+            assert result3 == 9, f"Expected 9, got {result3}"
+
+            # Hash should be different for different inputs
+            assert hash1 != hash2, (
+                "Hash should differ for different extensions"
+            )
+            # Hash should be same for same inputs
+            assert hash1 == hash3, (
+                "Hash should be same for identical extensions"
+            )
+
+            # Should have one cache hit
+            assert analyze_files.hits == 1, (
+                f"Expected 1 hit, got {analyze_files.hits}"
+            )
+            return
+
+    @staticmethod
+    def test_shadowed_ui_variable_threadpool() -> None:
+        """Test shadow error with UI-derived variable and ThreadPoolExecutor.
+
+        This reproduces the bug from git_arch.py where:
+        - `extensions` is derived from a UI element (mo.ui.text)
+        - A cached function takes `extensions` as parameter
+        - That cached function is called via ThreadPoolExecutor.submit()
+        - A helper function also takes `extensions` as parameter
+
+        The bug causes KeyError: 'extensions' at hash.py:618 because
+        scope has '*extensions' (with ARG_PREFIX) but hash lookup uses 'extensions'.
+        """
+        app = marimo.App()
+
+        @app.cell
+        def _():
+            import marimo as mo
+
+            return (mo,)
+
+        @app.cell
+        def _():
+            import subprocess
+            from datetime import datetime
+
+            return datetime, subprocess
+
+        @app.cell
+        def _(mo):
+            file_extensions_input = mo.ui.text(value=".py,.md")
+            file_extensions_input
+            return (file_extensions_input,)
+
+        @app.cell
+        def _(datetime, mo, subprocess):
+            from concurrent.futures import ThreadPoolExecutor, as_completed
+
+            def run_git_command(cmd: list[str], repo_path: str) -> str:
+                """Stubbed helper."""
+                return "a.py\nb.md\nc.txt"
+
+            def get_tracked_files(
+                repo_path: str,
+                commit_hash: str,
+                extensions: list[str] | None = None,
+            ) -> list[str]:
+                output = run_git_command(
+                    ["git", "ls-tree", "-r", "--name-only", commit_hash],
+                    repo_path,
+                )
+                files = output.strip().split("\n")
+                if extensions:
+                    files = [
+                        f
+                        for f in files
+                        if any(f.endswith(ext) for ext in extensions)
+                    ]
+                return [f for f in files if f]
+
+            @mo.persistent_cache()
+            def analyze_single_commit(
+                repo_path: str,
+                commit_hash: str,
+                commit_date: datetime,
+                extensions: list[str] | None,
+            ) -> list[tuple[datetime, int]]:
+                files = get_tracked_files(repo_path, commit_hash, extensions)
+                return [(commit_date, len(files))]
+
+            @mo.persistent_cache()
+            def collect_blame_data(
+                repo_path: str,
+                sampled_commits: list[tuple[str, datetime]],
+                extensions: list[str] | None,
+            ) -> list[tuple[datetime, int]]:
+                raw_data = []
+                with ThreadPoolExecutor(max_workers=4) as executor:
+                    futures = {
+                        executor.submit(
+                            analyze_single_commit,
+                            str(repo_path),
+                            h,
+                            d,
+                            extensions,
+                        ): (h, d)
+                        for h, d in sampled_commits
+                    }
+                    for future in as_completed(futures):
+                        raw_data.extend(future.result())
+                return raw_data
+
+            return (collect_blame_data,)
+
+        @app.cell
+        def _(datetime, file_extensions_input):
+            repo_path = "/tmp"
+            extensions_str = file_extensions_input.value.strip()
+            extensions = (
+                [ext.strip() for ext in extensions_str.split(",")]
+                if extensions_str
+                else None
+            )
+            sampled = [("abc123", datetime.now())]
+            return extensions, repo_path, sampled
+
+        @app.cell
+        def _(collect_blame_data, extensions, repo_path, sampled):
+            raw_data = collect_blame_data(repo_path, sampled, extensions)
+            return (raw_data,)
+
+        app.run()
+
 
 class TestPersistentCache:
     async def test_pickle_context(
