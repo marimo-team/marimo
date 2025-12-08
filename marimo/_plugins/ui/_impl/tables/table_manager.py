@@ -125,12 +125,14 @@ class TableManager(abc.ABC, Generic[T]):
         format_mapping: Optional[FormatMapping] = None,
         encoding: str | None = "utf-8",
         ensure_ascii: bool = True,
-        strict_json: bool = False, # Whether the result should be strictly JSON compliant (eg. nan -> null)
+        strict_json: bool = False,  # Whether the result should be strictly JSON compliant (eg. nan -> null)
     ) -> bytes:
         resolved_encoding = encoding or "utf-8"
 
         return self.to_json_str(
-            format_mapping=format_mapping, ensure_ascii=ensure_ascii, strict_json=strict_json
+            format_mapping=format_mapping,
+            ensure_ascii=ensure_ascii,
+            strict_json=strict_json,
         ).encode(resolved_encoding)
 
     @abc.abstractmethod
