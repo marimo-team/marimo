@@ -73,7 +73,6 @@ export const LanguagePanelComponent: React.FC<{
     actions = (
       <div className="flex flex-1 gap-2 items-center">
         <label className="flex gap-2 items-center">
-          <span className="select-none">Output variable: </span>
           <input
             {...inputProps}
             defaultValue={metadata.dataframeName}
@@ -107,7 +106,7 @@ export const LanguagePanelComponent: React.FC<{
               <PaintRollerIcon className="h-3 w-3" />
             </Button>
           </Tooltip>
-          <Divider />
+          {/* <Divider />
           <label className="flex items-center gap-2">
             <input
               type="checkbox"
@@ -119,7 +118,7 @@ export const LanguagePanelComponent: React.FC<{
               checked={!metadata.showOutput}
             />
             <span className="select-none">Hide output</span>
-          </label>
+          </label> */}
         </div>
       </div>
     );
@@ -191,7 +190,6 @@ export const LanguagePanelComponent: React.FC<{
       <div className="flex justify-between items-center gap-4 pl-2 pt-2">
         {actions}
         {showDivider && <Divider />}
-        {languageAdapter.type}
       </div>
     </TooltipProvider>
   );

@@ -5,6 +5,7 @@ import {
   Grid3x3Icon,
   ListIcon,
   PresentationIcon,
+  RectangleHorizontalIcon,
   SquareIcon,
 } from "lucide-react";
 import type React from "react";
@@ -75,6 +76,8 @@ export function getLayoutIcon(layoutType: LayoutType) {
       return Grid3x3Icon;
     case "slides":
       return PresentationIcon;
+    case "canvas":
+      return RectangleHorizontalIcon;
     default:
       logNever(layoutType);
       return SquareIcon;

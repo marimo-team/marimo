@@ -2,6 +2,7 @@
 import type { CellId } from "@/core/cells/ids";
 
 export type LayoutDirection = "TB" | "LR";
+export type LayoutRanker = "longest-path" | "network-simplex" | "tight-tree";
 export type GraphLayoutView = LayoutDirection | "_minimap_";
 
 export type GraphSelection =

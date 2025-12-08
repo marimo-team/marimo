@@ -356,7 +356,7 @@ export const PromptInput = ({
           save: (prompts) => promptHistoryStorage.set(KEY, prompts),
         },
       }),
-      EditorView.lineWrapping,
+      // EditorView.lineWrapping,
       minimalSetup(),
       Prec.highest(
         keymap.of([
@@ -422,7 +422,7 @@ export const PromptInput = ({
   return (
     <ReactCodeMirror
       ref={inputRef}
-      className={cn("flex-1 font-sans overflow-auto my-1", className)}
+      className={cn("flex-1 font-sans my-1", className)}
       width="100%"
       maxHeight={maxHeight}
       value={value}

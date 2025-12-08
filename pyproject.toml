@@ -49,6 +49,9 @@ dependencies = [
     # for packaging.version; not sure what the lower bound is.
     "packaging",
     "msgspec>=0.20.0",
+    "altair>=5.5.0",
+    "vl-convert-python>=1.8.0",
+    "anthropic>=0.75.0",
 ]
 readme = "README.md"
 license = { file = "LICENSE" }

@@ -297,7 +297,10 @@ const DataTableInternal = <TData,>({
   return (
     <div className={cn(wrapperClassName, "flex flex-col space-y-1")}>
       <FilterPills filters={filters} table={table} />
-      <div className={cn(className || "rounded-md border overflow-hidden")}>
+      <div
+        className={cn(className || "rounded-md border overflow-hidden")}
+        data-table-wrapper={true}
+      >
         {onSearchQueryChange && enableSearch && (
           <SearchBar
             value={searchQuery || ""}

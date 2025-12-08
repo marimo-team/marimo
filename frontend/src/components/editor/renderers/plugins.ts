@@ -1,6 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import type { CellData } from "@/core/cells/types";
+import { CanvasLayoutPlugin } from "./canvas-layout/plugin";
 import { GridLayoutPlugin } from "./grid-layout/plugin";
 import { SlidesLayoutPlugin } from "./slides-layout/plugin";
 import type { ICellRendererPlugin, LayoutType } from "./types";
@@ -9,6 +10,7 @@ import { VerticalLayoutPlugin } from "./vertical-layout/vertical-layout";
 // If more renderers are added, we may want to consider lazy loading them.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const cellRendererPlugins: ICellRendererPlugin<any, any>[] = [
+  CanvasLayoutPlugin,
   GridLayoutPlugin,
   SlidesLayoutPlugin,
   VerticalLayoutPlugin,

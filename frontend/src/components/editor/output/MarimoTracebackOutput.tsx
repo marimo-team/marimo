@@ -65,7 +65,7 @@ export const MarimoTracebackOutput = ({
     html: traceback,
     additionalReplacements: [replaceTracebackFilenames, replaceTracebackPrefix],
   });
-  const [expanded, setExpanded] = useState(true);
+  const [expanded, setExpanded] = useState(false);
 
   const lastTracebackLine = lastLine(traceback);
   const aiEnabled = useAtomValue(aiEnabledAtom);

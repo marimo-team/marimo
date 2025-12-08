@@ -5,6 +5,7 @@ import type React from "react";
 import { memo, type PropsWithChildren } from "react";
 import { flattenTopLevelNotebookCells, useNotebook } from "@/core/cells/cells";
 import type { AppConfig } from "@/core/config/config-schema";
+import { getFeatureFlag } from "@/core/config/feature-flag";
 import { KnownQueryParams } from "@/core/constants";
 import {
   type LayoutData,
@@ -28,8 +29,22 @@ export const CellsRenderer: React.FC<PropsWithChildren<Props>> = memo(
   ({ appConfig, mode, children }) => {
     const { selectedLayout, layoutData } = useLayoutState();
     const kioskMode = useAtomValue(kioskModeAtom);
+    const canvasEnabled = getFeatureFlag("canvas");
+    const canvasPlugin = cellRendererPlugins.find((p) => p.type === "canvas");
 
-    // Just render children if we are in edit mode
+    if (canvasPlugin && canvasEnabled && selectedLayout === "canvas") {
+      return (
+        <PluginCellRenderer
+          appConfig={appConfig}
+          mode={mode}
+          plugin={canvasPlugin}
+          layoutData={layoutData}
+          finalLayout="canvas"
+        />
+      );
+    }
+
+    // Just render children if we are in edit mode (unless canvas is enabled and selected)
     if (mode === "edit" && !kioskMode) {
       return children;
     }
@@ -46,7 +61,7 @@ export const CellsRenderer: React.FC<PropsWithChildren<Props>> = memo(
       }
     }
 
-    const plugin = cellRendererPlugins.find((p) => p.type === finalLayout);
+    plugin = cellRendererPlugins.find((p) => p.type === finalLayout);
 
     // Just render children if there is no plugin
     if (!plugin) {

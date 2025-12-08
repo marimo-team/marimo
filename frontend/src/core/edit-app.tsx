@@ -27,6 +27,7 @@ import {
 } from "./cells/cells";
 import { CellEffects } from "./cells/effects";
 import type { AppConfig, UserConfig } from "./config/config-schema";
+import { getFeatureFlag } from "./config/feature-flag";
 import { RuntimeState } from "./kernel/RuntimeState";
 import { getSessionId } from "./kernel/session";
 import { useTogglePresenting } from "./layout/useTogglePresenting";
@@ -141,6 +142,8 @@ export const EditApp: React.FC<AppProps> = ({
     />
   );
 
+  const canvasEnabled = getFeatureFlag("canvas");
+
   return (
     <>
       <AppContainer
@@ -148,20 +151,22 @@ export const EditApp: React.FC<AppProps> = ({
         isRunning={isRunning}
         width={appConfig.width}
       >
-        <AppHeader
-          connection={connection}
-          className={cn(
-            "pt-4 sm:pt-12 pb-2 mb-4 print:hidden z-50",
-            // Keep the header sticky when scrolling horizontally, for column mode
-            "sticky left-0",
-          )}
-        >
-          {isEditing && (
-            <div className="flex items-center justify-center container">
-              <FilenameForm filename={filename} />
-            </div>
-          )}
-        </AppHeader>
+        {!canvasEnabled && (
+          <AppHeader
+            connection={connection}
+            className={cn(
+              "pt-4 sm:pt-12 pb-2 mb-4 print:hidden z-50",
+              // Keep the header sticky when scrolling horizontally, for column mode
+              "sticky left-0",
+            )}
+          >
+            {isEditing && (
+              <div className="flex items-center justify-center container">
+                <FilenameForm filename={filename} />
+              </div>
+            )}
+          </AppHeader>
+        )}
 
         {/* Don't render until we have a single cell */}
         {hasCells && (

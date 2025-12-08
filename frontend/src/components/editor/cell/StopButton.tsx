@@ -13,14 +13,16 @@ import { useShouldShowInterrupt } from "./useShouldShowInterrupt";
 export const StopButton = (props: {
   status: RuntimeState;
   connectionState: WebSocketState;
+  delayMs?: number;
+  className?: string;
 }): JSX.Element => {
-  const { connectionState, status } = props;
+  const { connectionState, status, className, delayMs = 200 } = props;
   const { sendInterrupt } = useRequestClient();
 
   const running = status === "running";
 
   // Show the interrupt button after 200ms to avoid flickering.
-  const showInterrupt = useShouldShowInterrupt(running);
+  const showInterrupt = useShouldShowInterrupt(running, delayMs);
 
   return (
     <ToolbarItem
@@ -29,6 +31,7 @@ export const StopButton = (props: {
       onClick={showInterrupt ? sendInterrupt : Functions.NOOP}
       variant={showInterrupt ? "stale" : "disabled"}
       data-testid="run-button"
+      className={className}
     >
       <SquareIcon strokeWidth={1.5} />
     </ToolbarItem>

@@ -1,0 +1,61 @@
+/* Copyright 2024 Marimo. All rights reserved. */
+
+/* Custom Figma-style green cursor (multiplayer style) */
+.canvas-pointer-mode {
+  cursor:
+    url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 300 300" fill="none"><path d="M243.96,165.25L49.027,39.063c-4.61-2.985-10.482-3.21-15.308-0.591c-4.826,2.62-7.835,7.667-7.844,13.158l-0.375,232.206c-0.011,6.371,4.006,12.054,10.015,14.172c1.634,0.576,3.316,0.854,4.982,0.854c4.464,0,8.803-1.997,11.705-5.617l71.453-89.101l113.646-11.378c6.34-0.635,11.587-5.206,13.086-11.398C251.886,175.176,249.308,168.712,243.96,165.25z" fill="%2310B981" stroke="white" stroke-width="8"/></svg>')
+    0 0,
+    auto;
+}
+
+.canvas-pointer-mode .react-flow__pane {
+  cursor:
+    url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 300 300" fill="none"><path d="M243.96,165.25L49.027,39.063c-4.61-2.985-10.482-3.21-15.308-0.591c-4.826,2.62-7.835,7.667-7.844,13.158l-0.375,232.206c-0.011,6.371,4.006,12.054,10.015,14.172c1.634,0.576,3.316,0.854,4.982,0.854c4.464,0,8.803-1.997,11.705-5.617l71.453-89.101l113.646-11.378c6.34-0.635,11.587-5.206,13.086-11.398C251.886,175.176,249.308,168.712,243.96,165.25z" fill="%2310B981" stroke="white" stroke-width="8"/></svg>')
+    0 0,
+    auto;
+}
+
+.canvas-pointer-mode .react-flow__pane.dragging {
+  cursor:
+    url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 300 300" fill="none"><path d="M243.96,165.25L49.027,39.063c-4.61-2.985-10.482-3.21-15.308-0.591c-4.826,2.62-7.835,7.667-7.844,13.158l-0.375,232.206c-0.011,6.371,4.006,12.054,10.015,14.172c1.634,0.576,3.316,0.854,4.982,0.854c4.464,0,8.803-1.997,11.705-5.617l71.453-89.101l113.646-11.378c6.34-0.635,11.587-5.206,13.086-11.398C251.886,175.176,249.308,168.712,243.96,165.25z" fill="%2310B981" stroke="white" stroke-width="8"/></svg>')
+    0 0,
+    auto;
+}
+
+.canvas-pointer-mode .react-flow__selectionpane {
+  cursor:
+    url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 300 300" fill="none"><path d="M243.96,165.25L49.027,39.063c-4.61-2.985-10.482-3.21-15.308-0.591c-4.826,2.62-7.835,7.667-7.844,13.158l-0.375,232.206c-0.011,6.371,4.006,12.054,10.015,14.172c1.634,0.576,3.316,0.854,4.982,0.854c4.464,0,8.803-1.997,11.705-5.617l71.453-89.101l113.646-11.378c6.34-0.635,11.587-5.206,13.086-11.398C251.886,175.176,249.308,168.712,243.96,165.25z" fill="%2310B981" stroke="white" stroke-width="8"/></svg>')
+    0 0,
+    crosshair;
+}
+
+/* Figma-style cursor for hand mode */
+.canvas-hand-mode {
+  cursor: grab;
+}
+
+.canvas-hand-mode .react-flow__pane {
+  cursor: grab;
+}
+
+.canvas-hand-mode .react-flow__pane.dragging {
+  cursor: grabbing;
+}
+
+/* Node dragging cursor - also use custom green cursor */
+.canvas-pointer-mode .react-flow__node:hover,
+.canvas-hand-mode .react-flow__node:hover {
+  cursor:
+    url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 300 300" fill="none"><path d="M243.96,165.25L49.027,39.063c-4.61-2.985-10.482-3.21-15.308-0.591c-4.826,2.62-7.835,7.667-7.844,13.158l-0.375,232.206c-0.011,6.371,4.006,12.054,10.015,14.172c1.634,0.576,3.316,0.854,4.982,0.854c4.464,0,8.803-1.997,11.705-5.617l71.453-89.101l113.646-11.378c6.34-0.635,11.587-5.206,13.086-11.398C251.886,175.176,249.308,168.712,243.96,165.25z" fill="%2310B981" stroke="white" stroke-width="8"/></svg>')
+    0 0,
+    move;
+}
+
+.canvas-pointer-mode .react-flow__node.dragging,
+.canvas-hand-mode .react-flow__node.dragging {
+  cursor: grabbing;
+}
+
+.react-flow__controls-button.react-flow__controls-button svg.lucide {
+  fill: none;
+}

@@ -27,7 +27,7 @@ import { EditorState, type Extension, Prec } from "@codemirror/state";
 import {
   drawSelection,
   dropCursor,
-  EditorView,
+  type EditorView,
   highlightActiveLine,
   highlightActiveLineGutter,
   highlightSpecialChars,
@@ -185,7 +185,7 @@ export const basicBundle = (opts: CodeMirrorSetupOpts): Extension[] => {
 
   return [
     ///// View
-    EditorView.lineWrapping,
+    // EditorView.lineWrapping,
     drawSelection(),
     dropCursor(),
     highlightActiveLine(),

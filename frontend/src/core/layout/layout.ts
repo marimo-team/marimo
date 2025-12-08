@@ -19,7 +19,7 @@ export interface LayoutState {
 
 export function initialLayoutState(): LayoutState {
   return {
-    selectedLayout: "vertical",
+    selectedLayout: "canvas",
     layoutData: {},
   };
 }

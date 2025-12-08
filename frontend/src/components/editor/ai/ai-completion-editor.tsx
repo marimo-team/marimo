@@ -64,7 +64,10 @@ interface Props {
   children: React.ReactNode;
 }
 
-const baseExtensions = [customPythonLanguageSupport(), EditorView.lineWrapping];
+const baseExtensions = [
+  customPythonLanguageSupport(),
+  // EditorView.lineWrapping,
+];
 
 /**
  * Editor for AI completions that goes above a cell to modify it.

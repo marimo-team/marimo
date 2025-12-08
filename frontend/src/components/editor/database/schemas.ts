@@ -170,9 +170,9 @@ export const SQLiteConnectionSchema = z
 export const DuckDBConnectionSchema = z
   .object({
     type: z.literal("duckdb"),
-    database: databaseField().describe(
-      FieldOptions.of({ label: "Database Path" }),
-    ),
+    database: databaseField()
+      .default("duck.db")
+      .describe(FieldOptions.of({ label: "Database Path" })),
     read_only: readOnlyField(),
   })
   .describe(FieldOptions.of({ direction: "two-columns" }));

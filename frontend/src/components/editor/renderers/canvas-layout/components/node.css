@@ -1,0 +1,28 @@
+.marimo-canvas-output {
+  .output:not(:has(marimo-table)) {
+    padding: 10px;
+  }
+
+  .output > pre {
+    padding: 12px;
+    font-size: 1rem;
+  }
+
+  [role="alert"] {
+    padding: 12px;
+    font-size: 1rem;
+  }
+}
+
+/* Hide the handle dots (input/output indicators) but keep edges connected */
+.react-flow__node .react-flow__handle {
+  opacity: 0;
+  pointer-events: none;
+}
+
+[data-table-wrapper="true"] {
+  border-radius: 0;
+  border-top: 0;
+  border-left: 0;
+  border-right: 0;
+}

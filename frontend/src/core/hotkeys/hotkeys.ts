@@ -383,6 +383,16 @@ const DEFAULT_HOT_KEY = {
     group: "Navigation",
     key: "Mod-Shift-s",
   },
+  "global.selectAll": {
+    name: "Select all",
+    group: "Editing",
+    key: "Mod-a",
+  },
+  "global.escape": {
+    name: "Clear selection / Cancel",
+    group: "Editing",
+    key: "Escape",
+  },
   "cell.goToDefinition": {
     name: "Go to Definition",
     group: "Navigation",

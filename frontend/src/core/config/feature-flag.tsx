@@ -13,6 +13,7 @@ export interface ExperimentalFeatures {
   chat_modes: boolean;
   cache_panel: boolean;
   external_agents: boolean;
+  canvas: boolean; // Canvas view in edit mode
   // Add new feature flags here
 }
 
@@ -24,6 +25,7 @@ const defaultValues: ExperimentalFeatures = {
   chat_modes: false,
   cache_panel: false,
   external_agents: import.meta.env.DEV,
+  canvas: true,
 };
 
 export function getFeatureFlag<T extends keyof ExperimentalFeatures>(

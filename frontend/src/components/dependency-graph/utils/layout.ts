@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { graphlib, layout } from "@dagrejs/dagre";
 import type { Edge, Node } from "reactflow";
-import type { LayoutDirection } from "../types";
+import type { LayoutDirection, LayoutRanker } from "../types";
 
 const g = new graphlib.Graph().setDefaultEdgeLabel(() => ({}));
 
@@ -9,18 +9,18 @@ export const layoutElements = ({
   nodes,
   edges,
   direction,
+  ranker = "longest-path",
 }: {
   nodes: Node[];
   edges: Edge[];
   direction: LayoutDirection;
+  ranker?: LayoutRanker;
 }) => {
   g.setGraph({
     rankdir: direction,
     nodesep: 150,
     ranksep: 200,
-    // So far, longest-path seems to give the best results as trees are
-    // generally quite wide.
-    ranker: "longest-path",
+    ranker: ranker,
   });
 
   edges.forEach((edge) => g.setEdge(edge.source, edge.target));
