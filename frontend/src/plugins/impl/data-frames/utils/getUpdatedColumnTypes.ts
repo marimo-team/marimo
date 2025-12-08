@@ -82,23 +82,26 @@ function handleTransform(
     case "pivot": {
       const updated = new Map<ColumnId, string>();
 
-
       for (const [columnId, type] of next.entries()) {
         if (transform.index_column_ids.includes(columnId)) {
           updated.set(columnId, type);
         }
       }
 
+
       const uniqueValues = transform.column_ids.map((columnId) => {
         const values = uniqueColumnValues[columnId.toString()] || [];
         return values;
       })
 
-      const rawColumns = [transform.value_column_ids, ...uniqueValues]
+      const rawColumns = [transform.value_column_ids, ...uniqueValues];
       const newColumns = cartesianProduct(rawColumns).map(comb => `${(comb as string[]).join("_")}_${transform.aggregation}`);
       for (const newColumn of newColumns) {
+        // TODO: infer type based on aggregation and original type
         updated.set(newColumn as ColumnId, transform.aggregation === "count" ? "int64" : "float64");
       }
+
+
 
       return updated;
     }
