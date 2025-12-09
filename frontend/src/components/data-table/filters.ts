@@ -195,7 +195,9 @@ export function filterToFilterCondition(
       return [];
     case "select": {
       if (filter.operator !== "in" && filter.operator !== "not_in") {
-        Logger.warn("Invalid operator for select filter");
+        Logger.warn("Invalid operator for select filter", {
+          operator: filter.operator,
+        });
       }
       return {
         column_id: columnId,
