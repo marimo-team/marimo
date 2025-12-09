@@ -95,11 +95,11 @@ export const CellContextMenu = <TData,>({
   const column = cell.column;
   const canFilter = column.getCanFilter() && column.columnDef.meta?.filterType;
 
-  const handleFilterCell = () => {
+  const handleFilterCell = (operation: "keep_rows" | "remove_rows") => {
     column.setFilterValue(
       Filter.select({
         options: [cell.getValue()],
-        operator: "in",
+        operator: operation === "keep_rows" ? "in" : "not_in",
       }),
     );
   };
@@ -119,9 +119,13 @@ export const CellContextMenu = <TData,>({
       {canFilter && (
         <>
           <ContextMenuSeparator />
-          <ContextMenuItem onClick={handleFilterCell}>
+          <ContextMenuItem onClick={() => handleFilterCell("keep_rows")}>
             <FilterIcon className="mo-dropdown-icon h-3 w-3" />
             Filter by this value
+          </ContextMenuItem>
+          <ContextMenuItem onClick={() => handleFilterCell("remove_rows")}>
+            <FilterIcon className="mo-dropdown-icon h-3 w-3" />
+            Remove rows with this value
           </ContextMenuItem>
         </>
       )}

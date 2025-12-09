@@ -40,6 +40,7 @@ Operator = Literal[
     "starts_with",
     "ends_with",
     "in",
+    "not_in",
 ]
 Aggregation = Literal[
     "count",
@@ -77,7 +78,7 @@ class Condition:
         return hash((self.column_id, self.operator, self.value))
 
     def __post_init__(self) -> None:
-        if self.operator == "in":
+        if self.operator == "in" or self.operator == "not_in":
             if isinstance(self.value, list):
                 # Hack to convert to tuple for frozen dataclass
                 # Only tuples can be hashed
@@ -86,7 +87,7 @@ class Condition:
                 pass
             else:
                 raise ValueError(
-                    "value must be a list or tuple for 'in' operator"
+                    "value must be a list or tuple for 'in' or 'not_in' operator"
                 )
 
 

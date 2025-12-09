@@ -56,8 +56,9 @@ def python_print_pandas(
             return f"{df_name}[{_as_literal(column_id)}].str.startswith({_as_literal(value)})"  # noqa: E501
         elif operator == "ends_with":
             return f"{df_name}[{_as_literal(column_id)}].str.endswith({_as_literal(value)})"  # noqa: E501
-        elif operator == "in":
-            return f"{df_name}[{_as_literal(column_id)}].isin({_list_of_strings(value)})"  # noqa: E501
+        elif operator == "in" or operator == "not_in":
+            result = f"{df_name}[{_as_literal(column_id)}].isin({_list_of_strings(value)})"  # noqa: E501
+            return result if operator == "in" else f"~{result}"
         elif operator == "!=":
             return (
                 f"{df_name}[{_as_literal(column_id)}].ne({_as_literal(value)})"
@@ -237,8 +238,9 @@ def python_print_polars(
             return f"pl.col({_as_literal(column_id)}).str.starts_with({_as_literal(value)})"  # noqa: E501
         elif operator == "ends_with":
             return f"pl.col({_as_literal(column_id)}).str.ends_with({_as_literal(value)})"  # noqa: E501
-        elif operator == "in":
-            return f"pl.col({_as_literal(column_id)}).is_in({_list_of_strings(value)})"  # noqa: E501
+        elif operator == "in" or operator == "not_in":
+            result = f"pl.col({_as_literal(column_id)}).is_in({_list_of_strings(value)})"  # noqa: E501
+            return result if operator == "in" else f"~{result}"
         elif operator in [">", ">=", "<", "<="]:
             return f"pl.col({_as_literal(column_id)}) {operator} {_as_literal(value)}"  # noqa: E501
         elif operator == "is_null":
@@ -397,8 +399,9 @@ def python_print_ibis(
             return f"({df_name}[{_as_literal(column_id)}].startswith({_as_literal(value)}))"  # noqa: E501
         elif operator == "ends_with":
             return f"({df_name}[{_as_literal(column_id)}].endswith({_as_literal(value)}))"  # noqa: E501
-        elif operator == "in":
-            return f"({df_name}[{_as_literal(column_id)}].isin({_list_of_strings(value)}))"  # noqa: E501
+        elif operator == "in" or operator == "not_in":
+            result = f"({df_name}[{_as_literal(column_id)}].isin({_list_of_strings(value)}))"  # noqa: E501
+            return result if operator == "in" else f"~{result}"
         elif operator in [">", ">=", "<", "<="]:
             return f"({df_name}[{_as_literal(column_id)}] {operator} {_as_literal(value)})"  # noqa: E501
         elif operator == "is_null":
