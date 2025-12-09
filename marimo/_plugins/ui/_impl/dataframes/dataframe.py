@@ -5,7 +5,6 @@ import inspect
 import sys
 from dataclasses import dataclass
 from typing import (
-    TYPE_CHECKING,
     Any,
     Callable,
     Final,
@@ -13,8 +12,6 @@ from typing import (
     Optional,
     Union,
 )
-
-import narwhals.stable.v2 as nw
 
 from marimo._output.rich_help import mddoc
 from marimo._plugins.ui._core.ui_element import UIElement
@@ -47,11 +44,8 @@ from marimo._plugins.validators import (
 )
 from marimo._runtime.functions import EmptyArgs, Function
 from marimo._utils.memoize import memoize_last_value
-from marimo._utils.narwhals_utils import is_narwhals_lazyframe
+from marimo._utils.narwhals_utils import make_lazy
 from marimo._utils.parse_dataclass import parse_raw
-
-if TYPE_CHECKING:
-    from narwhals.typing import IntoLazyFrame
 
 
 @dataclass
@@ -145,10 +139,8 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
         except Exception:
             pass
 
-        # Make the dataframe lazy and keep track of whether it was lazy originally
-        nw_df: nw.LazyFrame[Any] = nw.from_native(df, pass_through=False)
-        self._was_lazy = is_narwhals_lazyframe(nw_df)
-        nw_df = nw_df.lazy()
+        # Make the dataframe lazy and keep an undo callback to restore original type
+        nw_df, self._undo = make_lazy(df)
 
         self._limit = limit
         self._dataframe_name = dataframe_name
@@ -257,22 +249,20 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
     def _convert_value(self, value: dict[str, Any]) -> DataFrameType:
         if value is None:
             self._error = None
-            return _maybe_collect(self._data, self._was_lazy)
+            # Return the original data using the undo callback
+            return self._undo(self._transform_container._original_df)
 
         try:
             transformations = parse_raw(value, Transformations)
             result = self._transform_container.apply(transformations)
             self._error = None
             self._last_transforms = transformations
-            return _maybe_collect(result, self._was_lazy)
+            return self._undo(result)
         except Exception as e:
             error = f"Error applying dataframe transform: {str(e)}\n\n"
             sys.stderr.write(error)
             self._error = error
-            return _maybe_collect(
-                nw.from_native(self._data, pass_through=False).lazy(),
-                self._was_lazy,
-            )
+            return self._undo(self._transform_container._original_df)
 
     def _search(self, args: SearchTableArgs) -> SearchTableResponse:
         offset = args.page_number * args.page_size
@@ -341,11 +331,3 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
         if limit is not None:
             tm = tm.take(limit, 0)
         return tm
-
-
-def _maybe_collect(
-    df: nw.LazyFrame[IntoLazyFrame], was_lazy: bool
-) -> DataFrameType:
-    if was_lazy:
-        return df.collect().to_native()  # type: ignore[no-any-return]
-    return df.to_native()

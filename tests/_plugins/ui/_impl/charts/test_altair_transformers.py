@@ -17,6 +17,7 @@ from marimo._plugins.ui._impl.charts.altair_transformer import (
     _to_marimo_inline_csv,
     _to_marimo_json,
     register_transformers,
+    sanitize_nan_infs,
 )
 from tests._data.mocks import DFType, create_dataframes
 
@@ -288,3 +289,21 @@ def test_to_marimo_arrow_different_dtypes(df: IntoDataFrame):
     assert "url" in result
     assert "format" in result
     assert result["format"] == {"type": "arrow"}
+
+
+@pytest.mark.parametrize(
+    "df",
+    create_dataframes(
+        {
+            "A": [1.0, float("nan"), 3.0],
+            "B": [float("inf"), 2.0, float("-inf")],
+        },
+    ),
+)
+def test_sanitize_nan_infs_preserves_df_type(df: IntoDataFrame):
+    """Test that sanitize_nan_infs preserves eager dataframe type."""
+    original_type = type(df)
+
+    result = sanitize_nan_infs(df)
+
+    assert type(result) is original_type

@@ -32,6 +32,7 @@ from marimo._utils.narwhals_utils import (
     can_narwhalify,
     empty_df,
     is_narwhals_lazyframe,
+    make_lazy,
 )
 
 LOGGER = _loggers.marimo_logger()
@@ -122,9 +123,7 @@ def _filter_dataframe(
     binned_fields: Optional[dict[str, Any]] = None,
 ) -> Union[IntoDataFrame, IntoLazyFrame]:
     # Use lazy evaluation for efficient chained filtering
-    base = nw.from_native(native_df)
-    is_lazy = is_narwhals_lazyframe(base)
-    df = base.lazy()
+    df, undo_df = make_lazy(native_df)
 
     if not isinstance(selection, dict):
         raise TypeError("Input 'selection' must be a dictionary")
@@ -260,11 +259,7 @@ def _filter_dataframe(
                 # Continue without this filter - don't break the entire operation
                 continue
 
-    if not is_lazy and is_narwhals_lazyframe(df):
-        # Undo the lazy
-        return df.collect().to_native()  # type: ignore[no-any-return]
-
-    return df.to_native()
+    return undo_df(df)
 
 
 def _resolve_values(values: Any, dtype: Any) -> list[Any]:

@@ -76,7 +76,7 @@ class PipPackageManager(PypiPackageManager):
         # The `dev` parameter is accepted for interface compatibility, but is ignored.
         del dev
         LOGGER.info(f"Uninstalling {package} with pip")
-        return self.run(
+        return await self.run(
             [
                 "pip",
                 "--python",
@@ -282,7 +282,7 @@ class UvPackageManager(PypiPackageManager):
 
             # Retry with --no-cache flag
             cmd_with_no_cache = cmd + ["--no-cache"]
-            return self.run(cmd_with_no_cache, log_callback=log_callback)
+            return await self.run(cmd_with_no_cache, log_callback=log_callback)
 
         return False
 
@@ -454,9 +454,9 @@ class UvPackageManager(PypiPackageManager):
             if upgrade:
                 cmd.append("--upgrade")
             cmd.extend(packages_to_add)
-            success &= self.run(cmd, log_callback=None)
+            success &= self._run_sync(cmd, log_callback=None)
         if packages_to_remove:
-            success &= self.run(
+            success &= self._run_sync(
                 [self._uv_bin, "--quiet", "remove", "--script", filepath]
                 + packages_to_remove,
                 log_callback=None,
@@ -520,7 +520,7 @@ class UvPackageManager(PypiPackageManager):
             LOGGER.info(f"Uninstalling {package} with 'uv pip uninstall'")
             uninstall_cmd = [self._uv_bin, "pip", "uninstall"]
 
-        return self.run(
+        return await self.run(
             uninstall_cmd + [*split_packages(package), "-p", PY_EXE],
             log_callback=None,
         )

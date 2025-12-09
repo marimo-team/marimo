@@ -50,3 +50,13 @@ export const KnownQueryParams = {
    */
   showChrome: "show-chrome",
 };
+
+/**
+ * CSS class names used throughout the application
+ */
+export const CSSClasses = {
+  /**
+   * Class name for cell output areas
+   */
+  outputArea: "output-area",
+};

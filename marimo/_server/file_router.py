@@ -23,6 +23,9 @@ if TYPE_CHECKING:
 
 LOGGER = _loggers.marimo_logger()
 
+# Maximum number of files to return in workspace scan
+MAX_FILES = 1000
+
 # Some unique identifier for a file
 MarimoFileKey = str
 
@@ -260,14 +263,31 @@ class LazyListOfFilesAppFileRouter(AppFileRouter):
     @property
     def files(self) -> list[FileInfo]:
         if self._lazy_files is None:
-            self._lazy_files = self._load_files()
+            try:
+                self._lazy_files = self._load_files()
+            except HTTPException as e:
+                if e.status_code == HTTPStatus.REQUEST_TIMEOUT:
+                    # Return partial results on timeout
+                    LOGGER.warning(
+                        "Timeout during file scan, returning partial results"
+                    )
+                    # self._lazy_files will already contain partial results
+                    # set in _load_files before the exception was raised
+                    if self._lazy_files is None:
+                        self._lazy_files = []
+                else:
+                    raise
         return self._lazy_files
 
     def _load_files(self) -> list[FileInfo]:
         import time
 
         start_time = time.time()
-        MAX_EXECUTION_TIME = 5  # 5 seconds timeout
+        MAX_EXECUTION_TIME = 10  # 10 seconds timeout
+        file_count = [0]  # Use list for closure mutability
+        accumulated_results: list[
+            FileInfo
+        ] = []  # For partial results on timeout
 
         def recurse(
             directory: str, depth: int = 0
@@ -275,10 +295,17 @@ class LazyListOfFilesAppFileRouter(AppFileRouter):
             if depth > MAX_DEPTH:
                 return None
 
+            # Check file limit
+            if file_count[0] >= MAX_FILES:
+                LOGGER.warning(f"Reached maximum file limit ({MAX_FILES})")
+                return None
+
             if time.time() - start_time > MAX_EXECUTION_TIME:
+                # Store accumulated results before raising timeout
+                self._lazy_files = accumulated_results
                 raise HTTPException(
                     status_code=HTTPStatus.REQUEST_TIMEOUT,
-                    detail="Request timed out: Loading workspace files took too long.",  # noqa: E501
+                    detail=f"Request timed out: Loading workspace files took too long. Showing first {file_count[0]} files.",  # noqa: E501
                 )
 
             try:
@@ -310,18 +337,23 @@ class LazyListOfFilesAppFileRouter(AppFileRouter):
                                 children=children,
                             )
                         )
-                elif entry.name.endswith(tuple(allowed_extensions)):
-                    if self._is_marimo_app(entry.path):
-                        files.append(
-                            FileInfo(
-                                id=entry.path,
-                                path=entry.path,
-                                name=entry.name,
-                                is_directory=False,
-                                is_marimo_file=True,
-                                last_modified=entry.stat().st_mtime,
-                            )
+                elif entry.name.endswith(allowed_extensions):
+                    if is_marimo_app(entry.path):
+                        file_count[0] += 1
+                        file_info = FileInfo(
+                            id=entry.path,
+                            path=entry.path,
+                            name=entry.name,
+                            is_directory=False,
+                            is_marimo_file=True,
+                            last_modified=entry.stat().st_mtime,
                         )
+                        files.append(file_info)
+                        # Also add to accumulated results for partial loading
+                        accumulated_results.append(file_info)
+                        # Check if we've reached the limit
+                        if file_count[0] >= MAX_FILES:
+                            break
 
             # Sort folders then files, based on natural sort (alpha, then num)
             return sorted(folders, key=natural_sort_file) + sorted(
@@ -330,30 +362,32 @@ class LazyListOfFilesAppFileRouter(AppFileRouter):
 
         MAX_DEPTH = 5
         skip_dirs = {
+            # Python virtual environments
             "venv",
+            ".venv",
+            ".virtualenv",
+            "__pypackages__",
+            # Python cache and build
             "__pycache__",
+            "build",
+            "dist",
+            "eggs",
+            # Package management
             "node_modules",
             "site-packages",
-            "eggs",
+            # Testing and tooling
+            ".tox",
+            ".nox",
+            ".pytest_cache",
+            ".mypy_cache",
+            # Version control
+            ".git",
         }
         allowed_extensions = (
             (".py", ".md", ".qmd") if self.include_markdown else (".py",)
         )
 
         return recurse(self.directory) or []
-
-    def _is_marimo_app(self, full_path: str) -> bool:
-        try:
-            path = MarimoPath(full_path)
-            contents = path.read_text()
-            if path.is_markdown():
-                return "marimo-version:" in contents
-            if path.is_python():
-                return "marimo.App" in contents and "import marimo" in contents
-            return False
-        except Exception as e:
-            LOGGER.debug("Error reading file %s: %s", full_path, e)
-            return False
 
     def get_unique_file_key(self) -> str | None:
         return None
@@ -480,3 +514,56 @@ def validate_inside_directory(directory: Path, filepath: Path) -> None:
             status_code=HTTPStatus.SERVER_ERROR,
             detail=f"Unexpected error validating path: {str(e)}",
         ) from e
+
+
+def is_marimo_app(full_path: str) -> bool:
+    """
+    Detect whether a file is a marimo app.
+
+    Rules:
+    - Markdown (`.md`/`.qmd`) files are marimo apps if the first 512 bytes
+      contain `marimo-version:`.
+    - Python (`.py`) files are marimo apps if the header (first 512 bytes)
+      contains both `marimo.App` and `import marimo`.
+    - If the header contains `# /// script`, read the full file and check for
+      the same Python markers, to handle large script headers.
+    - Any errors while reading result in `False`.
+    """
+    READ_LIMIT = 512
+
+    def contains_marimo_app(content: bytes) -> bool:
+        return b"marimo.App" in content and b"import marimo" in content
+
+    try:
+        path = MarimoPath(full_path)
+
+        with open(full_path, "rb") as f:
+            header = f.read(READ_LIMIT)
+
+        if path.is_markdown():
+            return b"marimo-version:" in header
+
+        if path.is_python():
+            if contains_marimo_app(header):
+                return True
+
+            if b"# /// script" in header:
+                full_content = path.read_bytes()
+                if contains_marimo_app(full_content):
+                    return True
+
+        return False
+    except Exception as e:
+        LOGGER.debug("Error reading file %s: %s", full_path, e)
+        return False
+
+
+# Count total marimo files (not directories)
+def count_files(file_list: list[FileInfo]) -> int:
+    count = 0
+    for item in file_list:
+        if not item.is_directory:
+            count += 1
+        if item.children:
+            count += count_files(item.children)
+    return count

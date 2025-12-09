@@ -3702,10 +3702,16 @@ components:
       type: object
     WorkspaceFilesResponse:
       properties:
+        fileCount:
+          default: 0
+          type: integer
         files:
           items:
             $ref: '#/components/schemas/FileInfo'
           type: array
+        hasMore:
+          default: false
+          type: boolean
         root:
           type: string
       required:

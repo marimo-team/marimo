@@ -1,6 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import asyncio
 from typing import TYPE_CHECKING, Optional
 
 from starlette.authentication import requires
@@ -63,7 +64,8 @@ async def add_package(request: Request) -> PackageOperationResponse:
     # Update the script metadata
     filename = _get_filename(request)
     if filename is not None and GLOBAL_SETTINGS.MANAGE_SCRIPT_METADATA:
-        package_manager.update_notebook_script_metadata(
+        await asyncio.to_thread(
+            package_manager.update_notebook_script_metadata,
             filepath=filename,
             packages_to_add=split_packages(body.package),
             upgrade=upgrade,
@@ -111,7 +113,8 @@ async def remove_package(request: Request) -> PackageOperationResponse:
     # Update the script metadata
     filename = _get_filename(request)
     if filename is not None and GLOBAL_SETTINGS.MANAGE_SCRIPT_METADATA:
-        package_manager.update_notebook_script_metadata(
+        await asyncio.to_thread(
+            package_manager.update_notebook_script_metadata,
             filepath=filename,
             packages_to_remove=split_packages(body.package),
             upgrade=False,
@@ -142,7 +145,7 @@ async def list_packages(request: Request) -> ListPackagesResponse:
         package_manager.alert_not_installed()
         return ListPackagesResponse(packages=[])
 
-    packages = package_manager.list_packages()
+    packages = await asyncio.to_thread(package_manager.list_packages)
 
     return ListPackagesResponse(packages=packages)
 
@@ -168,9 +171,11 @@ async def dependency_tree(request: Request) -> DependencyTreeResponse:
         filename is not None and GLOBAL_SETTINGS.MANAGE_SCRIPT_METADATA
     )
     if is_sandbox:
-        tree = package_manager.dependency_tree(filename)
+        tree = await asyncio.to_thread(
+            package_manager.dependency_tree, filename
+        )
     else:
-        tree = package_manager.dependency_tree()
+        tree = await asyncio.to_thread(package_manager.dependency_tree)
     return DependencyTreeResponse(tree=tree)
 
 

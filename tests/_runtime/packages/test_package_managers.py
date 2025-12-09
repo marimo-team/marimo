@@ -35,7 +35,11 @@ def test_update_script_metadata() -> None:
     runs_calls: list[list[str]] = []
 
     class MockUvPackageManager(UvPackageManager):
-        def run(
+        @property
+        def _uv_bin(self) -> str:
+            return "uv"
+
+        def _run_sync(
             self,
             command: list[str],
             log_callback: Optional[LogCallback] = None,
@@ -66,7 +70,11 @@ def test_update_script_metadata_with_version_map() -> None:
     runs_calls: list[list[str]] = []
 
     class MockUvPackageManager(UvPackageManager):
-        def run(
+        @property
+        def _uv_bin(self) -> str:
+            return "uv"
+
+        def _run_sync(
             self,
             command: list[str],
             log_callback: Optional[LogCallback] = None,
@@ -99,7 +107,11 @@ def test_update_script_metadata_with_mapping() -> None:
     runs_calls: list[list[str]] = []
 
     class MockUvPackageManager(UvPackageManager):
-        def run(
+        @property
+        def _uv_bin(self) -> str:
+            return "uv"
+
+        def _run_sync(
             self,
             command: list[str],
             log_callback: Optional[LogCallback] = None,
@@ -152,7 +164,11 @@ def test_update_script_metadata_marimo_packages() -> None:
     runs_calls: list[list[str]] = []
 
     class MockUvPackageManager(UvPackageManager):
-        def run(
+        @property
+        def _uv_bin(self) -> str:
+            return "uv"
+
+        def _run_sync(
             self,
             command: list[str],
             log_callback: Optional[LogCallback] = None,
@@ -326,7 +342,7 @@ def test_log_callback_type() -> None:
     assert captured_logs[0] == "test log\n"
 
 
-def test_package_manager_run_without_callback() -> None:
+async def test_package_manager_run_without_callback() -> None:
     """Test PackageManager.run without log callback (backward compatibility)."""
     pm = PipPackageManager()
 
@@ -335,13 +351,13 @@ def test_package_manager_run_without_callback() -> None:
         patch.object(pm, "is_manager_installed", return_value=True),
     ):
         mock_run.return_value.returncode = 0
-        result = pm.run(["echo", "test"], log_callback=None)
+        result = await pm.run(["echo", "test"], log_callback=None)
 
         assert result is True
         mock_run.assert_called_once_with(["echo", "test"])
 
 
-def test_package_manager_run_with_callback() -> None:
+async def test_package_manager_run_with_callback() -> None:
     """Test PackageManager.run with log callback streams output."""
     pm = PipPackageManager()
     captured_logs = []
@@ -367,7 +383,7 @@ def test_package_manager_run_with_callback() -> None:
         mock_proc.wait.return_value = 0
         mock_popen.return_value = mock_proc
 
-        result = pm.run(["echo", "test"], log_callback=log_callback)
+        result = await pm.run(["echo", "test"], log_callback=log_callback)
 
         assert result is True
         assert captured_logs == [
@@ -381,7 +397,7 @@ def test_package_manager_run_with_callback() -> None:
         mock_buffer_write.assert_any_call(b"Successfully installed!\n")
 
 
-def test_package_manager_run_with_callback_failure() -> None:
+async def test_package_manager_run_with_callback_failure() -> None:
     """Test PackageManager.run with log callback handles failure."""
     pm = PipPackageManager()
     captured_logs = []
@@ -401,7 +417,7 @@ def test_package_manager_run_with_callback_failure() -> None:
         mock_proc.wait.return_value = 1  # Non-zero return code
         mock_popen.return_value = mock_proc
 
-        result = pm.run(["failing_command"], log_callback=log_callback)
+        result = await pm.run(["failing_command"], log_callback=log_callback)
 
         assert result is False
         assert captured_logs == ["Error occurred\n"]
@@ -415,7 +431,7 @@ async def test_pip_install_with_log_callback() -> None:
         captured_logs.append(log_line)
 
     class MockPipPackageManager(PipPackageManager):
-        def run(
+        async def run(
             self,
             command: list[str],
             log_callback: Optional[LogCallback] = None,
@@ -537,7 +553,11 @@ def test_update_script_metadata_with_git_dependencies() -> None:
     runs_calls: list[list[str]] = []
 
     class MockUvPackageManager(UvPackageManager):
-        def run(
+        @property
+        def _uv_bin(self) -> str:
+            return "uv"
+
+        def _run_sync(
             self,
             command: list[str],
             log_callback: Optional[LogCallback] = None,
@@ -647,16 +667,16 @@ def test_update_script_metadata_with_git_dependencies() -> None:
     ]
 
 
-def test_package_manager_run_manager_not_installed() -> None:
+async def test_package_manager_run_manager_not_installed() -> None:
     """Test PackageManager.run when manager is not installed."""
     pm = PipPackageManager()
 
     with patch.object(pm, "is_manager_installed", return_value=False):
-        result = pm.run(["test", "command"], log_callback=None)
+        result = await pm.run(["test", "command"], log_callback=None)
         assert result is False
 
         # Should also return False with log callback
-        result = pm.run(["test", "command"], log_callback=lambda _: None)
+        result = await pm.run(["test", "command"], log_callback=lambda _: None)
         assert result is False
 
 

@@ -8,13 +8,17 @@ import re
 import signal
 import typing
 from pathlib import Path
-from typing import Any, Callable, TypeVar
+from typing import Any, Callable, TypeVar, cast
 
 import msgspec
 
 from marimo import _loggers
 from marimo._ast.cell import CellConfig
-from marimo._config.config import MarimoConfig, merge_default_config
+from marimo._config.config import (
+    MarimoConfig,
+    PartialMarimoConfig,
+    merge_default_config,
+)
 from marimo._messaging.msgspec_encoder import encode_json_str
 from marimo._messaging.types import KernelMessage
 from marimo._pyodide.restartable_task import RestartableTask
@@ -67,6 +71,7 @@ from marimo._server.models.models import (
     ReadCodeResponse,
     SaveAppConfigurationRequest,
     SaveNotebookRequest,
+    SaveUserConfigurationRequest,
 )
 from marimo._server.notebook import AppFileManager
 from marimo._server.session.session_view import SessionView
@@ -280,8 +285,8 @@ class PyodideBridge:
         self.session.app_manager.save_app_config(parsed.config)
 
     def save_user_config(self, request: str) -> None:
-        parsed = self._parse(request, SetUserConfigRequest)
-        config = merge_default_config(parsed.config)
+        parsed = self._parse(request, SaveUserConfigurationRequest)
+        config = merge_default_config(cast(PartialMarimoConfig, parsed.config))
         self.session.put_control_request(SetUserConfigRequest(config=config))
 
     def rename_file(self, filename: str) -> None:
