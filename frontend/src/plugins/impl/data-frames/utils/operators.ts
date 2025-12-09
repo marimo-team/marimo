@@ -58,6 +58,7 @@ export const STRING_OPERATORS = {
   starts_with: [Schema.string],
   ends_with: [Schema.string],
   in: [Schema.stringMultiColumnValues],
+  not_in: [Schema.stringMultiColumnValues],
   is_null: [],
   is_not_null: [],
 };
