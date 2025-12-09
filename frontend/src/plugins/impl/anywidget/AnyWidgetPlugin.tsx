@@ -4,6 +4,7 @@
 import type { AnyWidget, Experimental } from "@anywidget/types";
 import { isEqual } from "lodash-es";
 import { useEffect, useMemo, useRef } from "react";
+import useEvent from "react-use-event-hook";
 import { z } from "zod";
 import { MarimoIncomingMessageEvent } from "@/core/dom/events";
 import { asRemoteURL } from "@/core/runtime/config";
@@ -20,7 +21,10 @@ import {
   decodeFromWire,
   isWireFormat,
   serializeBuffersToBase64,
+  type WireFormat,
 } from "@/utils/data-views";
+import { prettyError } from "@/utils/errors";
+import type { Base64String } from "@/utils/json/base64";
 import { Logger } from "@/utils/Logger";
 import { ErrorBanner } from "../common/error-banner";
 import { MODEL_MANAGER, Model } from "./model";
@@ -31,14 +35,16 @@ interface Data {
   css?: string | null;
 }
 
-type T = Record<string, any>;
+type T = Record<string, unknown>;
 
-// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 type PluginFunctions = {
-  send_to_widget: <T>(req: { content?: any }) => Promise<null | undefined>;
+  send_to_widget: <T>(req: {
+    content: unknown;
+    buffers: Base64String[];
+  }) => Promise<null | undefined>;
 };
 
-export const AnyWidgetPlugin = createPlugin<T>("marimo-anywidget")
+export const AnyWidgetPlugin = createPlugin<WireFormat<T>>("marimo-anywidget")
   .withData(
     z.object({
       jsUrl: z.string(),
@@ -48,14 +54,19 @@ export const AnyWidgetPlugin = createPlugin<T>("marimo-anywidget")
   )
   .withFunctions<PluginFunctions>({
     send_to_widget: rpc
-      .input(z.object({ content: z.any() }))
+      .input(
+        z.object({
+          content: z.unknown(),
+          buffers: z.array(z.string().transform((v) => v as Base64String)),
+        }),
+      )
       .output(z.null().optional()),
   })
   .renderer((props) => <AnyWidgetSlot {...props} />);
 
-type Props = IPluginProps<T, Data, PluginFunctions>;
-
-const AnyWidgetSlot = (props: Props) => {
+const AnyWidgetSlot = (
+  props: IPluginProps<WireFormat<T>, Data, PluginFunctions>,
+) => {
   const { css, jsUrl, jsHash } = props.data;
 
   // Decode wire format { state, bufferPaths, buffers } to state with DataViews
@@ -69,7 +80,7 @@ const AnyWidgetSlot = (props: Props) => {
       });
       return decoded;
     }
-    Logger.debug("AnyWidget value is not wire format:", props.value);
+    Logger.warn("AnyWidget value is not wire format:", props.value);
     return props.value;
   }, [props.value]);
 
@@ -140,6 +151,12 @@ const AnyWidgetSlot = (props: Props) => {
     };
   }, [css, props.host]);
 
+  // Wrap setValue to serialize DataViews back to base64 before sending
+  // Structure matches ipywidgets protocol: { state, bufferPaths, buffers }
+  const wrappedSetValue = useEvent((partialValue: Partial<T>) =>
+    props.setValue(serializeBuffersToBase64(partialValue)),
+  );
+
   if (error) {
     return <ErrorBanner error={error} />;
   }
@@ -167,6 +184,7 @@ const AnyWidgetSlot = (props: Props) => {
       key={key}
       {...props}
       widget={module.default}
+      setValue={wrappedSetValue}
       value={valueWithBuffers}
     />
   );
@@ -196,10 +214,19 @@ async function runAnyWidgetModule(
   const widget =
     typeof widgetDef === "function" ? await widgetDef() : widgetDef;
   await widget.initialize?.({ model, experimental });
-  const unsub = await widget.render?.({ model, el, experimental });
-  return () => {
-    unsub?.();
-  };
+  try {
+    const unsub = await widget.render?.({ model, el, experimental });
+    return () => {
+      unsub?.();
+    };
+  } catch (error) {
+    Logger.error("Error rendering anywidget", error);
+    el.classList.add("text-error");
+    el.innerHTML = `Error rendering anywidget: ${prettyError(error)}`;
+    return () => {
+      // No-op
+    };
+  }
 }
 
 function isAnyWidgetModule(mod: any): mod is { default: AnyWidget } {
@@ -223,6 +250,13 @@ function hasModelId(message: unknown): message is { model_id: string } {
   );
 }
 
+interface Props
+  extends Omit<IPluginProps<T, Data, PluginFunctions>, "setValue"> {
+  widget: AnyWidget;
+  value: T;
+  setValue: (value: Partial<T>) => void;
+}
+
 const LoadedSlot = ({
   value,
   setValue,
@@ -233,23 +267,9 @@ const LoadedSlot = ({
 }: Props & { widget: AnyWidget }) => {
   const htmlRef = useRef<HTMLDivElement>(null);
 
-  // Wrap setValue to serialize DataViews back to base64 before sending
-  // Structure matches ipywidgets protocol: { state, bufferPaths, buffers }
-  const wrappedSetValue = useMemo(() => {
-    return (partialValue: Partial<T>) => {
-      const { state, bufferPaths: dynamicBufferPaths, buffers } =
-        serializeBuffersToBase64(partialValue);
-      setValue({
-        state,
-        bufferPaths: dynamicBufferPaths,
-        buffers,
-      } as Partial<T>);
-    };
-  }, [setValue]);
-
   // value is already decoded from wire format
   const model = useRef<Model<T>>(
-    new Model(value, wrappedSetValue, functions.send_to_widget, new Set()),
+    new Model(value, setValue, functions.send_to_widget, new Set()),
   );
 
   // Listen to incoming messages

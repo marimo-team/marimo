@@ -33,7 +33,7 @@ def decode_from_wire(
 
     if buffer_paths and buffers_base64:
         decoded_buffers = [base64.b64decode(b) for b in buffers_base64]
-        insert_buffer_paths(state, buffer_paths, decoded_buffers)
+        return insert_buffer_paths(state, buffer_paths, decoded_buffers)
 
     return state
 
@@ -52,6 +52,7 @@ def encode_to_wire(
         "bufferPaths": buffer_paths,
         "buffers": buffers_base64,
     }
+
 
 if TYPE_CHECKING:
     from anywidget import (  # type: ignore [import-not-found,unused-ignore]  # noqa: E501
@@ -202,7 +203,6 @@ class anywidget(UIElement[T, T]):
             if changed_state:
                 widget.set_state(changed_state)
 
-
         js_hash: str = hashlib.md5(
             js.encode("utf-8"), usedforsecurity=False
         ).hexdigest()
@@ -264,6 +264,19 @@ class anywidget(UIElement[T, T]):
         )
         self._prev_state = value
         return value
+
+    @property
+    def value(self) -> T:
+        """The element's current value as a plain dictionary (wire format decoded)."""
+        # Get the internal value (which is in wire format)
+        internal_value = super().value
+        # Decode it to plain state for user-facing code
+        return decode_from_wire(internal_value)  # type: ignore[return-value]
+
+    @value.setter
+    def value(self, value: T) -> None:
+        del value
+        raise RuntimeError("Setting the value of a UIElement is not allowed.")
 
     def __deepcopy__(self, memo: Any) -> Any:
         # Overriding UIElement deepcopy implementation

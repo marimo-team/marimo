@@ -1,23 +1,26 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { get, set } from "lodash-es";
 import { invariant } from "./invariant";
+import {
+  type Base64String,
+  binaryToByteString,
+  byteStringToBinary,
+  typedAtob,
+  typedBtoa,
+} from "./json/base64";
 import { Logger } from "./Logger";
-import { byteStringToBinary, typedAtob, type Base64String } from "./json/base64";
 
 /**
  * Convert a DataView to a base64 string.
  */
-export function dataViewToBase64(dataView: DataView): string {
+export function dataViewToBase64(dataView: DataView): Base64String {
   const bytes = new Uint8Array(
     dataView.buffer,
     dataView.byteOffset,
     dataView.byteLength,
   );
-  let binary = "";
-  for (const byte of bytes) {
-    binary += String.fromCharCode(byte);
-  }
-  return btoa(binary);
+  const byteString = binaryToByteString(bytes);
+  return typedBtoa(byteString);
 }
 
 /**
@@ -53,7 +56,7 @@ function findDataViewPaths(
  */
 export function serializeBuffersToBase64<T extends Record<string, unknown>>(
   inputObject: T,
-): { state: T; buffers: string[]; bufferPaths: (string | number)[][] } {
+): WireFormat<T> {
   // Dynamically find all DataView paths instead of using fixed bufferPaths
   const dataViewPaths = findDataViewPaths(inputObject);
 
@@ -62,7 +65,7 @@ export function serializeBuffersToBase64<T extends Record<string, unknown>>(
   }
 
   const state = structuredClone(inputObject);
-  const buffers: string[] = [];
+  const buffers: Base64String[] = [];
   const bufferPaths: (string | number)[][] = [];
 
   for (const bufferPath of dataViewPaths) {
@@ -80,6 +83,7 @@ export function serializeBuffersToBase64<T extends Record<string, unknown>>(
 
 /**
  * Wire format for anywidget state with binary data.
+ * Buffers can be either base64 strings (from network) or DataViews (in-memory).
  */
 export interface WireFormat<T = Record<string, unknown>> {
   state: T;
@@ -90,7 +94,9 @@ export interface WireFormat<T = Record<string, unknown>> {
 /**
  * Check if an object is in wire format.
  */
-export function isWireFormat(obj: unknown): obj is WireFormat {
+export function isWireFormat<T = Record<string, unknown>>(
+  obj: unknown,
+): obj is WireFormat<T> {
   return (
     obj !== null &&
     typeof obj === "object" &&
@@ -101,43 +107,25 @@ export function isWireFormat(obj: unknown): obj is WireFormat {
 }
 
 /**
- * Decode wire format { state, bufferPaths, buffers } to plain state with DataViews.
+ * Decode wire format or insert DataViews at specified paths.
+ *
+ * Accepts either:
+ * 1. Wire format: { state, bufferPaths, buffers } where buffers are base64 strings
+ * 2. Direct format: { state, bufferPaths, buffers } where buffers are DataViews
  *
  * For ndarray-like structures {view: null, dtype, shape}, we insert the DataView
  * at the 'view' key, preserving the structure for round-tripping.
  */
-export function decodeFromWire<T extends Record<string, unknown>>(
-  wire: WireFormat<T>,
-): T {
-  const { state, bufferPaths, buffers } = wire;
+export function decodeFromWire<T extends Record<string, unknown>>(input: {
+  state: T;
+  bufferPaths?: (string | number)[][];
+  buffers?: readonly (DataView | Base64String)[];
+}): T {
+  const { state, bufferPaths, buffers } = structuredClone(input);
 
+  // If no buffer paths, return the original state
   if (!bufferPaths || bufferPaths.length === 0) {
     return state;
-  }
-
-  const out = structuredClone(state);
-  for (let i = 0; i < bufferPaths.length; i++) {
-    const bufferPath = bufferPaths[i];
-    const base64String = buffers[i];
-    if (base64String) {
-      const bytes = byteStringToBinary(typedAtob(base64String));
-      set(out, bufferPath, new DataView(bytes.buffer));
-    }
-  }
-  return out;
-}
-
-/**
- * Update the object with DataView buffers at the specified paths.
- */
-export function updateBufferPaths<T extends Record<string, unknown>>(
-  inputObject: T,
-  bufferPaths: readonly (readonly (string | number)[])[],
-  buffers: readonly DataView[],
-): T {
-  // If no buffer paths, return the original object
-  if (!bufferPaths || bufferPaths.length === 0) {
-    return inputObject;
   }
 
   // If has buffers, assert they are the same size
@@ -148,18 +136,24 @@ export function updateBufferPaths<T extends Record<string, unknown>>(
     );
   }
 
-  let object = structuredClone(inputObject);
+  const out = structuredClone(state);
 
   for (const [i, bufferPath] of bufferPaths.entries()) {
-    // If buffers exists, we use that value
-    // Otherwise we grab it from inside the inputObject
-    const dataView = buffers[i];
-    if (!dataView) {
-      Logger.warn("Could not find buffer at path", bufferPath);
+    const buffer = buffers?.[i];
+
+    if (buffer == null) {
+      Logger.warn("[anywidget] Could not find buffer at path", bufferPath);
       continue;
     }
-    object = set(object, bufferPath, dataView);
+
+    // Handle both base64 strings (from wire format) and DataViews (direct usage)
+    if (typeof buffer === "string") {
+      const bytes = byteStringToBinary(typedAtob(buffer));
+      set(out, bufferPath, new DataView(bytes.buffer));
+    } else {
+      set(out, bufferPath, buffer);
+    }
   }
 
-  return object;
+  return out;
 }
