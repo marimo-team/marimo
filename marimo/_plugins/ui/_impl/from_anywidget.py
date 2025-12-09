@@ -6,7 +6,7 @@ import hashlib
 import weakref
 from copy import deepcopy
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Generic, Optional, TypeVar
+from typing import TYPE_CHECKING, Any, Generic, Optional, TypedDict, TypeVar
 
 import marimo._output.data.data as mo_data
 from marimo import _loggers
@@ -20,8 +20,14 @@ from marimo._plugins.ui._impl.comm import MarimoComm
 from marimo._runtime.functions import Function
 
 
+class WireFormat(TypedDict):
+    state: dict[str, Any]
+    bufferPaths: list[list[str | int]]
+    buffers: list[str]
+
+
 def decode_from_wire(
-    wire: dict[str, Any],
+    wire: WireFormat,
 ) -> dict[str, Any]:
     """Decode wire format { state, bufferPaths, buffers } to plain state with bytes."""
     if "state" not in wire or "bufferPaths" not in wire:
@@ -40,18 +46,18 @@ def decode_from_wire(
 
 def encode_to_wire(
     state: dict[str, Any],
-) -> dict[str, Any]:
+) -> WireFormat:
     """Encode plain state with bytes to wire format { state, bufferPaths, buffers }."""
     state_no_buffers, buffer_paths, buffers = extract_buffer_paths(state)
 
     # Convert bytes to base64
     buffers_base64 = [base64.b64encode(b).decode("utf-8") for b in buffers]
 
-    return {
-        "state": state_no_buffers,
-        "bufferPaths": buffer_paths,
-        "buffers": buffers_base64,
-    }
+    return WireFormat(
+        state=state_no_buffers,
+        bufferPaths=buffer_paths,
+        buffers=buffers_base64,
+    )
 
 
 if TYPE_CHECKING:
@@ -102,7 +108,7 @@ def from_anywidget(widget: AnyWidget) -> UIElement[Any, Any]:
     return el
 
 
-T = dict[str, Any]
+T = WireFormat
 
 
 @dataclass
@@ -179,9 +185,7 @@ class anywidget(UIElement[T, T]):
         # Filter out system traits from the serialized state
         # This should include the binary data,
         # see marimo/_smoke_tests/issues/2366-anywidget-binary.py
-        json_args: T = {
-            k: v for k, v in state.items() if k not in ignored_traits
-        }
+        json_args = {k: v for k, v in state.items() if k not in ignored_traits}
 
         js: str = widget._esm if hasattr(widget, "_esm") else ""  # type: ignore [unused-ignore]  # noqa: E501
         css: str = widget._css if hasattr(widget, "_css") else ""  # type: ignore [unused-ignore]  # noqa: E501
@@ -234,9 +238,7 @@ class anywidget(UIElement[T, T]):
 
     def _initialize(
         self,
-        initialization_args: InitializationArgs[
-            dict[str, Any], dict[str, Any]
-        ],
+        initialization_args: InitializationArgs[WireFormat, WireFormat],
     ) -> None:
         super()._initialize(initialization_args)
         # Add the ui_element_id after the widget is initialized
@@ -245,7 +247,14 @@ class anywidget(UIElement[T, T]):
             comm.ui_element_id = self._id
 
     def _receive_from_frontend(self, args: SendToWidgetArgs) -> None:
-        self.widget._handle_custom_msg(args.content, args.buffers)
+        state = decode_from_wire(
+            WireFormat(
+                state=args.content.get("state", {}),
+                bufferPaths=args.content.get("bufferPaths", []),
+                buffers=args.buffers or [],
+            )
+        )
+        self.widget._handle_custom_msg(state, args.buffers)
 
     def _convert_value(self, value: T) -> T:
         if isinstance(value, dict) and isinstance(self._prev_state, dict):

@@ -2052,8 +2052,9 @@ class Kernel:
                     error_message = f"Function call ({request.function_name}) was interrupted by the user"
                     debug(error_title, error_message)
                 except Exception as e:
-                    error_title = "Exception"
                     error_message = f"Function call (name: {request.function_name}, args: {request.args}) failed with exception {str(e)}"
+                    error_title = "Exception"
+                    LOGGER.info(error_message, exc_info=True)
                     debug(error_title, error_message)
 
         # Couldn't call function, or function call failed
