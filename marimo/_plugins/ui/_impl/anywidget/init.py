@@ -42,5 +42,9 @@ def init_marimo_widget(w: ipywidgets.Widget) -> None:
         # html_deps=session._process_ui(TagList(widget_dep))["deps"],
     )
 
+    # Register ipywidgets' message handler so it can process incoming messages
+    # with proper buffer handling via _put_buffers and serializer support
+    w.comm.on_msg(w._handle_msg)
+
 
 WIDGET_COMM_MANAGER = MarimoCommManager()

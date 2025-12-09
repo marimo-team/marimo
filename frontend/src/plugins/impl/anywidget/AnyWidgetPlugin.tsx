@@ -2,8 +2,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import type { AnyWidget, Experimental } from "@anywidget/types";
-import { get, isEqual, set } from "lodash-es";
+import { isEqual } from "lodash-es";
 import { useEffect, useMemo, useRef } from "react";
+import useEvent from "react-use-event-hook";
 import { z } from "zod";
 import { MarimoIncomingMessageEvent } from "@/core/dom/events";
 import { asRemoteURL } from "@/core/runtime/config";
@@ -17,10 +18,13 @@ import { createPlugin } from "@/plugins/core/builder";
 import { rpc } from "@/plugins/core/rpc";
 import type { IPluginProps } from "@/plugins/types";
 import {
-  type Base64String,
-  byteStringToBinary,
-  typedAtob,
-} from "@/utils/json/base64";
+  decodeFromWire,
+  isWireFormat,
+  serializeBuffersToBase64,
+  type WireFormat,
+} from "@/utils/data-views";
+import { prettyError } from "@/utils/errors";
+import type { Base64String } from "@/utils/json/base64";
 import { Logger } from "@/utils/Logger";
 import { ErrorBanner } from "../common/error-banner";
 import { MODEL_MANAGER, Model } from "./model";
@@ -29,44 +33,56 @@ interface Data {
   jsUrl: string;
   jsHash: string;
   css?: string | null;
-  bufferPaths?: (string | number)[][] | null;
-  initialValue: T;
 }
 
-type T = Record<string, any>;
+type T = Record<string, unknown>;
 
-// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 type PluginFunctions = {
-  send_to_widget: <T>(req: { content?: any }) => Promise<null | undefined>;
+  send_to_widget: <T>(req: {
+    content: unknown;
+    buffers: Base64String[];
+  }) => Promise<null | undefined>;
 };
 
-export const AnyWidgetPlugin = createPlugin<T>("marimo-anywidget")
+export const AnyWidgetPlugin = createPlugin<WireFormat<T>>("marimo-anywidget")
   .withData(
     z.object({
       jsUrl: z.string(),
       jsHash: z.string(),
       css: z.string().nullish(),
-      bufferPaths: z
-        .array(z.array(z.union([z.string(), z.number()])))
-        .nullish(),
-      initialValue: z.object({}).passthrough(),
     }),
   )
   .withFunctions<PluginFunctions>({
     send_to_widget: rpc
-      .input(z.object({ content: z.any() }))
+      .input(
+        z.object({
+          content: z.unknown(),
+          buffers: z.array(z.string().transform((v) => v as Base64String)),
+        }),
+      )
       .output(z.null().optional()),
   })
   .renderer((props) => <AnyWidgetSlot {...props} />);
 
-type Props = IPluginProps<T, Data, PluginFunctions>;
+const AnyWidgetSlot = (
+  props: IPluginProps<WireFormat<T>, Data, PluginFunctions>,
+) => {
+  const { css, jsUrl, jsHash } = props.data;
 
-const AnyWidgetSlot = (props: Props) => {
-  const { css, jsUrl, jsHash, bufferPaths } = props.data;
-
+  // Decode wire format { state, bufferPaths, buffers } to state with DataViews
   const valueWithBuffers = useMemo(() => {
-    return resolveInitialValue(props.value, bufferPaths ?? []);
-  }, [props.value, bufferPaths]);
+    if (isWireFormat(props.value)) {
+      const decoded = decodeFromWire(props.value);
+      Logger.debug("AnyWidget decoded wire format:", {
+        bufferPaths: props.value.bufferPaths,
+        buffersCount: props.value.buffers?.length,
+        decodedKeys: Object.keys(decoded),
+      });
+      return decoded;
+    }
+    Logger.warn("AnyWidget value is not wire format:", props.value);
+    return props.value;
+  }, [props.value]);
 
   // JS is an ESM file with a render function on it
   // export function render({ model, el }) {
@@ -135,6 +151,12 @@ const AnyWidgetSlot = (props: Props) => {
     };
   }, [css, props.host]);
 
+  // Wrap setValue to serialize DataViews back to base64 before sending
+  // Structure matches ipywidgets protocol: { state, bufferPaths, buffers }
+  const wrappedSetValue = useEvent((partialValue: Partial<T>) =>
+    props.setValue(serializeBuffersToBase64(partialValue)),
+  );
+
   if (error) {
     return <ErrorBanner error={error} />;
   }
@@ -162,6 +184,7 @@ const AnyWidgetSlot = (props: Props) => {
       key={key}
       {...props}
       widget={module.default}
+      setValue={wrappedSetValue}
       value={valueWithBuffers}
     />
   );
@@ -191,10 +214,19 @@ async function runAnyWidgetModule(
   const widget =
     typeof widgetDef === "function" ? await widgetDef() : widgetDef;
   await widget.initialize?.({ model, experimental });
-  const unsub = await widget.render?.({ model, el, experimental });
-  return () => {
-    unsub?.();
-  };
+  try {
+    const unsub = await widget.render?.({ model, el, experimental });
+    return () => {
+      unsub?.();
+    };
+  } catch (error) {
+    Logger.error("Error rendering anywidget", error);
+    el.classList.add("text-error");
+    el.innerHTML = `Error rendering anywidget: ${prettyError(error)}`;
+    return () => {
+      // No-op
+    };
+  }
 }
 
 function isAnyWidgetModule(mod: any): mod is { default: AnyWidget } {
@@ -218,6 +250,13 @@ function hasModelId(message: unknown): message is { model_id: string } {
   );
 }
 
+interface Props
+  extends Omit<IPluginProps<T, Data, PluginFunctions>, "setValue"> {
+  widget: AnyWidget;
+  value: T;
+  setValue: (value: Partial<T>) => void;
+}
+
 const LoadedSlot = ({
   value,
   setValue,
@@ -228,15 +267,9 @@ const LoadedSlot = ({
 }: Props & { widget: AnyWidget }) => {
   const htmlRef = useRef<HTMLDivElement>(null);
 
+  // value is already decoded from wire format
   const model = useRef<Model<T>>(
-    new Model(
-      // Merge the initial value with the current value
-      // since we only send partial updates to the backend
-      { ...data.initialValue, ...value },
-      setValue,
-      functions.send_to_widget,
-      getDirtyFields(value, data.initialValue),
-    ),
+    new Model(value, setValue, functions.send_to_widget, new Set()),
   );
 
   // Listen to incoming messages
@@ -289,16 +322,3 @@ export const visibleForTesting = {
   isAnyWidgetModule,
   getDirtyFields,
 };
-
-export function resolveInitialValue(
-  raw: Record<string, any>,
-  bufferPaths: readonly (readonly (string | number)[])[],
-) {
-  const out = structuredClone(raw);
-  for (const bufferPath of bufferPaths) {
-    const base64String: Base64String = get(raw, bufferPath);
-    const bytes = byteStringToBinary(typedAtob(base64String));
-    set(out, bufferPath, new DataView(bytes.buffer));
-  }
-  return out;
-}

@@ -9,6 +9,7 @@ import {
   vi,
 } from "vitest";
 import { TestUtils } from "@/__tests__/test-helpers";
+import type { Base64String } from "@/utils/json/base64";
 import {
   type AnyWidgetMessage,
   handleWidgetMessage,
@@ -23,7 +24,10 @@ describe("Model", () => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let onChange: (value: any) => void;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let sendToWidget: (req: { content?: any }) => Promise<null | undefined>;
+  let sendToWidget: (req: {
+    content: unknown;
+    buffers: Base64String[];
+  }) => Promise<null | undefined>;
 
   beforeEach(() => {
     onChange = vi.fn();
@@ -72,7 +76,7 @@ describe("Model", () => {
       });
     });
 
-    it("should send all dirty fields", () => {
+    it("should clear dirty fields after save", () => {
       model.set("foo", "new value");
       model.save_changes();
 
@@ -83,14 +87,13 @@ describe("Model", () => {
       model.set("bar", 456);
       model.save_changes();
 
+      // After clearing, only the newly changed field is sent
       expect(onChange).toHaveBeenCalledWith({
-        foo: "new value",
         bar: 456,
       });
     });
 
-    // Skip because we don't clear the dirty fields after save
-    it.skip("should clear dirty fields after save", () => {
+    it("should not call onChange when no dirty fields", () => {
       model.set("foo", "new value");
       model.save_changes();
       model.save_changes(); // Second save should not call onChange
@@ -144,20 +147,15 @@ describe("Model", () => {
       const callback = vi.fn();
       model.send({ test: true }, callback);
 
-      expect(sendToWidget).toHaveBeenCalledWith({ content: { test: true } });
+      expect(sendToWidget).toHaveBeenCalledWith({
+        content: {
+          state: { test: true },
+          bufferPaths: [],
+        },
+        buffers: [],
+      });
       await TestUtils.nextTick(); // flush
       expect(callback).toHaveBeenCalledWith(null);
-    });
-
-    it("should warn when buffers are provided", () => {
-      const consoleSpy = vi.spyOn(console, "warn").mockImplementation(() => {
-        // noop
-      });
-      model.send({ test: true }, null, [new ArrayBuffer(8)]);
-
-      expect(consoleSpy).toHaveBeenCalledWith(
-        "buffers not supported in marimo anywidget.send",
-      );
     });
   });
 
@@ -228,7 +226,11 @@ describe("Model", () => {
     it("should handle update messages", () => {
       model.receiveCustomMessage({
         method: "update",
-        state: { foo: "updated", bar: 789 },
+        state: {
+          foo: "updated",
+          bar: 789,
+        },
+        buffer_paths: [],
       });
 
       expect(model.get("foo")).toBe("updated");
@@ -333,7 +335,9 @@ describe("ModelManager", () => {
 
     const updateMessage: AnyWidgetMessage = {
       method: "update",
-      state: { count: 1 },
+      state: {
+        count: 1,
+      },
       buffer_paths: [],
     };
 
