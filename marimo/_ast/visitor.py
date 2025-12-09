@@ -1006,12 +1006,18 @@ class ScopedVisitor(ast.NodeVisitor):
 
         # Handle refs on the block scope level, or capture cell level
         # references.
+        # Only add to ref_stack if the variable is not defined in any
+        # non-module ancestor block. This prevents function parameters from
+        # being incorrectly marked as refs when used in nested scopes like
+        # list comprehensions, while still capturing module-level references.
         if (
             isinstance(node.ctx, ast.Load)
             and self._is_defined(node.id)
             and node.id not in self.ref_stack[-1]
             and (
-                node.id not in self.block_stack[-1].defs
+                # Check blocks[1:] - skip module block so module-level vars
+                # are still tracked as refs, but function params aren't
+                not any(node.id in block.defs for block in self.block_stack[1:])
                 or len(self.block_stack) == 1
             )
         ):

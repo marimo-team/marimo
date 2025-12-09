@@ -305,6 +305,32 @@ def test_nested_comprehension_generator_with_named_expr() -> None:
     assert v.variable_data == {"x": [VariableData(kind="variable")]}
 
 
+def test_function_param_in_comprehension_not_required_ref() -> None:
+    """Function parameters used in list comprehensions should not be required_refs.
+
+    Regression test: The parameter `extension` was incorrectly added to required_refs
+    when used as the iterator in a list comprehension inside the function.
+    See: test_shadowed_ui_variable_threadpool in tests/_save/test_cache.py
+    """
+    code = cleandoc(
+        """
+        def helper(extension):
+            return [e for e in extension or []]
+        """
+    )
+    v = visitor.ScopedVisitor()
+    mod = ast.parse(code)
+    v.visit(mod)
+
+    assert v.defs == {"helper"}
+    assert v.refs == set()  # No external refs!
+    # extension is a PARAMETER, not an external dependency
+    # Compare to test_globals_in_functions: foo(a...) where a is not in required_refs
+    assert v.variable_data == {
+        "helper": [VariableData(kind="function", required_refs=set())]
+    }
+
+
 def test_walrus_leaks_to_global_in_comprehension() -> None:
     code = "\n".join(
         [
