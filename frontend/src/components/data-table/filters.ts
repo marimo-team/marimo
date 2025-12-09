@@ -194,14 +194,16 @@ export function filterToFilterCondition(
 
       return [];
     case "select": {
+      let operator = filter.operator;
       if (filter.operator !== "in" && filter.operator !== "not_in") {
         Logger.warn("Invalid operator for select filter", {
           operator: filter.operator,
         });
+        operator = "in"; // default to in operator
       }
       return {
         column_id: columnId,
-        operator: filter.operator === "not_in" ? "not_in" : "in",
+        operator,
         value: filter.options,
       };
     }
