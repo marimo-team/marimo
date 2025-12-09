@@ -85,7 +85,7 @@ export class Model<T extends Record<string, any>> implements AnyModel<T> {
     this.onChange = onChange;
     this.sendToWidget = sendToWidget;
     this.dirtyFields = new Map(
-      [...initialDirtyFields.entries()].map(([key]) => [key, this.data[key]]),
+      [...initialDirtyFields].map((key) => [key, this.data[key]]),
     );
   }
 
@@ -200,7 +200,13 @@ export class Model<T extends Record<string, any>> implements AnyModel<T> {
           );
           break;
         case "open":
-          this.updateAndEmitDiffs(data.state as T);
+          this.updateAndEmitDiffs(
+            decodeFromWire<T>({
+              state: data.state as T,
+              bufferPaths: data.buffer_paths ?? [],
+              buffers,
+            }),
+          );
           break;
         case "echo_update":
           // We don't need to do anything with this message

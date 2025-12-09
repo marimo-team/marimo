@@ -6,7 +6,15 @@ import hashlib
 import weakref
 from copy import deepcopy
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Generic, Optional, TypedDict, TypeVar
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Generic,
+    Optional,
+    TypedDict,
+    TypeVar,
+    cast,
+)
 
 import marimo._output.data.data as mo_data
 from marimo import _loggers
@@ -27,7 +35,7 @@ class WireFormat(TypedDict):
 
 
 def decode_from_wire(
-    wire: WireFormat,
+    wire: WireFormat | dict[str, Any],
 ) -> dict[str, Any]:
     """Decode wire format { state, bufferPaths, buffers } to plain state with bytes."""
     if "state" not in wire or "bufferPaths" not in wire:
@@ -40,6 +48,12 @@ def decode_from_wire(
     if buffer_paths and buffers_base64:
         decoded_buffers = [base64.b64decode(b) for b in buffers_base64]
         return insert_buffer_paths(state, buffer_paths, decoded_buffers)
+
+    if buffer_paths or buffers_base64:
+        LOGGER.warning(
+            "Expected wire format to have buffers, but got %s", wire
+        )
+        return state
 
     return state
 
@@ -108,7 +122,7 @@ def from_anywidget(widget: AnyWidget) -> UIElement[Any, Any]:
     return el
 
 
-T = WireFormat
+T = dict[str, Any]
 
 
 @dataclass
@@ -118,7 +132,7 @@ class SendToWidgetArgs:
 
 
 @mddoc
-class anywidget(UIElement[T, T]):
+class anywidget(UIElement[WireFormat, T]):
     """Create a UIElement from an AnyWidget.
 
     This proxies all the widget's attributes and methods, allowing seamless
@@ -185,12 +199,14 @@ class anywidget(UIElement[T, T]):
         # Filter out system traits from the serialized state
         # This should include the binary data,
         # see marimo/_smoke_tests/issues/2366-anywidget-binary.py
-        json_args = {k: v for k, v in state.items() if k not in ignored_traits}
+        json_args: T = {
+            k: v for k, v in state.items() if k not in ignored_traits
+        }
 
         js: str = widget._esm if hasattr(widget, "_esm") else ""  # type: ignore [unused-ignore]  # noqa: E501
         css: str = widget._css if hasattr(widget, "_css") else ""  # type: ignore [unused-ignore]  # noqa: E501
 
-        def on_change(change: T) -> None:
+        def on_change(change: dict[str, Any]) -> None:
             # Decode wire format to plain state with bytes
             state = decode_from_wire(change)
 
@@ -238,7 +254,7 @@ class anywidget(UIElement[T, T]):
 
     def _initialize(
         self,
-        initialization_args: InitializationArgs[WireFormat, WireFormat],
+        initialization_args: InitializationArgs[WireFormat, dict[str, Any]],
     ) -> None:
         super()._initialize(initialization_args)
         # Add the ui_element_id after the widget is initialized
@@ -256,7 +272,7 @@ class anywidget(UIElement[T, T]):
         )
         self.widget._handle_custom_msg(state, args.buffers)
 
-    def _convert_value(self, value: T) -> T:
+    def _convert_value(self, value: WireFormat) -> T:
         if isinstance(value, dict) and isinstance(self._prev_state, dict):
             # Decode wire format to plain state with bytes
             decoded_state = decode_from_wire(value)
@@ -266,13 +282,16 @@ class anywidget(UIElement[T, T]):
             self._prev_state = merged
 
             # Encode back to wire format for frontend
-            return encode_to_wire(merged)
+            # NB: This needs to be the wire format to work
+            # although the types say it should be the plain state,
+            # otherwise the frontend loses some information
+            return cast(T, encode_to_wire(merged))
 
         LOGGER.warning(
             f"Expected anywidget value to be a dict, got {type(value)}"
         )
         self._prev_state = value
-        return value
+        return cast(T, value)
 
     @property
     def value(self) -> T:
