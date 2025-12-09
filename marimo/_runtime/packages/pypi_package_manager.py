@@ -8,7 +8,7 @@ import sys
 import tempfile
 from functools import cached_property
 from pathlib import Path
-from typing import Optional, override
+from typing import Optional
 
 from marimo import _loggers
 from marimo._runtime.packages.module_name_to_pypi_name import (
@@ -58,10 +58,11 @@ class PipPackageManager(PypiPackageManager):
     name = "pip"
     docs_url = "https://pip.pypa.io/"
 
-    @override
     def install_command(
         self, package: str, *, upgrade: bool, dev: bool
     ) -> list[str]:
+        # The `dev` parameter is accepted for interface compatibility, but is ignored.
+        del dev
         return [
             "pip",
             "--python",
@@ -71,8 +72,9 @@ class PipPackageManager(PypiPackageManager):
             *split_packages(package),
         ]
 
-    @override
-    async def uninstall(self, package: str, dev: bool = False) -> bool:
+    async def uninstall(self, package: str, dev: bool) -> bool:
+        # The `dev` parameter is accepted for interface compatibility, but is ignored.
+        del dev
         LOGGER.info(f"Uninstalling {package} with pip")
         return self.run(
             [
@@ -101,7 +103,6 @@ class MicropipPackageManager(PypiPackageManager):
     def is_manager_installed(self) -> bool:
         return is_pyodide()
 
-    @override
     async def _install(
         self,
         package: str,
@@ -110,6 +111,8 @@ class MicropipPackageManager(PypiPackageManager):
         dev: bool,
         log_callback: Optional[LogCallback] = None,
     ) -> bool:
+        # The `dev` parameter is accepted for interface compatibility, but is ignored.
+        del dev
         assert is_pyodide()
         import micropip  # type: ignore
 
@@ -133,8 +136,9 @@ class MicropipPackageManager(PypiPackageManager):
                 log_callback(f"Failed to install {package}: {e}\n")
             return False
 
-    @override
-    async def uninstall(self, package: str, dev: bool = False) -> bool:
+    async def uninstall(self, package: str, dev: bool) -> bool:
+        # The `dev` parameter is accepted for interface compatibility, but is ignored.
+        del dev
         assert is_pyodide()
         import micropip  # type: ignore
 
@@ -185,7 +189,7 @@ class UvPackageManager(PypiPackageManager):
         return self._uv_bin != "uv" or super().is_manager_installed()
 
     def install_command(
-        self, package: str, *, upgrade: bool, dev: bool
+        self, package: str, *, upgrade: bool, dev: bool = False
     ) -> list[str]:
         install_cmd: list[str]
         if self.is_in_uv_project:
@@ -597,18 +601,20 @@ class RyePackageManager(PypiPackageManager):
     name = "rye"
     docs_url = "https://rye.astral.sh/"
 
-    @override
     def install_command(
         self, package: str, *, upgrade: bool, dev: bool
     ) -> list[str]:
+        # The `dev` parameter is accepted for interface compatibility, but is ignored.
+        del dev
         return [
             "rye",
             *(["sync", "--update"] if upgrade else ["add"]),
             *split_packages(package),
         ]
 
-    @override
-    async def uninstall(self, package: str, dev: bool = False) -> bool:
+    async def uninstall(self, package: str, dev: bool) -> bool:
+        # The `dev` parameter is accepted for interface compatibility, but is ignored.
+        del dev
         return self.run(
             ["rye", "remove", *split_packages(package)], log_callback=None
         )
@@ -632,10 +638,11 @@ class PoetryPackageManager(PypiPackageManager):
         major, *_ = map(int, version_str.split("."))
         return major
 
-    @override
     def install_command(
         self, package: str, *, upgrade: bool, dev: bool
     ) -> list[str]:
+        # The `dev` parameter is accepted for interface compatibility, but is ignored.
+        del dev
         return [
             "poetry",
             "update" if upgrade else "add",
@@ -643,8 +650,9 @@ class PoetryPackageManager(PypiPackageManager):
             *split_packages(package),
         ]
 
-    @override
-    async def uninstall(self, package: str, dev: bool = False) -> bool:
+    async def uninstall(self, package: str, dev: bool) -> bool:
+        # The `dev` parameter is accepted for interface compatibility, but is ignored.
+        del dev
         return self.run(
             ["poetry", "remove", "--no-interaction", *split_packages(package)],
             log_callback=None,

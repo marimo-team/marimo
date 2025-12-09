@@ -110,7 +110,7 @@ class PackageManager(abc.ABC):
         )
 
     @abc.abstractmethod
-    async def uninstall(self, package: str, dev: bool = False) -> bool:
+    async def uninstall(self, package: str, dev: bool) -> bool:
         """Attempt to uninstall a package
 
         Args:

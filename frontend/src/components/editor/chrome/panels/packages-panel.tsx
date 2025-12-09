@@ -387,7 +387,7 @@ const UpgradeButton: React.FC<{
 
 const RemoveButton: React.FC<{
   packageName: string;
-  tags?: Array<{ kind: string; value: string }>;
+  tags?: { kind: string; value: string }[];
   onSuccess: () => void;
 }> = ({ packageName, tags, onSuccess }) => {
   const [loading, setLoading] = React.useState(false);
@@ -402,7 +402,7 @@ const RemoveButton: React.FC<{
       const response = await removePackage({
         package: packageName,
         dev: isDev,
-      } as any);
+      });
       if (response.success) {
         onSuccess();
         showRemovePackageToast(packageName);
@@ -608,7 +608,7 @@ const DependencyTreeNode: React.FC<{
             <UpgradeButton packageName={node.name} onSuccess={onSuccess} />
             <RemoveButton
               packageName={node.name}
-              tags={node.tags as Array<{ kind: string; value: string }>}
+              tags={node.tags as { kind: string; value: string }[]}
               onSuccess={onSuccess}
             />
           </div>

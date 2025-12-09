@@ -19,6 +19,11 @@ components:
 
         /example/foo-0.1.0-py3-none-any.whl'
       properties:
+        dev:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          default: false
         package:
           type: string
         upgrade:
@@ -2755,6 +2760,11 @@ components:
       type: object
     RemovePackageRequest:
       properties:
+        dev:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          default: false
         package:
           type: string
       required:
@@ -3755,7 +3765,7 @@ components:
       type: object
 info:
   title: marimo API
-  version: 0.17.6
+  version: 0.18.1
 openapi: 3.1.0
 paths:
   /@file/{filename_and_length}:

@@ -77,7 +77,7 @@ async def test_uninstall(mock_run: MagicMock):
     mock_run.return_value = MagicMock(returncode=0)
 
     with patch.object(manager, "is_manager_installed", return_value=True):
-        result = await manager.uninstall("package1 package2")
+        result = await manager.uninstall("package1 package2", dev=False)
 
     mock_run.assert_called_once_with(
         [
