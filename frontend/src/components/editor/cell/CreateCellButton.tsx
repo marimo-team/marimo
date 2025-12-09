@@ -46,7 +46,7 @@ export const CreateCellButton = ({
       <div>{baseTooltipContent}</div>
       <div className="text-xs text-muted-foreground font-medium pt-1 -mt-2 border-t border-border">
         {<MinimalHotkeys shortcut={shortcut} className="inline" />}{" "}
-        <span>to auto insert a cell</span>
+        <span>for other cell types</span>
       </div>
     </div>
   );
@@ -81,7 +81,8 @@ export const CreateCellButton = ({
   };
 
   const handleButtonClick = (e: React.MouseEvent) => {
-    if (oneClickShortcut === "shift" ? e.shiftKey : e.metaKey || e.ctrlKey) {
+    const hasModifier = oneClickShortcut === "shift" ? e.shiftKey : e.metaKey || e.ctrlKey;
+    if (!hasModifier) {
       e.preventDefault();
       e.stopPropagation();
       addPythonCell();
@@ -123,7 +124,7 @@ export const CreateCellButton = ({
         >
           <Tooltip content={finalTooltipContent}>
             <PlusIcon
-              strokeWidth={4}
+              strokeWidth={3}
               size={14}
               className="opacity-60 hover:opacity-90"
             />
