@@ -67,3 +67,23 @@ export function getPageIndexForRow(
 
   return null;
 }
+
+/**
+ * Stringify an unknown value. Converts objects to JSON strings.
+ * @param opts.value - The value to stringify.
+ * @param opts.nullAsEmptyString - If true, null values will be "". Else, stringify.
+ */
+export function stringifyUnknownValue(opts: {
+  value: unknown;
+  nullAsEmptyString?: boolean;
+}): string {
+  const { value, nullAsEmptyString = false } = opts;
+
+  if (typeof value === "object" && value !== null) {
+    return JSON.stringify(value);
+  }
+  if (value === null && nullAsEmptyString) {
+    return "";
+  }
+  return String(value);
+}

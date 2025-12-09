@@ -140,6 +140,16 @@
       "attributePosition": "auto"
     }
   },
+  "css": {
+    "parser": {
+      "tailwindDirectives": true
+    }
+  },
+  "html": {
+    "parser": {
+      "interpolation": true
+    }
+  },
   "vcs": {
     "enabled": true,
     "clientKind": "git",
@@ -157,6 +167,16 @@
         "rules": {
           "suspicious": {
             "noConsole": "off"
+          }
+        }
+      }
+    },
+    {
+      "includes": ["packages/openapi/src/*.ts"],
+      "linter": {
+        "rules": {
+          "style": {
+            "useNamingConvention": "off"
           }
         }
       }

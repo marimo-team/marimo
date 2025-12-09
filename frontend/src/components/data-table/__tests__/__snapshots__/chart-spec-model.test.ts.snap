@@ -219,7 +219,7 @@ exports[`ColumnChartSpecModel > should expect bin values to be used for number a
           "type": "quantitative",
         },
         "x2": {
-          "field": "bin_end",
+          "field": "bin_end_extended",
         },
         "y": {
           "aggregate": "max",
@@ -236,7 +236,6 @@ exports[`ColumnChartSpecModel > should expect bin values to be used for number a
           "name": "hover",
           "select": {
             "clear": "mouseout",
-            "nearest": true,
             "on": "mouseover",
             "type": "point",
           },
@@ -246,6 +245,10 @@ exports[`ColumnChartSpecModel > should expect bin values to be used for number a
         {
           "as": "bin_range",
           "calculate": "format(datum.bin_start, '.2f') + ' - ' + format(datum.bin_end, '.2f')",
+        },
+        {
+          "as": "bin_end_extended",
+          "calculate": "datum.bin_end + 1",
         },
       ],
     },

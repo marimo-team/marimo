@@ -341,12 +341,12 @@ const getEffects = (
   }
 
   const anchor = Cursor.decode(state.cursor.anchor);
-  const anchorPos = doc.getCursorPos(anchor).offset;
+  const anchorPos = doc.getCursorPos(anchor)?.offset ?? 0;
   let headPos = anchorPos;
   if (state.cursor.head) {
     // range
     const head = Cursor.decode(state.cursor.head);
-    headPos = doc.getCursorPos(head).offset;
+    headPos = doc.getCursorPos(head)?.offset ?? 0;
   }
   return remoteAwarenessEffect.of({
     type: "update",

@@ -23,6 +23,7 @@ import { calculateBinStep, getPartialTimeTooltip } from "./utils";
 
 // We rely on vega's built-in binning to determine bar widths.
 const MAX_BAR_HEIGHT = 20; // px
+const BIN_END_EXTENSION_FACTOR = 0.1;
 
 // If we are concatenating charts, we need to specify each chart's height and width.
 const CONCAT_CHART_HEIGHT = 30;
@@ -358,7 +359,6 @@ export class ColumnChartSpecModel<T> {
                     type: "point",
                     on: "mouseover",
                     clear: "mouseout",
-                    nearest: true, // Nearest avoids flickering when hovering over bars, but it's not perfect
                   },
                 },
               ],
@@ -385,7 +385,7 @@ export class ColumnChartSpecModel<T> {
                   },
                 },
                 x2: {
-                  field: "bin_end",
+                  field: "bin_end_extended",
                 },
                 y: {
                   aggregate: "max",
@@ -410,6 +410,11 @@ export class ColumnChartSpecModel<T> {
                 {
                   calculate: `format(datum.bin_start, '${format}') + ' - ' + format(datum.bin_end, '${format}')`,
                   as: "bin_range",
+                },
+                {
+                  // Extend bin_end slightly to cover gaps between bars and prevent flickering
+                  calculate: `datum.bin_end + ${binStep * BIN_END_EXTENSION_FACTOR}`,
+                  as: "bin_end_extended",
                 },
               ],
             },

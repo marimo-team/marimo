@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import datetime
+import decimal
 import json
 import unittest
 from math import isnan, nan
@@ -72,6 +73,11 @@ class TestPandasTableManager(unittest.TestCase):
                 "bool": [True, False, True],
                 "int": [1, 2, 3],
                 "float": [1.0, 2.0, 3.0],
+                "decimals": [
+                    decimal.Decimal("-1.23"),
+                    decimal.Decimal("NaN"),
+                    decimal.Decimal("Infinity"),
+                ],
                 "datetime": [
                     datetime.datetime(2021, 1, 1),
                     datetime.datetime(2021, 1, 2),

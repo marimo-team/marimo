@@ -208,7 +208,7 @@ async function main(): Promise<void> {
 
   const logFile = argv["log-file"] || "/tmp/lsp-server.log";
   const logger = await Logger.create(logFile);
-  const serverPort = Number.parseInt(argv.port) || 3000;
+  const serverPort = Number.parseInt(argv.port, 10) || 3000;
   const languageServerCommand = parseTypedCommand(argv.lsp || "echo test");
 
   logger.log(`Parsed LSP command: ${languageServerCommand.join(" ")}`);

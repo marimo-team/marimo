@@ -94,9 +94,7 @@ interface AgentTitleProps {
 }
 
 const AgentTitle = memo<AgentTitleProps>(({ currentAgentId }) => (
-  <span className="text-sm font-medium">
-    {currentAgentId ? capitalize(currentAgentId) : "Agents"}
-  </span>
+  <span className="text-sm font-medium">{capitalize(currentAgentId)}</span>
 ));
 AgentTitle.displayName = "AgentTitle";
 
@@ -134,7 +132,7 @@ const HeaderInfo = memo<HeaderInfoProps>(
   ({ currentAgentId, connectionStatus, shouldShowConnectionControl }) => (
     <div className="flex items-center gap-2">
       <BotMessageSquareIcon className="h-4 w-4 text-muted-foreground" />
-      <AgentTitle currentAgentId={currentAgentId} />
+      {currentAgentId && <AgentTitle currentAgentId={currentAgentId} />}
       {shouldShowConnectionControl && (
         <ConnectionStatus status={connectionStatus} />
       )}
@@ -513,7 +511,7 @@ const ChatContent = memo<ChatContentProps>(
     onResolvePermission,
     onRetryConnection,
     onRetryLastAction,
-    onDismissError,
+    onDismissError: _onDismissError,
     sessionId,
   }) => {
     const [isScrolledToBottom, setIsScrolledToBottom] = useState(true);
@@ -801,23 +799,21 @@ const AgentPanel: React.FC = () => {
       return;
     }
 
+    // If there is an available session, resume it, otherwise create a new one
     const createOrResumeSession = async () => {
+      const availableSession = tabLastActiveSessionId ?? activeSessionId;
       try {
-        // Check if we need to create a new session
-        if (tabLastActiveSessionId) {
-          // Try to resume existing session
+        if (availableSession) {
           try {
-            await handleResumeSession(tabLastActiveSessionId);
-          } catch (resumeError) {
-            logger.debug("Failed to resume session, creating new session", {
-              externalSessionId: tabLastActiveSessionId,
-              error: resumeError,
+            await handleResumeSession(availableSession);
+          } catch (error) {
+            logger.error("Failed to resume session", {
+              sessionId: availableSession,
+              error,
             });
-            // Fall back to creating new session
             await handleNewSession();
           }
         } else {
-          // No existing session, create new one
           await handleNewSession();
         }
       } catch (error) {

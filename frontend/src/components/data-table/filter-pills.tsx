@@ -11,7 +11,7 @@ import { type DateFormatter, useDateFormatter } from "react-aria";
 import { logNever } from "@/utils/assertNever";
 import { Badge } from "../ui/badge";
 import type { ColumnFilterValue } from "./filters";
-import { renderUnknownValue } from "./renderers";
+import { stringifyUnknownValue } from "./utils";
 
 interface Props<TData> {
   filters: ColumnFiltersState | undefined;
@@ -94,7 +94,7 @@ function formatValue(value: ColumnFilterValue, timeFormatter: DateFormatter) {
   }
   if (value.type === "select") {
     const stringifiedOptions = value.options.map((o) =>
-      renderUnknownValue({ value: o }),
+      stringifyUnknownValue({ value: o }),
     );
     return `is in [${stringifiedOptions.join(", ")}]`;
   }

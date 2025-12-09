@@ -55,6 +55,34 @@ describe("TerminalBuffer", () => {
     expect(buffer.render()).toMatchInlineSnapshot(`"a	b"`);
   });
 
+  test("control handles vertical tab", () => {
+    const buffer = new TerminalBuffer();
+    buffer.writeChar("a");
+    buffer.writeChar("b");
+    buffer.control("\v");
+    buffer.writeChar("c");
+    expect(buffer.render()).toMatchInlineSnapshot(`
+      "ab
+        c"
+    `); // This means we expect the "c" to be the column _after_ the "b"
+  });
+
+  test("control handles backspace", () => {
+    const buffer = new TerminalBuffer();
+    buffer.writeChar("a");
+    buffer.writeChar("b");
+    buffer.control("\b");
+    buffer.writeChar("X");
+    expect(buffer.render()).toMatchInlineSnapshot(`"aX"`);
+  });
+
+  test("control handles backspace at start of line", () => {
+    const buffer = new TerminalBuffer();
+    buffer.control("\b");
+    buffer.writeChar("a");
+    expect(buffer.render()).toMatchInlineSnapshot(`"a"`);
+  });
+
   test("control handles carriage return", () => {
     const buffer = new TerminalBuffer();
     buffer.writeChar("a");
@@ -387,7 +415,7 @@ describe("ansiReduce", () => {
 
   test("complex progress simulation", () => {
     const text =
-      "\r  0%|                                                              | 0/101000 [00:00<?, ?it/s]\rCompiling.. :   0%|                                                | 0/101000 [00:00<?, ?it/s]\n\r  0%|                                                              | 0/101000 [00:00<?, ?it/s]\u001B[A\n\rCompiling.. :   0%|                                                | 0/101000 [00:00<?, ?it/s]\u001B[A\n\n\r  0%|                                                              | 0/101000 [00:00<?, ?it/s]\u001B[A\u001B[A\n\n\rCompiling.. :   0%|                                                | 0/101000 [00:00<?, ?it/s]\u001B[A\u001B[A\n\n\n\r ... (more hidden) ...\u001B[A\u001B[A\u001B[A\n\n\n\r ... (more hidden) ...\u001B[A\u001B[A\u001B[A\rRunning chain 0:   0%|                                             | 0/101000 [00:00<?, ?it/s]\n\rRunning chain 1:   0%|                                             | 0/101000 [00:00<?, ?it/s]\u001B[A\n\n\rRunning chain 2:   0%|                                             | 0/101000 [00:00<?, ?it/s]\u001B[A\u001B[A\n\n\n\r ... (more hidden) ...\u001B[A\u001B[A\u001B[A\n\n\n\r ... (more hidden) ...\u001B[A\u001B[A\u001B[A\n\n\rRunning chain 2:  15%|████▎                        | 15150/101000 [00:00<00:00, 129479.68it/s]\u001B[A\u001B[A\n\rRunning chain 1:  15%|████▎                        | 15150/101000 [00:00<00:00, 124469.08it/s]\u001B[A\rRunning chain 0:  15%|████▎                        | 15150/101000 [00:00<00:00, 122865.03it/s]\n\n\n\r ... (more hidden) ...\u001B[A\u001B[A\u001B[A\n\n\rRunning chain 2:  30%|████████▋                    | 30300/101000 [00:00<00:00, 130679.02it/s]\u001B[A\u001B[A\n\rRunning chain 1:  30%|████████▋                    | 30300/101000 [00:00<00:00, 126103.71it/s]\u001B[A\rRunning chain 0:  30%|████████▋                    | 30300/101000 [00:00<00:00, 124748.00it/s]\n\n\n\r ... (more hidden) ...\u001B[A\u001B[A\u001B[A\n\n\rRunning chain 2:  45%|█████████████                | 45450/101000 [00:00<00:00, 127078.72it/s]\u001B[A\u001B[A\n\rRunning chain 1:  45%|█████████████                | 45450/101000 [00:00<00:00, 123708.59it/s]\u001B[A\rRunning chain 0:  45%|█████████████                | 45450/101000 [00:00<00:00, 121550.69it/s]\n\n\n\r ... (more hidden) ...\u001B[A\u001B[A\u001B[A\n\n\rRunning chain 2:  60%|█████████████████▍           | 60600/101000 [00:00<00:00, 126319.28it/s]\u001B[A\u001B[A\n\rRunning chain 1:  60%|█████████████████▍           | 60600/101000 [00:00<00:00, 123669.56it/s]\u001B[A\rRunning chain 0:  60%|█████████████████▍           | 60600/101000 [00:00<00:00, 122438.92it/s]\n\n\n\r ... (more hidden) ...\u001B[A\u001B[A\u001B[A\n\n\rRunning chain 2:  75%|█████████████████████▊       | 75750/101000 [00:00<00:00, 126984.84it/s]\u001B[A\u001B[A\n\rRunning chain 1:  75%|█████████████████████▊       | 75750/101000 [00:00<00:00, 123764.98it/s]\u001B[A\rRunning chain 0:  75%|█████████████████████▊       | 75750/101000 [00:00<00:00, 123796.97it/s]\n\n\n\r ... (more hidden) ...\u001B[A\u001B[A\u001B[A\n\n\rRunning chain 2:  90%|██████████████████████████   | 90900/101000 [00:01<00:00, 128241.91it/s]\u001B[A\u001B[A\n\rRunning chain 1:  90%|██████████████████████████   | 90900/101000 [00:01<00:00, 125149.55it/s]\u001B[A\rRunning chain 0:  90%|██████████████████████████   | 90900/101000 [00:01<00:00, 124582.89it/s]\rRunning chain 3: 100%|█████████████████████████████| 101000/101000 [00:01<00:00, 88054.93it/s]\n\rRunning chain 2: 100%|█████████████████████████████| 101000/101000 [00:01<00:00, 86530.93it/s]\n\rRunning chain 1: 100%|█████████████████████████████| 101000/101000 [00:01<00:00, 85142.19it/s]\n\rRunning chain 0: 100%|█████████████████████████████| 101000/101000 [00:01<00:00, 84719.76it/s]\n";
+      "\r  0%|                                                              | 0/101000 [00:00<?, ?it/s]\rCompiling.. :   0%|                                                | 0/101000 [00:00<?, ?it/s]\n\r  0%|                                                              | 0/101000 [00:00<?, ?it/s]\u001B[A\n\rCompiling.. :   0%|                                                | 0/101000 [00:00<?, ?it/s]\u001B[A\n\n\r  0%|                                                              | 0/101000 [00:00<?, ?it/s]\u001B[A\u001B[A\n\n\rCompiling.. :   0%|                                                | 0/101000 [00:00<?, ?it/s]\u001B[A\u001B[A\n\n\n\r ... (more hidden) ...\u001B[A\u001B[A\u001B[A\n\n\n\r ... (more hidden) ...\u001B[A\u001B[A\u001B[A\rRunning chain 0:   0%|                                             | 0/101000 [00:00<?, ?it/s]\n\rRunning chain 1:   0%|                                             | 0/101000 [00:00<?, ?it/s]\u001B[A\n\n\rRunning chain 2:   0%|                                             | 0/101000 [00:00<?, ?it/s]\u001B[A\u001B[A\n\n\n\r ... (more hidden) ...\u001B[A\u001B[A\u001B[A\n\n\n\r ... (more hidden) ...\u001B[A\u001B[A\u001B[A\n\n\rRunning chain 2:  15%|████▎                        | 15150/101000 [00:00<00:00, 129479.68it/s]\u001B[A\u001B[A\n\rRunning chain 1:  15%|████▎                        | 15150/101000 [00:00<00:00, 124469.08it/s]\u001B[A\rRunning chain 0:  15%|████▎                        | 15150/101000 [00:00<00:00, 122865.03it/s]\n\n\n\r ... (more hidden) ...\u001B[A\u001B[A\u001B[A\n\n\rRunning chain 2:  30%|████████▋                    | 30300/101000 [00:00<00:00, 130679.02it/s]\u001B[A\u001B[A\n\rRunning chain 1:  30%|████████▋                    | 30300/101000 [00:00<00:00, 126103.71it/s]\u001B[A\rRunning chain 0:  30%|████████▋                    | 30300/101000 [00:00<00:00, 124748.00it/s]\n\n\n\r ... (more hidden) ...\u001B[A\u001B[A\u001B[A\n\n\rRunning chain 2:  45%|█████████████                | 45450/101000 [00:00<00:00, 127078.72it/s]\u001B[A\u001B[A\n\rRunning chain 1:  45%|█████████████                | 45450/101000 [00:00<00:00, 123708.59it/s]\u001B[A\rRunning chain 0:  45%|█████████████                | 45450/101000 [00:00<00:00, 121550.69it/s]\n\n\n\r ... (more hidden) ...\u001B[A\u001B[A\u001B[A\n\n\rRunning chain 2:  60%|█████████████████▝           | 60600/101000 [00:00<00:00, 126319.28it/s]\u001B[A\u001B[A\n\rRunning chain 1:  60%|█████████████████▝           | 60600/101000 [00:00<00:00, 123669.56it/s]\u001B[A\rRunning chain 0:  60%|█████████████████▝           | 60600/101000 [00:00<00:00, 122438.92it/s]\n\n\n\r ... (more hidden) ...\u001B[A\u001B[A\u001B[A\n\n\rRunning chain 2:  75%|█████████████████████▊       | 75750/101000 [00:00<00:00, 126984.84it/s]\u001B[A\u001B[A\n\rRunning chain 1:  75%|█████████████████████▊       | 75750/101000 [00:00<00:00, 123764.98it/s]\u001B[A\rRunning chain 0:  75%|█████████████████████▊       | 75750/101000 [00:00<00:00, 123796.97it/s]\n\n\n\r ... (more hidden) ...\u001B[A\u001B[A\u001B[A\n\n\rRunning chain 2:  90%|██████████████████████████   | 90900/101000 [00:01<00:00, 128241.91it/s]\u001B[A\u001B[A\n\rRunning chain 1:  90%|██████████████████████████   | 90900/101000 [00:01<00:00, 125149.55it/s]\u001B[A\rRunning chain 0:  90%|██████████████████████████   | 90900/101000 [00:01<00:00, 124582.89it/s]\rRunning chain 3: 100%|█████████████████████████████| 101000/101000 [00:01<00:00, 88054.93it/s]\n\rRunning chain 2: 100%|█████████████████████████████| 101000/101000 [00:01<00:00, 86530.93it/s]\n\rRunning chain 1: 100%|█████████████████████████████| 101000/101000 [00:01<00:00, 85142.19it/s]\n\rRunning chain 0: 100%|█████████████████████████████| 101000/101000 [00:01<00:00, 84719.76it/s]\n";
     expect(ansiReduce(text)).toMatchInlineSnapshot(`
       "Running chain 3: 100%|█████████████████████████████| 101000/101000 [00:01<00:00, 88054.93it/s]
       Running chain 2: 100%|█████████████████████████████| 101000/101000 [00:01<00:00, 86530.93it/s]
@@ -500,6 +528,39 @@ describe("AnsiReducer streaming with append()", () => {
     reducer.append("\rLoading \\");
     reducer.append("\rDone!     ");
     expect(reducer.render()).toMatchInlineSnapshot(`"Done!     "`);
+  });
+});
+
+describe("AnsiReducer color preservation", () => {
+  const CASES = [
+    // SGR sequences
+    "\u001b[34mBlue text\u001b[m normal text\u001b[31mRed text\u001b[0m",
+    // Complex SGR with parameters
+    "\u001b[1;31mBold Red\u001b[0m \u001b[48;5;240mGray bg\u001b[0m",
+    // Character set selection
+    "Text\u001b(BMore\u001b(0Graphics\u001b(B",
+    // Complex case
+    "\u001b[34m[D 251201 15:32:24 cell_runner:695]\u001b(B\u001b[m Running post_execution hooks in context\n\u001b[34m[D 251201 15:32:24 hooks_post_execution:65]\u001b(B\u001b[m Acquiring graph lock to update cell import workspace\n\u001b[34m[D 251201 15:32:24 hooks_post_execution:67]\u001b(B\u001b[m Acquired graph lock to update import workspace.\n",
+  ];
+
+  test.each(CASES)("preserves ANSI color codes", (input) => {
+    const reducer = new AnsiReducer();
+    const result = reducer.reduce(input);
+    expect(result).toBe(input);
+  });
+
+  test("preserves color codes with cursor movements", () => {
+    const reducer = new AnsiReducer();
+    // Test that color codes work alongside cursor movements
+    // Note: when cursor moves up, lines below are discarded (tqdm behavior)
+    const result = reducer.reduce(
+      "Line1\n\u001b[31mRed\u001b[0m\u001b[1A\u001b[32mGreen\u001b[0m",
+    );
+    // After moving up from row 1 to row 0, row 1 is discarded
+    // Green is written at the end of row 0
+    expect(result).toMatchInlineSnapshot(
+      `"Line1       \u001b[32mGreen\u001b[0m"`,
+    );
   });
 });
 

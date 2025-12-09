@@ -10,6 +10,10 @@ import { Logger } from "@/utils/Logger";
 import { LRUCache } from "@/utils/lru";
 import { Objects } from "@/utils/objects";
 import { topologicalCodesAtom } from "../copilot/getCodes";
+import {
+  getEditorCodeAsPython,
+  updateEditorCodeFromPython,
+} from "../language/utils";
 import { createNotebookLens, type NotebookLens } from "./lens";
 import {
   CellDocumentUri,
@@ -442,14 +446,9 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
       }
 
       // Only update if it has changed
-      if (ev.state.doc.toString() !== newCode) {
-        ev.dispatch({
-          changes: {
-            from: 0,
-            to: ev.state.doc.length,
-            insert: newCode,
-          },
-        });
+      const code = getEditorCodeAsPython(ev);
+      if (code !== newCode) {
+        updateEditorCodeFromPython(ev, newCode);
       }
     }
 

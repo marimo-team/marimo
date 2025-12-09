@@ -81,6 +81,11 @@ export function createNotebookLens(
       const oldLines = mergedText.split("\n");
 
       if (newLines.length !== oldLines.length) {
+        Logger.warn(
+          "[lsp] cannot apply rename with new lines",
+          newLines,
+          oldLines,
+        );
         throw new Error("Cannot apply rename when there are new lines");
       }
 

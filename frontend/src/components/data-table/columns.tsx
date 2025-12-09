@@ -3,7 +3,7 @@
 
 import { PopoverClose } from "@radix-ui/react-popover";
 import type { Column, ColumnDef } from "@tanstack/react-table";
-import { formatDate } from "date-fns";
+import { formatDate, isValid } from "date-fns";
 import { useLocale, useNumberFormatter } from "react-aria";
 import { WithLocale } from "@/core/i18n/with-locale";
 import type { DataType } from "@/core/kernel/messages";
@@ -490,6 +490,14 @@ export function renderCellValue<TData, TValue>({
 
   if (dataType === "datetime" && typeof value === "string") {
     try {
+      if (!isValid(value)) {
+        return (
+          <div onClick={selectCell} className={cellStyles}>
+            {value}
+          </div>
+        );
+      }
+
       const date = new Date(value);
       const format = getDateFormat(value);
       return (
@@ -505,6 +513,14 @@ export function renderCellValue<TData, TValue>({
   }
 
   if (value instanceof Date) {
+    if (!isValid(value)) {
+      return (
+        <div onClick={selectCell} className={cellStyles}>
+          {value.toString()}
+        </div>
+      );
+    }
+
     // e.g. 2010-10-07 17:15:00
     return (
       <WithLocale>

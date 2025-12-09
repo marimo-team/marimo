@@ -126,6 +126,7 @@ class GroupByTransform:
     column_ids: ColumnIds
     drop_na: bool
     aggregation: Aggregation
+    aggregation_column_ids: ColumnIds
 
 
 @dataclass

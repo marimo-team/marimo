@@ -2,7 +2,7 @@
 import { logNever } from "@/utils/assertNever";
 import { Maps } from "@/utils/maps";
 import type { TransformType } from "../schema";
-import type { ColumnDataTypes } from "../types";
+import type { ColumnDataTypes, ColumnId } from "../types";
 
 /**
  * Given a list of transforms, return the updated column names/types.
@@ -46,8 +46,29 @@ function handleTransform(
       }
       return next;
     }
-    case "group_by":
-      return Maps.filterMap(next, (_v, k) => !transform.column_ids.includes(k));
+    case "group_by": {
+      const groupColumns = new Set(transform.column_ids ?? []);
+      const aggregationColumns =
+        transform.aggregation_column_ids &&
+        transform.aggregation_column_ids.length > 0
+          ? new Set(transform.aggregation_column_ids)
+          : null;
+
+      const updated = new Map<ColumnId, string>();
+
+      for (const [columnId, type] of next.entries()) {
+        if (groupColumns.has(columnId)) {
+          updated.set(columnId, type);
+          continue;
+        }
+
+        if (aggregationColumns === null || aggregationColumns.has(columnId)) {
+          updated.set(`${columnId}_${transform.aggregation}` as ColumnId, type);
+        }
+      }
+
+      return updated;
+    }
     case "aggregate":
       return Maps.filterMap(next, (_v, k) => transform.column_ids.includes(k));
     case "select_columns":
