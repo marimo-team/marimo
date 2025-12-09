@@ -121,7 +121,7 @@ export function decodeFromWire<T extends Record<string, unknown>>(input: {
   bufferPaths?: (string | number)[][];
   buffers?: readonly (DataView | Base64String)[];
 }): T {
-  const { state, bufferPaths, buffers } = structuredClone(input);
+  const { state, bufferPaths, buffers } = input;
 
   // If no buffer paths, return the original state
   if (!bufferPaths || bufferPaths.length === 0) {
