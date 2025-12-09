@@ -232,7 +232,7 @@ describe("Immutability Tests", () => {
     const result = serializeBuffersToBase64(input);
 
     // Mutate result state
-    (result.state.nested as any).value = "changed";
+    (result.state.nested as Record<string, unknown>).value = "changed";
 
     // Original nested object should be unchanged
     expect(nested.value).toBe("nested");
@@ -490,10 +490,12 @@ describe("decodeFromWire from WireFormat", () => {
       buffers: [base641, base642],
     };
 
-    const result = decodeFromWire(wire);
+    const result = decodeFromWire(wire) as {
+      nested: { buf1: unknown; deeper: { buf2: unknown } };
+    };
 
-    expect((result as any).nested.buf1).toBeInstanceOf(DataView);
-    expect((result as any).nested.deeper.buf2).toBeInstanceOf(DataView);
+    expect(result.nested.buf1).toBeInstanceOf(DataView);
+    expect(result.nested.deeper.buf2).toBeInstanceOf(DataView);
   });
 
   it("should decode buffers in arrays", () => {
@@ -512,11 +514,11 @@ describe("decodeFromWire from WireFormat", () => {
       buffers: [base64, base64],
     };
 
-    const result = decodeFromWire(wire);
+    const result = decodeFromWire(wire) as { items: unknown[] };
 
-    expect((result as any).items[0]).toBeInstanceOf(DataView);
-    expect((result as any).items[1]).toBe("middle");
-    expect((result as any).items[2]).toBeInstanceOf(DataView);
+    expect(result.items[0]).toBeInstanceOf(DataView);
+    expect(result.items[1]).toBe("middle");
+    expect(result.items[2]).toBeInstanceOf(DataView);
   });
 
   it("should handle round-trip serialization", () => {
