@@ -60,13 +60,6 @@ def _should_include_name(name: str, prefix: str) -> bool:
 
 
 DOC_CACHE_SIZE = 200
-# Normally '.' is the trigger character for completions.
-#
-# We also want to trigger completions on '(', ',' because
-# we don't open the signature popup on these characters.
-#
-# We also add '/' for file path completion.
-COMPLETION_TRIGGER_CHARACTERS = frozenset({".", "(", ",", "/"})
 
 
 @lru_cache(maxsize=DOC_CACHE_SIZE)
@@ -621,36 +614,19 @@ def complete(
             )
             return
 
+        # When not in a function, we only complete an empty symbol (prefix
+        # length == 0) when we're using dot notation. This prevents
+        # autocomplete from kicking in at awkward times, such as after a comma
+        # in a list (e.g,. `[1, 2,`).
         if (
             prefix_length == 0
             and len(request.document) >= 1
-            and request.document[-1] not in COMPLETION_TRIGGER_CHARACTERS
+            and request.document[-1] != "."
+            and not script.get_signatures()
         ):
-            # Empty prefix, not dot notation; don't complete ...
+            # When not in a function and the prefix is empty, we
+            # only complete on "dot" notation.
             completions = []
-
-            # Get docstring in function context. A bit of a hack, since
-            # this isn't actually a completion, just a tooltip.
-            #
-            # If no completions, we might be getting a signature ...
-            # for example, if the document is "mo.ui.slider(start=1,
-            signatures = script.get_signatures()
-            if signatures:
-                _write_completion_result(
-                    stream=stream,
-                    completion_id=request.id,
-                    prefix_length=0,
-                    options=[
-                        CompletionOption(
-                            name=signatures[0].name,
-                            type="tooltip",
-                            completion_info=_get_completion_info(
-                                signatures[0]
-                            ),
-                        )
-                    ],
-                )
-                return
 
         if not completions:
             # If there are still no completions, then bail.
