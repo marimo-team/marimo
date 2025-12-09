@@ -81,7 +81,8 @@ export const CreateCellButton = ({
   };
 
   const handleButtonClick = (e: React.MouseEvent) => {
-    const hasModifier = oneClickShortcut === "shift" ? e.shiftKey : e.metaKey || e.ctrlKey;
+    const hasModifier =
+      oneClickShortcut === "shift" ? e.shiftKey : e.metaKey || e.ctrlKey;
     if (!hasModifier) {
       e.preventDefault();
       e.stopPropagation();
