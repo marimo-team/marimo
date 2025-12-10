@@ -10,7 +10,7 @@ import { Footer } from "./footer";
 import { Sidebar } from "./sidebar";
 import "./app-chrome.css";
 import { TooltipProvider } from "@radix-ui/react-tooltip";
-import { XIcon } from "lucide-react";
+import { TerminalSquareIcon, XIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LazyMount } from "@/components/utils/lazy-mount";
@@ -57,8 +57,10 @@ const LazyVariablePanel = React.lazy(() => import("../panels/variable-panel"));
 const LazyCachePanel = React.lazy(() => import("../panels/cache-panel"));
 
 export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
-  const { isSidebarOpen, isTerminalOpen, selectedPanel } = useChromeState();
-  const { setIsSidebarOpen, setIsTerminalOpen } = useChromeActions();
+  const { isSidebarOpen, isPanelOpen, selectedPanel, selectedPanelTab } =
+    useChromeState();
+  const { setIsSidebarOpen, setIsPanelOpen, setSelectedPanelTab } =
+    useChromeActions();
   const sidebarRef = React.useRef<ImperativePanelHandle>(null);
   const terminalRef = React.useRef<ImperativePanelHandle>(null);
   const { aiPanelTab, setAiPanelTab } = useAiPanelTab();
@@ -87,17 +89,17 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
     });
   }, [isSidebarOpen]);
 
-  // sync terminal
+  // sync panel
   useEffect(() => {
     if (!terminalRef.current) {
       return;
     }
 
     const isCurrentlyCollapsed = terminalRef.current.isCollapsed();
-    if (isTerminalOpen && isCurrentlyCollapsed) {
+    if (isPanelOpen && isCurrentlyCollapsed) {
       terminalRef.current.expand();
     }
-    if (!isTerminalOpen && !isCurrentlyCollapsed) {
+    if (!isPanelOpen && !isCurrentlyCollapsed) {
       terminalRef.current.collapse();
     }
 
@@ -109,7 +111,7 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
         window.dispatchEvent(new Event("resize"));
       });
     });
-  }, [isTerminalOpen]);
+  }, [isPanelOpen]);
 
   const appBodyPanel = (
     <Panel id="app" key="app" className="relative h-full">
@@ -128,12 +130,12 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
     />
   );
 
-  const terminalResizeHandle = (
+  const panelResizeHandle = (
     <PanelResizeHandle
       onDragging={handleDragging}
       className={cn(
         "border-border no-print z-20",
-        isTerminalOpen ? "resize-handle" : "resize-handle-collapsed",
+        isPanelOpen ? "resize-handle" : "resize-handle-collapsed",
         "horizontal",
       )}
     />
@@ -247,19 +249,19 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
     </Panel>
   );
 
-  const terminalPanel = (
+  const bottomPanel = (
     <Panel
       ref={terminalRef}
       // This cannot by dynamic and must be constant
       // so that the size is preserved between page loads
-      id="app-chrome-terminal"
-      data-testid="terminal"
-      key={"terminal"}
+      id="app-chrome-panel"
+      data-testid="panel"
+      key={"panel"}
       collapsedSize={0}
       collapsible={true}
       className={cn(
         "dark:bg-(--slate-1) no-print print:hidden hide-on-fullscreen",
-        isTerminalOpen && "border-(--slate-7)",
+        isPanelOpen && "border-(--slate-7)",
       )}
       minSize={10}
       // We can't make the default size greater than 0, otherwise it will start open
@@ -271,18 +273,49 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
           terminalRef.current?.resize(30);
         }
       }}
-      onCollapse={() => setIsTerminalOpen(false)}
-      onExpand={() => setIsTerminalOpen(true)}
+      onCollapse={() => setIsPanelOpen(false)}
+      onExpand={() => setIsPanelOpen(true)}
     >
-      {terminalResizeHandle}
-      <LazyMount isOpen={isTerminalOpen}>
-        <Suspense fallback={<div />}>
-          <LazyTerminal
-            visible={isTerminalOpen}
-            onClose={() => setIsTerminalOpen(false)}
-          />
-        </Suspense>
-      </LazyMount>
+      {panelResizeHandle}
+      <div className="flex flex-col h-full">
+        {/* Panel header with tabs */}
+        <div className="flex items-center justify-between border-b px-2 py-1 bg-background shrink-0">
+          <Tabs
+            value={selectedPanelTab}
+            onValueChange={(v) => setSelectedPanelTab(v as typeof selectedPanelTab)}
+          >
+            <TabsList className="h-7 bg-transparent p-0">
+              <TabsTrigger
+                value="terminal"
+                className="text-xs gap-1.5 px-2 py-1 data-[state=active]:bg-muted"
+              >
+                <TerminalSquareIcon className="w-3.5 h-3.5" />
+                Terminal
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+          <Button
+            size="xs"
+            variant="text"
+            onClick={() => setIsPanelOpen(false)}
+          >
+            <XIcon className="w-4 h-4" />
+          </Button>
+        </div>
+        {/* Panel content */}
+        <div className="flex-1 overflow-hidden">
+          {selectedPanelTab === "terminal" && (
+            <LazyMount isOpen={isPanelOpen}>
+              <Suspense fallback={<div />}>
+                <LazyTerminal
+                  visible={isPanelOpen}
+                  onClose={() => setIsPanelOpen(false)}
+                />
+              </Suspense>
+            </LazyMount>
+          )}
+        </div>
+      </div>
     </Panel>
   );
 
@@ -296,7 +329,7 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
         <Panel id="app-chrome-body">
           <PanelGroup autoSaveId="marimo:chrome:v1:l1" direction="vertical">
             {appBodyPanel}
-            <IfCapability capability="terminal">{terminalPanel}</IfCapability>
+            <IfCapability capability="terminal">{bottomPanel}</IfCapability>
           </PanelGroup>
         </Panel>
         <ContextAwarePanel />

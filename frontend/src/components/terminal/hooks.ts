@@ -25,11 +25,11 @@ import { useTerminalActions } from "./state";
  */
 export function useTerminalCommands() {
   const { addCommand } = useTerminalActions();
-  const { setIsTerminalOpen } = useChromeActions();
+  const { openPanelTab } = useChromeActions();
 
   const sendCommand = (text: string) => {
     // First, ensure the terminal is open
-    setIsTerminalOpen(true);
+    openPanelTab("terminal");
 
     // Add the command to the queue
     addCommand(text);

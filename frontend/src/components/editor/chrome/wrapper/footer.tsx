@@ -22,8 +22,8 @@ import { RTCStatus } from "./footer-items/rtc-status";
 import { RuntimeSettings } from "./footer-items/runtime-settings";
 
 export const Footer: React.FC = () => {
-  const { selectedPanel, isTerminalOpen } = useChromeState();
-  const { toggleApplication, toggleTerminal } = useChromeActions();
+  const { selectedPanel, isPanelOpen } = useChromeState();
+  const { toggleApplication, togglePanel } = useChromeActions();
   const errorCount = useAtomValue(cellErrorCount);
 
   const renderIcon = ({ Icon }: PanelDescriptor, className?: string) => {
@@ -34,7 +34,11 @@ export const Footer: React.FC = () => {
   invariant(errorPanel, "Error panel not found");
 
   useHotkey("global.toggleTerminal", () => {
-    toggleTerminal();
+    togglePanel();
+  });
+
+  useHotkey("global.togglePanel", () => {
+    togglePanel();
   });
 
   return (
@@ -51,10 +55,10 @@ export const Footer: React.FC = () => {
 
       <IfCapability capability="terminal">
         <FooterItem
-          tooltip="Open terminal"
-          selected={isTerminalOpen}
-          onClick={() => toggleTerminal()}
-          data-testid="footer-terminal"
+          tooltip="Toggle panel"
+          selected={isPanelOpen}
+          onClick={() => togglePanel()}
+          data-testid="footer-panel"
         >
           <TerminalSquareIcon className="h-5 w-5" />
         </FooterItem>
