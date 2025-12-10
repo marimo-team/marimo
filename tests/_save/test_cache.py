@@ -2513,7 +2513,8 @@ class TestCacheDecorator:
         but lookup uses 'extension'.
         """
         with app.setup:
-            from concurrent.futures import ThreadPoolExecutor, as_completed
+            from concurrent.futures import ThreadPoolExecutor
+
             import marimo as mo
 
         @app.cell
@@ -2539,7 +2540,7 @@ class TestCacheDecorator:
             return (inner,)
 
         @app.cell
-        def _(ThreadPoolExecutor, as_completed, inner, ui_input):
+        def _(inner, ui_input):
             extension = ui_input.value
 
             results = []
