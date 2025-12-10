@@ -1,9 +1,11 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import inspect
+import json
 import os
 import re
-from typing import TYPE_CHECKING, Any, Callable, Optional, cast
+from typing import TYPE_CHECKING, Any, Callable, Optional, Union, cast, get_type_hints
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator, Generator
@@ -24,6 +26,183 @@ from marimo._dependencies.dependencies import DependencyManager
 DEFAULT_SYSTEM_MESSAGE = (
     "You are a helpful assistant specializing in data science."
 )
+
+
+def _python_type_to_json_schema(py_type: Any) -> dict[str, Any]:
+    """Convert a Python type hint to a JSON schema type."""
+    # Handle None/NoneType
+    if py_type is type(None):
+        return {"type": "null"}
+
+    # Handle basic types
+    type_mapping: dict[type, str] = {
+        str: "string",
+        int: "integer",
+        float: "number",
+        bool: "boolean",
+        list: "array",
+        dict: "object",
+    }
+
+    if py_type in type_mapping:
+        return {"type": type_mapping[py_type]}
+
+    # Handle typing module types
+    origin = getattr(py_type, "__origin__", None)
+
+    if origin is list:
+        args = getattr(py_type, "__args__", ())
+        if args:
+            return {
+                "type": "array",
+                "items": _python_type_to_json_schema(args[0]),
+            }
+        return {"type": "array"}
+
+    if origin is dict:
+        return {"type": "object"}
+
+    if origin is Union:
+        args = getattr(py_type, "__args__", ())
+        # Handle Optional[X] which is Union[X, None]
+        non_none_args = [a for a in args if a is not type(None)]
+        if len(non_none_args) == 1:
+            return _python_type_to_json_schema(non_none_args[0])
+        # For other unions, just use the first non-None type
+        if non_none_args:
+            return _python_type_to_json_schema(non_none_args[0])
+
+    # Default to string for unknown types
+    return {"type": "string"}
+
+
+def _parse_docstring_args(docstring: str) -> dict[str, str]:
+    """Parse Args section from a docstring to get parameter descriptions."""
+    descriptions: dict[str, str] = {}
+
+    if not docstring:
+        return descriptions
+
+    # Look for Args: section
+    lines = docstring.split("\n")
+    in_args_section = False
+    current_param = ""
+    current_desc = ""
+
+    for line in lines:
+        stripped = line.strip()
+
+        # Check for Args: header
+        if stripped.lower() in ("args:", "arguments:", "parameters:"):
+            in_args_section = True
+            continue
+
+        # Check for other section headers (end of Args)
+        if in_args_section and stripped.endswith(":") and not ":" in stripped[:-1]:
+            # Save last param
+            if current_param:
+                descriptions[current_param] = current_desc.strip()
+            break
+
+        if in_args_section:
+            # Check for param line: "param_name: description" or "param_name (type): description"
+            if ":" in stripped and not stripped.startswith(" "):
+                # Save previous param
+                if current_param:
+                    descriptions[current_param] = current_desc.strip()
+
+                # Parse new param
+                parts = stripped.split(":", 1)
+                param_part = parts[0].strip()
+                # Handle "param_name (type)" format
+                if "(" in param_part:
+                    param_part = param_part.split("(")[0].strip()
+                current_param = param_part
+                current_desc = parts[1].strip() if len(parts) > 1 else ""
+            elif current_param and stripped:
+                # Continuation of previous description
+                current_desc += " " + stripped
+
+    # Save last param
+    if current_param:
+        descriptions[current_param] = current_desc.strip()
+
+    return descriptions
+
+
+def _function_to_openai_tool(func: Callable[..., Any]) -> dict[str, Any]:
+    """Convert a Python function to an OpenAI tool definition.
+
+    Extracts the function name, docstring (as description), and type hints
+    (as parameter schema) to create an OpenAI-compatible tool definition.
+
+    Args:
+        func: A Python function with type hints and optionally a docstring.
+
+    Returns:
+        An OpenAI tool definition dict with type, function name, description,
+        and parameters schema.
+    """
+    # Get function name
+    name = func.__name__
+
+    # Get description from docstring
+    docstring = inspect.getdoc(func) or ""
+    # Use first line/paragraph as description
+    description = docstring.split("\n\n")[0].replace("\n", " ").strip()
+
+    # Get type hints
+    try:
+        hints = get_type_hints(func)
+    except Exception:
+        hints = {}
+
+    # Get function signature
+    sig = inspect.signature(func)
+
+    # Parse docstring for parameter descriptions
+    param_descriptions = _parse_docstring_args(docstring)
+
+    # Build parameters schema
+    properties: dict[str, Any] = {}
+    required: list[str] = []
+
+    for param_name, param in sig.parameters.items():
+        # Skip self, cls, *args, **kwargs
+        if param_name in ("self", "cls"):
+            continue
+        if param.kind in (
+            inspect.Parameter.VAR_POSITIONAL,
+            inspect.Parameter.VAR_KEYWORD,
+        ):
+            continue
+
+        # Get type from hints
+        param_type = hints.get(param_name, str)
+        schema = _python_type_to_json_schema(param_type)
+
+        # Add description if available
+        if param_name in param_descriptions:
+            schema["description"] = param_descriptions[param_name]
+
+        properties[param_name] = schema
+
+        # Required if no default value
+        if param.default is inspect.Parameter.empty:
+            required.append(param_name)
+
+    return {
+        "type": "function",
+        "function": {
+            "name": name,
+            "description": description,
+            "parameters": {
+                "type": "object",
+                "properties": properties,
+                "required": required,
+            },
+        },
+    }
 
 
 def _looks_like_streaming_error(e: Exception) -> bool:
@@ -59,7 +238,7 @@ class simple(ChatModel):
 
 class openai(ChatModel):
     """
-    OpenAI ChatModel
+    OpenAI ChatModel with optional tool support.
 
     Args:
         model: The model to use.
@@ -68,7 +247,32 @@ class openai(ChatModel):
         api_key: The API key to use.
             If not provided, the API key will be retrieved
             from the OPENAI_API_KEY environment variable or the user's config.
-        base_url: The base URL to use
+        base_url: The base URL to use. Set this to use OpenAI-compatible providers:
+            - DeepSeek: "https://api.deepseek.com"
+            - Groq: "https://api.groq.com/openai/v1"
+            - Together AI: "https://api.together.xyz/v1"
+        tools: Optional list of Python functions to use as tools.
+            Functions should have type hints and docstrings for automatic
+            schema generation. Tool calls are handled automatically.
+
+    Example with tools:
+        ```python
+        def get_weather(location: str, unit: str = "fahrenheit") -> dict:
+            '''Get the current weather for a location.
+
+            Args:
+                location: The city and state, e.g. "San Francisco, CA"
+                unit: Temperature unit, either "celsius" or "fahrenheit"
+            '''
+            return {"location": location, "temperature": 72, "unit": unit}
+
+        chat = mo.ui.chat(
+            mo.ai.llm.openai(
+                "gpt-4.1",
+                tools=[get_weather],
+            ),
+        )
+        ```
     """
 
     def __init__(
@@ -78,11 +282,17 @@ class openai(ChatModel):
         system_message: str = DEFAULT_SYSTEM_MESSAGE,
         api_key: Optional[str] = None,
         base_url: Optional[str] = None,
+        tools: Optional[list[Callable[..., Any]]] = None,
     ):
         self.model = model
         self.system_message = system_message
         self.api_key = api_key
         self.base_url = base_url
+        self.tools = tools or []
+        # Build tool lookup dict
+        self._tools_dict: dict[str, Callable[..., Any]] = {
+            func.__name__: func for func in self.tools
+        }
 
     @property
     def _require_api_key(self) -> str:
@@ -692,6 +902,16 @@ class pydantic_ai(ChatModel):
         api_key: The API key for the provider. If not provided, the key
             will be retrieved from the appropriate environment variable
             (e.g., OPENAI_API_KEY, ANTHROPIC_API_KEY).
+        enable_thinking: Enable thinking/reasoning for models that support it.
+            Can be True (use provider defaults), or a dict with provider-specific
+            settings:
+            - Anthropic: {"budget_tokens": 1024} (default budget is 1024)
+            - OpenAI: {"effort": "low"|"medium"|"high", "summary": "auto"|"detailed"}
+            - Google: {"include_thoughts": True}
+            - Groq: {"format": "parsed"|"raw"|"hidden"}
+            Provider-specific constraints (like temperature) are handled
+            automatically by pydantic-ai.
+            See https://ai.pydantic.dev/thinking/ for more details.
         **kwargs: Additional arguments passed to pydantic_ai.Agent.
 
     Example:
@@ -721,6 +941,25 @@ class pydantic_ai(ChatModel):
             ),
         )
         ```
+
+    Example with thinking enabled:
+        ```python
+        chat = mo.ui.chat(
+            mo.ai.llm.pydantic_ai(
+                "anthropic:claude-sonnet-4-5",
+                enable_thinking=True,  # Uses default settings
+                system_message="You are a helpful assistant.",
+            ),
+        )
+
+        # Or with custom settings:
+        chat = mo.ui.chat(
+            mo.ai.llm.pydantic_ai(
+                "anthropic:claude-sonnet-4-5",
+                enable_thinking={"budget_tokens": 2048},
+            ),
+        )
+        ```
     """
 
     def __init__(
@@ -730,12 +969,14 @@ class pydantic_ai(ChatModel):
         tools: Optional[list[Callable[..., Any]]] = None,
         system_message: str = DEFAULT_SYSTEM_MESSAGE,
         api_key: Optional[str] = None,
+        enable_thinking: Union[bool, dict[str, Any]] = False,
         **kwargs: Any,
     ):
         self.model = model
         self.tools = tools or []
         self.system_message = system_message
         self.api_key = api_key
+        self.enable_thinking = enable_thinking
         self.kwargs = kwargs
 
     def _setup_api_key(self) -> None:
@@ -773,17 +1014,104 @@ class pydantic_ai(ChatModel):
         self._setup_api_key()
         return self._stream_response(messages, config)
 
+    def _get_provider(self) -> str:
+        """Extract provider from model string (e.g., 'anthropic:claude-3' -> 'anthropic')."""
+        return self.model.split(":")[0].lower() if ":" in self.model else ""
+
+    def _build_model_settings(self, config: ChatModelConfig) -> Any:
+        """Build provider-specific model settings with thinking support."""
+        from pydantic_ai.settings import ModelSettings
+
+        provider = self._get_provider()
+
+        # Get thinking config (use defaults if True, otherwise use provided dict)
+        thinking_config: dict[str, Any] = (
+            {} if self.enable_thinking is True else (self.enable_thinking or {})
+        )
+
+        # Provider-specific handling
+        if provider == "anthropic" and self.enable_thinking:
+            # Use Anthropic-specific settings for thinking
+            # Anthropic handles temperature/top_p constraints internally
+            try:
+                from pydantic_ai.models.anthropic import AnthropicModelSettings
+
+                budget = thinking_config.get("budget_tokens", 1024)
+                return AnthropicModelSettings(
+                    max_tokens=config.max_tokens,
+                    anthropic_thinking={
+                        "type": "enabled",
+                        "budget_tokens": budget,
+                    },
+                )
+            except ImportError:
+                # Fall back to generic settings if import fails
+                pass
+
+        elif provider in ("openai", "openai-responses") and self.enable_thinking:
+            try:
+                from pydantic_ai.models.openai import OpenAIResponsesModelSettings
+
+                effort = thinking_config.get("effort", "low")
+                summary = thinking_config.get("summary", "auto")
+                return OpenAIResponsesModelSettings(
+                    max_tokens=config.max_tokens,
+                    temperature=config.temperature,
+                    top_p=config.top_p,
+                    openai_reasoning_effort=effort,
+                    openai_reasoning_summary=summary,
+                )
+            except ImportError:
+                pass
+
+        elif provider in ("google-gla", "google-vertex", "gemini") and self.enable_thinking:
+            try:
+                from pydantic_ai.models.google import GoogleModelSettings
+
+                return GoogleModelSettings(
+                    max_tokens=config.max_tokens,
+                    temperature=config.temperature,
+                    top_p=config.top_p,
+                    google_thinking_config={
+                        "include_thoughts": True,
+                        **thinking_config,
+                    },
+                )
+            except ImportError:
+                pass
+
+        elif provider == "groq" and self.enable_thinking:
+            try:
+                from pydantic_ai.models.groq import GroqModelSettings
+
+                fmt = thinking_config.get("format", "parsed")
+                return GroqModelSettings(
+                    max_tokens=config.max_tokens,
+                    temperature=config.temperature,
+                    top_p=config.top_p,
+                    groq_reasoning_format=fmt,
+                )
+            except ImportError:
+                pass
+
+        # Default: use generic ModelSettings
+        return ModelSettings(
+            max_tokens=config.max_tokens,
+            temperature=config.temperature,
+            top_p=config.top_p,
+        )
+
     async def _stream_response(
         self, messages: list[ChatMessage], config: ChatModelConfig
     ) -> AsyncGenerator[Any, None]:
         """Async generator that streams text and tool call parts."""
         from pydantic_ai import Agent
-        from pydantic_ai.settings import ModelSettings
         from pydantic_ai.messages import (
             ModelRequest,
             ModelResponse,
             ToolCallPart,
             ToolReturnPart,
+            ThinkingPart,
         )
 
         # Create the agent with tools
@@ -795,12 +1123,8 @@ class pydantic_ai(ChatModel):
             **self.kwargs,
         )
 
-        # Build model settings from config
-        model_settings = ModelSettings(
-            max_tokens=config.max_tokens,
-            temperature=config.temperature,
-            top_p=config.top_p,
-        )
+        # Build provider-specific model settings
+        model_settings = self._build_model_settings(config)
 
         # Convert marimo ChatMessages to Pydantic AI message history
         message_history = self._convert_messages_to_pydantic_ai(messages[:-1])
@@ -823,15 +1147,31 @@ class pydantic_ai(ChatModel):
                 current_text += text_delta
                 yield text_delta
 
-            # After streaming completes, check if there were tool calls
+            # After streaming completes, check if there were tool calls or thinking
             # Use new_messages() to only get messages from THIS run,
             # not the entire history (which would duplicate tool calls)
+            has_thinking = False
             try:
                 new_messages = result.new_messages()
                 for msg in new_messages:
                     if isinstance(msg, ModelResponse):
                         for part in msg.parts:
-                            if isinstance(part, ToolCallPart):
+                            # Handle thinking/reasoning parts
+                            if isinstance(part, ThinkingPart):
+                                has_thinking = True
+                                thinking_text = (
+                                    part.content
+                                    if hasattr(part, "content")
+                                    else str(part)
+                                )
+                                thinking_part: dict[str, Any] = {
+                                    "type": "reasoning",
+                                    "text": thinking_text,
+                                }
+                                parts.append(thinking_part)
+
+                            # Handle tool call parts
+                            elif isinstance(part, ToolCallPart):
                                 has_tool_calls = True
                                 tool_name = part.tool_name
                                 tool_call_id = (
@@ -869,8 +1209,8 @@ class pydantic_ai(ChatModel):
                                 }
                                 parts.append(tool_part)
 
-                # If we had tool calls, yield a structured response
-                if has_tool_calls:
+                # If we had tool calls or thinking, yield a structured response
+                if has_tool_calls or has_thinking:
                     # Add text part if there was any text
                     if current_text.strip():
                         parts.insert(0, {"type": "text", "text": current_text})
@@ -896,6 +1236,7 @@ class pydantic_ai(ChatModel):
             TextPart as PydanticTextPart,
             ToolCallPart,
             ToolReturnPart,
+            ThinkingPart,
         )
 
         pydantic_messages: list[Any] = []
@@ -926,6 +1267,17 @@ class pydantic_ai(ChatModel):
                             )
                             if text:
                                 response_parts.append(PydanticTextPart(content=text))
+                        elif part_type == "reasoning":
+                            # Handle reasoning/thinking parts
+                            reasoning_text = (
+                                part.get("text", "")
+                                if isinstance(part, dict)
+                                else getattr(part, "text", "")
+                            )
+                            if reasoning_text:
+                                response_parts.append(
+                                    ThinkingPart(content=reasoning_text)
+                                )
                         elif part_type.startswith("tool-"):
                             # This is a tool invocation
                             tool_name = part_type.replace("tool-", "")

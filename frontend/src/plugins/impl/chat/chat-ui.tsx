@@ -6,6 +6,7 @@ import { PopoverAnchor } from "@radix-ui/react-popover";
 import type { ReactCodeMirrorRef } from "@uiw/react-codemirror";
 import { DefaultChatTransport, type FileUIPart, type ToolUIPart } from "ai";
 import { startCase } from "lodash-es";
+import { ReasoningAccordion } from "@/components/chat/reasoning-accordion";
 import { ToolCallAccordion } from "@/components/chat/tool-call-accordion";
 import {
   BotMessageSquareIcon,
@@ -64,6 +65,12 @@ const LazyStreamdown = lazy(() =>
 
 function isToolPart(part: UIMessage["parts"][number]): part is ToolUIPart {
   return part.type.startsWith("tool-");
+}
+
+function isReasoningPart(
+  part: UIMessage["parts"][number],
+): part is { type: "reasoning"; text: string } {
+  return part.type === "reasoning";
 }
 
 interface Props extends PluginFunctions {
@@ -431,7 +438,7 @@ export const Chatbot: React.FC<Props> = (props) => {
     );
   };
 
-  // Render only non-tool parts (text, files, etc.)
+  // Render only content parts (text, files - not tools or reasoning)
   const renderNonToolParts = (parts: UIMessage["parts"]) => {
     return (
       <>
@@ -548,18 +555,25 @@ export const Chatbot: React.FC<Props> = (props) => {
             .map((p) => p.text)
             .join("\n");
 
-          // Separate tool parts from other parts for assistant messages
+          // Separate tool parts, reasoning parts, and other parts for assistant messages
           const toolParts =
             message.role === "assistant"
               ? message.parts?.filter((p) => isToolPart(p))
               : [];
-          const nonToolParts =
+          const reasoningParts =
             message.role === "assistant"
-              ? message.parts?.filter((p) => !isToolPart(p))
+              ? message.parts?.filter((p) => isReasoningPart(p))
+              : [];
+          const contentParts =
+            message.role === "assistant"
+              ? message.parts?.filter(
+                  (p) => !isToolPart(p) && !isReasoningPart(p),
+                )
               : message.parts;
-          const hasNonToolContent =
-            nonToolParts && nonToolParts.length > 0 &&
-            nonToolParts.some(
+          const hasContentParts =
+            contentParts &&
+            contentParts.length > 0 &&
+            contentParts.some(
               (p) => p.type !== "text" || ("text" in p && p.text.trim() !== ""),
             );
 
@@ -571,6 +585,20 @@ export const Chatbot: React.FC<Props> = (props) => {
                 message.role === "user" ? "items-end" : "items-start",
               )}
             >
+              {/* Reasoning rendered outside the message bubble */}
+              {reasoningParts && reasoningParts.length > 0 && (
+                <div className="w-full max-w-[90%] space-y-2">
+                  {reasoningParts.map((part, index) =>
+                    isReasoningPart(part) ? (
+                      <ReasoningAccordion
+                        key={`reasoning-${index}`}
+                        reasoning={part.text}
+                        index={index}
+                      />
+                    ) : null,
+                  )}
+                </div>
+              )}
               {/* Tool calls rendered outside the message bubble */}
               {toolParts && toolParts.length > 0 && (
                 <div className="w-full max-w-[90%] space-y-2">
@@ -588,8 +616,8 @@ export const Chatbot: React.FC<Props> = (props) => {
                   )}
                 </div>
               )}
-              {/* Message bubble for non-tool content */}
-              {(message.role === "user" || hasNonToolContent) && (
+              {/* Message bubble for content (text, files, etc.) */}
+              {(message.role === "user" || hasContentParts) && (
                 <div
                   className={`max-w-[80%] p-3 rounded-lg ${
                     message.role === "user"
@@ -599,7 +627,7 @@ export const Chatbot: React.FC<Props> = (props) => {
                 >
                   {message.role === "user"
                     ? renderMessage(message)
-                    : renderNonToolParts(nonToolParts ?? [])}
+                    : renderNonToolParts(contentParts ?? [])}
                 </div>
               )}
               <div className="flex justify-end text-xs gap-2 invisible group-hover:visible">
