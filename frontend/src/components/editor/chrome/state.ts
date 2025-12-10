@@ -6,7 +6,11 @@ import { createReducerAndAtoms } from "@/utils/createReducer";
 import { ZodLocalStorage } from "@/utils/storage/typed";
 import type { PanelType } from "./types";
 
-export type DeveloperPanelTabType = "errors" | "scratchpad" | "terminal";
+export type DeveloperPanelTabType =
+  | "errors"
+  | "scratchpad"
+  | "tracing"
+  | "terminal";
 
 export interface ChromeState {
   selectedPanel: PanelType | undefined;

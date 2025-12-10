@@ -1,7 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import {
-  ActivityIcon,
   BotIcon,
   BoxIcon,
   DatabaseIcon,
@@ -24,7 +23,6 @@ export type PanelType =
   | "variables"
   | "outline"
   | "dependencies"
-  | "tracing"
   | "packages"
   | "documentation"
   | "snippets"
@@ -94,7 +92,7 @@ export const PANELS: PanelDescriptor[] = [
     tooltip: "Chat & Agents",
     position: "sidebar",
   },
-    {
+  {
     // TODO(akshayka): Consider making snippets default
     // off, user configuration to enable.
     type: "snippets",
@@ -137,12 +135,6 @@ export const PANELS: PanelDescriptor[] = [
     position: "sidebar",
   },
   {
-    type: "tracing",
-    Icon: ActivityIcon,
-    tooltip: "Tracing",
-    position: "sidebar",
-  },
-  {
     // Not supported in WebAssembly yet
     type: "secrets",
     Icon: KeyRoundIcon,
@@ -160,4 +152,4 @@ export const PANELS: PanelDescriptor[] = [
     position: "sidebar",
     hidden: !getFeatureFlag("cache_panel"),
   },
-  ];
+];

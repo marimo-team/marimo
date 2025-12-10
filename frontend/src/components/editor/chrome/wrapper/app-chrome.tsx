@@ -11,6 +11,7 @@ import { Sidebar } from "./sidebar";
 import "./app-chrome.css";
 import { TooltipProvider } from "@radix-ui/react-tooltip";
 import {
+  ActivityIcon,
   NotebookPenIcon,
   TerminalSquareIcon,
   XCircleIcon,
@@ -217,7 +218,6 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
             {selectedPanel === "snippets" && <LazySnippetsPanel />}
             {selectedPanel === "ai" && renderAiPanel()}
             {selectedPanel === "logs" && <LazyLogsPanel />}
-            {selectedPanel === "tracing" && <LazyTracingPanel />}
             {selectedPanel === "secrets" && <LazySecretsPanel />}
             {selectedPanel === "cache" && <LazyCachePanel />}
           </TooltipProvider>
@@ -314,6 +314,13 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
                 Scratchpad
               </TabsTrigger>
               <TabsTrigger
+                value="tracing"
+                className="text-xs gap-1.5 px-2 py-1 data-[state=active]:bg-muted"
+              >
+                <ActivityIcon className="w-3.5 h-3.5" />
+                Tracing
+              </TabsTrigger>
+              <TabsTrigger
                 value="terminal"
                 className="text-xs gap-1.5 px-2 py-1 data-[state=active]:bg-muted"
               >
@@ -343,6 +350,13 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
             <LazyMount isOpen={isDeveloperPanelOpen}>
               <Suspense fallback={<div />}>
                 <LazyScratchpadPanel />
+              </Suspense>
+            </LazyMount>
+          )}
+          {selectedDeveloperPanelTab === "tracing" && (
+            <LazyMount isOpen={isDeveloperPanelOpen}>
+              <Suspense fallback={<div />}>
+                <LazyTracingPanel />
               </Suspense>
             </LazyMount>
           )}
