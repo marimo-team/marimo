@@ -12,7 +12,7 @@ import { ShowInKioskMode } from "../../kiosk-mode";
 import { useChromeActions, useChromeState } from "../state";
 import { FooterItem } from "./footer-item";
 import { AIStatusIcon } from "./footer-items/ai-status";
-import { BackendConnection } from "./footer-items/backend-status";
+import { connectionStatusAtom } from "./footer-items/backend-status";
 import { CopilotStatusIcon } from "./footer-items/copilot-status";
 import { MachineStats } from "./footer-items/machine-stats";
 import { MinimapStatusIcon } from "./footer-items/minimap-status";
@@ -23,6 +23,12 @@ export const Footer: React.FC = () => {
   const { isDeveloperPanelOpen } = useChromeState();
   const { toggleDeveloperPanel } = useChromeActions();
   const errorCount = useAtomValue(cellErrorCount);
+  const connectionStatus = useAtomValue(connectionStatusAtom);
+
+  // Show issue count: cell errors + connection issues
+  const hasConnectionIssue =
+    connectionStatus === "unhealthy" || connectionStatus === "disconnected";
+  const issueCount = errorCount + (hasConnectionIssue ? 1 : 0);
 
   useHotkey("global.toggleTerminal", () => {
     toggleDeveloperPanel();
@@ -46,10 +52,10 @@ export const Footer: React.FC = () => {
           onClick={() => toggleDeveloperPanel()}
           data-testid="footer-panel"
         >
-          {errorCount > 0 ? (
+          {issueCount > 0 ? (
             <>
               <XCircleIcon className="w-4 h-4 text-destructive" />
-              <span className="ml-1 font-mono mt-0.5">{errorCount}</span>
+              <span className="ml-1 font-mono mt-0.5">{issueCount}</span>
             </>
           ) : (
             <TerminalIcon className="w-4 h-4" />
@@ -80,7 +86,6 @@ export const Footer: React.FC = () => {
         <AIStatusIcon />
         <CopilotStatusIcon />
         <RTCStatus />
-        <BackendConnection />
       </div>
     </footer>
   );
