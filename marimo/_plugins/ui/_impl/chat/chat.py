@@ -2,9 +2,14 @@
 from __future__ import annotations
 
 import inspect
+import json
 import uuid
 from dataclasses import dataclass
 from typing import Any, Callable, Final, Optional, Union, cast
+
+from marimo import _loggers
+
+LOGGER = _loggers.marimo_logger()
 
 from marimo._ai._types import (
     ChatMessage,
@@ -214,59 +219,131 @@ class chat(UIElement[dict[str, Any], list[ChatMessage]]):
         del self._chat_history[index]
         self._value = self._chat_history
 
-    async def _handle_streaming_response(self, response: Any) -> str:
+    def _is_parts_response(self, value: Any) -> bool:
+        """Check if a value is a structured response with parts."""
+        return isinstance(value, dict) and "parts" in value
+
+    def _build_stream_message(
+        self,
+        message_id: str,
+        accumulated_text: str,
+        parts: Optional[list[Any]],
+        is_final: bool,
+    ) -> dict[str, Any]:
+        """Build a stream message for the frontend."""
+        msg: dict[str, Any] = {
+            "type": "stream_chunk",
+            "message_id": message_id,
+            "content": accumulated_text,
+            "is_final": is_final,
+        }
+        if parts is not None:
+            # Ensure parts are JSON-serializable by round-tripping through JSON
+            # This handles any non-serializable types and ensures consistent format
+            try:
+                msg["parts"] = json.loads(json.dumps(parts))
+            except (TypeError, ValueError) as e:
+                LOGGER.warning("Failed to serialize parts: %s", e)
+                # If parts can't be serialized, convert to string representation
+                msg["parts"] = [{"type": "text", "text": str(parts)}]
+        return msg
+
+    async def _handle_streaming_response(
+        self, response: Any
+    ) -> Union[str, dict[str, Any]]:
         """Handle streaming from both sync and async generators.
 
-        Generators should yield delta chunks (new content only), which this
-        method accumulates and sends to the frontend as complete text.
+        Generators can yield:
+        1. String deltas (text chunks) - accumulated and sent as text
+        2. Structured dicts with "parts" key - sent as-is with parts array
+
+        For tool calls, yield structured responses like:
+        ```python
+        yield {
+            "parts": [
+                {"type": "text", "text": "Let me help..."},
+                {
+                    "type": "tool-my_tool",
+                    "tool_call_id": "call_123",
+                    "state": "calling",
+                    "input": {"arg": "value"}
+                }
+            ]
+        }
+        ```
+
         This follows the standard streaming pattern used by OpenAI, Anthropic,
         and other AI providers.
         """
+        print("[CHAT DEBUG] _handle_streaming_response called")
         message_id = str(uuid.uuid4())
         accumulated_text = ""
+        last_parts: Optional[list[Any]] = None
+
+        async def process_delta(delta: Any) -> None:
+            nonlocal accumulated_text, last_parts
+
+            is_parts = self._is_parts_response(delta)
+            # Debug print to help diagnose streaming issues
+            print(f"[CHAT DEBUG] delta type={type(delta).__name__}, is_parts={is_parts}, has_parts_key={isinstance(delta, dict) and 'parts' in delta}")
+            if isinstance(delta, dict):
+                print(f"[CHAT DEBUG] dict keys: {list(delta.keys())}")
+
+            if is_parts:
+                # Structured response with parts (may include tool calls)
+                last_parts = delta["parts"]
+                # Extract text content for accumulated_text
+                text_content = ""
+                for part in last_parts:
+                    if isinstance(part, dict) and part.get("type") == "text":
+                        text_content += part.get("text", "")
+                accumulated_text = text_content
+                self._send_message(
+                    self._build_stream_message(
+                        message_id, accumulated_text, last_parts, False
+                    ),
+                    buffers=None,
+                )
+            else:
+                # Plain text delta - accumulate
+                # Only convert to string if it's actually a string-like value
+                if isinstance(delta, str):
+                    accumulated_text += delta
+                else:
+                    # Log unexpected delta type
+                    LOGGER.warning(
+                        "Unexpected delta type %s, converting to string: %s",
+                        type(delta).__name__,
+                        delta,
+                    )
+                    accumulated_text += str(delta)
+                self._send_message(
+                    self._build_stream_message(
+                        message_id, accumulated_text, None, False
+                    ),
+                    buffers=None,
+                )
 
         # Use async for if it's an async generator, otherwise regular for
         if inspect.isasyncgen(response):
             async for delta in response:
-                # Accumulate each delta chunk
-                delta_str = str(delta)
-                accumulated_text += delta_str
-                self._send_message(
-                    {
-                        "type": "stream_chunk",
-                        "message_id": message_id,
-                        "content": accumulated_text,
-                        "is_final": False,
-                    },
-                    buffers=None,
-                )
+                await process_delta(delta)
         else:
             for delta in response:
-                # Accumulate each delta chunk
-                delta_str = str(delta)
-                accumulated_text += delta_str
-                self._send_message(
-                    {
-                        "type": "stream_chunk",
-                        "message_id": message_id,
-                        "content": accumulated_text,
-                        "is_final": False,
-                    },
-                    buffers=None,
-                )
+                await process_delta(delta)
 
         # Send final message to indicate streaming is complete
-        if accumulated_text:
+        if accumulated_text or last_parts:
             self._send_message(
-                {
-                    "type": "stream_chunk",
-                    "message_id": message_id,
-                    "content": accumulated_text,
-                    "is_final": True,
-                },
+                self._build_stream_message(
+                    message_id, accumulated_text, last_parts, True
+                ),
                 buffers=None,
             )
 
+        # Return structured response if we had parts, otherwise just text
+        if last_parts is not None:
+            return {"parts": last_parts}
         return accumulated_text
 
     async def _send_prompt(self, args: SendMessageRequest) -> str:
@@ -284,15 +361,37 @@ class chat(UIElement[dict[str, Any], list[ChatMessage]]):
         else:
             response = self._model(messages, args.config)
 
+        print(f"[CHAT DEBUG] _send_prompt: response type = {type(response).__name__}")
+        print(f"[CHAT DEBUG] _send_prompt: isawaitable={inspect.isawaitable(response)}, isasyncgen={inspect.isasyncgen(response)}, isgenerator={inspect.isgenerator(response)}")
+
         if inspect.isawaitable(response):
             response = await response
+            print(f"[CHAT DEBUG] _send_prompt: awaited response type = {type(response).__name__}")
         elif inspect.isasyncgen(response) or inspect.isgenerator(response):
             # We support functions that stream the response with generators
             # (both sync and async); each yielded value is the latest
             # representation of the response, and the last value is the full value
+            print("[CHAT DEBUG] _send_prompt: detected generator, calling _handle_streaming_response")
             response = await self._handle_streaming_response(response)
+            print(f"[CHAT DEBUG] _send_prompt: streaming response returned type = {type(response).__name__}")
 
-        response_message = ChatMessage(role="assistant", content=response)
+        print(f"[CHAT DEBUG] _send_prompt: final response = {response}")
+
+        # Build the response message, handling structured responses with parts
+        if self._is_parts_response(response):
+            # Structured response with parts (tool calls, etc.)
+            parts = response["parts"]  # type: ignore
+            # Extract text content for the content field
+            text_content = ""
+            for part in parts:
+                if isinstance(part, dict) and part.get("type") == "text":
+                    text_content += part.get("text", "")
+            response_message = ChatMessage(
+                role="assistant", content=text_content, parts=parts
+            )
+        else:
+            response_message = ChatMessage(role="assistant", content=response)
+
         self._chat_history = messages + [response_message]
 
         from marimo._runtime.context import get_context
@@ -324,6 +423,14 @@ class chat(UIElement[dict[str, Any], list[ChatMessage]]):
         # If the response is a string, convert it to markdown
         if isinstance(response, str):
             return response
+        if self._is_parts_response(response):
+            # For parts responses, return the text content
+            parts = response["parts"]  # type: ignore
+            text_content = ""
+            for part in parts:
+                if isinstance(part, dict) and part.get("type") == "text":
+                    text_content += part.get("text", "")
+            return text_content
         return as_html(response).text
 
     def _convert_value(self, value: dict[str, Any]) -> list[ChatMessage]:

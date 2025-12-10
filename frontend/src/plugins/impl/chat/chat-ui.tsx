@@ -4,8 +4,9 @@ import { type UIMessage, useChat } from "@ai-sdk/react";
 import { ChatBubbleIcon } from "@radix-ui/react-icons";
 import { PopoverAnchor } from "@radix-ui/react-popover";
 import type { ReactCodeMirrorRef } from "@uiw/react-codemirror";
-import { DefaultChatTransport, type FileUIPart } from "ai";
+import { DefaultChatTransport, type FileUIPart, type ToolUIPart } from "ai";
 import { startCase } from "lodash-es";
+import { ToolCallAccordion } from "@/components/chat/tool-call-accordion";
 import {
   BotMessageSquareIcon,
   ClipboardIcon,
@@ -60,6 +61,10 @@ import type { ChatConfig, ChatMessage } from "./types";
 const LazyStreamdown = lazy(() =>
   import("streamdown").then((module) => ({ default: module.Streamdown })),
 );
+
+function isToolPart(part: UIMessage["parts"][number]): part is ToolUIPart {
+  return part.type.startsWith("tool-");
+}
 
 interface Props extends PluginFunctions {
   prompts: string[];
@@ -152,23 +157,33 @@ export const Chatbot: React.FC<Props> = (props) => {
           });
 
           // If streaming didn't happen (non-generator response), update the message
-          // Check if streaming state is still set (meaning no chunks were received)
-          if (
-            streamingStateRef.current.backendMessageId === null &&
-            streamingStateRef.current.frontendMessageIndex === null
-          ) {
-            setMessages((prev) => {
-              const updated = [...prev];
-              const index = updated.findIndex((m) => m.id === messageId);
-              if (index !== -1) {
+          // We track whether any chunks were received to avoid overwriting streamed parts
+          // Note: streaming state is cleared when is_final chunk arrives, so we need
+          // to check the message content, not just streaming state
+          setMessages((prev) => {
+            const updated = [...prev];
+            const index = updated.findIndex((m) => m.id === messageId);
+            if (index !== -1) {
+              const currentMessage = updated[index];
+              // Only overwrite if the message still has the initial empty placeholder
+              // (meaning no streaming chunks were received)
+              const firstPart = currentMessage.parts[0];
+              const hasOnlyEmptyText =
+                currentMessage.parts.length === 1 &&
+                firstPart.type === "text" &&
+                "text" in firstPart &&
+                firstPart.text === "";
+
+              if (hasOnlyEmptyText) {
                 updated[index] = {
-                  ...updated[index],
+                  ...currentMessage,
                   parts: [{ type: "text", text: response }],
                 };
               }
-              return updated;
-            });
-          }
+              // If streaming happened, parts were already updated by chunks - don't overwrite
+            }
+            return updated;
+          });
 
           return new Response(response);
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -228,6 +243,7 @@ export const Chatbot: React.FC<Props> = (props) => {
           type: string;
           message_id: string;
           content: string;
+          parts?: UIMessage["parts"];
           is_final: boolean;
         };
 
@@ -265,9 +281,13 @@ export const Chatbot: React.FC<Props> = (props) => {
             if (index < updated.length) {
               const messageToUpdate = updated[index];
               if (messageToUpdate.role === "assistant") {
+                // Use parts if provided, otherwise fall back to text content
+                const newParts: UIMessage["parts"] = chunkMessage.parts ?? [
+                  { type: "text", text: chunkMessage.content },
+                ];
                 updated[index] = {
                   ...messageToUpdate,
-                  parts: [{ type: "text", text: chunkMessage.content }],
+                  parts: newParts,
                 };
               }
             }
@@ -323,41 +343,90 @@ export const Chatbot: React.FC<Props> = (props) => {
   };
 
   const renderMessage = (message: UIMessage) => {
-    const textParts = message.parts?.filter((p) => p.type === "text");
-    const textContent = textParts?.map((p) => p.text).join("\n");
-    const content =
-      message.role === "assistant" ? (
-        <LazyStreamdown className="mo-markdown-renderer">
+    const parts = message.parts ?? [];
+
+    // For user messages, just show text content
+    if (message.role === "user") {
+      const textContent = parts
+        .filter((p) => p.type === "text")
+        .map((p) => p.text)
+        .join("\n");
+      const attachments = parts.filter((p) => p.type === "file");
+
+      return (
+        <>
           {textContent}
-        </LazyStreamdown>
-      ) : (
-        textContent
+          {attachments.length > 0 && (
+            <div className="mt-2">
+              {attachments.map((attachment, index) => (
+                <div key={index} className="flex items-baseline gap-2">
+                  {renderAttachment(attachment)}
+                  <a
+                    className={buttonVariants({
+                      variant: "text",
+                      size: "icon",
+                    })}
+                    href={attachment.url}
+                    download={attachment.filename}
+                  >
+                    <DownloadIcon className="size-3" />
+                  </a>
+                </div>
+              ))}
+            </div>
+          )}
+        </>
       );
+    }
 
-    const attachments = message.parts?.filter((p) => p.type === "file");
-
+    // For assistant messages, render each part in order
     return (
       <>
-        {content}
-        {attachments && attachments.length > 0 && (
-          <div className="mt-2">
-            {attachments.map((attachment, index) => (
-              <div key={index} className="flex items-baseline gap-2 ">
-                {renderAttachment(attachment)}
+        {parts.map((part, index) => {
+          if (isToolPart(part)) {
+            return (
+              <ToolCallAccordion
+                key={index}
+                index={index}
+                toolName={part.type}
+                result={part.output}
+                className="my-2"
+                state={part.state}
+                input={part.input}
+              />
+            );
+          }
+
+          if (part.type === "text") {
+            return (
+              <LazyStreamdown key={index} className="mo-markdown-renderer">
+                {part.text}
+              </LazyStreamdown>
+            );
+          }
+
+          if (part.type === "file") {
+            return (
+              <div key={index} className="flex items-baseline gap-2 mt-2">
+                {renderAttachment(part)}
                 <a
                   className={buttonVariants({
                     variant: "text",
                     size: "icon",
                   })}
-                  href={attachment.url}
-                  download={attachment.filename}
+                  href={part.url}
+                  download={part.filename}
                 >
                   <DownloadIcon className="size-3" />
                 </a>
               </div>
-            ))}
-          </div>
-        )}
+            );
+          }
+
+          // Fallback for unknown part types - log and skip
+          Logger.warn("Unknown part type:", part);
+          return null;
+        })}
       </>
     );
   };
