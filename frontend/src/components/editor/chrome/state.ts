@@ -6,7 +6,7 @@ import { createReducerAndAtoms } from "@/utils/createReducer";
 import { ZodLocalStorage } from "@/utils/storage/typed";
 import type { PanelType } from "./types";
 
-export type PanelTabType = "terminal";
+export type PanelTabType = "errors" | "terminal";
 
 export interface ChromeState {
   selectedPanel: PanelType | undefined;
@@ -82,6 +82,11 @@ const {
     }),
     setSelectedPanelTab: (state, tab: PanelTabType) => ({
       ...state,
+      selectedPanelTab: tab,
+    }),
+    openPanelTab: (state, tab: PanelTabType) => ({
+      ...state,
+      isPanelOpen: true,
       selectedPanelTab: tab,
     }),
   },

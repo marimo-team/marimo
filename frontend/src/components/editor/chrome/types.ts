@@ -16,14 +16,12 @@ import {
   ScrollTextIcon,
   SquareDashedBottomCodeIcon,
   TextSearchIcon,
-  XCircleIcon,
 } from "lucide-react";
 import { getFeatureFlag } from "@/core/config/feature-flag";
 import { isWasm } from "@/core/wasm/utils";
 
 export type PanelType =
   | "files"
-  | "errors"
   | "variables"
   | "outline"
   | "dependencies"
@@ -173,10 +171,4 @@ export const PANELS: PanelDescriptor[] = [
     position: "sidebar",
     hidden: !getFeatureFlag("cache_panel"),
   },
-  {
-    type: "errors",
-    Icon: XCircleIcon,
-    tooltip: "View errors",
-    position: "footer",
-  },
-];
+  ];

@@ -10,7 +10,7 @@ import { Footer } from "./footer";
 import { Sidebar } from "./sidebar";
 import "./app-chrome.css";
 import { TooltipProvider } from "@radix-ui/react-tooltip";
-import { TerminalSquareIcon, XIcon } from "lucide-react";
+import { TerminalSquareIcon, XCircleIcon, XIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LazyMount } from "@/components/utils/lazy-mount";
@@ -196,7 +196,6 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
         <Suspense>
           <TooltipProvider>
             {selectedPanel === "files" && <LazyFileExplorerPanel />}
-            {selectedPanel === "errors" && <LazyErrorsPanel />}
             {selectedPanel === "variables" && <LazyVariablePanel />}
             {selectedPanel === "dependencies" && <LazyDependencyGraphPanel />}
             {selectedPanel === "packages" && <LazyPackagesPanel />}
@@ -286,6 +285,13 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
           >
             <TabsList className="h-7 bg-transparent p-0">
               <TabsTrigger
+                value="errors"
+                className="text-xs gap-1.5 px-2 py-1 data-[state=active]:bg-muted"
+              >
+                <XCircleIcon className="w-3.5 h-3.5" />
+                Errors
+              </TabsTrigger>
+              <TabsTrigger
                 value="terminal"
                 className="text-xs gap-1.5 px-2 py-1 data-[state=active]:bg-muted"
               >
@@ -304,6 +310,13 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
         </div>
         {/* Panel content */}
         <div className="flex-1 overflow-hidden">
+          {selectedPanelTab === "errors" && (
+            <LazyMount isOpen={isPanelOpen}>
+              <Suspense fallback={<div />}>
+                <LazyErrorsPanel />
+              </Suspense>
+            </LazyMount>
+          )}
           {selectedPanelTab === "terminal" && (
             <LazyMount isOpen={isPanelOpen}>
               <Suspense fallback={<div />}>
