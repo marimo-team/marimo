@@ -12,7 +12,8 @@ export type DeveloperPanelTabType =
   | "tracing"
   | "secrets"
   | "logs"
-  | "terminal";
+  | "terminal"
+  | "cache";
 
 export interface ChromeState {
   selectedPanel: PanelType | undefined;
