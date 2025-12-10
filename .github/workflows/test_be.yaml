@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: read
+  pull-requests: write
 
 env:
   MARIMO_SKIP_UPDATE_CHECK: 1
@@ -46,7 +47,16 @@ jobs:
         uses: pypa/hatch@install
 
       - name: 📚 Build docs
+        id: docs
         run: hatch run docs:build --strict
+
+      - name: Comment on docs failure
+        if: failure() && steps.docs.outcome == 'failure'
+        uses: ./.github/actions/pr-comment-on-failure
+        with:
+          check-name: "docs build"
+          command: "hatch run docs:build --strict"
+          github-token: ${{ secrets.GITHUB_TOKEN }}
 
   test_check:
     needs: changes
@@ -64,10 +74,28 @@ jobs:
         uses: pypa/hatch@install
 
       - name: 🧹 Lint
+        id: lint
         run: hatch run lint
 
       - name: 🔍 Typecheck
+        id: typecheck
         run: hatch run typecheck:check
+
+      - name: Comment on lint failure
+        if: failure() && steps.lint.outcome == 'failure'
+        uses: ./.github/actions/pr-comment-on-failure
+        with:
+          check-name: "lint"
+          command: "hatch run lint"
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Comment on typecheck failure
+        if: failure() && steps.typecheck.outcome == 'failure'
+        uses: ./.github/actions/pr-comment-on-failure
+        with:
+          check-name: "typecheck"
+          command: "hatch run typecheck:check"
+          github-token: ${{ secrets.GITHUB_TOKEN }}
 
   # For PRs, we only run the tests for the changed files.
   # If there is a `test-all` label, we run the tests across unchanged files as well.
