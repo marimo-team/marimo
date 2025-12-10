@@ -2,7 +2,7 @@
 # requires-python = ">=3.11"
 # dependencies = [
 #     "marimo",
-#     "openai>=1.0.0",
+#     "openai==2.9.0",
 # ]
 # ///
 
@@ -165,7 +165,7 @@ def _(PROVIDER_BASE_URL, PROVIDER_MODEL, execute_tool, json, key, tools):
         4. Yields structured parts for the UI to display
         """
         # Convert marimo ChatMessages to OpenAI format
-        # 
+        #
         # OpenAI's expected format for tool calls:
         # 1. Assistant message with tool_calls (content=null) - the tool REQUEST
         # 2. Tool message(s) with results - one per tool call
@@ -173,8 +173,21 @@ def _(PROVIDER_BASE_URL, PROVIDER_MODEL, execute_tool, json, key, tools):
         #
         # This is critical! If we put the final text in the same message as tool_calls,
         # OpenAI thinks the tool results are orphaned and will re-call the tools.
-        
+
         openai_messages = []
+
+        def get_part_type(p) -> str:
+            """Get the type from a part (dict or dataclass)."""
+            if isinstance(p, dict):
+                return p.get("type", "")
+            return getattr(p, "type", "")
+
+        def get_part_attr(p, attr: str, default=None):
+            """Get an attribute from a part (dict or dataclass)."""
+            if isinstance(p, dict):
+                return p.get(attr, default)
+            return getattr(p, attr, default)
+
         for msg in messages:
             if msg.role == "system":
                 openai_messages.append({"role": "system", "content": str(msg.content)})
@@ -183,25 +196,28 @@ def _(PROVIDER_BASE_URL, PROVIDER_MODEL, execute_tool, json, key, tools):
             elif msg.role == "assistant":
                 if msg.parts:
                     # Separate tool parts from text parts
-                    tool_parts = [p for p in msg.parts if isinstance(p, dict) and p.get("type", "").startswith("tool-")]
-                    text_parts = [p for p in msg.parts if isinstance(p, dict) and p.get("type") == "text"]
-                    text_content = " ".join(p.get("text", "") for p in text_parts).strip()
+                    # Parts can be dicts (from our yields) or dataclass objects (from marimo)
+                    tool_parts = [p for p in msg.parts if get_part_type(p).startswith("tool-")]
+                    text_parts = [p for p in msg.parts if get_part_type(p) == "text"]
+                    text_content = " ".join(get_part_attr(p, "text", "") for p in text_parts).strip()
 
                     if tool_parts:
                         # Step 1: Assistant message with tool_calls (NO final content yet)
                         tool_calls_list = []
                         for part in tool_parts:
-                            tool_name = part["type"].replace("tool-", "")
-                            tool_call_id = part.get("toolCallId") or part.get("tool_call_id", "")
+                            tool_name = get_part_type(part).replace("tool-", "")
+                            # Handle both camelCase (toolCallId) and snake_case (tool_call_id)
+                            tool_call_id = get_part_attr(part, "toolCallId") or get_part_attr(part, "tool_call_id", "")
+                            tool_input = get_part_attr(part, "input", {})
                             tool_calls_list.append({
                                 "id": tool_call_id,
                                 "type": "function",
                                 "function": {
                                     "name": tool_name,
-                                    "arguments": json.dumps(part["input"]),
+                                    "arguments": json.dumps(tool_input),
                                 },
                             })
-                        
+
                         openai_messages.append({
                             "role": "assistant",
                             "content": None,  # No content in tool request message
@@ -210,13 +226,14 @@ def _(PROVIDER_BASE_URL, PROVIDER_MODEL, execute_tool, json, key, tools):
 
                         # Step 2: Tool result messages (one per tool)
                         for part in tool_parts:
-                            tool_call_id = part.get("toolCallId") or part.get("tool_call_id", "")
+                            tool_call_id = get_part_attr(part, "toolCallId") or get_part_attr(part, "tool_call_id", "")
+                            tool_output = get_part_attr(part, "output")
                             openai_messages.append({
                                 "role": "tool",
                                 "tool_call_id": tool_call_id,
-                                "content": json.dumps(part["output"]) if part.get("output") else "",
+                                "content": json.dumps(tool_output) if tool_output else "",
                             })
-                        
+
                         # Step 3: Assistant message with final text (AFTER tool results)
                         if text_content:
                             openai_messages.append({
