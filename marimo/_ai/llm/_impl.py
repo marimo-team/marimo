@@ -1132,97 +1132,156 @@ class pydantic_ai(ChatModel):
         # Get the current user prompt
         user_prompt = str(messages[-1].content) if messages else ""
 
-        async with agent.run_stream(
+        # Track parts for structured response
+        parts: list[dict[str, Any]] = []
+        current_text = ""
+        current_thinking = ""
+        has_tool_calls = False
+        has_thinking = False
+        final_result: Any = None
+
+        # Use run_stream_events() to get all events in real-time
+        # This includes thinking parts, text parts, tool calls, etc.
+        # See: https://ai.pydantic.dev/agents/#streaming-events-and-final-output
+        async for event in agent.run_stream_events(
             user_prompt,
             message_history=message_history if message_history else None,
             model_settings=model_settings,
-        ) as result:
-            # Track tool calls and text parts
-            parts: list[dict[str, Any]] = []
-            current_text = ""
-            has_tool_calls = False
+        ):
+            event_type = type(event).__name__
 
-            # Stream text deltas
-            async for text_delta in result.stream_text(delta=True):
-                current_text += text_delta
-                yield text_delta
+            # PartStartEvent - when a new part begins (thinking, text, etc.)
+            if event_type == "PartStartEvent":
+                part = getattr(event, "part", None)
+                if part is not None:
+                    part_type = type(part).__name__
+                    # Thinking part started - yield immediately
+                    if part_type == "ThinkingPart" or isinstance(
+                        part, ThinkingPart
+                    ):
+                        has_thinking = True
+                        content = getattr(part, "content", None)
+                        current_thinking = content if content else ""
+                        thinking_dict: dict[str, Any] = {
+                            "type": "reasoning",
+                            "text": current_thinking,
+                        }
+                        yield {"parts": [thinking_dict]}
 
-            # After streaming completes, check if there were tool calls or thinking
-            # Use new_messages() to only get messages from THIS run,
-            # not the entire history (which would duplicate tool calls)
-            has_thinking = False
+            # PartDeltaEvent - incremental content updates
+            elif event_type == "PartDeltaEvent":
+                delta = getattr(event, "delta", None)
+                if delta is not None:
+                    delta_type = type(delta).__name__
+                    # Text delta - stream to UI
+                    if delta_type == "TextPartDelta":
+                        text_delta = getattr(delta, "content_delta", "") or ""
+                        current_text += text_delta
+                        # If we have thinking, yield structured parts to preserve it
+                        if has_thinking:
+                            yield {
+                                "parts": [
+                                    {"type": "reasoning", "text": current_thinking},
+                                    {"type": "text", "text": current_text},
+                                ]
+                            }
+                        else:
+                            # No thinking, just yield text delta
+                            yield text_delta
+                    # Thinking delta - update thinking in real-time
+                    elif delta_type == "ThinkingPartDelta":
+                        thinking_delta = getattr(delta, "content_delta", "") or ""
+                        current_thinking += thinking_delta
+                        thinking_dict = {
+                            "type": "reasoning",
+                            "text": current_thinking,
+                        }
+                        yield {"parts": [thinking_dict]}
+
+            # AgentRunResultEvent - final result with all messages
+            elif event_type == "AgentRunResultEvent":
+                final_result = getattr(event, "result", None)
+
+        # After streaming, process final result for tool calls
+        if final_result is not None:
             try:
-                new_messages = result.new_messages()
-                for msg in new_messages:
-                    if isinstance(msg, ModelResponse):
-                        for part in msg.parts:
-                            # Handle thinking/reasoning parts
-                            if isinstance(part, ThinkingPart):
-                                has_thinking = True
-                                thinking_text = (
-                                    part.content
-                                    if hasattr(part, "content")
-                                    else str(part)
-                                )
-                                thinking_part: dict[str, Any] = {
-                                    "type": "reasoning",
-                                    "text": thinking_text,
-                                }
-                                parts.append(thinking_part)
+                # Get all messages from the run
+                all_messages = getattr(final_result, "all_messages", None)
+                if callable(all_messages):
+                    all_messages = all_messages()
 
-                            # Handle tool call parts
-                            elif isinstance(part, ToolCallPart):
-                                has_tool_calls = True
-                                tool_name = part.tool_name
-                                tool_call_id = (
-                                    part.tool_call_id
-                                    if hasattr(part, "tool_call_id")
-                                    else f"call_{id(part)}"
-                                )
+                if all_messages:
+                    for msg in all_messages:
+                        if isinstance(msg, ModelResponse):
+                            for part in msg.parts:
+                                # Capture thinking if not already done
+                                if isinstance(part, ThinkingPart):
+                                    if not has_thinking:
+                                        has_thinking = True
+                                        thinking_text = getattr(
+                                            part, "content", str(part)
+                                        )
+                                        parts.append({
+                                            "type": "reasoning",
+                                            "text": thinking_text,
+                                        })
 
-                                # Find the corresponding result in new messages
-                                tool_output = None
-                                for result_msg in new_messages:
-                                    if isinstance(result_msg, ModelRequest):
-                                        for result_part in result_msg.parts:
-                                            if isinstance(
-                                                result_part, ToolReturnPart
-                                            ) and getattr(
-                                                result_part,
-                                                "tool_call_id",
-                                                None,
-                                            ) == tool_call_id:
-                                                tool_output = result_part.content
+                                # Handle tool calls
+                                elif isinstance(part, ToolCallPart):
+                                    has_tool_calls = True
+                                    tool_name = part.tool_name
+                                    tool_call_id = getattr(
+                                        part, "tool_call_id", f"call_{id(part)}"
+                                    )
 
-                                # Create tool part in marimo format
-                                tool_part: dict[str, Any] = {
-                                    "type": f"tool-{tool_name}",
-                                    "toolCallId": tool_call_id,
-                                    "state": "output-available",
-                                    "input": (
-                                        part.args.args_dict
-                                        if hasattr(part, "args")
-                                        and hasattr(part.args, "args_dict")
-                                        else {}
-                                    ),
-                                    "output": tool_output,
-                                }
-                                parts.append(tool_part)
+                                    # Find corresponding result
+                                    tool_output = None
+                                    for result_msg in all_messages:
+                                        if isinstance(result_msg, ModelRequest):
+                                            for rp in result_msg.parts:
+                                                if isinstance(
+                                                    rp, ToolReturnPart
+                                                ) and getattr(
+                                                    rp, "tool_call_id", None
+                                                ) == tool_call_id:
+                                                    tool_output = rp.content
 
-                # If we had tool calls or thinking, yield a structured response
+                                    tool_part_dict: dict[str, Any] = {
+                                        "type": f"tool-{tool_name}",
+                                        "toolCallId": tool_call_id,
+                                        "state": "output-available",
+                                        "input": (
+                                            part.args.args_dict
+                                            if hasattr(part, "args")
+                                            and hasattr(part.args, "args_dict")
+                                            else {}
+                                        ),
+                                        "output": tool_output,
+                                    }
+                                    parts.append(tool_part_dict)
+
+                # Yield final structured response if we had thinking or tools
                 if has_tool_calls or has_thinking:
-                    # Add text part if there was any text
-                    if current_text.strip():
-                        parts.insert(0, {"type": "text", "text": current_text})
+                    # Add thinking part if we accumulated it
+                    if current_thinking and not any(
+                        p.get("type") == "reasoning" for p in parts
+                    ):
+                        parts.insert(
+                            0, {"type": "reasoning", "text": current_thinking}
+                        )
 
-                    # Get the final text response after tool execution
-                    final_output = await result.get_output()
-                    if final_output and final_output != current_text:
-                        parts.append({"type": "text", "text": final_output})
+                    # Add text part if there was any
+                    if current_text.strip():
+                        parts.append({"type": "text", "text": current_text})
+
+                    # Get final output if different from streamed text
+                    final_output = getattr(final_result, "output", None)
+                    if final_output and str(final_output) != current_text:
+                        parts.append({"type": "text", "text": str(final_output)})
 
                     yield {"parts": parts}
             except Exception:
-                # If we can't get structured messages, just return text
+                # If we can't process structured messages, that's ok
                 pass
 
     def _convert_messages_to_pydantic_ai(
