@@ -1,13 +1,13 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import { useAtomValue } from "jotai";
-import { TerminalSquareIcon, XCircleIcon } from "lucide-react";
+import { AlertTriangleIcon, XCircleIcon } from "lucide-react";
 import type React from "react";
+import { renderShortcut } from "@/components/shortcuts/renderShortcut";
 import { Tooltip } from "@/components/ui/tooltip";
 import { cellErrorCount } from "@/core/cells/cells";
 import { IfCapability } from "@/core/config/if-capability";
 import { useHotkey } from "@/hooks/useHotkey";
-import { cn } from "@/utils/cn";
 import { ShowInKioskMode } from "../../kiosk-mode";
 import { useChromeActions, useChromeState } from "../state";
 import { FooterItem } from "./footer-item";
@@ -20,9 +20,14 @@ import { RTCStatus } from "./footer-items/rtc-status";
 import { RuntimeSettings } from "./footer-items/runtime-settings";
 
 export const Footer: React.FC = () => {
-  const { isDeveloperPanelOpen, selectedDeveloperPanelTab } = useChromeState();
-  const { toggleDeveloperPanel, openDeveloperPanelTab } = useChromeActions();
+  const { isDeveloperPanelOpen } = useChromeState();
+  const { toggleDeveloperPanel } = useChromeActions();
+
   const errorCount = useAtomValue(cellErrorCount);
+
+  // TODO: Add warning count from diagnostics/linting
+  // This can signal warnings/errors with settings up AI / Copilot etc
+  const warningCount = 0;
 
   useHotkey("global.toggleTerminal", () => {
     toggleDeveloperPanel();
@@ -33,30 +38,34 @@ export const Footer: React.FC = () => {
   });
 
   return (
-    <footer className="h-10 py-2 bg-background flex items-center text-muted-foreground text-md px-1 border-t border-border select-none no-print text-sm shadow-[0_0_4px_1px_rgba(0,0,0,0.1)] z-50 print:hidden hide-on-fullscreen overflow-x-auto overflow-y-hidden scrollbar-thin">
-      <FooterItem
-        tooltip="View errors"
-        selected={
-          isDeveloperPanelOpen && selectedDeveloperPanelTab === "errors"
-        }
-        onClick={() => openDeveloperPanelTab("errors")}
-        data-testid="footer-errors"
-      >
-        <XCircleIcon
-          className={cn("h-5 w-5", errorCount > 0 && "text-destructive")}
-        />
-        <span className="ml-1 font-mono mt-0.5">{errorCount}</span>
-      </FooterItem>
-
+    <footer className="h-10 py-2 bg-background flex items-center text-muted-foreground text-md pl-2 pr-1 border-t border-border select-none no-print text-sm shadow-[0_0_4px_1px_rgba(0,0,0,0.1)] z-50 print:hidden hide-on-fullscreen overflow-x-auto overflow-y-hidden scrollbar-thin">
       <IfCapability capability="terminal">
-        <FooterItem
-          tooltip="Toggle developer panel"
-          selected={isDeveloperPanelOpen}
-          onClick={() => toggleDeveloperPanel()}
-          data-testid="footer-panel"
-        >
-          <TerminalSquareIcon className="h-5 w-5" />
-        </FooterItem>
+        <div className="flex items-center">
+          <div className="flex">
+            <FooterItem
+              tooltip={
+                <span className="flex items-center gap-2">
+                  Toggle developer panel{" "}
+                  {renderShortcut("global.togglePanel", false)}
+                </span>
+              }
+              selected={isDeveloperPanelOpen}
+              onClick={() => toggleDeveloperPanel()}
+              data-testid="footer-panel"
+            >
+              <div className="flex items-center gap-1">
+                <XCircleIcon
+                  className={`w-4 h-4 ${errorCount > 0 ? "text-destructive" : ""}`}
+                />
+                <span>{errorCount}</span>
+                <AlertTriangleIcon
+                  className={`w-4 h-4 ml-1 ${warningCount > 0 ? "text-yellow-500" : ""}`}
+                />
+                <span>{warningCount}</span>
+              </div>
+            </FooterItem>
+          </div>
+        </div>
       </IfCapability>
 
       <RuntimeSettings />

@@ -10,10 +10,12 @@ import { Footer } from "./footer";
 import { Sidebar } from "./sidebar";
 import "./app-chrome.css";
 import { TooltipProvider } from "@radix-ui/react-tooltip";
+import { useAtomValue } from "jotai";
 import { XIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LazyMount } from "@/components/utils/lazy-mount";
+import { cellErrorCount } from "@/core/cells/cells";
 import { getFeatureFlag } from "@/core/config/feature-flag";
 import { IfCapability } from "@/core/config/if-capability";
 import { cn } from "@/utils/cn";
@@ -72,6 +74,7 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
   const sidebarRef = React.useRef<ImperativePanelHandle>(null);
   const terminalRef = React.useRef<ImperativePanelHandle>(null);
   const { aiPanelTab, setAiPanelTab } = useAiPanelTab();
+  const errorCount = useAtomValue(cellErrorCount);
 
   // sync sidebar
   useEffect(() => {
@@ -281,7 +284,7 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
       {panelResizeHandle}
       <div className="flex flex-col h-full">
         {/* Panel header with tabs */}
-        <div className="flex items-center justify-between border-b px-2 py-1 bg-background shrink-0">
+        <div className="flex items-center justify-between border-b px-2 h-8 bg-background shrink-0">
           <Tabs
             value={selectedDeveloperPanelTab}
             onValueChange={(v) =>
@@ -290,14 +293,23 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
               )
             }
           >
-            <TabsList className="h-7 bg-transparent p-0">
+            <TabsList className="bg-transparent p-0 gap-1">
               {DEVELOPER_PANEL_TABS.filter((tab) => !tab.hidden).map((tab) => (
                 <TabsTrigger
                   key={tab.type}
                   value={tab.type}
-                  className="text-xs gap-1.5 px-2 py-1 data-[state=active]:bg-muted"
+                  className="text-sm gap-2 px-2 pt-1 pb-0.5 items-center leading-none data-[state=active]:bg-muted"
                 >
-                  <tab.Icon className="w-3.5 h-3.5" />
+                  {/* Color the Errors icon red when there are errors,
+                      so users see it when they open the developer panel */}
+                  <tab.Icon
+                    className={cn(
+                      "w-4 h-4",
+                      tab.type === "errors" &&
+                        errorCount > 0 &&
+                        "text-destructive",
+                    )}
+                  />
                   {tab.label}
                 </TabsTrigger>
               ))}
@@ -377,7 +389,10 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
           <Sidebar />
         </TooltipProvider>
         {helperPanel}
-        <Panel id="app-chrome-body">
+        <Panel
+          id="app-chrome-body"
+          className={cn(isDeveloperPanelOpen && !isSidebarOpen && "border-l")}
+        >
           <PanelGroup autoSaveId="marimo:chrome:v1:l1" direction="vertical">
             {appBodyPanel}
             <IfCapability capability="terminal">{bottomPanel}</IfCapability>

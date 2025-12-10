@@ -11,6 +11,7 @@ import {
   CircleX,
 } from "lucide-react";
 import React, { type JSX, Suspense, useEffect, useRef, useState } from "react";
+import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { useVegaEmbed } from "react-vega";
 import useResizeObserver from "use-resize-observer";
 import { compile } from "vega-lite";
@@ -69,44 +70,52 @@ export const Tracing: React.FC = () => {
   }
 
   return (
-    <div className="py-1 px-2 overflow-y-scroll">
-      <div className="flex flex-row justify-end gap-3">
-        <div className="flex flex-row gap-1 items-center">
-          <label htmlFor="chartPosition" className="text-xs">
-            Inline chart
-          </label>
-          <input
-            type="checkbox"
-            name="chartPosition"
-            data-testid="chartPosition"
-            onClick={toggleChartPosition}
-            defaultChecked={chartPosition === "sideBySide"}
-            className="h-3 cursor-pointer"
-          />
-        </div>
-
-        <ClearButton dataTestId="clear-traces-button" onClick={clearRuns} />
-      </div>
-
-      <div className="flex flex-col gap-3">
-        {newestToOldestRunIds.map((runId: RunId, index: number) => {
-          const run = runMap.get(runId);
-          if (run) {
-            return (
-              <TraceBlock
-                key={run.runId}
-                run={run}
-                isExpanded={expandedRuns.get(run.runId)}
-                isMostRecentRun={index === 0}
-                chartPosition={chartPosition}
-                theme={theme}
+    <PanelGroup direction="horizontal" className="h-full">
+      <Panel defaultSize={50} minSize={30} maxSize={80}>
+        <div className="py-1 px-2 overflow-y-scroll h-full">
+          <div className="flex flex-row justify-start gap-3">
+            <div className="flex flex-row gap-1 items-center">
+              <label htmlFor="chartPosition" className="text-xs">
+                Inline chart
+              </label>
+              <input
+                type="checkbox"
+                name="chartPosition"
+                data-testid="chartPosition"
+                onClick={toggleChartPosition}
+                defaultChecked={chartPosition === "sideBySide"}
+                className="h-3 cursor-pointer"
               />
-            );
-          }
-          return null;
-        })}
-      </div>
-    </div>
+            </div>
+
+            <ClearButton dataTestId="clear-traces-button" onClick={clearRuns} />
+          </div>
+
+          <div className="flex flex-col gap-3">
+            {newestToOldestRunIds.map((runId: RunId, index: number) => {
+              const run = runMap.get(runId);
+              if (run) {
+                return (
+                  <TraceBlock
+                    key={run.runId}
+                    run={run}
+                    isExpanded={expandedRuns.get(run.runId)}
+                    isMostRecentRun={index === 0}
+                    chartPosition={chartPosition}
+                    theme={theme}
+                  />
+                );
+              }
+              return null;
+            })}
+          </div>
+        </div>
+      </Panel>
+      <PanelResizeHandle className="w-1 bg-border hover:bg-primary/50 transition-colors" />
+      <Panel defaultSize={50}>
+        <div />
+      </Panel>
+    </PanelGroup>
   );
 };
 
