@@ -12,6 +12,7 @@ import "./app-chrome.css";
 import { TooltipProvider } from "@radix-ui/react-tooltip";
 import {
   ActivityIcon,
+  DatabaseZapIcon,
   FileTextIcon,
   KeyRoundIcon,
   NotebookPenIcon,
@@ -220,7 +221,6 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
             {selectedPanel === "documentation" && <LazyDocumentationPanel />}
             {selectedPanel === "snippets" && <LazySnippetsPanel />}
             {selectedPanel === "ai" && renderAiPanel()}
-            {selectedPanel === "cache" && <LazyCachePanel />}
           </TooltipProvider>
         </Suspense>
       </div>
@@ -344,6 +344,17 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
                 <TerminalSquareIcon className="w-3.5 h-3.5" />
                 Terminal
               </TabsTrigger>
+              {/* TODO(akshayka): The cache panel should not be default shown,
+                  even when it's out of feature flag. (User config to turn it on.) */}
+              {getFeatureFlag("cache_panel") && (
+                <TabsTrigger
+                  value="cache"
+                  className="text-xs gap-1.5 px-2 py-1 data-[state=active]:bg-muted"
+                >
+                  <DatabaseZapIcon className="w-3.5 h-3.5" />
+                  Cache
+                </TabsTrigger>
+              )}
             </TabsList>
           </Tabs>
           <Button
@@ -398,6 +409,13 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
                   visible={isDeveloperPanelOpen}
                   onClose={() => setIsDeveloperPanelOpen(false)}
                 />
+              </Suspense>
+            </LazyMount>
+          )}
+          {selectedDeveloperPanelTab === "cache" && (
+            <LazyMount isOpen={isDeveloperPanelOpen}>
+              <Suspense fallback={<div />}>
+                <LazyCachePanel />
               </Suspense>
             </LazyMount>
           )}

@@ -4,7 +4,6 @@ import {
   BotIcon,
   BoxIcon,
   DatabaseIcon,
-  DatabaseZapIcon,
   FolderTreeIcon,
   FunctionSquareIcon,
   type LucideIcon,
@@ -13,7 +12,6 @@ import {
   SquareDashedBottomCodeIcon,
   TextSearchIcon,
 } from "lucide-react";
-import { getFeatureFlag } from "@/core/config/feature-flag";
 
 export type PanelType =
   | "files"
@@ -122,15 +120,5 @@ export const PANELS: PanelDescriptor[] = [
     Icon: NetworkIcon,
     tooltip: "Explore dependencies",
     position: "sidebar",
-  },
-  // TODO(akshayka): The cache panel should not be default shown,
-  // even when it's out of feature flag. (User config to
-  // turn it on.)
-  {
-    type: "cache",
-    Icon: DatabaseZapIcon,
-    tooltip: "Manage cache",
-    position: "sidebar",
-    hidden: !getFeatureFlag("cache_panel"),
   },
 ];
