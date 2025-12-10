@@ -87,8 +87,8 @@ export const PANELS: PanelDescriptor[] = [
     position: "sidebar",
   },
   {
-    // TODO(akshayka): Consider making snippets default
-    // off, user configuration to enable.
+    // Hidden by default; shown only when user has custom snippet paths configured.
+    // See snippetsEnabledAtom in config.ts and sidebar.tsx filtering.
     type: "snippets",
     Icon: SquareDashedBottomCodeIcon,
     tooltip: "Snippets",
