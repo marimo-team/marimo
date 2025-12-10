@@ -263,7 +263,7 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
       collapsible={true}
       className={cn(
         "dark:bg-(--slate-1) no-print print:hidden hide-on-fullscreen",
-        isDeveloperPanelOpen && "border-(--slate-7)",
+        isDeveloperPanelOpen && "border-t",
       )}
       minSize={10}
       // We can't make the default size greater than 0, otherwise it will start open
