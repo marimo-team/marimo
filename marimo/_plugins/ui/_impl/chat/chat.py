@@ -275,7 +275,6 @@ class chat(UIElement[dict[str, Any], list[ChatMessage]]):
         This follows the standard streaming pattern used by OpenAI, Anthropic,
         and other AI providers.
         """
-        print("[CHAT DEBUG] _handle_streaming_response called")
         message_id = str(uuid.uuid4())
         accumulated_text = ""
         last_parts: Optional[list[Any]] = None
@@ -284,10 +283,6 @@ class chat(UIElement[dict[str, Any], list[ChatMessage]]):
             nonlocal accumulated_text, last_parts
 
             is_parts = self._is_parts_response(delta)
-            # Debug print to help diagnose streaming issues
-            print(f"[CHAT DEBUG] delta type={type(delta).__name__}, is_parts={is_parts}, has_parts_key={isinstance(delta, dict) and 'parts' in delta}")
-            if isinstance(delta, dict):
-                print(f"[CHAT DEBUG] dict keys: {list(delta.keys())}")
 
             if is_parts:
                 # Structured response with parts (may include tool calls)
@@ -361,21 +356,13 @@ class chat(UIElement[dict[str, Any], list[ChatMessage]]):
         else:
             response = self._model(messages, args.config)
 
-        print(f"[CHAT DEBUG] _send_prompt: response type = {type(response).__name__}")
-        print(f"[CHAT DEBUG] _send_prompt: isawaitable={inspect.isawaitable(response)}, isasyncgen={inspect.isasyncgen(response)}, isgenerator={inspect.isgenerator(response)}")
-
         if inspect.isawaitable(response):
             response = await response
-            print(f"[CHAT DEBUG] _send_prompt: awaited response type = {type(response).__name__}")
         elif inspect.isasyncgen(response) or inspect.isgenerator(response):
             # We support functions that stream the response with generators
             # (both sync and async); each yielded value is the latest
             # representation of the response, and the last value is the full value
-            print("[CHAT DEBUG] _send_prompt: detected generator, calling _handle_streaming_response")
             response = await self._handle_streaming_response(response)
-            print(f"[CHAT DEBUG] _send_prompt: streaming response returned type = {type(response).__name__}")
-
-        print(f"[CHAT DEBUG] _send_prompt: final response = {response}")
 
         # Build the response message, handling structured responses with parts
         if self._is_parts_response(response):
