@@ -350,8 +350,6 @@ def test_nested_function_param_in_comprehension_not_required_ref() -> None:
 
     assert v.defs == {"helper"}
     assert v.refs == set()  # No external refs!
-    # extension is a PARAMETER, not an external dependency
-    # Compare to test_globals_in_functions: foo(a...) where a is not in required_refs
     assert v.variable_data == {
         "helper": [VariableData(kind="function", required_refs=set())]
     }
@@ -370,9 +368,7 @@ def test_param_in_comprehension_has_required_ref() -> None:
     v.visit(mod)
 
     assert v.defs == {"helper"}
-    assert v.refs == {"extension"}  # No external refs!
-    # extension is a PARAMETER, not an external dependency
-    # Compare to test_globals_in_functions: foo(a...) where a is not in required_refs
+    assert v.refs == {"extension"}
     assert v.variable_data == {
         "helper": [VariableData(kind="function", required_refs={"extension"})]
     }
@@ -393,8 +389,6 @@ def test_shadowed_param_in_comprehension_not_required_ref() -> None:
 
     assert v.defs == {"helper", "extension"}
     assert v.refs == set()
-    # extension is a PARAMETER, not an external dependency
-    # Compare to test_globals_in_functions: foo(a...) where a is not in required_refs
     assert v.variable_data == {
         "helper": [VariableData(kind="function", required_refs=set())],
         "extension": [VariableData(kind="variable", required_refs=set())],
