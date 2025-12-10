@@ -10,7 +10,12 @@ import { Footer } from "./footer";
 import { Sidebar } from "./sidebar";
 import "./app-chrome.css";
 import { TooltipProvider } from "@radix-ui/react-tooltip";
-import { TerminalSquareIcon, XCircleIcon, XIcon } from "lucide-react";
+import {
+  NotebookPenIcon,
+  TerminalSquareIcon,
+  XCircleIcon,
+  XIcon,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LazyMount } from "@/components/utils/lazy-mount";
@@ -57,10 +62,17 @@ const LazyVariablePanel = React.lazy(() => import("../panels/variable-panel"));
 const LazyCachePanel = React.lazy(() => import("../panels/cache-panel"));
 
 export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
-  const { isSidebarOpen, isPanelOpen, selectedPanel, selectedPanelTab } =
-    useChromeState();
-  const { setIsSidebarOpen, setIsPanelOpen, setSelectedPanelTab } =
-    useChromeActions();
+  const {
+    isSidebarOpen,
+    isDeveloperPanelOpen,
+    selectedPanel,
+    selectedDeveloperPanelTab,
+  } = useChromeState();
+  const {
+    setIsSidebarOpen,
+    setIsDeveloperPanelOpen,
+    setSelectedDeveloperPanelTab,
+  } = useChromeActions();
   const sidebarRef = React.useRef<ImperativePanelHandle>(null);
   const terminalRef = React.useRef<ImperativePanelHandle>(null);
   const { aiPanelTab, setAiPanelTab } = useAiPanelTab();
@@ -96,10 +108,10 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
     }
 
     const isCurrentlyCollapsed = terminalRef.current.isCollapsed();
-    if (isPanelOpen && isCurrentlyCollapsed) {
+    if (isDeveloperPanelOpen && isCurrentlyCollapsed) {
       terminalRef.current.expand();
     }
-    if (!isPanelOpen && !isCurrentlyCollapsed) {
+    if (!isDeveloperPanelOpen && !isCurrentlyCollapsed) {
       terminalRef.current.collapse();
     }
 
@@ -111,7 +123,7 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
         window.dispatchEvent(new Event("resize"));
       });
     });
-  }, [isPanelOpen]);
+  }, [isDeveloperPanelOpen]);
 
   const appBodyPanel = (
     <Panel id="app" key="app" className="relative h-full">
@@ -135,7 +147,7 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
       onDragging={handleDragging}
       className={cn(
         "border-border no-print z-20",
-        isPanelOpen ? "resize-handle" : "resize-handle-collapsed",
+        isDeveloperPanelOpen ? "resize-handle" : "resize-handle-collapsed",
         "horizontal",
       )}
     />
@@ -203,7 +215,6 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
             {selectedPanel === "datasources" && <LazyDataSourcesPanel />}
             {selectedPanel === "documentation" && <LazyDocumentationPanel />}
             {selectedPanel === "snippets" && <LazySnippetsPanel />}
-            {selectedPanel === "scratchpad" && <LazyScratchpadPanel />}
             {selectedPanel === "ai" && renderAiPanel()}
             {selectedPanel === "logs" && <LazyLogsPanel />}
             {selectedPanel === "tracing" && <LazyTracingPanel />}
@@ -260,7 +271,7 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
       collapsible={true}
       className={cn(
         "dark:bg-(--slate-1) no-print print:hidden hide-on-fullscreen",
-        isPanelOpen && "border-(--slate-7)",
+        isDeveloperPanelOpen && "border-(--slate-7)",
       )}
       minSize={10}
       // We can't make the default size greater than 0, otherwise it will start open
@@ -272,16 +283,20 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
           terminalRef.current?.resize(30);
         }
       }}
-      onCollapse={() => setIsPanelOpen(false)}
-      onExpand={() => setIsPanelOpen(true)}
+      onCollapse={() => setIsDeveloperPanelOpen(false)}
+      onExpand={() => setIsDeveloperPanelOpen(true)}
     >
       {panelResizeHandle}
       <div className="flex flex-col h-full">
         {/* Panel header with tabs */}
         <div className="flex items-center justify-between border-b px-2 py-1 bg-background shrink-0">
           <Tabs
-            value={selectedPanelTab}
-            onValueChange={(v) => setSelectedPanelTab(v as typeof selectedPanelTab)}
+            value={selectedDeveloperPanelTab}
+            onValueChange={(v) =>
+              setSelectedDeveloperPanelTab(
+                v as typeof selectedDeveloperPanelTab,
+              )
+            }
           >
             <TabsList className="h-7 bg-transparent p-0">
               <TabsTrigger
@@ -290,6 +305,13 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
               >
                 <XCircleIcon className="w-3.5 h-3.5" />
                 Errors
+              </TabsTrigger>
+              <TabsTrigger
+                value="scratchpad"
+                className="text-xs gap-1.5 px-2 py-1 data-[state=active]:bg-muted"
+              >
+                <NotebookPenIcon className="w-3.5 h-3.5" />
+                Scratchpad
               </TabsTrigger>
               <TabsTrigger
                 value="terminal"
@@ -303,26 +325,33 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
           <Button
             size="xs"
             variant="text"
-            onClick={() => setIsPanelOpen(false)}
+            onClick={() => setIsDeveloperPanelOpen(false)}
           >
             <XIcon className="w-4 h-4" />
           </Button>
         </div>
         {/* Panel content */}
         <div className="flex-1 overflow-hidden">
-          {selectedPanelTab === "errors" && (
-            <LazyMount isOpen={isPanelOpen}>
+          {selectedDeveloperPanelTab === "errors" && (
+            <LazyMount isOpen={isDeveloperPanelOpen}>
               <Suspense fallback={<div />}>
                 <LazyErrorsPanel />
               </Suspense>
             </LazyMount>
           )}
-          {selectedPanelTab === "terminal" && (
-            <LazyMount isOpen={isPanelOpen}>
+          {selectedDeveloperPanelTab === "scratchpad" && (
+            <LazyMount isOpen={isDeveloperPanelOpen}>
+              <Suspense fallback={<div />}>
+                <LazyScratchpadPanel />
+              </Suspense>
+            </LazyMount>
+          )}
+          {selectedDeveloperPanelTab === "terminal" && (
+            <LazyMount isOpen={isDeveloperPanelOpen}>
               <Suspense fallback={<div />}>
                 <LazyTerminal
-                  visible={isPanelOpen}
-                  onClose={() => setIsPanelOpen(false)}
+                  visible={isDeveloperPanelOpen}
+                  onClose={() => setIsDeveloperPanelOpen(false)}
                 />
               </Suspense>
             </LazyMount>

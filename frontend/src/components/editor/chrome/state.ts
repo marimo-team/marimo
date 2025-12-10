@@ -6,13 +6,13 @@ import { createReducerAndAtoms } from "@/utils/createReducer";
 import { ZodLocalStorage } from "@/utils/storage/typed";
 import type { PanelType } from "./types";
 
-export type PanelTabType = "errors" | "terminal";
+export type DeveloperPanelTabType = "errors" | "scratchpad" | "terminal";
 
 export interface ChromeState {
   selectedPanel: PanelType | undefined;
   isSidebarOpen: boolean;
-  isPanelOpen: boolean;
-  selectedPanelTab: PanelTabType;
+  isDeveloperPanelOpen: boolean;
+  selectedDeveloperPanelTab: DeveloperPanelTabType;
 }
 
 const KEY = "marimo:sidebar";
@@ -23,12 +23,12 @@ const storage = new ZodLocalStorage<ChromeState>(
       .optional()
       .transform((v) => v as PanelType),
     isSidebarOpen: z.boolean(),
-    isPanelOpen: z.boolean().optional().default(false),
-    selectedPanelTab: z
+    isDeveloperPanelOpen: z.boolean().optional().default(false),
+    selectedDeveloperPanelTab: z
       .string()
       .optional()
       .default("terminal")
-      .transform((v) => v as PanelTabType),
+      .transform((v) => v as DeveloperPanelTabType),
   }),
   initialState,
 );
@@ -37,8 +37,8 @@ function initialState(): ChromeState {
   return {
     selectedPanel: "variables", // initial panel
     isSidebarOpen: false,
-    isPanelOpen: false,
-    selectedPanelTab: "terminal",
+    isDeveloperPanelOpen: false,
+    selectedDeveloperPanelTab: "terminal",
   };
 }
 
@@ -72,22 +72,22 @@ const {
       ...state,
       isSidebarOpen: isOpen,
     }),
-    togglePanel: (state) => ({
+    toggleDeveloperPanel: (state) => ({
       ...state,
-      isPanelOpen: !state.isPanelOpen,
+      isDeveloperPanelOpen: !state.isDeveloperPanelOpen,
     }),
-    setIsPanelOpen: (state, isOpen: boolean) => ({
+    setIsDeveloperPanelOpen: (state, isOpen: boolean) => ({
       ...state,
-      isPanelOpen: isOpen,
+      isDeveloperPanelOpen: isOpen,
     }),
-    setSelectedPanelTab: (state, tab: PanelTabType) => ({
+    setSelectedDeveloperPanelTab: (state, tab: DeveloperPanelTabType) => ({
       ...state,
-      selectedPanelTab: tab,
+      selectedDeveloperPanelTab: tab,
     }),
-    openPanelTab: (state, tab: PanelTabType) => ({
+    openDeveloperPanelTab: (state, tab: DeveloperPanelTabType) => ({
       ...state,
-      isPanelOpen: true,
-      selectedPanelTab: tab,
+      isDeveloperPanelOpen: true,
+      selectedDeveloperPanelTab: tab,
     }),
   },
   [(_prevState, newState) => storage.set(KEY, newState)],
