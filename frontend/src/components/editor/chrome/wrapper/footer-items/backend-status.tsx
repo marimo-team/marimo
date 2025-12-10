@@ -1,30 +1,45 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import { useAtomValue } from "jotai";
+import { atom, useAtomValue } from "jotai";
 import { startCase } from "lodash-es";
 import { AlertCircleIcon, CheckCircle2Icon, PowerOffIcon } from "lucide-react";
 import type React from "react";
 import { Spinner } from "@/components/icons/spinner";
+import { Tooltip } from "@/components/ui/tooltip";
 import { connectionAtom } from "@/core/network/connection";
 import { useRuntimeManager } from "@/core/runtime/config";
+import { store } from "@/core/state/jotai";
 import { isWasm } from "@/core/wasm/utils";
 import { WebSocketState } from "@/core/websocket/types";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { useInterval } from "@/hooks/useInterval";
-import { FooterItem } from "../footer-item";
 
 const CHECK_HEALTH_INTERVAL_MS = 30_000;
 
-export const BackendConnection: React.FC = () => {
+type ConnectionStatus = "healthy" | "unhealthy" | "connecting" | "disconnected";
+
+// Atom to track connection status for use in other components
+export const connectionStatusAtom = atom<ConnectionStatus>("connecting");
+
+export function getConnectionStatus(): ConnectionStatus {
+  return store.get(connectionStatusAtom);
+}
+
+/**
+ * Backend connection status indicator for the developer panel header
+ */
+export const BackendConnectionStatus: React.FC = () => {
   const connection = useAtomValue(connectionAtom).state;
   const runtime = useRuntimeManager();
 
   const { isFetching, error, data, refetch } = useAsyncData(async () => {
     if (connection !== WebSocketState.OPEN) {
+      store.set(connectionStatusAtom, "disconnected");
       return;
     }
 
     if (isWasm()) {
+      store.set(connectionStatusAtom, "healthy");
       return {
         isHealthy: true,
         lastChecked: new Date(),
@@ -34,12 +49,14 @@ export const BackendConnection: React.FC = () => {
 
     try {
       const isHealthy = await runtime.isHealthy();
+      store.set(connectionStatusAtom, isHealthy ? "healthy" : "unhealthy");
       return {
         isHealthy,
         lastChecked: new Date(),
         error: undefined,
       };
     } catch (error) {
+      store.set(connectionStatusAtom, "unhealthy");
       return {
         isHealthy: false,
         lastChecked: new Date(),
@@ -90,8 +107,8 @@ export const BackendConnection: React.FC = () => {
   };
 
   return (
-    <FooterItem
-      tooltip={
+    <Tooltip
+      content={
         <div className="text-sm whitespace-pre-line">
           {getStatusInfo()}
           {connection === WebSocketState.OPEN && (
@@ -101,11 +118,16 @@ export const BackendConnection: React.FC = () => {
           )}
         </div>
       }
-      selected={false}
-      onClick={refetch}
-      data-testid="footer-backend-status"
     >
-      {getStatusIcon()}
-    </FooterItem>
+      <button
+        type="button"
+        onClick={refetch}
+        className="p-1 hover:bg-accent rounded flex items-center gap-1.5 text-xs text-muted-foreground"
+        data-testid="backend-status"
+      >
+        {getStatusIcon()}
+        <span>Kernel</span>
+      </button>
+    </Tooltip>
   );
 };

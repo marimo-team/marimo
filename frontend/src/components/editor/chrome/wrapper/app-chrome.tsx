@@ -23,6 +23,7 @@ import { ErrorBoundary } from "../../boundary/ErrorBoundary";
 import { ContextAwarePanel } from "../panels/context-aware-panel/context-aware-panel";
 import { useChromeActions, useChromeState } from "../state";
 import { DEVELOPER_PANEL_TABS } from "../types";
+import { BackendConnectionStatus } from "./footer-items/backend-status";
 import { Minimap } from "./minimap";
 import { PanelsWrapper } from "./panels";
 import { PendingAICells } from "./pending-ai-cells";
@@ -315,6 +316,9 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
               ))}
             </TabsList>
           </Tabs>
+          <div className="border-l border-border h-4 mx-1" />
+          <BackendConnectionStatus />
+          <div className="flex-1" />
           <Button
             size="xs"
             variant="text"
