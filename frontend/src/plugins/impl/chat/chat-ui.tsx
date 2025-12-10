@@ -431,6 +431,44 @@ export const Chatbot: React.FC<Props> = (props) => {
     );
   };
 
+  // Render only non-tool parts (text, files, etc.)
+  const renderNonToolParts = (parts: UIMessage["parts"]) => {
+    return (
+      <>
+        {parts.map((part, index) => {
+          if (part.type === "text") {
+            return (
+              <LazyStreamdown key={index} className="mo-markdown-renderer">
+                {part.text}
+              </LazyStreamdown>
+            );
+          }
+
+          if (part.type === "file") {
+            return (
+              <div key={index} className="flex items-baseline gap-2 mt-2">
+                {renderAttachment(part)}
+                <a
+                  className={buttonVariants({
+                    variant: "text",
+                    size: "icon",
+                  })}
+                  href={part.url}
+                  download={part.filename}
+                >
+                  <DownloadIcon className="size-3" />
+                </a>
+              </div>
+            );
+          }
+
+          // Skip tool parts (handled separately) and unknown types
+          return null;
+        })}
+      </>
+    );
+  };
+
   const shouldShowAttachments =
     (Array.isArray(props.allowAttachments) &&
       props.allowAttachments.length > 0) ||
@@ -510,6 +548,21 @@ export const Chatbot: React.FC<Props> = (props) => {
             .map((p) => p.text)
             .join("\n");
 
+          // Separate tool parts from other parts for assistant messages
+          const toolParts =
+            message.role === "assistant"
+              ? message.parts?.filter((p) => isToolPart(p))
+              : [];
+          const nonToolParts =
+            message.role === "assistant"
+              ? message.parts?.filter((p) => !isToolPart(p))
+              : message.parts;
+          const hasNonToolContent =
+            nonToolParts && nonToolParts.length > 0 &&
+            nonToolParts.some(
+              (p) => p.type !== "text" || ("text" in p && p.text.trim() !== ""),
+            );
+
           return (
             <div
               key={message.id}
@@ -518,15 +571,37 @@ export const Chatbot: React.FC<Props> = (props) => {
                 message.role === "user" ? "items-end" : "items-start",
               )}
             >
-              <div
-                className={`max-w-[80%] p-3 rounded-lg ${
-                  message.role === "user"
-                    ? "bg-(--sky-11) text-(--slate-1) whitespace-pre-wrap"
-                    : "bg-(--slate-4) text-(--slate-12)"
-                }`}
-              >
-                {renderMessage(message)}
-              </div>
+              {/* Tool calls rendered outside the message bubble */}
+              {toolParts && toolParts.length > 0 && (
+                <div className="w-full max-w-[90%] space-y-2">
+                  {toolParts.map((part, index) =>
+                    isToolPart(part) ? (
+                      <ToolCallAccordion
+                        key={`tool-${index}`}
+                        index={index}
+                        toolName={part.type}
+                        result={part.output}
+                        state={part.state}
+                        input={part.input}
+                      />
+                    ) : null,
+                  )}
+                </div>
+              )}
+              {/* Message bubble for non-tool content */}
+              {(message.role === "user" || hasNonToolContent) && (
+                <div
+                  className={`max-w-[80%] p-3 rounded-lg ${
+                    message.role === "user"
+                      ? "bg-(--sky-11) text-(--slate-1) whitespace-pre-wrap"
+                      : "bg-(--slate-4) text-(--slate-12)"
+                  }`}
+                >
+                  {message.role === "user"
+                    ? renderMessage(message)
+                    : renderNonToolParts(nonToolParts ?? [])}
+                </div>
+              )}
               <div className="flex justify-end text-xs gap-2 invisible group-hover:visible">
                 <button
                   type="button"
