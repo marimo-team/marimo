@@ -5,10 +5,8 @@ import {
   BoxIcon,
   DatabaseIcon,
   DatabaseZapIcon,
-  FileTextIcon,
   FolderTreeIcon,
   FunctionSquareIcon,
-  KeyRoundIcon,
   type LucideIcon,
   NetworkIcon,
   ScrollTextIcon,
@@ -16,7 +14,6 @@ import {
   TextSearchIcon,
 } from "lucide-react";
 import { getFeatureFlag } from "@/core/config/feature-flag";
-import { isWasm } from "@/core/wasm/utils";
 
 export type PanelType =
   | "files"
@@ -28,9 +25,7 @@ export type PanelType =
   | "snippets"
   | "datasources"
   | "ai"
-  | "cache"
-  | "secrets"
-  | "logs";
+  | "cache";
 
 export interface PanelDescriptor {
   type: PanelType;
@@ -120,26 +115,12 @@ export const PANELS: PanelDescriptor[] = [
     position: "sidebar",
   },
   {
-    type: "logs",
-    Icon: FileTextIcon,
-    tooltip: "Notebook logs",
-    position: "sidebar",
-  },
-  {
     // TODO(akshayka): Consider making dependencies
     // default off; the minimap is a more effective
     // overview.
     type: "dependencies",
     Icon: NetworkIcon,
     tooltip: "Explore dependencies",
-    position: "sidebar",
-  },
-  {
-    // Not supported in WebAssembly yet
-    type: "secrets",
-    Icon: KeyRoundIcon,
-    tooltip: "Secrets",
-    hidden: isWasm(),
     position: "sidebar",
   },
   // TODO(akshayka): The cache panel should not be default shown,

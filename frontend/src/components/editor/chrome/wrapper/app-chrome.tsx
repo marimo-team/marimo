@@ -12,6 +12,8 @@ import "./app-chrome.css";
 import { TooltipProvider } from "@radix-ui/react-tooltip";
 import {
   ActivityIcon,
+  FileTextIcon,
+  KeyRoundIcon,
   NotebookPenIcon,
   TerminalSquareIcon,
   XCircleIcon,
@@ -22,6 +24,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LazyMount } from "@/components/utils/lazy-mount";
 import { getFeatureFlag } from "@/core/config/feature-flag";
 import { IfCapability } from "@/core/config/if-capability";
+import { isWasm } from "@/core/wasm/utils";
 import { cn } from "@/utils/cn";
 import { ErrorBoundary } from "../../boundary/ErrorBoundary";
 import { ContextAwarePanel } from "../panels/context-aware-panel/context-aware-panel";
@@ -217,8 +220,6 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
             {selectedPanel === "documentation" && <LazyDocumentationPanel />}
             {selectedPanel === "snippets" && <LazySnippetsPanel />}
             {selectedPanel === "ai" && renderAiPanel()}
-            {selectedPanel === "logs" && <LazyLogsPanel />}
-            {selectedPanel === "secrets" && <LazySecretsPanel />}
             {selectedPanel === "cache" && <LazyCachePanel />}
           </TooltipProvider>
         </Suspense>
@@ -320,6 +321,22 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
                 <ActivityIcon className="w-3.5 h-3.5" />
                 Tracing
               </TabsTrigger>
+              {!isWasm() && (
+                <TabsTrigger
+                  value="secrets"
+                  className="text-xs gap-1.5 px-2 py-1 data-[state=active]:bg-muted"
+                >
+                  <KeyRoundIcon className="w-3.5 h-3.5" />
+                  Secrets
+                </TabsTrigger>
+              )}
+              <TabsTrigger
+                value="logs"
+                className="text-xs gap-1.5 px-2 py-1 data-[state=active]:bg-muted"
+              >
+                <FileTextIcon className="w-3.5 h-3.5" />
+                Logs
+              </TabsTrigger>
               <TabsTrigger
                 value="terminal"
                 className="text-xs gap-1.5 px-2 py-1 data-[state=active]:bg-muted"
@@ -357,6 +374,20 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
             <LazyMount isOpen={isDeveloperPanelOpen}>
               <Suspense fallback={<div />}>
                 <LazyTracingPanel />
+              </Suspense>
+            </LazyMount>
+          )}
+          {selectedDeveloperPanelTab === "secrets" && (
+            <LazyMount isOpen={isDeveloperPanelOpen}>
+              <Suspense fallback={<div />}>
+                <LazySecretsPanel />
+              </Suspense>
+            </LazyMount>
+          )}
+          {selectedDeveloperPanelTab === "logs" && (
+            <LazyMount isOpen={isDeveloperPanelOpen}>
+              <Suspense fallback={<div />}>
+                <LazyLogsPanel />
               </Suspense>
             </LazyMount>
           )}

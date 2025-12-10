@@ -10,6 +10,8 @@ export type DeveloperPanelTabType =
   | "errors"
   | "scratchpad"
   | "tracing"
+  | "secrets"
+  | "logs"
   | "terminal";
 
 export interface ChromeState {
