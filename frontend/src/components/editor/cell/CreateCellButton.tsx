@@ -120,12 +120,11 @@ export const CreateCellButton = ({
           )}
           onMouseDown={Events.preventFocus}
           size="small"
-          color="hint-green"
           data-testid="create-cell-button"
         >
           <Tooltip content={finalTooltipContent}>
             <PlusIcon
-              strokeWidth={3}
+              strokeWidth={1.8}
               size={14}
               className="opacity-60 hover:opacity-90"
             />
