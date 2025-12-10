@@ -2527,16 +2527,13 @@ class TestCacheDecorator:
             def helper(extension: list[str] | None) -> int:
                 # Nested scope using extension triggers the bug
                 # for e in extension: ... works fine.
-                return len(
-                    [e for e in extension or []]
-                )
+                return len([e for e in extension or []])
 
             @mo.cache
             def inner(extension: list[str] | None) -> int:
-                assert len(
-                    [e for e in extension or []]
-                ) == 5
+                assert len([e for e in extension or []]) == 5
                 return helper(extension)
+
             return (inner,)
 
         @app.cell

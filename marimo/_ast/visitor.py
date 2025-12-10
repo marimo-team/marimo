@@ -1017,7 +1017,9 @@ class ScopedVisitor(ast.NodeVisitor):
             and (
                 # Check blocks[1:] - skip module block so module-level vars
                 # are still tracked as refs, but function params aren't
-                not any(node.id in block.defs for block in self.block_stack[1:])
+                not any(
+                    node.id in block.defs for block in self.block_stack[1:]
+                )
                 or len(self.block_stack) == 1
             )
         ):
