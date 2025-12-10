@@ -38,9 +38,7 @@ const LazyAgentPanel = React.lazy(
 const LazyDependencyGraphPanel = React.lazy(
   () => import("@/components/editor/chrome/panels/dependency-graph-panel"),
 );
-const LazyDataSourcesPanel = React.lazy(
-  () => import("../panels/datasources-panel"),
-);
+const LazySessionPanel = React.lazy(() => import("../panels/session-panel"));
 const LazyDocumentationPanel = React.lazy(
   () => import("../panels/documentation-panel"),
 );
@@ -57,7 +55,6 @@ const LazyScratchpadPanel = React.lazy(
 const LazySecretsPanel = React.lazy(() => import("../panels/secrets-panel"));
 const LazySnippetsPanel = React.lazy(() => import("../panels/snippets-panel"));
 const LazyTracingPanel = React.lazy(() => import("../panels/tracing-panel"));
-const LazyVariablePanel = React.lazy(() => import("../panels/variable-panel"));
 const LazyCachePanel = React.lazy(() => import("../panels/cache-panel"));
 
 export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
@@ -208,11 +205,10 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
         <Suspense>
           <TooltipProvider>
             {selectedPanel === "files" && <LazyFileExplorerPanel />}
-            {selectedPanel === "variables" && <LazyVariablePanel />}
+            {selectedPanel === "variables" && <LazySessionPanel />}
             {selectedPanel === "dependencies" && <LazyDependencyGraphPanel />}
             {selectedPanel === "packages" && <LazyPackagesPanel />}
             {selectedPanel === "outline" && <LazyOutlinePanel />}
-            {selectedPanel === "datasources" && <LazyDataSourcesPanel />}
             {selectedPanel === "documentation" && <LazyDocumentationPanel />}
             {selectedPanel === "snippets" && <LazySnippetsPanel />}
             {selectedPanel === "ai" && renderAiPanel()}
