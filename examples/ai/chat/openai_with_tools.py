@@ -165,7 +165,15 @@ def _(PROVIDER_BASE_URL, PROVIDER_MODEL, execute_tool, json, key, tools):
         4. Yields structured parts for the UI to display
         """
         # Convert marimo ChatMessages to OpenAI format
-        # Group tool calls from the same assistant message together
+        # 
+        # OpenAI's expected format for tool calls:
+        # 1. Assistant message with tool_calls (content=null) - the tool REQUEST
+        # 2. Tool message(s) with results - one per tool call
+        # 3. Assistant message with final text - the response AFTER tools complete
+        #
+        # This is critical! If we put the final text in the same message as tool_calls,
+        # OpenAI thinks the tool results are orphaned and will re-call the tools.
+        
         openai_messages = []
         for msg in messages:
             if msg.role == "system":
@@ -173,17 +181,14 @@ def _(PROVIDER_BASE_URL, PROVIDER_MODEL, execute_tool, json, key, tools):
             elif msg.role == "user":
                 openai_messages.append({"role": "user", "content": str(msg.content)})
             elif msg.role == "assistant":
-                # Check if this message has tool call parts
                 if msg.parts:
-                    # Collect all tool parts and text parts from this message
+                    # Separate tool parts from text parts
                     tool_parts = [p for p in msg.parts if isinstance(p, dict) and p.get("type", "").startswith("tool-")]
                     text_parts = [p for p in msg.parts if isinstance(p, dict) and p.get("type") == "text"]
-                    
-                    # Get text content
                     text_content = " ".join(p.get("text", "") for p in text_parts).strip()
-                    
+
                     if tool_parts:
-                        # Build a single assistant message with all tool calls
+                        # Step 1: Assistant message with tool_calls (NO final content yet)
                         tool_calls_list = []
                         for part in tool_parts:
                             tool_name = part["type"].replace("tool-", "")
@@ -197,20 +202,26 @@ def _(PROVIDER_BASE_URL, PROVIDER_MODEL, execute_tool, json, key, tools):
                                 },
                             })
                         
-                        # Add assistant message with all tool_calls grouped together
                         openai_messages.append({
                             "role": "assistant",
-                            "content": text_content if text_content else None,
+                            "content": None,  # No content in tool request message
                             "tool_calls": tool_calls_list,
                         })
-                        
-                        # Add tool results (one message per result)
+
+                        # Step 2: Tool result messages (one per tool)
                         for part in tool_parts:
                             tool_call_id = part.get("toolCallId") or part.get("tool_call_id", "")
                             openai_messages.append({
                                 "role": "tool",
                                 "tool_call_id": tool_call_id,
                                 "content": json.dumps(part["output"]) if part.get("output") else "",
+                            })
+                        
+                        # Step 3: Assistant message with final text (AFTER tool results)
+                        if text_content:
+                            openai_messages.append({
+                                "role": "assistant",
+                                "content": text_content,
                             })
                     elif text_content:
                         # No tool calls, just text
