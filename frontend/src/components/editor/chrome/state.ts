@@ -6,10 +6,13 @@ import { createReducerAndAtoms } from "@/utils/createReducer";
 import { ZodLocalStorage } from "@/utils/storage/typed";
 import type { PanelType } from "./types";
 
+export type PanelTabType = "terminal";
+
 export interface ChromeState {
   selectedPanel: PanelType | undefined;
   isSidebarOpen: boolean;
-  isTerminalOpen: boolean;
+  isPanelOpen: boolean;
+  selectedPanelTab: PanelTabType;
 }
 
 const KEY = "marimo:sidebar";
@@ -20,7 +23,12 @@ const storage = new ZodLocalStorage<ChromeState>(
       .optional()
       .transform((v) => v as PanelType),
     isSidebarOpen: z.boolean(),
-    isTerminalOpen: z.boolean(),
+    isPanelOpen: z.boolean().optional().default(false),
+    selectedPanelTab: z
+      .string()
+      .optional()
+      .default("terminal")
+      .transform((v) => v as PanelTabType),
   }),
   initialState,
 );
@@ -29,7 +37,8 @@ function initialState(): ChromeState {
   return {
     selectedPanel: "variables", // initial panel
     isSidebarOpen: false,
-    isTerminalOpen: false,
+    isPanelOpen: false,
+    selectedPanelTab: "terminal",
   };
 }
 
@@ -63,13 +72,17 @@ const {
       ...state,
       isSidebarOpen: isOpen,
     }),
-    toggleTerminal: (state) => ({
+    togglePanel: (state) => ({
       ...state,
-      isTerminalOpen: !state.isTerminalOpen,
+      isPanelOpen: !state.isPanelOpen,
     }),
-    setIsTerminalOpen: (state, isOpen: boolean) => ({
+    setIsPanelOpen: (state, isOpen: boolean) => ({
       ...state,
-      isTerminalOpen: isOpen,
+      isPanelOpen: isOpen,
+    }),
+    setSelectedPanelTab: (state, tab: PanelTabType) => ({
+      ...state,
+      selectedPanelTab: tab,
     }),
   },
   [(_prevState, newState) => storage.set(KEY, newState)],
