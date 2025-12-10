@@ -4,16 +4,7 @@ import { useAtomValue } from "jotai";
 import { z } from "zod";
 import { createReducerAndAtoms } from "@/utils/createReducer";
 import { ZodLocalStorage } from "@/utils/storage/typed";
-import type { PanelType } from "./types";
-
-export type DeveloperPanelTabType =
-  | "errors"
-  | "scratchpad"
-  | "tracing"
-  | "secrets"
-  | "logs"
-  | "terminal"
-  | "cache";
+import type { DeveloperPanelTabType, PanelType } from "./types";
 
 export interface ChromeState {
   selectedPanel: PanelType | undefined;
