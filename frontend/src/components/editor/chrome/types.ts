@@ -4,11 +4,9 @@ import {
   ActivityIcon,
   BotIcon,
   BoxIcon,
-  DatabaseIcon,
   DatabaseZapIcon,
   FileTextIcon,
   FolderTreeIcon,
-  FunctionSquareIcon,
   KeyRoundIcon,
   type LucideIcon,
   NetworkIcon,
@@ -17,6 +15,7 @@ import {
   SquareDashedBottomCodeIcon,
   TerminalSquareIcon,
   TextSearchIcon,
+  VariableIcon,
   XCircleIcon,
 } from "lucide-react";
 import { getFeatureFlag } from "@/core/config/feature-flag";
@@ -30,7 +29,6 @@ export type PanelType =
   | "packages"
   | "documentation"
   | "snippets"
-  | "datasources"
   | "ai"
   | "cache";
 
@@ -67,14 +65,8 @@ export const PANELS: PanelDescriptor[] = [
   // what that data is.
   {
     id: "variables",
-    Icon: FunctionSquareIcon,
+    Icon: VariableIcon,
     tooltip: "Explore variables",
-    position: "sidebar",
-  },
-  {
-    id: "datasources",
-    Icon: DatabaseIcon,
-    tooltip: "Explore data sources",
     position: "sidebar",
   },
   // Every notebook has a package environment that must
