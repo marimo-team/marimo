@@ -126,10 +126,8 @@ def _(PROVIDER_MODEL, calculate, get_weather, key, mo):
             "What's the weather like in San Francisco?",
             "Calculate 15% tip on a $85 bill",
             "What's the weather in Tokyo in celsius?",
-        ],
-        show_configuration_controls=True,
+        ]
     )
-    chatbot
     return (chatbot,)
 
 
