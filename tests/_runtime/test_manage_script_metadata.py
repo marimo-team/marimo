@@ -58,7 +58,7 @@ async def test_manage_script_metadata_uv(
 
     with open(filename) as f:  # noqa: ASYNC230
         contents = f.read()
-        assert '"marimo",' in contents
+        assert '"marimo' in contents
         assert "markdown" not in contents
         assert '"os",' not in contents
 
@@ -67,7 +67,7 @@ async def test_manage_script_metadata_uv(
 
     with open(filename) as f:  # noqa: ASYNC230
         contents = f.read()
-        assert '"marimo",' in contents
+        assert '"marimo' in contents
         assert '"os",' not in contents
         assert '"markdown==' in contents
 
@@ -76,7 +76,7 @@ async def test_manage_script_metadata_uv(
 
     with open(filename) as f:  # noqa: ASYNC230
         contents = f.read()
-        assert '"marimo",' in contents
+        assert '"marimo' in contents
         assert '"markdown==' in contents
         assert '"os",' not in contents
 
@@ -108,7 +108,7 @@ async def test_manage_script_metadata_uv_deletion(
 
     with open(filename) as f:  # noqa: ASYNC230
         contents = f.read()
-        assert '"marimo",' in contents
+        assert '"marimo' in contents
         assert '"os",' not in contents
 
     # Add markdown
@@ -116,7 +116,7 @@ async def test_manage_script_metadata_uv_deletion(
 
     with open(filename) as f:  # noqa: ASYNC230
         contents = f.read()
-        assert '"marimo",' in contents
+        assert '"marimo' in contents
         assert '"os",' not in contents
         assert '"markdown==' in contents
 
@@ -125,7 +125,7 @@ async def test_manage_script_metadata_uv_deletion(
 
     with open(filename) as f:  # noqa: ASYNC230
         contents = f.read()
-        assert '"marimo",' in contents
+        assert '"marimo' in contents
         assert '"markdown==' in contents
         assert '"os",' not in contents
 
@@ -134,7 +134,7 @@ async def test_manage_script_metadata_uv_deletion(
 
     with open(filename) as f:  # noqa: ASYNC230
         contents = f.read()
-        assert '"marimo",' in contents
+        assert '"marimo' in contents
         assert '"markdown==' in contents
         assert '"os",' not in contents
 

@@ -394,7 +394,11 @@ class TestNarwhalsTableManagerFactory(unittest.TestCase):
             min=datetime.datetime(2021, 1, 1, 0, 0),
             max=datetime.datetime(2021, 1, 3, 0, 0),
             mean=datetime.datetime(2021, 1, 2, 0, 0),
-            # median=datetime.datetime(2021, 1, 2, 0, 0),
+            median=datetime.datetime(2021, 1, 2, 0, 0),
+            p5=datetime.datetime(2021, 1, 1, 0, 0),
+            p25=datetime.datetime(2021, 1, 2, 0, 0),
+            p75=datetime.datetime(2021, 1, 3, 0, 0),
+            p95=datetime.datetime(2021, 1, 3, 0, 0),
         )
 
     def test_summary_date(self) -> None:
