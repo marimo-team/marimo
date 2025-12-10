@@ -15,6 +15,7 @@ from marimo._ai.llm._impl import (
     google,
     groq,
     openai,
+    pydantic_ai,
     simple,
 )
 from marimo._dependencies.dependencies import DependencyManager
@@ -1101,3 +1102,131 @@ class TestBedrock:
         assert call_args["top_p"] == pytest.approx(0.9)
         assert call_args["frequency_penalty"] == pytest.approx(0.5)
         assert call_args["presence_penalty"] == pytest.approx(0.5)
+
+
+@pytest.mark.skipif(
+    not DependencyManager.pydantic_ai.has(),
+    reason="pydantic-ai is not installed",
+)
+class TestPydanticAI:
+    """Tests for the pydantic_ai class."""
+
+    def test_init(self):
+        """Test initialization with default values."""
+        model = pydantic_ai("openai:gpt-4.1")
+
+        assert model.model == "openai:gpt-4.1"
+        assert model.tools == []
+        assert model.system_message == DEFAULT_SYSTEM_MESSAGE
+
+    def test_init_with_tools(self):
+        """Test initialization with tools."""
+
+        def my_tool(arg: str) -> str:
+            """A test tool."""
+            return arg
+
+        model = pydantic_ai(
+            "openai:gpt-4.1",
+            tools=[my_tool],
+            system_message="Custom system message",
+        )
+
+        assert model.model == "openai:gpt-4.1"
+        assert len(model.tools) == 1
+        assert model.tools[0] == my_tool
+        assert model.system_message == "Custom system message"
+
+    def test_call_returns_async_generator(self, test_messages, test_config):
+        """Test that calling returns an async generator."""
+        import inspect
+
+        model = pydantic_ai("openai:gpt-4.1")
+        result = model(test_messages, test_config)
+
+        assert inspect.isasyncgen(result)
+
+    def test_convert_messages_to_pydantic_ai(self):
+        """Test message conversion to Pydantic AI format."""
+        from pydantic_ai.messages import ModelRequest, ModelResponse
+
+        model = pydantic_ai("openai:gpt-4.1")
+
+        messages = [
+            ChatMessage(role="user", content="Hello"),
+            ChatMessage(role="assistant", content="Hi there!"),
+            ChatMessage(role="user", content="How are you?"),
+        ]
+
+        converted = model._convert_messages_to_pydantic_ai(messages)
+
+        assert len(converted) == 3
+        assert isinstance(converted[0], ModelRequest)
+        assert isinstance(converted[1], ModelResponse)
+        assert isinstance(converted[2], ModelRequest)
+
+    def test_convert_messages_with_tool_parts(self):
+        """Test message conversion with tool invocation parts."""
+        from pydantic_ai.messages import ModelRequest, ModelResponse
+
+        model = pydantic_ai("openai:gpt-4.1")
+
+        messages = [
+            ChatMessage(role="user", content="What's the weather?"),
+            ChatMessage(
+                role="assistant",
+                content="Let me check...",
+                parts=[
+                    {"type": "text", "text": "Let me check..."},
+                    {
+                        "type": "tool-get_weather",
+                        "toolCallId": "call_123",
+                        "state": "output-available",
+                        "input": {"location": "SF"},
+                        "output": {"temp": 72},
+                    },
+                ],
+            ),
+        ]
+
+        converted = model._convert_messages_to_pydantic_ai(messages)
+
+        assert len(converted) >= 2
+        # First is user request
+        assert isinstance(converted[0], ModelRequest)
+        # Second should be response with tool call
+        assert isinstance(converted[1], ModelResponse)
+
+    def test_api_key_setup(self):
+        """Test that API key is set in environment variable."""
+        model = pydantic_ai("openai:gpt-4.1", api_key="test-key-123")
+
+        # Save original env value
+        original = os.environ.get("OPENAI_API_KEY")
+
+        try:
+            model._setup_api_key()
+            assert os.environ.get("OPENAI_API_KEY") == "test-key-123"
+        finally:
+            # Restore original value
+            if original is not None:
+                os.environ["OPENAI_API_KEY"] = original
+            elif "OPENAI_API_KEY" in os.environ:
+                del os.environ["OPENAI_API_KEY"]
+
+    def test_api_key_setup_anthropic(self):
+        """Test API key setup for Anthropic provider."""
+        model = pydantic_ai("anthropic:claude-sonnet-4-5", api_key="test-anthropic-key")
+
+        # Save original env value
+        original = os.environ.get("ANTHROPIC_API_KEY")
+
+        try:
+            model._setup_api_key()
+            assert os.environ.get("ANTHROPIC_API_KEY") == "test-anthropic-key"
+        finally:
+            # Restore original value
+            if original is not None:
+                os.environ["ANTHROPIC_API_KEY"] = original
+            elif "ANTHROPIC_API_KEY" in os.environ:
+                del os.environ["ANTHROPIC_API_KEY"]

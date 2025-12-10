@@ -6,7 +6,7 @@ import re
 from typing import TYPE_CHECKING, Any, Callable, Optional, cast
 
 if TYPE_CHECKING:
-    from collections.abc import Generator
+    from collections.abc import AsyncGenerator, Generator
 
 from marimo._ai._convert import (
     convert_to_anthropic_messages,
@@ -664,3 +664,323 @@ class bedrock(ChatModel):
             else:
                 # Re-raise original exception if not handled
                 raise
+
+
+class pydantic_ai(ChatModel):
+    """
+    Universal ChatModel using Pydantic AI with automatic tool handling.
+
+    Supports all major providers with streaming and tool execution handled
+    automatically. This dramatically simplifies building chat UIs with tool
+    calls compared to implementing the tool loop manually.
+
+    Supported providers:
+        - OpenAI: "openai:gpt-4.1", "openai:gpt-4o"
+        - Anthropic: "anthropic:claude-sonnet-4-5", "anthropic:claude-3-5-haiku-latest"
+        - Google: "google-gla:gemini-2.0-flash", "google-vertex:gemini-1.5-pro"
+        - Groq: "groq:llama-3.3-70b-versatile"
+        - Mistral: "mistral:mistral-large-latest"
+        - And more (see Pydantic AI docs for full list)
+
+    Args:
+        model: Model identifier in the format "provider:model-name".
+            See https://ai.pydantic.dev/models/ for all supported models.
+        tools: List of tool functions to make available to the model.
+            Functions should have docstrings describing their purpose.
+            Parameter types and descriptions are extracted automatically.
+        system_message: The system message to use for instructions.
+        api_key: The API key for the provider. If not provided, the key
+            will be retrieved from the appropriate environment variable
+            (e.g., OPENAI_API_KEY, ANTHROPIC_API_KEY).
+        **kwargs: Additional arguments passed to pydantic_ai.Agent.
+
+    Example:
+        ```python
+        def get_weather(location: str, unit: str = "fahrenheit") -> dict:
+            '''Get the current weather for a location.
+
+            Args:
+                location: The city and state, e.g. "San Francisco, CA"
+                unit: Temperature unit, either "celsius" or "fahrenheit"
+            '''
+            return {"location": location, "temperature": 72, "unit": unit}
+
+        def calculate(expression: str) -> dict:
+            '''Evaluate a mathematical expression.
+
+            Args:
+                expression: The math expression to evaluate, e.g. "2 + 2 * 3"
+            '''
+            return {"expression": expression, "result": eval(expression)}
+
+        chat = mo.ui.chat(
+            mo.ai.llm.pydantic_ai(
+                "openai:gpt-4.1",
+                tools=[get_weather, calculate],
+                system_message="You are a helpful assistant.",
+            ),
+        )
+        ```
+    """
+
+    def __init__(
+        self,
+        model: str,
+        *,
+        tools: Optional[list[Callable[..., Any]]] = None,
+        system_message: str = DEFAULT_SYSTEM_MESSAGE,
+        api_key: Optional[str] = None,
+        **kwargs: Any,
+    ):
+        self.model = model
+        self.tools = tools or []
+        self.system_message = system_message
+        self.api_key = api_key
+        self.kwargs = kwargs
+
+    def _setup_api_key(self) -> None:
+        """Set the API key environment variable based on the model provider."""
+        if not self.api_key:
+            return
+
+        # Extract provider from model string (e.g., "openai:gpt-4.1" -> "openai")
+        provider = self.model.split(":")[0].lower() if ":" in self.model else ""
+
+        # Map providers to their environment variable names
+        provider_env_vars: dict[str, str] = {
+            "openai": "OPENAI_API_KEY",
+            "anthropic": "ANTHROPIC_API_KEY",
+            "google-gla": "GOOGLE_API_KEY",
+            "google-vertex": "GOOGLE_API_KEY",
+            "gemini": "GOOGLE_API_KEY",
+            "groq": "GROQ_API_KEY",
+            "mistral": "MISTRAL_API_KEY",
+            "cohere": "CO_API_KEY",
+        }
+
+        env_var = provider_env_vars.get(provider)
+        if env_var:
+            os.environ[env_var] = self.api_key
+
+    def __call__(
+        self, messages: list[ChatMessage], config: ChatModelConfig
+    ) -> AsyncGenerator[Any, None]:
+        """Returns an async generator that handles streaming and tool calls."""
+        DependencyManager.pydantic_ai.require(
+            "pydantic_ai chat model requires pydantic-ai. `pip install pydantic-ai`"
+        )
+        # Set up API key environment variable before creating the agent
+        self._setup_api_key()
+        return self._stream_response(messages, config)
+
+    async def _stream_response(
+        self, messages: list[ChatMessage], config: ChatModelConfig
+    ) -> AsyncGenerator[Any, None]:
+        """Async generator that streams text and tool call parts."""
+        from pydantic_ai import Agent
+        from pydantic_ai.settings import ModelSettings
+        from pydantic_ai.messages import (
+            ModelRequest,
+            ModelResponse,
+            ToolCallPart,
+            ToolReturnPart,
+        )
+
+        # Create the agent with tools
+        agent: Agent[None, str] = Agent(
+            self.model,
+            tools=self.tools,
+            instructions=self.system_message,
+            defer_model_check=True,  # Don't validate model at init time
+            **self.kwargs,
+        )
+
+        # Build model settings from config
+        model_settings = ModelSettings(
+            max_tokens=config.max_tokens,
+            temperature=config.temperature,
+            top_p=config.top_p,
+        )
+
+        # Convert marimo ChatMessages to Pydantic AI message history
+        message_history = self._convert_messages_to_pydantic_ai(messages[:-1])
+
+        # Get the current user prompt
+        user_prompt = str(messages[-1].content) if messages else ""
+
+        async with agent.run_stream(
+            user_prompt,
+            message_history=message_history if message_history else None,
+            model_settings=model_settings,
+        ) as result:
+            # Track tool calls and text parts
+            parts: list[dict[str, Any]] = []
+            current_text = ""
+            has_tool_calls = False
+
+            # Stream text deltas
+            async for text_delta in result.stream_text(delta=True):
+                current_text += text_delta
+                yield text_delta
+
+            # After streaming completes, check if there were tool calls
+            # Use new_messages() to only get messages from THIS run,
+            # not the entire history (which would duplicate tool calls)
+            try:
+                new_messages = result.new_messages()
+                for msg in new_messages:
+                    if isinstance(msg, ModelResponse):
+                        for part in msg.parts:
+                            if isinstance(part, ToolCallPart):
+                                has_tool_calls = True
+                                tool_name = part.tool_name
+                                tool_call_id = (
+                                    part.tool_call_id
+                                    if hasattr(part, "tool_call_id")
+                                    else f"call_{id(part)}"
+                                )
+
+                                # Find the corresponding result in new messages
+                                tool_output = None
+                                for result_msg in new_messages:
+                                    if isinstance(result_msg, ModelRequest):
+                                        for result_part in result_msg.parts:
+                                            if isinstance(
+                                                result_part, ToolReturnPart
+                                            ) and getattr(
+                                                result_part,
+                                                "tool_call_id",
+                                                None,
+                                            ) == tool_call_id:
+                                                tool_output = result_part.content
+
+                                # Create tool part in marimo format
+                                tool_part: dict[str, Any] = {
+                                    "type": f"tool-{tool_name}",
+                                    "toolCallId": tool_call_id,
+                                    "state": "output-available",
+                                    "input": (
+                                        part.args.args_dict
+                                        if hasattr(part, "args")
+                                        and hasattr(part.args, "args_dict")
+                                        else {}
+                                    ),
+                                    "output": tool_output,
+                                }
+                                parts.append(tool_part)
+
+                # If we had tool calls, yield a structured response
+                if has_tool_calls:
+                    # Add text part if there was any text
+                    if current_text.strip():
+                        parts.insert(0, {"type": "text", "text": current_text})
+
+                    # Get the final text response after tool execution
+                    final_output = await result.get_output()
+                    if final_output and final_output != current_text:
+                        parts.append({"type": "text", "text": final_output})
+
+                    yield {"parts": parts}
+            except Exception:
+                # If we can't get structured messages, just return text
+                pass
+
+    def _convert_messages_to_pydantic_ai(
+        self, messages: list[ChatMessage]
+    ) -> list[Any]:
+        """Convert marimo ChatMessages to Pydantic AI message history format."""
+        from pydantic_ai.messages import (
+            ModelRequest,
+            ModelResponse,
+            UserPromptPart,
+            TextPart as PydanticTextPart,
+            ToolCallPart,
+            ToolReturnPart,
+        )
+
+        pydantic_messages: list[Any] = []
+
+        for msg in messages:
+            if msg.role == "user":
+                pydantic_messages.append(
+                    ModelRequest(parts=[UserPromptPart(content=str(msg.content))])
+                )
+            elif msg.role == "assistant":
+                # Check if this message has tool parts
+                if msg.parts:
+                    response_parts: list[Any] = []
+                    tool_returns: list[Any] = []
+
+                    for part in msg.parts:
+                        part_type = (
+                            part.get("type", "")
+                            if isinstance(part, dict)
+                            else getattr(part, "type", "")
+                        )
+
+                        if part_type == "text":
+                            text = (
+                                part.get("text", "")
+                                if isinstance(part, dict)
+                                else getattr(part, "text", "")
+                            )
+                            if text:
+                                response_parts.append(PydanticTextPart(content=text))
+                        elif part_type.startswith("tool-"):
+                            # This is a tool invocation
+                            tool_name = part_type.replace("tool-", "")
+                            tool_call_id = (
+                                part.get("toolCallId")
+                                or part.get("tool_call_id")
+                                if isinstance(part, dict)
+                                else (
+                                    getattr(part, "toolCallId", None)
+                                    or getattr(part, "tool_call_id", "")
+                                )
+                            )
+                            tool_input = (
+                                part.get("input", {})
+                                if isinstance(part, dict)
+                                else getattr(part, "input", {})
+                            )
+                            tool_output = (
+                                part.get("output")
+                                if isinstance(part, dict)
+                                else getattr(part, "output", None)
+                            )
+
+                            # Add tool call to response
+                            response_parts.append(
+                                ToolCallPart(
+                                    tool_name=tool_name,
+                                    args=tool_input,
+                                    tool_call_id=tool_call_id or "",
+                                )
+                            )
+
+                            # Add tool return
+                            if tool_output is not None:
+                                tool_returns.append(
+                                    ToolReturnPart(
+                                        tool_name=tool_name,
+                                        content=tool_output,
+                                        tool_call_id=tool_call_id,
+                                    )
+                                )
+
+                    if response_parts:
+                        pydantic_messages.append(
+                            ModelResponse(parts=response_parts)
+                        )
+
+                    if tool_returns:
+                        pydantic_messages.append(ModelRequest(parts=tool_returns))
+                else:
+                    # Simple text response
+                    pydantic_messages.append(
+                        ModelResponse(
+                            parts=[PydanticTextPart(content=str(msg.content))]
+                        )
+                    )
+
+        return pydantic_messages
