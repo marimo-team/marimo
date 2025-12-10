@@ -10,26 +10,17 @@ import { Footer } from "./footer";
 import { Sidebar } from "./sidebar";
 import "./app-chrome.css";
 import { TooltipProvider } from "@radix-ui/react-tooltip";
-import {
-  ActivityIcon,
-  DatabaseZapIcon,
-  FileTextIcon,
-  KeyRoundIcon,
-  NotebookPenIcon,
-  TerminalSquareIcon,
-  XCircleIcon,
-  XIcon,
-} from "lucide-react";
+import { XIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LazyMount } from "@/components/utils/lazy-mount";
 import { getFeatureFlag } from "@/core/config/feature-flag";
 import { IfCapability } from "@/core/config/if-capability";
-import { isWasm } from "@/core/wasm/utils";
 import { cn } from "@/utils/cn";
 import { ErrorBoundary } from "../../boundary/ErrorBoundary";
 import { ContextAwarePanel } from "../panels/context-aware-panel/context-aware-panel";
 import { useChromeActions, useChromeState } from "../state";
+import { DEVELOPER_PANEL_TABS } from "../types";
 import { Minimap } from "./minimap";
 import { PanelsWrapper } from "./panels";
 import { PendingAICells } from "./pending-ai-cells";
@@ -300,61 +291,16 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
             }
           >
             <TabsList className="h-7 bg-transparent p-0">
-              <TabsTrigger
-                value="errors"
-                className="text-xs gap-1.5 px-2 py-1 data-[state=active]:bg-muted"
-              >
-                <XCircleIcon className="w-3.5 h-3.5" />
-                Errors
-              </TabsTrigger>
-              <TabsTrigger
-                value="scratchpad"
-                className="text-xs gap-1.5 px-2 py-1 data-[state=active]:bg-muted"
-              >
-                <NotebookPenIcon className="w-3.5 h-3.5" />
-                Scratchpad
-              </TabsTrigger>
-              <TabsTrigger
-                value="tracing"
-                className="text-xs gap-1.5 px-2 py-1 data-[state=active]:bg-muted"
-              >
-                <ActivityIcon className="w-3.5 h-3.5" />
-                Tracing
-              </TabsTrigger>
-              {!isWasm() && (
+              {DEVELOPER_PANEL_TABS.filter((tab) => !tab.hidden).map((tab) => (
                 <TabsTrigger
-                  value="secrets"
+                  key={tab.type}
+                  value={tab.type}
                   className="text-xs gap-1.5 px-2 py-1 data-[state=active]:bg-muted"
                 >
-                  <KeyRoundIcon className="w-3.5 h-3.5" />
-                  Secrets
+                  <tab.Icon className="w-3.5 h-3.5" />
+                  {tab.label}
                 </TabsTrigger>
-              )}
-              <TabsTrigger
-                value="logs"
-                className="text-xs gap-1.5 px-2 py-1 data-[state=active]:bg-muted"
-              >
-                <FileTextIcon className="w-3.5 h-3.5" />
-                Logs
-              </TabsTrigger>
-              <TabsTrigger
-                value="terminal"
-                className="text-xs gap-1.5 px-2 py-1 data-[state=active]:bg-muted"
-              >
-                <TerminalSquareIcon className="w-3.5 h-3.5" />
-                Terminal
-              </TabsTrigger>
-              {/* TODO(akshayka): The cache panel should not be default shown,
-                  even when it's out of feature flag. (User config to turn it on.) */}
-              {getFeatureFlag("cache_panel") && (
-                <TabsTrigger
-                  value="cache"
-                  className="text-xs gap-1.5 px-2 py-1 data-[state=active]:bg-muted"
-                >
-                  <DatabaseZapIcon className="w-3.5 h-3.5" />
-                  Cache
-                </TabsTrigger>
-              )}
+              ))}
             </TabsList>
           </Tabs>
           <Button

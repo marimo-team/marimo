@@ -1,17 +1,26 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import {
+  ActivityIcon,
   BotIcon,
   BoxIcon,
   DatabaseIcon,
+  DatabaseZapIcon,
+  FileTextIcon,
   FolderTreeIcon,
   FunctionSquareIcon,
+  KeyRoundIcon,
   type LucideIcon,
   NetworkIcon,
+  NotebookPenIcon,
   ScrollTextIcon,
   SquareDashedBottomCodeIcon,
+  TerminalSquareIcon,
   TextSearchIcon,
+  XCircleIcon,
 } from "lucide-react";
+import { getFeatureFlag } from "@/core/config/feature-flag";
+import { isWasm } from "@/core/wasm/utils";
 
 export type PanelType =
   | "files"
@@ -120,5 +129,63 @@ export const PANELS: PanelDescriptor[] = [
     Icon: NetworkIcon,
     tooltip: "Explore dependencies",
     position: "sidebar",
+  },
+];
+
+export type DeveloperPanelTabType =
+  | "errors"
+  | "scratchpad"
+  | "tracing"
+  | "secrets"
+  | "logs"
+  | "terminal"
+  | "cache";
+
+export interface DeveloperPanelTabDescriptor {
+  type: DeveloperPanelTabType;
+  Icon: LucideIcon;
+  label: string;
+  hidden?: boolean;
+}
+
+export const DEVELOPER_PANEL_TABS: DeveloperPanelTabDescriptor[] = [
+  {
+    type: "errors",
+    Icon: XCircleIcon,
+    label: "Errors",
+  },
+  {
+    type: "scratchpad",
+    Icon: NotebookPenIcon,
+    label: "Scratchpad",
+  },
+  {
+    type: "tracing",
+    Icon: ActivityIcon,
+    label: "Tracing",
+  },
+  {
+    type: "secrets",
+    Icon: KeyRoundIcon,
+    label: "Secrets",
+    hidden: isWasm(),
+  },
+  {
+    type: "logs",
+    Icon: FileTextIcon,
+    label: "Logs",
+  },
+  {
+    type: "terminal",
+    Icon: TerminalSquareIcon,
+    label: "Terminal",
+  },
+  // TODO(akshayka): The cache panel should not be default shown,
+  // even when it's out of feature flag. (User config to turn it on.)
+  {
+    type: "cache",
+    Icon: DatabaseZapIcon,
+    label: "Cache",
+    hidden: !getFeatureFlag("cache_panel"),
   },
 ];
