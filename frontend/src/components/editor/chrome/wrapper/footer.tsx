@@ -1,17 +1,15 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import { useAtomValue } from "jotai";
-import { TerminalSquareIcon } from "lucide-react";
+import { TerminalSquareIcon, XCircleIcon } from "lucide-react";
 import type React from "react";
 import { Tooltip } from "@/components/ui/tooltip";
 import { cellErrorCount } from "@/core/cells/cells";
 import { IfCapability } from "@/core/config/if-capability";
 import { useHotkey } from "@/hooks/useHotkey";
 import { cn } from "@/utils/cn";
-import { invariant } from "@/utils/invariant";
 import { ShowInKioskMode } from "../../kiosk-mode";
 import { useChromeActions, useChromeState } from "../state";
-import { PANELS, type PanelDescriptor } from "../types";
 import { FooterItem } from "./footer-item";
 import { AIStatusIcon } from "./footer-items/ai-status";
 import { BackendConnection } from "./footer-items/backend-status";
@@ -22,16 +20,9 @@ import { RTCStatus } from "./footer-items/rtc-status";
 import { RuntimeSettings } from "./footer-items/runtime-settings";
 
 export const Footer: React.FC = () => {
-  const { selectedPanel, isPanelOpen } = useChromeState();
-  const { toggleApplication, togglePanel } = useChromeActions();
+  const { isPanelOpen, selectedPanelTab } = useChromeState();
+  const { togglePanel, openPanelTab } = useChromeActions();
   const errorCount = useAtomValue(cellErrorCount);
-
-  const renderIcon = ({ Icon }: PanelDescriptor, className?: string) => {
-    return <Icon className={cn("h-5 w-5", className)} />;
-  };
-
-  const errorPanel = PANELS.find((p) => p.type === "errors");
-  invariant(errorPanel, "Error panel not found");
 
   useHotkey("global.toggleTerminal", () => {
     togglePanel();
@@ -44,18 +35,18 @@ export const Footer: React.FC = () => {
   return (
     <footer className="h-10 py-2 bg-background flex items-center text-muted-foreground text-md px-1 border-t border-border select-none no-print text-sm shadow-[0_0_4px_1px_rgba(0,0,0,0.1)] z-50 print:hidden hide-on-fullscreen overflow-x-auto overflow-y-hidden scrollbar-thin">
       <FooterItem
-        tooltip={errorPanel.tooltip}
-        selected={selectedPanel === errorPanel.type}
-        onClick={() => toggleApplication(errorPanel.type)}
+        tooltip="View errors"
+        selected={isPanelOpen && selectedPanelTab === "errors"}
+        onClick={() => openPanelTab("errors")}
         data-testid="footer-errors"
       >
-        {renderIcon(errorPanel, errorCount > 0 ? "text-destructive" : "")}
+        <XCircleIcon className={cn("h-5 w-5", errorCount > 0 && "text-destructive")} />
         <span className="ml-1 font-mono mt-0.5">{errorCount}</span>
       </FooterItem>
 
       <IfCapability capability="terminal">
         <FooterItem
-          tooltip="Toggle panel"
+          tooltip="Toggle developer panel"
           selected={isPanelOpen}
           onClick={() => togglePanel()}
           data-testid="footer-panel"

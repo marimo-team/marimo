@@ -352,7 +352,7 @@ const DEFAULT_HOT_KEY = {
     key: "Ctrl-`",
   },
   "global.togglePanel": {
-    name: "Toggle panel",
+    name: "Toggle developer panel",
     group: "Other",
     key: "Mod-j",
   },
