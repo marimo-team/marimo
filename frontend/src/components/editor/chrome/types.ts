@@ -12,7 +12,6 @@ import {
   KeyRoundIcon,
   type LucideIcon,
   NetworkIcon,
-  NotebookPenIcon,
   ScrollTextIcon,
   SquareDashedBottomCodeIcon,
   TextSearchIcon,
@@ -30,7 +29,6 @@ export type PanelType =
   | "documentation"
   | "snippets"
   | "datasources"
-  | "scratchpad"
   | "ai"
   | "cache"
   | "secrets"
@@ -96,16 +94,7 @@ export const PANELS: PanelDescriptor[] = [
     tooltip: "Chat & Agents",
     position: "sidebar",
   },
-  // Scratchpad is the only way users can
-  // code without DAG restrictions, so it is
-  // privileged.
-  {
-    type: "scratchpad",
-    Icon: NotebookPenIcon,
-    tooltip: "Scratchpad",
-    position: "sidebar",
-  },
-  {
+    {
     // TODO(akshayka): Consider making snippets default
     // off, user configuration to enable.
     type: "snippets",

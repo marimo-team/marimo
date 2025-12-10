@@ -20,35 +20,39 @@ import { RTCStatus } from "./footer-items/rtc-status";
 import { RuntimeSettings } from "./footer-items/runtime-settings";
 
 export const Footer: React.FC = () => {
-  const { isPanelOpen, selectedPanelTab } = useChromeState();
-  const { togglePanel, openPanelTab } = useChromeActions();
+  const { isDeveloperPanelOpen, selectedDeveloperPanelTab } = useChromeState();
+  const { toggleDeveloperPanel, openDeveloperPanelTab } = useChromeActions();
   const errorCount = useAtomValue(cellErrorCount);
 
   useHotkey("global.toggleTerminal", () => {
-    togglePanel();
+    toggleDeveloperPanel();
   });
 
   useHotkey("global.togglePanel", () => {
-    togglePanel();
+    toggleDeveloperPanel();
   });
 
   return (
     <footer className="h-10 py-2 bg-background flex items-center text-muted-foreground text-md px-1 border-t border-border select-none no-print text-sm shadow-[0_0_4px_1px_rgba(0,0,0,0.1)] z-50 print:hidden hide-on-fullscreen overflow-x-auto overflow-y-hidden scrollbar-thin">
       <FooterItem
         tooltip="View errors"
-        selected={isPanelOpen && selectedPanelTab === "errors"}
-        onClick={() => openPanelTab("errors")}
+        selected={
+          isDeveloperPanelOpen && selectedDeveloperPanelTab === "errors"
+        }
+        onClick={() => openDeveloperPanelTab("errors")}
         data-testid="footer-errors"
       >
-        <XCircleIcon className={cn("h-5 w-5", errorCount > 0 && "text-destructive")} />
+        <XCircleIcon
+          className={cn("h-5 w-5", errorCount > 0 && "text-destructive")}
+        />
         <span className="ml-1 font-mono mt-0.5">{errorCount}</span>
       </FooterItem>
 
       <IfCapability capability="terminal">
         <FooterItem
           tooltip="Toggle developer panel"
-          selected={isPanelOpen}
-          onClick={() => togglePanel()}
+          selected={isDeveloperPanelOpen}
+          onClick={() => toggleDeveloperPanel()}
           data-testid="footer-panel"
         >
           <TerminalSquareIcon className="h-5 w-5" />
