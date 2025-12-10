@@ -10,10 +10,12 @@ import { Footer } from "./footer";
 import { Sidebar } from "./sidebar";
 import "./app-chrome.css";
 import { TooltipProvider } from "@radix-ui/react-tooltip";
+import { useAtomValue } from "jotai";
 import { XIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LazyMount } from "@/components/utils/lazy-mount";
+import { cellErrorCount } from "@/core/cells/cells";
 import { getFeatureFlag } from "@/core/config/feature-flag";
 import { IfCapability } from "@/core/config/if-capability";
 import { cn } from "@/utils/cn";
@@ -72,6 +74,7 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
   const sidebarRef = React.useRef<ImperativePanelHandle>(null);
   const terminalRef = React.useRef<ImperativePanelHandle>(null);
   const { aiPanelTab, setAiPanelTab } = useAiPanelTab();
+  const errorCount = useAtomValue(cellErrorCount);
 
   // sync sidebar
   useEffect(() => {
@@ -295,10 +298,13 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
                 <TabsTrigger
                   key={tab.type}
                   value={tab.type}
-                  className="text-xs gap-1.5 px-2 py-1 data-[state=active]:bg-muted"
+                  className="text-xs gap-1.5 px-2 py-1 data-[state=active]:bg-muted relative"
                 >
                   <tab.Icon className="w-3.5 h-3.5" />
                   {tab.label}
+                  {tab.type === "errors" && errorCount > 0 && (
+                    <span className="absolute -top-0.5 -right-1 w-2 h-2 bg-destructive rounded-full" />
+                  )}
                 </TabsTrigger>
               ))}
             </TabsList>
