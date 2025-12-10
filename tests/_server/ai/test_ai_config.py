@@ -217,6 +217,29 @@ class TestAnyProviderConfig:
             provider_config.extra_headers["X-Custom-Header"] == "custom-value"
         )
 
+    def test_for_github_with_copilot_settings(self):
+        """Test GitHub configuration with copilot_settings is accepted."""
+        config: AiConfig = {
+            "github": {
+                "api_key": "test-github-key",
+                "copilot_settings": {
+                    "http": {
+                        "proxy": "http://proxy.example.com:8888",
+                        "proxyStrictSSL": True,
+                    },
+                    "telemetry": {"telemetryLevel": "off"},
+                },
+            }
+        }
+
+        # Should not raise an error - copilot_settings is a valid field
+        provider_config = AnyProviderConfig.for_github(config)
+
+        # Note: copilot_settings is stored in config but not used by AnyProviderConfig
+        # It's used by the frontend LSP client
+        assert provider_config.api_key == "test-github-key"
+        assert provider_config.base_url == "https://api.githubcopilot.com/"
+
     def test_for_openrouter(self):
         """Test OpenRouter configuration."""
         config: AiConfig = {
