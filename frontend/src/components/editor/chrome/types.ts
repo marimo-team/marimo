@@ -35,7 +35,10 @@ export type PanelType =
 export interface PanelDescriptor {
   id: PanelType;
   Icon: LucideIcon;
+  /** If true, the panel is completely unavailable */
   hidden?: boolean;
+  /** If true, the panel is available but not shown by default */
+  defaultHidden?: boolean;
   tooltip: string;
   position: "sidebar" | "footer";
 }
@@ -87,12 +90,11 @@ export const PANELS: PanelDescriptor[] = [
     position: "sidebar",
   },
   {
-    // TODO(akshayka): Consider making snippets default
-    // off, user configuration to enable.
     id: "snippets",
     Icon: SquareDashedBottomCodeIcon,
     tooltip: "Snippets",
     position: "sidebar",
+    defaultHidden: true,
   },
   // 3. Nice-to-have observability panels.
   //
