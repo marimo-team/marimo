@@ -87,6 +87,7 @@ describe("state utility functions", () => {
               "createdAt": 1735689600000,
               "externalAgentSessionId": null,
               "lastUsedAt": 1735689600000,
+              "selectedModel": null,
               "title": "New claude session",
             },
           ],
@@ -103,6 +104,7 @@ describe("state utility functions", () => {
         createdAt: 1_735_689_600_000,
         lastUsedAt: 1_735_689_600_000,
         externalAgentSessionId: null,
+        selectedModel: null,
       };
       const initialState: AgentSessionState = {
         sessions: [existingSession],
@@ -127,6 +129,7 @@ describe("state utility functions", () => {
               "createdAt": 1735689600000,
               "externalAgentSessionId": null,
               "lastUsedAt": 1735689600000,
+              "selectedModel": null,
               "title": "New claude session",
             },
           ],
@@ -142,6 +145,7 @@ describe("state utility functions", () => {
         createdAt: 1_735_689_600_000,
         lastUsedAt: 1_735_689_600_000,
         externalAgentSessionId: null,
+        selectedModel: null,
       };
       const initialState: AgentSessionState = {
         sessions: [existingSession],
@@ -163,6 +167,7 @@ describe("state utility functions", () => {
               "createdAt": 1735689600000,
               "externalAgentSessionId": null,
               "lastUsedAt": 1735689600000,
+              "selectedModel": null,
               "tabId": "tab_existing",
               "title": "Hello",
             },
@@ -180,6 +185,7 @@ describe("state utility functions", () => {
         createdAt: 1_735_689_600_000,
         lastUsedAt: 1_735_689_600_000,
         externalAgentSessionId: "claude-session-123" as ExternalAgentSessionId,
+        selectedModel: null,
       };
       const initialState: AgentSessionState = {
         sessions: [claudeSession],
@@ -208,6 +214,7 @@ describe("state utility functions", () => {
         createdAt: 1_735_689_600_000,
         lastUsedAt: 1_735_689_600_000,
         externalAgentSessionId: "gemini-session-456" as ExternalAgentSessionId,
+        selectedModel: null,
       };
       const initialState: AgentSessionState = {
         sessions: [geminiSession],
@@ -253,6 +260,7 @@ describe("state utility functions", () => {
           createdAt: 1_735_689_600_000,
           lastUsedAt: 1_735_689_600_000,
           externalAgentSessionId: null,
+          selectedModel: null,
         },
         {
           agentId: "gemini",
@@ -261,6 +269,7 @@ describe("state utility functions", () => {
           createdAt: 1_735_689_600_000,
           lastUsedAt: 1_735_689_600_000,
           externalAgentSessionId: null,
+          selectedModel: null,
         },
         {
           agentId: "claude",
@@ -269,6 +278,7 @@ describe("state utility functions", () => {
           createdAt: 1_735_689_600_000,
           lastUsedAt: 1_735_689_600_000,
           externalAgentSessionId: null,
+          selectedModel: null,
         },
       ];
       state = {
@@ -289,6 +299,7 @@ describe("state utility functions", () => {
               "createdAt": 1735689600000,
               "externalAgentSessionId": null,
               "lastUsedAt": 1735689600000,
+              "selectedModel": null,
               "tabId": "tab_1",
               "title": "Claude session 1",
             },
@@ -297,6 +308,7 @@ describe("state utility functions", () => {
               "createdAt": 1735689600000,
               "externalAgentSessionId": null,
               "lastUsedAt": 1735689600000,
+              "selectedModel": null,
               "tabId": "tab_3",
               "title": "Claude session 2",
             },
@@ -323,6 +335,7 @@ describe("state utility functions", () => {
         createdAt: 1_735_689_600_000,
         lastUsedAt: 1_735_689_600_000,
         externalAgentSessionId: null,
+        selectedModel: null,
       };
       const singleSessionState: AgentSessionState = {
         sessions: [singleSession],
@@ -356,6 +369,7 @@ describe("state utility functions", () => {
           createdAt: 1_735_689_600_000,
           lastUsedAt: 1_735_689_600_000,
           externalAgentSessionId: null,
+          selectedModel: null,
         },
         {
           agentId: "gemini",
@@ -364,6 +378,7 @@ describe("state utility functions", () => {
           createdAt: 1_735_689_600_000,
           lastUsedAt: 1_735_689_600_000,
           externalAgentSessionId: null,
+          selectedModel: null,
         },
       ];
       state = {
@@ -420,6 +435,7 @@ describe("state utility functions", () => {
           createdAt: 1_735_689_600_000,
           lastUsedAt: 1_735_689_600_000,
           externalAgentSessionId: null,
+          selectedModel: null,
         },
         {
           agentId: "gemini",
@@ -428,6 +444,7 @@ describe("state utility functions", () => {
           createdAt: 1_735_689_600_000,
           lastUsedAt: 1_735_689_600_000,
           externalAgentSessionId: null,
+          selectedModel: null,
         },
       ];
       state = {
@@ -483,6 +500,7 @@ describe("state utility functions", () => {
           createdAt: 1_735_689_600_000,
           lastUsedAt: 1_735_689_600_000,
           externalAgentSessionId: null,
+          selectedModel: null,
         },
         {
           agentId: "gemini",
@@ -491,6 +509,7 @@ describe("state utility functions", () => {
           createdAt: 1_735_689_600_000,
           lastUsedAt: 1_735_689_600_000,
           externalAgentSessionId: null,
+          selectedModel: null,
         },
       ];
       state = {
@@ -557,6 +576,7 @@ describe("state utility functions", () => {
           createdAt: 1_735_689_600_000, // 2025-01-01T00:00:00Z
           lastUsedAt: 1_735_689_600_000,
           externalAgentSessionId: null,
+          selectedModel: null,
         },
         {
           agentId: "gemini",
@@ -565,6 +585,7 @@ describe("state utility functions", () => {
           createdAt: 1_735_693_200_000, // 2025-01-01T01:00:00Z
           lastUsedAt: 1_735_693_200_000,
           externalAgentSessionId: null,
+          selectedModel: null,
         },
         {
           agentId: "claude",
@@ -573,6 +594,7 @@ describe("state utility functions", () => {
           createdAt: 1_735_696_800_000, // 2025-01-01T02:00:00Z
           lastUsedAt: 1_735_696_800_000,
           externalAgentSessionId: null,
+          selectedModel: null,
         },
         {
           agentId: "claude",
@@ -581,6 +603,7 @@ describe("state utility functions", () => {
           createdAt: 1_735_700_400_000, // 2025-01-01T03:00:00Z
           lastUsedAt: 1_735_700_400_000,
           externalAgentSessionId: null,
+          selectedModel: null,
         },
       ];
     });
