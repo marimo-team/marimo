@@ -44,9 +44,17 @@ export const CollapseToggle: React.FC<Props> = (props) => {
 
 const Arrow = ({ isCollapsed }: { isCollapsed: boolean }) => {
   return isCollapsed ? (
-    <ChevronRightIcon className="shrink-0 opacity-60" strokeWidth={1.8} size={14} />
+    <ChevronRightIcon
+      className="shrink-0 opacity-60"
+      strokeWidth={1.8}
+      size={14}
+    />
   ) : (
-    <ChevronDownIcon className="shrink-0 opacity-60" strokeWidth={1.8} size={14} />
+    <ChevronDownIcon
+      className="shrink-0 opacity-60"
+      strokeWidth={1.8}
+      size={14}
+    />
   );
 };
 
