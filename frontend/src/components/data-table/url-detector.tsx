@@ -9,11 +9,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Events } from "@/utils/events";
-
-const urlRegex = /(https?:\/\/\S+)/;
-const imageRegex = /\.(png|jpe?g|gif|webp|svg|ico)(\?.*)?$/i;
-const dataImageRegex = /^data:image\//i;
-const knownImageDomains = ["avatars.githubusercontent.com"];
+import type { ContentPart } from "@/utils/url-parser";
 
 const ImageWithFallback = ({ url }: { url: string }) => {
   const [error, setError] = useState(false);
@@ -55,34 +51,6 @@ const ImageWithFallback = ({ url }: { url: string }) => {
     </Popover>
   );
 };
-
-export type ContentPart =
-  | { type: "text"; value: string }
-  | { type: "url"; url: string }
-  | { type: "image"; url: string };
-
-export function parseContent(text: string): ContentPart[] {
-  if (dataImageRegex.test(text)) {
-    return [{ type: "image", url: text }];
-  }
-
-  const parts = text.split(urlRegex).filter((part) => part.trim() !== "");
-  return parts.map((part) => {
-    const isUrl = urlRegex.test(part);
-    if (isUrl) {
-      const isImage =
-        imageRegex.test(part) ||
-        dataImageRegex.test(part) ||
-        knownImageDomains.some((domain) => part.includes(domain));
-
-      if (isImage) {
-        return { type: "image", url: part };
-      }
-      return { type: "url", url: part };
-    }
-    return { type: "text", value: part };
-  });
-}
 
 export function isMarkdown(text: string): boolean {
   const tokens = marked.lexer(text);

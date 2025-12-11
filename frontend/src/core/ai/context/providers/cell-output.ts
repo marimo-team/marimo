@@ -3,7 +3,7 @@
 import type { Completion } from "@codemirror/autocomplete";
 import type { FileUIPart } from "ai";
 import { toPng } from "html-to-image";
-import { processOutput } from "@/components/editor/output/ConsoleOutput";
+import { processOutput } from "@/components/editor/output/console/process-output";
 import { type NotebookState, notebookAtom } from "@/core/cells/cells";
 import { type CellId, CellOutputId } from "@/core/cells/ids";
 import { displayCellName } from "@/core/cells/names";
