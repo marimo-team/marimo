@@ -36,7 +36,7 @@ class PixiPackageManager(CondaPackageManager):
     async def uninstall(self, package: str, dev: bool = False) -> bool:
         # The `dev` parameter is accepted for interface compatibility, but is ignored.
         del dev
-        return self.run(
+        return await self.run(
             ["pixi", "remove", *split_packages(package)], log_callback=None
         )
 

@@ -615,7 +615,7 @@ class RyePackageManager(PypiPackageManager):
     async def uninstall(self, package: str, dev: bool) -> bool:
         # The `dev` parameter is accepted for interface compatibility, but is ignored.
         del dev
-        return self.run(
+        return await self.run(
             ["rye", "remove", *split_packages(package)], log_callback=None
         )
 
@@ -653,7 +653,7 @@ class PoetryPackageManager(PypiPackageManager):
     async def uninstall(self, package: str, dev: bool) -> bool:
         # The `dev` parameter is accepted for interface compatibility, but is ignored.
         del dev
-        return self.run(
+        return await self.run(
             ["poetry", "remove", "--no-interaction", *split_packages(package)],
             log_callback=None,
         )

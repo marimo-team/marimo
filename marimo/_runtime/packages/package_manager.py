@@ -77,7 +77,7 @@ class PackageManager(abc.ABC):
         log_callback: Optional[LogCallback] = None,
     ) -> bool:
         """Installation logic."""
-        return self.run(
+        return await self.run(
             self.install_command(package, upgrade=upgrade, dev=dev),
             log_callback=log_callback,
         )
