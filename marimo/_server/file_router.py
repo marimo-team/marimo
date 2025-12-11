@@ -195,6 +195,9 @@ class LazyListOfFilesAppFileRouter(AppFileRouter):
         self._directory = str(Path(directory))
         self.include_markdown = include_markdown
         self._lazy_files: Optional[list[FileInfo]] = None
+        # Track temp directories that are allowed to be accessed
+        # (e.g., for tutorials created by marimo)
+        self._allowed_temp_dirs: set[str] = set()
 
     @property
     def directory(self) -> str:
@@ -212,6 +215,48 @@ class LazyListOfFilesAppFileRouter(AppFileRouter):
 
     def mark_stale(self) -> None:
         self._lazy_files = None
+
+    def register_temp_dir(self, temp_dir: str) -> None:
+        """Register a temp directory as allowed for file access.
+
+        Args:
+            temp_dir: The absolute path to the temp directory to allow.
+        """
+        # Normalize the path to ensure consistency
+        normalized_path = str(Path(temp_dir).resolve())
+        self._allowed_temp_dirs.add(normalized_path)
+        LOGGER.debug("Registered allowed temp directory: %s", normalized_path)
+
+    def is_file_in_allowed_temp_dir(self, filepath: str) -> bool:
+        """Check if a file is inside an allowed temp directory.
+
+        Args:
+            filepath: The file path to check.
+
+        Returns:
+            True if the file is in an allowed temp directory, False otherwise.
+        """
+        if not self._allowed_temp_dirs:
+            return False
+
+        try:
+            file_resolved = Path(filepath).resolve(strict=False)
+            for temp_dir in self._allowed_temp_dirs:
+                temp_dir_resolved = Path(temp_dir).resolve(strict=False)
+                try:
+                    file_resolved.relative_to(temp_dir_resolved)
+                    return True
+                except ValueError:
+                    # Not a child of this temp directory, try next
+                    continue
+            return False
+        except Exception as e:
+            LOGGER.warning(
+                "Error checking if file %s is in allowed temp dir: %s",
+                filepath,
+                e,
+            )
+            return False
 
     def get_file_manager(
         self,
@@ -238,8 +283,13 @@ class LazyListOfFilesAppFileRouter(AppFileRouter):
         directory = Path(self._directory)
         filepath = Path(key)
 
-        # Validate that filepath is inside directory
-        validate_inside_directory(directory, filepath)
+        # Check if file is in an allowed temp directory (e.g., for tutorials)
+        # If so, skip the directory validation
+        is_in_allowed_temp_dir = self.is_file_in_allowed_temp_dir(key)
+
+        if not is_in_allowed_temp_dir:
+            # Validate that filepath is inside directory
+            validate_inside_directory(directory, filepath)
 
         # Resolve filepath for use
         # If directory is absolute and filepath is relative, resolve relative to directory
