@@ -47,6 +47,10 @@
   font-size: 0.813rem;
 }
 
+.stderr {
+  color: var(--amber-12);
+}
+
 .marimo-error {
   background: #ffc0cb30;
   padding: 3%;
