@@ -51,6 +51,7 @@
   background: #ffc0cb30;
   padding: 3%;
   font-size: 0.8125rem;
+  font-weight: bold;
   border-radius: 20px;
   white-space: pre-wrap; /* respect newlines */
 
