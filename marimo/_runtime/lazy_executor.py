@@ -320,7 +320,7 @@ class CachedExecutor(Executor):
         try:
             ctx = get_context()
             original_runtime = attempt.meta.get("runtime", 0)
-            time_saved = max(0, original_runtime - load_time)
+            time_saved = original_runtime - load_time
             ctx.cell_cache_context.record_hit(time_saved)
         except ContextNotInitializedError:
             pass

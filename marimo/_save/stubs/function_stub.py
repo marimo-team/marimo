@@ -46,4 +46,4 @@ class FunctionStub:
 
     def dump(self) -> tuple[str, str, int]:
         """Dump the stored source code and metadata."""
-        return self.code, self.filename, self.lineno
+        return self.filename, self.code, self.lineno

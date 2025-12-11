@@ -48,10 +48,10 @@ def get_executor(
     if config.is_strict:
         base = StrictExecutor(base)
 
-    if config.is_lazy:
-        from marimo._runtime.lazy_executor import CachedExecutor
+    #if config.is_lazy:
+    from marimo._runtime.lazy_executor import CachedExecutor
 
-        base = CachedExecutor(base)
+    base = CachedExecutor(base)
 
     for executor in executors:
         base = executor(base)

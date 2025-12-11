@@ -49,6 +49,12 @@ dependencies = [
     # for packaging.version; not sure what the lower bound is.
     "packaging",
     "msgspec>=0.20.0",
+    "flax>=0.10.7",
+    "jax>=0.6.2",
+    "matplotlib>=3.10.8",
+    "numpy>=2.2.6",
+    "optax>=0.2.6",
+    "sympy>=1.14.0",
 ]
 readme = "README.md"
 license = { file = "LICENSE" }
