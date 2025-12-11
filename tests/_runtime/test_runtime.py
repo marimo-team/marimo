@@ -2425,6 +2425,92 @@ class TestStoredOutput:
         cell = k.graph.cells[er.cell_id]
         assert cell.output is None
 
+    async def test_formatter_import_error_handled(
+        self, mocked_kernel: MockedKernel, exec_req: ExecReqProvider
+    ) -> None:
+        """Test that ImportError in formatter is handled gracefully.
+
+        When a formatter (like _repr_html_) raises an ImportError, the cell
+        should still execute successfully, but the exception should be stored
+        in runner.exceptions for the missing_packages_hook to detect.
+        """
+        k = mocked_kernel.k
+
+        await k.run(
+            [
+                er := exec_req.get(
+                    """
+                    class CustomObject:
+                        def _repr_html_(self):
+                            import missing_package
+
+                    obj = CustomObject()
+                    obj
+                    """
+                )
+            ]
+        )
+
+        # Cell should execute successfully (exception is in formatter, not execution)
+        cell = k.graph.cells[er.cell_id]
+        assert cell.exception is None
+        assert "obj" in k.globals
+        assert "CustomObject" in k.globals
+
+        # Check that the output was still broadcast (even if formatting failed)
+        stream = MockStream(mocked_kernel.stream)
+        cell_ops = stream.cell_ops
+        output_ops = [op for op in cell_ops if op.output is not None]
+        # Should have output, even if formatter failed (falls back to plain formatter)
+        assert len(output_ops) > 0
+        has_missing_package_error = any(
+            op.get("op") == "missing-package-alert" for op in stream.operations
+        )
+        assert has_missing_package_error, stream.operations
+
+    async def test_formatter_module_not_found_error_handled(
+        self, mocked_kernel: MockedKernel, exec_req: ExecReqProvider
+    ) -> None:
+        """Test that ModuleNotFoundError in formatter is handled gracefully.
+
+        When a formatter (like _repr_html_) raises a ModuleNotFoundError, the cell
+        should still execute successfully, but the exception should be stored
+        in runner.exceptions for the missing_packages_hook to detect.
+        """
+        k = mocked_kernel.k
+
+        await k.run(
+            [
+                er := exec_req.get(
+                    """
+                    class CustomObject:
+                        def _repr_html_(self):
+                            raise ModuleNotFoundError("another_missing_package", name="another_missing_package")
+
+                    obj = CustomObject()
+                    obj
+                    """
+                )
+            ]
+        )
+
+        # Cell should execute successfully (exception is in formatter, not execution)
+        cell = k.graph.cells[er.cell_id]
+        assert cell.exception is None
+        assert "obj" in k.globals
+        assert "CustomObject" in k.globals
+
+        # Check that the output was still broadcast (even if formatting failed)
+        stream = MockStream(mocked_kernel.stream)
+        cell_ops = stream.cell_ops
+        output_ops = [op for op in cell_ops if op.output is not None]
+        # Should have output, even if formatter failed (falls back to plain formatter)
+        assert len(output_ops) > 0
+        has_missing_package_error = any(
+            op.get("op") == "missing-package-alert" for op in stream.operations
+        )
+        assert has_missing_package_error, stream.operations
+
 
 class TestDisable:
     async def test_disable_and_reenable_not_stale(
