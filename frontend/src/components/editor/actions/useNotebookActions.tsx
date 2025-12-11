@@ -133,36 +133,6 @@ export function useNotebookActions() {
 
   const actions: ActionButton[] = [
     {
-      icon: <Share2Icon size={14} strokeWidth={1.5} />,
-      label: "Share",
-      handle: NOOP_HANDLER,
-      hidden: !sharingHtmlEnabled && !sharingWasmEnabled,
-      dropdown: [
-        {
-          icon: <GlobeIcon size={14} strokeWidth={1.5} />,
-          label: "Publish HTML to web",
-          hidden: !sharingHtmlEnabled,
-          handle: async () => {
-            openModal(<ShareStaticNotebookModal onClose={closeModal} />);
-          },
-        },
-        {
-          icon: <LinkIcon size={14} strokeWidth={1.5} />,
-          label: "Create WebAssembly link",
-          hidden: !sharingWasmEnabled,
-          handle: async () => {
-            const code = await readCode();
-            const url = createShareableLink({ code: code.contents });
-            await copyToClipboard(url);
-            toast({
-              title: "Copied",
-              description: "Link copied to clipboard.",
-            });
-          },
-        },
-      ],
-    },
-    {
       icon: <DownloadIcon size={14} strokeWidth={1.5} />,
       label: "Download",
       handle: NOOP_HANDLER,
@@ -267,23 +237,35 @@ export function useNotebookActions() {
     },
 
     {
-      divider: true,
-      icon: <PanelLeftIcon size={14} strokeWidth={1.5} />,
-      label: "Helper panel",
+      icon: <Share2Icon size={14} strokeWidth={1.5} />,
+      label: "Share",
       handle: NOOP_HANDLER,
-      dropdown: PANELS.flatMap(({ type, Icon, hidden }) => {
-        if (hidden) {
-          return [];
-        }
-        return {
-          label: startCase(type),
-          rightElement: renderCheckboxElement(selectedPanel === type),
-          icon: <Icon size={14} strokeWidth={1.5} />,
-          handle: () => toggleApplication(type),
-        };
-      }),
+      hidden: !sharingHtmlEnabled && !sharingWasmEnabled,
+      dropdown: [
+        {
+          icon: <GlobeIcon size={14} strokeWidth={1.5} />,
+          label: "Publish HTML to web",
+          hidden: !sharingHtmlEnabled,
+          handle: async () => {
+            openModal(<ShareStaticNotebookModal onClose={closeModal} />);
+          },
+        },
+        {
+          icon: <LinkIcon size={14} strokeWidth={1.5} />,
+          label: "Create WebAssembly link",
+          hidden: !sharingWasmEnabled,
+          handle: async () => {
+            const code = await readCode();
+            const url = createShareableLink({ code: code.contents });
+            await copyToClipboard(url);
+            toast({
+              title: "Copied",
+              description: "Link copied to clipboard.",
+            });
+          },
+        },
+      ],
     },
-
     {
       icon: <PresentationIcon size={14} strokeWidth={1.5} />,
       label: "Present as",
@@ -324,10 +306,9 @@ export function useNotebookActions() {
         }),
       ],
     },
-
     {
       icon: <Files size={14} strokeWidth={1.5} />,
-      label: "Create notebook copy",
+      label: "Duplicate notebook",
       hidden: !filename || isWasm(),
       handle: copyNotebook,
     },
@@ -362,42 +343,9 @@ export function useNotebookActions() {
         }
       },
     },
+
     {
-      icon: <ZapOffIcon size={14} strokeWidth={1.5} />,
-      label: "Disable all cells",
-      hidden: !hasEnabledCells || kioskMode,
-      handle: async () => {
-        const notebook = getNotebook();
-        const ids = enabledCellIds(notebook);
-        const newConfigs = Objects.fromEntries(
-          ids.map((cellId) => [cellId, { disabled: true }]),
-        );
-        // send to BE
-        await saveCellConfig({ configs: newConfigs });
-        // update on FE
-        for (const cellId of ids) {
-          updateCellConfig({ cellId, config: { disabled: true } });
-        }
-      },
-    },
-    {
-      icon: <EyeOffIcon size={14} strokeWidth={1.5} />,
-      label: "Hide all markdown code",
-      handle: hideAllMarkdownCode,
-    },
-    {
-      icon: <ChevronRightCircleIcon size={14} strokeWidth={1.5} />,
-      label: "Collapse all sections",
-      hotkey: "global.collapseAllSections",
-      handle: collapseAllCells,
-    },
-    {
-      icon: <ChevronDownCircleIcon size={14} strokeWidth={1.5} />,
-      label: "Expand all sections",
-      hotkey: "global.expandAllSections",
-      handle: expandAllCells,
-    },
-    {
+      divider: true,
       icon: <DiamondPlusIcon size={14} strokeWidth={1.5} />,
       label: "Add setup cell",
       handle: () => {
@@ -405,18 +353,10 @@ export function useNotebookActions() {
       },
     },
     {
-      icon: <XCircleIcon size={14} strokeWidth={1.5} />,
-      label: "Clear all outputs",
+      icon: <DatabaseIcon size={14} strokeWidth={1.5} />,
+      label: "Add database connection",
       handle: () => {
-        clearAllCellOutputs();
-      },
-    },
-    {
-      icon: <FastForwardIcon size={14} strokeWidth={1.5} />,
-      label: "Re-run all cells",
-      hotkey: "global.runAll",
-      handle: async () => {
-        runAllCells();
+        openModal(<AddDatabaseDialogContent onClose={closeModal} />);
       },
     },
     {
@@ -428,13 +368,11 @@ export function useNotebookActions() {
       },
     },
     {
-      icon: <DatabaseIcon size={14} strokeWidth={1.5} />,
-      label: "Add database connection",
-      handle: () => {
-        openModal(<AddDatabaseDialogContent onClose={closeModal} />);
-      },
+      icon: <PowerSquareIcon size={14} strokeWidth={1.5} />,
+      label: "Restart kernel",
+      variant: "danger",
+      handle: restartKernel,
     },
-
     {
       divider: true,
       icon: <CommandIcon size={14} strokeWidth={1.5} />,
@@ -444,24 +382,10 @@ export function useNotebookActions() {
     },
 
     {
-      icon: <SettingsIcon size={14} strokeWidth={1.5} />,
-      label: "User settings",
-      handle: () => setSettingsDialogOpen((open) => !open),
-    },
-
-    {
       icon: <KeyboardIcon size={14} strokeWidth={1.5} />,
       label: "Keyboard shortcuts",
       hotkey: "global.showHelp",
       handle: () => setKeyboardShortcutsOpen((open) => !open),
-    },
-
-    {
-      icon: <BookMarkedIcon size={14} strokeWidth={1.5} />,
-      label: "Open documentation",
-      handle: () => {
-        window.open(Constants.docsPage, "_blank");
-      },
     },
 
     {
@@ -530,13 +454,6 @@ export function useNotebookActions() {
         const url = newNotebookURL();
         window.open(url, "_blank");
       },
-    },
-
-    {
-      icon: <PowerSquareIcon size={14} strokeWidth={1.5} />,
-      label: "Restart kernel",
-      variant: "danger",
-      handle: restartKernel,
     },
   ];
 
