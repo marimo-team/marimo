@@ -6,8 +6,6 @@ import { PopoverAnchor } from "@radix-ui/react-popover";
 import type { ReactCodeMirrorRef } from "@uiw/react-codemirror";
 import { DefaultChatTransport, type FileUIPart, type ToolUIPart } from "ai";
 import { startCase } from "lodash-es";
-import { ReasoningAccordion } from "@/components/chat/reasoning-accordion";
-import { ToolCallAccordion } from "@/components/chat/tool-call-accordion";
 import {
   BotMessageSquareIcon,
   ClipboardIcon,
@@ -22,6 +20,8 @@ import {
 } from "lucide-react";
 import React, { lazy, useEffect, useRef, useState } from "react";
 import { convertToFileUIPart } from "@/components/chat/chat-utils";
+import { ReasoningAccordion } from "@/components/chat/reasoning-accordion";
+import { ToolCallAccordion } from "@/components/chat/tool-call-accordion";
 import {
   type AdditionalCompletions,
   PromptInput,

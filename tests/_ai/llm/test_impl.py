@@ -1216,7 +1216,9 @@ class TestPydanticAI:
 
     def test_api_key_setup_anthropic(self):
         """Test API key setup for Anthropic provider."""
-        model = pydantic_ai("anthropic:claude-sonnet-4-5", api_key="test-anthropic-key")
+        model = pydantic_ai(
+            "anthropic:claude-sonnet-4-5", api_key="test-anthropic-key"
+        )
 
         # Save original env value
         original = os.environ.get("ANTHROPIC_API_KEY")
@@ -1253,8 +1255,8 @@ class TestPydanticAI:
             ModelMessagesTypeAdapter,
             ModelRequest,
             ModelResponse,
-            UserPromptPart,
             TextPart as PydanticTextPart,
+            UserPromptPart,
         )
 
         model = pydantic_ai("openai:gpt-4.1")
@@ -1309,32 +1311,40 @@ class TestPydanticAI:
             ModelMessagesTypeAdapter,
             ModelRequest,
             ModelResponse,
-            UserPromptPart,
             TextPart as PydanticTextPart,
             ToolCallPart,
             ToolReturnPart,
+            UserPromptPart,
         )
 
         model = pydantic_ai("openai:gpt-4.1")
 
         # Create properly paired tool messages
         stored_messages = [
-            ModelRequest(parts=[UserPromptPart(content="What's the weather?")]),
-            ModelResponse(parts=[
-                ToolCallPart(
-                    tool_name="get_weather",
-                    args={"location": "SF"},
-                    tool_call_id="call_123",
-                ),
-            ]),
-            ModelRequest(parts=[
-                ToolReturnPart(
-                    tool_name="get_weather",
-                    content='{"temp": 72}',
-                    tool_call_id="call_123",
-                ),
-            ]),
-            ModelResponse(parts=[PydanticTextPart(content="The weather is 72F")]),
+            ModelRequest(
+                parts=[UserPromptPart(content="What's the weather?")]
+            ),
+            ModelResponse(
+                parts=[
+                    ToolCallPart(
+                        tool_name="get_weather",
+                        args={"location": "SF"},
+                        tool_call_id="call_123",
+                    ),
+                ]
+            ),
+            ModelRequest(
+                parts=[
+                    ToolReturnPart(
+                        tool_name="get_weather",
+                        content='{"temp": 72}',
+                        tool_call_id="call_123",
+                    ),
+                ]
+            ),
+            ModelResponse(
+                parts=[PydanticTextPart(content="The weather is 72F")]
+            ),
         ]
         messages_json = ModelMessagesTypeAdapter.dump_json(stored_messages)
 
@@ -1386,7 +1396,10 @@ class TestChatMessagePartConversion:
         # The unknown parts should still be accessible as dicts
         pydantic_history_part = None
         for part in msg.parts:
-            if isinstance(part, dict) and part.get("type") == "_pydantic_history":
+            if (
+                isinstance(part, dict)
+                and part.get("type") == "_pydantic_history"
+            ):
                 pydantic_history_part = part
                 break
 

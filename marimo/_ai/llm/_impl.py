@@ -5,7 +5,15 @@ import inspect
 import json
 import os
 import re
-from typing import TYPE_CHECKING, Any, Callable, Optional, Union, cast, get_type_hints
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Optional,
+    Union,
+    cast,
+    get_type_hints,
+)
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator, Generator
@@ -98,7 +106,11 @@ def _parse_docstring_args(docstring: str) -> dict[str, str]:
             continue
 
         # Check for other section headers (end of Args)
-        if in_args_section and stripped.endswith(":") and not ":" in stripped[:-1]:
+        if (
+            in_args_section
+            and stripped.endswith(":")
+            and ":" not in stripped[:-1]
+        ):
             # Save last param
             if current_param:
                 descriptions[current_param] = current_desc.strip()
@@ -260,7 +272,7 @@ class openai(ChatModel):
         def get_weather(location: str, unit: str = "fahrenheit") -> dict:
             '''Get the current weather for a location.
 
-            Args:
+    Args:
                 location: The city and state, e.g. "San Francisco, CA"
                 unit: Temperature unit, either "celsius" or "fahrenheit"
             '''
@@ -919,7 +931,7 @@ class pydantic_ai(ChatModel):
         def get_weather(location: str, unit: str = "fahrenheit") -> dict:
             '''Get the current weather for a location.
 
-            Args:
+    Args:
                 location: The city and state, e.g. "San Francisco, CA"
                 unit: Temperature unit, either "celsius" or "fahrenheit"
             '''
@@ -928,7 +940,7 @@ class pydantic_ai(ChatModel):
         def calculate(expression: str) -> dict:
             '''Evaluate a mathematical expression.
 
-            Args:
+    Args:
                 expression: The math expression to evaluate, e.g. "2 + 2 * 3"
             '''
             return {"expression": expression, "result": eval(expression)}
@@ -985,7 +997,9 @@ class pydantic_ai(ChatModel):
             return
 
         # Extract provider from model string (e.g., "openai:gpt-4.1" -> "openai")
-        provider = self.model.split(":")[0].lower() if ":" in self.model else ""
+        provider = (
+            self.model.split(":")[0].lower() if ":" in self.model else ""
+        )
 
         # Map providers to their environment variable names
         provider_env_vars: dict[str, str] = {
@@ -1026,7 +1040,9 @@ class pydantic_ai(ChatModel):
 
         # Get thinking config (use defaults if True, otherwise use provided dict)
         thinking_config: dict[str, Any] = (
-            {} if self.enable_thinking is True else (self.enable_thinking or {})
+            {}
+            if self.enable_thinking is True
+            else (self.enable_thinking or {})
         )
 
         # Provider-specific handling
@@ -1048,9 +1064,13 @@ class pydantic_ai(ChatModel):
                 # Fall back to generic settings if import fails
                 pass
 
-        elif provider in ("openai", "openai-responses") and self.enable_thinking:
+        elif (
+            provider in ("openai", "openai-responses") and self.enable_thinking
+        ):
             try:
-                from pydantic_ai.models.openai import OpenAIResponsesModelSettings
+                from pydantic_ai.models.openai import (
+                    OpenAIResponsesModelSettings,
+                )
 
                 effort = thinking_config.get("effort", "low")
                 summary = thinking_config.get("summary", "auto")
@@ -1064,7 +1084,10 @@ class pydantic_ai(ChatModel):
             except ImportError:
                 pass
 
-        elif provider in ("google-gla", "google-vertex", "gemini") and self.enable_thinking:
+        elif (
+            provider in ("google-gla", "google-vertex", "gemini")
+            and self.enable_thinking
+        ):
             try:
                 from pydantic_ai.models.google import GoogleModelSettings
 
@@ -1109,9 +1132,9 @@ class pydantic_ai(ChatModel):
         from pydantic_ai.messages import (
             ModelRequest,
             ModelResponse,
+            ThinkingPart,
             ToolCallPart,
             ToolReturnPart,
-            ThinkingPart,
         )
 
         # Create the agent with tools
@@ -1230,7 +1253,9 @@ class pydantic_ai(ChatModel):
                             yield text_delta
                     # Thinking delta - update thinking in real-time
                     elif delta_type == "ThinkingPartDelta":
-                        thinking_delta = getattr(delta, "content_delta", "") or ""
+                        thinking_delta = (
+                            getattr(delta, "content_delta", "") or ""
+                        )
                         current_thinking += thinking_delta
                         yield {"parts": _build_current_parts()}
 
@@ -1239,7 +1264,9 @@ class pydantic_ai(ChatModel):
                 tool_call_id = getattr(event, "tool_call_id", None)
                 tool_return = getattr(event, "content", None)
                 if tool_call_id and tool_call_id in pending_tool_calls:
-                    pending_tool_calls[tool_call_id]["state"] = "output-available"
+                    pending_tool_calls[tool_call_id]["state"] = (
+                        "output-available"
+                    )
                     pending_tool_calls[tool_call_id]["output"] = tool_return
                     yield {"parts": _build_current_parts()}
 
@@ -1271,7 +1298,9 @@ class pydantic_ai(ChatModel):
                     # Update pending tool calls with their outputs
                     for tc_id, output in tool_outputs.items():
                         if tc_id in pending_tool_calls:
-                            pending_tool_calls[tc_id]["state"] = "output-available"
+                            pending_tool_calls[tc_id]["state"] = (
+                                "output-available"
+                            )
                             pending_tool_calls[tc_id]["output"] = output
 
                     # Check for any tool calls we missed during streaming
@@ -1281,14 +1310,16 @@ class pydantic_ai(ChatModel):
                                 # Capture thinking if not already done
                                 if isinstance(part, ThinkingPart):
                                     if not current_thinking:
-                                        current_thinking = getattr(
-                                            part, "content", ""
-                                        ) or ""
+                                        current_thinking = (
+                                            getattr(part, "content", "") or ""
+                                        )
 
                                 # Handle tool calls we may have missed
                                 elif isinstance(part, ToolCallPart):
                                     tool_call_id = getattr(
-                                        part, "tool_call_id", f"call_{id(part)}"
+                                        part,
+                                        "tool_call_id",
+                                        f"call_{id(part)}",
                                     )
                                     if tool_call_id not in pending_tool_calls:
                                         tool_name = part.tool_name
@@ -1305,7 +1336,9 @@ class pydantic_ai(ChatModel):
                                             "toolCallId": tool_call_id,
                                             "state": "output-available",
                                             "input": tool_args,
-                                            "output": tool_outputs.get(tool_call_id),
+                                            "output": tool_outputs.get(
+                                                tool_call_id
+                                            ),
                                         }
 
                 # Yield final structured response if we had thinking or tools
@@ -1320,14 +1353,16 @@ class pydantic_ai(ChatModel):
                         # Use all_messages_json() to get complete history
                         messages_json = final_result.all_messages_json()
                         if messages_json:
-                            final_parts.append({
-                                "type": "_pydantic_history",
-                                "messages_json": (
-                                    messages_json.decode("utf-8")
-                                    if isinstance(messages_json, bytes)
-                                    else messages_json
-                                ),
-                            })
+                            final_parts.append(
+                                {
+                                    "type": "_pydantic_history",
+                                    "messages_json": (
+                                        messages_json.decode("utf-8")
+                                        if isinstance(messages_json, bytes)
+                                        else messages_json
+                                    ),
+                                }
+                            )
                     except Exception:
                         # If we can't store history, continue without it
                         # (manual conversion will be used as fallback)
@@ -1368,6 +1403,7 @@ class pydantic_ai(ChatModel):
                         return result
                     except Exception as e:
                         import logging
+
                         logging.getLogger(__name__).debug(
                             f"Failed to deserialize pydantic messages: {e}"
                         )
@@ -1389,14 +1425,14 @@ class pydantic_ai(ChatModel):
         See: https://ai.pydantic.dev/message-history/
         """
         from pydantic_ai.messages import (
+            ModelMessagesTypeAdapter,
             ModelRequest,
             ModelResponse,
-            UserPromptPart,
             TextPart as PydanticTextPart,
+            ThinkingPart,
             ToolCallPart,
             ToolReturnPart,
-            ThinkingPart,
-            ModelMessagesTypeAdapter,
+            UserPromptPart,
         )
 
         # First pass: find the last assistant message with stored pydantic history
@@ -1416,10 +1452,12 @@ class pydantic_ai(ChatModel):
         if last_stored_messages is not None:
             pydantic_messages: list[Any] = list(last_stored_messages)
             # Add any user messages that came AFTER the stored history
-            for msg in messages[last_stored_index + 1:]:
+            for msg in messages[last_stored_index + 1 :]:
                 if msg.role == "user":
                     pydantic_messages.append(
-                        ModelRequest(parts=[UserPromptPart(content=str(msg.content))])
+                        ModelRequest(
+                            parts=[UserPromptPart(content=str(msg.content))]
+                        )
                     )
             return pydantic_messages
 
@@ -1429,7 +1467,9 @@ class pydantic_ai(ChatModel):
         for msg in messages:
             if msg.role == "user":
                 pydantic_messages.append(
-                    ModelRequest(parts=[UserPromptPart(content=str(msg.content))])
+                    ModelRequest(
+                        parts=[UserPromptPart(content=str(msg.content))]
+                    )
                 )
             elif msg.role == "assistant":
                 # Check if this message has tool parts
@@ -1451,7 +1491,9 @@ class pydantic_ai(ChatModel):
                                 else getattr(part, "text", "")
                             )
                             if text:
-                                response_parts.append(PydanticTextPart(content=text))
+                                response_parts.append(
+                                    PydanticTextPart(content=text)
+                                )
                         elif part_type == "reasoning":
                             # Handle reasoning/thinking parts
                             reasoning_text = (
@@ -1518,7 +1560,9 @@ class pydantic_ai(ChatModel):
                         )
 
                     if tool_returns:
-                        pydantic_messages.append(ModelRequest(parts=tool_returns))
+                        pydantic_messages.append(
+                            ModelRequest(parts=tool_returns)
+                        )
                 else:
                     # Simple text response
                     pydantic_messages.append(

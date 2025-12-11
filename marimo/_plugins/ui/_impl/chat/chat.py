@@ -266,8 +266,8 @@ class chat(UIElement[dict[str, Any], list[ChatMessage]]):
                     "type": "tool-my_tool",
                     "tool_call_id": "call_123",
                     "state": "calling",
-                    "input": {"arg": "value"}
-                }
+                    "input": {"arg": "value"},
+                },
             ]
         }
         ```
