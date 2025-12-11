@@ -142,63 +142,8 @@ export function useCellActionButtons({ cell, closePopover }: Props) {
   const actions: ActionButton[][] = [
     [
       {
-        icon: <TextCursorInputIcon size={13} strokeWidth={1.5} />,
-        label: "Name",
-        disableClick: true,
-        handle: (evt) => {
-          evt?.stopPropagation();
-          evt?.preventDefault();
-        },
-        handleHeadless: () => {
-          openModal(
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Rename cell</DialogTitle>
-              </DialogHeader>
-              <div className="flex items-center justify-between">
-                <Label htmlFor="cell-name">Cell name</Label>
-                <NameCellInput
-                  placeholder={"cell name"}
-                  value={name}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      openModal(null);
-                    }
-                  }}
-                  onChange={(newName) =>
-                    updateCellName({ cellId, name: newName })
-                  }
-                />
-              </div>
-            </DialogContent>,
-          );
-        },
-        rightElement: (
-          <NameCellInput
-            placeholder={"cell name"}
-            value={name}
-            onChange={(newName) => updateCellName({ cellId, name: newName })}
-            onEnterKey={() => closePopover?.()}
-          />
-        ),
-        hidden: isSetupCell,
-      },
-      {
-        icon: <PlayIcon size={13} strokeWidth={1.5} />,
-        label: "Run cell",
-        hotkey: "cell.run",
-        hidden:
-          status === "running" ||
-          status === "queued" ||
-          status === "disabled-transitively" ||
-          config.disabled,
-        handle: () => runCell(),
-      },
-      {
         icon: <SparklesIcon size={13} strokeWidth={1.5} />,
-        label: "AI completion",
+        label: "Refactor with AI",
         hidden: !aiEnabled,
         handle: () => {
           setAiCompletionCell((current) =>
@@ -242,6 +187,14 @@ export function useCellActionButtons({ cell, closePopover }: Props) {
         hotkey: "cell.hideCode",
       },
       {
+        icon: <XCircleIcon size={13} strokeWidth={1.5} />,
+        label: "Clear output",
+        hidden: !(hasOutput || hasConsoleOutput),
+        handle: () => {
+          clearCellOutput({ cellId });
+        },
+      },
+      {
         icon: config.disabled ? (
           <ZapOffIcon size={13} strokeWidth={1.5} />
         ) : (
@@ -258,14 +211,6 @@ export function useCellActionButtons({ cell, closePopover }: Props) {
         ),
         handle: toggleDisabled,
         hidden: isSetupCell,
-      },
-      {
-        icon: <XCircleIcon size={13} strokeWidth={1.5} />,
-        label: "Clear output",
-        hidden: !(hasOutput || hasConsoleOutput),
-        handle: () => {
-          clearCellOutput({ cellId });
-        },
       },
     ],
 
@@ -321,29 +266,6 @@ export function useCellActionButtons({ cell, closePopover }: Props) {
 
     // Movement
     [
-      {
-        icon: (
-          <MultiIcon>
-            <PlusCircleIcon size={13} strokeWidth={1.5} />
-            <ChevronUpIcon size={8} strokeWidth={2} />
-          </MultiIcon>
-        ),
-        label: "Create cell above",
-        hotkey: "cell.createAbove",
-        handle: () => createCell({ cellId, before: true }),
-        hidden: isSetupCell,
-      },
-      {
-        icon: (
-          <MultiIcon>
-            <PlusCircleIcon size={13} strokeWidth={1.5} />
-            <ChevronDownIcon size={8} strokeWidth={2} />
-          </MultiIcon>
-        ),
-        label: "Create cell below",
-        hotkey: "cell.createBelow",
-        handle: () => createCell({ cellId, before: false }),
-      },
       {
         icon: <ChevronUpIcon size={13} strokeWidth={1.5} />,
         label: "Move cell up",
@@ -401,6 +323,50 @@ export function useCellActionButtons({ cell, closePopover }: Props) {
 
     // Link to cell
     [
+      {
+        icon: <TextCursorInputIcon size={13} strokeWidth={1.5} />,
+        label: "Name",
+        disableClick: true,
+        handle: (evt) => {
+          evt?.stopPropagation();
+          evt?.preventDefault();
+        },
+        handleHeadless: () => {
+          openModal(
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Rename cell</DialogTitle>
+              </DialogHeader>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="cell-name">Cell name</Label>
+                <NameCellInput
+                  placeholder={"cell name"}
+                  value={name}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      openModal(null);
+                    }
+                  }}
+                  onChange={(newName) =>
+                    updateCellName({ cellId, name: newName })
+                  }
+                />
+              </div>
+            </DialogContent>,
+          );
+        },
+        rightElement: (
+          <NameCellInput
+            placeholder={"cell name"}
+            value={name}
+            onChange={(newName) => updateCellName({ cellId, name: newName })}
+            onEnterKey={() => closePopover?.()}
+          />
+        ),
+        hidden: isSetupCell,
+      },
       {
         icon: <LinkIcon size={13} strokeWidth={1.5} />,
         label: "Copy link to cell",
