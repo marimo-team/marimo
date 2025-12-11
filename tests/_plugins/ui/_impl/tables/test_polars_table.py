@@ -112,6 +112,7 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
                 "structs_with_list": pl.Series(
                     "mixed",
                     [{"a": [1, 2], "b": 2}, {"a": [3, 4], "b": 4}, [5, 6]],
+                    strict=False,
                 ),
                 "list_with_structs": pl.Series(
                     "list_with_structs",
@@ -120,6 +121,7 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
                         [{"e": 5}],
                         [],
                     ],
+                    strict=False,
                 ),
                 "enum_list": pl.Series(
                     [["A", "B", "C"], ["A", "B", "C"], ["A", "B", "C"]],
@@ -446,9 +448,11 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
             min=datetime.datetime(2021, 1, 1, 0, 0),
             max=datetime.datetime(2021, 1, 3, 0, 0),
             mean=datetime.datetime(2021, 1, 2, 0, 0),
-            # TODO: narwhals doesn't support median
-            # and polars doesn't support quantiles for dates
-            # median=datetime.datetime(2021, 1, 2, 0, 0),
+            median=datetime.datetime(2021, 1, 2, 0, 0),
+            p5=datetime.datetime(2021, 1, 1, 0, 0),
+            p25=datetime.datetime(2021, 1, 2, 0, 0),
+            p75=datetime.datetime(2021, 1, 3, 0, 0),
+            p95=datetime.datetime(2021, 1, 3, 0, 0),
         )
 
     def test_stats_date(self) -> None:
