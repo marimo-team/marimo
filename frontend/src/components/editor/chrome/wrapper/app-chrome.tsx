@@ -10,10 +10,12 @@ import { Footer } from "./footer";
 import { Sidebar } from "./sidebar";
 import "./app-chrome.css";
 import { TooltipProvider } from "@radix-ui/react-tooltip";
+import { useAtomValue } from "jotai";
 import { XIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LazyMount } from "@/components/utils/lazy-mount";
+import { cellErrorCount } from "@/core/cells/cells";
 import { getFeatureFlag } from "@/core/config/feature-flag";
 import { IfCapability } from "@/core/config/if-capability";
 import { cn } from "@/utils/cn";
@@ -21,6 +23,7 @@ import { ErrorBoundary } from "../../boundary/ErrorBoundary";
 import { ContextAwarePanel } from "../panels/context-aware-panel/context-aware-panel";
 import { useChromeActions, useChromeState } from "../state";
 import { DEVELOPER_PANEL_TABS } from "../types";
+import { BackendConnectionStatus } from "./footer-items/backend-status";
 import { Minimap } from "./minimap";
 import { PanelsWrapper } from "./panels";
 import { PendingAICells } from "./pending-ai-cells";
@@ -35,9 +38,7 @@ const LazyAgentPanel = React.lazy(
 const LazyDependencyGraphPanel = React.lazy(
   () => import("@/components/editor/chrome/panels/dependency-graph-panel"),
 );
-const LazyDataSourcesPanel = React.lazy(
-  () => import("../panels/datasources-panel"),
-);
+const LazySessionPanel = React.lazy(() => import("../panels/session-panel"));
 const LazyDocumentationPanel = React.lazy(
   () => import("../panels/documentation-panel"),
 );
@@ -54,7 +55,6 @@ const LazyScratchpadPanel = React.lazy(
 const LazySecretsPanel = React.lazy(() => import("../panels/secrets-panel"));
 const LazySnippetsPanel = React.lazy(() => import("../panels/snippets-panel"));
 const LazyTracingPanel = React.lazy(() => import("../panels/tracing-panel"));
-const LazyVariablePanel = React.lazy(() => import("../panels/variable-panel"));
 const LazyCachePanel = React.lazy(() => import("../panels/cache-panel"));
 
 export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
@@ -72,6 +72,7 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
   const sidebarRef = React.useRef<ImperativePanelHandle>(null);
   const terminalRef = React.useRef<ImperativePanelHandle>(null);
   const { aiPanelTab, setAiPanelTab } = useAiPanelTab();
+  const errorCount = useAtomValue(cellErrorCount);
 
   // sync sidebar
   useEffect(() => {
@@ -204,11 +205,10 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
         <Suspense>
           <TooltipProvider>
             {selectedPanel === "files" && <LazyFileExplorerPanel />}
-            {selectedPanel === "variables" && <LazyVariablePanel />}
+            {selectedPanel === "variables" && <LazySessionPanel />}
             {selectedPanel === "dependencies" && <LazyDependencyGraphPanel />}
             {selectedPanel === "packages" && <LazyPackagesPanel />}
             {selectedPanel === "outline" && <LazyOutlinePanel />}
-            {selectedPanel === "datasources" && <LazyDataSourcesPanel />}
             {selectedPanel === "documentation" && <LazyDocumentationPanel />}
             {selectedPanel === "snippets" && <LazySnippetsPanel />}
             {selectedPanel === "ai" && renderAiPanel()}
@@ -295,14 +295,20 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
                 <TabsTrigger
                   key={tab.type}
                   value={tab.type}
-                  className="text-xs gap-1.5 px-2 py-1 data-[state=active]:bg-muted"
+                  className="text-xs gap-1.5 px-2 py-1 data-[state=active]:bg-muted relative"
                 >
                   <tab.Icon className="w-3.5 h-3.5" />
                   {tab.label}
+                  {tab.type === "errors" && errorCount > 0 && (
+                    <span className="absolute -top-0.5 -right-1 w-2 h-2 bg-destructive rounded-full" />
+                  )}
                 </TabsTrigger>
               ))}
             </TabsList>
           </Tabs>
+          <div className="border-l border-border h-4 mx-1" />
+          <BackendConnectionStatus />
+          <div className="flex-1" />
           <Button
             size="xs"
             variant="text"
