@@ -44,8 +44,10 @@ from marimo._plugins.validators import (
 )
 from marimo._runtime.functions import EmptyArgs, Function
 from marimo._utils.memoize import memoize_last_value
-from marimo._utils.narwhals_utils import make_lazy
+from marimo._utils.narwhals_utils import is_narwhals_lazyframe, make_lazy
 from marimo._utils.parse_dataclass import parse_raw
+
+TOO_MANY_ROWS = 100_000
 
 
 @dataclass
@@ -108,6 +110,8 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
             Defaults to True.
         on_change (Optional[Callable[[DataFrameType], None]], optional): Optional callback
             to run when this element's value changes.
+        lazy (Optional[bool], optional): When lazy is True, an 'Apply' button will be shown to apply transformations.
+            Defaults to None where lazy is inferred from the dataframe and row count.
     """
 
     _name: Final[str] = "marimo-dataframe"
@@ -119,6 +123,7 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
         page_size: Optional[int] = 5,
         limit: Optional[int] = None,
         show_download: bool = True,
+        lazy: Optional[bool] = None,
     ) -> None:
         validate_no_integer_columns(df)
         # This will raise an error if the dataframe type is not supported.
@@ -152,6 +157,12 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
         self._last_transforms = Transformations([])
         self._page_size = page_size or 5  # Default to 5 rows (.head())
         self._show_download = show_download
+        rows = self._manager.get_num_rows(force=False)
+        if lazy is None:
+            lazy = is_narwhals_lazyframe(df) or (
+                rows is None or rows > TOO_MANY_ROWS
+            )
+        self._lazy = lazy
         validate_page_size(self._page_size)
 
         super().__init__(
@@ -164,9 +175,10 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
             args={
                 "columns": self._get_column_types(),
                 "dataframe-name": dataframe_name,
-                "total": self._manager.get_num_rows(force=False),
+                "total": rows,
                 "page-size": page_size,
                 "show-download": show_download,
+                "lazy": self._lazy,
             },
             functions=(
                 Function(

@@ -43,6 +43,7 @@ interface Data {
   columns: ColumnDataTypes;
   pageSize: number;
   showDownload: boolean;
+  lazy: boolean;
 }
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
@@ -93,6 +94,7 @@ export const DataFramePlugin = createPlugin<S>("marimo-dataframe")
           });
           return map;
         }),
+      lazy: z.boolean().default(false),
     }),
   )
   .withFunctions<PluginFunctions>({
@@ -167,6 +169,7 @@ export const DataFrameComponent = memo(
     columns,
     pageSize,
     showDownload,
+    lazy,
     value,
     setValue,
     get_dataframe,
@@ -245,6 +248,7 @@ export const DataFrameComponent = memo(
               }}
               onInvalidChange={setInternalValue}
               getColumnValues={get_column_values}
+              lazy={lazy}
             />
           </TabsContent>
           {python_code && (
