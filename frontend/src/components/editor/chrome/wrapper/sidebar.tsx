@@ -6,6 +6,7 @@ import type React from "react";
 import type { PropsWithChildren } from "react";
 import { Tooltip } from "@/components/ui/tooltip";
 import { notebookQueuedOrRunningCountAtom } from "@/core/cells/cells";
+import { snippetsEnabledAtom } from "@/core/config/config";
 import { cn } from "@/utils/cn";
 import { FeedbackButton } from "../components/feedback-button";
 import { useChromeActions, useChromeState } from "../state";
@@ -14,14 +15,22 @@ import { PANELS, type PanelDescriptor } from "../types";
 export const Sidebar: React.FC = () => {
   const { selectedPanel } = useChromeState();
   const { toggleApplication } = useChromeActions();
+  const snippetsEnabled = useAtomValue(snippetsEnabledAtom);
 
   const renderIcon = ({ Icon }: PanelDescriptor, className?: string) => {
     return <Icon className={cn("h-5 w-5", className)} />;
   };
 
-  const sidebarItems = PANELS.filter(
-    (p) => !p.hidden && p.position === "sidebar",
-  );
+  const sidebarItems = PANELS.filter((p) => {
+    if (p.hidden || p.position !== "sidebar") {
+      return false;
+    }
+    // Only show snippets panel if user has custom snippet paths
+    if (p.type === "snippets" && !snippetsEnabled) {
+      return false;
+    }
+    return true;
+  });
 
   return (
     <div className="h-full pt-4 pb-1 px-1 flex flex-col items-start text-muted-foreground text-md select-none no-print text-sm z-50 dark:bg-background print:hidden hide-on-fullscreen">
