@@ -907,9 +907,9 @@ def cache(  # type: ignore[misc]
 
     `mo.cache` is similar to `functools.cache`, but with three key benefits:
 
-    1. `mo.cache` persists its cache even if the cell defining the
-        cached function is re-run, as long as the code defining the function
-        (excluding comments and formatting) has not changed.
+    1. `mo.cache` persists its cache even if the cell defining the cached
+        function is re-run, as long as the code defining the function and
+        ancestors (excluding comments and formatting) has not changed.
     2. `mo.cache` keys on closed-over values in addition to function arguments,
         preventing accumulation of hidden state associated with
         `functools.cache`.
