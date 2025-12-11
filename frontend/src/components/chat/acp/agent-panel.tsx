@@ -662,7 +662,7 @@ function getCwd() {
 
 const AgentPanel: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<Error | string | unknown>(null);
+  const [error, setError] = useState<Error | string | null>(null);
   const [promptValue, setPromptValue] = useState("");
   const [files, setFiles] = useState<File[]>();
   const [sessionModels, setSessionModels] = useState<SessionModelState | null>(
@@ -858,7 +858,7 @@ const AgentPanel: React.FC = () => {
         setError(null);
       } catch (error) {
         logger.error("Failed to create or resume session:", error);
-        setError(error);
+        setError(error instanceof Error ? error : String(error));
       }
     };
 
@@ -1059,7 +1059,7 @@ const AgentPanel: React.FC = () => {
       return (
         <ErrorBanner
           className="w-3/4 mx-auto mt-10"
-          error={error instanceof Error ? error : new Error(String(error))}
+          error={error}
           action={
             <Button
               variant="linkDestructive"
