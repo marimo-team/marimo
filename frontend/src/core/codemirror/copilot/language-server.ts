@@ -66,10 +66,34 @@ export type EnhancedNotification = {
 export class CopilotLanguageServerClient extends LanguageServerClient {
   private documentVersion = 0;
   private hasOpenedDocument = false;
+  private copilotSettings: Record<string, any> = {};
 
-  constructor(...args: ConstructorParameters<typeof LanguageServerClient>) {
-    super(...args);
+  constructor(
+    options: ConstructorParameters<typeof LanguageServerClient>[0] & {
+      copilotSettings?: Record<string, any>;
+    },
+  ) {
+    super(options);
+    this.copilotSettings = options.copilotSettings ?? {};
     this.onNotification(this.handleNotification);
+    this.attachInitializeListener();
+  }
+
+  private attachInitializeListener() {
+    // Send configuration after initialization
+    this.initializePromise.then(() => {
+      this.sendConfiguration();
+    });
+  }
+
+  private async sendConfiguration() {
+    const settings = this.copilotSettings;
+    // Skip if no settings are provided
+    if (!settings || Object.keys(settings).length === 0) {
+      return;
+    }
+    await this.notify("workspace/didChangeConfiguration", { settings });
+    logger.debug("#sendConfiguration: Configuration sent", settings);
   }
 
   private async _request<Method extends keyof LSPRequestMap>(
