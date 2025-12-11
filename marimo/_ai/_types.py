@@ -215,7 +215,6 @@ class ChatMessage(msgspec.Struct):
             self.parts = parts
 
     def _convert_part(self, part: Any) -> Optional[ChatPart]:
-        PartType = None
         for PartType in PART_TYPES:
             try:
                 if dataclasses.is_dataclass(part):
@@ -224,8 +223,9 @@ class ChatMessage(msgspec.Struct):
             except Exception:
                 continue
 
-        LOGGER.error(f"Could not decode part as {PartType}, for part {part}")
-        return None
+        # If no known type matched, keep the part as-is (e.g., for custom parts
+        # like _pydantic_history used by pydantic_ai for message history)
+        return cast(ChatPart, part)
 
 
 @dataclass
