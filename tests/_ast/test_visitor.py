@@ -305,6 +305,96 @@ def test_nested_comprehension_generator_with_named_expr() -> None:
     assert v.variable_data == {"x": [VariableData(kind="variable")]}
 
 
+def test_function_param_in_comprehension_not_required_ref() -> None:
+    """Function parameters used in list comprehensions should not be required_refs.
+
+    Regression test: The parameter `extension` was incorrectly added to required_refs
+    when used as the iterator in a list comprehension inside the function.
+    See: test_shadowed_ui_variable_threadpool in tests/_save/test_cache.py
+    """
+    code = cleandoc(
+        """
+        def helper(extension):
+            return [e for e in extension or []]
+        """
+    )
+    v = visitor.ScopedVisitor()
+    mod = ast.parse(code)
+    v.visit(mod)
+
+    assert v.defs == {"helper"}
+    assert v.refs == set()  # No external refs!
+    # extension is a PARAMETER, not an external dependency
+    # Compare to test_globals_in_functions: foo(a...) where a is not in required_refs
+    assert v.variable_data == {
+        "helper": [VariableData(kind="function", required_refs=set())]
+    }
+
+
+def test_nested_function_param_in_comprehension_not_required_ref() -> None:
+    """Ensure that additional nesting works."""
+    code = cleandoc(
+        """
+        def helper():
+            extension = []
+            def foo():
+                def bar():
+                    return [e for e in extension or []]
+                return bar
+            return foo
+        """
+    )
+    v = visitor.ScopedVisitor()
+    mod = ast.parse(code)
+    v.visit(mod)
+
+    assert v.defs == {"helper"}
+    assert v.refs == set()  # No external refs!
+    assert v.variable_data == {
+        "helper": [VariableData(kind="function", required_refs=set())]
+    }
+
+
+def test_param_in_comprehension_has_required_ref() -> None:
+    """Sanity check ref still is picked up"""
+    code = cleandoc(
+        """
+        def helper():
+            return [e for e in extension or []]
+        """
+    )
+    v = visitor.ScopedVisitor()
+    mod = ast.parse(code)
+    v.visit(mod)
+
+    assert v.defs == {"helper"}
+    assert v.refs == {"extension"}
+    assert v.variable_data == {
+        "helper": [VariableData(kind="function", required_refs={"extension"})]
+    }
+
+
+def test_shadowed_param_in_comprehension_not_required_ref() -> None:
+    """Check that a shadowed variable doesn't capture ref in module scope."""
+    code = cleandoc(
+        """
+        extension = []
+        def helper(extension):
+            return [e for e in extension or []]
+        """
+    )
+    v = visitor.ScopedVisitor()
+    mod = ast.parse(code)
+    v.visit(mod)
+
+    assert v.defs == {"helper", "extension"}
+    assert v.refs == set()
+    assert v.variable_data == {
+        "helper": [VariableData(kind="function", required_refs=set())],
+        "extension": [VariableData(kind="variable", required_refs=set())],
+    }
+
+
 def test_walrus_leaks_to_global_in_comprehension() -> None:
     code = "\n".join(
         [
