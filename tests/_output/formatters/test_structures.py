@@ -49,7 +49,11 @@ async def test_matplotlib_special_case(
         formatter = executing_kernel.globals["formatter"]
         lines = executing_kernel.globals["lines"]
         assert formatter is not None
-        assert formatter(lines)[0].startswith("image")
+        mimetype = formatter(lines)[0]
+        assert (
+            mimetype.startswith("image")
+            or mimetype == "application/vnd.marimo+mimebundle"
+        )
 
 
 def test_format_structure_types() -> None:
@@ -110,7 +114,7 @@ def test_format_structure_nested_with_html() -> None:
 
     assert get_and_format(nested_structure) == (
         "application/json",
-        f'[1, "text/html:{escape(_markdown.text)}", "text/html:{escape(_slider.text)}"]',
+        f'[1, "text/markdown:{escape(_markdown.text)}", "text/html:{escape(_slider.text)}"]',
     )
 
 
@@ -189,7 +193,7 @@ def test_format_structure_subclasses_with_different_built_in_repr() -> None:
     custom_list = CustomList()
     assert get_and_format(custom_list) == (
         "text/html",
-        "<pre style='font-size: 12px'>CustomList(a=1, b=2, c=3)</pre>",
+        "<pre class='text-xs'>CustomList(a=1, b=2, c=3)</pre>",
     )
 
     class CustomDict(dict):
@@ -202,7 +206,7 @@ def test_format_structure_subclasses_with_different_built_in_repr() -> None:
     custom_dict = CustomDict()
     assert get_and_format(custom_dict) == (
         "text/html",
-        "<pre style='font-size: 12px'>CustomDict(a=1, b=2, c=3)</pre>",
+        "<pre class='text-xs'>CustomDict(a=1, b=2, c=3)</pre>",
     )
 
     class CustomTuple(tuple):
@@ -215,11 +219,11 @@ def test_format_structure_subclasses_with_different_built_in_repr() -> None:
     custom_tuple = CustomTuple()
     assert get_and_format(custom_tuple) == (
         "text/html",
-        "<pre style='font-size: 12px'>CustomTuple(a=1, b=2, c=3)</pre>",
+        "<pre class='text-xs'>CustomTuple(a=1, b=2, c=3)</pre>",
     )
 
     assert get_and_format(sys.version_info)[1].startswith(
-        "<pre style='font-size: 12px'>sys.version_info(major=3"
+        "<pre class='text-xs'>sys.version_info(major=3"
     )
 
 

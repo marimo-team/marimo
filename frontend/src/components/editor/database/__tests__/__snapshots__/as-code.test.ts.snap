@@ -265,6 +265,25 @@ DATABASE_URL = "sqlite:////path/to/db.sqlite"
 engine = sqlmodel.create_engine(DATABASE_URL)"
 `;
 
+exports[`generateDatabaseCode > basic connections > supabase with SQLModel 1`] = `
+"import os
+import sqlmodel
+
+_password = os.environ.get("SUPABASE_PASSWORD", "my_password")
+DATABASE_URL = f"postgresql+psycopg2://postgres:{_password}@db.example.supabase.co:5432/postgres?sslmode=require"
+engine = sqlmodel.create_engine(DATABASE_URL)"
+`;
+
+exports[`generateDatabaseCode > basic connections > supabase with client-side pooling disabled 1`] = `
+"from sqlalchemy.pool import NullPool
+import os
+import sqlalchemy
+
+_password = os.environ.get("SUPABASE_PASSWORD", "my_password")
+DATABASE_URL = f"postgresql+psycopg2://postgres.session:{_password}@db.example.supabase.co:6543/postgres?sslmode=require"
+engine = sqlalchemy.create_engine(DATABASE_URL, poolclass=NullPool)"
+`;
+
 exports[`generateDatabaseCode > basic connections > timeplus 1`] = `
 "import os
 import sqlalchemy
@@ -357,6 +376,18 @@ engine = sqlmodel.create_engine(
     password=_password,
   )
 )"
+`;
+
+exports[`generateDatabaseCode > connections with secrets > supabase with all connection details as secrets 1`] = `
+"import os
+import sqlalchemy
+
+_password = os.environ.get("SUPABASE_PASSWORD")
+_username = os.environ.get("SUPABASE_USER")
+_host = os.environ.get("SUPABASE_HOST")
+_database = os.environ.get("SUPABASE_DB")
+DATABASE_URL = f"postgresql+psycopg2://{_username}:{_password}@{_host}:5432/{_database}?sslmode=require"
+engine = sqlalchemy.create_engine(DATABASE_URL)"
 `;
 
 exports[`generateDatabaseCode > connections with secrets > timeplus with all connection details as secrets 1`] = `

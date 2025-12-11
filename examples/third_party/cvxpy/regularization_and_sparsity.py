@@ -10,51 +10,51 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.17.4"
 app = marimo.App()
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("""# Regularization and Sparsity""")
+    mo.md("""
+    # Regularization and Sparsity
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
-        This app shows how the choice of regularization in a least squares regression
-        problem can affect the sparsity of solutions.
+    mo.md(r"""
+    This app shows how the choice of regularization in a least squares regression
+    problem can affect the sparsity of solutions.
 
-        We will use CVXPY to solve the problem
+    We will use CVXPY to solve the problem
 
-        \[
-        \begin{equation*}
-        \begin{array}{ll}
-        \text{minimize} & \|A x - b\|_2^2 + \lambda \|x \|_p \\
-        \end{array}
-        \end{equation*}
-        \]
+    \[
+    \begin{equation*}
+    \begin{array}{ll}
+    \text{minimize} & \|A x - b\|_2^2 + \lambda \|x \|_p \\
+    \end{array}
+    \end{equation*}
+    \]
 
-        where $A \in \mathbf{R}^{m \times n}$ and $b \in \mathbf{R}^{m}$ are problem
-        data, $x \in \mathbf{R}^n$ is the optimization variable, and
-        $\lambda > 0$ is
-        a scalar that controls the strength of the regularization.
+    where $A \in \mathbf{R}^{m \times n}$ and $b \in \mathbf{R}^{m}$ are problem
+    data, $x \in \mathbf{R}^n$ is the optimization variable, and
+    $\lambda > 0$ is
+    a scalar that controls the strength of the regularization.
 
-        Let's experiment how solutions to this problem differ for $p=1$,
+    Let's experiment how solutions to this problem differ for $p=1$,
 
-        \[
-        \|x\|_1 = |x_1| + |x_2| + \cdots + |x_n|, 
-        \]
+    \[
+    \|x\|_1 = |x_1| + |x_2| + \cdots + |x_n|,
+    \]
 
-        and $p=2$,
+    and $p=2$,
 
-        \[
-        \|x\|_2 = \sqrt{x_1^2 + x_2^2 + \cdots + x_n^2}. 
-        \]
-        """
-    )
+    \[
+    \|x\|_2 = \sqrt{x_1^2 + x_2^2 + \cdots + x_n^2}.
+    \]
+    """)
     return
 
 
@@ -94,7 +94,9 @@ def _(functools, l1_solver, l2_solver, np, sparsity_parameter):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("""## Parameter selection""")
+    mo.md("""
+    ## Parameter selection
+    """)
     return
 
 
@@ -149,19 +151,17 @@ def _(cdf, plt, x_l1, x_l2):
 
 @app.cell
 def _(mo):
-    mo.md(
-        r"""
-        ## Sparsity
+    mo.md(r"""
+    ## Sparsity
 
-        The $\ell_1$ norm, when used as a regularizer, encourages solutions
-        to be _sparse_: to have many zeros and only a few nonzeros.
+    The $\ell_1$ norm, when used as a regularizer, encourages solutions
+    to be _sparse_: to have many zeros and only a few nonzeros.
 
-        A sparse regressor (if it is a good model) encodes which features
-        are important for making predictions, and which are not: If a component
-        of $x$ is $0$, then the corresponding feature or measurement
-        must not be important in making predictions.
-        """
-    )
+    A sparse regressor (if it is a good model) encodes which features
+    are important for making predictions, and which are not: If a component
+    of $x$ is $0$, then the corresponding feature or measurement
+    must not be important in making predictions.
+    """)
     return
 
 

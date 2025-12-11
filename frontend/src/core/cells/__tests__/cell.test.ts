@@ -44,20 +44,19 @@ describe("outputIsLoading", () => {
 });
 
 describe("outputIsStale", () => {
-  it.each(STATUSES)(
-    "should return true if the cell is edited and status is %s",
-    (status) => {
-      const cell = {
-        status: status,
-        staleInputs: true,
-        output: null,
-        runStartTimestamp: null,
-        interrupted: false,
-      };
-      const edited = true;
-      expect(outputIsStale(cell, edited)).toBe(true);
-    },
-  );
+  it.each(
+    STATUSES,
+  )("should return true if the cell is edited and status is %s", (status) => {
+    const cell = {
+      status: status,
+      staleInputs: true,
+      output: null,
+      runStartTimestamp: null,
+      interrupted: false,
+    };
+    const edited = true;
+    expect(outputIsStale(cell, edited)).toBe(true);
+  });
 
   it("should return true if the cell is loading", () => {
     const cell = {

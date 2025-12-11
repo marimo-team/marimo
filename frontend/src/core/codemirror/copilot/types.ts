@@ -35,6 +35,13 @@ export type GitHubCopilotStatus =
  */
 export type GitHubCopilotRequestStatus = "InProgress" | "Warning" | "Normal";
 
+export interface GitHubCopilotStatusNotificationParams {
+  busy: boolean;
+  kind: "Warning" | "Normal" | "Error" | null;
+  message: string | null;
+  status?: "InProgress" | "Warning" | "Normal";
+}
+
 export interface GitHubCopilotStatusResult {
   status: GitHubCopilotStatus;
   user: string;

@@ -1,3 +1,9 @@
+# /// script
+# requires-python = ">=3.13"
+# dependencies = [
+#     "marimo",
+# ]
+# ///
 import marimo
 
 __generated_with = "0.14.16"
@@ -8,13 +14,22 @@ with app.setup:
 
 
 @app.cell
-def _():
+def decorator_wrap():
     @mo.cache
     def cache(x):
         return x + 1
 
     bar = cache(1)
     return (bar, cache)
+
+
+@app.cell
+def block_wrap(mo):
+    with mo.cache("random") as cache_block:
+        x = []
+
+    a = "need a final line to trigger invalid block capture"
+    return (x, cache_block)
 
 
 if __name__ == "__main__":

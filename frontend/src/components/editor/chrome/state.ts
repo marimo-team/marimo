@@ -3,7 +3,7 @@
 import { useAtomValue } from "jotai";
 import { z } from "zod";
 import { createReducerAndAtoms } from "@/utils/createReducer";
-import { ZodLocalStorage } from "@/utils/localStorage";
+import { ZodLocalStorage } from "@/utils/storage/typed";
 import type { PanelType } from "./types";
 
 export interface ChromeState {

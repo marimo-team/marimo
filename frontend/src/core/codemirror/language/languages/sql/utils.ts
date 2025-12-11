@@ -17,14 +17,60 @@ import {
   DuckDBDialect,
 } from "@marimo-team/codemirror-sql/dialects";
 import type { DataSourceConnection } from "@/core/kernel/messages";
+import { logNever } from "@/utils/assertNever";
+import { Logger } from "@/utils/Logger";
+
+const KNOWN_DIALECTS_ARRAY = [
+  "postgresql",
+  "postgres",
+  "couchbase",
+  "db2",
+  "db2i",
+  "tidb",
+  "mysql",
+  "sqlite",
+  "mssql",
+  "sqlserver",
+  "duckdb",
+  "mariadb",
+  "cassandra",
+  "noql",
+  "spark",
+  "awsathena",
+  "athena",
+  "bigquery",
+  "hive",
+  "redshift",
+  "snowflake",
+  "flink",
+  "mongodb",
+  "trino",
+  "oracle",
+  "oracledb",
+  "singlestoredb",
+  "timescaledb",
+] as const;
+const KNOWN_DIALECTS: ReadonlySet<string> = new Set(KNOWN_DIALECTS_ARRAY);
+type KnownDialect = (typeof KNOWN_DIALECTS_ARRAY)[number];
+
+export function isKnownDialect(dialect: string): dialect is KnownDialect {
+  return KNOWN_DIALECTS.has(dialect);
+}
 
 /**
  * Guess the CodeMirror SQL dialect from the backend connection dialect.
+ * If unknown, return the standard SQL dialect.
  */
 export function guessDialect(
   connection: Pick<DataSourceConnection, "dialect">,
-): SQLDialect | undefined {
-  switch (connection.dialect) {
+): SQLDialect {
+  const dialect = connection.dialect;
+  if (!isKnownDialect(dialect)) {
+    Logger.debug("Unknown dialect", { dialect });
+    return ModifiedStandardSQL;
+  }
+
+  switch (dialect) {
     case "postgresql":
     case "postgres":
       return PostgreSQL;
@@ -46,8 +92,28 @@ export function guessDialect(
       return PLSQL;
     case "bigquery":
       return BigQueryDialect;
+    case "timescaledb":
+      return PostgreSQL; // TimescaleDB is a PostgreSQL dialect
+    case "awsathena":
+    case "athena":
+    case "db2i":
+    case "db2":
+    case "hive":
+    case "redshift":
+    case "snowflake":
+    case "flink":
+    case "mongodb":
+    case "noql":
+    case "couchbase":
+    case "trino":
+    case "tidb":
+    case "singlestoredb":
+    case "spark":
+      Logger.debug("Unsupported dialect", { dialect });
+      return ModifiedStandardSQL;
     default:
-      return undefined;
+      logNever(dialect);
+      return ModifiedStandardSQL;
   }
 }
 

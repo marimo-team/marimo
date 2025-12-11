@@ -1,4 +1,5 @@
 App
+AppMeta
 Cell
 Html
 MarimoIslandGenerator

@@ -5,6 +5,7 @@ import base64
 import io
 from typing import Any, Union
 
+from marimo._messaging.msgspec_encoder import enc_hook
 from marimo._plugins.core.media import is_data_empty
 from marimo._runtime.virtual_file import (
     EMPTY_VIRTUAL_FILE,
@@ -237,5 +238,5 @@ def sanitize_json_bigint(
         convert_bigint(as_json),
         indent=None,
         separators=(",", ":"),
-        default=str,
+        default=enc_hook,
     )

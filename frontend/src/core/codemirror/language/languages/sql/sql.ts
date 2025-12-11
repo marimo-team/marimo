@@ -38,6 +38,7 @@ import type { HotkeyProvider } from "@/core/hotkeys/hotkeys";
 import type { ValidateSQLResult } from "@/core/kernel/messages";
 import { store } from "@/core/state/jotai";
 import { resolvedThemeAtom } from "@/theme/useTheme";
+import { logNever } from "@/utils/assertNever";
 import { Logger } from "@/utils/Logger";
 import { variableCompletionSource } from "../../embedded/embedded-python";
 import { languageMetadataField } from "../../metadata";
@@ -52,6 +53,7 @@ import {
 } from "./completion-sources";
 import { SCHEMA_CACHE } from "./completion-store";
 import { getSQLMode, type SQLMode } from "./sql-mode";
+import { isKnownDialect } from "./utils";
 
 const DEFAULT_DIALECT = DuckDBDialect;
 const DEFAULT_PARSER_DIALECT = "DuckDB";
@@ -112,7 +114,7 @@ export class SQLLanguageAdapter
     const metadata = result.metadata as SQLLanguageAdapterMetadata;
 
     if (metadata.engine && metadata.engine !== DUCKDB_ENGINE) {
-      setLatestEngineSelected(metadata.engine as ConnectionName);
+      setLatestEngineSelected(metadata.engine);
     }
 
     return [result.code, result.offset, metadata];
@@ -135,7 +137,7 @@ export class SQLLanguageAdapter
     _completionConfig: CompletionConfig,
     _hotkeys: HotkeyProvider,
     _placeholderType: PlaceholderType,
-    lspConfig: LSPConfig & { diagnostics: DiagnosticsConfig },
+    _lspConfig: LSPConfig & { diagnostics: DiagnosticsConfig },
   ): Extension[] {
     const extensions = [
       // This can be updated with a dispatch effect
@@ -166,7 +168,8 @@ export class SQLLanguageAdapter
       }),
     ];
 
-    const sqlLinterEnabled = lspConfig?.diagnostics?.sql_linter ?? false;
+    // TODO: Issue with frontend being stuck
+    const sqlLinterEnabled = false;
 
     if (sqlLinterEnabled) {
       const theme = store.get(resolvedThemeAtom);
@@ -353,11 +356,17 @@ function connectionNameToParserDialect(
 ): ParserDialects | null {
   const dialect =
     SCHEMA_CACHE.getInternalDialect(connectionName)?.toLowerCase();
+
+  if (!dialect || !isKnownDialect(dialect)) {
+    return null;
+  }
+
   switch (dialect) {
     case "postgresql":
     case "postgres":
       return "PostgreSQL";
     case "db2":
+    case "db2i":
       return "DB2";
     case "mysql":
       return "MySQL";
@@ -373,6 +382,7 @@ function connectionNameToParserDialect(
     case "cassandra":
       return "Noql";
     case "athena":
+    case "awsathena":
       return "Athena";
     case "bigquery":
       return "BigQuery";
@@ -385,8 +395,20 @@ function connectionNameToParserDialect(
     case "flink":
       return "FlinkSQL";
     case "mongodb":
+    case "noql":
       return "Noql";
+    case "oracle":
+    case "oracledb":
+    case "timescaledb":
+    case "couchbase":
+    case "trino":
+    case "tidb":
+    case "singlestoredb":
+    case "spark":
+      Logger.debug("Unsupported dialect", { dialect });
+      return null;
     default:
+      logNever(dialect);
       return null;
   }
 }

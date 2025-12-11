@@ -15,8 +15,8 @@ from marimo._output.utils import uri_encode_component
 from marimo._schemas.notebook import NotebookV1
 from marimo._schemas.session import NotebookSessionV1
 from marimo._server.api.utils import parse_title
-from marimo._server.file_manager import read_css_file, read_html_head_file
 from marimo._server.model import SessionMode
+from marimo._server.notebook import read_css_file, read_html_head_file
 from marimo._server.tokens import SkewProtectionToken
 from marimo._utils.versions import is_editable
 from marimo._version import __version__
@@ -24,9 +24,22 @@ from marimo._version import __version__
 MOUNT_CONFIG_TEMPLATE = "'{{ mount_config }}'"
 
 
+_json_script_escapes = {
+    ord(">"): "\\u003E",
+    ord("<"): "\\u003C",
+    ord("&"): "\\u0026",
+}
+
+
 def _html_escape(text: str) -> str:
     """Escape HTML special characters."""
     return html.escape(text, quote=True)
+
+
+def json_script(data: Any) -> str:
+    # See https://github.com/django/django/blob/main/django/utils/html.py#L88C1-L92C2
+    # Only escape values that can break out of a script tag
+    return json.dumps(data, sort_keys=True).translate(_json_script_escapes)
 
 
 def _get_mount_config(
@@ -78,9 +91,7 @@ def _get_mount_config(
             "session": {session},
             "runtimeConfig": {runtime_config},
         }}
-""".format(
-        **{k: json.dumps(v, sort_keys=True) for k, v in options.items()}
-    ).strip()
+""".format(**{k: json_script(v) for k, v in options.items()}).strip()
 
 
 def home_page_template(
@@ -258,7 +269,7 @@ def static_notebook_template(
         f"""
     <script data-marimo="true">
         window.__MARIMO_STATIC__ = {{}};
-        window.__MARIMO_STATIC__.files = {json.dumps(files)};
+        window.__MARIMO_STATIC__.files = {json_script(files)};
     </script>
     """
     )

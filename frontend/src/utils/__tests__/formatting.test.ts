@@ -20,24 +20,24 @@ describe("formatBytes", () => {
   it("should format kilobytes", () => {
     expect(formatBytes(1024, locale)).toBe("1 KB");
     expect(formatBytes(1536, locale)).toBe("1.5 KB");
-    expect(formatBytes(10240, locale)).toBe("10 KB");
+    expect(formatBytes(10_240, locale)).toBe("10 KB");
   });
 
   it("should format megabytes", () => {
-    expect(formatBytes(1048576, locale)).toBe("1 MB"); // 1024^2
-    expect(formatBytes(1572864, locale)).toBe("1.5 MB"); // 1.5 * 1024^2
-    expect(formatBytes(10485760, locale)).toBe("10 MB");
+    expect(formatBytes(1_048_576, locale)).toBe("1 MB"); // 1024^2
+    expect(formatBytes(1_572_864, locale)).toBe("1.5 MB"); // 1.5 * 1024^2
+    expect(formatBytes(10_485_760, locale)).toBe("10 MB");
   });
 
   it("should format gigabytes", () => {
-    expect(formatBytes(1073741824, locale)).toBe("1 GB"); // 1024^3
-    expect(formatBytes(1610612736, locale)).toBe("1.5 GB"); // 1.5 * 1024^3
-    expect(formatBytes(10737418240, locale)).toBe("10 GB");
+    expect(formatBytes(1_073_741_824, locale)).toBe("1 GB"); // 1024^3
+    expect(formatBytes(1_610_612_736, locale)).toBe("1.5 GB"); // 1.5 * 1024^3
+    expect(formatBytes(10_737_418_240, locale)).toBe("10 GB");
   });
 
   it("should format terabytes", () => {
-    expect(formatBytes(1099511627776, locale)).toBe("1 TB"); // 1024^4
-    expect(formatBytes(1649267441664, locale)).toBe("1.5 TB"); // 1.5 * 1024^4
+    expect(formatBytes(1_099_511_627_776, locale)).toBe("1 TB"); // 1024^4
+    expect(formatBytes(1_649_267_441_664, locale)).toBe("1.5 TB"); // 1.5 * 1024^4
   });
 
   it("should respect locale parameter", () => {
@@ -55,9 +55,9 @@ describe("formatTime", () => {
   });
 
   it("should format microseconds", () => {
-    expect(formatTime(0.0000001, locale)).toBe("0.1µs");
-    expect(formatTime(0.0000005, locale)).toBe("0.5µs");
-    expect(formatTime(0.000000999, locale)).toBe("1µs"); // rounded by prettyNumber
+    expect(formatTime(0.000_000_1, locale)).toBe("0.1µs");
+    expect(formatTime(0.000_000_5, locale)).toBe("0.5µs");
+    expect(formatTime(0.000_000_999, locale)).toBe("1µs"); // rounded by prettyNumber
   });
 
   it("should format milliseconds", () => {
@@ -100,7 +100,7 @@ describe("formatTime", () => {
   });
 
   it("should handle edge cases", () => {
-    expect(formatTime(0.0009999, locale)).toBe("999.9µs");
+    expect(formatTime(0.000_999_9, locale)).toBe("999.9µs");
     expect(formatTime(59.999, locale)).toBe("60s"); // rounded by prettyNumber
     expect(formatTime(3599.999, locale)).toBe("59m 60s"); // rounded by prettyNumber
   });

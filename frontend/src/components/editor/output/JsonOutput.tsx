@@ -192,7 +192,12 @@ const CollapsibleTextOutput = (props: { text: string }) => {
 const LEAF_RENDERERS = {
   "image/": (value: string) => <ImageOutput src={value} />,
   "video/": (value: string) => <VideoOutput src={value} />,
-  "text/html:": (value: string) => <HtmlOutput html={value} inline={true} />,
+  "text/html:": (value: string) => (
+    <HtmlOutput html={value} inline={true} alwaysSanitizeHtml={false} />
+  ),
+  "text/markdown:": (value: string) => (
+    <HtmlOutput html={value} inline={true} alwaysSanitizeHtml={true} />
+  ),
   "text/plain+float:": (value: string) => <span>{value}</span>,
   "text/plain+bigint:": (value: string) => <span>{value}</span>,
   "text/plain+set:": (value: string) => <span>set{value}</span>,

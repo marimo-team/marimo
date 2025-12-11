@@ -3,8 +3,14 @@
 import type { components } from "@marimo-team/marimo-api";
 import { Memoize } from "typescript-memoize";
 import { type ZodObject, z } from "zod";
-import { type AiTool, ToolExecutionError } from "./base";
-import { TestFrontendTool } from "./sample-tool";
+import {
+  type AiTool,
+  ToolExecutionError,
+  type ToolNotebookContext,
+} from "./base";
+import { EditNotebookTool } from "./edit-notebook-tool";
+import { RunStaleCellsTool } from "./run-cells-tool";
+import { formatToolDescription } from "./utils";
 
 export type AnyZodObject = ZodObject<z.ZodRawShape>;
 
@@ -49,6 +55,7 @@ export class FrontendToolRegistry {
   async invoke<TName extends string>(
     toolName: TName,
     rawArgs: unknown,
+    toolContext: ToolNotebookContext,
   ): Promise<InvokeResult<TName>> {
     const tool = this.getToolOrThrow(toolName);
     const handler = tool.handler;
@@ -60,12 +67,17 @@ export class FrontendToolRegistry {
       const inputResponse = await inputSchema.safeParseAsync(rawArgs);
       if (inputResponse.error) {
         const strError = z.prettifyError(inputResponse.error);
-        throw new Error(`Tool ${toolName} returned invalid input: ${strError}`);
+        throw new ToolExecutionError(
+          `Tool ${toolName} returned invalid input: ${strError}`,
+          "INVALID_ARGUMENTS",
+          true,
+          "Please check the arguments and try again.",
+        );
       }
       const args = inputResponse.data;
 
       // Call the handler
-      const rawOutput = await handler(args);
+      const rawOutput = await handler(args, toolContext);
 
       // Parse output
       const response = await outputSchema.safeParseAsync(rawOutput);
@@ -111,10 +123,13 @@ export class FrontendToolRegistry {
   }
 
   @Memoize()
-  getToolSchemas(): FrontendToolDefinition[] {
-    return [...this.tools.values()].map((tool) => ({
+  getToolSchemas(mode: CopilotMode): FrontendToolDefinition[] {
+    const tools = [...this.tools.values()].filter((tool) =>
+      tool.mode.includes(mode),
+    );
+    return tools.map((tool) => ({
       name: tool.name,
-      description: tool.description,
+      description: formatToolDescription(tool.description),
       parameters: z.toJSONSchema(tool.schema),
       source: "frontend",
       mode: tool.mode,
@@ -123,6 +138,6 @@ export class FrontendToolRegistry {
 }
 
 export const FRONTEND_TOOL_REGISTRY = new FrontendToolRegistry([
-  ...(import.meta.env.DEV ? [new TestFrontendTool()] : []),
-  // ADD MORE TOOLS HERE
+  new EditNotebookTool(),
+  new RunStaleCellsTool(),
 ]);

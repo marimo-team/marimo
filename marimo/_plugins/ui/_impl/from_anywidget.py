@@ -1,11 +1,20 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import base64
 import hashlib
 import weakref
 from copy import deepcopy
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Generic, Optional, TypeVar
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Generic,
+    Optional,
+    TypedDict,
+    TypeVar,
+    cast,
+)
 
 import marimo._output.data.data as mo_data
 from marimo import _loggers
@@ -17,6 +26,53 @@ from marimo._plugins.ui._impl.anywidget.utils import (
 )
 from marimo._plugins.ui._impl.comm import MarimoComm
 from marimo._runtime.functions import Function
+
+
+class WireFormat(TypedDict):
+    state: dict[str, Any]
+    bufferPaths: list[list[str | int]]
+    buffers: list[str]
+
+
+def decode_from_wire(
+    wire: WireFormat | dict[str, Any],
+) -> dict[str, Any]:
+    """Decode wire format { state, bufferPaths, buffers } to plain state with bytes."""
+    if "state" not in wire or "bufferPaths" not in wire:
+        return wire  # Not wire format, return as-is
+
+    state = wire.get("state", {})
+    buffer_paths = wire.get("bufferPaths", [])
+    buffers_base64: list[str] = wire.get("buffers", [])
+
+    if buffer_paths and buffers_base64:
+        decoded_buffers = [base64.b64decode(b) for b in buffers_base64]
+        return insert_buffer_paths(state, buffer_paths, decoded_buffers)
+
+    if buffer_paths or buffers_base64:
+        LOGGER.warning(
+            "Expected wire format to have buffers, but got %s", wire
+        )
+        return state
+
+    return state
+
+
+def encode_to_wire(
+    state: dict[str, Any],
+) -> WireFormat:
+    """Encode plain state with bytes to wire format { state, bufferPaths, buffers }."""
+    state_no_buffers, buffer_paths, buffers = extract_buffer_paths(state)
+
+    # Convert bytes to base64
+    buffers_base64 = [base64.b64encode(b).decode("utf-8") for b in buffers]
+
+    return WireFormat(
+        state=state_no_buffers,
+        bufferPaths=buffer_paths,
+        buffers=buffers_base64,
+    )
+
 
 if TYPE_CHECKING:
     from anywidget import (  # type: ignore [import-not-found,unused-ignore]  # noqa: E501
@@ -76,7 +132,7 @@ class SendToWidgetArgs:
 
 
 @mddoc
-class anywidget(UIElement[T, T]):
+class anywidget(UIElement[WireFormat, T]):
     """Create a UIElement from an AnyWidget.
 
     This proxies all the widget's attributes and methods, allowing seamless
@@ -150,32 +206,41 @@ class anywidget(UIElement[T, T]):
         js: str = widget._esm if hasattr(widget, "_esm") else ""  # type: ignore [unused-ignore]  # noqa: E501
         css: str = widget._css if hasattr(widget, "_css") else ""  # type: ignore [unused-ignore]  # noqa: E501
 
-        def on_change(change: T) -> None:
-            insert_buffer_paths(change, buffer_paths, buffers)
+        def on_change(change: dict[str, Any]) -> None:
+            # Decode wire format to plain state with bytes
+            state = decode_from_wire(change)
+
+            # Only update traits that have actually changed
             current_state: dict[str, Any] = widget.get_state()
             changed_state: dict[str, Any] = {}
-            for k, v in change.items():
+
+            for k, v in state.items():
                 if k not in current_state:
                     changed_state[k] = v
                 elif current_state[k] != v:
                     changed_state[k] = v
-            widget.set_state(changed_state)
+
+            if changed_state:
+                widget.set_state(changed_state)
 
         js_hash: str = hashlib.md5(
             js.encode("utf-8"), usedforsecurity=False
         ).hexdigest()
 
+        # Store plain state with bytes for merging
         self._prev_state = json_args
+
+        # Initial value is wire format: { state, bufferPaths, buffers }
+        initial_wire = encode_to_wire(json_args)
 
         super().__init__(
             component_name="marimo-anywidget",
-            initial_value=self._prev_state,
+            initial_value=initial_wire,
             label="",
             args={
                 "js-url": mo_data.js(js).url if js else "",  # type: ignore [unused-ignore]  # noqa: E501
                 "js-hash": js_hash,
                 "css": css,
-                "buffer-paths": buffer_paths,
             },
             on_change=on_change,
             functions=(
@@ -189,9 +254,7 @@ class anywidget(UIElement[T, T]):
 
     def _initialize(
         self,
-        initialization_args: InitializationArgs[
-            dict[str, Any], dict[str, Any]
-        ],
+        initialization_args: InitializationArgs[WireFormat, dict[str, Any]],
     ) -> None:
         super()._initialize(initialization_args)
         # Add the ui_element_id after the widget is initialized
@@ -200,19 +263,48 @@ class anywidget(UIElement[T, T]):
             comm.ui_element_id = self._id
 
     def _receive_from_frontend(self, args: SendToWidgetArgs) -> None:
-        self.widget._handle_custom_msg(args.content, args.buffers)
+        state = decode_from_wire(
+            WireFormat(
+                state=args.content.get("state", {}),
+                bufferPaths=args.content.get("bufferPaths", []),
+                buffers=args.buffers or [],
+            )
+        )
+        self.widget._handle_custom_msg(state, args.buffers)
 
-    def _convert_value(self, value: T) -> T:
+    def _convert_value(self, value: WireFormat) -> T:
         if isinstance(value, dict) and isinstance(self._prev_state, dict):
-            merged = {**self._prev_state, **value}
+            # Decode wire format to plain state with bytes
+            decoded_state = decode_from_wire(value)
+
+            # Merge with previous state
+            merged = {**self._prev_state, **decoded_state}
             self._prev_state = merged
-            return merged
+
+            # Encode back to wire format for frontend
+            # NB: This needs to be the wire format to work
+            # although the types say it should be the plain state,
+            # otherwise the frontend loses some information
+            return cast(T, encode_to_wire(merged))
 
         LOGGER.warning(
             f"Expected anywidget value to be a dict, got {type(value)}"
         )
         self._prev_state = value
-        return value
+        return cast(T, value)
+
+    @property
+    def value(self) -> T:
+        """The element's current value as a plain dictionary (wire format decoded)."""
+        # Get the internal value (which is in wire format)
+        internal_value = super().value
+        # Decode it to plain state for user-facing code
+        return decode_from_wire(internal_value)  # type: ignore[return-value]
+
+    @value.setter
+    def value(self, value: T) -> None:
+        del value
+        raise RuntimeError("Setting the value of a UIElement is not allowed.")
 
     def __deepcopy__(self, memo: Any) -> Any:
         # Overriding UIElement deepcopy implementation

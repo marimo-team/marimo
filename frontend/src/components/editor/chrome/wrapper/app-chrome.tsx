@@ -1,10 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import React, {
-  type PropsWithChildren,
-  Suspense,
-  useEffect,
-  useId,
-} from "react";
+import React, { type PropsWithChildren, Suspense, useEffect } from "react";
 import {
   type ImperativePanelHandle,
   Panel,
@@ -17,7 +12,9 @@ import "./app-chrome.css";
 import { TooltipProvider } from "@radix-ui/react-tooltip";
 import { XIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LazyMount } from "@/components/utils/lazy-mount";
+import { getFeatureFlag } from "@/core/config/feature-flag";
 import { IfCapability } from "@/core/config/if-capability";
 import { cn } from "@/utils/cn";
 import { ErrorBoundary } from "../../boundary/ErrorBoundary";
@@ -25,7 +22,8 @@ import { ContextAwarePanel } from "../panels/context-aware-panel/context-aware-p
 import { useChromeActions, useChromeState } from "../state";
 import { Minimap } from "./minimap";
 import { PanelsWrapper } from "./panels";
-import { createStorage } from "./storage";
+import { PendingAICells } from "./pending-ai-cells";
+import { useAiPanelTab } from "./useAiPanel";
 import { handleDragging } from "./utils";
 
 const LazyTerminal = React.lazy(() => import("@/components/terminal/terminal"));
@@ -63,9 +61,7 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
   const { setIsSidebarOpen, setIsTerminalOpen } = useChromeActions();
   const sidebarRef = React.useRef<ImperativePanelHandle>(null);
   const terminalRef = React.useRef<ImperativePanelHandle>(null);
-
-  const helperPanelId = useId();
-  const terminalPanelId = useId();
+  const { aiPanelTab, setAiPanelTab } = useAiPanelTab();
 
   // sync sidebar
   useEffect(() => {
@@ -143,13 +139,48 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
     />
   );
 
+  const agentsEnabled = getFeatureFlag("external_agents");
+
+  const renderAiPanel = () => {
+    if (agentsEnabled && aiPanelTab === "agents") {
+      return <LazyAgentPanel />;
+    }
+    return <LazyChatPanel />;
+  };
+
   const helpPaneBody = (
     <ErrorBoundary>
       <div className="flex flex-col h-full flex-1 overflow-hidden mr-[-4px]">
         <div className="p-3 border-b flex justify-between items-center">
-          <div className="text-sm text-(--slate-11) uppercase tracking-wide font-semibold flex-1">
-            {selectedPanel}
-          </div>
+          {selectedPanel === "ai" && agentsEnabled ? (
+            <Tabs
+              value={aiPanelTab}
+              onValueChange={(value) => {
+                if (value === "chat" || value === "agents") {
+                  setAiPanelTab(value);
+                }
+              }}
+            >
+              <TabsList>
+                <TabsTrigger
+                  value="chat"
+                  className="py-0.5 text-xs uppercase tracking-wide font-bold"
+                >
+                  Chat
+                </TabsTrigger>
+                <TabsTrigger
+                  value="agents"
+                  className="py-0.5 text-xs uppercase tracking-wide font-bold"
+                >
+                  Agents
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+          ) : (
+            <span className="text-sm text-(--slate-11) uppercase tracking-wide font-semibold flex-1">
+              {selectedPanel}
+            </span>
+          )}
           <Button
             data-testid="close-helper-pane"
             className="m-0"
@@ -172,8 +203,7 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
             {selectedPanel === "documentation" && <LazyDocumentationPanel />}
             {selectedPanel === "snippets" && <LazySnippetsPanel />}
             {selectedPanel === "scratchpad" && <LazyScratchpadPanel />}
-            {selectedPanel === "chat" && <LazyChatPanel />}
-            {selectedPanel === "agents" && <LazyAgentPanel />}
+            {selectedPanel === "ai" && renderAiPanel()}
             {selectedPanel === "logs" && <LazyLogsPanel />}
             {selectedPanel === "tracing" && <LazyTracingPanel />}
             {selectedPanel === "secrets" && <LazySecretsPanel />}
@@ -187,7 +217,9 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
   const helperPanel = (
     <Panel
       ref={sidebarRef}
-      id={`helper-${helperPanelId}`}
+      // This cannot by dynamic and must be constant
+      // so that the size is preserved between page loads
+      id="app-chrome-sidebar"
       data-testid="helper"
       key={"helper"}
       collapsedSize={0}
@@ -218,7 +250,9 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
   const terminalPanel = (
     <Panel
       ref={terminalRef}
-      id={`terminal-${terminalPanelId}`}
+      // This cannot by dynamic and must be constant
+      // so that the size is preserved between page loads
+      id="app-chrome-terminal"
       data-testid="terminal"
       key={"terminal"}
       collapsedSize={0}
@@ -254,16 +288,12 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
 
   return (
     <PanelsWrapper>
-      <PanelGroup
-        autoSaveId="marimo:chrome:v1:l2"
-        direction={"horizontal"}
-        storage={createStorage("left")}
-      >
+      <PanelGroup autoSaveId="marimo:chrome:v1:l2" direction={"horizontal"}>
         <TooltipProvider>
           <Sidebar />
         </TooltipProvider>
         {helperPanel}
-        <Panel>
+        <Panel id="app-chrome-body">
           <PanelGroup autoSaveId="marimo:chrome:v1:l1" direction="vertical">
             {appBodyPanel}
             <IfCapability capability="terminal">{terminalPanel}</IfCapability>
@@ -272,6 +302,7 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
         <ContextAwarePanel />
       </PanelGroup>
       <Minimap />
+      <PendingAICells />
       <ErrorBoundary>
         <TooltipProvider>
           <Footer />

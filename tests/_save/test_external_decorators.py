@@ -282,6 +282,10 @@ class TestAsExternalApp:
             _, defs = ex_app.run()
             assert defs["bar"] == 2
             assert defs["cache"](1) == 2
+            assert len(defs["x"]) == 0
+            defs["x"].append(1)
+            _, defs = ex_app.run()
+            assert len(defs["x"]) == 1
             return
 
     @staticmethod

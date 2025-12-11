@@ -133,15 +133,14 @@ export function transitionCell(
     });
   }
 
-  if (message.console !== null) {
+  const messageConsole = message.console;
+  if (messageConsole != null) {
     // The kernel sends an empty array to clear the console; otherwise,
-    // message.console is an output that needs to be appended to the
+    // messageConsole is an output that needs to be appended to the
     // existing console outputs.
-    consoleOutputs = Array.isArray(message.console)
-      ? message.console
-      : collapseConsoleOutputs(
-          [...consoleOutputs, message.console].filter(Boolean),
-        );
+    consoleOutputs = Array.isArray(messageConsole)
+      ? collapseConsoleOutputs(messageConsole)
+      : collapseConsoleOutputs([...consoleOutputs, messageConsole]);
   }
   nextCell.consoleOutputs = consoleOutputs;
   // Derive outline from output

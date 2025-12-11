@@ -7,18 +7,16 @@ the marimo editor or running application. This lets you edit your notebook
 using an editor of your choice, like neovim, VSCode, Cursor, or PyCharm, and
 have the changes automatically reflected in your browser.
 
-!!! tip "Install watchdog for better file watching"
-    For better performance, install [watchdog](https://pypi.org/project/watchdog/).
-    Without watchdog, marimo resorts to polling.
+/// admonition | Prefer VS Code/Cursor? Try our extension!
+    type: tip
 
-!!! warn "Watch works best with autosave"
-    Verify your settings in `User Settings` > `Editor` > `Autosave` > `Autosave enabled`
+This guide teaches you how to use marimo with arbitrary text editors.
+If you use VS Code or Cursor, you might prefer using [our
+extension](https://marketplace.visualstudio.com/items?itemName=marimo-team.vscode-marimo), which provides a first-class experience for editing and
+running marimo notebooks.
+///
 
 ## marimo's file format
-
-!!! tip "File format tutorial"
-
-    Run `marimo tutorial fileformat` at the command line for a full guide.
 
 marimo stores notebooks as Python files.  Cells are stored
 as functions, decorated with`@app.cell`; you can optionally give cells names in
@@ -31,6 +29,8 @@ def memorable_cell_name(auto, determined, references):  # signature denotes cell
     "hello!"                                            # final statement is the visual output
     return computed_value                               # return denotes cell definitions
 ```
+
+Run `marimo tutorial fileformat` at the command line for a full guide.
 
 !!! note "Cell signature and returns"
 
@@ -180,6 +180,14 @@ a library, and they cannot be run as scripts.
 
 ## Watching for changes to your notebook
 
+!!! tip "Install watchdog for better file watching"
+    For better performance, install [watchdog](https://pypi.org/project/watchdog/).
+    Without watchdog, marimo resorts to polling.
+
+!!! warn "Watch works best with autosave"
+    Verify your settings in `User Settings` > `Editor` > `Autosave` > `Autosave enabled`
+
+
 ### `marimo edit --watch`
 
 When you run `marimo edit` with the `--watch` flag, the marimo server
@@ -215,11 +223,10 @@ Guide](module_autoreloading.md)
 
 ## Watching for data changes
 
-!!! info "Data file watching now supported!"
-    marimo now supports watching data files and automatically refreshing cells that
-    depend on them using `mo.watch.file()` and `mo.watch.directory()`.
+marimo supports watching data files and automatically refreshing cells that
+depend on them using [`mo.watch.file`][marimo.watch.file] and [mo.watch.directory][`marimo.watch.directory`].
 
-    Learn more in the [watch API documentation](../../api/watch.md).
+Learn more in the [watch API documentation](../../api/watch.md).
 
 ## Hot-reloading WebAssembly notebooks
 

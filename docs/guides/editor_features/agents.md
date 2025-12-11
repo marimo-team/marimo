@@ -29,9 +29,17 @@ claude
 
 **Connection command:**
 
-```bash
-npx stdio-to-ws "npx @zed-industries/claude-code-acp" --port 3017
-```
+=== "macOS/Linux"
+
+    ```bash
+    npx stdio-to-ws "npx @zed-industries/claude-code-acp" --port 3017
+    ```
+
+=== "Windows"
+
+    ```bash
+    npx stdio-to-ws "cmd /c npx @zed-industries/claude-code-acp" --port 3017
+    ```
 
 ### Gemini Agent
 
@@ -41,9 +49,17 @@ See login and authentication instructions in the [Gemini CLI documentation](http
 
 **Connection command:**
 
-```bash
-npx stdio-to-ws "npx @google/gemini-cli --experimental-acp" --port 3019
-```
+=== "macOS/Linux"
+
+    ```bash
+    npx stdio-to-ws "npx @google/gemini-cli --experimental-acp" --port 3019
+    ```
+
+=== "Windows"
+
+    ```bash
+    npx stdio-to-ws "cmd /c npx @google/gemini-cli --experimental-acp" --port 3019
+    ```
 
 ## Connecting to an agent
 
@@ -56,6 +72,17 @@ npx stdio-to-ws "npx @google/gemini-cli --experimental-acp" --port 3019
 !!! tip "Terminal integration"
 
     If you have terminal access enabled in marimo, you can run agent connection commands directly from the agent panel using the terminal button.
+
+!!! tip "Auto-run on agent edits"
+
+    By default, when an agent modifies your notebook, cells are marked as stale instead of running automatically. To have cells run automatically when the agent saves changes, add this configuration to your `pyproject.toml`:
+
+    ```toml
+    [tool.marimo.runtime]
+    watcher_on_save = "autorun"
+    ```
+
+    This provides a more seamless experience when working with agents, as you'll see results immediately after the agent makes changes.
 
 ## Custom agents
 

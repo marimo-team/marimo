@@ -18,6 +18,7 @@ __all__ = [
     # Core API
     "App",
     "Cell",
+    "AppMeta",
     "create_asgi_app",
     "MarimoIslandGenerator",
     "MarimoStopError",
@@ -127,6 +128,7 @@ from marimo._plugins.stateless.tabs import tabs
 from marimo._plugins.stateless.tree import tree
 from marimo._plugins.stateless.video import video
 from marimo._runtime import output
+from marimo._runtime.app_meta import AppMeta
 from marimo._runtime.capture import (
     capture_stderr,
     capture_stdout,

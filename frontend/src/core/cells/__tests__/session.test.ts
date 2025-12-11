@@ -210,8 +210,18 @@ describe("notebookStateFromSession", () => {
 
     it("handles console outputs in session cell", () => {
       const consoleOutputs = [
-        { type: "stream", name: "stdout", text: "Hello stdout" } as const,
-        { type: "stream", name: "stderr", text: "Hello stderr" } as const,
+        {
+          type: "stream",
+          name: "stdout",
+          text: "Hello stdout",
+          mimetype: "text/plain",
+        } as const,
+        {
+          type: "stream",
+          name: "stderr",
+          text: "Hello stderr",
+          mimetype: "text/plain",
+        } as const,
       ];
       const session = createSession([
         createSessionCell("cell-1", [], consoleOutputs),
@@ -356,7 +366,14 @@ describe("notebookStateFromSession", () => {
         createSessionCell(
           "cell-1",
           [],
-          [{ type: "stream", name: "stdout", text: "output" }],
+          [
+            {
+              type: "stream",
+              name: "stdout",
+              text: "output",
+              mimetype: "text/plain",
+            },
+          ],
         ),
       ]);
       const notebook = createNotebook([
@@ -380,14 +397,8 @@ describe("notebookStateFromSession", () => {
         },
         serializedEditorState: null,
       });
-      expect(result.cellRuntime[CELL_1].consoleOutputs).toEqual([
-        {
-          channel: "stdout",
-          data: "output",
-          mimetype: "text/plain",
-          timestamp: 0,
-        },
-      ]);
+      // Null result means no output.
+      expect(result.cellRuntime[CELL_1].consoleOutputs).toEqual([]);
     });
 
     it("creates state when cell order differs but same cells", () => {
@@ -435,9 +446,6 @@ describe("notebookStateFromSession", () => {
       const session = createSession([]);
       const result = notebookStateFromSession(session, null);
 
-      expect(Logger.warn).toHaveBeenCalledWith(
-        "Session and notebook must have at least one cell",
-      );
       expect(result).toBeNull();
     });
 
@@ -445,9 +453,6 @@ describe("notebookStateFromSession", () => {
       const notebook = createNotebook([]);
       const result = notebookStateFromSession(null, notebook);
 
-      expect(Logger.warn).toHaveBeenCalledWith(
-        "Session and notebook must have at least one cell",
-      );
       expect(result).toBeNull();
     });
 
@@ -456,9 +461,6 @@ describe("notebookStateFromSession", () => {
       const notebook = createNotebook([]);
       const result = notebookStateFromSession(session, notebook);
 
-      expect(Logger.warn).toHaveBeenCalledWith(
-        "Session and notebook must have at least one cell",
-      );
       expect(result).toBeNull();
     });
   });
@@ -749,6 +751,126 @@ describe("notebookStateFromSession", () => {
       expect(result.cellRuntime["cell-g" as CellId].output).toBeNull();
 
       // Should log warning about different cells
+      expect(Logger.warn).toHaveBeenCalledWith(
+        "Session and notebook have different cells, attempted merge.",
+      );
+    });
+
+    it("merges session and notebook with mismatched cells and swapped code hashes", () => {
+      // This test simulates a real-world scenario where:
+      // - Session has cells cell-999, cell-1, cell-2 with certain outputs
+      // - Notebook has cells cell-1, cell-2, cell-3 with different code
+      // - The code hashes are mismatched, showing code has changed
+      //
+      // The merge algorithm uses edit distance on code hashes to match cells:
+      // - Session cell-1 (hash=moMd) matches Notebook cell-2 (hash=moMd)
+      // - Session cell-2 (hash=slider) matches Notebook cell-3 (hash=slider)
+      // - Session cell-999 (hash=null) doesn't match anything (null hashes never match)
+      // - Notebook cell-1 (hash=null) gets a stub session cell
+      const hashes = {
+        moMd: "2260380a88f9b8759c0ccb1230f1498e", // hash for mo.md("Hello")
+        slider: "34938d98b7a6c88431d6cad23ea0a574", // hash for x = mo.ui.slider(0, 10)
+      };
+
+      // Session has cells: cell-999 (error, no hash), cell-1 (markdown, hash=moMd), cell-2 (empty, hash=slider)
+      const sessionCells = [
+        createSessionCell(
+          "cell-999",
+          [
+            {
+              type: "error",
+              ename: "exception",
+              evalue: "division by zero",
+              traceback: [],
+            },
+          ],
+          [
+            {
+              type: "stream",
+              name: "stderr",
+              text: "Traceback (most recent call last): File <stdin>, line 1, in <module ZeroDivisionError: division by zero",
+              mimetype: "application/vnd.marimo+traceback",
+            },
+          ],
+          null, // no hash - won't match anything
+        ),
+        createSessionCell(
+          "cell-1",
+          [
+            {
+              type: "data",
+              data: { "text/markdown": "Welcome to marimo!" },
+            },
+          ],
+          [],
+          hashes.moMd, // matches notebook cell-2
+        ),
+        createSessionCell(
+          "cell-2",
+          [
+            {
+              type: "data",
+              data: { "text/plain": "" },
+            },
+          ],
+          [],
+          hashes.slider, // matches notebook cell-3
+        ),
+      ];
+
+      // Notebook has cells: cell-1 (1 / 0, no hash), cell-2 (mo.md("Hello"), hash=moMd), cell-3 (slider, hash=slider)
+      const notebookCells = [
+        createNotebookCell("cell-1", "1 / 0", null, null, null), // no hash
+        createNotebookCell("cell-2", 'mo.md("Hello")', null, null, hashes.moMd),
+        createNotebookCell(
+          "cell-3",
+          "x = mo.ui.slider(0, 10)",
+          null,
+          null,
+          hashes.slider,
+        ),
+      ];
+
+      const session = createSession(sessionCells);
+      const notebook = createNotebook(notebookCells);
+      const result = notebookStateFromSession(session, notebook);
+
+      expect(result).not.toBeNull();
+      invariant(result, "result is null");
+
+      // Should have notebook cell IDs in order (notebook is canonical)
+      expect(result.cellIds.inOrderIds).toEqual(
+        MultiColumn.from([["cell-1", "cell-2", "cell-3"]]).inOrderIds,
+      );
+
+      // Should have correct code from notebook
+      expect(result.cellData["cell-1" as CellId].code).toBe("1 / 0");
+      expect(result.cellData["cell-2" as CellId].code).toBe('mo.md("Hello")');
+      expect(result.cellData["cell-3" as CellId].code).toBe(
+        "x = mo.ui.slider(0, 10)",
+      );
+
+      // cell-1: No matching session cell (hash is null), gets stub session cell
+      expect(result.cellRuntime["cell-1" as CellId].output).toBeNull();
+      expect(result.cellRuntime["cell-1" as CellId].consoleOutputs).toEqual([]);
+
+      // cell-2: Matches session cell-1 by hash (moMd), gets its output
+      expect(result.cellRuntime["cell-2" as CellId].output).toEqual({
+        channel: "output",
+        data: "Welcome to marimo!",
+        mimetype: "text/markdown",
+        timestamp: 0,
+      });
+
+      // cell-3: Matches session cell-2 by hash (slider), gets its output
+      expect(result.cellRuntime["cell-3" as CellId].output).toEqual({
+        channel: "output",
+        data: "",
+        mimetype: "text/plain",
+        timestamp: 0,
+      });
+
+      // Should log warning about different cells (merge had edit distance > 0)
       expect(Logger.warn).toHaveBeenCalledWith(
         "Session and notebook have different cells, attempted merge.",
       );

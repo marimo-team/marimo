@@ -7,13 +7,12 @@ import pytest
 
 from marimo._ai._tools.base import ToolContext
 from marimo._ai._tools.tools.cells import (
-    CellErrors,
     CellRuntimeMetadata,
     CellVariables,
+    GetCellOutputs,
     GetCellRuntimeData,
     GetLightweightCellMap,
 )
-from marimo._messaging.cell_output import CellChannel
 from marimo._messaging.ops import VariableValue
 from marimo._server.sessions import Session
 from marimo._types.ids import CellId_t, SessionId
@@ -28,8 +27,9 @@ class MockCellOp:
 
 @dataclass
 class MockOutput:
-    channel: object
-    data: object
+    channel: object = None
+    data: object = None
+    mimetype: object = None
 
 
 @dataclass
@@ -72,54 +72,6 @@ def test_is_markdown_cell():
     tool = GetLightweightCellMap(ToolContext())
     assert tool._is_markdown_cell('mo.md("hi")') is True
     assert tool._is_markdown_cell("print('x')") is False
-
-
-def test_get_cell_errors_no_cell_op():
-    tool = GetCellRuntimeData(ToolContext())
-    session = MockSession(MockSessionView())
-
-    result = tool._get_cell_errors(session, CellId_t("missing"))
-    assert result == CellErrors(has_errors=False, error_details=None)
-
-
-def test_get_cell_errors_with_marimo_error():
-    tool = GetCellRuntimeData(ToolContext())
-    error = MockError(
-        "NameError", "name 'x' is not defined", ["line1", "line2"]
-    )
-    output = MockOutput(CellChannel.MARIMO_ERROR, [error])
-    cell_op = MockCellOp(output=output)
-    session = MockSession(MockSessionView(cell_operations={"c1": cell_op}))
-
-    result = tool._get_cell_errors(session, CellId_t("c1"))
-    assert result.has_errors is True
-    assert result.error_details is not None
-    assert result.error_details[0].type == "NameError"
-
-
-def test_get_cell_errors_with_stderr():
-    tool = GetCellRuntimeData(ToolContext())
-    console_output = MockConsoleOutput(CellChannel.STDERR, "warn")
-    cell_op = MockCellOp(console=[console_output])
-    session = MockSession(MockSessionView(cell_operations={"c1": cell_op}))
-
-    result = tool._get_cell_errors(session, CellId_t("c1"))
-    assert result.has_errors is True
-    assert result.error_details is not None
-    assert result.error_details[0].type == "STDERR"
-
-
-def test_get_cell_errors_dict_error():
-    tool = GetCellRuntimeData(ToolContext())
-    dict_error = {"type": "ValueError", "msg": "invalid", "traceback": ["tb1"]}
-    output = MockOutput(CellChannel.MARIMO_ERROR, [dict_error])
-    cell_op = MockCellOp(output=output)
-    session = MockSession(MockSessionView(cell_operations={"c1": cell_op}))
-
-    result = tool._get_cell_errors(session, "c1")
-    assert result.has_errors is True
-    assert result.error_details is not None
-    assert result.error_details[0].type == "ValueError"
 
 
 def test_get_cell_metadata_basic():
@@ -218,3 +170,22 @@ def test_get_cell_runtime_data_invalid_cell():
     with pytest.raises(ToolExecutionError) as exc_info:
         tool.handle(args)
     assert exc_info.value.code == "CELL_NOT_FOUND"
+
+
+def test_get_visual_output_with_html():
+    tool = GetCellOutputs(ToolContext())
+    output = MockOutput(data="<div>test</div>", mimetype="text/html")
+    cell_op = MockCellOp(output=output)
+
+    visual_output, mimetype = tool._get_visual_output(cell_op)  # type: ignore[arg-type]
+    assert visual_output == "<div>test</div>"
+    assert mimetype == "text/html"
+
+
+def test_get_visual_output_no_output():
+    tool = GetCellOutputs(ToolContext())
+    cell_op = MockCellOp(output=None)
+
+    visual_output, mimetype = tool._get_visual_output(cell_op)  # type: ignore[arg-type]
+    assert visual_output is None
+    assert mimetype is None

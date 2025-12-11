@@ -148,6 +148,16 @@ export const FindReplace: React.FC = () => {
                     findNext();
                   }
                 }
+                // Override default browser find (Cmd/Ctrl + G)
+                if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "g") {
+                  e.preventDefault();
+                  // Shift for reverse search
+                  if (e.shiftKey) {
+                    findPrev();
+                  } else {
+                    findNext();
+                  }
+                }
               }}
               onChange={(e) => {
                 dispatch({ type: "setFind", find: e.target.value });

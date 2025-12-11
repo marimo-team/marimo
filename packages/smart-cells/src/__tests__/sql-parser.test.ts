@@ -76,6 +76,51 @@ ORDER BY price DESC`.trim(),
       expect(metadata.engine).toBe("sqlite");
     });
 
+    it("should handle f-strings with complex expressions containing quotes", () => {
+      const pythonCode = `_df = mo.sql(
+    f"""
+     SELECT
+        id AS idid,
+        value as valval
+    FROM
+        sample_data
+    WHERE
+        id IN ({",".join(df["id"][0:2].to_list())})
+    """
+)`;
+      const { code, metadata } = parser.transformIn(pythonCode);
+      expect(code).toBe(
+        `SELECT
+    id AS idid,
+    value as valval
+FROM
+    sample_data
+WHERE
+    id IN ({",".join(df["id"][0:2].to_list())})`.trim(),
+      );
+      expect(metadata.dataframeName).toBe("_df");
+    });
+
+    it("should handle f-strings with method calls containing strings", () => {
+      const pythonCode = `_df = mo.sql(f"""SELECT * FROM table WHERE col = {get_value("test")}""")`;
+      const { code, metadata } = parser.transformIn(pythonCode);
+      expect(code).toBe(`SELECT * FROM table WHERE col = {get_value("test")}`);
+      expect(metadata.dataframeName).toBe("_df");
+    });
+
+    it("should handle f-strings with nested brackets and quotes", () => {
+      const pythonCode = `result = mo.sql(f"""
+        SELECT * FROM users
+        WHERE id IN ({str(data["items"][0]["id"])})
+      """)`;
+      const { code, metadata } = parser.transformIn(pythonCode);
+      expect(code).toBe(
+        `SELECT * FROM users
+WHERE id IN ({str(data["items"][0]["id"])})`.trim(),
+      );
+      expect(metadata.dataframeName).toBe("result");
+    });
+
     it("should handle empty SQL string", () => {
       const pythonCode = 'next_df = mo.sql("")';
       const { code, offset } = parser.transformIn(pythonCode);
@@ -185,6 +230,22 @@ ORDER BY price DESC`.trim(),
         '# multiple\n# comments\ndf = mo.sql("")',
         'df = mo.sql("""SELECT 1""", output=True)',
         'df = mo.sql("""SELECT 1""", engine=postgres)',
+        // Complex f-string with quotes inside
+        `_df = mo.sql(
+    f"""
+     SELECT
+        id AS idid,
+        value as valval
+    FROM
+        sample_data
+    WHERE
+        id IN ({",".join(df["id"][0:2].to_list())})
+    """
+)`,
+        // F-string with method call containing string
+        `_df = mo.sql(f"""SELECT * FROM table WHERE col = {get_value("test")}""")`,
+        // F-string with nested brackets and quotes
+        `result = mo.sql(f"""SELECT * FROM users WHERE id IN ({str(data["items"][0]["id"])})""")`,
       ];
 
       for (const pythonCode of validCases) {
@@ -201,6 +262,13 @@ ORDER BY price DESC`.trim(),
         'df := mo.sql("")', // Wrong assignment operator
         // Multiple SQL calls
         'df = mo.sql("""SELECT 1""")\ndf2 = mo.sql("""SELECT 2""")',
+        // Conditional expressions - issue #7386
+        'df = mo.sql("""SELECT 1""") if condition else None',
+        'df = mo.sql(f"""SELECT * FROM table""") if x.value else None',
+        'test_df = (mo.sql(f"""SELECT * FROM table""", output=False) if true_false_widget.value else None)',
+        // Binary operations
+        'df = mo.sql("""SELECT 1""") or default_value',
+        'df = mo.sql("""SELECT 1""") and process_it()',
       ];
 
       for (const pythonCode of invalidCases) {
@@ -210,6 +278,18 @@ ORDER BY price DESC`.trim(),
 
     it("should return true for empty string", () => {
       expect(parser.isSupported("")).toBe(true);
+    });
+
+    it("should not support mo.sql() wrapped in parentheses", () => {
+      // We could change this in the future if needed
+      const shouldBeSupportedCases = [
+        'df = (mo.sql("""SELECT 1"""))',
+        'df = (\n    mo.sql("""SELECT 1""")\n)',
+      ];
+
+      for (const pythonCode of shouldBeSupportedCases) {
+        expect(parser.isSupported(pythonCode)).toBe(true);
+      }
     });
   });
 

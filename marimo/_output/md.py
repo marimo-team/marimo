@@ -13,7 +13,8 @@ import markdown  # type: ignore
 import markdown.preprocessors  # type: ignore
 import pymdownx.emoji  # type: ignore
 
-from marimo._output.hypertext import Html
+from marimo._messaging.mimetypes import KnownMimeType
+from marimo._output.hypertext import Html, is_no_js
 from marimo._output.md_extensions.breakless_lists import (
     BreaklessListsExtension,
 )
@@ -23,6 +24,7 @@ from marimo._output.md_extensions.flexible_indent import (
 )
 from marimo._output.md_extensions.iconify import IconifyExtension
 from marimo._output.rich_help import mddoc
+from marimo._utils.platform import is_pyodide
 from marimo._utils.url import is_url
 
 
@@ -142,6 +144,14 @@ def _get_extension_configs() -> dict[str, dict[str, Any]]:
         },
     }
 
+    # In WASM, inline images as base64 since file paths are not accessible
+    if is_pyodide():
+        from marimo._runtime.runtime import notebook_dir
+
+        extension_configs["pymdownx.b64"] = {
+            "base_path": str(notebook_dir() or Path.cwd()),
+        }
+
     return extension_configs
 
 
@@ -157,7 +167,7 @@ def _has_module(module_name: str) -> bool:
 
 @cache
 def _get_extensions() -> list[Union[str, markdown.Extension]]:
-    return [
+    extensions: list[Union[str, markdown.Extension]] = [
         # Syntax highlighting
         PyconDetectorExtension(),  # Python console detection (run before highlight)
         "pymdownx.highlight",
@@ -165,11 +175,10 @@ def _get_extensions() -> list[Union[str, markdown.Extension]]:
         "tables",
         # LaTeX
         "pymdownx.arithmatex",
-        # Base64 is not enabled, since app users could potentially
-        # use it to grab files they shouldn't have access to.
-        # "pymdownx.b64",
         # Subscripts and strikethrough
         "pymdownx.tilde",
+        # Superscripts and insert
+        "pymdownx.caret",
         # Better code blocks
         "pymdownx.superfences",
         # Task lists
@@ -212,6 +221,14 @@ def _get_extensions() -> list[Union[str, markdown.Extension]]:
         IconifyExtension(),
     ]
 
+    # In WASM, enable base64 image inlining since file paths are not accessible
+    # In other environments, base64 is not enabled since app users could
+    # potentially use it to grab files they shouldn't have access to.
+    if is_pyodide():
+        extensions.append("pymdownx.b64")
+
+    return extensions
+
 
 class _md(Html):
     def __init__(
@@ -226,14 +243,6 @@ class _md(Html):
         text = cleandoc(text)
         self._markdown_text = text
 
-        # Lazily add mo.notebook_dir() as the bas64 base path
-        # if "pymdownx.b64" not in extension_configs:
-        #     from marimo._runtime.runtime import notebook_dir
-
-        #     extension_configs["pymdownx.b64"] = {
-        #         "base_path": str(notebook_dir()),
-        #     }
-
         # markdown.markdown appends a newline, hence strip
         html_text = markdown.markdown(
             text,
@@ -246,7 +255,7 @@ class _md(Html):
         ).replace("</p>", "</span>")
 
         if apply_markdown_class:
-            classes = ["markdown", "prose", "dark:prose-invert"]
+            classes = ["markdown", "prose", "dark:prose-invert", "contents"]
             if size is not None:
                 classes.append(f"prose-{size}")
             super().__init__(
@@ -257,6 +266,14 @@ class _md(Html):
 
     def _repr_markdown_(self) -> str:
         return self._markdown_text
+
+    def _mime_(self) -> tuple[KnownMimeType, str]:
+        no_js = is_no_js()
+        if no_js:
+            return ("text/markdown", self._markdown_text)
+        # We return text/markdown instead of text/html
+        # so the frontend sanitizes the HTML
+        return ("text/markdown", self.text)
 
     def __format__(self, spec: str) -> str:
         """

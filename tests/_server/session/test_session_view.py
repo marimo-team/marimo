@@ -5,7 +5,7 @@ from typing import Any
 from unittest.mock import patch
 
 from marimo._ast.cell import RuntimeStateType
-from marimo._data.models import DataTable, DataTableColumn
+from marimo._data.models import Database, DataTable, DataTableColumn, Schema
 from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.msgspec_encoder import asdict as serialize
 from marimo._messaging.ops import (
@@ -15,6 +15,9 @@ from marimo._messaging.ops import (
     DataSourceConnections,
     InstallingPackageAlert,
     SendUIElementMessage,
+    SQLMetadata,
+    SQLTableListPreview,
+    SQLTablePreview,
     StartupLogs,
     UpdateCellCodes,
     UpdateCellIdsRequest,
@@ -32,7 +35,7 @@ from marimo._runtime.requests import (
 )
 from marimo._server.session.session_view import SessionView
 from marimo._sql.engines.duckdb import INTERNAL_DUCKDB_ENGINE
-from marimo._types.ids import CellId_t, WidgetModelId
+from marimo._types.ids import CellId_t, RequestId, VariableName, WidgetModelId
 from marimo._utils.parse_dataclass import parse_raw
 
 cell_id = CellId_t("cell_1")
@@ -558,6 +561,125 @@ def test_add_data_source_connections(session_view: SessionView) -> None:
     assert INTERNAL_DUCKDB_ENGINE in session_view_names
 
 
+def test_add_sql_table_previews() -> None:
+    session_view = SessionView()
+
+    # Add initial connections
+    session_view.add_raw_operation(
+        serialize_kernel_message(
+            DataSourceConnections(
+                connections=[
+                    DataSourceConnection(
+                        source="duckdb",
+                        name="connection1",
+                        dialect="duckdb",
+                        display_name="duckdb (connection1)",
+                        databases=[
+                            Database(
+                                name="db1",
+                                dialect="duckdb",
+                                schemas=[
+                                    Schema(
+                                        name="db1",
+                                        tables=[
+                                            DataTable(
+                                                name="table1",
+                                                source_type="connection",
+                                                source="db1",
+                                                columns=[],
+                                                num_rows=0,
+                                                num_columns=0,
+                                                variable_name=None,
+                                            )
+                                        ],
+                                    )
+                                ],
+                            )
+                        ],
+                    )
+                ],
+            )
+        )
+    )
+
+    session_view_connections = session_view.data_connectors.connections
+    assert session_view_connections[0].databases[0].schemas[0].tables == [
+        DataTable(
+            source_type="connection",
+            source="db1",
+            name="table1",
+            num_rows=0,
+            num_columns=0,
+            variable_name=None,
+            columns=[],
+        )
+    ]
+
+    session_view.add_raw_operation(
+        serialize_kernel_message(
+            SQLTablePreview(
+                metadata=SQLMetadata(
+                    connection="connection1", database="db1", schema="db1"
+                ),
+                request_id=RequestId("request_id"),
+                table=DataTable(
+                    name="table1",
+                    source_type="connection",
+                    source="db1",
+                    num_rows=10,  # Updated
+                    num_columns=0,
+                    variable_name=None,
+                    columns=[],
+                ),
+            )
+        )
+    )
+    session_view_connections = session_view.data_connectors.connections
+    assert (
+        session_view_connections[0].databases[0].schemas[0].tables[0].num_rows
+        == 10
+    )
+
+    # Add sql table preview list
+    session_view.add_raw_operation(
+        serialize_kernel_message(
+            SQLTableListPreview(
+                metadata=SQLMetadata(
+                    connection="connection1", database="db1", schema="db1"
+                ),
+                request_id=RequestId("request_id"),
+                tables=[
+                    DataTable(
+                        name="table2",
+                        source_type="connection",
+                        source="db1",
+                        num_rows=20,
+                        num_columns=10,
+                        variable_name=VariableName("var"),
+                        columns=[],
+                    )
+                ],
+            )
+        )
+    )
+
+    assert session_view_connections[0].databases[0].schemas[0].tables == [
+        DataTable(
+            source_type="connection",
+            source="db1",
+            name="table2",
+            num_rows=20,
+            num_columns=10,
+            variable_name=VariableName("var"),
+            columns=[],
+            engine=None,
+            type="table",
+            primary_keys=None,
+            indexes=None,
+        )
+    ]
+
+
 def test_add_cell_op(session_view: SessionView) -> None:
     session_view.add_raw_operation(
         serialize_kernel_message(
@@ -592,9 +714,9 @@ def test_combine_console_outputs(
         )
     )
 
+    # Consecutive text/plain stdout outputs are merged
     assert session_view.cell_operations[cell_id].console == [
-        CellOutput.stdout("one"),
-        CellOutput.stdout("two"),
+        CellOutput.stdout("onetwo"),
     ]
 
     # Moves to queued
@@ -607,8 +729,7 @@ def test_combine_console_outputs(
     )
 
     assert session_view.cell_operations[cell_id].console == [
-        CellOutput.stdout("one"),
-        CellOutput.stdout("two"),
+        CellOutput.stdout("onetwo"),
     ]
 
     # Moves to running clears console
@@ -663,6 +784,145 @@ def test_stdin(time_mock: Any, session_view: SessionView) -> None:
         CellOutput.stdout("Hello"),
         CellOutput.stdout("What is your name? marimo\n"),
     ]
+
+
+@patch("time.time", return_value=123)
+def test_merge_consecutive_text_plain_outputs(
+    time_mock: Any, session_view: SessionView
+) -> None:
+    """Test that consecutive text/plain outputs with same channel are merged."""
+    del time_mock
+
+    # Add multiple consecutive stdout outputs
+    session_view.add_operation(
+        CellOp(
+            cell_id=cell_id,
+            console=CellOutput.stdout("Hello "),
+            status="running",
+        )
+    )
+    session_view.add_operation(
+        CellOp(
+            cell_id=cell_id,
+            console=CellOutput.stdout("World"),
+            status="running",
+        )
+    )
+    session_view.add_operation(
+        CellOp(
+            cell_id=cell_id,
+            console=CellOutput.stdout("!"),
+            status="running",
+        )
+    )
+
+    # Should be merged into a single output
+    assert len(session_view.cell_operations[cell_id].console) == 1
+    assert (
+        session_view.cell_operations[cell_id].console[0].data == "Hello World!"
+    )
+    assert (
+        session_view.cell_operations[cell_id].console[0].channel
+        == CellChannel.STDOUT
+    )
+
+
+@patch("time.time", return_value=123)
+def test_merge_different_channels_not_merged(
+    time_mock: Any, session_view: SessionView
+) -> None:
+    """Test that outputs with different channels are not merged."""
+    del time_mock
+
+    session_view.add_operation(
+        CellOp(
+            cell_id=cell_id,
+            console=CellOutput.stdout("stdout message"),
+            status="running",
+        )
+    )
+    session_view.add_operation(
+        CellOp(
+            cell_id=cell_id,
+            console=CellOutput.stderr("stderr message"),
+            status="running",
+        )
+    )
+
+    # Should remain separate
+    assert len(session_view.cell_operations[cell_id].console) == 2
+    assert (
+        session_view.cell_operations[cell_id].console[0].channel
+        == CellChannel.STDOUT
+    )
+    assert (
+        session_view.cell_operations[cell_id].console[1].channel
+        == CellChannel.STDERR
+    )
+
+
+@patch("time.time", return_value=123)
+def test_merge_different_mimetypes_not_merged(
+    time_mock: Any, session_view: SessionView
+) -> None:
+    """Test that outputs with different mimetypes are not merged."""
+    del time_mock
+
+    session_view.add_operation(
+        CellOp(
+            cell_id=cell_id,
+            console=CellOutput.stdout("plain text", mimetype="text/plain"),
+            status="running",
+        )
+    )
+    session_view.add_operation(
+        CellOp(
+            cell_id=cell_id,
+            console=CellOutput.stdout("html content", mimetype="text/html"),
+            status="running",
+        )
+    )
+
+    # Should remain separate
+    assert len(session_view.cell_operations[cell_id].console) == 2
+    assert (
+        session_view.cell_operations[cell_id].console[0].mimetype
+        == "text/plain"
+    )
+    assert (
+        session_view.cell_operations[cell_id].console[1].mimetype
+        == "text/html"
+    )
+
+
+@patch("time.time", return_value=123)
+def test_merge_with_non_string_data_not_merged(
+    time_mock: Any, session_view: SessionView
+) -> None:
+    """Test that outputs with non-string data are not merged."""
+    del time_mock
+
+    session_view.add_operation(
+        CellOp(
+            cell_id=cell_id,
+            console=CellOutput.stdout("text"),
+            status="running",
+        )
+    )
+    session_view.add_operation(
+        CellOp(
+            cell_id=cell_id,
+            console=CellOutput(
+                channel=CellChannel.STDOUT,
+                mimetype="text/plain",
+                data={"key": "value"},  # dict, not string
+            ),
+            status="running",
+        )
+    )
+
+    # Should remain separate
+    assert len(session_view.cell_operations[cell_id].console) == 2
 
 
 @patch("time.time", return_value=123)
@@ -755,8 +1015,9 @@ def test_get_cell_console_outputs(
         )
     )
 
+    # Consecutive text/plain stdout outputs are merged
     assert session_view.get_cell_console_outputs([cell_id, cell_2_id]) == {
-        cell_id: [CellOutput.stdout("one"), CellOutput.stdout("two")],
+        cell_id: [CellOutput.stdout("onetwo")],
         cell_2_id: [CellOutput.stdout("two")],
     }
 

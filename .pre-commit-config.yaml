@@ -7,7 +7,7 @@ repos:
       - id: check-yaml
 
   - repo: https://github.com/rhysd/actionlint
-    rev: v1.7.8
+    rev: v1.7.9
     hooks:
       - id: actionlint
         args: [-ignore, SC]
@@ -18,7 +18,7 @@ repos:
       - id: validate-pyproject
 
   - repo: https://github.com/igorshubovych/markdownlint-cli
-    rev: v0.45.0
+    rev: v0.46.0
     hooks:
       - id: markdownlint-fix
         args: [-c, configs/.markdownlint.yaml, --fix, --disable, MD028]
@@ -31,7 +31,7 @@ repos:
         pass_filenames: false
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.14.0
+    rev: v0.14.8
     hooks:
       # Run the linter
       - id: ruff
@@ -40,7 +40,7 @@ repos:
       - id: ruff-format
 
   - repo: https://github.com/biomejs/pre-commit
-    rev: v2.2.5
+    rev: v2.3.8
     hooks:
       - id: biome-check
         args: [--diagnostic-level, warn]

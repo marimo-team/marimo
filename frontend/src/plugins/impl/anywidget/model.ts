@@ -2,14 +2,14 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import type { AnyModel } from "@anywidget/types";
-import { dequal } from "dequal";
 import { debounce } from "lodash-es";
 import { z } from "zod";
 import { getRequestClient } from "@/core/network/requests";
 import { assertNever } from "@/utils/assertNever";
 import { Deferred } from "@/utils/Deferred";
-import { updateBufferPaths } from "@/utils/data-views";
+import { decodeFromWire, serializeBuffersToBase64 } from "@/utils/data-views";
 import { throwNotImplemented } from "@/utils/functions";
+import type { Base64String } from "@/utils/json/base64";
 import { Logger } from "@/utils/Logger";
 
 export type EventHandler = (...args: any[]) => void;
@@ -63,28 +63,30 @@ export const MODEL_MANAGER = new ModelManager();
 
 export class Model<T extends Record<string, any>> implements AnyModel<T> {
   private ANY_CHANGE_EVENT = "change";
-  private dirtyFields;
+  private dirtyFields: Map<keyof T, unknown>;
   public static _modelManager: ModelManager = MODEL_MANAGER;
   private data: T;
   private onChange: (value: Partial<T>) => void;
   private sendToWidget: (req: {
-    content?: any;
-    buffers?: ArrayBuffer[] | ArrayBufferView[];
+    content: unknown;
+    buffers: Base64String[];
   }) => Promise<null | undefined>;
 
   constructor(
     data: T,
     onChange: (value: Partial<T>) => void,
     sendToWidget: (req: {
-      content?: any;
-      buffers?: ArrayBuffer[] | ArrayBufferView[];
+      content: unknown;
+      buffers: Base64String[];
     }) => Promise<null | undefined>,
     initialDirtyFields: Set<keyof T>,
   ) {
     this.data = data;
     this.onChange = onChange;
     this.sendToWidget = sendToWidget;
-    this.dirtyFields = new Set(initialDirtyFields);
+    this.dirtyFields = new Map(
+      [...initialDirtyFields].map((key) => [key, this.data[key]]),
+    );
   }
 
   private listeners: Record<string, Set<EventHandler>> = {};
@@ -106,12 +108,16 @@ export class Model<T extends Record<string, any>> implements AnyModel<T> {
   send(
     content: any,
     callbacks?: any,
-    buffers?: ArrayBuffer[] | ArrayBufferView[],
+    _buffers?: ArrayBuffer[] | ArrayBufferView[],
   ): void {
-    if (buffers) {
-      Logger.warn("buffers not supported in marimo anywidget.send");
-    }
-    this.sendToWidget({ content, buffers }).then(callbacks);
+    const { state, bufferPaths, buffers } = serializeBuffersToBase64(content);
+    this.sendToWidget({
+      content: {
+        state: state,
+        bufferPaths: bufferPaths,
+      },
+      buffers: buffers,
+    }).then(callbacks);
   }
 
   widget_manager = {
@@ -134,7 +140,7 @@ export class Model<T extends Record<string, any>> implements AnyModel<T> {
 
   set<K extends keyof T>(key: K, value: T[K]): void {
     this.data = { ...this.data, [key]: value };
-    this.dirtyFields.add(key);
+    this.dirtyFields.set(key, value);
     this.emit(`change:${key as K & string}`, value);
     this.emitAnyChange();
   }
@@ -143,24 +149,25 @@ export class Model<T extends Record<string, any>> implements AnyModel<T> {
     if (this.dirtyFields.size === 0) {
       return;
     }
-    const partialData: Partial<T> = {};
-    this.dirtyFields.forEach((key) => {
-      partialData[key] = this.data[key];
-    });
-    // We don't clear the dirty fields here, because we want
-    // to send all fields that different from the initial value (have ever been changed).
-    // This is less performant, but more correct, because the backend
-    // stores the last value sent, and not a merge of the values.
-    // When the backend knows to merge the partial updates, then we can clear
-    // the dirty fields.
-    // this.dirtyFields.clear();
+    // Only send the dirty fields, not the entire state.
+    const partialData = Object.fromEntries(
+      this.dirtyFields.entries(),
+    ) as Partial<T>;
+
+    // Clear the dirty fields to avoid sending again.
+    this.dirtyFields.clear();
     this.onChange(partialData);
   }
 
   updateAndEmitDiffs(value: T): void {
+    if (value == null) {
+      return;
+    }
+
     Object.keys(value).forEach((key) => {
       const k = key as keyof T;
-      if (!dequal(this.data[k], value[k])) {
+      // Shallow equal since these can be large objects
+      if (this.data[k] !== value[k]) {
         this.set(k, value[k]);
       }
     });
@@ -170,13 +177,22 @@ export class Model<T extends Record<string, any>> implements AnyModel<T> {
    * When receiving a message from the backend.
    * We want to notify all listeners with `msg:custom`
    */
-  receiveCustomMessage(message: any, buffers: readonly DataView[] = []): void {
+  receiveCustomMessage(
+    message: unknown,
+    buffers: readonly DataView[] = [],
+  ): void {
     const response = AnyWidgetMessageSchema.safeParse(message);
     if (response.success) {
       const data = response.data;
       switch (data.method) {
         case "update":
-          this.updateAndEmitDiffs(data.state as T);
+          this.updateAndEmitDiffs(
+            decodeFromWire<T>({
+              state: data.state as T,
+              bufferPaths: data.buffer_paths ?? [],
+              buffers,
+            }),
+          );
           break;
         case "custom":
           this.listeners["msg:custom"]?.forEach((cb) =>
@@ -184,7 +200,19 @@ export class Model<T extends Record<string, any>> implements AnyModel<T> {
           );
           break;
         case "open":
-          this.updateAndEmitDiffs(data.state as T);
+          this.updateAndEmitDiffs(
+            decodeFromWire<T>({
+              state: data.state as T,
+              bufferPaths: data.buffer_paths ?? [],
+              buffers,
+            }),
+          );
+          break;
+        case "echo_update":
+          // We don't need to do anything with this message
+          break;
+        default:
+          Logger.error("[anywidget] Unknown message method", data.method);
           break;
       }
     } else {
@@ -269,7 +297,7 @@ export async function handleWidgetMessage({
 
   if (msg.method === "custom") {
     const model = await modelManager.get(modelId);
-    model.receiveCustomMessage(msg);
+    model.receiveCustomMessage(msg, buffers);
     return;
   }
 
@@ -279,24 +307,23 @@ export async function handleWidgetMessage({
   }
 
   const { method, state, buffer_paths = [] } = msg;
-  const stateWithBuffers = updateBufferPaths(state, buffer_paths, buffers);
+  const stateWithBuffers = decodeFromWire({
+    state,
+    bufferPaths: buffer_paths,
+    buffers,
+  });
 
   if (method === "open") {
     const handleDataChange = (changeData: Record<string, any>) => {
-      if (buffer_paths) {
-        Logger.warn(
-          "Changed data with buffer paths may not be supported",
-          changeData,
-        );
-        // TODO: we may want to extract/undo DataView, to get back buffers and buffer_paths
-      }
+      const { state, buffers, bufferPaths } =
+        serializeBuffersToBase64(changeData);
       getRequestClient().sendModelValue({
         modelId: modelId,
         message: {
-          state: changeData,
-          bufferPaths: [],
+          state,
+          bufferPaths,
         },
-        buffers: [],
+        buffers,
       });
     };
 

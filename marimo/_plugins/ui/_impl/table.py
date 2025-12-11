@@ -89,24 +89,24 @@ class DownloadAsArgs:
 
 
 @dataclass
-class ColumnSummariesArgs:
-    """If enabled, we will precompute chart values."""
-
-    precompute: bool
+class ColumnSummariesArgs: ...
 
 
 @dataclass
 class ColumnSummaries:
+    # If precomputed aggregations fail, we fallback to chart data
     data: Union[JSONType, str]
     stats: dict[ColumnName, ColumnStats]
     bin_values: dict[ColumnName, list[BinValue]]
     value_counts: dict[ColumnName, list[ValueCount]]
+    show_charts: bool
     # Disabled because of too many columns/rows
     # This will show a banner in the frontend
     is_disabled: Optional[bool] = None
 
 
 ShowColumnSummaries = Union[bool, Literal["stats", "chart"]]
+CHART_MAX_ROWS_STRING_VALUE_COUNTS = 20_000
 
 DEFAULT_MAX_COLUMNS = 50
 
@@ -318,9 +318,6 @@ class table(
         )
         table
         ```
-
-        Note: when sorting is applied, per-cell hover and styling may not be
-        correctly aligned with rows, similar to cell styling behavior.
 
         In each case, access the table data with `table.value`.
 
@@ -888,6 +885,8 @@ class table(
                 If summaries are disabled or row limit is exceeded, returns empty
                 summaries with is_disabled flag set appropriately.
         """
+        del args
+
         show_column_summaries = self._show_column_summaries
 
         if not show_column_summaries:
@@ -899,6 +898,7 @@ class table(
                 # This is not 'disabled' because of too many rows
                 # so we don't want to display the banner
                 is_disabled=False,
+                show_charts=False,
             )
 
         total_rows = self._searched_manager.get_num_rows(force=True) or 0
@@ -912,12 +912,13 @@ class table(
                 bin_values={},
                 value_counts={},
                 is_disabled=True,
+                show_charts=False,
             )
 
         # If we are above the limit to show charts,
         # or if we are in stats-only mode,
-        # we don't return the chart data
-        should_get_chart_data = (
+        # we don't show charts
+        show_charts = (
             self._show_column_summaries != "stats"
             and total_rows <= self._column_charts_row_limit
         )
@@ -934,6 +935,9 @@ class table(
         DEFAULT_BIN_SIZE = 9
         DEFAULT_VALUE_COUNTS_SIZE = 15
 
+        bin_aggregation_failed = False
+        cols_to_drop = []
+
         for column in self._manager.get_column_names():
             statistic = None
             if should_get_stats:
@@ -945,25 +949,25 @@ class table(
                     # BaseExceptions, which shouldn't crash the kernel
                     LOGGER.warning("Failed to get stats for column %s", column)
 
-            if should_get_chart_data and args.precompute:
+            if show_charts:
                 if not should_get_stats:
                     LOGGER.warning(
                         "Unable to compute stats for column, may not be computed correctly"
                     )
 
-                # For boolean columns, we can drop the column since we use stats
                 (column_type, external_type) = self._manager.get_field_type(
                     column
                 )
-                if column_type == "boolean":
-                    data = data.drop_columns([column])
+                # For boolean columns, we can drop the column since we use stats
+                if column_type == "boolean" or column_type == "unknown":
+                    cols_to_drop.append(column)
 
                 # Handle columns with all nulls first
                 # These get empty bins regardless of type
                 if statistic and statistic.nulls == total_rows:
                     try:
                         bin_values[column] = []
-                        data = data.drop_columns([column])
+                        cols_to_drop.append(column)
                         continue
                     except BaseException as e:
                         LOGGER.warning(
@@ -971,18 +975,19 @@ class table(
                         )
                         continue
 
-                # For perf, we only compute value counts for categorical columns
+                # For now, we only compute value counts for categorical columns and small tables
                 external_type = external_type.lower()
-                if column_type == "string" and (
+                categorical_type = (
                     "cat" in external_type or "enum" in external_type
-                ):
+                )
+                if column_type == "string" and categorical_type:
                     try:
                         val_counts = self._get_value_counts(
                             column, DEFAULT_VALUE_COUNTS_SIZE, total_rows
                         )
                         if len(val_counts) > 0:
                             value_counts[column] = val_counts
-                            data = data.drop_columns([column])
+                            cols_to_drop.append(column)
                         continue
                     except BaseException as e:
                         LOGGER.warning(
@@ -1002,18 +1007,23 @@ class table(
                     continue
 
                 try:
+                    # get_bin_values is marked unstable
+                    # https://narwhals-dev.github.io/narwhals/api-reference/series/#narwhals.series.Series.hist
                     bins = data.get_bin_values(column, DEFAULT_BIN_SIZE)
                     bin_values[column] = bins
-                    # Only drop column if we got bins to visualize
                     if len(bins) > 0:
-                        data = data.drop_columns([column])
+                        cols_to_drop.append(column)
                     continue
                 except BaseException as e:
+                    bin_aggregation_failed = True
                     LOGGER.warning(
                         "Failed to get bin values for column %s: %s", column, e
                     )
 
-        if should_get_chart_data:
+        should_fallback = show_charts and bin_aggregation_failed
+        if should_fallback:
+            LOGGER.debug("Bin aggregation failed, falling back to chart data")
+            data = data.drop_columns(cols_to_drop)
             chart_data, _ = self._to_chart_data_url(data)
 
         return ColumnSummaries(
@@ -1021,6 +1031,7 @@ class table(
             stats=stats,
             bin_values=bin_values,
             value_counts=value_counts,
+            show_charts=show_charts,
             is_disabled=False,
         )
 
@@ -1042,7 +1053,7 @@ class table(
             LOGGER.warning("Total rows and size is not valid")
             return []
 
-        top_k_rows = self._manager.calculate_top_k_rows(column, size)
+        top_k_rows = self._searched_manager.calculate_top_k_rows(column, size)
         if len(top_k_rows) == 0:
             return []
 
@@ -1211,7 +1222,11 @@ class table(
         return column_preview
 
     def _style_cells(
-        self, skip: int, take: int, total_rows: Union[int, Literal["too_many"]]
+        self,
+        skip: int,
+        take: int,
+        total_rows: Union[int, Literal["too_many"]],
+        descending: bool = False,
     ) -> Optional[CellStyles]:
         """Calculate the styling of the cells in the table."""
         if self._style_cell is None:
@@ -1236,6 +1251,10 @@ class table(
         row_ids: Union[list[int], range]
         if response.all_rows or response.error:
             row_ids = range(skip, skip + take)
+            if descending and total_rows != "too_many":
+                row_ids = range(
+                    total_rows - 1 - skip, total_rows - 1 - skip - take, -1
+                )
         else:
             row_ids = response.row_ids[skip : skip + take]
 
@@ -1245,7 +1264,11 @@ class table(
         }
 
     def _hover_cells(
-        self, skip: int, take: int, total_rows: Union[int, Literal["too_many"]]
+        self,
+        skip: int,
+        take: int,
+        total_rows: Union[int, Literal["too_many"]],
+        descending: bool = False,
     ) -> Optional[dict[RowId, dict[ColumnName, Optional[str]]]]:
         """Calculate hover text for cells in the table (plain strings or None)."""
         if self._hover_cell is None:
@@ -1278,6 +1301,10 @@ class table(
         row_ids: Union[list[int], range]
         if response.all_rows or response.error:
             row_ids = range(skip, skip + take)
+            if descending and total_rows != "too_many":
+                row_ids = range(
+                    total_rows - 1 - skip, total_rows - 1 - skip - take, -1
+                )
         else:
             row_ids = response.row_ids[skip : skip + take]
 
@@ -1366,22 +1393,26 @@ class table(
         # Save the manager to be used for selection
         self._searched_manager = result
 
+        descending = False
+
         if self._lazy:
             total_rows = "too_many"
         else:
             total_rows = result.get_num_rows(force=True) or 0
 
         if args.sort and (self._style_cell or self._hover_cell):
-            LOGGER.warning(
-                "Cell styling/hover may not be correctly applied when table rows are sorted"
-            )
+            for element in args.sort:
+                if element.descending:
+                    descending = True
 
         return SearchTableResponse(
             data=clamp_rows_and_columns(result),
             total_rows=total_rows,
-            cell_styles=self._style_cells(offset, args.page_size, total_rows),
+            cell_styles=self._style_cells(
+                offset, args.page_size, total_rows, descending
+            ),
             cell_hover_texts=self._hover_cells(
-                offset, args.page_size, total_rows
+                offset, args.page_size, total_rows, descending
             ),
         )
 

@@ -11,6 +11,7 @@ import { getNotebook } from "@/core/cells/cells";
 import type { CellId } from "@/core/cells/ids";
 import { notebookCellEditorViews } from "@/core/cells/utils";
 import { getResolvedMarimoConfig } from "@/core/config/config";
+import type { ConnectionName } from "@/core/datasets/engines";
 import { OverridingHotkeyProvider } from "@/core/hotkeys/hotkeys";
 import { requestClientAtom } from "@/core/network/requests";
 import type { MarimoConfig } from "@/core/network/types";
@@ -198,7 +199,7 @@ describe("format", () => {
       const editor = createEditor("SELECT * FROM table WHERE id = 1", cellId);
       switchLanguage(editor, { language: "sql" });
 
-      await formatSQL(editor);
+      await formatSQL(editor, "duckdb" as ConnectionName);
 
       // Check that the SQL was formatted
       expect(editor.state.doc.toString()).toMatchInlineSnapshot(`
@@ -221,13 +222,38 @@ describe("format", () => {
       const editor = createEditor("SELECT * FROM table WHERE id = 1", cellId);
       switchLanguage(editor, { language: "python" });
 
-      await formatSQL(editor);
+      await formatSQL(editor, "duckdb" as ConnectionName);
 
       // Check that the SQL was not formatted
       expect(editor.state.doc.toString()).toBe(
         "SELECT * FROM table WHERE id = 1",
       );
       expect(updateCellCode).not.toHaveBeenCalled();
+    });
+  });
+
+  it("should format SQL code with different dialect", async () => {
+    const cellId = "1" as CellId;
+    const editor = createEditor(
+      "SELECT * FROM `table.dot` WHERE id = 1",
+      cellId,
+    );
+    switchLanguage(editor, { language: "sql" });
+
+    await formatSQL(editor, "mysql" as ConnectionName); // mysql uses backticks for identifiers
+
+    expect(editor.state.doc.toString()).toMatchInlineSnapshot(`
+      "SELECT
+        *
+      FROM
+        \`table.dot\`
+      WHERE
+        id = 1"
+    `);
+    expect(updateCellCode).toHaveBeenCalledWith({
+      cellId: cellId,
+      code: editor.state.doc.toString(),
+      formattingChange: true,
     });
   });
 });

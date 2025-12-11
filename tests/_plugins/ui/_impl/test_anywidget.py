@@ -12,6 +12,8 @@ from marimo._plugins.ui._core.ui_element import UIElement
 from marimo._plugins.ui._impl.from_anywidget import (
     WeakCache,
     anywidget,
+    decode_from_wire,
+    encode_to_wire,
     from_anywidget,
 )
 from marimo._runtime.requests import SetUIElementValueRequest
@@ -187,9 +189,12 @@ x = as_marimo_element.count
     @staticmethod
     async def test_initialization() -> None:
         wrapped = anywidget(Widget(arr={"a": 1}))
-        assert wrapped._initial_value == {"arr": {"a": 1}}
+        assert wrapped._initial_value == {
+            "state": {"arr": {"a": 1}},
+            "bufferPaths": [],
+            "buffers": [],
+        }
         assert wrapped._component_args == {
-            "buffer-paths": [],
             "css": "",
             "js-url": "",
             "js-hash": md5(b"").hexdigest(),
@@ -198,15 +203,19 @@ x = as_marimo_element.count
     @staticmethod
     async def test_initialization_with_dataview() -> None:
         # Create a simple array-like structure without numpy
+        import base64
+
         arr = [1, 2, 3]
         wrapped = anywidget(
             Widget(arr={"bytes": bytes(arr), "shape": (len(arr),)})
         )
+        # _initial_value is wire format (buffers are extracted to separate array)
         assert wrapped._initial_value == {
-            "arr": {"bytes": bytes([1, 2, 3]), "shape": (3,)}
+            "state": {"arr": {"shape": (3,)}},
+            "bufferPaths": [["arr", "bytes"]],
+            "buffers": [base64.b64encode(bytes([1, 2, 3])).decode("utf-8")],
         }
         assert wrapped._component_args == {
-            "buffer-paths": [["arr", "bytes"]],
             "css": "",
             "js-url": "",
             "js-hash": md5(b"").hexdigest(),
@@ -238,8 +247,12 @@ x = as_marimo_element.count
 
         wrapped = anywidget(NonSerializableWidget())
         assert wrapped._initial_value == {
-            "serializable": 1,
-            "non_serializable": None,
+            "state": {
+                "serializable": 1,
+                "non_serializable": None,
+            },
+            "bufferPaths": [],
+            "buffers": [],
         }
 
     @staticmethod
@@ -250,7 +263,11 @@ x = as_marimo_element.count
             sync = traitlets.Int(2).tag(sync=True)
 
         wrapped = anywidget(NonSyncWidget())
-        assert wrapped._initial_value == {"sync": 2}
+        assert wrapped._initial_value == {
+            "state": {"sync": 2},
+            "bufferPaths": [],
+            "buffers": [],
+        }
 
     @staticmethod
     @staticmethod
@@ -290,6 +307,8 @@ x = as_marimo_element.count
 
     @staticmethod
     async def test_buffers() -> None:
+        import base64
+
         class BufferWidget(_anywidget.AnyWidget):
             _esm = ""
             array = traitlets.Bytes().tag(sync=True)
@@ -297,20 +316,22 @@ x = as_marimo_element.count
         data = bytes([1, 2, 3, 4])
         wrapped = anywidget(BufferWidget(array=data))
 
-        assert wrapped._initial_value == {"array": data}
-        assert wrapped._component_args["buffer-paths"] == [["array"]]
+        # _initial_value is wire format (buffers are extracted to separate array)
+        assert wrapped._initial_value == {
+            "state": {},
+            "bufferPaths": [["array"]],
+            "buffers": [base64.b64encode(data).decode("utf-8")],
+        }
 
-        # test buffers are inlined as base64 inplace
-        assert (
-            "data-initial-value='{&quot;array&quot;:&quot;AQIDBA==&quot;}'"
-            in wrapped.text
-        )
-        assert "data-buffer-paths='[[&quot;array&quot;]]'" in wrapped.text
+        # test buffers are inlined as base64 in the wire format
+        assert "AQIDBA==" in wrapped.text
+        assert "array" in wrapped.text
 
         # Test updating the buffer
         new_data = bytes([5, 6, 7, 8])
         wrapped.array = new_data
-        assert wrapped.value["array"] == b"\x01\x02\x03\x04"
+        # value property returns decoded state with buffers re-inserted
+        assert wrapped.value["array"] == data
 
     @staticmethod
     async def test_error_handling() -> None:
@@ -497,3 +518,200 @@ x = as_marimo_element.count
         # Test updating with new traits
         wrapped._update({"d": 4})
         assert wrapped.value == {"a": 100, "b": 200, "c": 300, "d": 4}
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+class TestWireFormat:
+    """Tests for encode_to_wire and decode_from_wire functions."""
+
+    @staticmethod
+    def test_decode_from_wire_not_wire_format() -> None:
+        """Test that non-wire format dicts are returned as-is."""
+        plain_dict = {"a": 1, "b": 2}
+        result = decode_from_wire(plain_dict)
+        assert result == plain_dict
+
+        # Test with only state
+        partial_wire = {"state": {"a": 1}}
+        result = decode_from_wire(partial_wire)
+        assert result == partial_wire
+
+    @staticmethod
+    def test_decode_from_wire_empty_buffers() -> None:
+        """Test decoding wire format with no buffers."""
+        wire = {"state": {"a": 1, "b": 2}, "bufferPaths": [], "buffers": []}
+        result = decode_from_wire(wire)
+        assert result == {"a": 1, "b": 2}
+
+    @staticmethod
+    def test_decode_from_wire_with_buffers() -> None:
+        """Test decoding wire format with base64 buffers."""
+        import base64
+
+        data = b"Hello, World!"
+        base64_data = base64.b64encode(data).decode("utf-8")
+
+        wire = {
+            "state": {"text": base64_data, "number": 42},
+            "bufferPaths": [["text"]],
+            "buffers": [base64_data],
+        }
+
+        result = decode_from_wire(wire)
+        assert result["number"] == 42
+        assert result["text"] == data
+
+    @staticmethod
+    def test_decode_from_wire_nested_buffers() -> None:
+        """Test decoding wire format with nested buffer paths."""
+        import base64
+
+        data1 = b"first"
+        data2 = b"second"
+        base64_1 = base64.b64encode(data1).decode("utf-8")
+        base64_2 = base64.b64encode(data2).decode("utf-8")
+
+        wire = {
+            "state": {
+                "nested": {"buf1": base64_1, "deeper": {"buf2": base64_2}}
+            },
+            "bufferPaths": [["nested", "buf1"], ["nested", "deeper", "buf2"]],
+            "buffers": [base64_1, base64_2],
+        }
+
+        result = decode_from_wire(wire)
+        assert result["nested"]["buf1"] == data1
+        assert result["nested"]["deeper"]["buf2"] == data2
+
+    @staticmethod
+    def test_decode_from_wire_array_buffers() -> None:
+        """Test decoding wire format with buffers in arrays."""
+        import base64
+
+        data = b"test"
+        base64_data = base64.b64encode(data).decode("utf-8")
+
+        wire = {
+            "state": {"items": [base64_data, "middle", base64_data]},
+            "bufferPaths": [["items", 0], ["items", 2]],
+            "buffers": [base64_data, base64_data],
+        }
+
+        result = decode_from_wire(wire)
+        assert result["items"][0] == data
+        assert result["items"][1] == "middle"
+        assert result["items"][2] == data
+
+    @staticmethod
+    def test_encode_to_wire_no_buffers() -> None:
+        """Test encoding state without buffers."""
+        state = {"a": 1, "b": "text", "c": {"d": True}}
+        result = encode_to_wire(state)
+
+        assert result["state"] == state
+        assert result["bufferPaths"] == []
+        assert result["buffers"] == []
+
+    @staticmethod
+    def test_encode_to_wire_with_bytes() -> None:
+        """Test encoding state with bytes."""
+        import base64
+
+        data = b"Hello, World!"
+        state = {"text": data, "number": 42}
+
+        result = encode_to_wire(state)
+
+        assert result["state"]["number"] == 42
+        # The buffer should be extracted
+        assert len(result["buffers"]) == 1
+        assert len(result["bufferPaths"]) == 1
+        # Verify the buffer is base64 encoded
+        decoded = base64.b64decode(result["buffers"][0])
+        assert decoded == data
+
+    @staticmethod
+    def test_encode_to_wire_nested_bytes() -> None:
+        """Test encoding state with nested bytes."""
+        import base64
+
+        data1 = b"first"
+        data2 = b"second"
+        state = {
+            "nested": {"buf1": data1, "deeper": {"buf2": data2}},
+            "regular": "value",
+        }
+
+        result = encode_to_wire(state)
+
+        assert result["state"]["regular"] == "value"
+        assert len(result["buffers"]) == 2
+        assert len(result["bufferPaths"]) == 2
+
+        # Verify buffers are base64 encoded
+        buffers = [base64.b64decode(b) for b in result["buffers"]]
+        assert data1 in buffers
+        assert data2 in buffers
+
+    @staticmethod
+    def test_round_trip_encoding() -> None:
+        """Test that encode -> decode -> encode produces consistent results."""
+        original_state = {
+            "buffer": b"test data",
+            "nested": {"inner_buffer": b"more data"},
+            "text": "plain text",
+            "number": 123,
+        }
+
+        # Encode to wire format
+        encoded = encode_to_wire(original_state)
+
+        # Decode back
+        decoded = decode_from_wire(encoded)
+
+        # Verify decoded state matches original
+        assert decoded["buffer"] == b"test data"
+        assert decoded["nested"]["inner_buffer"] == b"more data"
+        assert decoded["text"] == "plain text"
+        assert decoded["number"] == 123
+
+        # Re-encode
+        re_encoded = encode_to_wire(decoded)
+
+        # Verify structure is consistent
+        assert len(re_encoded["buffers"]) == len(encoded["buffers"])
+        assert len(re_encoded["bufferPaths"]) == len(encoded["bufferPaths"])
+
+        # Verify buffers match (order might differ, so compare sets)
+        encoded_buffers = set(encoded["buffers"])
+        re_encoded_buffers = set(re_encoded["buffers"])
+        assert encoded_buffers == re_encoded_buffers
+
+    @staticmethod
+    def test_encode_to_wire_empty_bytes() -> None:
+        """Test encoding empty bytes."""
+        import base64
+
+        state = {"empty": b"", "data": b"content"}
+        result = encode_to_wire(state)
+
+        assert len(result["buffers"]) == 2
+        # Verify empty bytes is properly encoded
+        assert (
+            base64.b64decode(result["buffers"][0]) == b""
+            or base64.b64decode(result["buffers"][1]) == b""
+        )
+
+    @staticmethod
+    def test_decode_from_wire_missing_buffers() -> None:
+        """Test decoding when bufferPaths exist but buffers are missing."""
+        wire = {
+            "state": {"a": 1},
+            "bufferPaths": [["a"]],
+            # Missing buffers array
+        }
+
+        # Should handle gracefully - buffers default to []
+        result = decode_from_wire(wire)
+        # State should be returned but buffers won't be inserted
+        assert "a" in result

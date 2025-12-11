@@ -39,6 +39,8 @@ from marimo._server.ai.tools.types import ToolDefinition
 from marimo._server.api.status import HTTPStatus
 
 TIMEOUT = 30
+# Long-thinking models can take a long time to complete, so we set a longer timeout
+LONG_THINKING_TIMEOUT = 120
 
 if TYPE_CHECKING:
     from anthropic import (  # type: ignore[import-not-found]
@@ -437,8 +439,39 @@ class OpenAIProvider(
     DEFAULT_REASONING_EFFORT = "medium"
 
     def _is_reasoning_model(self, model: str) -> bool:
-        # only o-series models support reasoning
-        return model.startswith("o") or model.startswith("gpt-5")
+        """
+        Check if reasoning_effort should be added to the request.
+        Only add for actual OpenAI reasoning models, not for OpenAI-compatible APIs.
+
+        OpenAI-compatible APIs (identified by custom base_url) may not support
+        the reasoning_effort parameter even if the model name suggests it's a
+        reasoning model.
+        """
+        import re
+
+        # Check for reasoning model patterns: o{digit} or gpt-5, with optional openai/ prefix
+        reasoning_patterns = [
+            r"^openai/o\d",  # openai/o1, openai/o3, etc.
+            r"^o\d",  # o1, o3, etc.
+            r"^openai/gpt-5",  # openai/gpt-5*
+            r"^gpt-5",  # gpt-5*
+        ]
+
+        is_reasoning_model_name = any(
+            re.match(pattern, model) for pattern in reasoning_patterns
+        )
+
+        if not is_reasoning_model_name:
+            return False
+
+        # If using a custom base_url that's not OpenAI, don't assume reasoning is supported
+        if (
+            self.config.base_url
+            and "api.openai.com" not in self.config.base_url
+        ):
+            return False
+
+        return True
 
     def get_client(self, config: AnyProviderConfig) -> AsyncOpenAI:
         DependencyManager.openai.require(why="for AI assistance with OpenAI")
@@ -501,11 +534,13 @@ class OpenAIProvider(
 
         # if client is created, either with a custom context or with verify=False, use it as the http_client object in `AsyncOpenAI`
         extra_headers = extra_headers or {}
+        project = config.project or None
         if client:
             return AsyncOpenAI(
                 default_headers={"api-key": key, **extra_headers},
                 api_key=key,
                 base_url=base_url,
+                project=project,
                 http_client=client,
             )
 
@@ -514,6 +549,7 @@ class OpenAIProvider(
             default_headers={"api-key": key, **extra_headers},
             api_key=key,
             base_url=base_url,
+            project=project,
         )
 
     async def stream_completion(
@@ -537,7 +573,9 @@ class OpenAIProvider(
                 ),
             ),
             "stream": True,
-            "timeout": TIMEOUT,
+            "timeout": LONG_THINKING_TIMEOUT
+            if self._is_reasoning_model(self.model)
+            else TIMEOUT,
         }
         if tools:
             all_tools = tools + additional_tools
@@ -594,6 +632,7 @@ class OpenAIProvider(
                     if (
                         tool_call.function
                         and tool_call.function.arguments
+                        and tool_index < len(tool_call_ids)
                         and tool_call_ids[tool_index]
                     ):
                         tool_delta = {
@@ -1155,6 +1194,7 @@ class BedrockProvider(
                         and tool_call.function
                         and hasattr(tool_call.function, "arguments")
                         and tool_call.function.arguments
+                        and tool_index < len(tool_call_ids)
                         and tool_call_ids[tool_index]
                     ):
                         tool_delta = {

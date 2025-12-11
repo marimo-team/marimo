@@ -1,5 +1,4 @@
 import marimo
-
 app = marimo.App(
     app_title="title",
     auto_download="html",

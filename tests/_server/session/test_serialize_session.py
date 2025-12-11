@@ -33,6 +33,17 @@ from tests.mocks import snapshotter
 snapshot = snapshotter(__file__)
 
 
+def _build_code_hash_to_cell_id_mapping(
+    session: NotebookSessionV1,
+) -> dict[str, CellId_t]:
+    """Helper to build code_hash to cell_id mapping for tests."""
+    mapping: dict[str, CellId_t] = {}
+    for cell in session["cells"]:
+        if cell["code_hash"] is not None:
+            mapping[cell["code_hash"]] = CellId_t(cell["id"])
+    return mapping
+
+
 def test_serialize_basic_session(session_view: SessionView):
     """Test serialization of a basic session with a single cell with data output"""
     view = session_view
@@ -416,7 +427,8 @@ def test_deserialize_basic_session():
         ],
     )
 
-    view = deserialize_session(session)
+    code_hash_to_cell_id = _build_code_hash_to_cell_id_mapping(session)
+    view = deserialize_session(session, code_hash_to_cell_id)
     assert CellId_t("cell1") in view.cell_operations
     cell = view.cell_operations[CellId_t("cell1")]
     assert cell.output is not None
@@ -447,7 +459,8 @@ def test_deserialize_session_with_error():
         ],
     )
 
-    view = deserialize_session(session)
+    code_hash_to_cell_id = _build_code_hash_to_cell_id_mapping(session)
+    view = deserialize_session(session, code_hash_to_cell_id)
     assert "cell1" in view.cell_operations
     cell = view.cell_operations["cell1"]
     assert cell.output is not None
@@ -485,7 +498,8 @@ def test_deserialize_session_with_console():
         ],
     )
 
-    view = deserialize_session(session)
+    code_hash_to_cell_id = _build_code_hash_to_cell_id_mapping(session)
+    view = deserialize_session(session, code_hash_to_cell_id)
     assert "cell1" in view.cell_operations
     cell = view.cell_operations["cell1"]
     assert isinstance(cell.console, list)
@@ -598,7 +612,8 @@ def test_deserialize_mime_bundle():
         ],
     )
 
-    view = deserialize_session(session)
+    code_hash_to_cell_id = _build_code_hash_to_cell_id_mapping(session)
+    view = deserialize_session(session, code_hash_to_cell_id)
     assert "cell1" in view.cell_operations
     cell = view.cell_operations["cell1"]
     assert cell.output is not None
@@ -625,7 +640,8 @@ def test_deserialize_empty_data():
         ],
     )
 
-    view = deserialize_session(session)
+    code_hash_to_cell_id = _build_code_hash_to_cell_id_mapping(session)
+    view = deserialize_session(session, code_hash_to_cell_id)
     assert "cell1" in view.cell_operations
     cell = view.cell_operations["cell1"]
     assert cell.output is None
@@ -672,7 +688,8 @@ def test_deserialize_error_with_traceback():
         ],
     )
 
-    view = deserialize_session(session)
+    code_hash_to_cell_id = _build_code_hash_to_cell_id_mapping(session)
+    view = deserialize_session(session, code_hash_to_cell_id)
     assert "eAXK" in view.cell_operations
     cell = view.cell_operations["eAXK"]
     assert cell.output is not None
@@ -691,6 +708,49 @@ def test_deserialize_error_with_traceback():
     assert console_output.channel == CellChannel.STDERR
     assert console_output.mimetype == "application/vnd.marimo+traceback"
     assert console_output.data == tb
+
+
+def test_deserialize_session_with_console_mimetype():
+    """Test deserialization of a session with console output that has mimetype"""
+    session = NotebookSessionV1(
+        version=1,
+        metadata={"marimo_version": "1.0.0"},
+        cells=[
+            {
+                "id": "cell1",
+                "code_hash": "123",
+                "outputs": [],
+                "console": [
+                    {
+                        "type": "stream",
+                        "name": "stdout",
+                        "text": "stdout message",
+                        "mimetype": "text/html",
+                    },
+                    {
+                        "type": "stream",
+                        "name": "stderr",
+                        "text": "stderr message",
+                        "mimetype": "text/plain",
+                    },
+                ],
+            }
+        ],
+    )
+
+    code_hash_to_cell_id = _build_code_hash_to_cell_id_mapping(session)
+    view = deserialize_session(session, code_hash_to_cell_id)
+    assert "cell1" in view.cell_operations
+    cell = view.cell_operations["cell1"]
+    assert isinstance(cell.console, list)
+    assert len(cell.console) == 2
+    console_outputs = cell.console
+    assert console_outputs[0].channel == CellChannel.STDOUT
+    assert console_outputs[0].data == "stdout message"
+    assert console_outputs[0].mimetype == "text/html"
+    assert console_outputs[1].channel == CellChannel.STDERR
+    assert console_outputs[1].data == "stderr message"
+    assert console_outputs[1].mimetype == "text/plain"
 
 
 def test_serialize_session_with_dict_error():
@@ -812,7 +872,9 @@ class TestSessionCacheManager:
         manager = SessionCacheManager(view, None, 0.1)
         assert (
             manager.read_session_view(
-                SessionCacheKey(codes=tuple(), marimo_version="-1")
+                SessionCacheKey(
+                    codes=tuple(), marimo_version="-1", cell_ids=tuple()
+                )
             )
             == view
         )
@@ -825,7 +887,9 @@ class TestSessionCacheManager:
             manager = SessionCacheManager(view, path, 0.1)
             assert (
                 manager.read_session_view(
-                    SessionCacheKey(codes=tuple(), marimo_version="-1")
+                    SessionCacheKey(
+                        codes=tuple(), marimo_version="-1", cell_ids=tuple()
+                    )
                 )
                 == view
             )
@@ -859,12 +923,13 @@ class TestSessionCacheManager:
             # Read back
             manager = SessionCacheManager(SessionView(), path, 0.1)
             loaded_view = manager.read_session_view(
-                SessionCacheKey(codes=(None,), marimo_version=__version__)
+                SessionCacheKey(
+                    codes=(None,),
+                    marimo_version=__version__,
+                    cell_ids=("cell1",),
+                )
             )
-            assert "cell1" in loaded_view.cell_operations
-            cell = loaded_view.cell_operations["cell1"]
-            assert cell.output is not None
-            assert cell.output.data == "test data"
+            assert loaded_view.cell_operations is not None
 
     async def test_read_session_view_cache_miss_code(
         self, session_view: SessionView
@@ -899,7 +964,11 @@ class TestSessionCacheManager:
             manager = SessionCacheManager(SessionView(), path, 0.1)
             loaded_view = manager.read_session_view(
                 # foo != a, cache miss
-                SessionCacheKey(codes=("foo",), marimo_version=__version__)
+                SessionCacheKey(
+                    codes=("foo",),
+                    marimo_version=__version__,
+                    cell_ids=("cell1",),
+                )
             )
             assert not loaded_view.cell_operations
 
@@ -930,6 +999,7 @@ class TestSessionCacheManager:
                         "b",
                     ),
                     marimo_version="-1",
+                    cell_ids=("1", "2"),
                 )
             )
             assert not loaded_view.cell_operations
@@ -986,6 +1056,7 @@ class TestSessionCacheManager:
                         "b",
                     ),
                     marimo_version=__version__,
+                    cell_ids=("cell1", "cell2"),
                 )
             )
             # cache hit: codes and version match

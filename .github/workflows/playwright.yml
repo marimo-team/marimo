@@ -5,9 +5,10 @@ on:
     branches: [main]
   pull_request:
 
+permissions:
+  contents: read
+
 env:
-  TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
-  TURBO_TEAM: marimo
   MARIMO_SKIP_UPDATE_CHECK: 1
 
 jobs:
@@ -24,6 +25,7 @@ jobs:
             playwright:
               - 'frontend/**'
               - 'marimo/**'
+              - '.github/workflows/playwright.yml'
   test:
     needs: changes
     if: ${{ needs.changes.outputs.playwright == 'true' }}
@@ -42,11 +44,17 @@ jobs:
 
       - name: ⬇️ Checkout repo
         uses: actions/checkout@v4
-
       - name: Write TOML
         run: |
-          echo "[experimental]" > .marimo.toml
+          echo "[runtime]" > .marimo.toml
+          echo "auto_instantiate=true" >> .marimo.toml
+          echo "[experimental]" >> .marimo.toml
           echo "layouts=true" >> .marimo.toml
+
+      # Turn on automatic instantiation for playwright tests
+      - name: Update pyproject.toml
+        run: |
+          sed -i 's/auto_instantiate = false/auto_instantiate = true/' pyproject.toml
 
       - uses: pnpm/action-setup@v4
 
@@ -60,6 +68,8 @@ jobs:
       - name: 📦 Build frontend
         run: make fe
         env:
+          TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+          TURBO_TEAM: marimo
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
       - name: 🐍 Setup uv

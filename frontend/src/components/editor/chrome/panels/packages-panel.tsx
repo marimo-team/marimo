@@ -23,6 +23,7 @@ import { toast } from "@/components/ui/use-toast";
 import { useResolvedMarimoConfig } from "@/core/config/config";
 import { useRequestClient } from "@/core/network/requests";
 import type { DependencyTreeNode } from "@/core/network/types";
+import { stripPackageManagerPrefix } from "@/core/packages/package-input-utils";
 import {
   showRemovePackageToast,
   showUpgradePackageToast,
@@ -191,8 +192,9 @@ const InstallPackageForm: React.FC<{
   };
 
   const installPackages = () => {
+    const cleanedInput = stripPackageManagerPrefix(input);
     handleInstallPackages(
-      input.split(",").map((p) => p.trim()),
+      [cleanedInput], // the backend will handle splitting the packages
       onSuccessInstallPackages,
     );
   };
@@ -211,7 +213,7 @@ const InstallPackageForm: React.FC<{
           ) : (
             <Tooltip content="Change package manager">
               <BoxIcon
-                onClick={() => openSettings("packageManagement")}
+                onClick={() => openSettings("packageManagementAndData")}
                 className="mr-2 h-4 w-4 shrink-0 opacity-50 hover:opacity-80 cursor-pointer"
               />
             </Tooltip>

@@ -30,6 +30,7 @@ class AnyProviderConfig:
 
     base_url: Optional[str]
     api_key: str
+    project: Optional[str] = None
     ssl_verify: Optional[bool] = None
     ca_bundle_path: Optional[str] = None
     client_pem: Optional[str] = None
@@ -85,7 +86,7 @@ class AnyProviderConfig:
     @classmethod
     def for_github(cls, config: AiConfig) -> AnyProviderConfig:
         fallback_key = cls.os_key("GITHUB_TOKEN")
-        return cls._for_openai_like(
+        result = cls._for_openai_like(
             config,
             "github",
             "GitHub",
@@ -94,6 +95,21 @@ class AnyProviderConfig:
             fallback_base_url="https://api.githubcopilot.com/",
             require_key=True,
         )
+
+        # Add default extra headers for GitHub, but allow user to override
+        default_headers = {
+            "editor-version": "vscode/1.95.0",
+            "Copilot-Integration-Id": "vscode-chat",
+        }
+
+        # Merge: user headers override defaults
+        if result.extra_headers:
+            merged_headers = {**default_headers, **result.extra_headers}
+        else:
+            merged_headers = default_headers
+
+        result.extra_headers = merged_headers
+        return result
 
     @classmethod
     def for_openrouter(cls, config: AiConfig) -> AnyProviderConfig:
@@ -105,6 +121,19 @@ class AnyProviderConfig:
             fallback_key=fallback_key,
             # Default base URL for OpenRouter
             fallback_base_url="https://openrouter.ai/api/v1/",
+            require_key=True,
+        )
+
+    @classmethod
+    def for_wandb(cls, config: AiConfig) -> AnyProviderConfig:
+        fallback_key = cls.os_key("WANDB_API_KEY")
+        return cls._for_openai_like(
+            config,
+            "wandb",
+            "Weights & Biases",
+            fallback_key=fallback_key,
+            # Default base URL for Weights & Biases
+            fallback_base_url="https://api.inference.wandb.ai/v1/",
             require_key=True,
         )
 
@@ -124,11 +153,17 @@ class AnyProviderConfig:
             ai_config, name, fallback_key=fallback_key, require_key=require_key
         )
 
+        # Use SSL_CERT_FILE environment variable as fallback for ca_bundle_path
+        ca_bundle_path = ai_config.get("ca_bundle_path") or cls.os_key(
+            "SSL_CERT_FILE"
+        )
+
         kwargs: dict[str, Any] = {
             "base_url": _get_base_url(ai_config) or fallback_base_url,
             "api_key": key,
+            "project": ai_config.get("project", None),
             "ssl_verify": ai_config.get("ssl_verify", True),
-            "ca_bundle_path": ai_config.get("ca_bundle_path", None),
+            "ca_bundle_path": ca_bundle_path,
             "client_pem": ai_config.get("client_pem", None),
             "extra_headers": ai_config.get("extra_headers", None),
             "tools": _get_tools(config.get("mode", "manual")),
@@ -200,6 +235,8 @@ class AnyProviderConfig:
             return cls.for_github(config)
         elif model_id.provider == "openrouter":
             return cls.for_openrouter(config)
+        elif model_id.provider == "wandb":
+            return cls.for_wandb(config)
         elif model_id.provider == "openai_compatible":
             return cls.for_openai_compatible(config)
         else:

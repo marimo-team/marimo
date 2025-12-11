@@ -10,26 +10,24 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.17.4"
 app = marimo.App()
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        """
-        # Smallest Enclosing Circle
+    mo.md("""
+    # Smallest Enclosing Circle
 
-        This program computes the circle of smallest radius that encloses a given
-        randomly sampled set of circles. This is a generalization of the 
-        [smallest-circle problem](https://en.wikipedia.org/wiki/Smallest-circle_problem).
+    This program computes the circle of smallest radius that encloses a given
+    randomly sampled set of circles. This is a generalization of the
+    [smallest-circle problem](https://en.wikipedia.org/wiki/Smallest-circle_problem).
 
-        We solve this problem using [CVXPY](https://www.cvxpy.org), a Python library for specifying and
-        solving convex optimization problems.
+    We solve this problem using [CVXPY](https://www.cvxpy.org), a Python library for specifying and
+    solving convex optimization problems.
 
-        _Use the slider below to choose the number of circles to sample:_
-        """
-    )
+    _Use the slider below to choose the number of circles to sample:_
+    """)
     return
 
 
@@ -103,51 +101,51 @@ def _(plt):
 
 @app.cell
 def _(mo):
-    mo.md("""## The solution method""")
+    mo.md("""
+    ## The solution method
+    """)
     return
 
 
 @app.cell
 def _(mo):
-    mo.md(
-        r"""
-        We can write down a convex optimization problem whose solution gives us
-        the smallest circle enclosing the $n$ given circles. Once we do this,
-        we can just code up the problem in CVXPY to obtain a solution.
+    mo.md(r"""
+    We can write down a convex optimization problem whose solution gives us
+    the smallest circle enclosing the $n$ given circles. Once we do this,
+    we can just code up the problem in CVXPY to obtain a solution.
 
-        Here's the problem:
+    Here's the problem:
 
-        We seek a circle, parameterized by a center $c = (x, y) \in \mathbf{R}^2$
-        and a radius $r \in \mathbf{R}$ satisfying
+    We seek a circle, parameterized by a center $c = (x, y) \in \mathbf{R}^2$
+    and a radius $r \in \mathbf{R}$ satisfying
 
-        \[
-        \begin{equation*}
-        \begin{array}{ll}
-        \text{minimize} & r \\
-        \text{subject to } & \|c - c_i\|_2 + r_i \leq r, \quad i=1, \ldots, n,
-        \end{array}
-        \end{equation*}
-        \]
+    \[
+    \begin{equation*}
+    \begin{array}{ll}
+    \text{minimize} & r \\
+    \text{subject to } & \|c - c_i\|_2 + r_i \leq r, \quad i=1, \ldots, n,
+    \end{array}
+    \end{equation*}
+    \]
 
-        where $c_1, \ldots, c_n$ and $r_1, \ldots, r_n$ are the centers and radii
-        of the $n$ given circles.
+    where $c_1, \ldots, c_n$ and $r_1, \ldots, r_n$ are the centers and radii
+    of the $n$ given circles.
 
-        And here's the code:
+    And here's the code:
 
-        ```python3
-        def smallest_enclosing_circle(circles):
-            radius = cp.Variable()
-            center = cp.Variable(2)
-            constraints = [
-              cp.norm(center - c_i) + r_i <= radius
-              for (c_i, r_i) in circles
-            ]
-            objective = cp.Minimize(radius)
-            cp.Problem(objective, constraints).solve()
-            return (center.value, radius.value)
-        ```
-        """
-    )
+    ```python3
+    def smallest_enclosing_circle(circles):
+        radius = cp.Variable()
+        center = cp.Variable(2)
+        constraints = [
+          cp.norm(center - c_i) + r_i <= radius
+          for (c_i, r_i) in circles
+        ]
+        objective = cp.Minimize(radius)
+        cp.Problem(objective, constraints).solve()
+        return (center.value, radius.value)
+    ```
+    """)
     return
 
 

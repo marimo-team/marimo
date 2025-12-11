@@ -29,6 +29,7 @@ import { outputIsLoading, outputIsStale } from "@/core/cells/cell";
 import { isOutputEmpty } from "@/core/cells/outputs";
 import { autocompletionKeymap } from "@/core/codemirror/cm";
 import type { LanguageAdapterType } from "@/core/codemirror/language/types";
+import { CSSClasses } from "@/core/constants";
 import { canCollapseOutline } from "@/core/dom/outline";
 import { isErrorMime } from "@/core/mime";
 import type { AppMode } from "@/core/mode";
@@ -41,13 +42,12 @@ import type { Milliseconds, Seconds } from "@/utils/time";
 import {
   type CellActions,
   createUntouchedCellAtom,
-  SETUP_CELL_ID,
   useCellActions,
   useCellData,
   useCellHandle,
   useCellRuntime,
 } from "../../core/cells/cells";
-import type { CellId } from "../../core/cells/ids";
+import { type CellId, SETUP_CELL_ID } from "../../core/cells/ids";
 import { isUninstantiated } from "../../core/cells/utils";
 import type { UserConfig } from "../../core/config/config-schema";
 import {
@@ -350,7 +350,7 @@ const ReadonlyCellComponent = forwardRef(
         <OutputArea
           allowExpand={false}
           forceExpand={true}
-          className="output-area"
+          className={CSSClasses.outputArea}
           cellId={cellId}
           output={cellRuntime.output}
           stale={outputIsStale(cellRuntime, cellData.edited)}
@@ -490,7 +490,7 @@ const EditableCellComponent = ({
 
   const outputArea = hasOutput && (
     <div className="relative" onDoubleClick={showHiddenCodeIfMarkdown}>
-      <div className="absolute top-5 -left-8 z-10 print:hidden">
+      <div className="absolute top-5 -left-7 z-20 print:hidden">
         <CollapseToggle
           isCollapsed={isCollapsed}
           onClick={() => {
@@ -509,7 +509,7 @@ const EditableCellComponent = ({
         allowExpand={true}
         // Force expand when markdown is hidden
         forceExpand={isMarkdownCodeHidden}
-        className="output-area"
+        className={CSSClasses.outputArea}
         cellId={cellId}
         output={cellRuntime.output}
         stale={isStaleCell}
@@ -581,8 +581,13 @@ const EditableCellComponent = ({
             ref={cellContainerRef}
             {...cellDomProps(cellId, cellData.name)}
           >
+            <CellLeftSideActions cellId={cellId} actions={actions} />
             {cellOutput === "above" && outputArea}
-            <div className={cn("tray")} data-hidden={isMarkdownCodeHidden}>
+            <div
+              className={cn("tray")}
+              data-has-output-above={hasOutputAbove}
+              data-hidden={isMarkdownCodeHidden}
+            >
               <StagedAICellBackground cellId={cellId} />
               <div className="absolute right-2 -top-4 z-10">
                 <CellToolbar
@@ -599,17 +604,6 @@ const EditableCellComponent = ({
                   onRun={runCell}
                 />
               </div>
-              <CellLeftSideActions
-                cellId={cellId}
-                className={cn(
-                  isMarkdownCodeHidden && hasOutputAbove && "-top-7",
-                  isMarkdownCodeHidden && hasOutputBelow && "-bottom-8",
-                  isMarkdownCodeHidden &&
-                    isCellButtonsInline &&
-                    "-left-[3.8rem]",
-                )}
-                actions={actions}
-              />
               <CellEditor
                 theme={theme}
                 showPlaceholder={showPlaceholder}
@@ -841,25 +835,33 @@ const CellLeftSideActions = memo(
     );
 
     const isConnected = isAppConnected(connection.state);
+    const oneClickShortcut = "mod";
 
     return (
       <div
         className={cn(
-          "absolute flex flex-col gap-[2px] justify-center h-full left-[-34px] z-20",
+          "absolute flex flex-col justify-center h-full left-[-26px] z-20 border-b-0!",
           className,
         )}
       >
-        <CreateCellButton
-          tooltipContent={renderShortcut("cell.createAbove")}
-          connectionState={connection.state}
-          onClick={isConnected ? createAbove : undefined}
-        />
-        <div className="flex-1" />
-        <CreateCellButton
-          tooltipContent={renderShortcut("cell.createBelow")}
-          connectionState={connection.state}
-          onClick={isConnected ? createBelow : undefined}
-        />
+        <div className="-mt-1 min-h-7">
+          <CreateCellButton
+            tooltipContent={renderShortcut("cell.createAbove")}
+            connectionState={connection.state}
+            onClick={isConnected ? createAbove : undefined}
+            oneClickShortcut={oneClickShortcut}
+          />
+        </div>
+        <div className="flex-1 pointer-events-none w-3" />
+        {/* <div className="flex-1 pointer-events-none bg-border w-px mx-auto hover-action opacity-70" /> */}
+        <div className="-mb-2 min-h-7">
+          <CreateCellButton
+            tooltipContent={renderShortcut("cell.createBelow")}
+            connectionState={connection.state}
+            onClick={isConnected ? createBelow : undefined}
+            oneClickShortcut={oneClickShortcut}
+          />
+        </div>
       </div>
     );
   },
@@ -1172,7 +1174,7 @@ const SetupCellComponent = ({
             <OutputArea
               allowExpand={true}
               forceExpand={true}
-              className="output-area"
+              className={CSSClasses.outputArea}
               cellId={cellId}
               output={cellRuntime.output}
               stale={false}

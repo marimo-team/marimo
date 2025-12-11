@@ -281,3 +281,23 @@ async def test_virtual_files_not_supported(
     ctx = get_context()
     assert len(ctx.virtual_file_registry.registry) == 0
     ctx.virtual_files_supported = True
+
+
+async def test_virtual_file_empty_buffer(
+    execution_kernel: Kernel, exec_req: ExecReqProvider
+) -> None:
+    k = execution_kernel
+    await k.run(
+        [
+            exec_req.get(
+                """
+                import io
+                import marimo as mo
+                bytestream = io.BytesIO(b"")
+                pdf_plugin = mo.pdf(bytestream)
+                """
+            ),
+        ]
+    )
+    # Empty buffers should not be added to the registry
+    assert len(get_context().virtual_file_registry.registry) == 0

@@ -90,34 +90,34 @@ def test_regular_package_no_cache_invalidation() -> None:
 def test_versions():
     assert (
         DependencyManager.altair.require_version(
-            min_version="0.0.0", max_version="6.0.0"
+            min_version="0.0.0", max_version="10.0.0"
         )
         is None
     )
 
     with pytest.raises(RuntimeError) as excinfo:
-        DependencyManager.altair.require_version(min_version="6.0.0")
+        DependencyManager.altair.require_version(min_version="10.0.0")
 
     version = DependencyManager.altair.get_version()
     assert (
         str(excinfo.value)
-        == f"Mismatched version of altair: expected >=6.0.0, got {version}"
+        == f"Mismatched version of altair: expected >=10.0.0, got {version}"
     )
 
     # Override version
     assert (
         DependencyManager.altair.has_at_version(
-            min_version="0.0.0", max_version="6.0.0"
+            min_version="0.0.0", max_version="10.0.0"
         )
         is True
     )
     assert (
-        DependencyManager.altair.has_at_version(min_version="7.0.0") is False
+        DependencyManager.altair.has_at_version(min_version="10.0.0") is False
     )
 
     with pytest.raises(RuntimeError) as excinfo:
         DependencyManager.altair.require_at_version(
-            why="for testing", min_version="6.0.0"
+            why="for testing", min_version="10.0.0"
         )
 
     assert "Mismatched version of test: expected >=2.0.0, got 1.0.0"

@@ -6,6 +6,7 @@ from typing import Any
 import pytest
 
 from marimo._data.get_datasets import (
+    _db_type_to_data_type,
     get_databases_from_duckdb,
     get_datasets_from_variables,
     get_duckdb_databases_agg_query,
@@ -571,3 +572,110 @@ def test_get_databases_agg_query() -> None:
     ]
 
     connection.execute(cleanup_query)
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+def test_get_databases_with_closed_connection() -> None:
+    """Test that closed connections are handled gracefully without errors."""
+    import duckdb
+
+    # Create a connection, add tables, then close it
+    connection = duckdb.connect(":memory:")
+    connection.execute("CREATE TABLE test_table (id INTEGER, name VARCHAR)")
+    connection.close()
+
+    # This should not raise an exception
+    result = get_databases_from_duckdb(
+        connection=connection, engine_name=VariableName("closed_engine")
+    )
+
+    # Should return empty list for closed connection
+    assert result == []
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+def test_get_databases_with_context_manager_closed_connection() -> None:
+    """Test that connections closed via context manager are handled gracefully."""
+    import duckdb
+
+    # Use context manager to automatically close connection
+    with duckdb.connect(":memory:") as connection:
+        connection.execute(
+            "CREATE TABLE test_table (id INTEGER, name VARCHAR)"
+        )
+        # Store reference to connection
+        closed_conn = connection
+
+    # Connection is now closed, this should not raise an exception
+    result = get_databases_from_duckdb(
+        connection=closed_conn, engine_name=VariableName("closed_engine")
+    )
+
+    # Should return empty list for closed connection
+    assert result == []
+
+
+def test_db_type_to_data_type_null() -> None:
+    """Test that the 'null' DuckDB type is handled without warnings."""
+    # Test that null type maps to unknown
+    assert _db_type_to_data_type("null") == "unknown"
+    assert _db_type_to_data_type("NULL") == "unknown"
+    assert _db_type_to_data_type('"null"') == "unknown"
+
+
+def test_db_type_to_data_type_various() -> None:
+    """Test various DuckDB type mappings."""
+    # Integer types
+    assert _db_type_to_data_type("integer") == "integer"
+    assert _db_type_to_data_type("bigint") == "integer"
+    assert _db_type_to_data_type("int128") == "integer"
+    assert _db_type_to_data_type("integral") == "integer"
+    assert _db_type_to_data_type("long") == "integer"
+    assert _db_type_to_data_type("short") == "integer"
+    assert _db_type_to_data_type("signed") == "integer"
+    assert _db_type_to_data_type("oid") == "integer"
+    assert _db_type_to_data_type("varint") == "integer"
+
+    # Unsigned integers
+    assert _db_type_to_data_type("utinyint") == "integer"
+    assert _db_type_to_data_type("usmallint") == "integer"
+    assert _db_type_to_data_type("uinteger") == "integer"
+    assert _db_type_to_data_type("ubigint") == "integer"
+    assert _db_type_to_data_type("uhugeint") == "integer"
+    assert _db_type_to_data_type("uint128") == "integer"
+
+    # Numeric types
+    assert _db_type_to_data_type("float") == "number"
+    assert _db_type_to_data_type("double") == "number"
+    assert _db_type_to_data_type("float4") == "number"
+    assert _db_type_to_data_type("dec") == "number"
+    assert _db_type_to_data_type("decimal") == "number"
+
+    # String types
+    assert _db_type_to_data_type("varchar") == "string"
+    assert _db_type_to_data_type("text") == "string"
+    assert _db_type_to_data_type("blob") == "string"
+    assert _db_type_to_data_type("guid") == "string"
+    assert _db_type_to_data_type("nvarchar") == "string"
+
+    # Binary types (represented as string)
+    assert _db_type_to_data_type("binary") == "string"
+    assert _db_type_to_data_type("varbinary") == "string"
+    assert _db_type_to_data_type("bytea") == "string"
+
+    # Boolean
+    assert _db_type_to_data_type("boolean") == "boolean"
+    assert _db_type_to_data_type("bool") == "boolean"
+    assert _db_type_to_data_type("logical") == "boolean"
+
+    # Date/Time
+    assert _db_type_to_data_type("date") == "date"
+    assert _db_type_to_data_type("timestamp") == "datetime"
+    assert _db_type_to_data_type("timestamptz") == "datetime"
+    assert _db_type_to_data_type("timetz") == "time"
+
+    # Special types
+    assert _db_type_to_data_type("geometry") == "unknown"
+    assert _db_type_to_data_type("null") == "unknown"
+    assert _db_type_to_data_type("json") == "unknown"
+    assert _db_type_to_data_type("row") == "unknown"

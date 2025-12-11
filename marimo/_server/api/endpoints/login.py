@@ -47,6 +47,7 @@ LOGIN_PAGE = """
         display: block;
         margin-bottom: 5px;
         font-size: 16px;
+        font-family: Arial, sans-serif;
         color: #333;">Access Token / Password</label>
       <input id="password" name="password" type="password" style="
         width: 100%;
@@ -127,7 +128,7 @@ async def login_submit(request: Request) -> Response:
     elif request.user.is_authenticated:
         return RedirectResponse(redirect_url, 302)
 
-    base_url = AppState(request).base_url
+    base_url = _with_trailing_slash(AppState(request).base_url or "/")
     html = LOGIN_PAGE.format(error=error, base_url=base_url)
     return HTMLResponse(
         content=html,

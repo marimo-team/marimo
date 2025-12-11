@@ -84,8 +84,9 @@ into your notebook.
 
 The chat panel currently supports the following modes:
 
-- **Ask**: Enables read-only [AI tools](tools.md) and [tools from added MCP Client servers](mcp.md#mcp-client) for context gathering, allowing the assistant to inspect your notebooks
 - **Manual**: No tool access; the AI responds based only on the conversation and manually injected context
+- **Ask**: Enables read-only [AI tools](tools.md) and [tools from added MCP Client servers](mcp.md#mcp-client) for context gathering, allowing the assistant to inspect your notebooks
+- **Agent** (beta): Enables all tools in **Ask Mode** plus additional tools to [edit notebook cells (add, remove, update) and run stale cells](tools.md#editing-agent-mode-only).
 
 ??? tip "See the chat panel in action"
 
@@ -160,7 +161,7 @@ See the [llm_providers](../configuration/llm_providers.md) guide for detailed in
 
 ## Copilots
 
-Copilots allow you to tab-complete code based on your notebook's context, similar to editors like Cursor. 
+Copilots allow you to tab-complete code based on your notebook's context, similar to editors like Cursor.
 
 <video autoplay muted loop playsinline width="100%" height="100%" align="center">
   <source src="/_static/docs-ai-completion-preview.mp4" type="video/mp4">
@@ -183,6 +184,39 @@ an AI pair programmer, similar to VS Code:
 
 _GitHUb Copilot is not yet available in our conda distribution; please install
 marimo using `pip`/`uv` if you need Copilot._
+
+#### Advanced configuration
+
+You can customize GitHub Copilot's behavior by adding `copilot_settings` to your `marimo.toml` configuration file:
+
+```toml title="marimo.toml"
+[ai.github]
+copilot_settings = { http = { proxy = "http://proxy.example.com:8888", proxyStrictSSL = true } }
+```
+
+Or in a more readable format:
+
+```toml title="marimo.toml"
+[ai.github.copilot_settings.http]
+proxy = "http://proxy.example.com:8888"
+proxyStrictSSL = true
+
+[ai.github.copilot_settings.github-enterprise]
+uri = "https://github.enterprise.com"  # For GitHub Enterprise users
+```
+
+Available configuration options (these are the same settings directory from the [npm package](https://github.com/orgs/github/packages/npm/package/copilot-language-server):
+
+* **HTTP settings**: Configure proxy settings for network connections
+    * `proxy`: HTTP proxy URL (e.g., `"http://proxy.example.com:8888"`)
+    * `proxyStrictSSL`: Whether to verify SSL certificates for the proxy (default: `false`)
+    * `proxyKerberosServicePrincipal`: Kerberos service principal for proxy authentication
+
+* **Telemetry settings**: Control telemetry data collection
+    * `telemetryLevel`: Level of telemetry to send - `"off"`, `"crash"`, `"error"`, or `"all"` (default: `"off"`)
+
+* **GitHub Enterprise**: Configure GitHub Enterprise Server
+    * `uri`: URL of your GitHub Enterprise Server instance
 
 ### Windsurf Copilot
 

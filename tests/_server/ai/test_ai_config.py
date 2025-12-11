@@ -168,6 +168,78 @@ class TestAnyProviderConfig:
         assert provider_config.api_key == "test-github-key"
         assert provider_config.base_url == "https://api.githubcopilot.com/"
 
+    def test_for_github_default_extra_headers(self):
+        """Test GitHub configuration includes default extra headers."""
+        config: AiConfig = {
+            "github": {
+                "api_key": "test-github-key",
+            }
+        }
+
+        provider_config = AnyProviderConfig.for_github(config)
+
+        assert provider_config.extra_headers is not None
+        assert (
+            provider_config.extra_headers["editor-version"] == "vscode/1.95.0"
+        )
+        assert (
+            provider_config.extra_headers["Copilot-Integration-Id"]
+            == "vscode-chat"
+        )
+
+    def test_for_github_user_headers_override_defaults(self):
+        """Test GitHub configuration allows user headers to override defaults."""
+        config: AiConfig = {
+            "github": {
+                "api_key": "test-github-key",
+                "extra_headers": {
+                    "editor-version": "custom-editor/2.0.0",
+                    "X-Custom-Header": "custom-value",
+                },
+            }
+        }
+
+        provider_config = AnyProviderConfig.for_github(config)
+
+        assert provider_config.extra_headers is not None
+        # User header should override default
+        assert (
+            provider_config.extra_headers["editor-version"]
+            == "custom-editor/2.0.0"
+        )
+        # Default header not overridden should remain
+        assert (
+            provider_config.extra_headers["Copilot-Integration-Id"]
+            == "vscode-chat"
+        )
+        # Custom user header should be preserved
+        assert (
+            provider_config.extra_headers["X-Custom-Header"] == "custom-value"
+        )
+
+    def test_for_github_with_copilot_settings(self):
+        """Test GitHub configuration with copilot_settings is accepted."""
+        config: AiConfig = {
+            "github": {
+                "api_key": "test-github-key",
+                "copilot_settings": {
+                    "http": {
+                        "proxy": "http://proxy.example.com:8888",
+                        "proxyStrictSSL": True,
+                    },
+                    "telemetry": {"telemetryLevel": "off"},
+                },
+            }
+        }
+
+        # Should not raise an error - copilot_settings is a valid field
+        provider_config = AnyProviderConfig.for_github(config)
+
+        # Note: copilot_settings is stored in config but not used by AnyProviderConfig
+        # It's used by the frontend LSP client
+        assert provider_config.api_key == "test-github-key"
+        assert provider_config.base_url == "https://api.githubcopilot.com/"
+
     def test_for_openrouter(self):
         """Test OpenRouter configuration."""
         config: AiConfig = {
@@ -194,6 +266,61 @@ class TestAnyProviderConfig:
 
         assert provider_config.api_key == "test-openrouter-key"
         assert provider_config.base_url == "https://openrouter.ai/api/v1/"
+
+    def test_for_wandb(self):
+        """Test Weights & Biases configuration."""
+        config: AiConfig = {
+            "wandb": {
+                "api_key": "test-wandb-key",
+                "base_url": "https://api.inference.wandb.ai/v1/",
+            }
+        }
+
+        provider_config = AnyProviderConfig.for_wandb(config)
+
+        assert provider_config.api_key == "test-wandb-key"
+        assert provider_config.base_url == "https://api.inference.wandb.ai/v1/"
+
+    def test_for_wandb_with_fallback_base_url(self):
+        """Test Weights & Biases configuration uses fallback base URL when not specified."""
+        config: AiConfig = {
+            "wandb": {
+                "api_key": "test-wandb-key",
+            }
+        }
+
+        provider_config = AnyProviderConfig.for_wandb(config)
+
+        assert provider_config.api_key == "test-wandb-key"
+        assert provider_config.base_url == "https://api.inference.wandb.ai/v1/"
+
+    def test_for_wandb_with_project(self):
+        """Test Weights & Biases configuration with project field."""
+        config: AiConfig = {
+            "wandb": {
+                "api_key": "test-wandb-key",
+                "project": "my-project",
+            }
+        }
+
+        provider_config = AnyProviderConfig.for_wandb(config)
+
+        assert provider_config.api_key == "test-wandb-key"
+        assert provider_config.project == "my-project"
+
+    def test_for_openai_with_project(self):
+        """Test OpenAI configuration with project field."""
+        config: AiConfig = {
+            "open_ai": {
+                "api_key": "test-openai-key",
+                "project": "my-openai-project",
+            }
+        }
+
+        provider_config = AnyProviderConfig.for_openai(config)
+
+        assert provider_config.api_key == "test-openai-key"
+        assert provider_config.project == "my-openai-project"
 
     def test_for_anthropic(self):
         """Test Anthropic configuration."""
@@ -286,6 +413,15 @@ class TestAnyProviderConfig:
 
         assert provider_config.api_key == "test-openrouter-key"
         assert provider_config.base_url == "https://openrouter.ai/api/v1/"
+
+    def test_for_model_wandb(self) -> None:
+        """Test for_model with Weights & Biases model."""
+        config: AiConfig = {"wandb": {"api_key": "test-wandb-key"}}
+
+        provider_config = AnyProviderConfig.for_model("wandb/llama-3", config)
+
+        assert provider_config.api_key == "test-wandb-key"
+        assert provider_config.base_url == "https://api.inference.wandb.ai/v1/"
 
     def test_for_model_unknown_defaults_to_ollama(self) -> None:
         """Test for_model with unknown provider defaults to Ollama."""
@@ -571,6 +707,32 @@ class TestProviderConfigWithFallback:
 
         assert exc_info.value.status_code == HTTPStatus.BAD_REQUEST
         assert "OpenRouter API key not configured" in str(
+            exc_info.value.detail
+        )
+
+    @patch.dict(os.environ, {"WANDB_API_KEY": "env-wandb-token"})
+    def test_for_wandb_with_fallback_key(self) -> None:
+        """Test Weights & Biases config uses fallback key when config is missing api_key."""
+        config: AiConfig = {"wandb": {}}
+        provider_config = AnyProviderConfig.for_wandb(config)
+        assert provider_config.api_key == "env-wandb-token"
+
+    @patch.dict(os.environ, {"WANDB_API_KEY": "env-wandb-token"})
+    def test_for_wandb_config_key_takes_precedence(self) -> None:
+        """Test Weights & Biases config key takes precedence over environment variable."""
+        config: AiConfig = {"wandb": {"api_key": "config-wandb-token"}}
+        provider_config = AnyProviderConfig.for_wandb(config)
+        assert provider_config.api_key == "config-wandb-token"
+
+    @patch.dict(os.environ, {}, clear=True)
+    def test_for_wandb_no_fallback_available(self) -> None:
+        """Test Weights & Biases config fails when no config key and no env var."""
+        config: AiConfig = {"wandb": {}}
+        with pytest.raises(HTTPException) as exc_info:
+            AnyProviderConfig.for_wandb(config)
+
+        assert exc_info.value.status_code == HTTPStatus.BAD_REQUEST
+        assert "Weights & Biases API key not configured" in str(
             exc_info.value.detail
         )
 
@@ -972,6 +1134,86 @@ class TestUtilityFunctions:
 
         assert provider_config.api_key == "test-key"
         assert provider_config.tools is None
+
+
+class TestSSLConfiguration:
+    """Tests for SSL configuration across all OpenAI-like providers."""
+
+    @pytest.mark.parametrize(
+        ("provider_name", "provider_method", "api_key_config"),
+        [
+            ("openai", "for_openai", {"open_ai": {"api_key": "test-key"}}),
+            ("github", "for_github", {"github": {"api_key": "test-key"}}),
+            ("ollama", "for_ollama", {"ollama": {"api_key": "test-key"}}),
+        ],
+    )
+    def test_ssl_config_from_provider_config(
+        self,
+        provider_name: str,
+        provider_method: str,
+        api_key_config: AiConfig,
+    ) -> None:
+        """Test SSL configuration is read from provider config."""
+        # Get the provider key from api_key_config
+        provider_key = next(iter(api_key_config.keys()))
+
+        config: AiConfig = {
+            **api_key_config,
+        }
+        config[provider_key]["ssl_verify"] = False
+        config[provider_key]["ca_bundle_path"] = "/custom/path/to/ca.pem"
+        config[provider_key]["client_pem"] = "/custom/path/to/client.pem"
+        config[provider_key]["extra_headers"] = {"X-Custom": "header"}
+
+        method = getattr(AnyProviderConfig, provider_method)
+        provider_config = method(config)
+
+        assert provider_config.ssl_verify is False, (
+            f"{provider_name}: ssl_verify should be False"
+        )
+        assert provider_config.ca_bundle_path == "/custom/path/to/ca.pem", (
+            f"{provider_name}: ca_bundle_path should match"
+        )
+        assert provider_config.client_pem == "/custom/path/to/client.pem", (
+            f"{provider_name}: client_pem should match"
+        )
+        # GitHub includes default headers that are merged with user headers
+        if provider_name == "github":
+            assert provider_config.extra_headers is not None
+            assert "X-Custom" in provider_config.extra_headers
+            assert provider_config.extra_headers["X-Custom"] == "header"
+            # GitHub should also include default headers
+            assert "editor-version" in provider_config.extra_headers
+            assert "Copilot-Integration-Id" in provider_config.extra_headers
+        else:
+            assert provider_config.extra_headers == {"X-Custom": "header"}, (
+                f"{provider_name}: extra_headers should match"
+            )
+
+    @pytest.mark.parametrize(
+        ("provider_name", "provider_method", "api_key_config"),
+        [
+            ("openai", "for_openai", {"open_ai": {"api_key": "test-key"}}),
+            ("github", "for_github", {"github": {"api_key": "test-key"}}),
+            ("ollama", "for_ollama", {"ollama": {"api_key": "test-key"}}),
+        ],
+    )
+    @patch.dict(os.environ, {"SSL_CERT_FILE": "/env/path/to/ca.pem"})
+    def test_ssl_cert_file_fallback(
+        self,
+        provider_name: str,
+        provider_method: str,
+        api_key_config: AiConfig,
+    ) -> None:
+        """Test SSL_CERT_FILE environment variable is used as fallback."""
+        config: AiConfig = {**api_key_config}
+
+        method = getattr(AnyProviderConfig, provider_method)
+        provider_config = method(config)
+
+        assert provider_config.ca_bundle_path == "/env/path/to/ca.pem", (
+            f"{provider_name}: should use SSL_CERT_FILE env var as fallback"
+        )
 
 
 class TestEdgeCases:

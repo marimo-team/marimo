@@ -1,3 +1,7 @@
+# /// script
+# dependencies = ["transformers", "pandas", "numpy", "matplotlib", "scikit-learn", "seaborn"]
+# ///
+
 import marimo
 
 app = marimo.App()
@@ -5,33 +9,39 @@ app = marimo.App()
 
 @app.cell
 def _():
-    # (use marimo's built-in package management features instead) !pip install transformers
+    import subprocess
+    return (subprocess,)
+
+
+@app.cell
+def _():
+    # packages added via marimo's package management: transformers !pip install transformers
     return
 
 
 @app.cell
 def _():
-    # (use marimo's built-in package management features instead) !pip install pandas numpy matplotlib
+    # packages added via marimo's package management: pandas numpy matplotlib !pip install pandas numpy matplotlib
     return
 
 
 @app.cell
 def _():
     # Mixed cell with pip and other commands
-    # (use marimo's built-in package management features instead) !pip install scikit-learn
+    # packages added via marimo's package management: scikit-learn !pip install scikit-learn
     import numpy as np
-    # (use marimo's built-in package management features instead) !pip install seaborn
+    # packages added via marimo's package management: seaborn !pip install seaborn
     return
 
 
-app._unparsable_cell(
-    r"""
+@app.cell
+def _(subprocess):
     # Non-pip exclamation commands should remain unchanged
-    !ls -la
-    !echo 'Hello World'
-    """,
-    name="_"
-)
+    #! ls -la
+    subprocess.call(['ls', '-la'])
+    #! echo 'Hello World'
+    subprocess.call(['echo', 'Hello World'])
+    return
 
 
 @app.cell

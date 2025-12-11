@@ -244,10 +244,12 @@ def _tree_to_ir(root: Element) -> SafeWrap[NotebookSerializationV1]:
         )
         sources.append(get_source_from_tag(child))
 
+    from marimo._utils.scripts import wrap_script_metadata
+
     header = root.get("header", None)
     pyproject = root.get("pyproject", None)
     if pyproject and not header:
-        header = "\n# ".join(["# /// script", *pyproject.splitlines(), "///"])
+        header = wrap_script_metadata(pyproject)
     notebook = NotebookSerializationV1(
         app=AppInstantiation(options=app_config),
         cells=[

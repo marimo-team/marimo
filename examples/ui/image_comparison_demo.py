@@ -9,14 +9,13 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.17.2"
 app = marimo.App()
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        """
+    mo.md("""
     # Image Comparison Demo
 
     This demo showcases the `mo.image_compare` feature, which allows for side-by-side comparison of images.
@@ -24,8 +23,7 @@ def _(mo):
     ## Basic Usage - Horizontal Comparison
 
     The default orientation is horizontal, where you can slide left and right to compare images:
-    """
-    )
+    """)
     return
 
 
@@ -45,13 +43,11 @@ def _(after_image_path, before_image_path, mo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## Custom Initial Position
 
     You can set the initial position of the slider:
-    """
-    )
+    """)
     return
 
 
@@ -68,13 +64,11 @@ def _(after_image_path, before_image_path, mo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## Vertical Comparison
 
     You can also use a vertical comparison slider:
-    """
-    )
+    """)
     return
 
 

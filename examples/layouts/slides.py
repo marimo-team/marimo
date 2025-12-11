@@ -10,53 +10,49 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.17.4"
 app = marimo.App(width="medium", layout_file="layouts/slides.slides.json")
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
-        !!! tip "This notebook is best viewed as an app."
-            Hit `Cmd/Ctrl+.` or click the "app view" button in the bottom right.
-        """
-    )
+    mo.md(r"""
+    !!! tip "This notebook is best viewed as an app."
+        Hit `Cmd/Ctrl+.` or click the "app view" button in the bottom right.
+    """)
     return
 
 
 @app.cell
 def _(mo):
-    mo.md(
-        """
-        # DuckDB Tricks 🦆
+    mo.md("""
+    # DuckDB Tricks 🦆
 
-        We use a simple example data set to present a few tricks that are useful when using DuckDB.
+    We use a simple example data set to present a few tricks that are useful when using DuckDB.
 
-        >
-        > Turned into slides from <https://duckdb.org/2024/08/19/duckdb-tricks-part-1.html>
-        """
-    )
+    >
+    > Turned into slides from <https://duckdb.org/2024/08/19/duckdb-tricks-part-1.html>
+    """)
     return
 
 
 @app.cell
 def _(mo):
-    mo.md(
-        r"""
-        ## Installation
+    mo.md(r"""
+    ## Installation
 
-        ```bash
-        uv add duckdb
-        ```
-        """
-    )
+    ```bash
+    uv add duckdb
+    ```
+    """)
     return
 
 
 @app.cell
 def _(mo):
-    mo.md(r"""# Creating the example data set""")
+    mo.md(r"""
+    # Creating the example data set
+    """)
     return
 
 
@@ -95,7 +91,9 @@ def _(duckdb, mo, print_and_run):
 
 @app.cell
 def _(mo):
-    mo.md(r"""# Pretty-printing floating-point numbers""")
+    mo.md(r"""
+    # Pretty-printing floating-point numbers
+    """)
     return
 
 
@@ -129,7 +127,9 @@ def _(mo, print_and_run):
 
 @app.cell
 def _(mo):
-    mo.md(r"""# Copying the schema of a table""")
+    mo.md(r"""
+    # Copying the schema of a table
+    """)
     return
 
 
@@ -165,7 +165,9 @@ def _(mo, print_and_run):
 
 @app.cell
 def _(mo):
-    mo.md(r"""# Shuffling data""")
+    mo.md(r"""
+    # Shuffling data
+    """)
     return
 
 
@@ -204,13 +206,11 @@ def _(mo, print_and_run, rerun):
 
 @app.cell
 def _(mo):
-    mo.md(
-        """
-        # Closing thoughts
+    mo.md("""
+    # Closing thoughts
 
-        That’s it for today. The tricks shown in this post are available on [duckdbsnippets.com](https://duckdbsnippets.com).
-        """
-    )
+    That’s it for today. The tricks shown in this post are available on [duckdbsnippets.com](https://duckdbsnippets.com).
+    """)
     return
 
 

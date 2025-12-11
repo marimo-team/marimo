@@ -14,11 +14,13 @@ import {
 import { Tooltip, TooltipProvider } from "@/components/ui/tooltip";
 import { renderHTML } from "@/plugins/core/RenderHTML";
 import { cn } from "@/utils/cn";
+import { appendQueryParams } from "@/utils/urls";
 import type {
   IStatelessPlugin,
   IStatelessPluginProps,
 } from "../stateless-plugin";
 import "./navigation-menu.css";
+import { KnownQueryParams } from "@/core/constants";
 
 interface MenuItem {
   label: string;
@@ -99,31 +101,42 @@ const NavMenuComponent = ({
     return "_self";
   };
 
+  const preserveQueryParams = (href: string) => {
+    const currentUrl = new URL(globalThis.location.href);
+    return appendQueryParams({
+      href,
+      queryParams: currentUrl.search,
+      keys: [KnownQueryParams.filePath],
+    });
+  };
+
   const renderMenuItem = (item: MenuItem | MenuItemGroup) => {
     if ("items" in item) {
       return orientation === "horizontal" ? (
-        <NavigationMenuItem key={item.label}>
-          <NavigationMenuTrigger>
-            {renderHTML({ html: item.label })}
-          </NavigationMenuTrigger>
-          <NavigationMenuContent>
-            <NavigationMenuList>
-              <ul className="grid w-[400px] gap-3 p-4 md:w-[500px] md:grid-cols-2 lg:w-[600px] ">
-                {item.items.map((subItem) => (
-                  <ListItem
-                    key={subItem.label}
-                    label={subItem.label}
-                    href={subItem.href}
-                    target={target(subItem.href)}
-                  >
-                    {subItem.description &&
-                      renderHTML({ html: subItem.description })}
-                  </ListItem>
-                ))}
-              </ul>
-            </NavigationMenuList>
-          </NavigationMenuContent>
-        </NavigationMenuItem>
+        <NavigationMenu orientation="horizontal" key={item.label}>
+          <NavigationMenuList>
+            <NavigationMenuItem>
+              <NavigationMenuTrigger>
+                {renderHTML({ html: item.label })}
+              </NavigationMenuTrigger>
+              <NavigationMenuContent>
+                <ul className="grid w-[400px] gap-3 p-4 md:w-[500px] md:grid-cols-2 lg:w-[600px] ">
+                  {item.items.map((subItem) => (
+                    <ListItem
+                      key={subItem.label}
+                      label={subItem.label}
+                      href={preserveQueryParams(subItem.href)}
+                      target={target(subItem.href)}
+                    >
+                      {subItem.description &&
+                        renderHTML({ html: subItem.description })}
+                    </ListItem>
+                  ))}
+                </ul>
+              </NavigationMenuContent>
+            </NavigationMenuItem>
+          </NavigationMenuList>
+        </NavigationMenu>
       ) : (
         <NavigationMenuItem key={item.label}>
           <div
@@ -142,7 +155,7 @@ const NavMenuComponent = ({
                 {maybeWithTooltip(
                   <NavigationMenuLink
                     key={subItem.label}
-                    href={subItem.href}
+                    href={preserveQueryParams(subItem.href)}
                     target={target(subItem.href)}
                     className={navigationMenuTriggerStyle({
                       orientation: orientation,
@@ -162,7 +175,7 @@ const NavMenuComponent = ({
     return (
       <NavigationMenuItem key={item.label}>
         <NavigationMenuLink
-          href={item.href}
+          href={preserveQueryParams(item.href)}
           target={target(item.href)}
           className={navigationMenuTriggerStyle({
             orientation: orientation,

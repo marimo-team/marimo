@@ -4,7 +4,7 @@ import {
   compressToEncodedURIComponent,
   decompressFromEncodedURIComponent,
 } from "lz-string";
-import { TypedLocalStorage } from "@/utils/localStorage";
+import { TypedLocalStorage } from "@/utils/storage/typed";
 import { PyodideRouter } from "./router";
 
 export interface FileStore {

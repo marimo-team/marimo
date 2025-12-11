@@ -1,4 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+
 import type {
   ContentBlock,
   ToolCallContent,
@@ -6,6 +7,7 @@ import type {
 } from "@zed-industries/agent-client-protocol";
 import { capitalize } from "lodash-es";
 import {
+  BotMessageSquareIcon,
   FileAudio2Icon,
   FileIcon,
   FileImageIcon,
@@ -20,18 +22,21 @@ import {
   XIcon,
 } from "lucide-react";
 import React from "react";
-import { mergeToolCalls } from "use-acp";
+import { JsonRpcError, mergeToolCalls } from "use-acp";
+import { z } from "zod";
+import { ReadonlyDiff } from "@/components/editor/code/readonly-diff";
 import { JsonOutput } from "@/components/editor/output/JsonOutput";
+import { MarkdownRenderer } from "@/components/markdown/markdown-renderer";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { uniqueByTakeLast } from "@/utils/arrays";
 import { logNever } from "@/utils/assertNever";
 import { cn } from "@/utils/cn";
 import { Strings } from "@/utils/strings";
-import { MarkdownRenderer } from "../markdown-renderer";
 import { SimpleAccordion } from "./common";
 import type {
   AgentNotificationEvent,
@@ -54,16 +59,63 @@ import {
   isUserMessages,
 } from "./utils";
 
+/**
+ * Merges consecutive text blocks into a single text block to prevent
+ * fragmented display when agent messages are streamed in chunks.
+ */
+function mergeConsecutiveTextBlocks(
+  contentBlocks: ContentBlock[],
+): ContentBlock[] {
+  if (contentBlocks.length === 0) {
+    return contentBlocks;
+  }
+
+  const merged: ContentBlock[] = [];
+  let currentTextBlock: string | null = null;
+
+  for (const block of contentBlocks) {
+    if (block.type === "text") {
+      // Accumulate text content
+      if (currentTextBlock === null) {
+        currentTextBlock = block.text;
+      } else {
+        currentTextBlock += block.text;
+      }
+    } else {
+      // If we have accumulated text, flush it before adding non-text block
+      if (currentTextBlock !== null) {
+        merged.push({ type: "text", text: currentTextBlock });
+        currentTextBlock = null;
+      }
+      merged.push(block);
+    }
+  }
+
+  // Flush any remaining text
+  if (currentTextBlock !== null) {
+    merged.push({ type: "text", text: currentTextBlock });
+  }
+
+  return merged;
+}
+
 export const ErrorBlock = (props: {
   data: ErrorNotificationEvent["data"];
   onRetry?: () => void;
   onDismiss?: () => void;
 }) => {
-  const { message } = props.data;
+  const error = props.data;
+  let message = props.data.message;
 
   // Don't show WebSocket connection errors
   if (message.includes("WebSocket")) {
     return null;
+  }
+
+  if (error instanceof JsonRpcError) {
+    const dataStr =
+      typeof error.data === "string" ? error.data : JSON.stringify(error.data);
+    message = `${dataStr} (code: ${error.code})`;
   }
 
   return (
@@ -114,16 +166,37 @@ export const ErrorBlock = (props: {
   );
 };
 
+export const ReadyToChatBlock = () => {
+  return (
+    <div className="flex-1 flex items-center justify-center h-full min-h-[200px] flex-col">
+      <div className="text-center space-y-3">
+        <div className="w-12 h-12 mx-auto rounded-full bg-[var(--blue-3)] flex items-center justify-center">
+          <BotMessageSquareIcon className="h-6 w-6 text-[var(--blue-10)]" />
+        </div>
+        <div>
+          <h3 className="text-lg font-medium text-foreground mb-1">
+            Agent is connected
+          </h3>
+          <p className="text-sm text-muted-foreground">
+            You can start chatting with your agent now
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export const ConnectionChangeBlock = (props: {
   data: ConnectionChangeNotificationEvent["data"];
   isConnected: boolean;
   onRetry?: () => void;
   timestamp?: number;
+  isOnlyBlock: boolean;
 }) => {
   const { status } = props.data;
 
-  if (props.isConnected) {
-    return null;
+  if (props.isConnected && props.isOnlyBlock) {
+    return <ReadyToChatBlock />;
   }
 
   const getStatusConfig = () => {
@@ -243,7 +316,9 @@ export const AgentThoughtsBlock = (props: {
 };
 
 export const PlansBlock = (props: { data: PlanNotificationEvent[] }) => {
-  const plans = props.data.flatMap((item) => item.entries);
+  // Dedupe plans by text, take the last one which may have a status update
+  let plans = props.data.flatMap((item) => item.entries);
+  plans = uniqueByTakeLast(plans, (item) => item.content);
 
   return (
     <div className="rounded-lg border bg-background p-2 text-xs">
@@ -297,9 +372,14 @@ export const UserMessagesBlock = (props: { data: UserNotificationEvent[] }) => {
 export const AgentMessagesBlock = (props: {
   data: AgentNotificationEvent[];
 }) => {
+  // Merge consecutive text chunks to prevent fragmented display
+  const mergedContent = mergeConsecutiveTextBlocks(
+    props.data.map((item) => item.content),
+  );
+
   return (
     <div className="flex flex-col gap-2">
-      <ContentBlocks data={props.data.map((item) => item.content)} />
+      <ContentBlocks data={mergedContent} />
     </div>
   );
 };
@@ -460,6 +540,7 @@ export const SessionNotificationsBlock = <
   data: T[];
   startTimestamp: number;
   endTimestamp: number;
+  isLastBlock: boolean;
 }) => {
   if (props.data.length === 0) {
     return null;
@@ -468,7 +549,9 @@ export const SessionNotificationsBlock = <
 
   const renderItems = (items: T[]) => {
     if (isToolCalls(items)) {
-      return <ToolNotificationsBlock data={items} />;
+      return (
+        <ToolNotificationsBlock data={items} isLastBlock={props.isLastBlock} />
+      );
     }
     if (isAgentThoughts(items)) {
       return (
@@ -522,6 +605,7 @@ export const CurrentModeBlock = (props: {
 
 export const ToolNotificationsBlock = (props: {
   data: (ToolCallNotificationEvent | ToolCallUpdateNotificationEvent)[];
+  isLastBlock: boolean;
 }) => {
   const toolCalls = mergeToolCalls(props.data);
 
@@ -535,7 +619,9 @@ export const ToolNotificationsBlock = (props: {
               ? "success"
               : item.status === "failed"
                 ? "error"
-                : item.status === "in_progress" || item.status === "pending"
+                : (item.status === "in_progress" ||
+                      item.status === "pending") &&
+                    !props.isLastBlock
                   ? "loading"
                   : undefined
           }
@@ -562,42 +648,16 @@ export const DiffBlocks = (props: {
         return (
           <div
             key={item.path}
-            className="border rounded-md overflow-hidden bg-[var(--gray-2)] max-h-64 overflow-y-auto scrollbar-thin"
+            className="border rounded-md overflow-hidden bg-[var(--gray-2)] overflow-y-auto scrollbar-thin max-h-64"
           >
             {/* File path header */}
             <div className="px-2 py-1 bg-[var(--gray-2)] border-b text-xs font-medium text-[var(--gray-11)]">
               {item.path}
             </div>
-
-            <div className="font-mono text-xs">
-              {/* Removed lines */}
-              {item.oldText && (
-                <div className="px-3 py-1 border-b bg-[var(--red-2)] border-b-[var(--red-6)]">
-                  <div className="flex">
-                    <span className="text-[var(--red-11)] select-none mr-2">
-                      -
-                    </span>
-                    <pre className="text-[var(--red-11)] px-1 rounded whitespace-pre-wrap break-words flex-1 line-through opacity-80">
-                      {item.oldText}
-                    </pre>
-                  </div>
-                </div>
-              )}
-
-              {/* Added lines */}
-              {item.newText && (
-                <div className="px-3 py-1 bg-[var(--grass-2)] border-b-[var(--grass-6)]">
-                  <div className="flex">
-                    <span className="text-[var(--grass-11)] select-none mr-2">
-                      +
-                    </span>
-                    <pre className="text-[var(--grass-11)] px-1 rounded whitespace-pre-wrap break-words flex-1 italic opacity-90">
-                      {item.newText}
-                    </pre>
-                  </div>
-                </div>
-              )}
-            </div>
+            <ReadonlyDiff
+              original={item.oldText || ""}
+              modified={item.newText || ""}
+            />
           </div>
         );
       })}
@@ -608,8 +668,12 @@ export const DiffBlocks = (props: {
 function toolTitle(
   item: Pick<ToolCallUpdateNotificationEvent, "title" | "kind" | "locations">,
 ) {
-  const prefix =
-    item.title || Strings.startCase(item.kind || "") || "Tool call";
+  let title = item.title;
+  // Hack: sometimes title comes back: "undefined", so lets undo that
+  if (title === '"undefined"') {
+    title = undefined;
+  }
+  const prefix = title || Strings.startCase(item.kind || "") || "Tool call";
   const firstLocation = item.locations?.[0];
   // Add the first location if it is not in the title already
   if (firstLocation && !prefix.includes(firstLocation.path)) {
@@ -656,6 +720,22 @@ export const ToolBodyBlock = (props: {
 
   // Completely empty
   if (!content && !hasLocations && rawInput) {
+    // HACK: if the raw input is `abs_path`, `old_string`, `new_string` then handle it as if it is a diff
+    const rawDiff = rawDiffSchema.safeParse(rawInput);
+    if (rawDiff.success) {
+      return (
+        <DiffBlocks
+          data={[
+            {
+              type: "diff",
+              oldText: rawDiff.data.old_string,
+              newText: rawDiff.data.new_string,
+              path: rawDiff.data.abs_path,
+            },
+          ]}
+        />
+      );
+    }
     // Show rawInput
     return (
       <pre className="bg-[var(--slate-2)] p-1 text-muted-foreground border border-[var(--slate-4)] rounded text-xs overflow-auto scrollbar-thin max-h-64">
@@ -685,3 +765,9 @@ export const ToolBodyBlock = (props: {
     </div>
   );
 };
+
+const rawDiffSchema = z.object({
+  abs_path: z.string(),
+  old_string: z.string(),
+  new_string: z.string(),
+});

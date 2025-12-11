@@ -297,6 +297,7 @@ export const DataFrameComponent = memo(
           get_column_summaries={getColumnSummaries}
           showPageSizeSelector={(total_rows && total_rows > 5) || false}
           showColumnExplorer={false}
+          showRowExplorer={true}
           showChartBuilder={false}
           value={Arrays.EMPTY}
           setValue={Functions.NOOP}
@@ -312,9 +313,10 @@ DataFrameComponent.displayName = "DataFrameComponent";
 
 function getColumnSummaries() {
   return Promise.resolve({
-    stats: {},
     data: null,
+    stats: {},
     bin_values: {},
     value_counts: {},
+    show_charts: false,
   });
 }

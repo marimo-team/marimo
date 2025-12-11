@@ -27,9 +27,11 @@ import { Kbd } from "@/components/ui/kbd";
 import { Tooltip } from "@/components/ui/tooltip";
 import { getCellEditorView } from "@/core/cells/cells";
 import type { CellId } from "@/core/cells/ids";
+import { SCRATCH_CELL_ID } from "@/core/cells/ids";
 import { insertDebuggerAtLine } from "@/core/codemirror/editing/debugging";
 import { aiEnabledAtom } from "@/core/config/config";
 import { getRequestClient } from "@/core/network/requests";
+import { isStaticNotebook } from "@/core/static/static-state";
 import { isWasm } from "@/core/wasm/utils";
 import { renderHTML } from "@/plugins/core/RenderHTML";
 import { copyToClipboard } from "@/utils/copy";
@@ -57,6 +59,7 @@ const KEY = "item";
 export const MarimoTracebackOutput = ({
   onRefactorWithAI,
   traceback,
+  cellId,
 }: Props): JSX.Element => {
   const htmlTraceback = renderHTML({
     html: traceback,
@@ -69,6 +72,18 @@ export const MarimoTracebackOutput = ({
 
   // Get last traceback info
   const tracebackInfo = extractAllTracebackInfo(traceback)?.at(0);
+
+  // Don't show in wasm, static notebooks, or scratchpad
+  const showDebugger =
+    tracebackInfo &&
+    tracebackInfo.kind === "cell" &&
+    !isWasm() &&
+    !isStaticNotebook() &&
+    cellId !== SCRATCH_CELL_ID;
+
+  const showAIFix = onRefactorWithAI && aiEnabled && !isStaticNotebook();
+
+  const showSearch = !isStaticNotebook();
 
   const handleRefactorWithAI = (triggerImmediately: boolean) => {
     onRefactorWithAI?.({
@@ -104,14 +119,14 @@ export const MarimoTracebackOutput = ({
         </AccordionItem>
       </Accordion>
       <div className="flex gap-2">
-        {onRefactorWithAI && aiEnabled && (
+        {showAIFix && (
           <AIFixButton
             tooltip="Fix with AI"
             openPrompt={() => handleRefactorWithAI(false)}
             applyAutofix={() => handleRefactorWithAI(true)}
           />
         )}
-        {tracebackInfo && tracebackInfo.kind === "cell" && !isWasm() && (
+        {showDebugger && (
           <Tooltip content={"Attach pdb to the exception point."}>
             <Button
               size="xs"
@@ -125,50 +140,52 @@ export const MarimoTracebackOutput = ({
             </Button>
           </Tooltip>
         )}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild={true}>
-            <Button size="xs" variant="text">
-              Get help
-              <ChevronDown className="h-3 w-3 ml-1" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56">
-            <DropdownMenuItem asChild={true}>
-              <a
-                target="_blank"
-                href={`https://www.google.com/search?q=${encodeURIComponent(lastTracebackLine)}`}
-                rel="noreferrer"
+        {showSearch && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild={true}>
+              <Button size="xs" variant="text">
+                Get help
+                <ChevronDown className="h-3 w-3 ml-1" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuItem asChild={true}>
+                <a
+                  target="_blank"
+                  href={`https://www.google.com/search?q=${encodeURIComponent(lastTracebackLine)}`}
+                  rel="noreferrer"
+                >
+                  <SearchIcon className="h-4 w-4 mr-2" />
+                  Search on Google
+                  <ExternalLinkIcon className="h-3 w-3 ml-auto" />
+                </a>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild={true}>
+                <a
+                  target="_blank"
+                  href="https://marimo.io/discord?ref=notebook"
+                  rel="noopener"
+                >
+                  <MessageCircleIcon className="h-4 w-4 mr-2" />
+                  Ask in Discord
+                  <ExternalLinkIcon className="h-3 w-3 ml-auto" />
+                </a>
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => {
+                  // Strip HTML from the traceback
+                  const div = document.createElement("div");
+                  div.innerHTML = traceback;
+                  const textContent = div.textContent || "";
+                  copyToClipboard(textContent);
+                }}
               >
-                <SearchIcon className="h-4 w-4 mr-2" />
-                Search on Google
-                <ExternalLinkIcon className="h-3 w-3 ml-auto" />
-              </a>
-            </DropdownMenuItem>
-            <DropdownMenuItem asChild={true}>
-              <a
-                target="_blank"
-                href="https://marimo.io/discord?ref=notebook"
-                rel="noopener"
-              >
-                <MessageCircleIcon className="h-4 w-4 mr-2" />
-                Ask in Discord
-                <ExternalLinkIcon className="h-3 w-3 ml-auto" />
-              </a>
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={() => {
-                // Strip HTML from the traceback
-                const div = document.createElement("div");
-                div.innerHTML = traceback;
-                const textContent = div.textContent || "";
-                copyToClipboard(textContent);
-              }}
-            >
-              <CopyIcon className="h-4 w-4 mr-2" />
-              Copy to clipboard
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+                <CopyIcon className="h-4 w-4 mr-2" />
+                Copy to clipboard
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
       </div>
     </div>
   );

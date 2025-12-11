@@ -73,13 +73,11 @@ import {
 import { Switch } from "../ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import { Tooltip } from "../ui/tooltip";
-import { SettingSubtitle } from "./common";
+import { formItemClasses, SettingSubtitle } from "./common";
 import { AWS_REGIONS } from "./constants";
 import { IncorrectModelId } from "./incorrect-model-id";
 import { IsOverridden } from "./is-overridden";
 import { MCPConfig } from "./mcp-config";
-
-const formItemClasses = "flex flex-row items-center space-x-1 space-y-0";
 
 interface AiConfigProps {
   form: UseFormReturn<UserConfig>;
@@ -135,6 +133,7 @@ export const ApiKey: React.FC<ApiKeyProps> = ({
                 rootClassName="flex-1"
                 className="m-0 inline-flex h-7"
                 placeholder={placeholder}
+                type="password"
                 {...field}
                 value={asStringOrUndefined(field.value)}
                 onChange={(e) => {
@@ -476,8 +475,8 @@ const ModelListItem: React.FC<ModelListItemProps> = ({
       onAction={handleToggle}
     >
       <TreeItemContent>
-        <div className="flex items-center justify-between px-4 py-3 border-b last:border-b-0 cursor-pointer outline-none">
-          <ModelInfoCard model={model} qualifiedId={qualifiedId} />
+        <div className="flex items-center justify-between px-3 py-2.5 border-b last:border-b-0 cursor-pointer outline-none">
+          <ModelInfoCard model={model} />
           {model.custom && (
             <Button
               variant="ghost"
@@ -495,35 +494,18 @@ const ModelListItem: React.FC<ModelListItemProps> = ({
   );
 };
 
-const ModelInfoCard = ({
-  model,
-  qualifiedId,
-}: {
-  model: AiModel;
-  qualifiedId: QualifiedModelId;
-}) => {
+const ModelInfoCard = ({ model }: { model: AiModel }) => {
   return (
-    <div className="flex items-center gap-3 flex-1">
-      <div className="flex flex-col flex-1">
-        <div className="flex items-center gap-2">
-          <h3 className="font-medium">{model.name}</h3>
-          <Tooltip content="Custom model">
-            {model.custom && <BotIcon className="h-4 w-4" />}
-          </Tooltip>
-        </div>
-        <span className="text-xs text-muted-foreground font-mono">
-          {qualifiedId}
-        </span>
-        {model.description && !model.custom && (
-          <p className="text-sm text-muted-secondary mt-1 line-clamp-2">
-            {model.description}
-          </p>
-        )}
-
+    <div className="flex flex-col flex-1 gap-0.5">
+      <div className="flex items-center gap-2">
+        <h3 className="font-medium text-sm">{model.name}</h3>
+        <Tooltip content="Custom model">
+          {model.custom && <BotIcon className="h-4 w-4" />}
+        </Tooltip>
         {model.thinking && (
           <div
             className={cn(
-              "flex items-center gap-1 rounded px-1 py-0.5 w-fit mt-1.5",
+              "flex items-center gap-1 rounded px-1 py-0.5 w-fit",
               getTagColour("thinking"),
             )}
           >
@@ -532,6 +514,11 @@ const ModelInfoCard = ({
           </div>
         )}
       </div>
+      {model.description && !model.custom && (
+        <p className="text-sm text-muted-foreground line-clamp-2">
+          {model.description}
+        </p>
+      )}
     </div>
   );
 };
@@ -762,6 +749,36 @@ export const AiProvidersConfig: React.FC<AiConfigProps> = ({
             name="ai.openrouter.base_url"
             placeholder="https://openrouter.ai/api/v1/"
             testId="ai-openrouter-base-url-input"
+          />
+        </AccordionFormItem>
+
+        <AccordionFormItem
+          title="Weights & Biases"
+          provider="wandb"
+          isConfigured={hasValue("ai.wandb.api_key")}
+        >
+          <ApiKey
+            form={form}
+            config={config}
+            name="ai.wandb.api_key"
+            placeholder="your-wandb-api-key"
+            testId="ai-wandb-api-key-input"
+            description={
+              <>
+                Your Weights & Biases API key from{" "}
+                <ExternalLink href="https://wandb.ai/authorize">
+                  wandb.ai
+                </ExternalLink>
+                .
+              </>
+            }
+          />
+          <BaseUrl
+            form={form}
+            config={config}
+            name="ai.wandb.base_url"
+            placeholder="https://api.inference.wandb.ai/v1/"
+            testId="ai-wandb-base-url-input"
           />
         </AccordionFormItem>
 
@@ -1071,7 +1088,7 @@ const ProviderTreeItem: React.FC<ProviderTreeItemProps> = ({
       className="outline-none data-focused:bg-muted/50 group"
     >
       <TreeItemContent>
-        <div className="flex items-center gap-3 px-3 py-3 hover:bg-muted/50 cursor-pointer outline-none focus-visible:outline-none">
+        <div className="flex items-center gap-3 px-2 py-3 hover:bg-muted/50 cursor-pointer outline-none focus-visible:outline-none border-b group-data-expanded:border-b-0 rounded-sm">
           <Checkbox
             checked={checkboxState}
             onCheckedChange={handleProviderToggle}
@@ -1085,7 +1102,7 @@ const ProviderTreeItem: React.FC<ProviderTreeItemProps> = ({
             </p>
           </div>
           <AriaButton slot="chevron">
-            <ChevronRightIcon className="h-4 w-4 text-muted-foreground shrink-0 transition-transform duration-200 group-data-[expanded]:rotate-90" />
+            <ChevronRightIcon className="h-4 w-4 text-muted-foreground shrink-0 transition-transform duration-200 group-data-expanded:rotate-90" />
           </AriaButton>
         </div>
       </TreeItemContent>
@@ -1168,12 +1185,12 @@ export const AiModelDisplayConfig: React.FC<AiConfigProps> = ({
 
   return (
     <SettingGroup className="gap-2">
-      <p className="text-sm text-muted-secondary mb-6">
+      <p className="text-sm text-muted-secondary">
         Control which AI models are displayed in model selection dropdowns. When
         no models are selected, all available models will be shown.
       </p>
 
-      <div className="border rounded-md bg-background">
+      <div className="bg-background">
         <Tree
           aria-label="AI Models by Provider"
           className="flex-1 overflow-auto outline-none focus-visible:outline-none"

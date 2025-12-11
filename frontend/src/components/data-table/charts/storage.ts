@@ -5,7 +5,7 @@ import { capitalize } from "lodash-es";
 import { z } from "zod";
 import type { CellId } from "@/core/cells/ids";
 import { Logger } from "@/utils/Logger";
-import { NotebookScopedLocalStorage } from "@/utils/localStorage";
+import { NotebookScopedLocalStorage } from "@/utils/storage/typed";
 import type { TypedString } from "@/utils/typed";
 import { ChartSchema, type ChartSchemaType } from "./schemas";
 import type { ChartType } from "./types";

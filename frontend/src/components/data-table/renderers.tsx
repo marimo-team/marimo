@@ -12,6 +12,7 @@ import {
   type Table as TanStackTable,
 } from "@tanstack/react-table";
 import { type JSX, useRef } from "react";
+import useEvent from "react-use-event-hook";
 import {
   TableBody,
   TableCell,
@@ -20,9 +21,13 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/utils/cn";
+import { getCellDomProps } from "./cell-utils";
+import { COLUMN_WRAPPING_STYLES } from "./column-wrapping/feature";
+import { DataTableContextMenu } from "./context-menu";
 import { CellRangeSelectionIndicator } from "./range-focus/cell-selection-indicator";
 import { useCellRangeSelection } from "./range-focus/use-cell-range-selection";
 import { useScrollIntoViewOnFocus } from "./range-focus/use-scroll-into-view";
+import { stringifyUnknownValue } from "./utils";
 
 export function renderTableHeader<TData>(
   table: Table<TData>,
@@ -92,7 +97,13 @@ export const DataTableBody = <TData,>({
     handleCellMouseUp,
     handleCellMouseOver,
     handleCellsKeyDown,
+    handleCopy: handleCopyAllCells,
   } = useCellRangeSelection({ table });
+
+  const contextMenuCell = useRef<Cell<TData, unknown> | null>(null);
+  const handleContextMenu = useEvent((cell: Cell<TData, unknown>) => {
+    contextMenuCell.current = cell;
+  });
 
   function applyHoverTemplate(
     template: string,
@@ -104,7 +115,7 @@ export const DataTableBody = <TData,>({
     for (const c of cells) {
       const v = c.getValue();
       // Prefer empty string for nulls to keep tooltip clean
-      const s = renderUnknownValue({ value: v, nullAsEmptyString: true });
+      const s = stringifyUnknownValue({ value: v, nullAsEmptyString: true });
       idToValue.set(c.column.id, s);
     }
     return template.replaceAll(variableRegex, (_substr, varName: string) => {
@@ -126,12 +137,13 @@ export const DataTableBody = <TData,>({
       return (
         <TableCell
           tabIndex={0}
+          {...getCellDomProps(cell.id)}
           key={cell.id}
           className={cn(
             "whitespace-pre truncate max-w-[300px] outline-hidden",
             cell.column.getColumnWrapping &&
-              cell.column.getColumnWrapping() === "wrap" &&
-              "whitespace-pre-wrap min-w-[200px]",
+              cell.column.getColumnWrapping?.() === "wrap" &&
+              COLUMN_WRAPPING_STYLES,
             "px-1.5 py-[0.18rem]",
             className,
           )}
@@ -140,6 +152,7 @@ export const DataTableBody = <TData,>({
           onMouseDown={(e) => handleCellMouseDown(e, cell)}
           onMouseUp={handleCellMouseUp}
           onMouseOver={(e) => handleCellMouseOver(e, cell)}
+          onContextMenu={() => handleContextMenu(cell)}
         >
           <CellRangeSelectionIndicator cellId={cell.id} />
           <div className="relative">
@@ -159,7 +172,7 @@ export const DataTableBody = <TData,>({
 
   const hoverTemplate = table.getState().cellHoverTemplate || null;
 
-  return (
+  const tableBody = (
     <TableBody onKeyDown={handleCellsKeyDown} ref={tableRef}>
       {table.getRowModel().rows?.length ? (
         table.getRowModel().rows.map((row) => {
@@ -212,6 +225,15 @@ export const DataTableBody = <TData,>({
       )}
     </TableBody>
   );
+
+  return (
+    <DataTableContextMenu
+      tableBody={tableBody}
+      contextMenuRef={contextMenuCell}
+      tableRef={tableRef}
+      copyAllCells={handleCopyAllCells}
+    />
+  );
 };
 
 function getPinningStyles<TData>(
@@ -263,24 +285,4 @@ function columnSizingHandler<TData>(
     ...prevSizes,
     [column.id]: thead.getBoundingClientRect().width,
   }));
-}
-
-/**
- * Render an unknown value as a string. Converts objects to JSON strings.
- * @param opts.value - The value to render.
- * @param opts.nullAsEmptyString - If true, null values will be "". Else, stringify.
- */
-export function renderUnknownValue(opts: {
-  value: unknown;
-  nullAsEmptyString?: boolean;
-}): string {
-  const { value, nullAsEmptyString = false } = opts;
-
-  if (typeof value === "object" && value !== null) {
-    return JSON.stringify(value);
-  }
-  if (value === null && nullAsEmptyString) {
-    return "";
-  }
-  return String(value);
 }

@@ -7,7 +7,7 @@
 
 import marimo
 
-__generated_with = "0.16.0"
+__generated_with = "0.17.4"
 app = marimo.App()
 
 
@@ -19,26 +19,28 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        """
-        # Tables
+    mo.md("""
+    # Tables
 
-        > “Sometimes I’ll start a sentence and I don’t even know where it’s going. I just hope I find it along the way.”
-        — Michael Scott
-        """
-    )
+    > “Sometimes I’ll start a sentence and I don’t even know where it’s going. I just hope I find it along the way.”
+    — Michael Scott
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("""_Create rich tables with selectable rows using_ `mo.ui.table`.""")
+    mo.md("""
+    _Create rich tables with selectable rows using_ `mo.ui.table`.
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("""**Single selection.**""")
+    mo.md("""
+    **Single selection.**
+    """)
     return
 
 
@@ -60,7 +62,9 @@ def _(mo, single_select_table):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("""**Multi-selection.**""")
+    mo.md("""
+    **Multi-selection.**
+    """)
     return
 
 
@@ -82,7 +86,9 @@ def _(mo, multi_select_table):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("""**No selection.**""")
+    mo.md("""
+    **No selection.**
+    """)
     return
 
 
@@ -100,7 +106,9 @@ def _(mo, office_characters):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("""**Select individual cells**""")
+    mo.md("""
+    **Select individual cells**
+    """)
     return
 
 
@@ -113,7 +121,9 @@ def _(mo):
 
 @app.cell
 def _(mo):
-    mo.md("""**Style individual cells**""")
+    mo.md("""
+    **Style individual cells**
+    """)
     return
 
 

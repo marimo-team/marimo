@@ -19,7 +19,7 @@ import {
 export interface SQLMetadata {
   dataframeName: string;
   quotePrefix: QuotePrefixKind;
-  commentLines: string[];
+  commentLines: readonly string[];
   showOutput: boolean;
   engine: string;
 }
@@ -209,22 +209,63 @@ function parseSQLStatement(code: string): SQLParseInfo | null {
     }
 
     // Move to the expression part (after the =)
-    while (assignCursor.next()) {
-      if (assignCursor.name === "CallExpression") {
-        // Check if it's mo.sql call
-        const callCursor = assignCursor.node.cursor();
-        let isMoSql = false;
+    // We need to find the value being assigned (after AssignOp)
+    let foundAssignOp = false;
+    let rightHandSide: SyntaxNode | null = null;
 
-        callCursor.firstChild(); // Move to first child of call
-        if (callCursor.name === "MemberExpression") {
-          const memberText = code.slice(callCursor.from, callCursor.to);
-          isMoSql = memberText === "mo.sql";
+    while (assignCursor.nextSibling()) {
+      if (assignCursor.name === "AssignOp") {
+        foundAssignOp = true;
+      } else if (foundAssignOp && !rightHandSide) {
+        // This is the right-hand side of the assignment
+        rightHandSide = assignCursor.node;
+        break;
+      }
+    }
+
+    if (!rightHandSide) {
+      return null;
+    }
+
+    // Check if the right-hand side is wrapped in a conditional or binary expression
+    // These should NOT be treated as SQL cells (issue #7386)
+    if (
+      rightHandSide.name === "ConditionalExpression" ||
+      rightHandSide.name === "BinaryExpression" ||
+      rightHandSide.name === "UnaryExpression"
+    ) {
+      return null;
+    }
+
+    // Now look for the CallExpression - it should be the right-hand side or direct child
+    const rhsCursor = rightHandSide.cursor();
+    let callExprNode: SyntaxNode | null = null;
+
+    if (rhsCursor.name === "CallExpression") {
+      callExprNode = rhsCursor.node;
+    } else {
+      // Move to first child to handle potential wrapping
+      rhsCursor.firstChild();
+      do {
+        if (rhsCursor.name === "CallExpression") {
+          callExprNode = rhsCursor.node;
+          break;
         }
+      } while (rhsCursor.nextSibling());
+    }
 
-        if (!isMoSql) {
-          return null;
-        }
+    if (callExprNode) {
+      // Check if it's mo.sql call
+      const callCursor = callExprNode.cursor();
+      let isMoSql = false;
 
+      callCursor.firstChild(); // Move to first child of call
+      if (callCursor.name === "MemberExpression") {
+        const memberText = code.slice(callCursor.from, callCursor.to);
+        isMoSql = memberText === "mo.sql";
+      }
+
+      if (isMoSql) {
         // Move to arguments
         while (callCursor.next()) {
           if (callCursor.name === "ArgList") {

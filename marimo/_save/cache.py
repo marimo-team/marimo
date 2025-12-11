@@ -1,6 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import abc
 import inspect
 import re
 from collections import namedtuple
@@ -228,7 +229,7 @@ class Cache:
         )
 
 
-class CacheContext:
+class CacheContext(abc.ABC):
     """Tracks cache loader state and statistics.
     Base class for cache interfaces."""
 
@@ -289,7 +290,6 @@ class CacheContext:
         if self._loader is None:
             return 0.0
         return self.loader.time_saved
-
 
 class CellCacheContext:
     """Tracks aggregated cell-level cache statistics."""
@@ -500,3 +500,16 @@ def _restore_from_stub_if_needed(
 
     memo[obj_id] = result
     return result
+
+    @property
+    @abc.abstractmethod
+    def last_hash(self) -> Optional[str]:
+        """Last computed cache hash, if available."""
+
+    def __repr__(self) -> str:
+        return (
+            f"<{self.__class__.__name__} hits={self.hits} "
+            f"misses={self.misses} maxsize={self.maxsize} "
+            f"currsize={self.currsize} time_saved={self.time_saved:.4f}s "
+            f"last_hash={self.last_hash}>"
+        )

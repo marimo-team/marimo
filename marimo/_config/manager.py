@@ -5,7 +5,7 @@ import os
 from abc import abstractmethod
 from functools import cached_property, lru_cache
 from pathlib import Path
-from typing import Optional, Union, cast
+from typing import Any, Optional, Union, cast
 
 from marimo import _loggers
 from marimo._config.config import (
@@ -29,6 +29,7 @@ from marimo._config.reader import (
     get_marimo_config_from_pyproject_dict,
     read_marimo_config,
     read_pyproject_marimo_config,
+    sanitize_pyproject_dict,
 )
 from marimo._config.secrets import (
     mask_secrets,
@@ -38,6 +39,7 @@ from marimo._config.secrets import (
 from marimo._config.utils import (
     get_or_create_user_config_path,
 )
+from marimo._utils.env import env_to_value
 
 LOGGER = _loggers.marimo_logger()
 
@@ -62,6 +64,7 @@ def get_default_config_manager(
         UserConfigManager(),
         ProjectConfigManager(current_path),
         ScriptConfigManager(current_path),
+        EnvConfigManager(),
     )
 
 
@@ -194,7 +197,10 @@ class ProjectConfigManager(PartialMarimoConfigReader):
                 return {}
             project_config = read_pyproject_marimo_config(self.pyproject_path)
             if project_config is None:
-                return {}
+                # Some project configuration defaults (dotenv in particular)
+                # are resolved at runtime, even in the absence of marimo
+                # section in the pyproject.toml.
+                project_config = cast(PartialMarimoConfig, {})
             project_config = self._resolve_pythonpath(project_config)
             project_config = self._resolve_dotenv(project_config)
             project_config = self._resolve_custom_css(project_config)
@@ -300,6 +306,38 @@ class ProjectConfigManager(PartialMarimoConfigReader):
         }
 
 
+class EnvConfigManager(PartialMarimoConfigReader):
+    def _maybe_override_from_env(
+        self, key: str, path: list[str], config: PartialMarimoConfig
+    ) -> None:
+        loaded_value = env_to_value(key)
+        if not isinstance(loaded_value, tuple):
+            return None
+        value = loaded_value[0]
+
+        current = cast(dict[str, Any], config)
+        for p in path[:-1]:
+            if p not in current or not isinstance(current[p], dict):
+                current[p] = {}
+            current = current[p]
+        current[path[-1]] = value
+        return None
+
+    def get_config(self, *, hide_secrets: bool = True) -> PartialMarimoConfig:
+        """Get the configuration, as a partial configuration"""
+        project_config: PartialMarimoConfig = {}
+        # We could do this dynamically, but list explicitly for now to reduce
+        # surface area
+        self._maybe_override_from_env(
+            "_MARIMO_CONFIG_OVERLOAD_RUNTIME_AUTO_INSTANTIATE",
+            ["runtime", "auto_instantiate"],
+            project_config,
+        )
+        if hide_secrets:
+            return mask_secrets_partial(project_config)
+        return project_config
+
+
 class ScriptConfigManager(PartialMarimoConfigReader):
     """Read the script configuration following PEP 723
 
@@ -328,6 +366,11 @@ class ScriptConfigManager(PartialMarimoConfigReader):
             script_config = read_pyproject_from_script(script_content)
             if script_config is None:
                 return {}
+
+            script_config = sanitize_pyproject_dict(
+                script_config,
+                (("tool", "marimo", "runtime", "auto_instantiate"),),
+            )
 
             marimo_config = get_marimo_config_from_pyproject_dict(
                 script_config

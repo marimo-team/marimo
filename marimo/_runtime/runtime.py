@@ -67,6 +67,7 @@ from marimo._messaging.ops import (
     PackageStatusType,
     RemoveUIElements,
     SecretKeysResult,
+    SQLMetadata,
     SQLTableListPreview,
     SQLTablePreview,
     ValidateSQLResult,
@@ -875,10 +876,14 @@ class Kernel:
                 syntax_error[0] = syntax_error[0][
                     syntax_error[0].find("line") :
                 ]
+
+                lineno = getattr(e, "lineno", None)
                 if isinstance(e, ImportStarError):
-                    error = MarimoImportStarError(msg=str(e))
+                    error = MarimoImportStarError(msg=str(e), lineno=lineno)
                 else:
-                    error = MarimoSyntaxError(msg="\n".join(syntax_error))
+                    error = MarimoSyntaxError(
+                        msg="\n".join(syntax_error), lineno=lineno
+                    )
             else:
                 tmpio = io.StringIO()
                 traceback.print_exc(file=tmpio)
@@ -1451,6 +1456,7 @@ class Kernel:
                 self.state_updates
             )
             self.state_updates.clear()
+
         self.state_updates.clear()
         # Combine cells needing rerun from both state updates and cache errors
         cells_to_rerun = cells_with_stale_state | runner.cells_needing_rerun
@@ -1459,20 +1465,36 @@ class Kernel:
     def register_state_update(self, state: State[Any]) -> None:
         """Register a state object as having been updated.
 
-        Should be called when a state's setter is called.
+        Should be called when a state's setter is called
         """
-        # store the state and the currently executing cell
+        from marimo._runtime.threads import is_marimo_thread
+
         ctx = get_context()
         assert ctx.execution_context is not None
-        cell_id = ctx.execution_context.cell_id
-        with self._state_lock:
-            self.state_updates[state] = cell_id
-        to_update = self.update_stateful_values(
-            ctx.state_registry.bound_names(state), state._value
-        )
-        if self.reactive_execution_mode == "autorun":
-            # If autorun, run the cells that depend on the state
-            self.graph.set_stale(to_update)
+        setter_cell_id = ctx.execution_context.cell_id
+
+        # When running on the main thread of execution, state updates
+        # are just logged in a data structure; it is the runner's
+        # job to process these later.
+        if not is_marimo_thread():
+            with self._state_lock:
+                self.state_updates[state] = setter_cell_id
+            return
+
+        # Otherwise, when running in a mo.Thread, we eagerly process
+        # state updates.
+        cells_with_stale_state = set()
+        for cid, cell in self.graph.cells.items():
+            # No self-loops
+            if cid == setter_cell_id and not state.allow_self_loops:
+                continue
+            for ref in cell.refs:
+                # run this cell if any of its refs match the state object
+                # by object ID (via is operator)
+                if ref in self.globals and self.globals[ref] is state:
+                    cells_with_stale_state.add(cid)
+        self.graph.set_stale(cells_with_stale_state, prune_imports=True)
+        if not self.lazy():
             self._execute_stale_cells_callback()
 
     @kernel_tracer.start_as_current_span("delete_cell")
@@ -1873,9 +1895,38 @@ class Kernel:
                 for name in ctx.ui_element_registry.bound_names(object_id)
                 if not is_local(name)
             }
-            referring_cells.update(
-                self.update_stateful_values(bound_names, value)
-            )
+            variable_values: list[VariableValue] = []
+            for name in bound_names:
+                # TODO update variable values even for namespaces? lenses? etc
+                variable_values.append(
+                    VariableValue.create(name=name, value=value)
+                )
+                try:
+                    # subtracting self.graph.definitions[name]: never rerun the
+                    # cell that created the name
+                    referring_cells |= self.graph.get_referring_cells(
+                        name, language="python"
+                    ) - self.graph.get_defining_cells(name)
+                except Exception:
+                    # This is a serious bug that should never be triggered;
+                    # it means that we couldn't find a UIElement object
+                    # that should exist.
+                    sys.stderr.write(
+                        "An exception was raised when finding cells that "
+                        f"refer to a UIElement value, for bound name {name}. "
+                        "This is a bug in marimo. "
+                        "Please copy the below traceback and paste it in an "
+                        "issue: https://github.com/marimo-team/marimo/issues\n"
+                    )
+                    tmpio = io.StringIO()
+                    traceback.print_exc(file=tmpio)
+                    tmpio.seek(0)
+                    write_traceback(tmpio.read())
+                    # Entering undefined behavior territory ...
+                    continue
+
+            if variable_values:
+                VariableValues(variables=variable_values).broadcast()
 
         if self.reactive_execution_mode == "autorun":
             await self._run_cells(referring_cells)
@@ -1923,43 +1974,6 @@ class Kernel:
 
     def reset_ui_initializers(self) -> None:
         self.ui_initializers = {}
-
-    def update_stateful_values(
-        self, bound_names: set[str], value: Any
-    ) -> set[CellId_t]:
-        variable_values: list[VariableValue] = []
-        referring_cells: set[CellId_t] = set()
-        for name in bound_names:
-            # TODO update variable values even for namespaces? lenses? etc
-            variable_values.append(
-                VariableValue.create(name=name, value=value)
-            )
-            try:
-                # subtracting self.graph.definitions[name]: never rerun the
-                # cell that created the name
-                referring_cells |= self.graph.get_referring_cells(
-                    name, language="python"
-                ) - self.graph.get_defining_cells(name)
-            except Exception:
-                # Internal marimo error
-                sys.stderr.write(
-                    "An exception was raised when finding cells that "
-                    f"refer to a UIElement value, for bound name {name}. "
-                    "This is a bug in marimo. "
-                    "Please copy the below traceback and paste it in an "
-                    "issue: https://github.com/marimo-team/marimo/issues\n"
-                )
-                tmpio = io.StringIO()
-                traceback.print_exc(file=tmpio)
-                tmpio.seek(0)
-                write_traceback(tmpio.read())
-                # Entering undefined behavior territory ...
-                continue
-
-        if variable_values:
-            VariableValues(variables=variable_values).broadcast()
-
-        return referring_cells
 
     @kernel_tracer.start_as_current_span("function_call_request")
     async def function_call_request(
@@ -2044,6 +2058,7 @@ class Kernel:
                 except Exception as e:
                     error_title = "Exception"
                     error_message = f"Function call (name: {request.function_name}, args: {request.args}) failed with exception {str(e)}"
+                    LOGGER.info(error_message, exc_info=True)
                     debug(error_title, error_message)
 
         # Couldn't call function, or function call failed
@@ -2090,8 +2105,13 @@ class Kernel:
             self.reset_ui_initializers()
         else:
             self._uninstantiated_execution_requests = execution_requests
-            for cell_id in self._uninstantiated_execution_requests.keys():
-                CellOp.broadcast_stale(cell_id=cell_id, stale=True)
+            for (
+                cell_id,
+                cell_request,
+            ) in self._uninstantiated_execution_requests.items():
+                # Only mark non-empty cells as stale
+                if cell_request.code.strip():
+                    CellOp.broadcast_stale(cell_id=cell_id, stale=True)
 
     def _handle_markdown_cells_on_instantiate(
         self, execution_requests: dict[CellId_t, ExecutionRequest]
@@ -2456,11 +2476,19 @@ class DatasetCallbacks:
         database_name = request.database
         schema_name = request.schema
         table_name = request.table_name
+        sql_metadata = SQLMetadata(
+            connection=variable_name,
+            database=database_name,
+            schema=schema_name,
+        )
 
         engine, error = self.get_engine_catalog(variable_name)
         if error is not None or engine is None:
             SQLTablePreview(
-                request_id=request.request_id, table=None, error=error
+                request_id=request.request_id,
+                table=None,
+                error=error,
+                metadata=sql_metadata,
             ).broadcast()
             return
 
@@ -2472,7 +2500,9 @@ class DatasetCallbacks:
             )
 
             SQLTablePreview(
-                request_id=request.request_id, table=table
+                request_id=request.request_id,
+                table=table,
+                metadata=sql_metadata,
             ).broadcast()
         except Exception as e:
             LOGGER.exception(
@@ -2484,6 +2514,7 @@ class DatasetCallbacks:
                 request_id=request.request_id,
                 table=None,
                 error="Failed to get table details: " + str(e),
+                metadata=sql_metadata,
             ).broadcast()
 
     @kernel_tracer.start_as_current_span("preview_sql_table_list")
@@ -2501,11 +2532,19 @@ class DatasetCallbacks:
         variable_name = cast(VariableName, request.engine)
         database_name = request.database
         schema_name = request.schema
+        sql_metadata = SQLMetadata(
+            connection=variable_name,
+            database=database_name,
+            schema=schema_name,
+        )
 
         engine, error = self.get_engine_catalog(variable_name)
         if error is not None or engine is None:
             SQLTableListPreview(
-                request_id=request.request_id, tables=[], error=error
+                request_id=request.request_id,
+                tables=[],
+                error=error,
+                metadata=sql_metadata,
             ).broadcast()
             return
 
@@ -2516,7 +2555,9 @@ class DatasetCallbacks:
                 include_table_details=False,
             )
             SQLTableListPreview(
-                request_id=request.request_id, tables=table_list
+                request_id=request.request_id,
+                tables=table_list,
+                metadata=sql_metadata,
             ).broadcast()
         except Exception as e:
             LOGGER.exception(
@@ -2526,7 +2567,8 @@ class DatasetCallbacks:
                 request_id=request.request_id,
                 tables=[],
                 error="Failed to get table list: " + str(e),
-            )
+                metadata=sql_metadata,
+            ).broadcast()
 
     @kernel_tracer.start_as_current_span("preview_datasource_connection")
     async def preview_datasource_connection(
@@ -2882,12 +2924,25 @@ class PackagesCallbacks:
         if self.should_update_script_metadata():
             self.update_script_metadata(installed_modules)
 
+        # All cells that depend on successfully installed modules are re-run.
+        #
+        # This consists of cells that either statically reference the installed
+        # module, or that previously failed with a ModuleNotFoundError matching
+        # an installed module.
         cells_to_run = set(
             cid
             for module in installed_modules
             if (cid := self._kernel.module_registry.defining_cell(module))
             is not None
         )
+
+        for cid, cell in self._kernel.graph.cells.items():
+            if (
+                isinstance(cell.exception, ModuleNotFoundError)
+                and cell.exception.name in installed_modules
+            ):
+                cells_to_run.add(cid)
+
         if cells_to_run:
             await self._kernel._if_autorun_then_run_cells(cells_to_run)
 

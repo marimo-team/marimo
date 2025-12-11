@@ -7,6 +7,7 @@ import pytest
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.ops import (
     DataSourceConnections,
+    SQLMetadata,
     SQLTableListPreview,
     SQLTablePreview,
     ValidateSQLResult,
@@ -99,7 +100,12 @@ class TestPreviewSQLTable:
         ]
         assert preview_sql_table_results == [
             SQLTablePreview(
-                request_id=RequestId("0"), table=None, error="Engine not found"
+                request_id=RequestId("0"),
+                table=None,
+                error="Engine not found",
+                metadata=SQLMetadata(
+                    connection=DUCKDB_CONN, database="test", schema="test"
+                ),
             )
         ]
 
@@ -126,7 +132,14 @@ class TestPreviewSQLTable:
             op for op in stream.operations if isinstance(op, SQLTablePreview)
         ]
         assert preview_sql_table_results == [
-            SQLTablePreview(request_id=RequestId("0"), table=None, error=None)
+            SQLTablePreview(
+                request_id=RequestId("0"),
+                table=None,
+                error=None,
+                metadata=SQLMetadata(
+                    connection=DUCKDB_CONN, database="test", schema="test"
+                ),
+            )
         ]
 
     async def test_query_engine(
@@ -156,6 +169,9 @@ class TestPreviewSQLTable:
                 request_id=RequestId("0"),
                 table=None,
                 error="Connection does not support catalog operations",
+                metadata=SQLMetadata(
+                    connection=SQLITE_CONN, database="test", schema="test"
+                ),
             )
         ]
 
@@ -182,7 +198,12 @@ class TestPreviewSQLTableList:
         ]
         assert preview_sql_table_list_results == [
             SQLTableListPreview(
-                request_id=RequestId("0"), tables=[], error="Engine not found"
+                request_id=RequestId("0"),
+                tables=[],
+                error="Engine not found",
+                metadata=SQLMetadata(
+                    connection=DUCKDB_CONN, database="test", schema="test"
+                ),
             )
         ]
 
@@ -211,7 +232,12 @@ class TestPreviewSQLTableList:
         ]
         assert preview_sql_table_list_results == [
             SQLTableListPreview(
-                request_id=RequestId("0"), tables=[], error=None
+                request_id=RequestId("0"),
+                tables=[],
+                error=None,
+                metadata=SQLMetadata(
+                    connection=DUCKDB_CONN, database="test", schema="test"
+                ),
             )
         ]
 
@@ -243,6 +269,9 @@ class TestPreviewSQLTableList:
                 request_id=RequestId("0"),
                 tables=[],
                 error="Connection does not support catalog operations",
+                metadata=SQLMetadata(
+                    connection=SQLITE_CONN, database="test", schema="test"
+                ),
             )
         ]
 

@@ -54,6 +54,7 @@ and deployable as apps.
 - 🧩 **reusable:** [import functions and classes](https://docs.marimo.io/guides/reusing_functions/) from one notebook to another
 - 🧪 **testable:** [run pytest](https://docs.marimo.io/guides/testing/) on notebooks
 - ⌨️ **a modern editor**: [GitHub Copilot](https://docs.marimo.io/guides/editor_features/ai_completion.html#github-copilot), [AI assistants](https://docs.marimo.io/guides/editor_features/ai_completion.html), vim keybindings, variable explorer, and [more](https://docs.marimo.io/guides/editor_features/index.html)
+- 🧑‍💻 **use your favorite editor**: run in [VS Code or Cursor](https://marketplace.visualstudio.com/items?itemName=marimo-team.vscode-marimo), or edit in neovim, Zed, [or any other text editor](https://docs.marimo.io/guides/editor_features/watching/)
 
 ```python
 pip install marimo && marimo tutorial intro
@@ -157,7 +158,7 @@ To install with additional dependencies that unlock SQL cells, AI completion, an
 run
 
 ```bash
-pip install marimo[recommended]
+pip install "marimo[recommended]"
 ```
 
 **Create notebooks.**

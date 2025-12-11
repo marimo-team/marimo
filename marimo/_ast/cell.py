@@ -122,6 +122,7 @@ RunResultStatusType = Literal[
 @dataclasses.dataclass
 class RunResultStatus:
     state: Optional[RunResultStatusType] = None
+    exception: Optional[Exception] = None
 
 
 @dataclasses.dataclass
@@ -354,9 +355,12 @@ class CellImpl:
         )
 
     def set_run_result_status(
-        self, run_result_status: RunResultStatusType
+        self,
+        run_result_status: RunResultStatusType,
+        exception: Exception | None = None,
     ) -> None:
         self._run_result_status.state = run_result_status
+        self._run_result_status.exception = exception
 
     def set_stale(
         self, stale: bool, stream: Stream | None = None, broadcast: bool = True
@@ -375,6 +379,10 @@ class CellImpl:
     @property
     def output(self) -> Any:
         return self._output.output
+
+    @property
+    def exception(self) -> Exception | None:
+        return self._run_result_status.exception
 
 
 @dataclasses.dataclass

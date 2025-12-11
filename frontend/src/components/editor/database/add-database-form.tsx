@@ -50,6 +50,7 @@ import {
   RedshiftConnectionSchema,
   SnowflakeConnectionSchema,
   SQLiteConnectionSchema,
+  SupabaseConnectionSchema,
   TimeplusConnectionSchema,
   TrinoConnectionSchema,
 } from "./schemas";
@@ -218,6 +219,16 @@ const DATABASES = [
     logo: "databricks",
     connectionLibraries: {
       libraries: ["sqlalchemy", "sqlmodel", "ibis"],
+      preferred: "sqlalchemy",
+    },
+  },
+  {
+    name: "Supabase",
+    schema: SupabaseConnectionSchema,
+    color: "#238F5F",
+    logo: "supabase",
+    connectionLibraries: {
+      libraries: ["sqlalchemy", "sqlmodel"],
       preferred: "sqlalchemy",
     },
   },

@@ -86,7 +86,7 @@ const SidebarItem: React.FC<
     <Tooltip content={tooltip} side="right" delayDuration={200}>
       <button
         className={cn(
-          "flex items-center p-2 text-sm mx-px shadow-inset font-mono cursor-pointer rounded",
+          "flex items-center p-2 text-sm mx-px shadow-inset font-mono rounded",
           !selected && "hover:bg-(--sage-3)",
           selected && "bg-(--sage-4)",
           className,

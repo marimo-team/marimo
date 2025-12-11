@@ -25,24 +25,15 @@ class MatplotlibFormatter(FormatterFactory):
         if running_in_notebook():
             matplotlib.use("module://marimo._output.mpl")
 
-        import base64
-        import io
-
         from matplotlib.artist import Artist  # type: ignore
         from matplotlib.container import BarContainer  # type: ignore
 
         from marimo._output import formatting
-        from marimo._utils.data_uri import build_data_url
 
         def mime_data_artist(artist: Artist) -> tuple[KnownMimeType, str]:
-            buf = io.BytesIO()
-            artist.figure.savefig(buf, format="png", bbox_inches="tight")  # type: ignore
-            mimetype: KnownMimeType = "image/png"
-            plot_bytes = base64.b64encode(buf.getvalue())
-            return (
-                mimetype,
-                build_data_url(mimetype=mimetype, data=plot_bytes),
-            )
+            from marimo._output.mpl import _render_figure_mimebundle
+
+            return _render_figure_mimebundle(artist.figure.canvas)  # type: ignore
 
         # monkey-patch a _mime_ method, instead of using a formatter, because
         # we want all subclasses of Artist to inherit this renderer.

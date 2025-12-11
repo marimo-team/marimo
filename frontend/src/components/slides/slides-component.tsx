@@ -11,6 +11,7 @@ import {
 import { Swiper, type SwiperRef, SwiperSlide } from "swiper/react";
 import { Button } from "@/components/ui/button";
 import { useEventListener } from "@/hooks/useEventListener";
+import { useIframeCapabilities } from "@/hooks/useIframeCapabilities";
 import { cn } from "@/utils/cn";
 
 import "./slides.css";
@@ -30,6 +31,7 @@ const SlidesComponent = ({
 }: PropsWithChildren<SlidesComponentProps>): JSX.Element => {
   const el = React.useRef<SwiperRef>(null);
   const [isFullscreen, setIsFullscreen] = React.useState(false);
+  const { hasFullscreen } = useIframeCapabilities();
 
   useEventListener(document, "fullscreenchange", () => {
     if (document.fullscreenElement) {
@@ -103,28 +105,30 @@ const SlidesComponent = ({
           </SwiperSlide>
         );
       })}
-      <Button
-        variant="link"
-        size="sm"
-        data-testid="marimo-plugin-slides-fullscreen"
-        onClick={async () => {
-          if (!el.current) {
-            return;
-          }
-          const domEl = el.current as unknown as HTMLElement;
+      {hasFullscreen && (
+        <Button
+          variant="link"
+          size="sm"
+          data-testid="marimo-plugin-slides-fullscreen"
+          onClick={async () => {
+            if (!el.current) {
+              return;
+            }
+            const domEl = el.current as unknown as HTMLElement;
 
-          if (document.fullscreenElement) {
-            await document.exitFullscreen();
-            setIsFullscreen(false);
-          } else {
-            await domEl.requestFullscreen();
-            setIsFullscreen(true);
-          }
-        }}
-        className="absolute bottom-0 right-0 z-10 mx-1 mb-0"
-      >
-        {isFullscreen ? "Exit Fullscreen" : "Fullscreen"}
-      </Button>
+            if (document.fullscreenElement) {
+              await document.exitFullscreen();
+              setIsFullscreen(false);
+            } else {
+              await domEl.requestFullscreen();
+              setIsFullscreen(true);
+            }
+          }}
+          className="absolute bottom-0 right-0 z-10 mx-1 mb-0"
+        >
+          {isFullscreen ? "Exit Fullscreen" : "Fullscreen"}
+        </Button>
+      )}
     </Swiper>
   );
 };

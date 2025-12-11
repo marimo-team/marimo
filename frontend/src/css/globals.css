@@ -31,7 +31,7 @@
 /* stylelint-disable-next-line import-notation */
 @import "tailwindcss";
 
-@config '../../tailwind.config.cjs';
+@config "../../tailwind.config.cjs";
 
 @layer base {
   :root {
@@ -134,6 +134,11 @@
 
   a.hyperlink:hover {
     text-decoration: underline;
+  }
+
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
   }
 }
 

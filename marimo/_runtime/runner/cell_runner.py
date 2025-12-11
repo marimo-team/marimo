@@ -65,7 +65,7 @@ def cell_filename(cell_id: CellId_t) -> str:
     return f"<cell-{cell_id}>"
 
 
-ErrorObjects = Union[BaseException, Error]
+ExceptionOrError = Union[BaseException, Error]
 
 
 @dataclass
@@ -73,13 +73,37 @@ class RunResult:
     # Raw output of cell: last expression
     output: Any
     # Exception raised by cell, if any
-    exception: Optional[ErrorObjects]
+    #
+    # TODO(akshayka): Exceptions and "Errors" (most of which are at parse time
+    # and can't be encountered by the runner) shouldn't be packed into a single
+    # field.
+    exception: Optional[ExceptionOrError]
     # Accumulated output: via imperative mo.output.append()
     accumulated_output: Any = None
 
     def success(self) -> bool:
         """Whether the cell expected successfully"""
         return self.exception is None
+
+
+def should_show_traceback(
+    exception: Optional[ExceptionOrError],
+) -> bool:
+    if exception is None:
+        return True
+
+    # Stop "errors" aren't actually errors but rather a control
+    # flow mechanism used by mo.stop() to stop execution; as such
+    # a traceback should not be shown for them.
+    if isinstance(exception, MarimoStopError):
+        return False
+
+    # SQL parsing errors happen in SQL cells so showing a
+    # python traceback is not useful.
+    if isinstance(exception, MarimoSQLError):
+        return False
+
+    return True
 
 
 class Runner:
@@ -150,7 +174,7 @@ class Runner:
         # whether the runner has been interrupted
         self.interrupted = False
         # mapping from cell_id to exception it raised
-        self.exceptions: dict[CellId_t, ErrorObjects] = {}
+        self.exceptions: dict[CellId_t, ExceptionOrError] = {}
         # cells that need to be rerun due to unhashable cache errors
         self.cells_needing_rerun: set[CellId_t] = set()
 
@@ -339,7 +363,7 @@ class Runner:
         unwrapped_exception: Optional[BaseException],
         cell_id: CellId_t,
     ) -> tuple[RunResult, Optional[BaseException]]:
-        exception: Optional[ErrorObjects] = unwrapped_exception
+        exception: Optional[ExceptionOrError] = unwrapped_exception
         if isinstance(exception, MarimoMissingRefError):
             ref, blamed_cell = self._get_blamed_cell(exception)
             # All MarimoMissingRefErrors should be caused caused by
@@ -518,25 +542,6 @@ class Runner:
             # TODO(akshayka): Another interrupt will end up interrupting
             # this call as well, so this should be lifted out of `run`.
             self.cancel(cell_id)
-
-            def should_show_traceback(
-                exception: Optional[ErrorObjects],
-            ) -> bool:
-                if exception is None:
-                    return True
-
-                # Stop "errors" aren't actually errors but rather a control
-                # flow mechanism used by mo.stop() to stop execution; as such
-                # a traceback should not be shown for them.
-                if isinstance(exception, MarimoStopError):
-                    return False
-
-                # SQL parsing errors happen in SQL cells so showing a
-                # python traceback is not useful.
-                if isinstance(exception, MarimoSQLError):
-                    return False
-
-                return True
 
             if should_show_traceback(run_result.exception):
                 tmpio = io.StringIO()

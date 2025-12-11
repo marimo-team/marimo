@@ -531,8 +531,16 @@ class ScopedVisitor(ast.NodeVisitor):
                         # Thus, if it has been declared, it's not "unbounded"
                         class_def.add(var)
                     else:
-                        unbounded_refs |= data.required_refs
-                unbounded_refs |= mock_visitor.refs - ignore_refs
+                        # For non-function/non-class variables (e.g., class attributes),
+                        # exclude references to variables already defined in class scope
+                        # Also exclude self-references (e.g., TypeAlias can reference itself)
+                        unbounded_refs |= (
+                            data.required_refs - class_def - {var}
+                        )
+                        # Add the variable to class_def so that later references
+                        # to it don't create unbounded refs
+                        class_def.add(var)
+            unbounded_refs |= mock_visitor.refs - ignore_refs
 
         # Handle function/class refs that are evaluated in the outer scope
         # Remove the body, which keeps signature and non-scoped parts.
@@ -553,6 +561,14 @@ class ScopedVisitor(ast.NodeVisitor):
         # the variable `foo` needs to be aware that it may require the ref `x`
         # during execution.
         self.ref_stack[-1].update(refs)
+
+        # Prune type_params
+        if sys.version_info >= (3, 12):
+            type_params = getattr(node, "type_params", [])
+            generics = {param.name for param in type_params}
+            refs -= generics
+            unbounded_refs -= generics
+
         # Return both sets of refs
         return refs, unbounded_refs
 
@@ -681,11 +697,35 @@ class ScopedVisitor(ast.NodeVisitor):
                     self.generic_visit(node)
                     return node
 
+                # Try to process each statement individually
+                # For some SQL types (e.g., PIVOT with certain clauses),
+                # DuckDB's statement.query may fail, so we fall back to processing the full SQL
+                statement_queries: list[str] = []
+                use_full_sql = False
                 for statement in statements:
+                    try:
+                        statement_sql = statement.query
+                        # Skip empty statements
+                        if statement_sql.strip():
+                            statement_queries.append(statement_sql)
+                    except (IndexError, BaseException):
+                        # Fallback to full SQL if we can't extract any individual statement
+                        use_full_sql = True
+                        break
+
+                # If we couldn't extract individual statements, process the full SQL once
+                if use_full_sql or not statement_queries:
+                    statement_queries = [sql]
+
+                # Accumulate defined names across all statements in this SQL block
+                # so that later statements don't create refs to tables defined in earlier statements
+                defined_names: set[str] = set()
+
+                for statement_sql in statement_queries:
                     # Parse the refs and defs of each statement
                     # Add all tables/dbs created in the query to the defs
                     try:
-                        sql_defs = find_sql_defs(sql)
+                        sql_defs = find_sql_defs(statement_sql)
                     except duckdb.ProgrammingError:
                         sql_defs = SQLDefs()
                     except BaseException as e:
@@ -695,12 +735,10 @@ class ScopedVisitor(ast.NodeVisitor):
                             exception=e,
                             node=node,
                             rule_code="MF005",
-                            sql_content=sql,
+                            sql_content=statement_sql,
                             context="sql_defs_extraction",
                         )
                         sql_defs = SQLDefs()
-
-                    defined_names = set()
 
                     for _table in sql_defs.tables:
                         self._define(
@@ -730,7 +768,7 @@ class ScopedVisitor(ast.NodeVisitor):
                     sql_refs: set[SQLRef] = set()
                     try:
                         # Take results
-                        sql_refs = find_sql_refs_cached(statement.query)
+                        sql_refs = find_sql_refs_cached(statement_sql)
                     except (
                         duckdb.ProgrammingError,
                         duckdb.IOException,
@@ -744,7 +782,7 @@ class ScopedVisitor(ast.NodeVisitor):
                             exception=e,
                             node=first_arg,
                             rule_code="MF005",
-                            sql_content=statement.query,
+                            sql_content=statement_sql,
                         )
 
                     for ref in sql_refs:
@@ -968,12 +1006,20 @@ class ScopedVisitor(ast.NodeVisitor):
 
         # Handle refs on the block scope level, or capture cell level
         # references.
+        # Only add to ref_stack if the variable is not defined in any
+        # non-module ancestor block. This prevents function parameters from
+        # being incorrectly marked as refs when used in nested scopes like
+        # list comprehensions, while still capturing module-level references.
         if (
             isinstance(node.ctx, ast.Load)
             and self._is_defined(node.id)
             and node.id not in self.ref_stack[-1]
             and (
-                node.id not in self.block_stack[-1].defs
+                # Check blocks[1:] - skip module block so module-level vars
+                # are still tracked as refs, but function params aren't
+                not any(
+                    node.id in block.defs for block in self.block_stack[1:]
+                )
                 or len(self.block_stack) == 1
             )
         ):
@@ -1034,52 +1080,49 @@ class ScopedVisitor(ast.NodeVisitor):
             )
         return node
 
-    if sys.version_info >= (3, 10):
-        # Match statements were introduced in Python 3.10
-        #
-        # Top-level match statements are awkward in marimo --- at parse-time,
-        # we have to register all names in every case/pattern as globals (since
-        # we don't know the value of the match subject), even though only a
-        # subset of the names will be bound at runtime. For this reason, in
-        # marimo, match statements should really only be used in local scopes.
-        def visit_MatchAs(self, node: ast.MatchAs) -> ast.MatchAs:
-            if node.name is not None:
-                node.name = self._if_local_then_mangle(node.name)
-                self._define(
-                    node,
-                    node.name,
-                    VariableData(kind="variable"),
-                )
-            if node.pattern is not None:
-                # pattern may contain additional MatchAs statements in it
-                self.visit(node.pattern)
-            return node
+    # Match statements were introduced in Python 3.10
+    #
+    # Top-level match statements are awkward in marimo --- at parse-time,
+    # we have to register all names in every case/pattern as globals (since
+    # we don't know the value of the match subject), even though only a
+    # subset of the names will be bound at runtime. For this reason, in
+    # marimo, match statements should really only be used in local scopes.
+    def visit_MatchAs(self, node: ast.MatchAs) -> ast.MatchAs:
+        if node.name is not None:
+            node.name = self._if_local_then_mangle(node.name)
+            self._define(
+                node,
+                node.name,
+                VariableData(kind="variable"),
+            )
+        if node.pattern is not None:
+            # pattern may contain additional MatchAs statements in it
+            self.visit(node.pattern)
+        return node
 
-        def visit_MatchMapping(
-            self, node: ast.MatchMapping
-        ) -> ast.MatchMapping:
-            if node.rest is not None:
-                node.rest = self._if_local_then_mangle(node.rest)
-                self._define(
-                    node,
-                    node.rest,
-                    VariableData(kind="variable"),
-                )
-            for key in node.keys:
-                self.visit(key)
-            for pattern in node.patterns:
-                self.visit(pattern)
-            return node
+    def visit_MatchMapping(self, node: ast.MatchMapping) -> ast.MatchMapping:
+        if node.rest is not None:
+            node.rest = self._if_local_then_mangle(node.rest)
+            self._define(
+                node,
+                node.rest,
+                VariableData(kind="variable"),
+            )
+        for key in node.keys:
+            self.visit(key)
+        for pattern in node.patterns:
+            self.visit(pattern)
+        return node
 
-        def visit_MatchStar(self, node: ast.MatchStar) -> ast.MatchStar:
-            if node.name is not None:
-                node.name = self._if_local_then_mangle(node.name)
-                self._define(
-                    node,
-                    node.name,
-                    VariableData(kind="variable"),
-                )
-            return node
+    def visit_MatchStar(self, node: ast.MatchStar) -> ast.MatchStar:
+        if node.name is not None:
+            node.name = self._if_local_then_mangle(node.name)
+            self._define(
+                node,
+                node.name,
+                VariableData(kind="variable"),
+            )
+        return node
 
     if sys.version_info >= (3, 12):
 

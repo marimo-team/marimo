@@ -10,7 +10,6 @@ from typing import TYPE_CHECKING, Optional, Union
 
 from marimo import _loggers
 from marimo._config.config import MCPConfig
-from marimo._dependencies.dependencies import DependencyManager
 from marimo._server.ai.mcp.config import (
     MCPConfigComparator,
     MCPServerDefinition,
@@ -879,14 +878,6 @@ def get_mcp_client() -> MCPClient:
     """
     global _MCP_CLIENT
     if _MCP_CLIENT is None:
-        if not DependencyManager.mcp.has():
-            msg = "MCP dependencies not available. Install with `pip install marimo[mcp]` or `uv add marimo[mcp]`"
-            LOGGER.info(msg)
-            raise ModuleNotFoundError(
-                msg,
-                name="mcp",
-            )
-
         _MCP_CLIENT = MCPClient()
         LOGGER.info("MCP client initialized")
     return _MCP_CLIENT

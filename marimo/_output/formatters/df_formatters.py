@@ -1,7 +1,6 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-import os
 import re
 from enum import Enum
 from typing import Any
@@ -14,6 +13,7 @@ from marimo._output.formatters.formatter_factory import (
     FormatterFactory,
     Unregister,
 )
+from marimo._output.hypertext import is_no_js
 from marimo._plugins.stateless.json_output import json_output
 from marimo._plugins.stateless.mermaid import mermaid
 from marimo._plugins.stateless.plain_text import plain_text
@@ -30,7 +30,7 @@ def include_opinionated() -> bool:
         runtime_context_installed,
     )
 
-    if os.getenv("MARIMO_NO_JS", "false").lower() == "true":
+    if is_no_js():
         return False
 
     if runtime_context_installed():
@@ -335,8 +335,16 @@ class IbisFormatter(FormatterFactory):
                 mode = _get_display_mode(expr)
 
                 if mode == IbisDisplayMode.INTERACTIVE:
-                    return table(
-                        expr, selection=None, pagination=True
+                    # Even though interactive mode is enabled and the expression may not be unbound,
+                    # it could be an extremely large query (e.g. s3 bucket)
+                    # Without lazy, this tries to load the entire dataframe into memory
+                    #
+                    # If a user does want the full dataframe, they can call .execute() manually
+                    # or use `mo.ui.table(df)`
+                    return table.lazy(
+                        expr,
+                        # Lazy, but preload the first page of data (since interactive is true)
+                        preload=True,
                     )._mime_()
                 else:
                     return _format_lazy_expression(expr, mode)

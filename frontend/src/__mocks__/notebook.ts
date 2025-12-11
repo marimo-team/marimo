@@ -4,7 +4,11 @@ import { createRef } from "react";
 import { vi } from "vitest";
 import type { CellActions, NotebookState } from "@/core/cells/cells";
 import { CellId } from "@/core/cells/ids";
-import { type CellData, createCellRuntimeState } from "@/core/cells/types";
+import {
+  type CellData,
+  type CellRuntimeState,
+  createCellRuntimeState,
+} from "@/core/cells/types";
 import type { MarimoError } from "@/core/kernel/messages";
 import { MultiColumn } from "@/utils/id-tree";
 import { Objects } from "@/utils/objects";
@@ -19,8 +23,10 @@ export const MockNotebook = {
 
   notebookState: (opts?: {
     cellData: Record<string, Partial<CellData>>;
+    cellRuntime?: Record<string, Partial<CellRuntimeState>>;
   }): NotebookState => {
     const cellData = opts?.cellData || {};
+    const cellRuntime = opts?.cellRuntime || {};
     return {
       cellData: Objects.mapValues(cellData, (data, cellId) => ({
         id: cellId as CellId,
@@ -39,8 +45,8 @@ export const MockNotebook = {
         ...data,
       })),
       cellIds: MultiColumn.from([Object.keys(cellData) as CellId[]]),
-      cellRuntime: Objects.mapValues(cellData, (_data) =>
-        createCellRuntimeState({}),
+      cellRuntime: Objects.mapValues(cellData, (_data, cellId) =>
+        createCellRuntimeState({ ...cellRuntime[cellId] }),
       ),
       cellHandles: Objects.mapValues(cellData, (_data) => createRef()),
       cellLogs: [],

@@ -1,13 +1,14 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import { CornerLeftUp } from "lucide-react";
-import { type JSX, useState } from "react";
+import { type JSX, useEffect, useState } from "react";
 import { z } from "zod";
 import {
   FILE_TYPE_ICONS,
   type FileType,
   guessFileType,
 } from "@/components/editor/file-tree/types";
+import { Spinner } from "@/components/icons/spinner";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
@@ -145,6 +146,7 @@ export const FileBrowser = ({
   const [path, setPath] = useInternalStateWithSync(initialPath);
   const [selectAllLabel, setSelectAllLabel] = useState("Select all");
   const [isUpdatingPath, setIsUpdatingPath] = useState(false);
+  const [showLoadingOverlay, setShowLoadingOverlay] = useState(false);
 
   // HACK: use the random-id of the host element to force a re-render
   // when the random-id changes, this means the cell was re-rendered
@@ -153,10 +155,22 @@ export const FileBrowser = ({
   const { data, error, isPending } = useAsyncData(() => {
     return list_directory({ path: path });
   }, [path, randomId]);
+  const spinnerLabel = "Listing files...";
 
-  if (isPending) {
-    return null;
-  }
+  useEffect(() => {
+    if (!isPending) {
+      setShowLoadingOverlay(false);
+      return;
+    }
+
+    const timeout = window.setTimeout(() => {
+      setShowLoadingOverlay(true);
+    }, 200);
+
+    return () => {
+      window.clearTimeout(timeout);
+    };
+  }, [isPending]);
 
   if (!data && error) {
     return <Banner kind="danger">{error.message}</Banner>;
@@ -459,9 +473,20 @@ export const FileBrowser = ({
       )}
 
       <div
-        className="mt-3 overflow-y-auto w-full border"
+        className="mt-3 overflow-y-auto w-full border relative"
         style={{ height: "14rem" }}
+        aria-busy={isPending}
+        aria-live="polite"
       >
+        {showLoadingOverlay && (
+          <div
+            className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-background/80 text-xs text-muted-foreground pointer-events-none z-10"
+            role="status"
+          >
+            <Spinner size="small" />
+            <span>{spinnerLabel}</span>
+          </div>
+        )}
         <Table className="cursor-pointer table-fixed">
           <TableBody>{fileRows}</TableBody>
         </Table>
@@ -475,9 +500,7 @@ export const FileBrowser = ({
                 selected
               </span>
               <button
-                className={cn(
-                  "text-xs text-destructive hover:underline cursor-pointer",
-                )}
+                className={cn("text-xs text-destructive hover:underline")}
                 onClick={() => setValue([])}
                 type="button"
               >

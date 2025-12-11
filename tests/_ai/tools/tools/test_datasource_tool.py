@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Optional
 
 import pytest
 
@@ -15,6 +16,7 @@ from marimo._ai._tools.tools.datasource import (
 from marimo._ai._tools.utils.exceptions import ToolExecutionError
 from marimo._data.models import Database, DataTable, DataTableColumn, Schema
 from marimo._messaging.ops import DataSourceConnections
+from marimo._sql.engines.duckdb import INTERNAL_DUCKDB_ENGINE
 
 
 @dataclass
@@ -22,6 +24,8 @@ class MockDataSourceConnection:
     name: str
     dialect: str
     databases: list[Database]
+    default_database: Optional[str] = None
+    default_schema: Optional[str] = None
 
 
 @dataclass
@@ -51,9 +55,11 @@ def sample_table() -> DataTable:
         num_columns=3,
         variable_name=None,
         columns=[
-            DataTableColumn("id", "int", "INTEGER", [1, 2, 3]),
-            DataTableColumn("name", "str", "VARCHAR", ["Alice", "Bob"]),
-            DataTableColumn("email", "str", "VARCHAR", ["alice@example.com"]),
+            DataTableColumn("id", "integer", "INTEGER", [1, 2, 3]),
+            DataTableColumn("name", "string", "VARCHAR", ["Alice", "Bob"]),
+            DataTableColumn(
+                "email", "string", "VARCHAR", ["alice@example.com"]
+            ),
         ],
     )
 
@@ -111,8 +117,8 @@ def multi_table_session() -> MockSession:
             num_columns=2,
             variable_name=None,
             columns=[
-                DataTableColumn("id", "int", "INTEGER", [1, 2]),
-                DataTableColumn("name", "str", "VARCHAR", ["Alice"]),
+                DataTableColumn("id", "integer", "INTEGER", [1, 2]),
+                DataTableColumn("name", "string", "VARCHAR", ["Alice"]),
             ],
         ),
         DataTable(
@@ -123,8 +129,8 @@ def multi_table_session() -> MockSession:
             num_columns=2,
             variable_name=None,
             columns=[
-                DataTableColumn("order_id", "int", "INTEGER", [1]),
-                DataTableColumn("user_id", "int", "INTEGER", [1]),
+                DataTableColumn("order_id", "integer", "INTEGER", [1]),
+                DataTableColumn("user_id", "integer", "INTEGER", [1]),
             ],
         ),
         DataTable(
@@ -135,8 +141,8 @@ def multi_table_session() -> MockSession:
             num_columns=2,
             variable_name=None,
             columns=[
-                DataTableColumn("product_id", "int", "INTEGER", [1]),
-                DataTableColumn("name", "str", "VARCHAR", ["Widget"]),
+                DataTableColumn("product_id", "integer", "INTEGER", [1]),
+                DataTableColumn("name", "string", "VARCHAR", ["Widget"]),
             ],
         ),
     ]
@@ -549,3 +555,108 @@ def test_query_no_duplicates(tool: GetDatabaseTables):
     assert "user_profiles" in table_names
     assert "user_settings" in table_names
     assert "user_reviews" in table_names
+
+
+def test_form_sample_query_full_qualified(tool: GetDatabaseTables):
+    """Test forming a sample query with full qualified name (not default database or schema)."""
+    query = tool._form_sample_query(
+        database="mydb",
+        schema="myschema",
+        table="mytable",
+        default_database=False,
+        default_schema=False,
+        engine="postgres_conn",
+    )
+
+    assert (
+        query
+        == 'df = mo.sql(f"""SELECT * FROM mydb.myschema.mytable LIMIT 100""", engine=postgres_conn)'
+    )
+
+
+def test_form_sample_query_default_database(tool: GetDatabaseTables):
+    """Test forming a sample query when database is default (schema.table)."""
+    query = tool._form_sample_query(
+        database="mydb",
+        schema="myschema",
+        table="mytable",
+        default_database=True,
+        default_schema=False,
+        engine="mysql_conn",
+    )
+
+    assert (
+        query
+        == 'df = mo.sql(f"""SELECT * FROM myschema.mytable LIMIT 100""", engine=mysql_conn)'
+    )
+
+
+def test_form_sample_query_default_schema(tool: GetDatabaseTables):
+    """Test forming a sample query when schema is default (table only)."""
+    query = tool._form_sample_query(
+        database="mydb",
+        schema="myschema",
+        table="mytable",
+        default_database=False,
+        default_schema=True,
+        engine="postgres_conn",
+    )
+
+    assert (
+        query
+        == 'df = mo.sql(f"""SELECT * FROM mytable LIMIT 100""", engine=postgres_conn)'
+    )
+
+
+def test_form_sample_query_both_defaults(tool: GetDatabaseTables):
+    """Test forming a sample query when both database and schema are default."""
+    query = tool._form_sample_query(
+        database="mydb",
+        schema="myschema",
+        table="mytable",
+        default_database=True,
+        default_schema=True,
+        engine="mysql_conn",
+    )
+
+    assert (
+        query
+        == 'df = mo.sql(f"""SELECT * FROM mytable LIMIT 100""", engine=mysql_conn)'
+    )
+
+
+def test_form_sample_query_internal_duckdb_no_defaults(
+    tool: GetDatabaseTables,
+):
+    """Test forming a sample query with internal DuckDB engine (no engine parameter)."""
+
+    query = tool._form_sample_query(
+        database="mydb",
+        schema="myschema",
+        table="mytable",
+        default_database=False,
+        default_schema=False,
+        engine=INTERNAL_DUCKDB_ENGINE,
+    )
+
+    assert (
+        query
+        == 'df = mo.sql(f"""SELECT * FROM mydb.myschema.mytable LIMIT 100""")'
+    )
+
+
+def test_form_sample_query_internal_duckdb_with_defaults(
+    tool: GetDatabaseTables,
+):
+    """Test forming a sample query with internal DuckDB engine and both defaults."""
+
+    query = tool._form_sample_query(
+        database="mydb",
+        schema="myschema",
+        table="mytable",
+        default_database=True,
+        default_schema=True,
+        engine=INTERNAL_DUCKDB_ENGINE,
+    )
+
+    assert query == 'df = mo.sql(f"""SELECT * FROM mytable LIMIT 100""")'

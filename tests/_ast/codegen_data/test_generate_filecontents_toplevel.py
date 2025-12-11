@@ -32,7 +32,6 @@ def _():
 
 
 @app.function
-# Sanity check that base case works.
 def addition(a, b):
     return a + b
 

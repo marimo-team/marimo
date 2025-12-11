@@ -1,7 +1,8 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+import datetime
+from typing import TYPE_CHECKING, Any, Callable
 
 import narwhals.stable.v2 as nw
 from narwhals.stable.v2 import col
@@ -29,10 +30,18 @@ from marimo._plugins.ui._impl.dataframes.transforms.types import (
     TransformHandler,
     UniqueTransform,
 )
+from marimo._plugins.ui._impl.tables.narwhals_table import (
+    NAN_VALUE,
+    NEGATIVE_INF,
+    POSITIVE_INF,
+)
 from marimo._utils.assert_never import assert_never
+from marimo._utils.narwhals_utils import collect_and_preserve_type
 
 if TYPE_CHECKING:
+    import polars as pl
     from narwhals.expr import Expr
+    from typing_extensions import TypeIs
 
 
 __all__ = [
@@ -79,7 +88,7 @@ class NarwhalsTransformHandler(TransformHandler[DataFrame]):
             # This will set invalid values to null rather than failing
             try:
                 # Try casting with null handling for errors
-                casted = col(transform.column_id).cast(narwhals_dtype)
+                casted = col(transform.column_id).cast(narwhals_dtype)  # type: ignore[arg-type]
                 result = df.with_columns(casted)
             except Exception:
                 # If cast fails entirely, return original dataframe
@@ -87,7 +96,7 @@ class NarwhalsTransformHandler(TransformHandler[DataFrame]):
         else:
             # For raise mode, let exceptions propagate
             result = df.with_columns(
-                col(transform.column_id).cast(narwhals_dtype)
+                col(transform.column_id).cast(narwhals_dtype)  # type: ignore[arg-type]
             )
         return result
 
@@ -117,11 +126,52 @@ class NarwhalsTransformHandler(TransformHandler[DataFrame]):
 
         filter_expr: nw.Expr | None = None
 
+        def convert_value(v: Any, converter: Callable[[str], Any]) -> Any:
+            """
+            Convert a value whether it's a list or single value.
+            Ignore None as they usually raise errors when converted
+            """
+            if isinstance(v, (tuple, list)):
+                return [
+                    converter(str(item)) if item is not None else None
+                    for item in v
+                ]
+            if v is None:
+                return None
+            return converter(str(v))
+
         for condition in transform.where:
             # Don't convert to string if already a string or int
             # Narwhals col() can handle both strings and integers
             column = col(condition.column_id)
+            column_name = str(condition.column_id)
             value = condition.value
+
+            native_df = df.to_native()
+            dtype = df.collect_schema().get(column_name)
+
+            # For polars, we need to convert the values based on dtype
+            if _is_polars_dataframe_or_lazyframe(native_df):
+                if dtype == nw.Datetime:
+                    value = convert_value(
+                        value, datetime.datetime.fromisoformat
+                    )
+                elif dtype == nw.Date:
+                    value = convert_value(value, datetime.date.fromisoformat)
+                elif dtype == nw.Time:
+                    value = convert_value(value, datetime.time.fromisoformat)
+
+            # If the value includes NaNs or infs, we convert to floats so the filters apply correctly
+            if (
+                isinstance(value, tuple)
+                and any(
+                    token in value
+                    for token in [NAN_VALUE, POSITIVE_INF, NEGATIVE_INF]
+                )
+                and dtype is not None
+                and dtype.is_float()  # Note: this doesn't cover Object types for pandas
+            ):
+                value = convert_value(value, float)
 
             # Build the expression based on the operator
             condition_expr: nw.Expr
@@ -173,6 +223,14 @@ class NarwhalsTransformHandler(TransformHandler[DataFrame]):
                     condition_expr = column.is_in(value) | column.is_null()
                 else:
                     condition_expr = column.is_in(value or [])
+            elif condition.operator == "not_in":
+                # ~is_in returns null for null values, so we need to explicitly include/exclude nulls
+                if value is not None and None in value:
+                    condition_expr = ~column.is_in(value) & ~column.is_null()
+                else:
+                    condition_expr = (
+                        ~column.is_in(value or []) | column.is_null()
+                    )
             else:
                 assert_never(condition.operator)
 
@@ -201,9 +259,12 @@ class NarwhalsTransformHandler(TransformHandler[DataFrame]):
     ) -> DataFrame:
         aggs: list[Expr] = []
         group_by_column_id_set = set(transform.column_ids)
+        columns = (
+            transform.aggregation_column_ids or df.collect_schema().names()
+        )
         agg_columns = [
             column_id
-            for column_id in df.collect_schema().names()
+            for column_id in columns
             if column_id not in group_by_column_id_set
         ]
 
@@ -266,20 +327,22 @@ class NarwhalsTransformHandler(TransformHandler[DataFrame]):
         df: DataFrame, transform: ShuffleRowsTransform
     ) -> DataFrame:
         # Note: narwhals sample requires collecting first for shuffle with seed
-        result = df.collect().sample(fraction=1, seed=transform.seed)
-        return result.lazy()
+        collected_df, undo = collect_and_preserve_type(df)
+        result = collected_df.sample(fraction=1, seed=transform.seed)
+        return undo(result)
 
     @staticmethod
     def handle_sample_rows(
         df: DataFrame, transform: SampleRowsTransform
     ) -> DataFrame:
         # Note: narwhals sample requires collecting first for shuffle with seed
-        result = df.collect().sample(
+        collected_df, undo = collect_and_preserve_type(df)
+        result = collected_df.sample(
             n=transform.n,
             seed=transform.seed,
             with_replacement=transform.replace,
         )
-        return result.lazy()
+        return undo(result)
 
     @staticmethod
     def handle_explode_columns(
@@ -323,7 +386,7 @@ class NarwhalsTransformHandler(TransformHandler[DataFrame]):
             return python_print_transforms(
                 df_name, columns, transforms, python_print_pandas
             )
-        elif nw.dependencies.is_polars_dataframe(native_df):
+        elif _is_polars_dataframe_or_lazyframe(native_df):
             return python_print_transforms(
                 df_name, columns, transforms, python_print_polars
             )
@@ -344,3 +407,11 @@ class NarwhalsTransformHandler(TransformHandler[DataFrame]):
                 # In case it is not a SQL backend
                 return None
         return None
+
+
+def _is_polars_dataframe_or_lazyframe(
+    df: Any,
+) -> TypeIs[pl.DataFrame | pl.LazyFrame]:
+    return nw.dependencies.is_polars_dataframe(
+        df
+    ) or nw.dependencies.is_polars_lazyframe(df)

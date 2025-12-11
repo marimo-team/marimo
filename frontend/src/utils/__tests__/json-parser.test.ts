@@ -68,25 +68,66 @@ it("can parse bigInts", () => {
   });
 });
 
-it("can convert json to tsv", () => {
-  expect(jsonToTSV([])).toEqual("");
+it("can convert json to tsv with en-US locale", () => {
+  const locale = "en-US";
 
-  expect(jsonToTSV([{ a: 1, b: 2 }])).toEqual("a\tb\n1\t2");
+  expect(jsonToTSV([], locale)).toEqual("");
+
+  expect(jsonToTSV([{ a: 1, b: 2 }], locale)).toEqual("a\tb\n1\t2");
 
   expect(
-    jsonToTSV([
-      { a: 1, b: 2 },
-      { a: 3, b: 4 },
-    ]),
+    jsonToTSV(
+      [
+        { a: 1, b: 2 },
+        { a: 3, b: 4 },
+      ],
+      locale,
+    ),
   ).toEqual("a\tb\n1\t2\n3\t4");
 
   // Does not handle sparse arrays
-  expect(jsonToTSV([{ a: 1 }, { a: 2, b: 3 }])).toMatchInlineSnapshot(
+  expect(jsonToTSV([{ a: 1 }, { a: 2, b: 3 }], locale)).toMatchInlineSnapshot(
     '"a\n1\n2"',
   );
 
   // Handles special characters
   expect(
-    jsonToTSV([{ a: "hello\tworld", b: "new\nline" }]),
+    jsonToTSV([{ a: "hello\tworld", b: "new\nline" }], locale),
   ).toMatchInlineSnapshot('"a\tb\nhello\tworld\tnew\nline"');
+
+  // Handles floats with en-US locale (uses . as decimal separator)
+  expect(jsonToTSV([{ a: 1.5, b: 2.7 }], locale)).toEqual("a\tb\n1.5\t2.7");
+});
+
+it("can convert json to tsv with de-DE locale", () => {
+  const locale = "de-DE";
+
+  // Handles floats with de-DE locale (uses , as decimal separator)
+  expect(jsonToTSV([{ a: 1.5, b: 2.7 }], locale)).toEqual("a\tb\n1,5\t2,7");
+
+  // Handles integers (no change)
+  expect(jsonToTSV([{ a: 1, b: 2 }], locale)).toEqual("a\tb\n1\t2");
+});
+
+it("can convert json to tsv with fr-FR locale", () => {
+  const locale = "fr-FR";
+
+  // Handles floats with fr-FR locale (uses , as decimal separator)
+  expect(jsonToTSV([{ a: 3.14, b: 2.123_45 }], locale)).toEqual(
+    "a\tb\n3,14\t2,12345",
+  );
+});
+
+it("handles null and undefined values in TSV", () => {
+  const locale = "en-US";
+
+  expect(jsonToTSV([{ a: null, b: undefined, c: 1 }], locale)).toEqual(
+    "a\tb\tc\n\t\t1",
+  );
+});
+
+it("handles NaN values in TSV", () => {
+  const locale = "en-US";
+
+  expect(jsonToTSV([{ a: Number.NaN, b: 1 }], locale)).toEqual("a\tb\nNaN\t1");
 });

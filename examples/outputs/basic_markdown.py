@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.17.2"
 app = marimo.App()
 
 
@@ -12,16 +12,14 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        """
-        Create a "Markdown" cell by clicking the `Markdown` button below,
-        or through the cell action menu.
+    mo.md("""
+    Create a "Markdown" cell by clicking the `Markdown` button below,
+    or through the cell action menu.
 
-        Markdown is represented as Python under-the-hood, using the `mo.md()`
-        function — so you'll need to import marimo as mo into your notebook
-        first!
-        """
-    )
+    Markdown is represented as Python under-the-hood, using the `mo.md()`
+    function — so you'll need to import marimo as mo into your notebook
+    first!
+    """)
     return
 
 

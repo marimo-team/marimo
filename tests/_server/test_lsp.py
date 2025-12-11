@@ -83,7 +83,9 @@ async def test_base_lsp_server_start_stop(
     alert = await server.start()
     assert alert is None
     mock_popen.assert_called_once()
-    assert server.is_running() is False  # Process exists but not running
+    assert (
+        server.is_running() is True
+    )  # Process exists and is running (returncode is None)
 
     # Test stop
     server.stop()
@@ -439,7 +441,7 @@ def test_any_lsp_server_running():
     config: MarimoConfig = merge_default_config(
         {
             "completion": {"copilot": False, "activate_on_typing": True},
-            "language_servers": {},  # default is true
+            "language_servers": {},  # default is false
         }
     )
-    assert any_lsp_server_running(config) is True
+    assert any_lsp_server_running(config) is False

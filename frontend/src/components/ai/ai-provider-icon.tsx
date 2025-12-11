@@ -8,28 +8,32 @@ import GitHubIcon from "@marimo-team/llm-info/icons/github.svg?inline";
 import GeminiIcon from "@marimo-team/llm-info/icons/googlegemini.svg?inline";
 import OllamaIcon from "@marimo-team/llm-info/icons/ollama.svg?inline";
 import OpenAIIcon from "@marimo-team/llm-info/icons/openai.svg?inline";
+import OpencodeIcon from "@marimo-team/llm-info/icons/opencode-logo-light.svg?inline";
 import OpenRouterIcon from "@marimo-team/llm-info/icons/openrouter.svg?inline";
+import WandbIcon from "@marimo-team/llm-info/icons/weightsandbiases.svg?inline";
 import { BotIcon } from "lucide-react";
 import * as React from "react";
 import type { ProviderId } from "@/core/ai/ids/ids";
 import { cn } from "@/utils/cn";
 import marimoIcon from "../../assets/icon-32x32.png?inline";
+import type { ExternalAgentId } from "../chat/acp/state";
 
-type Aliases = "claude" | "gemini";
-
-const icons: Record<ProviderId | Aliases, string> = {
+const icons: Record<ProviderId | ExternalAgentId, string> = {
   openai: OpenAIIcon,
   anthropic: AnthropicIcon,
   claude: AnthropicIcon,
   gemini: GeminiIcon,
   google: GeminiIcon,
+  codex: OpenAIIcon,
   ollama: OllamaIcon,
   azure: AzureIcon,
   bedrock: BedrockIcon,
   deepseek: DeepseekIcon,
   github: GitHubIcon,
   openrouter: OpenRouterIcon,
+  wandb: WandbIcon,
   marimo: marimoIcon,
+  opencode: OpencodeIcon,
 };
 
 export interface AiProviderIconProps

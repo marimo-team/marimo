@@ -1,6 +1,11 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import { z } from "zod";
+import type { CreateNewCellAction } from "@/core/cells/cells";
+import type { CellId } from "@/core/cells/ids";
+import type { RunRequest } from "@/core/network/types";
+import type { JotaiStore } from "@/core/state/jotai";
+import type { Edit } from "../staged-cells";
 import type { CopilotMode } from "./registry";
 
 /**
@@ -46,12 +51,15 @@ export class ToolExecutionError extends Error {
       message: this.message,
       code: this.code,
       is_retryable: this.isRetryable,
-      suggested_fix: this.suggestedFix,
-      meta: this.meta ?? {},
+      ...(this.suggestedFix && { suggested_fix: this.suggestedFix }),
+      ...(this.meta && { meta: this.meta }),
     });
     return `Error invoking tool ${this.name}: ${stringError}`;
   }
 }
+
+// Can be any input
+export type EmptyToolInput = unknown;
 
 /**
  * Base interface for tool output responses.
@@ -83,17 +91,32 @@ export const toolOutputBaseSchema = z.object({
   meta: z.record(z.string(), z.unknown()).optional(),
 });
 
-/**
- * Contract for a frontend tool.
- *
- * Implementations can be plain objects or classes. The registry consumes this
- * interface without caring about the underlying implementation.
- */
+export interface ToolDescription {
+  baseDescription: string;
+  whenToUse?: string[];
+  avoidIf?: string[];
+  prerequisites?: string[];
+  sideEffects?: string[];
+  additionalInfo?: string;
+}
+
+/** Utility functions for tools to interact with the notebook */
+export interface ToolNotebookContext {
+  store: JotaiStore;
+  addStagedCell: (payload: { cellId: CellId; edit: Edit }) => void;
+  createNewCell: (payload: CreateNewCellAction) => void;
+  prepareForRun: (payload: { cellId: CellId }) => void;
+  sendRun: (request: RunRequest) => Promise<null>;
+}
+
 export interface AiTool<TIn, TOut> {
   name: string;
-  description: string;
+  description: ToolDescription;
   schema: z.ZodType<TIn>;
   outputSchema: z.ZodType<TOut>;
   mode: CopilotMode[];
-  handler: (args: TIn) => TOut | Promise<TOut>;
+  handler: (
+    args: TIn,
+    toolContext: ToolNotebookContext,
+  ) => TOut | Promise<TOut>;
 }

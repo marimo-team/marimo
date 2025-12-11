@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.17.4"
 app = marimo.App(width="medium")
 
 
@@ -12,7 +12,9 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("""Connect to duckdb [persistent storage](https://duckdb.org/docs/connect/overview.html#persistent-database) using the `ATTACH` command:""")
+    mo.md("""
+    Connect to duckdb [persistent storage](https://duckdb.org/docs/connect/overview.html#persistent-database) using the `ATTACH` command:
+    """)
     return
 
 

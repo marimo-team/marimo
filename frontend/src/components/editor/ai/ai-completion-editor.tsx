@@ -2,7 +2,14 @@
 
 import { useCompletion } from "@ai-sdk/react";
 import { EditorView } from "@codemirror/view";
-import { AtSignIcon, Loader2Icon, SparklesIcon, XIcon } from "lucide-react";
+import {
+  AtSignIcon,
+  CircleCheckIcon,
+  Loader2Icon,
+  SendIcon,
+  SparklesIcon,
+  XIcon,
+} from "lucide-react";
 import React, { useCallback, useEffect, useId, useState } from "react";
 import CodeMirrorMerge from "react-codemirror-merge";
 import { Button } from "@/components/ui/button";
@@ -11,14 +18,16 @@ import { customPythonLanguageSupport } from "@/core/codemirror/language/language
 import "./merge-editor.css";
 import { storePrompt } from "@marimo-team/codemirror-ai";
 import type { ReactCodeMirrorRef } from "@uiw/react-codemirror";
-import { useAtom } from "jotai";
+import { useAtom, useAtomValue } from "jotai";
 import { AIModelDropdown } from "@/components/ai/ai-model-dropdown";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Tooltip } from "@/components/ui/tooltip";
 import { toast } from "@/components/ui/use-toast";
-import { includeOtherCellsAtom } from "@/core/ai/state";
+import { stagedAICellsAtom } from "@/core/ai/staged-cells";
+import { type AiCompletionCell, includeOtherCellsAtom } from "@/core/ai/state";
+import type { CellId } from "@/core/cells/ids";
 import { getCodes } from "@/core/codemirror/copilot/getCodes";
 import type { LanguageAdapterType } from "@/core/codemirror/language/types";
 import { selectAllText } from "@/core/codemirror/utils";
@@ -30,7 +39,6 @@ import { retryWithTimeout } from "@/utils/timeout";
 import { PromptInput } from "./add-cell-with-ai";
 import {
   AcceptCompletionButton,
-  CompletionActions,
   createAiCompletionOnKeydown,
   RejectCompletionButton,
 } from "./completion-handlers";
@@ -40,15 +48,14 @@ const Original = CodeMirrorMerge.Original;
 const Modified = CodeMirrorMerge.Modified;
 
 interface Props {
+  cellId: CellId;
+  aiCompletionCell: AiCompletionCell | null;
   className?: string;
   currentCode: string;
   currentLanguageAdapter: LanguageAdapterType | undefined;
-  initialPrompt: string | undefined;
   onChange: (code: string) => void;
   declineChange: () => void;
   acceptChange: (rightHandCode: string) => void;
-  enabled: boolean;
-  triggerImmediately?: boolean;
   runCell: () => void;
   outputArea?: "above" | "below";
   /**
@@ -65,15 +72,14 @@ const baseExtensions = [customPythonLanguageSupport(), EditorView.lineWrapping];
  * This shows a left/right split with the original and modified code.
  */
 export const AiCompletionEditor: React.FC<Props> = ({
+  cellId,
+  aiCompletionCell,
   className,
   onChange,
-  initialPrompt,
   currentLanguageAdapter,
   currentCode,
   declineChange,
   acceptChange,
-  enabled,
-  triggerImmediately,
   runCell,
   outputArea,
   children,
@@ -87,6 +93,20 @@ export const AiCompletionEditor: React.FC<Props> = ({
   const includeOtherCellsCheckboxId = useId();
 
   const runtimeManager = useRuntimeManager();
+
+  const {
+    initialPrompt,
+    triggerImmediately,
+    cellId: aiCellId,
+  } = aiCompletionCell ?? {};
+  const enabled = aiCellId === cellId;
+
+  const stagedAICells = useAtomValue(stagedAICellsAtom);
+  const updatedCell = stagedAICells.get(cellId);
+  let previousCellCode: string | undefined;
+  if (updatedCell?.type === "update_cell") {
+    previousCellCode = updatedCell.previousCode;
+  }
 
   const {
     completion: untrimmedCompletion,
@@ -178,6 +198,8 @@ export const AiCompletionEditor: React.FC<Props> = ({
 
   const showCompletionBanner =
     enabled && triggerImmediately && (completion || isLoading);
+  // Set default output area to below if not specified
+  outputArea = outputArea ?? "below";
 
   const showInput = enabled && (!triggerImmediately || showInputPrompt);
 
@@ -202,12 +224,98 @@ export const AiCompletionEditor: React.FC<Props> = ({
     </div>
   );
 
+  const renderMergeEditor = (originalCode: string, modifiedCode: string) => {
+    return (
+      <CodeMirrorMerge className="cm" theme={theme}>
+        <Original
+          onChange={onChange}
+          value={originalCode}
+          extensions={baseExtensions}
+        />
+        <Modified
+          value={modifiedCode}
+          editable={false}
+          readOnly={true}
+          extensions={baseExtensions}
+        />
+      </CodeMirrorMerge>
+    );
+  };
+
+  const renderCompletionEditor = () => {
+    if (completion && enabled) {
+      return renderMergeEditor(currentCode, completion);
+    }
+    // If there is no completion and there is previous cell code, it means there is an AI change to the cell.
+    // And we want to render the previous cell code as the original
+    if (!completion && previousCellCode) {
+      return renderMergeEditor(previousCellCode, currentCode);
+    }
+  };
+
+  const loadingStopButton = (
+    <Button
+      data-testid="stop-completion-button"
+      variant="text"
+      size="xs"
+      className="mb-0"
+      onClick={stop}
+    >
+      <Loader2Icon className="animate-spin mr-1" size={14} />
+      Stop
+    </Button>
+  );
+
+  const submitButton = (
+    <Tooltip content="Submit">
+      <Button variant="text" size="icon" onClick={handleSubmit}>
+        <SendIcon className="h-3 w-3" />
+      </Button>
+    </Tooltip>
+  );
+
+  const contextButton = (
+    <Tooltip content="Add context">
+      <Button
+        variant="text"
+        size="icon"
+        onClick={() => addContextCompletion(inputRef)}
+      >
+        <AtSignIcon className="h-3 w-3" />
+      </Button>
+    </Tooltip>
+  );
+
+  const completionButtons = (
+    <>
+      <AcceptCompletionButton
+        isLoading={isLoading}
+        onAccept={handleAcceptCompletion}
+        size="xs"
+        multipleCompletions={false}
+        acceptShortcut="Mod-↵"
+        runCell={runCell}
+        borderless={true}
+      />
+      <RejectCompletionButton
+        onDecline={handleDeclineCompletion}
+        size="xs"
+        multipleCompletions={false}
+        declineShortcut="Shift-Mod-Delete"
+        borderless={true}
+      />
+    </>
+  );
+
   return (
-    <div className={cn("flex flex-col w-full rounded-[inherit]", className)}>
+    <div
+      data-ai-input-open={showInput}
+      className={cn("flex flex-col w-full rounded-[inherit]", className)}
+    >
       <div
         className={cn(
-          "flex items-center gap-2 border-b px-3 transition-all rounded-[inherit] rounded-b-none duration-300",
-          showInput && "max-h-[400px] min-h-11 visible",
+          "flex items-center gap-2 px-3 transition-all rounded-[inherit] rounded-b-none duration-300",
+          showInput && "max-h-[400px] border-b min-h-11 visible",
           !showInput && "max-h-0 min-h-0 invisible",
         )}
       >
@@ -241,43 +349,22 @@ export const AiCompletionEditor: React.FC<Props> = ({
                 hasCompletion: completion.trim().length > 0,
               })}
             />
-            {isLoading && (
-              <Button
-                data-testid="stop-completion-button"
-                variant="text"
-                size="xs"
-                className="mb-0"
-                onClick={stop}
-              >
-                <Loader2Icon className="animate-spin mr-1" size={14} />
-                Stop
-              </Button>
-            )}
+
             <div className="-mr-1.5 py-1.5">
               <div className="flex flex-row items-center justify-end gap-0.5">
-                <Tooltip content="Add context">
-                  <Button
-                    variant="text"
-                    size="icon"
-                    onClick={() => addContextCompletion(inputRef)}
-                  >
-                    <AtSignIcon className="h-3 w-3" />
-                  </Button>
-                </Tooltip>
+                {isLoading && loadingStopButton}
+                {submitButton}
+                {contextButton}
                 <AIModelDropdown
-                  triggerClassName="h-7 text-xs w-24"
+                  triggerClassName="h-7 text-xs"
                   iconSize="small"
                   forRole="edit"
+                  displayIconOnly={true}
                 />
               </div>
               {completion && (
-                <div className="-mb-1.5">
-                  <CompletionActions
-                    isLoading={isLoading}
-                    onAccept={handleAcceptCompletion}
-                    onDecline={handleDeclineCompletion}
-                    size="xs"
-                  />
+                <div className="mt-1 flex items-center gap-1">
+                  {completionButtons}
                 </div>
               )}
             </div>
@@ -297,7 +384,7 @@ export const AiCompletionEditor: React.FC<Props> = ({
                   htmlFor={includeOtherCellsCheckboxId}
                   className="text-muted-foreground text-xs whitespace-nowrap ellipsis"
                 >
-                  Include all code
+                  All code
                 </Label>
               </div>
             </Tooltip>
@@ -318,24 +405,10 @@ export const AiCompletionEditor: React.FC<Props> = ({
         )}
       </div>
       {outputArea === "above" && completionBanner}
-      {completion && enabled && (
-        <CodeMirrorMerge className="cm" theme={theme}>
-          <Original
-            onChange={onChange}
-            value={currentCode}
-            extensions={baseExtensions}
-          />
-          <Modified
-            value={completion}
-            editable={false}
-            readOnly={true}
-            extensions={baseExtensions}
-          />
-        </CodeMirrorMerge>
-      )}
-      {(!completion || !enabled) && children}
+      {renderCompletionEditor()}
+      {(!completion || !enabled) && !previousCellCode && children}
       {/* By default, show the completion banner below the code */}
-      {(outputArea === "below" || !outputArea) && completionBanner}
+      {outputArea === "below" && completionBanner}
     </div>
   );
 };
@@ -370,12 +443,22 @@ const CompletionBanner: React.FC<CompletionBannerProps> = ({
       )}
     >
       <div className="flex flex-row items-center gap-2">
-        <div
-          className={cn(
-            "w-2 h-2 rounded-full",
-            status === "loading" ? "bg-blue-500 animate-pulse" : "bg-green-500",
-          )}
-        />
+        {isLoading ? (
+          <Loader2Icon
+            className="animate-spin text-blue-600 mb-px"
+            size={15}
+            strokeWidth={2}
+            aria-label="Generating fix"
+          />
+        ) : (
+          <CircleCheckIcon
+            className="text-green-600 mb-px"
+            size={15}
+            strokeWidth={2}
+            aria-label="Fix generated"
+          />
+        )}
+
         <p className="transition-opacity duration-200 text-muted-foreground">
           {isLoading ? "Generating fix..." : "Showing fix"}
         </p>
@@ -400,15 +483,14 @@ const CompletionBanner: React.FC<CompletionBannerProps> = ({
           isLoading={isLoading}
           onAccept={onAccept}
           size="xs"
-          buttonStyles="border-none rounded-md rounded-r-none"
-          playButtonStyles="border-0 border-l-1 rounded-md rounded-l-none"
+          borderless={true}
           runCell={runCell}
           // acceptShortcut="Mod-↵"
         />
         <RejectCompletionButton
           onDecline={onReject}
           size="xs"
-          className="border-none rounded-md"
+          borderless={true}
           // declineShortcut="Shift-Mod-Delete"
         />
       </div>

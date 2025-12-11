@@ -1,6 +1,7 @@
 name: Test FE
 permissions:
   contents: read
+  pull-requests: write
 
 on:
   push:
@@ -35,7 +36,6 @@ jobs:
     timeout-minutes: 10
     defaults:
       run:
-        working-directory: ./frontend
         shell: bash
 
     steps:
@@ -52,10 +52,28 @@ jobs:
 
       - name: 📦 pnpm dedupe
         if: github.event_name == 'pull_request'
+        id: dedupe
         run: pnpm dedupe --check
 
       - name: 🧹 Lint
+        id: lint
         run: pnpm turbo lint
+
+      - name: Comment on lint failure
+        if: failure() && steps.lint.outcome == 'failure'
+        uses: ./.github/actions/pr-comment-on-failure
+        with:
+          check-name: "lint"
+          command: "pnpm turbo lint"
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Comment on dedupe failure
+        if: failure() && steps.dedupe.outcome == 'failure'
+        uses: ./.github/actions/pr-comment-on-failure
+        with:
+          check-name: "dedupe"
+          command: "pnpm dedupe"
+          github-token: ${{ secrets.GITHUB_TOKEN }}
 
   test_frontend:
     needs: changes
@@ -81,10 +99,28 @@ jobs:
         uses: ./.github/actions/install
 
       - name: 🔎 Type check
+        id: typecheck
         run: pnpm turbo typecheck
 
       - name: 🧪 Test
-        run: pnpm test
+        id: test
+        run: pnpm turbo test
+
+      - name: Comment on typecheck failure
+        if: failure() && steps.typecheck.outcome == 'failure'
+        uses: ./.github/actions/pr-comment-on-failure
+        with:
+          check-name: "typecheck"
+          command: "pnpm turbo typecheck"
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Comment on test failure
+        if: failure() && steps.test.outcome == 'failure'
+        uses: ./.github/actions/pr-comment-on-failure
+        with:
+          check-name: "test"
+          command: "pnpm turbo test"
+          github-token: ${{ secrets.GITHUB_TOKEN }}
 
   build_frontend:
     needs: changes
@@ -115,8 +151,13 @@ jobs:
             echo "Error: react-hook-form version in package.json must be exactly 7.54.2. As it breaks mo.ui.dataframe"
             exit 1
           fi
+          if ! grep -q '"vega-lite": "6.3.1"' package.json; then
+            echo "Error: vega-lite version in package.json must be exactly 6.3.1. Newer versions break numeric tooltips"
+            exit 1
+          fi
 
       - name: 📦 Build
+        id: build
         run: pnpm turbo build
         env:
           NODE_ENV: production
@@ -124,9 +165,17 @@ jobs:
       - name: 📦 Build islands frontend
         env:
           NODE_ENV: production
-          VITE_MARIMO_ISLANDS: 'true'
-          VITE_MARIMO_VERSION: '0.0.0'
+          VITE_MARIMO_ISLANDS: "true"
+          VITE_MARIMO_VERSION: "0.0.0"
         run: |
           npm version 0.0.0 --no-git-tag-version
           pnpm turbo build:islands
           ./islands/validate.sh
+
+      - name: Comment on build failure
+        if: failure() && steps.build.outcome == 'failure'
+        uses: ./.github/actions/pr-comment-on-failure
+        with:
+          check-name: "build"
+          command: "pnpm turbo build"
+          github-token: ${{ secrets.GITHUB_TOKEN }}

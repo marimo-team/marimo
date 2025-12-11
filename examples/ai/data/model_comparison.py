@@ -7,24 +7,24 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.17.4"
 app = marimo.App()
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("""# Model Comparison""")
+    mo.md("""
+    # Model Comparison
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
-        !!! tip "This notebook is best viewed as an app."
-            Hit `Cmd/Ctrl+.` or click the "app view" button in the bottom right.
-        """
-    )
+    mo.md(r"""
+    !!! tip "This notebook is best viewed as an app."
+        Hit `Cmd/Ctrl+.` or click the "app view" button in the bottom right.
+    """)
     return
 
 
@@ -63,7 +63,9 @@ def _(NUMBER_OF_EXAMPLES, get_index, mo, set_index):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(f"_Models A and B both predict spans. Which do you prefer?_")
+    mo.md(f"""
+    _Models A and B both predict spans. Which do you prefer?_
+    """)
     return
 
 

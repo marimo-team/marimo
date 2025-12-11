@@ -16,6 +16,7 @@ import RedshiftIcon from "./icons/redshift.svg";
 import SnowflakeIcon from "./icons/snowflake.svg";
 import PySparkIcon from "./icons/spark.svg";
 import SQLiteIcon from "./icons/sqlite.svg";
+import SupabaseIcon from "./icons/supabase.svg";
 import TimeplusIcon from "./icons/timeplus.svg";
 import TrinoIcon from "./icons/trino.svg";
 
@@ -35,7 +36,8 @@ export type DBLogoName =
   | "iceberg"
   | "datafusion"
   | "pyspark"
-  | "redshift";
+  | "redshift"
+  | "supabase";
 
 /**
  * Icons are from https://simpleicons.org/
@@ -63,6 +65,7 @@ const URLS: Record<DBLogoName, string | undefined> = {
   datafusion: DataFusionIcon,
   pyspark: PySparkIcon,
   redshift: RedshiftIcon,
+  supabase: SupabaseIcon,
 };
 
 export const DatabaseLogo: FC<DatabaseLogoProps> = ({ name, className }) => {

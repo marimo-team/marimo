@@ -44,3 +44,46 @@ export function getStableRowId<TData>(row: TData): string | undefined {
     return String(row[INDEX_COLUMN_NAME]);
   }
 }
+
+/**
+ * Calculate which page a given row index should be on.
+ *
+ * @param rowIdx - The row index to check
+ * @param currentPageIndex - The current page index
+ * @param pageSize - The number of rows per page
+ * @returns The page index if pagination should change, or null if the row is on the current page
+ */
+export function getPageIndexForRow(
+  rowIdx: number,
+  currentPageIndex: number,
+  pageSize: number,
+): number | null {
+  const currentPageStart = currentPageIndex * pageSize;
+  const currentPageEnd = currentPageStart + pageSize - 1;
+
+  if (rowIdx < currentPageStart || rowIdx > currentPageEnd) {
+    return Math.floor(rowIdx / pageSize);
+  }
+
+  return null;
+}
+
+/**
+ * Stringify an unknown value. Converts objects to JSON strings.
+ * @param opts.value - The value to stringify.
+ * @param opts.nullAsEmptyString - If true, null values will be "". Else, stringify.
+ */
+export function stringifyUnknownValue(opts: {
+  value: unknown;
+  nullAsEmptyString?: boolean;
+}): string {
+  const { value, nullAsEmptyString = false } = opts;
+
+  if (typeof value === "object" && value !== null) {
+    return JSON.stringify(value);
+  }
+  if (value === null && nullAsEmptyString) {
+    return "";
+  }
+  return String(value);
+}

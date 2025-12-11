@@ -7,7 +7,7 @@ export async function reportVitals() {
   }
 
   const { onLCP, onINP, onCLS } = await import("web-vitals");
-  Logger.log("Reporting vitals");
+  Logger.debug("Reporting vitals");
   const logMetric = (metric: {
     name: string;
     value: number;

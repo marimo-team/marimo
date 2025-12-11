@@ -214,6 +214,7 @@ export const DataSources: React.FC = () => {
                   databaseName={database.name}
                   hasSearch={hasSearch}
                   searchValue={searchValue}
+                  dialect={connection.dialect}
                 />
               </DatabaseItem>
             ))}
@@ -340,6 +341,7 @@ const SchemaList: React.FC<{
   schemas: DatabaseSchema[];
   defaultSchema?: string | null;
   defaultDatabase?: string | null;
+  dialect: string;
   engineName: string;
   databaseName: string;
   hasSearch: boolean;
@@ -348,6 +350,7 @@ const SchemaList: React.FC<{
   schemas,
   defaultSchema,
   defaultDatabase,
+  dialect,
   engineName,
   databaseName,
   hasSearch,
@@ -384,6 +387,7 @@ const SchemaList: React.FC<{
               schema: schema.name,
               defaultSchema: defaultSchema,
               defaultDatabase: defaultDatabase,
+              dialect: dialect,
             }}
           />
         </SchemaItem>

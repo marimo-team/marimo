@@ -27,6 +27,7 @@ from typing import (
 )
 
 from marimo._ast.cell_id import is_external_cell_id
+from marimo._ast.load import find_cell
 from marimo._ast.transformers import (
     ARG_PREFIX,
     CacheExtractWithBlock,
@@ -343,6 +344,11 @@ class _cache_call(CacheContext):
             return "<cache>"
         return self.__wrapped__.__name__
 
+    @property
+    def last_hash(self) -> Optional[str]:
+        """Return the last computed hash for this cache call."""
+        return self._last_hash
+
     def __get__(
         self, instance: Any, _owner: Optional[type] = None
     ) -> _cache_call:
@@ -567,7 +573,10 @@ class _cache_context(SkipContext, CacheContext):
         self.pin_modules = pin_modules
         self.hash_type = hash_type
         # Wrap loader in State to match CacheContext's _loader type
-        self._loader = State(loader, _name=name)
+        if isinstance(loader, MemoryLoader):
+            self._loader = loader.partial().create_or_reconfigure(name)
+        else:
+            self._loader = State(loader, _name=name)
         self._start_time: float = 0.0
 
     @property
@@ -599,7 +608,7 @@ class _cache_context(SkipContext, CacheContext):
         # causing this function to terminate before reaching this block.
         self._frame = with_frame
         for i, frame in enumerate(stack[::-1]):
-            _filename, lineno, function_name, _code = frame
+            filename, lineno, function_name, _code = frame
             if function_name == "<module>":
                 ctx = get_context()
                 if ctx.execution_context is None:
@@ -611,10 +620,30 @@ class _cache_context(SkipContext, CacheContext):
                     )
                 graph = ctx.graph
                 cell_id = ctx.cell_id or ctx.execution_context.cell_id
+
+                # We are calling from script mode, so our line number is
+                # absolute.
+                if "__marimo__" not in filename:
+                    cell = find_cell(filename, lineno)
+                    if cell is None:
+                        raise CacheException(
+                            "Could not resolve cell for cache."
+                            f"{UNEXPECTED_FAILURE_BOILERPLATE}"
+                        )
+                    lineno -= cell.lineno
+                    code = cell.code
+                elif cell_id in graph.cells:
+                    code = graph.cells[cell_id].code
+                else:
+                    raise CacheException(
+                        "Could not resolve cell for cache."
+                        f"{UNEXPECTED_FAILURE_BOILERPLATE}"
+                    )
+
                 pre_module, save_module = CacheExtractWithBlock(
                     lineno - 1
                 ).visit(
-                    ast.parse(graph.cells[cell_id].code).body  # type: ignore[arg-type]
+                    ast.parse(code).body  # type: ignore[arg-type]
                 )
 
                 self._cache = cache_attempt_from_hash(
@@ -712,6 +741,13 @@ class _cache_context(SkipContext, CacheContext):
                 ctx.cell_lifecycle_registry.add(SideEffect(self._cache.hash))
 
         return False
+
+    @property
+    def last_hash(self) -> Optional[str]:
+        """Return the last computed hash for this cache context."""
+        if self._cache is None:
+            return None
+        return self._cache.hash
 
 
 # A note on overloading:
@@ -874,9 +910,9 @@ def cache(  # type: ignore[misc]
 
     `mo.cache` is similar to `functools.cache`, but with three key benefits:
 
-    1. `mo.cache` persists its cache even if the cell defining the
-        cached function is re-run, as long as the code defining the function
-        (excluding comments and formatting) has not changed.
+    1. `mo.cache` persists its cache even if the cell defining the cached
+        function is re-run, as long as the code defining the function and
+        ancestors (excluding comments and formatting) has not changed.
     2. `mo.cache` keys on closed-over values in addition to function arguments,
         preventing accumulation of hidden state associated with
         `functools.cache`.

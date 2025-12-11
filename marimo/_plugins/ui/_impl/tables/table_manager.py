@@ -111,12 +111,18 @@ class TableManager(abc.ABC, Generic[T]):
 
     @abc.abstractmethod
     def to_json_str(
-        self, format_mapping: Optional[FormatMapping] = None
+        self,
+        format_mapping: Optional[FormatMapping] = None,
+        strict_json: bool = False,
     ) -> str:
         pass
 
-    def to_json(self, format_mapping: Optional[FormatMapping] = None) -> bytes:
-        return self.to_json_str(format_mapping).encode("utf-8")
+    def to_json(
+        self,
+        format_mapping: Optional[FormatMapping] = None,
+        strict_json: bool = False,  # Whether the result should be strictly JSON compliant (eg. nan -> null)
+    ) -> bytes:
+        return self.to_json_str(format_mapping, strict_json).encode("utf-8")
 
     @abc.abstractmethod
     def to_parquet(self) -> bytes:
@@ -149,8 +155,9 @@ class TableManager(abc.ABC, Generic[T]):
         pass
 
     def get_field_types(self) -> FieldTypes:
+        # Some column names may be non-string (sqlalchemy quoted names), so we convert them to strings
         return [
-            (column_name, self.get_field_type(column_name))
+            (str(column_name), self.get_field_type(column_name))
             for column_name in self.get_column_names()
         ]
 

@@ -9,20 +9,21 @@
 
 import marimo
 
-__generated_with = "0.17.0"
+__generated_with = "0.17.4"
 app = marimo.App()
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("""# The Mandelbrot Set""")
+    mo.md("""
+    # The Mandelbrot Set
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     This program computes uses an iterative algorithm to visualize the
     [_Mandelbrot set_](https://mathworld.wolfram.com/MandelbrotSet.html),
     the set of complex numbers $c$ for which the sequence defined by the
@@ -40,8 +41,7 @@ def _(mo):
     the set. In any iteration, points in the darkest region may
     be in the computed set; once the number of iterations is very high, we
     can be confident that the dark region is the desired Mandelbrot set.
-    """
-    )
+    """)
     return
 
 

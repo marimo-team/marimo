@@ -169,6 +169,12 @@ const WorkspaceNotebooks: React.FC = () => {
   return (
     <WorkspaceRootContext value={workspace.root}>
       <div className="flex flex-col gap-2">
+        {workspace.hasMore && (
+          <Banner kind="warn" className="rounded p-4">
+            Showing first {workspace.fileCount} files. Your workspace has more
+            files.
+          </Banner>
+        )}
         <Header
           Icon={BookTextIcon}
           control={
@@ -195,10 +201,15 @@ const WorkspaceNotebooks: React.FC = () => {
           }
         >
           Workspace
-          <RefreshCcwIcon
-            className="w-4 h-4 ml-1 cursor-pointer opacity-70 hover:opacity-100"
+          <Button
+            variant="text"
+            size="icon"
+            className="w-4 h-4 ml-1 p-0 opacity-70 hover:opacity-100"
             onClick={() => refetch()}
-          />
+            aria-label="Refresh workspace"
+          >
+            <RefreshCcwIcon className="w-4 h-4" />
+          </Button>
           {isFetching && <Spinner size="small" />}
         </Header>
         <div className="flex flex-col divide-y divide-(--slate-3) border rounded overflow-hidden max-h-192 overflow-y-auto shadow-sm bg-background">

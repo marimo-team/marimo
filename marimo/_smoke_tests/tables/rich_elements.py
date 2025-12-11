@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.17.6"
 app = marimo.App(width="medium")
 
 
@@ -15,7 +15,9 @@ def _():
 
 @app.cell
 def _(mo):
-    mo.md(r"""# Printing Rich Elements""")
+    mo.md(r"""
+    # Printing Rich Elements
+    """)
     return
 
 
@@ -112,6 +114,10 @@ def _(alt, mo, pd):
             "lorem_ipsum_dollar_sit" * 20,
             "lorem_ipsum_dollar_sit" * 20,
         ],
+        "long_text_with_markup": [
+            "lorem link: https://www.google.com" * 4,
+            "lorem link: https://www.google.com" * 4,
+        ],
         "large_array": [
             [1] * 60,
             [2] * 60,
@@ -171,7 +177,9 @@ def _(data, mo, pl):
 
 @app.cell
 def _(mo, password):
-    mo.md(f"""### Password value: {password.value}""")
+    mo.md(f"""
+    ### Password value: {password.value}
+    """)
     return
 
 

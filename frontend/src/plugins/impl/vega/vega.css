@@ -3,9 +3,15 @@
 .vega-embed {
   width: 100%;
   flex: 1;
+  display: inline-block;
 
   @media (min-width: 500px) {
     min-width: 300px;
+  }
+
+  /* For vega embeds in slots, reset the styles to let the user set the width */
+  @container style(--slot: true) {
+    min-width: unset;
   }
 }
 

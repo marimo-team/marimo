@@ -16,12 +16,7 @@ from typing import (
 )
 
 if TYPE_CHECKING:
-    import sys
-
-    if sys.version_info < (3, 10):
-        from typing_extensions import TypeAlias
-    else:
-        from typing import TypeAlias
+    from typing import TypeAlias
 
     from starlette.requests import Request
     from starlette.responses import Response
@@ -299,6 +294,7 @@ def create_asgi_app(
     skew_protection: bool = False,
     session_ttl: Optional[int] = None,
     asset_url: Optional[str] = None,
+    redirect_console_to_browser: bool = False,
 ) -> ASGIAppBuilder:
     """Public API to create an ASGI app that can serve multiple notebooks.
     This only works for application that are in Run mode.
@@ -313,6 +309,8 @@ def create_asgi_app(
         session_ttl (int, optional): Time-to-live in seconds for sessions. If not provided, uses default TTL (2 minutes).
         asset_url (str, optional): Custom asset URL for loading static resources. Can include {version} placeholder.
             e.g. https://cdn.jsdelivr.net/npm/@marimo-team/frontend@{version}/dist
+        redirect_console_to_browser (bool, optional): Whether to redirect console output (stdout/stderr) to the browser.
+            When True, console output will be displayed in the browser. Defaults to False.
 
     Returns:
         ASGIAppBuilder: A builder object to create multiple ASGI apps
@@ -471,7 +469,7 @@ def create_asgi_app(
                 cli_args={},
                 argv=None,
                 auth_token=auth_token,
-                redirect_console_to_browser=False,
+                redirect_console_to_browser=redirect_console_to_browser,
                 ttl_seconds=session_ttl,
             )
             enable_auth = not AuthToken.is_empty(auth_token)

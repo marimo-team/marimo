@@ -91,6 +91,7 @@ interface DataTableProps<TData> extends Partial<DownloadActionProps> {
   showChartBuilder?: boolean;
   showPageSizeSelector?: boolean;
   showColumnExplorer?: boolean;
+  showRowExplorer?: boolean;
   togglePanel?: (panelType: PanelType) => void;
   isPanelOpen?: (panelType: PanelType) => boolean;
 }
@@ -133,6 +134,7 @@ const DataTableInternal = <TData,>({
   showChartBuilder,
   showPageSizeSelector,
   showColumnExplorer,
+  showRowExplorer,
   togglePanel,
   isPanelOpen,
   viewedRowIdx,
@@ -337,6 +339,7 @@ const DataTableInternal = <TData,>({
         showChartBuilder={showChartBuilder}
         showPageSizeSelector={showPageSizeSelector}
         showColumnExplorer={showColumnExplorer}
+        showRowExplorer={showRowExplorer}
         togglePanel={togglePanel}
         isPanelOpen={isPanelOpen}
         tableLoading={reloading}

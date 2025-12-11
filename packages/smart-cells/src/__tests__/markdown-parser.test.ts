@@ -31,6 +31,35 @@ describe("MarkdownParser", () => {
       expect(metadata.quotePrefix).toBe("f");
     });
 
+    it("should handle f-strings with method calls containing strings", () => {
+      const pythonCode = `mo.md(f"""# User: {get_user("john")}""")`;
+      const { code, metadata } = parser.transformIn(pythonCode);
+      expect(code).toBe(`# User: {get_user("john")}`);
+      expect(metadata.quotePrefix).toBe("f");
+    });
+
+    it("should handle f-strings with complex expressions containing quotes", () => {
+      const pythonCode = `mo.md(f"""# Count: {",".join(data["items"])}""")`;
+      const { code, metadata } = parser.transformIn(pythonCode);
+      expect(code).toBe(`# Count: {",".join(data["items"])}`);
+      expect(metadata.quotePrefix).toBe("f");
+    });
+
+    it("should handle f-strings with nested brackets and quotes", () => {
+      const pythonCode = `mo.md(f"""
+# Report
+User: {users["name"][0]}
+Count: {str(data["items"][0]["count"])}
+""")`;
+      const { code, metadata } = parser.transformIn(pythonCode);
+      expect(code).toBe(
+        `# Report
+User: {users["name"][0]}
+Count: {str(data["items"][0]["count"])}`.trim(),
+      );
+      expect(metadata.quotePrefix).toBe("f");
+    });
+
     it("should handle r-strings", () => {
       const pythonCode = `mo.md(r"$\\nu = \\mathllap{}\\cdot\\mathllap{\\alpha}$")`;
       const { code, offset, metadata } = parser.transformIn(pythonCode);
@@ -80,8 +109,8 @@ describe("MarkdownParser", () => {
       const { code: pythonCode, offset } = parser.transformOut(code, {
         quotePrefix: "",
       });
-      expect(pythonCode).toBe(`mo.md("""Hello world""")`);
-      expect(offset).toBe(9);
+      expect(pythonCode).toBe(`mo.md("""\nHello world\n""")`);
+      expect(offset).toBe(11);
     });
 
     it("should wrap multiline markdown", () => {
@@ -90,15 +119,13 @@ describe("MarkdownParser", () => {
         quotePrefix: "",
       });
       expect(pythonCode).toMatchInlineSnapshot(`
-        "mo.md(
-            """
+        "mo.md("""
         # Markdown Title
 
         Some content here.
-        """
-        )"
+        """)"
       `);
-      expect(offset).toBe(16);
+      expect(offset).toBe(11);
     });
 
     it("should preserve r-string prefix", () => {
@@ -107,7 +134,7 @@ describe("MarkdownParser", () => {
         quotePrefix: "r",
       });
       expect(pythonCode).toBe(
-        `mo.md(r"""$\\nu = \\mathllap{}\\cdot\\mathllap{\\alpha}$""")`,
+        `mo.md(r"""\n$\\nu = \\mathllap{}\\cdot\\mathllap{\\alpha}$\n""")`,
       );
     });
 
@@ -117,12 +144,10 @@ describe("MarkdownParser", () => {
         quotePrefix: "f",
       });
       expect(pythonCode).toMatchInlineSnapshot(`
-        "mo.md(
-            f"""
+        "mo.md(f"""
         # Title
         {some_variable}
-        """
-        )"
+        """)"
       `);
     });
 
@@ -132,7 +157,7 @@ describe("MarkdownParser", () => {
         quotePrefix: "",
       });
       expect(pythonCode).toBe(
-        `mo.md("""Markdown with an escaped \\"""quote\\"""!!""")`,
+        `mo.md("""\nMarkdown with an escaped "\\""quote"\\""!!\n""")`,
       );
     });
 
@@ -140,7 +165,7 @@ describe("MarkdownParser", () => {
       const { code: pythonCode } = parser.transformOut("", {
         quotePrefix: "r",
       });
-      expect(pythonCode).toBe(`mo.md(r""" """)`);
+      expect(pythonCode).toBe(`mo.md(r"""\n \n""")`);
     });
   });
 
@@ -154,6 +179,10 @@ describe("MarkdownParser", () => {
         'mo.md(r"hello world")',
         "mo.md(rf'hello world')",
         'mo.md(fr"hello world")',
+        // Complex f-strings with embedded expressions
+        `mo.md(f"""# User: {get_user("john")}""")`,
+        `mo.md(f"""# Count: {",".join(data["items"])}""")`,
+        `mo.md(f"""# Report: {str(data["items"][0]["count"])}""")`,
       ];
 
       for (const pythonCode of validCases) {

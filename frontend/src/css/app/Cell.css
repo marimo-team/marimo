@@ -34,6 +34,37 @@
     z-index: 1;
   }
 
+  /* Styling for cells marked for deletion by AI */
+  &:has(.mo-ai-deleted-cell) {
+    opacity: 0.7;
+    position: relative;
+
+    .output-area,
+    .cm-gutters,
+    .cm {
+      background-color: var(--red-2);
+    }
+
+    /* Add a red glow to indicate deletion */
+    &::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      border-radius: 10px;
+      pointer-events: none;
+      opacity: 0.6;
+      box-shadow: 0px 0px 10px 0px var(--red-9);
+      z-index: 1;
+    }
+
+    /* Add strikethrough effect to the code */
+    .cm-content {
+      text-decoration: line-through;
+      text-decoration-color: var(--red-9);
+      text-decoration-thickness: 1px;
+    }
+  }
+
   &:focus-within {
     z-index: 20;
   }
@@ -328,9 +359,14 @@
   position: relative;
   z-index: 1;
 
-  &:first-child .cm-editor {
+  /* Round the top of the code editor unless there is output above or the AI prompt input is open */
+  &[data-has-output-above="false"] .cm-editor {
     border-top-left-radius: 9px;
     border-top-right-radius: 9px;
+  }
+  div[data-ai-input-open="true"] .cm-editor {
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
   }
 
   &:last-child .cm-editor {

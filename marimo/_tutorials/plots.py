@@ -10,13 +10,15 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.17.4"
 app = marimo.App()
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("""# Plotting""")
+    mo.md("""
+    # Plotting
+    """)
     return
 
 
@@ -28,38 +30,36 @@ def _(check_dependencies):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        """
-        marimo supports several popular plotting libraries, including matplotlib,
-        plotly, seaborn, and altair. 
+    mo.md("""
+    marimo supports several popular plotting libraries, including matplotlib,
+    plotly, seaborn, and altair.
 
-        This tutorial gives examples using matplotlib; other libraries are
-        used similarly.
-        """
-    )
+    This tutorial gives examples using matplotlib; other libraries are
+    used similarly.
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("""## Matplotlib""")
+    mo.md("""
+    ## Matplotlib
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        """
-        To show a plot, include it in the last expression of a cell (just
-        like any other output).
+    mo.md("""
+    To show a plot, include it in the last expression of a cell (just
+    like any other output).
 
-        ```python3
-        # create the plot in the last line of the cell
-        import matplotlib.pyplot as plt
-        plt.plot([1, 2])
-        ```
-        """
-    )
+    ```python3
+    # create the plot in the last line of the cell
+    import matplotlib.pyplot as plt
+    plt.plot([1, 2])
+    ```
+    """)
     return
 
 
@@ -71,17 +71,15 @@ def _(plt):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        """
-        ```python3
-        # create a plot
-        plt.plot([1, 2])
-        # ... do some work ...
-        # make plt.gca() the last line of the cell
-        plt.gca()
-        ```
-        """
-    )
+    mo.md("""
+    ```python3
+    # create a plot
+    plt.plot([1, 2])
+    # ... do some work ...
+    # make plt.gca() the last line of the cell
+    plt.gca()
+    ```
+    """)
     return
 
 
@@ -102,12 +100,10 @@ def _(mo, plt_show_explainer):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        """
-        **A new figure every cell.** Every cell starts with an empty figure for 
-        the imperative `pyplot` API.
-        """
-    )
+    mo.md("""
+    **A new figure every cell.** Every cell starts with an empty figure for
+    the imperative `pyplot` API.
+    """)
     return
 
 
@@ -133,12 +129,10 @@ def _(plt, x):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        """
-        To build a figure over multiple cells, use the object-oriented API and
-        create your own axis:
-        """
-    )
+    mo.md("""
+    To build a figure over multiple cells, use the object-oriented API and
+    create your own axis:
+    """)
     return
 
 
@@ -160,13 +154,11 @@ def _(axis, x):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        """
-        ### Draw plots interactively
+    mo.md("""
+    ### Draw plots interactively
 
-        Draw plots interactively by parametrizing them with UI elements.
-        """
-    )
+    Draw plots interactively by parametrizing them with UI elements.
+    """)
     return
 
 
@@ -212,27 +204,27 @@ def _(exponent, mo, plot_power):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("""## Other libraries""")
+    mo.md("""
+    ## Other libraries
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        """
-        marimo also supports these other plotting libraries:
+    mo.md("""
+    marimo also supports these other plotting libraries:
 
-        - Plotly
-        - Seaborn
-        - Altair
+    - Plotly
+    - Seaborn
+    - Altair
 
-        Just output their figure objects as the last expression of a cell,
-        or embed them in markdown with `mo.as_html`.
+    Just output their figure objects as the last expression of a cell,
+    or embed them in markdown with `mo.as_html`.
 
-        If you would like another library to be integrated into marimo, please
-        get in touch.
-        """
-    )
+    If you would like another library to be integrated into marimo, please
+    get in touch.
+    """)
     return
 
 

@@ -7,6 +7,9 @@ on:
       - '[0-9]+.[0-9]+.[0-9]+'
   workflow_dispatch: {}
 
+permissions:
+  contents: read
+
 env:
   TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
   TURBO_TEAM: marimo
@@ -128,6 +131,34 @@ jobs:
 
       - name: ⬇️ Checkout repo
         uses: actions/checkout@v4
+
+      - name: ⏳ Wait for PyPI package availability
+        run: |
+          VERSION="${{ needs.publish_release.outputs.marimo_version }}"
+          echo "Waiting for marimo version $VERSION to be available on PyPI..."
+
+          MAX_ATTEMPTS=30
+          ATTEMPT=0
+          SLEEP_TIME=10
+
+          while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
+            ATTEMPT=$((ATTEMPT + 1))
+            echo "Attempt $ATTEMPT/$MAX_ATTEMPTS: Checking PyPI for version $VERSION..."
+
+            # Check if the version exists on PyPI
+            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "https://pypi.org/pypi/marimo/$VERSION/json")
+
+            if [ "$HTTP_CODE" = "200" ]; then
+              echo "✅ Version $VERSION is available on PyPI!"
+              exit 0
+            else
+              echo "Version $VERSION not yet available (HTTP $HTTP_CODE). Waiting ${SLEEP_TIME}s..."
+              sleep $SLEEP_TIME
+            fi
+          done
+
+          echo "❌ Timed out waiting for version $VERSION on PyPI after $((MAX_ATTEMPTS * SLEEP_TIME)) seconds"
+          exit 1
 
       - name: 🐋 Log in to the Container registry
         uses: docker/login-action@v3

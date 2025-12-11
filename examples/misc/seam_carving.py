@@ -11,36 +11,34 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.17.4"
 app = marimo.App(width="medium")
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        """
-        # Seam Carving 
+    mo.md("""
+    # Seam Carving
 
-        _Example adapted from work by [Vincent Warmerdam](https://x.com/fishnets88)_.
+    _Example adapted from work by [Vincent Warmerdam](https://x.com/fishnets88)_.
 
-        ## The seam carving algorithm
-        This marimo demonstration is partially an homage to [a great video by Grant
-        Sanderson](https://www.youtube.com/watch?v=rpB6zQNsbQU) of 3Blue1Brown, which demonstrates
-        the seam carving algorithm in [Pluto.jl](https://plutojl.org/):
+    ## The seam carving algorithm
+    This marimo demonstration is partially an homage to [a great video by Grant
+    Sanderson](https://www.youtube.com/watch?v=rpB6zQNsbQU) of 3Blue1Brown, which demonstrates
+    the seam carving algorithm in [Pluto.jl](https://plutojl.org/):
 
-        <iframe width="560" height="315" src="https://www.youtube.com/embed/rpB6zQNsbQU?si=oiZclGIj2atJR47m" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+    <iframe width="560" height="315" src="https://www.youtube.com/embed/rpB6zQNsbQU?si=oiZclGIj2atJR47m" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
-        As Grant explains, the seam carving algorithm preserves the shapes of the main content in the image, while killing the "dead space": the image is resized, but the clocks and other content are not resized or deformed.
+    As Grant explains, the seam carving algorithm preserves the shapes of the main content in the image, while killing the "dead space": the image is resized, but the clocks and other content are not resized or deformed.
 
-        This notebook is a Python version of the seam carving algorithm, but it is also a
-        demonstration of marimo's [persistent caching
-        feature](https://docs.marimo.io/recipes.html#persistent-caching-for-very-expensive-computations),
-        which is helpful because the algorithm is compute intensive even when you
-        use [Numba](https://numba.pydata.org/).
+    This notebook is a Python version of the seam carving algorithm, but it is also a
+    demonstration of marimo's [persistent caching
+    feature](https://docs.marimo.io/recipes.html#persistent-caching-for-very-expensive-computations),
+    which is helpful because the algorithm is compute intensive even when you
+    use [Numba](https://numba.pydata.org/).
 
-        Try it out by playing with the slider!
-        """
-    )
+    Try it out by playing with the slider!
+    """)
     return
 
 
@@ -60,7 +58,9 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("""## Try it!""")
+    mo.md("""
+    ## Try it!
+    """)
     return
 
 

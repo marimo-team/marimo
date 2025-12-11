@@ -93,10 +93,13 @@ export const ProgressComponent = ({
 
     const elements: React.ReactNode[] = [];
     if (rate) {
-      elements.push(
-        <span key="rate">{rate} iter/s</span>,
-        <span key="spacer-rate">&middot;</span>,
-      );
+      if (rate < 1) {
+        elements.push(<span key="rate">{prettyTime(1 / rate)} per iter</span>);
+      } else {
+        elements.push(<span key="rate">{rate} iter/s</span>);
+      }
+
+      elements.push(<span key="spacer-rate">&middot;</span>);
     }
 
     if (!hasCompleted && eta) {
@@ -170,6 +173,6 @@ export function prettyTime(seconds: number): string {
     language: "shortEn",
     largest: 2,
     spacer: "",
-    maxDecimalPoints: 2,
+    maxDecimalPoints: seconds < 10 ? 2 : 0,
   });
 }

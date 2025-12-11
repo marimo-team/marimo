@@ -8,7 +8,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.17.3"
 app = marimo.App()
 
 
@@ -92,11 +92,7 @@ def _(mo):
 
 @app.cell
 def _(mo):
-    mo.md(
-        f"""
-    ## {mo.icon('material-symbols:edit')} Icons in markdown
-    """
-    )
+    mo.md(f"""## {mo.icon('material-symbols:edit')} Icons in markdown""")
     return
 
 

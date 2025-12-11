@@ -1,7 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import { render } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { initialModeAtom } from "@/core/mode";
+import { store } from "@/core/state/jotai";
 import type { IPluginProps } from "../../types";
 import { DateTimePickerPlugin } from "../DateTimePickerPlugin";
 
@@ -9,10 +11,16 @@ interface DateTimeData {
   label: string | null;
   start: string;
   stop: string;
+  precision: "hour" | "minute" | "second";
   fullWidth: boolean;
 }
 
 describe("DateTimePickerPlugin", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    store.set(initialModeAtom, "edit");
+  });
+
   it("should render when initial value is not provided", () => {
     const plugin = new DateTimePickerPlugin();
     // Create a host element as required by IPluginProps
@@ -30,6 +38,7 @@ describe("DateTimePickerPlugin", () => {
         label: null,
         start: "2024-01-01T00:00:00",
         stop: "2024-12-31T23:59:59",
+        precision: "minute",
         fullWidth: false,
       },
       functions: {},
@@ -61,6 +70,7 @@ describe("DateTimePickerPlugin", () => {
         // These are the exact values that datetime.min and datetime.max produce
         start: "0001-01-01T00:00:00",
         stop: "9999-12-31T23:59:59",
+        precision: "minute",
         fullWidth: false,
       },
       functions: {},

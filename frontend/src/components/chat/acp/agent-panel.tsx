@@ -31,6 +31,7 @@ import { cn } from "@/utils/cn";
 import { Logger } from "@/utils/Logger";
 import { AgentDocs } from "./agent-docs";
 import { AgentSelector } from "./agent-selector";
+import { ModelSelector } from "./model-selector";
 import ScrollToBottomButton from "./scroll-to-bottom-button";
 import { SessionTabs } from "./session-tabs";
 import {
@@ -62,12 +63,15 @@ import {
   SelectTrigger,
 } from "@/components/ui/select";
 import { toast } from "@/components/ui/use-toast";
+import { DelayMount } from "@/components/utils/delay-mount";
 import { useRequestClient } from "@/core/network/requests";
 import { filenameAtom } from "@/core/saving/file-state";
 import { store } from "@/core/state/jotai";
+import { ErrorBanner } from "@/plugins/impl/common/error-banner";
 import { Functions } from "@/utils/functions";
 import { Paths } from "@/utils/paths";
 import { FileAttachmentPill } from "../chat-components";
+import { ReadyToChatBlock } from "./blocks";
 import {
   convertFilesToResourceLinks,
   parseContextFromPrompt,
@@ -80,6 +84,7 @@ import type {
   ExternalAgentSessionId,
   NotificationEvent,
   SessionMode,
+  SessionModelState,
 } from "./types";
 
 const logger = Logger.get("agents");
@@ -92,9 +97,7 @@ interface AgentTitleProps {
 }
 
 const AgentTitle = memo<AgentTitleProps>(({ currentAgentId }) => (
-  <span className="text-sm font-medium">
-    {currentAgentId ? capitalize(currentAgentId) : "Agents"}
-  </span>
+  <span className="text-sm font-medium">{capitalize(currentAgentId)}</span>
 ));
 AgentTitle.displayName = "AgentTitle";
 
@@ -132,7 +135,7 @@ const HeaderInfo = memo<HeaderInfoProps>(
   ({ currentAgentId, connectionStatus, shouldShowConnectionControl }) => (
     <div className="flex items-center gap-2">
       <BotMessageSquareIcon className="h-4 w-4 text-muted-foreground" />
-      <AgentTitle currentAgentId={currentAgentId} />
+      {currentAgentId && <AgentTitle currentAgentId={currentAgentId} />}
       {shouldShowConnectionControl && (
         <ConnectionStatus status={connectionStatus} />
       )}
@@ -298,6 +301,8 @@ interface PromptAreaProps {
   fileInputRef: React.RefObject<HTMLInputElement | null>;
   sessionMode?: SessionMode;
   onModeChange?: (mode: string) => void;
+  sessionModels?: SessionModelState | null;
+  onModelChange?: (modelId: string) => void;
 }
 
 const PromptArea = memo<PromptAreaProps>(
@@ -313,6 +318,8 @@ const PromptArea = memo<PromptAreaProps>(
     fileInputRef,
     sessionMode,
     onModeChange,
+    sessionModels,
+    onModelChange,
   }) => {
     const inputRef = useRef<ReactCodeMirrorRef | null>(null);
     const promptCompletions: AdditionalCompletions | undefined = useMemo(() => {
@@ -376,10 +383,22 @@ const PromptArea = memo<PromptAreaProps>(
                   onModeChange={onModeChange}
                 />
               )}
+              {sessionModels && onModelChange && activeSessionId && (
+                <ModelSelector
+                  sessionModels={sessionModels}
+                  onModelChange={onModelChange}
+                  disabled={isLoading}
+                />
+              )}
             </div>
             <div className="flex flex-row">
               <Tooltip content="Add context">
-                <Button variant="text" size="icon" onClick={handleAddContext}>
+                <Button
+                  variant="text"
+                  size="icon"
+                  onClick={handleAddContext}
+                  disabled={isLoading}
+                >
                   <AtSignIcon className="h-3.5 w-3.5" />
                 </Button>
               </Tooltip>
@@ -390,6 +409,7 @@ const PromptArea = memo<PromptAreaProps>(
                   className="cursor-pointer"
                   onClick={() => fileInputRef.current?.click()}
                   title="Attach a file"
+                  disabled={isLoading}
                 >
                   <PaperclipIcon className="h-3.5 w-3.5" />
                 </Button>
@@ -505,7 +525,7 @@ const ChatContent = memo<ChatContentProps>(
     onResolvePermission,
     onRetryConnection,
     onRetryLastAction,
-    onDismissError,
+    onDismissError: _onDismissError,
     sessionId,
   }) => {
     const [isScrolledToBottom, setIsScrolledToBottom] = useState(true);
@@ -548,6 +568,52 @@ const ChatContent = memo<ChatContentProps>(
       }
     }, [notifications.length, isScrolledToBottom, scrollToBottom]);
 
+    const renderThread = () => {
+      if (hasNotifications) {
+        return (
+          <AgentThread
+            isConnected={connectionState.status === "connected"}
+            notifications={notifications}
+            onRetryConnection={onRetryConnection}
+            onRetryLastAction={onRetryLastAction}
+          />
+        );
+      }
+
+      const isConnected = connectionState.status === "connected";
+      if (isConnected) {
+        return <ReadyToChatBlock />;
+      }
+
+      return (
+        <div className="flex items-center justify-center h-full min-h-[200px] flex-col">
+          <PanelEmptyState
+            title="Waiting for agent"
+            description="Your AI agent will appear here when active"
+            icon={<BotMessageSquareIcon />}
+          />
+          {isDisconnected && agentId && (
+            <AgentDocs
+              className="border-t pt-6 px-5"
+              title="Make sure you're connected to an agent"
+              description="Run this command in your terminal:"
+              agents={[agentId]}
+            />
+          )}
+          {isDisconnected && (
+            <Button
+              variant="outline"
+              onClick={onRetryConnection}
+              type="button"
+              className="mt-4"
+            >
+              Retry
+            </Button>
+          )}
+        </div>
+      );
+    };
+
     return (
       <div className="flex-1 flex flex-col overflow-hidden flex-shrink-0 relative">
         {pendingPermission && (
@@ -569,43 +635,7 @@ const ChatContent = memo<ChatContentProps>(
               Session ID: {sessionId}
             </div>
           )}
-          {hasNotifications ? (
-            <div className="space-y-2">
-              <AgentThread
-                isConnected={connectionState.status === "connected"}
-                notifications={notifications}
-                onRetryConnection={onRetryConnection}
-                onRetryLastAction={onRetryLastAction}
-                onDismissError={onDismissError}
-              />
-            </div>
-          ) : (
-            <div className="flex items-center justify-center h-full min-h-[200px] flex-col">
-              <PanelEmptyState
-                title="Waiting for agent"
-                description="Your AI agent will appear here when active"
-                icon={<BotMessageSquareIcon />}
-              />
-              {isDisconnected && agentId && (
-                <AgentDocs
-                  className="border-t pt-6 px-5"
-                  title="Make sure you're connected to an agent"
-                  description="Run this command in your terminal:"
-                  agents={[agentId]}
-                />
-              )}
-              {isDisconnected && (
-                <Button
-                  variant="outline"
-                  onClick={onRetryConnection}
-                  type="button"
-                  className="mt-4"
-                >
-                  Retry
-                </Button>
-              )}
-            </div>
-          )}
+          {renderThread()}
         </div>
 
         <ScrollToBottomButton
@@ -623,15 +653,21 @@ const NO_WS_SET = "_skip_auto_connect_";
 function getCwd() {
   const filename = store.get(filenameAtom);
   if (!filename) {
-    return "";
+    throw new Error(
+      "Please save the notebook and refresh the browser to use the agent",
+    );
   }
   return Paths.dirname(filename);
 }
 
 const AgentPanel: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<Error | string | null>(null);
   const [promptValue, setPromptValue] = useState("");
   const [files, setFiles] = useState<File[]>();
+  const [sessionModels, setSessionModels] = useState<SessionModelState | null>(
+    null,
+  );
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [selectedTab] = useAtom(selectedTabAtom);
@@ -671,6 +707,7 @@ const AgentPanel: React.FC = () => {
   const {
     connect,
     disconnect,
+    setActiveSessionId,
     connectionState,
     notifications,
     pendingPermission,
@@ -695,6 +732,8 @@ const AgentPanel: React.FC = () => {
 
   // Auto-connect to agent when we have an active session, but only once per session
   useEffect(() => {
+    setActiveSessionId(null);
+
     if (wsUrl === NO_WS_SET) {
       return;
     }
@@ -702,7 +741,9 @@ const AgentPanel: React.FC = () => {
     logger.debug("Auto-connecting to agent", {
       sessionId: activeSessionId,
     });
-    connect();
+    void connect().catch((error) => {
+      logger.error("Failed to connect to agent", { error });
+    });
 
     return () => {
       // We don't want to disconnect so users can switch between different
@@ -712,30 +753,38 @@ const AgentPanel: React.FC = () => {
   }, [wsUrl]);
 
   const handleNewSession = useEvent(async () => {
-    if (isCreatingNewSession.current) {
-      return;
-    }
     if (!agent) {
       return;
     }
 
     // If there is an active session, we should stop it
     if (activeSessionId) {
+      setActiveSessionId(null);
       await agent.cancel({ sessionId: activeSessionId }).catch((error) => {
         logger.error("Failed to cancel active session", { error });
       });
     }
 
-    logger.debug("Creating new agent session", {});
+    // Get the selected model from the current session state
+    const currentModel = selectedTab?.selectedModel ?? null;
+    logger.debug("Creating new agent session", { model: currentModel });
     isCreatingNewSession.current = true;
     const newSession = await agent
       .newSession({
         cwd: getCwd(),
         mcpServers: [],
+        _meta: currentModel ? { model: currentModel } : undefined,
       })
       .finally(() => {
         isCreatingNewSession.current = false;
       });
+
+    // Capture models from the response
+    if (newSession.models) {
+      logger.debug("Session models received", { models: newSession.models });
+      setSessionModels(newSession.models);
+    }
+
     setSessionState((prev) =>
       updateSessionExternalAgentSessionId(
         prev,
@@ -755,11 +804,20 @@ const AgentPanel: React.FC = () => {
       if (!agent.loadSession) {
         throw new Error("Agent does not support loading sessions");
       }
-      await agent.loadSession({
+      const loadedSession = await agent.loadSession({
         sessionId: previousSessionId,
         cwd: getCwd(),
         mcpServers: [],
       });
+
+      // Capture models from the response if available
+      if (loadedSession?.models) {
+        logger.debug("Session models received", {
+          models: loadedSession.models,
+        });
+        setSessionModels(loadedSession.models);
+      }
+
       setSessionState((prev) =>
         updateSessionExternalAgentSessionId(prev, previousSessionId),
       );
@@ -780,27 +838,27 @@ const AgentPanel: React.FC = () => {
       return;
     }
 
+    // If there is an available session, resume it, otherwise create a new one
     const createOrResumeSession = async () => {
+      const availableSession = tabLastActiveSessionId ?? activeSessionId;
       try {
-        // Check if we need to create a new session
-        if (tabLastActiveSessionId) {
-          // Try to resume existing session
+        if (availableSession) {
           try {
-            await handleResumeSession(tabLastActiveSessionId);
-          } catch (resumeError) {
-            logger.debug("Failed to resume session, creating new session", {
-              externalSessionId: tabLastActiveSessionId,
-              error: resumeError,
+            await handleResumeSession(availableSession);
+          } catch (error) {
+            logger.error("Failed to resume session", {
+              sessionId: availableSession,
+              error,
             });
-            // Fall back to creating new session
             await handleNewSession();
           }
         } else {
-          // No existing session, create new one
           await handleNewSession();
         }
+        setError(null);
       } catch (error) {
         logger.error("Failed to create or resume session:", error);
+        setError(error instanceof Error ? error : String(error));
       }
     };
 
@@ -928,6 +986,33 @@ const AgentPanel: React.FC = () => {
     disconnect();
   });
 
+  const handleModelChange = useEvent((modelId: string) => {
+    logger.debug("Model change requested", {
+      modelId,
+      sessionId: activeSessionId,
+    });
+
+    if (!agent || !activeSessionId) {
+      toast({
+        title: "Cannot change model",
+        description: "Please connect to an agent with an active session first",
+        variant: "danger",
+      });
+      return;
+    }
+
+    // Call agent.setSessionModel to notify the agent
+    void agent.setSessionModel?.({
+      sessionId: activeSessionId,
+      modelId,
+    });
+
+    // Update local state
+    setSessionModels((prev) =>
+      prev ? { ...prev, currentModelId: modelId } : null,
+    );
+  });
+
   const handleModeChange = useEvent((mode: string) => {
     logger.debug("Mode change requested", {
       sessionId: activeSessionId,
@@ -969,6 +1054,112 @@ const AgentPanel: React.FC = () => {
     );
   }
 
+  const renderBody = () => {
+    if (error) {
+      return (
+        <ErrorBanner
+          className="w-3/4 mx-auto mt-10"
+          error={error}
+          action={
+            <Button
+              variant="linkDestructive"
+              size="sm"
+              onClick={() => setError(null)}
+            >
+              Dismiss
+            </Button>
+          }
+        />
+      );
+    }
+
+    const isConnecting = connectionState.status === "connecting";
+    const delay = 200; // ms
+    if (isConnecting) {
+      return (
+        <DelayMount milliseconds={delay}>
+          <div className="flex items-center justify-center h-full min-h-[200px] flex-col">
+            <Spinner size="medium" className="text-primary" />
+            <span className="text-sm text-muted-foreground">
+              Connecting to the agent...
+            </span>
+          </div>
+        </DelayMount>
+      );
+    }
+
+    const isLoadingSession =
+      tabLastActiveSessionId == null && connectionState.status === "connected";
+    if (isLoadingSession) {
+      return (
+        <DelayMount milliseconds={delay}>
+          <div className="flex items-center justify-center h-full min-h-[200px] flex-col">
+            <Spinner size="medium" className="text-primary" />
+            <span className="text-sm text-muted-foreground">
+              Creating a new session...
+            </span>
+          </div>
+        </DelayMount>
+      );
+    }
+
+    return (
+      <>
+        <ChatContent
+          key={activeSessionId}
+          agentId={selectedTab?.agentId}
+          sessionId={selectedTab?.externalAgentSessionId ?? null}
+          hasNotifications={hasNotifications}
+          connectionState={connectionState}
+          notifications={notifications}
+          pendingPermission={pendingPermission}
+          onResolvePermission={(option) => {
+            logger.debug("Resolving permission request", {
+              sessionId: activeSessionId,
+              option,
+            });
+            resolvePermission(option);
+          }}
+          onRetryConnection={handleManualConnect}
+        />
+
+        <LoadingIndicator
+          isLoading={isLoading}
+          isRequestingPermission={!!pendingPermission}
+          onStop={handleStop}
+        />
+
+        {files && files.length > 0 && (
+          <div className="flex flex-row gap-1 flex-wrap p-3 border-t">
+            {files.map((file) => (
+              <FileAttachmentPill
+                file={file}
+                key={file.name}
+                onRemove={() => handleRemoveFile(file)}
+              />
+            ))}
+          </div>
+        )}
+
+        <PromptArea
+          isLoading={isLoading}
+          activeSessionId={activeSessionId}
+          promptValue={promptValue}
+          onPromptValueChange={setPromptValue}
+          onPromptSubmit={handlePromptSubmit}
+          onAddFiles={handleAddFiles}
+          onStop={handleStop}
+          fileInputRef={fileInputRef}
+          commands={availableCommands}
+          sessionMode={sessionMode}
+          onModeChange={handleModeChange}
+          sessionModels={sessionModels}
+          onModelChange={handleModelChange}
+        />
+      </>
+    );
+  };
+
   return (
     <div className="flex flex-col flex-1 overflow-hidden mo-agent-panel">
       <AgentPanelHeader
@@ -982,54 +1173,7 @@ const AgentPanel: React.FC = () => {
       />
       <SessionTabs />
 
-      <ChatContent
-        agentId={selectedTab?.agentId}
-        sessionId={activeSessionId}
-        hasNotifications={hasNotifications}
-        connectionState={connectionState}
-        notifications={notifications}
-        pendingPermission={pendingPermission}
-        onResolvePermission={(option) => {
-          logger.debug("Resolving permission request", {
-            sessionId: activeSessionId,
-            option,
-          });
-          resolvePermission(option);
-        }}
-        onRetryConnection={handleManualConnect}
-      />
-
-      <LoadingIndicator
-        isLoading={isLoading}
-        isRequestingPermission={!!pendingPermission}
-        onStop={handleStop}
-      />
-
-      {files && files.length > 0 && (
-        <div className="flex flex-row gap-1 flex-wrap p-3 border-t">
-          {files.map((file) => (
-            <FileAttachmentPill
-              file={file}
-              key={file.name}
-              onRemove={() => handleRemoveFile(file)}
-            />
-          ))}
-        </div>
-      )}
-
-      <PromptArea
-        isLoading={isLoading}
-        activeSessionId={activeSessionId}
-        promptValue={promptValue}
-        onPromptValueChange={setPromptValue}
-        onPromptSubmit={handlePromptSubmit}
-        onAddFiles={handleAddFiles}
-        onStop={handleStop}
-        fileInputRef={fileInputRef}
-        commands={availableCommands}
-        sessionMode={sessionMode}
-        onModeChange={handleModeChange}
-      />
+      {renderBody()}
     </div>
   );
 };

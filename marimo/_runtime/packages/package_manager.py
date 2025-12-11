@@ -74,7 +74,7 @@ class PackageManager(abc.ABC):
         log_callback: Optional[LogCallback] = None,
     ) -> bool:
         """Installation logic."""
-        return self.run(
+        return await self.run(
             self.install_command(package, upgrade=upgrade),
             log_callback=log_callback,
         )
@@ -119,7 +119,7 @@ class PackageManager(abc.ABC):
         """Should this package manager auto-install packages"""
         return False
 
-    def run(
+    def _run_sync(
         self, command: list[str], log_callback: Optional[LogCallback]
     ) -> bool:
         if not self.is_manager_installed():
@@ -131,7 +131,7 @@ class PackageManager(abc.ABC):
             return completed_process.returncode == 0
 
         # Stream output to both the callback and the terminal
-        proc = subprocess.Popen(
+        proc = subprocess.Popen(  # noqa: ASYNC220
             command,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
@@ -150,6 +150,14 @@ class PackageManager(abc.ABC):
 
         return_code = proc.wait()
         return return_code == 0
+
+    async def run(
+        self, command: list[str], log_callback: Optional[LogCallback]
+    ) -> bool:
+        """Run a command asynchronously in a thread pool to avoid blocking the event loop."""
+        import asyncio
+
+        return await asyncio.to_thread(self._run_sync, command, log_callback)
 
     def update_notebook_script_metadata(
         self,

@@ -1,6 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import * as shortcuts from "@/core/hotkeys/shortcuts";
 import {
   type AgentSession,
   type AgentSessionState,
@@ -8,7 +9,6 @@ import {
   type ExternalAgentId,
   getAgentConnectionCommand,
   getAgentDisplayName,
-  getAllAgentIds,
   getSessionsByAgent,
   removeSession,
   type TabId,
@@ -87,6 +87,7 @@ describe("state utility functions", () => {
               "createdAt": 1735689600000,
               "externalAgentSessionId": null,
               "lastUsedAt": 1735689600000,
+              "selectedModel": null,
               "title": "New claude session",
             },
           ],
@@ -103,6 +104,7 @@ describe("state utility functions", () => {
         createdAt: 1_735_689_600_000,
         lastUsedAt: 1_735_689_600_000,
         externalAgentSessionId: null,
+        selectedModel: null,
       };
       const initialState: AgentSessionState = {
         sessions: [existingSession],
@@ -127,6 +129,7 @@ describe("state utility functions", () => {
               "createdAt": 1735689600000,
               "externalAgentSessionId": null,
               "lastUsedAt": 1735689600000,
+              "selectedModel": null,
               "title": "New claude session",
             },
           ],
@@ -142,6 +145,7 @@ describe("state utility functions", () => {
         createdAt: 1_735_689_600_000,
         lastUsedAt: 1_735_689_600_000,
         externalAgentSessionId: null,
+        selectedModel: null,
       };
       const initialState: AgentSessionState = {
         sessions: [existingSession],
@@ -163,12 +167,71 @@ describe("state utility functions", () => {
               "createdAt": 1735689600000,
               "externalAgentSessionId": null,
               "lastUsedAt": 1735689600000,
+              "selectedModel": null,
               "tabId": "tab_existing",
               "title": "Hello",
             },
           ],
         }
       `);
+    });
+
+    it("should clear externalAgentSessionId when switching between different agents", () => {
+      // Start with a Claude session that has an active external session ID
+      const claudeSession: AgentSession = {
+        agentId: "claude",
+        tabId: "tab_claude" as TabId,
+        title: "Claude session",
+        createdAt: 1_735_689_600_000,
+        lastUsedAt: 1_735_689_600_000,
+        externalAgentSessionId: "claude-session-123" as ExternalAgentSessionId,
+        selectedModel: null,
+      };
+      const initialState: AgentSessionState = {
+        sessions: [claudeSession],
+        activeTabId: claudeSession.tabId,
+      };
+
+      // Switch to Gemini
+      const newState = addSession(initialState, { agentId: "gemini" });
+
+      // Should create a new Gemini session with null externalAgentSessionId
+      // and remove the Claude session (MAX_SESSIONS = 1)
+      expect(newState.sessions).toHaveLength(1);
+      expect(newState.sessions[0].agentId).toBe("gemini");
+      expect(newState.sessions[0].externalAgentSessionId).toBe(null);
+
+      // The active tab should be the new Gemini session
+      expect(newState.activeTabId).toBe(newState.sessions[0].tabId);
+    });
+
+    it("should clear externalAgentSessionId when switching from Gemini to Claude", () => {
+      // Start with a Gemini session that has an active external session ID
+      const geminiSession: AgentSession = {
+        agentId: "gemini",
+        tabId: "tab_gemini" as TabId,
+        title: "Gemini session",
+        createdAt: 1_735_689_600_000,
+        lastUsedAt: 1_735_689_600_000,
+        externalAgentSessionId: "gemini-session-456" as ExternalAgentSessionId,
+        selectedModel: null,
+      };
+      const initialState: AgentSessionState = {
+        sessions: [geminiSession],
+        activeTabId: geminiSession.tabId,
+      };
+
+      // Switch to Claude
+      const newState = addSession(initialState, { agentId: "claude" });
+
+      // Should create a new Claude session with null externalAgentSessionId
+      // and remove the Gemini session (MAX_SESSIONS = 1)
+      expect(newState.sessions).toHaveLength(1);
+      expect(newState.sessions[0].agentId).toBe("claude");
+      expect(newState.sessions[0].externalAgentSessionId).toBe(null);
+
+      // The active tab should be the new Claude session
+      expect(newState.activeTabId).toBe(newState.sessions[0].tabId);
     });
 
     it("should not mutate original state", () => {
@@ -197,6 +260,7 @@ describe("state utility functions", () => {
           createdAt: 1_735_689_600_000,
           lastUsedAt: 1_735_689_600_000,
           externalAgentSessionId: null,
+          selectedModel: null,
         },
         {
           agentId: "gemini",
@@ -205,6 +269,7 @@ describe("state utility functions", () => {
           createdAt: 1_735_689_600_000,
           lastUsedAt: 1_735_689_600_000,
           externalAgentSessionId: null,
+          selectedModel: null,
         },
         {
           agentId: "claude",
@@ -213,6 +278,7 @@ describe("state utility functions", () => {
           createdAt: 1_735_689_600_000,
           lastUsedAt: 1_735_689_600_000,
           externalAgentSessionId: null,
+          selectedModel: null,
         },
       ];
       state = {
@@ -233,6 +299,7 @@ describe("state utility functions", () => {
               "createdAt": 1735689600000,
               "externalAgentSessionId": null,
               "lastUsedAt": 1735689600000,
+              "selectedModel": null,
               "tabId": "tab_1",
               "title": "Claude session 1",
             },
@@ -241,6 +308,7 @@ describe("state utility functions", () => {
               "createdAt": 1735689600000,
               "externalAgentSessionId": null,
               "lastUsedAt": 1735689600000,
+              "selectedModel": null,
               "tabId": "tab_3",
               "title": "Claude session 2",
             },
@@ -267,6 +335,7 @@ describe("state utility functions", () => {
         createdAt: 1_735_689_600_000,
         lastUsedAt: 1_735_689_600_000,
         externalAgentSessionId: null,
+        selectedModel: null,
       };
       const singleSessionState: AgentSessionState = {
         sessions: [singleSession],
@@ -300,6 +369,7 @@ describe("state utility functions", () => {
           createdAt: 1_735_689_600_000,
           lastUsedAt: 1_735_689_600_000,
           externalAgentSessionId: null,
+          selectedModel: null,
         },
         {
           agentId: "gemini",
@@ -308,6 +378,7 @@ describe("state utility functions", () => {
           createdAt: 1_735_689_600_000,
           lastUsedAt: 1_735_689_600_000,
           externalAgentSessionId: null,
+          selectedModel: null,
         },
       ];
       state = {
@@ -364,6 +435,7 @@ describe("state utility functions", () => {
           createdAt: 1_735_689_600_000,
           lastUsedAt: 1_735_689_600_000,
           externalAgentSessionId: null,
+          selectedModel: null,
         },
         {
           agentId: "gemini",
@@ -372,6 +444,7 @@ describe("state utility functions", () => {
           createdAt: 1_735_689_600_000,
           lastUsedAt: 1_735_689_600_000,
           externalAgentSessionId: null,
+          selectedModel: null,
         },
       ];
       state = {
@@ -427,6 +500,7 @@ describe("state utility functions", () => {
           createdAt: 1_735_689_600_000,
           lastUsedAt: 1_735_689_600_000,
           externalAgentSessionId: null,
+          selectedModel: null,
         },
         {
           agentId: "gemini",
@@ -435,6 +509,7 @@ describe("state utility functions", () => {
           createdAt: 1_735_689_600_000,
           lastUsedAt: 1_735_689_600_000,
           externalAgentSessionId: null,
+          selectedModel: null,
         },
       ];
       state = {
@@ -501,6 +576,7 @@ describe("state utility functions", () => {
           createdAt: 1_735_689_600_000, // 2025-01-01T00:00:00Z
           lastUsedAt: 1_735_689_600_000,
           externalAgentSessionId: null,
+          selectedModel: null,
         },
         {
           agentId: "gemini",
@@ -509,6 +585,7 @@ describe("state utility functions", () => {
           createdAt: 1_735_693_200_000, // 2025-01-01T01:00:00Z
           lastUsedAt: 1_735_693_200_000,
           externalAgentSessionId: null,
+          selectedModel: null,
         },
         {
           agentId: "claude",
@@ -517,6 +594,7 @@ describe("state utility functions", () => {
           createdAt: 1_735_696_800_000, // 2025-01-01T02:00:00Z
           lastUsedAt: 1_735_696_800_000,
           externalAgentSessionId: null,
+          selectedModel: null,
         },
         {
           agentId: "claude",
@@ -525,6 +603,7 @@ describe("state utility functions", () => {
           createdAt: 1_735_700_400_000, // 2025-01-01T03:00:00Z
           lastUsedAt: 1_735_700_400_000,
           externalAgentSessionId: null,
+          selectedModel: null,
         },
       ];
     });
@@ -575,18 +654,6 @@ describe("state utility functions", () => {
     });
   });
 
-  describe("getAllAgentIds", () => {
-    it("should return all available agent IDs", () => {
-      const agentIds = getAllAgentIds();
-      expect(agentIds).toMatchInlineSnapshot(`
-        [
-          "claude",
-          "gemini",
-        ]
-      `);
-    });
-  });
-
   describe("getAgentDisplayName", () => {
     it("should capitalize agent names", () => {
       expect({
@@ -602,15 +669,31 @@ describe("state utility functions", () => {
   });
 
   describe("getAgentConnectionCommand", () => {
-    it("should return correct command for claude", () => {
+    it("should return correct command for claude on non-Windows", () => {
+      vi.spyOn(shortcuts, "isPlatformWindows").mockReturnValue(false);
       expect(getAgentConnectionCommand("claude")).toMatchInlineSnapshot(`
         "npx stdio-to-ws "npx @zed-industries/claude-code-acp" --port 3017"
       `);
     });
 
-    it("should return correct command for gemini", () => {
+    it("should return correct command for claude on Windows", () => {
+      vi.spyOn(shortcuts, "isPlatformWindows").mockReturnValue(true);
+      expect(getAgentConnectionCommand("claude")).toMatchInlineSnapshot(`
+        "npx stdio-to-ws "cmd /c npx @zed-industries/claude-code-acp" --port 3017"
+      `);
+    });
+
+    it("should return correct command for gemini on non-Windows", () => {
+      vi.spyOn(shortcuts, "isPlatformWindows").mockReturnValue(false);
       expect(getAgentConnectionCommand("gemini")).toMatchInlineSnapshot(`
         "npx stdio-to-ws "npx @google/gemini-cli --experimental-acp" --port 3019"
+      `);
+    });
+
+    it("should return correct command for gemini on Windows", () => {
+      vi.spyOn(shortcuts, "isPlatformWindows").mockReturnValue(true);
+      expect(getAgentConnectionCommand("gemini")).toMatchInlineSnapshot(`
+        "npx stdio-to-ws "cmd /c npx @google/gemini-cli --experimental-acp" --port 3019"
       `);
     });
   });

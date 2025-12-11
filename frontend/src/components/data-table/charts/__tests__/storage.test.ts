@@ -2,8 +2,18 @@
 
 import { getDefaultStore } from "jotai";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { asMock, SetupMocks } from "@/__mocks__/common";
+
+// Mock the storage module to use our mock storage
+vi.mock("@/utils/storage/storage", () => ({
+  availableStorage: {
+    getItem: vi.fn(),
+    setItem: vi.fn(),
+    removeItem: vi.fn(),
+  },
+}));
+
 import type { CellId } from "@/core/cells/ids";
+import { availableStorage } from "@/utils/storage/storage";
 import { ChartSchema } from "../schemas";
 import type { TabName } from "../storage";
 import { KEY, tabsStorageAtom } from "../storage";
@@ -12,7 +22,6 @@ import { ChartType } from "../types";
 describe("Chart Transforms Storage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    SetupMocks.localStorage();
     // Reset the store before each test
     const store = getDefaultStore();
     store.set(tabsStorageAtom, new Map());
@@ -87,14 +96,11 @@ describe("Chart Transforms Storage", () => {
 
   describe("LocalStorage integration", () => {
     it("should call localStorage.setItem when setting data", () => {
-      // Reset the mock to ensure clean state
-      asMock(window.localStorage.setItem).mockReset();
-
       const store = getDefaultStore();
       const newMap = new Map();
       store.set(tabsStorageAtom, newMap);
 
-      expect(window.localStorage.setItem).toHaveBeenCalledWith(
+      expect(availableStorage.setItem).toHaveBeenCalledWith(
         KEY,
         JSON.stringify([]),
       );

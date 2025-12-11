@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import ast
-import copy
 import inspect
 import io
 import linecache
@@ -14,7 +13,7 @@ import token as token_types
 import warnings
 from tokenize import tokenize
 from types import CodeType, FrameType
-from typing import Any, Callable, Optional, cast
+from typing import Any, Callable, Optional, TypeAlias, cast
 
 from marimo import _loggers
 from marimo._ast import parse
@@ -32,11 +31,6 @@ from marimo._schemas.serialization import CellDef, ClassCell, FunctionCell
 from marimo._types.ids import CellId_t
 from marimo._utils.tmpdir import get_tmpdir
 
-if sys.version_info < (3, 10):
-    from typing_extensions import TypeAlias
-else:
-    from typing import TypeAlias
-
 LOGGER = _loggers.marimo_logger()
 Cls: TypeAlias = type
 
@@ -46,6 +40,21 @@ def ast_compile(*args: Any, **kwargs: Any) -> CodeType:
         warnings.simplefilter("ignore", category=SyntaxWarning)
         # The SyntaxWarning is suppressed only inside this `with` block
         return cast(CodeType, compile(*args, **kwargs))  # type: ignore[call-overload]
+
+
+def module_compile(code: str) -> ast.Module:
+    # Overloads on compile are strange, cast for proper typing.
+    return cast(
+        ast.Module,
+        ast_compile(
+            code,
+            "<unknown>",
+            mode="exec",
+            # don't inherit compiler flags, in particular future annotations
+            dont_inherit=True,
+            flags=ast.PyCF_ONLY_AST | ast.PyCF_ALLOW_TOP_LEVEL_AWAIT,
+        ),
+    )
 
 
 def code_key(code: str) -> int:
@@ -152,11 +161,17 @@ def fix_source_position(node: Any, source_position: SourcePosition) -> Any:
     return node
 
 
-def const_string(args: list[ast.stmt]) -> str:
+def _extract_const_string(args: list[ast.stmt]) -> str:
     (inner,) = args
-    if hasattr(inner, "values"):
-        (inner,) = inner.values
-    return f"{inner.value}"  # type: ignore[attr-defined]
+    # Various string types may need to be unpacked
+    if isinstance(inner, ast.JoinedStr) or (
+        sys.version_info >= (3, 14) and isinstance(inner, ast.TemplateStr)
+    ):
+        # But we only match if there is 1 entry.
+        (inner,) = inner.values  # type: ignore[attr-defined]
+    assert isinstance(inner, ast.Constant)
+    assert isinstance(inner.value, str)
+    return inner.value
 
 
 def const_or_id(args: ast.stmt) -> str:
@@ -177,7 +192,7 @@ def _extract_markdown(tree: ast.Module) -> Optional[str]:
         assert value.func.value.id == "mo"
         if not value.args:  # Handle mo.md() with no arguments
             return None
-        md_lines = const_string(value.args).split("\n")
+        md_lines = _extract_const_string(value.args).split("\n")
     except (AssertionError, AttributeError, ValueError):
         # No reason to explicitly catch exceptions if we can't parse out
         # markdown. Just handle it as a code block.
@@ -235,18 +250,7 @@ def compile_cell(
     # See https://github.com/pyodide/pyodide/issues/3337,
     #     https://github.com/marimo-team/marimo/issues/1546
     code = code.replace("\u00a0", " ")
-    # Overloads on compile are strange, cast for proper typing.
-    module = cast(
-        ast.Module,
-        ast_compile(
-            code,
-            "<unknown>",
-            mode="exec",
-            # don't inherit compiler flags, in particular future annotations
-            dont_inherit=True,
-            flags=ast.PyCF_ONLY_AST | ast.PyCF_ALLOW_TOP_LEVEL_AWAIT,
-        ),
-    )
+    module = module_compile(code)
 
     if not module.body:
         # either empty code or just comments
@@ -276,7 +280,9 @@ def compile_cell(
 
     expr: ast.Expression
     final_expr = module.body[-1]
-    original_module = copy.deepcopy(module)
+    # Compile again as an effective copy since copying directly seems slow and
+    # error prone.
+    original_module = module_compile(code)
     # Use final expression if it exists doesn't end in a
     # semicolon. Evaluates expression to "None" otherwise.
     if isinstance(final_expr, ast.Expr) and not ends_with_semicolon(code):
@@ -586,7 +592,7 @@ def cell_factory(
 
     extractor = parse.Extractor(contents=function_code)
     func_ast = parse.ast_parse(function_code).body[0]
-    cell_def = extractor.to_cell(func_ast, attribute="cell")
+    cell_def = extractor.to_cell(func_ast, attribute="cell").unwrap()
 
     # anonymous file is required for deterministic testing.
     source_position = None

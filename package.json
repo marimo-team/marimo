@@ -9,25 +9,26 @@
     "dev": "pnpm run --filter @marimo-team/frontend dev"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.2.2",
-    "@testing-library/jest-dom": "^6.8.0",
-    "@typescript/native-preview": "7.0.0-dev.20250928.1",
-    "turbo": "^2.5.6",
+    "@biomejs/biome": "2.3.8",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@typescript/native-preview": "7.0.0-dev.20251128.1",
+    "turbo": "^2.6.1",
     "vitest": "^3.2.4"
   },
   "engines": {
     "node": ">=20",
     "pnpm": ">=9.15.9"
   },
-  "packageManager": "pnpm@10.15.1",
+  "packageManager": "pnpm@10.24.0",
   "pnpm": {
     "patchedDependencies": {
       "react-plotly.js": "patches/react-plotly.js.patch"
     },
     "overrides": {
-      "react": "^19.1.0",
-      "react-dom": "^19.1.0",
-      "vite": "npm:rolldown-vite@latest"
+      "react": "^19.2.0",
+      "react-dom": "^19.2.0",
+      "vite": "npm:rolldown-vite@7.2.8",
+      "form-data": ">=4.0.5"
     },
     "peerDependencyRules": {
       "allowedVersions": {

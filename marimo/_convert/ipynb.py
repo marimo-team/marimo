@@ -124,6 +124,43 @@ def transform_add_marimo_import(sources: list[CodeCell]) -> list[CodeCell]:
     return sources
 
 
+def transform_add_subprocess_import(
+    sources: list[CodeCell], exclamation_metadata: ExclamationMarkResult | None
+) -> list[CodeCell]:
+    """
+    Add an import statement for subprocess if any cell uses subprocess.call.
+    """
+    # Check if subprocess import is needed
+    if not exclamation_metadata or not exclamation_metadata.needs_subprocess:
+        return sources
+
+    def has_subprocess_import(cell: str) -> bool:
+        # Quick check
+        if "import subprocess" not in cell:
+            return False
+
+        def is_in_import_line(line: str) -> bool:
+            stripped = line.strip()
+            if stripped.startswith("import subprocess"):
+                return True
+            return False
+
+        # Slow check
+        lines = cell.strip().split("\n")
+        if any(is_in_import_line(line) for line in lines):
+            return True
+        return False
+
+    already_has_subprocess_import = any(
+        has_subprocess_import(cell.source) for cell in sources
+    )
+    if already_has_subprocess_import:
+        return sources
+
+    # Add subprocess import at the beginning
+    return [CodeCell("import subprocess")] + sources
+
+
 def transform_magic_commands(sources: list[str]) -> list[str]:
     """
     Transform Jupyter magic commands to their marimo equivalents
@@ -348,20 +385,203 @@ def transform_magic_commands(sources: list[str]) -> list[str]:
     return [transform(cell) for cell in sources]
 
 
-def transform_exclamation_mark(sources: list[str]) -> list[str]:
-    """
-    Handle exclamation mark commands.
-    """
+@dataclass
+class ExclamationCommandResult:
+    """Result of processing a single exclamation command."""
 
-    def transform(cell: str) -> str:
-        if "!pip" in cell:
-            cell = cell.replace(
-                "!pip",
-                "# (use marimo's built-in package management features instead) !pip",  # noqa: E501
-            )
-        return cell
+    replacement: str
+    pip_packages: list[str]
+    needs_subprocess: bool
 
-    return [transform(cell) for cell in sources]
+
+@dataclass
+class ExclamationMarkResult:
+    """Result of processing all exclamation mark commands in sources."""
+
+    transformed_sources: list[str]
+    pip_packages: list[str]
+    needs_subprocess: bool
+
+
+def _extract_pip_install(
+    command_line: str, command_tokens: list[str]
+) -> ExclamationCommandResult:
+    pip_packages: list[str] = []
+    if "install" not in command_tokens:
+        return _shlex_to_subprocess_call(command_line, command_tokens)
+
+    install_idx = command_tokens.index("install")
+    packages = [
+        p for p in command_tokens[install_idx + 1 :] if not p.startswith("-")
+    ]
+    pip_packages = packages
+
+    # Comment out the pip command
+    replacement = (
+        "# packages added via marimo's package management: "
+        f"{' '.join(packages)} !{command_line}"
+    )
+    return ExclamationCommandResult(replacement, pip_packages, False)
+
+
+def _shlex_to_subprocess_call(
+    command_line: str, command_tokens: list[str]
+) -> ExclamationCommandResult:
+    """Convert a shell command to subprocess.call([...])"""
+    command = "\n".join(
+        [f"#! {command_line}", f"subprocess.call({command_tokens!r})"]
+    )
+    return ExclamationCommandResult(command, [], True)
+
+
+def _handle_exclamation_command(
+    command_line: str,
+) -> ExclamationCommandResult:
+    """
+    Process an exclamation command line.
+
+    Returns: (replacement_text, pip_packages, needs_subprocess)
+    """
+    import shlex
+
+    # Split command to check first token
+    try:
+        command_tokens = shlex.split(command_line)
+    except ValueError:
+        command_tokens = command_line.split()
+
+    if not command_tokens:
+        return ExclamationCommandResult(f"# !{command_line}", [], False)
+
+    # scrub past tokens until pip
+    # For instance in the case `uv pip install ...`
+    for i, token in enumerate(command_tokens):
+        if token.startswith("pip"):
+            return _extract_pip_install(command_line, command_tokens[i:])
+
+    # Replace with subprocess.call()
+    return _shlex_to_subprocess_call(command_line, command_tokens)
+
+
+def transform_exclamation_mark(sources: list[str]) -> ExclamationMarkResult:
+    """
+    Implementation of exclamation mark transform.
+
+    Uses tokenization to detect: newline + "!" + optional whitespace + command
+    """
+    import io
+    from tokenize import (
+        COMMENT,
+        ENCODING,
+        ERRORTOKEN,
+        INDENT,
+        NEWLINE,
+        NL,
+        OP,
+        TokenInfo,
+        tokenize,
+    )
+
+    all_pip_packages: list[str] = []
+    any_needs_subprocess = False
+    transformed_sources: list[str] = []
+
+    for cell in sources:
+        try:
+            tokens = list(tokenize(io.BytesIO(cell.encode("utf-8")).readline))
+        except Exception:
+            # If tokenization fails, return cell unchanged
+            transformed_sources.append(cell)
+            continue
+
+        # Track which lines have ! commands and their replacements
+        line_replacements: dict[int, str] = {}  # line_num -> replacement_text
+        in_exclaim = False
+        exclaim_tokens: list[TokenInfo] = []
+        trailing_comment = None
+        exclaim_line_num = None
+
+        for i, token in enumerate(tokens):
+            # Check for newline + ! pattern (or ! at start after ENCODING)
+            # ! is OP in Python 3.12+ and ERRORTOKEN in Python 3.10/3.11
+            # Can also appear after INDENT for indented cells
+            if (
+                token.string == "!"
+                and token.type in (OP, ERRORTOKEN)
+                and i > 0
+                and tokens[i - 1].type in (NEWLINE, NL, ENCODING, INDENT)
+            ):
+                in_exclaim = True
+                exclaim_tokens = []
+                trailing_comment = None
+                exclaim_line_num = token.start[0]
+                continue  # Skip the ! token
+
+            elif in_exclaim:
+                if token.type in (NEWLINE, NL):
+                    # End of exclamation command - process it
+                    # Check if last token was a comment
+                    if exclaim_tokens and exclaim_tokens[-1].type == COMMENT:
+                        trailing_comment = exclaim_tokens.pop()
+
+                    # Extract command from collected tokens by joining their strings
+                    if exclaim_tokens:
+                        # Reconstruct command from tokens
+                        first_token = exclaim_tokens[0]
+                        last_token = exclaim_tokens[-1]
+                        # Get the source line and extract the command portion
+                        line_text = first_token.line
+                        start_col = first_token.start[1]
+                        end_col = last_token.end[1]
+                        command_line = line_text[start_col:end_col].strip()
+                    else:
+                        command_line = ""
+
+                    result = _handle_exclamation_command(command_line)
+
+                    all_pip_packages.extend(result.pip_packages)
+                    any_needs_subprocess |= result.needs_subprocess
+
+                    if exclaim_line_num is not None:
+                        line_replacements[exclaim_line_num] = (
+                            result.replacement
+                        )
+                        # Store replacement for this line
+                        if trailing_comment:
+                            line_replacements[exclaim_line_num] += (
+                                "\n" + trailing_comment.string
+                            )
+
+                    in_exclaim = False
+                else:
+                    # Collect tokens that are part of the command
+                    exclaim_tokens.append(token)
+
+        # Apply replacements to the cell
+        if line_replacements:
+            lines = cell.split("\n")
+            new_lines = []
+            for line_num, line in enumerate(lines, start=1):
+                if line_num in line_replacements:
+                    # Preserve indentation from original line
+                    indent = (len(line) - len(line.lstrip())) * " "
+                    replacements = line_replacements[line_num].split("\n")
+                    # Add indentation to replacement
+                    indented_replacement = [
+                        indent + replacement for replacement in replacements
+                    ]
+                    new_lines.extend(indented_replacement)
+                else:
+                    new_lines.append(line)
+            transformed_sources.append("\n".join(new_lines))
+        else:
+            transformed_sources.append(cell)
+
+    return ExclamationMarkResult(
+        transformed_sources=transformed_sources,
+        pip_packages=all_pip_packages,
+        needs_subprocess=any_needs_subprocess,
+    )
 
 
 class Renamer:
@@ -404,17 +624,17 @@ class Renamer:
             name = node.name
             new_name = self._maybe_rename(cell, name, is_reference)
             node.name = new_name
-        if sys.version_info >= (3, 10):
-            if isinstance(node, (ast.MatchAs, ast.MatchStar)):
-                name = node.name
-                if name is not None:
-                    new_name = self._maybe_rename(cell, name, is_reference)
-                    node.name = new_name
-            elif isinstance(node, ast.MatchMapping):
-                name = node.rest
-                if name is not None:
-                    new_name = self._maybe_rename(cell, name, is_reference)
-                    node.rest = new_name
+
+        if isinstance(node, (ast.MatchAs, ast.MatchStar)):
+            name = node.name
+            if name is not None:
+                new_name = self._maybe_rename(cell, name, is_reference)
+                node.name = new_name
+        elif isinstance(node, ast.MatchMapping):
+            name = node.rest
+            if name is not None:
+                new_name = self._maybe_rename(cell, name, is_reference)
+                node.rest = new_name
         if sys.version_info >= (3, 12):
             if isinstance(
                 node, (ast.TypeVar, ast.ParamSpec, ast.TypeVarTuple)
@@ -708,9 +928,47 @@ def extract_inline_meta(script: str) -> tuple[str | None, str]:
     return None, script
 
 
+def build_metadata(
+    old_metadata: str | None,
+    extra_metadata: ExclamationMarkResult | None = None,
+) -> str:
+    """
+    Build PEP 723 metadata, adding pip packages if found.
+
+    Uses PyProjectReader utilities to parse existing metadata and properly
+    merge dependencies.
+    """
+    from marimo._utils.inline_script_metadata import PyProjectReader
+    from marimo._utils.scripts import write_pyproject_to_script
+
+    # If no exclamation mark processing happened or no packages found
+    if not extra_metadata or not extra_metadata.pip_packages:
+        return old_metadata or ""
+
+    pip_packages = extra_metadata.pip_packages
+
+    # Parse existing metadata if present
+    if old_metadata:
+        reader = PyProjectReader.from_script(old_metadata)
+        existing_deps = reader.dependencies
+
+        # Merge new pip packages with existing dependencies
+        merged_deps = list(set(existing_deps + pip_packages))
+
+        # Update the project dict with merged dependencies
+        project = reader.project.copy()
+        project["dependencies"] = merged_deps
+    else:
+        # Create new project dict
+        project = {"dependencies": pip_packages}
+
+    # Convert project dict to PEP 723 format using utility
+    return write_pyproject_to_script(project)
+
+
 def _transform_sources(
     sources: list[str], metadata: list[dict[str, Any]], hide_flags: list[bool]
-) -> list[CodeCell]:
+) -> tuple[list[CodeCell], ExclamationMarkResult | None]:
     """
     Process raw sources and metadata into finalized cells.
 
@@ -720,6 +978,10 @@ def _transform_sources(
     3. Cell-level transforms (e.g., inserting imports, removing empty cells)
 
     After this step, cells are ready for execution or rendering.
+
+    Returns:
+        A tuple of (cells, exclamation_metadata) where exclamation_metadata
+        contains pip packages and subprocess import information.
     """
     from marimo._convert.comment_preserver import CommentPreserver
 
@@ -727,10 +989,9 @@ def _transform_sources(
     simple_transforms = [
         transform_strip_whitespace,
         transform_magic_commands,
-        transform_exclamation_mark,
     ]
 
-    # Define transforms that should preserve comments
+    # Define transforms that should preserve comments (excluding exclamation_mark)
     comment_preserving_transforms = [
         transform_remove_duplicate_imports,
         transform_fixup_multiple_definitions,
@@ -757,18 +1018,19 @@ def _transform_sources(
         )
         sources = new_sources
 
+    # Handle exclamation_mark specially since it returns ExclamationMarkResult
+    exclamation_result = transform_exclamation_mark(sources)
+    sources = exclamation_result.transformed_sources
+    exclamation_metadata = exclamation_result
+
     cells = bind_cell_metadata(sources, metadata, hide_flags)
 
     # may change cell count
-    cell_transforms: list[CellsTransform] = [
-        transform_add_marimo_import,
-        transform_remove_empty_cells,
-    ]
+    cells = transform_add_subprocess_import(cells, exclamation_metadata)
+    cells = transform_add_marimo_import(cells)
+    cells = transform_remove_empty_cells(cells)
 
-    for cell_transform in cell_transforms:
-        cells = cell_transform(cells)
-
-    return cells
+    return cells, exclamation_metadata
 
 
 def convert_from_ipynb_to_notebook_ir(
@@ -801,11 +1063,13 @@ def convert_from_ipynb_to_notebook_ir(
             metadata.append(cell.get("metadata", {}))
             hide_flags.append(is_markdown)
 
-    transformed_cells = _transform_sources(sources, metadata, hide_flags)
+    transformed_cells, extra_metadata = _transform_sources(
+        sources, metadata, hide_flags
+    )
 
     return NotebookSerializationV1(
         app=AppInstantiation(),
-        header=Header(value=inline_meta or ""),
+        header=Header(value=build_metadata(inline_meta, extra_metadata)),
         cells=[
             CellDef(
                 code=cell.source,

@@ -17,13 +17,17 @@ from marimo._plugins.ui._impl.altair_chart import (
     ChartDataType,
     ChartSelection,
     _filter_dataframe,
+    _get_binned_fields,
     _has_binning,
     _has_geoshape,
     _has_legend_param,
+    _has_no_nested_hconcat,
     _has_selection_param,
     _parse_spec,
     _update_vconcat_width,
+    _using_vegafusion,
     altair_chart,
+    maybe_fix_vegafusion_background,
 )
 from marimo._runtime.runtime import Kernel
 from marimo._utils.narwhals_utils import is_narwhals_lazyframe
@@ -42,8 +46,6 @@ HAS_DEPS = (
     and DependencyManager.altair.has()
     # altair produces different output on windows
     and sys.platform != "win32"
-    # skip 3.9
-    and sys.version_info >= (3, 10)
 )
 
 if HAS_DEPS:
@@ -86,7 +88,7 @@ class TestAltairChart:
             "signal_channel_1": {"vlPoint": [1], "field": ["value1", "value2"]}
         }
         # Filter the DataFrame with the point selection
-        assert get_len(_filter_dataframe(df, point_selection)) == 2
+        assert get_len(_filter_dataframe(df, selection=point_selection)) == 2
 
         # Point selected with a no fields
         point_selection = {
@@ -96,7 +98,7 @@ class TestAltairChart:
             },
         }
         # Filter the DataFrame with the point selection
-        filtered_df = _filter_dataframe(df, point_selection)
+        filtered_df = _filter_dataframe(df, selection=point_selection)
         assert get_len(filtered_df) == 2
         first, second = maybe_collect(filtered_df)["field"]
         assert str(first) == "value2"
@@ -107,7 +109,7 @@ class TestAltairChart:
             "signal_channel_2": {"field_2": [1, 3]}
         }
         # Filter the DataFrame with the interval selection
-        filtered_df = _filter_dataframe(df, interval_selection)
+        filtered_df = _filter_dataframe(df, selection=interval_selection)
         assert get_len(filtered_df) == 3
 
         # Define an interval selection with multiple fields
@@ -115,7 +117,7 @@ class TestAltairChart:
             "signal_channel_1": {"field_2": [1, 3], "field_3": [30, 40]}
         }
         # Filter the DataFrame with the multi-field selection
-        filtered_df = _filter_dataframe(df, multi_field_selection)
+        filtered_df = _filter_dataframe(df, selection=multi_field_selection)
         assert get_len(filtered_df) == 1
 
         # Define an interval selection with multiple fields
@@ -124,7 +126,9 @@ class TestAltairChart:
             "signal_channel_2": {"vlPoint": [1], "color": ["red"]},
         }
         # Filter the DataFrame with the multi-field selection
-        filtered_df = _filter_dataframe(df, interval_and_point_selection)
+        filtered_df = _filter_dataframe(
+            df, selection=interval_and_point_selection
+        )
         assert get_len(filtered_df) == 1
 
     @staticmethod
@@ -181,7 +185,7 @@ class TestAltairChart:
             }
         }
         # Filter the DataFrame with the interval selection
-        filtered_df = _filter_dataframe(df, interval_selection)
+        filtered_df = _filter_dataframe(df, selection=interval_selection)
         assert get_len(filtered_df) == 2
         first, second = maybe_collect(filtered_df)["field"]
         assert str(first) == "value1"
@@ -196,7 +200,7 @@ class TestAltairChart:
                 ]
             }
         }
-        filtered_df = _filter_dataframe(df, interval_selection)
+        filtered_df = _filter_dataframe(df, selection=interval_selection)
         assert get_len(filtered_df) == 2
         first, second = maybe_collect(filtered_df)["field"]
         assert str(first) == "value1"
@@ -217,7 +221,7 @@ class TestAltairChart:
                 ]
             }
         }
-        filtered_df = _filter_dataframe(df, interval_selection)
+        filtered_df = _filter_dataframe(df, selection=interval_selection)
         assert get_len(filtered_df) == 2
         first, second = maybe_collect(filtered_df)["field"]
         assert str(first) == "value1"
@@ -234,11 +238,52 @@ class TestAltairChart:
             }
         }
         # Filter the DataFrame with the interval selection
-        filtered_df = _filter_dataframe(df, interval_selection)
+        filtered_df = _filter_dataframe(df, selection=interval_selection)
         assert get_len(filtered_df) == 2
         first, second = maybe_collect(filtered_df)["field"]
         assert str(first) == "value1"
         assert str(second) == "value2"
+
+    @staticmethod
+    @pytest.mark.parametrize(
+        "df",
+        create_dataframes(
+            {
+                "field": ["value1", "value2", "value3"],
+                "date_column": [
+                    datetime.date(2020, 1, 1),
+                    datetime.date(2020, 1, 8),
+                    datetime.date(2020, 1, 10),
+                ],
+            },
+        ),
+    )
+    def test_filter_dataframe_with_dates_graceful_error(
+        df: ChartDataType,
+    ) -> None:
+        """Test that invalid date comparisons are handled gracefully."""
+        # Try with invalid date strings that can't be parsed
+        interval_selection: ChartSelection = {
+            "signal_channel": {"date_column": ["invalid_date", "also_invalid"]}
+        }
+        # Should not raise an error, but skip the filter condition
+        # and return the original dataframe
+        filtered_df = _filter_dataframe(df, selection=interval_selection)
+        # Since the filter failed gracefully, we should get the full dataframe
+        assert get_len(filtered_df) == 3
+
+        # Try with mixed valid/invalid values - the coercion should handle it
+        interval_selection = {
+            "signal_channel": {
+                "date_column": [
+                    datetime.date(2020, 1, 1).isoformat(),
+                    "not_a_valid_date",
+                ]
+            }
+        }
+        # The filter should be skipped due to type error
+        filtered_df = _filter_dataframe(df, selection=interval_selection)
+        assert get_len(filtered_df) == 3
 
     @staticmethod
     @pytest.mark.skipif(
@@ -270,7 +315,7 @@ class TestAltairChart:
             get_len(
                 _filter_dataframe(
                     df,
-                    {
+                    selection={
                         "select_point": {
                             "datetime_column_utc": [
                                 datetime.datetime(
@@ -294,7 +339,7 @@ class TestAltairChart:
             get_len(
                 _filter_dataframe(
                     df,
-                    {
+                    selection={
                         "select_interval": {
                             "datetime_column_utc": [
                                 datetime.datetime(
@@ -326,7 +371,7 @@ class TestAltairChart:
             get_len(
                 _filter_dataframe(
                     df,
-                    {
+                    selection={
                         "select_interval": {
                             "datetime_column_utc": [
                                 datetime.datetime(
@@ -360,7 +405,7 @@ class TestAltairChart:
             get_len(
                 _filter_dataframe(
                     df,
-                    {
+                    selection={
                         "select_interval": {
                             "datetime_column": [
                                 datetime.datetime(2019, 12, 29).isoformat(),
@@ -378,7 +423,7 @@ class TestAltairChart:
             get_len(
                 _filter_dataframe(
                     df,
-                    {
+                    selection={
                         "select_interval": {
                             "datetime_column": [
                                 datetime.datetime(
@@ -429,7 +474,7 @@ class TestAltairChart:
             get_len(
                 _filter_dataframe(
                     df,
-                    {
+                    selection={
                         "select_interval": {
                             "datetime_column_utc": [
                                 0,
@@ -445,7 +490,7 @@ class TestAltairChart:
             get_len(
                 _filter_dataframe(
                     df,
-                    {
+                    selection={
                         "select_interval": {
                             "datetime_column_utc": [
                                 milliseconds_since_epoch,
@@ -462,7 +507,7 @@ class TestAltairChart:
             get_len(
                 _filter_dataframe(
                     df,
-                    {
+                    selection={
                         "select_interval": {
                             "datetime_column_utc": [
                                 milliseconds_since_epoch,
@@ -481,7 +526,7 @@ class TestAltairChart:
             get_len(
                 _filter_dataframe(
                     df,
-                    {
+                    selection={
                         "select_interval": {
                             "datetime_column": [
                                 0,
@@ -501,7 +546,7 @@ class TestAltairChart:
             get_len(
                 _filter_dataframe(
                     df,
-                    {
+                    selection={
                         "select_interval": {
                             "datetime_column": [
                                 datetime.datetime(
@@ -625,7 +670,24 @@ def test_does_not_modify_original() -> None:
     combined1 = alt1 | alt2
     combined2 = altair_chart(alt1) | altair_chart(alt2)
 
-    assert combined1 == combined2._chart
+    assert combined1.to_dict() == combined2._chart.to_dict()
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+def test_creating_altair_chart_does_not_mutate_original() -> None:
+    import altair as alt
+
+    data = {"values": [1, 2, 3]}
+    original_chart = alt.Chart(data).mark_point().encode(x="values:Q")
+
+    # Store the original spec
+    original_spec = original_chart.to_dict()
+
+    # Create marimo altair_chart wrapper
+    _ = altair_chart(original_chart)
+
+    # Verify the original chart hasn't been mutated
+    assert original_chart.to_dict() == original_spec
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
@@ -752,6 +814,119 @@ def test_parse_spec_geopandas() -> None:
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+def test_get_binned_fields() -> None:
+    """Test _get_binned_fields detection for various binning configurations."""
+    import altair as alt
+
+    # Case 1: No binning - should return empty dict
+    spec_no_binning = _parse_spec(
+        alt.Chart(pd.DataFrame({"x": [1, 2, 3], "y": [4, 5, 6]}))
+        .mark_point()
+        .encode(x="x", y="y")
+    )
+    binned_fields = _get_binned_fields(spec_no_binning)
+    assert binned_fields == {}
+
+    # Case 2: Single field with bin=True
+    spec_bin_true = _parse_spec(
+        alt.Chart(pd.DataFrame({"values": range(100)}))
+        .mark_bar()
+        .encode(x=alt.X("values", bin=True), y="count()")
+    )
+    binned_fields = _get_binned_fields(spec_bin_true)
+    assert "values" in binned_fields
+    assert binned_fields["values"] is True
+
+    # Case 3: Single field with bin configuration
+    spec_bin_config = _parse_spec(
+        alt.Chart(pd.DataFrame({"values": range(100)}))
+        .mark_bar()
+        .encode(x=alt.X("values", bin=alt.Bin(maxbins=20)), y="count()")
+    )
+    binned_fields = _get_binned_fields(spec_bin_config)
+    assert "values" in binned_fields
+    assert isinstance(binned_fields["values"], dict)
+    assert binned_fields["values"]["maxbins"] == 20
+
+    # Case 4: Bin configuration with step
+    spec_bin_step = _parse_spec(
+        alt.Chart(pd.DataFrame({"values": range(100)}))
+        .mark_bar()
+        .encode(x=alt.X("values", bin=alt.Bin(step=10)), y="count()")
+    )
+    binned_fields = _get_binned_fields(spec_bin_step)
+    assert "values" in binned_fields
+    assert isinstance(binned_fields["values"], dict)
+    assert binned_fields["values"]["step"] == 10
+
+    # Case 5: Multiple binned fields (2D histogram)
+    spec_multiple_bins = _parse_spec(
+        alt.Chart(pd.DataFrame({"x": range(100), "y": range(100)}))
+        .mark_rect()
+        .encode(
+            x=alt.X("x", bin=True),
+            y=alt.Y("y", bin=alt.Bin(maxbins=15)),
+            color="count()",
+        )
+    )
+    binned_fields = _get_binned_fields(spec_multiple_bins)
+    assert "x" in binned_fields
+    assert "y" in binned_fields
+    assert binned_fields["x"] is True
+    assert isinstance(binned_fields["y"], dict)
+    assert binned_fields["y"]["maxbins"] == 15
+
+    # Case 6: Mix of binned and non-binned fields
+    spec_mixed = _parse_spec(
+        alt.Chart(
+            pd.DataFrame(
+                {
+                    "x": range(100),
+                    "y": range(100),
+                    "color": ["A"] * 50 + ["B"] * 50,
+                }
+            )
+        )
+        .mark_bar()
+        .encode(
+            x=alt.X("x", bin=True),
+            y="count()",
+            color="color:N",  # Not binned
+        )
+    )
+    binned_fields = _get_binned_fields(spec_mixed)
+    assert "x" in binned_fields
+    assert "color" not in binned_fields
+    assert binned_fields["x"] is True
+
+    # Case 7: Binned field on y-axis
+    spec_y_binned = _parse_spec(
+        alt.Chart(pd.DataFrame({"values": range(100)}))
+        .mark_bar()
+        .encode(x="count()", y=alt.Y("values", bin=True))
+    )
+    binned_fields = _get_binned_fields(spec_y_binned)
+    assert "values" in binned_fields
+    assert binned_fields["values"] is True
+
+    # Case 8: Spec with no encoding (should not error)
+    spec_no_encoding = {"mark": "point"}
+    binned_fields = _get_binned_fields(spec_no_encoding)
+    assert binned_fields == {}
+
+    # Case 9: Bin with extent
+    spec_bin_extent = _parse_spec(
+        alt.Chart(pd.DataFrame({"values": range(100)}))
+        .mark_bar()
+        .encode(x=alt.X("values", bin=alt.Bin(extent=[0, 50])), y="count()")
+    )
+    binned_fields = _get_binned_fields(spec_bin_extent)
+    assert "values" in binned_fields
+    assert isinstance(binned_fields["values"], dict)
+    assert binned_fields["values"]["extent"] == [0, 50]
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
 def test_has_geoshape() -> None:
     import altair as alt
 
@@ -853,8 +1028,8 @@ def test_chart_with_binning(df: IntoDataFrame):
 
     marimo_chart = altair_chart(chart)
     assert _has_binning(marimo_chart._spec)
-    # Test that selection is disabled for binned charts
-    assert marimo_chart._component_args["chart-selection"] is False
+    # Test that selection is now enabled for binned charts
+    assert marimo_chart._component_args["chart-selection"] is not False
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
@@ -880,6 +1055,250 @@ def test_apply_selection(df: IntoDataFrame):
     filtered_data = marimo_chart.apply_selection(df)
     assert get_len(filtered_data) == 2
     assert all(maybe_collect(filtered_data)["category"] == "A")
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+@pytest.mark.parametrize(
+    "df",
+    create_dataframes(
+        {
+            "values": [10, 15, 20, 25, 30, 35, 40, 45],
+            "category": ["A", "A", "B", "B", "C", "C", "D", "D"],
+        },
+    ),
+)
+def test_filter_dataframe_with_binned_fields(df: ChartDataType) -> None:
+    """Test filtering with binned fields using interval selection."""
+    # Define binned fields (simulating what would come from _get_binned_fields)
+    binned_fields = {"values": True}
+
+    # Interval selection on a binned field - selecting bins from 20 to 30
+    # This should include values where 20 <= values < 30
+    interval_selection: ChartSelection = {
+        "signal_channel": {"values": [20, 30]}
+    }
+    filtered_df = _filter_dataframe(
+        df, selection=interval_selection, binned_fields=binned_fields
+    )
+    assert get_len(filtered_df) == 2
+    collected = maybe_collect(filtered_df)
+    assert all(collected["values"] >= 20)
+    assert all(collected["values"] < 30)
+
+    # Test with wider range (not including max value)
+    wider_selection: ChartSelection = {"signal_channel": {"values": [10, 40]}}
+    filtered_df = _filter_dataframe(
+        df, selection=wider_selection, binned_fields=binned_fields
+    )
+    assert get_len(filtered_df) == 6
+    collected = maybe_collect(filtered_df)
+    assert all(collected["values"] >= 10)
+    assert all(collected["values"] < 40)
+
+    # Test boundary values - right boundary is not inclusive for non-last bin
+    boundary_selection: ChartSelection = {
+        "signal_channel": {"values": [30, 40]}
+    }
+    filtered_df = _filter_dataframe(
+        df, selection=boundary_selection, binned_fields=binned_fields
+    )
+    assert get_len(filtered_df) == 2
+    collected = maybe_collect(filtered_df)
+    assert 30 in collected["values"]
+    assert 35 in collected["values"]
+    assert 40 not in collected["values"]
+
+    # Test last bin - right boundary SHOULD be inclusive
+    # When selecting to the max value (45), it should be included
+    last_bin_selection: ChartSelection = {
+        "signal_channel": {"values": [40, 45]}
+    }
+    filtered_df = _filter_dataframe(
+        df, selection=last_bin_selection, binned_fields=binned_fields
+    )
+    assert get_len(filtered_df) == 2
+    collected = maybe_collect(filtered_df)
+    assert 40 in collected["values"]
+    assert 45 in collected["values"]  # Last bin includes right boundary
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+@pytest.mark.parametrize(
+    "df",
+    create_dataframes(
+        {
+            "values": list(range(0, 100, 10)),
+            "id": list(range(10)),
+        },
+    ),
+)
+def test_filter_dataframe_binned_with_multiple_selections(
+    df: ChartDataType,
+) -> None:
+    """Test filtering with binned fields and multiple selection channels."""
+    binned_fields = {"values": True}
+
+    # Multiple selection channels
+    multi_selection: ChartSelection = {
+        "signal_channel_1": {"values": [20, 50]},
+        "signal_channel_2": {"id": [2, 6]},
+    }
+    filtered_df = _filter_dataframe(
+        df, selection=multi_selection, binned_fields=binned_fields
+    )
+    # Should have values >= 20 and < 50 AND id >= 2 and < 6
+    assert get_len(filtered_df) == 3
+    collected = maybe_collect(filtered_df)
+    assert all(collected["values"] >= 20)
+    assert all(collected["values"] < 50)
+    assert all(collected["id"] >= 2)
+    assert all(collected["id"] < 6)
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+@pytest.mark.parametrize(
+    "df",
+    create_dataframes(
+        {
+            "timestamp": [
+                datetime.datetime(2020, 1, 1),
+                datetime.datetime(2020, 2, 1),
+                datetime.datetime(2020, 3, 1),
+                datetime.datetime(2020, 4, 1),
+                datetime.datetime(2020, 5, 1),
+            ],
+            "value": [10, 20, 30, 40, 50],
+        },
+    ),
+)
+def test_filter_dataframe_binned_dates(df: ChartDataType) -> None:
+    """Test filtering with binned date fields."""
+    binned_fields = {"timestamp": True}
+
+    # Interval selection on binned date field (not last bin)
+    # Vega sends milliseconds since epoch
+    start = int(datetime.datetime(2020, 2, 1).timestamp() * 1000)
+    end = int(datetime.datetime(2020, 4, 1).timestamp() * 1000)
+
+    interval_selection: ChartSelection = {
+        "signal_channel": {"timestamp": [start, end]}
+    }
+    filtered_df = _filter_dataframe(
+        df, selection=interval_selection, binned_fields=binned_fields
+    )
+    assert get_len(filtered_df) == 2
+    collected = maybe_collect(filtered_df)
+    timestamps = collected["timestamp"]
+    # Should include Feb and Mar, but not Apr (right boundary non-inclusive for non-last bin)
+    assert datetime.datetime(2020, 2, 1) in timestamps
+    assert datetime.datetime(2020, 3, 1) in timestamps
+    assert datetime.datetime(2020, 4, 1) not in timestamps
+
+    # Test last bin - should include the right boundary
+    start_last = int(datetime.datetime(2020, 4, 1).timestamp() * 1000)
+    end_last = int(datetime.datetime(2020, 5, 1).timestamp() * 1000)
+
+    last_bin_selection: ChartSelection = {
+        "signal_channel": {"timestamp": [start_last, end_last]}
+    }
+    filtered_df = _filter_dataframe(
+        df, selection=last_bin_selection, binned_fields=binned_fields
+    )
+    assert get_len(filtered_df) == 2
+    collected = maybe_collect(filtered_df)
+    timestamps = collected["timestamp"]
+    # Last bin should include May (right boundary inclusive)
+    assert datetime.datetime(2020, 4, 1) in timestamps
+    assert datetime.datetime(2020, 5, 1) in timestamps
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+@pytest.mark.parametrize(
+    "df",
+    create_dataframes(
+        {
+            "values": [5, 10, 15, 20, 25, 30],
+            "category": ["A", "A", "B", "B", "C", "C"],
+        },
+    ),
+)
+def test_filter_dataframe_binned_with_point_selection(
+    df: ChartDataType,
+) -> None:
+    """Test that point selection works correctly with binned fields."""
+    binned_fields = {"values": True}
+
+    # Point selection should still work even with binned fields
+    # However, point selections on binned fields should be treated as intervals
+    point_selection: ChartSelection = {
+        "signal_channel": {
+            "vlPoint": [1],
+            "values": [10, 20],
+        }
+    }
+    filtered_df = _filter_dataframe(
+        df, selection=point_selection, binned_fields=binned_fields
+    )
+    # With binning, should filter as a range
+    assert get_len(filtered_df) == 2
+    collected = maybe_collect(filtered_df)
+    assert all(collected["values"] >= 10)
+    assert all(collected["values"] < 20)
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+@pytest.mark.parametrize(
+    "df",
+    create_dataframes({"values": range(100)}, exclude=["lazy-polars"]),
+)
+def test_chart_binning_end_to_end(df: IntoDataFrame):
+    """Test binning with selection end-to-end through altair_chart."""
+    import altair as alt
+
+    chart = (
+        alt.Chart(df)
+        .mark_bar()
+        .encode(x=alt.X("values", bin=True), y="count()")
+    )
+
+    marimo_chart = altair_chart(chart)
+
+    # Simulate a selection from the frontend (bin from 20 to 30, not last bin)
+    marimo_chart._chart_selection = {"select_interval": {"values": [20, 30]}}
+
+    # Get filtered data
+    filtered = marimo_chart._convert_value(marimo_chart._chart_selection)
+    assert get_len(filtered) == 10
+    collected = maybe_collect(filtered)
+    assert all(collected["values"] >= 20)
+    assert all(collected["values"] < 30)
+
+    # Test last bin (should include right boundary)
+    marimo_chart._chart_selection = {"select_interval": {"values": [90, 99]}}
+    filtered = marimo_chart._convert_value(marimo_chart._chart_selection)
+    assert get_len(filtered) == 10
+    collected = maybe_collect(filtered)
+    assert all(collected["values"] >= 90)
+    assert all(collected["values"] <= 99)
+    assert 99 in collected["values"]  # Last bin includes max value
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+def test_filter_dataframe_without_binned_fields() -> None:
+    """Test that filtering works normally when binned_fields is None."""
+    df = pd.DataFrame({"values": [10, 20, 30, 40, 50]})
+
+    # Without binned_fields (default behavior)
+    interval_selection: ChartSelection = {
+        "signal_channel": {"values": [20, 40]}
+    }
+    filtered_df = _filter_dataframe(df, selection=interval_selection)
+    # Without binning flag, should use inclusive right boundary
+    assert get_len(filtered_df) == 3
+    collected = maybe_collect(filtered_df)
+    assert 20 in collected["values"]
+    assert 30 in collected["values"]
+    assert 40 in collected["values"]
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
@@ -1069,3 +1488,371 @@ def test_update_vconcat_width() -> None:
     updated_hconcat = _update_vconcat_width(hconcat_chart)
     assert updated_hconcat.hconcat[0].width == "container"
     assert updated_hconcat.hconcat[1].width == "container"
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+def test_chart_with_column_encoding_not_full_width() -> None:
+    import altair as alt
+
+    from marimo._plugins.ui._impl.altair_chart import maybe_make_full_width
+
+    # Create a chart with column encoding (faceted chart)
+    data = pd.DataFrame(
+        {
+            "x": [1, 2, 3, 4],
+            "y": [4, 5, 6, 7],
+            "category": ["A", "B", "A", "B"],
+        }
+    )
+    chart = (
+        alt.Chart(data)
+        .mark_point()
+        .encode(x="x:Q", y="y:Q", column="category:N")
+    )
+
+    # Test that chart with column encoding is NOT made full width
+    result = maybe_make_full_width(chart)
+    assert result.width is alt.Undefined
+
+    # Test that chart without column encoding IS made full width
+    chart_without_column = (
+        alt.Chart(data).mark_point().encode(x="x:Q", y="y:Q")
+    )
+    result_without_column = maybe_make_full_width(chart_without_column)
+    assert result_without_column.width == "container"
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+def test_has_no_nested_hconcat() -> None:
+    import altair as alt
+
+    # Create simple charts
+    chart1 = alt.Chart(pd.DataFrame({"x": [1, 2], "y": [3, 4]})).mark_point()
+    chart2 = alt.Chart(pd.DataFrame({"x": [1, 2], "y": [3, 4]})).mark_line()
+
+    # Simple chart has no hconcat
+    assert _has_no_nested_hconcat(chart1) is True
+
+    # HConcatChart should return False
+    hconcat_chart = alt.hconcat(chart1, chart2)
+    assert _has_no_nested_hconcat(hconcat_chart) is False
+
+    # VConcatChart with no nested hconcat should return True
+    vconcat_chart = alt.vconcat(chart1, chart2)
+    assert _has_no_nested_hconcat(vconcat_chart) is True
+
+    # LayerChart with no nested hconcat should return True
+    layer_chart = alt.layer(chart1, chart2)
+    assert _has_no_nested_hconcat(layer_chart) is True
+
+    # VConcatChart with nested HConcatChart should return False
+    nested_vconcat_with_hconcat = alt.vconcat(hconcat_chart, chart1)
+    assert _has_no_nested_hconcat(nested_vconcat_with_hconcat) is False
+
+    # VConcatChart with nested VConcatChart (no hconcat) should return True
+    nested_vconcat = alt.vconcat(
+        alt.vconcat(chart1, chart2), alt.vconcat(chart1, chart2)
+    )
+    assert _has_no_nested_hconcat(nested_vconcat) is True
+
+    # LayerChart with simple charts (no hconcat) should return True
+    layer_simple = alt.layer(chart1, chart2)
+    assert _has_no_nested_hconcat(layer_simple) is True
+
+    # VConcatChart with nested layers (no hconcat) should return True
+    vconcat_with_layer = alt.vconcat(chart1, alt.layer(chart1, chart2))
+    assert _has_no_nested_hconcat(vconcat_with_layer) is True
+
+    # Deeply nested VConcat with HConcat should return False
+    deeply_nested = alt.vconcat(alt.vconcat(chart1, hconcat_chart), chart2)
+    assert _has_no_nested_hconcat(deeply_nested) is False
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+def test_autosize_not_applied_with_nested_hconcat() -> None:
+    import altair as alt
+
+    # Create simple charts
+    data = pd.DataFrame({"x": [1, 2], "y": [3, 4]})
+    chart1 = alt.Chart(data).mark_point().encode(x="x", y="y")
+    chart2 = alt.Chart(data).mark_line().encode(x="x", y="y")
+
+    def get_autosize(chart: dict[str, Any]) -> str | None:
+        return chart.get("autosize")
+
+    # Test 1: VConcatChart with nested HConcatChart should NOT have autosize applied
+    hconcat_chart = alt.hconcat(chart1, chart2)
+    vconcat_with_hconcat = alt.vconcat(hconcat_chart, chart1)
+
+    marimo_chart = altair_chart(vconcat_with_hconcat)
+    # The autosize should remain Undefined (not set to "fit-x")
+    assert get_autosize(marimo_chart._spec) is None
+
+    # Test 2: Simple VConcatChart (no nested hconcat) SHOULD have autosize applied
+    simple_vconcat = alt.vconcat(chart1, chart2)
+    marimo_chart_simple = altair_chart(simple_vconcat)
+    # The autosize should be set to "fit-x"
+    assert get_autosize(marimo_chart_simple._spec) == "fit-x"
+
+    # Test 3: VConcatChart with nested vconcat containing hconcat should NOT have autosize
+    nested_with_hconcat = alt.vconcat(
+        alt.vconcat(chart1, hconcat_chart), chart2
+    )
+
+    marimo_chart_complex = altair_chart(nested_with_hconcat)
+    assert get_autosize(marimo_chart_complex._spec) is None
+
+    # Test 4: VConcatChart with explicit autosize should not be overridden
+    vconcat_with_autosize = alt.vconcat(chart1, chart2).properties(
+        autosize="none"
+    )
+    marimo_chart_explicit = altair_chart(vconcat_with_autosize)
+    # Should keep the explicit autosize value
+    assert get_autosize(marimo_chart_explicit._spec) == "none"
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+def test_embed_options_not_set() -> None:
+    """Test that embed_options defaults to empty dict when not set."""
+    import altair as alt
+
+    # Reset to default (no embed_options)
+    alt.renderers.enable("default")
+    if "embed_options" in alt.renderers.options:
+        del alt.renderers.options["embed_options"]
+
+    data = pd.DataFrame({"x": [1, 2, 3], "y": [4, 5, 6]})
+    chart = alt.Chart(data).mark_point().encode(x="x", y="y")
+
+    marimo_chart = altair_chart(chart)
+
+    # embed_options should be an empty dict
+    assert marimo_chart._component_args["embed-options"] == {}
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+def test_embed_options_set() -> None:
+    """Test that embed_options are passed through when set."""
+    import altair as alt
+
+    # Set custom embed options
+    custom_embed_options = {
+        "actions": False,
+        "theme": "dark",
+        "renderer": "svg",
+    }
+    alt.renderers.options["embed_options"] = custom_embed_options
+
+    data = pd.DataFrame({"x": [1, 2, 3], "y": [4, 5, 6]})
+    chart = alt.Chart(data).mark_point().encode(x="x", y="y")
+
+    marimo_chart = altair_chart(chart)
+
+    # embed_options should match what was set
+    assert (
+        marimo_chart._component_args["embed-options"] == custom_embed_options
+    )
+    assert marimo_chart._component_args["embed-options"]["actions"] is False
+    assert marimo_chart._component_args["embed-options"]["theme"] == "dark"
+    assert marimo_chart._component_args["embed-options"]["renderer"] == "svg"
+
+    # Clean up
+    del alt.renderers.options["embed_options"]
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+def test_embed_options_with_various_values() -> None:
+    """Test embed_options with various configuration values."""
+    import altair as alt
+
+    data = pd.DataFrame({"x": [1, 2, 3], "y": [4, 5, 6]})
+    chart = alt.Chart(data).mark_point().encode(x="x", y="y")
+
+    # Test with actions object
+    alt.renderers.options["embed_options"] = {
+        "actions": {
+            "export": True,
+            "source": False,
+            "compiled": False,
+            "editor": False,
+        }
+    }
+    marimo_chart = altair_chart(chart)
+    assert isinstance(
+        marimo_chart._component_args["embed-options"]["actions"], dict
+    )
+    assert (
+        marimo_chart._component_args["embed-options"]["actions"]["export"]
+        is True
+    )
+
+    # Test with scaleFactor
+    alt.renderers.options["embed_options"] = {"scaleFactor": 2}
+    marimo_chart = altair_chart(chart)
+    assert marimo_chart._component_args["embed-options"]["scaleFactor"] == 2
+
+    # Test with downloadFileName
+    alt.renderers.options["embed_options"] = {"downloadFileName": "my-chart"}
+    marimo_chart = altair_chart(chart)
+    assert (
+        marimo_chart._component_args["embed-options"]["downloadFileName"]
+        == "my-chart"
+    )
+
+    # Test with multiple options
+    alt.renderers.options["embed_options"] = {
+        "actions": False,
+        "scaleFactor": 3,
+        "downloadFileName": "test",
+        "theme": "quartz",
+    }
+    marimo_chart = altair_chart(chart)
+    embed_opts = marimo_chart._component_args["embed-options"]
+    assert embed_opts["actions"] is False
+    assert embed_opts["scaleFactor"] == 3
+    assert embed_opts["downloadFileName"] == "test"
+    assert embed_opts["theme"] == "quartz"
+
+    # Clean up
+    del alt.renderers.options["embed_options"]
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+def test_embed_options_empty_dict() -> None:
+    """Test that setting embed_options to empty dict works correctly."""
+    import altair as alt
+
+    # Explicitly set to empty dict
+    alt.renderers.options["embed_options"] = {}
+
+    data = pd.DataFrame({"x": [1, 2, 3], "y": [4, 5, 6]})
+    chart = alt.Chart(data).mark_point().encode(x="x", y="y")
+
+    marimo_chart = altair_chart(chart)
+
+    # Should be empty dict
+    assert marimo_chart._component_args["embed-options"] == {}
+
+    # Clean up
+    del alt.renderers.options["embed_options"]
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+def test_maybe_fix_vegafusion_background_not_using_vegafusion() -> None:
+    """Test that background is NOT changed when vegafusion is not active."""
+    import altair as alt
+
+    # Ensure vegafusion is not active
+    alt.data_transformers.enable("default")
+
+    data = pd.DataFrame({"x": [1, 2, 3], "y": [4, 5, 6]})
+    chart = alt.Chart(data).mark_point().encode(x="x", y="y")
+
+    # Store original background
+    original_background = chart.background
+
+    # Apply the function
+    result_chart = maybe_fix_vegafusion_background(chart)
+
+    # Background should remain unchanged
+    assert result_chart.background == original_background
+    assert result_chart.background is alt.Undefined
+
+
+@pytest.mark.skipif(
+    not HAS_DEPS or not DependencyManager.vegafusion.has(),
+    reason="optional dependencies not installed",
+)
+def test_maybe_fix_vegafusion_background_with_vegafusion() -> None:
+    """Test that background is set to transparent when vegafusion is active."""
+    import altair as alt
+
+    # Enable vegafusion
+    alt.data_transformers.enable("vegafusion")
+
+    data = pd.DataFrame({"x": [1, 2, 3], "y": [4, 5, 6]})
+    chart = alt.Chart(data).mark_point().encode(x="x", y="y")
+
+    # Verify background is undefined initially
+    assert chart.background is alt.Undefined
+
+    # Apply the function
+    result_chart = maybe_fix_vegafusion_background(chart)
+
+    # Background should be set to transparent
+    assert result_chart.background == "transparent"
+
+    # Clean up
+    alt.data_transformers.enable("default")
+
+
+@pytest.mark.skipif(
+    not HAS_DEPS or not DependencyManager.vegafusion.has(),
+    reason="optional dependencies not installed",
+)
+def test_maybe_fix_vegafusion_background_preserves_user_background() -> None:
+    """Test that user-set background is preserved even with vegafusion."""
+    import altair as alt
+
+    # Enable vegafusion
+    alt.data_transformers.enable("vegafusion")
+
+    data = pd.DataFrame({"x": [1, 2, 3], "y": [4, 5, 6]})
+    chart = (
+        alt.Chart(data)
+        .mark_point()
+        .encode(x="x", y="y")
+        .properties(background="#ffffff")
+    )
+
+    # Verify background is set by user
+    assert chart.background == "#ffffff"
+
+    # Apply the function
+    result_chart = maybe_fix_vegafusion_background(chart)
+
+    # Background should remain as user set it
+    assert result_chart.background == "#ffffff"
+
+    # Clean up
+    alt.data_transformers.enable("default")
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+def test_using_vegafusion() -> None:
+    """Test the _using_vegafusion helper function."""
+    import altair as alt
+
+    # Test with default transformer
+    alt.data_transformers.enable("default")
+    assert _using_vegafusion() is False
+
+    # Test with vegafusion (if available)
+    if DependencyManager.vegafusion.has():
+        alt.data_transformers.enable("vegafusion")
+        assert _using_vegafusion() is True
+
+        # Clean up
+        alt.data_transformers.enable("default")
+
+
+@pytest.mark.parametrize(
+    "df",
+    create_dataframes(
+        {
+            "field": ["value1", "value2", "value3", "value4"],
+            "color": ["red", "red", "blue", "blue"],
+            "field_2": [1, 2, 3, 4],
+        },
+    ),
+)
+def test_filter_dataframe_preserves_df_type(df: ChartDataType) -> None:
+    """Test that _filter_dataframe preserves dataframe type."""
+    original_type = type(df)
+
+    # Filter with an interval selection
+    selection: ChartSelection = {"signal": {"field_2": [1, 3]}}
+    result = _filter_dataframe(df, selection=selection)
+
+    # Type should be preserved
+    assert type(result) is original_type

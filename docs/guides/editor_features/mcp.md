@@ -38,9 +38,22 @@ marimo edit notebook.py --mcp --no-token
 
 marimo can expose its [AI tools](tools.md) through an MCP server endpoint, allowing external AI applications to interact with your notebooks.
 
+<video autoplay loop muted playsinline width="100%" height="100%" align="center">
+  <source src="/_static/docs-mcp-server.mp4" type="video/mp4">
+</video>
+
 ### Available tools
 
 When connected to marimo's MCP server, external applications can access all [AI tools](tools.md).
+
+### Available prompts
+
+When connected to marimo's MCP server, external applications can access the following prompts:
+
+| Prompt | Description |
+|--------|-------------|
+| **active_notebooks** | Get current active notebooks and their session IDs and file paths. Returns session IDs and file paths for all active marimo notebook sessions, along with guidance on using these IDs with marimo MCP tools. |
+| **errors_summary** | Get error summaries for all active notebooks. Returns a summary of all errors across active notebooks organized by notebook and cell, including error types, messages, and affected cell IDs. |
 
 ### Connecting external applications
 

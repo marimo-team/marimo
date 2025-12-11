@@ -1,12 +1,17 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { atom } from "jotai";
 import { atomWithStorage } from "jotai/utils";
+import { jotaiJsonStorage } from "@/utils/storage/jotai";
 
 const MAX_HISTORY_ITEMS = 15;
 const KEY = "marimo:scratchpadHistory:v1";
 
 // Atom for storing the history
-export const scratchpadHistoryAtom = atomWithStorage<string[]>(KEY, []);
+export const scratchpadHistoryAtom = atomWithStorage<string[]>(
+  KEY,
+  [],
+  jotaiJsonStorage,
+);
 
 // Atom for controlling the visibility of the history list
 export const historyVisibleAtom = atom(false);

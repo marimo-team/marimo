@@ -1,5 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { type JSX, useLayoutEffect, useRef } from "react";
+import { type JSX, useLayoutEffect, useRef, useState } from "react";
 
 import { z } from "zod";
 import { once } from "@/utils/once";
@@ -21,7 +21,10 @@ export class TexPlugin implements IStatelessPlugin<{}> {
 
   render(props: IStatelessPluginProps<{}>): JSX.Element {
     return (
-      <TexComponent tex={props.host.textContent || props.host.innerHTML} />
+      <TexComponent
+        host={props.host}
+        tex={props.host.textContent || props.host.innerHTML}
+      />
     );
   }
 }
@@ -67,8 +70,33 @@ async function renderLatex(mount: HTMLElement, tex: string): Promise<void> {
   }
 }
 
-const TexComponent = ({ tex }: { tex: string }): JSX.Element => {
+const TexComponent = ({
+  host,
+  tex,
+}: {
+  host: HTMLElement;
+  tex: string;
+}): JSX.Element => {
   const ref = useRef<HTMLSpanElement>(null);
+  const [currentTex, setCurrentTex] = useState(tex);
+
+  // Watch for changes to the host element's direct children
+  useLayoutEffect(() => {
+    const observer = new MutationObserver(() => {
+      const newTex = host.textContent || host.innerHTML;
+      setCurrentTex(newTex);
+    });
+
+    observer.observe(host, {
+      childList: true,
+      characterData: true,
+      subtree: true,
+    });
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [host]);
 
   // The arithmatex markdown extension we use in Python produces nested
   // marimo-tex tags when $$...$$ math is used in a paragraph, with dummy
@@ -94,9 +122,9 @@ const TexComponent = ({ tex }: { tex: string }): JSX.Element => {
   // Re-render when the text content changes.
   useLayoutEffect(() => {
     if (ref.current) {
-      renderLatex(ref.current, tex);
+      renderLatex(ref.current, currentTex);
     }
-  }, [tex]);
+  }, [currentTex]);
 
   return <span ref={ref} />;
 };

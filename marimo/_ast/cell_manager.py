@@ -2,18 +2,14 @@
 from __future__ import annotations
 
 import os
-import sys
 from typing import (
     TYPE_CHECKING,
     Callable,
     Optional,
+    ParamSpec,
+    TypeAlias,
     TypeVar,
 )
-
-if sys.version_info < (3, 10):
-    from typing_extensions import ParamSpec, TypeAlias
-else:
-    from typing import ParamSpec, TypeAlias
 
 from marimo import _loggers
 from marimo._ast.cell import Cell, CellConfig
@@ -44,7 +40,7 @@ P = ParamSpec("P")
 R = TypeVar("R")
 Fn: TypeAlias = Callable[P, R]
 Cls: TypeAlias = type
-Obj: TypeAlias = "Cls | Fn[P, R]"
+Obj: TypeAlias = Cls | Fn[P, R]
 
 LOGGER = _loggers.marimo_logger()
 

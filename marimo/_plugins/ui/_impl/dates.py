@@ -6,6 +6,7 @@ from typing import (
     Any,
     Callable,
     Final,
+    Literal,
     Optional,
     Union,
     cast,
@@ -206,6 +207,7 @@ class datetime(UIElement[Optional[str], Optional[dt.datetime]]):
         start (datetime.datetime | str, optional): The minimum selectable datetime. Defaults to minimum datetime.
         stop (datetime.datetime | str, optional): The maximum selectable datetime. Defaults to maximum datetime.
         value (datetime.datetime | str, optional): Default value.
+        precision (Literal["hour", "minute", "second"], optional): The precision of the datetime picker. Defaults to "minute".
         label (str, optional): Markdown label for the element.
         on_change (Callable[[Optional[datetime.datetime]], None], optional): Optional callback to run when this element's value changes.
         full_width (bool, optional): Whether the input should take up the full width of its container.
@@ -221,6 +223,7 @@ class datetime(UIElement[Optional[str], Optional[dt.datetime]]):
         stop: Optional[dt.datetime | str] = None,
         value: Optional[dt.datetime | str] = None,
         *,
+        precision: Literal["hour", "minute", "second"] = "minute",
         label: Optional[str] = None,
         on_change: Optional[Callable[[Optional[dt.datetime]], None]] = None,
         full_width: bool = False,
@@ -233,8 +236,14 @@ class datetime(UIElement[Optional[str], Optional[dt.datetime]]):
         if isinstance(value, str):
             value = self._convert_value(value)
 
+        if precision not in ("hour", "minute", "second"):
+            raise ValueError(
+                f"precision must be 'hour', 'minute', or 'second', got {precision}"
+            )
+
         self._start = dt.datetime.min if start is None else start
         self._stop = dt.datetime.max if stop is None else stop
+        self._precision = precision
 
         if self._stop < self._start:
             raise ValueError(
@@ -265,6 +274,7 @@ class datetime(UIElement[Optional[str], Optional[dt.datetime]]):
             args={
                 "start": self._start.isoformat(timespec="seconds"),
                 "stop": self._stop.isoformat(timespec="seconds"),
+                "precision": precision,
                 "full-width": full_width,
                 "disabled": disabled,
             },

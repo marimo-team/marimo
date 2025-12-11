@@ -163,23 +163,19 @@ describe("switchLanguage", () => {
     // Switch back to python
     switchLanguage(mockEditor, { language: "python", keepCodeAsIs: false });
     expect(mockEditor.state.doc.toString()).toMatchInlineSnapshot(`
-      "mo.md(
-          r"""
+      "mo.md(r"""
       print('Hello')
       print('Goodbye')
-      """
-      )"
+      """)"
     `);
 
     // Switch to sql
     switchLanguage(mockEditor, { language: "sql", keepCodeAsIs: false });
     expect(mockEditor.state.doc.toString()).toMatchInlineSnapshot(`
-      "mo.md(
-          r"""
+      "mo.md(r"""
       print('Hello')
       print('Goodbye')
-      """
-      )"
+      """)"
     `);
 
     // Switch back to python
@@ -187,12 +183,10 @@ describe("switchLanguage", () => {
     expect(mockEditor.state.doc.toString()).toMatchInlineSnapshot(`
       "_df = mo.sql(
           f"""
-          mo.md(
-              r\\"""
+          mo.md(r\\"""
           print('Hello')
           print('Goodbye')
-          \\"""
-          )
+          \\""")
           """
       )"
     `);

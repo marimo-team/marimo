@@ -1,15 +1,18 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import ast
 import json
 from functools import partial
 from inspect import cleandoc
 from pathlib import Path
 from textwrap import dedent
 from typing import Any, Optional
+from unittest.mock import patch
 
 import codegen_data.test_main as mod
 import pytest
+from inline_snapshot import snapshot
 
 from marimo import __version__
 from marimo._ast import codegen, compiler, load
@@ -50,7 +53,7 @@ def sanitized_version(output: str) -> str:
 
 def wrap_generate_filecontents(
     codes: list[str],
-    names: list[str],
+    names: Optional[list[str]] = None,
     cell_configs: Optional[list[CellConfig]] = None,
     **kwargs: Any,
 ) -> str:
@@ -58,11 +61,11 @@ def wrap_generate_filecontents(
     Wraps codegen.generate_filecontents to make the
     cell_configs argument optional."""
     if cell_configs is None:
-        resolved_configs = [CellConfig() for _ in range(len(codes))]
-    else:
-        resolved_configs = cell_configs
+        cell_configs = [CellConfig() for _ in range(len(codes))]
+    if names is None:
+        names = ["_" for _ in range(len(codes))]
     filecontents = codegen.generate_filecontents(
-        codes, names, cell_configs=resolved_configs, **kwargs
+        codes, names, cell_configs=cell_configs, **kwargs
     )
     # leading spaces should be removed too
     assert filecontents.lstrip() == filecontents
@@ -279,6 +282,20 @@ class TestGeneration:
             "test_generate_filecontents_shadowed_builtin"
         )
 
+    @staticmethod
+    def test_generate_filecontents_duplicate_definitions() -> None:
+        """Test that duplicate top-level definitions don't cause KeyError during codegen."""
+        cell_one = "def Two(): return 2"
+        cell_two = "def Two(): return 'two'"
+        codes = [cell_one, cell_two]
+        names = ["one", "two"]
+        # This should not raise a KeyError during TopLevelExtraction
+        # (duplicate validation happens at app.run(), not during codegen)
+        contents = wrap_generate_filecontents(codes, names)
+        # Should successfully generate file contents
+        assert "import marimo" in contents
+        assert contents is not None
+
     def test_with_second_type_noop(self) -> None:
         referring = "x = 1; x: int = 0"
         ref_vars = compile_cell(referring).init_variable_data
@@ -447,6 +464,85 @@ class TestGeneration:
             ]
         )
         assert fndef == expected
+
+    def test_quote_nested_edge_cases(self) -> None:
+        """Test edge cases for quote standardization in type annotations."""
+        # Test mixed quotes where double quotes are preserved
+        referring = 'x: tuple[tuple[Literal["foo", \'bar\']]] = "((foo,),)"'
+        ref_vars = compile_cell(referring).init_variable_data
+
+        code = "z = x"
+        cell = compile_cell(code)
+        fndef = codegen.to_functiondef(
+            cell, "foo", allowed_refs={"tuple"}, variable_data=ref_vars
+        )
+        expected = "\n".join(
+            [
+                "@app.cell",
+                'def foo(x: "tuple[tuple[Literal[\\"foo\\", \\"bar\\"]]]"):',
+                "    z = x",
+                "    return (z,)",
+            ]
+        )
+        assert fndef == expected
+
+    def test_quote_nested_esscaped_edge_cases(self) -> None:
+        referring = "x: Literal['say \"hello\"'] = 'say \"hello\"'"
+        ref_vars = compile_cell(referring).init_variable_data
+
+        code = "z = x"
+        cell = compile_cell(code)
+        fndef = codegen.to_functiondef(
+            cell, "foo", allowed_refs=set(), variable_data=ref_vars
+        )
+        expected = "\n".join(
+            [
+                "@app.cell",
+                'def foo(x: "Literal[\'say \\"hello\\"\']"):',
+                "    z = x",
+                "    return (z,)",
+            ]
+        )
+        assert fndef == expected
+
+    def test_safe_serialize_cell_handles_syntax_error(self) -> None:
+        """Test that safe_serialize_cell falls back when ast_parse fails.
+
+        This test mocks ast_parse to fail, exercising the except block in
+        safe_serialize_cell that falls back to generate_unparsable_cell.
+        Goes through the full codegen path via generate_filecontents.
+        """
+        # Create a simple cell that would normally serialize fine
+        code = "x = 1"
+        name = "test_cell"
+
+        # Mock ast_parse to raise SyntaxError and mock the logger
+        with (
+            patch("marimo._ast.codegen.ast_parse") as mock_ast_parse,
+            patch("marimo._ast.codegen.LOGGER.warning") as mock_warning,
+        ):
+            mock_ast_parse.side_effect = SyntaxError("Mock syntax error")
+
+            # Go through the full codegen path
+            result = wrap_generate_filecontents([code], [name])
+
+            # Verify ast_parse was called
+            assert mock_ast_parse.called
+
+            # Verify the result contains an unparsable cell format
+            # (it should contain the original code)
+            assert "x = 1" in result
+            # Unparsable cells use app._unparsable_cell wrapper
+            assert "app._unparsable_cell" in result
+            # Verify it has the cell name
+            assert name in result
+
+            # Verify warning was logged with the correct message
+            assert mock_warning.called
+            warning_message = mock_warning.call_args[0][0]
+            assert "falling back to unparsable cell" in warning_message
+            assert name in warning_message
+            assert "Mock syntax error" in warning_message
 
     @staticmethod
     def test_generate_app_constructor_with_auto_download() -> None:
@@ -722,6 +818,406 @@ class TestToFunctionDef:
         assert fndef == expected
 
 
+def test_markdown_invalid() -> None:
+    expected = wrap_generate_filecontents(
+        ['mo.md("Unclosed string)', "import marimo as mo"], ["a", "b"]
+    )
+    ast.parse(expected)  # should not raise
+    expected = wrap_generate_filecontents(
+        ['mo.md("Unclosed call"', "import marimo as mo"], ["a", "b"]
+    )
+    ast.parse(expected)  # should not raise
+
+    # Unparsable: triple quotes close prematurely leaving invalid syntax
+    expected = wrap_generate_filecontents(
+        ['mo.md("""some text """ and more)', "import marimo as mo"], ["a", "b"]
+    )
+    ast.parse(expected)  # should not raise
+
+    # Unparsable: triple quotes in middle breaking the call
+    expected = wrap_generate_filecontents(
+        ['mo.md("""content """ extra stuff""")', "import marimo as mo"],
+        ["a", "b"],
+    )
+    ast.parse(expected)  # should not raise
+
+    # Unparsable: f-string with triple quotes breaking syntax
+    expected = wrap_generate_filecontents(
+        ['mo.md(f"""value {x} """ broken)', "import marimo as mo"], ["a", "b"]
+    )
+    ast.parse(expected)  # should not raise
+
+    # Unparsable: nested quotes causing premature closure
+    expected = wrap_generate_filecontents(
+        ['mo.md("""text with """ in middle""")', "import marimo as mo"],
+        ["a", "b"],
+    )
+    ast.parse(expected)  # should not raise
+
+    # Unparsable: double-quoted string with triple quotes breaking it
+    expected = wrap_generate_filecontents(
+        ['mo.md("some """ text")', "import marimo as mo"], ["a", "b"]
+    )
+    ast.parse(expected)  # should not raise
+
+    # Unparsable: f-string with triple quotes inside interpolation
+    expected = wrap_generate_filecontents(
+        ['mo.md(f"value {"""test"""} more")', "import marimo as mo"],
+        ["a", "b"],
+    )
+    ast.parse(expected)  # should not raise
+
+    # Unparsable: f-string with triple quotes breaking the f-string itself
+    expected = wrap_generate_filecontents(
+        ['mo.md(f"text """ {x}")', "import marimo as mo"], ["a", "b"]
+    )
+    ast.parse(expected)  # should not raise
+
+    # Unparsable: triple-quoted f-string with triple quotes in content
+    expected = wrap_generate_filecontents(
+        ['mo.md(f"""start """ middle {y}""")', "import marimo as mo"],
+        ["a", "b"],
+    )
+    ast.parse(expected)  # should not raise
+
+    # Unparsable: f-string with triple quotes AND invalid syntax in interpolation
+    expected = wrap_generate_filecontents(
+        ['mo.md(f"text {$$$}")', "import marimo as mo"], ["a", "b"]
+    )
+    ast.parse(expected)  # should not raise
+
+    # Unparsable: unclosed triple-quote docstring with content
+    expected = wrap_generate_filecontents(
+        ['"""unclosed docstring\nwith """ content', "import marimo as mo"],
+        ["a", "b"],
+    )
+    ast.parse(expected)  # should not raise
+
+    # Unparsable: broken f-string with triple quotes
+    expected = wrap_generate_filecontents(
+        ['f"value {x} with """', "import marimo as mo"], ["a", "b"]
+    )
+    ast.parse(expected)  # should not raise
+
+    # Unparsable: string with triple quotes not closed properly
+    expected = wrap_generate_filecontents(
+        ['"string content """', "import marimo as mo"], ["a", "b"]
+    )
+    ast.parse(expected)  # should not raise
+
+    # 0.17.3 parse variation
+    expected = wrap_generate_filecontents(
+        [
+            '''mo.md("
+            r"""some text"""
+        )''',
+            "import marimo as mo",
+        ],
+        ["a", "b"],
+    )
+    ast.parse(expected)  # should not raise
+
+
+def test_markdown_with_alt_strings() -> None:
+    # Basic triple quotes in middle
+    expected = wrap_generate_filecontents(
+        ['mo.md(\'has """\')', "import marimo as mo"], ["a", "b"]
+    )
+    ast.parse(expected)  # should not raise
+
+    expected = wrap_generate_filecontents(
+        ['mo.md(\'has """\\"\\\')', "import marimo as mo"], ["a", "b"]
+    )
+    ast.parse(expected)  # should not raise
+
+    # Triple quotes at start
+    expected = wrap_generate_filecontents(
+        ['mo.md(\'"""followed by text\')', "import marimo as mo"], ["a", "b"]
+    )
+    ast.parse(expected)  # should not raise
+
+    # Triple quotes at end
+    expected = wrap_generate_filecontents(
+        ['mo.md(\'text followed by"""\')', "import marimo as mo"], ["a", "b"]
+    )
+    ast.parse(expected)  # should not raise
+
+    # Only triple quotes
+    expected = wrap_generate_filecontents(
+        ['mo.md(\'"""\')', "import marimo as mo"], ["a", "b"]
+    )
+    ast.parse(expected)  # should not raise
+
+    # Multiple triple quotes
+    expected = wrap_generate_filecontents(
+        ['mo.md(\'first""" middle """end\')', "import marimo as mo"],
+        ["a", "b"],
+    )
+    ast.parse(expected)  # should not raise
+
+    # Four consecutive quotes
+    expected = wrap_generate_filecontents(
+        ['mo.md(\'Text with """"more\')', "import marimo as mo"], ["a", "b"]
+    )
+    ast.parse(expected)  # should not raise
+
+    # Five consecutive quotes
+    expected = wrap_generate_filecontents(
+        ['mo.md(\'Text with """""more\')', "import marimo as mo"], ["a", "b"]
+    )
+    ast.parse(expected)  # should not raise
+
+    # Six consecutive quotes
+    expected = wrap_generate_filecontents(
+        ['mo.md(\'Text with """"""more\')', "import marimo as mo"], ["a", "b"]
+    )
+    ast.parse(expected)  # should not raise
+
+    # Escaped quote before triple
+    expected = wrap_generate_filecontents(
+        ['mo.md(\'Text with \\\\"""""more\')', "import marimo as mo"],
+        ["a", "b"],
+    )
+    ast.parse(expected)  # should not raise
+
+    # Triple quotes with whitespace
+    expected = wrap_generate_filecontents(
+        ['mo.md(\' """ \')', "import marimo as mo"], ["a", "b"]
+    )
+    ast.parse(expected)  # should not raise
+
+    # Inline code with triple quotes
+    expected = wrap_generate_filecontents(
+        ['mo.md(\'Use `"""` for docstrings\')', "import marimo as mo"],
+        ["a", "b"],
+    )
+    ast.parse(expected)  # should not raise
+
+    # HTML/markdown with triple quotes
+    expected = wrap_generate_filecontents(
+        ['mo.md(\'<div>"""</div>\')', "import marimo as mo"], ["a", "b"]
+    )
+    ast.parse(expected)  # should not raise
+
+    # JSON with many quotes
+    expected = wrap_generate_filecontents(
+        ['mo.md(\'{"key": """value"""}\')', "import marimo as mo"], ["a", "b"]
+    )
+    ast.parse(expected)  # should not raise
+
+    # With headers
+    expected = wrap_generate_filecontents(
+        ['mo.md(\'# Header with """\')', "import marimo as mo"], ["a", "b"]
+    )
+    ast.parse(expected)  # should not raise
+
+    # With links
+    expected = wrap_generate_filecontents(
+        ['mo.md(\'[link](""") more\')', "import marimo as mo"], ["a", "b"]
+    )
+    ast.parse(expected)  # should not raise
+
+    # With bold/italic
+    expected = wrap_generate_filecontents(
+        ['mo.md(\'**bold """ text**\')', "import marimo as mo"], ["a", "b"]
+    )
+    ast.parse(expected)  # should not raise
+
+    # Simplest case - space-separated triple quotes
+    expected = wrap_generate_filecontents(
+        ['mo.md(\' """ \')', "import marimo as mo"], ["a", "b"]
+    )
+    ast.parse(expected)  # should not raise
+
+    # With one char separator
+    expected = wrap_generate_filecontents(
+        ['mo.md(\'a"""b\')', "import marimo as mo"], ["a", "b"]
+    )
+    ast.parse(expected)  # should not raise
+
+    # Alternating quote patterns
+    expected = wrap_generate_filecontents(
+        ['mo.md(\'Text " "" """ """\')', "import marimo as mo"], ["a", "b"]
+    )
+    ast.parse(expected)  # should not raise
+
+    # Two quotes (not triple)
+    expected = wrap_generate_filecontents(
+        ["mo.md('Text with \"\" quotes')", "import marimo as mo"], ["a", "b"]
+    )
+    ast.parse(expected)  # should not raise
+
+    # Seven quotes
+    expected = wrap_generate_filecontents(
+        ['mo.md(\'Text with """"""" quotes\')', "import marimo as mo"],
+        ["a", "b"],
+    )
+    ast.parse(expected)  # should not raise
+
+    # No space around triple quotes
+    expected = wrap_generate_filecontents(
+        ['mo.md(\'a"""b\')', "import marimo as mo"], ["a", "b"]
+    )
+    ast.parse(expected)  # should not raise
+
+    # Space before only
+    expected = wrap_generate_filecontents(
+        ['mo.md(\'a """b\')', "import marimo as mo"], ["a", "b"]
+    )
+    ast.parse(expected)  # should not raise
+
+    # Space after only
+    expected = wrap_generate_filecontents(
+        ['mo.md(\'a""" b\')', "import marimo as mo"], ["a", "b"]
+    )
+    ast.parse(expected)  # should not raise
+
+    # Space both sides
+    expected = wrap_generate_filecontents(
+        ['mo.md(\'a """ b\')', "import marimo as mo"], ["a", "b"]
+    )
+    ast.parse(expected)  # should not raise
+
+    # Using f-string single quotes with triple quotes
+    expected = wrap_generate_filecontents(
+        ['mo.md(f\'value {x} with """\')', "import marimo as mo", "x = 1"],
+        ["a", "b", "c"],
+    )
+    ast.parse(expected)  # should not raise
+
+    # Using f-string double quotes with escaped triple quotes
+    expected = wrap_generate_filecontents(
+        [
+            'mo.md(f"value {y} with \\"\\"\\" here")',
+            "import marimo as mo",
+            "y = 2",
+        ],
+        ["a", "b", "c"],
+    )
+    ast.parse(expected)  # should not raise
+
+    # Using f-string triple quotes with escaped triple quotes
+    expected = wrap_generate_filecontents(
+        [
+            'mo.md(f"""value {z} with \\"\\"\\" content""")',
+            "import marimo as mo",
+            "z = 3",
+        ],
+        ["a", "b", "c"],
+    )
+    ast.parse(expected)  # should not raise
+
+    # f-string with multiple interpolations and triple quotes
+    expected = wrap_generate_filecontents(
+        [
+            'mo.md(f"first {a} then \\"\\"\\" then {b}")',
+            "import marimo as mo",
+            "a = 1; b = 2",
+        ],
+        ["a", "b", "c"],
+    )
+    ast.parse(expected)  # should not raise
+
+    # Raw f-string triple quotes with content
+    expected = wrap_generate_filecontents(
+        [
+            'mo.md(fr"""raw {c} with \\"\\"\\" text""")',
+            "import marimo as mo",
+            "c = 4",
+        ],
+        ["a", "b", "c"],
+    )
+    ast.parse(expected)  # should not raise
+
+
+def test_previous_problematic_cases() -> None:
+    # All of these cases fail under 0.17.3 but should parse correctly now.
+    # Bug resulting from mixed quote types.
+
+    # Using double quotes with escaped triple quotes
+    expected = wrap_generate_filecontents(
+        ['mo.md("text with \\"\\"\\" here")', "import marimo as mo"],
+        ["a", "b"],
+    )
+    ast.parse(expected)  # should not raise
+
+    # Using triple quotes with escaped triple quotes inside
+    expected = wrap_generate_filecontents(
+        ['mo.md("""content with \\"\\"\\" inside""")', "import marimo as mo"],
+        ["a", "b"],
+    )
+    ast.parse(expected)  # should not raise
+
+    # With lists
+    expected = wrap_generate_filecontents(
+        ['mo.md(\'- item with """\\n- another item\')', "import marimo as mo"],
+        ["a", "b"],
+    )
+    ast.parse(expected)  # should not raise
+
+    # Shell commands with quotes
+    expected = wrap_generate_filecontents(
+        ['mo.md(\'Run: echo """hello"""\\\'\')', "import marimo as mo"],
+        ["a", "b"],
+    )
+    ast.parse(expected)  # should not raise
+
+    # Quote blocks with triple quotes
+    expected = wrap_generate_filecontents(
+        [
+            'mo.md(\'> Quote with """\\n> More content\')',
+            "import marimo as mo",
+        ],
+        ["a", "b"],
+    )
+    ast.parse(expected)  # should not raise
+    # Docstring examples in markdown
+    expected = wrap_generate_filecontents(
+        [
+            'mo.md(\'Python docstrings use triple quotes:\\n"""\\nThis is a docstring\\n"""\')',
+            "import marimo as mo",
+        ],
+        ["a", "b"],
+    )
+    ast.parse(expected)  # should not raise
+
+    # Markdown with code blocks containing quotes
+    expected = wrap_generate_filecontents(
+        [
+            'mo.md(\'```python\\nprint(""" hello """)\\n```\')',
+            "import marimo as mo",
+        ],
+        ["a", "b"],
+    )
+    ast.parse(expected)  # should not raise
+
+    # Triple quotes with newlines
+    expected = wrap_generate_filecontents(
+        ['mo.md(\'\\nline1 with """\\nline2\\n\')', "import marimo as mo"],
+        ["a", "b"],
+    )
+    ast.parse(expected)  # should not raise
+
+    # Triple quotes with single quotes
+    expected = wrap_generate_filecontents(
+        ["mo.md('Text with \"\"\" and \\'single\\'')", "import marimo as mo"],
+        ["a", "b"],
+    )
+    ast.parse(expected)  # should not raise
+
+    # Double quotes with triple quotes at start
+    expected = wrap_generate_filecontents(
+        ['mo.md("\\"\\"\\" at start")', "import marimo as mo"], ["a", "b"]
+    )
+    ast.parse(expected)  # should not raise
+
+    # Triple quotes with triple quotes at end
+    expected = wrap_generate_filecontents(
+        ['mo.md("""at end \\"\\"\\"""")', "import marimo as mo"], ["a", "b"]
+    )
+    ast.parse(expected)  # should not raise
+
+
 def test_recover(tmp_path: Path) -> None:
     cells: NotebookV1 = {
         "version": "1",
@@ -843,3 +1339,450 @@ def test_format_tuple_elements() -> None:
         "very_long_name_that_exceeds_76_characters_for_some_reason_or_the_other_woowee,"
         "\n)"
     )
+
+
+CODE_CLASS = """
+class MyClass:
+    def method_one(self):
+        pass
+"""
+
+CODE_FACTORY = """
+class MyFactory:
+    def apply(self):
+        return None
+
+    def create(self):
+        return MyClass()
+""".strip()
+
+CODE_FUNCTION = """
+def my_function():
+    return 42
+""".strip()
+
+CODE_DECORATOR = """
+def some_decorator(param):
+    def decorator(func):
+        def wrapper(*args, **kwargs):
+            return func(*args, **kwargs)
+        return wrapper
+    return decorator
+""".strip()
+
+CODE_DECORATED_FUNCTION = """
+@some_decorator(param=True)
+def my_decorated_function():
+    return "decorated"
+""".strip()
+
+CODE_CLASS_WITH_CLASS_VAR = """
+class Config:
+    setting = Dependency()
+""".strip()
+
+CODE_DEPENDENCY = """
+class Dependency:
+    pass
+""".strip()
+
+CODE_CLASS_WITH_TYPE_HINTS = """
+class Processor:
+    def process(self, data: Data) -> Result:
+        return Result()
+""".strip()
+
+CODE_DATA = """
+class Data:
+    pass
+""".strip()
+
+CODE_RESULT = """
+class Result:
+    pass
+""".strip()
+
+CODE_PARENT_CLASS = """
+class Parent:
+    def parent_method(self):
+        pass
+""".strip()
+
+CODE_CHILD_CLASS = """
+class Child(Parent):
+    def child_method(self):
+        pass
+""".strip()
+
+CODE_CLASS_WITH_INIT = """
+class Container:
+    def __init__(self):
+        self.item = Item()
+""".strip()
+
+CODE_ITEM = """
+class Item:
+    pass
+""".strip()
+
+CODE_CLASS_WITH_PROPERTY = """
+class PropertyClass:
+    @property
+    def value(self) -> int:
+        return 42
+
+    @value.setter
+    def value(self, val: int):
+        pass
+""".strip()
+
+CODE_ASYNC_FUNCTION = """
+async def async_fetch():
+    return "data"
+""".strip()
+
+CODE_FUNCTION_WITH_DEFAULT = """
+def process(formatter=default_formatter()):
+    return formatter
+""".strip()
+
+CODE_DEFAULT_FORMATTER = """
+def default_formatter():
+    return "default"
+""".strip()
+
+
+class TestTopLevelSerialization:
+    """Test top-level (reusable) function/class serialization."""
+
+    @staticmethod
+    def test_class_with_method_order_independence() -> None:
+        """Test that class method order doesn't affect serialization."""
+
+        result1 = _strip_header_footer(
+            wrap_generate_filecontents([CODE_FACTORY, CODE_CLASS])
+        )
+
+        # Verify the first ordering output
+        assert result1 == snapshot(
+            """\
+@app.class_definition
+class MyFactory:
+    def apply(self):
+        return None
+
+    def create(self):
+        return MyClass()
+
+
+@app.class_definition
+class MyClass:
+    def method_one(self):
+        pass\
+"""
+        )
+
+        result2 = _strip_header_footer(
+            wrap_generate_filecontents([CODE_CLASS, CODE_FACTORY])
+        )
+
+        # Verify the second ordering output (method order is different but still @app.class_definition)
+        assert result2 == snapshot(
+            """\
+@app.class_definition
+class MyClass:
+    def method_one(self):
+        pass
+
+
+@app.class_definition
+class MyFactory:
+    def apply(self):
+        return None
+
+    def create(self):
+        return MyClass()\
+"""
+        )
+
+    @staticmethod
+    def test_function_serialization() -> None:
+        """Test function serialization."""
+        result = _strip_header_footer(
+            wrap_generate_filecontents([CODE_FUNCTION])
+        )
+        ast.parse(result)  # Make sure doesn't raise
+        assert result == snapshot(
+            """\
+@app.function
+def my_function():
+    return 42\
+"""
+        )
+
+    @staticmethod
+    def test_decorated_function_serialization() -> None:
+        """Test decorated function serialization."""
+        result = _strip_header_footer(
+            wrap_generate_filecontents(
+                [CODE_DECORATOR, CODE_DECORATED_FUNCTION]
+            )
+        )
+        ast.parse(result)  # Make sure doesn't raise
+        assert result == snapshot(
+            """\
+@app.function
+def some_decorator(param):
+    def decorator(func):
+        def wrapper(*args, **kwargs):
+            return func(*args, **kwargs)
+        return wrapper
+    return decorator
+
+
+@app.function
+@some_decorator(param=True)
+def my_decorated_function():
+    return "decorated"\
+"""
+        )
+
+    @staticmethod
+    def test_decorated_function_out_of_order() -> None:
+        """Test decorated function serialization."""
+        result = _strip_header_footer(
+            wrap_generate_filecontents(
+                [CODE_DECORATED_FUNCTION, CODE_DECORATOR]
+            )
+        )
+        ast.parse(result)  # Make sure doesn't raise
+        assert result == snapshot(
+            """\
+@app.cell
+def _():
+    @some_decorator(param=True)
+    def my_decorated_function():
+        return "decorated"
+    return
+
+
+@app.function
+def some_decorator(param):
+    def decorator(func):
+        def wrapper(*args, **kwargs):
+            return func(*args, **kwargs)
+        return wrapper
+    return decorator\
+"""
+        )
+
+    @staticmethod
+    def test_class_with_class_variable() -> None:
+        """Test class with class variable referencing another class."""
+        result = _strip_header_footer(
+            wrap_generate_filecontents(
+                [CODE_CLASS_WITH_CLASS_VAR, CODE_DEPENDENCY]
+            )
+        )
+        ast.parse(result)  # Make sure doesn't raise
+        assert result == snapshot(
+            """\
+@app.cell
+def _():
+    class Config:
+        setting = Dependency()
+    return
+
+
+@app.class_definition
+class Dependency:
+    pass\
+"""
+        )
+
+    @staticmethod
+    def test_class_with_type_hints() -> None:
+        """Test class with type hints referencing other classes."""
+        result = _strip_header_footer(
+            wrap_generate_filecontents(
+                [CODE_CLASS_WITH_TYPE_HINTS, CODE_DATA, CODE_RESULT]
+            )
+        )
+        ast.parse(result)  # Make sure doesn't raise
+        assert result == snapshot(
+            """\
+@app.cell
+def _():
+    class Processor:
+        def process(self, data: Data) -> Result:
+            return Result()
+    return
+
+
+@app.class_definition
+class Data:
+    pass
+
+
+@app.class_definition
+class Result:
+    pass\
+"""
+        )
+
+    @staticmethod
+    def test_class_inheritance() -> None:
+        """Test class inheritance."""
+        result = _strip_header_footer(
+            wrap_generate_filecontents([CODE_PARENT_CLASS, CODE_CHILD_CLASS])
+        )
+        ast.parse(result)  # Make sure doesn't raise
+        assert result == snapshot(
+            """\
+@app.class_definition
+class Parent:
+    def parent_method(self):
+        pass
+
+
+@app.class_definition
+class Child(Parent):
+    def child_method(self):
+        pass\
+"""
+        )
+
+    @staticmethod
+    def test_class_inheritance_out_of_order() -> None:
+        """Test class inheritance with out-of-order definitions."""
+        result = _strip_header_footer(
+            wrap_generate_filecontents([CODE_CHILD_CLASS, CODE_PARENT_CLASS])
+        )
+        ast.parse(result)  # Make sure doesn't raise
+        assert result == snapshot(
+            """\
+@app.cell
+def _():
+    class Child(Parent):
+        def child_method(self):
+            pass
+    return
+
+
+@app.class_definition
+class Parent:
+    def parent_method(self):
+        pass\
+"""
+        )
+
+    @staticmethod
+    def test_class_with_init_referencing_other_class() -> None:
+        """Test class with __init__ that references another class."""
+        result = _strip_header_footer(
+            wrap_generate_filecontents([CODE_CLASS_WITH_INIT, CODE_ITEM])
+        )
+        ast.parse(result)  # Make sure doesn't raise
+        assert result == snapshot(
+            """\
+@app.class_definition
+class Container:
+    def __init__(self):
+        self.item = Item()
+
+
+@app.class_definition
+class Item:
+    pass\
+"""
+        )
+
+    @staticmethod
+    def test_class_with_property_decorator() -> None:
+        """Test class with @property decorator."""
+        result = _strip_header_footer(
+            wrap_generate_filecontents([CODE_CLASS_WITH_PROPERTY])
+        )
+        ast.parse(result)  # Make sure doesn't raise
+        assert result == snapshot(
+            """\
+@app.class_definition
+class PropertyClass:
+    @property
+    def value(self) -> int:
+        return 42
+
+    @value.setter
+    def value(self, val: int):
+        pass\
+"""
+        )
+
+    @staticmethod
+    def test_async_function() -> None:
+        """Test async function serialization."""
+        result = _strip_header_footer(
+            wrap_generate_filecontents([CODE_ASYNC_FUNCTION])
+        )
+        ast.parse(result)  # Make sure doesn't raise
+        assert result == snapshot(
+            """\
+@app.function
+async def async_fetch():
+    return "data"\
+"""
+        )
+
+    @staticmethod
+    def test_function_with_default_arg_calling_function() -> None:
+        """Test function with default argument that calls another function."""
+        result = _strip_header_footer(
+            wrap_generate_filecontents(
+                [CODE_DEFAULT_FORMATTER, CODE_FUNCTION_WITH_DEFAULT]
+            )
+        )
+        ast.parse(result)  # Make sure doesn't raise
+        assert result == snapshot(
+            """\
+@app.function
+def default_formatter():
+    return "default"
+
+
+@app.function
+def process(formatter=default_formatter()):
+    return formatter\
+"""
+        )
+
+    @staticmethod
+    def test_function_with_default_arg_calling_function_out_of_order() -> None:
+        """Test function with default argument that calls another function (out of order)."""
+        result = _strip_header_footer(
+            wrap_generate_filecontents(
+                [CODE_FUNCTION_WITH_DEFAULT, CODE_DEFAULT_FORMATTER]
+            )
+        )
+        ast.parse(result)  # Make sure doesn't raise
+        assert result == snapshot(
+            """\
+@app.cell
+def _():
+    def process(formatter=default_formatter()):
+        return formatter
+    return
+
+
+@app.function
+def default_formatter():
+    return "default"\
+"""
+        )
+
+
+def _strip_header_footer(source: str) -> str:
+    """Strip up to app = marimo.App() and after if __name__ == "__main__":"""
+    header = "app = marimo.App()\n\n"
+    code_start = source.index(header)
+    code_end = source.index('if __name__ == "__main__":')
+    return source[code_start + len(header) : code_end].strip()

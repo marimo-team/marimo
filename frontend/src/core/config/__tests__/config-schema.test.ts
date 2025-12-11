@@ -87,6 +87,7 @@ test("default UserConfig - empty", () => {
         "default_auto_download": [],
         "default_sql_output": "auto",
         "on_cell_change": "autorun",
+        "reactive_tests": true,
         "watcher_on_save": "lazy",
       },
       "save": {
@@ -154,6 +155,7 @@ test("default UserConfig - one level", () => {
         "default_auto_download": [],
         "default_sql_output": "auto",
         "on_cell_change": "autorun",
+        "reactive_tests": true,
         "watcher_on_save": "lazy",
       },
       "save": {

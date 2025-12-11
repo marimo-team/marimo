@@ -62,8 +62,11 @@
         "!/.*typescript.*/",
         "!/.*openapi-fetch.*/",
         "!/.*react-aria.*/",
+        "!/.*biome.*/",
         // react-hook-form is pinned to 7.54.2
         "!/.*react-hook-form.*/",
+        // vega-lite is pinned to 6.3.1
+        "!/.*vega-lite.*/",
         // pyodide needs to be manually updated
         "!/.*pyodide.*/"
       ],
@@ -118,6 +121,13 @@
       "matchUpdateTypes": ["minor", "patch", "major"],
       "matchPackageNames": ["/.*eslint.*/"],
       "schedule": ["on the 28th day of the month"]
+    },
+    // Group all biome dependencies
+    {
+      "groupName": "all biome dependencies",
+      "matchUpdateTypes": ["minor", "patch", "major"],
+      "matchPackageNames": ["/.*biome.*/"],
+      "schedule": ["on the 29th day of the month"]
     }
   ]
 }

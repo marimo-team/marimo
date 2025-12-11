@@ -69,6 +69,7 @@ reproducibility, maintainability, composability, and shareability.
 - 🧩 **reusable:** [import functions and classes](guides/reusing_functions.md) from one notebook to another
 - 🧪 **testable:** [run pytest](guides/testing/index.md) on notebooks
 - ⌨️ **a modern editor**: [GitHub Copilot](guides/editor_features/ai_completion.md#github-copilot), [AI assistants](guides/editor_features/ai_completion.md), vim keybindings, variable explorer, and [more](guides/editor_features/index.md)
+- 🧑‍💻 **use your favorite editor**: run in [VS Code or Cursor](https://marketplace.visualstudio.com/items?itemName=marimo-team.vscode-marimo), or edit in neovim, Zed, [or any other text editor](https://docs.marimo.io/guides/editor_features/watching/)
 
 ## A reactive programming environment
 

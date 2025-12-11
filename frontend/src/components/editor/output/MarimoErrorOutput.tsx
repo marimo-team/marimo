@@ -9,6 +9,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
+import { Kbd } from "@/components/ui/kbd";
 import { ExternalLink } from "@/components/ui/links";
 import type { CellId } from "@/core/cells/ids";
 import type { MarimoError } from "../../../core/kernel/messages";
@@ -260,6 +261,7 @@ export const MarimoErrorOutput = ({
     }
 
     if (multipleDefsErrors.length > 0) {
+      const firstName = multipleDefsErrors[0].name;
       messages.push(
         <div key="multiple-defs">
           <p className="text-muted-foreground font-medium">
@@ -294,7 +296,8 @@ export const MarimoErrorOutput = ({
             <p className="py-2">
               Try merging this cell with the mentioned cells or wrapping it in a
               function. Alternatively, rename variables to make them private to
-              this cell by prefixing them with an underscore.
+              this cell by prefixing them with an underscore (e.g.{" "}
+              <Kbd className="inline">_{firstName}</Kbd>).
             </p>
 
             <p className="py-2">
@@ -383,23 +386,45 @@ export const MarimoErrorOutput = ({
     if (exceptionErrors.length > 0) {
       messages.push(
         <ul key="exception">
-          {exceptionErrors.map((error, idx) => (
-            <li className="my-2" key={`exception-${idx}`}>
-              {error.raising_cell == null ? (
-                <div>
-                  <p className="text-muted-foreground">{error.msg}</p>
-                  <div className="text-muted-foreground mt-2">
-                    See the console area for a traceback.
+          {exceptionErrors.map((error, idx) => {
+            if (
+              error.exception_type === "NameError" &&
+              error.msg.startsWith("name 'mo'")
+            ) {
+              return (
+                <li className="my-2" key={`exception-${idx}`}>
+                  <div>
+                    <p className="text-muted-foreground">
+                      name 'mo' is not defined.
+                    </p>
+                    <p className="text-muted-foreground mt-2">
+                      The marimo module (imported as{" "}
+                      <Kbd className="inline">mo</Kbd>) is required for
+                      Markdown, SQL, and UI elements.
+                    </p>
                   </div>
-                </div>
-              ) : (
-                <div>
-                  {error.msg}
-                  <CellLinkError cellId={error.raising_cell as CellId} />
-                </div>
-              )}
-            </li>
-          ))}
+                </li>
+              );
+            }
+
+            return (
+              <li className="my-2" key={`exception-${idx}`}>
+                {error.raising_cell == null ? (
+                  <div>
+                    <p className="text-muted-foreground">{error.msg}</p>
+                    <div className="text-muted-foreground mt-2">
+                      See the console area for a traceback.
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    {error.msg}
+                    <CellLinkError cellId={error.raising_cell as CellId} />
+                  </div>
+                )}
+              </li>
+            );
+          })}
           {exceptionErrors.some((e) => e.raising_cell != null) && (
             <Tip>
               Fix the error in the mentioned cells, or handle the exceptions

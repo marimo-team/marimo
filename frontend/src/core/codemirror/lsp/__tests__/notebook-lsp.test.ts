@@ -11,6 +11,9 @@ import * as LSP from "vscode-languageserver-protocol";
 import type { CellId } from "@/core/cells/ids";
 import { store } from "@/core/state/jotai";
 import { topologicalCodesAtom } from "../../copilot/getCodes";
+import { languageAdapterState } from "../../language/extension";
+import { PythonLanguageAdapter } from "../../language/languages/python";
+import { languageMetadataField } from "../../language/metadata";
 import { createNotebookLens } from "../lens";
 import { NotebookLanguageServerClient } from "../notebook-lsp";
 import { CellDocumentUri, type ILanguageServerClient } from "../types";
@@ -372,6 +375,8 @@ describe("NotebookLanguageServerClient", () => {
       const mockView1 = new EditorView({
         doc: "# this is a comment",
         extensions: [
+          languageAdapterState.init(() => new PythonLanguageAdapter()),
+          languageMetadataField.init(() => ({})),
           languageServerWithClient({
             client: mockClient as unknown as LanguageServerClient,
             documentUri: CellDocumentUri.of(Cells.cell1),
@@ -384,6 +389,8 @@ describe("NotebookLanguageServerClient", () => {
       const mockView2 = new EditorView({
         doc: "import math\nimport numpy",
         extensions: [
+          languageAdapterState.init(() => new PythonLanguageAdapter()),
+          languageMetadataField.init(() => ({})),
           languageServerWithClient({
             client: mockClient as unknown as LanguageServerClient,
             documentUri: CellDocumentUri.of(Cells.cell2),
@@ -396,6 +403,8 @@ describe("NotebookLanguageServerClient", () => {
       const mockView3 = new EditorView({
         doc: "print(math.sqrt(4))",
         extensions: [
+          languageAdapterState.init(() => new PythonLanguageAdapter()),
+          languageMetadataField.init(() => ({})),
           languageServerWithClient({
             client: mockClient as unknown as LanguageServerClient,
             documentUri: CellDocumentUri.of(Cells.cell3),
@@ -599,6 +608,153 @@ describe("NotebookLanguageServerClient", () => {
 
       // Should return the original response when edits don't have proper properties
       expect(result).toEqual(invalidEditResponse);
+    });
+
+    it("should handle raw strings with markdown content during rename (issue #7377)", async () => {
+      const props = {
+        workspaceFolders: null,
+        capabilities: {
+          textDocument: {
+            rename: {
+              prepareSupport: true,
+            },
+          },
+        },
+        languageId: "python",
+        transport: {
+          sendData: vi.fn(),
+          subscribe: vi.fn(),
+          connect: vi.fn(),
+          transportRequestManager: {
+            send: vi.fn(),
+          },
+        } as any,
+      };
+
+      // Setup mock plugins with editor views
+      const markdownCell = 'mo.md(r"""\n# Header\n""")';
+      const variableCell = "a = 'Test'";
+
+      const mockView1 = new EditorView({
+        doc: "import marimo as mo",
+        extensions: [
+          languageAdapterState.init(() => new PythonLanguageAdapter()),
+          languageMetadataField.init(() => ({})),
+          languageServerWithClient({
+            client: mockClient as unknown as LanguageServerClient,
+            documentUri: CellDocumentUri.of(Cells.cell1),
+            ...props,
+          }),
+        ],
+      });
+
+      const mockView2 = new EditorView({
+        doc: markdownCell,
+        extensions: [
+          languageAdapterState.init(() => new PythonLanguageAdapter()),
+          languageMetadataField.init(() => ({})),
+          languageServerWithClient({
+            client: mockClient as unknown as LanguageServerClient,
+            documentUri: CellDocumentUri.of(Cells.cell2),
+            ...props,
+          }),
+        ],
+      });
+
+      const mockView3 = new EditorView({
+        doc: variableCell,
+        extensions: [
+          languageAdapterState.init(() => new PythonLanguageAdapter()),
+          languageMetadataField.init(() => ({})),
+          languageServerWithClient({
+            client: mockClient as unknown as LanguageServerClient,
+            documentUri: CellDocumentUri.of(Cells.cell3),
+            ...props,
+          }),
+        ],
+      });
+
+      (notebookClient as any).getNotebookEditors = () => ({
+        [Cells.cell1]: mockView1,
+        [Cells.cell2]: mockView2,
+        [Cells.cell3]: mockView3,
+      });
+
+      // Update the mock to return the correct codes
+      vi.spyOn(store, "get").mockImplementation((atom) => {
+        if (atom === topologicalCodesAtom) {
+          return {
+            cellIds: [Cells.cell1, Cells.cell2, Cells.cell3],
+            codes: {
+              [Cells.cell1]: "import marimo as mo",
+              [Cells.cell2]: markdownCell,
+              [Cells.cell3]: variableCell,
+            },
+          };
+        }
+        return undefined;
+      });
+
+      // Setup rename params - renaming variable 'a' in cell3
+      const renameParams: LSP.RenameParams = {
+        textDocument: { uri: CellDocumentUri.of(Cells.cell3) },
+        position: { line: 0, character: 0 }, // position of 'a'
+        newName: "b",
+      };
+
+      // Open a document first to set up the lens
+      await notebookClient.textDocumentDidOpen({
+        textDocument: {
+          uri: CellDocumentUri.of(Cells.cell3),
+          languageId: "python",
+          version: 1,
+          text: variableCell,
+        },
+      });
+
+      // Mock the response from the language server
+      // The merged document includes all cells (5 lines total):
+      // Line 0: "import marimo as mo"
+      // Line 1: "mo.md(r\"\"\""
+      // Line 2: "# Header"
+      // Line 3: "\"\"\")"
+      // Line 4: "a = 'Test'"
+      // When renaming variable 'a' to 'b', the entire document is returned
+      const mockRenameResponse: LSP.WorkspaceEdit = {
+        documentChanges: [
+          {
+            textDocument: {
+              uri: "file:///__marimo_notebook__.py",
+              version: 1,
+            },
+            edits: [
+              {
+                range: {
+                  start: { line: 0, character: 0 },
+                  end: { line: 4, character: 10 },
+                },
+                // The renamed text should preserve all cells including markdown
+                newText:
+                  'import marimo as mo\nmo.md(r"""\n# Header\n""")\nb = \'Test\'',
+              },
+            ],
+          },
+        ],
+      };
+
+      mockClient.textDocumentRename = vi
+        .fn()
+        .mockResolvedValue(mockRenameResponse);
+
+      // Call rename
+      await notebookClient.textDocumentRename(renameParams);
+
+      // Verify that the markdown cell was NOT corrupted and remains unchanged
+      expect(mockView2.state.doc.toString()).toBe(markdownCell);
+      // Verify that the variable cell was renamed
+      expect(mockView3.state.doc.toString()).toBe("b = 'Test'");
+      // Verify that the import cell was not changed
+      expect(mockView1.state.doc.toString()).toBe("import marimo as mo");
     });
   });
 

@@ -11,6 +11,9 @@
 _marimo integrates with [Pandas](https://pandas.pydata.org/) and
 [Polars](https://pola.rs) dataframes natively_.
 
+For a video overview on interactive dataframes, 
+check out our [YouTube tutorial](https://www.youtube.com/watch?v=ZTs7vHzsqlQ).
+
 ## Displaying dataframes
 
 marimo lets you page through, search, sort, and filter dataframes, making it
@@ -320,6 +323,7 @@ dataframe_.
 </figure>
 </div>
 
+
 /// tab | pandas
 
 ```python
@@ -338,6 +342,7 @@ table.value
 ```
 
 ///
+
 
 /// tab | polars
 
@@ -382,7 +387,10 @@ def __():
 
 ///
 
-## Dataframe panels
+///
+
+
+## Dataframe panels {#dataframe-panels}
 
 Dataframe outputs in marimo come with several panels to help you visualize, explore, and page through your data interactively. These panels are accessible via toggles at the bottom-left of a dataframe output. If you need further control, after opening a panel you can
 
@@ -393,7 +401,7 @@ Dataframe outputs in marimo come with several panels to help you visualize, expl
 
     Toggles are visible when editing notebooks (with `marimo edit ...`) but not when running notebooks as apps (with `marimo run ...`), except for the row viewer which is available in both.
 
-### Row viewer panel
+### Row viewer panel {#row-viewer-panel}
 
 <div align="center">
 <figure>
@@ -408,7 +416,7 @@ To inspect individual rows, open the **row viewer**. This presents a vertical vi
 - **Use arrow keys** (`←` `→`) to navigate between rows
 - **Click** on any row in the dataframe to view its data in the panel
 
-### Column explorer panel
+### Column explorer panel {#column-explorer-panel}
 
 <div align="center">
 <figure>
@@ -427,12 +435,30 @@ import altair
 altair.data_transformers.enable("vegafusion")
 ```
 
-### Chart builder
+### Chart builder {#chart-builder}
 
 The chart builder toggle lets you rapidly develop charts using a GUI, while also generating Python code to insert in your notebook. Refer to the [chart builder guide](plotting.md#chart-builder) for more details.
 
+## Preferences {#preferences}
 
-## Example notebook
+When you run a SQL cell in marimo, you can get the output returned as a dataframe. If you have a preference for a specific dataframe library as a default you can configure the "default SQL output" in the user settings by going to the "Runtime" tab.
+
+
+<div align="center">
+<figure>
+<img src="/_static/docs-dataframe-default-setting.png"/>
+<figcaption>Configure the default SQL output</figcaption>
+</figure>
+</div>
+
+Alternatively you can also use the [marimo configuration file](/guides/configuration/#user-configuration) to configure the default SQL output. 
+
+```toml
+[runtime]
+default_sql_output = "native"
+```
+
+## Example notebook {#example-notebook}
 
 For a comprehensive example of using Polars with marimo, check out our [Polars example notebook](https://github.com/marimo-team/marimo/blob/main/examples/third_party/polars/polars_example.py).
 

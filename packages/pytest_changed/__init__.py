@@ -168,24 +168,45 @@ def find_affected_files(
     return affected
 
 
-def find_test_files(affected_files: set[Path], repo_root: Path) -> set[Path]:
+def get_test_base(config: pytest.Config, repo_root: Path) -> Path:
+    """
+    Get the test base directory from pytest invocation args.
+
+    Args:
+        config: Pytest configuration object
+        repo_root: Repository root to use as fallback
+
+    Returns:
+        Path to test base directory
+    """
+    for arg in config.invocation_params.args:
+        path = Path(arg)
+        if path.exists() and path.is_dir():
+            return path.resolve()
+    return repo_root
+
+
+def find_test_files(affected_files: set[Path], test_base: Path) -> set[Path]:
     """
     Filter affected files to only include test files.
 
     Args:
         affected_files: Set of all affected files
-        repo_root: Root of the repository
+        test_base: Root of the repository
 
     Returns:
         Set of test file paths
     """
-    del repo_root
     test_files: set[Path] = set()
 
     for file_path in affected_files:
-        # Check if it's a test file
+        # Check if it's a test file, and relative to the test base
         # N.B Our test naming convention is test_*.py
-        if file_path.exists() and file_path.name.startswith("test_"):
+        if (
+            file_path.exists()
+            and file_path.name.startswith("test_")
+            and test_base in file_path.parents
+        ):
             test_files.add(file_path)
 
     return test_files
@@ -209,6 +230,9 @@ def pytest_configure(config: pytest.Config) -> None:
         repo_root = Path(result.stdout.strip())
     except subprocess.CalledProcessError:
         pytest.exit("Not in a git repository", returncode=1)
+
+    # Get test base directory from args or fall back to repo root
+    test_base = get_test_base(config, repo_root)
 
     # Step 1: Find changed files
     changed_files = get_changed_files(changed_from, repo_root)
@@ -234,7 +258,7 @@ def pytest_configure(config: pytest.Config) -> None:
     print_(f"Found {len(affected_files)} affected files")
 
     # Step 4: Filter to test files
-    test_files = find_test_files(affected_files, repo_root)
+    test_files = find_test_files(affected_files, test_base)
 
     if not test_files:
         print_(f"\nNo tests affected by changes from {changed_from}")

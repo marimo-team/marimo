@@ -3,11 +3,14 @@
 import { isValid } from "date-fns";
 import { debounce } from "lodash-es";
 import { HelpCircleIcon } from "lucide-react";
-import { type JSX, useMemo, useRef, useState } from "react";
+import { type JSX, useEffect, useMemo, useRef, useState } from "react";
 import useEvent from "react-use-event-hook";
-import { type SignalListeners, VegaLite, type View } from "react-vega";
+import { useVegaEmbed } from "react-vega";
+import type { View } from "vega";
 // @ts-expect-error vega-typings does not include formats
 import { formats } from "vega-loader";
+import { tooltipHandler } from "@/components/charts/tooltip";
+import type { SignalListener } from "@/components/charts/types";
 import { Alert, AlertTitle } from "@/components/ui/alert";
 import { Tooltip } from "@/components/ui/tooltip";
 import { useAsyncData } from "@/hooks/useAsyncData";
@@ -26,11 +29,11 @@ import type { VegaLiteSpec } from "./types";
 
 // register arrow reader under type 'arrow'
 formats("arrow", arrow);
-
 export interface Data {
   spec: VegaLiteSpec;
   chartSelection: boolean | "point" | "interval";
   fieldSelection: boolean | string[];
+  embedOptions?: Record<string, unknown>;
 }
 
 export interface VegaComponentState {
@@ -58,6 +61,7 @@ const VegaComponent = ({
   chartSelection,
   fieldSelection,
   spec,
+  embedOptions,
 }: VegaComponentProps<VegaComponentState>) => {
   const { data: resolvedSpec, error } = useAsyncData(async () => {
     // We try to resolve the data before passing it to Vega
@@ -82,6 +86,7 @@ const VegaComponent = ({
       chartSelection={chartSelection}
       fieldSelection={fieldSelection}
       spec={resolvedSpec}
+      embedOptions={embedOptions}
     />
   );
 };
@@ -92,10 +97,34 @@ const LoadedVegaComponent = ({
   chartSelection,
   fieldSelection,
   spec,
+  embedOptions,
 }: VegaComponentProps<VegaComponentState>): JSX.Element => {
   const { theme } = useTheme();
+  const vegaRef = useRef<HTMLDivElement>(null);
   const vegaView = useRef<View>(undefined);
   const [error, setError] = useState<Error>();
+
+  // Merge default actions with user-provided embed options
+  const actions = useMemo(() => {
+    // If embedOptions contains 'actions', use it directly
+    if (embedOptions && "actions" in embedOptions) {
+      return embedOptions.actions as
+        | boolean
+        | {
+            export?: boolean;
+            source?: boolean;
+            compiled?: boolean;
+            editor?: boolean;
+          }
+        | undefined;
+    }
+
+    // Otherwise use defaults
+    return {
+      source: false,
+      compiled: false,
+    };
+  }, [embedOptions]);
 
   // Aggressively memoize the spec, so Vega doesn't re-render/re-mount the component
   const specMemo = useDeepCompareMemoize(spec);
@@ -116,32 +145,49 @@ const LoadedVegaComponent = ({
     setValue({ ...value, ...newValue });
   });
 
+  const debouncedSignalHandler = useMemo(
+    () =>
+      debounce((signalName: string, signalValue: unknown) => {
+        Logger.debug("[Vega signal]", signalName, signalValue);
+        let result = Objects.mapValues(
+          signalValue as object,
+          convertDatetimeToEpochMilliseconds,
+        );
+        result = Objects.mapValues(result, convertSetToList);
+
+        handleUpdateValue({
+          [signalName]: result,
+        });
+      }, 100),
+    [handleUpdateValue],
+  );
+
   const namesMemo = useDeepCompareMemoize(names);
   const signalListeners = useMemo(
     () =>
-      namesMemo.reduce<SignalListeners>((acc, name) => {
+      namesMemo.reduce<SignalListener[]>((acc, name) => {
         // pan/zoom does not count towards selection
         if (ParamNames.PAN_ZOOM === name) {
           return acc;
         }
 
-        // Debounce each signal listener, otherwise we may create expensive requests
-        acc[name] = debounce((signalName, signalValue) => {
-          Logger.debug("[Vega signal]", signalName, signalValue);
+        // bin_coloring params are used ONLY for opacity/visual feedback.
+        // They should NOT send signals to the backend for filtering.
+        // The regular selection params (point/interval) handle backend filtering.
+        if (ParamNames.isBinColoring(name)) {
+          return acc;
+        }
 
-          let result = Objects.mapValues(
-            signalValue as object,
-            convertDatetimeToEpochMilliseconds,
-          );
-          result = Objects.mapValues(result, convertSetToList);
+        acc.push({
+          signalName: name,
+          handler: (signalName, signalValue) =>
+            // Debounce the signal listener, otherwise we may create expensive requests
+            debouncedSignalHandler(signalName, signalValue),
+        });
 
-          handleUpdateValue({
-            [signalName]: result,
-          });
-        }, 100);
         return acc;
-      }, {}),
-    [namesMemo, handleUpdateValue],
+      }, []),
+    [namesMemo, debouncedSignalHandler],
   );
 
   const handleError = useEvent((error) => {
@@ -214,6 +260,41 @@ const LoadedVegaComponent = ({
     );
   };
 
+  const embed = useVegaEmbed({
+    ref: vegaRef,
+    spec: selectableSpec,
+    options: {
+      theme: theme === "dark" ? "dark" : undefined,
+      actions: actions,
+      mode: "vega-lite",
+      tooltip: tooltipHandler.call,
+      renderer: "canvas",
+    },
+    onError: handleError,
+    onEmbed: handleNewView,
+  });
+
+  useEffect(() => {
+    signalListeners.forEach(({ signalName, handler }) => {
+      // Existing bug. TODO: Some signal listeners are invalid
+      try {
+        embed?.view.addSignalListener(signalName, handler);
+      } catch (error) {
+        Logger.error(error);
+      }
+    });
+
+    return () => {
+      signalListeners.forEach(({ signalName, handler }) => {
+        try {
+          embed?.view.removeSignalListener(signalName, handler);
+        } catch (error) {
+          Logger.error(error);
+        }
+      });
+    };
+  }, [embed, signalListeners]);
+
   return (
     <>
       {error && (
@@ -227,23 +308,11 @@ const LoadedVegaComponent = ({
         // Capture the pointer down event to prevent the parent from handling it
         onPointerDown={Events.stopPropagation()}
       >
-        <VegaLite
-          spec={selectableSpec}
-          theme={theme === "dark" ? "dark" : undefined}
-          actions={actions}
-          signalListeners={signalListeners}
-          onError={handleError}
-          onNewView={handleNewView}
-        />
+        <div ref={vegaRef} />
         {renderHelpContent()}
       </div>
     </>
   );
-};
-
-const actions = {
-  source: false,
-  compiled: false,
 };
 
 /**

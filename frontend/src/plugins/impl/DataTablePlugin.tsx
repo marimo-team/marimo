@@ -51,16 +51,20 @@ import {
   toFieldTypes,
   type ValueCounts,
 } from "@/components/data-table/types";
-import { loadTableData } from "@/components/data-table/utils";
+import {
+  getPageIndexForRow,
+  loadTableData,
+} from "@/components/data-table/utils";
+import { ErrorBoundary } from "@/components/editor/boundary/ErrorBoundary";
 import { ContextAwarePanelItem } from "@/components/editor/chrome/panels/context-aware-panel/context-aware-panel";
 import { Alert, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { DelayMount } from "@/components/utils/delay-mount";
 import { type CellId, findCellId } from "@/core/cells/ids";
-import { getFeatureFlag } from "@/core/config/feature-flag";
 import { slotsController } from "@/core/slots/slots";
 import { store } from "@/core/state/jotai";
 import { isStaticNotebook } from "@/core/static/static-state";
+import { isInVscodeExtension } from "@/core/vscode/is-in-vscode";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { useDeepCompareMemoize } from "@/hooks/useDeepCompareMemoize";
 import { useEffectSkipFirstRender } from "@/hooks/useEffectSkipFirstRender";
@@ -85,15 +89,12 @@ import {
 type CsvURL = string;
 export type TableData<T> = T[] | CsvURL;
 
-interface ColumnSummariesArgs {
-  precompute: boolean;
-}
-
 interface ColumnSummaries<T = unknown> {
   data: TableData<T> | null | undefined;
   stats: Record<ColumnName, ColumnHeaderStats>;
   bin_values: Record<ColumnName, BinValues>;
   value_counts: Record<ColumnName, ValueCounts>;
+  show_charts: boolean;
   is_disabled?: boolean;
 }
 
@@ -180,6 +181,7 @@ interface Data<T> {
   showDataTypes: boolean;
   showPageSizeSelector: boolean;
   showColumnExplorer: boolean;
+  showRowExplorer: boolean;
   showChartBuilder: boolean;
   rowHeaders: FieldTypesWithExternalType;
   fieldTypes?: FieldTypesWithExternalType | null;
@@ -198,9 +200,7 @@ interface Data<T> {
 // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 type DataTableFunctions = {
   download_as: DownloadAsArgs;
-  get_column_summaries: <T>(
-    opts: ColumnSummariesArgs,
-  ) => Promise<ColumnSummaries<T>>;
+  get_column_summaries: <T>(opts: {}) => Promise<ColumnSummaries<T>>;
   search: <T>(req: {
     sort?: {
       by: string;
@@ -253,6 +253,7 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
       showDataTypes: z.boolean().default(true),
       showPageSizeSelector: z.boolean().default(true),
       showColumnExplorer: z.boolean().default(true),
+      showRowExplorer: z.boolean().default(true),
       showChartBuilder: z.boolean().default(true),
       rowHeaders: columnToFieldTypesSchema,
       freezeColumnsLeft: z.array(z.string()).optional(),
@@ -281,19 +282,16 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
   )
   .withFunctions<DataTableFunctions>({
     download_as: DownloadAsSchema,
-    get_column_summaries: rpc
-      .input(z.object({ precompute: z.boolean() }))
-      .output(
-        z.object({
-          data: z
-            .union([z.string(), z.array(z.object({}).passthrough())])
-            .nullable(),
-          stats: z.record(z.string(), columnStats),
-          bin_values: z.record(z.string(), binValues),
-          value_counts: z.record(z.string(), valueCounts),
-          is_disabled: z.boolean().optional(),
-        }),
-      ),
+    get_column_summaries: rpc.input(z.looseObject({})).output(
+      z.object({
+        data: z.union([z.string(), z.array(z.looseObject({}))]).nullable(),
+        stats: z.record(z.string(), columnStats),
+        bin_values: z.record(z.string(), binValues),
+        value_counts: z.record(z.string(), valueCounts),
+        show_charts: z.boolean(),
+        is_disabled: z.boolean().optional(),
+      }),
+    ),
     search: rpc
       .input(
         z.object({
@@ -598,8 +596,6 @@ export const LoadingDataTableComponent = memo(
       );
     }, [data?.totalRows]);
 
-    const precompute = getFeatureFlag("performant_table_charts");
-
     // Column summaries
     const { data: columnSummaries, error: columnSummariesError } = useAsyncData<
       ColumnSummaries<T>
@@ -607,9 +603,15 @@ export const LoadingDataTableComponent = memo(
       // TODO: props.get_column_summaries is always true,
       // so we are unable to detect if the function is registered
       if (props.totalRows === 0 || !props.showColumnSummaries) {
-        return { data: null, stats: {}, bin_values: {}, value_counts: {} };
+        return {
+          data: null,
+          stats: {},
+          bin_values: {},
+          value_counts: {},
+          show_charts: false,
+        };
       }
-      return props.get_column_summaries({ precompute });
+      return props.get_column_summaries({});
     }, [
       props.get_column_summaries,
       props.showColumnSummaries,
@@ -692,6 +694,8 @@ export const LoadingDataTableComponent = memo(
           <TablePanel
             displayHeader={displayHeader}
             data={data?.rows || []}
+            columns={props.totalColumns}
+            totalRows={props.totalRows}
             dataTable={dataTable}
             getDataUrl={props.get_data_url}
             fieldTypes={props.fieldTypes}
@@ -718,6 +722,7 @@ const DataTableComponent = ({
   showDownload,
   showPageSizeSelector,
   showColumnExplorer,
+  showRowExplorer,
   showChartBuilder,
   showDataTypes,
   rowHeaders,
@@ -778,8 +783,7 @@ const DataTableComponent = ({
       columnSummaries.bin_values,
       columnSummaries.value_counts,
       {
-        includeCharts: Boolean(columnSummaries.data),
-        usePreComputedValues: getFeatureFlag("performant_table_charts"),
+        includeCharts: columnSummaries.show_charts,
       },
     );
   }, [fieldTypes, columnSummaries]);
@@ -853,6 +857,30 @@ const DataTableComponent = ({
     },
   );
 
+  const setViewedRow = useEvent((rowIdx: number) => {
+    setViewedRowIdx(rowIdx);
+
+    const outOfBounds =
+      rowIdx < 0 || (typeof totalRows === "number" && rowIdx >= totalRows);
+    if (outOfBounds || totalRows === TOO_MANY_ROWS) {
+      return;
+    }
+
+    // If the rowIdx moves to the next / previous page, update the pagination state
+    const newPageIndex = getPageIndexForRow(
+      rowIdx,
+      paginationState.pageIndex,
+      paginationState.pageSize,
+    );
+
+    if (newPageIndex !== null) {
+      setPaginationState((prev) => ({
+        ...prev,
+        pageIndex: newPageIndex,
+      }));
+    }
+  });
+
   const cellSelection = value.filter(
     (v) => v instanceof Object && v.columnName !== undefined,
   ) as CellSelectionState;
@@ -875,6 +903,8 @@ const DataTableComponent = ({
   const isSelectable = selection === "multi" || selection === "single";
   const showColExplorer =
     showColumnExplorer && preview_column && isPanelOpen("column-explorer");
+
+  const isInVscode = isInVscodeExtension();
 
   return (
     <>
@@ -908,7 +938,7 @@ const DataTableComponent = ({
             fieldTypes={memoizedUnclampedFieldTypes}
             totalRows={totalRows}
             rowIdx={viewedRowIdx}
-            setRowIdx={setViewedRowIdx}
+            setRowIdx={setViewedRow}
             isSelectable={isSelectable}
             isRowSelected={rowSelection[viewedRowIdx]}
             handleRowSelectionChange={handleRowSelectionChange}
@@ -965,7 +995,10 @@ const DataTableComponent = ({
             toggleDisplayHeader={toggleDisplayHeader}
             showChartBuilder={showChartBuilder}
             showPageSizeSelector={showPageSizeSelector}
-            showColumnExplorer={showColumnExplorer}
+            // Hidden in VSCode (for now) because we don't have a panel to show
+            // the column/row explorer.
+            showColumnExplorer={showColumnExplorer && !isInVscode}
+            showRowExplorer={showRowExplorer && !isInVscode}
             togglePanel={togglePanel}
             isPanelOpen={isPanelOpen}
             viewedRowIdx={viewedRowIdx}
@@ -984,10 +1017,12 @@ export const TableProviders: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
   return (
-    <Provider store={store}>
-      <SlotzProvider controller={slotsController}>
-        <TooltipProvider>{children}</TooltipProvider>
-      </SlotzProvider>
-    </Provider>
+    <ErrorBoundary>
+      <Provider store={store}>
+        <SlotzProvider controller={slotsController}>
+          <TooltipProvider>{children}</TooltipProvider>
+        </SlotzProvider>
+      </Provider>
+    </ErrorBoundary>
   );
 };

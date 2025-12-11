@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 from datetime import date
+from enum import Enum
 from typing import TYPE_CHECKING, Any
 from unittest.mock import patch
 
@@ -13,6 +14,7 @@ from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins import ui
 from marimo._plugins.ui._impl.dataframes.transforms.types import Condition
 from marimo._plugins.ui._impl.table import (
+    CHART_MAX_ROWS_STRING_VALUE_COUNTS,
     DEFAULT_MAX_COLUMNS,
     MAX_COLUMNS_NOT_PROVIDED,
     CalculateTopKRowsArgs,
@@ -248,6 +250,7 @@ def test_value() -> None:
     data = ["banana", "apple", "cherry", "date", "elderberry"]
     table = ui.table(data)
     assert list(table.value) == []
+    assert type(table.value) is type(data)
 
 
 def test_value_with_selection() -> None:
@@ -257,12 +260,14 @@ def test_value_with_selection() -> None:
         "banana",
         "cherry",
     ]
+    assert type(table.value) is type(data)
 
 
 def test_value_with_initial_selection() -> None:
     data = ["banana", "apple", "cherry", "date", "elderberry"]
     table = ui.table(data, initial_selection=[0, 2])
     assert table.value == ["banana", "cherry"]
+    assert type(table.value) is type(data)
 
 
 def test_value_does_not_include_index_column() -> None:
@@ -284,6 +289,7 @@ def test_value_does_not_include_index_column() -> None:
         {"name": "Alice", "age": 30},
         {"name": "Charlie", "age": 35},
     ]
+    assert type(table.value) is type(data)
 
 
 def test_invalid_initial_selection() -> None:
@@ -324,6 +330,7 @@ def test_value_with_sorting_then_selection() -> None:
     assert list(table._convert_value(["0"])) == [
         {"value": "apple"},
     ]
+    assert type(table.value) is type(data)
 
 
 @pytest.mark.parametrize(
@@ -359,6 +366,7 @@ def test_value_with_sorting_then_selection_dfs(df: Any) -> None:
     assert not isinstance(value, nw.DataFrame)
     assert INDEX_COLUMN_NAME not in value.columns
     assert nw.from_native(value)["a"][0] == "x"
+    assert type(table.value) is type(df)
 
 
 def test_value_with_search_then_selection() -> None:
@@ -399,6 +407,7 @@ def test_value_with_search_then_selection() -> None:
         )
     )
     assert list(table._convert_value(["2"])) == ["cherry"]
+    assert type(table.value) is type(data)
 
 
 @pytest.mark.parametrize(
@@ -447,6 +456,7 @@ def test_value_with_search_then_selection_dfs(df: Any) -> None:
     value = table._convert_value(["2"])
     assert not isinstance(value, nw.DataFrame)
     assert nw.from_native(value)["a"][0] == "baz"
+    assert type(table.value) is type(df)
 
 
 @pytest.mark.parametrize(
@@ -534,6 +544,7 @@ def test_value_with_selection_then_sorting_dict_of_lists() -> None:
         "Company B",
         "Company E",
     ]
+    assert type(table.value) is type(data)
 
 
 def test_value_with_cell_selection_then_sorting_dict_of_lists() -> None:
@@ -582,6 +593,7 @@ def test_value_with_cell_selection_then_sorting_dict_of_lists() -> None:
         TableCell(row="0", column="company", value="Company B"),
         TableCell(row="2", column="company", value="Company E"),
     ]
+    assert type(table.value) is list
 
 
 def test_search_sort_nonexistent_columns() -> None:
@@ -598,6 +610,7 @@ def test_search_sort_nonexistent_columns() -> None:
     )
 
     assert table._convert_value(["0"]) == ["banana"]
+    assert type(table.value) is type(data)
 
 
 def test_invalid_index_in_initial_selection() -> None:
@@ -805,6 +818,7 @@ def test_can_get_second_page_with_search_df(df: Any) -> None:
     assert len(result_data) == 5
     assert int(result_data[0]["a"]) == 23
     assert int(result_data[-1]["a"]) == 27
+    assert type(table.value) is type(df)
 
 
 def test_with_no_pagination() -> None:
@@ -814,6 +828,7 @@ def test_with_no_pagination() -> None:
     assert table._component_args["page-size"] == 20
     assert table._component_args["total-rows"] == 20
     assert len(json.loads(table._component_args["data"])) == 20
+    assert type(table.value) is type(data)
 
 
 def test_table_with_too_many_rows_and_custom_total() -> None:
@@ -849,9 +864,7 @@ def test_table_with_too_many_rows_column_summaries_disabled() -> None:
     data = {"a": list(range(20))}
     table = ui.table(data, _internal_summary_row_limit=10)
 
-    summaries_disabled = table._get_column_summaries(
-        ColumnSummariesArgs(precompute=False)
-    )
+    summaries_disabled = table._get_column_summaries(ColumnSummariesArgs())
     assert summaries_disabled.is_disabled is True
 
     # search results are 2 and 12
@@ -862,9 +875,7 @@ def test_table_with_too_many_rows_column_summaries_disabled() -> None:
             page_number=0,
         )
     )
-    summaries_enabled = table._get_column_summaries(
-        ColumnSummariesArgs(precompute=False)
-    )
+    summaries_enabled = table._get_column_summaries(ColumnSummariesArgs())
     assert summaries_enabled.is_disabled is False
 
 
@@ -872,11 +883,9 @@ def test_with_too_many_rows_column_charts_disabled() -> None:
     data = {"a": list(range(20))}
     table = ui.table(data, _internal_column_charts_row_limit=10)
 
-    charts_disabled = table._get_column_summaries(
-        ColumnSummariesArgs(precompute=False)
-    )
+    charts_disabled = table._get_column_summaries(ColumnSummariesArgs())
+    assert charts_disabled.show_charts is False
     assert charts_disabled.is_disabled is False
-    assert charts_disabled.data is None
 
     # search results are 2 and 12
     table._search(
@@ -886,9 +895,9 @@ def test_with_too_many_rows_column_charts_disabled() -> None:
             page_number=0,
         )
     )
-    charts_enabled = table._get_column_summaries(
-        ColumnSummariesArgs(precompute=False)
-    )
+    charts_enabled = table._get_column_summaries(ColumnSummariesArgs())
+    assert charts_enabled.show_charts is True
+    assert charts_enabled.data is None
     assert charts_enabled.is_disabled is False
 
 
@@ -905,13 +914,9 @@ def test_get_column_summaries_after_search() -> None:
             page_number=0,
         )
     )
-    summaries = table._get_column_summaries(
-        ColumnSummariesArgs(precompute=False)
-    )
+    summaries = table._get_column_summaries(ColumnSummariesArgs())
+    assert summaries.show_charts is True
     assert summaries.is_disabled is False
-    summaries_data = from_data_uri(summaries.data)[1].decode("utf-8")
-    # Result is csv or json
-    assert summaries_data in ["a\n2\n12\n", '[{"a":2},{"a":12}]']
     # We don't have column summaries for non-dataframe data
     assert summaries.stats["a"].min is None
     assert summaries.stats["a"].max is None
@@ -923,11 +928,9 @@ def test_get_column_summaries_after_search() -> None:
 )
 def test_get_column_summaries_after_search_df(df: Any) -> None:
     table = ui.table(df)
-    summaries = table._get_column_summaries(
-        ColumnSummariesArgs(precompute=False)
-    )
+    summaries = table._get_column_summaries(ColumnSummariesArgs())
+    assert summaries.show_charts is True
     assert summaries.is_disabled is False
-    assert isinstance(summaries.data, str)
     # Different dataframe types return different formats
     FORMATS = [
         "data:text/plain;base64,",  # arrow format for polars
@@ -935,7 +938,6 @@ def test_get_column_summaries_after_search_df(df: Any) -> None:
         "data:text/csv;base64,",
     ]
 
-    assert any(summaries.data.startswith(fmt) for fmt in FORMATS)
     assert summaries.stats["a"].min == 0
     assert summaries.stats["a"].max == 19
 
@@ -947,12 +949,9 @@ def test_get_column_summaries_after_search_df(df: Any) -> None:
             page_number=0,
         )
     )
-    summaries = table._get_column_summaries(
-        ColumnSummariesArgs(precompute=False)
-    )
+    summaries = table._get_column_summaries(ColumnSummariesArgs())
+    assert summaries.show_charts is True
     assert summaries.is_disabled is False
-    assert isinstance(summaries.data, str)
-    assert any(summaries.data.startswith(fmt) for fmt in FORMATS)
     # We don't have column summaries for non-dataframe data
     assert summaries.stats["a"].min == 2
     assert summaries.stats["a"].max == 12
@@ -964,40 +963,34 @@ def test_show_column_summaries_modes():
 
     # Test stats-only mode
     table_stats = ui.table(data, show_column_summaries="stats")
-    summaries_stats = table_stats._get_column_summaries(
-        ColumnSummariesArgs(precompute=False)
-    )
+    summaries_stats = table_stats._get_column_summaries(ColumnSummariesArgs())
+    assert summaries_stats.show_charts is False
     assert summaries_stats.is_disabled is False
-    assert summaries_stats.data is None
     assert summaries_stats.bin_values == {}
     assert summaries_stats.value_counts == {}
     assert len(summaries_stats.stats) > 0
 
     # Test chart-only mode
     table_chart = ui.table(data, show_column_summaries="chart")
-    summaries_chart = table_chart._get_column_summaries(
-        ColumnSummariesArgs(precompute=False)
-    )
+    summaries_chart = table_chart._get_column_summaries(ColumnSummariesArgs())
+    assert summaries_chart.show_charts is True
     assert summaries_chart.is_disabled is False
-    assert summaries_chart.data is not None
     assert len(summaries_chart.stats) == 0
 
     # Test default mode (both stats and chart)
     table_both = ui.table(data, show_column_summaries=True)
-    summaries_both = table_both._get_column_summaries(
-        ColumnSummariesArgs(precompute=False)
-    )
+    summaries_both = table_both._get_column_summaries(ColumnSummariesArgs())
+    assert summaries_both.show_charts is True
     assert summaries_both.is_disabled is False
-    assert summaries_both.data is not None
     assert len(summaries_both.stats) > 0
 
     # Test disabled mode
     table_disabled = ui.table(data, show_column_summaries=False)
     summaries_disabled = table_disabled._get_column_summaries(
-        ColumnSummariesArgs(precompute=False)
+        ColumnSummariesArgs()
     )
     assert summaries_disabled.is_disabled is False
-    assert summaries_disabled.data is None
+    assert summaries_disabled.show_charts is False
     assert summaries_disabled.bin_values == {}
     assert summaries_disabled.value_counts == {}
     assert len(summaries_disabled.stats) == 0
@@ -1005,10 +998,10 @@ def test_show_column_summaries_modes():
     # Test Default behavior
     table_default = ui.table(data)
     summaries_default = table_default._get_column_summaries(
-        ColumnSummariesArgs(precompute=False)
+        ColumnSummariesArgs()
     )
+    assert summaries_default.show_charts is True
     assert summaries_default.is_disabled is False
-    assert summaries_default.data is not None
     assert len(summaries_default.stats) > 0
     assert table_default._component_args["show-column-summaries"] is True
 
@@ -1020,9 +1013,7 @@ class TestTableBinValues:
     )
     def test_bin_values_all_nulls(self, df: Any) -> None:
         table = ui.table(df)
-        summaries = table._get_column_summaries(
-            ColumnSummariesArgs(precompute=True)
-        )
+        summaries = table._get_column_summaries(ColumnSummariesArgs())
 
         # Returns empty list
         assert summaries.bin_values == {"a": []}
@@ -1067,6 +1058,20 @@ class TestTableGetValueCounts:
             ValueCount(value="4", count=1),
         ]
 
+    @pytest.mark.skipif(
+        not DependencyManager.pandas.has(), reason="Pandas not installed"
+    )
+    def test_rows_string_value_counts_limit(self) -> None:
+        import pandas as pd
+
+        data = pd.DataFrame(
+            {"a": [str(i) for i in range(CHART_MAX_ROWS_STRING_VALUE_COUNTS)]}
+        )
+        table = ui.table(data)
+        summaries = table._get_column_summaries(ColumnSummariesArgs())
+        assert summaries.value_counts == {}  # too many unique values
+        assert summaries.data is None
+
     def test_with_smaller_limit(self, table: ui.table) -> None:
         value_counts = table._get_value_counts(
             column="repeat", size=2, total_rows=self.total_rows
@@ -1075,6 +1080,18 @@ class TestTableGetValueCounts:
             ValueCount(value="1", count=2),
             ValueCount(value="others", count=3),
         ]
+
+    def test_with_search(self, table: ui.table) -> None:
+        result = table._search(
+            SearchTableArgs(query="1", page_size=10, page_number=0)
+        )
+        rows = table._searched_manager.get_num_rows(force=True)
+        assert rows is not None
+        assert result.total_rows == 2
+        value_counts = table._get_value_counts(
+            column="repeat", size=2, total_rows=rows
+        )
+        assert value_counts == [ValueCount(value="1", count=2)]
 
 
 def test_table_with_frozen_columns() -> None:
@@ -1177,8 +1194,38 @@ def test_show_column_summaries_disabled():
 
     summaries = table._get_column_summaries(EmptyArgs())
     assert summaries.is_disabled is False
-    assert summaries.data is None
     assert len(summaries.stats) == 0
+
+
+@pytest.mark.skipif(
+    not DependencyManager.polars.has(), reason="Polars not installed"
+)
+def test_column_summaries_fallback(monkeypatch):
+    import polars as pl
+
+    data = pl.DataFrame(
+        {
+            "a": [1, 2, 3] * 200,
+            "b": [4, 5, 6] * 200,
+            "c": [7, 8, 9] * 200,
+        }
+    )
+    table = ui.table(data)
+
+    def always_fail_get_bin_values(*_args: Any, **_kwargs: Any) -> None:
+        raise RuntimeError("Intentional bin failure")
+
+    monkeypatch.setattr(
+        table._manager, "get_bin_values", always_fail_get_bin_values
+    )
+
+    summaries = table._get_column_summaries(ColumnSummariesArgs())
+    assert summaries.is_disabled is False
+    assert summaries.bin_values == {}
+    assert summaries.value_counts == {}
+    assert summaries.show_charts is True
+    # Should have chart data
+    assert summaries.data is not None
 
 
 @pytest.mark.parametrize(
@@ -1706,7 +1753,6 @@ def test_cell_search_df_styles(df: Any):
         exclude=NON_EAGER_LIBS,
     ),
 )
-@pytest.mark.xfail(reason="Sorted rows are not supported for styling yet")
 def test_cell_search_df_styles_sorted(df: Any):
     def always_green(_row, _col, _value):
         return {"backgroundColor": "green"}
@@ -1725,6 +1771,89 @@ def test_cell_search_df_styles_sorted(df: Any):
         "4": {"column_0": {"backgroundColor": "green"}},
         "5": {"column_0": {"backgroundColor": "green"}},
     }
+
+
+@pytest.mark.parametrize(
+    "df",
+    create_dataframes(
+        {
+            "Index": list(range(20)),
+            "Category": [f"Label {i % 5}" for i in range(20)],
+            "Value": [i * ((-1) ** i) for i in range(20)],
+        },
+        exclude=NON_EAGER_LIBS,
+    ),
+)
+def test_cell_styles_sorted_with_pagination(df: Any):
+    """Test that cell styles are correctly applied with sorting and pagination.
+
+    Regression test for issue #6223 - cell styles should work on all pages,
+    not just the last N rows of the entire dataset.
+    """
+
+    def cell_style(_row_id, _column_name, value):
+        # Handle both Python numbers and numpy numbers
+        try:
+            numeric_value = float(value)
+            return {"color": "black" if numeric_value > 0 else "red"}
+        except (TypeError, ValueError):
+            return {}
+
+    table = ui.table(df, style_cell=cell_style)
+
+    # Test page 0 (rows 19, 18, 17, 16, 15 when sorted descending by Index)
+    page0 = table._search(
+        SearchTableArgs(
+            page_size=5,
+            page_number=0,
+            query="",
+            sort=[SortArgs(by="Index", descending=True)],
+        )
+    )
+    assert "19" in page0.cell_styles
+    assert "18" in page0.cell_styles
+    assert "17" in page0.cell_styles
+    assert "16" in page0.cell_styles
+    assert "15" in page0.cell_styles
+    # Check that the style function was applied
+    # i=19: 19 * ((-1)**19) = 19 * -1 = -19 (negative, red)
+    assert page0.cell_styles["19"]["Value"] == {"color": "red"}
+    # i=18: 18 * ((-1)**18) = 18 * 1 = 18 (positive, black)
+    assert page0.cell_styles["18"]["Value"] == {"color": "black"}
+
+    # Test page 1 (rows 14, 13, 12, 11, 10 when sorted descending)
+    page1 = table._search(
+        SearchTableArgs(
+            page_size=5,
+            page_number=1,
+            query="",
+            sort=[SortArgs(by="Index", descending=True)],
+        )
+    )
+    assert "14" in page1.cell_styles
+    assert "13" in page1.cell_styles
+    assert "12" in page1.cell_styles
+    assert "11" in page1.cell_styles
+    assert "10" in page1.cell_styles
+    # i=13: 13 * ((-1)**13) = 13 * -1 = -13 (negative, red)
+    assert page1.cell_styles["13"]["Value"] == {"color": "red"}
+
+    # Test page 2 (rows 9, 8, 7, 6, 5 when sorted descending)
+    page2 = table._search(
+        SearchTableArgs(
+            page_size=5,
+            page_number=2,
+            query="",
+            sort=[SortArgs(by="Index", descending=True)],
+        )
+    )
+    assert "9" in page2.cell_styles
+    assert "8" in page2.cell_styles
+    assert "7" in page2.cell_styles
+    assert "6" in page2.cell_styles
+    assert "5" in page2.cell_styles
+    # i=9: 9 * ((-1)**9) = 9 * -1 = -9 (negative, red)
+    assert page2.cell_styles["9"]["Value"] == {"color": "red"}
 
 
 @pytest.mark.skipif(
@@ -1773,6 +1902,7 @@ def test_json_multi_col_idx_table() -> None:
             "('basic_amt', 'QLD')": 2,
         }
     ]
+    assert type(table.value) is type(df)
 
 
 LAZY_DATAFRAMES = ["lazy-polars", "duckdb", "ibis"]
@@ -2367,3 +2497,41 @@ def test_cell_search_df_hover_texts_sorted(df: Any):
         "4": {"column_0": "hover:carrots"},
         "5": {"column_0": "hover:carrots"},
     }
+
+
+@pytest.mark.skipif(
+    not DependencyManager.polars.has(), reason="Polars not installed"
+)
+def test_polars_enums_in_list():
+    import polars as pl
+
+    class MyEnum(Enum):
+        A = 1
+        B = 2
+        C = 3
+        D = 4
+
+    # Create 10 rows cycling through enum values B, C, D, A...
+    enum_names = [e.name for e in MyEnum]
+    rows = [{"value": [enum_names[i % len(enum_names)]]} for i in range(1, 11)]
+
+    schema = {"value": pl.List(pl.Enum(enum_names))}
+    df = pl.DataFrame(rows, schema=schema)
+
+    table = ui.table(df, selection=None)
+
+    # First page
+    response = table._search(SearchTableArgs(page_size=5, page_number=0))
+    assert (
+        response.data
+        == '[{"value":["B"]},{"value":["C"]},{"value":["D"]},{"value":["A"]},{"value":["B"]}]'
+    )
+
+    # Second page
+    response_next_page = table._search(
+        SearchTableArgs(page_size=5, page_number=1)
+    )
+    assert (
+        response_next_page.data
+        == '[{"value":["C"]},{"value":["D"]},{"value":["A"]},{"value":["B"]},{"value":["C"]}]'
+    )

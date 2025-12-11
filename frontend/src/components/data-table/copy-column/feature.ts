@@ -9,7 +9,7 @@ import type { CopyColumnOptions } from "./types";
 
 export const CopyColumnFeature: TableFeature = {
   getDefaultOptions: <TData extends RowData>(
-    table: Table<TData>,
+    _table: Table<TData>,
   ): CopyColumnOptions => {
     return {
       enableCopyColumn: true,

@@ -13,6 +13,7 @@ export const ExternalLink = ({
     | `https://docs.python.org/${string}`
     | `https://marimo.io/${string}`
     | `https://links.marimo.app/${string}`
+    | `https://wandb.ai/${string}`
     | `https://portal.azure.com/${string}`;
   children: React.ReactNode;
 }) => {

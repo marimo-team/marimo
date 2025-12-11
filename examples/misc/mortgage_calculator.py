@@ -10,19 +10,23 @@
 
 import marimo
 
-__generated_with = "0.16.0"
+__generated_with = "0.17.4"
 app = marimo.App()
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("""# Mortgage Calculator""")
+    mo.md("""
+    # Mortgage Calculator
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("""## Income""")
+    mo.md("""
+    ## Income
+    """)
     return
 
 
@@ -217,19 +221,19 @@ def _(
 
 @app.cell
 def _(mo):
-    mo.md("""## Monthly Expenses""")
+    mo.md("""
+    ## Monthly Expenses
+    """)
     return
 
 
 @app.cell
 def _(mo):
-    mo.md(
-        """
-        In addition to paying for your home, you'll have monthly expenses on
-        necessities and entertainment. Let's estimate these to see how much
-        you'll save per month, after all expenses.
-        """
-    )
+    mo.md("""
+    In addition to paying for your home, you'll have monthly expenses on
+    necessities and entertainment. Let's estimate these to see how much
+    you'll save per month, after all expenses.
+    """)
     return
 
 

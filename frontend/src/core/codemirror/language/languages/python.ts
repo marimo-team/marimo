@@ -44,8 +44,15 @@ import {
 import type { LanguageAdapter } from "../types";
 
 const pylspClient = once((lspConfig: LSPConfig) => {
+  // Create a mutable reference for the resync callback
+  let resyncCallback: (() => Promise<void>) | undefined;
+
+  const transport = createTransport("pylsp", async () => {
+    await resyncCallback?.();
+  });
+
   const lspClientOpts = {
-    transport: createTransport("pylsp"),
+    transport,
     rootUri: getLSPDocumentRootUri(),
     workspaceFolders: [],
   };
@@ -126,47 +133,74 @@ const pylspClient = once((lspConfig: LSPConfig) => {
 
   // We wrap the client in a NotebookLanguageServerClient to add some
   // additional functionality to handle multiple cells
-  return new NotebookLanguageServerClient(
+  const notebookClient = new NotebookLanguageServerClient(
     new LanguageServerClient({
       ...lspClientOpts,
     }),
     settings,
   );
+
+  // Set the resync callback now that the client exists
+  resyncCallback = () => notebookClient.resyncAllDocuments();
+
+  return notebookClient;
 });
 
 const tyLspClient = once((_: LSPConfig) => {
+  let resyncCallback: (() => Promise<void>) | undefined;
+
+  const transport = createTransport("ty", async () => {
+    await resyncCallback?.();
+  });
+
   const lspClientOpts = {
-    transport: createTransport("ty"),
+    transport,
     rootUri: getLSPDocumentRootUri(),
     workspaceFolders: [],
   };
 
   // We wrap the client in a NotebookLanguageServerClient to add some
   // additional functionality to handle multiple cells
-  return new NotebookLanguageServerClient(
+  const notebookClient = new NotebookLanguageServerClient(
     new LanguageServerClient({
       ...lspClientOpts,
       getWorkspaceConfiguration: (_) => [{ disableLanguageServices: true }],
     }),
     {},
   );
+
+  // Set the resync callback now that the client exists
+  resyncCallback = () => notebookClient.resyncAllDocuments();
+
+  return notebookClient;
 });
 
 const pyrightClient = once((_: LSPConfig) => {
+  let resyncCallback: (() => Promise<void>) | undefined;
+
+  const transport = createTransport("basedpyright", async () => {
+    await resyncCallback?.();
+  });
+
   const lspClientOpts = {
-    transport: createTransport("basedpyright"),
+    transport,
     rootUri: getLSPDocumentRootUri(),
     workspaceFolders: [],
   };
 
   // We wrap the client in a NotebookLanguageServerClient to add some
   // additional functionality to handle multiple cells
-  return new NotebookLanguageServerClient(
+  const notebookClient = new NotebookLanguageServerClient(
     new LanguageServerClient({
       ...lspClientOpts,
     }),
     {},
   );
+
+  // Set the resync callback now that the client exists
+  resyncCallback = () => notebookClient.resyncAllDocuments();
+
+  return notebookClient;
 });
 
 /**

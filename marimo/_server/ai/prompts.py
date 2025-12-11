@@ -36,7 +36,7 @@ language_rules: dict[Language, list[str]] = {
 
 language_rules_multiple_cells: dict[Language, list[str]] = {
     "sql": [
-        'SQL cells start with df = mo.sql(f"""<your query>""") for DuckDB, or df = mo.sql(f"""<your query>""", engine=engine) for other SQL engines.',
+        'SQL cells start with df = mo.sql(f"""<your query>""") for DuckDB, or df = mo.sql(f"""<your query>""", engine=engine) for other SQL engines. You should always write queries inline as the code snippet above, do not use variables to store queries.',
         "This will automatically display the result in the UI. You do not need to return the dataframe in the cell.",
         "The SQL must use the syntax of the database engine specified in the `engine` variable. If no engine, then use duckdb syntax.",
     ]
@@ -244,6 +244,23 @@ def _get_mode_intro_message(mode: CopilotMode) -> str:
             "- All tool use is strictly read-only. You may not perform write, edit, or execution actions.\n"
             "- You must always explain to the user why you are using a tool before invoking it.\n"
         )
+    elif mode == "agent":
+        return (
+            f"{base_intro}"
+            "You are in agent mode - you have autonomy to resolve the user's query by using the tools provided. Please keep going until the user's query is completely resolved, before ending your turn and yielding back to the user. Only terminate your turn when you are sure that the problem is solved. \n"
+            "\n\n## Agent Mode\n"
+            "- You are encouraged to edit existing cells in the notebook or add new cells.\n"
+            "- You should do the following things after editing the notebook:\n"
+            "\t 1. Use the lint notebook tool to check for errors and lint issues\n"
+            "\t 2. Run stale cells tool to run the code\n"
+            "\t 3. If there are errors in cells you have added, edit the existing cell. Don't add new cells to correct errors.\n"
+            "- If you say you're about to do something, actually do it in the same turn (run the tool call right after).\n"
+            "- Group code into logical cells, eg. functions should be in separate cells and all the calls will be in one cell. When asked for explanations or summaries, use markdown cells with proper formatting.\n\n"
+            "## Capabilities\n"
+            "- You can use a set of read and write tools to gather additional context from the notebook or environment (e.g., searching code, summarizing data, or reading documentation) and to modify the notebook (e.g., adding cells, editing cells, deleting cells).\n"
+            "## Limitations\n"
+            "- You must always explain to the user why you are using a tool before invoking it.\n"
+        )
 
 
 def _get_session_info(session_id: SessionId) -> str:
@@ -381,13 +398,27 @@ chart = alt.Chart(df).mark_circle(opacity=0.7).encode(
 chart
 </example>"""
 
-    for language in language_rules:
-        if len(language_rules[language]) == 0:
-            continue
+    if mode == "agent":
+        # In agent-mode, we can add how to insert cells into the notebook.
+        for lang in LANGUAGES:
+            # check if multiple_cells rules are present for this language
+            rule_to_add = language_rules_multiple_cells.get(
+                lang, language_rules.get(lang, [])
+            )
+            if rule_to_add:
+                system_prompt += (
+                    f"\n\n## Rules for {lang}:\n{_rules(rule_to_add)}"
+                )
 
-        system_prompt += (
-            f"\n\n## Rules for {language}:\n{_rules(language_rules[language])}"
-        )
+        system_prompt += "\n\n## Rules for inserting cells:\n"
+        system_prompt += 'For markdown cells, use `mo.md(f"""{content}""")`\n'
+        system_prompt += 'For sql cells, use `mo.sql(f"""{content}""")`. If a database engine is specified, use `mo.sql(f"""{content}""", engine=engine)` instead.\n'
+    else:
+        for language in language_rules:
+            if len(language_rules[language]) == 0:
+                continue
+
+            system_prompt += f"\n\n## Rules for {language}:\n{_rules(language_rules[language])}"
 
     if custom_rules and custom_rules.strip():
         system_prompt += f"\n\n## Additional rules:\n{custom_rules}"

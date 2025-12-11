@@ -60,11 +60,11 @@ from marimo._runtime.requests import (
     SyncGraphRequest,
 )
 from marimo._server.exceptions import InvalidSessionException
-from marimo._server.file_manager import AppFileManager
 from marimo._server.file_router import AppFileRouter, MarimoFileKey
 from marimo._server.lsp import LspServer
 from marimo._server.model import ConnectionState, SessionConsumer, SessionMode
 from marimo._server.models.models import InstantiateRequest
+from marimo._server.notebook import AppFileManager
 from marimo._server.recents import RecentFilesManager
 from marimo._server.session.serialize import (
     SessionCacheKey,
@@ -194,7 +194,7 @@ class KernelManager:
     def start_kernel(self) -> None:
         # We use a process in edit mode so that we can interrupt the app
         # with a SIGINT; we don't mind the additional memory consumption,
-        # since there's only one client sess
+        # since there's only one client session
         is_edit_mode = self.mode == SessionMode.EDIT
         listener = None
         if is_edit_mode:
@@ -740,7 +740,10 @@ class Session:
         codes = tuple(
             cell_data.code for cell_data in app.cell_manager.cell_data()
         )
-        key = SessionCacheKey(codes=codes, marimo_version=__version__)
+        cell_ids = tuple(app.cell_manager.cell_ids())
+        key = SessionCacheKey(
+            codes=codes, marimo_version=__version__, cell_ids=cell_ids
+        )
         self.session_view = self.session_cache_manager.read_session_view(key)
         self.session_cache_manager.start()
 
@@ -1070,18 +1073,18 @@ class SessionManager:
             LOGGER.warning("Cannot start LSP server in run mode")
             return
 
-        LOGGER.debug("Starting LSP server...")
+        LOGGER.info("Starting LSP server...")
         alert = await self.lsp_server.start()
 
         if alert is not None:
-            LOGGER.warning(
+            LOGGER.error(
                 f"LSP server startup failed: {alert.title} - {alert.description}"
             )
             for session in self.sessions.values():
                 session.write_operation(alert, from_consumer_id=None)
             return
         else:
-            LOGGER.debug("LSP server started successfully")
+            LOGGER.info("LSP server started successfully")
 
     def close_session(self, session_id: SessionId) -> bool:
         """Close a session and remove its file watcher if it has one."""
@@ -1182,6 +1185,14 @@ class SessionFileChangeHandler:
         session: Session,
     ) -> None:
         LOGGER.debug(f"{file_path} was modified, handling {session}")
+
+        # Check if the file content matches the last save
+        # to avoid reloading our own writes
+        if session.app_file_manager.file_content_matches_last_save():
+            LOGGER.debug(
+                f"File {file_path} content matches last save, skipping reload"
+            )
+            return
 
         # Reload the file manager to get the latest code
         try:

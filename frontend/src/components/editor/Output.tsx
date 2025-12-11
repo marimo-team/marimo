@@ -8,7 +8,7 @@ import React, {
   useState,
 } from "react";
 import { type CellId, CellOutputId } from "@/core/cells/ids";
-import type { OutputMessage } from "@/core/kernel/messages";
+import type { CellOutput, OutputMessage } from "@/core/kernel/messages";
 import { cn } from "@/utils/cn";
 import { logNever } from "../../utils/assertNever";
 import { ErrorBoundary } from "./boundary/ErrorBoundary";
@@ -25,15 +25,17 @@ import {
   ChevronsUpDownIcon,
   ExpandIcon,
 } from "lucide-react";
+import { tooltipHandler } from "@/components/charts/tooltip";
 import { useExpandedOutput } from "@/core/cells/outputs";
+import { useIframeCapabilities } from "@/hooks/useIframeCapabilities";
 import { renderHTML } from "@/plugins/core/RenderHTML";
-import { LazyAnyLanguageCodeMirror } from "@/plugins/impl/code/LazyAnyLanguageCodeMirror";
 import { Banner } from "@/plugins/impl/common/error-banner";
 import type { TopLevelFacetedUnitSpec } from "@/plugins/impl/data-explorer/queries/types";
 import { useTheme } from "@/theme/useTheme";
 import { Events } from "@/utils/events";
 import { invariant } from "@/utils/invariant";
 import { Objects } from "@/utils/objects";
+import { LazyVegaEmbed } from "../charts/lazy";
 import { ChartLoadingState } from "../data-table/charts/components/chart-states";
 import { Button } from "../ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
@@ -42,11 +44,16 @@ import { CsvViewer } from "./file-tree/renderers";
 import { MarimoTracebackOutput } from "./output/MarimoTracebackOutput";
 import { renderMimeIcon } from "./renderMimeIcon";
 
-const LazyVegaLite = React.lazy(() =>
-  import("react-vega").then((m) => ({ default: m.VegaLite })),
-);
+const METADATA_KEY = "__metadata__";
 
-type MimeBundle = Record<OutputMessage["mimetype"], { [key: string]: unknown }>;
+type MimeBundleWithoutMetadata = Record<
+  OutputMessage["mimetype"],
+  { [key: string]: unknown }
+>;
+
+type MimeBundle = MimeBundleWithoutMetadata & {
+  [METADATA_KEY]?: Record<string, { width?: number; height?: number }>;
+};
 type MimeBundleOrTuple = MimeBundle | [MimeBundle, { [key: string]: unknown }];
 
 export type OnRefactorWithAI = (opts: {
@@ -62,8 +69,9 @@ export const OutputRenderer: React.FC<{
   cellId?: CellId;
   onRefactorWithAI?: OnRefactorWithAI;
   wrapText?: boolean;
+  metadata?: { width?: number; height?: number };
 }> = memo((props) => {
-  const { message, onRefactorWithAI, cellId, wrapText } = props;
+  const { message, onRefactorWithAI, cellId, wrapText, metadata } = props;
   const { theme } = useTheme();
 
   // Memoize parsing the json data
@@ -93,7 +101,14 @@ export const OutputRenderer: React.FC<{
         typeof data === "string",
         `Expected string data for mime=${mimetype}. Got ${typeof data}`,
       );
-      return <HtmlOutput className={channel} html={data} />;
+      // We don't sanitize HTML in text/html to allow for iframes or rich javascript content.
+      return (
+        <HtmlOutput
+          className={channel}
+          html={data}
+          alwaysSanitizeHtml={false}
+        />
+      );
 
     case "text/plain":
       invariant(
@@ -118,13 +133,21 @@ export const OutputRenderer: React.FC<{
         typeof data === "string",
         `Expected string data for mime=${mimetype}. Got ${typeof data}`,
       );
-      return <ImageOutput className={channel} src={data} alt="" />;
+      return (
+        <ImageOutput
+          className={channel}
+          src={data}
+          alt=""
+          width={metadata?.width}
+          height={metadata?.height}
+        />
+      );
     case "image/svg+xml":
       invariant(
         typeof data === "string",
         `Expected string data for mime=${mimetype}. Got ${typeof data}`,
       );
-      return renderHTML({ html: data });
+      return renderHTML({ html: data, alwaysSanitizeHtml: true });
 
     case "video/mp4":
     case "video/mpeg":
@@ -164,21 +187,20 @@ export const OutputRenderer: React.FC<{
         `Expected string data for mime=${mimetype}. Got ${typeof data}`,
       );
       return (
-        <LazyAnyLanguageCodeMirror
-          theme={theme === "dark" ? "dark" : "light"}
-          value={data}
-          readOnly={true}
-          editable={false}
-          language="markdown"
-        />
+        <HtmlOutput className={channel} html={data} alwaysSanitizeHtml={true} />
       );
     case "application/vnd.vegalite.v5+json":
     case "application/vnd.vega.v5+json":
       return (
         <Suspense fallback={<ChartLoadingState />}>
-          <LazyVegaLite
+          <LazyVegaEmbed
             spec={parsedJsonData as TopLevelFacetedUnitSpec}
-            theme={theme === "dark" ? "dark" : undefined}
+            options={{
+              theme: theme === "dark" ? "dark" : undefined,
+              mode: "vega-lite",
+              tooltip: tooltipHandler.call,
+              renderer: "canvas",
+            }}
           />
         </Suspense>
       );
@@ -226,14 +248,25 @@ const MimeBundleOutputRenderer: React.FC<{
 }> = memo(({ data, channel, cellId }) => {
   const mimebundle = Array.isArray(data) ? data[0] : data;
 
+  // Extract metadata if present (e.g., for retina image rendering)
+  const metadata = mimebundle[METADATA_KEY];
+
+  // Filter out metadata from the mime entries and type narrow
+  const mimeEntries = Objects.entries(mimebundle as Record<string, unknown>)
+    .filter(([key]) => key !== METADATA_KEY)
+    .map(
+      ([mime, data]) =>
+        [mime, data] as [OutputMessage["mimetype"], CellOutput["data"]],
+    );
+
   // If there is none, return null
-  const first = Objects.keys(mimebundle)[0];
+  const first = mimeEntries[0]?.[0];
   if (!first) {
     return null;
   }
 
   // If there is only one mime type, render it directly
-  if (Object.keys(mimebundle).length === 1) {
+  if (mimeEntries.length === 1) {
     return (
       <OutputRenderer
         cellId={cellId}
@@ -242,11 +275,11 @@ const MimeBundleOutputRenderer: React.FC<{
           data: mimebundle[first],
           mimetype: first,
         }}
+        metadata={metadata?.[first]}
       />
     );
   }
 
-  const mimeEntries = Objects.entries(mimebundle);
   // Sort HTML first
   mimeEntries.sort(([mimeA], [_mimeB]) => {
     if (mimeA === "text/html") {
@@ -282,6 +315,7 @@ const MimeBundleOutputRenderer: React.FC<{
                     data: output,
                     mimetype: mime,
                   }}
+                  metadata={metadata?.[mime]}
                 />
               </ErrorBoundary>
             </TabsContent>
@@ -378,6 +412,7 @@ const ExpandableOutput = React.memo(
     const containerRef = useRef<HTMLDivElement>(null);
     const [isExpanded, setIsExpanded] = useExpandedOutput(cellId);
     const [isOverflowing, setIsOverflowing] = useState(false);
+    const { hasFullscreen } = useIframeCapabilities();
 
     // Create resize observer to detect overflow
     useEffect(() => {
@@ -403,20 +438,22 @@ const ExpandableOutput = React.memo(
         <div>
           <div className="relative print:hidden">
             <div className="absolute -right-9 top-1 z-1 flex flex-col gap-1">
-              <Tooltip content="Fullscreen" side="left">
-                <Button
-                  data-testid="fullscreen-output-button"
-                  className="hover-action hover:bg-muted p-1 hover:border-border border border-transparent"
-                  onClick={async () => {
-                    await containerRef.current?.requestFullscreen();
-                  }}
-                  onMouseDown={Events.preventFocus}
-                  size="xs"
-                  variant="text"
-                >
-                  <ExpandIcon className="size-4" strokeWidth={1.25} />
-                </Button>
-              </Tooltip>
+              {hasFullscreen && (
+                <Tooltip content="Fullscreen" side="left">
+                  <Button
+                    data-testid="fullscreen-output-button"
+                    className="hover-action hover:bg-muted p-1 hover:border-border border border-transparent"
+                    onClick={async () => {
+                      await containerRef.current?.requestFullscreen();
+                    }}
+                    onMouseDown={Events.preventFocus}
+                    size="xs"
+                    variant="text"
+                  >
+                    <ExpandIcon className="size-4" strokeWidth={1.25} />
+                  </Button>
+                </Tooltip>
+              )}
               {(isOverflowing || isExpanded) && !forceExpand && (
                 <Button
                   data-testid="expand-output-button"

@@ -10,7 +10,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.17.4"
 app = marimo.App(width="medium")
 
 
@@ -24,7 +24,9 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("""# Google Cloud BigQuery""")
+    mo.md("""
+    # Google Cloud BigQuery
+    """)
     return
 
 

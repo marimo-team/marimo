@@ -1,12 +1,14 @@
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.17.6"
 app = marimo.App(width="medium")
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""## Big Ints""")
+    mo.md(r"""
+    ## Big Ints
+    """)
     return
 
 
@@ -34,18 +36,18 @@ def _():
 
 
 @app.cell
-def _(data):
+def _(data, mo):
     import pandas as pd
 
-    pd.DataFrame(data)
+    mo.vstack([mo.plain(pd.DataFrame(data)), pd.DataFrame(data)])
     return
 
 
 @app.cell
-def _(data):
+def _(data, mo):
     import polars as pl
 
-    pl.DataFrame(data)
+    mo.vstack([mo.plain(pl.DataFrame(data)), pl.DataFrame(data)])
     return
 
 

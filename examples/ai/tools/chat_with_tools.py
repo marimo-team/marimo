@@ -16,7 +16,7 @@
 
 import marimo
 
-__generated_with = "0.16.0"
+__generated_with = "0.17.4"
 app = marimo.App(width="medium")
 
 
@@ -35,19 +35,19 @@ def _():
 
 @app.cell
 def _(mo):
-    mo.md(
-        """
-        # Creating rich tools with ell
+    mo.md("""
+    # Creating rich tools with ell
 
-        This example shows how to use [`ell`](https://docs.ell.so/) with tools to analyze a dataset and return rich responses like charts and tables.
-        """
-    )
+    This example shows how to use [`ell`](https://docs.ell.so/) with tools to analyze a dataset and return rich responses like charts and tables.
+    """)
     return
 
 
 @app.cell
 def _(mo):
-    mo.md(r"""## Setup""")
+    mo.md(r"""
+    ## Setup
+    """)
     return
 
 
@@ -106,7 +106,9 @@ def _(data, dataset_dropdown, pl):
 
 @app.cell
 def _(mo):
-    mo.md(r"""## Defining tools""")
+    mo.md(r"""
+    ## Defining tools
+    """)
     return
 
 

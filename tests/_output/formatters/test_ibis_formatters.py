@@ -48,6 +48,9 @@ def test_ibis_formatters_interactive_mode(test_table) -> None:
         mime, content = formatter(test_table)
         assert mime == "text/html"
         assert "<marimo-table" in content
+        assert (
+            "data-lazy='true'" in content
+        )  # Should be lazy in interactive mode
 
         # Test column - should return table widget via as_table()
         column = test_table.struct
@@ -56,6 +59,9 @@ def test_ibis_formatters_interactive_mode(test_table) -> None:
         mime, content = formatter(column)
         assert mime == "text/html"
         assert "<marimo-table" in content
+        assert (
+            "data-lazy='true'" in content
+        )  # Should be lazy in interactive mode
 
         # Test scalar - should return formatted text
         scalar = test_table.floats.min()
@@ -87,6 +93,7 @@ def test_ibis_formatters_lazy_mode(test_table) -> None:
         mime, content = formatter(test_table)
         assert mime == "text/html"
         assert "<marimo-tabs" in content
+        assert "<marimo-table" not in content  # Should not be table widget
 
         # Test column - should return Expression+SQL tabs
         column = test_table.struct
@@ -95,6 +102,7 @@ def test_ibis_formatters_lazy_mode(test_table) -> None:
         mime, content = formatter(column)
         assert mime == "text/html"
         assert "<marimo-tabs" in content
+        assert "<marimo-table" not in content  # Should not be table widget
 
         # Test scalar - should return Expression+SQL tabs
         scalar = test_table.floats.min()
@@ -103,6 +111,7 @@ def test_ibis_formatters_lazy_mode(test_table) -> None:
         mime, content = formatter(scalar)
         assert mime == "text/html"
         assert "<marimo-tabs" in content
+        assert "<marimo-table" not in content  # Should not be table widget
 
     finally:
         ibis.options.interactive = original_interactive
@@ -136,6 +145,7 @@ def test_ibis_unbound_expressions() -> None:
             mime, content = formatter(joined)
             assert mime == "text/html"
             assert "<marimo-tabs" in content
+            assert "<marimo-table" not in content  # Should not be table widget
         finally:
             ibis.options.interactive = original_interactive
 
@@ -194,6 +204,7 @@ def test_ibis_polars_backend() -> None:
         mime, content = formatter(polars_table)
         assert mime == "text/html"
         assert "<marimo-tabs" in content
+        assert "<marimo-table" not in content  # Should not be table widget
 
     finally:
         ibis.options.interactive = original_interactive

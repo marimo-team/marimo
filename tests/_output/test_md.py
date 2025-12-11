@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 def test_md() -> None:
     # Test basic markdown conversion
     input_text = "This is **bold** and this is _italic_."
-    expected_output = '<span class="markdown prose dark:prose-invert"><span class="paragraph">This is <strong>bold</strong> and this is <em>italic</em>.</span></span>'  # noqa: E501
+    expected_output = '<span class="markdown prose dark:prose-invert contents"><span class="paragraph">This is <strong>bold</strong> and this is <em>italic</em>.</span></span>'  # noqa: E501
     assert _md(input_text).text == expected_output
 
     # Test disabling markdown class
@@ -28,7 +28,7 @@ def test_md() -> None:
 
 # def test_md_size() -> None:
 #     input_text = "This is **bold** and this is _italic_."
-#     expected_output = '<span class="markdown prose dark:prose-invert prose-lg"><span class="paragraph">This is <strong>bold</strong> and this is <em>italic</em>.</span></span>'  # noqa: E501
+#     expected_output = '<span class="markdown prose dark:prose-invert contents prose-lg"><span class="paragraph">This is <strong>bold</strong> and this is <em>italic</em>.</span></span>'  # noqa: E501
 #     assert _md(input_text, size="lg").text == expected_output
 
 
@@ -73,7 +73,7 @@ def test_md_latex() -> None:
 def test_md_links() -> None:
     # Test external link conversion
     link_input = "[Google](https://google.com)"
-    expected_output = '<span class="paragraph"><a href="https://google.com" rel="noopener" target="_blank">Google</a></span>'  # noqa: E501
+    expected_output = '<span class="paragraph"><a href="https://google.com" rel="noopener noreferrer" target="_blank">Google</a></span>'  # noqa: E501
     assert _md(link_input, apply_markdown_class=False).text == (
         expected_output
     )
@@ -449,6 +449,74 @@ def test_md_format():
     assert f"{md}" == input_text
 
 
+def test_md_mime_type():
+    # Test that _md returns text/markdown mime type for proper sanitization
+    input_text = "This is **bold** and this is _italic_."
+    md = _md(input_text)
+    mime_type, content = md._mime_()
+    # Has markdown mime type so the frontend knows to sanitize it
+    assert mime_type == "text/markdown"
+    # Content should be the rendered HTML
+    assert "<strong>bold</strong>" in content
+    assert "<em>italic</em>" in content
+
+
+def test_md_mime_type_with_script():
+    # Test that _md returns text/markdown even with potentially dangerous content
+    # The frontend will sanitize it
+    input_text = "# Title\n\nSome text"
+    md = _md(input_text)
+    # Has markdown mime type so the frontend knows to sanitize it
+    mime_type, content = md._mime_()
+    assert mime_type == "text/markdown"
+    assert "Title" in content
+
+
+def test_md_caret_superscript() -> None:
+    # Test superscript conversion
+    superscript_input = "H^2^O"
+    expected_output = '<span class="paragraph">H<sup>2</sup>O</span>'
+    assert (
+        _md(superscript_input, apply_markdown_class=False).text
+        == expected_output
+    )
+
+    # Test superscript with spaces
+    superscript_spaces = "text^a\\ superscript^"
+    expected_spaces = (
+        '<span class="paragraph">text<sup>a superscript</sup></span>'
+    )
+    assert (
+        _md(superscript_spaces, apply_markdown_class=False).text
+        == expected_spaces
+    )
+
+
+def test_md_caret_insert() -> None:
+    # Test insert (underline) conversion
+    insert_input = "^^Insert me^^"
+    expected_output = '<span class="paragraph"><ins>Insert me</ins></span>'
+    assert (
+        _md(insert_input, apply_markdown_class=False).text == expected_output
+    )
+
+    # Test insert with markdown formatting
+    insert_bold = "This is ^^important^^ text"
+    expected_bold = (
+        '<span class="paragraph">This is <ins>important</ins> text</span>'
+    )
+    assert _md(insert_bold, apply_markdown_class=False).text == expected_bold
+
+
+def test_md_caret_combined() -> None:
+    # Test caret combined with tilde (subscript/strikethrough)
+    combined_input = "CH~3~CH~2~OH with H^2^O"
+    expected_output = '<span class="paragraph">CH<sub>3</sub>CH<sub>2</sub>OH with H<sup>2</sup>O</span>'
+    assert (
+        _md(combined_input, apply_markdown_class=False).text == expected_output
+    )
+
+
 @patch("marimo._runtime.output")
 def test_latex_via_path(output: MagicMock, tmp_path: Path) -> None:
     filename = tmp_path / "macros.tex"
@@ -456,7 +524,7 @@ def test_latex_via_path(output: MagicMock, tmp_path: Path) -> None:
     latex(filename=filename)
     assert (
         output.append.call_args[0][0].text
-        == '<span class="markdown prose dark:prose-invert"><marimo-tex class="arithmatex">||[\n\\newcommand{\\\x0coo}{bar}\n||]</marimo-tex></span>'
+        == '<span class="markdown prose dark:prose-invert contents"><marimo-tex class="arithmatex">||[\n\\newcommand{\\\x0coo}{bar}\n||]</marimo-tex></span>'
     )
 
 
@@ -470,5 +538,87 @@ def test_latex_via_url(mock_urlopen: MagicMock, output: MagicMock) -> None:
     latex(filename="https://example.com/macros.tex")
     assert (
         output.append.call_args[0][0].text
-        == '<span class="markdown prose dark:prose-invert"><marimo-tex class="arithmatex">||[\n\\newcommand{\\\foo}{bar}\n||]</marimo-tex></span>'
+        == '<span class="markdown prose dark:prose-invert contents"><marimo-tex class="arithmatex">||[\n\\newcommand{\\\foo}{bar}\n||]</marimo-tex></span>'
     )
+
+
+@patch("marimo._output.md.is_pyodide")
+def test_b64_extension_not_in_non_wasm(mock_is_pyodide: MagicMock) -> None:
+    # Test that b64 extension is NOT included in non-WASM mode
+    from marimo._output.md import _get_extension_configs, _get_extensions
+
+    mock_is_pyodide.return_value = False
+
+    # Clear the cache to ensure fresh evaluation
+    _get_extensions.cache_clear()
+    _get_extension_configs.cache_clear()
+
+    extensions = _get_extensions()
+    configs = _get_extension_configs()
+
+    # b64 should not be in the extensions list
+    assert "pymdownx.b64" not in extensions
+    # b64 should not be in the config
+    assert "pymdownx.b64" not in configs
+
+
+@patch("marimo._runtime.runtime.notebook_dir")
+@patch("marimo._output.md.is_pyodide")
+def test_b64_extension_in_wasm(
+    mock_is_pyodide: MagicMock, mock_notebook_dir: MagicMock
+) -> None:
+    # Test that b64 extension IS included in WASM mode
+    from marimo._output.md import _get_extension_configs, _get_extensions
+
+    mock_is_pyodide.return_value = True
+    mock_notebook_dir.return_value = "/fake/notebook/dir"
+
+    # Clear the cache to ensure fresh evaluation
+    _get_extensions.cache_clear()
+    _get_extension_configs.cache_clear()
+
+    extensions = _get_extensions()
+    configs = _get_extension_configs()
+
+    # b64 should be in the extensions list
+    assert "pymdownx.b64" in extensions
+    # b64 should be in the config with the correct base_path
+    assert "pymdownx.b64" in configs
+    assert configs["pymdownx.b64"]["base_path"] == "/fake/notebook/dir"
+
+
+@patch("marimo._runtime.runtime.notebook_dir")
+@patch("marimo._output.md.is_pyodide")
+def test_md_with_b64_in_wasm(
+    mock_is_pyodide: MagicMock,
+    mock_notebook_dir: MagicMock,
+    tmp_path: Path,
+) -> None:
+    # Test that markdown with image paths gets base64 encoded in WASM mode
+    from marimo._output.md import _get_extension_configs, _get_extensions
+
+    mock_is_pyodide.return_value = True
+    mock_notebook_dir.return_value = str(tmp_path)
+
+    # Create a small test image (1x1 transparent PNG)
+    image_path = tmp_path / "test.png"
+    # This is a minimal valid 1x1 transparent PNG
+    png_data = (
+        b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00"
+        b"\x00\x01\x08\x06\x00\x00\x00\x1f\x15\xc4\x89\x00\x00\x00\nIDATx"
+        b"\x9cc\x00\x01\x00\x00\x05\x00\x01\r\n-\xb4\x00\x00\x00\x00IEND\xaeB`\x82"
+    )
+    image_path.write_bytes(png_data)
+
+    # Clear the cache to ensure fresh evaluation
+    _get_extensions.cache_clear()
+    _get_extension_configs.cache_clear()
+
+    # Test markdown with image reference using b64 syntax
+    # The pymdownx.b64 extension uses ![](test.png) syntax and converts to base64
+    md_input = "![alt text](test.png)"
+    result = _md(md_input, apply_markdown_class=False).text
+
+    # In WASM mode with b64 extension, the image should be base64 encoded
+    assert "data:image/png;base64," in result
+    assert "alt text" in result

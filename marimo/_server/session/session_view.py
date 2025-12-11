@@ -15,6 +15,8 @@ from marimo._messaging.ops import (
     Interrupted,
     MessageOperation,
     SendUIElementMessage,
+    SQLTableListPreview,
+    SQLTablePreview,
     StartupLogs,
     UpdateCellCodes,
     UpdateCellIdsRequest,
@@ -31,6 +33,10 @@ from marimo._runtime.requests import (
     ExecutionRequest,
     SetUIElementValueRequest,
     SyncGraphRequest,
+)
+from marimo._sql.connection_utils import (
+    update_table_in_connection,
+    update_table_list_in_connection,
 )
 from marimo._sql.engines.duckdb import INTERNAL_DUCKDB_ENGINE
 from marimo._types.ids import CellId_t, WidgetModelId
@@ -248,6 +254,27 @@ class SessionView:
                 connections=list(connections.values())
             )
 
+        elif isinstance(operation, SQLTablePreview):
+            sql_table_preview = operation
+            sql_metadata = sql_table_preview.metadata
+            table_preview_connections = self.data_connectors.connections
+            if sql_table_preview.table is not None:
+                update_table_in_connection(
+                    table_preview_connections,
+                    sql_metadata,
+                    sql_table_preview.table,
+                )
+
+        elif isinstance(operation, SQLTableListPreview):
+            sql_table_list_preview = operation
+            sql_metadata = sql_table_list_preview.metadata
+            table_list_connections = self.data_connectors.connections
+            update_table_list_in_connection(
+                table_list_connections,
+                sql_metadata,
+                sql_table_list_preview.tables,
+            )
+
         elif isinstance(operation, UpdateCellIdsRequest):
             self.cell_ids = operation
 
@@ -384,6 +411,38 @@ class SessionView:
         self.auto_export_state.mark_all_stale()
 
 
+def _merge_consecutive_console_outputs(
+    console: list[CellOutput],
+) -> list[CellOutput]:
+    """Merge consecutive text/plain outputs with the same channel."""
+    if not console:
+        return console
+
+    merged: list[CellOutput] = []
+
+    for output in console:
+        # Check if we can merge with the last output
+        if (
+            merged
+            and merged[-1].mimetype == "text/plain"
+            and output.mimetype == "text/plain"
+            and merged[-1].channel == output.channel
+            and isinstance(merged[-1].data, str)
+            and isinstance(output.data, str)
+        ):
+            # Merge by concatenating the data
+            merged[-1] = CellOutput(
+                channel=merged[-1].channel,
+                mimetype=merged[-1].mimetype,
+                data=merged[-1].data + output.data,
+                timestamp=merged[-1].timestamp,
+            )
+        else:
+            merged.append(output)
+
+    return merged
+
+
 def merge_cell_operation(
     previous: Optional[CellOp],
     next_: CellOp,
@@ -403,7 +462,7 @@ def merge_cell_operation(
     else:
         combined_console: list[CellOutput] = as_list(previous.console)
         combined_console.extend(as_list(next_.console))
-        next_.console = combined_console
+        next_.console = _merge_consecutive_console_outputs(combined_console)
 
     # If we went from running to running, use the previous timestamp.
     if next_.status == "running" and previous.status == "running":

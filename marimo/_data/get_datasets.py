@@ -98,7 +98,15 @@ def execute_duckdb_query(
             return duckdb.execute(query).fetchall()
 
         return connection.execute(query).fetchall()
-    except Exception:
+    except Exception as e:
+        if DependencyManager.duckdb.has():
+            import duckdb
+
+            # Connection is closed, return empty result
+            if isinstance(e, duckdb.ConnectionException):
+                LOGGER.debug("Skipping query on closed DuckDB connection")
+                return []
+
         LOGGER.exception("Failed to execute DuckDB query %s", query)
         return []
 
@@ -155,6 +163,14 @@ def _get_databases_from_duckdb_internal(
     except Exception as e:
         if DependencyManager.duckdb.has():
             import duckdb
+
+            # Connection is closed, skip gracefully
+            if isinstance(e, duckdb.ConnectionException):
+                LOGGER.debug(
+                    "Skipping closed DuckDB connection for engine %s",
+                    engine_name,
+                )
+                return []
 
             # Certain ducklakes don't support SHOW ALL TABLES
             if isinstance(e, duckdb.NotImplementedException):
@@ -424,67 +440,111 @@ def _get_duckdb_database_names(
             if not internal:
                 database_names.append(database_name)
         return database_names
-    except Exception:
+    except Exception as e:
+        if DependencyManager.duckdb.has():
+            import duckdb
+
+            # Connection is closed, skip gracefully
+            if isinstance(e, duckdb.ConnectionException):
+                LOGGER.debug("Skipping closed DuckDB connection")
+                return []
+
         LOGGER.debug("Failed to get database names from DuckDB")
         return []
+
+
+_INTEGER_TYPES = {
+    "tinyint",
+    "smallint",
+    "integer",
+    "bigint",
+    "hugeint",
+    "integral",
+    "long",
+    "short",
+    "signed",
+    "oid",
+    "varint",
+    "int",
+    "int1",
+    "int2",
+    "int4",
+    "int8",
+    "int16",
+    "int32",
+    "int64",
+    "int128",
+    "ubigint",
+    "uhugeint",
+    "usmallint",
+    "utinyint",
+}
+_NUMERIC_TYPES = {"float", "real", "double", "decimal", "numeric", "dec"}
+_BOOLEAN_TYPES = {"boolean", "bool", "logical"}
+_STRING_TYPES = {
+    "varchar",
+    "char",
+    "bpchar",
+    "text",
+    "string",
+    "blob",
+    "uuid",
+    "guid",
+    "nvarchar",
+}
+_TIME_TYPES = {"time", "time with time zone", "timetz"}
+_DATETIME_TYPES = {"datetime", "interval"}
+_BINARY_TYPES = {"bit", "bitstring", "binary", "varbinary", "bytea"}
+_UNKNOWN_TYPES = {
+    "row",
+    "geometry",
+    # Null type (can occur when attaching databases or with unknown column types)
+    "null",
+    '"null"',
+}
 
 
 def _db_type_to_data_type(db_type: str) -> DataType:
     """Convert a DuckDB type to a Marimo data type.
     Reference: https://duckdb.org/docs/stable/sql/data_types/overview
+    Latest types: https://github.com/marimo-team/codemirror-sql/blob/caa7c664135988b634f55a3e57a1327a5ffeede2/src/dialects/duckdb/duckdb.ts
     """
     db_type = db_type.lower()
-    # Numeric types
-    if db_type in [
-        "tinyint",
-        "smallint",
-        "integer",
-        "bigint",
-        "hugeint",
-        "utinyint",
-        "usmallint",
-        "uinteger",
-        "ubigint",
-        "uhugeint",
-    ]:
+
+    # Check for exact matches first, then patterns
+
+    if db_type in _INTEGER_TYPES or db_type.startswith("uint"):
         return "integer"
+
     if (
-        db_type
-        in [
-            "float",
-            "real",
-            "double",
-            "decimal",
-            "numeric",
-        ]
+        db_type in _NUMERIC_TYPES
         or db_type.startswith("decimal")
         or db_type.startswith("float")
     ):
         return "number"
-    # Boolean type
-    if db_type == "boolean":
+
+    if db_type in _BOOLEAN_TYPES:
         return "boolean"
-    # String types
-    if db_type in [
-        "varchar",
-        "char",
-        "bpchar",
-        "text",
-        "string",
-        "blob",
-        "uuid",
-    ]:
+
+    if db_type in _STRING_TYPES:
         return "string"
-    # Date and Time types
+
     if db_type == "date":
         return "date"
-    if db_type in ["time", "time with time zone"]:
+    if db_type in _TIME_TYPES:
         return "time"
-    if db_type in ["datetime", "interval"] or db_type.startswith("timestamp"):
+    if db_type in _DATETIME_TYPES or db_type.startswith("timestamp"):
         return "datetime"
+
+    # Binary types (represented as string)
+    if db_type in _BINARY_TYPES:
+        return "string"
+
+    # Enum types (represented as string)
+    if db_type == "enum" or db_type.startswith("enum"):
+        return "string"
+
     # Nested types
-    if "[" in db_type and "]" in db_type:
-        return "unknown"
     if (
         db_type.startswith("union")
         or db_type.startswith("map")
@@ -492,17 +552,13 @@ def _db_type_to_data_type(db_type: str) -> DataType:
         or db_type.startswith("list")
         or db_type.startswith("array")
         or db_type.startswith("json")
+        or ("[" in db_type and "]" in db_type)
     ):
         return "unknown"
-    # Special types
-    if db_type == "bit":
-        return "string"  # Representing bit as string
-    if db_type == "enum" or db_type.startswith("enum"):
-        return "string"  # Representing enum as string
-    # Geometry types
-    if db_type == "geometry":
+
+    # Other special types
+    if db_type in _UNKNOWN_TYPES:
         return "unknown"
 
     LOGGER.warning("Unknown DuckDB type: %s", db_type)
-    # Unknown type
     return "unknown"

@@ -27,7 +27,7 @@ class TestScriptTrace:
         result = p.stderr.decode()
         assert "ZeroDivisionError: division by zero" in result
         assert ('fn_exception.py", line 14') in result
-        assert ('fn_exception.py", line 26') in result
+        assert ('fn_exception.py", line 25') in result
         assert "bad_divide(0, x)" in result
         assert "y / x" in result
         # Test col_offset
@@ -77,7 +77,7 @@ class TestScriptTrace:
 
         result = p.stderr.decode()
         assert "ZeroDivisionError: division by zero" in result
-        assert ('script_exception_with_output.py", line 11') in result
+        assert ('script_exception_with_output.py", line 17') in result
         assert "y / x" in result
 
     @staticmethod
@@ -320,5 +320,5 @@ class TestEmbedTrace:
         )
 
         assert "ZeroDivisionError: division by zero" in result
-        assert (file_path + "&quot;, line 11") in result
+        assert (file_path + "&quot;, line 17") in result
         assert "y / x" in result

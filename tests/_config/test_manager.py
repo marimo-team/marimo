@@ -5,8 +5,11 @@ from functools import wraps
 from typing import TYPE_CHECKING, Any, Callable, TypeVar
 from unittest.mock import patch
 
+import pytest
+
 from marimo._config.config import PartialMarimoConfig, merge_default_config
 from marimo._config.manager import (
+    EnvConfigManager,
     MarimoConfigManager,
     MarimoConfigReaderWithOverrides,
     ScriptConfigManager,
@@ -161,6 +164,21 @@ def test_with_multiple_overrides() -> None:
     assert manager.get_config()["package_management"]["manager"] == "pixi"
 
 
+def test_project_config_default_dotenv(tmp_path: Path) -> None:
+    # Even if the pyproject.toml does not have a marimo section,
+    # at runtime the dotenv default should be injected.
+    pyproject_path = tmp_path / "pyproject.toml"
+    pyproject_content = ""
+    pyproject_path.write_text(textwrap.dedent(pyproject_content))
+
+    notebook_path = tmp_path / "notebook.py"
+    notebook_content = "import marimo as mo"
+    notebook_path.write_text(textwrap.dedent(notebook_content))
+    manager = get_default_config_manager(current_path=str(notebook_path))
+    config = manager.get_config(hide_secrets=False)
+    assert config["runtime"]["dotenv"] == [str(tmp_path / ".env")]
+
+
 def test_project_config_manager_with_script_metadata(tmp_path: Path) -> None:
     # Create a notebook file with script metadata
     notebook_path = tmp_path / "notebook.py"
@@ -265,6 +283,32 @@ def test_script_config_manager_no_marimo_section(tmp_path: Path) -> None:
 
     manager = ScriptConfigManager(str(notebook_path))
     assert manager.get_config() == {}
+
+
+def test_script_config_manager_sanitizes_auto_instantiate(
+    tmp_path: Path,
+) -> None:
+    """Test that auto_instantiate in script metadata is ignored"""
+    notebook_path = tmp_path / "notebook.py"
+    notebook_content = """
+    # /// script
+    # [tool.marimo.runtime]
+    # auto_instantiate = true
+    # [tool.marimo.save]
+    # autosave_delay = 2000
+    # ///
+    import marimo as mo
+    """
+    notebook_path.write_text(textwrap.dedent(notebook_content))
+
+    manager = ScriptConfigManager(str(notebook_path))
+    config = manager.get_config()
+
+    # auto_instantiate should be stripped out
+    assert "auto_instantiate" not in config.get("runtime", {})
+    # Other configs should still be present
+    # Note: runtime key may exist but be empty after sanitization
+    assert config.get("save") == {"autosave_delay": 2000}
 
 
 def test_marimo_config_reader_properties() -> None:
@@ -390,3 +434,41 @@ def test_project_config_manager_resolve_invalid_custom_css(
 
     # Verify invalid custom_css is not modified
     assert config["display"]["custom_css"] == "not_a_list"
+
+
+def test_env_config_manager_auto_instantiate_true(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Test that EnvConfigManager correctly loads auto_instantiate from env"""
+    monkeypatch.setenv(
+        "_MARIMO_CONFIG_OVERLOAD_RUNTIME_AUTO_INSTANTIATE", "true"
+    )
+    manager = EnvConfigManager()
+    config = manager.get_config(hide_secrets=False)
+    assert config == {"runtime": {"auto_instantiate": True}}
+
+
+@pytest.mark.parametrize(
+    (
+        "env_value",
+        "expected",
+    ),
+    [("true", True), ("True", True), ("false", False), ("False", False)],
+)
+def test_env_config_manager_boolean_case_insensitive(
+    monkeypatch: pytest.MonkeyPatch, env_value: str, expected: bool
+) -> None:
+    """Test boolean parsing is case-insensitive"""
+    monkeypatch.setenv(
+        "_MARIMO_CONFIG_OVERLOAD_RUNTIME_AUTO_INSTANTIATE", env_value
+    )
+    manager = EnvConfigManager()
+    config = manager.get_config(hide_secrets=False)
+    assert config["runtime"]["auto_instantiate"] is expected
+
+
+def test_env_config_manager_no_env_vars() -> None:
+    """Test that missing env vars return empty config"""
+    manager = EnvConfigManager()
+    config = manager.get_config(hide_secrets=False)
+    assert config == {}

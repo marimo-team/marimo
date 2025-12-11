@@ -9,7 +9,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.17.4"
 app = marimo.App()
 
 
@@ -27,7 +27,9 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("""Output a plot object, such as an axis or figure, to see the plot.""")
+    mo.md("""
+    Output a plot object, such as an axis or figure, to see the plot.
+    """)
     return
 
 
@@ -43,12 +45,10 @@ def _(plt):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        """
-        Calling `show()` methods displays the plot in the console area, which can be
-        helpful for debugging because console outputs do not show up in the "app" preview.
-        """
-    )
+    mo.md("""
+    Calling `show()` methods displays the plot in the console area, which can be
+    helpful for debugging because console outputs do not show up in the "app" preview.
+    """)
     return
 
 

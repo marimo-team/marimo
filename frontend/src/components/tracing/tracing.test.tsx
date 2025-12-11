@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { formatChartTime } from "./tracing";
+import { formatChartTime } from "./utils";
 
 describe("formatChartTime", () => {
   beforeAll(() => {
