@@ -143,10 +143,13 @@ class GitHubIssueReader(FileReader):
 
 class StaticNotebookReader(FileReader):
     CODE_TAG = r"marimo-code"
-    CODE_REGEX = re.compile(r"<marimo-code\s+hidden(?:=['\"]{2})?\s*>(.*?)<")
-    FILENAME_REGEX = re.compile(
-        r"<marimo-filename\s+hidden(?:=['\"]{2})?\s*>(.*?)<"
+    CODE_REGEX = re.compile(
+        r"<marimo-code\s+hidden(?:=['\"]{2})?\s*>\s*(.*?)\s*<"
     )
+    FILENAME_REGEX = re.compile(
+        r"<marimo-filename\s+hidden(?:=['\"]{2})?\s*>\s*(.*?)\s*<"
+    )
+    DEFAULT_FILENAME = "notebook.py"
 
     def can_read(self, name: str) -> bool:
         return self._is_static_marimo_notebook_url(name)[0]
@@ -171,6 +174,14 @@ class StaticNotebookReader(FileReader):
 
         # Not a URL
         if not is_url(url):
+            # Read a local Static Notebook
+            if url.endswith(".html"):
+                file_contents = Path(url).read_text(encoding="utf-8")
+                return (
+                    StaticNotebookReader.CODE_TAG in file_contents,
+                    file_contents,
+                )
+
             return False, ""
 
         # Ends with .html, try to download it
@@ -209,7 +220,7 @@ class StaticNotebookReader(FileReader):
             StaticNotebookReader.FILENAME_REGEX, file_contents
         ):
             return urllib.parse.unquote(search.group(1))
-        return "notebook.py"
+        return StaticNotebookReader.DEFAULT_FILENAME
 
 
 class GitHubSourceReader(FileReader):
@@ -254,7 +265,6 @@ class FileContentReader:
         self.readers = [
             LocalFileReader(),
             GitHubIssueReader(),
-            StaticNotebookReader(),
             GitHubSourceReader(),
             GistSourceReader(),
             GenericURLReader(),
@@ -379,6 +389,41 @@ class RemoteFileHandler(FileHandler):
         return str(path_to_app)
 
 
+class StaticNotebookHandler(FileHandler):
+    def __init__(self) -> None:
+        self.reader = StaticNotebookReader()
+
+    def can_handle(self, name: str) -> bool:
+        can_read = self.reader.can_read(name)
+        if not can_read and name.endswith(".html"):
+            # Raise an exception for unreadable HTML to prevent processing by other handlers.
+            import click
+
+            raise click.ClickException(
+                f"Invalid HTML file - {name} does not contain Python code. Make sure the file was downloaded from Marimo."
+            )
+        return can_read
+
+    def handle(
+        self, name: str, temp_dir: TemporaryDirectory[str]
+    ) -> tuple[str, Optional[TemporaryDirectory[str]]]:
+        content, filename = self.reader.read(name)
+        path_to_app = self._create_tmp_file_from_content(
+            content, filename, temp_dir
+        )
+        return path_to_app, temp_dir
+
+    @staticmethod
+    def _create_tmp_file_from_content(
+        content: str, name: str, temp_dir: TemporaryDirectory[str]
+    ) -> str:
+        LOGGER.info("Creating temporary file")
+        path_to_app = Path(temp_dir.name) / name
+        path_to_app.write_text(content, encoding="utf-8")
+        LOGGER.info("App saved to %s", path_to_app)
+        return str(path_to_app)
+
+
 def validate_name(
     name: str, allow_new_file: bool, allow_directory: bool
 ) -> tuple[str, Optional[TemporaryDirectory[str]]]:
@@ -397,6 +442,7 @@ def validate_name(
         Path to the file and temporary directory
     """
     handlers = [
+        StaticNotebookHandler(),
         LocalFileHandler(allow_new_file, allow_directory),
         RemoteFileHandler(),
     ]

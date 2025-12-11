@@ -4,6 +4,7 @@ from __future__ import annotations
 import tempfile
 import urllib.error
 from pathlib import Path
+from textwrap import dedent
 from unittest.mock import Mock, patch
 
 import click
@@ -137,27 +138,6 @@ def test_local_file_reader(tmp_path: Path) -> None:
     assert filename == "local_file.py"
 
 
-def test_static_notebook_reader() -> None:
-    reader = StaticNotebookReader()
-    valid_url = "https://static.marimo.app/static/example"
-    invalid_url = "https://example.com/file.py"
-
-    with patch.object(
-        StaticNotebookReader, "_is_static_marimo_notebook_url"
-    ) as mock_is_static:
-        mock_is_static.return_value = (
-            True,
-            "<marimo-code hidden=''>print('Hello')</marimo-code><marimo-filename hidden=''>test.py</marimo-filename>",  # noqa: E501
-        )
-        assert reader.can_read(valid_url) is True
-        content, filename = reader.read(valid_url)
-        assert content == "print('Hello')"
-        assert filename == "test.py"
-
-        mock_is_static.return_value = (False, "")
-        assert reader.can_read(invalid_url) is False
-
-
 def test_generic_url_reader() -> None:
     reader = GenericURLReader()
     assert reader.can_read("https://example.com/file.py") is True
@@ -181,19 +161,12 @@ def test_file_content_reader() -> None:
     with (
         patch.object(LocalFileReader, "read") as mock_local_read,
         patch.object(GitHubIssueReader, "read") as mock_github_issue_read,
-        patch.object(
-            StaticNotebookReader, "read"
-        ) as mock_static_notebook_read,
         patch.object(GitHubSourceReader, "read") as mock_github_source_read,
         patch.object(GistSourceReader, "read") as mock_gist_source_read,
         patch.object(GenericURLReader, "read") as mock_generic_url_read,
     ):
         mock_local_read.return_value = ("local content", "local.py")
         mock_github_issue_read.return_value = ("issue content", "issue.py")
-        mock_static_notebook_read.return_value = (
-            "notebook content",
-            "notebook.py",
-        )
         mock_github_source_read.return_value = ("github content", "github.py")
         mock_gist_source_read.return_value = ("gist content", "gist.py")
         mock_generic_url_read.return_value = ("url content", "url.py")
@@ -579,3 +552,140 @@ def test_gist_source_reader() -> None:
         assert "https://api.github.com/gists/12345" in api_call_args[0]
         content_call_args, _ = mock_get.call_args_list[1]
         assert content_call_args[0] == expected_raw_url
+
+
+class TestStaticNotebooks:
+    VALID_HTML_CONTENT = dedent("""\
+        <html>
+            <marimo-code hidden=''>
+                import marimo as mo
+            </marimo-code>
+        </html>""")
+    VALID_HTML_CONTENT_WITH_FILENAME = dedent("""\
+        <html>
+            <marimo-code hidden=''>
+                import marimo as mo
+            </marimo-code>
+            <marimo-filename hidden=''>
+                custom.py
+            </marimo-filename>
+        </html>""")
+    INVALID_HTML_CONTENT = """<html><body>no code</body></html>"""
+    PYTHON_CODE = "import marimo as mo"
+
+    @patch("marimo._utils.requests.get")
+    @patch("marimo._cli.file_path.Path.read_text")
+    def test_static_notebook_reader(self, mock_read_text, mock_get):
+        reader = StaticNotebookReader()
+        default_filename = reader.DEFAULT_FILENAME
+
+        # Test local file
+        mock_read_text.return_value = self.VALID_HTML_CONTENT_WITH_FILENAME
+        assert reader.can_read("test.html") is True
+        content, filename = reader.read("test.html")
+        assert content == self.PYTHON_CODE
+        assert filename == "custom.py"
+
+        # Test local file, invalid content
+        mock_read_text.return_value = self.INVALID_HTML_CONTENT
+        assert reader.can_read("test.html") is False
+
+        # Test remote file
+        mock_get.return_value = Response(
+            200, self.VALID_HTML_CONTENT.encode("utf-8"), {}
+        )
+        assert reader.can_read("http://example.com/notebook.html") is True
+        content, filename = reader.read("http://example.com/notebook.html")
+        assert content == self.PYTHON_CODE
+        assert filename == default_filename
+
+        # Test remote file, invalid content
+        mock_get.return_value = Response(
+            200, self.INVALID_HTML_CONTENT.encode("utf-8"), {}
+        )
+        assert reader.can_read("http://example.com/notebook.html") is False
+
+        # Test non-html URL that is a static notebook
+        mock_get.return_value = Response(
+            200, self.VALID_HTML_CONTENT.encode("utf-8"), {}
+        )
+        assert reader.can_read("https://static.marimo.app/static/foo") is True
+        content, filename = reader.read("https://static.marimo.app/static/foo")
+        assert content == self.PYTHON_CODE
+        assert filename == default_filename
+
+    def test_validate_local_static_notebook(self, tmp_path):
+        with patch("marimo._cli.file_path.Path.read_text") as mock_read_text:
+            mock_read_text.return_value = self.VALID_HTML_CONTENT_WITH_FILENAME
+            html_file = tmp_path / "notebook.html"
+            html_file.touch()
+
+            path, temp_dir_obj = validate_name(
+                str(html_file), allow_new_file=False, allow_directory=False
+            )
+
+        assert temp_dir_obj is not None
+        assert Path(path).name == "custom.py"
+        assert Path(path).read_text() == self.PYTHON_CODE
+        temp_dir_obj.cleanup()
+
+    @patch("marimo._cli.file_path.Path.read_text")
+    def test_validate_local_html_not_notebook(self, mock_read_text, tmp_path):
+        mock_read_text.return_value = self.INVALID_HTML_CONTENT
+        html_file = tmp_path / "notebook.html"
+        html_file.touch()
+
+        with pytest.raises(click.ClickException) as excinfo:
+            validate_name(
+                str(html_file), allow_new_file=False, allow_directory=False
+            )
+        assert "Invalid HTML file" in str(excinfo.value)
+
+    @patch("marimo._utils.requests.get")
+    def test_validate_remote_static_notebook(self, mock_get):
+        mock_response = Response(
+            200, self.VALID_HTML_CONTENT.encode("utf-8"), {}
+        )
+        mock_get.return_value = mock_response
+
+        path, temp_dir_obj = validate_name(
+            "https://example.com/notebook.html",
+            allow_new_file=False,
+            allow_directory=False,
+        )
+        assert temp_dir_obj is not None
+        assert Path(path).name == StaticNotebookReader().DEFAULT_FILENAME
+        assert Path(path).read_text() == self.PYTHON_CODE
+        temp_dir_obj.cleanup()
+
+    @patch("marimo._utils.requests.get")
+    def test_validate_remote_static_marimo_url(self, mock_get):
+        mock_response = Response(
+            200, self.VALID_HTML_CONTENT.encode("utf-8"), {}
+        )
+        mock_get.return_value = mock_response
+
+        path, temp_dir_obj = validate_name(
+            "https://static.marimo.app/static/123",
+            allow_new_file=False,
+            allow_directory=False,
+        )
+        assert temp_dir_obj is not None
+        assert Path(path).name == StaticNotebookReader().DEFAULT_FILENAME
+        assert Path(path).read_text() == self.PYTHON_CODE
+        temp_dir_obj.cleanup()
+
+    @patch("marimo._utils.requests.get")
+    def test_validate_remote_html_not_notebook(self, mock_get):
+        mock_response = Response(
+            200, self.INVALID_HTML_CONTENT.encode("utf-8"), {}
+        )
+        mock_get.return_value = mock_response
+
+        with pytest.raises(click.ClickException) as excinfo:
+            validate_name(
+                "https://example.com/notebook.html",
+                allow_new_file=False,
+                allow_directory=False,
+            )
+        assert "Invalid HTML file" in str(excinfo.value)
