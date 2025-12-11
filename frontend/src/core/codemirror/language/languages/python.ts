@@ -267,6 +267,21 @@ export class PythonLanguageAdapter implements LanguageAdapter<{}> {
         clients.push(pyrightClient(lspConfig));
       }
 
+      // For now, enable this for dev environments
+      const signatureActivateOnTyping = import.meta.env.DEV;
+
+      // Match completions before the cursor is at the end of a word,
+      // after a dot, after a slash (and with/without a comma).
+      const defaultMatchCompletion = /(\w+|\w+\.|\(|\/|,)$/;
+      const excludeCommasCompletion = /(\w+|\w+\.|\/)$/;
+
+      // If we are showing the signature on type, we do not need to match on commas
+      // After a comma, we just show the signature help and not the completion list
+      // This reduces popups and matches the behaviour of VS Code
+      const completionMatchBefore = signatureActivateOnTyping
+        ? excludeCommasCompletion
+        : defaultMatchCompletion;
+
       if (clients.length > 0) {
         const client =
           clients.length === 1
@@ -285,15 +300,16 @@ export class PythonLanguageAdapter implements LanguageAdapter<{}> {
             diagnosticsEnabled: lspConfig.diagnostics?.enabled ?? false,
             sendIncrementalChanges: false,
             signatureHelpEnabled: true,
-            signatureActivateOnTyping: false,
+            signatureActivateOnTyping,
+            signatureHelpOptions: {
+              position: "above",
+            },
             keyboardShortcuts: {
               signatureHelp: hotkeys.getHotkey("cell.signatureHelp").key,
               goToDefinition: hotkeys.getHotkey("cell.goToDefinition").key,
               rename: hotkeys.getHotkey("cell.renameSymbol").key,
             },
-            // Match completions before the cursor is at the end of a word,
-            // after a dot, after a slash.
-            completionMatchBefore: /(\w+|\w+\.|\/)$/,
+            completionMatchBefore,
             onGoToDefinition: (result) => {
               Logger.debug("onGoToDefinition", result);
               if (client.documentUri === result.uri) {
