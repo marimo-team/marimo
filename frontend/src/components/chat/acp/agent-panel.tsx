@@ -67,6 +67,7 @@ import { DelayMount } from "@/components/utils/delay-mount";
 import { useRequestClient } from "@/core/network/requests";
 import { filenameAtom } from "@/core/saving/file-state";
 import { store } from "@/core/state/jotai";
+import { ErrorBanner } from "@/plugins/impl/common/error-banner";
 import { Functions } from "@/utils/functions";
 import { Paths } from "@/utils/paths";
 import { FileAttachmentPill } from "../chat-components";
@@ -652,13 +653,16 @@ const NO_WS_SET = "_skip_auto_connect_";
 function getCwd() {
   const filename = store.get(filenameAtom);
   if (!filename) {
-    return "";
+    throw new Error(
+      "Please save the notebook and refresh the browser to use the agent",
+    );
   }
   return Paths.dirname(filename);
 }
 
 const AgentPanel: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<Error | string | unknown>(null);
   const [promptValue, setPromptValue] = useState("");
   const [files, setFiles] = useState<File[]>();
   const [sessionModels, setSessionModels] = useState<SessionModelState | null>(
@@ -851,8 +855,10 @@ const AgentPanel: React.FC = () => {
         } else {
           await handleNewSession();
         }
+        setError(null);
       } catch (error) {
         logger.error("Failed to create or resume session:", error);
+        setError(error);
       }
     };
 
@@ -1049,6 +1055,24 @@ const AgentPanel: React.FC = () => {
   }
 
   const renderBody = () => {
+    if (error) {
+      return (
+        <ErrorBanner
+          className="w-3/4 mx-auto mt-10"
+          error={error instanceof Error ? error : new Error(String(error))}
+          action={
+            <Button
+              variant="linkDestructive"
+              size="sm"
+              onClick={() => setError(null)}
+            >
+              Dismiss
+            </Button>
+          }
+        />
+      );
+    }
+
     const isConnecting = connectionState.status === "connecting";
     const delay = 200; // ms
     if (isConnecting) {
