@@ -1230,3 +1230,165 @@ class TestPydanticAI:
                 os.environ["ANTHROPIC_API_KEY"] = original
             elif "ANTHROPIC_API_KEY" in os.environ:
                 del os.environ["ANTHROPIC_API_KEY"]
+
+    def test_init_with_thinking_enabled(self):
+        """Test initialization with thinking enabled."""
+        model = pydantic_ai(
+            "anthropic:claude-sonnet-4-5",
+            enable_thinking=True,
+        )
+
+        assert model.enable_thinking is True
+
+        # Test with custom budget tokens
+        model2 = pydantic_ai(
+            "anthropic:claude-sonnet-4-5",
+            enable_thinking={"budget_tokens": 5000},
+        )
+        assert model2.enable_thinking == {"budget_tokens": 5000}
+
+    def test_extract_stored_pydantic_messages(self):
+        """Test extraction of stored pydantic-ai messages from parts."""
+        from pydantic_ai.messages import (
+            ModelMessagesTypeAdapter,
+            ModelRequest,
+            ModelResponse,
+            UserPromptPart,
+            TextPart as PydanticTextPart,
+        )
+
+        model = pydantic_ai("openai:gpt-4.1")
+
+        # Create some test messages and serialize them
+        test_messages = [
+            ModelRequest(parts=[UserPromptPart(content="Hello")]),
+            ModelResponse(parts=[PydanticTextPart(content="Hi there!")]),
+        ]
+        messages_json = ModelMessagesTypeAdapter.dump_json(test_messages)
+
+        # Create parts with stored history
+        parts = [
+            {"type": "text", "text": "Some response"},
+            {
+                "type": "_pydantic_history",
+                "messages_json": messages_json.decode("utf-8"),
+            },
+        ]
+
+        # Extract should find and deserialize the messages
+        extracted = model._extract_stored_pydantic_messages(
+            parts, ModelMessagesTypeAdapter
+        )
+
+        assert extracted is not None
+        assert len(extracted) == 2
+        assert isinstance(extracted[0], ModelRequest)
+        assert isinstance(extracted[1], ModelResponse)
+
+    def test_extract_stored_pydantic_messages_none_when_missing(self):
+        """Test that extraction returns None when no stored history."""
+        from pydantic_ai.messages import ModelMessagesTypeAdapter
+
+        model = pydantic_ai("openai:gpt-4.1")
+
+        # Parts without _pydantic_history
+        parts = [
+            {"type": "text", "text": "Some response"},
+            {"type": "reasoning", "text": "Some thinking"},
+        ]
+
+        extracted = model._extract_stored_pydantic_messages(
+            parts, ModelMessagesTypeAdapter
+        )
+
+        assert extracted is None
+
+    def test_convert_messages_uses_stored_history(self):
+        """Test that message conversion uses stored pydantic history when available."""
+        from pydantic_ai.messages import (
+            ModelMessagesTypeAdapter,
+            ModelRequest,
+            ModelResponse,
+            UserPromptPart,
+            TextPart as PydanticTextPart,
+            ToolCallPart,
+            ToolReturnPart,
+        )
+
+        model = pydantic_ai("openai:gpt-4.1")
+
+        # Create properly paired tool messages
+        stored_messages = [
+            ModelRequest(parts=[UserPromptPart(content="What's the weather?")]),
+            ModelResponse(parts=[
+                ToolCallPart(
+                    tool_name="get_weather",
+                    args={"location": "SF"},
+                    tool_call_id="call_123",
+                ),
+            ]),
+            ModelRequest(parts=[
+                ToolReturnPart(
+                    tool_name="get_weather",
+                    content='{"temp": 72}',
+                    tool_call_id="call_123",
+                ),
+            ]),
+            ModelResponse(parts=[PydanticTextPart(content="The weather is 72F")]),
+        ]
+        messages_json = ModelMessagesTypeAdapter.dump_json(stored_messages)
+
+        # Create chat messages with stored history
+        messages = [
+            ChatMessage(role="user", content="What's the weather?"),
+            ChatMessage(
+                role="assistant",
+                content="The weather is 72F",
+                parts=[
+                    {"type": "text", "text": "The weather is 72F"},
+                    {
+                        "type": "_pydantic_history",
+                        "messages_json": messages_json.decode("utf-8"),
+                    },
+                ],
+            ),
+            ChatMessage(role="user", content="Thanks!"),
+        ]
+
+        converted = model._convert_messages_to_pydantic_ai(messages)
+
+        # Should have: 4 stored messages + 1 new user message = 5
+        assert len(converted) == 5
+        # Last should be the new user message
+        assert isinstance(converted[4], ModelRequest)
+        assert converted[4].parts[0].content == "Thanks!"
+
+
+class TestChatMessagePartConversion:
+    """Tests for ChatMessage part conversion (unknown parts pass through)."""
+
+    def test_unknown_part_types_pass_through(self):
+        """Test that unknown part types are kept as-is instead of discarded."""
+        # Create a message with a custom/unknown part type
+        msg = ChatMessage(
+            role="assistant",
+            content="Test",
+            parts=[
+                {"type": "text", "text": "Hello"},
+                {"type": "_pydantic_history", "messages_json": "[]"},
+                {"type": "unknown_custom_type", "data": "some data"},
+            ],
+        )
+
+        # All parts should be preserved
+        assert len(msg.parts) == 3
+
+        # The unknown parts should still be accessible as dicts
+        pydantic_history_part = None
+        for part in msg.parts:
+            if isinstance(part, dict) and part.get("type") == "_pydantic_history":
+                pydantic_history_part = part
+                break
+
+        assert pydantic_history_part is not None
+        assert pydantic_history_part["messages_json"] == "[]"
