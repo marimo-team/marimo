@@ -375,10 +375,14 @@ class GitHubConfig(TypedDict, total=False):
 
     - `api_key`: the GitHub API token
     - `base_url`: the base URL for the API
+    - `copilot_settings`: configuration settings for GitHub Copilot LSP.
+        Supports settings like `http` (proxy configuration), `telemetry`,
+        and `github-enterprise` (enterprise URI).
     """
 
     api_key: str
     base_url: NotRequired[str]
+    copilot_settings: NotRequired[dict[str, Any]]
 
 
 @dataclass

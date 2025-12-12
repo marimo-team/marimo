@@ -6,7 +6,7 @@ data stored in your GitHub repo to the notebook's filesystem, making it
 easy to bundle data with your notebooks.
 
 
+- [Share molab links](https://molab.marimo.io/github) to notebooks hosted on GitHub
 - Publish notebooks to [GitHub Pages](github_pages.md)
 - Edit notebooks on the [marimo playground](playground.md), with public link-based sharing
   (no login required!)
-- Synchronize to our [Community Cloud](community_cloud/index.md) for email-based sharing

@@ -5,13 +5,14 @@ import { describe, expect, it, vi } from "vitest";
 
 describe("multi-column sorting logic", () => {
   // Extract the core sorting logic to test in isolation
-  const handleSort = (
-    columnId: string,
-    desc: boolean,
-    sortingState: SortingState,
-    setSorting: (state: SortingState) => void,
-    clearSorting: () => void,
-  ) => {
+  const handleSort = (options: {
+    columnId: string;
+    desc: boolean;
+    sortingState: SortingState;
+    setSorting: (state: SortingState) => void;
+    clearSorting: () => void;
+  }) => {
+    const { columnId, desc, sortingState, setSorting, clearSorting } = options;
     const currentSort = sortingState.find((s) => s.id === columnId);
 
     if (currentSort && currentSort.desc === desc) {
@@ -34,7 +35,13 @@ describe("multi-column sorting logic", () => {
     const clearSorting = vi.fn();
 
     // Click Desc on age - should move age to end with desc=true
-    handleSort("age", true, sortingState, setSorting, clearSorting);
+    handleSort({
+      columnId: "age",
+      desc: true,
+      sortingState,
+      setSorting,
+      clearSorting,
+    });
 
     expect(setSorting).toHaveBeenCalledWith([
       { id: "name", desc: false },
@@ -49,7 +56,13 @@ describe("multi-column sorting logic", () => {
     const clearSorting = vi.fn();
 
     // Click Asc on age again - should remove the sort
-    handleSort("age", false, sortingState, setSorting, clearSorting);
+    handleSort({
+      columnId: "age",
+      desc: false,
+      sortingState,
+      setSorting,
+      clearSorting,
+    });
 
     expect(clearSorting).toHaveBeenCalled();
     expect(setSorting).not.toHaveBeenCalled();
@@ -61,7 +74,13 @@ describe("multi-column sorting logic", () => {
     const clearSorting = vi.fn();
 
     // Click Asc on age - should add age to end
-    handleSort("age", false, sortingState, setSorting, clearSorting);
+    handleSort({
+      columnId: "age",
+      desc: false,
+      sortingState,
+      setSorting,
+      clearSorting,
+    });
 
     expect(setSorting).toHaveBeenCalledWith([
       { id: "name", desc: false },
@@ -76,7 +95,13 @@ describe("multi-column sorting logic", () => {
     const clearSorting = vi.fn();
 
     // Click Desc on age - should toggle to descending
-    handleSort("age", true, sortingState, setSorting, clearSorting);
+    handleSort({
+      columnId: "age",
+      desc: true,
+      sortingState,
+      setSorting,
+      clearSorting,
+    });
 
     expect(setSorting).toHaveBeenCalledWith([{ id: "age", desc: true }]);
     expect(clearSorting).not.toHaveBeenCalled();
@@ -109,7 +134,13 @@ describe("multi-column sorting logic", () => {
     const clearSorting = vi.fn();
 
     // Click Desc on age again - should remove it
-    handleSort("age", true, sortingState, setSorting, clearSorting);
+    handleSort({
+      columnId: "age",
+      desc: true,
+      sortingState,
+      setSorting,
+      clearSorting,
+    });
 
     expect(clearSorting).toHaveBeenCalled();
     // After removal, dept should move from priority 3 to priority 2

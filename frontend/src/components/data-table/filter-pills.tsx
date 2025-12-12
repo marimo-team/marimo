@@ -96,7 +96,8 @@ function formatValue(value: ColumnFilterValue, timeFormatter: DateFormatter) {
     const stringifiedOptions = value.options.map((o) =>
       stringifyUnknownValue({ value: o }),
     );
-    return `is in [${stringifiedOptions.join(", ")}]`;
+    const operator = value.operator === "in" ? "is in" : "not in";
+    return `${operator} [${stringifiedOptions.join(", ")}]`;
   }
   if (value.type === "text") {
     return `contains "${value.text}"`;

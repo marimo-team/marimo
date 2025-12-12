@@ -1,0 +1,63 @@
+name: "PR Comment on Failure"
+description: "Comments on PRs from forks when checks fail"
+inputs:
+  check-name:
+    description: "The name of the check that failed"
+    required: true
+  command:
+    description: "The command that contributors should run"
+    required: true
+  github-token:
+    description: "GitHub token for commenting"
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: Comment on PR
+      if: github.event.pull_request.head.repo.fork == true
+      uses: actions/github-script@v7
+      with:
+        github-token: ${{ inputs.github-token }}
+        script: |
+          const checkName = '${{ inputs.check-name }}';
+          const command = '${{ inputs.command }}';
+
+          const body = `👋 It looks like the **${checkName}** check failed.
+
+          To fix this locally, please run:
+
+          \`\`\`bash
+          ${command}
+          \`\`\`
+          `;
+
+          // Check if we already commented
+          const { data: comments } = await github.rest.issues.listComments({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            issue_number: context.issue.number,
+          });
+
+          const botComment = comments.find(comment =>
+            comment.user.type === 'Bot' &&
+            comment.body.includes(checkName)
+          );
+
+          if (botComment) {
+            // Update existing comment
+            await github.rest.issues.updateComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              comment_id: botComment.id,
+              body: body
+            });
+          } else {
+            // Create new comment
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: body
+            });
+          }

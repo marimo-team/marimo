@@ -56,8 +56,9 @@ def python_print_pandas(
             return f"{df_name}[{_as_literal(column_id)}].str.startswith({_as_literal(value)})"  # noqa: E501
         elif operator == "ends_with":
             return f"{df_name}[{_as_literal(column_id)}].str.endswith({_as_literal(value)})"  # noqa: E501
-        elif operator == "in":
-            return f"{df_name}[{_as_literal(column_id)}].isin({_list_of_strings(value)})"  # noqa: E501
+        elif operator == "in" or operator == "not_in":
+            result = f"{df_name}[{_as_literal(column_id)}].isin({_list_of_strings(value)})"  # noqa: E501
+            return result if operator == "in" else f"~{result}"
         elif operator == "!=":
             return (
                 f"{df_name}[{_as_literal(column_id)}].ne({_as_literal(value)})"
@@ -143,9 +144,18 @@ def python_print_pandas(
             transform.drop_na,
         )
         # Use explicit aggregation columns if provided, otherwise all except group-by columns
-        aggregation_columns = transform.aggregation_column_ids or [
-            col for col in all_columns if col not in column_ids
-        ]
+        # Filter out group-by columns from aggregation columns to match narwhals behavior
+        group_by_column_id_set = set(column_ids)
+        if transform.aggregation_column_ids:
+            aggregation_columns = [
+                col
+                for col in transform.aggregation_column_ids
+                if col not in group_by_column_id_set
+            ]
+        else:
+            aggregation_columns = [
+                col for col in all_columns if col not in group_by_column_id_set
+            ]
         args = _args_list(_list_of_strings(column_ids), f"dropna={drop_na}")
         group_by = f"{df_name}.groupby({args})"
         # Narwhals adds suffixes to aggregated columns like 'column_count'
@@ -165,22 +175,17 @@ def python_print_pandas(
         else:
             assert_never(aggregation)
 
-        # If specific aggregation columns are provided, only aggregate those and rename explicitly.
-        if aggregation_columns:
-            agg_dict = ", ".join(
-                f"{_as_literal(f'{col}_{aggregation}')} : ({_as_literal(col)}, {_as_literal(agg_func)})"
-                for col in aggregation_columns
-            )
-            return f"{group_by}.agg(**{{{agg_dict}}}).reset_index()"
+        # If aggregation_columns is empty after filtering, just return unique grouped columns
+        # This matches narwhals behavior when agg() is called with empty list
+        if not aggregation_columns:
+            return f"{df_name}[{_list_of_strings(column_ids)}].drop_duplicates().reset_index(drop=True)"
 
-        # Otherwise, follow pandas default across all applicable columns and suffix the result
-        if aggregation in ["mean", "median"]:
-            agg_call = f"{group_by}.{agg_func}(numeric_only=True)"
-        else:
-            agg_call = f"{group_by}.{agg_func}()"
-        # Need to escape the f-string properly for the lambda and include the aggregation string literal
-        # Use single curly braces in the f-string since we want them in the generated code
-        return f"({agg_call}.reset_index().rename(columns=lambda col: col if col in {_list_of_strings(column_ids)} else f'{{col}}_{aggregation}'))"
+        # If specific aggregation columns are provided, only aggregate those and rename explicitly.
+        agg_dict = ", ".join(
+            f"{_as_literal(f'{col}_{aggregation}')} : ({_as_literal(col)}, {_as_literal(agg_func)})"
+            for col in aggregation_columns
+        )
+        return f"{group_by}.agg(**{{{agg_dict}}}).reset_index()"
 
     elif transform.type == TransformType.SELECT_COLUMNS:
         column_ids = transform.column_ids
@@ -237,8 +242,9 @@ def python_print_polars(
             return f"pl.col({_as_literal(column_id)}).str.starts_with({_as_literal(value)})"  # noqa: E501
         elif operator == "ends_with":
             return f"pl.col({_as_literal(column_id)}).str.ends_with({_as_literal(value)})"  # noqa: E501
-        elif operator == "in":
-            return f"pl.col({_as_literal(column_id)}).is_in({_list_of_strings(value)})"  # noqa: E501
+        elif operator == "in" or operator == "not_in":
+            result = f"pl.col({_as_literal(column_id)}).is_in({_list_of_strings(value)})"  # noqa: E501
+            return result if operator == "in" else f"~{result}"
         elif operator in [">", ">=", "<", "<="]:
             return f"pl.col({_as_literal(column_id)}) {operator} {_as_literal(value)}"  # noqa: E501
         elif operator == "is_null":
@@ -397,8 +403,9 @@ def python_print_ibis(
             return f"({df_name}[{_as_literal(column_id)}].startswith({_as_literal(value)}))"  # noqa: E501
         elif operator == "ends_with":
             return f"({df_name}[{_as_literal(column_id)}].endswith({_as_literal(value)}))"  # noqa: E501
-        elif operator == "in":
-            return f"({df_name}[{_as_literal(column_id)}].isin({_list_of_strings(value)}))"  # noqa: E501
+        elif operator == "in" or operator == "not_in":
+            result = f"({df_name}[{_as_literal(column_id)}].isin({_list_of_strings(value)}))"  # noqa: E501
+            return result if operator == "in" else f"~{result}"
         elif operator in [">", ">=", "<", "<="]:
             return f"({df_name}[{_as_literal(column_id)}] {operator} {_as_literal(value)})"  # noqa: E501
         elif operator == "is_null":
