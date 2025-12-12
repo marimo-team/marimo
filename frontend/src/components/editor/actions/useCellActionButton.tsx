@@ -196,11 +196,9 @@ export function useCellActionButtons({ cell, closePopover }: Props) {
         icon: config.disabled ? (
           <ZapOffIcon size={13} strokeWidth={1.5} />
         ) : (
-          <ZapIcon size={13} strokeWidth={1.5}/>
+          <ZapIcon size={13} strokeWidth={1.5} />
         ),
-        label: config.disabled
-          ? "Enable execution"
-          : "Disable execution",
+        label: config.disabled ? "Enable execution" : "Disable execution",
         handle: toggleDisabled,
         hidden: isSetupCell,
       },
