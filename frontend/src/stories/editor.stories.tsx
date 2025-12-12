@@ -59,7 +59,7 @@ const Editor = (opts: { extensions?: Extension[] }): React.ReactNode => {
 };
 
 export const Primary: Story = {
-  render: (args, ctx) => (
+  render: (_args, ctx) => (
     <div className="Cell m-20 w-[60%] overflow-hidden">
       <Editor
         extensions={basicBundle({
@@ -80,6 +80,7 @@ export const DefaultPython: Story = {
           python(),
           copilotBundle({
             activate_on_typing: true,
+            signature_hint_on_typing: false,
             copilot: false,
             codeium_api_key: null,
           }),

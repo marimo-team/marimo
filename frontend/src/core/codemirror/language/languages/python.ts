@@ -267,8 +267,8 @@ export class PythonLanguageAdapter implements LanguageAdapter<{}> {
         clients.push(pyrightClient(lspConfig));
       }
 
-      // For now, enable this for dev environments
-      const signatureActivateOnTyping = import.meta.env.DEV;
+      const signatureActivateOnTyping =
+        completionConfig.signature_hint_on_typing;
 
       // Match completions before the cursor is at the end of a word,
       // after a dot, after a slash (and with/without a comma).

@@ -55,6 +55,7 @@ test("default UserConfig - empty", () => {
       },
       "completion": {
         "activate_on_typing": true,
+        "signature_hint_on_typing": false,
         "copilot": false,
       },
       "diagnostics": {},
@@ -123,6 +124,7 @@ test("default UserConfig - one level", () => {
       },
       "completion": {
         "activate_on_typing": true,
+        "signature_hint_on_typing": false,
         "copilot": false,
       },
       "diagnostics": {},
@@ -198,7 +200,11 @@ test("default UserConfig with additional information", () => {
 
 test("resolvedMarimoConfigAtom overrides correctly and does not mutate the original array", () => {
   const initialUserConfig = {
-    completion: { activate_on_typing: true, copilot: false },
+    completion: {
+      activate_on_typing: true,
+      copilot: false,
+      signature_hint_on_typing: false,
+    },
     save: {
       autosave: "after_delay",
       autosave_delay: 1000,

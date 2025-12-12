@@ -14,6 +14,7 @@ import { OverridingHotkeyProvider } from "../core/hotkeys/hotkeys";
 const demoConfig: Partial<CodeMirrorSetupOpts> = {
   completionConfig: {
     activate_on_typing: false,
+    signature_hint_on_typing: false,
     copilot: false,
     codeium_api_key: null,
   },
@@ -37,10 +38,10 @@ class ExampleClass:
     def __init__(self, value):
         self.value = value
         self.data = {}
-    
+
     def get_value(self):
         return self.value
-    
+
     @property
     def data_size(self):
         return len(self.data)
