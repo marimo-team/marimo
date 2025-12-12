@@ -21,7 +21,9 @@ describe("ConsoleOutput integration", () => {
     consoleOutputs: [],
     stale: false,
     debuggerActive: false,
-    onSubmitDebugger: () => {},
+    onSubmitDebugger: () => {
+      // noop
+    },
   };
 
   it("should render console output with clickable URLs", () => {
