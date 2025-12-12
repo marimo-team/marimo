@@ -113,7 +113,7 @@ export const NotebookMenuDropdown: React.FC<Props> = ({
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="no-print w-[240px]">
         {actions.map((action) => {
-          if (action.hidden) {
+          if (action.hidden || action.redundant) {
             return null;
           }
 
