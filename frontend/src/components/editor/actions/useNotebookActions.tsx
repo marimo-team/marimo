@@ -39,7 +39,6 @@ import {
   XCircleIcon,
   YoutubeIcon,
   ZapIcon,
-  ZapOffIcon,
 } from "lucide-react";
 import { settingDialogAtom } from "@/components/app-config/state";
 import { MarkdownIcon } from "@/components/editor/cell/code/icons";
@@ -54,7 +53,7 @@ import {
   hasEnabledCellsAtom,
   useCellActions,
 } from "@/core/cells/cells";
-import { disabledCellIds, enabledCellIds } from "@/core/cells/utils";
+import { disabledCellIds } from "@/core/cells/utils";
 import { useResolvedMarimoConfig } from "@/core/config/config";
 import { Constants } from "@/core/constants";
 import { useLayoutActions, useLayoutState } from "@/core/layout/layout";
@@ -266,6 +265,25 @@ export function useNotebookActions() {
         },
       ],
     },
+
+    {
+      icon: <PanelLeftIcon size={14} strokeWidth={1.5} />,
+      label: "Helper panel",
+      redundant: true,
+      handle: NOOP_HANDLER,
+      dropdown: PANELS.flatMap(({ type, Icon, hidden }) => {
+        if (hidden) {
+          return [];
+        }
+        return {
+          label: startCase(type),
+          rightElement: renderCheckboxElement(selectedPanel === type),
+          icon: <Icon size={14} strokeWidth={1.5} />,
+          handle: () => toggleApplication(type),
+        };
+      }),
+    },
+
     {
       icon: <PresentationIcon size={14} strokeWidth={1.5} />,
       label: "Present as",
@@ -374,6 +392,43 @@ export function useNotebookActions() {
       handle: restartKernel,
     },
     {
+      icon: <FastForwardIcon size={14} strokeWidth={1.5} />,
+      label: "Re-run all cells",
+      redundant: true,
+      hotkey: "global.runAll",
+      handle: async () => {
+        runAllCells();
+      },
+    },
+    {
+      icon: <XCircleIcon size={14} strokeWidth={1.5} />,
+      label: "Clear all outputs",
+      redundant: true,
+      handle: () => {
+        clearAllCellOutputs();
+      },
+    },
+    {
+      icon: <EyeOffIcon size={14} strokeWidth={1.5} />,
+      label: "Hide all markdown code",
+      handle: hideAllMarkdownCode,
+      redundant: true, // hidden by default
+    },
+    {
+      icon: <ChevronRightCircleIcon size={14} strokeWidth={1.5} />,
+      label: "Collapse all sections",
+      hotkey: "global.collapseAllSections",
+      handle: collapseAllCells,
+      redundant: true,
+    },
+    {
+      icon: <ChevronDownCircleIcon size={14} strokeWidth={1.5} />,
+      label: "Expand all sections",
+      hotkey: "global.expandAllSections",
+      handle: expandAllCells,
+      redundant: true,
+    },
+    {
       divider: true,
       icon: <CommandIcon size={14} strokeWidth={1.5} />,
       label: "Command palette",
@@ -387,7 +442,12 @@ export function useNotebookActions() {
       hotkey: "global.showHelp",
       handle: () => setKeyboardShortcutsOpen((open) => !open),
     },
-
+    {
+      icon: <SettingsIcon size={14} strokeWidth={1.5} />,
+      label: "User settings",
+      handle: () => setSettingsDialogOpen((open) => !open),
+      redundant: true,
+    },
     {
       icon: <ExternalLinkIcon size={14} strokeWidth={1.5} />,
       label: "Resources",
