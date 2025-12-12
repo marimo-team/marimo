@@ -210,8 +210,6 @@ async def tutorial(
     # Register the temp directory with the file router so it can be accessed
     # This is needed for directory-based routers to allow temp tutorial files
     app_state = AppState(request)
-    from marimo._server.file_router import LazyListOfFilesAppFileRouter
-
     if isinstance(
         app_state.session_manager.file_router, LazyListOfFilesAppFileRouter
     ):
