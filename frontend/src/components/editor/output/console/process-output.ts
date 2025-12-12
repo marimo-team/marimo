@@ -1,3 +1,4 @@
+/* Copyright 2024 Marimo. All rights reserved. */
 import type { OutputMessage } from "@/core/kernel/messages";
 import { ansiToPlainText, parseHtmlContent } from "@/utils/dom";
 import { Strings } from "@/utils/strings";

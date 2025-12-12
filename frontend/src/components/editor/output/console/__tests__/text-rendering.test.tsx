@@ -100,7 +100,7 @@ describe("RenderTextWithLinks", () => {
       expect(screen.getByText(/Visit/)).toBeInTheDocument();
       // Should not have a script element in the DOM
       const scripts = document.querySelectorAll("script");
-      const hasXSSScript = Array.from(scripts).some((script) =>
+      const hasXSSScript = [...scripts].some((script) =>
         script.textContent?.includes("alert('xss')"),
       );
       expect(hasXSSScript).toBe(false);
@@ -118,13 +118,14 @@ describe("RenderTextWithLinks", () => {
 
 describe("cleanAnsiCodes", () => {
   it("should remove basic ANSI color codes", () => {
-    const text = "\x1b[31mRed text\x1b[0m";
+    const text = "\u001B[31mRed text\u001B[0m";
     const cleaned = cleanAnsiCodes(text);
     expect(cleaned).toBe("Red text");
   });
 
   it("should remove multiple ANSI codes", () => {
-    const text = "\x1b[31mRed\x1b[0m \x1b[32mGreen\x1b[0m \x1b[34mBlue\x1b[0m";
+    const text =
+      "\u001B[31mRed\u001B[0m \u001B[32mGreen\u001B[0m \u001B[34mBlue\u001B[0m";
     const cleaned = cleanAnsiCodes(text);
     expect(cleaned).toBe("Red Green Blue");
   });
@@ -136,13 +137,13 @@ describe("cleanAnsiCodes", () => {
   });
 
   it("should remove ANSI codes with multiple parameters", () => {
-    const text = "\x1b[1;31mBold Red\x1b[0m";
+    const text = "\u001B[1;31mBold Red\u001B[0m";
     const cleaned = cleanAnsiCodes(text);
     expect(cleaned).toBe("Bold Red");
   });
 
   it("should clean ANSI codes from URLs", () => {
-    const text = "https://marimo.io\x1b[0m";
+    const text = "https://marimo.io\u001B[0m";
     const cleaned = cleanAnsiCodes(text);
     expect(cleaned).toBe("https://marimo.io");
   });
@@ -154,19 +155,19 @@ describe("cleanAnsiCodes", () => {
   });
 
   it("should remove complex ANSI sequences", () => {
-    const text = "\x1b[38;5;208mOrange text\x1b[0m";
+    const text = "\u001B[38;5;208mOrange text\u001B[0m";
     const cleaned = cleanAnsiCodes(text);
     expect(cleaned).toBe("Orange text");
   });
 
   it("should handle text with only ANSI codes", () => {
-    const text = "\x1b[31m\x1b[0m";
+    const text = "\u001B[31m\u001B[0m";
     const cleaned = cleanAnsiCodes(text);
     expect(cleaned).toBe("");
   });
 
   it("should preserve special characters and whitespace", () => {
-    const text = "\x1b[31mSpecial: !@#$%^&*()\n\tTab and newline\x1b[0m";
+    const text = "\u001B[31mSpecial: !@#$%^&*()\n\tTab and newline\u001B[0m";
     const cleaned = cleanAnsiCodes(text);
     expect(cleaned).toBe("Special: !@#$%^&*()\n\tTab and newline");
   });
@@ -184,7 +185,7 @@ describe("RenderTextWithLinks - pip install detection", () => {
     render(<RenderTextWithLinks text="pip install package[extra,dep]" />);
 
     expect(
-      screen.getByText(/pip install package\[extra,dep\]/),
+      screen.getByText(/pip install package\[extra,dep]/),
     ).toBeInTheDocument();
     expect(screen.getByRole("button")).toBeInTheDocument();
   });
@@ -218,7 +219,7 @@ describe("RenderTextWithLinks - pip install detection", () => {
     // ANSI codes create nested spans which makes the replacer logic complex
     // For now, just verify it renders without crashing
     const { container } = render(
-      <RenderTextWithLinks text="\x1b[31mError: pip install pandas\x1b[0m" />,
+      <RenderTextWithLinks text="\u001B[31mError: pip install pandas\u001B[0m" />,
     );
     expect(container).toBeInTheDocument();
   });
@@ -226,7 +227,7 @@ describe("RenderTextWithLinks - pip install detection", () => {
     // ANSI codes create nested spans which makes the replacer logic complex
     // For now, just verify it renders without crashing
     const { container } = render(
-      <RenderTextWithLinks text="\x1b[31mError: pip install pandas\x1b[0m" />,
+      <RenderTextWithLinks text="\u001B[31mError: pip install pandas\u001B[0m" />,
     );
     expect(container).toBeInTheDocument();
   });
@@ -234,7 +235,7 @@ describe("RenderTextWithLinks - pip install detection", () => {
     // ANSI codes create nested spans which makes the replacer logic complex
     // For now, just verify it renders without crashing
     const { container } = render(
-      <RenderTextWithLinks text="\x1b[31mError: pip install pandas\x1b[0m" />,
+      <RenderTextWithLinks text="\u001B[31mError: pip install pandas\u001B[0m" />,
     );
     expect(container).toBeInTheDocument();
   });
@@ -242,7 +243,7 @@ describe("RenderTextWithLinks - pip install detection", () => {
     // ANSI codes create nested spans which makes the replacer logic complex
     // For now, just verify it renders without crashing
     const { container } = render(
-      <RenderTextWithLinks text="\x1b[31mError: pip install pandas\x1b[0m" />,
+      <RenderTextWithLinks text="\u001B[31mError: pip install pandas\u001B[0m" />,
     );
     expect(container).toBeInTheDocument();
   });
@@ -250,7 +251,7 @@ describe("RenderTextWithLinks - pip install detection", () => {
     // ANSI codes create nested spans which makes the replacer logic complex
     // For now, just verify it renders without crashing
     const { container } = render(
-      <RenderTextWithLinks text="\x1b[31mError: pip install pandas\x1b[0m" />,
+      <RenderTextWithLinks text="\u001B[31mError: pip install pandas\u001B[0m" />,
     );
     expect(container).toBeInTheDocument();
   });
@@ -258,7 +259,7 @@ describe("RenderTextWithLinks - pip install detection", () => {
     // ANSI codes create nested spans which makes the replacer logic complex
     // For now, just verify it renders without crashing
     const { container } = render(
-      <RenderTextWithLinks text="\x1b[31mError: pip install pandas\x1b[0m" />,
+      <RenderTextWithLinks text="\u001B[31mError: pip install pandas\u001B[0m" />,
     );
     expect(container).toBeInTheDocument();
   });

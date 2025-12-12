@@ -16,7 +16,7 @@ export const cleanAnsiCodes = (text: string): string => {
   // Remove ANSI escape sequences (ESC[ followed by numbers/semicolons and 'm')
   // Using String.fromCharCode to avoid linter error
   const ansiRegex = new RegExp(`${String.fromCharCode(27)}\\[[0-9;]*m`, "g");
-  return text.replace(ansiRegex, "");
+  return text.replaceAll(ansiRegex, "");
 };
 
 // Regex to match install commands: pip install, uv add, uv pip install
@@ -46,8 +46,8 @@ function parsePipInstallCommand(
   let packageName = "";
   let packageStartOffset = 0;
 
-  for (let i = 0; i < tokens.length; i++) {
-    const token = tokens[i].trim();
+  for (const token_ of tokens) {
+    const token = token_.trim();
     if (!token) {
       continue;
     }
@@ -61,7 +61,7 @@ function parsePipInstallCommand(
 
     // Found the package name - extract it using character matching
     // Match until we hit a character that's not valid in package names
-    const packageMatch = token.match(/^[\w\-.[\],]+/);
+    const packageMatch = token.match(/^[\w,.[\]-]+/);
     if (packageMatch) {
       packageName = packageMatch[0];
       break;
@@ -189,10 +189,10 @@ export const pipInstallReplacer: Replacer = (domNode: DOMNode) => {
   }
 
   // Find all matches in the text
-  const matches: Array<{
+  const matches: {
     match: RegExpExecArray;
     result: { package: string; endIndex: number };
-  }> = [];
+  }[] = [];
 
   // Create a new regex for iteration (don't reuse the global one)
   const regex = /(pip\s+install|uv\s+add|uv\s+pip\s+install)\s+/gi;
