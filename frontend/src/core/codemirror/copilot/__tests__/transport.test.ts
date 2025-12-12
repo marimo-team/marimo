@@ -155,7 +155,7 @@ describe("LazyWebsocketTransport", () => {
       expect(mockShowError).toHaveBeenCalledTimes(1);
       expect(mockShowError).toHaveBeenCalledWith(
         "GitHub Copilot Connection Error",
-        "Failed to connect to GitHub Copilot. Please check your settings and try again.",
+        "Failed to connect to GitHub Copilot. Please check your settings and try again.\n\nConnection failed",
       );
       expect((transport as any).delegate).toBeUndefined();
     });
