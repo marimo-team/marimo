@@ -28,7 +28,10 @@ def _is_leaf(obj: Any) -> bool:
 
 
 def _flatten_sequence(
-    value: list[Any] | tuple[Any, ...], json_compat_keys: bool, seen: set[int]
+    value: list[Any] | tuple[Any, ...],
+    json_compat_keys: bool,
+    seen: set[int],
+    flatten_subclasses: bool,
 ) -> FLATTEN_RET_TYPE:
     """Flatten a sequence of values"""
     base_type: type[list[Any]] | type[tuple[Any, ...]]
@@ -75,7 +78,12 @@ def _flatten_sequence(
         # is not a leaf
         if i < len(value):
             assert not _is_leaf(value[i])
-            flattened, u = _flatten(value[i], json_compat_keys, seen)
+            flattened, u = _flatten(
+                value[i],
+                json_compat_keys,
+                seen,
+                flatten_subclasses=flatten_subclasses,
+            )
             lengths.append(len(flattened))
             flattened_pieces.append(flattened)
 
@@ -121,7 +129,10 @@ def _flatten_sequence(
 
 
 def _flatten(
-    value: Any, json_compat_keys: bool, seen: set[int]
+    value: Any,
+    json_compat_keys: bool,
+    seen: set[int],
+    flatten_subclasses: bool,
 ) -> FLATTEN_RET_TYPE:
     # Track ids of structures to make sure that the tree has a finite height,
     # ie, to make sure that no structure contains itself.
@@ -130,9 +141,21 @@ def _flatten(
         if value_id in seen:
             raise CyclicStructureError("already seen ", value)
 
+    if (
+        not flatten_subclasses
+        and isinstance(value, (tuple, list, dict))
+        and type(value) not in (tuple, list, dict)
+    ):
+        return [value], lambda x: x[0]
+
     if isinstance(value, (tuple, list)):
         seen.add(value_id)
-        ret = _flatten_sequence(value, json_compat_keys, seen)
+        ret = _flatten_sequence(
+            value,
+            json_compat_keys,
+            seen,
+            flatten_subclasses=flatten_subclasses,
+        )
         seen.remove(value_id)
         return ret
     elif isinstance(value, dict):
@@ -146,7 +169,7 @@ def _flatten(
         keys = []
         for k, v in value.items():
             curr_flattened, curr_unflatten = _flatten(
-                v, json_compat_keys, seen
+                v, json_compat_keys, seen, flatten_subclasses
             )
             flattened.append(curr_flattened)
             unflatteners.append(curr_unflatten)
@@ -173,7 +196,9 @@ def _flatten(
         return [value], lambda x: x[0]
 
 
-def flatten(value: Any, json_compat_keys: bool = False) -> FLATTEN_RET_TYPE:
+def flatten(
+    value: Any, json_compat_keys: bool = False, flatten_subclasses: bool = True
+) -> FLATTEN_RET_TYPE:
     """Flatten a nested structure.
 
     Returns the structure flattened and a repacking function.
@@ -197,6 +222,8 @@ def flatten(value: Any, json_compat_keys: bool = False) -> FLATTEN_RET_TYPE:
     value: nested structure of lists, tuples, and dicts
     json_compat_keys: if True, unflattener will stringify dict keys when
       keys are not JSON compatible
+    flatten_subclasses: whether to flatten values whose types are subclasses
+        of structure types, or to leave them as is
 
     Returns:
     -------
@@ -207,7 +234,12 @@ def flatten(value: Any, json_compat_keys: bool = False) -> FLATTEN_RET_TYPE:
     CyclicStructureError: If the structure has a cyclic nesting pattern,
         such as a list that contains itself
     """
-    flattened, u = _flatten(value, json_compat_keys, seen=set())
+    flattened, u = _flatten(
+        value,
+        json_compat_keys,
+        seen=set(),
+        flatten_subclasses=flatten_subclasses,
+    )
 
     def unflatten_with_validation(vector: list[Any]) -> STRUCT_TYPE:
         if type(vector) != list:  # noqa: E721

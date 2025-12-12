@@ -55,7 +55,7 @@ def format_structure(
     Returns a structure of the same shape as `t` with formatted
     leaves.
     """
-    flattened, repacker = flatten(t, json_compat_keys=True)
+    flattened, repacker = flatten(t, json_compat_keys=True, flatten_subclasses=False)
     return repacker([_leaf_formatter(v) for v in flattened])
 
 

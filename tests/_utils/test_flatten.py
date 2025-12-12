@@ -223,6 +223,62 @@ def test_flatten_custom_list() -> None:
     assert u(v) == []
 
 
+def test_dont_flatten_subclass_list() -> None:
+    class CustomList(list): ...
+
+    mylist = CustomList()
+    mylist.extend([1, 2, 3])
+    v, u = flatten(mylist, flatten_subclasses=False)
+    assert v == [mylist]
+    assert u(v) == mylist
+
+
+def test_dont_flatten_subclass_tuple() -> None:
+    class CustomTuple(tuple): ...
+
+    mytuple = CustomTuple([1, 2, 3])
+    v, u = flatten(mytuple, flatten_subclasses=False)
+    assert v == [mytuple]
+    assert u(v) == mytuple
+
+
+def test_dont_flatten_subclass_dict() -> None:
+    class CustomDict(dict): ...
+
+    mydict = CustomDict({1: 2})
+    v, u = flatten(mydict, flatten_subclasses=False)
+    assert v == [mydict]
+    assert u(v) == mydict
+
+
+def test_flatten_subclass_list() -> None:
+    class CustomList(list): ...
+
+    mylist = CustomList()
+    mylist.extend([1, 2, 3])
+    v, u = flatten(mylist, flatten_subclasses=True)
+    assert v == [1, 2, 3]
+    assert u(v) == [1, 2, 3]
+
+
+def test_flatten_subclass_tuple() -> None:
+    class CustomTuple(tuple): ...
+
+    mytuple = CustomTuple([1, 2, 3])
+    v, u = flatten(mytuple, flatten_subclasses=True)
+    assert v == [1, 2, 3]
+    assert u(v) == (1, 2, 3)
+
+
+def test_flatten_subclass_dict() -> None:
+    class CustomDict(dict): ...
+
+    mydict = CustomDict({1: 2})
+    v, u = flatten(mydict, flatten_subclasses=True)
+    assert v == [2]
+    assert u(v) == {1: 2}
+
+
 def test_contains_instance() -> None:
     class A:
         pass
