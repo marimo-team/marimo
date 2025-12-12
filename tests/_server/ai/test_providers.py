@@ -6,9 +6,9 @@ import pytest
 
 from marimo._ai._types import ChatMessage
 from marimo._config.config import AiConfig
+from marimo._server.ai.config import AnyProviderConfig
 from marimo._server.ai.providers import (
     AnthropicProvider,
-    AnyProviderConfig,
     AzureOpenAIProvider,
     BedrockProvider,
     GoogleProvider,

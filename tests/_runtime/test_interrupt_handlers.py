@@ -7,9 +7,9 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from marimo._dependencies.dependencies import DependencyManager
+from marimo._messaging.errors import MarimoInterrupt
 from marimo._runtime.context.types import ExecutionContext
 from marimo._runtime.handlers import construct_interrupt_handler
-from marimo._runtime.runtime import MarimoInterrupt
 
 HAS_DUCKDB = DependencyManager.duckdb.has()
 
