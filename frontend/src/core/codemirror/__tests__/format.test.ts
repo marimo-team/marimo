@@ -54,6 +54,7 @@ function createEditor(content: string, cellId: CellId) {
         cellId,
         completionConfig: {
           activate_on_typing: true,
+          signature_hint_on_typing: false,
           copilot: false,
           codeium_api_key: null,
         },
