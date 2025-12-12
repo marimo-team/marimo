@@ -214,6 +214,8 @@ the progressively building response in real-time.
     
     - [`openai_example.py`](https://github.com/marimo-team/marimo/blob/main/examples/ai/chat/openai_example.py) - OpenAI chatbot with streaming (default)
     - [`streaming_custom.py`](https://github.com/marimo-team/marimo/blob/main/examples/ai/chat/streaming_custom.py) - Custom streaming chatbot
+    - [`pydantic_ai_with_tools.py`](https://github.com/marimo-team/marimo/blob/main/examples/ai/chat/pydantic_ai_with_tools.py) - Chatbot with tool calling
+    - [`pydantic_ai_with_thinking_and_tools.py`](https://github.com/marimo-team/marimo/blob/main/examples/ai/chat/pydantic_ai_with_thinking_and_tools.py) - Chatbot with thinking and tools
 
 ## Built-in Models
 
@@ -288,6 +290,72 @@ mo.ui.chat(
 ```
 
 ::: marimo.ai.llm.groq
+
+### Pydantic AI (with Tools and Thinking)
+
+The `pydantic_ai` model provides advanced features like **tool calling** and 
+**thinking/reasoning** support using [pydantic-ai](https://ai.pydantic.dev/).
+
+#### Basic Usage with Tools
+
+```python
+import marimo as mo
+
+def get_weather(location: str) -> dict:
+    """Get weather for a location."""
+    # Your weather API call here
+    return {"temperature": 72, "conditions": "sunny"}
+
+def calculate(expression: str) -> float:
+    """Evaluate a math expression."""
+    return eval(expression)
+
+chat = mo.ui.chat(
+    mo.ai.llm.pydantic_ai(
+        "anthropic:claude-sonnet-4-5",  # or "openai:gpt-4o", "google:gemini-2.0-flash", etc.
+        tools=[get_weather, calculate],
+        system_message="You are a helpful assistant.",
+        api_key="...",
+    ),
+)
+chat
+```
+
+Tool calls are displayed as collapsible accordions in the chat UI, showing
+the tool name, inputs, and outputs.
+
+#### With Thinking/Reasoning
+
+Enable thinking to see the LLM's step-by-step reasoning process:
+
+```python
+chat = mo.ui.chat(
+    mo.ai.llm.pydantic_ai(
+        "anthropic:claude-sonnet-4-5",
+        tools=[get_weather, calculate],
+        enable_thinking=True,  # Enable with default settings
+        # Or customize: enable_thinking={"budget_tokens": 5000}
+        api_key="...",
+    ),
+)
+```
+
+When enabled, a "View reasoning" accordion appears before the response,
+showing the LLM's thinking process in real-time.
+
+#### Provider Model Format
+
+The model string uses the format `provider:model_name`:
+
+- `"openai:gpt-4o"` - OpenAI
+- `"anthropic:claude-sonnet-4-5"` - Anthropic (supports thinking)
+- `"google:gemini-2.0-flash"` - Google (supports thinking)
+- `"groq:llama-3.1-70b-versatile"` - Groq
+
+See the [pydantic-ai documentation](https://ai.pydantic.dev/models/) for all 
+supported providers and models.
+
+::: marimo.ai.llm.pydantic_ai
 
 ## Types
 

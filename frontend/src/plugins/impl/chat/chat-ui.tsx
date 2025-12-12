@@ -4,7 +4,7 @@ import { type UIMessage, useChat } from "@ai-sdk/react";
 import { ChatBubbleIcon } from "@radix-ui/react-icons";
 import { PopoverAnchor } from "@radix-ui/react-popover";
 import type { ReactCodeMirrorRef } from "@uiw/react-codemirror";
-import { DefaultChatTransport, type FileUIPart } from "ai";
+import { DefaultChatTransport, type FileUIPart, type ToolUIPart } from "ai";
 import { startCase } from "lodash-es";
 import {
   BotMessageSquareIcon,
@@ -20,6 +20,8 @@ import {
 } from "lucide-react";
 import React, { lazy, useEffect, useRef, useState } from "react";
 import { convertToFileUIPart } from "@/components/chat/chat-utils";
+import { ReasoningAccordion } from "@/components/chat/reasoning-accordion";
+import { ToolCallAccordion } from "@/components/chat/tool-call-accordion";
 import {
   type AdditionalCompletions,
   PromptInput,
@@ -60,6 +62,16 @@ import type { ChatConfig, ChatMessage } from "./types";
 const LazyStreamdown = lazy(() =>
   import("streamdown").then((module) => ({ default: module.Streamdown })),
 );
+
+function isToolPart(part: UIMessage["parts"][number]): part is ToolUIPart {
+  return part.type.startsWith("tool-");
+}
+
+function isReasoningPart(
+  part: UIMessage["parts"][number],
+): part is { type: "reasoning"; text: string } {
+  return part.type === "reasoning";
+}
 
 interface Props extends PluginFunctions {
   prompts: string[];
@@ -152,23 +164,33 @@ export const Chatbot: React.FC<Props> = (props) => {
           });
 
           // If streaming didn't happen (non-generator response), update the message
-          // Check if streaming state is still set (meaning no chunks were received)
-          if (
-            streamingStateRef.current.backendMessageId === null &&
-            streamingStateRef.current.frontendMessageIndex === null
-          ) {
-            setMessages((prev) => {
-              const updated = [...prev];
-              const index = updated.findIndex((m) => m.id === messageId);
-              if (index !== -1) {
+          // We track whether any chunks were received to avoid overwriting streamed parts
+          // Note: streaming state is cleared when is_final chunk arrives, so we need
+          // to check the message content, not just streaming state
+          setMessages((prev) => {
+            const updated = [...prev];
+            const index = updated.findIndex((m) => m.id === messageId);
+            if (index !== -1) {
+              const currentMessage = updated[index];
+              // Only overwrite if the message still has the initial empty placeholder
+              // (meaning no streaming chunks were received)
+              const firstPart = currentMessage.parts[0];
+              const hasOnlyEmptyText =
+                currentMessage.parts.length === 1 &&
+                firstPart.type === "text" &&
+                "text" in firstPart &&
+                firstPart.text === "";
+
+              if (hasOnlyEmptyText) {
                 updated[index] = {
-                  ...updated[index],
+                  ...currentMessage,
                   parts: [{ type: "text", text: response }],
                 };
               }
-              return updated;
-            });
-          }
+              // If streaming happened, parts were already updated by chunks - don't overwrite
+            }
+            return updated;
+          });
 
           return new Response(response);
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -228,6 +250,7 @@ export const Chatbot: React.FC<Props> = (props) => {
           type: string;
           message_id: string;
           content: string;
+          parts?: UIMessage["parts"];
           is_final: boolean;
         };
 
@@ -265,9 +288,13 @@ export const Chatbot: React.FC<Props> = (props) => {
             if (index < updated.length) {
               const messageToUpdate = updated[index];
               if (messageToUpdate.role === "assistant") {
+                // Use parts if provided, otherwise fall back to text content
+                const newParts: UIMessage["parts"] = chunkMessage.parts ?? [
+                  { type: "text", text: chunkMessage.content },
+                ];
                 updated[index] = {
                   ...messageToUpdate,
-                  parts: [{ type: "text", text: chunkMessage.content }],
+                  parts: newParts,
                 };
               }
             }
@@ -323,41 +350,128 @@ export const Chatbot: React.FC<Props> = (props) => {
   };
 
   const renderMessage = (message: UIMessage) => {
-    const textParts = message.parts?.filter((p) => p.type === "text");
-    const textContent = textParts?.map((p) => p.text).join("\n");
-    const content =
-      message.role === "assistant" ? (
-        <LazyStreamdown className="mo-markdown-renderer">
+    const parts = message.parts ?? [];
+
+    // For user messages, just show text content
+    if (message.role === "user") {
+      const textContent = parts
+        .filter((p) => p.type === "text")
+        .map((p) => p.text)
+        .join("\n");
+      const attachments = parts.filter((p) => p.type === "file");
+
+      return (
+        <>
           {textContent}
-        </LazyStreamdown>
-      ) : (
-        textContent
+          {attachments.length > 0 && (
+            <div className="mt-2">
+              {attachments.map((attachment, index) => (
+                <div key={index} className="flex items-baseline gap-2">
+                  {renderAttachment(attachment)}
+                  <a
+                    className={buttonVariants({
+                      variant: "text",
+                      size: "icon",
+                    })}
+                    href={attachment.url}
+                    download={attachment.filename}
+                  >
+                    <DownloadIcon className="size-3" />
+                  </a>
+                </div>
+              ))}
+            </div>
+          )}
+        </>
       );
+    }
 
-    const attachments = message.parts?.filter((p) => p.type === "file");
-
+    // For assistant messages, render each part in order
     return (
       <>
-        {content}
-        {attachments && attachments.length > 0 && (
-          <div className="mt-2">
-            {attachments.map((attachment, index) => (
-              <div key={index} className="flex items-baseline gap-2 ">
-                {renderAttachment(attachment)}
+        {parts.map((part, index) => {
+          if (isToolPart(part)) {
+            return (
+              <ToolCallAccordion
+                key={index}
+                index={index}
+                toolName={part.type}
+                result={part.output}
+                className="my-2"
+                state={part.state}
+                input={part.input}
+              />
+            );
+          }
+
+          if (part.type === "text") {
+            return (
+              <LazyStreamdown key={index} className="mo-markdown-renderer">
+                {part.text}
+              </LazyStreamdown>
+            );
+          }
+
+          if (part.type === "file") {
+            return (
+              <div key={index} className="flex items-baseline gap-2 mt-2">
+                {renderAttachment(part)}
                 <a
                   className={buttonVariants({
                     variant: "text",
                     size: "icon",
                   })}
-                  href={attachment.url}
-                  download={attachment.filename}
+                  href={part.url}
+                  download={part.filename}
                 >
                   <DownloadIcon className="size-3" />
                 </a>
               </div>
-            ))}
-          </div>
-        )}
+            );
+          }
+
+          // Fallback for unknown part types - log and skip
+          Logger.warn("Unknown part type:", part);
+          return null;
+        })}
+      </>
+    );
+  };
+
+  // Render only content parts (text, files - not tools or reasoning)
+  const renderNonToolParts = (parts: UIMessage["parts"]) => {
+    return (
+      <>
+        {parts.map((part, index) => {
+          if (part.type === "text") {
+            return (
+              <LazyStreamdown key={index} className="mo-markdown-renderer">
+                {part.text}
+              </LazyStreamdown>
+            );
+          }
+
+          if (part.type === "file") {
+            return (
+              <div key={index} className="flex items-baseline gap-2 mt-2">
+                {renderAttachment(part)}
+                <a
+                  className={buttonVariants({
+                    variant: "text",
+                    size: "icon",
+                  })}
+                  href={part.url}
+                  download={part.filename}
+                >
+                  <DownloadIcon className="size-3" />
+                </a>
+              </div>
+            );
+          }
+
+          // Skip tool parts (handled separately) and unknown types
+          return null;
+        })}
       </>
     );
   };
@@ -441,6 +555,28 @@ export const Chatbot: React.FC<Props> = (props) => {
             .map((p) => p.text)
             .join("\n");
 
+          // Separate tool parts, reasoning parts, and other parts for assistant messages
+          const toolParts =
+            message.role === "assistant"
+              ? message.parts?.filter((p) => isToolPart(p))
+              : [];
+          const reasoningParts =
+            message.role === "assistant"
+              ? message.parts?.filter((p) => isReasoningPart(p))
+              : [];
+          const contentParts =
+            message.role === "assistant"
+              ? message.parts?.filter(
+                  (p) => !isToolPart(p) && !isReasoningPart(p),
+                )
+              : message.parts;
+          const hasContentParts =
+            contentParts &&
+            contentParts.length > 0 &&
+            contentParts.some(
+              (p) => p.type !== "text" || ("text" in p && p.text.trim() !== ""),
+            );
+
           return (
             <div
               key={message.id}
@@ -449,15 +585,51 @@ export const Chatbot: React.FC<Props> = (props) => {
                 message.role === "user" ? "items-end" : "items-start",
               )}
             >
-              <div
-                className={`max-w-[80%] p-3 rounded-lg ${
-                  message.role === "user"
-                    ? "bg-(--sky-11) text-(--slate-1) whitespace-pre-wrap"
-                    : "bg-(--slate-4) text-(--slate-12)"
-                }`}
-              >
-                {renderMessage(message)}
-              </div>
+              {/* Reasoning rendered outside the message bubble */}
+              {reasoningParts && reasoningParts.length > 0 && (
+                <div className="w-full max-w-[90%] space-y-2">
+                  {reasoningParts.map((part, index) =>
+                    isReasoningPart(part) ? (
+                      <ReasoningAccordion
+                        key={`reasoning-${index}`}
+                        reasoning={part.text}
+                        index={index}
+                      />
+                    ) : null,
+                  )}
+                </div>
+              )}
+              {/* Tool calls rendered outside the message bubble */}
+              {toolParts && toolParts.length > 0 && (
+                <div className="w-full max-w-[90%] space-y-2">
+                  {toolParts.map((part, index) =>
+                    isToolPart(part) ? (
+                      <ToolCallAccordion
+                        key={`tool-${index}`}
+                        index={index}
+                        toolName={part.type}
+                        result={part.output}
+                        state={part.state}
+                        input={part.input}
+                      />
+                    ) : null,
+                  )}
+                </div>
+              )}
+              {/* Message bubble for content (text, files, etc.) */}
+              {(message.role === "user" || hasContentParts) && (
+                <div
+                  className={`max-w-[80%] p-3 rounded-lg ${
+                    message.role === "user"
+                      ? "bg-(--sky-11) text-(--slate-1) whitespace-pre-wrap"
+                      : "bg-(--slate-4) text-(--slate-12)"
+                  }`}
+                >
+                  {message.role === "user"
+                    ? renderMessage(message)
+                    : renderNonToolParts(contentParts ?? [])}
+                </div>
+              )}
               <div className="flex justify-end text-xs gap-2 invisible group-hover:visible">
                 <button
                   type="button"
