@@ -1,5 +1,6 @@
 # Copyright 2025 Marimo. All rights reserved.
 """Parallel cell execution using Python 3.14+ free threading."""
+
 from __future__ import annotations
 
 import threading
@@ -139,7 +140,9 @@ class ParallelExecutor(Executor):
         stub = self._stubs.get(cell.cell_id)
         if stub is None:
             # No stub registered - fall back to synchronous execution
-            assert self.base is not None, "ParallelExecutor requires a base executor"
+            assert self.base is not None, (
+                "ParallelExecutor requires a base executor"
+            )
             return self.base.execute_cell(cell, glbls, graph)
 
         future = self.pool.submit(
@@ -158,7 +161,9 @@ class ParallelExecutor(Executor):
         # The thread will call the sync version of base executor
         stub = self._stubs.get(cell.cell_id)
         if stub is None:
-            assert self.base is not None, "ParallelExecutor requires a base executor"
+            assert self.base is not None, (
+                "ParallelExecutor requires a base executor"
+            )
             return await self.base.execute_cell_async(cell, glbls, graph)
 
         future = self.pool.submit(
@@ -186,7 +191,9 @@ class ParallelExecutor(Executor):
                         raise parent_stub.error
 
             # Execute via base executor
-            assert self.base is not None, "ParallelExecutor requires a base executor"
+            assert self.base is not None, (
+                "ParallelExecutor requires a base executor"
+            )
             result = self.base.execute_cell(cell, glbls, graph)
 
             # Mark as resolved (globals already updated by base executor)

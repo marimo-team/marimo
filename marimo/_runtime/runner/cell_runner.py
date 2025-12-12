@@ -859,12 +859,12 @@ class Runner:
                 # Cells with output run synchronously (no stub registered)
                 # Only cells without output return DeferredResult
                 if use_parallel:
-                    from marimo._runtime.parallel_executor import DeferredResult
+                    from marimo._runtime.parallel_executor import (
+                        DeferredResult,
+                    )
 
                     if isinstance(run_result.output, DeferredResult):
-                        LOGGER.debug(
-                            "Deferring cell %s (no output)", cell_id
-                        )
+                        LOGGER.debug("Deferring cell %s (no output)", cell_id)
                         deferred_cells.append(
                             (cell_id, run_result.output, None)
                         )
@@ -876,15 +876,15 @@ class Runner:
 
         # Process all deferred cells - wait for completion and run hooks
         if deferred_cells:
-            LOGGER.debug(
-                "Processing %d deferred cells", len(deferred_cells)
-            )
+            LOGGER.debug("Processing %d deferred cells", len(deferred_cells))
             for cell_id, deferred, exc_ctx in deferred_cells:
                 cell = self.graph.cells[cell_id]
                 LOGGER.debug("Waiting for deferred cell %s", cell_id)
                 try:
                     actual_result = deferred.wait()
-                    run_result = RunResult(output=actual_result, exception=None)
+                    run_result = RunResult(
+                        output=actual_result, exception=None
+                    )
                 except BaseException as e:
                     run_result = RunResult(output=None, exception=e)
 

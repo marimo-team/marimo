@@ -291,6 +291,7 @@ class CacheContext(abc.ABC):
             return 0.0
         return self.loader.time_saved
 
+
 class CellCacheContext:
     """Tracks aggregated cell-level cache statistics."""
 
