@@ -35,7 +35,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import { toast } from "@/components/ui/use-toast";
 import { aiCompletionCellAtom } from "@/core/ai/state";
 import { maybeAddMarimoImport } from "@/core/cells/add-missing-import";
@@ -142,50 +141,6 @@ export function useCellActionButtons({ cell, closePopover }: Props) {
   const actions: ActionButton[][] = [
     [
       {
-        icon: <TextCursorInputIcon size={13} strokeWidth={1.5} />,
-        label: "Name",
-        disableClick: true,
-        handle: (evt) => {
-          evt?.stopPropagation();
-          evt?.preventDefault();
-        },
-        handleHeadless: () => {
-          openModal(
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Rename cell</DialogTitle>
-              </DialogHeader>
-              <div className="flex items-center justify-between">
-                <Label htmlFor="cell-name">Cell name</Label>
-                <NameCellInput
-                  placeholder={"cell name"}
-                  value={name}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      openModal(null);
-                    }
-                  }}
-                  onChange={(newName) =>
-                    updateCellName({ cellId, name: newName })
-                  }
-                />
-              </div>
-            </DialogContent>,
-          );
-        },
-        rightElement: (
-          <NameCellInput
-            placeholder={"cell name"}
-            value={name}
-            onChange={(newName) => updateCellName({ cellId, name: newName })}
-            onEnterKey={() => closePopover?.()}
-          />
-        ),
-        hidden: isSetupCell,
-      },
-      {
         icon: <PlayIcon size={13} strokeWidth={1.5} />,
         label: "Run cell",
         hotkey: "cell.run",
@@ -194,11 +149,12 @@ export function useCellActionButtons({ cell, closePopover }: Props) {
           status === "queued" ||
           status === "disabled-transitively" ||
           config.disabled,
+        redundant: true,
         handle: () => runCell(),
       },
       {
         icon: <SparklesIcon size={13} strokeWidth={1.5} />,
-        label: "AI completion",
+        label: "Refactor with AI",
         hidden: !aiEnabled,
         handle: () => {
           setAiCompletionCell((current) =>
@@ -209,19 +165,13 @@ export function useCellActionButtons({ cell, closePopover }: Props) {
       },
       {
         icon: <ScissorsIcon size={13} strokeWidth={1.5} />,
-        label: "Split cell",
+        label: "Split",
         hotkey: "cell.splitCell",
         handle: () => splitCell({ cellId }),
       },
       {
-        icon: <ImageIcon size={13} strokeWidth={1.5} />,
-        label: "Export output as PNG",
-        hidden: !hasOutput,
-        handle: () => downloadCellOutput(cellId),
-      },
-      {
         icon: <Code2Icon size={13} strokeWidth={1.5} />,
-        label: "Format cell",
+        label: "Format",
         hotkey: "cell.format",
         handle: () => {
           const editorView = getEditorView();
@@ -247,25 +197,9 @@ export function useCellActionButtons({ cell, closePopover }: Props) {
         ) : (
           <ZapIcon size={13} strokeWidth={1.5} />
         ),
-        label: "Reactive execution",
-        rightElement: (
-          <Switch
-            data-testid="cell-disable-switch"
-            checked={!config.disabled}
-            size="sm"
-            onCheckedChange={toggleDisabled}
-          />
-        ),
+        label: config.disabled ? "Enable execution" : "Disable execution",
         handle: toggleDisabled,
         hidden: isSetupCell,
-      },
-      {
-        icon: <XCircleIcon size={13} strokeWidth={1.5} />,
-        label: "Clear output",
-        hidden: !(hasOutput || hasConsoleOutput),
-        handle: () => {
-          clearCellOutput({ cellId });
-        },
       },
     ],
 
@@ -332,6 +266,7 @@ export function useCellActionButtons({ cell, closePopover }: Props) {
         hotkey: "cell.createAbove",
         handle: () => createCell({ cellId, before: true }),
         hidden: isSetupCell,
+        redundant: true,
       },
       {
         icon: (
@@ -343,6 +278,7 @@ export function useCellActionButtons({ cell, closePopover }: Props) {
         label: "Create cell below",
         hotkey: "cell.createBelow",
         handle: () => createCell({ cellId, before: false }),
+        redundant: true,
       },
       {
         icon: <ChevronUpIcon size={13} strokeWidth={1.5} />,
@@ -399,8 +335,70 @@ export function useCellActionButtons({ cell, closePopover }: Props) {
       },
     ],
 
+    // Outputs
+    [
+      {
+        icon: <ImageIcon size={13} strokeWidth={1.5} />,
+        label: "Export output as PNG",
+        hidden: !hasOutput,
+        handle: () => downloadCellOutput(cellId),
+      },
+      {
+        icon: <XCircleIcon size={13} strokeWidth={1.5} />,
+        label: "Clear output",
+        hidden: !(hasOutput || hasConsoleOutput),
+        handle: () => {
+          clearCellOutput({ cellId });
+        },
+      },
+    ],
+
     // Link to cell
     [
+      {
+        icon: <TextCursorInputIcon size={13} strokeWidth={1.5} />,
+        label: "Name",
+        disableClick: true,
+        handle: (evt) => {
+          evt?.stopPropagation();
+          evt?.preventDefault();
+        },
+        handleHeadless: () => {
+          openModal(
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Rename cell</DialogTitle>
+              </DialogHeader>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="cell-name">Cell name</Label>
+                <NameCellInput
+                  placeholder={"cell name"}
+                  value={name}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      openModal(null);
+                    }
+                  }}
+                  onChange={(newName) =>
+                    updateCellName({ cellId, name: newName })
+                  }
+                />
+              </div>
+            </DialogContent>,
+          );
+        },
+        rightElement: (
+          <NameCellInput
+            placeholder={"cell name"}
+            value={name}
+            onChange={(newName) => updateCellName({ cellId, name: newName })}
+            onEnterKey={() => closePopover?.()}
+          />
+        ),
+        hidden: isSetupCell,
+      },
       {
         icon: <LinkIcon size={13} strokeWidth={1.5} />,
         label: "Copy link to cell",

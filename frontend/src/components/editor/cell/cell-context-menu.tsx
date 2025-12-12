@@ -192,7 +192,7 @@ export const CellActionsContextMenu = ({
         {allActions.map((group, i) => (
           <Fragment key={i}>
             {group.map((action) => {
-              if (action.hidden) {
+              if (action.hidden || action.redundant) {
                 return null;
               }
 
