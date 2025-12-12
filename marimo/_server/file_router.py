@@ -197,7 +197,7 @@ class LazyListOfFilesAppFileRouter(AppFileRouter):
         self._lazy_files: Optional[list[FileInfo]] = None
         # Track temp directories that are allowed to be accessed
         # (e.g., for tutorials created by marimo)
-        self._allowed_temp_dirs: set[str] = set()
+        self._allowed_temp_dirs: set[Path] = set()
 
     @property
     def directory(self) -> str:
@@ -223,7 +223,7 @@ class LazyListOfFilesAppFileRouter(AppFileRouter):
             temp_dir: The absolute path to the temp directory to allow.
         """
         # Normalize the path to ensure consistency
-        normalized_path = str(Path(temp_dir).resolve())
+        normalized_path = Path(temp_dir).resolve()
         self._allowed_temp_dirs.add(normalized_path)
         LOGGER.debug("Registered allowed temp directory: %s", normalized_path)
 
@@ -241,10 +241,9 @@ class LazyListOfFilesAppFileRouter(AppFileRouter):
 
         try:
             file_resolved = Path(filepath).resolve(strict=False)
-            for temp_dir in self._allowed_temp_dirs:
-                temp_dir_resolved = Path(temp_dir).resolve(strict=False)
+            for temp_dir in list(self._allowed_temp_dirs):
                 try:
-                    file_resolved.relative_to(temp_dir_resolved)
+                    file_resolved.relative_to(temp_dir)
                     return True
                 except ValueError:
                     # Not a child of this temp directory, try next
