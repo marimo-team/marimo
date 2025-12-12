@@ -37,6 +37,7 @@ interface Data {
 
 type T = Record<string, unknown>;
 
+// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 type PluginFunctions = {
   send_to_widget: <T>(req: {
     content: unknown;

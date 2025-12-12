@@ -66,11 +66,11 @@ export type EnhancedNotification = {
 export class CopilotLanguageServerClient extends LanguageServerClient {
   private documentVersion = 0;
   private hasOpenedDocument = false;
-  private copilotSettings: Record<string, any> = {};
+  private copilotSettings: Record<string, unknown> = {};
 
   constructor(
     options: ConstructorParameters<typeof LanguageServerClient>[0] & {
-      copilotSettings?: Record<string, any>;
+      copilotSettings?: Record<string, unknown>;
     },
   ) {
     super(options);

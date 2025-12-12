@@ -223,46 +223,6 @@ describe("RenderTextWithLinks - pip install detection", () => {
     );
     expect(container).toBeInTheDocument();
   });
-  it("should handle pip install with ANSI codes", () => {
-    // ANSI codes create nested spans which makes the replacer logic complex
-    // For now, just verify it renders without crashing
-    const { container } = render(
-      <RenderTextWithLinks text="\u001B[31mError: pip install pandas\u001B[0m" />,
-    );
-    expect(container).toBeInTheDocument();
-  });
-  it("should handle pip install with ANSI codes", () => {
-    // ANSI codes create nested spans which makes the replacer logic complex
-    // For now, just verify it renders without crashing
-    const { container } = render(
-      <RenderTextWithLinks text="\u001B[31mError: pip install pandas\u001B[0m" />,
-    );
-    expect(container).toBeInTheDocument();
-  });
-  it("should handle pip install with ANSI codes", () => {
-    // ANSI codes create nested spans which makes the replacer logic complex
-    // For now, just verify it renders without crashing
-    const { container } = render(
-      <RenderTextWithLinks text="\u001B[31mError: pip install pandas\u001B[0m" />,
-    );
-    expect(container).toBeInTheDocument();
-  });
-  it("should handle pip install with ANSI codes", () => {
-    // ANSI codes create nested spans which makes the replacer logic complex
-    // For now, just verify it renders without crashing
-    const { container } = render(
-      <RenderTextWithLinks text="\u001B[31mError: pip install pandas\u001B[0m" />,
-    );
-    expect(container).toBeInTheDocument();
-  });
-  it("should handle pip install with ANSI codes", () => {
-    // ANSI codes create nested spans which makes the replacer logic complex
-    // For now, just verify it renders without crashing
-    const { container } = render(
-      <RenderTextWithLinks text="\u001B[31mError: pip install pandas\u001B[0m" />,
-    );
-    expect(container).toBeInTheDocument();
-  });
 
   it("should handle pip install with hyphens in package name", () => {
     render(<RenderTextWithLinks text="pip install scikit-learn" />);

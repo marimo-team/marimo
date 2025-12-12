@@ -1,4 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { Transport } from "@open-rpc/client-js/build/transports/Transport";
 import { beforeEach, describe, expect, it, vi } from "vitest";
