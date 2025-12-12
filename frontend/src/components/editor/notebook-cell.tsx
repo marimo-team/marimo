@@ -87,7 +87,7 @@ import {
   useTemporarilyShownCodeActions,
 } from "./navigation/state";
 import { type OnRefactorWithAI, OutputArea } from "./Output";
-import { ConsoleOutput } from "./output/ConsoleOutput";
+import { ConsoleOutput } from "./output/console/ConsoleOutput";
 import { CellDragHandle, SortableCell } from "./SortableCell";
 
 /**

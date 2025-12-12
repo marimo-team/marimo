@@ -37,8 +37,8 @@ function findDataViewPaths(
   if (obj instanceof DataView) {
     paths.push(currentPath);
   } else if (Array.isArray(obj)) {
-    for (let i = 0; i < obj.length; i++) {
-      paths.push(...findDataViewPaths(obj[i], [...currentPath, i]));
+    for (const [i, element] of obj.entries()) {
+      paths.push(...findDataViewPaths(element, [...currentPath, i]));
     }
   } else if (obj !== null && typeof obj === "object") {
     for (const [key, value] of Object.entries(obj)) {

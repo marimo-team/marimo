@@ -300,7 +300,7 @@ describe("dataViewToBase64", () => {
     for (let i = 0; i < decoded.length; i++) {
       decodedBytes[i] = decoded.charCodeAt(i);
     }
-    expect(Array.from(decodedBytes)).toEqual([0, 1, 2, 255, 254, 253]);
+    expect([...decodedBytes]).toEqual([0, 1, 2, 255, 254, 253]);
   });
 });
 

@@ -1,18 +1,18 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
-import type { Transport } from "@open-rpc/client-js/build/transports/Transport";
+import { Transport } from "@open-rpc/client-js/build/transports/Transport";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { CopilotLanguageServerClient } from "../language-server";
 
 // Mock transport
-class MockTransport implements Transport {
-  connect = vi.fn().mockResolvedValue(undefined);
-  close = vi.fn();
-  sendData = vi.fn().mockResolvedValue({});
-  subscribe = vi.fn();
-  unsubscribe = vi.fn();
-  transportRequestManager = {} as any;
-  parseData = vi.fn();
+class MockTransport extends Transport {
+  override connect = vi.fn().mockResolvedValue(undefined);
+  override close = vi.fn();
+  override sendData = vi.fn().mockResolvedValue({});
+  override subscribe = vi.fn();
+  override unsubscribe = vi.fn();
+  override parseData = vi.fn();
 }
 
 describe("CopilotLanguageServerClient", () => {
