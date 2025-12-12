@@ -141,13 +141,14 @@ def _flatten(
         if value_id in seen:
             raise CyclicStructureError("already seen ", value)
 
+    from marimo._output.formatters.structures import is_structures_formatter
     from marimo._output.formatting import get_formatter
 
     if (
         not flatten_formattable_subclasses
         and isinstance(value, (tuple, list, dict))
         and type(value) not in (tuple, list, dict)
-        and get_formatter(value) is not get_formatter(tuple())
+        and not is_structures_formatter(get_formatter(value))
     ):
         return [value], lambda x: x[0]
 
