@@ -20,8 +20,15 @@ def _leaf_formatter(
     value: object,
 ) -> bool | None | str | int:
     formatter = formatting.get_formatter(value)
-    if formatter is not None:
+
+    # Because we don't flatten subclasses of structures, we need to avoid
+    # recursing on structures in order to prevent infinite recursion.
+    is_structures_formatter = False
+    if formatter is formatting.get_formatter(tuple()):
+        is_structures_formatter = True
+    if formatter is not None and not is_structures_formatter:
         return ":".join(formatter(value))
+
     if isinstance(value, bool):
         return value
     if isinstance(value, str):
@@ -55,7 +62,9 @@ def format_structure(
     Returns a structure of the same shape as `t` with formatted
     leaves.
     """
-    flattened, repacker = flatten(t, json_compat_keys=True, flatten_subclasses=False)
+    flattened, repacker = flatten(
+        t, json_compat_keys=True, flatten_formattable_subclasses=False
+    )
     return repacker([_leaf_formatter(v) for v in flattened])
 
 

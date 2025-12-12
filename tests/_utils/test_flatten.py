@@ -6,6 +6,7 @@ from typing import Any
 
 import pytest
 
+from marimo._output import formatting
 from marimo._utils.flatten import (
     CyclicStructureError,
     contains_instance,
@@ -226,9 +227,13 @@ def test_flatten_custom_list() -> None:
 def test_dont_flatten_subclass_list() -> None:
     class CustomList(list): ...
 
+    @formatting.formatter(CustomList)
+    def format_custom_list(obj: Any) -> tuple[str, str]:
+        return ("text/plain", f"CustomList{list(obj)}")
+
     mylist = CustomList()
     mylist.extend([1, 2, 3])
-    v, u = flatten(mylist, flatten_subclasses=False)
+    v, u = flatten(mylist, flatten_formattable_subclasses=False)
     assert v == [mylist]
     assert u(v) == mylist
 
@@ -236,8 +241,12 @@ def test_dont_flatten_subclass_list() -> None:
 def test_dont_flatten_subclass_tuple() -> None:
     class CustomTuple(tuple): ...
 
+    @formatting.formatter(CustomTuple)
+    def format_custom_list(obj: Any) -> tuple[str, str]:
+        return ("text/plain", f"CustomList{list(obj)}")
+
     mytuple = CustomTuple([1, 2, 3])
-    v, u = flatten(mytuple, flatten_subclasses=False)
+    v, u = flatten(mytuple, flatten_formattable_subclasses=False)
     assert v == [mytuple]
     assert u(v) == mytuple
 
@@ -245,8 +254,12 @@ def test_dont_flatten_subclass_tuple() -> None:
 def test_dont_flatten_subclass_dict() -> None:
     class CustomDict(dict): ...
 
+    @formatting.formatter(CustomDict)
+    def format_custom_list(obj: Any) -> tuple[str, str]:
+        return ("text/plain", f"CustomList{list(obj)}")
+
     mydict = CustomDict({1: 2})
-    v, u = flatten(mydict, flatten_subclasses=False)
+    v, u = flatten(mydict, flatten_formattable_subclasses=False)
     assert v == [mydict]
     assert u(v) == mydict
 
@@ -256,7 +269,7 @@ def test_flatten_subclass_list() -> None:
 
     mylist = CustomList()
     mylist.extend([1, 2, 3])
-    v, u = flatten(mylist, flatten_subclasses=True)
+    v, u = flatten(mylist, flatten_formattable_subclasses=True)
     assert v == [1, 2, 3]
     assert u(v) == [1, 2, 3]
 
@@ -265,7 +278,7 @@ def test_flatten_subclass_tuple() -> None:
     class CustomTuple(tuple): ...
 
     mytuple = CustomTuple([1, 2, 3])
-    v, u = flatten(mytuple, flatten_subclasses=True)
+    v, u = flatten(mytuple, flatten_formattable_subclasses=True)
     assert v == [1, 2, 3]
     assert u(v) == (1, 2, 3)
 
@@ -274,7 +287,7 @@ def test_flatten_subclass_dict() -> None:
     class CustomDict(dict): ...
 
     mydict = CustomDict({1: 2})
-    v, u = flatten(mydict, flatten_subclasses=True)
+    v, u = flatten(mydict, flatten_formattable_subclasses=True)
     assert v == [2]
     assert u(v) == {1: 2}
 

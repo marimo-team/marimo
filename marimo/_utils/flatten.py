@@ -31,7 +31,7 @@ def _flatten_sequence(
     value: list[Any] | tuple[Any, ...],
     json_compat_keys: bool,
     seen: set[int],
-    flatten_subclasses: bool,
+    flatten_formattable_subclasses: bool,
 ) -> FLATTEN_RET_TYPE:
     """Flatten a sequence of values"""
     base_type: type[list[Any]] | type[tuple[Any, ...]]
@@ -82,7 +82,7 @@ def _flatten_sequence(
                 value[i],
                 json_compat_keys,
                 seen,
-                flatten_subclasses=flatten_subclasses,
+                flatten_formattable_subclasses=flatten_formattable_subclasses,
             )
             lengths.append(len(flattened))
             flattened_pieces.append(flattened)
@@ -132,7 +132,7 @@ def _flatten(
     value: Any,
     json_compat_keys: bool,
     seen: set[int],
-    flatten_subclasses: bool,
+    flatten_formattable_subclasses: bool,
 ) -> FLATTEN_RET_TYPE:
     # Track ids of structures to make sure that the tree has a finite height,
     # ie, to make sure that no structure contains itself.
@@ -141,10 +141,13 @@ def _flatten(
         if value_id in seen:
             raise CyclicStructureError("already seen ", value)
 
+    from marimo._output.formatting import get_formatter
+
     if (
-        not flatten_subclasses
+        not flatten_formattable_subclasses
         and isinstance(value, (tuple, list, dict))
         and type(value) not in (tuple, list, dict)
+        and get_formatter(value) is not get_formatter(tuple())
     ):
         return [value], lambda x: x[0]
 
@@ -154,7 +157,7 @@ def _flatten(
             value,
             json_compat_keys,
             seen,
-            flatten_subclasses=flatten_subclasses,
+            flatten_formattable_subclasses=flatten_formattable_subclasses,
         )
         seen.remove(value_id)
         return ret
@@ -169,7 +172,7 @@ def _flatten(
         keys = []
         for k, v in value.items():
             curr_flattened, curr_unflatten = _flatten(
-                v, json_compat_keys, seen, flatten_subclasses
+                v, json_compat_keys, seen, flatten_formattable_subclasses
             )
             flattened.append(curr_flattened)
             unflatteners.append(curr_unflatten)
@@ -197,7 +200,9 @@ def _flatten(
 
 
 def flatten(
-    value: Any, json_compat_keys: bool = False, flatten_subclasses: bool = True
+    value: Any,
+    json_compat_keys: bool = False,
+    flatten_formattable_subclasses: bool = True,
 ) -> FLATTEN_RET_TYPE:
     """Flatten a nested structure.
 
@@ -222,7 +227,7 @@ def flatten(
     value: nested structure of lists, tuples, and dicts
     json_compat_keys: if True, unflattener will stringify dict keys when
       keys are not JSON compatible
-    flatten_subclasses: whether to flatten values whose types are subclasses
+    flatten_formattable_subclasses: whether to flatten formattable values whose types are subclasses
         of structure types, or to leave them as is
 
     Returns:
@@ -238,7 +243,7 @@ def flatten(
         value,
         json_compat_keys,
         seen=set(),
-        flatten_subclasses=flatten_subclasses,
+        flatten_formattable_subclasses=flatten_formattable_subclasses,
     )
 
     def unflatten_with_validation(vector: list[Any]) -> STRUCT_TYPE:
