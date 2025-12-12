@@ -200,12 +200,18 @@ def has_cgroup_limits() -> tuple[bool, bool]:
     try:
         # Check cgroup v2 (modern containers)
         if os.path.exists("/sys/fs/cgroup/memory.max"):
-            memory_max = open("/sys/fs/cgroup/memory.max", encoding="utf-8").read().strip()
+            memory_max = (
+                open("/sys/fs/cgroup/memory.max", encoding="utf-8")
+                .read()
+                .strip()
+            )
             # 'max' means unlimited, any number means limited
             has_memory = memory_max != "max"
 
         if os.path.exists("/sys/fs/cgroup/cpu.max"):
-            cpu_max = open("/sys/fs/cgroup/cpu.max", encoding="utf-8").read().strip()
+            cpu_max = (
+                open("/sys/fs/cgroup/cpu.max", encoding="utf-8").read().strip()
+            )
             # 'max' means unlimited
             has_cpu = cpu_max != "max"
 
@@ -214,7 +220,10 @@ def has_cgroup_limits() -> tuple[bool, bool]:
             "/sys/fs/cgroup/memory/memory.limit_in_bytes"
         ):
             limit = int(
-                open("/sys/fs/cgroup/memory/memory.limit_in_bytes", encoding="utf-8")
+                open(
+                    "/sys/fs/cgroup/memory/memory.limit_in_bytes",
+                    encoding="utf-8",
+                )
                 .read()
                 .strip()
             )
@@ -275,10 +284,14 @@ def get_container_resources() -> Optional[dict[str, Any]]:
             # Try cgroup v2 first
             if os.path.exists("/sys/fs/cgroup/memory.max"):
                 memory_max = (
-                    open("/sys/fs/cgroup/memory.max", encoding="utf-8").read().strip()
+                    open("/sys/fs/cgroup/memory.max", encoding="utf-8")
+                    .read()
+                    .strip()
                 )
                 memory_current = (
-                    open("/sys/fs/cgroup/memory.current", encoding="utf-8").read().strip()
+                    open("/sys/fs/cgroup/memory.current", encoding="utf-8")
+                    .read()
+                    .strip()
                 )
 
                 if memory_max != "max":
@@ -294,16 +307,20 @@ def get_container_resources() -> Optional[dict[str, Any]]:
                         "percent": percent,
                     }
             # Fallback to cgroup v1
-            elif os.path.exists(
-                "/sys/fs/cgroup/memory/memory.limit_in_bytes"
-            ):
+            elif os.path.exists("/sys/fs/cgroup/memory/memory.limit_in_bytes"):
                 total = int(
-                    open("/sys/fs/cgroup/memory/memory.limit_in_bytes", encoding="utf-8")
+                    open(
+                        "/sys/fs/cgroup/memory/memory.limit_in_bytes",
+                        encoding="utf-8",
+                    )
                     .read()
                     .strip()
                 )
                 used = int(
-                    open("/sys/fs/cgroup/memory/memory.usage_in_bytes", encoding="utf-8")
+                    open(
+                        "/sys/fs/cgroup/memory/memory.usage_in_bytes",
+                        encoding="utf-8",
+                    )
                     .read()
                     .strip()
                 )
@@ -325,7 +342,9 @@ def get_container_resources() -> Optional[dict[str, Any]]:
             # cgroup v2
             if os.path.exists("/sys/fs/cgroup/cpu.max"):
                 cpu_max_line = (
-                    open("/sys/fs/cgroup/cpu.max", encoding="utf-8").read().strip()
+                    open("/sys/fs/cgroup/cpu.max", encoding="utf-8")
+                    .read()
+                    .strip()
                 )
                 if cpu_max_line != "max":
                     parts = cpu_max_line.split()
@@ -342,12 +361,17 @@ def get_container_resources() -> Optional[dict[str, Any]]:
             # cgroup v1
             elif os.path.exists("/sys/fs/cgroup/cpu/cpu.cfs_quota_us"):
                 quota = int(
-                    open("/sys/fs/cgroup/cpu/cpu.cfs_quota_us", encoding="utf-8")
+                    open(
+                        "/sys/fs/cgroup/cpu/cpu.cfs_quota_us", encoding="utf-8"
+                    )
                     .read()
                     .strip()
                 )
                 period = int(
-                    open("/sys/fs/cgroup/cpu/cpu.cfs_period_us", encoding="utf-8")
+                    open(
+                        "/sys/fs/cgroup/cpu/cpu.cfs_period_us",
+                        encoding="utf-8",
+                    )
                     .read()
                     .strip()
                 )
