@@ -632,7 +632,7 @@ DEFAULT_CONFIG: MarimoConfig = {
         "dataframes": "rich",
         "default_table_page_size": 10,
         "default_table_max_columns": 50,
-        "reference_highlighting": False,
+        "reference_highlighting": True,
     },
     "formatting": {"line_length": 79},
     "keymap": {"preset": "default", "overrides": {}},
