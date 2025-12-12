@@ -7,9 +7,9 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from marimo._dependencies.dependencies import DependencyManager
-from marimo._messaging.errors import MarimoInterruptionError
 from marimo._runtime.context.types import ExecutionContext
 from marimo._runtime.handlers import construct_interrupt_handler
+from marimo._runtime.runtime import MarimoInterrupt
 
 HAS_DUCKDB = DependencyManager.duckdb.has()
 
@@ -36,7 +36,7 @@ def test_duckdb_interrupt_handler_called_when_connection_present():
             interrupt_handler = construct_interrupt_handler(mock_context)
 
             # Trigger the interrupt handler
-            with pytest.raises(MarimoInterruptionError):
+            with pytest.raises(MarimoInterrupt):
                 interrupt_handler(signal.SIGINT, None)
 
             # Verify duckdb connection's interrupt was called
@@ -58,8 +58,8 @@ def test_duckdb_interrupt_handler_no_error_when_connection_none():
 
         interrupt_handler = construct_interrupt_handler(mock_context)
 
-        # Should not raise error from duckdb interrupt (only MarimoInterruptionError)
-        with pytest.raises(MarimoInterruptionError):
+        # Should not raise error from duckdb interrupt (only MarimoInterrupt)
+        with pytest.raises(MarimoInterrupt):
             interrupt_handler(signal.SIGINT, None)
 
 
@@ -85,9 +85,9 @@ def test_duckdb_interrupt_handler_exception_handling():
         with exec_ctx.with_connection(mock_conn):
             interrupt_handler = construct_interrupt_handler(mock_context)
 
-            # Should raise MarimoInterruptionError, not RuntimeError
+            # Should raise MarimoInterrupt, not RuntimeError
             # The RuntimeError should be caught and logged
-            with pytest.raises(MarimoInterruptionError):
+            with pytest.raises(MarimoInterrupt):
                 interrupt_handler(signal.SIGINT, None)
 
             # Verify interrupt was attempted
