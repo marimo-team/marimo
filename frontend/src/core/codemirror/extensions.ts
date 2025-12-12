@@ -60,7 +60,7 @@ export function formatKeymapExtension(hotkeys: HotkeyProvider) {
  * This is necessary when typings at the edges of the editor
  * and the user is blocked by the hovering action bar.
  */
-export function scrollActiveLineIntoView() {
+export function scrollActiveLineIntoViewExtension() {
   return EditorView.updateListener.of((update) => {
     // Ignore if the editor does not have focus, ignore
     if (!update.view.hasFocus) {
@@ -77,19 +77,29 @@ export function scrollActiveLineIntoView() {
         return;
       }
 
-      const activeLines = update.view.dom.getElementsByClassName(
-        "cm-activeLine cm-line",
-      );
-      // Only scroll if there is an active line
-      if (activeLines.length === 1) {
-        const activeLine = activeLines[0] as HTMLElement;
-        const appEl = document.getElementById("App");
-        invariant(appEl, "App not found");
-        smartScrollIntoView(activeLine, {
-          offset: { top: 30, bottom: 150 },
-          body: appEl,
-        });
-      }
+      scrollActiveLineIntoView(update.view, { behavior: "smooth" });
     }
   });
+}
+
+export function scrollActiveLineIntoView(
+  editor: EditorView,
+  opts: {
+    behavior: "smooth" | "instant";
+  },
+) {
+  const activeLines = editor.dom.getElementsByClassName(
+    "cm-activeLine cm-line",
+  );
+  // Only scroll if there is an active line
+  if (activeLines.length === 1) {
+    const activeLine = activeLines[0] as HTMLElement;
+    const appEl = document.getElementById("App");
+    invariant(appEl, "App not found");
+    smartScrollIntoView(activeLine, {
+      offset: { top: 30, bottom: 150 },
+      body: appEl,
+      behavior: opts.behavior,
+    });
+  }
 }

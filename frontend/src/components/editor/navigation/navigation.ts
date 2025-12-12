@@ -27,7 +27,12 @@ import type { CellActionsDropdownHandle } from "../cell/cell-actions";
 import { useDeleteManyCellsCallback } from "../cell/useDeleteCell";
 import { useRunCells } from "../cell/useRunCells";
 import { useCellClipboard } from "./clipboard";
-import { focusCell, focusCellEditor } from "./focus-utils";
+import {
+  focusCell,
+  focusCellEditor,
+  raf2,
+  scrollCellIntoView,
+} from "./focus-utils";
 import {
   getSelectedCells,
   useCellSelectionActions,
@@ -620,6 +625,10 @@ export function useCellEditorNavigationProps(
   const exitToCommandMode = () => {
     temporarilyShownCodeActions.remove(cellId);
     focusCell(cellId);
+    // Scroll to cell in case it is not in view because of layout shifts.
+    raf2(() => {
+      scrollCellIntoView(cellId);
+    });
   };
 
   const handleEscape = () => {
