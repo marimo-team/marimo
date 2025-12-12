@@ -50,7 +50,6 @@ import {
   canUndoDeletesAtom,
   getNotebook,
   hasDisabledCellsAtom,
-  hasEnabledCellsAtom,
   useCellActions,
 } from "@/core/cells/cells";
 import { disabledCellIds } from "@/core/cells/utils";
@@ -114,7 +113,6 @@ export function useNotebookActions() {
   const { exportAsMarkdown, readCode, saveCellConfig } = useRequestClient();
 
   const hasDisabledCells = useAtomValue(hasDisabledCellsAtom);
-  const hasEnabledCells = useAtomValue(hasEnabledCellsAtom);
   const canUndoDeletes = useAtomValue(canUndoDeletesAtom);
   const { selectedLayout } = useLayoutState();
   const { setLayoutView } = useLayoutActions();
