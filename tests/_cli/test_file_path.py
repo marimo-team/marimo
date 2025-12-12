@@ -674,18 +674,3 @@ class TestStaticNotebooks:
         assert Path(path).name == StaticNotebookReader().DEFAULT_FILENAME
         assert Path(path).read_text() == self.PYTHON_CODE
         temp_dir_obj.cleanup()
-
-    @patch("marimo._utils.requests.get")
-    def test_validate_remote_html_not_notebook(self, mock_get):
-        mock_response = Response(
-            200, self.INVALID_HTML_CONTENT.encode("utf-8"), {}
-        )
-        mock_get.return_value = mock_response
-
-        with pytest.raises(click.ClickException) as excinfo:
-            validate_name(
-                "https://example.com/notebook.html",
-                allow_new_file=False,
-                allow_directory=False,
-            )
-        assert "Invalid HTML file" in str(excinfo.value)
