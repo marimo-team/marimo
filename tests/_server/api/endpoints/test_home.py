@@ -106,3 +106,39 @@ def test_cant_open_non_tutorial(client: TestClient) -> None:
     )
     assert response.status_code == 400
     assert response.json() == {"detail": "Tutorial not found"}
+
+
+@with_session(SESSION_ID)
+def test_tutorial_file_accessible_after_open(client: TestClient) -> None:
+    """Test that a tutorial file can be accessed after being opened.
+
+    This is an integration test for issue #7424.
+    When a tutorial is opened via the endpoint, it creates a file in a temp
+    directory. This test verifies that the file router can access that
+    file despite it being outside the base directory.
+    """
+    from marimo._server.file_router import LazyListOfFilesAppFileRouter
+
+    # Open a tutorial
+    response = client.post(
+        "/api/home/tutorial/open",
+        headers=HEADERS,
+        json={"tutorialId": "intro"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    tutorial_path = data["path"]
+
+    # Verify the temp directory was registered with the file router
+    session_manager = get_session_manager(client)
+    file_router = session_manager.file_router
+
+    # Only test for directory-based routers
+    if isinstance(file_router, LazyListOfFilesAppFileRouter):
+        assert file_router.is_file_in_allowed_temp_dir(tutorial_path)
+
+    # Try to get a file manager for the tutorial file
+    # This should not raise an HTTPException about being outside the directory
+    file_manager = session_manager.app_manager(tutorial_path)
+    assert file_manager is not None
+    assert file_manager.path == tutorial_path
