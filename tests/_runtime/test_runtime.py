@@ -2463,10 +2463,8 @@ class TestStoredOutput:
         output_ops = [op for op in cell_ops if op.output is not None]
         # Should have output, even if formatter failed (falls back to plain formatter)
         assert len(output_ops) > 0
-        has_missing_package_error = any(
-            op.get("op") == "missing-package-alert" for op in stream.operations
-        )
-        assert has_missing_package_error, stream.operations
+        op_names = [op.get("op") for op in stream.operations]
+        assert "missing-package-alert" in op_names
 
     async def test_formatter_module_not_found_error_handled(
         self, mocked_kernel: MockedKernel, exec_req: ExecReqProvider
@@ -2506,10 +2504,8 @@ class TestStoredOutput:
         output_ops = [op for op in cell_ops if op.output is not None]
         # Should have output, even if formatter failed (falls back to plain formatter)
         assert len(output_ops) > 0
-        has_missing_package_error = any(
-            op.get("op") == "missing-package-alert" for op in stream.operations
-        )
-        assert has_missing_package_error, stream.operations
+        op_names = [op.get("op") for op in stream.operations]
+        assert "missing-package-alert" in op_names
 
 
 class TestDisable:
