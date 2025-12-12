@@ -39,6 +39,7 @@ describe("scrollCellIntoView", () => {
 
   it("should scroll active line when editor has focus", () => {
     const mockEditor = { hasFocus: true };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     mockGetCellEditorView.mockReturnValue(mockEditor as any);
 
     scrollCellIntoView(cellId);
