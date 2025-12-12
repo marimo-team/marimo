@@ -92,7 +92,7 @@ class KeymapConfig(TypedDict):
 
 
 OnCellChangeType = Literal["lazy", "autorun"]
-ExecutionType = Literal["relaxed", "strict", "cached"]
+ExecutionType = Literal["relaxed", "strict", "cached", "parallel"]
 
 
 # TODO(akshayka): remove normal, migrate to compact

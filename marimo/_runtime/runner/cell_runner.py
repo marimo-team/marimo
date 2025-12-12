@@ -130,10 +130,18 @@ class Runner:
         self.graph = graph
         self.debugger = debugger
         self.excluded_cells = excluded_cells or set()
+        # Enable parallel execution by default on free-threaded Python,
+        # or if explicitly requested via execution_type
+        from marimo._runtime.executor import is_free_threading_enabled
+
+        self._is_parallel = (
+            execution_type == "parallel" or is_free_threading_enabled()
+        )
         self._executor = get_executor(
             ExecutionConfig(
                 is_strict=execution_type == "strict",
                 is_lazy=execution_type == "cached",
+                is_parallel=self._is_parallel,
             )
         )
         # injected context and hooks
@@ -721,6 +729,43 @@ class Runner:
         for prep_hook in self.preparation_hooks:
             prep_hook(self)
 
+        # Set up parallel execution if enabled and more than one cell
+        # Single cell runs are always synchronous (no benefit from parallelism)
+        use_parallel = self._is_parallel and len(self.cells_to_run) > 1
+        if use_parallel:
+            from marimo._runtime.parallel_executor import (
+                CellFutureStub,
+                ParallelExecutor,
+            )
+
+            if isinstance(self._executor, ParallelExecutor):
+                # Only register stubs for cells WITHOUT output
+                # Cells with output (matplotlib, etc.) must run on main thread
+                # because many libraries don't support being called from threads
+                parallel_cells = [
+                    cell_id
+                    for cell_id in self.cells_to_run
+                    if not self.graph.cells[cell_id].has_output
+                ]
+                LOGGER.debug(
+                    "Registering stubs for parallel execution: %d of %d cells",
+                    len(parallel_cells),
+                    len(self.cells_to_run),
+                )
+                for cell_id in parallel_cells:
+                    cell = self.graph.cells[cell_id]
+                    stub = CellFutureStub(cell_id, cell.defs)
+                    self._executor.register_stub(stub)
+                # If no cells can be parallelized, disable parallel mode
+                if not parallel_cells:
+                    use_parallel = False
+            else:
+                use_parallel = False
+
+        # Track deferred cells for later processing
+        # Each entry: (cell_id, deferred_result, exc_ctx or None)
+        deferred_cells: list[tuple[CellId_t, Any, Any]] = []
+
         while self.pending():
             cell_id = self.pop_cell()
             LOGGER.debug("Cell runner processing %s", cell_id)
@@ -749,6 +794,27 @@ class Runner:
             LOGGER.debug("Running pre_execution hooks")
             for pre_hook in self.pre_execution_hooks:
                 pre_hook(cell, self)
+
+            # For cells with output (running synchronously), wait for
+            # ancestor cells that are running in parallel to complete.
+            # This ensures dependencies like imports are available.
+            if use_parallel and cell.has_output:
+                from marimo._runtime.parallel_executor import ParallelExecutor
+
+                if isinstance(self._executor, ParallelExecutor):
+                    ancestors = self.graph.ancestors(cell_id)
+                    for ancestor_id in ancestors:
+                        stub = self._executor._stubs.get(ancestor_id)
+                        if stub is not None and not stub.resolved:
+                            LOGGER.debug(
+                                "Waiting for ancestor %s before %s",
+                                ancestor_id,
+                                cell_id,
+                            )
+                            stub.wait()
+                            if stub.error is not None:
+                                raise stub.error
+
             LOGGER.debug("Running cell %s", cell_id)
             if self.execution_context is not None:
                 try:
@@ -756,6 +822,25 @@ class Runner:
                     # down to as close to kernel execution as possible.
                     with self.execution_context(cell_id) as exc_ctx:
                         run_result = await self.run(cell_id)
+
+                        # Handle deferred results for parallel execution
+                        # Cells with output run synchronously (no stub registered)
+                        # Only cells without output return DeferredResult
+                        if use_parallel:
+                            from marimo._runtime.parallel_executor import (
+                                DeferredResult,
+                            )
+
+                            if isinstance(run_result.output, DeferredResult):
+                                # No output - defer for later
+                                LOGGER.debug(
+                                    "Deferring cell %s (no output)", cell_id
+                                )
+                                deferred_cells.append(
+                                    (cell_id, run_result.output, exc_ctx)
+                                )
+                                continue  # Skip hooks, process later
+
                         run_result.accumulated_output = exc_ctx.output
                         LOGGER.debug("Running post_execution hooks in context")
                         for post_hook in self.post_execution_hooks:
@@ -769,9 +854,53 @@ class Runner:
 
             else:
                 run_result = await self.run(cell_id)
+
+                # Handle deferred results for parallel execution
+                # Cells with output run synchronously (no stub registered)
+                # Only cells without output return DeferredResult
+                if use_parallel:
+                    from marimo._runtime.parallel_executor import DeferredResult
+
+                    if isinstance(run_result.output, DeferredResult):
+                        LOGGER.debug(
+                            "Deferring cell %s (no output)", cell_id
+                        )
+                        deferred_cells.append(
+                            (cell_id, run_result.output, None)
+                        )
+                        continue  # Skip hooks, process later
+
                 LOGGER.debug("Running post_execution hooks out of context")
                 for post_hook in self.post_execution_hooks:
                     post_hook(cell, self, run_result)
+
+        # Process all deferred cells - wait for completion and run hooks
+        if deferred_cells:
+            LOGGER.debug(
+                "Processing %d deferred cells", len(deferred_cells)
+            )
+            for cell_id, deferred, exc_ctx in deferred_cells:
+                cell = self.graph.cells[cell_id]
+                LOGGER.debug("Waiting for deferred cell %s", cell_id)
+                try:
+                    actual_result = deferred.wait()
+                    run_result = RunResult(output=actual_result, exception=None)
+                except BaseException as e:
+                    run_result = RunResult(output=None, exception=e)
+
+                if exc_ctx is not None:
+                    run_result.accumulated_output = exc_ctx.output
+
+                LOGGER.debug("Running post_execution hooks for %s", cell_id)
+                for post_hook in self.post_execution_hooks:
+                    post_hook(cell, self, run_result)
+
+        # Clean up parallel execution
+        if use_parallel:
+            from marimo._runtime.parallel_executor import ParallelExecutor
+
+            if isinstance(self._executor, ParallelExecutor):
+                self._executor.clear_stubs()
 
         LOGGER.debug("Running on_finish hooks")
         for finish_hook in self.on_finish_hooks:

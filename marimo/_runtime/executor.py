@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import inspect
 import re
+import sys
 from abc import ABC, abstractmethod
 from copy import deepcopy
 from dataclasses import dataclass
@@ -37,6 +38,19 @@ _EXECUTOR_REGISTRY = EntryPointRegistry[type["Executor"]](
 )
 
 
+def is_free_threading_enabled() -> bool:
+    """Check if Python is running with free-threading (GIL disabled).
+
+    Returns True if running on Python 3.13+ with free-threading build
+    and the GIL is currently disabled.
+    """
+    # sys._is_gil_enabled() is available in Python 3.13+ free-threading builds
+    # Returns False when GIL is disabled (free-threading active)
+    if hasattr(sys, "_is_gil_enabled"):
+        return not sys._is_gil_enabled()
+    return False
+
+
 def get_executor(
     config: ExecutionConfig,
     registry: EntryPointRegistry[type[Executor]] = _EXECUTOR_REGISTRY,
@@ -48,10 +62,15 @@ def get_executor(
     if config.is_strict:
         base = StrictExecutor(base)
 
-    #if config.is_lazy:
-    from marimo._runtime.lazy_executor import CachedExecutor
+    if config.is_lazy:
+        from marimo._runtime.lazy_executor import CachedExecutor
 
-    base = CachedExecutor(base)
+        base = CachedExecutor(base)
+
+    if config.is_parallel:
+        from marimo._runtime.parallel_executor import ParallelExecutor
+
+        base = ParallelExecutor(base)
 
     for executor in executors:
         base = executor(base)
@@ -64,6 +83,8 @@ class ExecutionConfig:
 
     is_strict: bool = False
     is_lazy: bool = False
+    # Default to parallel execution only on free-threaded Python
+    is_parallel: bool = False
 
 
 def _raise_name_error(
