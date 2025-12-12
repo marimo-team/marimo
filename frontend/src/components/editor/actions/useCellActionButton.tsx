@@ -142,6 +142,18 @@ export function useCellActionButtons({ cell, closePopover }: Props) {
   const actions: ActionButton[][] = [
     [
       {
+        icon: <PlayIcon size={13} strokeWidth={1.5} />,
+        label: "Run cell",
+        hotkey: "cell.run",
+        hidden:
+          status === "running" ||
+          status === "queued" ||
+          status === "disabled-transitively" ||
+          config.disabled,
+        redundant: true,
+        handle: () => runCell(),
+      },
+      {
         icon: <SparklesIcon size={13} strokeWidth={1.5} />,
         label: "Refactor with AI",
         hidden: !aiEnabled,
@@ -154,19 +166,13 @@ export function useCellActionButtons({ cell, closePopover }: Props) {
       },
       {
         icon: <ScissorsIcon size={13} strokeWidth={1.5} />,
-        label: "Split cell",
+        label: "Split",
         hotkey: "cell.splitCell",
         handle: () => splitCell({ cellId }),
       },
       {
-        icon: <ImageIcon size={13} strokeWidth={1.5} />,
-        label: "Export output as PNG",
-        hidden: !hasOutput,
-        handle: () => downloadCellOutput(cellId),
-      },
-      {
         icon: <Code2Icon size={13} strokeWidth={1.5} />,
-        label: "Format cell",
+        label: "Format",
         hotkey: "cell.format",
         handle: () => {
           const editorView = getEditorView();
@@ -187,28 +193,14 @@ export function useCellActionButtons({ cell, closePopover }: Props) {
         hotkey: "cell.hideCode",
       },
       {
-        icon: <XCircleIcon size={13} strokeWidth={1.5} />,
-        label: "Clear output",
-        hidden: !(hasOutput || hasConsoleOutput),
-        handle: () => {
-          clearCellOutput({ cellId });
-        },
-      },
-      {
         icon: config.disabled ? (
           <ZapOffIcon size={13} strokeWidth={1.5} />
         ) : (
-          <ZapIcon size={13} strokeWidth={1.5} />
+          <ZapIcon size={13} strokeWidth={1.5}/>
         ),
-        label: "Reactive execution",
-        rightElement: (
-          <Switch
-            data-testid="cell-disable-switch"
-            checked={!config.disabled}
-            size="sm"
-            onCheckedChange={toggleDisabled}
-          />
-        ),
+        label: config.disabled
+          ? "Enable execution"
+          : "Disable execution",
         handle: toggleDisabled,
         hidden: isSetupCell,
       },
@@ -267,6 +259,31 @@ export function useCellActionButtons({ cell, closePopover }: Props) {
     // Movement
     [
       {
+        icon: (
+          <MultiIcon>
+            <PlusCircleIcon size={13} strokeWidth={1.5} />
+            <ChevronUpIcon size={8} strokeWidth={2} />
+          </MultiIcon>
+        ),
+        label: "Create cell above",
+        hotkey: "cell.createAbove",
+        handle: () => createCell({ cellId, before: true }),
+        hidden: isSetupCell,
+        redundant: true,
+      },
+      {
+        icon: (
+          <MultiIcon>
+            <PlusCircleIcon size={13} strokeWidth={1.5} />
+            <ChevronDownIcon size={8} strokeWidth={2} />
+          </MultiIcon>
+        ),
+        label: "Create cell below",
+        hotkey: "cell.createBelow",
+        handle: () => createCell({ cellId, before: false }),
+        redundant: true,
+      },
+      {
         icon: <ChevronUpIcon size={13} strokeWidth={1.5} />,
         label: "Move cell up",
         hotkey: "cell.moveUp",
@@ -318,6 +335,24 @@ export function useCellActionButtons({ cell, closePopover }: Props) {
         hotkey: "cell.addColumnBreakpoint",
         handle: () => addColumnBreakpoint({ cellId }),
         hidden: appWidth !== "columns" || isSetupCell,
+      },
+    ],
+
+    // Outputs
+    [
+      {
+        icon: <ImageIcon size={13} strokeWidth={1.5} />,
+        label: "Export output as PNG",
+        hidden: !hasOutput,
+        handle: () => downloadCellOutput(cellId),
+      },
+      {
+        icon: <XCircleIcon size={13} strokeWidth={1.5} />,
+        label: "Clear output",
+        hidden: !(hasOutput || hasConsoleOutput),
+        handle: () => {
+          clearCellOutput({ cellId });
+        },
       },
     ],
 
