@@ -1,6 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import asyncio
 import pathlib
 import sys
 import textwrap
@@ -2435,6 +2436,7 @@ class TestStoredOutput:
         in runner.exceptions for the missing_packages_hook to detect.
         """
         k = mocked_kernel.k
+        assert k.packages_callbacks.package_manager is not None
 
         await k.run(
             [
@@ -2450,6 +2452,9 @@ class TestStoredOutput:
                 )
             ]
         )
+
+        # Sleep 10ms to flush the stream
+        await asyncio.sleep(0.01)
 
         # Cell should execute successfully (exception is in formatter, not execution)
         cell = k.graph.cells[er.cell_id]
@@ -2476,6 +2481,7 @@ class TestStoredOutput:
         in runner.exceptions for the missing_packages_hook to detect.
         """
         k = mocked_kernel.k
+        assert k.packages_callbacks.package_manager is not None
 
         await k.run(
             [
@@ -2491,6 +2497,9 @@ class TestStoredOutput:
                 )
             ]
         )
+
+        # Sleep 10ms to flush the stream
+        await asyncio.sleep(0.01)
 
         # Cell should execute successfully (exception is in formatter, not execution)
         cell = k.graph.cells[er.cell_id]
