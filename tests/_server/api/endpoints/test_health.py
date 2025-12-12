@@ -60,6 +60,8 @@ def test_memory(client: TestClient) -> None:
     assert memory["available"] > 0
     assert memory["used"] > 0
     assert memory["free"] > 0
+    assert "is_container" in memory
+    assert isinstance(memory["is_container"], bool)
     cpu = response.json()["cpu"]
     assert cpu["percent"] >= 0
     computer = response.json()["server"]

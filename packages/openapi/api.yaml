@@ -4738,6 +4738,8 @@ paths:
                         type: integer
                       free:
                         type: integer
+                      is_container:
+                        type: boolean
                       percent:
                         type: number
                       total:

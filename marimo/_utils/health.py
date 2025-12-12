@@ -2,9 +2,10 @@
 from __future__ import annotations
 
 import importlib.metadata
+import os
 import subprocess
 import sys
-from typing import Optional
+from typing import Any, Optional
 
 from marimo import _loggers
 
@@ -183,3 +184,181 @@ def communicate_with_timeout(
     except subprocess.TimeoutExpired:
         process.kill()
         return "", "Error: Process timed out"
+
+
+def has_cgroup_limits() -> tuple[bool, bool]:
+    """
+    Check if cgroup resource limits are explicitly set.
+
+    Returns:
+        (has_memory_limit, has_cpu_limit): Tuple of booleans indicating
+        whether memory and CPU limits are set.
+    """
+    has_memory = False
+    has_cpu = False
+
+    try:
+        # Check cgroup v2 (modern containers)
+        if os.path.exists("/sys/fs/cgroup/memory.max"):
+            memory_max = open("/sys/fs/cgroup/memory.max", encoding="utf-8").read().strip()
+            # 'max' means unlimited, any number means limited
+            has_memory = memory_max != "max"
+
+        if os.path.exists("/sys/fs/cgroup/cpu.max"):
+            cpu_max = open("/sys/fs/cgroup/cpu.max", encoding="utf-8").read().strip()
+            # 'max' means unlimited
+            has_cpu = cpu_max != "max"
+
+        # Fallback to cgroup v1 (legacy)
+        if not has_memory and os.path.exists(
+            "/sys/fs/cgroup/memory/memory.limit_in_bytes"
+        ):
+            limit = int(
+                open("/sys/fs/cgroup/memory/memory.limit_in_bytes", encoding="utf-8")
+                .read()
+                .strip()
+            )
+            # Very large number (typically > 2^62) indicates unlimited
+            # This is the default "unlimited" value in cgroup v1
+            has_memory = limit < (1 << 62)
+
+        if not has_cpu and os.path.exists(
+            "/sys/fs/cgroup/cpu/cpu.cfs_quota_us"
+        ):
+            quota = int(
+                open("/sys/fs/cgroup/cpu/cpu.cfs_quota_us", encoding="utf-8")
+                .read()
+                .strip()
+            )
+            # In cgroup v1, -1 means unlimited
+            has_cpu = quota > 0
+
+    except (FileNotFoundError, PermissionError, ValueError) as e:
+        LOGGER.debug(f"Error checking cgroup limits: {e}")
+
+    return has_memory, has_cpu
+
+
+def get_container_resources() -> Optional[dict[str, Any]]:
+    """
+    Get container resource limits if running in a resource-restricted container.
+
+    Returns:
+        Dictionary with 'memory' and/or 'cpu' keys if limits are set,
+        None if not in a container or no limits are configured.
+
+    Example return value:
+        {
+            'memory': {
+                'total': 2147483648,      # bytes
+                'used': 1073741824,       # bytes
+                'available': 1073741824,  # bytes
+                'percent': 50.0           # percentage
+            },
+            'cpu': {
+                'quota': 200000,   # microseconds
+                'period': 100000,  # microseconds
+                'cores': 2.0       # effective number of cores
+            }
+        }
+    """
+    has_memory_limit, has_cpu_limit = has_cgroup_limits()
+
+    if not (has_memory_limit or has_cpu_limit):
+        return None
+
+    resources: dict[str, Any] = {}
+
+    # Get memory stats if limited
+    if has_memory_limit:
+        try:
+            # Try cgroup v2 first
+            if os.path.exists("/sys/fs/cgroup/memory.max"):
+                memory_max = (
+                    open("/sys/fs/cgroup/memory.max", encoding="utf-8").read().strip()
+                )
+                memory_current = (
+                    open("/sys/fs/cgroup/memory.current", encoding="utf-8").read().strip()
+                )
+
+                if memory_max != "max":
+                    total = int(memory_max)
+                    used = int(memory_current)
+                    available = total - used
+                    percent = (used / total) * 100 if total > 0 else 0
+
+                    resources["memory"] = {
+                        "total": total,
+                        "used": used,
+                        "available": available,
+                        "percent": percent,
+                    }
+            # Fallback to cgroup v1
+            elif os.path.exists(
+                "/sys/fs/cgroup/memory/memory.limit_in_bytes"
+            ):
+                total = int(
+                    open("/sys/fs/cgroup/memory/memory.limit_in_bytes", encoding="utf-8")
+                    .read()
+                    .strip()
+                )
+                used = int(
+                    open("/sys/fs/cgroup/memory/memory.usage_in_bytes", encoding="utf-8")
+                    .read()
+                    .strip()
+                )
+                available = total - used
+                percent = (used / total) * 100 if total > 0 else 0
+
+                resources["memory"] = {
+                    "total": total,
+                    "used": used,
+                    "available": available,
+                    "percent": percent,
+                }
+        except (FileNotFoundError, PermissionError, ValueError) as e:
+            LOGGER.debug(f"Error reading container memory stats: {e}")
+
+    # Get CPU stats if limited
+    if has_cpu_limit:
+        try:
+            # cgroup v2
+            if os.path.exists("/sys/fs/cgroup/cpu.max"):
+                cpu_max_line = (
+                    open("/sys/fs/cgroup/cpu.max", encoding="utf-8").read().strip()
+                )
+                if cpu_max_line != "max":
+                    parts = cpu_max_line.split()
+                    if len(parts) == 2:
+                        quota = int(parts[0])
+                        period = int(parts[1])
+                        cores = quota / period
+
+                        resources["cpu"] = {
+                            "quota": quota,
+                            "period": period,
+                            "cores": cores,
+                        }
+            # cgroup v1
+            elif os.path.exists("/sys/fs/cgroup/cpu/cpu.cfs_quota_us"):
+                quota = int(
+                    open("/sys/fs/cgroup/cpu/cpu.cfs_quota_us", encoding="utf-8")
+                    .read()
+                    .strip()
+                )
+                period = int(
+                    open("/sys/fs/cgroup/cpu/cpu.cfs_period_us", encoding="utf-8")
+                    .read()
+                    .strip()
+                )
+                if quota > 0:  # -1 means unlimited
+                    cores = quota / period
+                    resources["cpu"] = {
+                        "quota": quota,
+                        "period": period,
+                        "cores": cores,
+                    }
+        except (FileNotFoundError, PermissionError, ValueError) as e:
+            LOGGER.debug(f"Error reading container CPU stats: {e}")
+
+    return resources if resources else None

@@ -2663,6 +2663,7 @@ export interface paths {
               memory: {
                 available: number;
                 free: number;
+                is_container?: boolean;
                 percent: number;
                 total: number;
                 used: number;

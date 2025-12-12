@@ -55,8 +55,10 @@ const MemoryUsageBar: React.FC<{
   kernel: UsageResponse["kernel"];
   server: UsageResponse["server"];
 }> = ({ memory, kernel, server }) => {
-  const { percent, total, available } = memory;
+  const { percent, total, available, is_container } = memory;
+  const isContainer = is_container === true;
   const roundedPercent = Math.round(percent);
+  const memoryLabel = isContainer ? "container memory" : "computer memory";
 
   const gbFormatter = useNumberFormatter({
     maximumFractionDigits: 2,
@@ -82,7 +84,7 @@ const MemoryUsageBar: React.FC<{
       content={
         <div className="flex flex-col gap-1">
           <span>
-            <b>computer memory:</b> {formatGB(total - available)} /{" "}
+            <b>{memoryLabel}:</b> {formatGB(total - available)} /{" "}
             {formatGB(total)} GB ({roundedPercent}%)
           </span>
           {server?.memory && (
