@@ -455,7 +455,6 @@ const EditableCellComponent = ({
   const cellOutput = userConfig.display.cell_output;
 
   const hasOutputAbove = hasOutput && cellOutput === "above";
-  const hasOutputBelow = hasOutput && cellOutput === "below";
 
   // If the cell is too short, we need to position some icons inline to prevent overlaps.
   // This can only happen to markdown cells when the code is hidden completely
