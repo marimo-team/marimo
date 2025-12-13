@@ -294,6 +294,28 @@ class CellImpl:
     def is_coroutine(self) -> bool:
         return _is_coroutine(self.body) or _is_coroutine(self.last_expr)
 
+    @cached_property
+    def has_output(self) -> bool:
+        """Check if cell produces output (last statement is an expression).
+
+        A cell has output when its last statement is an expression
+        (like `x`, `foo()`, `1+2`) and doesn't end with a semicolon.
+        Cells ending in assignments, function defs, if statements, etc.
+        do not produce output.
+        """
+        try:
+            tree = ast_parse(self.code)
+        except SyntaxError:
+            return False
+        if not tree.body:
+            return False
+        # Check if last statement is an expression (not assignment, def, etc.)
+        last_stmt = tree.body[-1]
+        if not isinstance(last_stmt, ast.Expr):
+            return False
+        # Check if code ends with semicolon (suppresses output)
+        return not self.code.rstrip().endswith(";")
+
     @property
     def toplevel_variable(self) -> Optional[VariableData]:
         """Return the single, scoped, toplevel variable defined if found."""

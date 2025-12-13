@@ -35,6 +35,7 @@ if TYPE_CHECKING:
     from marimo._runtime.requests import HTTPRequest
     from marimo._runtime.state import State, StateRegistry
     from marimo._runtime.virtual_file import VirtualFileRegistry
+    from marimo._save.cache import CellCacheContext
     from marimo._save.stores import Store
     from marimo._types.ids import CellId_t
 
@@ -91,6 +92,12 @@ class RuntimeContext(abc.ABC):
     virtual_files_supported: bool
     app_kernel_runner_registry: AppKernelRunnerRegistry
     cache_store: Store
+    cell_cache_context: CellCacheContext
+    # Memoization store for content hash speedup across cells
+    # Key: variable_name -> hash bytes
+    cell_hash_memo: dict[str, bytes]
+    # Cells that should skip cache during this run (due to unhashable errors)
+    cells_skip_cache: set[CellId_t]
     # stream, stdout, stderr are _not_ owned by the context
     stream: Stream
     stdout: Stdout | None

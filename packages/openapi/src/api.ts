@@ -3009,6 +3009,7 @@ export interface components {
      *         stale_inputs  - whether the cell has stale inputs (variables, modules, ...)
      *         run_id        - the run associated with this cell.
      *         serialization - the serialization status of the cell
+     *         cache         - the cache status of the cell ("hit", "cached", or None)
      *
      *         Omitting a field means that its value should be unchanged!
      *
@@ -3017,6 +3018,8 @@ export interface components {
      *         cell_id - the cell id
      */
     CellOp: {
+      /** @default null */
+      cache?: ("cached" | "hit") | null;
       cell_id: string;
       /** @default null */
       console?:
@@ -4624,7 +4627,7 @@ export interface components {
     StoreConfig: {
       args?: Record<string, any>;
       /** @enum {unknown} */
-      type?: "file" | "redis" | "rest" | "tiered";
+      type?: "file" | "memory" | "redis" | "rest" | "tiered";
     };
     /** SuccessResponse */
     SuccessResponse: {
