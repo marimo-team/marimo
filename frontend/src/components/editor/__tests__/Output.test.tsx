@@ -14,7 +14,8 @@ describe("OutputRenderer renderFallback prop", () => {
         message={{
           channel: "output",
           data: "some data",
-          mimetype: "application/unsupported" as any,
+          // @ts-expect-error - Testing fallback behavior with unsupported mimetype
+          mimetype: "application/unsupported",
         }}
         renderFallback={renderFallback}
       />,
@@ -52,7 +53,8 @@ describe("OutputRenderer renderFallback prop", () => {
         message={{
           channel: "output",
           data: "some data",
-          mimetype: "application/unknown" as any,
+          // @ts-expect-error - Testing default error message with unsupported mimetype
+          mimetype: "application/unknown",
         }}
       />,
     );
