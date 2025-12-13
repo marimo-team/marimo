@@ -70,8 +70,16 @@ export const OutputRenderer: React.FC<{
   onRefactorWithAI?: OnRefactorWithAI;
   wrapText?: boolean;
   metadata?: { width?: number; height?: number };
+  renderFallback?: (mimetype: OutputMessage["mimetype"]) => React.ReactNode;
 }> = memo((props) => {
-  const { message, onRefactorWithAI, cellId, wrapText, metadata } = props;
+  const {
+    message,
+    onRefactorWithAI,
+    cellId,
+    wrapText,
+    metadata,
+    renderFallback,
+  } = props;
   const { theme } = useTheme();
 
   // Memoize parsing the json data
@@ -231,6 +239,9 @@ export const OutputRenderer: React.FC<{
       );
     default:
       logNever(mimetype);
+      if (renderFallback) {
+        return renderFallback(mimetype);
+      }
       return (
         <div className="text-destructive">Unsupported mimetype: {mimetype}</div>
       );

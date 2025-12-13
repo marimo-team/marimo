@@ -16,12 +16,22 @@ from marimo._plugins.stateless.plain_text import plain_text
 from marimo._utils.flatten import CyclicStructureError, flatten
 
 
+def is_structures_formatter(
+    formatter: formatting.Formatter[object] | None,
+) -> bool:
+    return formatter is formatting.get_formatter(tuple())
+
+
 def _leaf_formatter(
     value: object,
 ) -> bool | None | str | int:
     formatter = formatting.get_formatter(value)
-    if formatter is not None:
+
+    # Because we don't flatten subclasses of structures, we need to avoid
+    # recursing on structures in order to prevent infinite recursion.
+    if formatter is not None and not is_structures_formatter(formatter):
         return ":".join(formatter(value))
+
     if isinstance(value, bool):
         return value
     if isinstance(value, str):
@@ -55,7 +65,9 @@ def format_structure(
     Returns a structure of the same shape as `t` with formatted
     leaves.
     """
-    flattened, repacker = flatten(t, json_compat_keys=True)
+    flattened, repacker = flatten(
+        t, json_compat_keys=True, flatten_formattable_subclasses=False
+    )
     return repacker([_leaf_formatter(v) for v in flattened])
 
 
