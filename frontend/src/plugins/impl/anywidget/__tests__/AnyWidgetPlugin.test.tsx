@@ -5,11 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { TestUtils } from "@/__tests__/test-helpers";
 import type { UIElementId } from "@/core/cells/ids";
 import { MarimoIncomingMessageEvent } from "@/core/dom/events";
-import {
-  getDirtyFields,
-  resolveInitialValue,
-  visibleForTesting,
-} from "../AnyWidgetPlugin";
+import { getDirtyFields, visibleForTesting } from "../AnyWidgetPlugin";
 import { Model } from "../model";
 
 const { LoadedSlot } = visibleForTesting;
@@ -132,6 +128,7 @@ describe("LoadedSlot", () => {
         message: {
           method: "update",
           state: { count: 10 },
+          buffer_paths: [],
         },
         buffers: [],
       },
@@ -181,57 +178,5 @@ describe("LoadedSlot", () => {
     await waitFor(() => {
       expect(mockWidget.render).toHaveBeenCalledTimes(2);
     });
-  });
-});
-
-describe("resolveInitialValue", () => {
-  it("should convert base64 strings to DataView at specified paths", () => {
-    const result = resolveInitialValue(
-      {
-        a: 10,
-        b: "aGVsbG8=", // "hello" in base64
-        c: [1, "d29ybGQ="], // "world" in base64
-        d: {
-          foo: "bWFyaW1vCg==", // "marimo" in base64
-          baz: 20,
-        },
-      },
-      [["b"], ["c", 1], ["d", "foo"]],
-    );
-
-    expect(result).toMatchInlineSnapshot(`
-      {
-        "a": 10,
-        "b": DataView [
-          104,
-          101,
-          108,
-          108,
-          111,
-        ],
-        "c": [
-          1,
-          DataView [
-            119,
-            111,
-            114,
-            108,
-            100,
-          ],
-        ],
-        "d": {
-          "baz": 20,
-          "foo": DataView [
-            109,
-            97,
-            114,
-            105,
-            109,
-            111,
-            10,
-          ],
-        },
-      }
-    `);
   });
 });

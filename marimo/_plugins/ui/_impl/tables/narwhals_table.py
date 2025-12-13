@@ -619,9 +619,36 @@ class NarwhalsTableManager(
                     int(hours), int(minutes), int(seconds), int(microseconds)
                 )
             elif dtype == nw.Date:
-                bin_end = datetime.date.fromtimestamp(bin_end / ms_time)
+                # Use timedelta to handle dates before Unix epoch (1970)
+                # which cause OSError on Windows with fromtimestamp
+                try:
+                    bin_end = datetime.date.fromtimestamp(bin_end / ms_time)
+                except (OSError, OverflowError, ValueError):
+                    # Fall back to timedelta calculation for old dates
+                    epoch = datetime.datetime(
+                        1970, 1, 1, tzinfo=datetime.timezone.utc
+                    )
+                    bin_end_dt = epoch + datetime.timedelta(
+                        seconds=bin_end / ms_time
+                    )
+                    bin_end = bin_end_dt.date()
             else:
-                bin_end = datetime.datetime.fromtimestamp(bin_end / ms_time)
+                # Use timedelta to handle datetimes before Unix epoch (1970)
+                # which cause OSError on Windows with fromtimestamp
+                try:
+                    bin_end = datetime.datetime.fromtimestamp(
+                        bin_end / ms_time
+                    )
+                except (OSError, OverflowError, ValueError):
+                    # Fall back to timedelta calculation for old dates
+                    epoch = datetime.datetime(
+                        1970, 1, 1, tzinfo=datetime.timezone.utc
+                    )
+                    bin_end = epoch + datetime.timedelta(
+                        seconds=bin_end / ms_time
+                    )
+                    # Remove timezone to match fromtimestamp behavior
+                    bin_end = bin_end.replace(tzinfo=None)
 
             # Only append if the count is greater than 0
             if count > 0:

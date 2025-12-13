@@ -1,12 +1,16 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Literal, Optional, Union
+from typing import Any, Literal, Optional, Union
 
+from marimo._loggers import marimo_logger
+from marimo._output.formatting import as_html
 from marimo._output.hypertext import Html
 from marimo._output.rich_help import mddoc
 from marimo._plugins.core.web_component import build_stateless_plugin
 from marimo._plugins.utils import remove_none_values
+
+Logger = marimo_logger()
 
 
 @mddoc
@@ -17,6 +21,7 @@ def stat(
     direction: Optional[Literal["increase", "decrease"]] = None,
     bordered: bool = False,
     target_direction: Optional[Literal["increase", "decrease"]] = "increase",
+    slot: Optional[Html] = None,
 ) -> Html:
     """Display a statistic.
 
@@ -34,6 +39,7 @@ def stat(
             `increase` when higher values are better, or `decrease`
             when lower values are better. By default the target
             direction is `increase`.
+        slot: an optional Html object to place beside the widget
 
 
     Returns:
@@ -50,7 +56,21 @@ def stat(
                     "direction": direction,
                     "bordered": bordered,
                     "target_direction": target_direction,
+                    "slot": try_convert_to_html(slot),
                 }
             ),
         )
     )
+
+
+def try_convert_to_html(slot: Any) -> Optional[Html]:
+    if slot is None:
+        return None
+
+    try:
+        return as_html(slot)
+    except Exception as e:
+        Logger.error(
+            f"Error converting slot to Html: {e}. Please ensure it is a valid Html object."
+        )
+        return None

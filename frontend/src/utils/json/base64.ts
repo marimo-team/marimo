@@ -55,6 +55,14 @@ export function byteStringToBinary(bytes: ByteString): Uint8Array {
   return Uint8Array.from(bytes, (c) => c.charCodeAt(0));
 }
 
+export function binaryToByteString(binary: Uint8Array): ByteString {
+  let result = "";
+  for (const byte of binary) {
+    result += String.fromCharCode(byte);
+  }
+  return result as ByteString;
+}
+
 export function safeExtractSetUIElementMessageBuffers(
   op: OperationMessageData<"send-ui-element-message">,
 ): readonly DataView[] {

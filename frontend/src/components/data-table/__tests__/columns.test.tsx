@@ -5,6 +5,7 @@ import { render } from "@testing-library/react";
 import { I18nProvider } from "react-aria";
 import { describe, expect, it, test } from "vitest";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { parseContent } from "@/utils/url-parser";
 import {
   generateColumns,
   inferFieldTypes,
@@ -14,7 +15,7 @@ import {
 import { getMimeValues, isMimeValue, MimeCell } from "../mime-cell";
 import type { FieldTypesWithExternalType } from "../types";
 import { uniformSample } from "../uniformSample";
-import { parseContent, UrlDetector } from "../url-detector";
+import { UrlDetector } from "../url-detector";
 
 test("uniformSample", () => {
   const items = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J"];

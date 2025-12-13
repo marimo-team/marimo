@@ -17,6 +17,7 @@ import {
 import { resolvedMarimoConfigAtom } from "@/core/config/config";
 import { useOnMount } from "@/hooks/useLifecycle";
 import { cn } from "@/utils/cn";
+import { prettyError } from "@/utils/errors";
 import { Logger } from "@/utils/Logger";
 import { FooterItem } from "../footer-item";
 
@@ -90,8 +91,19 @@ const GitHubCopilotStatus: React.FC = () => {
         setStep("connectionError");
         toast({
           title: "GitHub Copilot Connection Error",
-          description:
-            "Failed to connect to GitHub Copilot. Check settings and try again.",
+          description: (
+            <>
+              {" "}
+              <div>
+                Failed to connect to GitHub Copilot. Check settings and try
+                again.
+              </div>
+              <br />
+              <div className="text-sm font-mono whitespace-pre-wrap">
+                {prettyError(error)}
+              </div>
+            </>
+          ),
           variant: "danger",
           action: (
             <Button variant="link" onClick={openSettings}>
@@ -120,15 +132,15 @@ const GitHubCopilotStatus: React.FC = () => {
   return (
     <FooterItem
       tooltip={
-        <>
+        <div className="max-w-[200px]">
           <b>GitHub Copilot:</b> {label}
           {status.kind && (
             <>
               <br />
-              <span className="text-xs">Status: {status.kind}</span>
+              <span className="pt-1 text-xs">Status: {status.kind}</span>
             </>
           )}
-        </>
+        </div>
       }
       selected={false}
       onClick={openSettings}

@@ -85,6 +85,11 @@ nav:
       - Running cells: guides/reactivity.md
       - Interactive elements: guides/interactivity.md
       - Visualize outputs: guides/outputs.md
+      - SQL, dataframes, and plots:
+          - SQL, dataframes, and plots: guides/working_with_data/index.md
+          - DataFrames: guides/working_with_data/dataframes.md
+          - SQL: guides/working_with_data/sql.md
+          - Plotting: guides/working_with_data/plotting.md
       - Migrate from Jupyter: guides/coming_from/jupyter.md
       - Expensive notebooks: guides/expensive_notebooks.md
       - Understanding errors:
@@ -93,8 +98,82 @@ nav:
           - Import star: guides/understanding_errors/import_star.md
           - Cycles: guides/understanding_errors/cycles.md
           - Setup References: guides/understanding_errors/setup.md
-      - Debugging notebooks: guides/debugging.md
-      - Lint Rules:
+      - Package management:
+          - Package management: guides/package_management/index.md
+          - Importing packages: guides/package_management/importing_packages.md
+          - Installing packages: guides/package_management/installing_packages.md
+          - Inlining dependencies: guides/package_management/inlining_dependencies.md
+          - Notebooks in existing projects: guides/package_management/notebooks_in_projects.md
+          - Using uv: guides/package_management/using_uv.md
+      - Generate with AI:
+          - Generate with AI: guides/generate_with_ai/index.md
+          - Generate entire notebooks: guides/generate_with_ai/text_to_notebook.md
+          - AI-assisted coding: guides/editor_features/ai_completion.md
+          - Prompts: guides/generate_with_ai/prompts.md
+      - Editor features:
+          - Editor features: guides/editor_features/index.md
+          - Editor overview: guides/editor_features/overview.md
+          - Understanding dataflow: guides/editor_features/dataflow.md
+          - Module autoreloading: guides/editor_features/module_autoreloading.md
+          - Hotkeys: guides/editor_features/hotkeys.md
+          - AI completion: guides/editor_features/ai_completion.md
+          - Model Context Protocol: guides/editor_features/mcp.md
+          - AI tools: guides/editor_features/tools.md
+          - Agents: guides/editor_features/agents.md
+          - Language Server: guides/editor_features/language_server.md
+          - Package management: guides/editor_features/package_management.md
+      - Using your own editor: guides/editor_features/watching.md
+      - Run notebooks as apps: guides/apps.md
+      - Run notebooks as scripts: guides/scripts.md
+      - Reuse functions and classes: guides/reusing_functions.md
+      - Export to other formats: guides/exporting.md
+      - Cloud notebooks with molab: guides/molab.md
+      - Publish to the web:
+          - Publish to the web: guides/publishing/index.md
+          - Embedding:
+            - Embedding: guides/publishing/embedding.md
+            - From code snippets: guides/publishing/from_code_snippets.md
+          - From GitHub: guides/publishing/from_github.md
+          - Static sites:
+            - GitHub Pages: guides/publishing/github_pages.md
+            - Cloudflare: guides/publishing/cloudflare.md
+            - Quarto: guides/publishing/quarto.md
+            - Self-host WebAssembly notebooks: guides/publishing/self_host_wasm.md
+          - Share playground notebooks: guides/publishing/playground.md
+          - View outputs on GitHub: guides/publishing/view_outputs_on_github.md
+          - Deploy a backend: guides/publishing/deploy.md
+      - Deployment:
+          - Deploy notebooks: guides/deploying/index.md
+          - Authentication: guides/deploying/authentication.md
+          - Docker: guides/deploying/deploying_docker.md
+          - HuggingFace: guides/deploying/deploying_hugging_face.md
+          - Public gallery: guides/deploying/deploying_public_gallery.md
+          - Railway: guides/deploying/deploying_railway.md
+          - nginx: guides/deploying/deploying_nginx.md
+          - Prebuilt containers: guides/deploying/prebuilt_containers.md
+          - Programmatic: guides/deploying/programmatically.md
+          - Scheduled jobs: guides/deploying/scheduled.md
+      - WebAssembly notebooks: guides/wasm.md
+      - Configuration:
+          - Configuration: guides/configuration/index.md
+          - Runtime configuration: guides/configuration/runtime_configuration.md
+          - LLM Providers: guides/configuration/llm_providers.md
+          - HTML head: guides/configuration/html_head.md
+          - Theming: guides/configuration/theming.md
+          - Snippets: guides/configuration/snippets.md
+          - i18n: guides/configuration/internationalization.md
+      - Extending marimo:
+          - Extending marimo: guides/integrating_with_marimo/index.md
+          - Custom UI plugins: guides/integrating_with_marimo/custom_ui_plugins.md
+          - Displaying objects: guides/integrating_with_marimo/displaying_objects.md
+      - Coming from other tools:
+          - Coming from other tools: guides/coming_from/index.md
+          - Jupytext: guides/coming_from/jupytext.md
+          - Papermill: guides/coming_from/papermill.md
+          - Streamlit: guides/coming_from/streamlit.md
+      - Best practices: guides/best_practices.md
+      - Debugging: guides/debugging.md
+      - Linting:
           - Lint Rules: guides/lint_rules/index.md
           - Rules:
               - Unparsable cells: guides/lint_rules/rules/unparsable_cells.md
@@ -111,88 +190,10 @@ nav:
               - Markdown Indentation: guides/lint_rules/rules/markdown_indentation.md
               - SQL parse error: guides/lint_rules/rules/sql_parse_error.md
               - Misc parse log: guides/lint_rules/rules/misc_log_capture.md
-      - SQL, dataframes, and plots:
-          - SQL, dataframes, and plots: guides/working_with_data/index.md
-          - DataFrames: guides/working_with_data/dataframes.md
-          - SQL: guides/working_with_data/sql.md
-          - Plotting: guides/working_with_data/plotting.md
-      - Package management:
-          - Package management: guides/package_management/index.md
-          - Importing packages: guides/package_management/importing_packages.md
-          - Installing packages: guides/package_management/installing_packages.md
-          - Inlining dependencies: guides/package_management/inlining_dependencies.md
-          - Notebooks in existing projects: guides/package_management/notebooks_in_projects.md
-          - Using uv: guides/package_management/using_uv.md
-      - Generate with AI:
-          - Generate with AI: guides/generate_with_ai/index.md
-          - Generate entire notebooks: guides/generate_with_ai/text_to_notebook.md
-          - AI-assisted coding: guides/editor_features/ai_completion.md
-          - Prompts for the marimo editor: guides/generate_with_ai/prompts.md
-      - Editor features:
-          - Editor features: guides/editor_features/index.md
-          - Editor overview: guides/editor_features/overview.md
-          - Understanding dataflow: guides/editor_features/dataflow.md
-          - AI completion: guides/editor_features/ai_completion.md
-          - Model Context Protocol: guides/editor_features/mcp.md
-          - AI tools: guides/editor_features/tools.md
-          - Agents: guides/editor_features/agents.md
-          - Language Server: guides/editor_features/language_server.md
-          - Package management: guides/editor_features/package_management.md
-          - Module autoreloading: guides/editor_features/module_autoreloading.md
-          - Hotkeys: guides/editor_features/hotkeys.md
-      - Using your own editor: guides/editor_features/watching.md
-      - Run notebooks as apps: guides/apps.md
-      - Run notebooks as scripts: guides/scripts.md
-      - Reuse functions and classes: guides/reusing_functions.md
-      - Test notebooks:
+      - Testing:
           - Testing notebooks: guides/testing/index.md
           - pytest: guides/testing/pytest.md
           - doctest: guides/testing/doctest.md
-      - Export to other formats: guides/exporting.md
-      - Share cloud notebooks with molab: guides/molab.md
-      - Publish to the web:
-          - Publish to the web: guides/publishing/index.md
-          - Embedding: guides/publishing/embedding.md
-          - From code snippets: guides/publishing/from_code_snippets.md
-          - From GitHub: guides/publishing/from_github.md
-          - GitHub Pages: guides/publishing/github_pages.md
-          - Cloudflare: guides/publishing/cloudflare.md
-          - Online playground: guides/publishing/playground.md
-          - Community Cloud: guides/publishing/community_cloud/index.md
-          - Self-host WASM: guides/publishing/self_host_wasm.md
-          - View outputs on GitHub: guides/publishing/view_outputs_on_github.md
-          - Deploy a backend: guides/publishing/deploy.md
-      - Deployment:
-          - Deploy notebooks: guides/deploying/index.md
-          - Authentication: guides/deploying/authentication.md
-          - Docker: guides/deploying/deploying_docker.md
-          - HuggingFace: guides/deploying/deploying_hugging_face.md
-          - Ploomber: guides/deploying/deploying_ploomber.md
-          - Public gallery: guides/deploying/deploying_public_gallery.md
-          - Railway: guides/deploying/deploying_railway.md
-          - nginx: guides/deploying/deploying_nginx.md
-          - Prebuilt containers: guides/deploying/prebuilt_containers.md
-          - Programmatic: guides/deploying/programmatically.md
-          - Scheduled jobs: guides/deploying/scheduled.md
-      - WebAssembly notebooks: guides/wasm.md
-      - Configuration:
-          - Configuration: guides/configuration/index.md
-          - Runtime configuration: guides/configuration/runtime_configuration.md
-          - LLM Providers: guides/configuration/llm_providers.md
-          - HTML head: guides/configuration/html_head.md
-          - Theming: guides/configuration/theming.md
-          - Snippets: guides/configuration/snippets.md
-          - i18n: guides/configuration/internationalization.md
-      - Coming from other tools:
-          - Coming from other tools: guides/coming_from/index.md
-          - Jupytext: guides/coming_from/jupytext.md
-          - Papermill: guides/coming_from/papermill.md
-          - Streamlit: guides/coming_from/streamlit.md
-      - Extending marimo:
-          - Extending marimo: guides/integrating_with_marimo/index.md
-          - Custom UI plugins: guides/integrating_with_marimo/custom_ui_plugins.md
-          - Displaying objects: guides/integrating_with_marimo/displaying_objects.md
-      - Best practices: guides/best_practices.md
       - Troubleshooting: guides/troubleshooting.md
       - Dangerously set state: guides/state.md
   - Examples:

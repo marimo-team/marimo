@@ -7,6 +7,7 @@ import type { ConditionType } from "@/plugins/impl/data-frames/schema";
 import type { ColumnId } from "@/plugins/impl/data-frames/types";
 import type { OperatorType } from "@/plugins/impl/data-frames/utils/operators";
 import { assertNever } from "@/utils/assertNever";
+import { Logger } from "@/utils/Logger";
 
 declare module "@tanstack/react-table" {
   //allows us to define custom properties for our columns
@@ -192,12 +193,20 @@ export function filterToFilterCondition(
       }
 
       return [];
-    case "select":
+    case "select": {
+      let operator = filter.operator;
+      if (filter.operator !== "in" && filter.operator !== "not_in") {
+        Logger.warn("Invalid operator for select filter", {
+          operator: filter.operator,
+        });
+        operator = "in"; // default to in operator
+      }
       return {
         column_id: columnId,
-        operator: "in",
+        operator,
         value: filter.options,
       };
+    }
 
     default:
       assertNever(filter);

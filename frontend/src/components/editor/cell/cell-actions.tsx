@@ -80,6 +80,9 @@ const CellActionsDropdownInternal = (
             <Fragment key={i}>
               <CommandGroup key={i}>
                 {group.map((action) => {
+                  if (action.redundant) {
+                    return null;
+                  }
                   let body = (
                     <div className="flex items-center flex-1">
                       {action.icon && (

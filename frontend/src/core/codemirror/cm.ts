@@ -152,7 +152,7 @@ export const setupCodeMirror = (opts: CodeMirrorSetupOpts): Extension[] => {
     // Reactive references highlighting
     reactiveReferencesBundle(
       cellId,
-      displayConfig.reference_highlighting ?? false,
+      displayConfig.reference_highlighting ?? true,
     ),
   ];
 };

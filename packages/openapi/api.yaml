@@ -1628,12 +1628,17 @@ components:
       type: object
     GitHubConfig:
       description: "Configuration options for GitHub.\n\n    **Keys.**\n\n    - `api_key`:\
-        \ the GitHub API token\n    - `base_url`: the base URL for the API"
+        \ the GitHub API token\n    - `base_url`: the base URL for the API\n    -\
+        \ `copilot_settings`: configuration settings for GitHub Copilot LSP.\n   \
+        \     Supports settings like `http` (proxy configuration), `telemetry`,\n\
+        \        and `github-enterprise` (enterprise URI)."
       properties:
         api_key:
           type: string
         base_url:
           type: string
+        copilot_settings:
+          type: object
       required: []
       title: GitHubConfig
       type: object
@@ -3761,7 +3766,7 @@ components:
       type: object
 info:
   title: marimo API
-  version: 0.18.1
+  version: 0.18.4
 openapi: 3.1.0
 paths:
   /@file/{filename_and_length}:

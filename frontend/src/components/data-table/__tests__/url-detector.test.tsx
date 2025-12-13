@@ -1,65 +1,8 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { isMarkdown, parseContent, UrlDetector } from "../url-detector";
-
-describe("parseContent", () => {
-  it("handles data URIs", () => {
-    const parts = parseContent("data:image/png;base64,iVBOR");
-    expect(parts).toEqual([
-      {
-        type: "image",
-        url: "data:image/png;base64,iVBOR",
-      },
-    ]);
-  });
-
-  it("handles complete URLs", () => {
-    const parts = parseContent("https://marimo.io/path?query=value");
-    expect(parts).toEqual([
-      { type: "url", url: "https://marimo.io/path?query=value" },
-    ]);
-  });
-
-  it("handles multiple URLs with text", () => {
-    const parts = parseContent(
-      "Visit https://marimo.io and https://github.com/marimo-team",
-    );
-    expect(parts).toEqual([
-      { type: "text", value: "Visit " },
-      { type: "url", url: "https://marimo.io" },
-      { type: "text", value: " and " },
-      { type: "url", url: "https://github.com/marimo-team" },
-    ]);
-  });
-
-  // Currently doesn't detect mixed content
-  it.fails("handles text with data URIs", () => {
-    const parts = parseContent("Image: data:image/png;base64,iVBOR");
-    expect(parts).toEqual([
-      {
-        type: "text",
-        value: "Image: ",
-      },
-      {
-        type: "image",
-        url: "data:image/png;base64,iVBOR",
-      },
-    ]);
-  });
-
-  it.fails("handles data URIs, text and images", () => {
-    const parts = parseContent(
-      "this is a picture: https://avatars.githubusercontent.com/u/123 and data:image/png;base64,iVBOR",
-    );
-    expect(parts).toEqual([
-      { type: "text", value: "this is a picture: " },
-      { type: "image", url: "https://avatars.githubusercontent.com/u/123" },
-      { type: "text", value: " and " },
-      { type: "image", url: "data:image/png;base64,iVBOR" },
-    ]);
-  });
-});
+import { parseContent } from "@/utils/url-parser";
+import { isMarkdown, UrlDetector } from "../url-detector";
 
 describe("UrlDetector", () => {
   it("renders plain text without URLs", () => {

@@ -534,3 +534,80 @@ def test_lazy_router_counts_nested_files(tmp_path: Path):
 
     total_files = count_files(files)
     assert total_files == 2
+
+
+def test_lazy_router_allows_temp_dir_files(tmp_path: Path):
+    """Test that files in registered temp directories bypass validation"""
+    # Create a base directory
+    base_dir = tmp_path / "base"
+    base_dir.mkdir()
+
+    # Create a file in the base directory
+    base_file = base_dir / "base_app.py"
+    base_file.write_text("import marimo\napp = marimo.App()\n")
+
+    # Create a separate temp directory
+    temp_dir = tmp_path / "temp"
+    temp_dir.mkdir()
+
+    # Create a file in the temp directory
+    temp_file = temp_dir / "tutorial.py"
+    temp_file.write_text("import marimo\napp = marimo.App()\n")
+
+    # Create router for base directory
+    router = LazyListOfFilesAppFileRouter(
+        str(base_dir), include_markdown=False
+    )
+
+    # Without registering temp dir, accessing temp file should fail
+    with pytest.raises(HTTPException) as exc_info:
+        router.get_file_manager(str(temp_file))
+    assert exc_info.value.status_code == HTTPStatus.FORBIDDEN
+    assert "outside the allowed directory" in exc_info.value.detail
+
+    # Register the temp directory
+    router.register_temp_dir(str(temp_dir))
+
+    # Now accessing the temp file should succeed
+    manager = router.get_file_manager(str(temp_file))
+    assert manager is not None
+    assert manager.path == str(temp_file)
+
+
+def test_lazy_router_temp_dir_doesnt_affect_normal_files(
+    tmp_path: Path,
+):
+    """Test that temp dir registration doesn't interfere with normal file access"""
+    # Create a base directory
+    base_dir = tmp_path / "base"
+    base_dir.mkdir()
+
+    # Create a file in the base directory
+    base_file = base_dir / "base_app.py"
+    base_file.write_text("import marimo\napp = marimo.App()\n")
+
+    # Create a file outside the base directory
+    outside_file = tmp_path / "outside.py"
+    outside_file.write_text("import marimo\napp = marimo.App()\n")
+
+    # Create a different temp directory
+    other_temp_dir = tmp_path / "other_temp"
+    other_temp_dir.mkdir()
+
+    # Create router
+    router = LazyListOfFilesAppFileRouter(
+        str(base_dir), include_markdown=False
+    )
+
+    # Register a different temp directory (not containing our outside_file)
+    router.register_temp_dir(str(other_temp_dir))
+
+    # Base file should still be accessible
+    manager = router.get_file_manager(str(base_file))
+    assert manager is not None
+    assert manager.path == str(base_file)
+
+    # Outside file should still be blocked (not in registered temp dir)
+    with pytest.raises(HTTPException) as exc_info:
+        router.get_file_manager(str(outside_file))
+    assert exc_info.value.status_code == HTTPStatus.FORBIDDEN

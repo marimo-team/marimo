@@ -13,8 +13,6 @@ from marimo._config.config import (
     MarimoConfig,
 )
 from marimo._server.ai.config import (
-    DEFAULT_MAX_TOKENS,
-    DEFAULT_MODEL,
     AnyProviderConfig,
     _get_ai_config,
     _get_base_url,
@@ -24,6 +22,7 @@ from marimo._server.ai.config import (
     get_edit_model,
     get_max_tokens,
 )
+from marimo._server.ai.constants import DEFAULT_MAX_TOKENS, DEFAULT_MODEL
 from marimo._server.ai.tools.types import ToolDefinition
 from marimo._server.api.status import HTTPStatus
 
@@ -216,6 +215,29 @@ class TestAnyProviderConfig:
         assert (
             provider_config.extra_headers["X-Custom-Header"] == "custom-value"
         )
+
+    def test_for_github_with_copilot_settings(self):
+        """Test GitHub configuration with copilot_settings is accepted."""
+        config: AiConfig = {
+            "github": {
+                "api_key": "test-github-key",
+                "copilot_settings": {
+                    "http": {
+                        "proxy": "http://proxy.example.com:8888",
+                        "proxyStrictSSL": True,
+                    },
+                    "telemetry": {"telemetryLevel": "off"},
+                },
+            }
+        }
+
+        # Should not raise an error - copilot_settings is a valid field
+        provider_config = AnyProviderConfig.for_github(config)
+
+        # Note: copilot_settings is stored in config but not used by AnyProviderConfig
+        # It's used by the frontend LSP client
+        assert provider_config.api_key == "test-github-key"
+        assert provider_config.base_url == "https://api.githubcopilot.com/"
 
     def test_for_openrouter(self):
         """Test OpenRouter configuration."""

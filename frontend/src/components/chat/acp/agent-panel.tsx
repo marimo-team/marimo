@@ -31,6 +31,7 @@ import { cn } from "@/utils/cn";
 import { Logger } from "@/utils/Logger";
 import { AgentDocs } from "./agent-docs";
 import { AgentSelector } from "./agent-selector";
+import { ModelSelector } from "./model-selector";
 import ScrollToBottomButton from "./scroll-to-bottom-button";
 import { SessionTabs } from "./session-tabs";
 import {
@@ -66,6 +67,7 @@ import { DelayMount } from "@/components/utils/delay-mount";
 import { useRequestClient } from "@/core/network/requests";
 import { filenameAtom } from "@/core/saving/file-state";
 import { store } from "@/core/state/jotai";
+import { ErrorBanner } from "@/plugins/impl/common/error-banner";
 import { Functions } from "@/utils/functions";
 import { Paths } from "@/utils/paths";
 import { FileAttachmentPill } from "../chat-components";
@@ -82,6 +84,7 @@ import type {
   ExternalAgentSessionId,
   NotificationEvent,
   SessionMode,
+  SessionModelState,
 } from "./types";
 
 const logger = Logger.get("agents");
@@ -298,6 +301,8 @@ interface PromptAreaProps {
   fileInputRef: React.RefObject<HTMLInputElement | null>;
   sessionMode?: SessionMode;
   onModeChange?: (mode: string) => void;
+  sessionModels?: SessionModelState | null;
+  onModelChange?: (modelId: string) => void;
 }
 
 const PromptArea = memo<PromptAreaProps>(
@@ -313,6 +318,8 @@ const PromptArea = memo<PromptAreaProps>(
     fileInputRef,
     sessionMode,
     onModeChange,
+    sessionModels,
+    onModelChange,
   }) => {
     const inputRef = useRef<ReactCodeMirrorRef | null>(null);
     const promptCompletions: AdditionalCompletions | undefined = useMemo(() => {
@@ -374,6 +381,13 @@ const PromptArea = memo<PromptAreaProps>(
                 <ModeSelector
                   sessionMode={sessionMode}
                   onModeChange={onModeChange}
+                />
+              )}
+              {sessionModels && onModelChange && activeSessionId && (
+                <ModelSelector
+                  sessionModels={sessionModels}
+                  onModelChange={onModelChange}
+                  disabled={isLoading}
                 />
               )}
             </div>
@@ -639,15 +653,21 @@ const NO_WS_SET = "_skip_auto_connect_";
 function getCwd() {
   const filename = store.get(filenameAtom);
   if (!filename) {
-    return "";
+    throw new Error(
+      "Please save the notebook and refresh the browser to use the agent",
+    );
   }
   return Paths.dirname(filename);
 }
 
 const AgentPanel: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<Error | string | null>(null);
   const [promptValue, setPromptValue] = useState("");
   const [files, setFiles] = useState<File[]>();
+  const [sessionModels, setSessionModels] = useState<SessionModelState | null>(
+    null,
+  );
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [selectedTab] = useAtom(selectedTabAtom);
@@ -745,16 +765,26 @@ const AgentPanel: React.FC = () => {
       });
     }
 
-    logger.debug("Creating new agent session", {});
+    // Get the selected model from the current session state
+    const currentModel = selectedTab?.selectedModel ?? null;
+    logger.debug("Creating new agent session", { model: currentModel });
     isCreatingNewSession.current = true;
     const newSession = await agent
       .newSession({
         cwd: getCwd(),
         mcpServers: [],
+        _meta: currentModel ? { model: currentModel } : undefined,
       })
       .finally(() => {
         isCreatingNewSession.current = false;
       });
+
+    // Capture models from the response
+    if (newSession.models) {
+      logger.debug("Session models received", { models: newSession.models });
+      setSessionModels(newSession.models);
+    }
+
     setSessionState((prev) =>
       updateSessionExternalAgentSessionId(
         prev,
@@ -774,11 +804,20 @@ const AgentPanel: React.FC = () => {
       if (!agent.loadSession) {
         throw new Error("Agent does not support loading sessions");
       }
-      await agent.loadSession({
+      const loadedSession = await agent.loadSession({
         sessionId: previousSessionId,
         cwd: getCwd(),
         mcpServers: [],
       });
+
+      // Capture models from the response if available
+      if (loadedSession?.models) {
+        logger.debug("Session models received", {
+          models: loadedSession.models,
+        });
+        setSessionModels(loadedSession.models);
+      }
+
       setSessionState((prev) =>
         updateSessionExternalAgentSessionId(prev, previousSessionId),
       );
@@ -816,8 +855,10 @@ const AgentPanel: React.FC = () => {
         } else {
           await handleNewSession();
         }
+        setError(null);
       } catch (error) {
         logger.error("Failed to create or resume session:", error);
+        setError(error instanceof Error ? error : String(error));
       }
     };
 
@@ -945,6 +986,33 @@ const AgentPanel: React.FC = () => {
     disconnect();
   });
 
+  const handleModelChange = useEvent((modelId: string) => {
+    logger.debug("Model change requested", {
+      modelId,
+      sessionId: activeSessionId,
+    });
+
+    if (!agent || !activeSessionId) {
+      toast({
+        title: "Cannot change model",
+        description: "Please connect to an agent with an active session first",
+        variant: "danger",
+      });
+      return;
+    }
+
+    // Call agent.setSessionModel to notify the agent
+    void agent.setSessionModel?.({
+      sessionId: activeSessionId,
+      modelId,
+    });
+
+    // Update local state
+    setSessionModels((prev) =>
+      prev ? { ...prev, currentModelId: modelId } : null,
+    );
+  });
+
   const handleModeChange = useEvent((mode: string) => {
     logger.debug("Mode change requested", {
       sessionId: activeSessionId,
@@ -987,6 +1055,24 @@ const AgentPanel: React.FC = () => {
   }
 
   const renderBody = () => {
+    if (error) {
+      return (
+        <ErrorBanner
+          className="w-3/4 mx-auto mt-10"
+          error={error}
+          action={
+            <Button
+              variant="linkDestructive"
+              size="sm"
+              onClick={() => setError(null)}
+            >
+              Dismiss
+            </Button>
+          }
+        />
+      );
+    }
+
     const isConnecting = connectionState.status === "connecting";
     const delay = 200; // ms
     if (isConnecting) {
@@ -1067,6 +1153,8 @@ const AgentPanel: React.FC = () => {
           commands={availableCommands}
           sessionMode={sessionMode}
           onModeChange={handleModeChange}
+          sessionModels={sessionModels}
+          onModelChange={handleModelChange}
         />
       </>
     );

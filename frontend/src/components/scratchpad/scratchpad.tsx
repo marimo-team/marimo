@@ -27,7 +27,7 @@ import { Functions } from "@/utils/functions";
 import { CellEditor } from "../editor/cell/code/cell-editor";
 import { HideInKioskMode } from "../editor/kiosk-mode";
 import { OutputArea } from "../editor/Output";
-import { ConsoleOutput } from "../editor/output/ConsoleOutput";
+import { ConsoleOutput } from "../editor/output/console/ConsoleOutput";
 import { Spinner } from "../icons/spinner";
 import { renderShortcut } from "../shortcuts/renderShortcut";
 import { Button } from "../ui/button";

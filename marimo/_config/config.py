@@ -375,10 +375,14 @@ class GitHubConfig(TypedDict, total=False):
 
     - `api_key`: the GitHub API token
     - `base_url`: the base URL for the API
+    - `copilot_settings`: configuration settings for GitHub Copilot LSP.
+        Supports settings like `http` (proxy configuration), `telemetry`,
+        and `github-enterprise` (enterprise URI).
     """
 
     api_key: str
     base_url: NotRequired[str]
+    copilot_settings: NotRequired[dict[str, Any]]
 
 
 @dataclass
@@ -628,7 +632,7 @@ DEFAULT_CONFIG: MarimoConfig = {
         "dataframes": "rich",
         "default_table_page_size": 10,
         "default_table_max_columns": 50,
-        "reference_highlighting": False,
+        "reference_highlighting": True,
     },
     "formatting": {"line_length": 79},
     "keymap": {"preset": "default", "overrides": {}},
