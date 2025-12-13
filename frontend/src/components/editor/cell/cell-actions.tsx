@@ -6,8 +6,10 @@ import { useAtomValue } from "jotai";
 import React, {
   Fragment,
   type PropsWithChildren,
+  useEffect,
   useImperativeHandle,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import {
@@ -41,6 +43,7 @@ import {
   type CellActionButtonProps,
   useCellActionButtons,
 } from "../actions/useCellActionButton";
+import { raf2 } from "../navigation/focus-utils";
 
 interface Props extends CellActionButtonProps {
   children: React.ReactNode;
@@ -57,10 +60,27 @@ const CellActionsDropdownInternal = (
 ) => {
   const [open, setOpen] = useState(false);
   const closePopover = () => setOpen(false);
+  const buttonRef = useRef<HTMLButtonElement>(null);
   const actions = useCellActionButtons({ cell: props, closePopover });
 
   // store the last focused element so we can restore it when the popover closes
   const restoreFocus = useRestoreFocus();
+
+  useEffect(() => {
+    if (open) {
+      // Scroll the button into view when opening the popover
+      // This can be out of view if the popover and a cell's code is
+      // hidden at the same time.
+      raf2(() => {
+        if (buttonRef.current) {
+          buttonRef.current.scrollIntoView({
+            behavior: "auto",
+            block: "nearest",
+          });
+        }
+      });
+    }
+  }, [open]);
 
   useImperativeHandle(ref, () => ({
     toggle: () => setOpen((prev) => !prev),
@@ -156,7 +176,7 @@ const CellActionsDropdownInternal = (
         {/* This creates a warning in React due to nested <button> elements.
         Adding asChild could fix this, but it also changes the styling (is hidden) of the button when
         the Popover is open. */}
-        <TooltipTrigger>
+        <TooltipTrigger ref={buttonRef}>
           <PopoverTrigger className="flex">{children}</PopoverTrigger>
         </TooltipTrigger>
       </TooltipRoot>

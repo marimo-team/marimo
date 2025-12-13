@@ -4,7 +4,10 @@ import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as scrollUtils from "../../../utils/scroll";
-import { scrollActiveLineIntoView } from "../extensions";
+import {
+  scrollActiveLineIntoView,
+  scrollActiveLineIntoViewExtension,
+} from "../extensions";
 import { formattingChangeEffect } from "../format";
 
 // Mock the smartScrollIntoView function
@@ -12,7 +15,7 @@ vi.mock("../../../utils/scroll", () => ({
   smartScrollIntoView: vi.fn(),
 }));
 
-describe("scrollActiveLineIntoView", () => {
+describe("scrollActiveLineIntoViewExtension", () => {
   let view: EditorView;
   let mockAppElement: HTMLElement;
 
@@ -26,7 +29,7 @@ describe("scrollActiveLineIntoView", () => {
     view = new EditorView({
       state: EditorState.create({
         doc: "line 1\nline 2\nline 3",
-        extensions: [scrollActiveLineIntoView()],
+        extensions: [scrollActiveLineIntoViewExtension()],
       }),
     });
 
@@ -76,6 +79,7 @@ describe("scrollActiveLineIntoView", () => {
       {
         offset: { top: 30, bottom: 150 },
         body: mockAppElement,
+        behavior: "smooth",
       },
     );
   });
@@ -112,6 +116,92 @@ describe("scrollActiveLineIntoView", () => {
     view.dispatch(transaction);
 
     // Should not scroll for formatting changes
+    expect(vi.mocked(scrollUtils.smartScrollIntoView)).not.toHaveBeenCalled();
+  });
+});
+
+describe("scrollActiveLineIntoView function", () => {
+  let view: EditorView;
+  let mockAppElement: HTMLElement;
+
+  beforeEach(() => {
+    // Create a mock App element
+    mockAppElement = document.createElement("div");
+    mockAppElement.id = "App";
+    document.body.append(mockAppElement);
+
+    // Create an editor view without the extension
+    view = new EditorView({
+      state: EditorState.create({
+        doc: "line 1\nline 2\nline 3",
+      }),
+    });
+
+    document.body.append(view.dom);
+
+    // Reset the mock
+    vi.mocked(scrollUtils.smartScrollIntoView).mockClear();
+  });
+
+  afterEach(() => {
+    view.destroy();
+    mockAppElement.remove();
+    if (document.body.contains(view.dom)) {
+      view.dom.remove();
+    }
+  });
+
+  it("should scroll with smooth behavior", () => {
+    const activeLine = document.createElement("div");
+    activeLine.className = "cm-activeLine cm-line";
+    view.dom.append(activeLine);
+
+    scrollActiveLineIntoView(view, { behavior: "smooth" });
+
+    expect(vi.mocked(scrollUtils.smartScrollIntoView)).toHaveBeenCalledWith(
+      activeLine,
+      {
+        offset: { top: 30, bottom: 150 },
+        body: mockAppElement,
+        behavior: "smooth",
+      },
+    );
+  });
+
+  it("should scroll with instant behavior", () => {
+    const activeLine = document.createElement("div");
+    activeLine.className = "cm-activeLine cm-line";
+    view.dom.append(activeLine);
+
+    scrollActiveLineIntoView(view, { behavior: "instant" });
+
+    expect(vi.mocked(scrollUtils.smartScrollIntoView)).toHaveBeenCalledWith(
+      activeLine,
+      {
+        offset: { top: 30, bottom: 150 },
+        body: mockAppElement,
+        behavior: "instant",
+      },
+    );
+  });
+
+  it("should not scroll when there is no active line", () => {
+    scrollActiveLineIntoView(view, { behavior: "instant" });
+
+    expect(vi.mocked(scrollUtils.smartScrollIntoView)).not.toHaveBeenCalled();
+  });
+
+  it("should not scroll when there are multiple active lines", () => {
+    const activeLine1 = document.createElement("div");
+    activeLine1.className = "cm-activeLine cm-line";
+    view.dom.append(activeLine1);
+
+    const activeLine2 = document.createElement("div");
+    activeLine2.className = "cm-activeLine cm-line";
+    view.dom.append(activeLine2);
+
+    scrollActiveLineIntoView(view, { behavior: "instant" });
+
     expect(vi.mocked(scrollUtils.smartScrollIntoView)).not.toHaveBeenCalled();
   });
 });
