@@ -62,6 +62,7 @@ interface Props {
     values: unknown[];
     too_many_values: boolean;
   }>;
+  lazy: boolean;
 }
 
 export const TransformPanel: React.FC<Props> = ({
@@ -70,6 +71,7 @@ export const TransformPanel: React.FC<Props> = ({
   onChange,
   onInvalidChange,
   getColumnValues,
+  lazy,
 }) => {
   const form = useForm<z.infer<typeof TransformationsSchema>>({
     resolver: zodResolver(TransformationsSchema),
@@ -77,7 +79,7 @@ export const TransformPanel: React.FC<Props> = ({
     mode: "onChange",
     reValidateMode: "onChange",
   });
-  const { handleSubmit, watch, control } = form;
+  const { handleSubmit, watch, control, formState } = form;
 
   const onSubmit = useEvent((values: z.infer<typeof TransformationsSchema>) => {
     onChange(values);
@@ -89,14 +91,31 @@ export const TransformPanel: React.FC<Props> = ({
     },
   );
 
-  useEffect(() => {
-    const subscription = watch(() => {
-      handleSubmit(onSubmit, () => {
+  const handleApply = useEvent(() => {
+    handleSubmit(
+      (values) => {
+        onSubmit(values);
+        // Reset dirty state by setting current values as new default
+        if (lazy) {
+          form.reset(values);
+        }
+      },
+      () => {
         onInvalidSubmit(form.getValues());
-      })();
+      },
+    )();
+  });
+
+  useEffect(() => {
+    // If lazy, do not auto-submit on input changes
+    if (lazy) {
+      return;
+    }
+    const subscription = watch(() => {
+      handleApply();
     });
     return () => subscription.unsubscribe();
-  }, [handleSubmit, watch, onInvalidSubmit, onSubmit, form]);
+  }, [watch, handleApply, lazy]);
 
   const [selectedTransform, setSelectedTransform] = React.useState<
     number | undefined
@@ -136,6 +155,10 @@ export const TransformPanel: React.FC<Props> = ({
       <ColumnFetchValuesContext value={getColumnValues}>
         <form
           onSubmit={(e) => e.preventDefault()}
+          // When lazy, prevent Enter from submitting
+          onKeyDown={
+            lazy ? (e) => e.key === "Enter" && e.preventDefault() : undefined
+          }
           className="flex flex-row max-h-[400px] overflow-hidden bg-background"
         >
           <Sidebar
@@ -173,6 +196,18 @@ export const TransformPanel: React.FC<Props> = ({
                     <div className="text-sm">Select a transform to begin</div>
                   </Button>
                 </AddTransformDropdown>
+              </div>
+            )}
+            {lazy && (
+              <div className="mt-auto pt-1 -mb-1">
+                <Button
+                  data-testid="marimo-plugin-data-frames-apply"
+                  variant={formState.isDirty ? "warn" : "outline"}
+                  size="xs"
+                  onClick={handleApply}
+                >
+                  Apply
+                </Button>
               </div>
             )}
           </div>
