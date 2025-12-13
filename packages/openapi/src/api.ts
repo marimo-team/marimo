@@ -2804,7 +2804,7 @@ export interface components {
     };
     /**
      * AiCompletionRequest
-     * @description Messages are expected to be AI SDK messages.
+     * @description Messages_v2 are expected to be AI SDK messages.
      *     See pydantic_ai.ui.vercel_ai.request_types.UIMessage or Vercel AI SDK documentation.
      */
     AiCompletionRequest: {
@@ -3114,7 +3114,7 @@ export interface components {
     };
     /**
      * ChatRequest
-     * @description Messages are expected to be AI SDK messages.
+     * @description Messages_v2 are expected to be AI SDK messages.
      *     See pydantic_ai.ui.vercel_ai.request_types.UIMessage or Vercel AI SDK documentation.
      */
     ChatRequest: {
