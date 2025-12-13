@@ -37,7 +37,6 @@ import { cn } from "@/utils/cn";
 import { invariant } from "@/utils/invariant";
 import { mergeRefs } from "@/utils/mergeRefs";
 import { AiCompletionEditor } from "../../ai/ai-completion-editor";
-import { HideCodeButton } from "../../code/readonly-python-code";
 import { useCellEditorNavigationProps } from "../../navigation/navigation";
 import { useDeleteCellCallback } from "../useDeleteCell";
 import { useSplitCellCallback } from "../useSplitCell";
