@@ -36,6 +36,7 @@ function createMockEditorView(code: string): EditorView {
           completionConfig: {
             copilot: false,
             activate_on_typing: true,
+            signature_hint_on_typing: false,
             codeium_api_key: null,
           },
           hotkeys: new OverridingHotkeyProvider({}),
@@ -46,6 +47,7 @@ function createMockEditorView(code: string): EditorView {
           completionConfig: {
             copilot: false,
             activate_on_typing: true,
+            signature_hint_on_typing: false,
             codeium_api_key: null,
           },
           hotkeys: new OverridingHotkeyProvider({}),

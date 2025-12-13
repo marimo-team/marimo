@@ -26,7 +26,11 @@ def test_configure_partial_keymap() -> None:
 def test_configure_full() -> None:
     assert_config(
         PartialMarimoConfig(
-            completion={"activate_on_typing": False, "copilot": False},
+            completion={
+                "activate_on_typing": False,
+                "copilot": False,
+                "signature_hint_on_typing": False,
+            },
             save={
                 "autosave": "after_delay",
                 "autosave_delay": 2,

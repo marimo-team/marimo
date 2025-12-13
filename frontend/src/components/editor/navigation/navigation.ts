@@ -3,6 +3,10 @@
 import { closeCompletion, completionStatus } from "@codemirror/autocomplete";
 import { simplifySelection } from "@codemirror/commands";
 import type { EditorView } from "@codemirror/view";
+import {
+  setSignatureHelpTooltip,
+  signatureHelpTooltipField,
+} from "@marimo-team/codemirror-languageserver";
 import { useAtomValue, useSetAtom, useStore } from "jotai";
 import { useMemo } from "react";
 import { mergeProps, useFocusWithin, useKeyboard } from "react-aria";
@@ -82,7 +86,10 @@ function addSingleHandler(handler: HotkeyHandler["bulkHandle"]): HotkeyHandler {
   };
 }
 
-function useCellFocusProps(cellId: CellId) {
+function useCellFocusProps(
+  cellId: CellId,
+  editorView: React.RefObject<EditorView | null>,
+) {
   const focusActions = useCellFocusActions();
   const actions = useCellActions();
   const temporarilyShownCodeActions = useTemporarilyShownCodeActions();
@@ -98,6 +105,10 @@ function useCellFocusProps(cellId: CellId) {
       temporarilyShownCodeActions.remove(cellId);
       actions.markTouched({ cellId });
       focusActions.blurCell();
+      // Close signature help when clicking outside the cell
+      if (editorView.current) {
+        closeSignatureHelp(editorView.current);
+      }
     },
   });
 
@@ -166,7 +177,7 @@ export function useCellNavigationProps(
   ) => parseShortcut(hotkeys.getHotkey(shortcut).key)(evt.nativeEvent || evt);
 
   // Callbacks occur at the cell level and descedants.
-  const focusWithinProps = useCellFocusProps(cellId);
+  const focusWithinProps = useCellFocusProps(cellId, editorView);
 
   const { keyboardProps } = useKeyboard({
     onKeyDown: (evt) => {
@@ -640,9 +651,17 @@ export function useCellEditorNavigationProps(
       return;
     }
 
+    const hasSignatureHelp = state.field(signatureHelpTooltipField, false);
     const hasAutocompletePopup = completionStatus(state) !== null;
+    if (hasSignatureHelp) {
+      closeSignatureHelp(view);
+    }
+
     if (hasAutocompletePopup) {
       closeCompletion(view);
+    }
+
+    if (hasSignatureHelp || hasAutocompletePopup) {
       return;
     }
 
@@ -697,4 +716,8 @@ function findClosestAdjacentCell(
 
   // no aligned cells (column beyond other), jump to last element
   return adjacentColumn.last();
+}
+
+function closeSignatureHelp(view: EditorView) {
+  view.dispatch({ effects: setSignatureHelpTooltip.of(null) });
 }
