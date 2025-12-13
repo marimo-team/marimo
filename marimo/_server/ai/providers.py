@@ -29,21 +29,7 @@ from marimo._ai._convert import (
     convert_to_openai_messages,
     convert_to_openai_tools,
 )
-from marimo._ai._pydantic_ai_utils import (
-    FinishMessagePart,
-    ReasoningDeltaPart,
-    ReasoningEndPart,
-    ReasoningStartPart,
-    TextDeltaPart,
-    TextEndPart,
-    TextStartPart,
-    ToolInputDeltaPart,
-    ToolInputStartPart,
-    ToolOutputAvailablePart,
-    form_message_history,
-    form_toolsets,
-    generate_id,
-)
+from marimo._ai._pydantic_ai_utils import form_toolsets, generate_id
 from marimo._ai._types import ChatMessage
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._server.ai.config import AnyProviderConfig
@@ -51,15 +37,12 @@ from marimo._server.ai.ids import AiModelId
 from marimo._server.ai.tools.tool_manager import ToolManager, get_tool_manager
 from marimo._server.ai.tools.types import ToolDefinition
 from marimo._server.api.status import HTTPStatus
-from marimo._utils.assert_never import log_never
 
 TIMEOUT = 30
 # Long-thinking models can take a long time to complete, so we set a longer timeout
 LONG_THINKING_TIMEOUT = 120
 
 if TYPE_CHECKING:
-    from contextlib import AbstractAsyncContextManager
-
     from anthropic import (  # type: ignore[import-not-found]
         AsyncClient,
         AsyncStream as AnthropicStream,
@@ -82,9 +65,11 @@ if TYPE_CHECKING:
     from openai.types.chat import (  # type: ignore[import-not-found]
         ChatCompletionChunk,
     )
-    from pydantic_ai import Agent, AgentRun
-    from pydantic_ai.providers.google import GoogleProvider
-    from pydantic_ai.result import AgentStream
+    from pydantic_ai import Agent, DeferredToolRequests
+    from pydantic_ai.providers import Provider
+    from pydantic_ai.providers.google import GoogleProvider as PydanticGoogle
+    from pydantic_ai.ui.vercel_ai.request_types import UIMessage
+    from starlette.responses import StreamingResponse
 
 
 ResponseT = TypeVar("ResponseT")
@@ -127,6 +112,7 @@ LOGGER = _loggers.marimo_logger()
 class StreamOptions:
     text_only: bool = False
     format_stream: bool = False
+    accept: str | None = None
 
 
 @dataclass
@@ -136,22 +122,135 @@ class ActiveToolCall:
     tool_call_args: str
 
 
-class PydanticGoogleProvider:
+ProviderT = TypeVar("ProviderT", bound="Provider[Any]")
+
+
+class PydanticProvider(ABC, Generic[ProviderT]):
+    provider: ProviderT
+
     def __init__(self, model: str, config: AnyProviderConfig):
-        DependencyManager.pydantic_ai.require(why="for AI assistance")
-        DependencyManager.google_ai.require(
-            why="for AI assistance with Google AI"
-        )
+        DependencyManager.pydantic_ai.require("for AI assistance")
 
         self.model = model
         self.config = config
-        self.provider = self._create_provider(config)
+        self.provider = self.create_provider(config)
 
-    def _create_provider(self, config: AnyProviderConfig) -> GoogleProvider:
-        from pydantic_ai.providers.google import GoogleProvider
+    @abstractmethod
+    def create_provider(self, config: AnyProviderConfig) -> ProviderT:
+        """Create a provider for the given config."""
+
+    @abstractmethod
+    def create_agent(
+        self,
+        max_tokens: int,
+        tools: list[ToolDefinition],
+        tool_manager: ToolManager,
+        system_prompt: str,
+    ) -> Agent[None, DeferredToolRequests | str]:
+        """Create an agent for the given max_tokens, tools, tool_manager, and system_prompt."""
+
+    async def stream_completion(
+        self,
+        messages: list[UIMessage],
+        system_prompt: str,
+        max_tokens: int,
+        additional_tools: list[ToolDefinition],
+        stream_options: Optional[StreamOptions] = None,
+    ) -> StreamingResponse:
+        """Return a streaming response from the given messages. The response are AI SDK events."""
+        from pydantic_ai.ui.vercel_ai import VercelAIAdapter
+        from pydantic_ai.ui.vercel_ai.request_types import SubmitMessage
+
+        tools = (self.config.tools or []) + additional_tools
+        agent = self.create_agent(
+            max_tokens=max_tokens,
+            tools=tools,
+            tool_manager=get_tool_manager(),
+            system_prompt=system_prompt,
+        )
+
+        run_input = SubmitMessage(
+            id=generate_id("submit-message"),
+            trigger="submit-message",
+            messages=messages,
+        )
+
+        # TODO: Text only and format stream are not supported yet
+        stream_options = stream_options or StreamOptions()
+
+        adapter = VercelAIAdapter(
+            agent=agent, run_input=run_input, accept=stream_options.accept
+        )
+        event_stream = adapter.run_stream()
+        return adapter.streaming_response(event_stream)
+
+    async def stream_text(
+        self,
+        user_prompt: str,
+        messages: list[UIMessage],
+        system_prompt: str,
+        max_tokens: int,
+        additional_tools: list[ToolDefinition],
+    ) -> AsyncGenerator[str]:
+        """Return a stream of text from the given messages."""
+        from pydantic_ai.ui.vercel_ai import VercelAIAdapter
+
+        tools = (self.config.tools or []) + additional_tools
+        agent = self.create_agent(
+            max_tokens=max_tokens,
+            tools=tools,
+            tool_manager=get_tool_manager(),
+            system_prompt=system_prompt,
+        )
+
+        async with agent.run_stream(
+            user_prompt=user_prompt,
+            message_history=VercelAIAdapter.load_messages(messages),
+            instructions=system_prompt,
+        ) as result:
+            async for message in result.stream_text(delta=True):
+                yield message
+
+    async def completion(
+        self,
+        messages: list[UIMessage],
+        system_prompt: str,
+        max_tokens: int,
+        additional_tools: list[ToolDefinition],
+    ) -> str:
+        """Return a string response from the given messages."""
+
+        from pydantic_ai.ui.vercel_ai import VercelAIAdapter
+
+        tools = (self.config.tools or []) + additional_tools
+        agent = self.create_agent(
+            max_tokens=max_tokens,
+            tools=tools,
+            tool_manager=get_tool_manager(),
+            system_prompt=system_prompt,
+        )
+        result = await agent.run(
+            user_prompt=None,
+            message_history=VercelAIAdapter.load_messages(messages),
+            instructions=system_prompt,
+        )
+
+        return str(result.output)
+
+
+class GoogleProvider(PydanticProvider["PydanticGoogle"]):
+    def __init__(self, model: str, config: AnyProviderConfig):
+        DependencyManager.google_ai.require("for Google AI")
+
+        super().__init__(model, config)
+
+    def create_provider(self, config: AnyProviderConfig) -> PydanticGoogle:
+        from pydantic_ai.providers.google import (
+            GoogleProvider as PydanticGoogle,
+        )
 
         if config.api_key:
-            return GoogleProvider(api_key=config.api_key)
+            return PydanticGoogle(api_key=config.api_key)
 
         # Try to use environment variables and ADC
         # This supports Google Vertex AI usage without explicit API keys
@@ -161,7 +260,7 @@ class PydanticGoogleProvider:
         if use_vertex:
             project = os.getenv("GOOGLE_CLOUD_PROJECT")
             location = os.getenv("GOOGLE_CLOUD_LOCATION", "us-central1")
-            provider = GoogleProvider(
+            provider = PydanticGoogle(
                 # pyright: ignore[reportCallIssue]
                 vertexai=True,
                 project=project,
@@ -169,19 +268,18 @@ class PydanticGoogleProvider:
             )
         else:
             # Try default initialization which may work with environment variables
-            provider = GoogleProvider()
+            provider = PydanticGoogle()
         return provider
 
-    def _create_agent(
+    def create_agent(
         self,
-        model_name: str,
-        provider: GoogleProvider,
         max_tokens: int,
         tools: list[ToolDefinition],
         tool_manager: ToolManager,
-    ) -> Agent:
-        from pydantic_ai import Agent, ModelSettings
-        from pydantic_ai.models.google import GoogleModel
+        system_prompt: str,
+    ) -> Agent[None, DeferredToolRequests | str]:
+        from pydantic_ai import Agent, DeferredToolRequests
+        from pydantic_ai.models.google import GoogleModel, GoogleModelSettings
 
         toolsets = (
             [form_toolsets(tools, tool_manager.invoke_tool)] if tools else None
@@ -189,313 +287,18 @@ class PydanticGoogleProvider:
 
         return Agent(
             GoogleModel(
-                model_name=model_name,
-                provider=provider,
-                settings=ModelSettings(max_tokens=max_tokens),
+                model_name=self.model,
+                provider=self.provider,
+                settings=GoogleModelSettings(
+                    max_tokens=max_tokens,
+                    # Works on non-thinking models too
+                    google_thinking_config={"include_thoughts": True},
+                ),
             ),
             toolsets=toolsets,
-        )
-
-    async def stream_completion(
-        self,
-        messages: list[ChatMessage],
-        system_prompt: str,
-        max_tokens: int,
-        additional_tools: list[ToolDefinition],
-    ) -> AbstractAsyncContextManager[AgentRun]:
-        tools = (self.config.tools or []) + additional_tools
-        agent = self._create_agent(
-            model_name=self.model,
-            provider=self.provider,
-            max_tokens=max_tokens,
-            tools=tools,
-            tool_manager=get_tool_manager(),
-        )
-        message_history = form_message_history(messages)
-        return agent.iter(
-            message_history=message_history,
             instructions=system_prompt,
+            output_type=[str, DeferredToolRequests],
         )
-
-    async def as_stream_response(
-        self,
-        response: AbstractAsyncContextManager[AgentRun],
-        options: Optional[StreamOptions] = None,
-    ) -> AsyncGenerator[str, None]:
-        from pydantic_ai import (
-            Agent,
-            BuiltinToolCallPart,
-            BuiltinToolReturnPart,
-            FilePart,
-            FinalResultEvent,
-            FunctionToolCallEvent,
-            FunctionToolResultEvent,
-            HandleResponseEvent,
-            PartDeltaEvent,
-            PartEndEvent,
-            PartStartEvent,
-            RetryPromptPart,
-            TextPart,
-            TextPartDelta,
-            ThinkingPart,
-            ThinkingPartDelta,
-            ToolCallPart,
-            ToolCallPartDelta,
-            ToolReturnPart,
-        )
-
-        # TODO: Handle options
-        options = options or StreamOptions()
-
-        def handle_response_event(event: HandleResponseEvent) -> str | None:
-            if isinstance(event, FunctionToolCallEvent):
-                return ToolInputStartPart(
-                    event.part.tool_name, event.tool_call_id
-                ).to_str()
-            elif isinstance(event, FunctionToolResultEvent):
-                if isinstance(event.result, RetryPromptPart):
-                    return ToolOutputAvailablePart(
-                        event.tool_call_id,
-                        output=event.result.model_response(),
-                    ).to_str()
-                elif isinstance(event.result, ToolReturnPart):
-                    return ToolOutputAvailablePart(
-                        event.tool_call_id,
-                        output=event.result.model_response_object(),
-                    ).to_str()
-                else:
-                    log_never(event.result)
-            else:
-                LOGGER.warning(
-                    f"Unknown HandleResponseEvent not supported yet: {event}"
-                )
-
-        async def handle_request_stream(
-            request_stream: AgentStream[None, Any],
-        ) -> AsyncGenerator[str, None]:
-            # Track the current text and reasoning ids
-            current_text_id: str | None = None
-            current_reasoning_id: str | None = None
-
-            final_result_found = False
-
-            async for event in request_stream:
-                if isinstance(event, PartStartEvent):
-                    if isinstance(event.part, TextPart):
-                        current_text_id = event.part.id or generate_id("text")
-                        yield TextStartPart(current_text_id).to_str()
-                    elif isinstance(event.part, ThinkingPart):
-                        current_reasoning_id = event.part.id or generate_id(
-                            "reasoning"
-                        )
-                        yield ReasoningStartPart(current_reasoning_id).to_str()
-                    elif isinstance(
-                        event.part,
-                        (ToolCallPart, BuiltinToolCallPart),
-                    ):
-                        yield ToolInputStartPart(
-                            event.part.tool_name,
-                            event.part.tool_call_id,
-                        ).to_str()
-                    elif isinstance(event.part, FilePart):
-                        LOGGER.warning(
-                            f"FilePart starts not supported yet: {event.part}"
-                        )
-                    elif isinstance(event.part, BuiltinToolReturnPart):
-                        yield ToolOutputAvailablePart(
-                            event.part.tool_call_id,
-                            event.part.model_response_object(),
-                        ).to_str()
-                    else:
-                        log_never(event.part)
-
-                elif isinstance(event, PartDeltaEvent):
-                    if isinstance(event.delta, TextPartDelta):
-                        if not current_text_id:
-                            LOGGER.error(
-                                f"TextPartDelta without text_id: {event.delta}"
-                            )
-                            continue
-                        yield TextDeltaPart(
-                            current_text_id,
-                            event.delta.content_delta,
-                        ).to_str()
-                    elif isinstance(event.delta, ThinkingPartDelta):
-                        if not current_reasoning_id:
-                            LOGGER.error(
-                                f"ThinkingPartDelta without reasoning_id: {event.delta}"
-                            )
-                            continue
-                        yield ReasoningDeltaPart(
-                            current_reasoning_id,
-                            event.delta.content_delta or "",
-                        ).to_str()
-                    elif isinstance(event.delta, ToolCallPartDelta):
-                        tool_call_id = event.delta.tool_call_id
-                        if not tool_call_id:
-                            LOGGER.debug(
-                                f"ToolCallPartDelta without tool_call_id: {event.delta}"
-                            )
-                            tool_call_id = generate_id("tool_call")
-
-                        if event.delta.tool_name_delta:
-                            LOGGER.debug(
-                                f"ToolCallPartDelta updating tool_call_name: {event.delta.tool_name_delta}"
-                            )
-
-                        args_delta = event.delta.args_delta
-                        args_delta_str = (
-                            args_delta
-                            if isinstance(args_delta, str)
-                            else json.dumps(args_delta)
-                        )
-                        yield ToolInputDeltaPart(
-                            tool_call_id, args_delta_str
-                        ).to_str()
-                    else:
-                        log_never(event.delta)
-
-                elif isinstance(event, PartEndEvent):
-                    if isinstance(event.part, TextPart):
-                        if event.part.has_content():
-                            LOGGER.warning(
-                                f"TextPartEnd has unexpected content: {event.part.content}"
-                            )
-                        if not current_text_id:
-                            LOGGER.error(
-                                f"TextPartEnd without text_id: {event.part}"
-                            )
-                            continue
-                        yield TextEndPart(current_text_id).to_str()
-                        # Reset for next text part
-                        current_text_id = None
-                    elif isinstance(event.part, ThinkingPart):
-                        if event.part.has_content():
-                            LOGGER.warning(
-                                f"ThinkingPartEnd has unexpected content: {event.part.content}"
-                            )
-                        if not current_reasoning_id:
-                            LOGGER.error(
-                                f"ThinkingPartEnd without reasoning_id: {event.part}"
-                            )
-                            continue
-                        yield ReasoningEndPart(current_reasoning_id).to_str()
-                        # Reset for next reasoning part
-                        current_reasoning_id = None
-                    elif isinstance(
-                        event.part,
-                        (ToolCallPart, BuiltinToolCallPart),
-                    ):
-                        yield ToolOutputAvailablePart(
-                            event.part.tool_call_id,
-                            event.part.args_as_dict(),
-                        ).to_str()
-                    elif isinstance(event.part, FilePart):
-                        LOGGER.warning(
-                            f"FilePart ends not supported yet: {event.part}"
-                        )
-                    elif isinstance(event.part, BuiltinToolReturnPart):
-                        yield ToolOutputAvailablePart(
-                            event.part.tool_call_id,
-                            event.part.model_response_object(),
-                        ).to_str()
-                    else:
-                        log_never(event.part)
-
-                elif isinstance(event, FinalResultEvent):
-                    if event.tool_name:
-                        # Final event is a tool output event
-                        if not event.tool_call_id:
-                            LOGGER.error(
-                                "FinalResultEvent is a tool output event without tool_call_id"
-                            )
-                            continue
-                        yield ToolOutputAvailablePart(
-                            event.tool_call_id, output={}
-                        ).to_str()
-                    final_result_found = True
-                    break
-                else:
-                    log_never(event)
-
-            # Response of the model
-            if final_result_found:
-                # Reset the current text and reasoning ids
-                current_text_id = None
-                current_reasoning_id = None
-
-                async for text_stream in request_stream.stream_text(
-                    delta=True
-                ):
-                    if current_text_id is None:
-                        current_text_id = generate_id("text")
-                        yield TextStartPart(current_text_id).to_str()
-                        yield TextDeltaPart(
-                            current_text_id, text_stream
-                        ).to_str()
-                    else:
-                        yield TextDeltaPart(
-                            current_text_id, text_stream
-                        ).to_str()
-
-                # Close the text part
-                if current_text_id:
-                    yield TextEndPart(current_text_id).to_str()
-
-                # Can also use stream_output for structured outputs
-                # async for stream_response in request_stream.stream_responses():
-                #     LOGGER.debug(f"Usage cost: {stream_response.cost()}")
-                #     for part in stream_response.parts:
-                #         if isinstance(part, TextPart):
-                #             if current_text_id is None:
-                #                 current_text_id = part.id or generate_id("text")
-                #                 yield TextStartPart(current_text_id).to_str()
-                #             else:
-                #                 yield TextDeltaPart(current_text_id, part.content).to_str()
-                #         elif isinstance(part, ThinkingPart):
-                #             if current_reasoning_id is None:
-                #                 current_reasoning_id = part.id or generate_id("reasoning")
-                #                 yield ReasoningStartPart(current_reasoning_id).to_str()
-                #             else:
-                #                 yield ReasoningDeltaPart(current_reasoning_id, part.content).to_str()
-                #         elif isinstance(part, (ToolCallPart, BuiltinToolCallPart)):
-                #             LOGGER.warning(f"ToolCallPart or BuiltinToolCallPart not supported yet: {part}")
-                #         elif isinstance(part, BuiltinToolReturnPart):
-                #             yield ToolOutputAvailablePart(part.tool_call_id, part.model_response_object()).to_str()
-                #         elif isinstance(part, FilePart):
-                #             LOGGER.warning(f"FilePart not supported yet: {part}")
-                #         else:
-                #             LOGGER.warning(f"Unknown response part not supported yet: {part}")
-
-        async with response as run:
-            async for node in run:
-                if Agent.is_user_prompt_node(node):
-                    LOGGER.debug("User prompt node received, handling...")
-                elif Agent.is_model_request_node(node):
-                    # Stream tokens from the model's request
-                    async with node.stream(run.ctx) as request_stream:
-                        async for value in handle_request_stream(
-                            request_stream
-                        ):
-                            yield value
-
-                elif Agent.is_call_tools_node(node):
-                    # A handle-response node => The model returned some data, potentially calls a tool
-                    async with node.stream(run.ctx) as handle_stream:
-                        async for event in handle_stream:
-                            if value := handle_response_event(event):
-                                yield value
-
-                elif Agent.is_end_node(node):
-                    # Agent run is complete
-                    assert run.result is not None
-                    assert run.result.output == node.data.output
-                    yield FinishMessagePart().to_str()
-
-                else:
-                    LOGGER.warning(
-                        f"Unknown AgentNode not supported yet: {node}"
-                    )
 
 
 class CompletionProvider(Generic[ResponseT, StreamT], ABC):
@@ -1409,13 +1212,13 @@ class BedrockProvider(
 
 def get_completion_provider(
     config: AnyProviderConfig, model: str
-) -> CompletionProvider[Any, Any] | PydanticGoogleProvider:
+) -> CompletionProvider[Any, Any] | PydanticProvider:
     model_id = AiModelId.from_model(model)
 
     if model_id.provider == "anthropic":
         return AnthropicProvider(model_id.model, config)
     elif model_id.provider == "google":
-        return PydanticGoogleProvider(model_id.model, config)
+        return GoogleProvider(model_id.model, config)
     elif model_id.provider == "bedrock":
         return BedrockProvider(model_id.model, config)
     elif model_id.provider == "azure":

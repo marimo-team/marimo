@@ -4,7 +4,12 @@ import type { UIMessage } from "@ai-sdk/react";
 import { useChat } from "@ai-sdk/react";
 import { storePrompt } from "@marimo-team/codemirror-ai";
 import type { ReactCodeMirrorRef } from "@uiw/react-codemirror";
-import { DefaultChatTransport, type ToolUIPart } from "ai";
+import {
+  DefaultChatTransport,
+  type FileUIPart,
+  type TextUIPart,
+  type ToolUIPart,
+} from "ai";
 import { useAtom, useAtomValue, useSetAtom, useStore } from "jotai";
 import {
   AtSignIcon,
@@ -147,9 +152,13 @@ function isToolPart(part: UIMessage["parts"][number]): part is ToolUIPart {
 const ChatMessageDisplay: React.FC<ChatMessageProps> = memo(
   ({ message, index, onEdit, isStreamingReasoning, isLast }) => {
     const renderUserMessage = (message: UIMessage) => {
-      const textParts = message.parts?.filter((p) => p.type === "text");
+      const textParts = message.parts?.filter(
+        (p): p is TextUIPart => p.type === "text",
+      );
       const content = textParts?.map((p) => p.text).join("\n");
-      const fileParts = message.parts?.filter((p) => p.type === "file");
+      const fileParts = message.parts?.filter(
+        (p): p is FileUIPart => p.type === "file",
+      );
 
       return (
         <div className="w-[95%] bg-background border p-1 rounded-sm">
@@ -178,7 +187,9 @@ const ChatMessageDisplay: React.FC<ChatMessageProps> = memo(
     };
 
     const renderOtherMessage = (message: UIMessage) => {
-      const textParts = message.parts.filter((p) => p.type === "text");
+      const textParts = message.parts.filter(
+        (p): p is TextUIPart => p.type === "text",
+      );
       const content = textParts.map((p) => p.text).join("\n");
 
       return (
@@ -235,6 +246,11 @@ const ChatMessageDisplay: React.FC<ChatMessageProps> = memo(
 
               // These are cryptographic signatures, so we don't need to render them
               case "data-reasoning-signature":
+                return null;
+
+              // TODO: We could render lines, for now don't render them. They do not have information.
+              case "step-start":
+                Logger.debug("Found step-start part", part);
                 return null;
 
               /* handle other part types … */
@@ -553,7 +569,7 @@ const ChatPanelBody = () => {
     status,
     regenerate,
     stop,
-    addToolResult,
+    addToolOutput,
     id: chatId,
   } = useChat({
     id: activeChatId,
@@ -599,7 +615,7 @@ const ChatPanelBody = () => {
 
       await handleToolCall({
         invokeAiTool,
-        addToolResult,
+        addToolOutput,
         toolCall: {
           toolName: toolCall.toolName,
           toolCallId: toolCall.toolCallId,
