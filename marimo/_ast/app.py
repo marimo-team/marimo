@@ -809,12 +809,19 @@ class App:
 
             ```python
             one = app.clone()
+            ```
+
+            ```python
             r1 = await one.embed()
             ```
 
             ```python
             two = app.clone()
+            ```
+
+            ```python
             r2 = await two.embed()
+            ```
 
         Args:
             defs (dict[str, Any]):
@@ -830,18 +837,42 @@ class App:
 
         """
         from marimo._plugins.stateless.flex import vstack
+        from marimo._plugins.ui._core.ui_element import UIElement
         from marimo._runtime.context.utils import running_in_notebook
 
         self._maybe_initialize()
 
+        if defs is not None and any(
+            isinstance(v, UIElement) for k, v in list(defs.items())
+        ):
+            raise ValueError(
+                "Substituting UI Elements for variables is not allowed."
+            )
+
         if running_in_notebook():
-            # TODO(akshayka): raise a RuntimeError if called in the cell
-            # that defined the name bound to this App, if any
+            ctx = get_context()
+            bound_variable: str | None = None
+            for k, v in ctx.globals.items():
+                if v is self:
+                    bound_variable = k
+            if (
+                bound_variable is not None
+                and ctx.execution_context is not None
+                and ctx.execution_context.cell_id
+                in ctx.graph.get_defining_cells(bound_variable)
+            ):
+                raise RuntimeError(
+                    "App.embed() cannot be called in the cell that imports the app. "
+                    "Call embed() in another cell."
+                )
+
             app_kernel_runner = self._get_kernel_runner()
 
             outputs: dict[CellId_t, Any]
             glbls: dict[str, Any]
-            if not app_kernel_runner.outputs:
+
+            if not app_kernel_runner.are_outputs_cached(defs):
+                app_kernel_runner.register_defs(defs)
                 # Inject provided defs into the kernel's globals
                 if defs:
                     app_kernel_runner.globals.update(defs)

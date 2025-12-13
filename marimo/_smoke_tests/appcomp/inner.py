@@ -19,8 +19,13 @@ def _(mo):
 
 
 @app.cell
-def _(mo):
-    x = mo.ui.number(1, 10)
+def _():
+    x_initial_value = 1
+    return (x_initial_value,)
+
+@app.cell
+def _(mo, x_initial_value):
+    x = mo.ui.number(x_initial_value, 10)
     return (x,)
 
 
@@ -40,7 +45,6 @@ def _(mo):
 def _(y):
     y
     return
-
 
 @app.cell
 def _(x, y):
