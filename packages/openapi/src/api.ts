@@ -2787,6 +2787,8 @@ export interface components {
      *     /example/foo-0.1.0-py3-none-any.whl
      */
     AddPackageRequest: {
+      /** @default false */
+      dev?: boolean | null;
       package: string;
       /** @default false */
       upgrade?: boolean | null;
@@ -4261,6 +4263,8 @@ export interface components {
     };
     /** RemovePackageRequest */
     RemovePackageRequest: {
+      /** @default false */
+      dev?: boolean | null;
       package: string;
     };
     /**

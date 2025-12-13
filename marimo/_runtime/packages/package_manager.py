@@ -56,7 +56,9 @@ class PackageManager(abc.ABC):
         )
         return False
 
-    def install_command(self, package: str, *, upgrade: bool) -> list[str]:
+    def install_command(
+        self, package: str, *, upgrade: bool, dev: bool
+    ) -> list[str]:
         """
         Get the shell command to install a package (where applicable).
 
@@ -71,11 +73,12 @@ class PackageManager(abc.ABC):
         package: str,
         *,
         upgrade: bool,
+        dev: bool,
         log_callback: Optional[LogCallback] = None,
     ) -> bool:
         """Installation logic."""
         return await self.run(
-            self.install_command(package, upgrade=upgrade),
+            self.install_command(package, upgrade=upgrade, dev=dev),
             log_callback=log_callback,
         )
 
@@ -84,6 +87,7 @@ class PackageManager(abc.ABC):
         package: str,
         version: Optional[str],
         upgrade: bool = False,
+        dev: bool = False,
         log_callback: Optional[LogCallback] = None,
     ) -> bool:
         """Attempt to install a package that makes this module available.
@@ -92,6 +96,7 @@ class PackageManager(abc.ABC):
             package: The package to install
             version: Optional version specification
             upgrade: Whether to upgrade the package if already installed
+            dev: Whether to install as a dev dependency (for uv projects)
             log_callback: Optional callback to receive log output during installation
 
         Returns True if installation succeeded, else False.
@@ -100,12 +105,17 @@ class PackageManager(abc.ABC):
         return await self._install(
             append_version(package, version),
             upgrade=upgrade,
+            dev=dev,
             log_callback=log_callback,
         )
 
     @abc.abstractmethod
-    async def uninstall(self, package: str) -> bool:
+    async def uninstall(self, package: str, dev: bool) -> bool:
         """Attempt to uninstall a package
+
+        Args:
+            package: The package to uninstall
+            dev: Whether this is a dev dependency
 
         Returns True if the package was uninstalled, else False.
         """
