@@ -9,11 +9,11 @@ import pytest
 
 from marimo._ast import visitor
 from marimo._ast.errors import ImportStarError
+from marimo._ast.sql_visitor import normalize_sql_f_string
 from marimo._ast.visitor import (
     AnnotationData,
     ImportData,
     VariableData,
-    normalize_sql_f_string,
 )
 from marimo._dependencies.dependencies import DependencyManager
 

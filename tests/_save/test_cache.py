@@ -14,7 +14,9 @@ from marimo._ast.app import App
 from marimo._plugins.ui._impl.input import dropdown
 from marimo._runtime.requests import ExecutionRequest
 from marimo._runtime.runtime import Kernel
-from marimo._save.cache import Cache, ModuleStub, UIElementStub
+from marimo._save.cache import Cache
+from marimo._save.stubs.module_stub import ModuleStub
+from marimo._save.stubs.ui_element_stub import UIElementStub
 from tests.conftest import ExecReqProvider, TestableModuleStub
 
 

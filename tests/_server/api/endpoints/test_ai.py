@@ -9,13 +9,13 @@ from unittest.mock import AsyncMock, MagicMock, Mock, patch
 import pytest
 
 from marimo._dependencies.dependencies import DependencyManager
+from marimo._server.ai.config import AnyProviderConfig
 from marimo._server.ai.prompts import (
     FIM_MIDDLE_TAG,
     FIM_PREFIX_TAG,
     FIM_SUFFIX_TAG,
 )
 from marimo._server.ai.providers import (
-    AnyProviderConfig,
     OpenAIProvider,
     without_wrapping_backticks,
 )
