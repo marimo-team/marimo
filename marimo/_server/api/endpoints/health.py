@@ -13,6 +13,7 @@ from marimo._dependencies.dependencies import DependencyManager
 from marimo._server.api.deps import AppState
 from marimo._server.router import APIRouter
 from marimo._utils.health import (
+    get_container_resources,
     get_node_version,
     get_python_version,
     get_required_modules_list,
@@ -131,6 +132,8 @@ async def usage(request: Request) -> JSONResponse:
                                         type: integer
                                     free:
                                         type: integer
+                                    is_container:
+                                        type: boolean
                                 required:
                                     - total
                                     - available
@@ -194,7 +197,32 @@ async def usage(request: Request) -> JSONResponse:
 
     import psutil
 
-    memory = psutil.virtual_memory()
+    # Check if running in a container with resource limits
+    container_resources = get_container_resources()
+
+    if container_resources and "memory" in container_resources:
+        # Use container memory stats
+        container_mem = container_resources["memory"]
+        memory_stats = {
+            "total": container_mem["total"],
+            "available": container_mem["available"],
+            "percent": container_mem["percent"],
+            "used": container_mem["used"],
+            "free": container_mem["available"],  # Use available as free
+            "is_container": True,
+        }
+    else:
+        # Use host memory stats
+        memory = psutil.virtual_memory()
+        memory_stats = {
+            "total": memory.total,
+            "available": memory.available,
+            "percent": memory.percent,
+            "used": memory.used,
+            "free": memory.free,
+            "is_container": False,
+        }
+
     # interval=None is nonblocking; first value is meaningless but after
     # that it's useful.
     cpu = psutil.cpu_percent(interval=None)
@@ -270,14 +298,8 @@ async def usage(request: Request) -> JSONResponse:
 
     return JSONResponse(
         {
-            # computer memory
-            "memory": {
-                "total": memory.total,
-                "available": memory.available,
-                "percent": memory.percent,
-                "used": memory.used,
-                "free": memory.free,
-            },
+            # computer memory or container memory
+            "memory": memory_stats,
             # marimo server
             "server": {
                 "memory": server_memory,
