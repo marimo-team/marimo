@@ -135,7 +135,7 @@ export const MarimoErrorOutput = ({
   );
 
   const openScratchpad = () => {
-    chromeActions.openApplication("scratchpad");
+    chromeActions.openDeveloperPanelTab("scratchpad");
   };
 
   const renderMessages = () => {

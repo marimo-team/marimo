@@ -15,6 +15,7 @@ import {
   NotebookPenIcon,
   ScrollTextIcon,
   SquareDashedBottomCodeIcon,
+  TerminalSquareIcon,
   TextSearchIcon,
   XCircleIcon,
 } from "lucide-react";
@@ -23,20 +24,15 @@ import { isWasm } from "@/core/wasm/utils";
 
 export type PanelType =
   | "files"
-  | "errors"
   | "variables"
   | "outline"
   | "dependencies"
-  | "tracing"
   | "packages"
   | "documentation"
   | "snippets"
   | "datasources"
-  | "scratchpad"
   | "ai"
-  | "cache"
-  | "secrets"
-  | "logs";
+  | "cache";
 
 export interface PanelDescriptor {
   type: PanelType;
@@ -98,15 +94,6 @@ export const PANELS: PanelDescriptor[] = [
     tooltip: "Chat & Agents",
     position: "sidebar",
   },
-  // Scratchpad is the only way users can
-  // code without DAG restrictions, so it is
-  // privileged.
-  {
-    type: "scratchpad",
-    Icon: NotebookPenIcon,
-    tooltip: "Scratchpad",
-    position: "sidebar",
-  },
   {
     // TODO(akshayka): Consider making snippets default
     // off, user configuration to enable.
@@ -135,12 +122,6 @@ export const PANELS: PanelDescriptor[] = [
     position: "sidebar",
   },
   {
-    type: "logs",
-    Icon: FileTextIcon,
-    tooltip: "Notebook logs",
-    position: "sidebar",
-  },
-  {
     // TODO(akshayka): Consider making dependencies
     // default off; the minimap is a more effective
     // overview.
@@ -149,34 +130,62 @@ export const PANELS: PanelDescriptor[] = [
     tooltip: "Explore dependencies",
     position: "sidebar",
   },
-  {
-    type: "tracing",
-    Icon: ActivityIcon,
-    tooltip: "Tracing",
-    position: "sidebar",
-  },
-  {
-    // Not supported in WebAssembly yet
-    type: "secrets",
-    Icon: KeyRoundIcon,
-    tooltip: "Secrets",
-    hidden: isWasm(),
-    position: "sidebar",
-  },
-  // TODO(akshayka): The cache panel should not be default shown,
-  // even when it's out of feature flag. (User config to
-  // turn it on.)
-  {
-    type: "cache",
-    Icon: DatabaseZapIcon,
-    tooltip: "Manage cache",
-    position: "sidebar",
-    hidden: !getFeatureFlag("cache_panel"),
-  },
+];
+
+export type DeveloperPanelTabType =
+  | "errors"
+  | "scratchpad"
+  | "tracing"
+  | "secrets"
+  | "logs"
+  | "terminal"
+  | "cache";
+
+export interface DeveloperPanelTabDescriptor {
+  type: DeveloperPanelTabType;
+  Icon: LucideIcon;
+  label: string;
+  hidden?: boolean;
+}
+
+export const DEVELOPER_PANEL_TABS: DeveloperPanelTabDescriptor[] = [
   {
     type: "errors",
     Icon: XCircleIcon,
-    tooltip: "View errors",
-    position: "footer",
+    label: "Errors",
+  },
+  {
+    type: "scratchpad",
+    Icon: NotebookPenIcon,
+    label: "Scratchpad",
+  },
+  {
+    type: "tracing",
+    Icon: ActivityIcon,
+    label: "Tracing",
+  },
+  {
+    type: "secrets",
+    Icon: KeyRoundIcon,
+    label: "Secrets",
+    hidden: isWasm(),
+  },
+  {
+    type: "logs",
+    Icon: FileTextIcon,
+    label: "Logs",
+  },
+  {
+    type: "terminal",
+    Icon: TerminalSquareIcon,
+    label: "Terminal",
+  },
+  // TODO(akshayka): The cache panel should not be default shown,
+  // even when it's out of feature flag. (User config to turn it on.)
+  {
+    type: "cache",
+    Icon: DatabaseZapIcon,
+    label: "Cache",
+    hidden: !getFeatureFlag("cache_panel"),
   },
 ];

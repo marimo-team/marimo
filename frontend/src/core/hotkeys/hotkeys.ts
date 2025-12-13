@@ -351,6 +351,11 @@ const DEFAULT_HOT_KEY = {
     group: "Other",
     key: "Ctrl-`",
   },
+  "global.togglePanel": {
+    name: "Toggle developer panel",
+    group: "Other",
+    key: "Mod-j",
+  },
   "global.collapseAllSections": {
     name: "Collapse all sections",
     group: "Editing",
