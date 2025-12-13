@@ -78,7 +78,6 @@ import {
 } from "./cell/StagedAICell";
 import { useDeleteCellCallback } from "./cell/useDeleteCell";
 import { useRunCell } from "./cell/useRunCells";
-import { HideCodeButton } from "./code/readonly-python-code";
 import { cellDomProps } from "./common";
 import { SqlValidationErrorBanner } from "./errors/sql-validation-errors";
 import { useCellNavigationProps } from "./navigation/navigation";
@@ -456,7 +455,6 @@ const EditableCellComponent = ({
   const cellOutput = userConfig.display.cell_output;
 
   const hasOutputAbove = hasOutput && cellOutput === "above";
-  const hasOutputBelow = hasOutput && cellOutput === "below";
 
   // If the cell is too short, we need to position some icons inline to prevent overlaps.
   // This can only happen to markdown cells when the code is hidden completely
@@ -480,14 +478,6 @@ const EditableCellComponent = ({
     },
   });
 
-  const renderHideCodeButton = (className: string) => (
-    <HideCodeButton
-      tooltip="Edit markdown"
-      className={cn("z-20 relative", className)}
-      onClick={showHiddenCode}
-    />
-  );
-
   const outputArea = hasOutput && (
     <div className="relative" onDoubleClick={showHiddenCodeIfMarkdown}>
       <div className="absolute top-5 -left-7 z-20 print:hidden">
@@ -503,7 +493,6 @@ const EditableCellComponent = ({
           canCollapse={canCollapse}
         />
       </div>
-      {isMarkdownCodeHidden && hasOutputBelow && renderHideCodeButton("top-3")}
       <OutputArea
         // Only allow expanding in edit mode
         allowExpand={true}
@@ -515,9 +504,6 @@ const EditableCellComponent = ({
         stale={isStaleCell}
         loading={outputIsLoading(cellRuntime.status)}
       />
-      {isMarkdownCodeHidden &&
-        hasOutputAbove &&
-        renderHideCodeButton("bottom-3")}
     </div>
   );
 
