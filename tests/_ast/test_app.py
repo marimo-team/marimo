@@ -1047,6 +1047,21 @@ class TestAppComposition:
         assert result.defs["y"] == 200
         assert "Result: 200" in result.output.text
 
+    async def test_app_embed_with_defs_ui_element_not_allowed(self) -> None:
+        app = App()
+
+        @app.cell
+        def __() -> tuple[int]:
+            x = 10
+            return (x,)
+
+        import marimo as mo
+
+        with pytest.raises(ValueError) as excinfo:
+            await app.embed(defs={"x": mo.ui.slider(1, 10)})
+
+        assert "Substituting UI Elements for variables is not allowed" in str(excinfo.value)
+
     async def test_app_embed_with_defs_multiple_vars(self) -> None:
         """Test embed() with defs overriding a cell that defines multiple variables."""
         app = App()
