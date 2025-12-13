@@ -13,6 +13,10 @@ from starlette.responses import (
 
 from marimo import _loggers
 from marimo._ai._convert import convert_to_ai_sdk_messages
+from marimo._ai._pydantic_ai_utils import (
+    convert_to_pydantic_messages,
+    create_simple_prompt,
+)
 from marimo._ai._types import ChatMessage
 from marimo._config.config import AiConfig, MarimoConfig
 from marimo._server.ai.config import (
@@ -32,6 +36,7 @@ from marimo._server.ai.prompts import (
     get_refactor_or_insert_notebook_cell_system_prompt,
 )
 from marimo._server.ai.providers import (
+    PydanticProvider,
     StreamOptions,
     get_completion_provider,
     without_wrapping_backticks,
@@ -57,8 +62,11 @@ from marimo._server.router import APIRouter
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator
 
+    from pydantic_ai.ui import SSE_CONTENT_TYPE
     from starlette.requests import Request
     from starlette.responses import ContentStream
+else:
+    SSE_CONTENT_TYPE = "text/event-stream"
 
 
 LOGGER = _loggers.marimo_logger()
@@ -157,6 +165,27 @@ async def ai_completion(
         model=model,
     )
 
+    # Currently, the frontend parses AI SDK events only for /chat endpoint,
+    # So we just stream back the text
+    if isinstance(provider, PydanticProvider):
+        response = provider.stream_text(
+            user_prompt=prompt,
+            messages=convert_to_pydantic_messages(body.messages_v2),
+            system_prompt=system_prompt,
+            max_tokens=get_max_tokens(config),
+            additional_tools=[],
+        )
+        content = safe_stream_wrapper(
+            response,
+            text_only=False,
+        )
+        content_without_wrapping = without_wrapping_backticks(content)
+        return StreamingResponse(
+            content=content_without_wrapping,
+            media_type="application/json",
+            headers={"x-vercel-ai-data-stream": "v1"},
+        )
+
     messages = (
         body.messages
         if use_messages
@@ -214,6 +243,7 @@ async def ai_chat(
     app_state = AppState(request)
     app_state.require_current_session()
     session_id = app_state.require_current_session_id()
+    accept = request.headers.get("accept", SSE_CONTENT_TYPE)
     config = app_state.app_config_manager.get_config(hide_secrets=False)
     body = await parse_request(
         request, cls=ChatRequest, allow_unknown_keys=True
@@ -239,6 +269,20 @@ async def ai_chat(
         model=model,
     )
     additional_tools = body.tools or []
+
+    stream_options = StreamOptions(
+        format_stream=True, text_only=False, accept=accept
+    )
+
+    if isinstance(provider, PydanticProvider):
+        return await provider.stream_completion(
+            messages=convert_to_pydantic_messages(body.messages_v2),
+            system_prompt=system_prompt,
+            max_tokens=max_tokens,
+            additional_tools=additional_tools,
+            stream_options=stream_options,
+        )
+
     response = await provider.stream_completion(
         messages=messages,
         system_prompt=system_prompt,
@@ -305,14 +349,21 @@ async def ai_inline_completion(
 
     provider = get_completion_provider(provider_config, model=model)
     try:
-        response = await provider.stream_completion(
-            messages=messages,
-            system_prompt=system_prompt,
-            max_tokens=INLINE_COMPLETION_MAX_TOKENS,
-            additional_tools=[],
-        )
-
-        content = await provider.collect_stream(response)
+        if isinstance(provider, PydanticProvider):
+            content = await provider.completion(
+                messages=[create_simple_prompt(prompt)],
+                system_prompt=system_prompt,
+                max_tokens=INLINE_COMPLETION_MAX_TOKENS,
+                additional_tools=[],
+            )
+        else:
+            response = await provider.stream_completion(
+                messages=messages,
+                system_prompt=system_prompt,
+                max_tokens=INLINE_COMPLETION_MAX_TOKENS,
+                additional_tools=[],
+            )
+            content = await provider.collect_stream(response)
     except Exception as e:
         LOGGER.error("Error in AI inline completion: %s", str(e))
         raise HTTPException(

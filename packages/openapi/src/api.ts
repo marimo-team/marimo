@@ -2802,7 +2802,11 @@ export interface components {
       /** @default [] */
       variables?: (string | components["schemas"]["VariableContext"])[];
     };
-    /** AiCompletionRequest */
+    /**
+     * AiCompletionRequest
+     * @description Messages are expected to be AI SDK messages.
+     *     See pydantic_ai.ui.vercel_ai.request_types.UIMessage or Vercel AI SDK documentation.
+     */
     AiCompletionRequest: {
       code: string;
       /** @default null */
@@ -2815,6 +2819,8 @@ export interface components {
       language?: "markdown" | "python" | "sql";
       /** @default [] */
       messages?: components["schemas"]["ChatMessage"][];
+      /** @default [] */
+      messagesV2?: Record<string, any>[];
       prompt: string;
       /** @default null */
       selectedText?: string | null;
@@ -3106,11 +3112,16 @@ export interface components {
       /** @enum {unknown} */
       role: "assistant" | "system" | "user";
     };
-    /** ChatRequest */
+    /**
+     * ChatRequest
+     * @description Messages are expected to be AI SDK messages.
+     *     See pydantic_ai.ui.vercel_ai.request_types.UIMessage or Vercel AI SDK documentation.
+     */
     ChatRequest: {
       context: components["schemas"]["AiCompletionContext"];
       includeOtherCode: string;
       messages: components["schemas"]["ChatMessage"][];
+      messagesV2: Record<string, any>[];
       /** @default null */
       model?: string | null;
       /** @default null */
