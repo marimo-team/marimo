@@ -233,15 +233,17 @@ export const TransformPanel: React.FC<Props> = ({
               <Tooltip
                 delayDuration={100}
                 content={
-                  <div className="flex flex-col gap-1.5 text-xs text-muted-foreground max-w-88">
-                    <span>
-                      This dataframe is marked lazy to improve performance.
-                      Click{" "}
-                      <span className="px-1 mr-1 rounded border border-border">
-                        Apply
+                  <div className="flex flex-col gap-1.5 text-xs text-muted-foreground max-w-96 text-pretty">
+                    <p>
+                      This dataframe is marked lazy to improve performance.{" "}
+                      <span>
+                        Click{" "}
+                        <span className="px-1 mr-1 rounded border border-border">
+                          Apply
+                        </span>
+                        to apply the transforms.
                       </span>
-                      to apply the transforms.
-                    </span>
+                    </p>
                     <p>
                       Pass{" "}
                       <code className="bg-muted px-1 py-0.5 rounded-sm">
