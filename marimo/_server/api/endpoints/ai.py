@@ -166,7 +166,7 @@ async def ai_completion(
     )
 
     # Currently, the frontend parses AI SDK events only for /chat endpoint,
-    # So we just stream back the text
+    # So we just stream back the text for other endpoints
     if isinstance(provider, PydanticProvider):
         response = provider.stream_text(
             user_prompt=prompt,
@@ -175,11 +175,8 @@ async def ai_completion(
             max_tokens=get_max_tokens(config),
             additional_tools=[],
         )
-        content = safe_stream_wrapper(
-            response,
-            text_only=False,
-        )
-        content_without_wrapping = without_wrapping_backticks(content)
+        safe_content = safe_stream_wrapper(response, text_only=False)
+        content_without_wrapping = without_wrapping_backticks(safe_content)
         return StreamingResponse(
             content=content_without_wrapping,
             media_type="application/json",

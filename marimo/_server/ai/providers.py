@@ -260,8 +260,9 @@ class GoogleProvider(PydanticProvider["PydanticGoogle"]):
         if use_vertex:
             project = os.getenv("GOOGLE_CLOUD_PROJECT")
             location = os.getenv("GOOGLE_CLOUD_LOCATION", "us-central1")
-            provider = PydanticGoogle(
-                # pyright: ignore[reportCallIssue]
+            # The type stubs don't have an overload that combines vertexai
+            # with project/location, but the runtime supports it
+            provider: PydanticGoogle = PydanticGoogle(  # type: ignore[call-overload]
                 vertexai=True,
                 project=project,
                 location=location,
@@ -281,8 +282,11 @@ class GoogleProvider(PydanticProvider["PydanticGoogle"]):
         from pydantic_ai import Agent, DeferredToolRequests
         from pydantic_ai.models.google import GoogleModel, GoogleModelSettings
 
-        toolsets = (
-            [form_toolsets(tools, tool_manager.invoke_tool)] if tools else None
+        toolset, deferred_tool_requests = form_toolsets(
+            tools, tool_manager.invoke_tool
+        )
+        output_type = (
+            [str, DeferredToolRequests] if deferred_tool_requests else str
         )
 
         return Agent(
@@ -295,9 +299,9 @@ class GoogleProvider(PydanticProvider["PydanticGoogle"]):
                     google_thinking_config={"include_thoughts": True},
                 ),
             ),
-            toolsets=toolsets,
+            toolsets=[toolset] if tools else None,
             instructions=system_prompt,
-            output_type=[str, DeferredToolRequests],
+            output_type=output_type,
         )
 
 
@@ -1212,7 +1216,7 @@ class BedrockProvider(
 
 def get_completion_provider(
     config: AnyProviderConfig, model: str
-) -> CompletionProvider[Any, Any] | PydanticProvider:
+) -> CompletionProvider[Any, Any] | PydanticProvider[Any]:
     model_id = AiModelId.from_model(model)
 
     if model_id.provider == "anthropic":
