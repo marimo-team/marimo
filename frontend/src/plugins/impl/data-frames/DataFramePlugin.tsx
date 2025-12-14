@@ -199,10 +199,12 @@ export const DataFrameComponent = memo(
 
     const transformPanelRef = useRef<TransformPanelHandle>(null);
 
+    const transformTab = "transform";
+
     // When switching tabs in lazy mode, save any pending changes
     const handleTabChange = useCallback(
       (newTab: string) => {
-        if (lazy && newTab !== "transform") {
+        if (lazy && newTab !== transformTab) {
           transformPanelRef.current?.submit();
         }
       },
@@ -226,10 +228,10 @@ export const DataFrameComponent = memo(
 
     return (
       <div>
-        <Tabs defaultValue="transform" onValueChange={handleTabChange}>
+        <Tabs defaultValue={transformTab} onValueChange={handleTabChange}>
           <div className="flex items-center gap-2">
             <TabsList className="h-8">
-              <TabsTrigger value="transform" className="text-xs py-1">
+              <TabsTrigger value={transformTab} className="text-xs py-1">
                 <FunctionSquareIcon className="w-3 h-3 mr-2" />
                 Transform
               </TabsTrigger>
