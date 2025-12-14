@@ -95,8 +95,8 @@ class NarwhalsTableManager(
     def to_json_str(
         self,
         format_mapping: Optional[FormatMapping] = None,
-        ensure_ascii: bool = True,
         strict_json: bool = False,
+        ensure_ascii: bool = True,
     ) -> str:
         del strict_json
         frame = self.apply_formatting(format_mapping).as_frame()

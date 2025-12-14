@@ -84,8 +84,8 @@ class PandasTableManagerFactory(TableManagerFactory):
             def to_json_str(
                 self,
                 format_mapping: Optional[FormatMapping] = None,
-                ensure_ascii: bool = True,
                 strict_json: bool = False,
+                ensure_ascii: bool = True,
             ) -> str:
                 def to_json(
                     result: pd.DataFrame,
