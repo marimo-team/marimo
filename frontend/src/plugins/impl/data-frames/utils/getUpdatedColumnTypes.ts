@@ -3,6 +3,7 @@ import { logNever } from "@/utils/assertNever";
 import { Maps } from "@/utils/maps";
 import type { TransformType } from "../schema";
 import type { ColumnDataTypes, ColumnId } from "../types";
+import { Column } from "react-aria-components";
 
 /**
  * Given a list of transforms, return the updated column names/types.
@@ -88,20 +89,17 @@ function handleTransform(
         }
       }
 
-
       const uniqueValues = transform.column_ids.map((columnId) => {
         const values = uniqueColumnValues[columnId.toString()] || [];
         return values;
       })
 
-      const rawColumns = [transform.value_column_ids, ...uniqueValues];
-      const newColumns = cartesianProduct(rawColumns).map(comb => `${(comb as string[]).join("_")}_${transform.aggregation}`);
-      for (const newColumn of newColumns) {
-        // TODO: infer type based on aggregation and original type
-        updated.set(newColumn as ColumnId, transform.aggregation === "count" ? "int64" : "float64");
+      const rawColumns = cartesianProduct([transform.value_column_ids, ...uniqueValues]);
+      for (const rawColumn of rawColumns) {
+        const newColumn = `${(rawColumn as string[]).join("_")}_${transform.aggregation}`;
+        const type = transform.aggregation === "count" ? "int64" : next.get(rawColumn[0] as ColumnId);
+        updated.set(newColumn as ColumnId, type as string);
       }
-
-
 
       return updated;
     }
