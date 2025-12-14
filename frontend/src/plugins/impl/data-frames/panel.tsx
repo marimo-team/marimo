@@ -11,6 +11,7 @@ import {
   FilterIcon,
   FunctionSquareIcon,
   GroupIcon,
+  InfoIcon,
   MousePointerSquareDashedIcon,
   PencilIcon,
   PlusIcon,
@@ -18,7 +19,12 @@ import {
   SquareMousePointerIcon,
   Trash2Icon,
 } from "lucide-react";
-import React, { type PropsWithChildren, useEffect, useMemo } from "react";
+import React, {
+  type PropsWithChildren,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+} from "react";
 import { useFieldArray, useForm } from "react-hook-form";
 import useEvent from "react-use-event-hook";
 import type { z } from "zod";
@@ -42,6 +48,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "../../../components/ui/dropdown-menu";
+import { Tooltip } from "../../../components/ui/tooltip";
 import { cn } from "../../../utils/cn";
 import { DATAFRAME_FORM_RENDERERS } from "./forms/renderers";
 import {
@@ -53,6 +60,10 @@ import {
 import type { ColumnDataTypes } from "./types";
 import { getUpdatedColumnTypes } from "./utils/getUpdatedColumnTypes";
 
+export interface TransformPanelHandle {
+  submit: () => void;
+}
+
 interface Props {
   columns: ColumnDataTypes;
   initialValue: Transformations;
@@ -63,6 +74,7 @@ interface Props {
     too_many_values: boolean;
   }>;
   lazy: boolean;
+  ref?: React.Ref<TransformPanelHandle>;
 }
 
 export const TransformPanel: React.FC<Props> = ({
@@ -72,6 +84,7 @@ export const TransformPanel: React.FC<Props> = ({
   onInvalidChange,
   getColumnValues,
   lazy,
+  ref,
 }) => {
   const form = useForm<z.infer<typeof TransformationsSchema>>({
     resolver: zodResolver(TransformationsSchema),
@@ -96,8 +109,9 @@ export const TransformPanel: React.FC<Props> = ({
       (values) => {
         onSubmit(values);
         // Reset dirty state by setting current values as new default
+        // Use keepValues to avoid re-initializing field arrays
         if (lazy) {
-          form.reset(values);
+          form.reset(values, { keepValues: true });
         }
       },
       () => {
@@ -105,6 +119,12 @@ export const TransformPanel: React.FC<Props> = ({
       },
     )();
   });
+
+  useImperativeHandle(ref, () => {
+    return {
+      submit: handleApply,
+    };
+  }, []);
 
   useEffect(() => {
     // If lazy, do not auto-submit on input changes
@@ -159,7 +179,7 @@ export const TransformPanel: React.FC<Props> = ({
           onKeyDown={
             lazy ? (e) => e.key === "Enter" && e.preventDefault() : undefined
           }
-          className="flex flex-row max-h-[400px] overflow-hidden bg-background"
+          className="relative flex flex-row max-h-[400px] overflow-hidden bg-background"
         >
           <Sidebar
             items={form.watch("transforms")}
@@ -198,19 +218,48 @@ export const TransformPanel: React.FC<Props> = ({
                 </AddTransformDropdown>
               </div>
             )}
-            {lazy && (
-              <div className="mt-auto pt-1 -mb-1">
-                <Button
-                  data-testid="marimo-plugin-data-frames-apply"
-                  variant={formState.isDirty ? "warn" : "outline"}
-                  size="xs"
-                  onClick={handleApply}
-                >
-                  Apply
-                </Button>
-              </div>
-            )}
           </div>
+          {lazy && (
+            <div className="absolute bottom-0 right-0 border-l border-t rounded-tl-sm flex flex-row items-center gap-1 p-1.5 pr-1">
+              <Button
+                data-testid="marimo-plugin-data-frames-apply"
+                variant={formState.isDirty ? "warn" : "outline"}
+                size="xs"
+                onClick={handleApply}
+                className="h-6"
+              >
+                Apply
+              </Button>
+              <Tooltip
+                delayDuration={100}
+                content={
+                  <div className="flex flex-col gap-1.5 text-xs text-muted-foreground max-w-88">
+                    <span>
+                      This dataframe is marked lazy to improve performance.
+                      Click{" "}
+                      <span className="px-1 mr-1 rounded border border-border">
+                        Apply
+                      </span>
+                      to apply the transforms.
+                    </span>
+                    <p>
+                      Pass{" "}
+                      <code className="bg-muted px-1 py-0.5 rounded-sm">
+                        lazy=False
+                      </code>{" "}
+                      to{" "}
+                      <code className="bg-muted px-1 py-0.5 rounded-sm">
+                        mo.ui.dataframe
+                      </code>{" "}
+                      to turn off lazy mode.
+                    </p>
+                  </div>
+                }
+              >
+                <InfoIcon className="w-3 h-3 text-muted-foreground hover:text-foreground cursor-help" />
+              </Tooltip>
+            </div>
+          )}
         </form>
       </ColumnFetchValuesContext>
     </ColumnInfoContext>
