@@ -20,7 +20,7 @@ exports[`renderZodSchema > should render a form aggregate 1`] = `
           class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
           for="_r_26_-form-item"
         >
-          Group by columns
+          Columns
         </label>
         <div
           aria-describedby="_r_26_-form-item-description"
@@ -39,7 +39,7 @@ exports[`renderZodSchema > should render a form aggregate 1`] = `
             <span
               class="truncate flex-1 min-w-0"
             >
-              Select group by columns
+              Select columns
             </span>
             <svg
               aria-hidden="true"
@@ -392,7 +392,7 @@ exports[`renderZodSchema > should render a form explode_columns 1`] = `
           class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
           for="_r_2o_-form-item"
         >
-          Group by columns
+          Columns
         </label>
         <div
           aria-describedby="_r_2o_-form-item-description"
@@ -411,7 +411,7 @@ exports[`renderZodSchema > should render a form explode_columns 1`] = `
             <span
               class="truncate flex-1 min-w-0"
             >
-              Select group by columns
+              Select columns
             </span>
             <svg
               aria-hidden="true"
@@ -771,6 +771,233 @@ exports[`renderZodSchema > should render a form group_by 1`] = `
 </DocumentFragment>
 `;
 
+exports[`renderZodSchema > should render a form pivot 1`] = `
+<DocumentFragment>
+  <div
+    class="flex flex-col gap-6"
+  >
+    <input
+      name="type"
+      type="hidden"
+      value="pivot"
+    />
+    <div
+      class="flex flex-row align-start"
+    >
+      <div
+        class="flex flex-col gap-1"
+      >
+        <label
+          class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+          for="_r_3a_-form-item"
+        >
+          Columns
+        </label>
+        <div
+          aria-describedby="_r_3a_-form-item-description"
+          aria-invalid="false"
+          class="relative"
+          id="_r_3a_-form-item"
+        >
+          <div
+            aria-controls="radix-_r_3b_"
+            aria-expanded="false"
+            aria-haspopup="dialog"
+            class="flex h-6 w-fit mb-1 shadow-xs-solid items-center justify-between rounded-sm border border-input bg-transparent px-2 text-sm font-prose ring-offset-background placeholder:text-muted-foreground hover:shadow-sm-solid focus:outline-hidden focus:ring-1 focus:ring-ring focus:border-primary focus:shadow-md-solid disabled:cursor-not-allowed disabled:opacity-50 min-w-[180px]"
+            data-state="closed"
+            type="button"
+          >
+            <span
+              class="truncate flex-1 min-w-0"
+            >
+              Select columns
+            </span>
+            <svg
+              aria-hidden="true"
+              class="lucide lucide-chevron-down ml-3 w-4 h-4 opacity-50 shrink-0"
+              fill="none"
+              height="24"
+              stroke="currentColor"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              viewBox="0 0 24 24"
+              width="24"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="m6 9 6 6 6-6"
+              />
+            </svg>
+          </div>
+          <div
+            class="flex flex-col gap-1 items-start"
+          />
+        </div>
+      </div>
+    </div>
+    <div
+      class="flex flex-row align-start"
+    >
+      <div
+        class="flex flex-col gap-1"
+      >
+        <label
+          class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+          for="_r_3c_-form-item"
+        >
+          Index on columns
+        </label>
+        <div
+          aria-describedby="_r_3c_-form-item-description"
+          aria-invalid="false"
+          class="relative"
+          id="_r_3c_-form-item"
+        >
+          <div
+            aria-controls="radix-_r_3d_"
+            aria-expanded="false"
+            aria-haspopup="dialog"
+            class="flex h-6 w-fit mb-1 shadow-xs-solid items-center justify-between rounded-sm border border-input bg-transparent px-2 text-sm font-prose ring-offset-background placeholder:text-muted-foreground hover:shadow-sm-solid focus:outline-hidden focus:ring-1 focus:ring-ring focus:border-primary focus:shadow-md-solid disabled:cursor-not-allowed disabled:opacity-50 min-w-[180px]"
+            data-state="closed"
+            type="button"
+          >
+            <span
+              class="truncate flex-1 min-w-0"
+            >
+              Select index on columns
+            </span>
+            <svg
+              aria-hidden="true"
+              class="lucide lucide-chevron-down ml-3 w-4 h-4 opacity-50 shrink-0"
+              fill="none"
+              height="24"
+              stroke="currentColor"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              viewBox="0 0 24 24"
+              width="24"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="m6 9 6 6 6-6"
+              />
+            </svg>
+          </div>
+          <div
+            class="flex flex-col gap-1 items-start"
+          />
+        </div>
+      </div>
+    </div>
+    <div
+      class="flex flex-row align-start"
+    >
+      <div
+        class="flex flex-col gap-1"
+      >
+        <label
+          class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+          for="_r_3e_-form-item"
+        >
+          Aggregate on columns
+        </label>
+        <div
+          aria-describedby="_r_3e_-form-item-description"
+          aria-invalid="false"
+          class="relative"
+          id="_r_3e_-form-item"
+        >
+          <div
+            aria-controls="radix-_r_3f_"
+            aria-expanded="false"
+            aria-haspopup="dialog"
+            class="flex h-6 w-fit mb-1 shadow-xs-solid items-center justify-between rounded-sm border border-input bg-transparent px-2 text-sm font-prose ring-offset-background placeholder:text-muted-foreground hover:shadow-sm-solid focus:outline-hidden focus:ring-1 focus:ring-ring focus:border-primary focus:shadow-md-solid disabled:cursor-not-allowed disabled:opacity-50 min-w-[180px]"
+            data-state="closed"
+            type="button"
+          >
+            <span
+              class="truncate flex-1 min-w-0"
+            >
+              Select aggregate on columns
+            </span>
+            <svg
+              aria-hidden="true"
+              class="lucide lucide-chevron-down ml-3 w-4 h-4 opacity-50 shrink-0"
+              fill="none"
+              height="24"
+              stroke="currentColor"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              viewBox="0 0 24 24"
+              width="24"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="m6 9 6 6 6-6"
+              />
+            </svg>
+          </div>
+          <div
+            class="flex flex-col gap-1 items-start"
+          />
+        </div>
+      </div>
+    </div>
+    <div
+      class="flex flex-row align-start"
+    >
+      <div
+        class="flex flex-col gap-1"
+      >
+        <label
+          class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 whitespace-pre"
+          for="_r_3g_-form-item"
+        >
+          Aggregation
+        </label>
+        <button
+          aria-autocomplete="none"
+          aria-controls="radix-_r_3h_"
+          aria-expanded="false"
+          class="flex h-6 w-fit items-center justify-between rounded-sm bg-background px-2 text-sm font-prose ring-offset-background placeholder:text-muted-foreground focus:outline-hidden focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer shadow-xs-solid border border-input hover:shadow-sm-solid focus:border-primary focus:shadow-md-solid disabled:hover:shadow-xs-solid mb-0 min-w-[180px]"
+          data-placeholder=""
+          data-state="closed"
+          dir="ltr"
+          role="combobox"
+          type="button"
+        >
+          <span
+            style="pointer-events: none;"
+          >
+            --
+          </span>
+          <svg
+            aria-hidden="true"
+            class="lucide lucide-chevron-down h-4 w-4 opacity-50"
+            fill="none"
+            height="24"
+            stroke="currentColor"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            viewBox="0 0 24 24"
+            width="24"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              d="m6 9 6 6 6-6"
+            />
+          </svg>
+        </button>
+      </div>
+    </div>
+  </div>
+</DocumentFragment>
+`;
+
 exports[`renderZodSchema > should render a form rename_column 1`] = `
 <DocumentFragment>
   <div
@@ -1064,7 +1291,7 @@ exports[`renderZodSchema > should render a form select_columns 1`] = `
           class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
           for="_r_3_-form-item"
         >
-          Group by columns
+          Columns
         </label>
         <div
           aria-describedby="_r_3_-form-item-description"
@@ -1083,7 +1310,7 @@ exports[`renderZodSchema > should render a form select_columns 1`] = `
             <span
               class="truncate flex-1 min-w-0"
             >
-              Select group by columns
+              Select columns
             </span>
             <svg
               aria-hidden="true"
@@ -1347,7 +1574,7 @@ exports[`renderZodSchema > should render a form unique 1`] = `
           class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
           for="_r_31_-form-item"
         >
-          Group by columns
+          Columns
         </label>
         <div
           aria-describedby="_r_31_-form-item-description"
@@ -1366,7 +1593,7 @@ exports[`renderZodSchema > should render a form unique 1`] = `
             <span
               class="truncate flex-1 min-w-0"
             >
-              Select group by columns
+              Select columns
             </span>
             <svg
               aria-hidden="true"
@@ -1451,7 +1678,7 @@ exports[`renders custom forms column_id 1`] = `
   >
     <label
       class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-      for="_r_3a_-form-item"
+      for="_r_3p_-form-item"
     >
       Column
     </label>
@@ -1460,7 +1687,7 @@ exports[`renders custom forms column_id 1`] = `
     >
       <button
         aria-autocomplete="none"
-        aria-controls="radix-_r_3b_"
+        aria-controls="radix-_r_3q_"
         aria-expanded="false"
         class="flex h-6 w-fit items-center justify-between rounded-sm bg-background px-2 text-sm font-prose ring-offset-background placeholder:text-muted-foreground focus:outline-hidden focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer shadow-xs-solid border border-input hover:shadow-sm-solid focus:border-primary focus:shadow-md-solid disabled:hover:shadow-xs-solid mb-0 min-w-[180px]"
         data-placeholder=""
@@ -1504,18 +1731,18 @@ exports[`renders custom forms column_id_array 1`] = `
   >
     <label
       class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-      for="_r_3h_-form-item"
+      for="_r_40_-form-item"
     >
-      Group by columns
+      Columns
     </label>
     <div
-      aria-describedby="_r_3h_-form-item-description"
+      aria-describedby="_r_40_-form-item-description"
       aria-invalid="false"
       class="relative"
-      id="_r_3h_-form-item"
+      id="_r_40_-form-item"
     >
       <div
-        aria-controls="radix-_r_3i_"
+        aria-controls="radix-_r_41_"
         aria-expanded="false"
         aria-haspopup="dialog"
         class="flex h-6 w-fit mb-1 shadow-xs-solid items-center justify-between rounded-sm border border-input bg-transparent px-2 text-sm font-prose ring-offset-background placeholder:text-muted-foreground hover:shadow-sm-solid focus:outline-hidden focus:ring-1 focus:ring-ring focus:border-primary focus:shadow-md-solid disabled:cursor-not-allowed disabled:opacity-50 min-w-[180px]"
@@ -1525,7 +1752,7 @@ exports[`renders custom forms column_id_array 1`] = `
         <span
           class="truncate flex-1 min-w-0"
         >
-          Select group by columns
+          Select columns
         </span>
         <svg
           aria-hidden="true"
@@ -1559,13 +1786,13 @@ exports[`renders custom forms column_id_dot_array 1`] = `
     class="flex flex-col gap-1"
   >
     <div
-      aria-describedby="_r_3j_-form-item-description"
+      aria-describedby="_r_42_-form-item-description"
       aria-invalid="false"
       class="relative"
-      id="_r_3j_-form-item"
+      id="_r_42_-form-item"
     >
       <div
-        aria-controls="radix-_r_3k_"
+        aria-controls="radix-_r_43_"
         aria-expanded="false"
         aria-haspopup="dialog"
         class="flex h-6 w-fit mb-1 shadow-xs-solid items-center justify-between rounded-sm border border-input bg-transparent px-2 text-sm font-prose ring-offset-background placeholder:text-muted-foreground hover:shadow-sm-solid focus:outline-hidden focus:ring-1 focus:ring-ring focus:border-primary focus:shadow-md-solid disabled:cursor-not-allowed disabled:opacity-50 min-w-[180px]"
@@ -1610,7 +1837,7 @@ exports[`renders custom forms column_id_optional 1`] = `
   >
     <label
       class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-      for="_r_3l_-form-item"
+      for="_r_44_-form-item"
     >
       Column
     </label>
@@ -1619,7 +1846,7 @@ exports[`renders custom forms column_id_optional 1`] = `
     >
       <button
         aria-autocomplete="none"
-        aria-controls="radix-_r_3m_"
+        aria-controls="radix-_r_45_"
         aria-expanded="false"
         class="flex h-6 w-fit items-center justify-between rounded-sm bg-background px-2 text-sm font-prose ring-offset-background placeholder:text-muted-foreground focus:outline-hidden focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer shadow-xs-solid border border-input hover:shadow-sm-solid focus:border-primary focus:shadow-md-solid disabled:hover:shadow-xs-solid mb-0 min-w-[180px]"
         data-placeholder=""
