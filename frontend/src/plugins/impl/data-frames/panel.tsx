@@ -251,7 +251,7 @@ export const TransformPanel: React.FC<Props> = ({
                       <code className="bg-muted px-1 py-0.5 rounded-sm">
                         mo.ui.dataframe
                       </code>{" "}
-                      to turn off lazy mode.
+                      to automatically apply transformations.
                     </p>
                   </div>
                 }
