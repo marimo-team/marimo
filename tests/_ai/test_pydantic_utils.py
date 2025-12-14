@@ -36,8 +36,9 @@ class TestGenerateId:
 class TestFormToolsets:
     def test_form_toolsets_empty_list(self):
         tool_invoker = AsyncMock()
-        toolset = form_toolsets([], tool_invoker)
+        toolset, deferred = form_toolsets([], tool_invoker)
         assert toolset is not None
+        assert deferred is False
 
     def test_form_toolsets_with_backend_tool(self):
         tool_invoker = AsyncMock()
@@ -48,8 +49,9 @@ class TestFormToolsets:
             source="backend",
             mode=["manual"],
         )
-        toolset = form_toolsets([tool], tool_invoker)
+        toolset, deferred = form_toolsets([tool], tool_invoker)
         assert toolset is not None
+        assert deferred is False
 
     def test_form_toolsets_with_frontend_tool(self):
         tool_invoker = AsyncMock()
@@ -60,8 +62,9 @@ class TestFormToolsets:
             source="frontend",
             mode=["manual"],
         )
-        toolset = form_toolsets([tool], tool_invoker)
+        toolset, deferred = form_toolsets([tool], tool_invoker)
         assert toolset is not None
+        assert deferred is True
 
     def test_form_toolsets_with_multiple_tools(self):
         tool_invoker = AsyncMock()
@@ -88,8 +91,31 @@ class TestFormToolsets:
                 mode=["manual"],
             ),
         ]
-        toolset = form_toolsets(tools, tool_invoker)
+        toolset, deferred = form_toolsets(tools, tool_invoker)
         assert toolset is not None
+        assert deferred is True  # has frontend tool
+
+    def test_form_toolsets_with_only_backend_and_mcp_tools(self):
+        tool_invoker = AsyncMock()
+        tools = [
+            ToolDefinition(
+                name="backend_tool",
+                description="A backend tool",
+                parameters={"type": "object", "properties": {}},
+                source="backend",
+                mode=["manual"],
+            ),
+            ToolDefinition(
+                name="mcp_tool",
+                description="An MCP tool",
+                parameters={"type": "object", "properties": {}},
+                source="mcp",
+                mode=["manual"],
+            ),
+        ]
+        toolset, deferred = form_toolsets(tools, tool_invoker)
+        assert toolset is not None
+        assert deferred is False  # no frontend tools
 
     async def test_backend_tool_invokes_tool_invoker(self):
         @dataclass
@@ -104,7 +130,8 @@ class TestFormToolsets:
             source="backend",
             mode=["manual"],
         )
-        toolset = form_toolsets([tool], tool_invoker)
+        toolset, deferred = form_toolsets([tool], tool_invoker)
+        assert deferred is False
 
         tools = toolset.tools
         assert len(tools) == 1
@@ -134,7 +161,8 @@ class TestFormToolsets:
             source="frontend",
             mode=["manual"],
         )
-        toolset = form_toolsets([tool], tool_invoker)
+        toolset, deferred = form_toolsets([tool], tool_invoker)
+        assert deferred is True
 
         tools = toolset.tools
         assert len(tools) == 1

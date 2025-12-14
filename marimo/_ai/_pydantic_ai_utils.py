@@ -22,18 +22,22 @@ def generate_id(prefix: str) -> str:
 def form_toolsets(
     tools: list[ToolDefinition],
     tool_invoker: Callable[[str, dict[str, Any]], Any],
-) -> FunctionToolset:
+) -> tuple[FunctionToolset, bool]:
     """
     Because we have a list of tool definitions and call them in a separate event loop,
     we create a closure to invoke the tool (backend) or raise a CallDeferred (frontend).
     Ref: https://ai.pydantic.dev/toolsets/#function-toolset
+
+    Returns a tuple of the toolset and whether deferred tool requests are supported.
     """
     from pydantic_ai import CallDeferred, FunctionToolset
 
     toolset = FunctionToolset()
+    deferred_tool_requests = False
 
     for tool in tools:
         if tool.source == "frontend":
+            deferred_tool_requests = True
 
             async def tool_fn(
                 _tool_name: str = tool.name, **kwargs: Any
@@ -58,7 +62,7 @@ def form_toolsets(
         toolset.add_function(
             tool_fn, name=tool.name, description=tool.description
         )
-    return toolset
+    return toolset, deferred_tool_requests
 
 
 def convert_to_pydantic_messages(
