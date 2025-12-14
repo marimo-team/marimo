@@ -11,11 +11,11 @@ from starlette.requests import HTTPConnection
 
 from marimo._config.manager import UserConfigManager
 from marimo._server.api.auth import (
-    AppState,
     CustomAuthenticationMiddleware,
     CustomSessionMiddleware,
     validate_auth,
 )
+from marimo._server.api.deps import AppState
 from marimo._server.api.middleware import AuthBackend
 from marimo._server.main import create_starlette_app
 from tests._server.mocks import get_mock_session_manager

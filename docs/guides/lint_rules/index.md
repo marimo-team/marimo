@@ -1,10 +1,12 @@
 # Lint Rules
 
-marimo includes a comprehensive linting system that helps you write better, more reliable notebooks. The linter checks for various issues that could prevent your notebook from running correctly or cause confusion.
+marimo includes a linter that helps you write better notebooks. The linter
+checks for various issues that could prevent your notebook from running
+correctly or cause confusion.
 
-## How to Use
+## Usage
 
-You can run the linter using the CLI:
+Run the linter using the CLI:
 
 ```bash
 # Check all notebooks in current directory

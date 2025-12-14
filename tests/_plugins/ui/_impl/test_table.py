@@ -1773,6 +1773,89 @@ def test_cell_search_df_styles_sorted(df: Any):
     }
 
 
+@pytest.mark.parametrize(
+    "df",
+    create_dataframes(
+        {
+            "Index": list(range(20)),
+            "Category": [f"Label {i % 5}" for i in range(20)],
+            "Value": [i * ((-1) ** i) for i in range(20)],
+        },
+        exclude=NON_EAGER_LIBS,
+    ),
+)
+def test_cell_styles_sorted_with_pagination(df: Any):
+    """Test that cell styles are correctly applied with sorting and pagination.
+
+    Regression test for issue #6223 - cell styles should work on all pages,
+    not just the last N rows of the entire dataset.
+    """
+
+    def cell_style(_row_id, _column_name, value):
+        # Handle both Python numbers and numpy numbers
+        try:
+            numeric_value = float(value)
+            return {"color": "black" if numeric_value > 0 else "red"}
+        except (TypeError, ValueError):
+            return {}
+
+    table = ui.table(df, style_cell=cell_style)
+
+    # Test page 0 (rows 19, 18, 17, 16, 15 when sorted descending by Index)
+    page0 = table._search(
+        SearchTableArgs(
+            page_size=5,
+            page_number=0,
+            query="",
+            sort=[SortArgs(by="Index", descending=True)],
+        )
+    )
+    assert "19" in page0.cell_styles
+    assert "18" in page0.cell_styles
+    assert "17" in page0.cell_styles
+    assert "16" in page0.cell_styles
+    assert "15" in page0.cell_styles
+    # Check that the style function was applied
+    # i=19: 19 * ((-1)**19) = 19 * -1 = -19 (negative, red)
+    assert page0.cell_styles["19"]["Value"] == {"color": "red"}
+    # i=18: 18 * ((-1)**18) = 18 * 1 = 18 (positive, black)
+    assert page0.cell_styles["18"]["Value"] == {"color": "black"}
+
+    # Test page 1 (rows 14, 13, 12, 11, 10 when sorted descending)
+    page1 = table._search(
+        SearchTableArgs(
+            page_size=5,
+            page_number=1,
+            query="",
+            sort=[SortArgs(by="Index", descending=True)],
+        )
+    )
+    assert "14" in page1.cell_styles
+    assert "13" in page1.cell_styles
+    assert "12" in page1.cell_styles
+    assert "11" in page1.cell_styles
+    assert "10" in page1.cell_styles
+    # i=13: 13 * ((-1)**13) = 13 * -1 = -13 (negative, red)
+    assert page1.cell_styles["13"]["Value"] == {"color": "red"}
+
+    # Test page 2 (rows 9, 8, 7, 6, 5 when sorted descending)
+    page2 = table._search(
+        SearchTableArgs(
+            page_size=5,
+            page_number=2,
+            query="",
+            sort=[SortArgs(by="Index", descending=True)],
+        )
+    )
+    assert "9" in page2.cell_styles
+    assert "8" in page2.cell_styles
+    assert "7" in page2.cell_styles
+    assert "6" in page2.cell_styles
+    assert "5" in page2.cell_styles
+    # i=9: 9 * ((-1)**9) = 9 * -1 = -9 (negative, red)
+    assert page2.cell_styles["9"]["Value"] == {"color": "red"}
+
+
 @pytest.mark.skipif(
     not DependencyManager.pandas.has(),
     reason="Pandas not installed, only pandas has multi-col idx",

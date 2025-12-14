@@ -13,7 +13,7 @@ from marimo._runtime.requests import (
 from marimo._runtime.runtime import SecretsCallbacks
 from marimo._types.ids import RequestId
 from tests._messaging.mocks import MockStream
-from tests._runtime.test_runtime import MockedKernel
+from tests.conftest import MockedKernel
 
 
 @pytest.fixture

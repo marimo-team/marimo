@@ -56,10 +56,7 @@ import { prettyError } from "@/utils/errors";
 import { jotaiJsonStorage } from "@/utils/storage/jotai";
 import { ZodLocalStorage } from "@/utils/storage/typed";
 import { PythonIcon } from "../cell/code/icons";
-import {
-  CompletionActions,
-  createAiCompletionOnKeydown,
-} from "./completion-handlers";
+import { createAiCompletionOnKeydown } from "./completion-handlers";
 import { CONTEXT_TRIGGER, mentionsCompletionSource } from "./completion-utils";
 import { StreamingChunkTransport } from "./transport/chat-transport";
 
@@ -151,7 +148,6 @@ export const AddCellWithAI: React.FC<{
 
   const isLoading = status === "streaming" || status === "submitted";
   const hasCompletion = stagedAICells.size > 0;
-  const multipleCompletions = stagedAICells.size > 1;
 
   const submit = () => {
     if (!isLoading) {
@@ -256,28 +252,19 @@ export const AddCellWithAI: React.FC<{
   );
 
   return (
-    <div className={cn("flex flex-col w-full gap-2 py-2")}>
+    <div className={cn("flex flex-col w-full py-2")}>
       {inputComponent}
       <div className="flex flex-row justify-between -mt-1 ml-1 mr-3">
         {!hasCompletion && (
-          <span className="text-xs text-muted-foreground px-3 flex flex-col gap-1">
+          <span className="text-xs text-muted-foreground px-3 flex flex-col gap-1 mt-2">
             <span>
               You can mention{" "}
               <span className="text-(--cyan-11)">@dataframe</span> or{" "}
               <span className="text-(--cyan-11)">@sql_table</span> to pull
-              additional context such as column names.
+              additional context such as column names. Code from other cells is
+              automatically included.
             </span>
-            <span>Code from other cells is automatically included.</span>
           </span>
-        )}
-        {hasCompletion && (
-          <CompletionActions
-            isLoading={isLoading}
-            onAccept={handleAcceptCompletion}
-            onDecline={handleDeclineCompletion}
-            size="sm"
-            multipleCompletions={multipleCompletions}
-          />
         )}
         <div className="ml-auto flex items-center gap-1">
           {languageDropdown}

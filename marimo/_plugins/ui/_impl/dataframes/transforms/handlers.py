@@ -224,6 +224,14 @@ class NarwhalsTransformHandler(TransformHandler[DataFrame]):
                     condition_expr = column.is_in(value) | column.is_null()
                 else:
                     condition_expr = column.is_in(value or [])
+            elif condition.operator == "not_in":
+                # ~is_in returns null for null values, so we need to explicitly include/exclude nulls
+                if value is not None and None in value:
+                    condition_expr = ~column.is_in(value) & ~column.is_null()
+                else:
+                    condition_expr = (
+                        ~column.is_in(value or []) | column.is_null()
+                    )
             else:
                 assert_never(condition.operator)
 

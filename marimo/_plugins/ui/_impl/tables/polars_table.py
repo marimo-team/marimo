@@ -108,11 +108,25 @@ class PolarsTableManagerFactory(TableManagerFactory):
                     return result.write_csv()
 
             def to_json_str(
-                self, format_mapping: Optional[FormatMapping] = None
+                self,
+                format_mapping: Optional[FormatMapping] = None,
+                strict_json: bool = False,
             ) -> str:
-                def to_json(result: pl.DataFrame) -> list[dict[str, Any]]:
-                    # Use to_dicts instead of write_json
-                    # Preserves certain types like nans, infs, -infs, etc.
+                def to_json(
+                    result: pl.DataFrame,
+                ) -> list[dict[str, Any]] | str:
+                    """
+                    to_dicts preserves nans, infs and is more accurate than write_json.
+                    By default, we use to_dicts unless strict_json is True
+                    """
+                    if strict_json:
+                        try:
+                            return result.write_json()
+                        except Exception as e:
+                            LOGGER.warning(
+                                "Error serializing to JSON. Falling back to to_dicts. Error: %s",
+                                e,
+                            )
                     return result.to_dicts()
 
                 result = self.apply_formatting(format_mapping).collect()

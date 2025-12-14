@@ -590,6 +590,111 @@ class TestTransformHandler:
         ("df", "expected"),
         list(
             zip(
+                create_test_dataframes({"A": [1, 2, 3], "B": [4, 5, 6]}),
+                create_test_dataframes({"A": [3], "B": [6]}),
+            )
+        ),
+    )
+    def test_filter_rows_not_in_operator(
+        df: DataFrameType, expected: DataFrameType
+    ) -> None:
+        transform = FilterRowsTransform(
+            type=TransformType.FILTER_ROWS,
+            operation="keep_rows",
+            where=[Condition(column_id="A", operator="not_in", value=[1, 2])],
+        )
+        result = apply(df, transform)
+        assert_frame_equal(result, expected)
+
+    @staticmethod
+    @pytest.mark.parametrize(
+        ("df", "expected"),
+        list(
+            zip(
+                create_test_dataframes(
+                    {"A": ["foo", "bar", "baz"], "B": [1, 2, 3]}
+                ),
+                create_test_dataframes({"A": ["baz"], "B": [3]}),
+            )
+        ),
+    )
+    def test_filter_rows_not_in_operator_strings(
+        df: DataFrameType, expected: DataFrameType
+    ) -> None:
+        transform = FilterRowsTransform(
+            type=TransformType.FILTER_ROWS,
+            operation="keep_rows",
+            where=[
+                Condition(
+                    column_id="A", operator="not_in", value=["foo", "bar"]
+                )
+            ],
+        )
+        result = apply(df, transform)
+        assert_frame_equal(result, expected)
+
+    @staticmethod
+    @pytest.mark.parametrize(
+        ("df", "expected"),
+        [
+            *zip(
+                create_test_dataframes(
+                    {"A": [1, 2, 3, None], "B": [4, 5, 6, 7]},
+                    exclude=["ibis"],
+                ),
+                create_test_dataframes({"A": [3], "B": [6]}, exclude=["ibis"]),
+            ),
+        ],
+    )
+    def test_filter_rows_not_in_operator_with_nulls(
+        df: DataFrameType, expected: DataFrameType
+    ) -> None:
+        # not_in with None in value should exclude rows where A is 1, 2, or null
+        transform = FilterRowsTransform(
+            type=TransformType.FILTER_ROWS,
+            operation="keep_rows",
+            where=[
+                Condition(column_id="A", operator="not_in", value=[1, 2, None])
+            ],
+        )
+        result = apply(df, transform)
+        assert_frame_equal(result, expected)
+
+    @staticmethod
+    @pytest.mark.parametrize(
+        ("df", "expected"),
+        [
+            *zip(
+                create_test_dataframes(
+                    {"A": [1, 2, 3, None], "B": [4, 5, 6, 7]},
+                    exclude=["ibis"],
+                ),
+                create_test_dataframes(
+                    {"A": [3, None], "B": [6, 7]}, exclude=["ibis"]
+                ),
+            ),
+        ],
+    )
+    def test_filter_rows_not_in_operator_keep_nulls(
+        df: DataFrameType, expected: DataFrameType
+    ) -> None:
+        # not_in WITHOUT None in value should keep null rows (only exclude 1 and 2)
+        transform = FilterRowsTransform(
+            type=TransformType.FILTER_ROWS,
+            operation="keep_rows",
+            where=[Condition(column_id="A", operator="not_in", value=[1, 2])],
+        )
+        result = apply(df, transform)
+        if nw.dependencies.is_pandas_dataframe(result):
+            assert_frame_equal_with_nans(result, expected)
+        else:
+            assert_frame_equal(result, expected)
+
+    @staticmethod
+    @pytest.mark.parametrize(
+        ("df", "expected"),
+        list(
+            zip(
                 create_test_dataframes(
                     {"A": [1, 2, 3, 4, 5], "B": [5, 4, 3, 2, 1]}
                 ),

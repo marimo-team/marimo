@@ -9,7 +9,7 @@ from unittest.mock import patch
 import pytest
 
 from marimo._ast import compiler
-from marimo._ast.app import CellManager
+from marimo._ast.cell_manager import CellManager
 from marimo._ast.visitor import ImportData, VariableData
 from marimo._dependencies.dependencies import DependencyManager
 

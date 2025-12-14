@@ -13,7 +13,7 @@ import { memo, useRef, useState } from "react";
 import { z } from "zod";
 import { ReadonlyCode } from "@/components/editor/code/readonly-python-code";
 import { OutputArea } from "@/components/editor/Output";
-import { ConsoleOutput } from "@/components/editor/output/ConsoleOutput";
+import { ConsoleOutput } from "@/components/editor/output/console/ConsoleOutput";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {

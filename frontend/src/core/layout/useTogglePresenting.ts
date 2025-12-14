@@ -14,7 +14,7 @@ interface ScrollAnchor {
 function findScrollAnchor(): ScrollAnchor | null {
   const outputAreas = document.getElementsByClassName(CSSClasses.outputArea);
 
-  for (const elem of Array.from(outputAreas)) {
+  for (const elem of outputAreas) {
     const rect = elem.getBoundingClientRect();
 
     // Find first visible output area

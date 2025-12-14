@@ -3,6 +3,7 @@
 import { WebSocketTransport } from "@open-rpc/client-js";
 import type { JSONRPCRequestData } from "@open-rpc/client-js/build/Request";
 import { Transport } from "@open-rpc/client-js/build/transports/Transport";
+import { prettyError } from "@/utils/errors";
 import { Logger } from "@/utils/Logger";
 
 export interface LazyWebsocketTransportOptions {
@@ -20,7 +21,7 @@ export interface LazyWebsocketTransportOptions {
   /**
    * Function to show error toast notifications.
    */
-  showError: (title: string, description: string) => void;
+  showError: (title: string, description: string | React.ReactNode) => void;
 
   /**
    * Number of retry attempts for connection.
@@ -159,7 +160,8 @@ export class LazyWebsocketTransport extends Transport {
           // Show error toast on final retry
           this.options.showError(
             "GitHub Copilot Connection Error",
-            "Failed to connect to GitHub Copilot. Please check your settings and try again.",
+            "Failed to connect to GitHub Copilot. Please check your settings and try again.\n\n" +
+              prettyError(error),
           );
           throw error;
         }
