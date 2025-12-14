@@ -111,6 +111,7 @@ class PolarsTableManagerFactory(TableManagerFactory):
                 self,
                 format_mapping: Optional[FormatMapping] = None,
                 strict_json: bool = False,
+                ensure_ascii: bool = True,
             ) -> str:
                 def to_json(
                     result: pl.DataFrame,
@@ -146,7 +147,9 @@ class PolarsTableManagerFactory(TableManagerFactory):
                             result = result.with_columns(
                                 pl.col(column.name).cast(pl.List(pl.String))
                             )
-                    return sanitize_json_bigint(to_json(result))
+                    return sanitize_json_bigint(
+                        to_json(result), ensure_ascii=ensure_ascii
+                    )
                 except (
                     BaseException
                 ):  # Sometimes, polars throws a generic exception
@@ -188,7 +191,9 @@ class PolarsTableManagerFactory(TableManagerFactory):
                             ", ".join(f"'{col}'" for col in converted_columns),
                         )
 
-                    return sanitize_json_bigint(to_json(result))
+                    return sanitize_json_bigint(
+                        to_json(result), ensure_ascii=ensure_ascii
+                    )
 
             def _convert_time_to_string(
                 self, result: pl.DataFrame, column: pl.Series

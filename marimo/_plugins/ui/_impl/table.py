@@ -1118,7 +1118,9 @@ class table(
 
         # Fallback to JSON
         try:
-            data_url = mo_data.json(table_manager.to_json({})).url
+            data_url = mo_data.json(
+                table_manager.to_json({}, ensure_ascii=True)
+            ).url
             return data_url, "json"
         except Exception as e:
             LOGGER.error(

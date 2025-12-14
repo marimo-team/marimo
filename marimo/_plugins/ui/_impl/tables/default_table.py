@@ -104,8 +104,10 @@ class DefaultTableManager(TableManager[JsonTableData]):
         self,
         format_mapping: Optional[FormatMapping] = None,
         strict_json: bool = False,
+        ensure_ascii: bool = True,
     ) -> str:
         del strict_json
+        del ensure_ascii
         normalized = self._normalize_data(
             self.apply_formatting(format_mapping).data
         )

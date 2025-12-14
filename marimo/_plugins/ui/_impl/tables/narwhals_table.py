@@ -96,10 +96,13 @@ class NarwhalsTableManager(
         self,
         format_mapping: Optional[FormatMapping] = None,
         strict_json: bool = False,
+        ensure_ascii: bool = True,
     ) -> str:
         del strict_json
         frame = self.apply_formatting(format_mapping).as_frame()
-        return sanitize_json_bigint(frame.rows(named=True))
+        return sanitize_json_bigint(
+            frame.rows(named=True), ensure_ascii=ensure_ascii
+        )
 
     def to_parquet(self) -> bytes:
         stream = io.BytesIO()

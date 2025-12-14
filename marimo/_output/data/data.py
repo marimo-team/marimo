@@ -198,6 +198,7 @@ def is_bigint(value: int | float) -> bool:
 
 def sanitize_json_bigint(
     data: Union[str, dict[str, Any], list[dict[str, Any]]],
+    ensure_ascii: bool = True,
 ) -> str:
     """Sanitize JSON big numbers to a string.
 
@@ -239,4 +240,5 @@ def sanitize_json_bigint(
         indent=None,
         separators=(",", ":"),
         default=enc_hook,
+        ensure_ascii=ensure_ascii,
     )
