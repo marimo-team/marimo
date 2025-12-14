@@ -381,15 +381,21 @@ class NarwhalsTransformHandler(TransformHandler[DataFrame]):
                 values=transform.value_column_ids,
                 aggregate_function=transform.aggregation,
             ).select(nw.all().fill_null(0))
+            .sort(by=transform.index_column_ids)
             .lazy()
         )
 
         new_columns = {}
         for column in pivot_df.columns:
-            new_column = column.replace("{", "").replace("}", "").replace('"', "").replace(',', '_')
+            new_column = column.replace('{', '').replace('}', '').replace('"', '').replace(',', '_')
+
             if len(transform.value_column_ids) == 1:
                 new_column = f'{transform.value_column_ids[0]}_{new_column}'
-            new_columns[column] = f'{new_column}_{transform.aggregation}' if column not in transform.index_column_ids else column
+
+            if column not in transform.index_column_ids:
+                new_columns[column] = f'{new_column}_{transform.aggregation}'
+            else:
+                new_columns[column] = column
 
         pivot_df = pivot_df.rename(new_columns)
         return pivot_df

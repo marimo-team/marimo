@@ -181,8 +181,8 @@ class UniqueTransform:
 @dataclass
 class PivotTransform:
     type: Literal[TransformType.PIVOT]
-    index_column_ids: ColumnIds
     column_ids: ColumnIds
+    index_column_ids: ColumnIds
     value_column_ids: ColumnIds
     aggregation: Aggregation
 

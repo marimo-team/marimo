@@ -1229,7 +1229,7 @@ class TestTransformHandler:
                     }
                 ),
                 create_test_dataframes(
-                    {"B": ["one", "two"], "foo": [5, 6], "bar": [9, 13]}
+                    {'B': ['one', 'two'], 'D_foo_sum': [5, 6], 'D_bar_sum': [9, 13]}
                 ),
                 [PivotTransform(
                     type=TransformType.PIVOT,
@@ -1279,12 +1279,7 @@ class TestTransformHandler:
                     }
                 ),
                 create_test_dataframes(
-                    {
-                        "B": ["one", "one", "two", "two"],
-                        "C": ["large", "small", "large", "small"],
-                        "foo": [4, 1, 0, 6],
-                        "bar": [4, 5, 7, 6],
-                    }
+                    {'B': ['one', 'one', 'two', 'two'], 'C': ['large', 'small', 'large', 'small'], 'D_foo_sum': [4, 1, 0, 6], 'D_bar_sum': [4, 5, 7, 6]}
                 ),
                 [PivotTransform(
                     type=TransformType.PIVOT,
@@ -1300,10 +1295,6 @@ class TestTransformHandler:
         df: DataFrameType, expected: DataFrameType, transform: PivotTransform
     ) -> None:
         result = apply(df, transform)
-        if not isinstance(result, pd.DataFrame):
-            result = result.sort(transform.index_column_ids)
-        else:
-            result = result.fillna(0)
         assert_frame_equal(result, expected)
 
     @staticmethod
