@@ -2453,9 +2453,6 @@ class TestStoredOutput:
             ]
         )
 
-        # Sleep 10ms to flush the stream
-        await asyncio.sleep(0.01)
-
         # Cell should execute successfully (exception is in formatter, not execution)
         cell = k.graph.cells[er.cell_id]
         assert cell.exception is None
@@ -2497,9 +2494,6 @@ class TestStoredOutput:
                 )
             ]
         )
-
-        # Sleep 10ms to flush the stream
-        await asyncio.sleep(0.01)
 
         # Cell should execute successfully (exception is in formatter, not execution)
         cell = k.graph.cells[er.cell_id]
@@ -2884,8 +2878,6 @@ class TestAsyncIO:
     async def test_wait_for(
         any_kernel: Kernel, exec_req: ExecReqProvider
     ) -> None:
-        import asyncio
-
         k = any_kernel
 
         await k.run(
