@@ -1,10 +1,13 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import { useAtomValue } from "jotai";
+import { atomWithStorage } from "jotai/utils";
 import { z } from "zod";
 import { createReducerAndAtoms } from "@/utils/createReducer";
+import { jotaiJsonStorage } from "@/utils/storage/jotai";
 import { ZodLocalStorage } from "@/utils/storage/typed";
 import type { DeveloperPanelTabType, PanelType } from "./types";
+import { PANELS } from "./types";
 
 export interface ChromeState {
   selectedPanel: PanelType | undefined;
@@ -116,3 +119,11 @@ export const exportedForTesting = {
   createActions,
   initialState,
 };
+
+// TODO: probably merge this with the chrome state
+export const sidebarOrderAtom = atomWithStorage<PanelType[]>(
+  "marimo:sidebar-order",
+  PANELS.filter((p) => !p.hidden && p.position === "sidebar").map((p) => p.id),
+  jotaiJsonStorage,
+  { getOnInit: true },
+);

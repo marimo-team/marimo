@@ -151,6 +151,7 @@
     "react-markdown": "^9.1.0",
     "react-plotly.js": "^2.6.0",
     "react-resizable-panels": "2.1.9",
+    "react-stately": "^3.42.0",
     "react-use-event-hook": "^0.9.6",
     "react-vega": "^8.0.0",
     "react-virtuoso": "^4.15.0",
