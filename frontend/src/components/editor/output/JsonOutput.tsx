@@ -222,7 +222,7 @@ const LEAF_RENDERERS: Record<string, LeafRenderer> = {
           mimetype: mimeType,
         }}
         // The fallback is just re-constructing the leaf and rendering it as a span
-        // This could be the case where we mime-type parsing is a false positive
+        // This could be the case where mime-type parsing is a false positive
         renderFallback={() => (
           <span>
             {mimeType}:{value}
