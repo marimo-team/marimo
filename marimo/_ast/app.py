@@ -851,20 +851,17 @@ class App:
 
         if running_in_notebook():
             ctx = get_context()
-            bound_variable: str | None = None
-            for k, v in ctx.globals.items():
-                if v is self:
-                    bound_variable = k
-            if (
-                bound_variable is not None
-                and ctx.execution_context is not None
-                and ctx.execution_context.cell_id
-                in ctx.graph.get_defining_cells(bound_variable)
-            ):
-                raise RuntimeError(
-                    "App.embed() cannot be called in the cell that imports the app. "
-                    "Call embed() in another cell."
-                )
+            for var, v in ctx.globals.items():
+                if (
+                    (v is self or getattr(v, "app", None) is self)
+                    and ctx.execution_context is not None
+                    and ctx.execution_context.cell_id
+                    in ctx.graph.get_defining_cells(var)
+                ):
+                    raise RuntimeError(
+                        "App.embed() cannot be called in the cell that "
+                        "imports the app. Call embed() in another cell."
+                    )
 
             app_kernel_runner = self._get_kernel_runner()
 

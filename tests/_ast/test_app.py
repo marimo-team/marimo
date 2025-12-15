@@ -1505,6 +1505,40 @@ class TestAppComposition:
         assert k.globals["cloned"].defs.get("this_is_foo_path").stem == directory
 
 
+    @staticmethod
+    async def test_app_embed_same_cell_in_kernel(
+        k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        await k.run(
+            [
+                exec_req.get(
+                    """
+                    from tests._ast.app_data import notebook_filename
+                    app = await notebook_filename.app.embed()
+                    app
+                    """
+                ),
+            ]
+        )
+        assert "App.embed() cannot be called" in k.stderr.messages[0]
+
+    @staticmethod
+    async def test_app_embed_same_cell_in_kernel_direct(
+        k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        await k.run(
+            [
+                exec_req.get(
+                    """
+                    from tests._ast.app_data.notebook_filename import app
+                    await app.embed()
+                    """
+                ),
+            ]
+        )
+        assert "App.embed() cannot be called" in k.stderr.messages[0]
+
+
 class TestAppKernelRunnerRegistry:
     def test_get_runner(self, k: Kernel) -> None:
         # `k` fixture installs a context, needed for AppKernelRunner
