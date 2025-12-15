@@ -340,7 +340,7 @@ class LocalFileHandler(FileHandler):
                 return path_to_app, temp_dir
             else:
                 raise click.ClickException(
-                    f"Invalid HTML file - {name} does not contain Python code. Make sure the file was downloaded from Marimo."
+                    f"Invalid HTML file - {name} does not contain Python code. Make sure the file was downloaded from marimo."
                 )
 
         if not MarimoPath.is_valid_path(path):
