@@ -1027,6 +1027,41 @@ class TestGetFinishReason(unittest.TestCase):
             ["```sql\n", "SELECT * FROM table\n", "WHERE id = 1\n```"],
             "SELECT * FROM table\nWHERE id = 1",
         ),
+        # Test trailing whitespace preservation after closing backticks
+        (
+            ["```", "print('hello')", "```  "],
+            "print('hello')  ",
+        ),
+        (
+            ["```python\n", "print('hello')", "\n``` "],
+            "print('hello') ",
+        ),
+        (
+            ["```", "code", "```\t\n"],
+            "code\t\n",
+        ),
+        # Test leading whitespace before opening backticks (whitespace and backticks stripped)
+        (
+            ["  ```", "code", "```"],
+            "code",
+        ),
+        (
+            [" ```python\n", "code", "```"],
+            "code",
+        ),
+        (
+            ["\t```", "code", "```"],
+            "code",
+        ),
+        # Test opening backticks with extra characters after language (language stripped, rest preserved)
+        (
+            ["```python ", "code", "```"],
+            " code",
+        ),
+        (
+            ["```python\t", "code", "```"],
+            "\tcode",
+        ),
     ],
 )
 async def test_without_wrapping_backticks(
