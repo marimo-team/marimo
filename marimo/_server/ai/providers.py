@@ -31,7 +31,7 @@ from marimo._ai._convert import (
 )
 from marimo._ai._pydantic_ai_utils import form_toolsets, generate_id
 from marimo._ai._types import ChatMessage
-from marimo._dependencies.dependencies import DependencyManager
+from marimo._dependencies.dependencies import Dependency, DependencyManager
 from marimo._server.ai.config import AnyProviderConfig
 from marimo._server.ai.ids import AiModelId
 from marimo._server.ai.tools.tool_manager import ToolManager, get_tool_manager
@@ -128,8 +128,15 @@ ProviderT = TypeVar("ProviderT", bound="Provider[Any]")
 class PydanticProvider(ABC, Generic[ProviderT]):
     provider: ProviderT
 
-    def __init__(self, model: str, config: AnyProviderConfig):
-        DependencyManager.pydantic_ai.require("for AI assistance")
+    def __init__(
+        self,
+        model: str,
+        config: AnyProviderConfig,
+        deps: list[Dependency] | None = None,
+    ):
+        DependencyManager.require_many(
+            "for AI assistance", DependencyManager.pydantic_ai, *(deps or [])
+        )
 
         self.model = model
         self.config = config
@@ -147,7 +154,7 @@ class PydanticProvider(ABC, Generic[ProviderT]):
         tool_manager: ToolManager,
         system_prompt: str,
     ) -> Agent[None, DeferredToolRequests | str]:
-        """Create an agent for the given max_tokens, tools, tool_manager, and system_prompt."""
+        """Create a Pydantic AI agent"""
 
     async def stream_completion(
         self,
@@ -239,11 +246,6 @@ class PydanticProvider(ABC, Generic[ProviderT]):
 
 
 class GoogleProvider(PydanticProvider["PydanticGoogle"]):
-    def __init__(self, model: str, config: AnyProviderConfig):
-        DependencyManager.google_ai.require("for Google AI")
-
-        super().__init__(model, config)
-
     def create_provider(self, config: AnyProviderConfig) -> PydanticGoogle:
         from pydantic_ai.providers.google import (
             GoogleProvider as PydanticGoogle,
@@ -1222,7 +1224,9 @@ def get_completion_provider(
     if model_id.provider == "anthropic":
         return AnthropicProvider(model_id.model, config)
     elif model_id.provider == "google":
-        return GoogleProvider(model_id.model, config)
+        return GoogleProvider(
+            model_id.model, config, [DependencyManager.google_ai]
+        )
     elif model_id.provider == "bedrock":
         return BedrockProvider(model_id.model, config)
     elif model_id.provider == "azure":
