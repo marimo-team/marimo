@@ -1675,6 +1675,7 @@ describe("useCellEditorNavigationProps", () => {
                 { from: 15, to: 15, empty: true },
               ],
             },
+            field: vi.fn().mockReturnValue(false),
           },
           dispatch: vi.fn(),
         } as unknown as EditorView,
@@ -1717,6 +1718,7 @@ describe("useCellEditorNavigationProps", () => {
         current: {
           state: {
             selection: { main: { from: 5, to: 5, empty: true } },
+            field: vi.fn().mockReturnValue(false),
           },
           dispatch: vi.fn(),
         } as unknown as EditorView,
