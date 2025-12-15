@@ -1331,3 +1331,139 @@ async def without_wrapping_backticks(
         elif has_starting_backticks and buffer.endswith("```"):
             buffer = buffer[:-3]  # Remove just the ending backticks
         yield buffer
+
+
+async def without_wrapping_backticks_ai_sdk_stream(
+    chunks: AsyncIterator[str],
+) -> AsyncGenerator[str, None]:
+    """
+    Removes markdown code block backticks from AI SDK v5 stream protocol while maintaining streaming.
+
+    This middleware processes each SSE chunk immediately, maintaining the same order and number
+    of chunks. It uses a state machine to track code block boundaries and strip backtick markers
+    on the fly. Non-text events (tool calls, reasoning, etc.) pass through unchanged in order.
+
+    Args:
+        chunks: An async iterator of SSE-formatted strings
+
+    Yields:
+        SSE-formatted strings with backticks removed from text deltas, in the same order
+
+    Example:
+        Input stream:  'data: {"type":"text-delta","id":"t1","delta":"```python\\n"}\n\n'
+                       'data: {"type":"text-delta","id":"t1","delta":"code\\n"}\n\n'
+                       'data: {"type":"text-delta","id":"t1","delta":"```"}\n\n'
+        Output stream: 'data: {"type":"text-delta","id":"t1","delta":""}\n\n'
+                       'data: {"type":"text-delta","id":"t1","delta":"code"}\n\n'
+                       'data: {"type":"text-delta","id":"t1","delta":""}\n\n'
+    """
+    import json
+
+    # State machine for tracking code blocks
+    in_code_block = False
+    code_block_buffer = ""  # Buffer for detecting opening/closing markers
+    langs = ["python", "sql", "markdown"]
+
+    async for chunk in chunks:
+        # Pass through non-SSE chunks immediately
+        if not chunk.startswith("data: "):
+            yield chunk
+            continue
+
+        try:
+            # Parse the SSE event
+            json_str = chunk[6:].rstrip("\n")
+            data = json.loads(json_str)
+            event_type = data.get("type", "")
+
+            # Only process text-delta events
+            if event_type != "text-delta":
+                # Pass through all other events immediately
+                yield chunk
+                continue
+
+            # Process text-delta
+            delta = data.get("delta", "")
+            text_id = data.get("id", "")
+
+            # Add to buffer for pattern matching
+            code_block_buffer += delta
+            cleaned_delta = ""
+
+            # Process the buffer to detect and remove code block markers
+            while code_block_buffer:
+                if not in_code_block:
+                    # Look for opening code block marker: ```[lang]\n or ```\n
+                    found_opening = False
+
+                    # Try to match ```lang\n patterns
+                    for lang in langs:
+                        pattern = f"```{lang}\n"
+                        if code_block_buffer.startswith(pattern):
+                            # Found opening marker, skip it
+                            code_block_buffer = code_block_buffer[
+                                len(pattern) :
+                            ]
+                            in_code_block = True
+                            found_opening = True
+                            break
+
+                    if not found_opening:
+                        # Try plain ```\n
+                        if code_block_buffer.startswith("```\n"):
+                            code_block_buffer = code_block_buffer[4:]
+                            in_code_block = True
+                            found_opening = True
+                        # Try ``` without newline (might be partial)
+                        elif code_block_buffer.startswith("```"):
+                            if len(code_block_buffer) == 3:
+                                # Might be incomplete, wait for more
+                                break
+                            else:
+                                # Has more chars but no newline, treat ``` as regular text
+                                cleaned_delta += code_block_buffer[0]
+                                code_block_buffer = code_block_buffer[1:]
+                        else:
+                            # Regular character, pass through
+                            cleaned_delta += code_block_buffer[0]
+                            code_block_buffer = code_block_buffer[1:]
+                else:
+                    # Inside code block, look for closing marker: ```
+                    if code_block_buffer.startswith("```"):
+                        # Found closing marker, skip just the backticks
+                        # Keep any newlines that come after (they might be separators between blocks)
+                        code_block_buffer = code_block_buffer[3:]
+                        in_code_block = False
+                        # Continue processing buffer (might have newlines to emit)
+                    else:
+                        # Inside code block, pass through content
+                        # But check if we have a newline right before closing backticks
+                        if (
+                            len(code_block_buffer) >= 4
+                            and code_block_buffer[:4] == "\n```"
+                        ):
+                            # This is the newline immediately before closing, skip it
+                            code_block_buffer = code_block_buffer[1:]
+                        elif (
+                            code_block_buffer[0] == "\n"
+                            and len(code_block_buffer) < 4
+                        ):
+                            # We have a newline but not enough buffer to know if ``` follows
+                            # Always wait for next delta to see if it's closing backticks
+                            break
+                        else:
+                            # Regular content inside code block
+                            cleaned_delta += code_block_buffer[0]
+                            code_block_buffer = code_block_buffer[1:]
+
+            # Emit the cleaned delta (even if empty to maintain chunk count)
+            cleaned_data = {
+                "type": "text-delta",
+                "id": text_id,
+                "delta": cleaned_delta,
+            }
+            yield f"data: {json.dumps(cleaned_data)}\n\n"
+
+        except (json.JSONDecodeError, KeyError):
+            # Pass through malformed chunks
+            yield chunk

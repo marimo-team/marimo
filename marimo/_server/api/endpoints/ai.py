@@ -35,6 +35,7 @@ from marimo._server.ai.providers import (
     StreamOptions,
     get_completion_provider,
     without_wrapping_backticks,
+    without_wrapping_backticks_ai_sdk_stream,
 )
 from marimo._server.ai.tools.tool_manager import get_tool_manager
 from marimo._server.api.deps import AppState
@@ -174,8 +175,11 @@ async def ai_completion(
     content: ContentStream
     if use_messages:
         content = safe_stream_wrapper(
-            provider.as_stream_response(
-                response, StreamOptions(format_stream=True, text_only=False)
+            without_wrapping_backticks_ai_sdk_stream(
+                provider.as_stream_response(
+                    response,
+                    StreamOptions(format_stream=True, text_only=False),
+                )
             ),
             text_only=False,
         )

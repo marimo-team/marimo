@@ -1042,6 +1042,198 @@ async def test_without_wrapping_backticks(
     assert "".join(result) == expected
 
 
+# Test cases for AI SDK v5 stream protocol backtick removal
+@pytest.mark.parametrize(
+    ("chunks", "expected_deltas"),
+    [
+        # Test 1: Simple Python code block in a single chunk
+        (
+            [
+                'data: {"type":"text-delta","id":"text_1","delta":"```python\\n"}\n\n',
+                'data: {"type":"text-delta","id":"text_1","delta":"print(\'hello\')\\n"}\n\n',
+                'data: {"type":"text-delta","id":"text_1","delta":"```"}\n\n',
+            ],
+            [
+                "print('hello')",
+            ],
+        ),
+        # Test 2: Python code block split across multiple deltas with text-start/end
+        (
+            [
+                'data: {"type":"text-start","id":"text_1"}\n\n',
+                'data: {"type":"text-delta","id":"text_1","delta":"```python\\n"}\n\n',
+                'data: {"type":"text-delta","id":"text_1","delta":"def test():\\n"}\n\n',
+                'data: {"type":"text-delta","id":"text_1","delta":"    return True\\n"}\n\n',
+                'data: {"type":"text-delta","id":"text_1","delta":"```"}\n\n',
+                'data: {"type":"text-end","id":"text_1"}\n\n',
+            ],
+            [
+                "def test():\n    return True",
+            ],
+        ),
+        # Test 3: SQL code block
+        (
+            [
+                'data: {"type":"text-delta","id":"text_1","delta":"```sql\\n"}\n\n',
+                'data: {"type":"text-delta","id":"text_1","delta":"SELECT * FROM table\\n"}\n\n',
+                'data: {"type":"text-delta","id":"text_1","delta":"WHERE id = 1\\n"}\n\n',
+                'data: {"type":"text-delta","id":"text_1","delta":"```"}\n\n',
+            ],
+            [
+                "SELECT * FROM table\nWHERE id = 1",
+            ],
+        ),
+        # Test 4: No code blocks - plain text should pass through
+        (
+            [
+                'data: {"type":"text-delta","id":"text_1","delta":"Hello world"}\n\n',
+                'data: {"type":"text-delta","id":"text_1","delta":" without backticks"}\n\n',
+            ],
+            [
+                "Hello world without backticks",
+            ],
+        ),
+        # Test 5: Mixed stream with tool calls - should only process text deltas
+        (
+            [
+                'data: {"type":"text-delta","id":"text_1","delta":"```python\\n"}\n\n',
+                'data: {"type":"text-delta","id":"text_1","delta":"x = 1\\n"}\n\n',
+                'data: {"type":"text-delta","id":"text_1","delta":"```"}\n\n',
+                'data: {"type":"tool-input-start","toolCallId":"call_1","toolName":"test"}\n\n',
+                'data: {"type":"tool-input-available","toolCallId":"call_1","toolName":"test","input":{}}\n\n',
+            ],
+            [
+                "x = 1",
+            ],
+        ),
+        # Test 6: Code block with reasoning events - reasoning should pass through
+        (
+            [
+                'data: {"type":"reasoning-start","id":"reasoning_1"}\n\n',
+                'data: {"type":"reasoning-delta","id":"reasoning_1","delta":"thinking..."}\n\n',
+                'data: {"type":"reasoning-end","id":"reasoning_1"}\n\n',
+                'data: {"type":"text-delta","id":"text_1","delta":"```python\\n"}\n\n',
+                'data: {"type":"text-delta","id":"text_1","delta":"result = 42\\n"}\n\n',
+                'data: {"type":"text-delta","id":"text_1","delta":"```"}\n\n',
+            ],
+            [
+                "result = 42",
+            ],
+        ),
+        # Test 7: Empty chunks
+        (
+            [],
+            [],
+        ),
+        # Test 8: Code block without language specifier
+        (
+            [
+                'data: {"type":"text-delta","id":"text_1","delta":"```\\n"}\n\n',
+                'data: {"type":"text-delta","id":"text_1","delta":"some code\\n"}\n\n',
+                'data: {"type":"text-delta","id":"text_1","delta":"```"}\n\n',
+            ],
+            [
+                "some code",
+            ],
+        ),
+        # Test 9: Multiple code blocks in sequence
+        (
+            [
+                'data: {"type":"text-delta","id":"text_1","delta":"```python\\n"}\n\n',
+                'data: {"type":"text-delta","id":"text_1","delta":"x = 1\\n"}\n\n',
+                'data: {"type":"text-delta","id":"text_1","delta":"```\\n\\n"}\n\n',
+                'data: {"type":"text-delta","id":"text_1","delta":"```python\\n"}\n\n',
+                'data: {"type":"text-delta","id":"text_1","delta":"y = 2\\n"}\n\n',
+                'data: {"type":"text-delta","id":"text_1","delta":"```"}\n\n',
+            ],
+            [
+                "x = 1\n\ny = 2",
+            ],
+        ),
+        # Test 10: Backticks in the middle (not wrapping) should be preserved
+        (
+            [
+                'data: {"type":"text-delta","id":"text_1","delta":"Use ``` to create"}\n\n',
+                'data: {"type":"text-delta","id":"text_1","delta":" code blocks"}\n\n',
+            ],
+            [
+                "Use ``` to create code blocks",
+            ],
+        ),
+        # Test 11: Finish reason event should pass through
+        (
+            [
+                'data: {"type":"text-delta","id":"text_1","delta":"```python\\n"}\n\n',
+                'data: {"type":"text-delta","id":"text_1","delta":"done\\n"}\n\n',
+                'data: {"type":"text-delta","id":"text_1","delta":"```"}\n\n',
+                'data: {"type":"finish"}\n\n',
+            ],
+            [
+                "done",
+            ],
+        ),
+    ],
+)
+async def test_without_wrapping_backticks_ai_sdk_stream(
+    chunks: list[str], expected_deltas: list[str]
+) -> None:
+    """Test that backtick removal works correctly with AI SDK v5 stream protocol."""
+    from marimo._server.ai.providers import (
+        without_wrapping_backticks_ai_sdk_stream,
+    )
+
+    async def async_iter(items):
+        for item in items:
+            yield item
+
+    # Collect all chunks and text deltas from the processed stream
+    import json
+
+    result_chunks = []
+    result_deltas = []
+
+    # Count input text-delta chunks by parsing JSON
+    input_text_chunk_count = 0
+    for c in chunks:
+        if c.startswith("data: "):
+            try:
+                data = json.loads(c[6:].rstrip("\n"))
+                if data.get("type") == "text-delta":
+                    input_text_chunk_count += 1
+            except json.JSONDecodeError:
+                pass
+
+    async for chunk in without_wrapping_backticks_ai_sdk_stream(
+        async_iter(chunks)
+    ):
+        result_chunks.append(chunk)
+        # Parse the SSE format to extract text deltas
+        if chunk.startswith("data: "):
+            try:
+                data = json.loads(chunk[6:].rstrip("\n"))
+                if data.get("type") == "text-delta":
+                    result_deltas.append(data.get("delta", ""))
+            except json.JSONDecodeError:
+                # Non-JSON chunks should pass through
+                pass
+
+    # Verify streaming: same number of chunks
+    assert len(result_chunks) == len(chunks), (
+        f"Expected {len(chunks)} chunks, got {len(result_chunks)}. "
+        "Streaming should maintain chunk count."
+    )
+
+    # Verify streaming: same number of text-delta chunks
+    output_text_chunk_count = len(result_deltas)
+    assert output_text_chunk_count == input_text_chunk_count, (
+        f"Expected {input_text_chunk_count} text-delta chunks, got {output_text_chunk_count}. "
+        "Streaming should maintain text chunk count."
+    )
+
+    # Verify content: join all deltas and compare
+    assert "".join(result_deltas) == "".join(expected_deltas)
+
+
 # Tool invocation tests (provider-agnostic)
 class TestInvokeToolEndpoint:
     """Tests for the /invoke_tool endpoint."""
