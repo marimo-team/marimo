@@ -230,7 +230,7 @@ Define the engine as a Python variable in a cell:
 import sqlalchemy
 
 # Create an in-memory SQLite database with SQLAlchemy
-sqlite_engine = sqlachemy.create_engine("sqlite:///:memory:")
+sqlite_engine = sqlalchemy.create_engine("sqlite:///:memory:")
 ```
 
 ///
