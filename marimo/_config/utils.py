@@ -46,7 +46,7 @@ def get_or_create_user_config_path() -> str:
         # fails due to issues like deleted directory, permission problems,
         # UNC path issues, or special characters in path.
         # See https://github.com/marimo-team/marimo/issues/7502
-        LOGGER.debug(
+        LOGGER.error(
             "Could not search for config file due to path error: %s. "
             "Falling back to XDG config path.",
             str(e),
