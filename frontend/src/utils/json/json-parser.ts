@@ -96,6 +96,88 @@ export function jsonToTSV(json: Record<string, unknown>[], locale: string) {
   return `${keys.join("\t")}\n${values.join("\n")}`;
 }
 
+/**
+ * Converts JSON data to a Markdown table format
+ * Detects URLs and converts them to markdown links [url](url)
+ */
+export function jsonToMarkdown(json: Record<string, unknown>[]): string {
+  if (json.length === 0) {
+    return "";
+  }
+
+  const keys = Object.keys(json[0]);
+
+  const header = `| ${keys.join(" | ")} |`;
+  const separator = `|${keys.map(() => "---").join("|")}|`;
+
+  const rows = json.map((row) => {
+    const cells = keys.map((key) => formatValueForMarkdown(row[key]));
+    return `| ${cells.join(" | ")} |`;
+  });
+
+  return [header, separator, ...rows].join("\n");
+}
+
+/**
+ * Formats a value for markdown export
+ * - Detects URLs and converts them to markdown links
+ * - Escapes special markdown characters
+ * - Handles nulls, arrays, and objects
+ */
+function formatValueForMarkdown(value: unknown): string {
+  // Handle nulls and undefined
+  if (value === null || value === undefined) {
+    return "";
+  }
+
+  // Handle arrays and objects by stringifying
+  if (Array.isArray(value)) {
+    return escapeMarkdownTableChars(JSON.stringify(value));
+  }
+
+  if (typeof value === "object") {
+    return escapeMarkdownTableChars(JSON.stringify(value));
+  }
+
+  // Convert to string
+  const stringValue = String(value);
+
+  // Import parseContent to detect URLs
+  // Note: We need to import this from url-parser
+  const urlRegex = /(https?:\/\/\S+)/g;
+  const parts = stringValue.split(urlRegex);
+
+  // Process parts to convert URLs to markdown links
+  const processedParts = parts.map((part) => {
+    if (urlRegex.test(part)) {
+      // This is a URL - convert to markdown link
+      return `[${part}](${part})`;
+    }
+    return part;
+  });
+
+  const result = processedParts.join("");
+
+  // Escape special markdown table characters
+  return escapeMarkdownTableChars(result);
+}
+
+/**
+ * Escapes special characters in markdown tables
+ */
+function escapeMarkdownTableChars(value: string): string {
+  return (
+    value
+      // Escape backslashes first (must be first to avoid double-escaping)
+      .replaceAll("\\", "\\\\")
+      // Escape pipes (markdown table delimiter)
+      .replaceAll("|", "\\|")
+      // Replace newlines with spaces
+      .replaceAll("\n", " ")
+      .replaceAll("\r", "")
+  );
+}
+
 /** Adapted from https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/BigInt#use_within_json */
 function sanitizeBigInt(value: unknown): unknown {
   if (
