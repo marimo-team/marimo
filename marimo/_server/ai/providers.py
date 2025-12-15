@@ -34,7 +34,7 @@ from marimo._ai._types import ChatMessage
 from marimo._dependencies.dependencies import Dependency, DependencyManager
 from marimo._server.ai.config import AnyProviderConfig
 from marimo._server.ai.ids import AiModelId
-from marimo._server.ai.tools.tool_manager import ToolManager, get_tool_manager
+from marimo._server.ai.tools.tool_manager import get_tool_manager
 from marimo._server.ai.tools.types import ToolDefinition
 from marimo._server.api.status import HTTPStatus
 
@@ -148,11 +148,7 @@ class PydanticProvider(ABC, Generic[ProviderT]):
 
     @abstractmethod
     def create_agent(
-        self,
-        max_tokens: int,
-        tools: list[ToolDefinition],
-        tool_manager: ToolManager,
-        system_prompt: str,
+        self, max_tokens: int, tools: list[ToolDefinition], system_prompt: str
     ) -> Agent[None, DeferredToolRequests | str]:
         """Create a Pydantic AI agent"""
 
@@ -170,10 +166,7 @@ class PydanticProvider(ABC, Generic[ProviderT]):
 
         tools = (self.config.tools or []) + additional_tools
         agent = self.create_agent(
-            max_tokens=max_tokens,
-            tools=tools,
-            tool_manager=get_tool_manager(),
-            system_prompt=system_prompt,
+            max_tokens=max_tokens, tools=tools, system_prompt=system_prompt
         )
 
         run_input = SubmitMessage(
@@ -204,10 +197,7 @@ class PydanticProvider(ABC, Generic[ProviderT]):
 
         tools = (self.config.tools or []) + additional_tools
         agent = self.create_agent(
-            max_tokens=max_tokens,
-            tools=tools,
-            tool_manager=get_tool_manager(),
-            system_prompt=system_prompt,
+            max_tokens=max_tokens, tools=tools, system_prompt=system_prompt
         )
 
         async with agent.run_stream(
@@ -231,10 +221,7 @@ class PydanticProvider(ABC, Generic[ProviderT]):
 
         tools = (self.config.tools or []) + additional_tools
         agent = self.create_agent(
-            max_tokens=max_tokens,
-            tools=tools,
-            tool_manager=get_tool_manager(),
-            system_prompt=system_prompt,
+            max_tokens=max_tokens, tools=tools, system_prompt=system_prompt
         )
         result = await agent.run(
             user_prompt=None,
@@ -275,14 +262,12 @@ class GoogleProvider(PydanticProvider["PydanticGoogle"]):
         return provider
 
     def create_agent(
-        self,
-        max_tokens: int,
-        tools: list[ToolDefinition],
-        tool_manager: ToolManager,
-        system_prompt: str,
+        self, max_tokens: int, tools: list[ToolDefinition], system_prompt: str
     ) -> Agent[None, DeferredToolRequests | str]:
         from pydantic_ai import Agent, DeferredToolRequests
         from pydantic_ai.models.google import GoogleModel, GoogleModelSettings
+
+        tool_manager = get_tool_manager()
 
         toolset, deferred_tool_requests = form_toolsets(
             tools, tool_manager.invoke_tool

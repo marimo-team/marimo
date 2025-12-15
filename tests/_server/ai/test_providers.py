@@ -7,6 +7,7 @@ import pytest
 from marimo._ai._types import ChatMessage
 from marimo._config.config import AiConfig
 from marimo._server.ai.config import AnyProviderConfig
+from marimo._dependencies.dependencies import Dependency, DependencyManager
 from marimo._server.ai.providers import (
     AnthropicProvider,
     AzureOpenAIProvider,
@@ -60,23 +61,37 @@ def test_anyprovider_for_model(model_name: str, provider_name: str) -> None:
 
 
 @pytest.mark.parametrize(
-    ("model_name", "provider_type"),
+    ("model_name", "provider_type", "dependency"),
     [
-        pytest.param("gpt-4", OpenAIProvider, id="openai"),
+        pytest.param("gpt-4", OpenAIProvider, None, id="openai"),
         pytest.param(
-            "claude-3-opus-20240229", AnthropicProvider, id="anthropic"
+            "claude-3-opus-20240229", AnthropicProvider, None, id="anthropic"
         ),
-        pytest.param("gemini-1.5-flash", GoogleProvider, id="google"),
+        pytest.param(
+            "gemini-1.5-flash",
+            GoogleProvider,
+            DependencyManager.google_ai,
+            id="google",
+        ),
         pytest.param(
             "bedrock/anthropic.claude-3-sonnet-20240229",
             BedrockProvider,
+            None,
             id="bedrock",
         ),
-        pytest.param("openrouter/gpt-4", OpenAIProvider, id="openrouter"),
+        pytest.param(
+            "openrouter/gpt-4", OpenAIProvider, None, id="openrouter"
+        ),
     ],
 )
-def test_get_completion_provider(model_name: str, provider_type: type) -> None:
+def test_get_completion_provider(
+    model_name: str, provider_type: type, dependency: Dependency | None
+) -> None:
     """Test that the correct provider is returned for a given model."""
+
+    if dependency and not dependency.has():
+        pytest.skip(f"{dependency.pkg} is not installed")
+
     config = AnyProviderConfig(api_key="test-key", base_url="http://test-url")
     provider = get_completion_provider(config, model_name)
     assert isinstance(provider, provider_type)
@@ -199,26 +214,6 @@ def test_extract_content_with_none_tool_call_ids(
     assert result == [("Hello", "text")]
 
 
-def test_google_extract_content_with_none_tool_call_ids() -> None:
-    """Test Google extract_content handles None tool_call_ids without errors."""
-    config = AnyProviderConfig(api_key="test-key", base_url="http://test")
-    provider = GoogleProvider("gemini-1.5-flash", config)
-
-    mock_response = MagicMock()
-    mock_candidate = MagicMock()
-    mock_content = MagicMock()
-    mock_part = MagicMock()
-    mock_part.text = "Hello"
-    mock_part.thought = False
-    mock_part.function_call = None
-    mock_content.parts = [mock_part]
-    mock_candidate.content = mock_content
-    mock_response.candidates = [mock_candidate]
-
-    result = provider.extract_content(mock_response, None)
-    assert result == [("Hello", "text")]
-
-
 def test_openai_extract_content_multiple_tool_calls() -> None:
     """Test OpenAI extracts multiple tool calls correctly."""
     config = AnyProviderConfig(api_key="test-key", base_url="http://test")
@@ -256,32 +251,6 @@ def test_openai_extract_content_multiple_tool_calls() -> None:
     assert isinstance(tool_data_1, dict)
     assert tool_data_0["toolName"] == "get_weather"
     assert tool_data_1["toolName"] == "get_time"
-
-
-def test_google_extract_content_id_rectification() -> None:
-    """Test Google uses provided tool_call_ids for ID rectification."""
-    config = AnyProviderConfig(api_key="test-key", base_url="http://test")
-    provider = GoogleProvider("gemini-1.5-flash", config)
-
-    mock_response = MagicMock()
-    mock_candidate = MagicMock()
-    mock_content = MagicMock()
-    mock_func_call = MagicMock()
-    mock_func_call.name = "get_weather"
-    mock_func_call.args = {"location": "SF"}
-    mock_func_call.id = None
-    mock_part = MagicMock()
-    mock_part.text = None
-    mock_part.function_call = mock_func_call
-    mock_content.parts = [mock_part]
-    mock_candidate.content = mock_content
-    mock_response.candidates = [mock_candidate]
-
-    result = provider.extract_content(mock_response, ["stable_id"])
-    assert result is not None
-    tool_data, _ = result[0]
-    assert isinstance(tool_data, dict)
-    assert tool_data["toolCallId"] == "stable_id"
 
 
 def test_anthropic_extract_content_tool_call_id_mapping() -> None:
