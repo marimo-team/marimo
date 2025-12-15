@@ -3,7 +3,6 @@
 import type { createStore } from "jotai";
 import { getCellEditorView } from "@/core/cells/cells";
 import { type CellId, HTMLCellId } from "@/core/cells/ids";
-import { scrollActiveLineIntoView } from "@/core/codemirror/extensions";
 import { Logger } from "@/utils/Logger";
 
 export function focusCellEditor(
@@ -26,28 +25,6 @@ export function focusCell(cellId: CellId): void {
     tryFocus(element);
   } else {
     Logger.warn(`[CellFocusManager] focusCell: element not found: ${cellId}`);
-  }
-}
-
-/**
- * First tries to scroll the active line into view, if the cell is focused.
- * If not, it scrolls the cell container into view.
- */
-export function scrollCellIntoView(cellId: CellId): void {
-  // Get cell editor element
-  const editor = getCellEditorView(cellId);
-  if (editor?.hasFocus) {
-    scrollActiveLineIntoView(editor, { behavior: "instant" });
-    return;
-  }
-
-  const element = document.getElementById(HTMLCellId.create(cellId));
-  if (element) {
-    element.scrollIntoView({ behavior: "instant", block: "nearest" });
-  } else {
-    Logger.warn(
-      `[CellFocusManager] scrollCellIntoView: element not found: ${cellId}`,
-    );
   }
 }
 

@@ -12,6 +12,7 @@ import { useCellFocusActions } from "@/core/cells/focus";
 import type { CellId } from "@/core/cells/ids";
 import { HTMLCellId } from "@/core/cells/ids";
 import { usePendingDeleteService } from "@/core/cells/pending-delete-service";
+import { scrollCellIntoView } from "@/core/cells/scrollCellIntoView";
 import {
   hotkeysAtom,
   keymapPresetAtom,
@@ -27,12 +28,7 @@ import type { CellActionsDropdownHandle } from "../cell/cell-actions";
 import { useDeleteManyCellsCallback } from "../cell/useDeleteCell";
 import { useRunCells } from "../cell/useRunCells";
 import { useCellClipboard } from "./clipboard";
-import {
-  focusCell,
-  focusCellEditor,
-  raf2,
-  scrollCellIntoView,
-} from "./focus-utils";
+import { focusCell, focusCellEditor, raf2 } from "./focus-utils";
 import {
   getSelectedCells,
   useCellSelectionActions,

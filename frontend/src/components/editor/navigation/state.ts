@@ -3,8 +3,9 @@
 import { atom, useAtomValue } from "jotai";
 import { useMemo } from "react";
 import { type CellId, HTMLCellId } from "@/core/cells/ids";
+import { scrollCellIntoView } from "@/core/cells/scrollCellIntoView";
 import { createReducerAndAtoms } from "@/utils/createReducer";
-import { raf2, scrollCellIntoView } from "./focus-utils";
+import { raf2 } from "./focus-utils";
 
 type TemporarilyShownCodeState = Set<CellId>;
 
