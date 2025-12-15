@@ -40,6 +40,7 @@ class AppKernelRunner:
 
         self.app = app
         self._outputs: dict[CellId_t, Any] = {}
+        self._previously_seen_defs: dict[str, Any] | None = None
 
         ctx = get_context()
         if not isinstance(ctx, KernelRuntimeContext):
@@ -113,6 +114,13 @@ class AppKernelRunner:
     def outputs(self) -> dict[CellId_t, Any]:
         return self._outputs
 
+    def are_outputs_cached(self, defs: dict[str, Any] | None) -> bool:
+        # The equality check is brittle but hashing isn't great either ...
+        return (defs == self._previously_seen_defs) and len(self.outputs) > 0
+
+    def register_defs(self, defs: dict[str, Any] | None) -> None:
+        self._previously_seen_defs = defs
+
     @property
     def globals(self) -> dict[str, Any]:
         return self._kernel.globals
@@ -125,8 +133,21 @@ class AppKernelRunner:
             is not None
         ]
 
-        with self._runtime_context.install():
-            await self._kernel.run(execution_requests)
+        execution_mode = self._kernel.reactive_execution_mode
+        try:
+            graph = self._kernel.graph
+            # The _only_ cells that run should be the ones in
+            # cells_to_run. For this reason we set the execution
+            # mode to lazy. We also make all cells stale to ensure
+            # that ancestors aren't run.
+            for c in graph.cells.values():
+                c.set_stale(stale=False, broadcast=False)
+            self._kernel.reactive_execution_mode = "lazy"
+            with self._runtime_context.install():
+                await self._kernel.run(execution_requests)
+        finally:
+            self._kernel.reactive_execution_mode = execution_mode
+
         return self.outputs, self._kernel.globals
 
     async def set_ui_element_value(
