@@ -14,11 +14,13 @@ import {
 } from "@textea/json-viewer";
 import { CheckIcon, CopyIcon } from "lucide-react";
 import { memo, useState } from "react";
+import type { OutputMessage } from "@/core/kernel/messages";
 import { cn } from "@/utils/cn";
 import { copyToClipboard } from "@/utils/copy";
 import { isUrl } from "@/utils/urls";
 import { useTheme } from "../../../theme/useTheme";
 import { logNever } from "../../../utils/assertNever";
+import { OutputRenderer } from "../Output";
 import { HtmlOutput } from "./HtmlOutput";
 import { ImageOutput } from "./ImageOutput";
 import { VideoOutput } from "./VideoOutput";
@@ -184,25 +186,51 @@ const CollapsibleTextOutput = (props: { text: string }) => {
   );
 };
 
+type LeafRenderer = (
+  data: string,
+  mimeType: OutputMessage["mimetype"],
+) => React.ReactNode;
+
 /**
  * Map from mimetype-prefix to render function.
  *
  * Render function takes leaf data as input.
  */
-const LEAF_RENDERERS = {
-  "image/": (value: string) => <ImageOutput src={value} />,
-  "video/": (value: string) => <VideoOutput src={value} />,
-  "text/html:": (value: string) => (
+const LEAF_RENDERERS: Record<string, LeafRenderer> = {
+  "image/": (value) => <ImageOutput src={value} />,
+  "video/": (value) => <VideoOutput src={value} />,
+  "text/html:": (value) => (
     <HtmlOutput html={value} inline={true} alwaysSanitizeHtml={false} />
   ),
-  "text/markdown:": (value: string) => (
+  "text/markdown:": (value) => (
     <HtmlOutput html={value} inline={true} alwaysSanitizeHtml={true} />
   ),
-  "text/plain+float:": (value: string) => <span>{value}</span>,
-  "text/plain+bigint:": (value: string) => <span>{value}</span>,
-  "text/plain+set:": (value: string) => <span>set{value}</span>,
-  "text/plain+tuple:": (value: string) => <span>{value}</span>,
-  "text/plain:": (value: string) => <CollapsibleTextOutput text={value} />,
+  "text/plain+float:": (value) => <span>{value}</span>,
+  "text/plain+bigint:": (value) => <span>{value}</span>,
+  "text/plain+set:": (value) => <span>set{value}</span>,
+  "text/plain+tuple:": (value) => <span>{value}</span>,
+  "text/plain:": (value) => <CollapsibleTextOutput text={value} />,
+  "application/json:": (value) => (
+    <JsonOutput data={JSON.parse(value)} format="auto" />
+  ),
+  "application/": (value, mimeType) => {
+    return (
+      <OutputRenderer
+        message={{
+          channel: "output",
+          data: value,
+          mimetype: mimeType,
+        }}
+        // The fallback is just re-constructing the leaf and rendering it as a span
+        // This could be the case where mime-type parsing is a false positive
+        renderFallback={() => (
+          <span>
+            {mimeType}:{value}
+          </span>
+        )}
+      />
+    );
+  },
 };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -314,11 +342,20 @@ const JSON_VALUE_TYPES = [
 ].reverse();
 
 function leafData(leaf: string): string {
+  return leafDataAndMimeType(leaf)[0];
+}
+
+function leafDataAndMimeType(
+  leaf: string,
+): [string, OutputMessage["mimetype"] | undefined] {
   const delimIndex = leaf.indexOf(":");
   if (delimIndex === -1) {
-    return leaf;
+    return [leaf, undefined];
   }
-  return leaf.slice(delimIndex + 1);
+  return [
+    leaf.slice(delimIndex + 1),
+    leaf.slice(0, delimIndex) as OutputMessage["mimetype"],
+  ];
 }
 
 /**
@@ -330,12 +367,10 @@ function leafData(leaf: string): string {
  *
  * where mimetype cannot contain ":".
  */
-function renderLeaf(
-  leaf: string,
-  render: (data: string) => React.ReactNode,
-): React.ReactNode {
-  if (leaf.includes(":")) {
-    return render(leafData(leaf));
+function renderLeaf(leaf: string, render: LeafRenderer): React.ReactNode {
+  const [data, mimeType] = leafDataAndMimeType(leaf);
+  if (mimeType) {
+    return render(data, mimeType);
   }
   return <span>{leaf}</span>;
 }

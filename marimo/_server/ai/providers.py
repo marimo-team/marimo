@@ -1296,22 +1296,22 @@ async def without_wrapping_backticks(
         # Handle the first chunk
         if first_chunk:
             first_chunk = False
+            stripped_chunk = chunk.lstrip()
             # Check for language-specific fences first
             for lang in langs:
-                if chunk.startswith(f"```{lang}"):
+                if stripped_chunk.startswith(f"```{lang}"):
                     has_starting_backticks = True
-                    chunk = chunk[
-                        3 + len(lang) :
-                    ]  # Remove the starting backticks with lang
+                    # Remove the starting backticks with lang
+                    chunk = stripped_chunk[3 + len(lang) :]
                     # Also remove starting newline if present
                     if chunk.startswith("\n"):
                         chunk = chunk[1:]
                     break
             # If no language-specific fence was found, check for plain backticks
             else:
-                if chunk.startswith("```"):
+                if stripped_chunk.startswith("```"):
                     has_starting_backticks = True
-                    chunk = chunk[3:]  # Remove the starting backticks
+                    chunk = stripped_chunk[3:]  # Remove the starting backticks
                     # Also remove starting newline if present
                     if chunk.startswith("\n"):
                         chunk = chunk[1:]
@@ -1325,9 +1325,13 @@ async def without_wrapping_backticks(
 
     # Handle the last chunk
     if buffer is not None:
+        # Some models add trailing space to the end of the response, so we strip to check for backticks
+        stripped_buffer = buffer.rstrip()
+        trailing_space = buffer[len(stripped_buffer) :]
+
         # Remove ending newline if present
-        if buffer.endswith("\n```"):
-            buffer = buffer[:-4]  # Remove the ending newline and backticks
-        elif has_starting_backticks and buffer.endswith("```"):
-            buffer = buffer[:-3]  # Remove just the ending backticks
+        if stripped_buffer.endswith("\n```"):
+            buffer = stripped_buffer[:-4] + trailing_space
+        elif has_starting_backticks and stripped_buffer.endswith("```"):
+            buffer = stripped_buffer[:-3] + trailing_space
         yield buffer

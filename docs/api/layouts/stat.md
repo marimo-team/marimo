@@ -28,9 +28,8 @@ def _():
 
     mo.hstack([active_users, revenue, conversion], justify="center", gap="2rem")
     return
-```
 
-```python
+@app.cell
 def _():
     import altair as alt
     import polars as pl

@@ -57,7 +57,7 @@ import { completionKeymap } from "./completion/keymap";
 import { cellConfigExtension } from "./config/extension";
 import { copilotBundle } from "./copilot/extension";
 import { historyCompartment } from "./editing/extensions";
-import { scrollActiveLineIntoView } from "./extensions";
+import { scrollActiveLineIntoViewExtension } from "./extensions";
 import { findReplaceBundle } from "./find-replace/extension";
 import { goToDefinitionBundle } from "./go-to-definition/extension";
 import { keymapBundle } from "./keymaps/keymaps";
@@ -201,7 +201,7 @@ export const basicBundle = (opts: CodeMirrorSetupOpts): Extension[] => {
       // For example, if we have a hover tooltip and a completion tooltip
       parent: document.querySelector<HTMLElement>("#App") ?? undefined,
     }),
-    scrollActiveLineIntoView(),
+    scrollActiveLineIntoViewExtension(),
     theme === "dark" ? darkTheme : lightTheme,
 
     hintTooltip(lspConfig),

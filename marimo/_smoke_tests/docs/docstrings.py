@@ -8,7 +8,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.18.4"
 app = marimo.App(width="medium")
 
 
@@ -22,7 +22,9 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("""This notebook compares `docstring_to_markdown` to our internal `google_docstring_to_markdown`.""")
+    mo.md("""
+    This notebook compares `docstring_to_markdown` to our internal `google_docstring_to_markdown`.
+    """)
     return
 
 

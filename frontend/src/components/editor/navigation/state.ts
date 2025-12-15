@@ -2,8 +2,10 @@
 
 import { atom, useAtomValue } from "jotai";
 import { useMemo } from "react";
-import type { CellId } from "@/core/cells/ids";
+import { type CellId, HTMLCellId } from "@/core/cells/ids";
+import { scrollCellIntoView } from "@/core/cells/scrollCellIntoView";
 import { createReducerAndAtoms } from "@/utils/createReducer";
+import { raf2 } from "./focus-utils";
 
 type TemporarilyShownCodeState = Set<CellId>;
 
@@ -15,13 +17,39 @@ const {
   useActions: useTemporarilyShownCodeActions,
 } = createReducerAndAtoms(() => new Set<CellId>(), {
   add: (state: TemporarilyShownCodeState, cellId: CellId) => {
+    if (state.has(cellId)) {
+      // no-op
+      return state;
+    }
     const newState = new Set(state);
     newState.add(cellId);
     return newState;
   },
   remove: (state: TemporarilyShownCodeState, cellId: CellId) => {
+    if (!state.has(cellId)) {
+      // no-op
+      return state;
+    }
     const newState = new Set(state);
     newState.delete(cellId);
+
+    // If we are hiding the code, this will cause a layout shift
+    // so we need to scroll cursor/activeElement into view.
+    raf2(() => {
+      // Get the active
+      const activeElement = document.activeElement;
+      if (!activeElement) {
+        return;
+      }
+      // Get the current focused cell id
+      const focusedCell =
+        HTMLCellId.findElementThroughShadowDOMs(activeElement);
+      if (!focusedCell) {
+        return;
+      }
+      scrollCellIntoView(HTMLCellId.parse(focusedCell.id));
+    });
+
     return newState;
   },
 });

@@ -48,6 +48,7 @@ function getOpts() {
     } as unknown as CodemirrorCellActions,
     completionConfig: {
       activate_on_typing: false,
+      signature_hint_on_typing: false,
       copilot: false,
       codeium_api_key: null,
     },
