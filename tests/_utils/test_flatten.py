@@ -242,7 +242,7 @@ def test_dont_flatten_subclass_tuple() -> None:
     class CustomTuple(tuple): ...
 
     @formatting.formatter(CustomTuple)
-    def format_custom_list(obj: Any) -> tuple[str, str]:
+    def format_custom_tuple(obj: Any) -> tuple[str, str]:
         return ("text/plain", f"CustomList{list(obj)}")
 
     mytuple = CustomTuple([1, 2, 3])
