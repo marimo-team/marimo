@@ -38,7 +38,10 @@ import { invariant } from "@/utils/invariant";
 import { mergeRefs } from "@/utils/mergeRefs";
 import { AiCompletionEditor } from "../../ai/ai-completion-editor";
 import { HideCodeButton } from "../../code/readonly-python-code";
-import { useCellEditorNavigationProps } from "../../navigation/navigation";
+import {
+  closeSignatureHelp,
+  useCellEditorNavigationProps,
+} from "../../navigation/navigation";
 import { useDeleteCellCallback } from "../useDeleteCell";
 import { useSplitCellCallback } from "../useSplitCell";
 import { LanguageToggles } from "./language-toggle";
@@ -123,6 +126,12 @@ const CellEditorInternal = ({
       return false;
     }
     runCell();
+
+    // Close the signature help to maintain a clear view of the output and code
+    if (editorViewRef.current) {
+      closeSignatureHelp(editorViewRef.current);
+    }
+
     return true;
   });
 

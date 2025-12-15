@@ -150,6 +150,18 @@ create.
 - `Cmd/Ctrl-Click` on a variable to jump to its definition
 - Right-click on a variable to see a context menu with options to jump to its definition
 
+## Signature hints
+
+Signature hints show a function’s docstring above your code as you type, making it easy to recall its arguments and usage.
+Enable this feature under the **Editor** section in the Settings panel.
+
+<div align="center">
+<figure>
+<img src="/_static/docs-signature-hint.png" width="600px" />
+</figure>
+</div>
+
+
 ## Keyboard shortcuts
 
 We've kept some well-known [keyboard

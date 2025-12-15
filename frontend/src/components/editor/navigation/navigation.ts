@@ -718,6 +718,8 @@ function findClosestAdjacentCell(
   return adjacentColumn.last();
 }
 
-function closeSignatureHelp(view: EditorView) {
-  view.dispatch({ effects: setSignatureHelpTooltip.of(null) });
+export function closeSignatureHelp(view: EditorView) {
+  if (view.state.field(signatureHelpTooltipField, false)) {
+    view.dispatch({ effects: setSignatureHelpTooltip.of(null) });
+  }
 }

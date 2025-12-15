@@ -63,7 +63,11 @@ export const Primary: Story = {
     <div className="Cell m-20 w-[60%] overflow-hidden">
       <Editor
         extensions={basicBundle({
-          completionConfig: { activate_on_typing: false, copilot: false },
+          completionConfig: {
+            activate_on_typing: false,
+            copilot: false,
+            signature_hint_on_typing: false,
+          },
           theme: ctx.globals.theme,
           hotkeys: new OverridingHotkeyProvider({}),
         } as unknown as CodeMirrorSetupOpts)}
