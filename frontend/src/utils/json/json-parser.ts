@@ -121,6 +121,7 @@ export function jsonToMarkdown(json: Record<string, unknown>[]): string {
 /**
  * Formats a value for markdown export
  * - Detects URLs and converts them to markdown links
+ * - Skips URLs that are already in markdown link format
  * - Escapes special markdown characters
  * - Handles nulls, arrays, and objects
  */
@@ -140,26 +141,32 @@ function formatValueForMarkdown(value: unknown): string {
   }
 
   // Convert to string
-  const stringValue = String(value);
+  let stringValue = String(value);
 
-  // Import parseContent to detect URLs
-  // Note: We need to import this from url-parser
-  const urlRegex = /(https?:\/\/\S+)/g;
-  const parts = stringValue.split(urlRegex);
+  // Regex to match existing markdown links: [text](url)
+  const markdownLinkRegex = /\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g;
 
-  // Process parts to convert URLs to markdown links
-  const processedParts = parts.map((part) => {
-    if (urlRegex.test(part)) {
-      // This is a URL - convert to markdown link
-      return `[${part}](${part})`;
-    }
-    return part;
+  // Temporarily replace existing markdown links with placeholders
+  const placeholders = new Map<string, string>();
+  let placeholderIndex = 0;
+
+  stringValue = stringValue.replace(markdownLinkRegex, (match) => {
+    const placeholder = `__MDLINK_${placeholderIndex++}__`;
+    placeholders.set(placeholder, match);
+    return placeholder;
   });
 
-  const result = processedParts.join("");
+  // Convert plain URLs to markdown links
+  const urlRegex = /(https?:\/\/\S+)/g;
+  stringValue = stringValue.replace(urlRegex, "[$1]($1)");
+
+  // Restore markdown links from placeholders
+  for (const [placeholder, original] of placeholders) {
+    stringValue = stringValue.replace(placeholder, original);
+  }
 
   // Escape special markdown table characters
-  return escapeMarkdownTableChars(result);
+  return escapeMarkdownTableChars(stringValue);
 }
 
 /**

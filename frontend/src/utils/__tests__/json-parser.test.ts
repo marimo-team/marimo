@@ -290,3 +290,39 @@ it("can convert json to markdown - handles different data types", () => {
     | {"nested":"value"} |"
   `);
 });
+
+it("can convert json to markdown - handles existing markdown links", () => {
+  // When input already contains a markdown link, it should be preserved as-is
+  expect(
+    jsonToMarkdown([{ link: "[Google](https://google.com)" }]),
+  ).toMatchInlineSnapshot(`
+    "| link |
+    |---|
+    | [Google](https://google.com) |"
+  `);
+
+  // Multiple existing markdown links
+  expect(
+    jsonToMarkdown([
+      { text: "[Google](https://google.com) and [GitHub](https://github.com)" },
+    ]),
+  ).toMatchInlineSnapshot(`
+    "| text |
+    |---|
+    | [Google](https://google.com) and [GitHub](https://github.com) |"
+  `);
+
+  // Mix of existing markdown links and plain URLs
+  expect(
+    jsonToMarkdown([
+      {
+        mixed:
+          "[Google](https://google.com) and plain https://example.com and [GitHub](https://github.com)",
+      },
+    ]),
+  ).toMatchInlineSnapshot(`
+    "| mixed |
+    |---|
+    | [Google](https://google.com) and plain [https://example.com](https://example.com) and [GitHub](https://github.com) |"
+  `);
+});
