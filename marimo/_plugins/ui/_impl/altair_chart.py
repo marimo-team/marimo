@@ -32,6 +32,7 @@ from marimo._utils.narwhals_utils import (
     can_narwhalify,
     empty_df,
     is_narwhals_lazyframe,
+    make_lazy,
 )
 
 LOGGER = _loggers.marimo_logger()
@@ -122,9 +123,7 @@ def _filter_dataframe(
     binned_fields: Optional[dict[str, Any]] = None,
 ) -> Union[IntoDataFrame, IntoLazyFrame]:
     # Use lazy evaluation for efficient chained filtering
-    base = nw.from_native(native_df)
-    is_lazy = is_narwhals_lazyframe(base)
-    df = base.lazy()
+    df, undo_df = make_lazy(native_df)
 
     if not isinstance(selection, dict):
         raise TypeError("Input 'selection' must be a dictionary")
@@ -260,11 +259,7 @@ def _filter_dataframe(
                 # Continue without this filter - don't break the entire operation
                 continue
 
-    if not is_lazy and is_narwhals_lazyframe(df):
-        # Undo the lazy
-        return df.collect().to_native()  # type: ignore[no-any-return]
-
-    return df.to_native()
+    return undo_df(df)
 
 
 def _resolve_values(values: Any, dtype: Any) -> list[Any]:
@@ -428,6 +423,9 @@ class altair_chart(UIElement[ChartSelection, ChartDataType]):
 
         import altair as alt
 
+        # Capture any global altair embed options that may have been set
+        embed_options = alt.renderers.options.get("embed_options") or {}
+
         register_transformers()
 
         # Make a copy
@@ -442,6 +440,9 @@ class altair_chart(UIElement[ChartSelection, ChartDataType]):
 
         # Make full-width if no width is specified
         chart = maybe_make_full_width(chart)
+
+        # Fix vegafusion background to be transparent
+        chart = maybe_fix_vegafusion_background(chart)
 
         # Fix the sizing for vconcat charts
         if isinstance(chart, alt.VConcatChart) and _has_no_nested_hconcat(
@@ -539,6 +540,7 @@ class altair_chart(UIElement[ChartSelection, ChartDataType]):
                 "spec": vega_spec,
                 "chart-selection": chart_selection,
                 "field-selection": legend_selection,
+                "embed-options": embed_options,
             },
             on_change=on_change,
         )
@@ -744,6 +746,31 @@ def maybe_make_full_width(chart: AltairChartType) -> AltairChartType:
         LOGGER.exception(
             "Failed to set width to full container. "
             "This is likely due to a missing dependency or an invalid chart."
+        )
+        return chart
+
+
+def maybe_fix_vegafusion_background(chart: AltairChartType) -> AltairChartType:
+    """Fix vegafusion background to be transparent.
+
+    Vegafusion defaults to white background, which causes issues in dark mode.
+    See: https://github.com/marimo-team/marimo/issues/6601
+    """
+    import altair as alt
+
+    try:
+        if not _using_vegafusion():
+            return chart
+
+        # Only set background if it's not already set
+        if chart._get("background") is alt.Undefined:  # type: ignore
+            LOGGER.debug("setting background to transparent for vegafusion")
+            return chart.properties(background="transparent")
+        return chart
+    except Exception:
+        LOGGER.exception(
+            "Failed to set vegafusion background to transparent. "
+            "Using chart as-is."
         )
         return chart
 

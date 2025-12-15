@@ -9,16 +9,17 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.18.0"
 app = marimo.App(width="medium")
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _():
     import marimo as mo
     import openai
     import os
-    return mo, openai
+    import httpx
+    return httpx, mo, openai
 
 
 @app.cell
@@ -32,10 +33,24 @@ def _(mo):
 
 
 @app.cell
-def _(api_key, openai):
+def _(mo):
+    with_headers = mo.ui.checkbox(label="With Headers")
+    with_headers
+    return (with_headers,)
+
+
+@app.cell
+def _(api_key, httpx, openai, with_headers):
     client = openai.Client(
         base_url="https://api.githubcopilot.com/",
         api_key=api_key.value,
+        http_client=httpx.Client(verify=False),
+        default_headers={
+            "editor-version": "vscode/1.95.0",
+            "Copilot-Integration-Id": "vscode-chat",
+        }
+        if with_headers.value
+        else {},
     )
     models = client.models.list().model_dump()
     return client, models
@@ -58,6 +73,7 @@ def _(mo):
 
 @app.cell
 def _(client, ids, run_button):
+    results = {}
     if run_button.value:
         for model in ids:
             try:
@@ -66,10 +82,25 @@ def _(client, ids, run_button):
                     messages=[{"role": "user", "content": "hi"}],
                     max_tokens=100,
                 )
-                print("✅ Model " + model + " passed: ")
-                print(response.choices[0].message.content)
+                msg = (
+                    "✅ Model "
+                    + model
+                    + " passed: "
+                    + response.choices[0].message.content
+                )
+                print(msg)
+                results[model] = msg
             except:
-                print("❌ Model " + model + " failed")
+                msg = "❌ Model " + model + " failed"
+                print(msg)
+                results[model] = msg
+    return (results,)
+
+
+@app.cell
+def _(mo, results):
+    mo.stop(not results)
+    mo.ui.table(results, selection=None)
     return
 
 

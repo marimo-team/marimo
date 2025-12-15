@@ -86,6 +86,11 @@ export const useCellRangeSelection = <TData>({
 
   const handleCellMouseDown = useEvent(
     (e: React.MouseEvent, cell: Cell<TData, unknown>) => {
+      // Right-clicks will trigger context menu, so avoid updating selected cells
+      if (e.buttons === 2) {
+        return;
+      }
+
       actions.handleCellMouseDown({
         cell,
         isShiftKey: e.shiftKey,

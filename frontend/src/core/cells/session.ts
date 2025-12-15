@@ -246,7 +246,6 @@ export function notebookStateFromSession(
     mergeSessionAndNotebookCells(session, notebook);
 
   if (cellIds.length === 0) {
-    Logger.warn("Session and notebook must have at least one cell");
     return null;
   }
 

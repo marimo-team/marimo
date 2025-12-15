@@ -111,12 +111,18 @@ class TableManager(abc.ABC, Generic[T]):
 
     @abc.abstractmethod
     def to_json_str(
-        self, format_mapping: Optional[FormatMapping] = None
+        self,
+        format_mapping: Optional[FormatMapping] = None,
+        strict_json: bool = False,
     ) -> str:
         pass
 
-    def to_json(self, format_mapping: Optional[FormatMapping] = None) -> bytes:
-        return self.to_json_str(format_mapping).encode("utf-8")
+    def to_json(
+        self,
+        format_mapping: Optional[FormatMapping] = None,
+        strict_json: bool = False,  # Whether the result should be strictly JSON compliant (eg. nan -> null)
+    ) -> bytes:
+        return self.to_json_str(format_mapping, strict_json).encode("utf-8")
 
     @abc.abstractmethod
     def to_parquet(self) -> bytes:

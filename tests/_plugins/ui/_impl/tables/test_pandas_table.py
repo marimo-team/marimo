@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import datetime
+import decimal
 import json
 import unittest
-from math import isnan
+import warnings
+from math import isnan, nan
 from typing import Any
 from unittest.mock import Mock
 
@@ -12,7 +14,7 @@ import pytest
 
 from marimo._data.models import ColumnStats
 from marimo._dependencies.dependencies import DependencyManager
-from marimo._output.data.data import BIGINT_KEY
+from marimo._output.data.data import BIGINT_KEY, sanitize_json_bigint
 from marimo._plugins.ui._impl.table import SortArgs
 from marimo._plugins.ui._impl.tables.format import FormatMapping
 from marimo._plugins.ui._impl.tables.pandas_table import (
@@ -21,7 +23,7 @@ from marimo._plugins.ui._impl.tables.pandas_table import (
 from marimo._plugins.ui._impl.tables.table_manager import TableManager
 from tests.mocks import snapshotter
 
-HAS_DEPS = DependencyManager.pandas.has()
+HAS_DEPS = DependencyManager.pandas.has() and DependencyManager.numpy.has()
 
 snapshot = snapshotter(__file__)
 
@@ -36,6 +38,24 @@ def assert_frame_equal(a: Any, b: Any) -> None:
     pd.testing.assert_frame_equal(a, b)
 
 
+def assert_rows_equal_with_nan(
+    actual: list[dict[str, Any]], expected: list[dict[str, Any]]
+) -> None:
+    assert len(actual) == len(expected)
+    for actual_row, expected_row in zip(actual, expected, strict=True):
+        assert actual_row.keys() == expected_row.keys()
+        for key, expected_value in expected_row.items():
+            actual_value = actual_row[key]
+            if (
+                isinstance(actual_value, float)
+                and isinstance(expected_value, float)
+                and isnan(actual_value)
+                and isnan(expected_value)
+            ):
+                continue
+            assert actual_value == expected_value
+
+
 try:
     import pandas as pd
 except ImportError:
@@ -45,6 +65,7 @@ except ImportError:
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
 class TestPandasTableManager(unittest.TestCase):
     def get_complex_data(self) -> TableManager[Any]:
+        import numpy as np
         import pandas as pd
 
         complex_data = pd.DataFrame(
@@ -53,6 +74,11 @@ class TestPandasTableManager(unittest.TestCase):
                 "bool": [True, False, True],
                 "int": [1, 2, 3],
                 "float": [1.0, 2.0, 3.0],
+                "decimals": [
+                    decimal.Decimal("-1.23"),
+                    decimal.Decimal("NaN"),
+                    decimal.Decimal("Infinity"),
+                ],
                 "datetime": [
                     datetime.datetime(2021, 1, 1),
                     datetime.datetime(2021, 1, 2),
@@ -63,12 +89,57 @@ class TestPandasTableManager(unittest.TestCase):
                     datetime.date(2021, 1, 2),
                     datetime.date(2021, 1, 3),
                 ],
+                "nanosecond": [
+                    pd.to_datetime(1490195805000000000, unit="ns"),
+                    pd.to_datetime(1500000000000000000, unit="ns"),
+                    pd.to_datetime(1510000000000000000, unit="ns"),
+                ],
+                "datetime_index": [
+                    pd.to_datetime(
+                        [1, 2, 3], unit="D", origin=pd.Timestamp("1960-01-01")
+                    ),
+                    pd.to_datetime([1, 2, 3], unit="D"),
+                    pd.to_datetime([1, 2, 3], unit="D"),
+                ],
+                "period_range": pd.period_range(
+                    start=pd.Period("2017Q1", freq="Q"),
+                    end=pd.Period("2017Q3", freq="Q"),
+                    freq="Q",
+                ),
+                "interval_range": pd.interval_range(
+                    start=pd.Timestamp("2017-01-01"),
+                    end=pd.Timestamp("2017-01-04"),
+                ),
+                "delta": [
+                    pd.to_timedelta(["1 days 06:05:01.00003"]),
+                    pd.to_timedelta(["1 days 06:05:01.00003", "15.5us"]),
+                    pd.to_timedelta(
+                        ["1 days 06:05:01.00003", "15.5us", "nan"]
+                    ),
+                ],
+                "none": [
+                    pd.NaT,
+                    np.nan,
+                    pd.NA,
+                ],
+                "infs": [float("inf"), np.inf, -np.inf],
                 "struct": [
                     {"a": 1, "b": 2},
                     {"a": 3, "b": 4},
                     {"a": 5, "b": 6},
                 ],
                 "list": pd.Series([[1, 2], [3, 4], [5, 6]]),
+                "nested_lists": pd.Series([[[1, 2]], [[3, 4]], [[5, 6]]]),
+                "objects": pd.Series(
+                    [{"a": 1, "b": 2}, {"a": 3, "b": 4}, {"a": 5, "b": 6}]
+                ),
+                "nested_objects": pd.Series(
+                    [
+                        [{"a": 1, "b": 2}, {"a": 3, "b": 4}],
+                        [{"a": 5, "b": 6}, {"a": 7, "b": 8}],
+                        [{"a": 9, "b": 10}, {"a": 11, "b": 12}],
+                    ]
+                ),
                 "nulls": pd.Series([None, "data", None]),
                 "category": pd.Categorical(["cat", "dog", "mouse"]),
                 "set": [set([1, 2]), set([3, 4]), set([5, 6])],
@@ -128,9 +199,7 @@ class TestPandasTableManager(unittest.TestCase):
         assert self.factory.package_name() == "pandas"
 
     def test_to_csv(self) -> None:
-        expected_csv = self.data.to_csv(
-            index=False, date_format="%Y-%m-%d %H:%M:%S%z"
-        ).encode("utf-8")
+        expected_csv = self.data.to_csv(index=False).encode("utf-8")
         assert self.manager.to_csv() == expected_csv
 
     def test_to_csv_datetime(self) -> None:
@@ -141,7 +210,7 @@ class TestPandasTableManager(unittest.TestCase):
         }
         df = pd.DataFrame(data)
         manager = PandasTableManagerFactory.create()(df)
-        assert "2024-12-17 00:00:00" in manager.to_csv().decode("utf-8")
+        assert "2024-12-17" in manager.to_csv().decode("utf-8")
 
     def test_to_csv_datetime_with_timezone(self) -> None:
         D = pd.to_datetime("2024-12-17", errors="coerce").tz_localize("UTC")
@@ -151,7 +220,55 @@ class TestPandasTableManager(unittest.TestCase):
         }
         df = pd.DataFrame(data)
         manager = PandasTableManagerFactory.create()(df)
-        assert "2024-12-17 00:00:00+0000" in manager.to_csv().decode("utf-8")
+        assert "2024-12-17 00:00:00+00:00" in manager.to_csv().decode("utf-8")
+
+        # Different timezone
+        D = pd.to_datetime("2024-12-17", errors="coerce").tz_localize(
+            "America/New_York"
+        )
+        data = {
+            "D timestamp": [D],
+        }
+        df = pd.DataFrame(data)
+        manager = PandasTableManagerFactory.create()(df)
+        assert "2024-12-17 00:00:00-05:00" in manager.to_csv().decode("utf-8")
+
+    def test_to_csv_datetime_with_milliseconds(self) -> None:
+        # Test that millisecond precision is preserved in CSV export
+        base = pd.Timestamp("2024-11-21T12:34:56.123")
+        data = {
+            "event": ["start", "middle", "end"],
+            "timestamp": [
+                base,
+                base + pd.Timedelta(milliseconds=4),
+                base + pd.Timedelta(milliseconds=9),
+            ],
+        }
+        df = pd.DataFrame(data)
+        manager = PandasTableManagerFactory.create()(df)
+        csv_output = manager.to_csv().decode("utf-8")
+
+        # Verify millisecond precision is preserved
+        assert "2024-11-21 12:34:56.123" in csv_output
+        assert "2024-11-21 12:34:56.127" in csv_output
+        assert "2024-11-21 12:34:56.132" in csv_output
+
+    def test_to_csv_datetime_with_nanoseconds(self) -> None:
+        base = pd.Timestamp("2024-11-21T12:34:56.123456789")
+        data = {
+            "event": ["start", "middle", "end"],
+            "timestamp": [
+                base,
+                base + pd.Timedelta(nanoseconds=4),
+                base + pd.Timedelta(nanoseconds=9),
+            ],
+        }
+        df = pd.DataFrame(data)
+        manager = PandasTableManagerFactory.create()(df)
+        csv_output = manager.to_csv().decode("utf-8")
+        assert "2024-11-21 12:34:56.123456789" in csv_output
+        assert "2024-11-21 12:34:56.123456793" in csv_output
+        assert "2024-11-21 12:34:56.123456798" in csv_output
 
     def test_to_csv_complex(self) -> None:
         complex_data = self.get_complex_data()
@@ -168,21 +285,19 @@ class TestPandasTableManager(unittest.TestCase):
         assert isinstance(self.manager.to_parquet(), bytes)
 
     def test_to_json(self) -> None:
-        expected_json = self.data.to_json(
-            orient="records", date_format="iso"
-        ).encode("utf-8")
-        assert self.manager.to_json() == expected_json
+        expected_json = sanitize_json_bigint(
+            self.data.to_dict(orient="records")
+        )
+        actual_json = self.manager.to_json().decode("utf-8")
+        assert actual_json == expected_json, "JSON not equal"
 
     def test_to_json_format_mapping(self) -> None:
-        expected_json = (
-            self.data.assign(A=self.data["A"] * 2)
-            .to_json(orient="records", date_format="iso")
-            .encode("utf-8")
+        expected_json = sanitize_json_bigint(
+            self.data.assign(A=self.data["A"] * 2).to_dict(orient="records")
         )
         format_mapping = {"A": lambda x: x * 2}
-        assert self.manager.to_json(format_mapping) == expected_json, (
-            "Format mapping not applied"
-        )
+        actual_json = self.manager.to_json(format_mapping).decode("utf-8")
+        assert actual_json == expected_json, "Format mapping not applied"
 
     def test_to_json_datetime_handling(self) -> None:
         timestamps = pd.DataFrame(
@@ -195,10 +310,10 @@ class TestPandasTableManager(unittest.TestCase):
         )
         json_data = self.factory_create_json_from_df(timestamps)
 
-        assert json_data[0]["timestamp"] == "2024-12-17T00:00:00.000"
+        assert json_data[0]["timestamp"] == "2024-12-17 00:00:00"
         assert (
             json_data[0]["timestamp_with_timezone"]
-            == "2024-12-17T00:00:00.000Z"
+            == "2024-12-17 00:00:00+00:00"
         )
 
     def test_to_json_complex_number_handling(self) -> None:
@@ -321,12 +436,55 @@ class TestPandasTableManager(unittest.TestCase):
         )
         df = df.stack(future_stack=True)
         json_data = self.factory_create_json_from_df(df)
-        assert json_data == [
-            {"": "cat", " ": "kg", "weight": 1.0, "height": None},
-            {"": "cat", " ": "m", "weight": None, "height": 2.0},
-            {"": "dog", " ": "kg", "weight": 3.0, "height": None},
-            {"": "dog", " ": "m", "weight": None, "height": 4.0},
+        expected = [
+            {"": "cat", " ": "kg", "weight": 1.0, "height": nan},
+            {"": "cat", " ": "m", "weight": nan, "height": 2.0},
+            {"": "dog", " ": "kg", "weight": 3.0, "height": nan},
+            {"": "dog", " ": "m", "weight": nan, "height": 4.0},
         ]
+        assert_rows_equal_with_nan(json_data, expected)
+
+    @pytest.mark.skipif(
+        not DependencyManager.numpy.has(), reason="numpy not installed"
+    )
+    def test_infs(self) -> None:
+        import numpy as np
+
+        df = pd.DataFrame(
+            {
+                "A": [
+                    float("inf"),
+                    float("-inf"),
+                    np.inf,
+                    -np.inf,
+                ]
+            }
+        )
+        json_data = self.factory_create_json_from_df(df)
+        expected = [
+            {"A": "inf"},
+            {"A": "-inf"},
+            {"A": "inf"},
+            {"A": "-inf"},
+        ]
+        assert_rows_equal_with_nan(json_data, expected)
+
+    @pytest.mark.skipif(
+        not DependencyManager.numpy.has(), reason="numpy not installed"
+    )
+    def test_nans(self) -> None:
+        import numpy as np
+
+        df = pd.DataFrame({"A": [float("nan"), np.nan, pd.NaT, pd.NA, None]})
+        json_data = self.factory_create_json_from_df(df)
+        expected = [
+            {"A": nan},
+            {"A": nan},
+            {"A": "NaT"},
+            {"A": None},  # pd.NA is treated as None
+            {"A": None},
+        ]
+        assert_rows_equal_with_nan(json_data, expected)
 
     def test_to_json_multi_col_index(self) -> None:
         cols = pd.MultiIndex.from_arrays(
@@ -730,6 +888,20 @@ class TestPandasTableManager(unittest.TestCase):
         # List (exact match)
         assert manager.search("yyy").get_num_rows() == 0
         assert manager.search("y").get_num_rows() == 0
+
+    def test_search_string_column_with_nulls(self) -> None:
+        """
+        Test that string columns with null values can be searched after casting.
+        """
+        df = pd.DataFrame(
+            {"name": [float("nan")] * 4 + ["Alice"]},
+        )
+        manager = self.factory.create()(df)
+
+        # Search without raising errors
+        assert manager.search("alice").get_num_rows() == 1
+        assert manager.search("bob").get_num_rows() == 0
+        assert manager.search("nan").get_num_rows() == 4
 
     def test_apply_formatting_does_not_modify_original_data(self) -> None:
         original_data = self.data.copy()
@@ -1341,6 +1513,40 @@ class TestPandasTableManager(unittest.TestCase):
 
         assert json_data[0]["date_series"] == "2000-01-01"
         assert json_data[1]["date_series"] == "2000-01-02"
+
+    def test_to_json_str_strict_json(self) -> None:
+        import pandas as pd
+
+        df = pd.DataFrame({"A": [1, 2, 3]})
+        manager = self.factory.create()(df)
+        json_str = manager.to_json_str(strict_json=True)
+        assert json_str == '[{"A":1},{"A":2},{"A":3}]'
+
+    def test_to_json_str_strict_json_with_nans(self) -> None:
+        import pandas as pd
+
+        df_with_nans_infs = pd.DataFrame(
+            {"A": [1, 2, 3, float("nan"), float("inf")]}
+        )
+        manager = self.factory.create()(df_with_nans_infs)
+        json_str = manager.to_json_str(strict_json=True)
+        assert (
+            json_str == '[{"A":1.0},{"A":2.0},{"A":3.0},{"A":null},{"A":null}]'
+        )
+
+    def test_to_json_str_strict_json_with_complex_data(self) -> None:
+        # Ensure does not fail with complex data
+        complex_data = self.get_complex_data()
+        json_str = complex_data.to_json_str(strict_json=True)
+
+        # Snapshot complex data without erroring cols
+        with warnings.catch_warnings(record=True) as w:
+            complex_data_strict = complex_data.drop_columns(
+                ["bytes", "decimals"]
+            )
+            json_str_strict = complex_data_strict.to_json_str(strict_json=True)
+            snapshot("pandas.download.json", json_str_strict)
+            assert len(w) == 0, "Unexpected warnings raised"
 
     def test_handle_integer_column_names_no_mutation(self) -> None:
         import pandas as pd

@@ -10,12 +10,14 @@ import { toast } from "@/components/ui/use-toast";
 import { getCopilotClient } from "@/core/codemirror/copilot/client";
 import {
   copilotSignedInState,
+  copilotStatusState,
   githubCopilotLoadingVersion,
   isGitHubCopilotSignedInState,
 } from "@/core/codemirror/copilot/state";
 import { resolvedMarimoConfigAtom } from "@/core/config/config";
 import { useOnMount } from "@/hooks/useLifecycle";
 import { cn } from "@/utils/cn";
+import { prettyError } from "@/utils/errors";
 import { Logger } from "@/utils/Logger";
 import { FooterItem } from "../footer-item";
 
@@ -40,10 +42,18 @@ const logger = Logger.get("[copilot-status-bar]");
 const GitHubCopilotStatus: React.FC = () => {
   const isGitHubCopilotSignedIn = useAtomValue(isGitHubCopilotSignedInState);
   const isLoading = useAtomValue(githubCopilotLoadingVersion) !== null;
+  const status = useAtomValue(copilotStatusState);
   const { handleClick } = useOpenSettingsToTab();
   const openSettings = () => handleClick("ai");
 
-  const label = isGitHubCopilotSignedIn ? "Ready" : "Not connected";
+  // Build label from status
+  let label = isGitHubCopilotSignedIn ? "Ready" : "Not connected";
+  if (status.message) {
+    label = status.message;
+  } else if (status.busy) {
+    label = "Processing...";
+  }
+
   const setCopilotSignedIn = useSetAtom(isGitHubCopilotSignedInState);
   const setStep = useSetAtom(copilotSignedInState);
 
@@ -81,8 +91,19 @@ const GitHubCopilotStatus: React.FC = () => {
         setStep("connectionError");
         toast({
           title: "GitHub Copilot Connection Error",
-          description:
-            "Failed to connect to GitHub Copilot. Check settings and try again.",
+          description: (
+            <>
+              {" "}
+              <div>
+                Failed to connect to GitHub Copilot. Check settings and try
+                again.
+              </div>
+              <br />
+              <div className="text-sm font-mono whitespace-pre-wrap">
+                {prettyError(error)}
+              </div>
+            </>
+          ),
           variant: "danger",
           action: (
             <Button variant="link" onClick={openSettings}>
@@ -100,24 +121,36 @@ const GitHubCopilotStatus: React.FC = () => {
     };
   });
 
+  // Determine icon color based on status
+  const iconColorClass =
+    status.kind === "Warning" || status.kind === "Error"
+      ? "text-(--yellow-11)"
+      : isGitHubCopilotSignedIn
+        ? ""
+        : "opacity-60";
+
   return (
     <FooterItem
       tooltip={
-        <>
+        <div className="max-w-[200px]">
           <b>GitHub Copilot:</b> {label}
-        </>
+          {status.kind && (
+            <>
+              <br />
+              <span className="pt-1 text-xs">Status: {status.kind}</span>
+            </>
+          )}
+        </div>
       }
       selected={false}
       onClick={openSettings}
       data-testid="footer-copilot-status"
     >
       <span>
-        {isLoading ? (
+        {isLoading || status.busy ? (
           <Spinner className="h-4 w-4" />
         ) : (
-          <GitHubCopilotIcon
-            className={cn("h-4 w-4", !isGitHubCopilotSignedIn && "opacity-60")}
-          />
+          <GitHubCopilotIcon className={cn("h-4 w-4", iconColorClass)} />
         )}
       </span>
     </FooterItem>

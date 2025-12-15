@@ -28,7 +28,7 @@ class ExternalLinksTreeProcessor(treeprocessors.Treeprocessor):  # type: ignore[
 
             if parsed_url.scheme in ["http", "https"]:
                 element.set("target", "_blank")
-                element.set("rel", "noopener")
+                element.set("rel", "noopener noreferrer")
 
 
 class ExternalLinksExtension(Extension):  # type: ignore[misc]

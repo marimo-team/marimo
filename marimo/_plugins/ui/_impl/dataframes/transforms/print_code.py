@@ -29,8 +29,6 @@ def python_print_transforms(
 def python_print_pandas(
     df_name: str, all_columns: list[str], transform: Transform
 ) -> str:
-    del all_columns
-
     def generate_where_clause(df_name: str, where: Condition) -> str:
         column_id, operator, value = (
             where.column_id,
@@ -58,8 +56,9 @@ def python_print_pandas(
             return f"{df_name}[{_as_literal(column_id)}].str.startswith({_as_literal(value)})"  # noqa: E501
         elif operator == "ends_with":
             return f"{df_name}[{_as_literal(column_id)}].str.endswith({_as_literal(value)})"  # noqa: E501
-        elif operator == "in":
-            return f"{df_name}[{_as_literal(column_id)}].isin({_list_of_strings(value)})"  # noqa: E501
+        elif operator == "in" or operator == "not_in":
+            result = f"{df_name}[{_as_literal(column_id)}].isin({_list_of_strings(value)})"  # noqa: E501
+            return result if operator == "in" else f"~{result}"
         elif operator == "!=":
             return (
                 f"{df_name}[{_as_literal(column_id)}].ne({_as_literal(value)})"
@@ -144,6 +143,19 @@ def python_print_pandas(
             transform.aggregation,
             transform.drop_na,
         )
+        # Use explicit aggregation columns if provided, otherwise all except group-by columns
+        # Filter out group-by columns from aggregation columns to match narwhals behavior
+        group_by_column_id_set = set(column_ids)
+        if transform.aggregation_column_ids:
+            aggregation_columns = [
+                col
+                for col in transform.aggregation_column_ids
+                if col not in group_by_column_id_set
+            ]
+        else:
+            aggregation_columns = [
+                col for col in all_columns if col not in group_by_column_id_set
+            ]
         args = _args_list(_list_of_strings(column_ids), f"dropna={drop_na}")
         group_by = f"{df_name}.groupby({args})"
         # Narwhals adds suffixes to aggregated columns like 'column_count'
@@ -162,14 +174,18 @@ def python_print_pandas(
             agg_func = "max"
         else:
             assert_never(aggregation)
-        # Use pandas pipe to add suffixes
-        if aggregation in ["mean", "median"]:
-            agg_call = f"{group_by}.{agg_func}(numeric_only=True)"
-        else:
-            agg_call = f"{group_by}.{agg_func}()"
-        # Need to escape the f-string properly for the lambda and include the aggregation string literal
-        # Use single curly braces in the f-string since we want them in the generated code
-        return f"({agg_call}.reset_index().rename(columns=lambda col: col if col in {_list_of_strings(column_ids)} else f'{{col}}_{aggregation}'))"
+
+        # If aggregation_columns is empty after filtering, just return unique grouped columns
+        # This matches narwhals behavior when agg() is called with empty list
+        if not aggregation_columns:
+            return f"{df_name}[{_list_of_strings(column_ids)}].drop_duplicates().reset_index(drop=True)"
+
+        # If specific aggregation columns are provided, only aggregate those and rename explicitly.
+        agg_dict = ", ".join(
+            f"{_as_literal(f'{col}_{aggregation}')} : ({_as_literal(col)}, {_as_literal(agg_func)})"
+            for col in aggregation_columns
+        )
+        return f"{group_by}.agg(**{{{agg_dict}}}).reset_index()"
 
     elif transform.type == TransformType.SELECT_COLUMNS:
         column_ids = transform.column_ids
@@ -226,8 +242,9 @@ def python_print_polars(
             return f"pl.col({_as_literal(column_id)}).str.starts_with({_as_literal(value)})"  # noqa: E501
         elif operator == "ends_with":
             return f"pl.col({_as_literal(column_id)}).str.ends_with({_as_literal(value)})"  # noqa: E501
-        elif operator == "in":
-            return f"pl.col({_as_literal(column_id)}).is_in({_list_of_strings(value)})"  # noqa: E501
+        elif operator == "in" or operator == "not_in":
+            result = f"pl.col({_as_literal(column_id)}).is_in({_list_of_strings(value)})"  # noqa: E501
+            return result if operator == "in" else f"~{result}"
         elif operator in [">", ">=", "<", "<="]:
             return f"pl.col({_as_literal(column_id)}) {operator} {_as_literal(value)}"  # noqa: E501
         elif operator == "is_null":
@@ -302,36 +319,37 @@ def python_print_polars(
 
     elif transform.type == TransformType.GROUP_BY:
         column_ids, aggregation = transform.column_ids, transform.aggregation
+        columns = transform.aggregation_column_ids or all_columns
+        aggregation_columns = [col for col in columns if col not in column_ids]
         aggs: list[str] = []
         # Use _as_literal to properly escape column names
-        for column_id in all_columns:
-            if column_id not in column_ids:
-                col_ref = _as_literal(column_id)
-                agg_alias = f"{column_id}_{aggregation}"
-                if aggregation == "count":
-                    aggs.append(
-                        f"pl.col({col_ref}).count().alias({_as_literal(agg_alias)})"
-                    )
-                elif aggregation == "sum":
-                    aggs.append(
-                        f"pl.col({col_ref}).sum().alias({_as_literal(agg_alias)})"
-                    )
-                elif aggregation == "mean":
-                    aggs.append(
-                        f"pl.col({col_ref}).mean().alias({_as_literal(agg_alias)})"
-                    )
-                elif aggregation == "median":
-                    aggs.append(
-                        f"pl.col({col_ref}).median().alias({_as_literal(agg_alias)})"
-                    )
-                elif aggregation == "min":
-                    aggs.append(
-                        f"pl.col({col_ref}).min().alias({_as_literal(agg_alias)})"
-                    )
-                elif aggregation == "max":
-                    aggs.append(
-                        f"pl.col({col_ref}).max().alias({_as_literal(agg_alias)})"
-                    )
+        for column_id in aggregation_columns:
+            col_ref = _as_literal(column_id)
+            agg_alias = f"{column_id}_{aggregation}"
+            if aggregation == "count":
+                aggs.append(
+                    f"pl.col({col_ref}).count().alias({_as_literal(agg_alias)})"
+                )
+            elif aggregation == "sum":
+                aggs.append(
+                    f"pl.col({col_ref}).sum().alias({_as_literal(agg_alias)})"
+                )
+            elif aggregation == "mean":
+                aggs.append(
+                    f"pl.col({col_ref}).mean().alias({_as_literal(agg_alias)})"
+                )
+            elif aggregation == "median":
+                aggs.append(
+                    f"pl.col({col_ref}).median().alias({_as_literal(agg_alias)})"
+                )
+            elif aggregation == "min":
+                aggs.append(
+                    f"pl.col({col_ref}).min().alias({_as_literal(agg_alias)})"
+                )
+            elif aggregation == "max":
+                aggs.append(
+                    f"pl.col({col_ref}).max().alias({_as_literal(agg_alias)})"
+                )
         group_cols = [f"pl.col({_as_literal(col)})" for col in column_ids]
         return f"{df_name}.group_by([{', '.join(group_cols)}], maintain_order=True).agg([{', '.join(aggs)}])"  # noqa: E501
 
@@ -374,33 +392,30 @@ def python_print_ibis(
         )
 
         if operator == "==" or operator == "equals":
-            return (
-                f"{df_name}[{_as_literal(column_id)}] == {_as_literal(value)}"
-            )
+            return f"({df_name}[{_as_literal(column_id)}] == {_as_literal(value)})"
         elif operator == "does_not_equal" or operator == "!=":
-            return (
-                f"{df_name}[{_as_literal(column_id)}] != {_as_literal(value)})"  # noqa: E501
-            )
+            return f"({df_name}[{_as_literal(column_id)}] != {_as_literal(value)}))"  # noqa: E501
         elif operator == "contains":
-            return f"{df_name}[{_as_literal(column_id)}].contains({_as_literal(value)})"  # noqa: E501
+            return f"({df_name}[{_as_literal(column_id)}].contains({_as_literal(value)}))"  # noqa: E501
         elif operator == "regex":
-            return f"{df_name}[{_as_literal(column_id)}].re_search({_as_literal(value)})"  # noqa: E501
+            return f"({df_name}[{_as_literal(column_id)}].re_search({_as_literal(value)}))"  # noqa: E501
         elif operator == "starts_with":
-            return f"{df_name}[{_as_literal(column_id)}].startswith({_as_literal(value)})"  # noqa: E501
+            return f"({df_name}[{_as_literal(column_id)}].startswith({_as_literal(value)}))"  # noqa: E501
         elif operator == "ends_with":
-            return f"{df_name}[{_as_literal(column_id)}].endswith({_as_literal(value)})"  # noqa: E501
-        elif operator == "in":
-            return f"{df_name}[{_as_literal(column_id)}].isin({_list_of_strings(value)})"  # noqa: E501
+            return f"({df_name}[{_as_literal(column_id)}].endswith({_as_literal(value)}))"  # noqa: E501
+        elif operator == "in" or operator == "not_in":
+            result = f"({df_name}[{_as_literal(column_id)}].isin({_list_of_strings(value)}))"  # noqa: E501
+            return result if operator == "in" else f"~{result}"
         elif operator in [">", ">=", "<", "<="]:
-            return f"{df_name}[{_as_literal(column_id)}] {operator} {_as_literal(value)}"  # noqa: E501
+            return f"({df_name}[{_as_literal(column_id)}] {operator} {_as_literal(value)})"  # noqa: E501
         elif operator == "is_null":
-            return f"{df_name}[{_as_literal(column_id)}].isnull()"
+            return f"({df_name}[{_as_literal(column_id)}].isnull())"
         elif operator == "is_not_null":
-            return f"{df_name}[{_as_literal(column_id)}].notnull()"
+            return f"({df_name}[{_as_literal(column_id)}].notnull())"
         elif operator == "is_true":
-            return f"{df_name}[{_as_literal(column_id)}] == True"
+            return f"({df_name}[{_as_literal(column_id)}] == True)"
         elif operator == "is_false":
-            return f"{df_name}[{_as_literal(column_id)}] == False"
+            return f"({df_name}[{_as_literal(column_id)}] == False)"
         else:
             raise ValueError(f"Unknown operator: {operator}")
 
@@ -460,13 +475,14 @@ def python_print_ibis(
 
     elif transform.type == TransformType.GROUP_BY:
         column_ids, aggregation = transform.column_ids, transform.aggregation
+        columns = transform.aggregation_column_ids or all_columns
+        aggregation_columns = [col for col in columns if col not in column_ids]
         aggs: list[str] = []
-        for column_id in all_columns:
-            if column_id not in column_ids:
-                agg_alias = f"{column_id}_{aggregation}"
-                aggs.append(
-                    f'"{agg_alias}" : {df_name}["{column_id}"].{aggregation}()'
-                )
+        for column_id in aggregation_columns:
+            agg_alias = f"{column_id}_{aggregation}"
+            aggs.append(
+                f'"{agg_alias}" : {df_name}["{column_id}"].{aggregation}()'
+            )
         return f"{df_name}.group_by({_list_of_strings(column_ids)}).aggregate(**{{{','.join(aggs)}}})"  # noqa: E501
 
     elif transform.type == TransformType.SELECT_COLUMNS:

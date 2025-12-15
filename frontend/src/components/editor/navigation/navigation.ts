@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import { closeCompletion, completionStatus } from "@codemirror/autocomplete";
-import { EditorSelection } from "@codemirror/state";
+import { simplifySelection } from "@codemirror/commands";
 import type { EditorView } from "@codemirror/view";
 import { useAtomValue, useSetAtom, useStore } from "jotai";
 import { useMemo } from "react";
@@ -635,12 +635,8 @@ export function useCellEditorNavigationProps(
     const view = editorView.current;
     const state = view.state;
 
-    const hasTextSelection = !state.selection.main.empty;
-
-    if (hasTextSelection) {
-      view.dispatch({
-        selection: EditorSelection.single(state.selection.main.from), // Cursor to the start of the selection
-      });
+    const wasSimplified = simplifySelection(view);
+    if (wasSimplified) {
       return;
     }
 

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import sys
-from typing import Optional
+from typing import Any, Optional
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -35,7 +35,11 @@ def test_update_script_metadata() -> None:
     runs_calls: list[list[str]] = []
 
     class MockUvPackageManager(UvPackageManager):
-        def run(
+        @property
+        def _uv_bin(self) -> str:
+            return "uv"
+
+        def _run_sync(
             self,
             command: list[str],
             log_callback: Optional[LogCallback] = None,
@@ -66,7 +70,11 @@ def test_update_script_metadata_with_version_map() -> None:
     runs_calls: list[list[str]] = []
 
     class MockUvPackageManager(UvPackageManager):
-        def run(
+        @property
+        def _uv_bin(self) -> str:
+            return "uv"
+
+        def _run_sync(
             self,
             command: list[str],
             log_callback: Optional[LogCallback] = None,
@@ -99,7 +107,11 @@ def test_update_script_metadata_with_mapping() -> None:
     runs_calls: list[list[str]] = []
 
     class MockUvPackageManager(UvPackageManager):
-        def run(
+        @property
+        def _uv_bin(self) -> str:
+            return "uv"
+
+        def _run_sync(
             self,
             command: list[str],
             log_callback: Optional[LogCallback] = None,
@@ -152,7 +164,11 @@ def test_update_script_metadata_marimo_packages() -> None:
     runs_calls: list[list[str]] = []
 
     class MockUvPackageManager(UvPackageManager):
-        def run(
+        @property
+        def _uv_bin(self) -> str:
+            return "uv"
+
+        def _run_sync(
             self,
             command: list[str],
             log_callback: Optional[LogCallback] = None,
@@ -287,21 +303,28 @@ def test_update_script_metadata_marimo_packages() -> None:
 async def test_uv_pip_install() -> None:
     runs_calls: list[list[str]] = []
 
-    class MockUvPackageManager(UvPackageManager):
-        def run(
-            self,
-            command: list[str],
-            log_callback: Optional[LogCallback] = None,
-        ) -> bool:
-            del log_callback
-            runs_calls.append(command)
-            return True
+    with (
+        patch("subprocess.Popen") as mock_popen,
+        patch("sys.stdout.buffer.write"),
+    ):
+        mock_proc = MagicMock()
+        mock_proc.stdout.readline.return_value = b""
+        mock_proc.wait.return_value = 0
+        mock_popen.return_value = mock_proc
 
-    pm = MockUvPackageManager()
-    await pm._install("foo", upgrade=False)
-    assert runs_calls == [
-        ["uv", "pip", "install", "--compile", "foo", "-p", PY_EXE],
-    ]
+        def capture_command(*args: Any, **kwargs: Any):
+            del kwargs
+            runs_calls.append(args[0])
+            return mock_proc
+
+        mock_popen.side_effect = capture_command
+
+        pm = UvPackageManager()
+        await pm._install("foo", upgrade=False)
+
+        assert runs_calls == [
+            ["uv", "pip", "install", "--compile", "foo", "-p", PY_EXE],
+        ]
 
 
 def test_log_callback_type() -> None:
@@ -319,7 +342,7 @@ def test_log_callback_type() -> None:
     assert captured_logs[0] == "test log\n"
 
 
-def test_package_manager_run_without_callback() -> None:
+async def test_package_manager_run_without_callback() -> None:
     """Test PackageManager.run without log callback (backward compatibility)."""
     pm = PipPackageManager()
 
@@ -328,13 +351,13 @@ def test_package_manager_run_without_callback() -> None:
         patch.object(pm, "is_manager_installed", return_value=True),
     ):
         mock_run.return_value.returncode = 0
-        result = pm.run(["echo", "test"], log_callback=None)
+        result = await pm.run(["echo", "test"], log_callback=None)
 
         assert result is True
         mock_run.assert_called_once_with(["echo", "test"])
 
 
-def test_package_manager_run_with_callback() -> None:
+async def test_package_manager_run_with_callback() -> None:
     """Test PackageManager.run with log callback streams output."""
     pm = PipPackageManager()
     captured_logs = []
@@ -360,7 +383,7 @@ def test_package_manager_run_with_callback() -> None:
         mock_proc.wait.return_value = 0
         mock_popen.return_value = mock_proc
 
-        result = pm.run(["echo", "test"], log_callback=log_callback)
+        result = await pm.run(["echo", "test"], log_callback=log_callback)
 
         assert result is True
         assert captured_logs == [
@@ -374,7 +397,7 @@ def test_package_manager_run_with_callback() -> None:
         mock_buffer_write.assert_any_call(b"Successfully installed!\n")
 
 
-def test_package_manager_run_with_callback_failure() -> None:
+async def test_package_manager_run_with_callback_failure() -> None:
     """Test PackageManager.run with log callback handles failure."""
     pm = PipPackageManager()
     captured_logs = []
@@ -394,7 +417,7 @@ def test_package_manager_run_with_callback_failure() -> None:
         mock_proc.wait.return_value = 1  # Non-zero return code
         mock_popen.return_value = mock_proc
 
-        result = pm.run(["failing_command"], log_callback=log_callback)
+        result = await pm.run(["failing_command"], log_callback=log_callback)
 
         assert result is False
         assert captured_logs == ["Error occurred\n"]
@@ -408,7 +431,7 @@ async def test_pip_install_with_log_callback() -> None:
         captured_logs.append(log_line)
 
     class MockPipPackageManager(PipPackageManager):
-        def run(
+        async def run(
             self,
             command: list[str],
             log_callback: Optional[LogCallback] = None,
@@ -438,28 +461,30 @@ async def test_uv_install_with_log_callback() -> None:
     def log_callback(log_line: str) -> None:
         captured_logs.append(log_line)
 
-    class MockUvPackageManager(UvPackageManager):
-        def run(
-            self,
-            command: list[str],
-            log_callback: Optional[LogCallback] = None,
-        ) -> bool:
-            del command
-            if log_callback:
-                log_callback("Resolving dependencies...\n")
-                log_callback("Installing packages...\n")
-            return True
-
-    pm = MockUvPackageManager()
-    result = await pm._install(
-        "pandas", upgrade=False, log_callback=log_callback
-    )
-
-    assert result is True
-    assert captured_logs == [
-        "Resolving dependencies...\n",
-        "Installing packages...\n",
+    mock_stdout_lines = [
+        b"Resolving dependencies...\n",
+        b"Installing packages...\n",
     ]
+
+    with (
+        patch("subprocess.Popen") as mock_popen,
+        patch("sys.stdout.buffer.write"),
+    ):
+        mock_proc = MagicMock()
+        mock_proc.stdout.readline.side_effect = mock_stdout_lines + [b""]
+        mock_proc.wait.return_value = 0
+        mock_popen.return_value = mock_proc
+
+        pm = UvPackageManager()
+        result = await pm._install(
+            "pandas", upgrade=False, log_callback=log_callback
+        )
+
+        assert result is True
+        assert captured_logs == [
+            "Resolving dependencies...\n",
+            "Installing packages...\n",
+        ]
 
 
 async def test_micropip_install_with_log_callback() -> None:
@@ -526,7 +551,11 @@ def test_update_script_metadata_with_git_dependencies() -> None:
     runs_calls: list[list[str]] = []
 
     class MockUvPackageManager(UvPackageManager):
-        def run(
+        @property
+        def _uv_bin(self) -> str:
+            return "uv"
+
+        def _run_sync(
             self,
             command: list[str],
             log_callback: Optional[LogCallback] = None,
@@ -636,16 +665,16 @@ def test_update_script_metadata_with_git_dependencies() -> None:
     ]
 
 
-def test_package_manager_run_manager_not_installed() -> None:
+async def test_package_manager_run_manager_not_installed() -> None:
     """Test PackageManager.run when manager is not installed."""
     pm = PipPackageManager()
 
     with patch.object(pm, "is_manager_installed", return_value=False):
-        result = pm.run(["test", "command"], log_callback=None)
+        result = await pm.run(["test", "command"], log_callback=None)
         assert result is False
 
         # Should also return False with log callback
-        result = pm.run(["test", "command"], log_callback=lambda _: None)
+        result = await pm.run(["test", "command"], log_callback=lambda _: None)
         assert result is False
 
 
@@ -668,11 +697,14 @@ def test_poetry_list_packages_uses_utf8_encoding(mock_run: MagicMock):
 
     packages = mgr.list_packages()
 
-    # Verify encoding='utf-8' is passed
-    mock_run.assert_called_once()
-    call_kwargs = mock_run.call_args[1]
-    assert call_kwargs.get("encoding") == "utf-8"
-    assert call_kwargs.get("text") is True
+    # Verify encoding='utf-8' is passed (PoetryPackageManager does multiple subprocess calls)
+    encoding_calls = [
+        kwargs
+        for _, kwargs in mock_run.call_args_list
+        if kwargs.get("encoding") == "utf-8"
+    ]
+    assert encoding_calls, "Expected at least one call with encoding='utf-8'"
+    assert all(call.get("text") is True for call in encoding_calls)
 
 
 @pytest.mark.skipif(

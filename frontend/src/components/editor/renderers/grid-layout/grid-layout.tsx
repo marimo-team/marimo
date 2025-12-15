@@ -249,6 +249,8 @@ export const GridLayoutRenderer: React.FC<Props> = ({
     </ReactGridLayout>
   );
 
+  const notInGrid = cells.filter((cell) => !inGridIds.has(cell.id));
+
   if (isReading) {
     if (layout.bordered) {
       grid = (
@@ -262,10 +264,32 @@ export const GridLayoutRenderer: React.FC<Props> = ({
         </div>
       );
     }
-    return grid;
-  }
 
-  const notInGrid = cells.filter((cell) => !inGridIds.has(cell.id));
+    const sidebarCells = notInGrid.filter((cell) => isSidebarCell(cell));
+
+    return (
+      <>
+        {grid}
+        {/* Render sidebar outputs even if they are not in grid (hidden) */}
+        <div className="hidden">
+          {sidebarCells.map((cell) => {
+            return (
+              <GridCell
+                key={cell.id}
+                code={cell.code}
+                mode={mode}
+                cellId={cell.id}
+                output={cell.output}
+                status={cell.status}
+                isScrollable={false}
+                hidden={false}
+              />
+            );
+          })}
+        </div>
+      </>
+    );
+  }
 
   if (layout.bordered) {
     grid = (
@@ -640,6 +664,14 @@ const GridHoverActions: React.FC<GridHoverActionsProps> = ({
     </div>
   );
 };
+
+function isSidebarCell(cell: CellRuntimeState) {
+  // False-positives are ok here because we rendering these cells in a hidden div
+  return (
+    typeof cell.output?.data === "string" &&
+    cell.output.data.includes("marimo-sidebar")
+  );
+}
 
 const SIDE_TO_ICON = {
   // We are only showing horizontal sides for now

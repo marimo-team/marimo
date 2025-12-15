@@ -89,6 +89,7 @@ export const ChatPlugin = createPlugin<{ messages: ChatMessage[] }>(
           send_prompt={props.functions.send_prompt}
           value={props.value?.messages || Arrays.EMPTY}
           setValue={(messages) => props.setValue({ messages })}
+          host={props.host}
         />
       </Suspense>
     </TooltipProvider>

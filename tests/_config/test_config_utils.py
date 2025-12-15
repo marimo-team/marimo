@@ -106,3 +106,33 @@ def test_get_or_create_config_path():
         with _mock_file_exists(exists=[xdg_config_path, home_config_path]):
             found_config_path = get_or_create_user_config_path()
             assert found_config_path == home_config_path
+
+
+def test_get_or_create_config_path_handles_oserror():
+    """Test that get_or_create_user_config_path handles OSError gracefully.
+
+    This can happen on Windows when os.path.realpath(os.getcwd()) fails due to:
+    - Deleted directory
+    - Permission issues
+    - UNC path problems
+    - Special characters in path
+
+    See issue #7502
+    """
+    with tempfile.TemporaryDirectory() as temp_dir:
+        # Use temp dir to avoid creating stray xdg config
+        os.environ["XDG_CONFIG_HOME"] = temp_dir
+        xdg_config_path = str(Path(temp_dir) / "marimo/marimo.toml")
+
+        get_user_config_path.cache_clear()
+
+        # Mock os.path.realpath to raise OSError (simulating Windows path issue)
+        with mock.patch(
+            "marimo._config.utils.os.path.realpath",
+            side_effect=OSError("Failed to canonicalize path"),
+        ):
+            # Should handle the error gracefully and return XDG config path
+            found_config_path = get_or_create_user_config_path()
+            assert found_config_path == xdg_config_path
+            # Verify the config file was created
+            assert Path(found_config_path).exists()

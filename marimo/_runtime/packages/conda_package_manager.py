@@ -30,7 +30,7 @@ class PixiPackageManager(CondaPackageManager):
         ]
 
     async def uninstall(self, package: str) -> bool:
-        return self.run(
+        return await self.run(
             ["pixi", "remove", *split_packages(package)], log_callback=None
         )
 

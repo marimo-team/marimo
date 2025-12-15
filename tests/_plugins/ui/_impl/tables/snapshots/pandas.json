@@ -4,8 +4,22 @@
         "bool": true,
         "int": 1,
         "float": 1.0,
-        "datetime": "2021-01-01T00:00:00.000",
+        "decimals": "-1.23",
+        "datetime": "2021-01-01 00:00:00",
         "date": "2021-01-01",
+        "nanosecond": "2017-03-22 15:16:45",
+        "datetime_index": [
+            "1960-01-02",
+            "1960-01-03",
+            "1960-01-04"
+        ],
+        "period_range": "2017Q1",
+        "interval_range": "(2017-01-01 00:00:00, 2017-01-02 00:00:00]",
+        "delta": [
+            "1 days 06:05:01.000030"
+        ],
+        "none": "NaT",
+        "infs": "inf",
         "struct": {
             "a": 1,
             "b": 2
@@ -13,6 +27,26 @@
         "list": [
             1,
             2
+        ],
+        "nested_lists": [
+            [
+                1,
+                2
+            ]
+        ],
+        "objects": {
+            "a": 1,
+            "b": 2
+        },
+        "nested_objects": [
+            {
+                "a": 1,
+                "b": 2
+            },
+            {
+                "a": 3,
+                "b": 4
+            }
         ],
         "nulls": null,
         "category": "cat",
@@ -34,8 +68,23 @@
         "bool": false,
         "int": 2,
         "float": 2.0,
-        "datetime": "2021-01-02T00:00:00.000",
+        "decimals": "NaN",
+        "datetime": "2021-01-02 00:00:00",
         "date": "2021-01-02",
+        "nanosecond": "2017-07-14 02:40:00",
+        "datetime_index": [
+            "1970-01-02",
+            "1970-01-03",
+            "1970-01-04"
+        ],
+        "period_range": "2017Q2",
+        "interval_range": "(2017-01-02 00:00:00, 2017-01-03 00:00:00]",
+        "delta": [
+            "1 days 06:05:01.000030",
+            "0 days 00:00:00.000015500"
+        ],
+        "none":NaN,
+        "infs": "inf",
         "struct": {
             "a": 3,
             "b": 4
@@ -43,6 +92,26 @@
         "list": [
             3,
             4
+        ],
+        "nested_lists": [
+            [
+                3,
+                4
+            ]
+        ],
+        "objects": {
+            "a": 3,
+            "b": 4
+        },
+        "nested_objects": [
+            {
+                "a": 5,
+                "b": 6
+            },
+            {
+                "a": 7,
+                "b": 8
+            }
         ],
         "nulls": "data",
         "category": "dog",
@@ -64,8 +133,24 @@
         "bool": true,
         "int": 3,
         "float": 3.0,
-        "datetime": "2021-01-03T00:00:00.000",
+        "decimals": "Infinity",
+        "datetime": "2021-01-03 00:00:00",
         "date": "2021-01-03",
+        "nanosecond": "2017-11-06 20:26:40",
+        "datetime_index": [
+            "1970-01-02",
+            "1970-01-03",
+            "1970-01-04"
+        ],
+        "period_range": "2017Q3",
+        "interval_range": "(2017-01-03 00:00:00, 2017-01-04 00:00:00]",
+        "delta": [
+            "1 days 06:05:01.000030",
+            "0 days 00:00:00.000015500",
+            "NaT"
+        ],
+        "none": null,
+        "infs": "-inf",
         "struct": {
             "a": 5,
             "b": 6
@@ -73,6 +158,26 @@
         "list": [
             5,
             6
+        ],
+        "nested_lists": [
+            [
+                5,
+                6
+            ]
+        ],
+        "objects": {
+            "a": 5,
+            "b": 6
+        },
+        "nested_objects": [
+            {
+                "a": 9,
+                "b": 10
+            },
+            {
+                "a": 11,
+                "b": 12
+            }
         ],
         "nulls": null,
         "category": "mouse",
@@ -85,7 +190,7 @@
         "duration": "3 days 00:00:00",
         "mixed_list": [
             null,
-            "2021-01-01T00:00:00.000"
+            "2021-01-01 00:00:00"
         ],
         "bytes": "b'bytes'"
     }

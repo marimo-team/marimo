@@ -25,7 +25,9 @@ from marimo._plugins.ui._impl.altair_chart import (
     _has_selection_param,
     _parse_spec,
     _update_vconcat_width,
+    _using_vegafusion,
     altair_chart,
+    maybe_fix_vegafusion_background,
 )
 from marimo._runtime.runtime import Kernel
 from marimo._utils.narwhals_utils import is_narwhals_lazyframe
@@ -1607,3 +1609,250 @@ def test_autosize_not_applied_with_nested_hconcat() -> None:
     marimo_chart_explicit = altair_chart(vconcat_with_autosize)
     # Should keep the explicit autosize value
     assert get_autosize(marimo_chart_explicit._spec) == "none"
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+def test_embed_options_not_set() -> None:
+    """Test that embed_options defaults to empty dict when not set."""
+    import altair as alt
+
+    # Reset to default (no embed_options)
+    alt.renderers.enable("default")
+    if "embed_options" in alt.renderers.options:
+        del alt.renderers.options["embed_options"]
+
+    data = pd.DataFrame({"x": [1, 2, 3], "y": [4, 5, 6]})
+    chart = alt.Chart(data).mark_point().encode(x="x", y="y")
+
+    marimo_chart = altair_chart(chart)
+
+    # embed_options should be an empty dict
+    assert marimo_chart._component_args["embed-options"] == {}
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+def test_embed_options_set() -> None:
+    """Test that embed_options are passed through when set."""
+    import altair as alt
+
+    # Set custom embed options
+    custom_embed_options = {
+        "actions": False,
+        "theme": "dark",
+        "renderer": "svg",
+    }
+    alt.renderers.options["embed_options"] = custom_embed_options
+
+    data = pd.DataFrame({"x": [1, 2, 3], "y": [4, 5, 6]})
+    chart = alt.Chart(data).mark_point().encode(x="x", y="y")
+
+    marimo_chart = altair_chart(chart)
+
+    # embed_options should match what was set
+    assert (
+        marimo_chart._component_args["embed-options"] == custom_embed_options
+    )
+    assert marimo_chart._component_args["embed-options"]["actions"] is False
+    assert marimo_chart._component_args["embed-options"]["theme"] == "dark"
+    assert marimo_chart._component_args["embed-options"]["renderer"] == "svg"
+
+    # Clean up
+    del alt.renderers.options["embed_options"]
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+def test_embed_options_with_various_values() -> None:
+    """Test embed_options with various configuration values."""
+    import altair as alt
+
+    data = pd.DataFrame({"x": [1, 2, 3], "y": [4, 5, 6]})
+    chart = alt.Chart(data).mark_point().encode(x="x", y="y")
+
+    # Test with actions object
+    alt.renderers.options["embed_options"] = {
+        "actions": {
+            "export": True,
+            "source": False,
+            "compiled": False,
+            "editor": False,
+        }
+    }
+    marimo_chart = altair_chart(chart)
+    assert isinstance(
+        marimo_chart._component_args["embed-options"]["actions"], dict
+    )
+    assert (
+        marimo_chart._component_args["embed-options"]["actions"]["export"]
+        is True
+    )
+
+    # Test with scaleFactor
+    alt.renderers.options["embed_options"] = {"scaleFactor": 2}
+    marimo_chart = altair_chart(chart)
+    assert marimo_chart._component_args["embed-options"]["scaleFactor"] == 2
+
+    # Test with downloadFileName
+    alt.renderers.options["embed_options"] = {"downloadFileName": "my-chart"}
+    marimo_chart = altair_chart(chart)
+    assert (
+        marimo_chart._component_args["embed-options"]["downloadFileName"]
+        == "my-chart"
+    )
+
+    # Test with multiple options
+    alt.renderers.options["embed_options"] = {
+        "actions": False,
+        "scaleFactor": 3,
+        "downloadFileName": "test",
+        "theme": "quartz",
+    }
+    marimo_chart = altair_chart(chart)
+    embed_opts = marimo_chart._component_args["embed-options"]
+    assert embed_opts["actions"] is False
+    assert embed_opts["scaleFactor"] == 3
+    assert embed_opts["downloadFileName"] == "test"
+    assert embed_opts["theme"] == "quartz"
+
+    # Clean up
+    del alt.renderers.options["embed_options"]
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+def test_embed_options_empty_dict() -> None:
+    """Test that setting embed_options to empty dict works correctly."""
+    import altair as alt
+
+    # Explicitly set to empty dict
+    alt.renderers.options["embed_options"] = {}
+
+    data = pd.DataFrame({"x": [1, 2, 3], "y": [4, 5, 6]})
+    chart = alt.Chart(data).mark_point().encode(x="x", y="y")
+
+    marimo_chart = altair_chart(chart)
+
+    # Should be empty dict
+    assert marimo_chart._component_args["embed-options"] == {}
+
+    # Clean up
+    del alt.renderers.options["embed_options"]
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+def test_maybe_fix_vegafusion_background_not_using_vegafusion() -> None:
+    """Test that background is NOT changed when vegafusion is not active."""
+    import altair as alt
+
+    # Ensure vegafusion is not active
+    alt.data_transformers.enable("default")
+
+    data = pd.DataFrame({"x": [1, 2, 3], "y": [4, 5, 6]})
+    chart = alt.Chart(data).mark_point().encode(x="x", y="y")
+
+    # Store original background
+    original_background = chart.background
+
+    # Apply the function
+    result_chart = maybe_fix_vegafusion_background(chart)
+
+    # Background should remain unchanged
+    assert result_chart.background == original_background
+    assert result_chart.background is alt.Undefined
+
+
+@pytest.mark.skipif(
+    not HAS_DEPS or not DependencyManager.vegafusion.has(),
+    reason="optional dependencies not installed",
+)
+def test_maybe_fix_vegafusion_background_with_vegafusion() -> None:
+    """Test that background is set to transparent when vegafusion is active."""
+    import altair as alt
+
+    # Enable vegafusion
+    alt.data_transformers.enable("vegafusion")
+
+    data = pd.DataFrame({"x": [1, 2, 3], "y": [4, 5, 6]})
+    chart = alt.Chart(data).mark_point().encode(x="x", y="y")
+
+    # Verify background is undefined initially
+    assert chart.background is alt.Undefined
+
+    # Apply the function
+    result_chart = maybe_fix_vegafusion_background(chart)
+
+    # Background should be set to transparent
+    assert result_chart.background == "transparent"
+
+    # Clean up
+    alt.data_transformers.enable("default")
+
+
+@pytest.mark.skipif(
+    not HAS_DEPS or not DependencyManager.vegafusion.has(),
+    reason="optional dependencies not installed",
+)
+def test_maybe_fix_vegafusion_background_preserves_user_background() -> None:
+    """Test that user-set background is preserved even with vegafusion."""
+    import altair as alt
+
+    # Enable vegafusion
+    alt.data_transformers.enable("vegafusion")
+
+    data = pd.DataFrame({"x": [1, 2, 3], "y": [4, 5, 6]})
+    chart = (
+        alt.Chart(data)
+        .mark_point()
+        .encode(x="x", y="y")
+        .properties(background="#ffffff")
+    )
+
+    # Verify background is set by user
+    assert chart.background == "#ffffff"
+
+    # Apply the function
+    result_chart = maybe_fix_vegafusion_background(chart)
+
+    # Background should remain as user set it
+    assert result_chart.background == "#ffffff"
+
+    # Clean up
+    alt.data_transformers.enable("default")
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+def test_using_vegafusion() -> None:
+    """Test the _using_vegafusion helper function."""
+    import altair as alt
+
+    # Test with default transformer
+    alt.data_transformers.enable("default")
+    assert _using_vegafusion() is False
+
+    # Test with vegafusion (if available)
+    if DependencyManager.vegafusion.has():
+        alt.data_transformers.enable("vegafusion")
+        assert _using_vegafusion() is True
+
+        # Clean up
+        alt.data_transformers.enable("default")
+
+
+@pytest.mark.parametrize(
+    "df",
+    create_dataframes(
+        {
+            "field": ["value1", "value2", "value3", "value4"],
+            "color": ["red", "red", "blue", "blue"],
+            "field_2": [1, 2, 3, 4],
+        },
+    ),
+)
+def test_filter_dataframe_preserves_df_type(df: ChartDataType) -> None:
+    """Test that _filter_dataframe preserves dataframe type."""
+    original_type = type(df)
+
+    # Filter with an interval selection
+    selection: ChartSelection = {"signal": {"field_2": [1, 3]}}
+    result = _filter_dataframe(df, selection=selection)
+
+    # Type should be preserved
+    assert type(result) is original_type

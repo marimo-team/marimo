@@ -2,8 +2,67 @@
 
 import { useSetAtom } from "jotai";
 import { useCallback } from "react";
+import { Logger } from "@/utils/Logger";
 import { type CellId, HTMLCellId } from "../cells/ids";
+import { CSSClasses } from "../constants";
 import { toggleAppMode, viewStateAtom } from "../mode";
+
+interface ScrollAnchor {
+  cellId: CellId;
+}
+
+function findScrollAnchor(): ScrollAnchor | null {
+  const outputAreas = document.getElementsByClassName(CSSClasses.outputArea);
+
+  for (const elem of outputAreas) {
+    const rect = elem.getBoundingClientRect();
+
+    // Find first visible output area
+    if (rect.bottom > 0 && rect.top < window.innerHeight) {
+      const cellEl = HTMLCellId.findElement(elem);
+      if (!cellEl) {
+        Logger.warn("Could not find HTMLCellId for visible output area", elem);
+        continue;
+      }
+      return {
+        cellId: HTMLCellId.parse(cellEl.id),
+      };
+    }
+  }
+
+  Logger.warn("No visible output area found for scroll anchor");
+  return null;
+}
+
+function restoreScrollPosition(anchor: ScrollAnchor | null): void {
+  if (!anchor) {
+    Logger.warn("No scroll anchor provided to restore scroll position");
+    return;
+  }
+
+  // Find the cell element
+  const cellElement = document.getElementById(HTMLCellId.create(anchor.cellId));
+  if (!cellElement) {
+    Logger.warn(
+      "Could not find cell element to restore scroll position",
+      anchor.cellId,
+    );
+    return;
+  }
+
+  // Find its output area
+  const outputArea = cellElement.querySelector(`.${CSSClasses.outputArea}`);
+  if (!outputArea) {
+    Logger.warn(
+      "Could not find output area to restore scroll position",
+      anchor.cellId,
+    );
+    return;
+  }
+
+  // Adjust scroll to restore visual position
+  cellElement.scrollIntoView({ block: "start", behavior: "auto" });
+}
 
 /**
  * Toggle the notebook's presentation state and scroll to current visible cell
@@ -11,38 +70,23 @@ import { toggleAppMode, viewStateAtom } from "../mode";
 export function useTogglePresenting() {
   const setViewState = useSetAtom(viewStateAtom);
 
-  // Toggle the array's presenting state, and sets a cell to scroll to
+  // Toggle the array's presenting state and preserve scroll position
   const togglePresenting = useCallback(() => {
-    const outputAreas = document.getElementsByClassName("output-area");
-    const viewportEnd =
-      window.innerHeight || document.documentElement.clientHeight;
-    let cellAnchor: CellId | null = null;
+    // Capture scroll anchor BEFORE toggle
+    const scrollAnchor = findScrollAnchor();
 
-    // Find the first output area that is visible
-    // eslint-disable-next-line unicorn/prefer-spread
-    for (const elem of Array.from(outputAreas)) {
-      const rect = elem.getBoundingClientRect();
-      if (
-        (rect.top >= 0 && rect.top <= viewportEnd) ||
-        (rect.bottom >= 0 && rect.bottom <= viewportEnd)
-      ) {
-        cellAnchor = HTMLCellId.parse(
-          (elem.parentNode as HTMLElement).id as HTMLCellId,
-        );
-        break;
-      }
-    }
-
+    // Toggle the mode
     setViewState((prev) => ({
       mode: toggleAppMode(prev.mode),
-      cellAnchor: cellAnchor,
+      cellAnchor: scrollAnchor?.cellId ?? null,
     }));
 
+    // Restore scroll position AFTER DOM updates
+    // Double RAF ensures React commits changes and browser completes layout
     requestAnimationFrame(() => {
-      if (cellAnchor === null) {
-        return;
-      }
-      document.getElementById(HTMLCellId.create(cellAnchor))?.scrollIntoView();
+      requestAnimationFrame(() => {
+        restoreScrollPosition(scrollAnchor);
+      });
     });
   }, [setViewState]);
 

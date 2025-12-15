@@ -18,6 +18,7 @@ import { useRef, useState } from "react";
 import { useLocale } from "react-aria";
 import { ColumnName } from "@/components/datasources/components";
 import { CopyClipboardIcon } from "@/components/icons/copy-icon";
+import { Spinner } from "@/components/icons/spinner";
 import { KeyboardHotkeys } from "@/components/shortcuts/renderShortcut";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,6 +30,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { DelayMount } from "@/components/utils/delay-mount";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { useKeydownOnElement } from "@/hooks/useHotkey";
 import { Banner, ErrorBanner } from "@/plugins/impl/common/error-banner";
@@ -136,11 +138,9 @@ export const RowViewerPanel: React.FC<RowViewerPanelProps> = ({
 
     if (!rows) {
       return (
-        <SimpleBanner
-          kind="warn"
-          Icon={AlertTriangle}
-          message="No data available. Please report the issue."
-        />
+        <DelayMount milliseconds={200}>
+          <Spinner size="medium" centered={true} />
+        </DelayMount>
       );
     }
 

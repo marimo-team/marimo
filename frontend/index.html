@@ -23,22 +23,22 @@
 
     <script data-marimo="true">
       function __resizeIframe(obj) {
-        var scrollbarHeight = 20; // Max between windows, mac, and linux
+        const scrollbarHeight = 20; // Max between windows, mac, and linux
 
         function setHeight() {
           // Guard against race condition where iframe isn't ready
           if (!obj.contentWindow?.document?.documentElement) {
             return;
           }
-          var element = obj.contentWindow.document.documentElement;
+          const element = obj.contentWindow.document.documentElement;
           // If there is no vertical scrollbar, we don't need to resize the iframe
           if (element.scrollHeight === element.clientHeight) {
             return;
           }
 
           // Create a new height that includes the scrollbar height if it's visible
-          var hasHorizontalScrollbar = element.scrollWidth > element.clientWidth;
-          var newHeight = element.scrollHeight + (hasHorizontalScrollbar ? scrollbarHeight : 0);
+          const hasHorizontalScrollbar = element.scrollWidth > element.clientWidth;
+          const newHeight = element.scrollHeight + (hasHorizontalScrollbar ? scrollbarHeight : 0);
 
           // Only update the height if it's different from the current height
           if (obj.style.height !== `${newHeight}px`) {
@@ -50,7 +50,7 @@
         setHeight();
 
         // Resize the iframe when the content changes
-        const resizeObserver = new ResizeObserver((entries) => {
+        const resizeObserver = new ResizeObserver((_entries) => {
           setHeight();
         });
         // Only observe if iframe content is ready

@@ -4,6 +4,7 @@ from __future__ import annotations
 import datetime
 import functools
 import io
+import math
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Literal, Optional, Union, cast
 
@@ -13,9 +14,7 @@ from narwhals.typing import IntoDataFrameT, IntoLazyFrameT
 
 from marimo import _loggers
 from marimo._data.models import BinValue, ColumnStats, ExternalDataType
-from marimo._dependencies.dependencies import DependencyManager
 from marimo._output.data.data import sanitize_json_bigint
-from marimo._plugins.core.media import io_to_data_url
 from marimo._plugins.ui._impl.tables.format import (
     FormatMapping,
     format_value,
@@ -46,6 +45,12 @@ if TYPE_CHECKING:
 
 LOGGER = _loggers.marimo_logger()
 UNSTABLE_API_WARNING = "`Series.hist` is being called from the stable API although considered an unstable feature."
+
+# Standardize this across libraries
+# It should match the table value as closely as possible
+NAN_VALUE = "NaN"
+POSITIVE_INF = str(float("inf"))
+NEGATIVE_INF = str(float("-inf"))
 
 
 class NarwhalsTableManager(
@@ -88,8 +93,11 @@ class NarwhalsTableManager(
         return dataframe_to_csv(_data)
 
     def to_json_str(
-        self, format_mapping: Optional[FormatMapping] = None
+        self,
+        format_mapping: Optional[FormatMapping] = None,
+        strict_json: bool = False,
     ) -> str:
+        del strict_json
         frame = self.apply_formatting(format_mapping).as_frame()
         return sanitize_json_bigint(frame.rows(named=True))
 
@@ -220,10 +228,22 @@ class NarwhalsTableManager(
                 ]
 
         result = _calculate_top_k_rows(frame)
-        return [
-            (unwrap_py_scalar(row[0]), int(unwrap_py_scalar(row[1])))
-            for row in result.rows()
-        ]
+        value_counts: list[tuple[Any, int]] = []
+
+        # NaNs and Infs serialize to null, which isn't distingushable from normal nulls
+        # so instead we set to string values
+        for row in result.rows():
+            value = unwrap_py_scalar(row[0])
+            count = int(unwrap_py_scalar(row[1]))
+            if isinstance(value, float) and math.isnan(value):
+                value = NAN_VALUE
+            elif isinstance(value, float) and math.isinf(value) and value > 0:
+                value = POSITIVE_INF
+            elif isinstance(value, float) and math.isinf(value) and value < 0:
+                value = NEGATIVE_INF
+            value_counts.append((value, count))
+
+        return value_counts
 
     @staticmethod
     def is_type(value: Any) -> bool:
@@ -283,8 +303,11 @@ class NarwhalsTableManager(
         for column, dtype in self.nw_schema.items():
             if column == INDEX_COLUMN_NAME:
                 continue
-            if dtype == nw.String:
-                expressions.append(nw.col(column).str.contains(f"(?i){query}"))
+            if is_narwhals_string_type(dtype):
+                # Cast to string as pandas may fail for certain values
+                expressions.append(
+                    nw.col(column).cast(nw.String).str.contains(f"(?i){query}")
+                )
             elif dtype == nw.List(nw.String):
                 # TODO: Narwhals doesn't support list.contains
                 # expressions.append(
@@ -522,6 +545,12 @@ class NarwhalsTableManager(
         downgraded_df = downgrade_narwhals_df_to_v1(self.as_frame())
         col = downgraded_df.get_column(column)
 
+        # If the column is decimal, we need to convert it to float
+        if dtype.is_decimal():
+            import narwhals.stable.v1 as nw1
+
+            col = col.cast(nw1.Float64)
+
         bin_start = col.min()
         bin_values: list[BinValue] = []
 
@@ -587,9 +616,36 @@ class NarwhalsTableManager(
                     int(hours), int(minutes), int(seconds), int(microseconds)
                 )
             elif dtype == nw.Date:
-                bin_end = datetime.date.fromtimestamp(bin_end / ms_time)
+                # Use timedelta to handle dates before Unix epoch (1970)
+                # which cause OSError on Windows with fromtimestamp
+                try:
+                    bin_end = datetime.date.fromtimestamp(bin_end / ms_time)
+                except (OSError, OverflowError, ValueError):
+                    # Fall back to timedelta calculation for old dates
+                    epoch = datetime.datetime(
+                        1970, 1, 1, tzinfo=datetime.timezone.utc
+                    )
+                    bin_end_dt = epoch + datetime.timedelta(
+                        seconds=bin_end / ms_time
+                    )
+                    bin_end = bin_end_dt.date()
             else:
-                bin_end = datetime.datetime.fromtimestamp(bin_end / ms_time)
+                # Use timedelta to handle datetimes before Unix epoch (1970)
+                # which cause OSError on Windows with fromtimestamp
+                try:
+                    bin_end = datetime.datetime.fromtimestamp(
+                        bin_end / ms_time
+                    )
+                except (OSError, OverflowError, ValueError):
+                    # Fall back to timedelta calculation for old dates
+                    epoch = datetime.datetime(
+                        1970, 1, 1, tzinfo=datetime.timezone.utc
+                    )
+                    bin_end = epoch + datetime.timedelta(
+                        seconds=bin_end / ms_time
+                    )
+                    # Remove timezone to match fromtimestamp behavior
+                    bin_end = bin_end.replace(tzinfo=None)
 
             # Only append if the count is greater than 0
             if count > 0:
@@ -702,50 +758,3 @@ class NarwhalsTableManager(
         if rows is None:
             return f"{df_type}: {columns:,} columns"
         return f"{df_type}: {rows:,} rows x {columns:,} columns"
-
-    def _sanitize_table_value(self, value: Any) -> Any:
-        """
-        Sanitize a value for display in a table cell.
-
-        Most values are unchanged, but some values are for better
-        display such as Images.
-        """
-        if value is None:
-            return None
-
-        # Handle Pillow images
-        if DependencyManager.pillow.imported():
-            try:
-                from PIL import Image
-
-                if isinstance(value, Image.Image):
-                    return io_to_data_url(value, "image/png")
-            except Exception:
-                LOGGER.debug(
-                    "Unable to convert image to data URL", exc_info=True
-                )
-
-        # Handle Matplotlib figures
-        if DependencyManager.matplotlib.imported():
-            try:
-                import matplotlib.figure
-                from matplotlib.axes import Axes
-
-                from marimo._output.formatting import as_html
-                from marimo._plugins.stateless.flex import vstack
-
-                if isinstance(value, matplotlib.figure.Figure):
-                    html = as_html(vstack([str(value), value]))
-                    mimetype, data = html._mime_()
-
-                if isinstance(value, Axes):
-                    html = as_html(vstack([str(value), value]))
-                    mimetype, data = html._mime_()
-                    return {"mimetype": mimetype, "data": data}
-            except Exception:
-                LOGGER.debug(
-                    "Error converting matplotlib figures to HTML",
-                    exc_info=True,
-                )
-
-        return value

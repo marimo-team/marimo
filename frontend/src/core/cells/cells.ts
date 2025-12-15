@@ -646,6 +646,8 @@ const {
         [cellId]: createRef(),
       },
       history: state.history.slice(0, -1),
+      // Scroll to the newly created cell
+      scrollKey: cellId,
     };
   },
   clearSerializedEditorState: (state, action: { cellId: CellId }) => {

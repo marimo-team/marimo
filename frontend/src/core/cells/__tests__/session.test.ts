@@ -446,9 +446,6 @@ describe("notebookStateFromSession", () => {
       const session = createSession([]);
       const result = notebookStateFromSession(session, null);
 
-      expect(Logger.warn).toHaveBeenCalledWith(
-        "Session and notebook must have at least one cell",
-      );
       expect(result).toBeNull();
     });
 
@@ -456,9 +453,6 @@ describe("notebookStateFromSession", () => {
       const notebook = createNotebook([]);
       const result = notebookStateFromSession(null, notebook);
 
-      expect(Logger.warn).toHaveBeenCalledWith(
-        "Session and notebook must have at least one cell",
-      );
       expect(result).toBeNull();
     });
 
@@ -467,9 +461,6 @@ describe("notebookStateFromSession", () => {
       const notebook = createNotebook([]);
       const result = notebookStateFromSession(session, notebook);
 
-      expect(Logger.warn).toHaveBeenCalledWith(
-        "Session and notebook must have at least one cell",
-      );
       expect(result).toBeNull();
     });
   });

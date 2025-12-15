@@ -43,6 +43,10 @@ class WorkspaceFilesRequest(msgspec.Struct, rename="camel"):
 class WorkspaceFilesResponse(msgspec.Struct, rename="camel"):
     root: str
     files: list[FileInfo]
+    # Indicates if limit was reached
+    has_more: bool = False
+    # Total files found
+    file_count: int = 0
 
 
 class ShutdownSessionRequest(msgspec.Struct, rename="camel"):

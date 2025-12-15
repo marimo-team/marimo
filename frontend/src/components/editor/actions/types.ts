@@ -3,7 +3,7 @@ import type { HotkeyAction } from "@/core/hotkeys/hotkeys";
 
 /**
  * Shared interface to render a user action in the editor.
- * This can be in a dropdown menu, context menu, or toolbar.
+ * This can be in a dropdown menu, context menu, toolbar, or command palette.
  */
 export interface ActionButton {
   label: string;
@@ -14,7 +14,10 @@ export interface ActionButton {
   variant?: "danger" | "muted" | "disabled";
   disableClick?: boolean;
   icon?: React.ReactElement;
+  // whether the action is applicable
   hidden?: boolean;
+  // whether to show the action in a menu
+  redundant?: boolean;
   rightElement?: React.ReactNode;
   hotkey?: HotkeyAction;
   handle: (event?: Event) => void;

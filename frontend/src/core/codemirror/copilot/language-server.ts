@@ -15,16 +15,19 @@ import type {
   InlineCompletionParams,
 } from "vscode-languageserver-protocol";
 import { VersionedTextDocumentIdentifier } from "vscode-languageserver-protocol";
+import { store } from "@/core/state/jotai";
 import { Logger } from "@/utils/Logger";
 import { getCodes } from "./getCodes";
 import {
   clearGitHubCopilotLoadingVersion,
+  copilotStatusState,
   isCopilotEnabled,
   setGitHubCopilotLoadingVersion,
 } from "./state";
 import type {
   GitHubCopilotSignInConfirmParams,
   GitHubCopilotSignInInitiateResult,
+  GitHubCopilotStatusNotificationParams,
   GitHubCopilotStatusResult,
 } from "./types";
 
@@ -42,24 +45,69 @@ export interface LSPRequestMap {
   ];
 }
 
+export interface LSPEventMap {
+  statusNotification: GitHubCopilotStatusNotificationParams;
+  didChangeStatus: GitHubCopilotStatusNotificationParams;
+  "window/logMessage": { type: number; message: string };
+}
+
+export type EnhancedNotification = {
+  [key in keyof LSPEventMap]: {
+    jsonrpc: "2.0";
+    id?: null | undefined;
+    method: key;
+    params: LSPEventMap[key];
+  };
+}[keyof LSPEventMap];
+
 /**
  * A client for the Copilot language server.
  */
 export class CopilotLanguageServerClient extends LanguageServerClient {
   private documentVersion = 0;
   private hasOpenedDocument = false;
+  private copilotSettings: Record<string, unknown> = {};
+
+  constructor(
+    options: ConstructorParameters<typeof LanguageServerClient>[0] & {
+      copilotSettings?: Record<string, unknown>;
+    },
+  ) {
+    super(options);
+    this.copilotSettings = options.copilotSettings ?? {};
+    this.onNotification(this.handleNotification);
+    this.attachInitializeListener();
+  }
+
+  private attachInitializeListener() {
+    // Send configuration after initialization
+    this.initializePromise.then(() => {
+      this.sendConfiguration();
+    });
+  }
+
+  private async sendConfiguration() {
+    const settings = this.copilotSettings;
+    // Skip if no settings are provided
+    if (!settings || Object.keys(settings).length === 0) {
+      return;
+    }
+    await this.notify("workspace/didChangeConfiguration", { settings });
+    logger.debug("#sendConfiguration: Configuration sent", settings);
+  }
 
   private async _request<Method extends keyof LSPRequestMap>(
     method: Method,
     params: LSPRequestMap[Method][0],
   ): Promise<LSPRequestMap[Method][1]> {
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      return await (this as any).request(method, params);
-    } catch (error) {
-      logger.error("#request: Error", error);
-      throw error;
-    }
+    return await (
+      this as unknown as {
+        request: (
+          method: Method,
+          params: LSPRequestMap[Method][0],
+        ) => Promise<LSPRequestMap[Method][1]>;
+      }
+    ).request(method, params);
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -252,4 +300,50 @@ export class CopilotLanguageServerClient extends LanguageServerClient {
 
     return response ?? null;
   }
+
+  /**
+   * Handle notifications from the Copilot language server.
+   * Uses onNotification to listen for statusNotification, didChangeStatus, and window/logMessage.
+   */
+  private handleNotification: Parameters<
+    LanguageServerClient["onNotification"]
+  >[0] = (notif) => {
+    if (!notif.params) {
+      return;
+    }
+
+    const notification = notif as unknown as EnhancedNotification;
+
+    // Handle statusNotification
+    if (notification.method === "statusNotification") {
+      store.set(copilotStatusState, notification.params);
+    }
+
+    // Handle didChangeStatus
+    if (notification.method === "didChangeStatus") {
+      store.set(copilotStatusState, notification.params);
+    }
+
+    // Handle window/logMessage
+    if (notification.method === "window/logMessage") {
+      const params = notification.params as { type: number; message: string };
+      const { type, message } = params;
+      // Map LSP log types to console methods
+      // type: 1 = Error, 2 = Warning, 3 = Info, 4 = Log
+      switch (type) {
+        case 1: // Error
+          logger.error("[GitHub Copilot]", message);
+          break;
+        case 2: // Warning
+          logger.warn("[GitHub Copilot]", message);
+          break;
+        case 3: // Info
+          logger.debug("[GitHub Copilot]", message);
+          break;
+        default: // Log (type 4 and others)
+          logger.log("[GitHub Copilot]", message);
+          break;
+      }
+    }
+  };
 }

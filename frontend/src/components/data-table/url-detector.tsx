@@ -1,17 +1,15 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
+import { marked } from "marked";
 import { useState } from "react";
+import { MarkdownRenderer } from "@/components/markdown/markdown-renderer";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Events } from "@/utils/events";
-
-const urlRegex = /(https?:\/\/\S+)/;
-const imageRegex = /\.(png|jpe?g|gif|webp|svg|ico)(\?.*)?$/i;
-const dataImageRegex = /^data:image\//i;
-const knownImageDomains = ["avatars.githubusercontent.com"];
+import type { ContentPart } from "@/utils/url-parser";
 
 const ImageWithFallback = ({ url }: { url: string }) => {
   const [error, setError] = useState(false);
@@ -54,33 +52,46 @@ const ImageWithFallback = ({ url }: { url: string }) => {
   );
 };
 
-export type ContentPart =
-  | { type: "text"; value: string }
-  | { type: "url"; url: string }
-  | { type: "image"; url: string };
+export function isMarkdown(text: string): boolean {
+  const tokens = marked.lexer(text);
 
-export function parseContent(text: string): ContentPart[] {
-  if (dataImageRegex.test(text)) {
-    return [{ type: "image", url: text }];
-  }
+  const commonMarkdownIndicators = new Set([
+    "space",
+    "code",
+    "fences",
+    "heading",
+    "hr",
+    "link",
+    "blockquote",
+    "list",
+    "html",
+    "def",
+    "table",
+    "lheading",
+    "escape",
+    "tag",
+    "reflink",
+    "strong",
+    "codespan",
+    "url",
+  ]);
 
-  const parts = text.split(urlRegex).filter((part) => part.trim() !== "");
-  return parts.map((part) => {
-    const isUrl = urlRegex.test(part);
-    if (isUrl) {
-      const isImage =
-        imageRegex.test(part) ||
-        dataImageRegex.test(part) ||
-        knownImageDomains.some((domain) => part.includes(domain));
-
-      if (isImage) {
-        return { type: "image", url: part };
-      }
-      return { type: "url", url: part };
-    }
-    return { type: "text", value: part };
-  });
+  return tokens.some((token) => commonMarkdownIndicators.has(token.type));
 }
+
+// Wrapper component so that we call isMarkdown only on trigger
+export const MarkdownUrlDetector = ({
+  content,
+  parts,
+}: {
+  content: string;
+  parts: ContentPart[];
+}) => {
+  if (isMarkdown(content)) {
+    return <MarkdownRenderer content={content} />;
+  }
+  return <UrlDetector parts={parts} />;
+};
 
 export const UrlDetector = ({ parts }: { parts: ContentPart[] }) => {
   const markup = parts.map((part, idx) => {

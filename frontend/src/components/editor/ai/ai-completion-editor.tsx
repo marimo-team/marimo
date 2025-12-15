@@ -6,6 +6,7 @@ import {
   AtSignIcon,
   CircleCheckIcon,
   Loader2Icon,
+  SendIcon,
   SparklesIcon,
   XIcon,
 } from "lucide-react";
@@ -38,7 +39,6 @@ import { retryWithTimeout } from "@/utils/timeout";
 import { PromptInput } from "./add-cell-with-ai";
 import {
   AcceptCompletionButton,
-  CompletionActions,
   createAiCompletionOnKeydown,
   RejectCompletionButton,
 } from "./completion-handlers";
@@ -253,12 +253,69 @@ export const AiCompletionEditor: React.FC<Props> = ({
     }
   };
 
+  const loadingStopButton = (
+    <Button
+      data-testid="stop-completion-button"
+      variant="text"
+      size="xs"
+      className="mb-0"
+      onClick={stop}
+    >
+      <Loader2Icon className="animate-spin mr-1" size={14} />
+      Stop
+    </Button>
+  );
+
+  const submitButton = (
+    <Tooltip content="Submit">
+      <Button variant="text" size="icon" onClick={handleSubmit}>
+        <SendIcon className="h-3 w-3" />
+      </Button>
+    </Tooltip>
+  );
+
+  const contextButton = (
+    <Tooltip content="Add context">
+      <Button
+        variant="text"
+        size="icon"
+        onClick={() => addContextCompletion(inputRef)}
+      >
+        <AtSignIcon className="h-3 w-3" />
+      </Button>
+    </Tooltip>
+  );
+
+  const completionButtons = (
+    <>
+      <AcceptCompletionButton
+        isLoading={isLoading}
+        onAccept={handleAcceptCompletion}
+        size="xs"
+        multipleCompletions={false}
+        acceptShortcut="Mod-↵"
+        runCell={runCell}
+        borderless={true}
+      />
+      <RejectCompletionButton
+        onDecline={handleDeclineCompletion}
+        size="xs"
+        multipleCompletions={false}
+        declineShortcut="Shift-Mod-Delete"
+        borderless={true}
+      />
+    </>
+  );
+
   return (
-    <div className={cn("flex flex-col w-full rounded-[inherit]", className)}>
+    <div
+      data-ai-input-open={showInput}
+      className={cn("flex flex-col w-full rounded-[inherit]", className)}
+    >
       <div
         className={cn(
-          "flex items-center gap-2 border-b px-3 transition-all rounded-[inherit] rounded-b-none duration-300",
-          showInput && "max-h-[400px] min-h-11 visible",
+          "flex items-center gap-2 px-3 transition-all rounded-[inherit] rounded-b-none duration-300",
+          showInput && "max-h-[400px] border-b min-h-11 visible",
           !showInput && "max-h-0 min-h-0 invisible",
         )}
       >
@@ -292,43 +349,22 @@ export const AiCompletionEditor: React.FC<Props> = ({
                 hasCompletion: completion.trim().length > 0,
               })}
             />
-            {isLoading && (
-              <Button
-                data-testid="stop-completion-button"
-                variant="text"
-                size="xs"
-                className="mb-0"
-                onClick={stop}
-              >
-                <Loader2Icon className="animate-spin mr-1" size={14} />
-                Stop
-              </Button>
-            )}
+
             <div className="-mr-1.5 py-1.5">
               <div className="flex flex-row items-center justify-end gap-0.5">
-                <Tooltip content="Add context">
-                  <Button
-                    variant="text"
-                    size="icon"
-                    onClick={() => addContextCompletion(inputRef)}
-                  >
-                    <AtSignIcon className="h-3 w-3" />
-                  </Button>
-                </Tooltip>
+                {isLoading && loadingStopButton}
+                {submitButton}
+                {contextButton}
                 <AIModelDropdown
-                  triggerClassName="h-7 text-xs w-24"
+                  triggerClassName="h-7 text-xs"
                   iconSize="small"
                   forRole="edit"
+                  displayIconOnly={true}
                 />
               </div>
               {completion && (
-                <div className="-mb-1.5">
-                  <CompletionActions
-                    isLoading={isLoading}
-                    onAccept={handleAcceptCompletion}
-                    onDecline={handleDeclineCompletion}
-                    size="xs"
-                  />
+                <div className="mt-1 flex items-center gap-1">
+                  {completionButtons}
                 </div>
               )}
             </div>
@@ -348,7 +384,7 @@ export const AiCompletionEditor: React.FC<Props> = ({
                   htmlFor={includeOtherCellsCheckboxId}
                   className="text-muted-foreground text-xs whitespace-nowrap ellipsis"
                 >
-                  Include all code
+                  All code
                 </Label>
               </div>
             </Tooltip>
@@ -447,15 +483,14 @@ const CompletionBanner: React.FC<CompletionBannerProps> = ({
           isLoading={isLoading}
           onAccept={onAccept}
           size="xs"
-          buttonStyles="border-none rounded-md rounded-r-none"
-          playButtonStyles="border-0 border-l-1 rounded-md rounded-l-none"
+          borderless={true}
           runCell={runCell}
           // acceptShortcut="Mod-↵"
         />
         <RejectCompletionButton
           onDecline={onReject}
           size="xs"
-          className="border-none rounded-md"
+          borderless={true}
           // declineShortcut="Shift-Mod-Delete"
         />
       </div>

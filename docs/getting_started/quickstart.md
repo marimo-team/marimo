@@ -152,11 +152,15 @@ Use [molab](https://molab.marimo.io/notebooks), a cloud-based marimo notebook
 service similar to Google Colab, to create and share notebook links
 ([docs](../guides/molab.md)).
 
-## Coming from VS Code?
+## VS Code/Cursor extension
 
-The best way to use marimo is through the CLI. While we do have a VS Code extension,
-we are actively rewriting it to provide a more native and robust experience, similar
-to what you may be used to for Jupyter notebooks. In the meantime, we recommend using
-the CLI. You can try our [existing extension](
-https://marketplace.visualstudio.com/items?itemName=marimo-team.vscode-marimo), but please
-be aware that you may run into issues, and that a revamped extension is coming soon.
+You can edit and run marimo notebooks in VS Code or Cursor using our
+extension; this provides a user interface that's similar to VS Code
+Jupyter, but with marimo's reactive execution, interactive elements,
+built-in package management, Git-friendly file format, and more.
+
+Install the extension by searching "marimo" in the extensions sidebar
+(`Cmd/Ctrl-Shift-P`, type "install extension", then search "marimo")
+or from the [VS Code marketplace site](https://marketplace.visualstudio.com/items?itemName=marimo-team.vscode-marimo).
+
+<iframe width="560" height="315" src="https://www.youtube.com/embed/BOzK-XBK8A4?si=Bj_Hjuz46jGqMIrt" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>

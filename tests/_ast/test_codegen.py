@@ -12,6 +12,7 @@ from unittest.mock import patch
 
 import codegen_data.test_main as mod
 import pytest
+from inline_snapshot import snapshot
 
 from marimo import __version__
 from marimo._ast import codegen, compiler, load
@@ -52,7 +53,7 @@ def sanitized_version(output: str) -> str:
 
 def wrap_generate_filecontents(
     codes: list[str],
-    names: list[str],
+    names: Optional[list[str]] = None,
     cell_configs: Optional[list[CellConfig]] = None,
     **kwargs: Any,
 ) -> str:
@@ -60,11 +61,11 @@ def wrap_generate_filecontents(
     Wraps codegen.generate_filecontents to make the
     cell_configs argument optional."""
     if cell_configs is None:
-        resolved_configs = [CellConfig() for _ in range(len(codes))]
-    else:
-        resolved_configs = cell_configs
+        cell_configs = [CellConfig() for _ in range(len(codes))]
+    if names is None:
+        names = ["_" for _ in range(len(codes))]
     filecontents = codegen.generate_filecontents(
-        codes, names, cell_configs=resolved_configs, **kwargs
+        codes, names, cell_configs=cell_configs, **kwargs
     )
     # leading spaces should be removed too
     assert filecontents.lstrip() == filecontents
@@ -280,6 +281,20 @@ class TestGeneration:
         assert contents == get_expected_filecontents(
             "test_generate_filecontents_shadowed_builtin"
         )
+
+    @staticmethod
+    def test_generate_filecontents_duplicate_definitions() -> None:
+        """Test that duplicate top-level definitions don't cause KeyError during codegen."""
+        cell_one = "def Two(): return 2"
+        cell_two = "def Two(): return 'two'"
+        codes = [cell_one, cell_two]
+        names = ["one", "two"]
+        # This should not raise a KeyError during TopLevelExtraction
+        # (duplicate validation happens at app.run(), not during codegen)
+        contents = wrap_generate_filecontents(codes, names)
+        # Should successfully generate file contents
+        assert "import marimo" in contents
+        assert contents is not None
 
     def test_with_second_type_noop(self) -> None:
         referring = "x = 1; x: int = 0"
@@ -1324,3 +1339,450 @@ def test_format_tuple_elements() -> None:
         "very_long_name_that_exceeds_76_characters_for_some_reason_or_the_other_woowee,"
         "\n)"
     )
+
+
+CODE_CLASS = """
+class MyClass:
+    def method_one(self):
+        pass
+"""
+
+CODE_FACTORY = """
+class MyFactory:
+    def apply(self):
+        return None
+
+    def create(self):
+        return MyClass()
+""".strip()
+
+CODE_FUNCTION = """
+def my_function():
+    return 42
+""".strip()
+
+CODE_DECORATOR = """
+def some_decorator(param):
+    def decorator(func):
+        def wrapper(*args, **kwargs):
+            return func(*args, **kwargs)
+        return wrapper
+    return decorator
+""".strip()
+
+CODE_DECORATED_FUNCTION = """
+@some_decorator(param=True)
+def my_decorated_function():
+    return "decorated"
+""".strip()
+
+CODE_CLASS_WITH_CLASS_VAR = """
+class Config:
+    setting = Dependency()
+""".strip()
+
+CODE_DEPENDENCY = """
+class Dependency:
+    pass
+""".strip()
+
+CODE_CLASS_WITH_TYPE_HINTS = """
+class Processor:
+    def process(self, data: Data) -> Result:
+        return Result()
+""".strip()
+
+CODE_DATA = """
+class Data:
+    pass
+""".strip()
+
+CODE_RESULT = """
+class Result:
+    pass
+""".strip()
+
+CODE_PARENT_CLASS = """
+class Parent:
+    def parent_method(self):
+        pass
+""".strip()
+
+CODE_CHILD_CLASS = """
+class Child(Parent):
+    def child_method(self):
+        pass
+""".strip()
+
+CODE_CLASS_WITH_INIT = """
+class Container:
+    def __init__(self):
+        self.item = Item()
+""".strip()
+
+CODE_ITEM = """
+class Item:
+    pass
+""".strip()
+
+CODE_CLASS_WITH_PROPERTY = """
+class PropertyClass:
+    @property
+    def value(self) -> int:
+        return 42
+
+    @value.setter
+    def value(self, val: int):
+        pass
+""".strip()
+
+CODE_ASYNC_FUNCTION = """
+async def async_fetch():
+    return "data"
+""".strip()
+
+CODE_FUNCTION_WITH_DEFAULT = """
+def process(formatter=default_formatter()):
+    return formatter
+""".strip()
+
+CODE_DEFAULT_FORMATTER = """
+def default_formatter():
+    return "default"
+""".strip()
+
+
+class TestTopLevelSerialization:
+    """Test top-level (reusable) function/class serialization."""
+
+    @staticmethod
+    def test_class_with_method_order_independence() -> None:
+        """Test that class method order doesn't affect serialization."""
+
+        result1 = _strip_header_footer(
+            wrap_generate_filecontents([CODE_FACTORY, CODE_CLASS])
+        )
+
+        # Verify the first ordering output
+        assert result1 == snapshot(
+            """\
+@app.class_definition
+class MyFactory:
+    def apply(self):
+        return None
+
+    def create(self):
+        return MyClass()
+
+
+@app.class_definition
+class MyClass:
+    def method_one(self):
+        pass\
+"""
+        )
+
+        result2 = _strip_header_footer(
+            wrap_generate_filecontents([CODE_CLASS, CODE_FACTORY])
+        )
+
+        # Verify the second ordering output (method order is different but still @app.class_definition)
+        assert result2 == snapshot(
+            """\
+@app.class_definition
+class MyClass:
+    def method_one(self):
+        pass
+
+
+@app.class_definition
+class MyFactory:
+    def apply(self):
+        return None
+
+    def create(self):
+        return MyClass()\
+"""
+        )
+
+    @staticmethod
+    def test_function_serialization() -> None:
+        """Test function serialization."""
+        result = _strip_header_footer(
+            wrap_generate_filecontents([CODE_FUNCTION])
+        )
+        ast.parse(result)  # Make sure doesn't raise
+        assert result == snapshot(
+            """\
+@app.function
+def my_function():
+    return 42\
+"""
+        )
+
+    @staticmethod
+    def test_decorated_function_serialization() -> None:
+        """Test decorated function serialization."""
+        result = _strip_header_footer(
+            wrap_generate_filecontents(
+                [CODE_DECORATOR, CODE_DECORATED_FUNCTION]
+            )
+        )
+        ast.parse(result)  # Make sure doesn't raise
+        assert result == snapshot(
+            """\
+@app.function
+def some_decorator(param):
+    def decorator(func):
+        def wrapper(*args, **kwargs):
+            return func(*args, **kwargs)
+        return wrapper
+    return decorator
+
+
+@app.function
+@some_decorator(param=True)
+def my_decorated_function():
+    return "decorated"\
+"""
+        )
+
+    @staticmethod
+    def test_decorated_function_out_of_order() -> None:
+        """Test decorated function serialization."""
+        result = _strip_header_footer(
+            wrap_generate_filecontents(
+                [CODE_DECORATED_FUNCTION, CODE_DECORATOR]
+            )
+        )
+        ast.parse(result)  # Make sure doesn't raise
+        assert result == snapshot(
+            """\
+@app.cell
+def _():
+    @some_decorator(param=True)
+    def my_decorated_function():
+        return "decorated"
+    return
+
+
+@app.function
+def some_decorator(param):
+    def decorator(func):
+        def wrapper(*args, **kwargs):
+            return func(*args, **kwargs)
+        return wrapper
+    return decorator\
+"""
+        )
+
+    @staticmethod
+    def test_class_with_class_variable() -> None:
+        """Test class with class variable referencing another class."""
+        result = _strip_header_footer(
+            wrap_generate_filecontents(
+                [CODE_CLASS_WITH_CLASS_VAR, CODE_DEPENDENCY]
+            )
+        )
+        ast.parse(result)  # Make sure doesn't raise
+        assert result == snapshot(
+            """\
+@app.cell
+def _():
+    class Config:
+        setting = Dependency()
+    return
+
+
+@app.class_definition
+class Dependency:
+    pass\
+"""
+        )
+
+    @staticmethod
+    def test_class_with_type_hints() -> None:
+        """Test class with type hints referencing other classes."""
+        result = _strip_header_footer(
+            wrap_generate_filecontents(
+                [CODE_CLASS_WITH_TYPE_HINTS, CODE_DATA, CODE_RESULT]
+            )
+        )
+        ast.parse(result)  # Make sure doesn't raise
+        assert result == snapshot(
+            """\
+@app.cell
+def _():
+    class Processor:
+        def process(self, data: Data) -> Result:
+            return Result()
+    return
+
+
+@app.class_definition
+class Data:
+    pass
+
+
+@app.class_definition
+class Result:
+    pass\
+"""
+        )
+
+    @staticmethod
+    def test_class_inheritance() -> None:
+        """Test class inheritance."""
+        result = _strip_header_footer(
+            wrap_generate_filecontents([CODE_PARENT_CLASS, CODE_CHILD_CLASS])
+        )
+        ast.parse(result)  # Make sure doesn't raise
+        assert result == snapshot(
+            """\
+@app.class_definition
+class Parent:
+    def parent_method(self):
+        pass
+
+
+@app.class_definition
+class Child(Parent):
+    def child_method(self):
+        pass\
+"""
+        )
+
+    @staticmethod
+    def test_class_inheritance_out_of_order() -> None:
+        """Test class inheritance with out-of-order definitions."""
+        result = _strip_header_footer(
+            wrap_generate_filecontents([CODE_CHILD_CLASS, CODE_PARENT_CLASS])
+        )
+        ast.parse(result)  # Make sure doesn't raise
+        assert result == snapshot(
+            """\
+@app.cell
+def _():
+    class Child(Parent):
+        def child_method(self):
+            pass
+    return
+
+
+@app.class_definition
+class Parent:
+    def parent_method(self):
+        pass\
+"""
+        )
+
+    @staticmethod
+    def test_class_with_init_referencing_other_class() -> None:
+        """Test class with __init__ that references another class."""
+        result = _strip_header_footer(
+            wrap_generate_filecontents([CODE_CLASS_WITH_INIT, CODE_ITEM])
+        )
+        ast.parse(result)  # Make sure doesn't raise
+        assert result == snapshot(
+            """\
+@app.class_definition
+class Container:
+    def __init__(self):
+        self.item = Item()
+
+
+@app.class_definition
+class Item:
+    pass\
+"""
+        )
+
+    @staticmethod
+    def test_class_with_property_decorator() -> None:
+        """Test class with @property decorator."""
+        result = _strip_header_footer(
+            wrap_generate_filecontents([CODE_CLASS_WITH_PROPERTY])
+        )
+        ast.parse(result)  # Make sure doesn't raise
+        assert result == snapshot(
+            """\
+@app.class_definition
+class PropertyClass:
+    @property
+    def value(self) -> int:
+        return 42
+
+    @value.setter
+    def value(self, val: int):
+        pass\
+"""
+        )
+
+    @staticmethod
+    def test_async_function() -> None:
+        """Test async function serialization."""
+        result = _strip_header_footer(
+            wrap_generate_filecontents([CODE_ASYNC_FUNCTION])
+        )
+        ast.parse(result)  # Make sure doesn't raise
+        assert result == snapshot(
+            """\
+@app.function
+async def async_fetch():
+    return "data"\
+"""
+        )
+
+    @staticmethod
+    def test_function_with_default_arg_calling_function() -> None:
+        """Test function with default argument that calls another function."""
+        result = _strip_header_footer(
+            wrap_generate_filecontents(
+                [CODE_DEFAULT_FORMATTER, CODE_FUNCTION_WITH_DEFAULT]
+            )
+        )
+        ast.parse(result)  # Make sure doesn't raise
+        assert result == snapshot(
+            """\
+@app.function
+def default_formatter():
+    return "default"
+
+
+@app.function
+def process(formatter=default_formatter()):
+    return formatter\
+"""
+        )
+
+    @staticmethod
+    def test_function_with_default_arg_calling_function_out_of_order() -> None:
+        """Test function with default argument that calls another function (out of order)."""
+        result = _strip_header_footer(
+            wrap_generate_filecontents(
+                [CODE_FUNCTION_WITH_DEFAULT, CODE_DEFAULT_FORMATTER]
+            )
+        )
+        ast.parse(result)  # Make sure doesn't raise
+        assert result == snapshot(
+            """\
+@app.cell
+def _():
+    def process(formatter=default_formatter()):
+        return formatter
+    return
+
+
+@app.function
+def default_formatter():
+    return "default"\
+"""
+        )
+
+
+def _strip_header_footer(source: str) -> str:
+    """Strip up to app = marimo.App() and after if __name__ == "__main__":"""
+    header = "app = marimo.App()\n\n"
+    code_start = source.index(header)
+    code_end = source.index('if __name__ == "__main__":')
+    return source[code_start + len(header) : code_end].strip()

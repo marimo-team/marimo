@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import datetime
+import decimal
 import json
+import math
 import unittest
 from enum import Enum
 from math import isnan
@@ -50,6 +52,11 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
                 "int": [1, 2, 3],
                 "large_int": [2**64, 2**65 + 1, 2**66 + 2],
                 "float": [1.0, 2.0, 3.0],
+                "decimals": [
+                    decimal.Decimal("1.23"),
+                    decimal.Decimal("4.56"),
+                    decimal.Decimal("7.89"),
+                ],
                 "datetime": [
                     datetime.datetime(2021, 1, 1),
                     datetime.datetime(2021, 1, 2),
@@ -95,6 +102,8 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
                     datetime.timedelta(microseconds=315),
                     datetime.timedelta(hours=2, minutes=30),
                 ],
+                "nans": [float("nan"), -float("nan"), float("nan") + 1],
+                "infs": [float("inf"), -float("inf"), float("inf") + 1],
                 "mixed_list": [
                     [1, "two"],
                     [3.0, False],
@@ -103,6 +112,7 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
                 "structs_with_list": pl.Series(
                     "mixed",
                     [{"a": [1, 2], "b": 2}, {"a": [3, 4], "b": 4}, [5, 6]],
+                    strict=False,
                 ),
                 "list_with_structs": pl.Series(
                     "list_with_structs",
@@ -111,6 +121,7 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
                         [{"e": 5}],
                         [],
                     ],
+                    strict=False,
                 ),
                 "enum_list": pl.Series(
                     [["A", "B", "C"], ["A", "B", "C"], ["A", "B", "C"]],
@@ -227,6 +238,14 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
         assert json_data[0]["duration"] == "1d"
         assert json_data[1]["duration"] == "315µs"
         assert json_data[2]["duration"] == "2h 30m"
+
+        # Check nans and infs
+        assert math.isnan(json_data[0]["nans"])
+        assert math.isnan(json_data[1]["nans"])
+        assert math.isnan(json_data[2]["nans"])
+        assert json_data[0]["infs"] == "inf"
+        assert json_data[1]["infs"] == "-inf"
+        assert json_data[2]["infs"] == "inf"
 
     def test_complex_data_field_types(self) -> None:
         complex_data = self.get_complex_data()
@@ -429,9 +448,11 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
             min=datetime.datetime(2021, 1, 1, 0, 0),
             max=datetime.datetime(2021, 1, 3, 0, 0),
             mean=datetime.datetime(2021, 1, 2, 0, 0),
-            # TODO: narwhals doesn't support median
-            # and polars doesn't support quantiles for dates
-            # median=datetime.datetime(2021, 1, 2, 0, 0),
+            median=datetime.datetime(2021, 1, 2, 0, 0),
+            p5=datetime.datetime(2021, 1, 1, 0, 0),
+            p25=datetime.datetime(2021, 1, 2, 0, 0),
+            p75=datetime.datetime(2021, 1, 3, 0, 0),
+            p95=datetime.datetime(2021, 1, 3, 0, 0),
         )
 
     def test_stats_date(self) -> None:
@@ -1028,3 +1049,28 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
         df_schema = pl.DataFrame(rows, schema=schema)
         assert df_schema[0:5].write_json() == expected_first_five
         assert df_schema[5:10].write_json() == expected_second_five  # fails
+
+    def test_to_json_str_strict_json(self) -> None:
+        import polars as pl
+
+        data = pl.DataFrame({"A": [1, 2, 3]})
+        manager = self.factory.create()(data)
+        json_str = manager.to_json_str(strict_json=True)
+        assert json_str == '[{"A":1},{"A":2},{"A":3}]'
+
+    def test_to_json_str_strict_json_with_nans(self) -> None:
+        import polars as pl
+
+        data = pl.DataFrame(
+            {"A": [1, 2, 3, float("nan"), float("inf")]}, strict=False
+        )
+        manager = self.factory.create()(data)
+        json_str = manager.to_json_str(strict_json=True)
+        assert (
+            json_str == '[{"A":1.0},{"A":2.0},{"A":3.0},{"A":null},{"A":null}]'
+        )
+
+    def test_to_json_str_strict_json_with_complex_data(self) -> None:
+        data = self.get_complex_data()
+        json_str = data.to_json_str(strict_json=True)
+        snapshot("polars.download.json", json_str)

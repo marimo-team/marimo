@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.17.6"
+__generated_with = "0.18.3"
 app = marimo.App(width="medium")
 
 
@@ -111,7 +111,7 @@ def _(df):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo, pd, pl):
     complex = [1 + 2j, 2 + 3j]
 
@@ -131,7 +131,38 @@ def _(mo, pd, pl):
             "large_floats": [[125339796295248046.9], [-12533979629524804.69]],
         }
     )
-    mo.vstack([additional_types_pd, additional_types_pl])
+    mo.vstack([mo.md("#### BigInts"), additional_types_pd, additional_types_pl])
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo, pd):
+    from decimal import Decimal
+
+    _data = {
+        "decimals": [
+            Decimal("23.546"),
+            Decimal("12.431"),
+            Decimal("-12.3232"),
+            Decimal("NaN"),
+            Decimal("Infinity"),
+            Decimal("-0"),
+            Decimal("-Infinity"),
+        ]
+    }
+
+    mo.vstack(
+        [
+            mo.md("#### Decimals"),
+            mo.hstack(
+                [
+                    mo.plain(pd.DataFrame(_data)),
+                    pd.DataFrame(_data),
+                ],
+                justify="start",
+            ),
+        ]
+    )
     return
 
 
@@ -145,6 +176,26 @@ def _():
 @app.cell
 def _(df, mo):
     mo.ui.dataframe(df)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo, pd, pl):
+    import uuid
+
+    uuid_data = {
+        "id": [
+            uuid.UUID("00000000-0000-0000-0000-000000000000"),
+            uuid.UUID("ffffffff-ffff-ffff-ffff-ffffffffffff"),
+            uuid.UUID("123e4567-e89b-12d3-a456-426614174000"),
+        ],
+        "name": ["test1", "test2", "test3"],
+    }
+
+    uuid_df = pd.DataFrame(uuid_data)
+    uuid_polars = pl.DataFrame(uuid_data)
+
+    mo.vstack([mo.md("#### UUIDs"), mo.plain(uuid_df), uuid_df, uuid_polars])
     return
 
 

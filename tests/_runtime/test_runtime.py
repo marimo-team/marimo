@@ -2931,10 +2931,13 @@ class TestAsyncIO:
 
     @staticmethod
     @pytest.mark.xfail(
-        condition=sys.platform == "win32" or sys.platform == "darwin",
+        condition=sys.platform == "win32"
+        or sys.platform == "darwin"
+        or sys.version_info >= (3, 14),
         reason=(
             "Bug in interaction with multiprocessing on Windows, macOS; "
-            "doesn't work in Jupyter either."
+            "doesn't work in Jupyter either. Seems to have issue in 3.14 "
+            "as well (pool doesn't copy vars from patched module correctly)."
         ),
     )
     async def test_run_in_processpool_executor(
@@ -2965,6 +2968,8 @@ class TestAsyncIO:
             ]
         )
         assert not k.errors
+        assert not k.stderr.messages, k.stderr
+        assert not k.stdout.messages, k.stdout
         assert k.globals["res"] == "done"
 
 

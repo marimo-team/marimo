@@ -9,11 +9,11 @@ import pytest
 
 from marimo._ast import visitor
 from marimo._ast.errors import ImportStarError
+from marimo._ast.sql_visitor import normalize_sql_f_string
 from marimo._ast.visitor import (
     AnnotationData,
     ImportData,
     VariableData,
-    normalize_sql_f_string,
 )
 from marimo._dependencies.dependencies import DependencyManager
 
@@ -303,6 +303,96 @@ def test_nested_comprehension_generator_with_named_expr() -> None:
     assert v.defs == set(["x"])
     assert v.refs == set()
     assert v.variable_data == {"x": [VariableData(kind="variable")]}
+
+
+def test_function_param_in_comprehension_not_required_ref() -> None:
+    """Function parameters used in list comprehensions should not be required_refs.
+
+    Regression test: The parameter `extension` was incorrectly added to required_refs
+    when used as the iterator in a list comprehension inside the function.
+    See: test_shadowed_ui_variable_threadpool in tests/_save/test_cache.py
+    """
+    code = cleandoc(
+        """
+        def helper(extension):
+            return [e for e in extension or []]
+        """
+    )
+    v = visitor.ScopedVisitor()
+    mod = ast.parse(code)
+    v.visit(mod)
+
+    assert v.defs == {"helper"}
+    assert v.refs == set()  # No external refs!
+    # extension is a PARAMETER, not an external dependency
+    # Compare to test_globals_in_functions: foo(a...) where a is not in required_refs
+    assert v.variable_data == {
+        "helper": [VariableData(kind="function", required_refs=set())]
+    }
+
+
+def test_nested_function_param_in_comprehension_not_required_ref() -> None:
+    """Ensure that additional nesting works."""
+    code = cleandoc(
+        """
+        def helper():
+            extension = []
+            def foo():
+                def bar():
+                    return [e for e in extension or []]
+                return bar
+            return foo
+        """
+    )
+    v = visitor.ScopedVisitor()
+    mod = ast.parse(code)
+    v.visit(mod)
+
+    assert v.defs == {"helper"}
+    assert v.refs == set()  # No external refs!
+    assert v.variable_data == {
+        "helper": [VariableData(kind="function", required_refs=set())]
+    }
+
+
+def test_param_in_comprehension_has_required_ref() -> None:
+    """Sanity check ref still is picked up"""
+    code = cleandoc(
+        """
+        def helper():
+            return [e for e in extension or []]
+        """
+    )
+    v = visitor.ScopedVisitor()
+    mod = ast.parse(code)
+    v.visit(mod)
+
+    assert v.defs == {"helper"}
+    assert v.refs == {"extension"}
+    assert v.variable_data == {
+        "helper": [VariableData(kind="function", required_refs={"extension"})]
+    }
+
+
+def test_shadowed_param_in_comprehension_not_required_ref() -> None:
+    """Check that a shadowed variable doesn't capture ref in module scope."""
+    code = cleandoc(
+        """
+        extension = []
+        def helper(extension):
+            return [e for e in extension or []]
+        """
+    )
+    v = visitor.ScopedVisitor()
+    mod = ast.parse(code)
+    v.visit(mod)
+
+    assert v.defs == {"helper", "extension"}
+    assert v.refs == set()
+    assert v.variable_data == {
+        "helper": [VariableData(kind="function", required_refs=set())],
+        "extension": [VariableData(kind="variable", required_refs=set())],
+    }
 
 
 def test_walrus_leaks_to_global_in_comprehension() -> None:
@@ -1593,3 +1683,262 @@ def test_sql_pivot_unpivot_commands(
 
     assert v.defs == {"df"}, f"Failed for: {description}"
     assert v.refs == expected_refs, f"Failed for: {description}"
+
+
+def test_class_with_class_var_in_method_default() -> None:
+    """Test that class variables used in method defaults don't create unbounded refs (issue #7265)."""
+    code = cleandoc(
+        """
+        class K:
+            A: int = 1
+            def b(a: int = A) -> int:
+                return a
+        """
+    )
+    v = visitor.ScopedVisitor()
+    mod = ast.parse(code)
+    v.visit(mod)
+
+    # K should be a def
+    assert v.defs == set(["K"])
+    # A should NOT be a ref (it's defined in class scope), but int is (type annotation)
+    assert v.refs == set(["int"])
+    # K should have unbounded_refs only for int, not A
+    assert v.variable_data["K"][0].unbounded_refs == set(["int"])
+
+
+def test_class_with_class_var_referencing_another() -> None:
+    """Test that class variables used in other class variable definitions don't create unbounded refs (issue #7265)."""
+    code = cleandoc(
+        """
+        class K:
+            A: int = 1
+            B: int = A
+            def b(a: int = B) -> int:
+                return a
+        """
+    )
+    v = visitor.ScopedVisitor()
+    mod = ast.parse(code)
+    v.visit(mod)
+
+    # K should be a def
+    assert v.defs == set(["K"])
+    # A should NOT be a ref (it's defined in class scope), but int is (type annotation)
+    assert v.refs == set(["int"])
+    # K should have unbounded_refs only for int, not A
+    assert v.variable_data["K"][0].unbounded_refs == set(["int"])
+
+
+def test_class_with_typealias_annotation() -> None:
+    """Test that TypeAlias annotations in class scope don't create unbounded refs (issue #7089)."""
+    code = cleandoc(
+        """
+        class EmbeddedTypeAlias:
+            MyEmbeddedTypeAlias: TypeAlias = int
+
+            def __init__(self, value: MyEmbeddedTypeAlias):
+                self.value = value
+        """
+    )
+    v = visitor.ScopedVisitor()
+    mod = ast.parse(code)
+    v.visit(mod)
+
+    # EmbeddedTypeAlias should be a def
+    assert v.defs == set(["EmbeddedTypeAlias"])
+    # MyEmbeddedTypeAlias should NOT be a ref (it's defined in class scope)
+    # TypeAlias and int are refs (type annotations)
+    assert v.refs == set(["TypeAlias", "int"])
+    # Should have unbounded_refs only for TypeAlias and int, not MyEmbeddedTypeAlias
+    assert v.variable_data["EmbeddedTypeAlias"][0].unbounded_refs == set(
+        ["TypeAlias", "int"]
+    )
+
+
+@pytest.mark.skipif("sys.version_info < (3, 12)")
+def test_class_with_type_statement() -> None:
+    """Test that type statements in class scope don't create unbounded refs (issue #7089)."""
+    code = cleandoc(
+        """
+        class EmbeddedType:
+            type MyEmbeddedType = int
+
+            def __init__(self, value: MyEmbeddedType):
+                self.value = value
+        """
+    )
+    v = visitor.ScopedVisitor()
+    mod = ast.parse(code)
+    v.visit(mod)
+
+    # EmbeddedType should be a def
+    assert v.defs == set(["EmbeddedType"])
+    # MyEmbeddedType should NOT be a ref (it's defined in class scope via type statement)
+    # int is a ref (used in type statement)
+    assert v.refs == set(["int"])
+    # Should have unbounded_refs only for int, not MyEmbeddedType
+    assert v.variable_data["EmbeddedType"][0].unbounded_refs == set(["int"])
+
+
+def test_class_with_external_var_in_method_default() -> None:
+    """Test that external variables in method defaults ARE flagged as unbounded refs."""
+    code = cleandoc(
+        """
+        class K:
+            A: int = 1
+            def b(a: int = A, c: int = EXTERNAL) -> int:
+                return a + c
+        """
+    )
+    v = visitor.ScopedVisitor()
+    mod = ast.parse(code)
+    v.visit(mod)
+
+    # K should be a def
+    assert v.defs == set(["K"])
+    # EXTERNAL should be a ref (not defined in class)
+    assert v.refs == set(["int", "EXTERNAL"])
+    # K should have unbounded_refs for EXTERNAL, but not A
+    assert v.variable_data["K"][0].unbounded_refs == set(["int", "EXTERNAL"])
+
+
+def test_class_with_external_var_in_class_var() -> None:
+    """Test that external variables used in class variables ARE flagged as unbounded refs."""
+    code = cleandoc(
+        """
+        class K:
+            A: int = 1
+            B: int = A + EXTERNAL
+            def b(a: int = 1) -> int:
+                return a
+        """
+    )
+    v = visitor.ScopedVisitor()
+    mod = ast.parse(code)
+    v.visit(mod)
+
+    # K should be a def
+    assert v.defs == set(["K"])
+    # EXTERNAL should be a ref (not defined in class)
+    assert v.refs == set(["int", "EXTERNAL"])
+    # K should have unbounded_refs for EXTERNAL, but not A
+    assert v.variable_data["K"][0].unbounded_refs == set(["int", "EXTERNAL"])
+
+
+def test_class_with_external_type_in_typealias() -> None:
+    """Test that external types in TypeAlias ARE flagged as unbounded refs."""
+    code = cleandoc(
+        """
+        class K:
+            MyType: TypeAlias = ExternalType
+
+            def __init__(self, value: MyType):
+                self.value = value
+        """
+    )
+    v = visitor.ScopedVisitor()
+    mod = ast.parse(code)
+    v.visit(mod)
+
+    # K should be a def
+    assert v.defs == set(["K"])
+    # ExternalType and TypeAlias should be refs (not defined in class)
+    assert v.refs == set(["TypeAlias", "ExternalType"])
+    # K should have unbounded_refs for both TypeAlias and ExternalType, but not MyType
+    assert v.variable_data["K"][0].unbounded_refs == set(
+        ["TypeAlias", "ExternalType"]
+    )
+
+
+@pytest.mark.skipif("sys.version_info < (3, 12)")
+def test_class_with_external_type_in_type_statement() -> None:
+    """Test that external types in type statement ARE flagged as unbounded refs."""
+    code = cleandoc(
+        """
+        class K:
+            type MyType = ExternalType
+
+            def __init__(self, value: MyType):
+                self.value = value
+        """
+    )
+    v = visitor.ScopedVisitor()
+    mod = ast.parse(code)
+    v.visit(mod)
+
+    # K should be a def
+    assert v.defs == set(["K"])
+    # ExternalType should be a ref (not defined in class)
+    assert v.refs == set(["ExternalType"])
+    # K should have unbounded_refs for ExternalType, but not MyType
+    assert v.variable_data["K"][0].unbounded_refs == set(["ExternalType"])
+
+
+def test_class_with_method_using_external_var() -> None:
+    """Test that methods using external variables in body track them as required_refs."""
+    code = cleandoc(
+        """
+        class K:
+            def method(self) -> int:
+                return EXTERNAL_VAR
+        """
+    )
+    v = visitor.ScopedVisitor()
+    mod = ast.parse(code)
+    v.visit(mod)
+
+    # K should be a def
+    assert v.defs == set(["K"])
+    # EXTERNAL_VAR should be a ref (used in method body)
+    assert v.refs == set(["EXTERNAL_VAR", "int"])
+    # K should have EXTERNAL_VAR in required_refs (method needs it)
+    assert v.variable_data["K"][0].required_refs == set(
+        ["EXTERNAL_VAR", "int"]
+    )
+    # But not in unbounded_refs (it's in method body, not signature)
+    assert v.variable_data["K"][0].unbounded_refs == set(["int"])
+
+
+def test_class_with_forward_reference_to_method() -> None:
+    """Test that class variables can reference methods defined earlier (valid)."""
+    code = cleandoc(
+        """
+        class A:
+            def method(self):
+                return 42
+            bound = method
+        """
+    )
+    v = visitor.ScopedVisitor()
+    mod = ast.parse(code)
+    v.visit(mod)
+
+    # A should be a def
+    assert v.defs == set(["A"])
+    # No external refs - method is defined within class scope
+    assert v.refs == set()
+    # A should have no unbounded refs (forward reference is valid)
+    assert v.variable_data["A"][0].unbounded_refs == set()
+
+
+def test_class_with_backward_reference_to_method() -> None:
+    """Test that class variables cannot reference methods defined later (invalid for top-level)."""
+    code = cleandoc(
+        """
+        class B:
+            bound = method
+            def method(self):
+                return 42
+        """
+    )
+    v = visitor.ScopedVisitor()
+    mod = ast.parse(code)
+    v.visit(mod)
+
+    # B should be a def
+    assert v.defs == set(["B"])
+    # method is referenced before it's defined, so it's an external ref
+    assert v.refs == set(["method"])
+    # B should have method in unbounded refs (backward reference is invalid)
+    assert v.variable_data["B"][0].unbounded_refs == set(["method"])

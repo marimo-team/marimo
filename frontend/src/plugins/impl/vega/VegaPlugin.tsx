@@ -24,6 +24,7 @@ export class VegaPlugin implements IPlugin<VegaComponentState, Data> {
       .union([z.boolean(), z.literal("point"), z.literal("interval")])
       .default(true),
     fieldSelection: z.union([z.boolean(), z.array(z.string())]).default(true),
+    embedOptions: z.object({}).passthrough().default({}),
   });
 
   render(props: IPluginProps<VegaComponentState, Data>): JSX.Element {

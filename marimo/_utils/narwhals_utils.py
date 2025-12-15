@@ -2,13 +2,17 @@
 from __future__ import annotations
 
 import sys
-from typing import TYPE_CHECKING, Any, Union, overload
+from typing import TYPE_CHECKING, Any, Callable, Union, overload
 
 import narwhals as nw_main
 import narwhals.dtypes as nw_dtypes
 import narwhals.stable.v1 as nw1
 import narwhals.stable.v2 as nw
 from narwhals.typing import IntoDataFrame
+
+from marimo import _loggers
+
+LOGGER = _loggers.marimo_logger()
 
 if sys.version_info < (3, 11):
     from typing_extensions import TypeGuard
@@ -17,7 +21,12 @@ else:
 
 
 if TYPE_CHECKING:
-    from narwhals.typing import IntoDataFrame, IntoFrame, IntoLazyFrame
+    from narwhals.typing import (
+        IntoBackend,
+        IntoDataFrame,
+        IntoFrame,
+        IntoLazyFrame,
+    )
     from typing_extensions import TypeIs
 
 
@@ -51,7 +60,7 @@ def assert_narwhals_dataframe_or_lazyframe(
         raise ValueError(f"Unsupported dataframe type. Got {type(df)}")
 
 
-def assert_narwhals_series(series: nw.Series) -> None:
+def assert_narwhals_series(series: nw.Series[Any]) -> None:
     """
     Assert that the given series is a valid narwhals series.
     """
@@ -239,3 +248,109 @@ def is_narwhals_dataframe(df: Any) -> TypeIs[nw.DataFrame[Any]]:
         or isinstance(df, nw_main.DataFrame)
         or isinstance(df, nw1.DataFrame)
     )
+
+
+if TYPE_CHECKING:
+    UndoCallback = Callable[
+        [Union[nw.LazyFrame[Any], nw.DataFrame[Any]]], IntoFrame
+    ]
+
+
+def _to_lazyframe(
+    df: Union[nw.DataFrame[Any], nw.LazyFrame[Any]],
+    original_backend: IntoBackend[Any],
+) -> nw.LazyFrame[Any]:
+    if is_narwhals_lazyframe(df):
+        return df
+    else:
+        try:
+            # Try to convert to the original backend. This backend must be a "lazy backend"
+            # e.g., Ibis, DuckDB, etc.
+            return df.lazy(backend=original_backend)
+        except ValueError:
+            # This error is expected in most cases. For example, if the original
+            # backend was not a "lazy backend" (e.g., Pandas), Narwhals will
+            # raise a ValueError. In this case, we just make a default lazyframe.
+            return df.lazy()
+
+
+def _to_dataframe(
+    df: Union[nw.DataFrame[Any], nw.LazyFrame[Any]],
+) -> nw.DataFrame[Any]:
+    if is_narwhals_dataframe(df):
+        return df
+    else:
+        return df.collect()
+
+
+def make_lazy(
+    df: IntoFrame,
+) -> tuple[nw.LazyFrame[Any], UndoCallback]:
+    """
+    Convert a dataframe to a lazy narwhals LazyFrame and return an undo callback.
+
+    This utility tracks whether the original dataframe was lazy or eager,
+    and provides a callback to convert back to the original type.
+
+    Args:
+        df: A dataframe that can be narwhalified (Pandas, Polars, Ibis, etc.)
+
+    Returns:
+        A tuple of:
+        - nw.LazyFrame: The lazy version of the dataframe
+        - undo: A callback that takes a LazyFrame and converts it back to the
+          original type (lazy or eager), returning the native dataframe
+
+    Example:
+        >>> lazy_df, undo = make_lazy(ibis_table)
+        >>> # Do transformations on lazy_df
+        >>> result = undo(lazy_df)  # Returns Ibis table (still lazy)
+    """
+    nw_df = nw.from_native(df, pass_through=False)
+    was_lazy = is_narwhals_lazyframe(nw_df)
+    original_backend = nw_df.implementation
+    lazy_df = nw_df.lazy()
+
+    def undo(result: Union[nw.LazyFrame[Any], nw.DataFrame[Any]]) -> Any:
+        """Convert back to the original type (lazy or eager)."""
+        if not is_narwhals_dataframe(result) and not is_narwhals_lazyframe(
+            result
+        ):
+            LOGGER.warning(
+                "Expected a narwhals DataFrame or LazyFrame, got %s",
+                type(result),
+            )
+            return result
+
+        if was_lazy:
+            return _to_lazyframe(result, original_backend).to_native()
+        else:
+            return _to_dataframe(result).to_native()
+
+    return lazy_df, undo
+
+
+def collect_and_preserve_type(
+    df: nw.LazyFrame[Any],
+) -> tuple[
+    nw.DataFrame[Any], Callable[[nw.DataFrame[Any]], nw.LazyFrame[Any]]
+]:
+    """
+    Collect a narwhals LazyFrame to DataFrame, preserving the original backend.
+
+    This is useful since when you collect an Ibis or DuckDB dataframe, making them
+    lazy does not convert them back to their original backend.
+    """
+    original_backend = df.implementation
+
+    def undo(result: nw.DataFrame[Any]) -> nw.LazyFrame[Any]:
+        """Convert back to the original backend as a LazyFrame."""
+        if not is_narwhals_dataframe(result):
+            LOGGER.warning(
+                "Expected a narwhals DataFrame, got %s", type(result)
+            )
+            return result.lazy()
+
+        return _to_lazyframe(result, original_backend)
+
+    return df.collect(), undo

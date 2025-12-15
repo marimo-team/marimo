@@ -3,8 +3,8 @@
 
 import { PopoverClose } from "@radix-ui/react-popover";
 import type { Column, ColumnDef } from "@tanstack/react-table";
-import { formatDate } from "date-fns";
-import { useNumberFormatter } from "react-aria";
+import { formatDate, isValid } from "date-fns";
+import { useLocale, useNumberFormatter } from "react-aria";
 import { WithLocale } from "@/core/i18n/with-locale";
 import type { DataType } from "@/core/kernel/messages";
 import type { CalculateTopKRows } from "@/plugins/impl/DataTablePlugin";
@@ -12,9 +12,12 @@ import { cn } from "@/utils/cn";
 import { type DateFormat, exactDateTime, getDateFormat } from "@/utils/dates";
 import { Logger } from "@/utils/Logger";
 import { Maps } from "@/utils/maps";
+import { maxFractionalDigits } from "@/utils/numbers";
 import { Objects } from "@/utils/objects";
+import { parseContent } from "@/utils/url-parser";
 import { EmotionCacheProvider } from "../editor/output/EmotionCacheProvider";
 import { JsonOutput } from "../editor/output/JsonOutput";
+import { CopyClipboardIcon } from "../icons/copy-icon";
 import { Button } from "../ui/button";
 import { Checkbox } from "../ui/checkbox";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
@@ -33,7 +36,7 @@ import {
   INDEX_COLUMN_NAME,
 } from "./types";
 import { uniformSample } from "./uniformSample";
-import { parseContent, UrlDetector } from "./url-detector";
+import { MarkdownUrlDetector, UrlDetector } from "./url-detector";
 
 // Artificial limit to display long strings
 const MAX_STRING_LENGTH = 50;
@@ -332,7 +335,7 @@ const PopoutColumn = ({
     <EmotionCacheProvider container={null}>
       <Popover>
         <PopoverTrigger
-          className={cn(cellStyles, "w-fit outline-hidden")}
+          className={cn(cellStyles, "max-w-fit outline-hidden")}
           onClick={selectCell}
           onMouseDown={(e) => {
             // Prevent cell underneath from being selected
@@ -354,11 +357,18 @@ const PopoutColumn = ({
           align="start"
           alignOffset={10}
         >
-          <PopoverClose className="absolute top-2 right-2">
-            <Button variant="link" size="xs">
-              {buttonText ?? "Close"}
-            </Button>
-          </PopoverClose>
+          <div className="absolute top-2 right-2">
+            <CopyClipboardIcon
+              value={rawStringValue}
+              className="w-2.5 h-2.5"
+              tooltip={false}
+            />
+            <PopoverClose>
+              <Button variant="link" size="xs">
+                {buttonText ?? "Close"}
+              </Button>
+            </PopoverClose>
+          </div>
           {children}
         </PopoverContent>
       </Popover>
@@ -477,8 +487,18 @@ export function renderCellValue<TData, TValue>({
   const dataType = column.columnDef.meta?.dataType;
   const dtype = column.columnDef.meta?.dtype;
 
+  const isWrapped = column.getColumnWrapping?.() === "wrap";
+
   if (dataType === "datetime" && typeof value === "string") {
     try {
+      if (!isValid(value)) {
+        return (
+          <div onClick={selectCell} className={cellStyles}>
+            {value}
+          </div>
+        );
+      }
+
       const date = new Date(value);
       const format = getDateFormat(value);
       return (
@@ -494,6 +514,14 @@ export function renderCellValue<TData, TValue>({
   }
 
   if (value instanceof Date) {
+    if (!isValid(value)) {
+      return (
+        <div onClick={selectCell} className={cellStyles}>
+          {value.toString()}
+        </div>
+      );
+    }
+
     // e.g. 2010-10-07 17:15:00
     return (
       <WithLocale>
@@ -508,10 +536,13 @@ export function renderCellValue<TData, TValue>({
       : String(renderValue());
 
     const parts = parseContent(stringValue);
-    const hasMarkup = parts.some((part) => part.type !== "text");
-    if (hasMarkup || stringValue.length < MAX_STRING_LENGTH) {
+    const allMarkup = parts.every((part) => part.type !== "text");
+    if (allMarkup || stringValue.length < MAX_STRING_LENGTH || isWrapped) {
       return (
-        <div onClick={selectCell} className={cellStyles}>
+        <div
+          onClick={selectCell}
+          className={cn(cellStyles, isWrapped && COLUMN_WRAPPING_STYLES)}
+        >
           <UrlDetector parts={parts} />
         </div>
       );
@@ -522,11 +553,11 @@ export function renderCellValue<TData, TValue>({
         cellStyles={cellStyles}
         selectCell={selectCell}
         rawStringValue={stringValue}
-        contentClassName="max-h-64 overflow-auto whitespace-pre-wrap break-words text-sm"
+        contentClassName="max-h-64 overflow-auto whitespace-pre-wrap break-words text-sm w-96"
         buttonText="X"
-        wrapped={column.getColumnWrapping?.() === "wrap"}
+        wrapped={isWrapped}
       >
-        <UrlDetector parts={parts} />
+        <MarkdownUrlDetector content={stringValue} parts={parts} />
       </PopoutColumn>
     );
   }
@@ -575,7 +606,7 @@ export function renderCellValue<TData, TValue>({
         cellStyles={cellStyles}
         selectCell={selectCell}
         rawStringValue={rawStringValue}
-        wrapped={column.getColumnWrapping?.() === "wrap"}
+        wrapped={isWrapped}
       >
         <JsonOutput data={value} format="tree" className="max-h-64" />
       </PopoutColumn>
@@ -589,7 +620,10 @@ export function renderCellValue<TData, TValue>({
   );
 }
 
-const LocaleNumber = ({ value }: { value: number }) => {
-  const format = useNumberFormatter();
+export const LocaleNumber = ({ value }: { value: number }) => {
+  const { locale } = useLocale();
+  const format = useNumberFormatter({
+    maximumFractionDigits: maxFractionalDigits(locale),
+  });
   return format.format(value);
 };

@@ -2,13 +2,13 @@
 
 import { BotMessageSquareIcon } from "lucide-react";
 import React from "react";
+import { MarkdownRenderer } from "@/components/markdown/markdown-renderer";
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { MarkdownRenderer } from "./markdown-renderer";
 
 interface ReasoningAccordionProps {
   reasoning: string;

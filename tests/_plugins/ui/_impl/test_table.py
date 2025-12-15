@@ -250,6 +250,7 @@ def test_value() -> None:
     data = ["banana", "apple", "cherry", "date", "elderberry"]
     table = ui.table(data)
     assert list(table.value) == []
+    assert type(table.value) is type(data)
 
 
 def test_value_with_selection() -> None:
@@ -259,12 +260,14 @@ def test_value_with_selection() -> None:
         "banana",
         "cherry",
     ]
+    assert type(table.value) is type(data)
 
 
 def test_value_with_initial_selection() -> None:
     data = ["banana", "apple", "cherry", "date", "elderberry"]
     table = ui.table(data, initial_selection=[0, 2])
     assert table.value == ["banana", "cherry"]
+    assert type(table.value) is type(data)
 
 
 def test_value_does_not_include_index_column() -> None:
@@ -286,6 +289,7 @@ def test_value_does_not_include_index_column() -> None:
         {"name": "Alice", "age": 30},
         {"name": "Charlie", "age": 35},
     ]
+    assert type(table.value) is type(data)
 
 
 def test_invalid_initial_selection() -> None:
@@ -326,6 +330,7 @@ def test_value_with_sorting_then_selection() -> None:
     assert list(table._convert_value(["0"])) == [
         {"value": "apple"},
     ]
+    assert type(table.value) is type(data)
 
 
 @pytest.mark.parametrize(
@@ -361,6 +366,7 @@ def test_value_with_sorting_then_selection_dfs(df: Any) -> None:
     assert not isinstance(value, nw.DataFrame)
     assert INDEX_COLUMN_NAME not in value.columns
     assert nw.from_native(value)["a"][0] == "x"
+    assert type(table.value) is type(df)
 
 
 def test_value_with_search_then_selection() -> None:
@@ -401,6 +407,7 @@ def test_value_with_search_then_selection() -> None:
         )
     )
     assert list(table._convert_value(["2"])) == ["cherry"]
+    assert type(table.value) is type(data)
 
 
 @pytest.mark.parametrize(
@@ -449,6 +456,7 @@ def test_value_with_search_then_selection_dfs(df: Any) -> None:
     value = table._convert_value(["2"])
     assert not isinstance(value, nw.DataFrame)
     assert nw.from_native(value)["a"][0] == "baz"
+    assert type(table.value) is type(df)
 
 
 @pytest.mark.parametrize(
@@ -536,6 +544,7 @@ def test_value_with_selection_then_sorting_dict_of_lists() -> None:
         "Company B",
         "Company E",
     ]
+    assert type(table.value) is type(data)
 
 
 def test_value_with_cell_selection_then_sorting_dict_of_lists() -> None:
@@ -584,6 +593,7 @@ def test_value_with_cell_selection_then_sorting_dict_of_lists() -> None:
         TableCell(row="0", column="company", value="Company B"),
         TableCell(row="2", column="company", value="Company E"),
     ]
+    assert type(table.value) is list
 
 
 def test_search_sort_nonexistent_columns() -> None:
@@ -600,6 +610,7 @@ def test_search_sort_nonexistent_columns() -> None:
     )
 
     assert table._convert_value(["0"]) == ["banana"]
+    assert type(table.value) is type(data)
 
 
 def test_invalid_index_in_initial_selection() -> None:
@@ -807,6 +818,7 @@ def test_can_get_second_page_with_search_df(df: Any) -> None:
     assert len(result_data) == 5
     assert int(result_data[0]["a"]) == 23
     assert int(result_data[-1]["a"]) == 27
+    assert type(table.value) is type(df)
 
 
 def test_with_no_pagination() -> None:
@@ -816,6 +828,7 @@ def test_with_no_pagination() -> None:
     assert table._component_args["page-size"] == 20
     assert table._component_args["total-rows"] == 20
     assert len(json.loads(table._component_args["data"])) == 20
+    assert type(table.value) is type(data)
 
 
 def test_table_with_too_many_rows_and_custom_total() -> None:
@@ -1760,6 +1773,89 @@ def test_cell_search_df_styles_sorted(df: Any):
     }
 
 
+@pytest.mark.parametrize(
+    "df",
+    create_dataframes(
+        {
+            "Index": list(range(20)),
+            "Category": [f"Label {i % 5}" for i in range(20)],
+            "Value": [i * ((-1) ** i) for i in range(20)],
+        },
+        exclude=NON_EAGER_LIBS,
+    ),
+)
+def test_cell_styles_sorted_with_pagination(df: Any):
+    """Test that cell styles are correctly applied with sorting and pagination.
+
+    Regression test for issue #6223 - cell styles should work on all pages,
+    not just the last N rows of the entire dataset.
+    """
+
+    def cell_style(_row_id, _column_name, value):
+        # Handle both Python numbers and numpy numbers
+        try:
+            numeric_value = float(value)
+            return {"color": "black" if numeric_value > 0 else "red"}
+        except (TypeError, ValueError):
+            return {}
+
+    table = ui.table(df, style_cell=cell_style)
+
+    # Test page 0 (rows 19, 18, 17, 16, 15 when sorted descending by Index)
+    page0 = table._search(
+        SearchTableArgs(
+            page_size=5,
+            page_number=0,
+            query="",
+            sort=[SortArgs(by="Index", descending=True)],
+        )
+    )
+    assert "19" in page0.cell_styles
+    assert "18" in page0.cell_styles
+    assert "17" in page0.cell_styles
+    assert "16" in page0.cell_styles
+    assert "15" in page0.cell_styles
+    # Check that the style function was applied
+    # i=19: 19 * ((-1)**19) = 19 * -1 = -19 (negative, red)
+    assert page0.cell_styles["19"]["Value"] == {"color": "red"}
+    # i=18: 18 * ((-1)**18) = 18 * 1 = 18 (positive, black)
+    assert page0.cell_styles["18"]["Value"] == {"color": "black"}
+
+    # Test page 1 (rows 14, 13, 12, 11, 10 when sorted descending)
+    page1 = table._search(
+        SearchTableArgs(
+            page_size=5,
+            page_number=1,
+            query="",
+            sort=[SortArgs(by="Index", descending=True)],
+        )
+    )
+    assert "14" in page1.cell_styles
+    assert "13" in page1.cell_styles
+    assert "12" in page1.cell_styles
+    assert "11" in page1.cell_styles
+    assert "10" in page1.cell_styles
+    # i=13: 13 * ((-1)**13) = 13 * -1 = -13 (negative, red)
+    assert page1.cell_styles["13"]["Value"] == {"color": "red"}
+
+    # Test page 2 (rows 9, 8, 7, 6, 5 when sorted descending)
+    page2 = table._search(
+        SearchTableArgs(
+            page_size=5,
+            page_number=2,
+            query="",
+            sort=[SortArgs(by="Index", descending=True)],
+        )
+    )
+    assert "9" in page2.cell_styles
+    assert "8" in page2.cell_styles
+    assert "7" in page2.cell_styles
+    assert "6" in page2.cell_styles
+    assert "5" in page2.cell_styles
+    # i=9: 9 * ((-1)**9) = 9 * -1 = -9 (negative, red)
+    assert page2.cell_styles["9"]["Value"] == {"color": "red"}
+
+
 @pytest.mark.skipif(
     not DependencyManager.pandas.has(),
     reason="Pandas not installed, only pandas has multi-col idx",
@@ -1806,6 +1902,7 @@ def test_json_multi_col_idx_table() -> None:
             "('basic_amt', 'QLD')": 2,
         }
     ]
+    assert type(table.value) is type(df)
 
 
 LAZY_DATAFRAMES = ["lazy-polars", "duckdb", "ibis"]

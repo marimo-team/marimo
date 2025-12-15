@@ -12,7 +12,9 @@ import "./app-chrome.css";
 import { TooltipProvider } from "@radix-ui/react-tooltip";
 import { XIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LazyMount } from "@/components/utils/lazy-mount";
+import { getFeatureFlag } from "@/core/config/feature-flag";
 import { IfCapability } from "@/core/config/if-capability";
 import { cn } from "@/utils/cn";
 import { ErrorBoundary } from "../../boundary/ErrorBoundary";
@@ -21,6 +23,7 @@ import { useChromeActions, useChromeState } from "../state";
 import { Minimap } from "./minimap";
 import { PanelsWrapper } from "./panels";
 import { PendingAICells } from "./pending-ai-cells";
+import { useAiPanelTab } from "./useAiPanel";
 import { handleDragging } from "./utils";
 
 const LazyTerminal = React.lazy(() => import("@/components/terminal/terminal"));
@@ -58,6 +61,7 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
   const { setIsSidebarOpen, setIsTerminalOpen } = useChromeActions();
   const sidebarRef = React.useRef<ImperativePanelHandle>(null);
   const terminalRef = React.useRef<ImperativePanelHandle>(null);
+  const { aiPanelTab, setAiPanelTab } = useAiPanelTab();
 
   // sync sidebar
   useEffect(() => {
@@ -135,13 +139,48 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
     />
   );
 
+  const agentsEnabled = getFeatureFlag("external_agents");
+
+  const renderAiPanel = () => {
+    if (agentsEnabled && aiPanelTab === "agents") {
+      return <LazyAgentPanel />;
+    }
+    return <LazyChatPanel />;
+  };
+
   const helpPaneBody = (
     <ErrorBoundary>
       <div className="flex flex-col h-full flex-1 overflow-hidden mr-[-4px]">
         <div className="p-3 border-b flex justify-between items-center">
-          <div className="text-sm text-(--slate-11) uppercase tracking-wide font-semibold flex-1">
-            {selectedPanel}
-          </div>
+          {selectedPanel === "ai" && agentsEnabled ? (
+            <Tabs
+              value={aiPanelTab}
+              onValueChange={(value) => {
+                if (value === "chat" || value === "agents") {
+                  setAiPanelTab(value);
+                }
+              }}
+            >
+              <TabsList>
+                <TabsTrigger
+                  value="chat"
+                  className="py-0.5 text-xs uppercase tracking-wide font-bold"
+                >
+                  Chat
+                </TabsTrigger>
+                <TabsTrigger
+                  value="agents"
+                  className="py-0.5 text-xs uppercase tracking-wide font-bold"
+                >
+                  Agents
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+          ) : (
+            <span className="text-sm text-(--slate-11) uppercase tracking-wide font-semibold flex-1">
+              {selectedPanel}
+            </span>
+          )}
           <Button
             data-testid="close-helper-pane"
             className="m-0"
@@ -164,8 +203,7 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
             {selectedPanel === "documentation" && <LazyDocumentationPanel />}
             {selectedPanel === "snippets" && <LazySnippetsPanel />}
             {selectedPanel === "scratchpad" && <LazyScratchpadPanel />}
-            {selectedPanel === "chat" && <LazyChatPanel />}
-            {selectedPanel === "agents" && <LazyAgentPanel />}
+            {selectedPanel === "ai" && renderAiPanel()}
             {selectedPanel === "logs" && <LazyLogsPanel />}
             {selectedPanel === "tracing" && <LazyTracingPanel />}
             {selectedPanel === "secrets" && <LazySecretsPanel />}

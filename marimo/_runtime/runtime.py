@@ -2054,6 +2054,7 @@ class Kernel:
                 except Exception as e:
                     error_title = "Exception"
                     error_message = f"Function call (name: {request.function_name}, args: {request.args}) failed with exception {str(e)}"
+                    LOGGER.info(error_message, exc_info=True)
                     debug(error_title, error_message)
 
         # Couldn't call function, or function call failed

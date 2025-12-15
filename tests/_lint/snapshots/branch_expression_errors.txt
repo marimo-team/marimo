@@ -1,0 +1,27 @@
+error[branch-expression]: The if statement has branches ending with expressions that won't be displayed. marimo can only display the last expression if it is unnested. If this was intentional, consider assigning to a dummy variable: `_ = ...`
+ --> tests/_lint/test_files/branch_expression.py:13:1
+  13 |     x = input("What's your name?") # prefer mo.ui.input in real cases :)
+  14 |     if len(x) > 20:
+     |     ^
+  15 |         invalid = True
+
+error[branch-expression]: The if statement has branches ending with expressions that won't be displayed. marimo can only display the last expression if it is unnested. If this was intentional, consider assigning to a dummy variable: `_ = ...`
+ --> tests/_lint/test_files/branch_expression.py:25:1
+  25 |     # multi if
+  26 |     if not invalid:
+     |     ^
+  27 |         mo.md(f"User: {x}")
+
+error[branch-expression]: The if statement has branches ending with expressions that won't be displayed. marimo can only display the last expression if it is unnested. If this was intentional, consider assigning to a dummy variable: `_ = ...`
+ --> tests/_lint/test_files/branch_expression.py:37:1
+  37 |     # Single if
+  38 |     if invalid:
+     |     ^
+  39 |         mo.md("Run the cell again to try again")
+
+error[branch-expression]: The match statement has branches ending with expressions that won't be displayed. marimo can only display the last expression if it is unnested. If this was intentional, consider assigning to a dummy variable: `_ = ...`
+ --> tests/_lint/test_files/branch_expression.py:54:1
+  54 |     # match and constant cases
+  55 |     match len(x):
+     |     ^
+  56 |         case 1:

@@ -4,6 +4,7 @@ import datetime
 import json
 import time
 import unittest
+from decimal import Decimal
 from math import isnan
 from typing import TYPE_CHECKING, Any
 
@@ -13,9 +14,13 @@ import pytest
 from marimo._data.models import BinValue, ColumnStats
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._output.data.data import BIGINT_KEY
+from marimo._plugins.ui._impl.input import button
 from marimo._plugins.ui._impl.table import SortArgs
 from marimo._plugins.ui._impl.tables.format import FormatMapping
 from marimo._plugins.ui._impl.tables.narwhals_table import (
+    NAN_VALUE,
+    NEGATIVE_INF,
+    POSITIVE_INF,
     NarwhalsTableManager,
 )
 from marimo._plugins.ui._impl.tables.table_manager import (
@@ -389,7 +394,11 @@ class TestNarwhalsTableManagerFactory(unittest.TestCase):
             min=datetime.datetime(2021, 1, 1, 0, 0),
             max=datetime.datetime(2021, 1, 3, 0, 0),
             mean=datetime.datetime(2021, 1, 2, 0, 0),
-            # median=datetime.datetime(2021, 1, 2, 0, 0),
+            median=datetime.datetime(2021, 1, 2, 0, 0),
+            p5=datetime.datetime(2021, 1, 1, 0, 0),
+            p25=datetime.datetime(2021, 1, 2, 0, 0),
+            p75=datetime.datetime(2021, 1, 3, 0, 0),
+            p95=datetime.datetime(2021, 1, 3, 0, 0),
         )
 
     def test_summary_date(self) -> None:
@@ -527,6 +536,57 @@ class TestNarwhalsTableManagerFactory(unittest.TestCase):
         # TODO: Unsupported by narwhals
         assert manager.search("yyy").get_num_rows() == 0
         assert manager.search("y").get_num_rows() == 0
+
+    def test_search_with_pandas_object_dtype(self) -> None:
+        import pandas as pd
+
+        # Create a pandas DataFrame with object dtype columns (mimicking real-world data)
+        df = pd.DataFrame(
+            {
+                "metric": ["AdrAct30dCnt", "AdrAct7dCnt", "AdrActBlobCnt"],
+                "full_name": [
+                    "Addresses, active, monthly, count",
+                    "Addresses, active, weekly, count",
+                    "Addresses, active, blob, count",
+                ],
+                "description": [
+                    "The sum count of unique addresses",
+                    "The sum count of unique addresses",
+                    "The sum count of unique addresses",
+                ],
+                "product": ["Network Data", "Network Data", "Network Data"],
+                "category": ["Addresses", "Addresses", "Transactions"],
+                "subcategory": ["Active", "Active", "Blobs"],
+            }
+        )
+
+        manager = NarwhalsTableManager.from_dataframe(df)
+
+        # This should work but might fail with "Can only use .str accessor with string values!"
+        result = manager.search("flow")
+        assert result.get_num_rows() == 0
+
+        result = manager.search("active")
+        assert (
+            result.get_num_rows() == 3
+        )  # Should match "active" in full_name (all rows) and subcategory
+
+    def test_search_with_pandas_categorical(self) -> None:
+        import pandas as pd
+
+        # Create a pandas DataFrame with categorical columns
+        df = pd.DataFrame(
+            {
+                "category": pd.Categorical(["cat1", "cat2", "cat3"]),
+                "value": [1, 2, 3],
+            }
+        )
+
+        manager = NarwhalsTableManager.from_dataframe(df)
+
+        # Search for "cat" should match all rows
+        result = manager.search("cat")
+        assert result.get_num_rows() == 3
 
     def test_apply_formatting_does_not_modify_original_data(self) -> None:
         original_data = self.data.clone()
@@ -1051,6 +1111,45 @@ def _round_bin_values(bin_values: list[BinValue]) -> list[BinValue]:
 @pytest.mark.parametrize(
     "df",
     create_dataframes(
+        {"decimals": [Decimal(i) for i in range(201)]},
+        exclude=[
+            # Pandas doesn't support decimal types (instead is Object)
+            "pandas"
+        ],
+    ),
+)
+def test_get_bin_values_decimal(df: Any) -> None:
+    """Test that get_bin_values works correctly with decimal columns."""
+    dtype = nw.from_native(df).collect_schema()["decimals"]
+    assert dtype.is_decimal(), (
+        f"Decimal column not found in schema: {dtype} (type {type(df)})"
+    )
+
+    manager = NarwhalsTableManager.from_dataframe(df)
+
+    # This should not raise an error
+    bin_values = manager.get_bin_values("decimals", 5)
+
+    # Verify we got valid bin values
+    assert len(bin_values) == 5
+    assert all(isinstance(bv, BinValue) for bv in bin_values)
+    assert all(isinstance(bv.count, int) for bv in bin_values)
+    assert all(isinstance(bv.bin_start, (int, float)) for bv in bin_values)
+    assert all(isinstance(bv.bin_end, (int, float)) for bv in bin_values)
+
+    # Verify the bins cover the expected range (0 to 200)
+    assert bin_values[0].bin_start == 0.0
+    assert bin_values[-1].bin_end == 200.0
+
+    # Verify all rows are counted
+    total_count = sum(bv.count for bv in bin_values)
+    assert total_count == 201
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+@pytest.mark.parametrize(
+    "df",
+    create_dataframes(
         {
             "int": [1, 2, 3, 4, 5],
             "time": [
@@ -1219,6 +1318,57 @@ class TestGetBinValuesTemporal:
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
 @pytest.mark.parametrize(
     "df",
+    create_dataframes(
+        {
+            "old_dates": [
+                datetime.datetime.fromisoformat("1902-01-01 00:00:00"),
+                datetime.datetime.fromisoformat("2020-01-01 00:00:00"),
+                datetime.datetime.fromisoformat("2020-01-02 00:00:00"),
+                datetime.datetime.fromisoformat("2020-01-03 00:00:00"),
+                datetime.datetime.fromisoformat("2020-01-04 00:00:00"),
+                datetime.datetime.fromisoformat("2020-01-05 00:00:00"),
+                datetime.datetime.fromisoformat("2020-01-06 00:00:00"),
+                datetime.datetime.fromisoformat("2020-01-07 00:00:00"),
+                datetime.datetime.fromisoformat("2020-01-08 00:00:00"),
+                datetime.datetime.fromisoformat("2020-01-09 00:00:00"),
+                datetime.datetime.fromisoformat("2020-01-10 00:00:00"),
+            ]
+        },
+        exclude=["ibis"],
+    ),
+)
+class TestOldDates:
+    """Test handling of old dates (pre-1970) that cause OSError on Windows."""
+
+    def test_get_bin_values_with_old_dates(self, df: Any) -> None:
+        """
+        Test that get_bin_values works with timestamps before Unix epoch.
+
+        This reproduces issue #7469 where dates like 1902-01-01 cause
+        OSError: [Errno 22] Invalid argument on Windows when using
+        datetime.fromtimestamp().
+        """
+        manager = NarwhalsTableManager.from_dataframe(df)
+        # Should not raise OSError even with old dates
+        bin_values = manager.get_bin_values("old_dates", 3)
+
+        # Verify we get valid bin values
+        assert len(bin_values) > 0
+        assert all(
+            isinstance(bv.bin_start, (datetime.datetime, type(None)))
+            for bv in bin_values
+        )
+        assert all(
+            isinstance(bv.bin_end, (datetime.datetime, type(None)))
+            for bv in bin_values
+        )
+        # Total count should be 11 (all rows)
+        assert sum(bin_value.count for bin_value in bin_values) == 11
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+@pytest.mark.parametrize(
+    "df",
     create_dataframes({"A": ["apple", "banana", "cherry"]}),
 )
 def test_search_with_regex(df: Any) -> None:
@@ -1364,12 +1514,15 @@ def test_calculate_top_k_rows(df: Any) -> None:
     manager = NarwhalsTableManager.from_dataframe(df)
     result = manager.calculate_top_k_rows("A", 10)
     normalized_result = _normalize_result(result)
-    assert normalized_result == [(3, 3), (None, 2), (1, 1), (2, 1)]
+
+    # Pandas considers None as nan sometimes
+    none_value = NAN_VALUE if nw.dependencies.is_pandas_dataframe(df) else None
+    assert normalized_result == [(3, 3), (none_value, 2), (1, 1), (2, 1)]
 
     # Test with limit
     result = manager.calculate_top_k_rows("A", 2)
     normalized_result = _normalize_result(result)
-    assert normalized_result == [(3, 3), (None, 2)]
+    assert normalized_result == [(3, 3), (none_value, 2)]
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
@@ -1399,12 +1552,85 @@ def test_calculate_top_k_rows_dicts(df: Any) -> None:
     assert result == [({"a": 1, "b": 2}, 2), ({"a": 3, "b": 4}, 1)]
 
 
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+@pytest.mark.parametrize(
+    "df",
+    create_dataframes(
+        {"A": [float("nan"), float("nan"), float("nan"), 1.0, 2.0, 2.0]},
+        include=SUPPORTED_LIBS,
+    ),
+)
+def test_calculate_top_k_rows_with_nan(df: Any) -> None:
+    """Test that NaN values are converted to NAN_VALUE string in calculate_top_k_rows."""
+
+    manager = NarwhalsTableManager.from_dataframe(df)
+    result = manager.calculate_top_k_rows("A", 10)
+
+    # Ibis serializes nans as None
+    none_value = None if nw.dependencies.is_ibis_table(df) else NAN_VALUE
+    # NaN values should be converted to NAN_VALUE string
+    assert result == [(none_value, 3), (2.0, 2), (1.0, 1)]
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+@pytest.mark.parametrize(
+    "df",
+    create_dataframes(
+        {
+            "A": [
+                float("nan"),
+                float("nan"),
+                float("inf"),
+                float("inf"),
+                float("-inf"),
+                1.0,
+                2.0,
+            ]
+        },
+        include=SUPPORTED_LIBS,
+    ),
+)
+def test_calculate_top_k_rows_with_all_special_floats(df: Any) -> None:
+    """Test that NaN, positive infinity, and negative infinity are all handled correctly."""
+    manager = NarwhalsTableManager.from_dataframe(df)
+    result = manager.calculate_top_k_rows("A", 10)
+
+    # Ibis serializes nans as None
+    none_value = None if nw.dependencies.is_ibis_table(df) else NAN_VALUE
+
+    pandas_pyarrow_ibis = (
+        nw.dependencies.is_pandas_dataframe(df)
+        or nw.dependencies.is_pyarrow_table(df)
+        or nw.dependencies.is_ibis_table(df)
+    )
+
+    # Different libraries order NaNs and Infs differently
+    if pandas_pyarrow_ibis:
+        assert result == [
+            (none_value, 2),
+            (POSITIVE_INF, 2),
+            (NEGATIVE_INF, 1),
+            (1.0, 1),
+            (2.0, 1),
+        ]
+    else:
+        assert result == [
+            (POSITIVE_INF, 2),
+            (NAN_VALUE, 2),
+            (NEGATIVE_INF, 1),
+            (1.0, 1),
+            (2.0, 1),
+        ]
+
+
 def _normalize_result(result: list[tuple[Any, int]]) -> list[tuple[Any, int]]:
     """Normalize None and NaN values for comparison."""
-    return [
-        (None if val is None or isnan(val) else val, count)
-        for val, count in result
-    ]
+    out: list[tuple[Any, int]] = []
+    for val, count in result:
+        if isinstance(val, (float, int)) and isnan(val):
+            val = NAN_VALUE
+        out.append((val, count))
+    return out
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
@@ -1603,114 +1829,52 @@ def test_calculate_top_k_rows_cache_invalidation(df: Any) -> None:
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
-class TestSanitizeTableValue:
-    """Tests for the _sanitize_table_value method."""
+class TestRichElements:
+    """Tests for rich elements."""
 
-    def setUp(self) -> None:
-        import polars as pl
-
-        self.data = pl.DataFrame({"A": [1, 2, 3]})
-        self.manager = NarwhalsTableManager.from_dataframe(self.data)
-
-    def test_sanitize_none(self) -> None:
-        """Test that None values are returned as-is."""
-        manager = self._get_manager()
-        assert manager._sanitize_table_value(None) is None
-
-    def test_sanitize_primitive_values(self) -> None:
-        """Test that primitive values are returned unchanged."""
-        manager = self._get_manager()
-        assert manager._sanitize_table_value(42) == 42
-        assert manager._sanitize_table_value("hello") == "hello"
-        assert manager._sanitize_table_value(3.14) == 3.14
-        assert manager._sanitize_table_value(True) is True
+    @pytest.fixture
+    def rich_data(self) -> dict[str, Any]:
+        return {"button": [button()]}
 
     @pytest.mark.skipif(
-        not DependencyManager.pillow.has(),
-        reason="Pillow not installed",
+        not DependencyManager.pandas.has(), reason="Pandas not installed"
     )
-    def test_sanitize_pillow_image(self) -> None:
-        """Test that Pillow images are converted to data URLs."""
-        from PIL import Image
+    def test_pandas(self, rich_data: dict[str, Any]) -> None:
+        import pandas as pd
 
-        manager = self._get_manager()
+        df = pd.DataFrame(rich_data)
+        manager = NarwhalsTableManager.from_dataframe(df)
+        json_data = json.loads(manager.to_json_str())
 
-        # Create a simple test image
-        img = Image.new("RGB", (10, 10), color="red")
+        # Pandas uses mimetype and data instead of _serialized_mime_bundle
+        assert isinstance(json_data, list)
+        assert isinstance(json_data[0], dict)
+        assert isinstance(json_data[0]["button"], dict)
 
-        result = manager._sanitize_table_value(img)
+        assert json_data[0]["button"]["mimetype"] == "text/html"
+        assert json_data[0]["button"]["data"].startswith("<marimo-ui-element")
+        assert json_data[0]["button"]["data"].endswith("</marimo-ui-element>")
 
-        # Verify it returns a data URL string
-        assert isinstance(result, str)
-        assert result.startswith("data:image/png;base64,")
-
-    @pytest.mark.skipif(
-        not DependencyManager.matplotlib.has(),
-        reason="Matplotlib not installed",
+    @pytest.mark.parametrize(
+        "df",
+        create_dataframes(
+            {"button": [button()]}, include=["duckdb", "polars", "lazy-polars"]
+        ),
     )
-    def test_sanitize_matplotlib_figure(self) -> None:
-        """Test that Matplotlib figures are returned unchanged (no conversion)."""
-        import matplotlib.pyplot as plt
+    def test_rich_elements_default(self, df: Any) -> None:
+        manager = NarwhalsTableManager.from_dataframe(df)
+        json_data = json.loads(manager.to_json_str())
 
-        manager = self._get_manager()
+        assert isinstance(json_data, list)
+        assert isinstance(json_data[0], dict)
+        assert isinstance(json_data[0]["button"], dict)
+        assert isinstance(
+            json_data[0]["button"]["_serialized_mime_bundle"], dict
+        )
 
-        # Create a simple figure
-        fig, ax = plt.subplots()
-        ax.plot([1, 2, 3], [1, 2, 3])
-
-        result = manager._sanitize_table_value(fig)
-
-        # Figure is currently returned unchanged because there's no return statement for figures
-        # (only for axes)
-        assert result == fig
-
-        plt.close(fig)
-
-    @pytest.mark.skipif(
-        not DependencyManager.matplotlib.has(),
-        reason="Matplotlib not installed",
-    )
-    def test_sanitize_matplotlib_axes(self) -> None:
-        """Test that Matplotlib axes are converted to HTML."""
-        import matplotlib.pyplot as plt
-
-        manager = self._get_manager()
-
-        # Create a simple axes
-        fig, ax = plt.subplots()
-        ax.plot([1, 2, 3], [1, 2, 3])
-
-        result = manager._sanitize_table_value(ax)
-
-        # Verify it returns a dict with mimetype and data
-        assert isinstance(result, dict)
-        assert "mimetype" in result
-        assert "data" in result
-
-        plt.close(fig)
-
-    def test_sanitize_unsupported_types(self) -> None:
-        """Test that unsupported types are returned unchanged."""
-        manager = self._get_manager()
-
-        # Test various unsupported types
-        class CustomClass:
-            pass
-
-        obj = CustomClass()
-        assert manager._sanitize_table_value(obj) == obj
-
-        # Test dict
-        d = {"key": "value"}
-        assert manager._sanitize_table_value(d) == d
-
-        # Test list
-        lst = [1, 2, 3]
-        assert manager._sanitize_table_value(lst) == lst
-
-    def _get_manager(self) -> NarwhalsTableManager[Any]:
-        """Helper method to create a manager."""
-        import polars as pl
-
-        data = pl.DataFrame({"A": [1, 2, 3]})
-        return NarwhalsTableManager.from_dataframe(data)
+        serialized_mime_bundle = json_data[0]["button"][
+            "_serialized_mime_bundle"
+        ]
+        assert serialized_mime_bundle["mimetype"] == "text/html"
+        assert serialized_mime_bundle["data"].startswith("<marimo-ui-element")
+        assert serialized_mime_bundle["data"].endswith("</marimo-ui-element>")

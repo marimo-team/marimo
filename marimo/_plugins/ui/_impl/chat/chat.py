@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import inspect
+import uuid
 from dataclasses import dataclass
 from typing import Any, Callable, Final, Optional, Union, cast
 
@@ -20,7 +21,7 @@ from marimo._runtime.functions import EmptyArgs, Function
 from marimo._runtime.requests import SetUIElementValueRequest
 
 DEFAULT_CONFIG = ChatModelConfigDict(
-    max_tokens=100,
+    max_tokens=4096,
     temperature=0.5,
     top_p=1,
     top_k=40,
@@ -77,16 +78,23 @@ class chat(UIElement[dict[str, Any], list[ChatMessage]]):
             return await my_async_function(messages)
         ```
 
+        Regular (sync) generators for streaming:
         ```python
-        async def my_rag_model(messages):
-            for response in my_async_iterator(messages):
-                yield response
+        def my_streaming_model(messages, config):
+            for chunk in process_stream():
+                yield chunk  # Each yield updates the UI
         ```
 
-        The last value yielded by the async generator is treated as the model
-        response. ui.chat does not yet support streaming responses to the frontend.
-        Please file a GitHub issue if this is important to you:
-        https://github.com/marimo-team/marimo/issues
+        Async generators for streaming with async operations:
+        ```python
+        async def my_async_streaming_model(messages, config):
+            async for chunk in async_process_stream():
+                yield chunk  # Each yield updates the UI
+        ```
+
+        The last value yielded by the generator is treated as the model
+        response. Streaming responses are automatically streamed to the frontend
+        as they are generated.
 
         Using a built-in model:
         ```python
@@ -206,6 +214,61 @@ class chat(UIElement[dict[str, Any], list[ChatMessage]]):
         del self._chat_history[index]
         self._value = self._chat_history
 
+    async def _handle_streaming_response(self, response: Any) -> str:
+        """Handle streaming from both sync and async generators.
+
+        Generators should yield delta chunks (new content only), which this
+        method accumulates and sends to the frontend as complete text.
+        This follows the standard streaming pattern used by OpenAI, Anthropic,
+        and other AI providers.
+        """
+        message_id = str(uuid.uuid4())
+        accumulated_text = ""
+
+        # Use async for if it's an async generator, otherwise regular for
+        if inspect.isasyncgen(response):
+            async for delta in response:
+                # Accumulate each delta chunk
+                delta_str = str(delta)
+                accumulated_text += delta_str
+                self._send_message(
+                    {
+                        "type": "stream_chunk",
+                        "message_id": message_id,
+                        "content": accumulated_text,
+                        "is_final": False,
+                    },
+                    buffers=None,
+                )
+        else:
+            for delta in response:
+                # Accumulate each delta chunk
+                delta_str = str(delta)
+                accumulated_text += delta_str
+                self._send_message(
+                    {
+                        "type": "stream_chunk",
+                        "message_id": message_id,
+                        "content": accumulated_text,
+                        "is_final": False,
+                    },
+                    buffers=None,
+                )
+
+        # Send final message to indicate streaming is complete
+        if accumulated_text:
+            self._send_message(
+                {
+                    "type": "stream_chunk",
+                    "message_id": message_id,
+                    "content": accumulated_text,
+                    "is_final": True,
+                },
+                buffers=None,
+            )
+
+        return accumulated_text
+
     async def _send_prompt(self, args: SendMessageRequest) -> str:
         messages = args.messages
 
@@ -223,20 +286,11 @@ class chat(UIElement[dict[str, Any], list[ChatMessage]]):
 
         if inspect.isawaitable(response):
             response = await response
-        elif inspect.isasyncgen(response):
-            # We support functions that stream the response with an async
-            # generator; each yielded value is the latest representation of the
-            # response, and the last value is the full value
-            latest_response = None
-            async for latest_response in response:  # noqa: B007
-                # TODO(akshayka, mscolnick): Stream response to frontend
-                # once bidirectional communication is implemented.
-                #
-                # RPCs don't yet support bidirectional communication, so we
-                # just ignore all the initial responses; ideally we'd stream
-                # the response back to the frontend.
-                pass
-            response = latest_response
+        elif inspect.isasyncgen(response) or inspect.isgenerator(response):
+            # We support functions that stream the response with generators
+            # (both sync and async); each yielded value is the latest
+            # representation of the response, and the last value is the full value
+            response = await self._handle_streaming_response(response)
 
         response_message = ChatMessage(role="assistant", content=response)
         self._chat_history = messages + [response_message]

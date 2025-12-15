@@ -6,9 +6,9 @@ import pytest
 
 from marimo._ai._types import ChatMessage
 from marimo._config.config import AiConfig
+from marimo._server.ai.config import AnyProviderConfig
 from marimo._server.ai.providers import (
     AnthropicProvider,
-    AnyProviderConfig,
     AzureOpenAIProvider,
     BedrockProvider,
     GoogleProvider,
@@ -500,3 +500,68 @@ async def test_openai_compatible_api_no_reasoning_effort(
     assert "max_completion_tokens" not in call_kwargs, (
         "max_completion_tokens should not be present when reasoning_effort is not used"
     )
+
+
+def test_openai_extract_content_tool_delta_out_of_bounds() -> None:
+    """Test OpenAI handles tool call delta with out-of-bounds index gracefully.
+
+    This reproduces the issue reported in #7330 where some OpenAI-compatible
+    providers (like deepseek) may send tool call deltas before the tool call
+    start, causing an IndexError.
+    """
+    config = AnyProviderConfig(api_key="test-key", base_url="http://test")
+    provider = OpenAIProvider("gpt-4", config)
+
+    mock_response = MagicMock()
+    mock_delta = MagicMock()
+    mock_delta.content = None
+
+    # Create a tool call delta with index 0, but tool_call_ids is empty
+    mock_tool_delta = MagicMock()
+    mock_tool_delta.index = 0
+    mock_tool_delta.id = None  # No id for delta chunks
+    mock_tool_delta.function = MagicMock()
+    mock_tool_delta.function.name = None  # No name for delta chunks
+    mock_tool_delta.function.arguments = '{"location": "SF"}'
+
+    mock_delta.tool_calls = [mock_tool_delta]
+    mock_choice = MagicMock()
+    mock_choice.delta = mock_delta
+    mock_response.choices = [mock_choice]
+
+    # Call with empty tool_call_ids - this should not crash
+    result = provider.extract_content(mock_response, [])
+    # Should return None or empty list since we can't process the delta
+    assert result is None or result == []
+
+
+def test_bedrock_extract_content_tool_delta_out_of_bounds() -> None:
+    """Test Bedrock handles tool call delta with out-of-bounds index gracefully.
+
+    This reproduces the issue reported in #7330 where some providers may send
+    tool call deltas before the tool call start, causing an IndexError.
+    """
+    config = AnyProviderConfig(api_key="test-key", base_url="http://test")
+    provider = BedrockProvider("bedrock/anthropic.claude-3-sonnet", config)
+
+    mock_response = MagicMock()
+    mock_delta = MagicMock()
+    mock_delta.content = None
+
+    # Create a tool call delta with index 0, but tool_call_ids is empty
+    mock_tool_delta = MagicMock()
+    mock_tool_delta.index = 0
+    mock_tool_delta.id = None  # No id for delta chunks
+    mock_tool_delta.function = MagicMock()
+    mock_tool_delta.function.name = None  # No name for delta chunks
+    mock_tool_delta.function.arguments = '{"location": "SF"}'
+
+    mock_delta.tool_calls = [mock_tool_delta]
+    mock_choice = MagicMock()
+    mock_choice.delta = mock_delta
+    mock_response.choices = [mock_choice]
+
+    # Call with empty tool_call_ids - this should not crash
+    result = provider.extract_content(mock_response, [])
+    # Should return None or empty list since we can't process the delta
+    assert result is None or result == []

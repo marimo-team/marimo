@@ -100,12 +100,14 @@ describe("isConditionValueValid", () => {
     );
     expect(isConditionValueValid("contains", "test")).toBe(true);
     expect(isConditionValueValid("in", ["test"])).toBe(true);
+    expect(isConditionValueValid("not_in", ["test"])).toBe(true);
   });
 
   it("should return false if the value is not valid according to the schema for the given operator", () => {
     expect(isConditionValueValid("==", "not a number")).toBe(false);
     expect(isConditionValueValid("contains", 123)).toBe(false);
     expect(isConditionValueValid("in", "not an array")).toBe(false);
+    expect(isConditionValueValid("not_in", "not an array")).toBe(false);
   });
 
   it("should return true if the operator does not require a value", () => {

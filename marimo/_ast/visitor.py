@@ -531,8 +531,16 @@ class ScopedVisitor(ast.NodeVisitor):
                         # Thus, if it has been declared, it's not "unbounded"
                         class_def.add(var)
                     else:
-                        unbounded_refs |= data.required_refs
-                unbounded_refs |= mock_visitor.refs - ignore_refs
+                        # For non-function/non-class variables (e.g., class attributes),
+                        # exclude references to variables already defined in class scope
+                        # Also exclude self-references (e.g., TypeAlias can reference itself)
+                        unbounded_refs |= (
+                            data.required_refs - class_def - {var}
+                        )
+                        # Add the variable to class_def so that later references
+                        # to it don't create unbounded refs
+                        class_def.add(var)
+            unbounded_refs |= mock_visitor.refs - ignore_refs
 
         # Handle function/class refs that are evaluated in the outer scope
         # Remove the body, which keeps signature and non-scoped parts.
@@ -553,6 +561,14 @@ class ScopedVisitor(ast.NodeVisitor):
         # the variable `foo` needs to be aware that it may require the ref `x`
         # during execution.
         self.ref_stack[-1].update(refs)
+
+        # Prune type_params
+        if sys.version_info >= (3, 12):
+            type_params = getattr(node, "type_params", [])
+            generics = {param.name for param in type_params}
+            refs -= generics
+            unbounded_refs -= generics
+
         # Return both sets of refs
         return refs, unbounded_refs
 
@@ -990,12 +1006,20 @@ class ScopedVisitor(ast.NodeVisitor):
 
         # Handle refs on the block scope level, or capture cell level
         # references.
+        # Only add to ref_stack if the variable is not defined in any
+        # non-module ancestor block. This prevents function parameters from
+        # being incorrectly marked as refs when used in nested scopes like
+        # list comprehensions, while still capturing module-level references.
         if (
             isinstance(node.ctx, ast.Load)
             and self._is_defined(node.id)
             and node.id not in self.ref_stack[-1]
             and (
-                node.id not in self.block_stack[-1].defs
+                # Check blocks[1:] - skip module block so module-level vars
+                # are still tracked as refs, but function params aren't
+                not any(
+                    node.id in block.defs for block in self.block_stack[1:]
+                )
                 or len(self.block_stack) == 1
             )
         ):

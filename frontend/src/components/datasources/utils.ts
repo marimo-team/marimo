@@ -66,11 +66,13 @@ function getFormatter(dialect: string): SqlCodeFormatter {
           `SELECT ${columnName === "*" ? "*" : `"${columnName}"`} FROM ${tableName} LIMIT 100`,
       };
     case "db2":
+    case "db2i":
     case "mysql":
     case "sqlite":
     case "mariadb":
     case "cassandra":
     case "noql":
+    case "awsathena":
     case "athena":
     case "hive":
     case "redshift":
@@ -79,6 +81,11 @@ function getFormatter(dialect: string): SqlCodeFormatter {
     case "mongodb":
     case "oracle":
     case "oracledb":
+    case "couchbase":
+    case "tidb":
+    case "spark":
+    case "trino":
+    case "singlestoredb":
       return defaultFormatter;
     default:
       logNever(dialect);
