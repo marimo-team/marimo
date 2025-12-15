@@ -218,6 +218,9 @@ describe("cell reducer", () => {
       [1] ''
       "
     `);
+
+    // Verify scrollKey is set to the restored cell
+    expect(state.scrollKey).toBe("2" as CellId);
   });
 
   it("can delete a SQL cell and undo delete", () => {
@@ -2150,6 +2153,9 @@ describe("cell reducer", () => {
     expect(state.cellData[SETUP_CELL_ID].code).toBe("# Setup code");
     expect(state.cellData[SETUP_CELL_ID].edited).toBe(true);
     expect(state.cellIds.inOrderIds).toContain(SETUP_CELL_ID);
+
+    // Verify scrollKey is set to the restored setup cell
+    expect(state.scrollKey).toBe(SETUP_CELL_ID);
   });
 
   it("can delete and then create a new setup cell", () => {

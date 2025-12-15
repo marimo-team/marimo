@@ -11,6 +11,7 @@ import {
   FilterIcon,
   FunctionSquareIcon,
   GroupIcon,
+  InfoIcon,
   MousePointerSquareDashedIcon,
   PencilIcon,
   PlusIcon,
@@ -19,7 +20,13 @@ import {
   Table2Icon,
   Trash2Icon,
 } from "lucide-react";
-import React, { type PropsWithChildren, useEffect, useMemo, useState } from "react";
+import React, {
+  type PropsWithChildren,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useState,
+} from "react";
 import { useFieldArray, useForm } from "react-hook-form";
 import useEvent from "react-use-event-hook";
 import type { z } from "zod";
@@ -43,6 +50,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "../../../components/ui/dropdown-menu";
+import { Tooltip } from "../../../components/ui/tooltip";
 import { cn } from "../../../utils/cn";
 import { DATAFRAME_FORM_RENDERERS } from "./forms/renderers";
 import {
@@ -54,6 +62,10 @@ import {
 import type { ColumnDataTypes } from "./types";
 import { getUpdatedColumnTypes } from "./utils/getUpdatedColumnTypes";
 
+export interface TransformPanelHandle {
+  submit: () => void;
+}
+
 interface Props {
   columns: ColumnDataTypes;
   initialValue: Transformations;
@@ -63,6 +75,8 @@ interface Props {
     values: unknown[];
     too_many_values: boolean;
   }>;
+  lazy: boolean;
+  ref?: React.Ref<TransformPanelHandle>;
 }
 
 export const TransformPanel: React.FC<Props> = ({
@@ -71,6 +85,8 @@ export const TransformPanel: React.FC<Props> = ({
   onChange,
   onInvalidChange,
   getColumnValues,
+  lazy,
+  ref,
 }) => {
   const form = useForm<z.infer<typeof TransformationsSchema>>({
     resolver: zodResolver(TransformationsSchema),
@@ -78,7 +94,7 @@ export const TransformPanel: React.FC<Props> = ({
     mode: "onChange",
     reValidateMode: "onChange",
   });
-  const { handleSubmit, watch, control } = form;
+  const { handleSubmit, watch, control, formState } = form;
 
   const onSubmit = useEvent((values: z.infer<typeof TransformationsSchema>) => {
     onChange(values);
@@ -90,14 +106,38 @@ export const TransformPanel: React.FC<Props> = ({
     },
   );
 
-  useEffect(() => {
-    const subscription = watch(() => {
-      handleSubmit(onSubmit, () => {
+  const handleApply = useEvent(() => {
+    handleSubmit(
+      (values) => {
+        onSubmit(values);
+        // Reset dirty state by setting current values as new default
+        // Use keepValues to avoid re-initializing field arrays
+        if (lazy) {
+          form.reset(values, { keepValues: true });
+        }
+      },
+      () => {
         onInvalidSubmit(form.getValues());
-      })();
+      },
+    )();
+  });
+
+  useImperativeHandle(ref, () => {
+    return {
+      submit: handleApply,
+    };
+  }, []);
+
+  useEffect(() => {
+    // If lazy, do not auto-submit on input changes
+    if (lazy) {
+      return;
+    }
+    const subscription = watch(() => {
+      handleApply();
     });
     return () => subscription.unsubscribe();
-  }, [handleSubmit, watch, onInvalidSubmit, onSubmit, form]);
+  }, [watch, handleApply, lazy]);
 
   const [selectedTransform, setSelectedTransform] = React.useState<
     number | undefined
@@ -169,7 +209,11 @@ export const TransformPanel: React.FC<Props> = ({
       <ColumnFetchValuesContext value={getColumnValues}>
         <form
           onSubmit={(e) => e.preventDefault()}
-          className="flex flex-row max-h-[400px] overflow-hidden bg-background"
+          // When lazy, prevent Enter from submitting
+          onKeyDown={
+            lazy ? (e) => e.key === "Enter" && e.preventDefault() : undefined
+          }
+          className="relative flex flex-row max-h-[400px] overflow-hidden bg-background"
         >
           <Sidebar
             items={form.watch("transforms")}
@@ -209,6 +253,49 @@ export const TransformPanel: React.FC<Props> = ({
               </div>
             )}
           </div>
+          {lazy && (
+            <div className="absolute bottom-0 right-0 border-l border-t rounded-tl-sm flex flex-row items-center gap-1 p-1.5 pr-1">
+              <Button
+                data-testid="marimo-plugin-data-frames-apply"
+                variant={formState.isDirty ? "warn" : "outline"}
+                size="xs"
+                onClick={handleApply}
+                className="h-6"
+              >
+                Apply
+              </Button>
+              <Tooltip
+                delayDuration={100}
+                content={
+                  <div className="flex flex-col gap-1.5 text-xs text-muted-foreground max-w-96 text-pretty">
+                    <p>
+                      This dataframe is marked lazy to improve performance.{" "}
+                      <span>
+                        Click{" "}
+                        <span className="px-1 mr-1 rounded border border-border">
+                          Apply
+                        </span>
+                        to apply the transforms.
+                      </span>
+                    </p>
+                    <p>
+                      Pass{" "}
+                      <code className="bg-muted px-1 py-0.5 rounded-sm">
+                        lazy=False
+                      </code>{" "}
+                      to{" "}
+                      <code className="bg-muted px-1 py-0.5 rounded-sm">
+                        mo.ui.dataframe
+                      </code>{" "}
+                      to automatically apply transformations.
+                    </p>
+                  </div>
+                }
+              >
+                <InfoIcon className="w-3 h-3 text-muted-foreground hover:text-foreground cursor-help" />
+              </Tooltip>
+            </div>
+          )}
         </form>
       </ColumnFetchValuesContext>
     </ColumnInfoContext>

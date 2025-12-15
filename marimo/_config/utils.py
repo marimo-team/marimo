@@ -37,15 +37,27 @@ def get_or_create_user_config_path() -> str:
     If no config file is found, one will be created under the proper XDG path
     (i.e. `~/.config/marimo` or `$XDG_CONFIG_HOME/marimo`)
     """
-    current_config_path = get_user_config_path()
-    if current_config_path:
-        return current_config_path
-    else:
-        config_path = marimo_config_path()
-        config_path.parent.mkdir(parents=True, exist_ok=True)
-        # Create an empty file
-        config_path.touch()
-        return str(config_path)
+    try:
+        current_config_path = get_user_config_path()
+        if current_config_path:
+            return current_config_path
+    except OSError as e:
+        # Handle OSError that can occur on Windows when os.path.realpath()
+        # fails due to issues like deleted directory, permission problems,
+        # UNC path issues, or special characters in path.
+        # See https://github.com/marimo-team/marimo/issues/7502
+        LOGGER.error(
+            "Could not search for config file due to path error: %s. "
+            "Falling back to XDG config path.",
+            str(e),
+        )
+
+    # No config found or error occurred, create XDG config
+    config_path = marimo_config_path()
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+    # Create an empty file
+    config_path.touch()
+    return str(config_path)
 
 
 # This operation may be expensive due to searching for a config file up to

@@ -8,7 +8,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.18.3"
 app = marimo.App(width="medium")
 
 
@@ -24,9 +24,16 @@ def _():
     return (data,)
 
 
+@app.cell(hide_code=True)
+def _(mo):
+    lazy_button = mo.ui.checkbox(label="Lazy Dataframe")
+    lazy_button
+    return (lazy_button,)
+
+
 @app.cell
-def _(data, mo):
-    dataframe_transformer = mo.ui.dataframe(data.iris())
+def _(data, lazy_button, mo):
+    dataframe_transformer = mo.ui.dataframe(data.iris(), lazy=lazy_button.value)
     dataframe_transformer
     return (dataframe_transformer,)
 
