@@ -61,7 +61,7 @@ describe("scrollCellIntoView", () => {
   });
 
   it("should log warning when cell element is not found", () => {
-    const warnSpy = vi.spyOn(Logger, "warn").mockImplementation(() => {});
+    const warnSpy = vi.spyOn(Logger, "warn").mockImplementation(vi.fn());
     cellElement.remove();
 
     scrollCellIntoView(cellId);

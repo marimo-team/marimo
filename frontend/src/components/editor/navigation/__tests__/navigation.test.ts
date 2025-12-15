@@ -51,6 +51,8 @@ vi.mock("../clipboard", () => ({
 vi.mock("../focus-utils", () => ({
   focusCellEditor: vi.fn(),
   focusCell: vi.fn(),
+  scrollCellIntoView: vi.fn(),
+  raf2: vi.fn((callback: () => void) => callback()),
 }));
 
 // Mock simplifySelection from @codemirror/commands
