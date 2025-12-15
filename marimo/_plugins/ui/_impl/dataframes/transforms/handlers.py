@@ -373,6 +373,8 @@ class NarwhalsTransformHandler(TransformHandler[DataFrame]):
 
     @staticmethod
     def handle_pivot(df: DataFrame, transform: PivotTransform) -> DataFrame:
+        # Note: narwhals pivot requires collecting first
+        # also, we fill nulls with 0 for count and sum aggregations to keep consistency
         pivot_df = (
             df.collect()
             .pivot(
@@ -380,20 +382,27 @@ class NarwhalsTransformHandler(TransformHandler[DataFrame]):
                 index=transform.index_column_ids,
                 values=transform.value_column_ids,
                 aggregate_function=transform.aggregation,
-            ).select(nw.all().fill_null(0))
+                sort_columns=False,
+            )
+            .select(
+                nw.all().fill_null(0)
+                if transform.aggregation in ["len", "sum"]
+                else nw.all()
+            )
             .sort(by=transform.index_column_ids)
             .lazy()
         )
 
         new_columns = {}
+        replacements = str.maketrans({"{": "", "}": "", '"': "", ",": "_"})
         for column in pivot_df.columns:
-            new_column = column.replace('{', '').replace('}', '').replace('"', '').replace(',', '_')
+            new_column = str(column).translate(replacements)
 
             if len(transform.value_column_ids) == 1:
-                new_column = f'{transform.value_column_ids[0]}_{new_column}'
+                new_column = f"{transform.value_column_ids[0]}_{new_column}"
 
             if column not in transform.index_column_ids:
-                new_columns[column] = f'{new_column}_{transform.aggregation}'
+                new_columns[column] = f"{new_column}_{transform.aggregation}"
             else:
                 new_columns[column] = column
 

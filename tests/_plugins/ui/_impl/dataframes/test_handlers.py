@@ -1229,15 +1229,21 @@ class TestTransformHandler:
                     }
                 ),
                 create_test_dataframes(
-                    {'B': ['one', 'two'], 'D_foo_sum': [5, 6], 'D_bar_sum': [9, 13]}
+                    {
+                        "B": ["one", "two"],
+                        "D_foo_sum": [5, 6],
+                        "D_bar_sum": [9, 13],
+                    }
                 ),
-                [PivotTransform(
-                    type=TransformType.PIVOT,
-                    column_ids=["A"],
-                    index_column_ids=["B"],
-                    value_column_ids=["D"],
-                    aggregation="sum",
-                )],
+                [
+                    PivotTransform(
+                        type=TransformType.PIVOT,
+                        column_ids=["A"],
+                        index_column_ids=["B"],
+                        value_column_ids=["D"],
+                        aggregation="sum",
+                    )
+                ],
             ),
             *zip(
                 create_test_dataframes(
@@ -1279,15 +1285,22 @@ class TestTransformHandler:
                     }
                 ),
                 create_test_dataframes(
-                    {'B': ['one', 'one', 'two', 'two'], 'C': ['large', 'small', 'large', 'small'], 'D_foo_sum': [4, 1, 0, 6], 'D_bar_sum': [4, 5, 7, 6]}
+                    {
+                        "B": ["one", "one", "two", "two"],
+                        "C": ["large", "small", "large", "small"],
+                        "D_foo_sum": [4, 1, 0, 6],
+                        "D_bar_sum": [4, 5, 7, 6],
+                    }
                 ),
-                [PivotTransform(
-                    type=TransformType.PIVOT,
-                    column_ids=["A"],
-                    index_column_ids=["B", "C"],
-                    value_column_ids=["D"],
-                    aggregation="sum",
-                )],
+                [
+                    PivotTransform(
+                        type=TransformType.PIVOT,
+                        column_ids=["A"],
+                        index_column_ids=["B", "C"],
+                        value_column_ids=["D"],
+                        aggregation="sum",
+                    )
+                ],
             ),
         ],
     )

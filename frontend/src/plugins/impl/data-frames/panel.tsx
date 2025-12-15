@@ -16,8 +16,8 @@ import {
   PlusIcon,
   ShuffleIcon,
   SquareMousePointerIcon,
-  Trash2Icon,
   Table2Icon,
+  Trash2Icon,
 } from "lucide-react";
 import React, { type PropsWithChildren, useEffect, useMemo, useState } from "react";
 import { useFieldArray, useForm } from "react-hook-form";

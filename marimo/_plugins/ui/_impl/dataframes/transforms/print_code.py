@@ -221,7 +221,31 @@ def python_print_pandas(
         column_ids = transform.column_ids
         index_column_ids = transform.index_column_ids
         value_column_ids = transform.value_column_ids
-        return f"{df_name}.pivot_table(columns={_list_of_strings(column_ids)}, index={_list_of_strings(index_column_ids)}, values={_list_of_strings(value_column_ids)}, aggfunc={transform.aggregation})"
+        agg_func = (
+            "count"
+            if transform.aggregation == "len"
+            else transform.aggregation
+        )
+
+        args = _args_list(
+            f"index={_list_of_strings(index_column_ids)}",
+            f"columns={_list_of_strings(column_ids)}",
+            f"values={_list_of_strings(value_column_ids)}",
+            f"aggfunc={_as_literal(agg_func)}",
+            "sort=False",
+            "fill_value=0"
+            if agg_func in ["count", "sum"]
+            else "fill_value=None",
+        )
+        pivot_code = f"{df_name}.pivot_table({args}).sort_index(axis=0)"
+        flatten_columns_code = (
+            f"{df_name}.columns = ["
+            f"f\"{{'_'.join(map(str, col)).strip()}}_{agg_func}\" "
+            f'if isinstance(col, tuple) else f"{{col}}_{agg_func}" '
+            f"for col in {df_name}.columns]"
+        )
+        reset_index_code = f"{df_name} = {df_name}.reset_index()"
+        return f"{pivot_code}\n{flatten_columns_code}\n{reset_index_code}"
 
     assert_never(transform.type)
 
@@ -385,10 +409,24 @@ def python_print_polars(
         return f"{df_name}.unique(subset={_list_of_strings(column_ids)}, keep={_as_literal(transform.keep)})"  # noqa: E501
 
     elif transform.type == TransformType.PIVOT:
-        column_ids = transform.column_ids
-        index_column_ids = transform.index_column_ids
-        value_column_ids = transform.value_column_ids
-        return f"{df_name}.pivot(on={_list_of_strings(column_ids)}, index={_list_of_strings(index_column_ids)}, values={_list_of_strings(value_column_ids)}, aggregate_function={transform.aggregation})"
+        args = _args_list(
+            f"on={_list_of_strings(transform.column_ids)}",
+            f"index={_list_of_strings(transform.index_column_ids)}",
+            f"values={_list_of_strings(transform.value_column_ids)}",
+            f"aggregate_function={_as_literal(transform.aggregation)}",
+        )
+        pivot_code = f"{df_name}.pivot({args}).sort({_list_of_strings(transform.index_column_ids)}).fill_null(0)"  # noqa: E501
+        lambda_code = (
+            f"lambda col: \f'{transform.value_column_ids[0]}_{{col.translate(replacements)}}_{_as_literal(transform.aggregation)}'"  # noqa: E501
+            if len(transform.value_column_ids) == 1
+            else f"lambda col: \f'{{col.translate(replacements)}}_{_as_literal(transform.aggregation)}'"
+            f" if col not in {_list_of_strings(transform.index_column_ids)} else col"
+        )
+        rename_code = (
+            'replacements = str.maketrans({"{": "", "}": "", \'"\': "", ",": "_"})\n'
+            f"{df_name} = {df_name}.rename({lambda_code})"
+        )
+        return f"{pivot_code}\n{rename_code}"
 
     assert_never(transform.type)
 
@@ -524,7 +562,29 @@ def python_print_ibis(
         column_ids = transform.column_ids
         index_column_ids = transform.index_column_ids
         value_column_ids = transform.value_column_ids
-        return f"{df_name}.pivot_wider(names_from={_list_of_strings(column_ids)}, id_cols={_list_of_strings(index_column_ids)}, values_from={_list_of_strings(value_column_ids)}, values_agg={transform.aggregation})"
+        agg_func = (
+            "count"
+            if transform.aggregation == "len"
+            else transform.aggregation
+        )
+        pivot_code = (
+            f"{df_name}.pivot_wider("
+            f"names_from={_list_of_strings(column_ids)}, "
+            f"id_cols={_list_of_strings(index_column_ids)}, "
+            f"values_from={_list_of_strings(value_column_ids)}, "
+            f"values_agg={_as_literal(agg_func)})"
+        )
+
+        replacements_code = 'replacements = str.maketrans({"{": "", "}": "", \'"\': "", ",": "_"})'
+
+        rename_code = (
+            f"{df_name} = {df_name}.rename({{col: f'{transform.value_column_ids[0]}_{{col.translate(replacements)}}_{agg_func}' "
+            f"for col in {df_name}.columns if col not in {_list_of_strings(index_column_ids)}}})"
+            if len(transform.value_column_ids) == 1
+            else f"{df_name} = {df_name}.rename({{col: f'{{col.translate(replacements)}}_{agg_func}' "
+            f"for col in {df_name}.columns if col not in {_list_of_strings(index_column_ids)}}})"
+        )
+        return f"{pivot_code}\n{replacements_code}\n{rename_code}"
 
     assert_never(transform.type)
 

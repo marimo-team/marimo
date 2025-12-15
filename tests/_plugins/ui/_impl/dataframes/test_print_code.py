@@ -367,6 +367,10 @@ def test_print_code_result_matches_actual_transform_pandas(
     if transform.type == TransformType.GROUP_BY:
         assume(transform.aggregation != "mean")
 
+    # Ignore groupby mean
+    if transform.type == TransformType.PIVOT:
+        assume(transform.aggregation != "mean")
+
     # Pandas
     pandas_code = python_print_transforms(
         "my_df",

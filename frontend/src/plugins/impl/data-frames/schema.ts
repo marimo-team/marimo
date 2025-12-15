@@ -7,6 +7,8 @@ import {
   AGGREGATION_FNS,
   type ColumnId,
   NUMPY_DTYPES,
+  PIVOT_AGGREGATION_FNS,
+
 } from "@/plugins/impl/data-frames/types";
 import {
   ALL_OPERATORS,
@@ -209,8 +211,8 @@ const UniqueTransformSchema = z
       .default([])
       .describe(FieldOptions.of({ label: "Aggregate on columns" })),
     aggregation: z
-      .enum(AGGREGATION_FNS)
-      .default("count")
+      .enum(PIVOT_AGGREGATION_FNS)
+      .default("sum")
       .describe(FieldOptions.of({ label: "Aggregation" })),
   })
   .describe(FieldOptions.of({}));
