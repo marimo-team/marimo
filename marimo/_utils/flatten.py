@@ -229,7 +229,8 @@ def flatten(
     json_compat_keys: if True, unflattener will stringify dict keys when
       keys are not JSON compatible
     flatten_formattable_subclasses: whether to flatten formattable values whose types are subclasses
-        of structure types, or to leave them as is
+        of structure types and have a custom formatter (i.e., not using the default structures formatter),
+        or to leave them as is
 
     Returns:
     -------
