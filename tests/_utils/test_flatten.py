@@ -255,7 +255,7 @@ def test_dont_flatten_subclass_dict() -> None:
     class CustomDict(dict): ...
 
     @formatting.formatter(CustomDict)
-    def format_custom_list(obj: Any) -> tuple[str, str]:
+    def format_custom_dict(obj: Any) -> tuple[str, str]:
         return ("text/plain", f"CustomList{list(obj)}")
 
     mydict = CustomDict({1: 2})
