@@ -28,7 +28,7 @@ def form_toolsets(
     we create a closure to invoke the tool (backend) or raise a CallDeferred (frontend).
     Ref: https://ai.pydantic.dev/toolsets/#function-toolset
 
-    Returns a tuple of the toolset and whether deferred tool requests are supported.
+    Returns a tuple of the toolset and whether deferred tool requests are needed.
     """
     from pydantic_ai import CallDeferred, FunctionToolset
 
