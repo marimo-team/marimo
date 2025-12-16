@@ -14,7 +14,9 @@ from marimo._ast.app import App
 from marimo._plugins.ui._impl.input import dropdown
 from marimo._runtime.requests import ExecutionRequest
 from marimo._runtime.runtime import Kernel
-from marimo._save.cache import Cache, ModuleStub, UIElementStub
+from marimo._save.cache import Cache
+from marimo._save.stubs.module_stub import ModuleStub
+from marimo._save.stubs.ui_element_stub import UIElementStub
 from tests.conftest import ExecReqProvider, TestableModuleStub
 
 
@@ -2499,6 +2501,56 @@ class TestCacheDecorator:
             arr = [1, 2]  # Mutation after definition
             assert g() == 2
             return (g, arr)
+
+    @staticmethod
+    def test_shadowed_ui_variable_threadpool(app) -> None:
+        """Test shadow error with UI-derived variable and ThreadPoolExecutor.
+
+        Bug requires:
+        1. UI element providing a cell-scoped variable (e.g. `extension`)
+        2. Helper function with same-named parameter using nested scope (list comp)
+        3. Cached function called via ThreadPoolExecutor.submit()
+
+        Causes KeyError at hash.py because scope has '*extension' (ARG_PREFIX)
+        but lookup uses 'extension'.
+        """
+        with app.setup:
+            from concurrent.futures import ThreadPoolExecutor
+
+            import marimo as mo
+
+        @app.cell
+        def _():
+            ui_input = mo.ui.text(value="hello")
+            return (ui_input,)
+
+        @app.cell
+        def _():
+            def helper(extension: list[str] | None) -> int:
+                # Nested scope using extension triggers the bug
+                # for e in extension: ... works fine.
+                return len([e for e in extension or []])
+
+            @mo.cache
+            def inner(extension: list[str] | None) -> int:
+                assert len([e for e in extension or []]) == 5
+                return helper(extension)
+
+            return (inner,)
+
+        @app.cell
+        def _(inner, ui_input):
+            extension = ui_input.value
+
+            results = []
+            # has to be in a thread submission
+            # the following works fine
+            assert inner(extension) == 5
+
+            with ThreadPoolExecutor(max_workers=2) as executor:
+                future = executor.submit(inner, extension)
+                assert future.result() == 5
+            return
 
 
 class TestPersistentCache:

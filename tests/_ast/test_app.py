@@ -1017,6 +1017,256 @@ class TestAppComposition:
         assert result.output.text == vstack(["hello", "world"]).text
         assert not result.defs
 
+    async def test_app_embed_with_defs(self) -> None:
+        """Test embed() with defs parameter to override cell definitions."""
+        app = App()
+
+        @app.cell
+        def __() -> tuple[int]:
+            x = 10
+            return (x,)
+
+        @app.cell
+        def __(x: int) -> tuple[int]:
+            y = x * 2
+            return (y,)
+
+        @app.cell
+        def __(y: int) -> None:
+            f"Result: {y}"
+
+        # Test without override
+        result = await app.embed()
+        assert result.defs["x"] == 10
+        assert result.defs["y"] == 20
+        assert "Result: 20" in result.output.text
+
+        # Test with override - cell defining x should be pruned
+        result = await app.embed(defs={"x": 100})
+        assert result.defs["x"] == 100
+        assert result.defs["y"] == 200
+        assert "Result: 200" in result.output.text
+
+    async def test_app_embed_with_defs_ui_element_not_allowed(self) -> None:
+        app = App()
+
+        @app.cell
+        def __() -> tuple[int]:
+            x = 10
+            return (x,)
+
+        import marimo as mo
+
+        with pytest.raises(ValueError) as excinfo:
+            await app.embed(defs={"x": mo.ui.slider(1, 10)})
+
+        assert "Substituting UI Elements for variables is not allowed" in str(excinfo.value)
+
+    async def test_app_embed_with_defs_multiple_vars(self) -> None:
+        """Test embed() with defs overriding a cell that defines multiple variables."""
+        app = App()
+
+        @app.cell
+        def __() -> tuple[int, int]:
+            a = 5
+            b = 10
+            return a, b
+
+        @app.cell
+        def __(a: int, b: int) -> None:
+            f"Sum: {a + b}"
+
+        # Test without override
+        result = await app.embed()
+        assert result.defs["a"] == 5
+        assert result.defs["b"] == 10
+        assert "Sum: 15" in result.output.text
+
+        # Test with override - must provide both a and b
+        result = await app.embed(defs={"a": 100, "b": 200})
+        assert result.defs["a"] == 100
+        assert result.defs["b"] == 200
+        assert "Sum: 300" in result.output.text
+
+    async def test_app_embed_with_defs_incomplete_refs_error(self) -> None:
+        """Test that embed() raises IncompleteRefsError for partial overrides."""
+        from marimo._ast.errors import IncompleteRefsError
+
+        app = App()
+
+        @app.cell
+        def __() -> tuple[int, int]:
+            x = 1
+            y = 2
+            return x, y
+
+        @app.cell
+        def __(x: int, y: int) -> None:
+            f"{x} + {y}"
+
+        # Should raise error when only providing x but not y
+        with pytest.raises(IncompleteRefsError) as exc_info:
+            await app.embed(defs={"x": 100})
+
+        assert "y" in str(exc_info.value)
+        assert "Missing: ['y']" in str(exc_info.value)
+
+    async def test_app_embed_with_defs_multiple_cells(self) -> None:
+        """Test embed() with defs pruning multiple cells."""
+        app = App()
+
+        @app.cell
+        def __() -> tuple[int]:
+            a = 1
+            return (a,)
+
+        @app.cell
+        def __() -> tuple[int]:
+            b = 2
+            return (b,)
+
+        @app.cell
+        def __(a: int, b: int) -> tuple[int]:
+            c = a + b
+            return (c,)
+
+        @app.cell
+        def __(c: int) -> None:
+            f"Result: {c}"
+
+        # Override both a and b - should prune first two cells
+        result = await app.embed(defs={"a": 10, "b": 20})
+        assert result.defs["a"] == 10
+        assert result.defs["b"] == 20
+        assert result.defs["c"] == 30
+        assert "Result: 30" in result.output.text
+
+    async def test_app_embed_with_defs_partial_pruning(self) -> None:
+        """Test embed() with defs pruning only some cells."""
+        app = App()
+
+        @app.cell
+        def __() -> tuple[int]:
+            x = 5
+            return (x,)
+
+        @app.cell
+        def __() -> tuple[int]:
+            y = 10
+            return (y,)
+
+        @app.cell
+        def __(x: int, y: int) -> None:
+            f"x={x}, y={y}"
+
+        # Override only x - should prune only first cell
+        result = await app.embed(defs={"x": 100})
+        assert result.defs["x"] == 100
+        assert result.defs["y"] == 10  # y cell still ran
+        assert "x=100, y=10" in result.output.text
+
+    async def test_app_embed_with_defs_stale_outputs(self) -> None:
+        """Test that embed() doesn't return stale cached outputs with different defs."""
+        app = App()
+
+        @app.cell
+        def __() -> tuple[int]:
+            x = 10
+            return (x,)
+
+        @app.cell
+        def __(x: int) -> None:
+            "x is small" if x == 10 else "x is large"
+
+        # First call - no override
+        result_initial = await app.embed()
+        assert result_initial.defs["x"] == 10
+        assert "x is small" in result_initial.output.text
+
+        # Second call - with first override
+        result_override = await app.embed(defs={"x": 100})
+        assert result_override.defs["x"] == 100
+        assert "x is large" in result_override.output.text
+        assert "x is small" not in result_override.output.text
+
+        # Third call - with second override
+        result_override2 = await app.embed(defs={"x": 200})
+        assert result_override2.defs["x"] == 200
+        assert "x is large" in result_override2.output.text
+        assert "x is small" not in result_override2.output.text
+
+        # Check that initial result wasn't mutated by subsequent calls
+        assert result_initial.defs["x"] == 10
+        assert "x is small" in result_initial.output.text
+        assert "x is large" not in result_initial.output.text
+
+    async def test_app_embed_with_defs_stale_outputs_kernel(
+        self, k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        """Test embed() with different defs through kernel (tests caching code path)."""
+        await k.run(
+            [
+                exec_req.get(
+                    """
+                    from marimo import App
+
+                    app = App()
+
+                    @app.cell
+                    def __() -> tuple[int]:
+                        x = 10
+                        return (x,)
+
+                    @app.cell
+                    def __(x: int) -> None:
+                        "x is small" if x == 10 else "x is large"
+                    """
+                ),
+                exec_req.get(
+                    """
+                    # First call - no override
+                    result_initial = await app.embed()
+                    """
+                ),
+                exec_req.get(
+                    """
+                    # Second call - with first override
+                    result_override = await app.embed(defs={"x": 100})
+                    """
+                ),
+                exec_req.get(
+                    """
+                    # Third call - with second override
+                    result_override2 = await app.embed(defs={"x": 200})
+                    """
+                ),
+            ]
+        )
+        assert not k.errors
+
+        result_initial = k.globals["result_initial"]
+        result_override = k.globals["result_override"]
+        result_override2 = k.globals["result_override2"]
+
+        # Check first result - output then defs
+        assert "x is small" in result_initial.output.text
+        assert result_initial.defs["x"] == 10
+
+        # Check second result with first override - output then defs
+        assert "x is large" in result_override.output.text
+        assert "x is small" not in result_override.output.text
+        assert result_override.defs["x"] == 100
+
+        # Check third result with second override - output then defs
+        assert "x is large" in result_override2.output.text
+        assert "x is small" not in result_override2.output.text
+        assert result_override2.defs["x"] == 200
+
+        # Check that initial result wasn't mutated by subsequent calls
+        assert "x is small" in result_initial.output.text
+        assert "x is large" not in result_initial.output.text
+        assert result_initial.defs["x"] == 10
+
     @pytest.mark.xfail(
         True, reason="Flaky in CI, can't repro locally", strict=False
     )
@@ -1253,6 +1503,40 @@ class TestAppComposition:
         assert k.globals["cloned"].defs.get("this_is_foo_file").endswith(filename)
         assert k.globals["app"].defs.get("this_is_foo_path").stem == directory
         assert k.globals["cloned"].defs.get("this_is_foo_path").stem == directory
+
+
+    @staticmethod
+    async def test_app_embed_same_cell_in_kernel(
+        k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        await k.run(
+            [
+                exec_req.get(
+                    """
+                    from tests._ast.app_data import notebook_filename
+                    app = await notebook_filename.app.embed()
+                    app
+                    """
+                ),
+            ]
+        )
+        assert "App.embed() cannot be called" in k.stderr.messages[0]
+
+    @staticmethod
+    async def test_app_embed_same_cell_in_kernel_direct(
+        k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        await k.run(
+            [
+                exec_req.get(
+                    """
+                    from tests._ast.app_data.notebook_filename import app
+                    await app.embed()
+                    """
+                ),
+            ]
+        )
+        assert "App.embed() cannot be called" in k.stderr.messages[0]
 
 
 class TestAppKernelRunnerRegistry:

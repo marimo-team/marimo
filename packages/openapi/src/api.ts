@@ -3177,6 +3177,7 @@ export interface components {
      *
      *         - `activate_on_typing`: if `False`, completion won't activate
      *         until the completion hotkey is entered
+     *         - `signature_hint_on_typing`: if `False`, signature hint won't be shown when typing
      *         - `copilot`: one of `"github"`, `"codeium"`, or `"custom"`
      *         - `codeium_api_key`: the Codeium API key
      */
@@ -3187,6 +3188,7 @@ export interface components {
       codeium_api_key?: string | null;
       copilot: boolean | ("codeium" | "custom" | "github");
       model?: string | null;
+      signature_hint_on_typing: boolean;
     };
     /** CompletionOption */
     CompletionOption: {
@@ -3664,10 +3666,14 @@ export interface components {
      *
      *         - `api_key`: the GitHub API token
      *         - `base_url`: the base URL for the API
+     *         - `copilot_settings`: configuration settings for GitHub Copilot LSP.
+     *             Supports settings like `http` (proxy configuration), `telemetry`,
+     *             and `github-enterprise` (enterprise URI).
      */
     GitHubConfig: {
       api_key?: string;
       base_url?: string;
+      copilot_settings?: Record<string, any>;
     };
     /**
      * GoogleAiConfig
@@ -4750,7 +4756,11 @@ export interface components {
     };
     /** WorkspaceFilesResponse */
     WorkspaceFilesResponse: {
+      /** @default 0 */
+      fileCount?: number;
       files: components["schemas"]["FileInfo"][];
+      /** @default false */
+      hasMore?: boolean;
       root: string;
     };
     /**

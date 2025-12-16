@@ -13,8 +13,9 @@ from typing import TYPE_CHECKING, Any
 import pytest
 from _pytest import runner
 
-from marimo._ast.app import App, CellManager
+from marimo._ast.app import App
 from marimo._ast.app_config import _AppConfig
+from marimo._ast.cell_manager import CellManager
 from marimo._config.config import DEFAULT_CONFIG
 from marimo._messaging.mimetypes import ConsoleMimeType
 from marimo._messaging.ops import (
@@ -38,7 +39,7 @@ from marimo._runtime.input_override import input_override
 from marimo._runtime.marimo_pdb import MarimoPdb
 from marimo._runtime.requests import AppMetadata, ExecutionRequest
 from marimo._runtime.runtime import Kernel
-from marimo._save.cache import ModuleStub
+from marimo._save.stubs.module_stub import ModuleStub
 from marimo._server.model import SessionMode
 from marimo._types.ids import CellId_t
 

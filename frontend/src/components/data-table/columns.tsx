@@ -14,6 +14,7 @@ import { Logger } from "@/utils/Logger";
 import { Maps } from "@/utils/maps";
 import { maxFractionalDigits } from "@/utils/numbers";
 import { Objects } from "@/utils/objects";
+import { parseContent } from "@/utils/url-parser";
 import { EmotionCacheProvider } from "../editor/output/EmotionCacheProvider";
 import { JsonOutput } from "../editor/output/JsonOutput";
 import { CopyClipboardIcon } from "../icons/copy-icon";
@@ -35,7 +36,7 @@ import {
   INDEX_COLUMN_NAME,
 } from "./types";
 import { uniformSample } from "./uniformSample";
-import { MarkdownUrlDetector, parseContent, UrlDetector } from "./url-detector";
+import { MarkdownUrlDetector, UrlDetector } from "./url-detector";
 
 // Artificial limit to display long strings
 const MAX_STRING_LENGTH = 50;

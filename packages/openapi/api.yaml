@@ -662,8 +662,9 @@ components:
       description: "Configuration for code completion.\n\n    A dict with key/value\
         \ pairs configuring code completion in the marimo\n    editor.\n\n    **Keys.**\n\
         \n    - `activate_on_typing`: if `False`, completion won't activate\n    until\
-        \ the completion hotkey is entered\n    - `copilot`: one of `\"github\"`,\
-        \ `\"codeium\"`, or `\"custom\"`\n    - `codeium_api_key`: the Codeium API\
+        \ the completion hotkey is entered\n    - `signature_hint_on_typing`: if `False`,\
+        \ signature hint won't be shown when typing\n    - `copilot`: one of `\"github\"\
+        `, `\"codeium\"`, or `\"custom\"`\n    - `codeium_api_key`: the Codeium API\
         \ key"
       properties:
         activate_on_typing:
@@ -691,9 +692,12 @@ components:
           anyOf:
           - type: string
           - type: 'null'
+        signature_hint_on_typing:
+          type: boolean
       required:
       - activate_on_typing
       - copilot
+      - signature_hint_on_typing
       title: CompletionConfig
       type: object
     CompletionOption:
@@ -1628,12 +1632,17 @@ components:
       type: object
     GitHubConfig:
       description: "Configuration options for GitHub.\n\n    **Keys.**\n\n    - `api_key`:\
-        \ the GitHub API token\n    - `base_url`: the base URL for the API"
+        \ the GitHub API token\n    - `base_url`: the base URL for the API\n    -\
+        \ `copilot_settings`: configuration settings for GitHub Copilot LSP.\n   \
+        \     Supports settings like `http` (proxy configuration), `telemetry`,\n\
+        \        and `github-enterprise` (enterprise URI)."
       properties:
         api_key:
           type: string
         base_url:
           type: string
+        copilot_settings:
+          type: object
       required: []
       title: GitHubConfig
       type: object
@@ -3692,10 +3701,16 @@ components:
       type: object
     WorkspaceFilesResponse:
       properties:
+        fileCount:
+          default: 0
+          type: integer
         files:
           items:
             $ref: '#/components/schemas/FileInfo'
           type: array
+        hasMore:
+          default: false
+          type: boolean
         root:
           type: string
       required:
@@ -3755,7 +3770,7 @@ components:
       type: object
 info:
   title: marimo API
-  version: 0.17.6
+  version: 0.18.4
 openapi: 3.1.0
 paths:
   /@file/{filename_and_length}:

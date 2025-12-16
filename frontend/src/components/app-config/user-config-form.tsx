@@ -41,6 +41,7 @@ import {
 } from "@/core/config/config-schema";
 import { getAppWidths } from "@/core/config/widths";
 import { marimoVersionAtom } from "@/core/meta/state";
+import { viewStateAtom } from "@/core/mode";
 import { useRequestClient } from "@/core/network/requests";
 import { isWasm } from "@/core/wasm/utils";
 import { useDebouncedCallback } from "@/hooks/useDebounce";
@@ -119,7 +120,19 @@ export const UserConfigForm: React.FC = () => {
   const [activeCategory, setActiveCategory] = useAtom(
     activeUserConfigCategoryAtom,
   );
-  const capabilities = useAtomValue(capabilitiesAtom);
+
+  let capabilities = useAtomValue(capabilitiesAtom);
+  const isHome = useAtomValue(viewStateAtom).mode === "home";
+  // The home page does not fetch kernel capabilities, so we just turn them all on
+  if (isHome) {
+    capabilities = {
+      terminal: true,
+      pylsp: true,
+      ty: true,
+      basedpyright: true,
+    };
+  }
+
   const marimoVersion = useAtomValue(marimoVersionAtom);
   const { locale } = useLocale();
   const { saveUserConfig } = useRequestClient();
@@ -383,6 +396,38 @@ export const UserConfigForm: React.FC = () => {
                         Edit AI autocomplete
                       </Button>
                     </div>
+                  </div>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="completion.signature_hint_on_typing"
+                render={({ field }) => (
+                  <div className="flex flex-col space-y-1">
+                    <FormItem className={formItemClasses}>
+                      <FormLabel className="font-normal">
+                        Signature hints
+                      </FormLabel>
+                      <FormControl>
+                        <Checkbox
+                          data-testid="signature-hint-on-type-checkbox"
+                          checked={field.value ?? false}
+                          disabled={field.disabled}
+                          onCheckedChange={(checked) => {
+                            field.onChange(Boolean(checked));
+                          }}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                      <IsOverridden
+                        userConfig={config}
+                        name="completion.signature_hint_on_typing"
+                      />
+                    </FormItem>
+                    <FormDescription>
+                      Display signature hints while typing within function
+                      calls.
+                    </FormDescription>
                   </div>
                 )}
               />

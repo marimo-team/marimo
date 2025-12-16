@@ -102,6 +102,8 @@ class TestDataframes:
         with pytest.raises(ColumnNotFound):
             subject._get_column_values(GetColumnValuesArgs(column="idk"))
 
+        assert type(subject.value) is type(df)
+
     @staticmethod
     @pytest.mark.parametrize(
         "df",
@@ -130,6 +132,8 @@ class TestDataframes:
             subject._get_column_values(GetColumnValuesArgs(column="idk"))
         with pytest.raises(ColumnNotFound):
             subject._get_column_values(GetColumnValuesArgs(column=1))
+
+        assert type(subject.value) is type(df)
 
     @staticmethod
     @pytest.mark.skipif(
@@ -167,6 +171,7 @@ class TestDataframes:
         )
         assert search_result.total_rows == 3
         assert search_result.data == result.url
+        assert type(subject.value) is type(df)
 
     @staticmethod
     @pytest.mark.parametrize(
@@ -210,6 +215,8 @@ class TestDataframes:
             assert response.too_many_values is True
             assert len(response.values) == 0
 
+        assert type(subject.value) is type(df)
+
     @staticmethod
     @pytest.mark.parametrize(
         "df",
@@ -229,6 +236,7 @@ class TestDataframes:
         )
         assert search_result.total_rows == 100
         assert search_result.data == result.url
+        assert type(subject.value) is type(df)
 
     @staticmethod
     def test_dataframe_too_large_page_size() -> None:
@@ -256,6 +264,7 @@ class TestDataframes:
         ) == GetColumnValuesResponse(
             values=["a", "b", "c"], too_many_values=False
         )
+        assert type(subject.value) is type(df)
 
     @staticmethod
     @pytest.mark.parametrize(
@@ -275,6 +284,7 @@ class TestDataframes:
             SearchTableArgs(page_size=10, page_number=0)
         )
         assert search_result.total_rows == 100
+        assert type(subject.value) is type(df)
 
     @staticmethod
     @pytest.mark.skipif(
@@ -293,6 +303,36 @@ class TestDataframes:
         # show_download=False
         subject = ui.dataframe(df, show_download=False)
         assert subject._component_args["show-download"] is False
+        assert type(subject.value) is type(df)
+
+    @staticmethod
+    @pytest.mark.skipif(
+        not HAS_DEPS, reason="optional dependencies not installed"
+    )
+    def test_dataframe_download_encoding_utf8_sig_and_json_ensure_ascii() -> (
+        None
+    ):
+        df = pd.DataFrame({"A": [1, 2], "B": ["こんにちは", "世界"]})
+        subject = ui.dataframe(
+            df,
+            download_csv_encoding="utf-8-sig",
+            download_json_ensure_ascii=False,
+        )
+
+        # CSV should include BOM
+        csv_url = subject._download_as(DownloadAsArgs(format="csv"))
+        csv_bytes = from_data_uri(csv_url)[1]
+        assert csv_bytes.startswith(b"\xef\xbb\xbf")
+        assert "こんにちは" in csv_bytes.decode("utf-8-sig")
+
+        # JSON should preserve characters without BOM when ensure_ascii is False
+        json_url = subject._download_as(DownloadAsArgs(format="json"))
+        json_bytes = from_data_uri(json_url)[1]
+        assert not json_bytes.startswith(b"\xef\xbb\xbf")
+        json_text = json_bytes.decode("utf-8")
+        assert "こんにちは" in json_text
+        json_data = json.loads(json_text)
+        assert json_data[0]["B"] == "こんにちは"
 
     @staticmethod
     @pytest.mark.skipif(
@@ -314,6 +354,7 @@ class TestDataframes:
 
         data_bytes = from_data_uri(download_url)[1]
         assert len(data_bytes) > 0
+        assert type(subject.value) is type(df)
 
     @staticmethod
     @pytest.mark.skipif(
@@ -343,6 +384,7 @@ class TestDataframes:
         assert "Bob" in names
         assert "Charlie" in names
         assert "Alice" not in names
+        assert type(subject.value) is type(df)
 
     @staticmethod
     @pytest.mark.skipif(
@@ -373,6 +415,7 @@ class TestDataframes:
         assert "format must be one of 'csv', 'json', or 'parquet'" in str(
             exc_info.value
         )
+        assert type(subject.value) is type(df)
 
     @staticmethod
     @pytest.mark.skipif(
@@ -399,6 +442,8 @@ class TestDataframes:
                 # Some backends might not support all formats
                 pytest.skip(f"Backend doesn't support {format_type}: {e}")
 
+        assert type(subject.value) is type(df)
+
     @staticmethod
     @pytest.mark.parametrize(
         "df",
@@ -413,6 +458,8 @@ class TestDataframes:
         # Test ColumnNotFound error
         with pytest.raises(ColumnNotFound):
             subject._get_column_values(GetColumnValuesArgs(column="C"))
+
+        assert type(subject.value) is type(df)
 
     @staticmethod
     @pytest.mark.skipif(not HAS_POLARS, reason="Polars not installed")
@@ -580,6 +627,68 @@ class TestDataframes:
         )
 
 
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+def test_dataframe_lazy_small() -> None:
+    """Small dataframes should not be marked as lazy."""
+    df = pd.DataFrame({"A": [1, 2, 3], "B": ["a", "b", "c"]})
+
+    subject = ui.dataframe(df)
+    assert subject._lazy is False
+    assert subject._component_args["lazy"] is False
+
+
+@pytest.mark.skipif(not HAS_POLARS, reason="Polars not installed")
+def test_dataframe_lazy_lazyframe() -> None:
+    """Polars LazyFrames should be marked as lazy."""
+    import polars as pl
+
+    df = pl.DataFrame({"A": [1, 2, 3]}).lazy()
+    subject = ui.dataframe(df)
+    assert subject._lazy is True
+    assert subject._component_args["lazy"] is True
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+def test_dataframe_lazy_large() -> None:
+    """DataFrames with more than 100,000 rows should be marked as lazy."""
+    from marimo._plugins.ui._impl.dataframes.dataframe import TOO_MANY_ROWS
+
+    df = pd.DataFrame({"A": range(TOO_MANY_ROWS + 1)})
+    subject = ui.dataframe(df)
+    assert subject._lazy is True
+    assert subject._component_args["lazy"] is True
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+def test_dataframe_lazy_explicit_override() -> None:
+    """Explicit lazy parameter should override inferred value."""
+    df = pd.DataFrame({"A": [1, 2, 3]})
+
+    # Force lazy=True on a small dataframe
+    subject = ui.dataframe(df, lazy=True)
+    assert subject._lazy is True
+    assert subject._component_args["lazy"] is True
+
+    # Force lazy=False on a small dataframe (same as inferred)
+    subject = ui.dataframe(df, lazy=False)
+    assert subject._lazy is False
+    assert subject._component_args["lazy"] is False
+
+
+@pytest.mark.skipif(not HAS_IBIS, reason="Ibis not installed")
+def test_ibis_table_lazy() -> None:
+    """Ibis tables should be marked as lazy (row count may be unknown)."""
+    import ibis
+
+    # Ibis memtables may have unknown row count initially
+    data = {"A": [1, 2, 3], "B": ["a", "b", "c"]}
+    memtable = ibis.memtable(data)
+    subject = ui.dataframe(memtable)
+    # Ibis tables are typically treated as lazy since row count
+    # may not be immediately available
+    assert subject._component_args["lazy"] is True
+
+
 @pytest.mark.skipif(
     not HAS_IBIS or not HAS_POLARS,
     reason="optional dependencies not installed",
@@ -602,6 +711,7 @@ def test_ibis_with_polars_backend() -> None:
     assert dataframe._get_dataframe(EmptyArgs()).total_rows == 3
     assert dataframe._get_dataframe(EmptyArgs()).sql_code is None
     ibis.set_backend(prev_backend)
+    assert type(dataframe.value) is type(memtable)
 
 
 @pytest.mark.skipif(
@@ -620,6 +730,22 @@ def test_dataframe_with_int_column_names():
         assert "DataFrame has integer column names" in str(w[0].message)
 
     assert dataframe.value is not None
+    assert type(dataframe.value) is type(data)
+
+
+@pytest.mark.parametrize(
+    "df",
+    create_dataframes(
+        {"A": [1, 2, 3], "B": ["a", "b", "c"]},
+    ),
+)
+def test_dataframe_types_are_preserved(df: IntoDataFrame):
+    """Test that dataframe types are preserved after using mo.ui.dataframe."""
+    ui_limit = 3
+    # Create a marimo UI dataframe with a preview limit
+    ui_df = ui.dataframe(df, limit=ui_limit)
+
+    assert type(df) is type(ui_df.value)
 
 
 @pytest.mark.skipif(
@@ -658,3 +784,4 @@ def test_base_exception_handling():
     # Verify the error message is preserved
     assert "to json panic" in str(exc_info.value)
     assert exc_info.value.error == str(exc_info.value)
+    assert type(table.value) is type(df)

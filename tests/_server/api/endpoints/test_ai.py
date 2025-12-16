@@ -9,13 +9,13 @@ from unittest.mock import AsyncMock, MagicMock, Mock, patch
 import pytest
 
 from marimo._dependencies.dependencies import DependencyManager
+from marimo._server.ai.config import AnyProviderConfig
 from marimo._server.ai.prompts import (
     FIM_MIDDLE_TAG,
     FIM_PREFIX_TAG,
     FIM_SUFFIX_TAG,
 )
 from marimo._server.ai.providers import (
-    AnyProviderConfig,
     OpenAIProvider,
     without_wrapping_backticks,
 )
@@ -974,6 +974,7 @@ class TestGetFinishReason(unittest.TestCase):
 @pytest.mark.parametrize(
     ("chunks", "expected"),
     [
+        # Basic cases
         (["Hello", " world", "!"], "Hello world!"),
         (
             ["```", "print('hello')", "print('world')"],
@@ -994,7 +995,7 @@ class TestGetFinishReason(unittest.TestCase):
         ),
         (
             ["``", "`", "\n", "print('hello')", "\n", "``", "`"],
-            "print('hello')\n",
+            "print('hello')",
         ),
         (
             ["```\n", "print('hello')", "print('world')", "\n```"],
@@ -1027,6 +1028,103 @@ class TestGetFinishReason(unittest.TestCase):
             ["```sql\n", "SELECT * FROM table\n", "WHERE id = 1\n```"],
             "SELECT * FROM table\nWHERE id = 1",
         ),
+        # Test trailing whitespace preservation after closing backticks
+        (
+            ["```", "print('hello')", "```  "],
+            "print('hello')  ",
+        ),
+        (
+            ["```python\n", "print('hello')", "\n``` "],
+            "print('hello') ",
+        ),
+        (
+            ["```", "code", "```\t\n"],
+            "code\t\n",
+        ),
+        # Test leading whitespace before opening backticks (whitespace and backticks stripped)
+        (
+            ["  ```", "code", "```"],
+            "code",
+        ),
+        (
+            [" ```python\n", "code", "```"],
+            "code",
+        ),
+        (
+            ["\t```", "code", "```"],
+            "code",
+        ),
+        (
+            ["\n", "\n", "```\n", "code", "\n```\n"],
+            "code\n",
+        ),
+        (
+            ["\n", "\n", "```python\n", "code", "\n```\n"],
+            "code\n",
+        ),
+        (
+            ["\n``", "`python\n", "code", "\n```\n"],
+            "code\n",
+        ),
+        (
+            ["\n`", "`", "`python\n", "code", "\n```\n"],
+            "code\n",
+        ),
+        # Test opening backticks with extra characters after language (language stripped, rest preserved)
+        (
+            ["```python ", "code", "```"],
+            " code",
+        ),
+        (
+            ["```python\t", "code", "```"],
+            "\tcode",
+        ),
+        # Empty code block
+        (["```\n", "```"], ""),
+        (["```python\n", "```"], ""),
+        # Only opening backticks
+        (["```\n", "code"], "code"),
+        (["```python\n", "code"], "code"),
+        # Only closing backticks
+        (["code", "\n```"], "code\n```"),
+        # Multiple consecutive code blocks (keeps middle fences)
+        (
+            ["```\n", "x = 1\n", "```\n", "```\n", "y = 2\n", "```"],
+            "x = 1\n```\n```\ny = 2\n",
+        ),
+        # Code block with inline backticks in content
+        (
+            ["```python\n", "s = 'use `backticks`'\n", "```"],
+            "s = 'use `backticks`'\n",
+        ),
+        # Backticks split across multiple chunks
+        (["``", "`\n", "code\n", "``", "`"], "code\n"),
+        # Language identifier split from backticks
+        (["```", "python\n", "code\n", "```"], "code\n"),
+        # No newline after opening backticks
+        (["```", "code", "```"], "code"),
+        # Text before opening backticks (not at start, so backticks kept)
+        (["prefix ", "```\n", "code\n", "```"], "prefix ```\ncode\n```"),
+        # Text after closing backticks (backticks kept because followed by text)
+        (["```\n", "code\n", "```", " suffix"], "code\n``` suffix"),
+        # Multiple newlines
+        (["```\n\n", "code\n\n", "```"], "\ncode\n\n"),
+        # Whitespace handling (preserved inside code block)
+        (["```\n", "  code  \n", "```"], "  code  \n"),
+        # Tab characters (preserved inside code block)
+        (["```\n", "\tcode\t\n", "```"], "\tcode\t\n"),
+        # Mixed opening styles in same stream (middle ```python\n is kept)
+        (
+            ["```\n", "x\n", "```\n", "```python\n", "y\n", "```"],
+            "x\n```\n```python\ny\n",
+        ),
+        # Unsupported language identifier (should keep it as text)
+        (
+            ["```javascript\n", "console.log()\n", "```"],
+            "javascript\nconsole.log()\n",
+        ),
+        # Markdown language identifier (supported)
+        (["```markdown\n", "# Title\n", "```"], "# Title\n"),
     ],
 )
 async def test_without_wrapping_backticks(

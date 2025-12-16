@@ -113,7 +113,7 @@ describe("NumberPlugin", () => {
       z.infer<(typeof plugin)["validator"]>
     > = {
       host,
-      value: NaN,
+      value: Number.NaN,
       setValue,
       data: {
         start: 0,

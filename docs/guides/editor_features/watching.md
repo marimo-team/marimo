@@ -7,7 +7,7 @@ the marimo editor or running application. This lets you edit your notebook
 using an editor of your choice, like neovim, VSCode, Cursor, or PyCharm, and
 have the changes automatically reflected in your browser.
 
-/// admonition | Prefer VS Code/Cursor?
+/// admonition | Prefer VS Code/Cursor? Try our extension!
     type: tip
 
 This guide teaches you how to use marimo with arbitrary text editors.

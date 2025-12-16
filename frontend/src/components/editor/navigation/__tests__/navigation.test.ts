@@ -51,6 +51,22 @@ vi.mock("../clipboard", () => ({
 vi.mock("../focus-utils", () => ({
   focusCellEditor: vi.fn(),
   focusCell: vi.fn(),
+  scrollCellIntoView: vi.fn(),
+  raf2: vi.fn((callback: () => void) => callback()),
+}));
+
+// Mock simplifySelection from @codemirror/commands
+const mockSimplifySelection = vi.fn();
+vi.mock("@codemirror/commands", () => ({
+  simplifySelection: (...args: unknown[]) => mockSimplifySelection(...args),
+}));
+
+// Mock @codemirror/autocomplete
+const mockCompletionStatus = vi.fn();
+const mockCloseCompletion = vi.fn();
+vi.mock("@codemirror/autocomplete", () => ({
+  completionStatus: (...args: unknown[]) => mockCompletionStatus(...args),
+  closeCompletion: (...args: unknown[]) => mockCloseCompletion(...args),
 }));
 
 // Get mocked functions
@@ -1594,6 +1610,11 @@ describe("useCellEditorNavigationProps", () => {
 
     // Reset config overrides
     store.set(configOverridesAtom, {});
+
+    // Default: simplifySelection returns false (nothing to simplify)
+    mockSimplifySelection.mockReturnValue(false);
+    // Default: no autocomplete popup
+    mockCompletionStatus.mockReturnValue(null);
   });
 
   describe("keyboard shortcuts", () => {
@@ -1614,13 +1635,15 @@ describe("useCellEditorNavigationProps", () => {
     });
 
     it("should clear text selection when Escape is pressed with selection", () => {
-      const mockDispatch = vi.fn();
+      // Return true (simplified something)
+      mockSimplifySelection.mockReturnValue(true);
+
       const mockEditorView = {
         current: {
           state: {
             selection: { main: { from: 5, to: 10 } },
           },
-          dispatch: mockDispatch,
+          dispatch: vi.fn(),
         } as unknown as EditorView,
       };
       const { result } = renderWithProvider(() =>
@@ -1633,30 +1656,74 @@ describe("useCellEditorNavigationProps", () => {
         result.current.onKeyDown?.(mockEvent);
       });
 
-      const mockCall = mockDispatch.mock.calls[0][0];
-      expect(mockCall.selection.ranges[0].anchor).toBe(5);
-      expect(mockCall.selection.ranges[0].head).toBe(5);
+      expect(mockSimplifySelection).toHaveBeenCalledWith(
+        mockEditorView.current,
+      );
+      // Should not exit to command mode when simplifySelection returns true
       expect(focusCell).not.toHaveBeenCalled();
     });
 
+    it("should collapse multiple cursors on first Escape, then exit to command mode on second Escape", () => {
+      const mockEditorView = {
+        current: {
+          state: {
+            selection: {
+              main: { from: 10, to: 10, empty: true },
+              ranges: [
+                { from: 5, to: 5, empty: true },
+                { from: 10, to: 10, empty: true },
+                { from: 15, to: 15, empty: true },
+              ],
+            },
+            field: vi.fn().mockReturnValue(false),
+          },
+          dispatch: vi.fn(),
+        } as unknown as EditorView,
+      };
+      const { result } = renderWithProvider(() =>
+        useCellEditorNavigationProps(mockCellId, mockEditorView),
+      );
+
+      // First Escape: simplifySelection returns true (collapsed multiple cursors)
+      mockSimplifySelection.mockReturnValue(true);
+      const firstEscape = Mocks.keyboardEvent({ key: "Escape" });
+
+      act(() => {
+        result.current.onKeyDown?.(firstEscape);
+      });
+
+      expect(mockSimplifySelection).toHaveBeenCalledWith(
+        mockEditorView.current,
+      );
+      // Should NOT exit to command mode - first Escape simplifies cursors
+      expect(focusCell).not.toHaveBeenCalled();
+
+      // Second Escape: nothing left to simplify
+      mockSimplifySelection.mockReturnValue(false);
+      const secondEscape = Mocks.keyboardEvent({ key: "Escape" });
+
+      act(() => {
+        result.current.onKeyDown?.(secondEscape);
+      });
+
+      // Exit to command mode
+      expect(focusCell).toHaveBeenCalledWith(mockCellId);
+    });
+
     it("should close autocomplete popup when Escape is pressed with popup active", () => {
+      mockSimplifySelection.mockReturnValue(false); // Mock: nothing to simplify
+      mockCompletionStatus.mockReturnValue("active"); // Mock: popup is open
+
       const mockEditorView = {
         current: {
           state: {
             selection: { main: { from: 5, to: 5, empty: true } },
-            field: vi.fn().mockReturnValue({ active: [{ state: 1 }] }), // Mock active completion
+            field: vi.fn().mockReturnValue(false),
           },
           dispatch: vi.fn(),
         } as unknown as EditorView,
       };
 
-      // Mock the closeCompletion function
-      const originalCloseCompletion = vi.hoisted(() => vi.fn());
-      vi.mock("@codemirror/autocomplete", () => ({
-        completionStatus: vi.fn().mockReturnValue("active"),
-        closeCompletion: originalCloseCompletion,
-      }));
-
       const { result } = renderWithProvider(() =>
         useCellEditorNavigationProps(mockCellId, mockEditorView),
       );
@@ -1667,9 +1734,7 @@ describe("useCellEditorNavigationProps", () => {
         result.current.onKeyDown?.(mockEvent);
       });
 
-      expect(originalCloseCompletion).toHaveBeenCalledWith(
-        mockEditorView.current,
-      );
+      expect(mockCloseCompletion).toHaveBeenCalledWith(mockEditorView.current);
       expect(focusCell).not.toHaveBeenCalled();
     });
 

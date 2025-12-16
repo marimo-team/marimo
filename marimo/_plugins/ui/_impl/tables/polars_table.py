@@ -108,11 +108,26 @@ class PolarsTableManagerFactory(TableManagerFactory):
                     return result.write_csv()
 
             def to_json_str(
-                self, format_mapping: Optional[FormatMapping] = None
+                self,
+                format_mapping: Optional[FormatMapping] = None,
+                strict_json: bool = False,
+                ensure_ascii: bool = True,
             ) -> str:
-                def to_json(result: pl.DataFrame) -> list[dict[str, Any]]:
-                    # Use to_dicts instead of write_json
-                    # Preserves certain types like nans, infs, -infs, etc.
+                def to_json(
+                    result: pl.DataFrame,
+                ) -> list[dict[str, Any]] | str:
+                    """
+                    to_dicts preserves nans, infs and is more accurate than write_json.
+                    By default, we use to_dicts unless strict_json is True
+                    """
+                    if strict_json:
+                        try:
+                            return result.write_json()
+                        except Exception as e:
+                            LOGGER.warning(
+                                "Error serializing to JSON. Falling back to to_dicts. Error: %s",
+                                e,
+                            )
                     return result.to_dicts()
 
                 result = self.apply_formatting(format_mapping).collect()
@@ -132,7 +147,9 @@ class PolarsTableManagerFactory(TableManagerFactory):
                             result = result.with_columns(
                                 pl.col(column.name).cast(pl.List(pl.String))
                             )
-                    return sanitize_json_bigint(to_json(result))
+                    return sanitize_json_bigint(
+                        to_json(result), ensure_ascii=ensure_ascii
+                    )
                 except (
                     BaseException
                 ):  # Sometimes, polars throws a generic exception
@@ -174,7 +191,9 @@ class PolarsTableManagerFactory(TableManagerFactory):
                             ", ".join(f"'{col}'" for col in converted_columns),
                         )
 
-                    return sanitize_json_bigint(to_json(result))
+                    return sanitize_json_bigint(
+                        to_json(result), ensure_ascii=ensure_ascii
+                    )
 
             def _convert_time_to_string(
                 self, result: pl.DataFrame, column: pl.Series

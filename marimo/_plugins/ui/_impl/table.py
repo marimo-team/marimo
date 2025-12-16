@@ -319,9 +319,6 @@ class table(
         table
         ```
 
-        Note: when sorting is applied, per-cell hover and styling may not be
-        correctly aligned with rows, similar to cell styling behavior.
-
         In each case, access the table data with `table.value`.
 
     Attributes:
@@ -1121,7 +1118,9 @@ class table(
 
         # Fallback to JSON
         try:
-            data_url = mo_data.json(table_manager.to_json({})).url
+            data_url = mo_data.json(
+                table_manager.to_json({}, ensure_ascii=True)
+            ).url
             return data_url, "json"
         except Exception as e:
             LOGGER.error(
@@ -1255,7 +1254,9 @@ class table(
         if response.all_rows or response.error:
             row_ids = range(skip, skip + take)
             if descending and total_rows != "too_many":
-                row_ids = range(total_rows - 1, total_rows - 1 - take, -1)
+                row_ids = range(
+                    total_rows - 1 - skip, total_rows - 1 - skip - take, -1
+                )
         else:
             row_ids = response.row_ids[skip : skip + take]
 
@@ -1265,7 +1266,11 @@ class table(
         }
 
     def _hover_cells(
-        self, skip: int, take: int, total_rows: Union[int, Literal["too_many"]]
+        self,
+        skip: int,
+        take: int,
+        total_rows: Union[int, Literal["too_many"]],
+        descending: bool = False,
     ) -> Optional[dict[RowId, dict[ColumnName, Optional[str]]]]:
         """Calculate hover text for cells in the table (plain strings or None)."""
         if self._hover_cell is None:
@@ -1298,6 +1303,10 @@ class table(
         row_ids: Union[list[int], range]
         if response.all_rows or response.error:
             row_ids = range(skip, skip + take)
+            if descending and total_rows != "too_many":
+                row_ids = range(
+                    total_rows - 1 - skip, total_rows - 1 - skip - take, -1
+                )
         else:
             row_ids = response.row_ids[skip : skip + take]
 
@@ -1405,7 +1414,7 @@ class table(
                 offset, args.page_size, total_rows, descending
             ),
             cell_hover_texts=self._hover_cells(
-                offset, args.page_size, total_rows
+                offset, args.page_size, total_rows, descending
             ),
         )
 

@@ -79,7 +79,7 @@ const NumberComponent = (props: NumberComponentProps): JSX.Element => {
         // This needs to be `?? NaN` since `?? undefined` makes  uncontrolled component
         // and can lead to leaving the old value in forms (https://github.com/marimo-team/marimo/issues/7352)
         // We out NaNs later
-        value={value ?? NaN}
+        value={value ?? Number.NaN}
         step={props.step}
         onChange={handleChange}
         id={id}

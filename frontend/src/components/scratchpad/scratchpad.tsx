@@ -17,6 +17,7 @@ import { HTMLCellId, SCRATCH_CELL_ID } from "@/core/cells/ids";
 import { DEFAULT_CELL_NAME } from "@/core/cells/names";
 import type { LanguageAdapterType } from "@/core/codemirror/language/types";
 import { useResolvedMarimoConfig } from "@/core/config/config";
+import { CSSClasses } from "@/core/constants";
 import { useRequestClient } from "@/core/network/requests";
 import type { CellConfig } from "@/core/network/types";
 import { LazyAnyLanguageCodeMirror } from "@/plugins/impl/code/LazyAnyLanguageCodeMirror";
@@ -26,7 +27,7 @@ import { Functions } from "@/utils/functions";
 import { CellEditor } from "../editor/cell/code/cell-editor";
 import { HideInKioskMode } from "../editor/kiosk-mode";
 import { OutputArea } from "../editor/Output";
-import { ConsoleOutput } from "../editor/output/ConsoleOutput";
+import { ConsoleOutput } from "../editor/output/console/ConsoleOutput";
 import { Spinner } from "../icons/spinner";
 import { renderShortcut } from "../shortcuts/renderShortcut";
 import { Button } from "../ui/button";
@@ -149,7 +150,7 @@ export const ScratchPad: React.FC = () => {
           <OutputArea
             allowExpand={false}
             output={output}
-            className="output-area"
+            className={CSSClasses.outputArea}
             cellId={cellId}
             stale={false}
             loading={false}

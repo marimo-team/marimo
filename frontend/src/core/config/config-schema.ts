@@ -74,6 +74,7 @@ export const UserConfigSchema = z
     completion: z
       .object({
         activate_on_typing: z.boolean().prefault(true),
+        signature_hint_on_typing: z.boolean().prefault(false),
         copilot: z
           .union([z.boolean(), z.enum(["github", "codeium", "custom"])])
           .prefault(false)
@@ -145,7 +146,7 @@ export const UserConfigSchema = z
             return width;
           }),
         locale: z.string().nullable().optional(),
-        reference_highlighting: z.boolean().prefault(false),
+        reference_highlighting: z.boolean().prefault(true),
       })
       .prefault({}),
     package_management: z

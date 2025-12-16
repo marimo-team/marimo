@@ -6,6 +6,7 @@ import shutil
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING, Any, cast
+from unittest.mock import Mock, patch
 
 from marimo._server.api.deps import AppState
 from marimo._server.api.endpoints.assets import _inject_service_worker
@@ -217,3 +218,80 @@ def test_inject_service_worker() -> None:
         "const notebookId = 'c%3A%5Cpath%5Cto%5Cnotebook.py';"
         in _inject_service_worker("<body></body>", r"c:\path\to\notebook.py")
     )
+
+
+def test_index_with_missing_local_file_and_asset_url(
+    client: TestClient,
+) -> None:
+    """Test that index.html is fetched from asset_url when local file doesn't exist."""
+    app_state = AppState.from_app(cast(Any, client.app))
+
+    # Mock HTML content that would come from the CDN
+    mock_html = """<!DOCTYPE html>
+<html>
+<head><title>{{ title }}</title></head>
+<body>
+<marimo-filename hidden>{{ filename }}</marimo-filename>
+'{{ mount_config }}'
+</body>
+</html>"""
+
+    # Mock the requests.get to return our mock HTML
+    mock_response = Mock()
+    mock_response.text.return_value = mock_html
+    mock_response.raise_for_status.return_value = None
+
+    with (
+        patch("marimo._server.api.endpoints.assets.root") as mock_root,
+        patch("marimo._utils.requests.get", return_value=mock_response),
+    ):
+        # Make local index.html appear to not exist
+        mock_index_html = Mock()
+        mock_index_html.exists.return_value = False
+        mock_root.__truediv__.return_value = mock_index_html
+
+        # Set asset_url on the app state
+        client.app.state.asset_url = "https://cdn.example.com/assets/0.1.0"
+
+        response = client.get("/", headers=token_header())
+        assert response.status_code == 200, response.text
+        # The response should contain processed HTML
+        assert "<title>" in response.text
+
+
+def test_index_with_missing_local_file_no_asset_url(
+    client: TestClient,
+) -> None:
+    """Test that error is raised when local file doesn't exist and no asset_url."""
+    with patch("marimo._server.api.endpoints.assets.root") as mock_root:
+        # Make local index.html appear to not exist
+        mock_index_html = Mock()
+        mock_index_html.exists.return_value = False
+        mock_root.__truediv__.return_value = mock_index_html
+
+        # Ensure asset_url is None
+        client.app.state.asset_url = None
+
+        response = client.get("/", headers=token_header())
+        assert response.status_code == 500
+        assert "index.html not found" in response.json()["detail"]
+
+
+def test_index_prefers_local_file_over_asset_url(client: TestClient) -> None:
+    """Test that local index.html is preferred even when asset_url is set."""
+    # Set asset_url on the app state
+    client.app.state.asset_url = "https://cdn.example.com/assets/0.1.0"
+
+    # Mock requests.get to track if it's called
+    mock_response = Mock()
+    with patch(
+        "marimo._utils.requests.get", return_value=mock_response
+    ) as mock_get:
+        response = client.get("/", headers=token_header())
+        assert response.status_code == 200, response.text
+
+        # requests.get should NOT be called since local file exists
+        mock_get.assert_not_called()
+
+    # Reset asset_url
+    client.app.state.asset_url = None

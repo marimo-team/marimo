@@ -29,6 +29,7 @@ import { outputIsLoading, outputIsStale } from "@/core/cells/cell";
 import { isOutputEmpty } from "@/core/cells/outputs";
 import { autocompletionKeymap } from "@/core/codemirror/cm";
 import type { LanguageAdapterType } from "@/core/codemirror/language/types";
+import { CSSClasses } from "@/core/constants";
 import { canCollapseOutline } from "@/core/dom/outline";
 import { isErrorMime } from "@/core/mime";
 import type { AppMode } from "@/core/mode";
@@ -86,7 +87,7 @@ import {
   useTemporarilyShownCodeActions,
 } from "./navigation/state";
 import { type OnRefactorWithAI, OutputArea } from "./Output";
-import { ConsoleOutput } from "./output/ConsoleOutput";
+import { ConsoleOutput } from "./output/console/ConsoleOutput";
 import { CellDragHandle, SortableCell } from "./SortableCell";
 
 /**
@@ -349,7 +350,7 @@ const ReadonlyCellComponent = forwardRef(
         <OutputArea
           allowExpand={false}
           forceExpand={true}
-          className="output-area"
+          className={CSSClasses.outputArea}
           cellId={cellId}
           output={cellRuntime.output}
           stale={outputIsStale(cellRuntime, cellData.edited)}
@@ -508,7 +509,7 @@ const EditableCellComponent = ({
         allowExpand={true}
         // Force expand when markdown is hidden
         forceExpand={isMarkdownCodeHidden}
-        className="output-area"
+        className={CSSClasses.outputArea}
         cellId={cellId}
         output={cellRuntime.output}
         stale={isStaleCell}
@@ -1168,7 +1169,7 @@ const SetupCellComponent = ({
             <OutputArea
               allowExpand={true}
               forceExpand={true}
-              className="output-area"
+              className={CSSClasses.outputArea}
               cellId={cellId}
               output={cellRuntime.output}
               stale={false}

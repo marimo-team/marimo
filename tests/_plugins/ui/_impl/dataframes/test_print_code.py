@@ -131,7 +131,7 @@ def create_transform_strategy(
     list_condition_strategy = st.builds(
         Condition,
         column_id=list_column_id,
-        operator=st.just("in"),
+        operator=st.sampled_from(["in", "not_in"]),
         value=st.lists(st.one_of(st.text()), min_size=1),
     )
 

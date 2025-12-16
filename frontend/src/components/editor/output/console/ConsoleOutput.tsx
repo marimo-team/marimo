@@ -1,6 +1,5 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import { AnsiUp } from "ansi_up";
 import { ChevronRightIcon, WrapTextIcon } from "lucide-react";
 import React, { useLayoutEffect } from "react";
 import { ToggleButton } from "react-aria-components";
@@ -14,15 +13,13 @@ import type { WithResponse } from "@/core/cells/types";
 import type { OutputMessage } from "@/core/kernel/messages";
 import { useSelectAllContent } from "@/hooks/useSelectAllContent";
 import { cn } from "@/utils/cn";
-import { ansiToPlainText, parseHtmlContent } from "@/utils/dom";
 import { invariant } from "@/utils/invariant";
-import { Strings } from "@/utils/strings";
-import { NameCellContentEditable } from "../actions/name-cell-input";
-import { ErrorBoundary } from "../boundary/ErrorBoundary";
-import { type OnRefactorWithAI, OutputRenderer } from "../Output";
-import { useWrapText } from "./useWrapText";
-
-const ansiUp = new AnsiUp();
+import { NameCellContentEditable } from "../../actions/name-cell-input";
+import { ErrorBoundary } from "../../boundary/ErrorBoundary";
+import { type OnRefactorWithAI, OutputRenderer } from "../../Output";
+import { useWrapText } from "../useWrapText";
+import { processOutput } from "./process-output";
+import { RenderTextWithLinks } from "./text-rendering";
 
 interface Props {
   cellId: CellId;
@@ -268,20 +265,5 @@ const renderText = (text: string | null) => {
     return null;
   }
 
-  return (
-    <span dangerouslySetInnerHTML={{ __html: ansiUp.ansi_to_html(text) }} />
-  );
-};
-
-/** Convert cell or console output to a string, while handling html and ansi codes */
-export const processOutput = (output: OutputMessage): string => {
-  if (
-    output.mimetype.startsWith("application/vnd.marimo") ||
-    output.mimetype === "text/html"
-  ) {
-    return parseHtmlContent(Strings.asString(output.data));
-  }
-
-  // Convert ANSI to HTML, then parse as HTML
-  return ansiToPlainText(Strings.asString(output.data));
+  return <RenderTextWithLinks text={text} />;
 };

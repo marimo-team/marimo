@@ -26,7 +26,11 @@ def test_configure_partial_keymap() -> None:
 def test_configure_full() -> None:
     assert_config(
         PartialMarimoConfig(
-            completion={"activate_on_typing": False, "copilot": False},
+            completion={
+                "activate_on_typing": False,
+                "copilot": False,
+                "signature_hint_on_typing": False,
+            },
             save={
                 "autosave": "after_delay",
                 "autosave_delay": 2,
@@ -90,6 +94,44 @@ def test_merge_config() -> None:
     assert (
         new_config.get("ai", {}).get("google", {}).get("api_key")
         == "google_secret"
+    )
+
+
+def test_configure_github_with_copilot_settings() -> None:
+    """Test GitHub AI configuration with copilot_settings."""
+    config = merge_default_config(
+        PartialMarimoConfig(
+            ai={
+                "github": {
+                    "api_key": "test-github-key",
+                    "copilot_settings": {
+                        "http": {
+                            "proxy": "http://proxy.example.com:8888",
+                            "proxyStrictSSL": True,
+                        },
+                        "telemetry": {"telemetryLevel": "off"},
+                        "github-enterprise": {
+                            "uri": "https://github.enterprise.com"
+                        },
+                    },
+                }
+            }
+        )
+    )
+
+    github_config = config.get("ai", {}).get("github", {})
+    assert github_config.get("api_key") == "test-github-key"
+    assert github_config.get("copilot_settings") is not None
+    copilot_settings = github_config.get("copilot_settings", {})
+    assert (
+        copilot_settings.get("http", {}).get("proxy")
+        == "http://proxy.example.com:8888"
+    )
+    assert copilot_settings.get("http", {}).get("proxyStrictSSL") is True
+    assert copilot_settings.get("telemetry", {}).get("telemetryLevel") == "off"
+    assert (
+        copilot_settings.get("github-enterprise", {}).get("uri")
+        == "https://github.enterprise.com"
     )
 
 

@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import { atom, useAtom, useAtomValue } from "jotai";
-import { EditIcon, XIcon } from "lucide-react";
+import { AlertTriangleIcon, EditIcon, XIcon } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,6 +15,7 @@ import {
 } from "@/core/hotkeys/hotkeys";
 import { isPlatformMac } from "@/core/hotkeys/shortcuts";
 import { useRequestClient } from "@/core/network/requests";
+import { useDuplicateShortcuts } from "../../../hooks/useDuplicateShortcuts";
 import { useHotkey } from "../../../hooks/useHotkey";
 import { KeyboardHotkeys } from "../../shortcuts/renderShortcut";
 import {
@@ -25,6 +26,7 @@ import {
   DialogPortal,
   DialogTitle,
 } from "../../ui/dialog";
+import { DuplicateShortcutBanner } from "./duplicate-shortcut-banner";
 
 export const keyboardShortcutsAtom = atom(false);
 
@@ -37,6 +39,10 @@ export const KeyboardShortcuts: React.FC = () => {
   const [config, setConfig] = useResolvedMarimoConfig();
   const hotkeys = useAtomValue(hotkeysAtom);
   const { saveUserConfig } = useRequestClient();
+  const { duplicates, hasDuplicate, getDuplicatesFor } = useDuplicateShortcuts(
+    hotkeys,
+    "Markdown",
+  );
 
   useHotkey("global.showHelp", () => setIsOpen((v) => !v));
 
@@ -214,6 +220,9 @@ export const KeyboardShortcuts: React.FC = () => {
       );
     }
 
+    const isDuplicate = hasDuplicate(action);
+    const duplicateActions = isDuplicate ? getDuplicatesFor(action) : [];
+
     return (
       <div
         key={action}
@@ -231,7 +240,20 @@ export const KeyboardShortcuts: React.FC = () => {
           <div className="w-3 h-3" />
         )}
         <KeyboardHotkeys className="justify-end" shortcut={hotkey.key} />
-        <span>{hotkey.name.toLowerCase()}</span>
+        <div className="flex items-center gap-1">
+          <span>{hotkey.name.toLowerCase()}</span>
+          {isDuplicate && (
+            <div className="group relative inline-flex">
+              <AlertTriangleIcon className="w-3 h-3 text-(--yellow-11)" />
+              <div className="invisible group-hover:visible absolute left-0 top-5 z-10 w-max max-w-xs rounded-md bg-(--yellow-2) border border-(--yellow-7) p-2 text-xs text-(--yellow-11) shadow-md">
+                Also used by:{" "}
+                {duplicateActions
+                  .map((a) => hotkeys.getHotkey(a).name.toLowerCase())
+                  .join(", ")}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     );
   };
@@ -279,6 +301,7 @@ export const KeyboardShortcuts: React.FC = () => {
           <DialogHeader>
             <DialogTitle>Shortcuts</DialogTitle>
           </DialogHeader>
+          <DuplicateShortcutBanner duplicates={duplicates} />
           <div className="flex flex-row gap-3">
             <div className="w-1/2">
               {renderGroup("Editing")}

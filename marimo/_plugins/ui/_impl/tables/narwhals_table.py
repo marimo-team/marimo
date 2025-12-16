@@ -4,6 +4,7 @@ from __future__ import annotations
 import datetime
 import functools
 import io
+import math
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Literal, Optional, Union, cast
 
@@ -44,6 +45,12 @@ if TYPE_CHECKING:
 
 LOGGER = _loggers.marimo_logger()
 UNSTABLE_API_WARNING = "`Series.hist` is being called from the stable API although considered an unstable feature."
+
+# Standardize this across libraries
+# It should match the table value as closely as possible
+NAN_VALUE = "NaN"
+POSITIVE_INF = str(float("inf"))
+NEGATIVE_INF = str(float("-inf"))
 
 
 class NarwhalsTableManager(
@@ -86,10 +93,16 @@ class NarwhalsTableManager(
         return dataframe_to_csv(_data)
 
     def to_json_str(
-        self, format_mapping: Optional[FormatMapping] = None
+        self,
+        format_mapping: Optional[FormatMapping] = None,
+        strict_json: bool = False,
+        ensure_ascii: bool = True,
     ) -> str:
+        del strict_json
         frame = self.apply_formatting(format_mapping).as_frame()
-        return sanitize_json_bigint(frame.rows(named=True))
+        return sanitize_json_bigint(
+            frame.rows(named=True), ensure_ascii=ensure_ascii
+        )
 
     def to_parquet(self) -> bytes:
         stream = io.BytesIO()
@@ -218,10 +231,22 @@ class NarwhalsTableManager(
                 ]
 
         result = _calculate_top_k_rows(frame)
-        return [
-            (unwrap_py_scalar(row[0]), int(unwrap_py_scalar(row[1])))
-            for row in result.rows()
-        ]
+        value_counts: list[tuple[Any, int]] = []
+
+        # NaNs and Infs serialize to null, which isn't distingushable from normal nulls
+        # so instead we set to string values
+        for row in result.rows():
+            value = unwrap_py_scalar(row[0])
+            count = int(unwrap_py_scalar(row[1]))
+            if isinstance(value, float) and math.isnan(value):
+                value = NAN_VALUE
+            elif isinstance(value, float) and math.isinf(value) and value > 0:
+                value = POSITIVE_INF
+            elif isinstance(value, float) and math.isinf(value) and value < 0:
+                value = NEGATIVE_INF
+            value_counts.append((value, count))
+
+        return value_counts
 
     @staticmethod
     def is_type(value: Any) -> bool:
@@ -523,6 +548,12 @@ class NarwhalsTableManager(
         downgraded_df = downgrade_narwhals_df_to_v1(self.as_frame())
         col = downgraded_df.get_column(column)
 
+        # If the column is decimal, we need to convert it to float
+        if dtype.is_decimal():
+            import narwhals.stable.v1 as nw1
+
+            col = col.cast(nw1.Float64)
+
         bin_start = col.min()
         bin_values: list[BinValue] = []
 
@@ -588,9 +619,36 @@ class NarwhalsTableManager(
                     int(hours), int(minutes), int(seconds), int(microseconds)
                 )
             elif dtype == nw.Date:
-                bin_end = datetime.date.fromtimestamp(bin_end / ms_time)
+                # Use timedelta to handle dates before Unix epoch (1970)
+                # which cause OSError on Windows with fromtimestamp
+                try:
+                    bin_end = datetime.date.fromtimestamp(bin_end / ms_time)
+                except (OSError, OverflowError, ValueError):
+                    # Fall back to timedelta calculation for old dates
+                    epoch = datetime.datetime(
+                        1970, 1, 1, tzinfo=datetime.timezone.utc
+                    )
+                    bin_end_dt = epoch + datetime.timedelta(
+                        seconds=bin_end / ms_time
+                    )
+                    bin_end = bin_end_dt.date()
             else:
-                bin_end = datetime.datetime.fromtimestamp(bin_end / ms_time)
+                # Use timedelta to handle datetimes before Unix epoch (1970)
+                # which cause OSError on Windows with fromtimestamp
+                try:
+                    bin_end = datetime.datetime.fromtimestamp(
+                        bin_end / ms_time
+                    )
+                except (OSError, OverflowError, ValueError):
+                    # Fall back to timedelta calculation for old dates
+                    epoch = datetime.datetime(
+                        1970, 1, 1, tzinfo=datetime.timezone.utc
+                    )
+                    bin_end = epoch + datetime.timedelta(
+                        seconds=bin_end / ms_time
+                    )
+                    # Remove timezone to match fromtimestamp behavior
+                    bin_end = bin_end.replace(tzinfo=None)
 
             # Only append if the count is greater than 0
             if count > 0:

@@ -1,6 +1,10 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { expect, it } from "vitest";
-import { jsonParseWithSpecialChar, jsonToTSV } from "../json/json-parser";
+import {
+  jsonParseWithSpecialChar,
+  jsonToMarkdown,
+  jsonToTSV,
+} from "../json/json-parser";
 
 it("can jsonParseWithSpecialChar happy path", () => {
   expect(jsonParseWithSpecialChar('"hello"')).toEqual("hello");
@@ -113,7 +117,7 @@ it("can convert json to tsv with fr-FR locale", () => {
   const locale = "fr-FR";
 
   // Handles floats with fr-FR locale (uses , as decimal separator)
-  expect(jsonToTSV([{ a: 3.14, b: 2.12345 }], locale)).toEqual(
+  expect(jsonToTSV([{ a: 3.14, b: 2.123_45 }], locale)).toEqual(
     "a\tb\n3,14\t2,12345",
   );
 });
@@ -130,4 +134,195 @@ it("handles NaN values in TSV", () => {
   const locale = "en-US";
 
   expect(jsonToTSV([{ a: Number.NaN, b: 1 }], locale)).toEqual("a\tb\nNaN\t1");
+});
+
+it("can convert json to markdown - basic table", () => {
+  expect(jsonToMarkdown([])).toMatchInlineSnapshot(`""`);
+
+  expect(jsonToMarkdown([{ a: 1, b: 2 }])).toMatchInlineSnapshot(`
+    "| a | b |
+    |---|---|
+    | 1 | 2 |"
+  `);
+
+  expect(
+    jsonToMarkdown([
+      { a: 1, b: 2 },
+      { a: 3, b: 4 },
+    ]),
+  ).toMatchInlineSnapshot(`
+    "| a | b |
+    |---|---|
+    | 1 | 2 |
+    | 3 | 4 |"
+  `);
+
+  expect(
+    jsonToMarkdown([
+      { name: "Alice", age: 30 },
+      { name: "Bob", age: 25 },
+    ]),
+  ).toMatchInlineSnapshot(`
+    "| name | age |
+    |---|---|
+    | Alice | 30 |
+    | Bob | 25 |"
+  `);
+});
+
+it("can convert json to markdown - with URLs", () => {
+  expect(
+    jsonToMarkdown([
+      { name: "Google", url: "https://google.com" },
+      { name: "GitHub", url: "https://github.com" },
+    ]),
+  ).toMatchInlineSnapshot(`
+    "| name | url |
+    |---|---|
+    | Google | [https://google.com](https://google.com) |
+    | GitHub | [https://github.com](https://github.com) |"
+  `);
+
+  // Mixed content - URL and text in same cell
+  expect(
+    jsonToMarkdown([{ info: "Visit https://example.com for more" }]),
+  ).toMatchInlineSnapshot(`
+    "| info |
+    |---|
+    | Visit [https://example.com](https://example.com) for more |"
+  `);
+
+  // Multiple URLs in one cell
+  expect(
+    jsonToMarkdown([{ links: "https://google.com and https://github.com" }]),
+  ).toMatchInlineSnapshot(`
+    "| links |
+    |---|
+    | [https://google.com](https://google.com) and [https://github.com](https://github.com) |"
+  `);
+});
+
+it("can convert json to markdown - handles nulls and undefined", () => {
+  expect(
+    jsonToMarkdown([{ a: null, b: undefined, c: 1 }]),
+  ).toMatchInlineSnapshot(`
+    "| a | b | c |
+    |---|---|---|
+    |  |  | 1 |"
+  `);
+
+  expect(
+    jsonToMarkdown([
+      { a: 1, b: 2 },
+      { a: null, b: 3 },
+    ]),
+  ).toMatchInlineSnapshot(`
+    "| a | b |
+    |---|---|
+    | 1 | 2 |
+    |  | 3 |"
+  `);
+});
+
+it("can convert json to markdown - handles special characters", () => {
+  // Pipes need to be escaped since they're markdown table delimiters
+  expect(
+    jsonToMarkdown([{ a: "value|with|pipes", b: "normal" }]),
+  ).toMatchInlineSnapshot(`
+    "| a | b |
+    |---|---|
+    | value\\|with\\|pipes | normal |"
+  `);
+
+  // Newlines should be replaced with spaces
+  expect(
+    jsonToMarkdown([{ a: "line1\nline2", b: "normal" }]),
+  ).toMatchInlineSnapshot(`
+    "| a | b |
+    |---|---|
+    | line1 line2 | normal |"
+  `);
+
+  // Backslashes should be escaped
+  expect(jsonToMarkdown([{ path: "C:\\Users\\Name" }])).toMatchInlineSnapshot(`
+    "| path |
+    |---|
+    | C:\\\\Users\\\\Name |"
+  `);
+});
+
+it("can convert json to markdown - handles different data types", () => {
+  expect(
+    jsonToMarkdown([{ str: "text", num: 42, bool: true, nil: null }]),
+  ).toMatchInlineSnapshot(`
+    "| str | num | bool | nil |
+    |---|---|---|---|
+    | text | 42 | true |  |"
+  `);
+
+  // Numbers (including NaN and Infinity)
+  expect(
+    jsonToMarkdown([
+      {
+        a: Number.NaN,
+        b: Number.POSITIVE_INFINITY,
+        c: Number.NEGATIVE_INFINITY,
+      },
+    ]),
+  ).toMatchInlineSnapshot(`
+    "| a | b | c |
+    |---|---|---|
+    | NaN | Infinity | -Infinity |"
+  `);
+
+  // Arrays and objects should be stringified
+  expect(jsonToMarkdown([{ data: [1, 2, 3] }])).toMatchInlineSnapshot(`
+    "| data |
+    |---|
+    | [1,2,3] |"
+  `);
+
+  expect(
+    jsonToMarkdown([{ data: { nested: "value" } }]),
+  ).toMatchInlineSnapshot(`
+    "| data |
+    |---|
+    | {"nested":"value"} |"
+  `);
+});
+
+it("can convert json to markdown - handles existing markdown links", () => {
+  // When input already contains a markdown link, it should be preserved as-is
+  expect(
+    jsonToMarkdown([{ link: "[Google](https://google.com)" }]),
+  ).toMatchInlineSnapshot(`
+    "| link |
+    |---|
+    | [Google](https://google.com) |"
+  `);
+
+  // Multiple existing markdown links
+  expect(
+    jsonToMarkdown([
+      { text: "[Google](https://google.com) and [GitHub](https://github.com)" },
+    ]),
+  ).toMatchInlineSnapshot(`
+    "| text |
+    |---|
+    | [Google](https://google.com) and [GitHub](https://github.com) |"
+  `);
+
+  // Mix of existing markdown links and plain URLs
+  expect(
+    jsonToMarkdown([
+      {
+        mixed:
+          "[Google](https://google.com) and plain https://example.com and [GitHub](https://github.com)",
+      },
+    ]),
+  ).toMatchInlineSnapshot(`
+    "| mixed |
+    |---|
+    | [Google](https://google.com) and plain [https://example.com](https://example.com) and [GitHub](https://github.com) |"
+  `);
 });

@@ -1834,3 +1834,25 @@ def test_using_vegafusion() -> None:
 
         # Clean up
         alt.data_transformers.enable("default")
+
+
+@pytest.mark.parametrize(
+    "df",
+    create_dataframes(
+        {
+            "field": ["value1", "value2", "value3", "value4"],
+            "color": ["red", "red", "blue", "blue"],
+            "field_2": [1, 2, 3, 4],
+        },
+    ),
+)
+def test_filter_dataframe_preserves_df_type(df: ChartDataType) -> None:
+    """Test that _filter_dataframe preserves dataframe type."""
+    original_type = type(df)
+
+    # Filter with an interval selection
+    selection: ChartSelection = {"signal": {"field_2": [1, 3]}}
+    result = _filter_dataframe(df, selection=selection)
+
+    # Type should be preserved
+    assert type(result) is original_type

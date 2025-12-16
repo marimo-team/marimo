@@ -42,6 +42,7 @@ export const DataFrame: StoryObj = {
         host={document.body}
         showDownload={false}
         download_as={async () => ""}
+        lazy={false}
       />
     );
   },

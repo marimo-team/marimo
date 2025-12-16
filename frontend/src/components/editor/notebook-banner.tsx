@@ -26,7 +26,7 @@ export const NotebookBanner: React.FC<Props> = ({ width }) => {
     <div
       className={cn(
         "flex flex-col gap-4 mb-5 print:hidden",
-        width === "columns" && "sticky left-12 w-full max-w-[80vw]",
+        width === "columns" && "w-full max-w-[80vw]",
       )}
     >
       {banners.map((banner) => (

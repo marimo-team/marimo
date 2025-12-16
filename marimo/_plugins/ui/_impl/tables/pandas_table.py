@@ -82,11 +82,32 @@ class PandasTableManagerFactory(TableManagerFactory):
                 )._original_data.to_csv(index=has_headers)
 
             def to_json_str(
-                self, format_mapping: Optional[FormatMapping] = None
+                self,
+                format_mapping: Optional[FormatMapping] = None,
+                strict_json: bool = False,
+                ensure_ascii: bool = True,
             ) -> str:
-                def to_json(result: pd.DataFrame) -> list[dict[str, Any]]:
-                    # Use to_dict instead of to_json
-                    # nans, infs, -infs are properly serialized
+                def to_json(
+                    result: pd.DataFrame,
+                ) -> list[dict[str, Any]] | str:
+                    """
+                    to_dict preserves nans, infs and is more accurate than to_json.
+                    By default, we use to_dict unless strict_json is True
+                    """
+                    if strict_json:
+                        try:
+                            json_str = result.to_json(
+                                orient="records",
+                                date_format="iso",
+                                default_handler=str,
+                            )
+                            assert json_str is not None
+                            return json_str
+                        except Exception as e:
+                            LOGGER.warning(
+                                "Error serializing to JSON. Falling back to to_dict. Error: %s",
+                                e,
+                            )
                     return result.to_dict(orient="records")  # type: ignore
 
                 from pandas.api.types import (
@@ -125,7 +146,9 @@ class PandasTableManagerFactory(TableManagerFactory):
                         "Error handling complex or timedelta64 dtype",
                         exc_info=e,
                     )
-                    return sanitize_json_bigint(to_json(result))
+                    return sanitize_json_bigint(
+                        to_json(result), ensure_ascii=ensure_ascii
+                    )
 
                 # Flatten row multi-index
                 if isinstance(result.index, pd.MultiIndex) or (
@@ -178,7 +201,9 @@ class PandasTableManagerFactory(TableManagerFactory):
                                 "Indexes with more than one level are not well supported, call reset_index() or use mo.plain(df)"
                             )
 
-                return sanitize_json_bigint(to_json(result))
+                return sanitize_json_bigint(
+                    to_json(result), ensure_ascii=ensure_ascii
+                )
 
             def _infer_dtype(self, column: ColumnName) -> str:
                 # Typically, pandas dtypes returns a generic dtype
