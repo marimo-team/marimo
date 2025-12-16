@@ -407,6 +407,34 @@ export const MarimoErrorOutput = ({
               );
             }
 
+            if (
+              error.exception_type === "NameError" &&
+              error.msg.startsWith("name '_")
+            ) {
+              return (
+                <li className="my-2" key={`exception-${idx}`}>
+                  <div>
+                    <p className="text-muted-foreground">{error.msg}</p>
+                    <p className="text-muted-foreground mt-2">
+                      Variables prefixed with an underscore are local to a cell{" "}
+                      (
+                      <ExternalLink href="https://links.marimo.app/local-variables">
+                        docs{" "}
+                        <SquareArrowOutUpRightIcon
+                          size="0.75rem"
+                          className="inline"
+                        />
+                      </ExternalLink>
+                      ).
+                    </p>
+                    <div className="text-muted-foreground mt-2">
+                      See the console area for a traceback.
+                    </div>
+                  </div>
+                </li>
+              );
+            }
+
             return (
               <li className="my-2" key={`exception-${idx}`}>
                 {error.raising_cell == null ? (
