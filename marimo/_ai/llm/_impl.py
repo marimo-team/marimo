@@ -1456,7 +1456,12 @@ class pydantic_ai(ChatModel):
                 # Yield final structured response if we had thinking or tools
                 # Include current_thinking check for APIs that only return
                 # reasoning in final response (not streamed)
-                if has_tool_calls or has_thinking or current_thinking or pending_tool_calls:
+                if (
+                    has_tool_calls
+                    or has_thinking
+                    or current_thinking
+                    or pending_tool_calls
+                ):
                     final_parts = _build_current_parts()
 
                     # Store pydantic-ai's ALL messages for history
