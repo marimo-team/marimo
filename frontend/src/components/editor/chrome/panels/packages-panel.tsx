@@ -608,7 +608,10 @@ const DependencyTreeNode: React.FC<{
             <UpgradeButton packageName={node.name} onSuccess={onSuccess} />
             <RemoveButton
               packageName={node.name}
-              tags={node.tags as { kind: string; value: string }[]}
+              // FIXME: Backend types are wrong/outdated.
+              // tags actually have the shape: Array<{ kind: string; value: string }>
+              // @ts-expect-error — backend tag types do not match frontend expectations yet
+              tags={node.tags}
               onSuccess={onSuccess}
             />
           </div>
