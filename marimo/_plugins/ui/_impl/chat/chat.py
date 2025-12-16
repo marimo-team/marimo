@@ -8,9 +8,6 @@ from dataclasses import dataclass
 from typing import Any, Callable, Final, Optional, Union, cast
 
 from marimo import _loggers
-
-LOGGER = _loggers.marimo_logger()
-
 from marimo._ai._types import (
     ChatMessage,
     ChatModelConfig,
@@ -24,6 +21,8 @@ from marimo._plugins.ui._impl.chat.utils import from_chat_message_dict
 from marimo._runtime.context.types import ContextNotInitializedError
 from marimo._runtime.functions import EmptyArgs, Function
 from marimo._runtime.requests import SetUIElementValueRequest
+
+LOGGER = _loggers.marimo_logger()
 
 DEFAULT_CONFIG = ChatModelConfigDict(
     max_tokens=4096,

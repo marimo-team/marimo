@@ -1277,8 +1277,7 @@ class pydantic_ai(ChatModel):
             if current_thinking:
                 result.append({"type": "reasoning", "text": current_thinking})
             # Add completed tool calls
-            for tc in pending_tool_calls.values():
-                result.append(tc)
+            result.extend(pending_tool_calls.values())
             if current_text:
                 result.append({"type": "text", "text": current_text})
             return result
