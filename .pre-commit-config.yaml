@@ -18,7 +18,7 @@ repos:
       - id: validate-pyproject
 
   - repo: https://github.com/igorshubovych/markdownlint-cli
-    rev: v0.46.0
+    rev: v0.47.0
     hooks:
       - id: markdownlint-fix
         args: [-c, configs/.markdownlint.yaml, --fix, --disable, MD028]
@@ -31,7 +31,7 @@ repos:
         pass_filenames: false
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.14.8
+    rev: v0.14.9
     hooks:
       # Run the linter
       - id: ruff
