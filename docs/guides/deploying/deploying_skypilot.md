@@ -10,7 +10,7 @@ For interactive development with marimo on a SkyPilot cluster, you can launch a 
 
 ### Launch a cluster
 
-First, create a cluster with your desired resources:
+First, create a cluster with your desired resources, ([see the guide](https://docs.skypilot.co/en/latest/getting-started/installation.html#set-up-kubernetes-or-clouds)):
 
 ```bash
 sky launch --gpus V100:1 -c dev
