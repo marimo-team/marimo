@@ -56,6 +56,7 @@ test("default UserConfig - empty", () => {
       "completion": {
         "activate_on_typing": true,
         "copilot": false,
+        "signature_hint_on_typing": false,
       },
       "diagnostics": {},
       "display": {
@@ -65,7 +66,7 @@ test("default UserConfig - empty", () => {
         "default_table_max_columns": 50,
         "default_table_page_size": 10,
         "default_width": "medium",
-        "reference_highlighting": false,
+        "reference_highlighting": true,
         "theme": "light",
       },
       "experimental": {},
@@ -124,6 +125,7 @@ test("default UserConfig - one level", () => {
       "completion": {
         "activate_on_typing": true,
         "copilot": false,
+        "signature_hint_on_typing": false,
       },
       "diagnostics": {},
       "display": {
@@ -133,7 +135,7 @@ test("default UserConfig - one level", () => {
         "default_table_max_columns": 50,
         "default_table_page_size": 10,
         "default_width": "medium",
-        "reference_highlighting": false,
+        "reference_highlighting": true,
         "theme": "light",
       },
       "experimental": {},
@@ -198,7 +200,11 @@ test("default UserConfig with additional information", () => {
 
 test("resolvedMarimoConfigAtom overrides correctly and does not mutate the original array", () => {
   const initialUserConfig = {
-    completion: { activate_on_typing: true, copilot: false },
+    completion: {
+      activate_on_typing: true,
+      copilot: false,
+      signature_hint_on_typing: false,
+    },
     save: {
       autosave: "after_delay",
       autosave_delay: 1000,
@@ -220,7 +226,11 @@ test("resolvedMarimoConfigAtom overrides correctly and does not mutate the origi
   const result = store.get(resolvedMarimoConfigAtom);
 
   expect(result).toEqual({
-    completion: { activate_on_typing: true, copilot: "github" },
+    completion: {
+      activate_on_typing: true,
+      copilot: "github",
+      signature_hint_on_typing: false,
+    },
     save: {
       autosave: "after_delay",
       autosave_delay: 1000,
@@ -231,7 +241,11 @@ test("resolvedMarimoConfigAtom overrides correctly and does not mutate the origi
   });
 
   expect(initialUserConfig).toEqual({
-    completion: { activate_on_typing: true, copilot: false },
+    completion: {
+      activate_on_typing: true,
+      copilot: false,
+      signature_hint_on_typing: false,
+    },
     save: {
       autosave: "after_delay",
       autosave_delay: 1000,

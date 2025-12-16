@@ -13,8 +13,6 @@ from marimo._config.config import (
     MarimoConfig,
 )
 from marimo._server.ai.config import (
-    DEFAULT_MAX_TOKENS,
-    DEFAULT_MODEL,
     AnyProviderConfig,
     _get_ai_config,
     _get_base_url,
@@ -24,6 +22,7 @@ from marimo._server.ai.config import (
     get_edit_model,
     get_max_tokens,
 )
+from marimo._server.ai.constants import DEFAULT_MAX_TOKENS, DEFAULT_MODEL
 from marimo._server.ai.tools.types import ToolDefinition
 from marimo._server.api.status import HTTPStatus
 

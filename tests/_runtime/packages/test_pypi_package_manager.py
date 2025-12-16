@@ -8,8 +8,8 @@ from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, patch
 
 from marimo._ast import compiler
+from marimo._runtime.packages.package_manager import PackageDescription
 from marimo._runtime.packages.pypi_package_manager import (
-    PackageDescription,
     PipPackageManager,
     PoetryPackageManager,
     UvPackageManager,

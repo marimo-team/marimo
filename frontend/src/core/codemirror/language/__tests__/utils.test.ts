@@ -21,6 +21,7 @@ function createEditor(doc: string) {
         adaptiveLanguageConfiguration({
           completionConfig: {
             activate_on_typing: true,
+            signature_hint_on_typing: false,
             copilot: false,
             codeium_api_key: null,
           },
@@ -32,6 +33,7 @@ function createEditor(doc: string) {
         cellConfigExtension({
           completionConfig: {
             activate_on_typing: true,
+            signature_hint_on_typing: false,
             copilot: false,
             codeium_api_key: null,
           },

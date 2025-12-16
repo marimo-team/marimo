@@ -20,10 +20,10 @@ Highlights include:
 - a data explorer that lets you inspect dataframes and tables at a glance
 - smart module autoreloading that tells you which cells need to be rerun
 - code completion
-- GitHub Copilot
+- [GitHub Copilot](ai_completion.md#github-copilot)
 - language-model assisted coding
-- language server protocol (LSP) for diagnostics and code intelligence
-- vim keybindings
+- [language server protocol](language_server.md) (LSP) for diagnostics and code intelligence
+- [vim keybindings](overview.md#vim-keybindings)
 - live documentation preiews as you type
 
 and much more.

@@ -9,13 +9,13 @@ from unittest.mock import AsyncMock, MagicMock, Mock, patch
 import pytest
 
 from marimo._dependencies.dependencies import DependencyManager
+from marimo._server.ai.config import AnyProviderConfig
 from marimo._server.ai.prompts import (
     FIM_MIDDLE_TAG,
     FIM_PREFIX_TAG,
     FIM_SUFFIX_TAG,
 )
 from marimo._server.ai.providers import (
-    AnyProviderConfig,
     OpenAIProvider,
     without_wrapping_backticks,
 )
@@ -1026,6 +1026,41 @@ class TestGetFinishReason(unittest.TestCase):
         (
             ["```sql\n", "SELECT * FROM table\n", "WHERE id = 1\n```"],
             "SELECT * FROM table\nWHERE id = 1",
+        ),
+        # Test trailing whitespace preservation after closing backticks
+        (
+            ["```", "print('hello')", "```  "],
+            "print('hello')  ",
+        ),
+        (
+            ["```python\n", "print('hello')", "\n``` "],
+            "print('hello') ",
+        ),
+        (
+            ["```", "code", "```\t\n"],
+            "code\t\n",
+        ),
+        # Test leading whitespace before opening backticks (whitespace and backticks stripped)
+        (
+            ["  ```", "code", "```"],
+            "code",
+        ),
+        (
+            [" ```python\n", "code", "```"],
+            "code",
+        ),
+        (
+            ["\t```", "code", "```"],
+            "code",
+        ),
+        # Test opening backticks with extra characters after language (language stripped, rest preserved)
+        (
+            ["```python ", "code", "```"],
+            " code",
+        ),
+        (
+            ["```python\t", "code", "```"],
+            "\tcode",
         ),
     ],
 )

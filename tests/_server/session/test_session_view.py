@@ -5,13 +5,18 @@ from typing import Any
 from unittest.mock import patch
 
 from marimo._ast.cell import RuntimeStateType
-from marimo._data.models import Database, DataTable, DataTableColumn, Schema
+from marimo._data.models import (
+    Database,
+    DataSourceConnection,
+    DataTable,
+    DataTableColumn,
+    Schema,
+)
 from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.msgspec_encoder import asdict as serialize
 from marimo._messaging.ops import (
     CellOp,
     Datasets,
-    DataSourceConnection,
     DataSourceConnections,
     InstallingPackageAlert,
     SendUIElementMessage,

@@ -39,11 +39,13 @@ class CompletionConfig(TypedDict):
 
     - `activate_on_typing`: if `False`, completion won't activate
     until the completion hotkey is entered
+    - `signature_hint_on_typing`: if `False`, signature hint won't be shown when typing
     - `copilot`: one of `"github"`, `"codeium"`, or `"custom"`
     - `codeium_api_key`: the Codeium API key
     """
 
     activate_on_typing: bool
+    signature_hint_on_typing: bool
     copilot: Union[bool, Literal["github", "codeium", "custom"]]
 
     # Codeium
@@ -623,7 +625,11 @@ class PartialMarimoConfig(TypedDict, total=False):
 
 
 DEFAULT_CONFIG: MarimoConfig = {
-    "completion": {"activate_on_typing": True, "copilot": False},
+    "completion": {
+        "activate_on_typing": True,
+        "signature_hint_on_typing": False,
+        "copilot": False,
+    },
     "display": {
         "theme": "light",
         "code_editor_font_size": 14,
@@ -632,7 +638,7 @@ DEFAULT_CONFIG: MarimoConfig = {
         "dataframes": "rich",
         "default_table_page_size": 10,
         "default_table_max_columns": 50,
-        "reference_highlighting": False,
+        "reference_highlighting": True,
     },
     "formatting": {"line_length": 79},
     "keymap": {"preset": "default", "overrides": {}},
