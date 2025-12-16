@@ -166,6 +166,9 @@ nav:
           - Deploy notebooks: guides/deploying/index.md
           - Authentication: guides/deploying/authentication.md
           - Docker: guides/deploying/deploying_docker.md
+          - Kubernetes: guides/deploying/deploying_kubernetes.md
+          - SkyPilot: guides/deploying/deploying_skypilot.md
+          - Slurm: guides/deploying/deploying_slurm.md
           - HuggingFace: guides/deploying/deploying_hugging_face.md
           - Ploomber: guides/deploying/deploying_ploomber.md
           - Public gallery: guides/deploying/deploying_public_gallery.md
