@@ -168,10 +168,9 @@ async def ai_completion(
         model=model,
     )
 
-    # Currently, the frontend parses AI SDK events only for /chat endpoint,
-    # So we just stream back the text for other endpoints
-    # /chat is used for the chat panel & add-cell-with-ai
     if isinstance(provider, PydanticProvider):
+        # Currently, only useChat (use_messages=True) supports UI messages
+        # So, we can stream back the UI messages here. Else, we stream back the text.
         if use_messages:
             return await provider.stream_completion(
                 messages=convert_to_pydantic_messages(body.ui_messages),
