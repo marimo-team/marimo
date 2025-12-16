@@ -37,7 +37,7 @@ TopLevelInvalidHints = Literal[
     "This function depends on variables defined by other cells:\n\n{}\n\nTo make this function importable from other Python modules,\nmove these variables to the setup cell.",
     "Function contains references to variables {} which were unable to become reusable.",
     "Cell cannot contain non-indented trailing comments.",
-    "Definitions starting with `_` are private and not allowed to be top level.",
+    "Definitions starting with `_` are local to a cell.",
 ]
 (
     HINT_UNPARSABLE,

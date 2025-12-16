@@ -302,8 +302,8 @@ class CellImpl:
         except SyntaxError:
             return None
 
-        var_pool = self.defs | self.temporaries
-        if len(var_pool) != 1:
+        variables = self.defs | self.temporaries
+        if len(variables) != 1:
             return None
 
         if not (
@@ -320,7 +320,7 @@ class CellImpl:
 
         # Check that def matches the single definition
         name = tree.body[0].name
-        ast_name = unmangle_local(var_pool.pop()).name
+        ast_name = unmangle_local(variables.pop()).name
         if not (name == ast_name):
             return None
 

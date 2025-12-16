@@ -66,7 +66,8 @@ def _raise_name_error(
     if graph is None:
         raise MarimoRuntimeException from name_error
     (missing_name,) = re.findall(r"'([^']*)'", str(name_error))
-    if missing_name in graph.definitions or missing_name.startswith("_"):
+    # Will miss "locals" by default since not in the graph defs.
+    if missing_name in graph.definitions:
         raise MarimoRuntimeException from MarimoMissingRefError(
             missing_name, name_error
         )
