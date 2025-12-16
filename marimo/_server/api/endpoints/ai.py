@@ -19,7 +19,6 @@ from marimo._ai._pydantic_ai_utils import (
 )
 from marimo._ai._types import ChatMessage
 from marimo._config.config import AiConfig, MarimoConfig
-from marimo._dependencies.dependencies import DependencyManager
 from marimo._server.ai.config import (
     AnyProviderConfig,
     get_autocomplete_model,
@@ -66,10 +65,8 @@ if TYPE_CHECKING:
     from starlette.requests import Request
     from starlette.responses import ContentStream
 
-if DependencyManager.pydantic_ai.has():
-    from pydantic_ai.ui import SSE_CONTENT_TYPE
-else:
-    SSE_CONTENT_TYPE = "text/event-stream"
+# Taken from pydantic_ai.ui import SSE_CONTENT_TYPE
+SSE_CONTENT_TYPE = "text/event-stream"
 
 
 LOGGER = _loggers.marimo_logger()
