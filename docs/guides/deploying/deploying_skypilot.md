@@ -2,6 +2,9 @@
 
 [SkyPilot](https://skypilot.readthedocs.io/) is an open-source framework that allows you to run workloads on any cloud (AWS, GCP, Azure, Lambda Cloud, and more) with a unified interface. It's particularly well-suited for running marimo notebooks on GPU instances for machine learning and data science workloads.
 
+!!! tip "New to SkyPilot?"
+    If you haven't used SkyPilot before, start with their [getting started guide](https://skypilot.readthedocs.io/en/latest/getting-started/installation.html) to install SkyPilot and set up cloud credentials.
+
 marimo notebooks work exceptionally well with SkyPilot because they are stored as pure Python scripts and can be run both interactively and as batch jobs. With marimo's built-in `uv` integration, your notebooks are fully reproducible across different environments.
 
 ## Interactive Development
@@ -34,7 +37,7 @@ uvx marimo edit --sandbox demo.py --port 8080 --token-password=supersecret
 ```
 
 !!! note "Sandboxed environments"
-    The `uvx` command runs marimo without installing it in your environment, and the `--sandbox` flag ensures that notebook dependencies are installed in a separate environment. This makes your development fully reproducible and isolated.
+    The `uvx` command runs marimo without installing it in your environment, and the `--sandbox` flag ensures that notebook dependencies are installed in a separate environment. This makes your development fully reproducible and isolated. See [inlining dependencies](../package_management/inlining_dependencies.md) for more on creating reproducible notebooks.
 
 You can now access your marimo notebook at `localhost:8080` in your local browser and authenticate with the password you set.
 
@@ -147,6 +150,10 @@ sky jobs dashboard
 - **Cost-effective**: SkyPilot finds the cheapest resources across clouds and automatically terminates idle instances
 - **Flexible**: Use the same notebook interactively or as a batch job
 - **Cloud-agnostic**: Run on any cloud provider without changing your code
+
+## Multi-cloud setup
+
+SkyPilot supports AWS, GCP, Azure, Lambda Labs, and more. See their [cloud setup guide](https://skypilot.readthedocs.io/en/latest/getting-started/installation.html#cloud-account-setup) to configure credentials for your preferred cloud providers.
 
 ## Learn more
 
