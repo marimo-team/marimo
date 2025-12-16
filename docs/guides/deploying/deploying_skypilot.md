@@ -1,6 +1,6 @@
 # Deploy with SkyPilot
 
-[SkyPilot](https://skypilot.readthedocs.io/) is an open-source framework that allows you to run workloads on any cloud (AWS, GCP, Azure, Lambda Cloud, and more) with a unified interface. It's particularly well-suited for running marimo notebooks on GPU instances for machine learning and data science workloads.
+[SkyPilot](https://skypilot.readthedocs.io/) is an open-source framework that allows you to run workloads on any cloud (AWS, GCP, Azure, Coreweave, and more) with a unified interface. It's particularly well-suited for running marimo notebooks on GPU instances for machine learning and data science workloads.
 
 !!! tip "New to SkyPilot?"
     If you haven't used SkyPilot before, start with their [getting started guide](https://skypilot.readthedocs.io/en/latest/getting-started/installation.html) to install SkyPilot and set up cloud credentials.
