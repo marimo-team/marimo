@@ -95,15 +95,40 @@ def _(mo):
 
 
 @app.cell
-def _(key, mo, model_dropdown):
-    chatbot = mo.ui.chat(
-        mo.ai.llm.pydantic_ai(
-            f"openai:{model_dropdown.value}",
-            base_url="https://api.inference.wandb.ai/v1",
+def _(key, model_dropdown):
+    # Create a Pydantic AI Agent with W&B Inference
+    from pydantic_ai import Agent
+    from pydantic_ai.models.openai import OpenAIChatModel
+    from pydantic_ai.profiles.openai import OpenAIModelProfile
+    from pydantic_ai.providers.openai import OpenAIProvider
+
+    # Configure the model with W&B Inference endpoint
+    # The profile tells pydantic-ai where to find thinking/reasoning content
+    model = OpenAIChatModel(
+        model_name=model_dropdown.value,
+        provider=OpenAIProvider(
             api_key=key,
-            enable_thinking=True,  # Show reasoning in the UI
-            system_message="You are a helpful assistant. Think step-by-step.",
+            base_url="https://api.inference.wandb.ai/v1",
         ),
+        profile=OpenAIModelProfile(
+            # W&B returns reasoning in this field for supported models
+            openai_chat_thinking_field="reasoning_content",
+        ),
+    )
+
+    # Create the agent with the configured model
+    agent = Agent(
+        model,
+        instructions="You are a helpful assistant. Think step-by-step.",
+    )
+    return Agent, OpenAIChatModel, OpenAIModelProfile, OpenAIProvider, agent, model
+
+
+@app.cell
+def _(agent, mo):
+    # Create the chat UI with the agent
+    chatbot = mo.ui.chat(
+        mo.ai.llm.pydantic_ai(agent),
         prompts=[
             "What is 15% of 85?",
             "Explain the difference between a list and a tuple in Python.",
@@ -120,26 +145,36 @@ def _(mo):
     mo.md("""
     ## How it works
 
-    When using a reasoning model with `enable_thinking=True`, the model's reasoning process is displayed in a collapsible accordion above the response.
+    When using a reasoning model, the model's reasoning process is displayed in a collapsible accordion above the response.
 
-    ### Reasoning Models
+    ### Configuration with Pydantic AI Agent
 
-    Models like DeepSeek R1 and OpenAI GPT OSS include their reasoning steps in the response via the `reasoning_content` field. The `pydantic_ai` model automatically extracts and displays this.
+    The key is configuring the `OpenAIModelProfile` with the thinking field:
+
+    ```python
+    from pydantic_ai import Agent
+    from pydantic_ai.models.openai import OpenAIChatModel
+    from pydantic_ai.providers.openai import OpenAIProvider
+    from pydantic_ai.profiles.openai import OpenAIModelProfile
+
+    model = OpenAIChatModel(
+        model_name="deepseek-ai/DeepSeek-R1-0528",
+        provider=OpenAIProvider(
+            api_key="your-key",
+            base_url="https://api.inference.wandb.ai/v1",
+        ),
+        profile=OpenAIModelProfile(
+            openai_chat_thinking_field="reasoning_content",
+        ),
+    )
+
+    agent = Agent(model, instructions="Think step-by-step.")
+    chat = mo.ui.chat(mo.ai.llm.pydantic_ai(agent))
+    ```
 
     ### Non-reasoning Models
 
     For models like Llama that don't include structured reasoning, you'll just see the regular response without a thinking section.
-
-    ### Configuration
-
-    ```python
-    mo.ai.llm.pydantic_ai(
-        "openai:model-name",           # Use openai: prefix for W&B models
-        base_url="https://api.inference.wandb.ai/v1",
-        api_key="your-api-key",
-        enable_thinking=True,          # Extract reasoning_content
-    )
-    ```
     """)
     return
 

@@ -293,84 +293,93 @@ mo.ui.chat(
 
 ### Pydantic AI (with Tools and Thinking)
 
-The `pydantic_ai` model provides advanced features like **tool calling** and
-**thinking/reasoning** support using [pydantic-ai](https://ai.pydantic.dev/).
+The `pydantic_ai` wrapper provides advanced features like **tool calling** and
+**thinking/reasoning** support by wrapping a [pydantic-ai](https://ai.pydantic.dev/) `Agent`.
+
+You configure the Agent with your model, tools, and settings, then pass it to marimo.
 
 #### Basic Usage with Tools
 
 ```python
 import marimo as mo
+from pydantic_ai import Agent
 
 def get_weather(location: str) -> dict:
     """Get weather for a location."""
-    # Your weather API call here
     return {"temperature": 72, "conditions": "sunny"}
 
 def calculate(expression: str) -> float:
     """Evaluate a math expression."""
     return eval(expression)
 
-chat = mo.ui.chat(
-    mo.ai.llm.pydantic_ai(
-        "anthropic:claude-sonnet-4-5",  # or "openai:gpt-4o", "google:gemini-2.0-flash", etc.
-        tools=[get_weather, calculate],
-        system_message="You are a helpful assistant.",
-        api_key="...",
-    ),
+# Create a Pydantic AI Agent with tools
+agent = Agent(
+    "anthropic:claude-sonnet-4-5",  # or "openai:gpt-4o", etc.
+    tools=[get_weather, calculate],
+    instructions="You are a helpful assistant.",
 )
+
+chat = mo.ui.chat(mo.ai.llm.pydantic_ai(agent))
 chat
 ```
 
 Tool calls are displayed as collapsible accordions in the chat UI, showing
 the tool name, inputs, and outputs.
 
-#### With Thinking/Reasoning
+#### With Thinking/Reasoning (Anthropic)
 
 Enable thinking to see the LLM's step-by-step reasoning process:
 
 ```python
-chat = mo.ui.chat(
-    mo.ai.llm.pydantic_ai(
-        "anthropic:claude-sonnet-4-5",
-        tools=[get_weather, calculate],
-        enable_thinking=True,  # Enable with default settings
-        # Or customize: enable_thinking={"budget_tokens": 5000}
-        api_key="...",
-    ),
+from pydantic_ai import Agent
+from pydantic_ai.models.anthropic import AnthropicModel, AnthropicModelSettings
+from pydantic_ai.providers.anthropic import AnthropicProvider
+
+model = AnthropicModel(
+    model_name="claude-sonnet-4-5",
+    provider=AnthropicProvider(api_key="your-key"),
 )
+
+agent = Agent(model, tools=[get_weather], instructions="Think step-by-step.")
+
+# Enable thinking with model settings
+model_settings = AnthropicModelSettings(
+    max_tokens=8000,
+    anthropic_thinking={"type": "enabled", "budget_tokens": 4000},
+)
+
+chat = mo.ui.chat(mo.ai.llm.pydantic_ai(agent, model_settings=model_settings))
 ```
 
 When enabled, a "View reasoning" accordion appears before the response,
 showing the LLM's thinking process in real-time.
 
-#### Provider Model Format
-
-The model string uses the format `provider:model_name`:
-
-- `"openai:gpt-4o"` - OpenAI
-- `"anthropic:claude-sonnet-4-5"` - Anthropic (supports thinking)
-- `"google:gemini-2.0-flash"` - Google (supports thinking)
-- `"groq:llama-3.1-70b-versatile"` - Groq
-
-See the [pydantic-ai documentation](https://ai.pydantic.dev/models/) for all
-supported providers and models.
-
 #### OpenAI-Compatible Providers (W&B Inference, DeepSeek, etc.)
 
-Use the `base_url` parameter to connect to OpenAI-compatible API endpoints:
+Configure the model with a custom provider and base URL:
 
 ```python
 import marimo as mo
+from pydantic_ai import Agent
+from pydantic_ai.models.openai import OpenAIChatModel
+from pydantic_ai.providers.openai import OpenAIProvider
+from pydantic_ai.profiles.openai import OpenAIModelProfile
 
-chat = mo.ui.chat(
-    mo.ai.llm.pydantic_ai(
-        "openai:deepseek-ai/DeepSeek-R1-0528",  # Model name from provider
-        base_url="https://api.inference.wandb.ai/v1",  # Provider's API endpoint
-        api_key="your-api-key",
-        enable_thinking=True,  # Enable reasoning for supported models
+# Configure model with W&B Inference endpoint
+model = OpenAIChatModel(
+    model_name="deepseek-ai/DeepSeek-R1-0528",
+    provider=OpenAIProvider(
+        api_key="your-wandb-key",
+        base_url="https://api.inference.wandb.ai/v1",
+    ),
+    # Tell pydantic-ai where to find reasoning content
+    profile=OpenAIModelProfile(
+        openai_chat_thinking_field="reasoning_content",
     ),
 )
-chat
+
+agent = Agent(model, instructions="Think step-by-step.")
+chat = mo.ui.chat(mo.ai.llm.pydantic_ai(agent))
 ```
 
 This works with any OpenAI-compatible endpoint:
@@ -380,9 +389,8 @@ This works with any OpenAI-compatible endpoint:
 - [Together AI](https://www.together.ai/) - Various open-source models
 - Any other OpenAI-compatible API
 
-When `enable_thinking=True` is set with a custom `base_url`, reasoning content
-from the provider (returned in the `reasoning_content` field) will be displayed
-in a collapsible accordion.
+See the [pydantic-ai documentation](https://ai.pydantic.dev/) for full
+Agent configuration options.
 
 ::: marimo.ai.llm.pydantic_ai
 

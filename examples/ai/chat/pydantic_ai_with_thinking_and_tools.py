@@ -111,21 +111,57 @@ def _():
 
 
 @app.cell
-def _(PROVIDER_MODEL, calculate, get_weather, key, mo):
+def _(PROVIDER_MODEL, calculate, get_weather, key):
+    # Create a Pydantic AI Agent with tools and thinking enabled
+    from pydantic_ai import Agent
+    from pydantic_ai.models.anthropic import AnthropicModel, AnthropicModelSettings
+    from pydantic_ai.providers.anthropic import AnthropicProvider
+
+    # Create the model with the API key
+    model = AnthropicModel(
+        model_name=PROVIDER_MODEL.split(":", 1)[1]
+        if ":" in PROVIDER_MODEL
+        else PROVIDER_MODEL,
+        provider=AnthropicProvider(api_key=key),
+    )
+
+    # Create the agent with tools
+    agent = Agent(
+        model,
+        tools=[get_weather, calculate],
+        instructions=(
+            "You are a helpful assistant. Think step-by-step when solving "
+            "problems. Use the provided tools when appropriate."
+        ),
+    )
+
+    # Model settings for thinking - Anthropic requires max_tokens > budget_tokens
+    model_settings = AnthropicModelSettings(
+        max_tokens=8000,
+        anthropic_thinking={
+            "type": "enabled",
+            "budget_tokens": 4000,
+        },
+    )
+
+    return (
+        Agent,
+        AnthropicModel,
+        AnthropicModelSettings,
+        AnthropicProvider,
+        agent,
+        model,
+        model_settings,
+    )
+
+
+@app.cell
+def _(agent, mo, model_settings):
     # Combine thinking AND tools for maximum transparency
     # The model will show its reasoning, then use tools as needed
 
     chatbot = mo.ui.chat(
-        mo.ai.llm.pydantic_ai(
-            PROVIDER_MODEL,
-            tools=[get_weather, calculate],
-            enable_thinking=True,  # Enable thinking/reasoning
-            system_message=(
-                "You are a helpful assistant. Think step-by-step when solving "
-                "problems. Use the provided tools when appropriate."
-            ),
-            api_key=key,
-        ),
+        mo.ai.llm.pydantic_ai(agent, model_settings=model_settings),
         prompts=[
             "What's the weather in San Francisco and Tokyo? Compare them.",
             "If the temperature in SF is 72°F, what is it in Celsius? Then calculate 15% tip on a $85 dinner bill.",
@@ -141,7 +177,7 @@ def _(mo):
     mo.md("""
     ## How it works
 
-    With both `enable_thinking=True` and `tools=[...]`:
+    With the Pydantic AI Agent configured with tools and thinking enabled:
 
     1. **Thinking first** - The model's reasoning appears in a collapsible accordion
     2. **Tool calls** - When the model uses tools, each call appears in its own accordion
@@ -156,23 +192,34 @@ def _(mo):
     3. 🔧 **Tool: get_weather** → Tokyo: 22°C, sunny
     4. 💬 **Response**: "San Francisco is 72°F (22°C) and Tokyo is 22°C. Both are sunny..."
 
-    ### Configuration Options
+    ### Configuration with Pydantic AI Agent
 
     ```python
-    # Basic: enable with defaults
-    enable_thinking=True
+    from pydantic_ai import Agent
+    from pydantic_ai.models.anthropic import AnthropicModel, AnthropicModelSettings
+    from pydantic_ai.providers.anthropic import AnthropicProvider
 
-    # Anthropic: control thinking budget
-    enable_thinking={"budget_tokens": 2048}
+    model = AnthropicModel(
+        model_name="claude-sonnet-4-5",
+        provider=AnthropicProvider(api_key="your-key"),
+    )
 
-    # OpenAI: control reasoning effort
-    enable_thinking={"effort": "high", "summary": "detailed"}
+    agent = Agent(
+        model,
+        tools=[get_weather, calculate],
+        instructions="Think step-by-step.",
+    )
 
-    # Google: include thoughts
-    enable_thinking={"include_thoughts": True}
+    # Enable thinking with model settings
+    model_settings = AnthropicModelSettings(
+        max_tokens=8000,
+        anthropic_thinking={"type": "enabled", "budget_tokens": 4000},
+    )
+
+    chat = mo.ui.chat(mo.ai.llm.pydantic_ai(agent, model_settings=model_settings))
     ```
 
-    See https://ai.pydantic.dev/thinking/ for provider-specific details.
+    See https://ai.pydantic.dev/ for full Agent configuration options.
     """)
     return
 

@@ -1111,46 +1111,49 @@ class TestBedrock:
 class TestPydanticAI:
     """Tests for the pydantic_ai class."""
 
-    def test_init(self):
-        """Test initialization with default values."""
-        model = pydantic_ai("openai:gpt-4.1")
+    def test_init_with_agent(self):
+        """Test initialization with an Agent."""
+        from pydantic_ai import Agent
 
-        assert model.model == "openai:gpt-4.1"
-        assert model.tools == []
-        assert model.system_message == DEFAULT_SYSTEM_MESSAGE
+        agent = Agent("openai:gpt-4.1", instructions="Test instructions")
+        model = pydantic_ai(agent)
 
-    def test_init_with_tools(self):
-        """Test initialization with tools."""
+        assert model.agent is agent
+        assert model.model_settings is None
 
-        def my_tool(arg: str) -> str:
-            """A test tool."""
-            return arg
+    def test_init_with_agent_and_settings(self):
+        """Test initialization with Agent and model settings."""
+        from pydantic_ai import Agent
+        from pydantic_ai.settings import ModelSettings
 
-        model = pydantic_ai(
-            "openai:gpt-4.1",
-            tools=[my_tool],
-            system_message="Custom system message",
-        )
+        agent = Agent("openai:gpt-4.1")
+        settings = ModelSettings(max_tokens=1000, temperature=0.7)
+        model = pydantic_ai(agent, model_settings=settings)
 
-        assert model.model == "openai:gpt-4.1"
-        assert len(model.tools) == 1
-        assert model.tools[0] == my_tool
-        assert model.system_message == "Custom system message"
+        assert model.agent is agent
+        assert model.model_settings is settings
+        assert model.model_settings.max_tokens == 1000
+        assert model.model_settings.temperature == 0.7
 
     def test_call_returns_async_generator(self, test_messages, test_config):
         """Test that calling returns an async generator."""
         import inspect
 
-        model = pydantic_ai("openai:gpt-4.1")
+        from pydantic_ai import Agent
+
+        agent = Agent("openai:gpt-4.1")
+        model = pydantic_ai(agent)
         result = model(test_messages, test_config)
 
         assert inspect.isasyncgen(result)
 
     def test_convert_messages_to_pydantic_ai(self):
         """Test message conversion to Pydantic AI format."""
+        from pydantic_ai import Agent
         from pydantic_ai.messages import ModelRequest, ModelResponse
 
-        model = pydantic_ai("openai:gpt-4.1")
+        agent = Agent("openai:gpt-4.1")
+        model = pydantic_ai(agent)
 
         messages = [
             ChatMessage(role="user", content="Hello"),
@@ -1167,9 +1170,11 @@ class TestPydanticAI:
 
     def test_convert_messages_with_tool_parts(self):
         """Test message conversion with tool invocation parts."""
+        from pydantic_ai import Agent
         from pydantic_ai.messages import ModelRequest, ModelResponse
 
-        model = pydantic_ai("openai:gpt-4.1")
+        agent = Agent("openai:gpt-4.1")
+        model = pydantic_ai(agent)
 
         messages = [
             ChatMessage(role="user", content="What's the weather?"),
@@ -1197,209 +1202,42 @@ class TestPydanticAI:
         # Second should be response with tool call
         assert isinstance(converted[1], ModelResponse)
 
-    def test_init_with_thinking_enabled(self):
-        """Test initialization with thinking enabled."""
-        model = pydantic_ai(
-            "anthropic:claude-sonnet-4-5",
-            enable_thinking=True,
+    def test_agent_with_tools(self):
+        """Test creating a model with an Agent that has tools."""
+        from pydantic_ai import Agent
+
+        def my_tool(arg: str) -> str:
+            """A test tool."""
+            return arg
+
+        agent = Agent("openai:gpt-4.1", tools=[my_tool])
+        model = pydantic_ai(agent)
+
+        assert model.agent is agent
+        # Tools are stored on the agent, not the wrapper
+        assert len(agent._function_tools) == 1
+
+    def test_agent_with_anthropic_thinking_settings(self):
+        """Test creating a model with Anthropic thinking settings."""
+        from pydantic_ai import Agent
+        from pydantic_ai.models.anthropic import AnthropicModelSettings
+
+        agent = Agent("anthropic:claude-sonnet-4-5")
+        settings = AnthropicModelSettings(
+            max_tokens=8000,
+            anthropic_thinking={"type": "enabled", "budget_tokens": 4000},
         )
+        model = pydantic_ai(agent, model_settings=settings)
 
-        assert model.enable_thinking is True
-
-        # Test with custom budget tokens
-        model2 = pydantic_ai(
-            "anthropic:claude-sonnet-4-5",
-            enable_thinking={"budget_tokens": 5000},
-        )
-        assert model2.enable_thinking == {"budget_tokens": 5000}
-
-    def test_init_with_base_url(self):
-        """Test initialization with base_url for OpenAI-compatible providers."""
-        model = pydantic_ai(
-            "openai:deepseek-ai/DeepSeek-R1-0528",
-            base_url="https://api.inference.wandb.ai/v1",
-            api_key="test-wandb-key",
-            enable_thinking=True,
-        )
-
-        assert model.model == "openai:deepseek-ai/DeepSeek-R1-0528"
-        assert model.base_url == "https://api.inference.wandb.ai/v1"
-        assert model.api_key == "test-wandb-key"
-        assert model.enable_thinking is True
-
-    def test_base_url_creates_model_directly(self):
-        """Test that base_url creates OpenAIModel directly instead of using env vars."""
-        from pydantic_ai.models.openai import OpenAIModel
-
-        model = pydantic_ai(
-            "openai:deepseek-ai/DeepSeek-R1-0528",
-            base_url="https://api.inference.wandb.ai/v1",
-            api_key="test-wandb-key",
-        )
-
-        # _create_model should return an OpenAIModel object
-        created_model = model._create_model()
-        assert isinstance(created_model, OpenAIModel)
-
-        # Verify the model name is extracted correctly
-        assert model._get_model_name() == "deepseek-ai/DeepSeek-R1-0528"
-
-    def test_create_model_returns_string_without_api_key(self):
-        """Test that _create_model returns string when api_key is not provided."""
-        model = pydantic_ai("openai:gpt-4.1")
-
-        # Without api_key, _create_model should return the model string
-        # (Pydantic AI will use env vars)
-        created_model = model._create_model()
-        assert created_model == "openai:gpt-4.1"
-        assert isinstance(created_model, str)
-
-    def test_create_model_anthropic_with_api_key_and_base_url(self):
-        """Test that Anthropic with api_key creates model object (base_url is ignored)."""
-        from pydantic_ai.models.anthropic import AnthropicModel
-
-        model = pydantic_ai(
-            "anthropic:claude-sonnet-4-5",
-            base_url="https://example.com",  # base_url is not used for Anthropic
-            api_key="test-key",
-        )
-
-        # With api_key, _create_model should return an AnthropicModel object
-        created_model = model._create_model()
-        assert isinstance(created_model, AnthropicModel)
-
-    def test_create_model_groq_with_api_key(self):
-        """Test that Groq with api_key creates GroqModel directly."""
-        from pydantic_ai.models.groq import GroqModel
-
-        model = pydantic_ai(
-            "groq:llama-3.3-70b-versatile",
-            api_key="test-groq-key",
-        )
-
-        created_model = model._create_model()
-        assert isinstance(created_model, GroqModel)
-
-    def test_create_model_google_with_api_key(self):
-        """Test that Google with api_key creates GoogleModel directly."""
-        from pydantic_ai.models.google import GoogleModel
-
-        model = pydantic_ai(
-            "google-gla:gemini-2.0-flash",
-            api_key="test-google-key",
-        )
-
-        created_model = model._create_model()
-        assert isinstance(created_model, GoogleModel)
-
-    def test_no_env_vars_set_when_api_key_provided(self):
-        """Test that environment variables are NOT set when api_key is provided."""
-        # Save original env values
-        original_openai = os.environ.get("OPENAI_API_KEY")
-        original_anthropic = os.environ.get("ANTHROPIC_API_KEY")
-
-        try:
-            # Clear any existing env vars
-            if "OPENAI_API_KEY" in os.environ:
-                del os.environ["OPENAI_API_KEY"]
-            if "ANTHROPIC_API_KEY" in os.environ:
-                del os.environ["ANTHROPIC_API_KEY"]
-
-            # Create models with api_key
-            openai_model = pydantic_ai("openai:gpt-4", api_key="test-key")
-            anthropic_model = pydantic_ai(
-                "anthropic:claude-3", api_key="test-key"
-            )
-
-            # Call _create_model (this is where env vars would be set in old impl)
-            openai_model._create_model()
-            anthropic_model._create_model()
-
-            # Env vars should NOT be set
-            assert "OPENAI_API_KEY" not in os.environ
-            assert "ANTHROPIC_API_KEY" not in os.environ
-        finally:
-            # Restore original values
-            if original_openai is not None:
-                os.environ["OPENAI_API_KEY"] = original_openai
-            if original_anthropic is not None:
-                os.environ["ANTHROPIC_API_KEY"] = original_anthropic
-
-    def test_build_model_settings_openai_compatible_thinking(self):
-        """Test _build_model_settings for OpenAI-compatible provider with thinking.
-
-        Note: For OpenAI-compatible providers with base_url (like W&B),
-        thinking configuration is set on the model profile, not settings.
-        So _build_model_settings returns generic ModelSettings.
-        """
-        model = pydantic_ai(
-            "openai:deepseek-ai/DeepSeek-R1-0528",
-            base_url="https://api.inference.wandb.ai/v1",
-            enable_thinking=True,
-        )
-
-        config = ChatModelConfig(max_tokens=1000, temperature=0.7)
-        settings = model._build_model_settings(config)
-
-        # For OpenAI-compatible with base_url, thinking is on the profile
-        # Settings should just have basic params
-        assert settings.max_tokens == 1000
-        assert settings.temperature == 0.7
-
-    def test_openai_model_profile_has_thinking_field(self):
-        """Test that OpenAI model with base_url creates profile with thinking field."""
-        from pydantic_ai.models.openai import OpenAIChatModel
-
-        model = pydantic_ai(
-            "openai:deepseek-ai/DeepSeek-R1-0528",
-            base_url="https://api.inference.wandb.ai/v1",
-            api_key="test-key",
-            enable_thinking=True,
-        )
-
-        created_model = model._create_model()
-        assert isinstance(created_model, OpenAIChatModel)
-        # The model should have a profile configured
-        assert created_model.profile is not None
-        assert (
-            created_model.profile.openai_chat_thinking_field
-            == "reasoning_content"
-        )
-
-    def test_openai_model_no_thinking_field_without_enable_thinking(self):
-        """Test that OpenAI model with base_url but no thinking has no thinking field."""
-        from pydantic_ai.models.openai import OpenAIChatModel
-
-        model = pydantic_ai(
-            "openai:deepseek-ai/DeepSeek-R1-0528",
-            base_url="https://api.inference.wandb.ai/v1",
-            api_key="test-key",
-            enable_thinking=False,  # Thinking disabled
-        )
-
-        created_model = model._create_model()
-        assert isinstance(created_model, OpenAIChatModel)
-        # When thinking is disabled, the thinking field should not be set
-        # (profile may exist with defaults, but thinking field should be None)
-        if created_model.profile is not None:
-            assert created_model.profile.openai_chat_thinking_field is None
-
-    def test_build_model_settings_native_openai_thinking(self):
-        """Test _build_model_settings for native OpenAI without base_url."""
-        model = pydantic_ai(
-            "openai:gpt-4.1",
-            enable_thinking=True,
-        )
-
-        config = ChatModelConfig(max_tokens=1000)
-        settings = model._build_model_settings(config)
-
-        # Should use OpenAIResponsesModelSettings for native OpenAI
-        assert hasattr(settings, "openai_reasoning_effort")
-        assert settings.openai_reasoning_effort == "low"
+        assert model.model_settings is settings
+        assert model.model_settings.anthropic_thinking == {
+            "type": "enabled",
+            "budget_tokens": 4000,
+        }
 
     def test_extract_stored_pydantic_messages(self):
         """Test extraction of stored pydantic-ai messages from parts."""
+        from pydantic_ai import Agent
         from pydantic_ai.messages import (
             ModelMessagesTypeAdapter,
             ModelRequest,
@@ -1408,7 +1246,8 @@ class TestPydanticAI:
             UserPromptPart,
         )
 
-        model = pydantic_ai("openai:gpt-4.1")
+        agent = Agent("openai:gpt-4.1")
+        model = pydantic_ai(agent)
 
         # Create some test messages and serialize them
         test_messages = [
@@ -1438,9 +1277,11 @@ class TestPydanticAI:
 
     def test_extract_stored_pydantic_messages_none_when_missing(self):
         """Test that extraction returns None when no stored history."""
+        from pydantic_ai import Agent
         from pydantic_ai.messages import ModelMessagesTypeAdapter
 
-        model = pydantic_ai("openai:gpt-4.1")
+        agent = Agent("openai:gpt-4.1")
+        model = pydantic_ai(agent)
 
         # Parts without _pydantic_history
         parts = [
@@ -1456,6 +1297,7 @@ class TestPydanticAI:
 
     def test_convert_messages_uses_stored_history(self):
         """Test that message conversion uses stored pydantic history when available."""
+        from pydantic_ai import Agent
         from pydantic_ai.messages import (
             ModelMessagesTypeAdapter,
             ModelRequest,
@@ -1466,7 +1308,8 @@ class TestPydanticAI:
             UserPromptPart,
         )
 
-        model = pydantic_ai("openai:gpt-4.1")
+        agent = Agent("openai:gpt-4.1")
+        model = pydantic_ai(agent)
 
         # Create properly paired tool messages
         stored_messages = [
