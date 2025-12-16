@@ -23,7 +23,7 @@ import { maybeAddMarimoImport } from "@/core/cells/add-missing-import";
 import { SETUP_CELL_ID } from "@/core/cells/ids";
 import { LanguageAdapters } from "@/core/codemirror/language/LanguageAdapters";
 import { aiEnabledAtom } from "@/core/config/config";
-import { isConnectedAtom } from "@/core/network/connection";
+import { canInteractWithAppAtom } from "@/core/network/connection";
 import { useBoolean } from "@/hooks/useBoolean";
 import { cn } from "@/utils/cn";
 import { Functions } from "@/utils/functions";
@@ -41,7 +41,10 @@ import type { AppMode } from "../../../core/mode";
 import { useHotkey } from "../../../hooks/useHotkey";
 import { type Theme, useTheme } from "../../../theme/useTheme";
 import { AddCellWithAI } from "../ai/add-cell-with-ai";
-import { ConnectingAlert } from "../alerts/connecting-alert";
+import {
+  ConnectingAlert,
+  NotStartedConnectionAlert,
+} from "../alerts/connecting-alert";
 import { FloatingOutline } from "../chrome/panels/outline/floating-outline";
 import { useChromeActions } from "../chrome/state";
 import { Column } from "../columns/cell-column";
@@ -124,6 +127,8 @@ const CellArrayInternal: React.FC<CellArrayProps> = ({
       <StdinBlockingAlert />
       <ConnectingAlert />
       <NotebookBanner width={appConfig.width} />
+      {/* Only show if not cells, otherwise running a single cell will start the connection */}
+      {cellIds.idLength === 0 && <NotStartedConnectionAlert />}
       <div
         className={cn(
           appConfig.width === "columns" &&
@@ -247,7 +252,7 @@ const AddCellButtons: React.FC<{
   const { createNewCell } = useCellActions();
   const [isAiButtonOpen, isAiButtonOpenActions] = useBoolean(false);
   const aiEnabled = useAtomValue(aiEnabledAtom);
-  const isConnected = useAtomValue(isConnectedAtom);
+  const canInteractWithApp = useAtomValue(canInteractWithAppAtom);
 
   const buttonClass = cn(
     "mb-0 rounded-none sm:px-4 md:px-5 lg:px-8 tracking-wide no-wrap whitespace-nowrap",
@@ -265,7 +270,7 @@ const AddCellButtons: React.FC<{
           className={buttonClass}
           variant="text"
           size="sm"
-          disabled={!isConnected}
+          disabled={!canInteractWithApp}
           onClick={() =>
             createNewCell({
               cellId: { type: "__end__", columnId },
@@ -280,7 +285,7 @@ const AddCellButtons: React.FC<{
           className={buttonClass}
           variant="text"
           size="sm"
-          disabled={!isConnected}
+          disabled={!canInteractWithApp}
           onClick={() => {
             maybeAddMarimoImport({ autoInstantiate: true, createNewCell });
 
@@ -299,7 +304,7 @@ const AddCellButtons: React.FC<{
           className={buttonClass}
           variant="text"
           size="sm"
-          disabled={!isConnected}
+          disabled={!canInteractWithApp}
           onClick={() => {
             maybeAddMarimoImport({ autoInstantiate: true, createNewCell });
 
@@ -324,7 +329,7 @@ const AddCellButtons: React.FC<{
             className={buttonClass}
             variant="text"
             size="sm"
-            disabled={!aiEnabled || !isConnected}
+            disabled={!aiEnabled || !canInteractWithApp}
             onClick={isAiButtonOpenActions.toggle}
           >
             <SparklesIcon className="mr-2 size-4 shrink-0" />

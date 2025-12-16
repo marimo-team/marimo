@@ -7,7 +7,10 @@ import { RuntimeManager } from "../runtime";
 
 describe("RuntimeManager.getWsURL", () => {
   it("should return a URL with the wss protocol when the baseURI uses https", () => {
-    const runtime = new RuntimeManager({ url: "https://marimo.app/" });
+    const runtime = new RuntimeManager({
+      url: "https://marimo.app/",
+      lazy: true,
+    });
     const sessionId = "1234" as SessionId;
     const url = runtime.getWsURL(sessionId);
     expect(url.toString()).toBe("wss://marimo.app/ws?session_id=1234");
@@ -15,7 +18,10 @@ describe("RuntimeManager.getWsURL", () => {
   });
 
   it("should return a URL with the ws protocol when the baseURI uses http", () => {
-    const runtime = new RuntimeManager({ url: "http://marimo.app/" });
+    const runtime = new RuntimeManager({
+      url: "http://marimo.app/",
+      lazy: true,
+    });
     const sessionId = "1234" as SessionId;
     const url = runtime.getWsURL(sessionId);
     expect(url.toString()).toBe("ws://marimo.app/ws?session_id=1234");
@@ -23,7 +29,10 @@ describe("RuntimeManager.getWsURL", () => {
   });
 
   it("should work with nested baseURI", () => {
-    const runtime = new RuntimeManager({ url: "http://marimo.app/nested/" });
+    const runtime = new RuntimeManager({
+      url: "http://marimo.app/nested/",
+      lazy: true,
+    });
     const sessionId = "1234" as SessionId;
     const url = runtime.getWsURL(sessionId);
     expect(url.toString()).toBe("ws://marimo.app/nested/ws?session_id=1234");
@@ -33,6 +42,7 @@ describe("RuntimeManager.getWsURL", () => {
   it("should work with nested baseURI and query params", () => {
     const runtime = new RuntimeManager({
       url: "http://marimo.app/nested/?foo=bar",
+      lazy: true,
     });
     window.history.pushState({}, "", "/nested/?file=test.py");
     const sessionId = "1234" as SessionId;
@@ -46,6 +56,7 @@ describe("RuntimeManager.getWsURL", () => {
   it("should include all query params from current page", () => {
     const runtime = new RuntimeManager({
       url: "http://marimo.app/",
+      lazy: true,
     });
     window.history.pushState({}, "", "/?file=test.py&search=test&other=last");
     const sessionId = "1234" as SessionId;

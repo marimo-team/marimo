@@ -49,6 +49,7 @@ import {
 } from "../kernel/handlers";
 import { queryParamHandlers } from "../kernel/queryParamHandlers";
 import type { SessionId } from "../kernel/session";
+import { kernelStateAtom } from "../kernel/state";
 import { type LayoutState, useLayoutActions } from "../layout/layout";
 import { kioskModeAtom } from "../mode";
 import { connectionAtom } from "../network/connection";
@@ -61,7 +62,7 @@ import type { VariableName } from "../variables/types";
 import { isWasm } from "../wasm/utils";
 import { WebSocketClosedReason, WebSocketState } from "./types";
 
-const SUPPORTS_LAZY_KERNELS = false;
+const SUPPORTS_LAZY_KERNELS = true;
 
 function getExistingCells(): CellData[] | undefined {
   if (!SUPPORTS_LAZY_KERNELS) {
@@ -89,6 +90,7 @@ export function useMarimoKernelConnection(opts: {
 
   const { handleCellMessage, setCellCodes, setCellIds } = useCellActions();
   const { addCellNotification } = useRunsActions();
+  const setKernelState = useSetAtom(kernelStateAtom);
   const setAppConfig = useSetAppConfig();
   const { setVariables, setMetadata } = useVariablesActions();
   const { addColumnPreview } = useDatasetsActions();
@@ -121,6 +123,7 @@ export function useMarimoKernelConnection(opts: {
           setLayoutData,
           setAppConfig,
           setCapabilities,
+          setKernelState,
           onError: showBoundary,
           existingCells,
         });

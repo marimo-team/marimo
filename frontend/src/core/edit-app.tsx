@@ -4,6 +4,7 @@ import { usePrevious } from "@dnd-kit/utilities";
 import { TooltipProvider } from "@radix-ui/react-tooltip";
 import { useAtomValue, useSetAtom } from "jotai";
 import { useEffect } from "react";
+import { NotStartedConnectionAlert } from "@/components/editor/alerts/connecting-alert";
 import { Controls } from "@/components/editor/controls/Controls";
 import { AppHeader } from "@/components/editor/header/app-header";
 import { FilenameForm } from "@/components/editor/header/filename-form";
@@ -20,6 +21,7 @@ import { CellsRenderer } from "../components/editor/renderers/cells-renderer";
 import { useHotkey } from "../hooks/useHotkey";
 import {
   cellIdsAtom,
+  getNotebook,
   hasCellsAtom,
   notebookIsRunningAtom,
   numColumnsAtom,
@@ -83,6 +85,12 @@ export const EditApp: React.FC<AppProps> = ({
   const { connection } = useMarimoKernelConnection({
     autoInstantiate: userConfig.runtime.auto_instantiate,
     setCells: (cells, layout) => {
+      // If data was already set, then lets skip this update
+      const hasNotebookData = Object.keys(getNotebook().cellData).length > 0;
+      if (hasNotebookData) {
+        return;
+      }
+
       setCells(cells);
       const names = cells.map((cell) => cell.name);
       const codes = cells.map((cell) => cell.code);
@@ -169,6 +177,7 @@ export const EditApp: React.FC<AppProps> = ({
             {editableCellsArray}
           </CellsRenderer>
         )}
+        {!hasCells && <NotStartedConnectionAlert />}
       </AppContainer>
       <MultiCellActionToolbar />
       {!hideControls && (
