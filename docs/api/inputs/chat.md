@@ -214,8 +214,8 @@ the progressively building response in real-time.
 
     - [`openai_example.py`](https://github.com/marimo-team/marimo/blob/main/examples/ai/chat/openai_example.py) - OpenAI chatbot with streaming (default)
     - [`streaming_custom.py`](https://github.com/marimo-team/marimo/blob/main/examples/ai/chat/streaming_custom.py) - Custom streaming chatbot
-    - [`pydantic_ai_with_tools.py`](https://github.com/marimo-team/marimo/blob/main/examples/ai/chat/pydantic_ai_with_tools.py) - Chatbot with tool calling
     - [`pydantic_ai_with_thinking_and_tools.py`](https://github.com/marimo-team/marimo/blob/main/examples/ai/chat/pydantic_ai_with_thinking_and_tools.py) - Chatbot with thinking and tools
+    - [`wandb_inference_example.py`](https://github.com/marimo-team/marimo/blob/main/examples/ai/chat/wandb_inference_example.py) - W&B Inference with reasoning models
 
 ## Built-in Models
 
@@ -354,6 +354,35 @@ The model string uses the format `provider:model_name`:
 
 See the [pydantic-ai documentation](https://ai.pydantic.dev/models/) for all
 supported providers and models.
+
+#### OpenAI-Compatible Providers (W&B Inference, DeepSeek, etc.)
+
+Use the `base_url` parameter to connect to OpenAI-compatible API endpoints:
+
+```python
+import marimo as mo
+
+chat = mo.ui.chat(
+    mo.ai.llm.pydantic_ai(
+        "openai:deepseek-ai/DeepSeek-R1-0528",  # Model name from provider
+        base_url="https://api.inference.wandb.ai/v1",  # Provider's API endpoint
+        api_key="your-api-key",
+        enable_thinking=True,  # Enable reasoning for supported models
+    ),
+)
+chat
+```
+
+This works with any OpenAI-compatible endpoint:
+
+- [W&B Inference](https://docs.wandb.ai/inference/) - Access open-source models with reasoning support
+- [DeepSeek](https://platform.deepseek.com/) - DeepSeek models
+- [Together AI](https://www.together.ai/) - Various open-source models
+- Any other OpenAI-compatible API
+
+When `enable_thinking=True` is set with a custom `base_url`, reasoning content
+from the provider (returned in the `reasoning_content` field) will be displayed
+in a collapsible accordion.
 
 ::: marimo.ai.llm.pydantic_ai
 
