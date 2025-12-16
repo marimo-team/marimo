@@ -295,9 +295,9 @@ export const MarimoErrorOutput = ({
 
             <p className="py-2">
               Try merging this cell with the mentioned cells or wrapping it in a
-              function. Alternatively, rename variables to make them private to
-              this cell by prefixing them with an underscore (e.g.{" "}
-              <Kbd className="inline">_{firstName}</Kbd>).
+              function. Alternatively, prefix variables with an underscore
+              (e.g., <Kbd className="inline">_{firstName}</Kbd>). to make them
+              private to this cell.
             </p>
 
             <p className="py-2">
@@ -402,6 +402,34 @@ export const MarimoErrorOutput = ({
                       <Kbd className="inline">mo</Kbd>) is required for
                       Markdown, SQL, and UI elements.
                     </p>
+                  </div>
+                </li>
+              );
+            }
+
+            if (
+              error.exception_type === "NameError" &&
+              error.msg.startsWith("name '_")
+            ) {
+              return (
+                <li className="my-2" key={`exception-${idx}`}>
+                  <div>
+                    <p className="text-muted-foreground">{error.msg}</p>
+                    <p className="text-muted-foreground mt-2">
+                      Variables prefixed with an underscore are local to a cell{" "}
+                      (
+                      <ExternalLink href="https://links.marimo.app/local-variables">
+                        docs{" "}
+                        <SquareArrowOutUpRightIcon
+                          size="0.75rem"
+                          className="inline"
+                        />
+                      </ExternalLink>
+                      ).
+                    </p>
+                    <div className="text-muted-foreground mt-2">
+                      See the console area for a traceback.
+                    </div>
                   </div>
                 </li>
               );
