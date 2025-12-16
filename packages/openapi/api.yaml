@@ -51,7 +51,7 @@ components:
       title: AiCompletionContext
       type: object
     AiCompletionRequest:
-      description: 'Messages_v2 are expected to be AI SDK messages.
+      description: 'UIMessages are expected to be AI SDK messages.
 
         See pydantic_ai.ui.vercel_ai.request_types.UIMessage or Vercel AI SDK documentation.'
       properties:
@@ -75,11 +75,6 @@ components:
           items:
             $ref: '#/components/schemas/ChatMessage'
           type: array
-        messagesV2:
-          default: []
-          items:
-            type: object
-          type: array
         prompt:
           type: string
         selectedText:
@@ -87,6 +82,11 @@ components:
           - type: string
           - type: 'null'
           default: null
+        uiMessages:
+          default: []
+          items:
+            type: object
+          type: array
       required:
       - prompt
       - includeOtherCode
@@ -525,7 +525,7 @@ components:
       title: ChatMessage
       type: object
     ChatRequest:
-      description: 'Messages_v2 are expected to be AI SDK messages.
+      description: 'UIMessages are expected to be AI SDK messages.
 
         See pydantic_ai.ui.vercel_ai.request_types.UIMessage or Vercel AI SDK documentation.'
       properties:
@@ -536,10 +536,6 @@ components:
         messages:
           items:
             $ref: '#/components/schemas/ChatMessage'
-          type: array
-        messagesV2:
-          items:
-            type: object
           type: array
         model:
           anyOf:
@@ -553,6 +549,10 @@ components:
             type: array
           - type: 'null'
           default: null
+        uiMessages:
+          items:
+            type: object
+          type: array
         variables:
           anyOf:
           - items:
@@ -566,7 +566,7 @@ components:
       - context
       - includeOtherCode
       - messages
-      - messagesV2
+      - uiMessages
       title: ChatRequest
       type: object
     ClearCacheRequest:
