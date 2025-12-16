@@ -145,10 +145,10 @@ export const MarimoErrorOutput = ({
       messages.push(
         <div key="syntax-unknown">
           {syntaxErrors.map((error, idx) => (
-            <p key={`syntax-${idx}`}>{error.msg}</p>
+            <pre key={`syntax-${idx}`}>{error.msg}</pre>
           ))}
           {unknownErrors.map((error, idx) => (
-            <p key={`unknown-${idx}`}>{error.msg}</p>
+            <pre key={`unknown-${idx}`}>{error.msg}</pre>
           ))}
           {cellId && (
             <AutoFixButton
