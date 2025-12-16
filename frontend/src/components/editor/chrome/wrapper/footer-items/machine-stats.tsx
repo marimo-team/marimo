@@ -56,9 +56,8 @@ const MemoryUsageBar: React.FC<{
   server: UsageResponse["server"];
 }> = ({ memory, kernel, server }) => {
   const { percent, total, available, is_container } = memory;
-  const isContainer = is_container === true;
   const roundedPercent = Math.round(percent);
-  const memoryLabel = isContainer ? "container memory" : "computer memory";
+  const memoryLabel = is_container ? "container memory" : "computer memory";
 
   const gbFormatter = useNumberFormatter({
     maximumFractionDigits: 2,

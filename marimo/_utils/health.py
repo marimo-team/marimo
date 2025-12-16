@@ -190,6 +190,11 @@ def has_cgroup_limits() -> tuple[bool, bool]:
     """
     Check if cgroup resource limits are explicitly set.
 
+    This is the standard way to detect container resource limits on Linux.
+    These cgroup paths are part of the kernel ABI and are stable across versions.
+    See: https://www.kernel.org/doc/Documentation/cgroup-v2.txt
+         https://www.kernel.org/doc/Documentation/cgroup-v1/
+
     Returns:
         (has_memory_limit, has_cpu_limit): Tuple of booleans indicating
         whether memory and CPU limits are set.
@@ -200,12 +205,14 @@ def has_cgroup_limits() -> tuple[bool, bool]:
     try:
         # Check cgroup v2 (modern containers)
         if os.path.exists("/sys/fs/cgroup/memory.max"):
-            memory_max = open("/sys/fs/cgroup/memory.max", encoding="utf-8").read().strip()
+            with open("/sys/fs/cgroup/memory.max", encoding="utf-8") as f:
+                memory_max = f.read().strip()
             # 'max' means unlimited, any number means limited
             has_memory = memory_max != "max"
 
         if os.path.exists("/sys/fs/cgroup/cpu.max"):
-            cpu_max = open("/sys/fs/cgroup/cpu.max", encoding="utf-8").read().strip()
+            with open("/sys/fs/cgroup/cpu.max", encoding="utf-8") as f:
+                cpu_max = f.read().strip()
             # 'max' means unlimited
             has_cpu = cpu_max != "max"
 
@@ -213,11 +220,10 @@ def has_cgroup_limits() -> tuple[bool, bool]:
         if not has_memory and os.path.exists(
             "/sys/fs/cgroup/memory/memory.limit_in_bytes"
         ):
-            limit = int(
-                open("/sys/fs/cgroup/memory/memory.limit_in_bytes", encoding="utf-8")
-                .read()
-                .strip()
-            )
+            with open(
+                "/sys/fs/cgroup/memory/memory.limit_in_bytes", encoding="utf-8"
+            ) as f:
+                limit = int(f.read().strip())
             # Very large number (typically > 2^62) indicates unlimited
             # This is the default "unlimited" value in cgroup v1
             has_memory = limit < (1 << 62)
@@ -225,11 +231,10 @@ def has_cgroup_limits() -> tuple[bool, bool]:
         if not has_cpu and os.path.exists(
             "/sys/fs/cgroup/cpu/cpu.cfs_quota_us"
         ):
-            quota = int(
-                open("/sys/fs/cgroup/cpu/cpu.cfs_quota_us", encoding="utf-8")
-                .read()
-                .strip()
-            )
+            with open(
+                "/sys/fs/cgroup/cpu/cpu.cfs_quota_us", encoding="utf-8"
+            ) as f:
+                quota = int(f.read().strip())
             # In cgroup v1, -1 means unlimited
             has_cpu = quota > 0
 
@@ -274,12 +279,14 @@ def get_container_resources() -> Optional[dict[str, Any]]:
         try:
             # Try cgroup v2 first
             if os.path.exists("/sys/fs/cgroup/memory.max"):
-                memory_max = (
-                    open("/sys/fs/cgroup/memory.max", encoding="utf-8").read().strip()
-                )
-                memory_current = (
-                    open("/sys/fs/cgroup/memory.current", encoding="utf-8").read().strip()
-                )
+                with open("/sys/fs/cgroup/memory.max", encoding="utf-8") as f:
+                    memory_max = f.read().strip()
+                    f.close()
+                with open(
+                    "/sys/fs/cgroup/memory.current", encoding="utf-8"
+                ) as f:
+                    memory_current = f.read().strip()
+                    f.close()
 
                 if memory_max != "max":
                     total = int(memory_max)
@@ -294,19 +301,19 @@ def get_container_resources() -> Optional[dict[str, Any]]:
                         "percent": percent,
                     }
             # Fallback to cgroup v1
-            elif os.path.exists(
-                "/sys/fs/cgroup/memory/memory.limit_in_bytes"
-            ):
-                total = int(
-                    open("/sys/fs/cgroup/memory/memory.limit_in_bytes", encoding="utf-8")
-                    .read()
-                    .strip()
-                )
-                used = int(
-                    open("/sys/fs/cgroup/memory/memory.usage_in_bytes", encoding="utf-8")
-                    .read()
-                    .strip()
-                )
+            elif os.path.exists("/sys/fs/cgroup/memory/memory.limit_in_bytes"):
+                with open(
+                    "/sys/fs/cgroup/memory/memory.limit_in_bytes",
+                    encoding="utf-8",
+                ) as f:
+                    total = int(f.read().strip())
+                    f.close()
+                with open(
+                    "/sys/fs/cgroup/memory/memory.usage_in_bytes",
+                    encoding="utf-8",
+                ) as f:
+                    used = int(f.read().strip())
+                    f.close()
                 available = total - used
                 percent = (used / total) * 100 if total > 0 else 0
 
@@ -324,9 +331,9 @@ def get_container_resources() -> Optional[dict[str, Any]]:
         try:
             # cgroup v2
             if os.path.exists("/sys/fs/cgroup/cpu.max"):
-                cpu_max_line = (
-                    open("/sys/fs/cgroup/cpu.max", encoding="utf-8").read().strip()
-                )
+                with open("/sys/fs/cgroup/cpu.max", encoding="utf-8") as f:
+                    cpu_max_line = f.read().strip()
+                    f.close()
                 if cpu_max_line != "max":
                     parts = cpu_max_line.split()
                     if len(parts) == 2:
@@ -341,16 +348,16 @@ def get_container_resources() -> Optional[dict[str, Any]]:
                         }
             # cgroup v1
             elif os.path.exists("/sys/fs/cgroup/cpu/cpu.cfs_quota_us"):
-                quota = int(
-                    open("/sys/fs/cgroup/cpu/cpu.cfs_quota_us", encoding="utf-8")
-                    .read()
-                    .strip()
-                )
-                period = int(
-                    open("/sys/fs/cgroup/cpu/cpu.cfs_period_us", encoding="utf-8")
-                    .read()
-                    .strip()
-                )
+                with open(
+                    "/sys/fs/cgroup/cpu/cpu.cfs_quota_us", encoding="utf-8"
+                ) as f:
+                    quota = int(f.read().strip())
+                    f.close()
+                with open(
+                    "/sys/fs/cgroup/cpu/cpu.cfs_period_us", encoding="utf-8"
+                ) as f:
+                    period = int(f.read().strip())
+                    f.close()
                 if quota > 0:  # -1 means unlimited
                     cores = quota / period
                     resources["cpu"] = {
