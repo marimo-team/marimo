@@ -11,13 +11,8 @@ import { CellId } from "@/core/cells/ids";
 import { createReducerAndAtoms } from "@/utils/createReducer";
 import { Logger } from "@/utils/Logger";
 import { maybeAddMarimoImport } from "../cells/add-missing-import";
-import {
-  type CreateNewCellAction,
-  getCellEditorView,
-  useCellActions,
-} from "../cells/cells";
+import { type CreateNewCellAction, useCellActions } from "../cells/cells";
 import type { LanguageAdapterType } from "../codemirror/language/types";
-import { updateEditorCodeFromPython } from "../codemirror/language/utils";
 import type { JotaiStore } from "../state/jotai";
 import type { EditType } from "./tools/edit-notebook-tool";
 
@@ -77,7 +72,7 @@ interface UpdateStagedCellAction {
 export function useStagedCells(store: JotaiStore) {
   const { addStagedCell, removeStagedCell, clearStagedCells } =
     useStagedAICellsActions();
-  const { createNewCell } = useCellActions();
+  const { createNewCell, updateCellCode } = useCellActions();
   const deleteCellCallback = useDeleteCellCallback();
 
   const cellCreationStream = useRef<CellCreationStream | null>(null);
@@ -103,13 +98,7 @@ export function useStagedCells(store: JotaiStore) {
       return;
     }
 
-    const editorView = getCellEditorView(cellId);
-    if (!editorView) {
-      Logger.error("Editor for this cell not found", { cellId });
-      return;
-    }
-    // TODO: Update the language
-    updateEditorCodeFromPython(editorView, code);
+    updateCellCode({ cellId, code, formattingChange: false });
   };
 
   // Delete a staged cell and the corresponding cell in the notebook.
