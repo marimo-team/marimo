@@ -295,9 +295,9 @@ export const MarimoErrorOutput = ({
 
             <p className="py-2">
               Try merging this cell with the mentioned cells or wrapping it in a
-              function. Alternatively, rename variables to make them private to
-              this cell by prefixing them with an underscore (e.g.{" "}
-              <Kbd className="inline">_{firstName}</Kbd>).
+              function. Alternatively, prefix variables with an underscore (e.g., {" "}
+              <Kbd className="inline">_{firstName}</Kbd>). to make them private
+              to this cell.
             </p>
 
             <p className="py-2">
