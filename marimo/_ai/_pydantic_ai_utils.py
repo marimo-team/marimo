@@ -7,12 +7,13 @@ from typing import TYPE_CHECKING, Any, Callable
 from marimo import _loggers
 from marimo._messaging.msgspec_encoder import asdict
 from marimo._server.ai.tools.types import ToolDefinition
+from marimo._server.models.completion import UIMessage as ServerUIMessage
 
 LOGGER = _loggers.marimo_logger()
 
 if TYPE_CHECKING:
     from pydantic_ai import FunctionToolset
-    from pydantic_ai.ui.vercel_ai.request_types import UIMessage
+    from pydantic_ai.ui.vercel_ai.request_types import UIMessage, UIMessagePart
 
 
 def generate_id(prefix: str) -> str:
@@ -66,13 +67,25 @@ def form_toolsets(
 
 
 def convert_to_pydantic_messages(
-    messages: list[dict[str, Any]],
+    messages: list[ServerUIMessage],
+    part_processor: Callable[[UIMessagePart], UIMessagePart] | None = None,
 ) -> list[UIMessage]:
     """
     The frontend SDK tends to generate messages with a messageId eventhough it's not valid.
     Remove them to prevent validation errors.
+    If a part processor is provided, it will be applied to the parts of the message.
     """
     from pydantic_ai.ui.vercel_ai.request_types import UIMessage
+
+    def safe_part_processor(
+        part: UIMessagePart,
+        part_processor: Callable[[UIMessagePart], UIMessagePart],
+    ) -> UIMessagePart:
+        try:
+            return part_processor(part)
+        except Exception as e:
+            LOGGER.error(f"Error processing part {part}: {e}")
+            return part
 
     pydantic_messages: list[UIMessage] = []
     for message in messages:
@@ -84,18 +97,25 @@ def convert_to_pydantic_messages(
         role = message.get("role", "assistant")
         parts = message.get("parts", [])
         metadata = message.get("metadata")
-        pydantic_messages.append(
-            UIMessage(id=message_id, role=role, parts=parts, metadata=metadata)
+
+        ui_message = UIMessage(
+            id=message_id, role=role, parts=parts, metadata=metadata
         )
+
+        # Process parts after casting so the processor will work on typed parts
+        if ui_message.parts and part_processor:
+            new_parts = [
+                safe_part_processor(part, part_processor)
+                for part in ui_message.parts
+            ]
+            ui_message.parts = new_parts
+        pydantic_messages.append(ui_message)
+
     return pydantic_messages
 
 
 def create_simple_prompt(text: str) -> UIMessage:
-    from pydantic_ai.ui.vercel_ai.request_types import (
-        TextUIPart,
-        UIMessage,
-        UIMessagePart,
-    )
+    from pydantic_ai.ui.vercel_ai.request_types import TextUIPart, UIMessage
 
     parts: list[UIMessagePart] = [TextUIPart(text=text)] if text else []
     return UIMessage(id=generate_id("message"), role="user", parts=parts)

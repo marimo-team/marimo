@@ -65,7 +65,10 @@ def test_anyprovider_for_model(model_name: str, provider_name: str) -> None:
     [
         pytest.param("gpt-4", OpenAIProvider, None, id="openai"),
         pytest.param(
-            "claude-3-opus-20240229", AnthropicProvider, None, id="anthropic"
+            "claude-3-opus-20240229",
+            AnthropicProvider,
+            DependencyManager.anthropic,
+            id="anthropic",
         ),
         pytest.param(
             "gemini-1.5-flash",
@@ -253,42 +256,39 @@ def test_openai_extract_content_multiple_tool_calls() -> None:
     assert tool_data_1["toolName"] == "get_time"
 
 
-def test_anthropic_extract_content_tool_call_id_mapping() -> None:
-    """Test Anthropic maps tool call IDs via block index."""
-    try:
-        from anthropic.types import (
-            InputJSONDelta,
-            RawContentBlockDeltaEvent,
-            RawContentBlockStartEvent,
-            ToolUseBlock,
-        )
-    except ImportError:
-        pytest.skip("Anthropic not installed")
+@pytest.mark.skipif(
+    not DependencyManager.anthropic.has()
+    or not DependencyManager.pydantic_ai.has(),
+    reason="anthropic or pydantic_ai not installed",
+)
+def test_anthropic_process_part_text_file() -> None:
+    """Test Anthropic converts text file parts to text parts."""
+    from pydantic_ai.ui.vercel_ai.request_types import FileUIPart, TextUIPart
 
     config = AnyProviderConfig(api_key="test-key", base_url="http://test")
     provider = AnthropicProvider("claude-3-opus-20240229", config)
 
-    start_event = RawContentBlockStartEvent(
-        type="content_block_start",
-        index=0,
-        content_block=ToolUseBlock(
-            type="tool_use", id="toolu_123", name="get_weather", input={}
-        ),
+    # Test text file conversion - base64 encoded "Hello, World!"
+    text_file_part = FileUIPart(
+        type="file",
+        media_type="text/plain",
+        url="data:text/plain;base64,SGVsbG8sIFdvcmxkIQ==",
+        filename="test.txt",
     )
-    provider.extract_content(start_event, None)
+    result = provider.process_part(text_file_part)
+    assert isinstance(result, TextUIPart)
+    assert result.text == "Hello, World!"
 
-    delta_event = RawContentBlockDeltaEvent(
-        type="content_block_delta",
-        index=0,
-        delta=InputJSONDelta(
-            type="input_json_delta", partial_json='{"location": "SF"}'
-        ),
+    # Test image file is not converted
+    image_file_part = FileUIPart(
+        type="file",
+        media_type="image/png",
+        url="data:image/png;base64,iVBORw0KGgo=",
+        filename="test.png",
     )
-    result = provider.extract_content(delta_event, None)
-    assert result is not None
-    tool_data, _ = result[0]
-    assert isinstance(tool_data, dict)
-    assert tool_data["toolCallId"] == "toolu_123"
+    result = provider.process_part(image_file_part)
+    assert isinstance(result, FileUIPart)
+    assert result.media_type == "image/png"
 
 
 @pytest.mark.parametrize(

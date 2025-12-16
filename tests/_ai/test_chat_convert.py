@@ -15,6 +15,7 @@ from marimo._ai._convert import (
     convert_to_groq_messages,
     convert_to_openai_messages,
     convert_to_openai_tools,
+    extract_text,
     get_google_messages_from_parts,
     get_openai_messages_from_parts,
 )
@@ -1407,3 +1408,66 @@ def test_get_google_messages_from_parts_empty():
     """Test converting empty parts list."""
     result = get_google_messages_from_parts("user", [])
     assert result == []
+
+
+class TestExtractText:
+    """Tests for the extract_text function."""
+
+    def test_extract_text_from_base64_data_url(self):
+        """Test extracting text from a base64-encoded data URL."""
+        # "Hello, World!" encoded in base64
+        data_url = "data:text/plain;base64,SGVsbG8sIFdvcmxkIQ=="
+        result = extract_text(data_url)
+        assert result == "Hello, World!"
+
+    def test_extract_text_from_base64_utf8(self):
+        """Test extracting UTF-8 text from a base64-encoded data URL."""
+        # "こんにちは" (Japanese for "Hello") encoded in base64
+        text = "こんにちは"
+        encoded = base64.b64encode(text.encode("utf-8")).decode("ascii")
+        data_url = f"data:text/plain;base64,{encoded}"
+        result = extract_text(data_url)
+        assert result == text
+
+    def test_extract_text_from_base64_latin1_fallback(self):
+        """Test extracting text with latin1 fallback when UTF-8 fails."""
+        # Create bytes that are valid latin1 but invalid UTF-8
+        latin1_bytes = bytes([0xE9, 0xE8, 0xE0])  # é, è, à in latin1
+        encoded = base64.b64encode(latin1_bytes).decode("ascii")
+        data_url = f"data:text/plain;base64,{encoded}"
+        result = extract_text(data_url)
+        assert result == latin1_bytes.decode("latin1")
+
+    def test_extract_text_from_plain_url(self):
+        """Test that non-data URLs are returned as-is."""
+        url = "https://example.com/file.txt"
+        result = extract_text(url)
+        assert result == url
+
+    def test_extract_text_from_relative_url(self):
+        """Test that relative URLs are returned as-is."""
+        url = "/path/to/file.txt"
+        result = extract_text(url)
+        assert result == url
+
+    def test_extract_text_empty_content(self):
+        """Test extracting empty text content."""
+        data_url = "data:text/plain;base64,"
+        result = extract_text(data_url)
+        assert result == ""
+
+    def test_extract_text_multiline_content(self):
+        """Test extracting multiline text content."""
+        text = "Line 1\nLine 2\nLine 3"
+        encoded = base64.b64encode(text.encode("utf-8")).decode("ascii")
+        data_url = f"data:text/plain;base64,{encoded}"
+        result = extract_text(data_url)
+        assert result == text
+
+    def test_extract_text_with_special_characters(self):
+        """Test extracting text with special characters."""
+        text = "Special chars: !@#$%^&*()_+-=[]{}|;':\",./<>?"
+        encoded = base64.b64encode(text.encode("utf-8")).decode("ascii")
+        data_url = f"data:text/plain;base64,{encoded}"
+        result = extract_text(data_url)
+        assert result == text

@@ -24,12 +24,15 @@ from starlette.exceptions import HTTPException
 from marimo import _loggers
 from marimo._ai._convert import (
     convert_to_ai_sdk_messages,
-    convert_to_anthropic_messages,
-    convert_to_anthropic_tools,
     convert_to_openai_messages,
     convert_to_openai_tools,
+    extract_text,
 )
-from marimo._ai._pydantic_ai_utils import form_toolsets, generate_id
+from marimo._ai._pydantic_ai_utils import (
+    convert_to_pydantic_messages,
+    form_toolsets,
+    generate_id,
+)
 from marimo._ai._types import ChatMessage
 from marimo._dependencies.dependencies import Dependency, DependencyManager
 from marimo._server.ai.config import AnyProviderConfig
@@ -37,21 +40,15 @@ from marimo._server.ai.ids import AiModelId
 from marimo._server.ai.tools.tool_manager import get_tool_manager
 from marimo._server.ai.tools.types import ToolDefinition
 from marimo._server.api.status import HTTPStatus
+from marimo._server.models.completion import UIMessage as ServerUIMessage
 
 TIMEOUT = 30
 # Long-thinking models can take a long time to complete, so we set a longer timeout
 LONG_THINKING_TIMEOUT = 120
 
 if TYPE_CHECKING:
-    from anthropic import (  # type: ignore[import-not-found]
-        AsyncClient,
-        AsyncStream as AnthropicStream,
-    )
-    from anthropic.types import (  # type: ignore[import-not-found]
-        RawMessageStreamEvent,
-    )
-
     # Used for Bedrock, unified interface for all models
+    from anthropic.types.beta import BetaThinkingConfigParam
     from litellm import (  # type: ignore[attr-defined]
         CustomStreamWrapper as LitellmStream,
     )
@@ -67,8 +64,11 @@ if TYPE_CHECKING:
     )
     from pydantic_ai import Agent, DeferredToolRequests
     from pydantic_ai.providers import Provider
+    from pydantic_ai.providers.anthropic import (
+        AnthropicProvider as PydanticAnthropic,
+    )
     from pydantic_ai.providers.google import GoogleProvider as PydanticGoogle
-    from pydantic_ai.ui.vercel_ai.request_types import UIMessage
+    from pydantic_ai.ui.vercel_ai.request_types import UIMessage, UIMessagePart
     from starlette.responses import StreamingResponse
 
 
@@ -152,9 +152,15 @@ class PydanticProvider(ABC, Generic[ProviderT]):
     ) -> Agent[None, DeferredToolRequests | str]:
         """Create a Pydantic AI agent"""
 
+    def convert_messages(
+        self, messages: list[ServerUIMessage]
+    ) -> list[UIMessage]:
+        """Convert server messages to Pydantic AI messages. We expect AI SDK messages"""
+        return convert_to_pydantic_messages(messages)
+
     async def stream_completion(
         self,
-        messages: list[UIMessage],
+        messages: list[ServerUIMessage],
         system_prompt: str,
         max_tokens: int,
         additional_tools: list[ToolDefinition],
@@ -172,7 +178,7 @@ class PydanticProvider(ABC, Generic[ProviderT]):
         run_input = SubmitMessage(
             id=generate_id("submit-message"),
             trigger="submit-message",
-            messages=messages,
+            messages=self.convert_messages(messages),
         )
 
         # TODO: Text only and format stream are not supported yet
@@ -187,7 +193,7 @@ class PydanticProvider(ABC, Generic[ProviderT]):
     async def stream_text(
         self,
         user_prompt: str,
-        messages: list[UIMessage],
+        messages: list[ServerUIMessage],
         system_prompt: str,
         max_tokens: int,
         additional_tools: list[ToolDefinition],
@@ -202,7 +208,9 @@ class PydanticProvider(ABC, Generic[ProviderT]):
 
         async with agent.run_stream(
             user_prompt=user_prompt,
-            message_history=VercelAIAdapter.load_messages(messages),
+            message_history=VercelAIAdapter.load_messages(
+                self.convert_messages(messages)
+            ),
             instructions=system_prompt,
         ) as result:
             async for message in result.stream_text(delta=True):
@@ -905,11 +913,7 @@ class AzureOpenAIProvider(OpenAIProvider):
         )
 
 
-class AnthropicProvider(
-    CompletionProvider[
-        "RawMessageStreamEvent", "AnthropicStream[RawMessageStreamEvent]"
-    ]
-):
+class AnthropicProvider(PydanticProvider["PydanticAnthropic"]):
     # Temperature of 0.2 was recommended for coding and data science in these links:
     # https://community.openai.com/t/cheat-sheet-mastering-temperature-and-top-p-in-chatgpt-api/172683
     # https://docs.anthropic.com/en/docs/test-and-evaluate/strengthen-guardrails/reduce-latency?utm_source=chatgpt.com
@@ -927,8 +931,53 @@ class AnthropicProvider(
     # 1024 tokens is the minimum budget for extended thinking
     DEFAULT_EXTENDED_THINKING_BUDGET_TOKENS = 1024
 
-    # Map of block index to tool call id for tool call delta chunks
-    block_index_to_tool_call_id_map: dict[int, str] = {}
+    def create_provider(self, config: AnyProviderConfig) -> PydanticAnthropic:
+        from pydantic_ai.providers.anthropic import (
+            AnthropicProvider as PydanticAnthropic,
+        )
+
+        return PydanticAnthropic(api_key=config.api_key)
+
+    def create_agent(
+        self, max_tokens: int, tools: list[ToolDefinition], system_prompt: str
+    ) -> Agent[None, DeferredToolRequests | str]:
+        from pydantic_ai import Agent, DeferredToolRequests
+        from pydantic_ai.models.anthropic import (
+            AnthropicModel,
+            AnthropicModelSettings,
+        )
+
+        tool_manager = get_tool_manager()
+
+        toolset, deferred_tool_requests = form_toolsets(
+            tools, tool_manager.invoke_tool
+        )
+        output_type = (
+            [str, DeferredToolRequests] if deferred_tool_requests else str
+        )
+
+        is_thinking_model = self.is_extended_thinking_model(self.model)
+        thinking_config: BetaThinkingConfigParam = {"type": "disabled"}
+        if is_thinking_model:
+            thinking_config = {
+                "type": "enabled",
+                "budget_tokens": self.DEFAULT_EXTENDED_THINKING_BUDGET_TOKENS,
+            }
+
+        return Agent(
+            AnthropicModel(
+                model_name=self.model,
+                provider=self.provider,
+                settings=AnthropicModelSettings(
+                    max_tokens=max_tokens,
+                    temperature=self.get_temperature(),
+                    anthropic_thinking=thinking_config,
+                ),
+            ),
+            toolsets=[toolset] if tools else None,
+            instructions=system_prompt,
+            output_type=output_type,
+        )
 
     def is_extended_thinking_model(self, model: str) -> bool:
         return any(
@@ -943,132 +992,29 @@ class AnthropicProvider(
             else self.DEFAULT_TEMPERATURE
         )
 
-    def get_client(self, config: AnyProviderConfig) -> AsyncClient:
-        DependencyManager.anthropic.require(
-            why="for AI assistance with Anthropic"
-        )
-        from anthropic import AsyncClient
+    def convert_messages(
+        self, messages: list[ServerUIMessage]
+    ) -> list[UIMessage]:
+        return convert_to_pydantic_messages(messages, self.process_part)
 
-        return AsyncClient(api_key=config.api_key)
-
-    def maybe_get_tool_call_id(self, block_index: int) -> Optional[str]:
-        return self.block_index_to_tool_call_id_map.get(block_index, None)
-
-    async def stream_completion(
-        self,
-        messages: list[ChatMessage],
-        system_prompt: str,
-        max_tokens: int,
-        additional_tools: list[ToolDefinition],
-    ) -> AnthropicStream[RawMessageStreamEvent]:
-        client = self.get_client(self.config)
-        tools = self.config.tools
-        create_params = {
-            "model": self.model,
-            "max_tokens": max_tokens,
-            "messages": cast(
-                Any,
-                convert_to_anthropic_messages(messages),
-            ),
-            "system": system_prompt,
-            "stream": True,
-            "temperature": self.get_temperature(),
-        }
-        if tools:
-            all_tools = tools + additional_tools
-            create_params["tools"] = convert_to_anthropic_tools(all_tools)
-        if self.is_extended_thinking_model(self.model):
-            create_params["thinking"] = {
-                "type": "enabled",
-                "budget_tokens": self.DEFAULT_EXTENDED_THINKING_BUDGET_TOKENS,
-            }
-        return cast(
-            "AnthropicStream[RawMessageStreamEvent]",
-            await client.messages.create(**create_params),
+    def process_part(self, part: UIMessagePart) -> UIMessagePart:
+        """
+        Anthropic does not support binary content for text files, so we convert to text parts.
+        Ideally, we would use DocumentUrl parts with a url, but we only have the binary data from the frontend
+        Refer to: https://ai.pydantic.dev/input/#user-side-download-vs-direct-file-url
+        """
+        from pydantic_ai.ui.vercel_ai.request_types import (
+            FileUIPart,
+            TextUIPart,
         )
 
-    def block_index_to_tool_call_id(self, block_index: int) -> str:
-        return f"tool_call_{block_index}"
-
-    def extract_content(
-        self,
-        response: RawMessageStreamEvent,
-        tool_call_ids: Optional[list[str]] = None,
-    ) -> Optional[ExtractedContentList]:
-        del tool_call_ids
-        from anthropic.types import (
-            InputJSONDelta,
-            RawContentBlockDeltaEvent,
-            RawContentBlockStartEvent,
-            SignatureDelta,
-            TextDelta,
-            ThinkingDelta,
-            ToolUseBlock,
-        )
-
-        # For streaming content
-        if isinstance(response, RawContentBlockDeltaEvent):
-            if isinstance(response.delta, TextDelta):
-                return [(response.delta.text, "text")]
-            if isinstance(response.delta, ThinkingDelta):
-                return [(response.delta.thinking, "reasoning")]
-            if isinstance(response.delta, InputJSONDelta):
-                block_index = response.index
-                tool_call_id = self.maybe_get_tool_call_id(block_index)
-                if not tool_call_id:
-                    LOGGER.error(
-                        f"Tool call id not found for block index: {response.index}"
-                    )
-                    return None
-                delta_json = response.delta.partial_json
-                tool_delta = {
-                    "toolCallId": tool_call_id,
-                    "inputTextDelta": delta_json,
-                }
-                return [(tool_delta, "tool_call_delta")]
-            if isinstance(response.delta, SignatureDelta):
-                return [
-                    (
-                        {"signature": response.delta.signature},
-                        "reasoning_signature",
-                    )
-                ]
-
-        # For the beginning of a tool use block
-        if isinstance(response, RawContentBlockStartEvent):
-            if isinstance(response.content_block, ToolUseBlock):
-                tool_call_id = response.content_block.id
-                tool_call_name = response.content_block.name
-                block_index = response.index
-                # Store the tool call id for the block index
-                self.block_index_to_tool_call_id_map[block_index] = (
-                    tool_call_id
-                )
-                tool_info = {
-                    "toolCallId": tool_call_id,
-                    "toolName": tool_call_name,
-                }
-                return [(tool_info, "tool_call_start")]
-
-        return None
-
-    def get_finish_reason(
-        self, response: RawMessageStreamEvent
-    ) -> Optional[FinishReason]:
-        from anthropic.types import RawMessageDeltaEvent
-
-        # Check for message_delta events which contain the stop_reason
-        if isinstance(response, RawMessageDeltaEvent):
-            if (
-                hasattr(response, "delta")
-                and hasattr(response.delta, "stop_reason")
-                and response.delta.stop_reason
-            ):
-                stop_reason = response.delta.stop_reason
-                # Anthropic uses "end_turn" for normal completion, "tool_use" for tool calls
-                return "tool_calls" if stop_reason == "tool_use" else "stop"
-
-        return None
+        if isinstance(part, FileUIPart) and part.media_type.startswith("text"):
+            return TextUIPart(
+                type="text",
+                text=extract_text(part.url),
+                provider_metadata=part.provider_metadata,
+            )
+        return part
 
 
 class BedrockProvider(
@@ -1207,7 +1153,9 @@ def get_completion_provider(
     model_id = AiModelId.from_model(model)
 
     if model_id.provider == "anthropic":
-        return AnthropicProvider(model_id.model, config)
+        return AnthropicProvider(
+            model_id.model, config, [DependencyManager.anthropic]
+        )
     elif model_id.provider == "google":
         return GoogleProvider(
             model_id.model, config, [DependencyManager.google_ai]

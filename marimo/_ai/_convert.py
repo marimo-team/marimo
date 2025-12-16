@@ -135,7 +135,7 @@ def convert_to_openai_messages(
                 elif media_type.startswith("text"):
                     file_text_part: ChatCompletionContentPartTextParam = {
                         "type": "text",
-                        "text": _extract_text(part.url),
+                        "text": extract_text(part.url),
                     }
                     current_parts.append(file_text_part)
                 else:
@@ -307,7 +307,7 @@ def convert_to_anthropic_messages(
                 elif media_type.startswith("text"):
                     file_text_part: TextBlockParam = {
                         "type": "text",
-                        "text": _extract_text(part.url),
+                        "text": extract_text(part.url),
                     }
                     current_parts.append(file_text_part)
                 else:
@@ -337,7 +337,7 @@ def convert_to_groq_messages(
             text_content = str(message.content)  # Explicitly convert to string
             for file in file_parts:
                 if file.media_type.startswith("text"):
-                    text_content += "\n" + _extract_text(file.url)
+                    text_content += "\n" + extract_text(file.url)
                 else:
                     raise ValueError(
                         f"Unsupported content type {file.media_type}. Only text content is supported."
@@ -454,7 +454,7 @@ def convert_to_google_messages(
     return google_messages
 
 
-def _extract_text(url: str) -> str:
+def extract_text(url: str) -> str:
     if url.startswith("data:"):
         # extract base64 encoding from url
         data = url.split(",")[1]
