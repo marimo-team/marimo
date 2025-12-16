@@ -66,8 +66,7 @@ def _raise_name_error(
     if graph is None:
         raise MarimoRuntimeException from name_error
     (missing_name,) = re.findall(r"'([^']*)'", str(name_error))
-    _, private_cell_id = unmangle_local(missing_name)
-    if missing_name in graph.definitions or private_cell_id:
+    if missing_name in graph.definitions or missing_name.startswith("_"):
         raise MarimoRuntimeException from MarimoMissingRefError(
             missing_name, name_error
         )

@@ -382,6 +382,20 @@ class Runner:
                     blamed_cell,
                 )
                 exception = output
+            elif ref.startswith("_"):
+                possibly_deleted = any(
+                    ref in cell.deleted_refs
+                    for cell in self.graph.cells.values()
+                )
+
+                output = MarimoExceptionRaisedError(
+                    f"NameError: name `{ref}` is not defined."
+                    "\nVariables starting with `_` are private and "
+                    "cannot be accessed across cells.",
+                    "NameError",
+                    None,
+                )
+                exception = output
             elif blamed_cell != cell_id:
                 possibly_deleted = any(
                     ref in cell.deleted_refs
