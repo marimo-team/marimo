@@ -3,6 +3,7 @@
 import type ReconnectingWebSocket from "partysocket/ws";
 
 export const WebSocketState = {
+  NOT_STARTED: "NOT_STARTED",
   CONNECTING: "CONNECTING",
   OPEN: "OPEN",
   CLOSING: "CLOSING",
@@ -39,7 +40,8 @@ export type ConnectionStatus =
       state:
         | typeof WebSocketState.CONNECTING
         | typeof WebSocketState.OPEN
-        | typeof WebSocketState.CLOSING;
+        | typeof WebSocketState.CLOSING
+        | typeof WebSocketState.NOT_STARTED;
     };
 
 type PublicInterface<T> = {

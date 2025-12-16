@@ -35,7 +35,8 @@ export class RuntimeManager {
   }
 
   get isSameOrigin(): boolean {
-    return this.httpURL.origin === window.location.origin;
+    return false;
+    // return this.httpURL.origin === window.location.origin;
   }
 
   /**
@@ -216,6 +217,7 @@ export class RuntimeManager {
   }
 
   async init(options?: { disableRetryDelay?: boolean }) {
+    Logger.debug("Initializing runtime...");
     let retries = 0;
     // This matches backoff logic elsewhere.
     const maxRetries = 25;
@@ -238,6 +240,7 @@ export class RuntimeManager {
       retries++;
     }
 
+    Logger.debug("Runtime is healthy");
     this.initialHealthyCheck.resolve();
   }
 
