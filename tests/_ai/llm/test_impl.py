@@ -1197,42 +1197,6 @@ class TestPydanticAI:
         # Second should be response with tool call
         assert isinstance(converted[1], ModelResponse)
 
-    def test_api_key_setup(self):
-        """Test that API key is set in environment variable."""
-        model = pydantic_ai("openai:gpt-4.1", api_key="test-key-123")
-
-        # Save original env value
-        original = os.environ.get("OPENAI_API_KEY")
-
-        try:
-            model._setup_api_key()
-            assert os.environ.get("OPENAI_API_KEY") == "test-key-123"
-        finally:
-            # Restore original value
-            if original is not None:
-                os.environ["OPENAI_API_KEY"] = original
-            elif "OPENAI_API_KEY" in os.environ:
-                del os.environ["OPENAI_API_KEY"]
-
-    def test_api_key_setup_anthropic(self):
-        """Test API key setup for Anthropic provider."""
-        model = pydantic_ai(
-            "anthropic:claude-sonnet-4-5", api_key="test-anthropic-key"
-        )
-
-        # Save original env value
-        original = os.environ.get("ANTHROPIC_API_KEY")
-
-        try:
-            model._setup_api_key()
-            assert os.environ.get("ANTHROPIC_API_KEY") == "test-anthropic-key"
-        finally:
-            # Restore original value
-            if original is not None:
-                os.environ["ANTHROPIC_API_KEY"] = original
-            elif "ANTHROPIC_API_KEY" in os.environ:
-                del os.environ["ANTHROPIC_API_KEY"]
-
     def test_init_with_thinking_enabled(self):
         """Test initialization with thinking enabled."""
         model = pydantic_ai(
@@ -1248,6 +1212,148 @@ class TestPydanticAI:
             enable_thinking={"budget_tokens": 5000},
         )
         assert model2.enable_thinking == {"budget_tokens": 5000}
+
+    def test_init_with_base_url(self):
+        """Test initialization with base_url for OpenAI-compatible providers."""
+        model = pydantic_ai(
+            "openai:deepseek-ai/DeepSeek-R1-0528",
+            base_url="https://api.inference.wandb.ai/v1",
+            api_key="test-wandb-key",
+            enable_thinking=True,
+        )
+
+        assert model.model == "openai:deepseek-ai/DeepSeek-R1-0528"
+        assert model.base_url == "https://api.inference.wandb.ai/v1"
+        assert model.api_key == "test-wandb-key"
+        assert model.enable_thinking is True
+
+    def test_base_url_creates_model_directly(self):
+        """Test that base_url creates OpenAIModel directly instead of using env vars."""
+        from pydantic_ai.models.openai import OpenAIModel
+
+        model = pydantic_ai(
+            "openai:deepseek-ai/DeepSeek-R1-0528",
+            base_url="https://api.inference.wandb.ai/v1",
+            api_key="test-wandb-key",
+        )
+
+        # _create_model should return an OpenAIModel object
+        created_model = model._create_model()
+        assert isinstance(created_model, OpenAIModel)
+
+        # Verify the model name is extracted correctly
+        assert model._get_model_name() == "deepseek-ai/DeepSeek-R1-0528"
+
+    def test_create_model_returns_string_without_api_key(self):
+        """Test that _create_model returns string when api_key is not provided."""
+        model = pydantic_ai("openai:gpt-4.1")
+
+        # Without api_key, _create_model should return the model string
+        # (Pydantic AI will use env vars)
+        created_model = model._create_model()
+        assert created_model == "openai:gpt-4.1"
+        assert isinstance(created_model, str)
+
+    def test_create_model_anthropic_with_api_key_and_base_url(self):
+        """Test that Anthropic with api_key creates model object (base_url is ignored)."""
+        from pydantic_ai.models.anthropic import AnthropicModel
+
+        model = pydantic_ai(
+            "anthropic:claude-sonnet-4-5",
+            base_url="https://example.com",  # base_url is not used for Anthropic
+            api_key="test-key",
+        )
+
+        # With api_key, _create_model should return an AnthropicModel object
+        created_model = model._create_model()
+        assert isinstance(created_model, AnthropicModel)
+
+    def test_create_model_groq_with_api_key(self):
+        """Test that Groq with api_key creates GroqModel directly."""
+        from pydantic_ai.models.groq import GroqModel
+
+        model = pydantic_ai(
+            "groq:llama-3.3-70b-versatile",
+            api_key="test-groq-key",
+        )
+
+        created_model = model._create_model()
+        assert isinstance(created_model, GroqModel)
+
+    def test_create_model_google_with_api_key(self):
+        """Test that Google with api_key creates GoogleModel directly."""
+        from pydantic_ai.models.google import GoogleModel
+
+        model = pydantic_ai(
+            "google-gla:gemini-2.0-flash",
+            api_key="test-google-key",
+        )
+
+        created_model = model._create_model()
+        assert isinstance(created_model, GoogleModel)
+
+    def test_no_env_vars_set_when_api_key_provided(self):
+        """Test that environment variables are NOT set when api_key is provided."""
+        # Save original env values
+        original_openai = os.environ.get("OPENAI_API_KEY")
+        original_anthropic = os.environ.get("ANTHROPIC_API_KEY")
+
+        try:
+            # Clear any existing env vars
+            if "OPENAI_API_KEY" in os.environ:
+                del os.environ["OPENAI_API_KEY"]
+            if "ANTHROPIC_API_KEY" in os.environ:
+                del os.environ["ANTHROPIC_API_KEY"]
+
+            # Create models with api_key
+            openai_model = pydantic_ai("openai:gpt-4", api_key="test-key")
+            anthropic_model = pydantic_ai(
+                "anthropic:claude-3", api_key="test-key"
+            )
+
+            # Call _create_model (this is where env vars would be set in old impl)
+            openai_model._create_model()
+            anthropic_model._create_model()
+
+            # Env vars should NOT be set
+            assert "OPENAI_API_KEY" not in os.environ
+            assert "ANTHROPIC_API_KEY" not in os.environ
+        finally:
+            # Restore original values
+            if original_openai is not None:
+                os.environ["OPENAI_API_KEY"] = original_openai
+            if original_anthropic is not None:
+                os.environ["ANTHROPIC_API_KEY"] = original_anthropic
+
+    def test_build_model_settings_openai_compatible_thinking(self):
+        """Test _build_model_settings for OpenAI-compatible provider with thinking."""
+        model = pydantic_ai(
+            "openai:deepseek-ai/DeepSeek-R1-0528",
+            base_url="https://api.inference.wandb.ai/v1",
+            enable_thinking=True,
+        )
+
+        config = ChatModelConfig(max_tokens=1000, temperature=0.7)
+        settings = model._build_model_settings(config)
+
+        # Should use OpenAIChatModelSettings with thinking field
+        assert hasattr(settings, "openai_chat_thinking_field")
+        assert settings.openai_chat_thinking_field == "reasoning_content"
+        assert settings.max_tokens == 1000
+
+    def test_build_model_settings_native_openai_thinking(self):
+        """Test _build_model_settings for native OpenAI without base_url."""
+        model = pydantic_ai(
+            "openai:gpt-4.1",
+            enable_thinking=True,
+        )
+
+        config = ChatModelConfig(max_tokens=1000)
+        settings = model._build_model_settings(config)
+
+        # Should use OpenAIResponsesModelSettings for native OpenAI
+        assert hasattr(settings, "openai_reasoning_effort")
+        assert settings.openai_reasoning_effort == "low"
 
     def test_extract_stored_pydantic_messages(self):
         """Test extraction of stored pydantic-ai messages from parts."""

@@ -902,6 +902,7 @@ class pydantic_ai(ChatModel):
         - Google: "google-gla:gemini-2.0-flash", "google-vertex:gemini-1.5-pro"
         - Groq: "groq:llama-3.3-70b-versatile"
         - Mistral: "mistral:mistral-large-latest"
+        - OpenAI-compatible: Use "openai:model-name" with base_url parameter
         - And more (see Pydantic AI docs for full list)
 
     Args:
@@ -914,6 +915,11 @@ class pydantic_ai(ChatModel):
         api_key: The API key for the provider. If not provided, the key
             will be retrieved from the appropriate environment variable
             (e.g., OPENAI_API_KEY, ANTHROPIC_API_KEY).
+        base_url: Custom base URL for OpenAI-compatible providers.
+            Use this to connect to services like W&B Inference, DeepSeek,
+            Together AI, or any OpenAI-compatible API endpoint.
+            When set with enable_thinking=True, reasoning content from
+            the provider's response will be displayed in the UI.
         enable_thinking: Enable thinking/reasoning for models that support it.
             Can be True (use provider defaults), or a dict with provider-specific
             settings:
@@ -972,6 +978,20 @@ class pydantic_ai(ChatModel):
             ),
         )
         ```
+
+    Example with W&B Inference (OpenAI-compatible):
+        ```python
+        # Use W&B Inference with a reasoning model
+        # See https://docs.wandb.ai/inference/models for available models
+        chat = mo.ui.chat(
+            mo.ai.llm.pydantic_ai(
+                "openai:deepseek-ai/DeepSeek-R1-0528",
+                base_url="https://api.inference.wandb.ai/v1",
+                api_key="your-wandb-api-key",  # Get from https://wandb.ai/authorize
+                enable_thinking=True,
+            ),
+        )
+        ```
     """
 
     def __init__(
@@ -981,6 +1001,7 @@ class pydantic_ai(ChatModel):
         tools: Optional[list[Callable[..., Any]]] = None,
         system_message: str = DEFAULT_SYSTEM_MESSAGE,
         api_key: Optional[str] = None,
+        base_url: Optional[str] = None,
         enable_thinking: Union[bool, dict[str, Any]] = False,
         **kwargs: Any,
     ):
@@ -988,34 +1009,96 @@ class pydantic_ai(ChatModel):
         self.tools = tools or []
         self.system_message = system_message
         self.api_key = api_key
+        self.base_url = base_url
         self.enable_thinking = enable_thinking
         self.kwargs = kwargs
 
-    def _setup_api_key(self) -> None:
-        """Set the API key environment variable based on the model provider."""
+    def _get_provider(self) -> str:
+        """Extract provider from model string (e.g., 'anthropic:claude-3' -> 'anthropic')."""
+        return self.model.split(":")[0].lower() if ":" in self.model else ""
+
+    def _get_model_name(self) -> str:
+        """Extract model name from model string (e.g., 'openai:gpt-4' -> 'gpt-4')."""
+        if ":" in self.model:
+            return self.model.split(":", 1)[1]
+        return self.model
+
+    def _create_model(self) -> Any:
+        """Create the model - either a string or a configured model object.
+
+        When api_key is provided, we create model objects directly with the
+        credentials. This is cleaner than setting environment variables:
+        - No global state pollution
+        - Thread-safe
+        - Follows the same pattern as LiteLLM
+
+        When api_key is not provided, we return the model string and let
+        Pydantic AI read credentials from environment variables.
+        """
+        provider = self._get_provider()
+        model_name = self._get_model_name()
+
+        # If no api_key provided, return string (Pydantic AI uses env vars)
         if not self.api_key:
-            return
+            return self.model
 
-        # Extract provider from model string (e.g., "openai:gpt-4.1" -> "openai")
-        provider = (
-            self.model.split(":")[0].lower() if ":" in self.model else ""
-        )
+        # Create model objects directly with api_key (no env vars needed)
+        if provider == "openai":
+            from pydantic_ai.models.openai import OpenAIChatModel
+            from pydantic_ai.providers.openai import OpenAIProvider
 
-        # Map providers to their environment variable names
-        provider_env_vars: dict[str, str] = {
-            "openai": "OPENAI_API_KEY",
-            "anthropic": "ANTHROPIC_API_KEY",
-            "google-gla": "GOOGLE_API_KEY",
-            "google-vertex": "GOOGLE_API_KEY",
-            "gemini": "GOOGLE_API_KEY",
-            "groq": "GROQ_API_KEY",
-            "mistral": "MISTRAL_API_KEY",
-            "cohere": "CO_API_KEY",
-        }
+            # Use OpenAIProvider when we have a custom base_url (e.g., W&B)
+            openai_provider = OpenAIProvider(
+                api_key=self.api_key,
+                base_url=self.base_url,
+            )
+            return OpenAIChatModel(
+                model_name=model_name,
+                provider=openai_provider,
+            )
 
-        env_var = provider_env_vars.get(provider)
-        if env_var:
-            os.environ[env_var] = self.api_key
+        elif provider == "anthropic":
+            from pydantic_ai.models.anthropic import AnthropicModel
+
+            return AnthropicModel(
+                model_name=model_name,
+                api_key=self.api_key,
+            )
+
+        elif provider in ("google-gla", "google-vertex", "gemini"):
+            from pydantic_ai.models.google import GoogleModel
+
+            return GoogleModel(
+                model_name=model_name,
+                api_key=self.api_key,
+            )
+
+        elif provider == "groq":
+            from pydantic_ai.models.groq import GroqModel
+
+            return GroqModel(
+                model_name=model_name,
+                api_key=self.api_key,
+            )
+
+        elif provider == "mistral":
+            from pydantic_ai.models.mistral import MistralModel
+
+            return MistralModel(
+                model_name=model_name,
+                api_key=self.api_key,
+            )
+
+        elif provider == "cohere":
+            from pydantic_ai.models.cohere import CohereModel
+
+            return CohereModel(
+                model_name=model_name,
+                api_key=self.api_key,
+            )
+
+        # Unknown provider with api_key - return string and hope for the best
+        return self.model
 
     def __call__(
         self, messages: list[ChatMessage], config: ChatModelConfig
@@ -1024,13 +1107,7 @@ class pydantic_ai(ChatModel):
         DependencyManager.pydantic_ai.require(
             "pydantic_ai chat model requires pydantic-ai. `pip install pydantic-ai`"
         )
-        # Set up API key environment variable before creating the agent
-        self._setup_api_key()
         return self._stream_response(messages, config)
-
-    def _get_provider(self) -> str:
-        """Extract provider from model string (e.g., 'anthropic:claude-3' -> 'anthropic')."""
-        return self.model.split(":")[0].lower() if ":" in self.model else ""
 
     def _build_model_settings(self, config: ChatModelConfig) -> Any:
         """Build provider-specific model settings with thinking support."""
@@ -1067,22 +1144,38 @@ class pydantic_ai(ChatModel):
         elif (
             provider in ("openai", "openai-responses") and self.enable_thinking
         ):
-            try:
-                from pydantic_ai.models.openai import (
-                    OpenAIResponsesModelSettings,
-                )
+            # For OpenAI-compatible providers with custom base_url (e.g., W&B, DeepSeek),
+            # use OpenAIChatModelSettings to extract reasoning_content field
+            if self.base_url:
+                try:
+                    from pydantic_ai.models.openai import OpenAIChatModelSettings
 
-                effort = thinking_config.get("effort", "low")
-                summary = thinking_config.get("summary", "auto")
-                return OpenAIResponsesModelSettings(
-                    max_tokens=config.max_tokens,
-                    temperature=config.temperature,
-                    top_p=config.top_p,
-                    openai_reasoning_effort=effort,
-                    openai_reasoning_summary=summary,
-                )
-            except ImportError:
-                pass
+                    return OpenAIChatModelSettings(
+                        max_tokens=config.max_tokens,
+                        temperature=config.temperature,
+                        top_p=config.top_p,
+                        openai_chat_thinking_field="reasoning_content",
+                    )
+                except ImportError:
+                    pass
+            else:
+                # For native OpenAI, use OpenAIResponsesModelSettings
+                try:
+                    from pydantic_ai.models.openai import (
+                        OpenAIResponsesModelSettings,
+                    )
+
+                    effort = thinking_config.get("effort", "low")
+                    summary = thinking_config.get("summary", "auto")
+                    return OpenAIResponsesModelSettings(
+                        max_tokens=config.max_tokens,
+                        temperature=config.temperature,
+                        top_p=config.top_p,
+                        openai_reasoning_effort=effort,
+                        openai_reasoning_summary=summary,
+                    )
+                except ImportError:
+                    pass
 
         elif (
             provider in ("google-gla", "google-vertex", "gemini")
@@ -1137,9 +1230,12 @@ class pydantic_ai(ChatModel):
             ToolReturnPart,
         )
 
+        # Create the model (either string or configured model object)
+        model = self._create_model()
+
         # Create the agent with tools
         agent: Agent[None, str] = Agent(
-            self.model,
+            model,
             tools=self.tools,
             instructions=self.system_message,
             defer_model_check=True,  # Don't validate model at init time

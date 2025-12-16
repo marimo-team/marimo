@@ -134,7 +134,7 @@ mo.ui.chat(
 
 ## Streaming Responses
 
-Chatbots can stream responses in real-time, creating a more interactive experience 
+Chatbots can stream responses in real-time, creating a more interactive experience
 similar to ChatGPT where you see the response appear word-by-word as it's generated.
 
 Responses from built-in models (OpenAI, Anthropic, Google, Groq, Bedrock) are streamed by default.
@@ -157,7 +157,7 @@ def streaming_model(messages, config):
     """Stream responses word by word."""
     response = "This response will appear word by word!"
     words = response.split()
-    
+
     for word in words:
         yield word + " "  # Yield delta chunks
         time.sleep(0.1)  # Simulate processing delay
@@ -176,7 +176,7 @@ async def async_streaming_model(messages, config):
     """Stream responses word by word asynchronously."""
     response = "This response will appear word by word!"
     words = response.split()
-    
+
     for word in words:
         yield word + " "  # Yield delta chunks
         await asyncio.sleep(0.1)  # Async processing delay
@@ -190,7 +190,7 @@ the progressively building response in real-time.
 
 !!! tip "Delta vs Accumulated"
     **Yield deltas, not accumulated text.** Each yield should be **new content only**:
-    
+
     ✅ **Correct (delta mode):**
     ```python
     yield "Hello"
@@ -198,7 +198,7 @@ the progressively building response in real-time.
     yield "world"
     # Result: "Hello world"
     ```
-    
+
     ❌ **Incorrect (accumulated mode, deprecated):**
     ```python
     yield "Hello"
@@ -206,12 +206,12 @@ the progressively building response in real-time.
     yield "Hello world"
     # Inefficient: sends duplicate content
     ```
-    
+
     Delta mode is more efficient (reduces bandwidth by ~99% for long responses) and aligns with standard streaming APIs.
 
 !!! tip "See streaming examples"
     For complete working examples, check out:
-    
+
     - [`openai_example.py`](https://github.com/marimo-team/marimo/blob/main/examples/ai/chat/openai_example.py) - OpenAI chatbot with streaming (default)
     - [`streaming_custom.py`](https://github.com/marimo-team/marimo/blob/main/examples/ai/chat/streaming_custom.py) - Custom streaming chatbot
     - [`pydantic_ai_with_tools.py`](https://github.com/marimo-team/marimo/blob/main/examples/ai/chat/pydantic_ai_with_tools.py) - Chatbot with tool calling
@@ -293,7 +293,7 @@ mo.ui.chat(
 
 ### Pydantic AI (with Tools and Thinking)
 
-The `pydantic_ai` model provides advanced features like **tool calling** and 
+The `pydantic_ai` model provides advanced features like **tool calling** and
 **thinking/reasoning** support using [pydantic-ai](https://ai.pydantic.dev/).
 
 #### Basic Usage with Tools
@@ -352,7 +352,7 @@ The model string uses the format `provider:model_name`:
 - `"google:gemini-2.0-flash"` - Google (supports thinking)
 - `"groq:llama-3.1-70b-versatile"` - Groq
 
-See the [pydantic-ai documentation](https://ai.pydantic.dev/models/) for all 
+See the [pydantic-ai documentation](https://ai.pydantic.dev/models/) for all
 supported providers and models.
 
 ::: marimo.ai.llm.pydantic_ai
