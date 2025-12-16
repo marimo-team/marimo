@@ -2,7 +2,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.18.4"
 app = marimo.App(width="medium")
 
 
@@ -14,7 +14,9 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("## Render the same app multiple times")
+    mo.md("""
+    ## Render the same app multiple times
+    """)
     return
 
 
@@ -37,9 +39,53 @@ def _(result):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo):
-    mo.md("## Render an app inside tabs")
+    mo.md(r"""
+    ## Clone an app
+    """)
+    return
+
+
+@app.cell
+def _(app):
+    clone = app.clone()
+    return (clone,)
+
+
+@app.cell
+async def _(clone):
+    clone_result = await clone.embed()
+    clone_result.output
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## Parametrize an app
+    """)
+    return
+
+
+@app.cell
+def _(app):
+    parametrized_app = app.clone()
+    return (parametrized_app,)
+
+
+@app.cell
+async def _(parametrized_app):
+    _result = await parametrized_app.embed(defs={"x_initial_value": 0})
+    _result.output
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md("""
+    ## Render an app inside tabs
+    """)
     return
 
 
@@ -52,7 +98,9 @@ async def _(app, mo):
 
 @app.cell
 def _(mo):
-    mo.md(rf"## Render an app that uses function calls")
+    mo.md(rf"""
+    ## Render an app that uses function calls
+    """)
     return
 
 

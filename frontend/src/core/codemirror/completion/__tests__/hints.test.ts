@@ -81,4 +81,20 @@ describe("getPositionAtWordBounds", () => {
       doc.slice(result.startToken, result.endToken).toString(),
     ).toMatchInlineSnapshot('"my_100_var"');
   });
+
+  it("should include function name when cursor inside empty call", () => {
+    const callDoc = Text.of(["func()"]);
+    const pos = "func(".length;
+    const result = getPositionAtWordBounds(callDoc, pos);
+
+    expect(result).toMatchInlineSnapshot(`
+      {
+        "endToken": 4,
+        "startToken": 0,
+      }
+    `);
+    expect(
+      callDoc.slice(result.startToken, result.endToken).toString(),
+    ).toMatchInlineSnapshot('"func"');
+  });
 });

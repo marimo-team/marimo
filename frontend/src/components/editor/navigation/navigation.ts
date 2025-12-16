@@ -3,6 +3,10 @@
 import { closeCompletion, completionStatus } from "@codemirror/autocomplete";
 import { simplifySelection } from "@codemirror/commands";
 import type { EditorView } from "@codemirror/view";
+import {
+  setSignatureHelpTooltip,
+  signatureHelpTooltipField,
+} from "@marimo-team/codemirror-languageserver";
 import { useAtomValue, useSetAtom, useStore } from "jotai";
 import { useMemo } from "react";
 import { mergeProps, useFocusWithin, useKeyboard } from "react-aria";
@@ -12,6 +16,7 @@ import { useCellFocusActions } from "@/core/cells/focus";
 import type { CellId } from "@/core/cells/ids";
 import { HTMLCellId } from "@/core/cells/ids";
 import { usePendingDeleteService } from "@/core/cells/pending-delete-service";
+import { scrollCellIntoView } from "@/core/cells/scrollCellIntoView";
 import {
   hotkeysAtom,
   keymapPresetAtom,
@@ -27,7 +32,7 @@ import type { CellActionsDropdownHandle } from "../cell/cell-actions";
 import { useDeleteManyCellsCallback } from "../cell/useDeleteCell";
 import { useRunCells } from "../cell/useRunCells";
 import { useCellClipboard } from "./clipboard";
-import { focusCell, focusCellEditor } from "./focus-utils";
+import { focusCell, focusCellEditor, raf2 } from "./focus-utils";
 import {
   getSelectedCells,
   useCellSelectionActions,
@@ -82,7 +87,10 @@ function addSingleHandler(handler: HotkeyHandler["bulkHandle"]): HotkeyHandler {
   };
 }
 
-function useCellFocusProps(cellId: CellId) {
+function useCellFocusProps(
+  cellId: CellId,
+  editorView: React.RefObject<EditorView | null>,
+) {
   const focusActions = useCellFocusActions();
   const actions = useCellActions();
   const temporarilyShownCodeActions = useTemporarilyShownCodeActions();
@@ -98,6 +106,10 @@ function useCellFocusProps(cellId: CellId) {
       temporarilyShownCodeActions.remove(cellId);
       actions.markTouched({ cellId });
       focusActions.blurCell();
+      // Close signature help when clicking outside the cell
+      if (editorView.current) {
+        closeSignatureHelp(editorView.current);
+      }
     },
   });
 
@@ -166,7 +178,7 @@ export function useCellNavigationProps(
   ) => parseShortcut(hotkeys.getHotkey(shortcut).key)(evt.nativeEvent || evt);
 
   // Callbacks occur at the cell level and descedants.
-  const focusWithinProps = useCellFocusProps(cellId);
+  const focusWithinProps = useCellFocusProps(cellId, editorView);
 
   const { keyboardProps } = useKeyboard({
     onKeyDown: (evt) => {
@@ -620,6 +632,10 @@ export function useCellEditorNavigationProps(
   const exitToCommandMode = () => {
     temporarilyShownCodeActions.remove(cellId);
     focusCell(cellId);
+    // Scroll to cell in case it is not in view because of layout shifts.
+    raf2(() => {
+      scrollCellIntoView(cellId);
+    });
   };
 
   const handleEscape = () => {
@@ -640,9 +656,17 @@ export function useCellEditorNavigationProps(
       return;
     }
 
+    const hasSignatureHelp = state.field(signatureHelpTooltipField, false);
     const hasAutocompletePopup = completionStatus(state) !== null;
+    if (hasSignatureHelp) {
+      closeSignatureHelp(view);
+    }
+
     if (hasAutocompletePopup) {
       closeCompletion(view);
+    }
+
+    if (hasSignatureHelp || hasAutocompletePopup) {
       return;
     }
 
@@ -697,4 +721,10 @@ function findClosestAdjacentCell(
 
   // no aligned cells (column beyond other), jump to last element
   return adjacentColumn.last();
+}
+
+export function closeSignatureHelp(view: EditorView) {
+  if (view.state.field(signatureHelpTooltipField, false)) {
+    view.dispatch({ effects: setSignatureHelpTooltip.of(null) });
+  }
 }

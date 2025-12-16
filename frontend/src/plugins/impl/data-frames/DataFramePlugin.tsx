@@ -2,7 +2,14 @@
 
 import { isEqual } from "lodash-es";
 import { Code2Icon, DatabaseIcon, FunctionSquareIcon } from "lucide-react";
-import { type JSX, memo, useEffect, useRef, useState } from "react";
+import {
+  type JSX,
+  memo,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { z } from "zod";
 import {
   type DownloadAsArgs,
@@ -20,7 +27,7 @@ import { Functions } from "@/utils/functions";
 import { ErrorBanner } from "../common/error-banner";
 import { LoadingDataTableComponent, TableProviders } from "../DataTablePlugin";
 import type { DataType } from "../vega/vega-loader";
-import { TransformPanel } from "./panel";
+import { TransformPanel, type TransformPanelHandle } from "./panel";
 import {
   ConditionSchema,
   type ConditionType,
@@ -43,6 +50,7 @@ interface Data {
   columns: ColumnDataTypes;
   pageSize: number;
   showDownload: boolean;
+  lazy: boolean;
 }
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
@@ -93,6 +101,7 @@ export const DataFramePlugin = createPlugin<S>("marimo-dataframe")
           });
           return map;
         }),
+      lazy: z.boolean().default(false),
     }),
   )
   .withFunctions<PluginFunctions>({
@@ -167,6 +176,7 @@ export const DataFrameComponent = memo(
     columns,
     pageSize,
     showDownload,
+    lazy,
     value,
     setValue,
     get_dataframe,
@@ -187,6 +197,20 @@ export const DataFrameComponent = memo(
       value || EMPTY,
     );
 
+    const transformPanelRef = useRef<TransformPanelHandle>(null);
+
+    const transformTab = "transform";
+
+    // When switching tabs in lazy mode, save any pending changes
+    const handleTabChange = useCallback(
+      (newTab: string) => {
+        if (lazy && newTab !== transformTab) {
+          transformPanelRef.current?.submit();
+        }
+      },
+      [lazy],
+    );
+
     // If dataframe changes and value.transforms gets reset, then
     // apply existing transformations (displayed in panel) to new data
     const prevValueRef = useRef(internalValue);
@@ -204,10 +228,10 @@ export const DataFrameComponent = memo(
 
     return (
       <div>
-        <Tabs defaultValue="transform">
+        <Tabs defaultValue={transformTab} onValueChange={handleTabChange}>
           <div className="flex items-center gap-2">
             <TabsList className="h-8">
-              <TabsTrigger value="transform" className="text-xs py-1">
+              <TabsTrigger value={transformTab} className="text-xs py-1">
                 <FunctionSquareIcon className="w-3 h-3 mr-2" />
                 Transform
               </TabsTrigger>
@@ -232,6 +256,7 @@ export const DataFrameComponent = memo(
             className="mt-1 border rounded-t overflow-hidden"
           >
             <TransformPanel
+              ref={transformPanelRef}
               initialValue={internalValue}
               columns={columns}
               onChange={(newValue) => {
@@ -245,6 +270,7 @@ export const DataFrameComponent = memo(
               }}
               onInvalidChange={setInternalValue}
               getColumnValues={get_column_values}
+              lazy={lazy}
             />
           </TabsContent>
           {python_code && (

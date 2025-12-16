@@ -8,8 +8,10 @@ import React, {
   type PropsWithChildren,
   useImperativeHandle,
   useMemo,
+  useRef,
   useState,
 } from "react";
+import useEvent from "react-use-event-hook";
 import {
   renderMinimalShortcut,
   renderShortcut,
@@ -41,6 +43,7 @@ import {
   type CellActionButtonProps,
   useCellActionButtons,
 } from "../actions/useCellActionButton";
+import { raf2 } from "../navigation/focus-utils";
 
 interface Props extends CellActionButtonProps {
   children: React.ReactNode;
@@ -57,13 +60,41 @@ const CellActionsDropdownInternal = (
 ) => {
   const [open, setOpen] = useState(false);
   const closePopover = () => setOpen(false);
+  const buttonRef = useRef<HTMLButtonElement>(null);
   const actions = useCellActionButtons({ cell: props, closePopover });
 
   // store the last focused element so we can restore it when the popover closes
   const restoreFocus = useRestoreFocus();
 
+  const handleScrollIntoView = useEvent(() => {
+    raf2(() => {
+      if (buttonRef.current) {
+        buttonRef.current.scrollIntoView({
+          behavior: "auto",
+          block: "nearest",
+        });
+      }
+    });
+  });
+
+  const handleOpenChange: typeof setOpen = useEvent((nextOpenOrCallback) => {
+    // Scroll the button into view when opening the popover
+    // This can be out of view if the popover and a cell's code is
+    // hidden at the same time.
+    setOpen((prevOpen) => {
+      const nextOpen =
+        typeof nextOpenOrCallback === "function"
+          ? nextOpenOrCallback(prevOpen)
+          : nextOpenOrCallback;
+      if (nextOpen) {
+        handleScrollIntoView();
+      }
+      return nextOpen;
+    });
+  });
+
   useImperativeHandle(ref, () => ({
-    toggle: () => setOpen((prev) => !prev),
+    toggle: () => handleOpenChange((prev) => !prev),
   }));
 
   const content = (
@@ -136,7 +167,7 @@ const CellActionsDropdownInternal = (
 
   if (!showTooltip) {
     return (
-      <Popover open={open} onOpenChange={setOpen}>
+      <Popover open={open} onOpenChange={handleOpenChange}>
         <PopoverTrigger asChild={true}>{children}</PopoverTrigger>
         {content}
       </Popover>
@@ -150,13 +181,13 @@ const CellActionsDropdownInternal = (
   );
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={handleOpenChange}>
       <TooltipRoot delayDuration={200} disableHoverableContent={true}>
         {!open && tooltipContent}
         {/* This creates a warning in React due to nested <button> elements.
         Adding asChild could fix this, but it also changes the styling (is hidden) of the button when
         the Popover is open. */}
-        <TooltipTrigger>
+        <TooltipTrigger ref={buttonRef}>
           <PopoverTrigger className="flex">{children}</PopoverTrigger>
         </TooltipTrigger>
       </TooltipRoot>

@@ -310,3 +310,23 @@ describe("determineMaxDisplayLength", () => {
     expect(result).toBe(5);
   });
 });
+
+describe("getCopyValue with application/ mimetypes", () => {
+  it("should strip application/ mimetype prefix from leaf data", () => {
+    expect(getCopyValue("application/json:{data}")).toBe('"{data}"');
+    expect(getCopyValue("application/custom:some-data")).toBe('"some-data"');
+    expect(getCopyValue("application/vnd.marimo+error:error")).toBe('"error"');
+  });
+
+  it("should handle application/ mimetypes in mixed objects", () => {
+    const value = {
+      appMime: "application/custom:data",
+      plainText: "text/plain:hello",
+      number: 42,
+    };
+    const result = getCopyValue(value);
+    expect(result).toContain('"appMime": "data"');
+    expect(result).toContain('"plainText": "hello"');
+    expect(result).toContain('"number": 42');
+  });
+});

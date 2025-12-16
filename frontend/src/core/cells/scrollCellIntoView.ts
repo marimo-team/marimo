@@ -7,7 +7,9 @@ import {
 import type { CellHandle } from "@/components/editor/notebook-cell";
 import { retryWithTimeout } from "@/utils/timeout";
 import { Logger } from "../../utils/Logger";
+import { scrollActiveLineIntoView } from "../codemirror/extensions";
 import { goToVariableDefinition } from "../codemirror/go-to-definition/commands";
+import { getCellEditorView } from "./cells";
 import { type CellId, HTMLCellId } from "./ids";
 
 export function focusAndScrollCellIntoView({
@@ -130,4 +132,26 @@ export function scrollToBottom() {
 export function scrollToTop() {
   const app = document.getElementById("App");
   app?.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+/**
+ * First tries to scroll the active line into view, if the cell is focused.
+ * If not, it scrolls the cell container into view.
+ */
+export function scrollCellIntoView(cellId: CellId): void {
+  // Get cell editor element
+  const editor = getCellEditorView(cellId);
+  if (editor?.hasFocus) {
+    scrollActiveLineIntoView(editor, { behavior: "instant" });
+    return;
+  }
+
+  const element = document.getElementById(HTMLCellId.create(cellId));
+  if (element) {
+    element.scrollIntoView({ behavior: "instant", block: "nearest" });
+  } else {
+    Logger.warn(
+      `[CellFocusManager] scrollCellIntoView: element not found: ${cellId}`,
+    );
+  }
 }
