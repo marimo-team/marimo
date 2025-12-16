@@ -41,7 +41,7 @@ UIMessage = dict[str, Any]
 
 class AiCompletionRequest(msgspec.Struct, rename="camel"):
     """
-    Messages_v2 are expected to be AI SDK messages.
+    UIMessages are expected to be AI SDK messages.
     See pydantic_ai.ui.vercel_ai.request_types.UIMessage or Vercel AI SDK documentation.
     """
 
@@ -49,7 +49,7 @@ class AiCompletionRequest(msgspec.Struct, rename="camel"):
     include_other_code: str
     code: str
     messages: list[ChatMessage] = []  # Deprecated
-    messages_v2: list[UIMessage] = []
+    ui_messages: list[UIMessage] = []
     selected_text: Optional[str] = None
     context: Optional[AiCompletionContext] = None
     language: Language = "python"
@@ -63,14 +63,14 @@ class AiInlineCompletionRequest(msgspec.Struct, rename="camel"):
 
 class ChatRequest(msgspec.Struct, rename="camel"):
     """
-    Messages_v2 are expected to be AI SDK messages.
+    UIMessages are expected to be AI SDK messages.
     See pydantic_ai.ui.vercel_ai.request_types.UIMessage or Vercel AI SDK documentation.
     """
 
     context: AiCompletionContext
     include_other_code: str
     messages: list[ChatMessage]  # Deprecated
-    messages_v2: list[UIMessage]
+    ui_messages: list[UIMessage]
     tools: Optional[list[ToolDefinition]] = None
     model: Optional[str] = None
     variables: Optional[list[Union[VariableContext, str]]] = None

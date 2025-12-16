@@ -2802,7 +2802,7 @@ export interface components {
     };
     /**
      * AiCompletionRequest
-     * @description Messages_v2 are expected to be AI SDK messages.
+     * @description UIMessages are expected to be AI SDK messages.
      *     See pydantic_ai.ui.vercel_ai.request_types.UIMessage or Vercel AI SDK documentation.
      */
     AiCompletionRequest: {
@@ -2817,11 +2817,11 @@ export interface components {
       language?: "markdown" | "python" | "sql";
       /** @default [] */
       messages?: components["schemas"]["ChatMessage"][];
-      /** @default [] */
-      messagesV2?: Record<string, any>[];
       prompt: string;
       /** @default null */
       selectedText?: string | null;
+      /** @default [] */
+      uiMessages?: Record<string, any>[];
     };
     /**
      * AiConfig
@@ -3112,18 +3112,18 @@ export interface components {
     };
     /**
      * ChatRequest
-     * @description Messages_v2 are expected to be AI SDK messages.
+     * @description UIMessages are expected to be AI SDK messages.
      *     See pydantic_ai.ui.vercel_ai.request_types.UIMessage or Vercel AI SDK documentation.
      */
     ChatRequest: {
       context: components["schemas"]["AiCompletionContext"];
       includeOtherCode: string;
       messages: components["schemas"]["ChatMessage"][];
-      messagesV2: Record<string, any>[];
       /** @default null */
       model?: string | null;
       /** @default null */
       tools?: components["schemas"]["ToolDefinition"][] | null;
+      uiMessages: Record<string, any>[];
       /** @default null */
       variables?: (string | components["schemas"]["VariableContext"])[] | null;
     };
