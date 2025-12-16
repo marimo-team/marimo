@@ -892,8 +892,11 @@ class Kernel:
                             return "\nHint: Use os.subprocess to run commands"
                         elif broken_line.startswith("%"):
                             return (
-                                "\nHint: marimo doesn't support Jupyter magics, "
-                                "use a decorator pattern instead"
+                                "\nHint: marimo notebooks are pure Python and "
+                                "don't support IPython's magic commands.\n"
+                                "See our documentation"
+                                "(http://links.marimo.app/from-jupyter-magics)"
+                                " for workarounds."
                             )
                         return ""
 
