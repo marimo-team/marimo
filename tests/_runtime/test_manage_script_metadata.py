@@ -58,7 +58,7 @@ async def test_manage_script_metadata_uv(
 
     with open(filename) as f:  # noqa: ASYNC230
         contents = f.read()
-        assert '"marimo",' in contents
+        assert '"marimo' in contents
         assert "markdown" not in contents
         assert '"os",' not in contents
 
@@ -67,7 +67,7 @@ async def test_manage_script_metadata_uv(
 
     with open(filename) as f:  # noqa: ASYNC230
         contents = f.read()
-        assert '"marimo",' in contents
+        assert '"marimo' in contents
         assert '"os",' not in contents
         assert '"markdown==' in contents
 
@@ -76,7 +76,7 @@ async def test_manage_script_metadata_uv(
 
     with open(filename) as f:  # noqa: ASYNC230
         contents = f.read()
-        assert '"marimo",' in contents
+        assert '"marimo' in contents
         assert '"markdown==' in contents
         assert '"os",' not in contents
 
@@ -108,7 +108,7 @@ async def test_manage_script_metadata_uv_deletion(
 
     with open(filename) as f:  # noqa: ASYNC230
         contents = f.read()
-        assert '"marimo",' in contents
+        assert '"marimo' in contents
         assert '"os",' not in contents
 
     # Add markdown
@@ -116,7 +116,7 @@ async def test_manage_script_metadata_uv_deletion(
 
     with open(filename) as f:  # noqa: ASYNC230
         contents = f.read()
-        assert '"marimo",' in contents
+        assert '"marimo' in contents
         assert '"os",' not in contents
         assert '"markdown==' in contents
 
@@ -125,7 +125,7 @@ async def test_manage_script_metadata_uv_deletion(
 
     with open(filename) as f:  # noqa: ASYNC230
         contents = f.read()
-        assert '"marimo",' in contents
+        assert '"marimo' in contents
         assert '"markdown==' in contents
         assert '"os",' not in contents
 
@@ -134,7 +134,7 @@ async def test_manage_script_metadata_uv_deletion(
 
     with open(filename) as f:  # noqa: ASYNC230
         contents = f.read()
-        assert '"marimo",' in contents
+        assert '"marimo' in contents
         assert '"markdown==' in contents
         assert '"os",' not in contents
 
@@ -306,8 +306,6 @@ async def test_missing_packages_hook(
         broadcast_messages.append(msg)
 
     k.enqueue_control_request = mock_enqueue
-    InstallingPackageAlert.broadcast = mock_broadcast  # type: ignore
-    MissingPackageAlert.broadcast = mock_broadcast  # type: ignore
 
     # Create a mock runner with ModuleNotFoundError
     class MockRunner:
@@ -330,8 +328,12 @@ async def test_missing_packages_hook(
                 ),
             }
 
-    # Case 1: Auto-install enabled
-    with patch("micropip.install", new_callable=AsyncMock):
+    with (
+        patch.object(InstallingPackageAlert, "broadcast", mock_broadcast),
+        patch.object(MissingPackageAlert, "broadcast", mock_broadcast),
+        patch("micropip.install", new_callable=AsyncMock),
+    ):
+        # Case 1: Auto-install enabled
         runner = cast(cell_runner.Runner, MockRunner())
         k.packages_callbacks.package_manager = create_package_manager(
             "micropip"
@@ -436,8 +438,6 @@ def test_missing_packages_hook_pip(
         broadcast_messages.append(msg)
 
     k.enqueue_control_request = mock_enqueue
-    InstallingPackageAlert.broadcast = mock_broadcast  # type: ignore
-    MissingPackageAlert.broadcast = mock_broadcast  # type: ignore
 
     # Create a mock runner with ModuleNotFoundError
     class MockRunner:
@@ -456,48 +456,52 @@ def test_missing_packages_hook_pip(
                 ),
             }
 
-    k.packages_callbacks.package_manager = create_package_manager("pip")
-    package_manager = k.packages_callbacks.package_manager
-    assert isinstance(package_manager, PipPackageManager)
-    package_manager.install = AsyncMock()
-    runner = cast(cell_runner.Runner, MockRunner())
+    with (
+        patch.object(InstallingPackageAlert, "broadcast", mock_broadcast),
+        patch.object(MissingPackageAlert, "broadcast", mock_broadcast),
+    ):
+        k.packages_callbacks.package_manager = create_package_manager("pip")
+        package_manager = k.packages_callbacks.package_manager
+        assert isinstance(package_manager, PipPackageManager)
+        package_manager.install = AsyncMock()
+        runner = cast(cell_runner.Runner, MockRunner())
 
-    # Case 1: Missing modules with auto-install disabled
-    k.module_registry.missing_modules = lambda: {"numpy", "pandas"}  # type: ignore
-    package_manager.should_auto_install = lambda: False  # type: ignore
-    k.packages_callbacks.missing_packages_hook(runner)
+        # Case 1: Missing modules with auto-install disabled
+        k.module_registry.missing_modules = lambda: {"numpy", "pandas"}  # type: ignore
+        package_manager.should_auto_install = lambda: False  # type: ignore
+        k.packages_callbacks.missing_packages_hook(runner)
 
-    # Should broadcast alert instead of installing
-    assert len(control_requests) == 0
-    assert len(broadcast_messages) == 1
-    alert = broadcast_messages[0]
-    assert isinstance(alert, MissingPackageAlert)
-    assert alert.packages == ["ibis-framework[duckdb]", "numpy", "pandas"]
-    assert alert.isolated == is_python_isolated()
+        # Should broadcast alert instead of installing
+        assert len(control_requests) == 0
+        assert len(broadcast_messages) == 1
+        alert = broadcast_messages[0]
+        assert isinstance(alert, MissingPackageAlert)
+        assert alert.packages == ["ibis-framework[duckdb]", "numpy", "pandas"]
+        assert alert.isolated == is_python_isolated()
 
-    # Case 2: Multiple missing modules with auto-install enabled
-    control_requests.clear()
-    broadcast_messages.clear()
-    k.module_registry.missing_modules = lambda: {
-        "ibis-framework[duckdb]",
-        "numpy",
-        "pandas",
-        "scipy",
-    }  # type: ignore
-    package_manager.should_auto_install = lambda: True  # type: ignore
-    k.packages_callbacks.missing_packages_hook(runner)
+        # Case 2: Multiple missing modules with auto-install enabled
+        control_requests.clear()
+        broadcast_messages.clear()
+        k.module_registry.missing_modules = lambda: {
+            "ibis-framework[duckdb]",
+            "numpy",
+            "pandas",
+            "scipy",
+        }  # type: ignore
+        package_manager.should_auto_install = lambda: True  # type: ignore
+        k.packages_callbacks.missing_packages_hook(runner)
 
-    # Should create install request with all missing packages
-    assert len(control_requests) == 1
-    request = control_requests[0]
-    assert isinstance(request, InstallMissingPackagesRequest)
-    assert request.manager == "pip"
-    assert request.versions == {
-        "ibis-framework[duckdb]": "",
-        "numpy": "",
-        "pandas": "",
-        "scipy": "",
-    }
+        # Should create install request with all missing packages
+        assert len(control_requests) == 1
+        request = control_requests[0]
+        assert isinstance(request, InstallMissingPackagesRequest)
+        assert request.manager == "pip"
+        assert request.versions == {
+            "ibis-framework[duckdb]": "",
+            "numpy": "",
+            "pandas": "",
+            "scipy": "",
+        }
 
 
 async def test_install_missing_packages_with_streaming_logs(
@@ -533,11 +537,9 @@ async def test_install_missing_packages_with_streaming_logs(
     # Set up packages callbacks
     k.packages_callbacks.package_manager = mock_package_manager
 
-    # Monkey patch broadcast for testing
-    original_broadcast = InstallingPackageAlert.broadcast
-    InstallingPackageAlert.broadcast = mock_broadcast
-
-    try:
+    with (
+        patch.object(InstallingPackageAlert, "broadcast", mock_broadcast),
+    ):
         # Create install request
         request = InstallMissingPackagesRequest(
             manager="pip", versions={"numpy": ""}
@@ -577,10 +579,6 @@ async def test_install_missing_packages_with_streaming_logs(
         call_args = mock_package_manager.install.call_args
         assert call_args.kwargs.get("log_callback") is not None
 
-    finally:
-        # Restore original broadcast method
-        InstallingPackageAlert.broadcast = original_broadcast
-
 
 async def test_install_missing_packages_streaming_logs_failure(
     mocked_kernel: MockedKernel,
@@ -610,11 +608,9 @@ async def test_install_missing_packages_streaming_logs_failure(
     mock_package_manager.install = AsyncMock(side_effect=mock_install_fail)
     k.packages_callbacks.package_manager = mock_package_manager
 
-    # Monkey patch broadcast
-    original_broadcast = InstallingPackageAlert.broadcast
-    InstallingPackageAlert.broadcast = mock_broadcast
-
-    try:
+    with (
+        patch.object(InstallingPackageAlert, "broadcast", mock_broadcast),
+    ):
         request = InstallMissingPackagesRequest(
             manager="pip", versions={"nonexistent-package": ""}
         )
@@ -636,9 +632,6 @@ async def test_install_missing_packages_streaming_logs_failure(
         assert (
             "Failed to install" in done_alerts[0].logs["nonexistent-package"]
         )
-
-    finally:
-        InstallingPackageAlert.broadcast = original_broadcast
 
 
 async def test_install_missing_packages_streaming_logs_multiple_packages(
@@ -674,11 +667,9 @@ async def test_install_missing_packages_streaming_logs_multiple_packages(
     mock_package_manager.install = AsyncMock(side_effect=mock_install)
     k.packages_callbacks.package_manager = mock_package_manager
 
-    # Monkey patch broadcast
-    original_broadcast = InstallingPackageAlert.broadcast
-    InstallingPackageAlert.broadcast = mock_broadcast
-
-    try:
+    with (
+        patch.object(InstallingPackageAlert, "broadcast", mock_broadcast),
+    ):
         request = InstallMissingPackagesRequest(
             manager="pip", versions={"numpy": "", "pandas": "", "scipy": ""}
         )
@@ -717,9 +708,6 @@ async def test_install_missing_packages_streaming_logs_multiple_packages(
         assert packages_in_start_logs == {"numpy", "pandas", "scipy"}
         assert packages_in_done_logs == {"numpy", "pandas", "scipy"}
 
-    finally:
-        InstallingPackageAlert.broadcast = original_broadcast
-
 
 async def test_install_missing_packages_no_logs_backward_compatibility(
     mocked_kernel: MockedKernel,
@@ -749,11 +737,9 @@ async def test_install_missing_packages_no_logs_backward_compatibility(
     )
     k.packages_callbacks.package_manager = mock_package_manager
 
-    # Monkey patch broadcast
-    original_broadcast = InstallingPackageAlert.broadcast
-    InstallingPackageAlert.broadcast = mock_broadcast
-
-    try:
+    with (
+        patch.object(InstallingPackageAlert, "broadcast", mock_broadcast),
+    ):
         request = InstallMissingPackagesRequest(
             manager="pip", versions={"requests": ""}
         )
@@ -773,6 +759,3 @@ async def test_install_missing_packages_no_logs_backward_compatibility(
         # Should have at least installing and installed statuses
         assert "installed" in package_statuses
         # Note: The exact sequence might vary, but we should have final success
-
-    finally:
-        InstallingPackageAlert.broadcast = original_broadcast

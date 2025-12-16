@@ -266,61 +266,167 @@
 }
 
 .cm-signature-help {
-  max-width: 700px !important;
+  max-width: 550px !important;
   margin-right: 16px !important;
-  padding: 10px !important;
   overflow-y: auto;
-  max-height: 400px;
+  max-height: 330px;
+  padding: 0.5rem !important;
   scrollbar-width: thin;
-  @apply bg-popover shadow-md border border-border rounded-md text-sm;
+  line-height: normal;
+  @apply bg-popover shadow-md border border-border rounded-md text-sm py-1 px-2 font-prose;
 
-  .cm-signature {
-    @apply text-xs;
-  }
-
-  .cm-signature-parameter {
-    @apply text-xs;
-  }
-
-  .cm-signature {
-    @apply font-mono;
-  }
-
-  .cm-signature-docs {
-    @apply text-xs;
-  }
-
-  ul {
-    @apply list-disc;
-  }
-
-  ol {
-    @apply list-decimal;
-  }
-
-  li {
-    margin-bottom: 2px;
-
-    @apply pl-2;
-  }
-
-  code:not(:empty) {
-    width: 100%;
+  /* Paragraphs */
+  & p {
+    padding: 0.4rem 0;
     white-space: pre-wrap;
-    @apply bg-[var(--slate-2)] border rounded-sm px-1 font-mono;
   }
 
-  pre > code {
+  /* Lists */
+  & ul,
+  & ol,
+  & li {
+    white-space: initial;
+  }
+
+  & ol {
+    list-style-type: decimal;
+    padding-left: 1.5rem;
+  }
+
+  & ul {
+    list-style-type: disc;
+    padding-left: 1.5rem;
+  }
+
+  /* Headings */
+  & h1,
+  & h2 {
+    font-weight: 600;
+    @apply text-base border-b pb-1 mb-1 text-primary;
+  }
+
+  & h3,
+  & h4 {
+    @apply text-sm font-semibold mt-2 mb-1;
+  }
+
+  /* Definition lists */
+  & dt {
+    @apply font-bold;
+  }
+
+  & dt span {
+    @apply font-normal;
+  }
+
+  /* Inline code */
+  & code {
+    @apply border px-1 rounded font-mono bg-[var(--slate-2)] text-xs;
+  }
+
+  & code:empty {
+    display: none;
+  }
+
+  /* Code blocks */
+  & pre > code {
+    width: 100%;
+    display: inline-block;
+    @apply p-2 mb-1;
+  }
+
+  /* Tables */
+  & table {
+    @apply text-sm border rounded my-2;
+  }
+
+  & table th,
+  & table td {
+    @apply border p-2;
+  }
+
+  & table th {
+    @apply bg-[var(--slate-2)];
+  }
+
+  & table tr:nth-child(2n) {
+    @apply bg-[var(--slate-1)];
+  }
+
+  /* Blockquotes */
+  & blockquote {
+    white-space: pre-wrap;
+    @apply pl-2 ml-2;
+  }
+
+  & blockquote p {
+    padding: 0;
+    white-space: normal;
+    font-weight: initial;
+    @apply text-xs font-mono;
+  }
+
+  /* Class selectors (higher specificity) */
+
+  /* Signature line styling */
+  .cm-signature {
+    @apply text-xs p-2 rounded-sm font-mono bg-muted;
+  }
+
+  .cm-signature-active-param {
+    @apply font-bold text-primary;
+  }
+
+  .section {
+    line-height: normal;
+  }
+
+  .paragraph {
+    white-space: initial;
+  }
+
+  /* Docutils (Python docstring classes) */
+  .docutils p,
+  .docutils dd {
+    white-space: initial;
+  }
+
+  .docutils dd {
+    white-space: pre-wrap;
+    padding-left: 1rem;
+  }
+
+  .docutils.literal {
+    @apply bg-[var(--slate-2)] px-1 border rounded-md text-xs font-mono;
+  }
+
+  /* Doctest and literal blocks */
+  .doctest-block,
+  .literal-block {
+    white-space: pre-wrap;
+    @apply bg-[var(--slate-2)] p-2 rounded text-xs;
+  }
+
+  .codehilite code {
     width: 100%;
     display: inline-block;
     white-space: pre-wrap;
-    @apply bg-[var(--slate-2)] border p-2 rounded-md font-mono text-sm my-2;
+    @apply bg-[var(--slate-2)] border p-2 rounded-md font-mono text-xs;
   }
 
-  h1,
-  h2,
-  h3,
-  h4 {
-    @apply text-sm font-semibold mt-2 mb-1;
+  blockquote dl.docutils,
+  blockquote .docutils dt {
+    padding: 0;
+    white-space: normal;
+    font-weight: initial;
+    @apply text-xs font-mono;
   }
+}
+
+.cm-signature-docs {
+  color: black !important;
+}
+
+.dark .cm-signature-docs {
+  color: white !important;
 }

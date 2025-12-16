@@ -31,14 +31,13 @@ export const SearchBar = ({
     onSearch(debouncedSearch);
   }, [debouncedSearch, onSearch]);
 
-  if (!hidden) {
-    ref.current?.focus();
-  }
-
-  // Reset internal value when hidden becomes true
-  if (hidden && internalValue !== "") {
-    setInternalValue("");
-  }
+  useEffect(() => {
+    if (hidden) {
+      setInternalValue("");
+    } else {
+      ref.current?.focus();
+    }
+  }, [hidden]);
 
   return (
     <div

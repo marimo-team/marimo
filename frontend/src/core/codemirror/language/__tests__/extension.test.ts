@@ -41,6 +41,7 @@ function createState(content: string, selection?: { anchor: number }) {
         completionConfig: {
           copilot: false,
           activate_on_typing: true,
+          signature_hint_on_typing: false,
           codeium_api_key: null,
         },
         lspConfig: {},
@@ -51,6 +52,7 @@ function createState(content: string, selection?: { anchor: number }) {
         completionConfig: {
           copilot: false,
           activate_on_typing: true,
+          signature_hint_on_typing: false,
           codeium_api_key: null,
         },
         hotkeys: new OverridingHotkeyProvider({}),

@@ -806,6 +806,70 @@ def topological_sort(
     return sorted_cell_ids
 
 
+def prune_cells_for_overrides(
+    graph: DirectedGraph,
+    execution_order: Collection[CellId_t],
+    overrides: dict[str, Any],
+) -> list[CellId_t]:
+    """Prune cells from execution when their definitions are overridden.
+
+    When variable definitions are provided externally (overrides), this function
+    identifies cells that would normally define those variables and removes them
+    from the execution order. It also validates that all definitions from pruned
+    cells are provided in the overrides.
+
+    Args:
+        graph: The dataflow graph containing cell dependencies
+        execution_order: Ordered collection of cells to execute
+        overrides: Dictionary mapping variable names to their override values
+
+    Returns:
+        Filtered execution order excluding cells whose definitions are overridden
+
+    Raises:
+        IncompleteRefsError: If overrides don't provide all definitions from
+            pruned cells (e.g., a cell defines both x and y, but only x is
+            provided in overrides)
+
+    Example:
+        If cell A defines variables x and y, and overrides = {"x": 1, "y": 2},
+        then cell A will be pruned from execution_order. However, if overrides
+        only contains {"x": 1}, an IncompleteRefsError is raised because y is
+        missing.
+    """
+    if not overrides:
+        return list(execution_order)
+
+    cells_to_prune: set[CellId_t] = set()
+    refs = set(overrides.keys())
+
+    # Find cells that define the overridden variables
+    for ref_name in refs:
+        if ref_name in graph.definitions:
+            defining_cells = graph.get_defining_cells(ref_name)
+            cells_to_prune.update(defining_cells)
+
+    # Validate that all definitions from pruned cells are provided
+    missing_defs: set[str] = set()
+    for cell_id in cells_to_prune:
+        cell = graph.cells[cell_id]
+        # Check all definitions this cell would have provided
+        for missing in cell.defs - refs:
+            missing_defs.add(missing)
+
+    if missing_defs:
+        from marimo._ast.errors import IncompleteRefsError
+
+        raise IncompleteRefsError(
+            f"When providing refs that override cell definitions, you must "
+            f"provide all definitions from those cells. Missing: {sorted(missing_defs)}. "
+            f"Provided refs: {sorted(refs)}."
+        )
+
+    # Return filtered execution order
+    return [cid for cid in execution_order if cid not in cells_to_prune]
+
+
 def import_block_relatives(
     graph: DirectedGraph, cid: CellId_t, children: bool
 ) -> set[CellId_t]:

@@ -2,8 +2,10 @@
 
 import { languageServerWithClient } from "@marimo-team/codemirror-languageserver";
 import { toast } from "@/components/ui/use-toast";
+import { resolvedMarimoConfigAtom } from "@/core/config/config";
 import { waitForConnectionOpen } from "@/core/network/connection";
 import { getRuntimeManager } from "@/core/runtime/config";
+import { store } from "@/core/state/jotai";
 import { once } from "@/utils/once";
 import { CopilotLanguageServerClient } from "./language-server";
 import { waitForEnabledCopilot } from "./state";
@@ -32,14 +34,17 @@ export const createWSTransport = once(() => {
   });
 });
 
-export const getCopilotClient = once(
-  () =>
-    new CopilotLanguageServerClient({
-      rootUri: FILE_URI,
-      workspaceFolders: null,
-      transport: createWSTransport(),
-    }),
-);
+export const getCopilotClient = once(() => {
+  const userConfig = store.get(resolvedMarimoConfigAtom);
+  const copilotSettings = userConfig.ai?.github?.copilot_settings ?? {};
+
+  return new CopilotLanguageServerClient({
+    rootUri: FILE_URI,
+    workspaceFolders: null,
+    transport: createWSTransport(),
+    copilotSettings,
+  });
+});
 
 export function copilotServer() {
   return languageServerWithClient({

@@ -207,6 +207,14 @@ async def tutorial(
 
     atexit.register(temp_dir.cleanup)
 
+    # Register the temp directory with the file router so it can be accessed
+    # This is needed for directory-based routers to allow temp tutorial files
+    app_state = AppState(request)
+    if isinstance(
+        app_state.session_manager.file_router, LazyListOfFilesAppFileRouter
+    ):
+        app_state.session_manager.file_router.register_temp_dir(temp_dir.name)
+
     return MarimoFile(
         name=os.path.basename(path.absolute_name),
         path=path.absolute_name,

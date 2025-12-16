@@ -394,7 +394,11 @@ class TestNarwhalsTableManagerFactory(unittest.TestCase):
             min=datetime.datetime(2021, 1, 1, 0, 0),
             max=datetime.datetime(2021, 1, 3, 0, 0),
             mean=datetime.datetime(2021, 1, 2, 0, 0),
-            # median=datetime.datetime(2021, 1, 2, 0, 0),
+            median=datetime.datetime(2021, 1, 2, 0, 0),
+            p5=datetime.datetime(2021, 1, 1, 0, 0),
+            p25=datetime.datetime(2021, 1, 2, 0, 0),
+            p75=datetime.datetime(2021, 1, 3, 0, 0),
+            p95=datetime.datetime(2021, 1, 3, 0, 0),
         )
 
     def test_summary_date(self) -> None:
@@ -1309,6 +1313,57 @@ class TestGetBinValuesTemporal:
 
         assert len(bin_values) == 1
         assert bin_values[0].count == 5
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+@pytest.mark.parametrize(
+    "df",
+    create_dataframes(
+        {
+            "old_dates": [
+                datetime.datetime.fromisoformat("1902-01-01 00:00:00"),
+                datetime.datetime.fromisoformat("2020-01-01 00:00:00"),
+                datetime.datetime.fromisoformat("2020-01-02 00:00:00"),
+                datetime.datetime.fromisoformat("2020-01-03 00:00:00"),
+                datetime.datetime.fromisoformat("2020-01-04 00:00:00"),
+                datetime.datetime.fromisoformat("2020-01-05 00:00:00"),
+                datetime.datetime.fromisoformat("2020-01-06 00:00:00"),
+                datetime.datetime.fromisoformat("2020-01-07 00:00:00"),
+                datetime.datetime.fromisoformat("2020-01-08 00:00:00"),
+                datetime.datetime.fromisoformat("2020-01-09 00:00:00"),
+                datetime.datetime.fromisoformat("2020-01-10 00:00:00"),
+            ]
+        },
+        exclude=["ibis"],
+    ),
+)
+class TestOldDates:
+    """Test handling of old dates (pre-1970) that cause OSError on Windows."""
+
+    def test_get_bin_values_with_old_dates(self, df: Any) -> None:
+        """
+        Test that get_bin_values works with timestamps before Unix epoch.
+
+        This reproduces issue #7469 where dates like 1902-01-01 cause
+        OSError: [Errno 22] Invalid argument on Windows when using
+        datetime.fromtimestamp().
+        """
+        manager = NarwhalsTableManager.from_dataframe(df)
+        # Should not raise OSError even with old dates
+        bin_values = manager.get_bin_values("old_dates", 3)
+
+        # Verify we get valid bin values
+        assert len(bin_values) > 0
+        assert all(
+            isinstance(bv.bin_start, (datetime.datetime, type(None)))
+            for bv in bin_values
+        )
+        assert all(
+            isinstance(bv.bin_end, (datetime.datetime, type(None)))
+            for bv in bin_values
+        )
+        # Total count should be 11 (all rows)
+        assert sum(bin_value.count for bin_value in bin_values) == 11
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")

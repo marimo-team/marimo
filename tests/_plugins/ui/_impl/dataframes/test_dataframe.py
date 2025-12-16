@@ -309,6 +309,35 @@ class TestDataframes:
     @pytest.mark.skipif(
         not HAS_DEPS, reason="optional dependencies not installed"
     )
+    def test_dataframe_download_encoding_utf8_sig_and_json_ensure_ascii() -> (
+        None
+    ):
+        df = pd.DataFrame({"A": [1, 2], "B": ["こんにちは", "世界"]})
+        subject = ui.dataframe(
+            df,
+            download_csv_encoding="utf-8-sig",
+            download_json_ensure_ascii=False,
+        )
+
+        # CSV should include BOM
+        csv_url = subject._download_as(DownloadAsArgs(format="csv"))
+        csv_bytes = from_data_uri(csv_url)[1]
+        assert csv_bytes.startswith(b"\xef\xbb\xbf")
+        assert "こんにちは" in csv_bytes.decode("utf-8-sig")
+
+        # JSON should preserve characters without BOM when ensure_ascii is False
+        json_url = subject._download_as(DownloadAsArgs(format="json"))
+        json_bytes = from_data_uri(json_url)[1]
+        assert not json_bytes.startswith(b"\xef\xbb\xbf")
+        json_text = json_bytes.decode("utf-8")
+        assert "こんにちは" in json_text
+        json_data = json.loads(json_text)
+        assert json_data[0]["B"] == "こんにちは"
+
+    @staticmethod
+    @pytest.mark.skipif(
+        not HAS_DEPS, reason="optional dependencies not installed"
+    )
     @pytest.mark.parametrize("format_type", ["csv", "json", "parquet"])
     def test_dataframe_download_formats(format_type) -> None:
         df = pd.DataFrame(
@@ -596,6 +625,68 @@ class TestDataframes:
             'df.group_by(["group"]).aggregate(**{"age_max" : df["age"].max()})'
             in code
         )
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+def test_dataframe_lazy_small() -> None:
+    """Small dataframes should not be marked as lazy."""
+    df = pd.DataFrame({"A": [1, 2, 3], "B": ["a", "b", "c"]})
+
+    subject = ui.dataframe(df)
+    assert subject._lazy is False
+    assert subject._component_args["lazy"] is False
+
+
+@pytest.mark.skipif(not HAS_POLARS, reason="Polars not installed")
+def test_dataframe_lazy_lazyframe() -> None:
+    """Polars LazyFrames should be marked as lazy."""
+    import polars as pl
+
+    df = pl.DataFrame({"A": [1, 2, 3]}).lazy()
+    subject = ui.dataframe(df)
+    assert subject._lazy is True
+    assert subject._component_args["lazy"] is True
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+def test_dataframe_lazy_large() -> None:
+    """DataFrames with more than 100,000 rows should be marked as lazy."""
+    from marimo._plugins.ui._impl.dataframes.dataframe import TOO_MANY_ROWS
+
+    df = pd.DataFrame({"A": range(TOO_MANY_ROWS + 1)})
+    subject = ui.dataframe(df)
+    assert subject._lazy is True
+    assert subject._component_args["lazy"] is True
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+def test_dataframe_lazy_explicit_override() -> None:
+    """Explicit lazy parameter should override inferred value."""
+    df = pd.DataFrame({"A": [1, 2, 3]})
+
+    # Force lazy=True on a small dataframe
+    subject = ui.dataframe(df, lazy=True)
+    assert subject._lazy is True
+    assert subject._component_args["lazy"] is True
+
+    # Force lazy=False on a small dataframe (same as inferred)
+    subject = ui.dataframe(df, lazy=False)
+    assert subject._lazy is False
+    assert subject._component_args["lazy"] is False
+
+
+@pytest.mark.skipif(not HAS_IBIS, reason="Ibis not installed")
+def test_ibis_table_lazy() -> None:
+    """Ibis tables should be marked as lazy (row count may be unknown)."""
+    import ibis
+
+    # Ibis memtables may have unknown row count initially
+    data = {"A": [1, 2, 3], "B": ["a", "b", "c"]}
+    memtable = ibis.memtable(data)
+    subject = ui.dataframe(memtable)
+    # Ibis tables are typically treated as lazy since row count
+    # may not be immediately available
+    assert subject._component_args["lazy"] is True
 
 
 @pytest.mark.skipif(

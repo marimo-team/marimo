@@ -18,9 +18,9 @@ Python notebook: run a cell or interact with a UI element, and marimo
 automatically runs dependent cells (or [marks them as
 stale](guides/reactivity.md#configuring-how-marimo-runs-cells)), keeping code
 and outputs consistent and preventing bugs before they happen. Every marimo
-notebook is stored as pure Python (Git-friendly), executable as a script, and
-deployable as an app; while stored as Python, marimo notebooks also have native
-support for SQL.
+notebook is stored as pure Python (Git-friendly), [executable as a script](guides/scripts.md), and
+[deployable as an app](guides/apps.md); while stored as Python, marimo notebooks also have [native
+support for SQL](guides/working_with_data/sql.md).
 
 /// admonition | Built from the ground up
     type: tip
@@ -68,7 +68,7 @@ reproducibility, maintainability, composability, and shareability.
 - 🛜 **shareable**: [deploy as an interactive web app](guides/apps.md) or [slides](guides/apps.md#slides-layout), [run in the browser via WASM](guides/wasm.md)
 - 🧩 **reusable:** [import functions and classes](guides/reusing_functions.md) from one notebook to another
 - 🧪 **testable:** [run pytest](guides/testing/index.md) on notebooks
-- ⌨️ **a modern editor**: [GitHub Copilot](guides/editor_features/ai_completion.md#github-copilot), [AI assistants](guides/editor_features/ai_completion.md), vim keybindings, variable explorer, and [more](guides/editor_features/index.md)
+- ⌨️ **a modern editor**: [GitHub Copilot](guides/editor_features/ai_completion.md#github-copilot), [AI assistants](guides/editor_features/ai_completion.md), [vim keybindings](guides/editor_features/overview.md#vim-keybindings), variable explorer, and [more](guides/editor_features/index.md)
 - 🧑‍💻 **use your favorite editor**: run in [VS Code or Cursor](https://marketplace.visualstudio.com/items?itemName=marimo-team.vscode-marimo), or edit in neovim, Zed, [or any other text editor](https://docs.marimo.io/guides/editor_features/watching/)
 
 ## A reactive programming environment
@@ -152,7 +152,7 @@ Organize your notebooks to best fit the stories you'd like to tell.
 **Performant runtime.** marimo runs only those cells that need to be run by
 statically analyzing your code.
 
-**Batteries-included.** marimo comes with GitHub Copilot, AI assistants, Ruff
+**Batteries-included.** marimo comes with [GitHub Copilot](guides/editor_features/ai_completion.md#github-copilot), AI assistants, Ruff
 code formatting, HTML export, fast code completion, a [VS Code
 extension](https://marketplace.visualstudio.com/items?itemName=marimo-team.vscode-marimo),
 an interactive dataframe viewer, and [many more](guides/editor_features/index.md)

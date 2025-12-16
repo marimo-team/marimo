@@ -72,6 +72,33 @@ except RuntimeError:
 FILE_QUERY_PARAM_KEY = "file"
 
 
+async def _fetch_index_html_from_url(asset_url: str) -> str:
+    """Fetch index.html from the given asset URL."""
+    import marimo._utils.requests as requests
+    from marimo._version import __version__
+
+    # Replace {version} placeholder if present
+    if "{version}" in asset_url:
+        asset_url = asset_url.replace("{version}", __version__)
+
+    # Construct the full URL to index.html
+    # Remove trailing slash if present
+    asset_url = asset_url.rstrip("/")
+    index_url = f"{asset_url}/index.html"
+
+    try:
+        LOGGER.debug("Fetching index.html from: %s", index_url)
+        response = requests.get(index_url)
+        response.raise_for_status()
+        return response.text()
+    except Exception as e:
+        LOGGER.error("Failed to fetch index.html from %s: %s", index_url, e)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to fetch index.html from asset_url: {e}",
+        ) from e
+
+
 @router.get("/")
 @requires("read", redirect="auth:login_page")
 async def index(request: Request) -> HTMLResponse:
@@ -83,7 +110,20 @@ async def index(request: Request) -> HTMLResponse:
         or app_state.session_manager.file_router.get_unique_file_key()
     )
 
-    html = index_html.read_text()
+    # Try local index.html first, fallback to asset_url if local file doesn't exist
+    if index_html.exists():
+        html = index_html.read_text()
+    elif app_state.asset_url:
+        LOGGER.info(
+            "Local index.html not found, fetching from asset_url: %s",
+            app_state.asset_url,
+        )
+        html = await _fetch_index_html_from_url(app_state.asset_url)
+    else:
+        raise HTTPException(
+            status_code=500,
+            detail="index.html not found and no asset_url configured",
+        )
 
     if not file_key:
         # We don't know which file to use, so we need to render a homepage

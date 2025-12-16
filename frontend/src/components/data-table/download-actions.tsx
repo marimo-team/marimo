@@ -5,6 +5,7 @@ import {
   BrickWallIcon,
   ChevronDownIcon,
   ClipboardListIcon,
+  FileTextIcon,
   TableIcon,
 } from "lucide-react";
 import React from "react";
@@ -13,7 +14,11 @@ import { logNever } from "@/utils/assertNever";
 import { copyToClipboard } from "@/utils/copy";
 import { downloadByURL } from "@/utils/download";
 import { prettyError } from "@/utils/errors";
-import { jsonParseWithSpecialChar, jsonToTSV } from "@/utils/json/json-parser";
+import {
+  jsonParseWithSpecialChar,
+  jsonToMarkdown,
+  jsonToTSV,
+} from "@/utils/json/json-parser";
 import { Button } from "../ui/button";
 import {
   DropdownMenu,
@@ -70,6 +75,12 @@ const clipboardOptions = [
     description: "Comma-separated values",
     icon: TableIcon,
   },
+  {
+    label: "Markdown",
+    format: "markdown",
+    description: "Preserves hyperlinks and formatting",
+    icon: FileTextIcon,
+  },
 ] as const;
 
 export const DownloadAs: React.FC<DownloadActionProps> = (props) => {
@@ -113,6 +124,12 @@ export const DownloadAs: React.FC<DownloadActionProps> = (props) => {
         const downloadUrl = await getDownloadUrl("csv");
         const csv = await fetchText(downloadUrl);
         text = csv;
+        break;
+      }
+      case "markdown": {
+        const downloadUrl = await getDownloadUrl("json");
+        const json = await fetchJson(downloadUrl);
+        text = jsonToMarkdown(json);
         break;
       }
       default:
