@@ -11,8 +11,13 @@ import { CellId } from "@/core/cells/ids";
 import { createReducerAndAtoms } from "@/utils/createReducer";
 import { Logger } from "@/utils/Logger";
 import { maybeAddMarimoImport } from "../cells/add-missing-import";
-import { type CreateNewCellAction, useCellActions } from "../cells/cells";
+import {
+  type CreateNewCellAction,
+  getCellEditorView,
+  useCellActions,
+} from "../cells/cells";
 import type { LanguageAdapterType } from "../codemirror/language/types";
+import { updateEditorCodeFromPython } from "../codemirror/language/utils";
 import type { JotaiStore } from "../state/jotai";
 import type { EditType } from "./tools/edit-notebook-tool";
 
@@ -98,7 +103,14 @@ export function useStagedCells(store: JotaiStore) {
       return;
     }
 
-    updateCellCode({ cellId, code, formattingChange: false });
+    // Update the editor code if the cell is mounted
+    // Else, update the cell code in the notebook
+    const editorView = getCellEditorView(cellId);
+    if (editorView) {
+      updateEditorCodeFromPython(editorView, code);
+    } else {
+      updateCellCode({ cellId, code, formattingChange: false });
+    }
   };
 
   // Delete a staged cell and the corresponding cell in the notebook.
