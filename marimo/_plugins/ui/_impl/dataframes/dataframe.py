@@ -108,6 +108,10 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
             dataframes via Ibis.
         show_download (bool, optional): Whether to show the download button.
             Defaults to True.
+        download_csv_encoding (str, optional): Encoding used when downloading CSV.
+            Defaults to "utf-8". Set to "utf-8-sig" to include BOM for Excel.
+        download_json_ensure_ascii (bool, optional): Whether to escape non-ASCII characters
+            in JSON downloads. Defaults to True.
         on_change (Optional[Callable[[DataFrameType], None]], optional): Optional callback
             to run when this element's value changes.
         lazy (Optional[bool], optional): When lazy is True, an 'Apply' button will be shown to apply transformations.
@@ -123,6 +127,9 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
         page_size: Optional[int] = 5,
         limit: Optional[int] = None,
         show_download: bool = True,
+        *,
+        download_csv_encoding: str = "utf-8",
+        download_json_ensure_ascii: bool = True,
         lazy: Optional[bool] = None,
     ) -> None:
         validate_no_integer_columns(df)
@@ -150,6 +157,8 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
         self._limit = limit
         self._dataframe_name = dataframe_name
         self._data = df
+        self._download_csv_encoding = download_csv_encoding
+        self._download_json_ensure_ascii = download_json_ensure_ascii
         self._handler = handler
         self._manager = self._get_cached_table_manager(df, self._limit)
         self._transform_container = TransformsContainer(nw_df, handler)
@@ -178,6 +187,8 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
                 "total": rows,
                 "page-size": page_size,
                 "show-download": show_download,
+                "download-csv-encoding": download_csv_encoding,
+                "download-json-ensure-ascii": download_json_ensure_ascii,
                 "lazy": self._lazy,
             },
             functions=(
@@ -315,7 +326,12 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
 
         # Get the table manager for the transformed data
         manager = self._get_cached_table_manager(df, self._limit)
-        return download_as(manager, args.format)
+        return download_as(
+            manager,
+            args.format,
+            csv_encoding=self._download_csv_encoding,
+            json_ensure_ascii=self._download_json_ensure_ascii,
+        )
 
     def _apply_filters_query_sort(
         self,

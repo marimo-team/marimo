@@ -105,7 +105,7 @@ def _data_to_json_string(data: _DataType) -> str:
 
     tm = get_table_manager_or_none(data)
     if tm:
-        return tm.to_json().decode("utf-8")
+        return tm.to_json(ensure_ascii=True).decode("utf-8")
 
     raise NotImplementedError(
         "to_marimo_json only works with data expressed as a DataFrame "
