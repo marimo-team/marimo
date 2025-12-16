@@ -783,7 +783,7 @@ def test_chat_without_code(client: TestClient) -> None:
                 headers=HEADERS,
                 json={
                     "messages": _create_messages("Hello"),
-                    "messagesV2": [],
+                    "uiMessages": [],
                     "model": "gpt-4-turbo",
                     "variables": [],
                     "includeOtherCode": "",
@@ -825,7 +825,7 @@ def test_chat_with_code(client: TestClient) -> None:
                 headers=HEADERS,
                 json={
                     "messages": _create_messages("Help me create a dataframe"),
-                    "messagesV2": [],
+                    "uiMessages": [],
                     "model": "gpt-4-turbo",
                     "variables": [],
                     "includeOtherCode": "import pandas as pd",

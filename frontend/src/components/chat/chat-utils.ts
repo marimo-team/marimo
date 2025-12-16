@@ -69,7 +69,7 @@ export async function buildCompletionRequestBody(
   messages: UIMessage[],
 ): Promise<{
   messages: ChatMessage[]; // Deprecated. TODO: Remove in the future
-  messagesV2: UIMessage[];
+  uiMessages: UIMessage[];
   context?: (null | components["schemas"]["AiCompletionContext"]) | undefined;
   includeOtherCode: string;
   selectedText?: string | null | undefined;
@@ -82,13 +82,12 @@ export async function buildCompletionRequestBody(
     message: UIMessage,
     isLast: boolean,
   ): UIMessage {
-    const parts = [...message.parts];
-    if (isLast) {
-      parts.push(...completionBody.attachments);
+    if (!isLast) {
+      return message;
     }
     return {
       ...message,
-      parts,
+      parts: [...message.parts, ...completionBody.attachments],
     };
   }
 
@@ -110,7 +109,7 @@ export async function buildCompletionRequestBody(
     messages: messages.map((m, idx) =>
       toChatMessage(m, idx === messages.length - 1),
     ),
-    messagesV2: messages.map((m, idx) =>
+    uiMessages: messages.map((m, idx) =>
       addAttachmentsToMessage(m, idx === messages.length - 1),
     ),
   };

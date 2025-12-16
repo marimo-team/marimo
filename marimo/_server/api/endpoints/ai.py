@@ -19,6 +19,7 @@ from marimo._ai._pydantic_ai_utils import (
 )
 from marimo._ai._types import ChatMessage
 from marimo._config.config import AiConfig, MarimoConfig
+from marimo._dependencies.dependencies import DependencyManager
 from marimo._server.ai.config import (
     AnyProviderConfig,
     get_autocomplete_model,
@@ -62,9 +63,11 @@ from marimo._server.router import APIRouter
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator
 
-    from pydantic_ai.ui import SSE_CONTENT_TYPE
     from starlette.requests import Request
     from starlette.responses import ContentStream
+
+if DependencyManager.pydantic_ai.has():
+    from pydantic_ai.ui import SSE_CONTENT_TYPE
 else:
     SSE_CONTENT_TYPE = "text/event-stream"
 
@@ -167,10 +170,18 @@ async def ai_completion(
 
     # Currently, the frontend parses AI SDK events only for /chat endpoint,
     # So we just stream back the text for other endpoints
+    # /chat is used for the chat panel & add-cell-with-ai
     if isinstance(provider, PydanticProvider):
+        if use_messages:
+            return await provider.stream_completion(
+                messages=convert_to_pydantic_messages(body.ui_messages),
+                system_prompt=system_prompt,
+                max_tokens=get_max_tokens(config),
+                additional_tools=[],
+            )
         response = provider.stream_text(
             user_prompt=prompt,
-            messages=convert_to_pydantic_messages(body.messages_v2),
+            messages=convert_to_pydantic_messages(body.ui_messages),
             system_prompt=system_prompt,
             max_tokens=get_max_tokens(config),
             additional_tools=[],
@@ -273,7 +284,7 @@ async def ai_chat(
 
     if isinstance(provider, PydanticProvider):
         return await provider.stream_completion(
-            messages=convert_to_pydantic_messages(body.messages_v2),
+            messages=convert_to_pydantic_messages(body.ui_messages),
             system_prompt=system_prompt,
             max_tokens=max_tokens,
             additional_tools=additional_tools,
