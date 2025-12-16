@@ -8,6 +8,7 @@ from marimo._dependencies.dependencies import DependencyManager
 from marimo._output.formatters.structures import (
     StructuresFormatter,
     format_structure,
+    is_structures_formatter,
 )
 from marimo._output.formatting import get_formatter
 from marimo._output.md import md
@@ -355,3 +356,12 @@ def test_function_like_objects_fallback_on_exception() -> None:
     # which ultimately produces HTML; accept either to be robust.
     assert isinstance(data, str)
     assert len(data) > 0
+
+
+def test_is_structures_formatter() -> None:
+    assert is_structures_formatter(get_formatter(tuple()))
+    assert is_structures_formatter(get_formatter([]))
+    assert is_structures_formatter(get_formatter({1: 2}))
+
+    assert not is_structures_formatter(None)
+    assert not is_structures_formatter(get_formatter(set()))

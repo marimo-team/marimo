@@ -3130,6 +3130,7 @@ export interface components {
          *
          *         - `activate_on_typing`: if `False`, completion won't activate
          *         until the completion hotkey is entered
+         *         - `signature_hint_on_typing`: if `False`, signature hint won't be shown when typing
          *         - `copilot`: one of `"github"`, `"codeium"`, or `"custom"`
          *         - `codeium_api_key`: the Codeium API key
          */
@@ -3140,6 +3141,7 @@ export interface components {
             codeium_api_key?: string | null;
             copilot: boolean | ("codeium" | "custom" | "github");
             model?: string | null;
+            signature_hint_on_typing: boolean;
         };
         /** CompletionOption */
         CompletionOption: {
