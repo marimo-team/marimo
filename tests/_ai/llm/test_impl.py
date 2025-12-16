@@ -1366,6 +1366,24 @@ class TestPydanticAI:
             == "reasoning_content"
         )
 
+    def test_openai_model_no_thinking_field_without_enable_thinking(self):
+        """Test that OpenAI model with base_url but no thinking has no thinking field."""
+        from pydantic_ai.models.openai import OpenAIChatModel
+
+        model = pydantic_ai(
+            "openai:deepseek-ai/DeepSeek-R1-0528",
+            base_url="https://api.inference.wandb.ai/v1",
+            api_key="test-key",
+            enable_thinking=False,  # Thinking disabled
+        )
+
+        created_model = model._create_model()
+        assert isinstance(created_model, OpenAIChatModel)
+        # When thinking is disabled, the thinking field should not be set
+        # (profile may exist with defaults, but thinking field should be None)
+        if created_model.profile is not None:
+            assert created_model.profile.openai_chat_thinking_field is None
+
     def test_build_model_settings_native_openai_thinking(self):
         """Test _build_model_settings for native OpenAI without base_url."""
         model = pydantic_ai(
