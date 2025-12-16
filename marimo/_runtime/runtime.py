@@ -894,9 +894,8 @@ class Kernel:
                             return (
                                 "\nHint: marimo notebooks are pure Python and "
                                 "don't support IPython's magic commands.\n"
-                                "See our documentation"
-                                "(http://links.marimo.app/from-jupyter-magics)"
-                                " for workarounds."
+                                "For workarounds, see our documentation: "
+                                "http://links.marimo.app/from-jupyter-magics"
                             )
                         return ""
 

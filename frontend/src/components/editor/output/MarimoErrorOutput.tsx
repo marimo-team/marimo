@@ -18,6 +18,7 @@ import { Alert, AlertTitle } from "../../ui/alert";
 import { useChromeActions } from "../chrome/state";
 import { AutoFixButton } from "../errors/auto-fix";
 import { CellLinkError } from "../links/cell-link";
+import { processTextForUrls } from "./console/text-rendering";
 
 const Tip = (props: {
   title?: string;
@@ -145,10 +146,14 @@ export const MarimoErrorOutput = ({
       messages.push(
         <div key="syntax-unknown">
           {syntaxErrors.map((error, idx) => (
-            <pre key={`syntax-${idx}`}>{error.msg}</pre>
+            <pre key={`syntax-${idx}`}>
+              {processTextForUrls(error.msg, `syntax-${idx}`)}
+            </pre>
           ))}
           {unknownErrors.map((error, idx) => (
-            <pre key={`unknown-${idx}`}>{error.msg}</pre>
+            <pre key={`unknown-${idx}`}>
+              {processTextForUrls(error.msg, `unknown-${idx}`)}
+            </pre>
           ))}
           {cellId && (
             <AutoFixButton
@@ -411,14 +416,16 @@ export const MarimoErrorOutput = ({
               <li className="my-2" key={`exception-${idx}`}>
                 {error.raising_cell == null ? (
                   <div>
-                    <p className="text-muted-foreground">{error.msg}</p>
+                    <p className="text-muted-foreground">
+                      {processTextForUrls(error.msg, `exception-${idx}`)}
+                    </p>
                     <div className="text-muted-foreground mt-2">
                       See the console area for a traceback.
                     </div>
                   </div>
                 ) : (
                   <div>
-                    {error.msg}
+                    {processTextForUrls(error.msg, `exception-${idx}`)}
                     <CellLinkError cellId={error.raising_cell as CellId} />
                   </div>
                 )}
@@ -467,7 +474,9 @@ export const MarimoErrorOutput = ({
       messages.push(
         <div key="internal">
           {internalErrors.map((error, idx) => (
-            <p key={`internal-${idx}`}>{error.msg}</p>
+            <p key={`internal-${idx}`}>
+              {processTextForUrls(error.msg, `internal-${idx}`)}
+            </p>
           ))}
           {cellId && <AutoFixButton errors={internalErrors} cellId={cellId} />}
         </div>,
@@ -523,7 +532,7 @@ export const MarimoErrorOutput = ({
             return (
               <div key={`sql-error-${idx}`} className="space-y-2 mt-2">
                 <p className="text-muted-foreground whitespace-pre-wrap">
-                  {error.msg}
+                  {processTextForUrls(error.msg, `sql-${idx}`)}
                 </p>
               </div>
             );

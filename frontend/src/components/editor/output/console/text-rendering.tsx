@@ -91,7 +91,7 @@ type Replacer = (
  * Helper function to process text content for URLs and images
  * This is used by multiple replacers to avoid code duplication
  */
-function processTextForUrls(text: string, keyPrefix = ""): React.ReactNode {
+export function processTextForUrls(text: string, keyPrefix = ""): React.ReactNode {
   if (!text) {
     return null;
   }
