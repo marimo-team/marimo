@@ -302,7 +302,8 @@ class CellImpl:
         except SyntaxError:
             return None
 
-        if len(self.defs) != 1:
+        var_pool = self.defs | self.temporaries
+        if len(var_pool) != 1:
             return None
 
         if not (
@@ -314,12 +315,22 @@ class CellImpl:
         ):
             return None
 
+        # Depends on cell, JIT import
+        from marimo._ast.variables import unmangle_local
+
         # Check that def matches the single definition
         name = tree.body[0].name
-        if not (name == list(self.defs)[0] and name in self.variable_data):
+        ast_name = unmangle_local(var_pool.pop()).name
+        if not (name == ast_name):
             return None
 
-        if len(variable_data := self.variable_data[name]) != 1:
+        if name.startswith("_"):
+            return VariableData("temporary")
+
+        if (
+            name not in self.variable_data
+            or len(variable_data := self.variable_data[name]) != 1
+        ):
             return None
 
         return list(variable_data)[0]

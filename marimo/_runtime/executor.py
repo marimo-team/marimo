@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Optional
 
 from marimo._ast.cell import CellImpl, _is_coroutine
-from marimo._ast.variables import is_mangled_local, unmangle_local
+from marimo._ast.variables import is_mangled_local
 from marimo._entrypoints.registry import EntryPointRegistry
 from marimo._runtime.copy import (
     CloneError,

@@ -573,6 +573,17 @@ class TestTopLevelClasses:
         ] == [s.type for s in extraction], [s.hint for s in extraction]
 
     @staticmethod
+    def test_private_var(app) -> None:
+        @app.cell
+        def cell():
+            def _private():
+                return 1
+
+        status = TopLevelStatus.from_cell(cell._cell, BUILTINS)
+        assert status.type == TopLevelType.CELL, status.hint
+        assert status.hint == toplevel.HINT_NO_PRIVATES
+
+    @staticmethod
     @pytest.mark.skipif(
         sys.version_info < (3, 12),
         reason="Requires Python 3.12+ for generic type parameter syntax",
