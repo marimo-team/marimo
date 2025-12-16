@@ -721,9 +721,11 @@ class pydantic_ai(ChatModel):
         ```python
         from pydantic_ai import Agent
 
+
         def get_weather(location: str) -> dict:
             '''Get weather for a location.'''
             return {"temperature": 72, "conditions": "sunny"}
+
 
         agent = Agent(
             "openai:gpt-4.1",
@@ -749,7 +751,10 @@ class pydantic_ai(ChatModel):
                 agent,
                 model_settings=AnthropicModelSettings(
                     max_tokens=8000,
-                    anthropic_thinking={"type": "enabled", "budget_tokens": 4000},
+                    anthropic_thinking={
+                        "type": "enabled",
+                        "budget_tokens": 4000,
+                    },
                 ),
             )
         )
