@@ -1034,6 +1034,9 @@ class pydantic_ai(ChatModel):
 
         When api_key is not provided, we return the model string and let
         Pydantic AI read credentials from environment variables.
+
+        When api_key IS provided, we create model objects using the Provider
+        pattern, which is the proper way to pass credentials in Pydantic AI.
         """
         provider = self._get_provider()
         model_name = self._get_model_name()
@@ -1042,62 +1045,78 @@ class pydantic_ai(ChatModel):
         if not self.api_key:
             return self.model
 
-        # Create model objects directly with api_key (no env vars needed)
+        # Create model objects with Providers when api_key is provided
         if provider == "openai":
             from pydantic_ai.models.openai import OpenAIChatModel
+            from pydantic_ai.profiles.openai import OpenAIModelProfile
             from pydantic_ai.providers.openai import OpenAIProvider
 
-            # Use OpenAIProvider when we have a custom base_url (e.g., W&B)
             openai_provider = OpenAIProvider(
                 api_key=self.api_key,
                 base_url=self.base_url,
             )
+
+            # Configure profile for thinking/reasoning extraction from
+            # OpenAI-compatible APIs (W&B, DeepSeek, etc.)
+            # See: https://docs.wandb.ai/inference/response-settings/reasoning
+            profile = None
+            if self.enable_thinking and self.base_url:
+                profile = OpenAIModelProfile(
+                    openai_chat_thinking_field="reasoning_content",
+                )
+
             return OpenAIChatModel(
                 model_name=model_name,
                 provider=openai_provider,
+                profile=profile,
             )
 
         elif provider == "anthropic":
             from pydantic_ai.models.anthropic import AnthropicModel
+            from pydantic_ai.providers.anthropic import AnthropicProvider
 
             return AnthropicModel(
                 model_name=model_name,
-                api_key=self.api_key,
+                provider=AnthropicProvider(api_key=self.api_key),
             )
 
         elif provider in ("google-gla", "google-vertex", "gemini"):
             from pydantic_ai.models.google import GoogleModel
+            from pydantic_ai.providers.google import GoogleProvider
 
             return GoogleModel(
                 model_name=model_name,
-                api_key=self.api_key,
+                provider=GoogleProvider(api_key=self.api_key),
             )
 
         elif provider == "groq":
             from pydantic_ai.models.groq import GroqModel
+            from pydantic_ai.providers.groq import GroqProvider
 
             return GroqModel(
                 model_name=model_name,
-                api_key=self.api_key,
+                provider=GroqProvider(api_key=self.api_key),
             )
 
         elif provider == "mistral":
             from pydantic_ai.models.mistral import MistralModel
+            from pydantic_ai.providers.mistral import MistralProvider
 
             return MistralModel(
                 model_name=model_name,
-                api_key=self.api_key,
+                provider=MistralProvider(api_key=self.api_key),
             )
 
         elif provider == "cohere":
             from pydantic_ai.models.cohere import CohereModel
+            from pydantic_ai.providers.cohere import CohereProvider
 
             return CohereModel(
                 model_name=model_name,
-                api_key=self.api_key,
+                provider=CohereProvider(api_key=self.api_key),
             )
 
-        # Unknown provider with api_key - return string and hope for the best
+        # Unknown provider - return string and hope Pydantic AI handles it
         return self.model
 
     def __call__(
@@ -1144,20 +1163,12 @@ class pydantic_ai(ChatModel):
         elif (
             provider in ("openai", "openai-responses") and self.enable_thinking
         ):
-            # For OpenAI-compatible providers with custom base_url (e.g., W&B, DeepSeek),
-            # use OpenAIChatModelSettings to extract reasoning_content field
+            # For OpenAI-compatible providers with custom base_url (e.g., W&B),
+            # thinking field extraction is handled by the model profile
+            # (set in _create_model), so we just use basic settings here.
             if self.base_url:
-                try:
-                    from pydantic_ai.models.openai import OpenAIChatModelSettings
-
-                    return OpenAIChatModelSettings(
-                        max_tokens=config.max_tokens,
-                        temperature=config.temperature,
-                        top_p=config.top_p,
-                        openai_chat_thinking_field="reasoning_content",
-                    )
-                except ImportError:
-                    pass
+                # Use generic settings - profile handles thinking extraction
+                pass
             else:
                 # For native OpenAI, use OpenAIResponsesModelSettings
                 try:
@@ -1404,11 +1415,16 @@ class pydantic_ai(ChatModel):
                         if isinstance(msg, ModelResponse):
                             for part in msg.parts:
                                 # Capture thinking if not already done
+                                # (W&B and other OpenAI-compatible APIs may only
+                                # include reasoning_content in final response,
+                                # not streamed as events)
                                 if isinstance(part, ThinkingPart):
                                     if not current_thinking:
                                         current_thinking = (
                                             getattr(part, "content", "") or ""
                                         )
+                                        if current_thinking:
+                                            has_thinking = True
 
                                 # Handle tool calls we may have missed
                                 elif isinstance(part, ToolCallPart):
@@ -1438,7 +1454,9 @@ class pydantic_ai(ChatModel):
                                         }
 
                 # Yield final structured response if we had thinking or tools
-                if has_tool_calls or has_thinking or pending_tool_calls:
+                # Include current_thinking check for APIs that only return
+                # reasoning in final response (not streamed)
+                if has_tool_calls or has_thinking or current_thinking or pending_tool_calls:
                     final_parts = _build_current_parts()
 
                     # Store pydantic-ai's ALL messages for history

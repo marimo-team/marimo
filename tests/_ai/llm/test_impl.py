@@ -1326,7 +1326,12 @@ class TestPydanticAI:
                 os.environ["ANTHROPIC_API_KEY"] = original_anthropic
 
     def test_build_model_settings_openai_compatible_thinking(self):
-        """Test _build_model_settings for OpenAI-compatible provider with thinking."""
+        """Test _build_model_settings for OpenAI-compatible provider with thinking.
+
+        Note: For OpenAI-compatible providers with base_url (like W&B),
+        thinking configuration is set on the model profile, not settings.
+        So _build_model_settings returns generic ModelSettings.
+        """
         model = pydantic_ai(
             "openai:deepseek-ai/DeepSeek-R1-0528",
             base_url="https://api.inference.wandb.ai/v1",
@@ -1336,10 +1341,30 @@ class TestPydanticAI:
         config = ChatModelConfig(max_tokens=1000, temperature=0.7)
         settings = model._build_model_settings(config)
 
-        # Should use OpenAIChatModelSettings with thinking field
-        assert hasattr(settings, "openai_chat_thinking_field")
-        assert settings.openai_chat_thinking_field == "reasoning_content"
+        # For OpenAI-compatible with base_url, thinking is on the profile
+        # Settings should just have basic params
         assert settings.max_tokens == 1000
+        assert settings.temperature == 0.7
+
+    def test_openai_model_profile_has_thinking_field(self):
+        """Test that OpenAI model with base_url creates profile with thinking field."""
+        from pydantic_ai.models.openai import OpenAIChatModel
+
+        model = pydantic_ai(
+            "openai:deepseek-ai/DeepSeek-R1-0528",
+            base_url="https://api.inference.wandb.ai/v1",
+            api_key="test-key",
+            enable_thinking=True,
+        )
+
+        created_model = model._create_model()
+        assert isinstance(created_model, OpenAIChatModel)
+        # The model should have a profile configured
+        assert created_model.profile is not None
+        assert (
+            created_model.profile.openai_chat_thinking_field
+            == "reasoning_content"
+        )
 
     def test_build_model_settings_native_openai_thinking(self):
         """Test _build_model_settings for native OpenAI without base_url."""
