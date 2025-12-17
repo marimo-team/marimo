@@ -1111,49 +1111,89 @@ class TestBedrock:
 class TestPydanticAI:
     """Tests for the pydantic_ai class."""
 
+    def test_init_with_model_string(self):
+        """Test initialization with a model string (like other mo.ai.llm classes)."""
+        model = pydantic_ai("openai:gpt-4.1")
+
+        assert model._model == "openai:gpt-4.1"
+        assert model._tools is None
+        assert model._instructions is None
+        assert model._model_settings is None
+
+    def test_init_with_model_string_and_options(self):
+        """Test initialization with model string and options."""
+
+        def my_tool(arg: str) -> str:
+            """A test tool."""
+            return arg
+
+        model = pydantic_ai(
+            "openai:gpt-4.1",
+            tools=[my_tool],
+            instructions="You are helpful.",
+        )
+
+        assert model._model == "openai:gpt-4.1"
+        assert len(model._tools) == 1
+        assert model._instructions == "You are helpful."
+
     def test_init_with_agent(self):
-        """Test initialization with an Agent."""
+        """Test initialization with a pre-configured Agent."""
         from pydantic_ai import Agent
 
         agent = Agent("openai:gpt-4.1", instructions="Test instructions")
         model = pydantic_ai(agent)
 
-        assert model.agent is agent
-        assert model.model_settings is None
+        # When passing an Agent, it should be detected
+        assert model._model is agent
+        # Agent should be used directly when _get_agent() is called
+        assert model._get_agent() is agent
 
-    def test_init_with_agent_and_settings(self):
-        """Test initialization with Agent and model settings."""
-        from pydantic_ai import Agent
+    def test_init_with_model_settings(self):
+        """Test initialization with model settings."""
         from pydantic_ai.settings import ModelSettings
 
-        agent = Agent("openai:gpt-4.1")
         settings = ModelSettings(max_tokens=1000, temperature=0.7)
-        model = pydantic_ai(agent, model_settings=settings)
+        model = pydantic_ai("openai:gpt-4.1", model_settings=settings)
 
-        assert model.agent is agent
-        assert model.model_settings is settings
-        assert model.model_settings.max_tokens == 1000
-        assert model.model_settings.temperature == 0.7
+        assert model._model_settings is settings
+        assert model._model_settings.max_tokens == 1000
+        assert model._model_settings.temperature == 0.7
+
+    def test_get_agent_creates_agent_from_string(self):
+        """Test that _get_agent creates an Agent from model string."""
+        from pydantic_ai import Agent
+
+        model = pydantic_ai(
+            "openai:gpt-4.1",
+            instructions="Test",
+        )
+
+        agent = model._get_agent()
+        assert isinstance(agent, Agent)
+
+    def test_get_agent_returns_same_agent(self):
+        """Test that _get_agent returns the same Agent on repeated calls."""
+        model = pydantic_ai("openai:gpt-4.1")
+
+        agent1 = model._get_agent()
+        agent2 = model._get_agent()
+        assert agent1 is agent2
 
     def test_call_returns_async_generator(self, test_messages, test_config):
         """Test that calling returns an async generator."""
         import inspect
 
-        from pydantic_ai import Agent
-
-        agent = Agent("openai:gpt-4.1")
-        model = pydantic_ai(agent)
+        model = pydantic_ai("openai:gpt-4.1")
         result = model(test_messages, test_config)
 
         assert inspect.isasyncgen(result)
 
     def test_convert_messages_to_pydantic_ai(self):
         """Test message conversion to Pydantic AI format."""
-        from pydantic_ai import Agent
         from pydantic_ai.messages import ModelRequest, ModelResponse
 
-        agent = Agent("openai:gpt-4.1")
-        model = pydantic_ai(agent)
+        model = pydantic_ai("openai:gpt-4.1")
 
         messages = [
             ChatMessage(role="user", content="Hello"),
@@ -1170,11 +1210,9 @@ class TestPydanticAI:
 
     def test_convert_messages_with_tool_parts(self):
         """Test message conversion with tool invocation parts."""
-        from pydantic_ai import Agent
         from pydantic_ai.messages import ModelRequest, ModelResponse
 
-        agent = Agent("openai:gpt-4.1")
-        model = pydantic_ai(agent)
+        model = pydantic_ai("openai:gpt-4.1")
 
         messages = [
             ChatMessage(role="user", content="What's the weather?"),
@@ -1202,42 +1240,27 @@ class TestPydanticAI:
         # Second should be response with tool call
         assert isinstance(converted[1], ModelResponse)
 
-    def test_agent_with_tools(self):
-        """Test creating a model with an Agent that has tools."""
-        from pydantic_ai import Agent
-
-        def my_tool(arg: str) -> str:
-            """A test tool."""
-            return arg
-
-        agent = Agent("openai:gpt-4.1", tools=[my_tool])
-        model = pydantic_ai(agent)
-
-        assert model.agent is agent
-        # Tools are stored on the agent, not the wrapper
-        assert len(agent._function_tools) == 1
-
-    def test_agent_with_anthropic_thinking_settings(self):
+    def test_anthropic_thinking_settings(self):
         """Test creating a model with Anthropic thinking settings."""
-        from pydantic_ai import Agent
         from pydantic_ai.models.anthropic import AnthropicModelSettings
 
-        agent = Agent("anthropic:claude-sonnet-4-5")
         settings = AnthropicModelSettings(
             max_tokens=8000,
             anthropic_thinking={"type": "enabled", "budget_tokens": 4000},
         )
-        model = pydantic_ai(agent, model_settings=settings)
+        model = pydantic_ai(
+            "anthropic:claude-sonnet-4-5",
+            model_settings=settings,
+        )
 
-        assert model.model_settings is settings
-        assert model.model_settings.anthropic_thinking == {
+        assert model._model_settings is settings
+        assert model._model_settings.anthropic_thinking == {
             "type": "enabled",
             "budget_tokens": 4000,
         }
 
     def test_extract_stored_pydantic_messages(self):
         """Test extraction of stored pydantic-ai messages from parts."""
-        from pydantic_ai import Agent
         from pydantic_ai.messages import (
             ModelMessagesTypeAdapter,
             ModelRequest,
@@ -1246,8 +1269,7 @@ class TestPydanticAI:
             UserPromptPart,
         )
 
-        agent = Agent("openai:gpt-4.1")
-        model = pydantic_ai(agent)
+        model = pydantic_ai("openai:gpt-4.1")
 
         # Create some test messages and serialize them
         test_messages = [
@@ -1277,11 +1299,9 @@ class TestPydanticAI:
 
     def test_extract_stored_pydantic_messages_none_when_missing(self):
         """Test that extraction returns None when no stored history."""
-        from pydantic_ai import Agent
         from pydantic_ai.messages import ModelMessagesTypeAdapter
 
-        agent = Agent("openai:gpt-4.1")
-        model = pydantic_ai(agent)
+        model = pydantic_ai("openai:gpt-4.1")
 
         # Parts without _pydantic_history
         parts = [
@@ -1297,7 +1317,6 @@ class TestPydanticAI:
 
     def test_convert_messages_uses_stored_history(self):
         """Test that message conversion uses stored pydantic history when available."""
-        from pydantic_ai import Agent
         from pydantic_ai.messages import (
             ModelMessagesTypeAdapter,
             ModelRequest,
@@ -1308,8 +1327,7 @@ class TestPydanticAI:
             UserPromptPart,
         )
 
-        agent = Agent("openai:gpt-4.1")
-        model = pydantic_ai(agent)
+        model = pydantic_ai("openai:gpt-4.1")
 
         # Create properly paired tool messages
         stored_messages = [

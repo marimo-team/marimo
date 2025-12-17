@@ -706,49 +706,43 @@ class bedrock(ChatModel):
 
 class pydantic_ai(ChatModel):
     """
-    ChatModel wrapper for Pydantic AI Agents with streaming and tool support.
+    ChatModel using Pydantic AI with streaming and tool support.
 
-    This class wraps a Pydantic AI Agent to work with marimo's chat UI.
-    The Agent handles all the complexity of model configuration, tool
-    registration, and thinking/reasoning - you just pass it in.
+    This class provides a simple interface to use Pydantic AI with marimo's
+    chat UI. You can either pass a model string (like other mo.ai.llm classes)
+    or a pre-configured Agent for full control.
 
     Args:
-        agent: A configured pydantic_ai.Agent instance. The Agent should
-            already have its model, tools, and settings configured.
-            See https://ai.pydantic.dev/agents/ for Agent configuration.
+        model: Either a model string (e.g., "openai:gpt-4.1"), a Pydantic AI
+            Model object, or a pre-configured pydantic_ai.Agent instance.
+            When passing an Agent, other parameters are ignored.
+        tools: List of tool functions for the model to use (ignored if Agent).
+        instructions: System instructions for the model (ignored if Agent).
+        model_settings: Model-specific settings (e.g., AnthropicModelSettings
+            for thinking). Can be used with both model strings and Agents.
+        **kwargs: Additional arguments passed to pydantic_ai.Agent constructor.
+            See https://ai.pydantic.dev/agents/ for all options.
 
-    Example with tools:
+    Example - Simple usage (like other mo.ai.llm classes):
         ```python
-        from pydantic_ai import Agent
-
-
-        def get_weather(location: str) -> dict:
-            '''Get weather for a location.'''
-            return {"temperature": 72, "conditions": "sunny"}
-
-
-        agent = Agent(
-            "openai:gpt-4.1",
-            tools=[get_weather],
-            instructions="You are a helpful assistant.",
+        chat = mo.ui.chat(
+            mo.ai.llm.pydantic_ai(
+                "openai:gpt-4.1",
+                tools=[get_weather, calculate],
+                instructions="You are a helpful assistant.",
+            )
         )
-
-        chat = mo.ui.chat(mo.ai.llm.pydantic_ai(agent))
         ```
 
-    Example with thinking enabled (Anthropic):
+    Example - With thinking enabled:
         ```python
-        from pydantic_ai import Agent
         from pydantic_ai.models.anthropic import AnthropicModelSettings
-
-        agent = Agent(
-            "anthropic:claude-sonnet-4-5",
-            instructions="Think step by step.",
-        )
 
         chat = mo.ui.chat(
             mo.ai.llm.pydantic_ai(
-                agent,
+                "anthropic:claude-sonnet-4-5",
+                tools=[get_weather],
+                instructions="Think step by step.",
                 model_settings=AnthropicModelSettings(
                     max_tokens=8000,
                     anthropic_thinking={
@@ -760,14 +754,28 @@ class pydantic_ai(ChatModel):
         )
         ```
 
-    Example with W&B Inference:
+    Example - Using a pre-configured Agent (full control):
         ```python
         from pydantic_ai import Agent
+
+        # Create and fully configure your own Agent
+        agent = Agent(
+            "anthropic:claude-sonnet-4-5",
+            tools=[get_weather],
+            deps_type=MyDeps,
+            output_type=MyOutput,
+            # ... any other Agent options
+        )
+
+        chat = mo.ui.chat(mo.ai.llm.pydantic_ai(agent))
+        ```
+
+    Example - W&B Inference with custom model:
+        ```python
         from pydantic_ai.models.openai import OpenAIChatModel
         from pydantic_ai.providers.openai import OpenAIProvider
         from pydantic_ai.profiles.openai import OpenAIModelProfile
 
-        # Configure model with custom provider and profile
         model = OpenAIChatModel(
             model_name="deepseek-ai/DeepSeek-R1-0528",
             provider=OpenAIProvider(
@@ -779,19 +787,48 @@ class pydantic_ai(ChatModel):
             ),
         )
 
-        agent = Agent(model, instructions="Think step by step.")
-        chat = mo.ui.chat(mo.ai.llm.pydantic_ai(agent))
+        chat = mo.ui.chat(
+            mo.ai.llm.pydantic_ai(model, instructions="Think step by step.")
+        )
         ```
     """
 
     def __init__(
         self,
-        agent: Any,
+        model: Any,
         *,
+        tools: Optional[list[Callable[..., Any]]] = None,
+        instructions: Optional[str] = None,
         model_settings: Optional[Any] = None,
+        **kwargs: Any,
     ):
-        self.agent = agent
-        self.model_settings = model_settings
+        self._model_settings = model_settings
+        self._agent: Any = None  # Lazy initialization
+        self._model = model
+        self._tools = tools
+        self._instructions = instructions
+        self._kwargs = kwargs
+
+    def _get_agent(self) -> Any:
+        """Get or create the Agent (lazy initialization)."""
+        if self._agent is not None:
+            return self._agent
+
+        from pydantic_ai import Agent
+
+        # Check if model is already an Agent (duck-type check)
+        if hasattr(self._model, "run_stream_events"):
+            self._agent = self._model
+        else:
+            # Create Agent with provided parameters
+            self._agent = Agent(
+                self._model,
+                tools=self._tools or [],
+                instructions=self._instructions,
+                model_settings=self._model_settings,
+                **self._kwargs,
+            )
+        return self._agent
 
     def __call__(
         self, messages: list[ChatMessage], config: ChatModelConfig
@@ -815,8 +852,13 @@ class pydantic_ai(ChatModel):
         )
         from pydantic_ai.settings import ModelSettings
 
+        # Get or create the agent
+        agent = self._get_agent()
+
         # Use provided model_settings, or build default from config
-        model_settings = self.model_settings
+        # Note: if Agent was passed directly, model_settings may have been
+        # configured on the Agent itself, so we only use config as fallback
+        model_settings = self._model_settings
         if model_settings is None:
             model_settings = ModelSettings(
                 max_tokens=config.max_tokens,
@@ -853,7 +895,7 @@ class pydantic_ai(ChatModel):
         # Use run_stream_events() to get all events in real-time
         # This includes thinking parts, text parts, tool calls, etc.
         # See: https://ai.pydantic.dev/agents/#streaming-events-and-final-output
-        async for event in self.agent.run_stream_events(
+        async for event in agent.run_stream_events(
             user_prompt,
             message_history=message_history if message_history else None,
             model_settings=model_settings,

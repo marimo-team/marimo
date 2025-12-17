@@ -96,39 +96,39 @@ def _(mo):
 
 @app.cell
 def _(key, model_dropdown):
-    # Create a Pydantic AI Agent with W&B Inference
-    from pydantic_ai import Agent
+    # For W&B Inference (and other OpenAI-compatible endpoints), we need to
+    # configure a custom model with the provider and profile settings.
+    # This is necessary because W&B uses a custom base_url and returns
+    # reasoning in the "reasoning_content" field.
+
     from pydantic_ai.models.openai import OpenAIChatModel
     from pydantic_ai.profiles.openai import OpenAIModelProfile
     from pydantic_ai.providers.openai import OpenAIProvider
 
     # Configure the model with W&B Inference endpoint
-    # The profile tells pydantic-ai where to find thinking/reasoning content
-    model = OpenAIChatModel(
+    wandb_model = OpenAIChatModel(
         model_name=model_dropdown.value,
         provider=OpenAIProvider(
             api_key=key,
             base_url="https://api.inference.wandb.ai/v1",
         ),
+        # Tell pydantic-ai where to find reasoning content
         profile=OpenAIModelProfile(
-            # W&B returns reasoning in this field for supported models
             openai_chat_thinking_field="reasoning_content",
         ),
     )
-
-    # Create the agent with the configured model
-    agent = Agent(
-        model,
-        instructions="You are a helpful assistant. Think step-by-step.",
-    )
-    return Agent, OpenAIChatModel, OpenAIModelProfile, OpenAIProvider, agent, model
+    return OpenAIChatModel, OpenAIModelProfile, OpenAIProvider, wandb_model
 
 
 @app.cell
-def _(agent, mo):
-    # Create the chat UI with the agent
+def _(mo, wandb_model):
+    # Create the chat UI - pass the configured model directly
+    # pydantic_ai will create an Agent internally
     chatbot = mo.ui.chat(
-        mo.ai.llm.pydantic_ai(agent),
+        mo.ai.llm.pydantic_ai(
+            wandb_model,
+            instructions="You are a helpful assistant. Think step-by-step.",
+        ),
         prompts=[
             "What is 15% of 85?",
             "Explain the difference between a list and a tuple in Python.",
@@ -147,12 +147,13 @@ def _(mo):
 
     When using a reasoning model, the model's reasoning process is displayed in a collapsible accordion above the response.
 
-    ### Configuration with Pydantic AI Agent
+    ### Configuration for W&B Inference
 
-    The key is configuring the `OpenAIModelProfile` with the thinking field:
+    W&B Inference requires a custom model configuration because:
+    1. It uses a custom `base_url` (not the standard OpenAI endpoint)
+    2. Reasoning models return thinking in the `reasoning_content` field
 
     ```python
-    from pydantic_ai import Agent
     from pydantic_ai.models.openai import OpenAIChatModel
     from pydantic_ai.providers.openai import OpenAIProvider
     from pydantic_ai.profiles.openai import OpenAIModelProfile
@@ -168,13 +169,24 @@ def _(mo):
         ),
     )
 
-    agent = Agent(model, instructions="Think step-by-step.")
-    chat = mo.ui.chat(mo.ai.llm.pydantic_ai(agent))
+    chat = mo.ui.chat(
+        mo.ai.llm.pydantic_ai(model, instructions="Think step-by-step.")
+    )
     ```
 
-    ### Non-reasoning Models
+    ### Standard Providers (Simpler)
 
-    For models like Llama that don't include structured reasoning, you'll just see the regular response without a thinking section.
+    For standard providers like OpenAI, Anthropic, Google, you can just use a model string:
+
+    ```python
+    chat = mo.ui.chat(
+        mo.ai.llm.pydantic_ai(
+            "openai:gpt-4.1",
+            tools=[my_tool],
+            instructions="You are helpful.",
+        )
+    )
+    ```
     """)
     return
 

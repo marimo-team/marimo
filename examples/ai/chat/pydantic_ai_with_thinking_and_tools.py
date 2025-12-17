@@ -40,35 +40,33 @@ def _(mo):
 @app.cell
 def _():
     import marimo as mo
-    return (mo,)
-
-
-@app.cell
-def _(mo):
     import os
 
-    # Use Anthropic's Claude for best thinking support
-    PROVIDER_MODEL = os.environ.get(
-        "PYDANTIC_AI_MODEL", "anthropic:claude-sonnet-4-5"
-    )
-
-    os_key = os.environ.get("ANTHROPIC_API_KEY")
-    input_key = mo.ui.text(label="API key", kind="password")
-    input_key if not os_key else None
-    return PROVIDER_MODEL, input_key, os_key
+    return mo, os
 
 
 @app.cell
-def _(input_key, mo, os_key):
+def _(mo, os):
+    os_key = os.environ.get("ANTHROPIC_API_KEY")
+    input_key = mo.ui.text(label="Anthropic API key", kind="password")
+    input_key if not os_key else None
+    return input_key, os_key
+
+
+@app.cell
+def _(input_key, mo, os, os_key):
     key = os_key or input_key.value
 
     mo.stop(
         not key,
         mo.md(
-            "Please provide your API key in the input field or set the "
-            "appropriate environment variable (e.g., `ANTHROPIC_API_KEY`)."
+            "Please provide your Anthropic API key in the input field or set "
+            "`ANTHROPIC_API_KEY` environment variable."
         ),
     )
+
+    # Set the API key for pydantic-ai to use
+    os.environ["ANTHROPIC_API_KEY"] = key
     return (key,)
 
 
@@ -111,65 +109,39 @@ def _():
 
 
 @app.cell
-def _(PROVIDER_MODEL, calculate, get_weather, key):
-    # Create a Pydantic AI Agent with tools and thinking enabled
-    from pydantic_ai import Agent
-    from pydantic_ai.models.anthropic import AnthropicModel, AnthropicModelSettings
-    from pydantic_ai.providers.anthropic import AnthropicProvider
+def _(calculate, get_weather, mo):
+    # Import thinking-specific settings
+    from pydantic_ai.models.anthropic import AnthropicModelSettings
 
-    # Create the model with the API key
-    model = AnthropicModel(
-        model_name=PROVIDER_MODEL.split(":", 1)[1]
-        if ":" in PROVIDER_MODEL
-        else PROVIDER_MODEL,
-        provider=AnthropicProvider(api_key=key),
-    )
-
-    # Create the agent with tools
-    agent = Agent(
-        model,
-        tools=[get_weather, calculate],
-        instructions=(
-            "You are a helpful assistant. Think step-by-step when solving "
-            "problems. Use the provided tools when appropriate."
-        ),
-    )
-
-    # Model settings for thinking - Anthropic requires max_tokens > budget_tokens
-    model_settings = AnthropicModelSettings(
-        max_tokens=8000,
-        anthropic_thinking={
-            "type": "enabled",
-            "budget_tokens": 4000,
-        },
-    )
-
-    return (
-        Agent,
-        AnthropicModel,
-        AnthropicModelSettings,
-        AnthropicProvider,
-        agent,
-        model,
-        model_settings,
-    )
-
-
-@app.cell
-def _(agent, mo, model_settings):
-    # Combine thinking AND tools for maximum transparency
-    # The model will show its reasoning, then use tools as needed
-
+    # Create the chat with thinking and tools enabled
+    # This is similar to other mo.ai.llm classes - just pass model string and options
     chatbot = mo.ui.chat(
-        mo.ai.llm.pydantic_ai(agent, model_settings=model_settings),
+        mo.ai.llm.pydantic_ai(
+            "anthropic:claude-sonnet-4-5",
+            tools=[get_weather, calculate],
+            instructions=(
+                "You are a helpful assistant. Think step-by-step when solving "
+                "problems. Use the provided tools when appropriate."
+            ),
+            # Enable thinking with Anthropic-specific settings
+            model_settings=AnthropicModelSettings(
+                max_tokens=8000,
+                anthropic_thinking={
+                    "type": "enabled",
+                    "budget_tokens": 4000,
+                },
+            ),
+        ),
         prompts=[
             "What's the weather in San Francisco and Tokyo? Compare them.",
-            "If the temperature in SF is 72°F, what is it in Celsius? Then calculate 15% tip on a $85 dinner bill.",
-            "I have 3 red balls and 2 blue balls. What's the probability of picking 2 red balls in a row without replacement?",
+            "If the temperature in SF is 72°F, what is it in Celsius? "
+            "Then calculate 15% tip on a $85 dinner bill.",
+            "I have 3 red balls and 2 blue balls. What's the probability of "
+            "picking 2 red balls in a row without replacement?",
         ],
     )
     chatbot
-    return (chatbot,)
+    return AnthropicModelSettings, chatbot
 
 
 @app.cell(hide_code=True)
@@ -177,7 +149,7 @@ def _(mo):
     mo.md("""
     ## How it works
 
-    With the Pydantic AI Agent configured with tools and thinking enabled:
+    With `model_settings` configured for thinking and `tools` provided:
 
     1. **Thinking first** - The model's reasoning appears in a collapsible accordion
     2. **Tool calls** - When the model uses tools, each call appears in its own accordion
@@ -192,34 +164,47 @@ def _(mo):
     3. 🔧 **Tool: get_weather** → Tokyo: 22°C, sunny
     4. 💬 **Response**: "San Francisco is 72°F (22°C) and Tokyo is 22°C. Both are sunny..."
 
-    ### Configuration with Pydantic AI Agent
+    ### Simple Usage
+
+    ```python
+    # Basic - just like other mo.ai.llm classes
+    mo.ai.llm.pydantic_ai(
+        "anthropic:claude-sonnet-4-5",
+        tools=[get_weather, calculate],
+        instructions="You are a helpful assistant.",
+    )
+
+    # With thinking enabled
+    from pydantic_ai.models.anthropic import AnthropicModelSettings
+
+    mo.ai.llm.pydantic_ai(
+        "anthropic:claude-sonnet-4-5",
+        tools=[get_weather],
+        model_settings=AnthropicModelSettings(
+            max_tokens=8000,
+            anthropic_thinking={"type": "enabled", "budget_tokens": 4000},
+        ),
+    )
+    ```
+
+    ### Using a Pre-configured Agent
+
+    For full control, you can pass a pydantic_ai.Agent directly:
 
     ```python
     from pydantic_ai import Agent
-    from pydantic_ai.models.anthropic import AnthropicModel, AnthropicModelSettings
-    from pydantic_ai.providers.anthropic import AnthropicProvider
-
-    model = AnthropicModel(
-        model_name="claude-sonnet-4-5",
-        provider=AnthropicProvider(api_key="your-key"),
-    )
 
     agent = Agent(
-        model,
-        tools=[get_weather, calculate],
-        instructions="Think step-by-step.",
+        "anthropic:claude-sonnet-4-5",
+        tools=[...],
+        deps_type=MyDeps,  # Full Agent configuration
+        output_type=MyOutput,
     )
 
-    # Enable thinking with model settings
-    model_settings = AnthropicModelSettings(
-        max_tokens=8000,
-        anthropic_thinking={"type": "enabled", "budget_tokens": 4000},
-    )
-
-    chat = mo.ui.chat(mo.ai.llm.pydantic_ai(agent, model_settings=model_settings))
+    mo.ai.llm.pydantic_ai(agent)
     ```
 
-    See https://ai.pydantic.dev/ for full Agent configuration options.
+    See https://ai.pydantic.dev/ for all Agent options.
     """)
     return
 
