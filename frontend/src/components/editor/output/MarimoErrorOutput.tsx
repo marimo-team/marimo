@@ -1,6 +1,11 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import { NotebookPenIcon, SquareArrowOutUpRightIcon } from "lucide-react";
+import {
+  NotebookPenIcon,
+  PackageIcon,
+  SquareArrowOutUpRightIcon,
+  TerminalIcon,
+} from "lucide-react";
 import { Fragment, type JSX } from "react";
 import {
   Accordion,
@@ -19,6 +24,7 @@ import { useChromeActions } from "../chrome/state";
 import { AutoFixButton } from "../errors/auto-fix";
 import { CellLinkError } from "../links/cell-link";
 import { processTextForUrls } from "./console/text-rendering";
+import { PACKAGES_INPUT_ID } from "../chrome/panels/constants";
 
 const Tip = (props: {
   title?: string;
@@ -143,6 +149,29 @@ export const MarimoErrorOutput = ({
     const messages: JSX.Element[] = [];
 
     if (syntaxErrors.length > 0 || unknownErrors.length > 0) {
+      // Detect if this is a pip/package manager related syntax error
+      const hasPipHint = syntaxErrors.some((error) =>
+        error.msg.includes("Use the package manager"),
+      );
+      // Detect if this is a shell command syntax error (not pip)
+      const hasShellHint =
+        !hasPipHint &&
+        syntaxErrors.some((error) => error.msg.includes("Use os.subprocess"));
+
+      const openPackageManager = () => {
+        chromeActions.openApplication("packages");
+        requestAnimationFrame(() => {
+          const input = document.getElementById(PACKAGES_INPUT_ID);
+          if (input) {
+            input.focus();
+          }
+        });
+      };
+
+      const openTerminal = () => {
+        chromeActions.setIsTerminalOpen(true);
+      };
+
       messages.push(
         <div key="syntax-unknown">
           {syntaxErrors.map((error, idx) => (
@@ -155,6 +184,28 @@ export const MarimoErrorOutput = ({
               {processTextForUrls(error.msg, `unknown-${idx}`)}
             </pre>
           ))}
+          {hasPipHint && (
+            <Button
+              size="xs"
+              variant="outline"
+              className="my-2"
+              onClick={openPackageManager}
+            >
+              <PackageIcon className="h-3" />
+              <span>Open package manager</span>
+            </Button>
+          )}
+          {hasShellHint && (
+            <Button
+              size="xs"
+              variant="outline"
+              className="my-2"
+              onClick={openTerminal}
+            >
+              <TerminalIcon className="h-3" />
+              <span>Open terminal</span>
+            </Button>
+          )}
           {cellId && (
             <AutoFixButton
               errors={[...syntaxErrors, ...unknownErrors]}
@@ -475,7 +526,7 @@ export const MarimoErrorOutput = ({
         <div key="internal">
           {internalErrors.map((error, idx) => (
             <p key={`internal-${idx}`}>
-              {processTextForUrls(error.msg, `internal-${idx}`)}
+              {error.msg}
             </p>
           ))}
           {cellId && <AutoFixButton errors={internalErrors} cellId={cellId} />}
@@ -532,7 +583,7 @@ export const MarimoErrorOutput = ({
             return (
               <div key={`sql-error-${idx}`} className="space-y-2 mt-2">
                 <p className="text-muted-foreground whitespace-pre-wrap">
-                  {processTextForUrls(error.msg, `sql-${idx}`)}
+                  {error.msg}
                 </p>
               </div>
             );
