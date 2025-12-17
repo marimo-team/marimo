@@ -20,7 +20,7 @@ import type { CellId } from "@/core/cells/ids";
 import type { MarimoError } from "../../../core/kernel/messages";
 import { cn } from "../../../utils/cn";
 import { Alert, AlertTitle } from "../../ui/alert";
-import { PACKAGES_INPUT_ID } from "../chrome/panels/constants";
+import { openPackageManager } from "../chrome/panels/packages-utils";
 import { useChromeActions } from "../chrome/state";
 import { AutoFixButton } from "../errors/auto-fix";
 import { CellLinkError } from "../links/cell-link";
@@ -151,22 +151,12 @@ export const MarimoErrorOutput = ({
     if (syntaxErrors.length > 0 || unknownErrors.length > 0) {
       // Detect if this is a pip/package manager related syntax error
       const hasPipHint = syntaxErrors.some((error) =>
-        error.msg.includes("Use the package manager"),
+        error.msg.includes("!pip"),
       );
       // Detect if this is a shell command syntax error (not pip)
       const hasShellHint =
         !hasPipHint &&
-        syntaxErrors.some((error) => error.msg.includes("Use os.subprocess"));
-
-      const openPackageManager = () => {
-        chromeActions.openApplication("packages");
-        requestAnimationFrame(() => {
-          const input = document.getElementById(PACKAGES_INPUT_ID);
-          if (input) {
-            input.focus();
-          }
-        });
-      };
+        syntaxErrors.some((error) => error.msg.includes("use os.subprocess"));
 
       const openTerminal = () => {
         chromeActions.setIsTerminalOpen(true);
@@ -188,10 +178,10 @@ export const MarimoErrorOutput = ({
             <Button
               size="xs"
               variant="outline"
-              className="my-2"
-              onClick={openPackageManager}
+              className="mt-2 font-normal"
+              onClick={() => openPackageManager(chromeActions)}
             >
-              <PackageIcon className="h-3" />
+              <PackageIcon className="h-3.5 w-3.5 mr-1.5 mb-0.5" />
               <span>Open package manager</span>
             </Button>
           )}
@@ -199,10 +189,10 @@ export const MarimoErrorOutput = ({
             <Button
               size="xs"
               variant="outline"
-              className="my-2"
+              className="mt-2 font-normal"
               onClick={openTerminal}
             >
-              <TerminalIcon className="h-3" />
+              <TerminalIcon className="h-3.5 w-3.5 mr-1.5" />
               <span>Open terminal</span>
             </Button>
           )}
