@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Any, Callable
 
 from marimo import _loggers
 from marimo._ast.cell import CellImpl
-from marimo._runtime.dataflow.coordinator import DirectedGraph
+from marimo._runtime.dataflow.graph import DirectedGraph
 from marimo._runtime.dataflow.runner import Runner
 from marimo._runtime.dataflow.topology import GraphTopology
 from marimo._runtime.dataflow.types import Edge, EdgeWithVar
@@ -246,7 +246,6 @@ def get_import_block_relatives(
 
 
 __all__ = [
-    "DirectedGraph",
     "Edge",
     "EdgeWithVar",
     "DirectedGraph",

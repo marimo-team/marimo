@@ -54,6 +54,7 @@ class DirectedGraph(GraphTopology):
     #
     # If this dict is non-empty, then the marimo program contains multiply
     # defined names (and is therefore in an error state)
+    # TODO: remove this field (might be unused)
     siblings: dict[CellId_t, set[CellId_t]] = field(default_factory=dict)
 
     # This lock must be acquired during methods that mutate the graph; it's
