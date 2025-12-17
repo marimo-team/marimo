@@ -38,6 +38,7 @@ from marimo._server.sessions.resume_strategies import create_resume_strategy
 from marimo._server.sessions.session import Session, SessionImpl
 from marimo._server.sessions.session_repository import SessionRepository
 from marimo._server.sessions.token_manager import TokenManager
+from marimo._server.sessions.types import KernelState
 from marimo._server.tokens import AuthToken, SkewProtectionToken
 from marimo._types.ids import ConsumerId, SessionId
 from marimo._utils.file_watcher import FileWatcherManager
@@ -238,9 +239,7 @@ class SessionManager:
         if not session.app_file_manager.path:
             return False, "Session has no associated file"
 
-        # Handle rename for session cache
-        if session.session_cache_manager:
-            session.session_cache_manager.rename_path(new_path)
+        session.rename_path(new_path)
 
         try:
             if self.watch and self._file_watcher_lifecycle:
@@ -329,8 +328,7 @@ class SessionManager:
         for session_id in list(self._repository.get_all_session_ids()):
             session = self._repository.get_sync(session_id)
             if session:
-                task = session.kernel_manager.kernel_task
-                if task is not None and not task.is_alive():
+                if session.kernel_state() is KernelState.STOPPED:
                     self.close_session(session_id)
 
     def any_clients_connected(self, key: MarimoFileKey) -> bool:

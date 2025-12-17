@@ -244,7 +244,10 @@ async def run_app_until_completion(
     class DefaultSessionConsumer(SessionConsumer):
         def __init__(self) -> None:
             self.did_error = False
-            super().__init__(consumer_id=ConsumerId("default"))
+
+        @property
+        def consumer_id(self) -> ConsumerId:
+            return ConsumerId("default")
 
         def on_start(
             self,
@@ -349,7 +352,7 @@ async def run_app_until_completion(
     # might still exist; the better thing to do would be to flush
     # the worker, then ask it to quit and join on it. If we have an
     # issue with some outputs being missed, that's what we should do.
-    session.message_distributor.flush()
+    session.flush_messages()
     # Hack: yield to give the session view a chance to process the incoming
     # console operations.
     await asyncio.sleep(0.1)

@@ -8,6 +8,7 @@ implementations.
 
 from __future__ import annotations
 
+from enum import Enum
 from typing import TYPE_CHECKING, Any, Optional, Protocol, Union
 
 from marimo._messaging.ops import MessageOperation
@@ -25,11 +26,6 @@ if TYPE_CHECKING:
     from collections.abc import Mapping
 
     from marimo._config.manager import MarimoConfigManager
-    from marimo._server.session.serialize import SessionCacheManager
-    from marimo._utils.distributor import (
-        ConnectionDistributor,
-        QueueDistributor,
-    )
 
 
 class QueueManager(Protocol):
@@ -70,6 +66,11 @@ class KernelManager(Protocol):
         ...
 
     @property
+    def pid(self) -> int | None:
+        """Get the PID of the kernel."""
+        ...
+
+    @property
     def kernel_connection(self) -> TypedConnection[KernelMessage]:
         """Get the kernel connection for reading messages."""
         ...
@@ -80,6 +81,14 @@ class KernelManager(Protocol):
         ...
 
 
+class KernelState(Enum):
+    """Kernel state."""
+
+    NOT_STARTED = "not_started"
+    RUNNING = "running"
+    STOPPED = "stopped"
+
+
 class Session(Protocol):
     """Protocol for session management."""
 
@@ -87,14 +96,6 @@ class Session(Protocol):
     session_view: SessionView
     app_file_manager: AppFileManager
     config_manager: MarimoConfigManager
-
-    # TODO: don't expose these internals
-    session_cache_manager: Optional[SessionCacheManager]
-    message_distributor: Union[
-        ConnectionDistributor[KernelMessage],
-        QueueDistributor[KernelMessage],
-    ]
-    kernel_manager: KernelManager
     ttl_seconds: int
 
     @property
@@ -102,8 +103,24 @@ class Session(Protocol):
         """Get the consumers in the session."""
         ...
 
+    def kernel_state(self) -> KernelState:
+        """Get the state of the kernel."""
+        ...
+
+    def kernel_pid(self) -> int | None:
+        """Get the PID of the kernel."""
+        ...
+
     def try_interrupt(self) -> None:
         """Try to interrupt the kernel."""
+        ...
+
+    def flush_messages(self) -> None:
+        """Flush any pending messages."""
+        ...
+
+    def rename_path(self, new_path: str) -> None:
+        """Rename the path of the session."""
         ...
 
     def put_control_request(
