@@ -949,6 +949,49 @@ except NameError:
         # Python reports line numbers starting from 1
         assert k.errors["0"][0].lineno >= 1
 
+    async def test_syntax_error_hint_pip_install(
+        self, any_kernel: Kernel
+    ) -> None:
+        """Test that !pip commands show package manager hint"""
+        k = any_kernel
+        await k.run(
+            [
+                ExecutionRequest(cell_id="0", code="!pip install pandas"),
+            ]
+        )
+        assert set(k.errors.keys()) == {"0"}
+        assert isinstance(k.errors["0"][0], MarimoSyntaxError)
+        assert "package manager panel" in k.errors["0"][0].msg
+
+    async def test_syntax_error_hint_shell_command(
+        self, any_kernel: Kernel
+    ) -> None:
+        """Test that shell commands (not pip) show os.subprocess hint"""
+        k = any_kernel
+        await k.run(
+            [
+                ExecutionRequest(cell_id="0", code="!ls -la"),
+            ]
+        )
+        assert set(k.errors.keys()) == {"0"}
+        assert isinstance(k.errors["0"][0], MarimoSyntaxError)
+        assert "os.subprocess" in k.errors["0"][0].msg
+
+    async def test_syntax_error_hint_ipython_magic(
+        self, any_kernel: Kernel
+    ) -> None:
+        """Test that IPython magic commands show unsupported hint"""
+        k = any_kernel
+        await k.run(
+            [
+                ExecutionRequest(cell_id="0", code="%timeit x = 1"),
+            ]
+        )
+        assert set(k.errors.keys()) == {"0"}
+        assert isinstance(k.errors["0"][0], MarimoSyntaxError)
+        assert "IPython magic commands" in k.errors["0"][0].msg
+        assert "not supported" in k.errors["0"][0].msg
+
     async def test_child_of_errored_cell_with_error_not_stale(
         self,
         any_kernel: Kernel,

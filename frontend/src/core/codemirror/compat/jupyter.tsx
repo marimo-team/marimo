@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import type { Extension } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
-import { PACKAGES_INPUT_ID } from "@/components/editor/chrome/panels/constants";
+import { focusPackagesInput } from "@/components/editor/chrome/panels/packages-utils";
 import { chromeAtom } from "@/components/editor/chrome/state";
 import { Kbd } from "@/components/ui/kbd";
 import { userConfigAtom } from "@/core/config/config";
@@ -58,15 +58,6 @@ export function jupyterHelpExtension(): Extension {
     await saveUserConfig({ config: newConfig }).then(() =>
       store.set(userConfigAtom, newConfig),
     );
-  };
-
-  const focusPackagesInput = () => {
-    requestAnimationFrame(() => {
-      const input = document.getElementById(PACKAGES_INPUT_ID);
-      if (input) {
-        input.focus();
-      }
-    });
   };
 
   const commands: ReplaceCommand[] = [

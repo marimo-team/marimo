@@ -881,8 +881,24 @@ class Kernel:
                 if isinstance(e, ImportStarError):
                     error = MarimoImportStarError(msg=str(e), lineno=lineno)
                 else:
+
+                    def _get_syntax_hints(broken_line: str) -> str:
+                        if broken_line.startswith("!"):
+                            if "pip" in broken_line:
+                                return "\nTo install packages, use the package manager panel."
+                            return "\nTo run shell commands, use os.subprocess(...)"
+                        elif broken_line.startswith("%"):
+                            return (
+                                "\nIPython magic commands (starting with %) are not supported."
+                                "\nSee: https://links.marimo.app/from-jupyter-magics"
+                            )
+                        return ""
+
+                    hint = ""
+                    if len(syntax_error) > 1:
+                        hint = _get_syntax_hints(syntax_error[1].strip())
                     error = MarimoSyntaxError(
-                        msg="\n".join(syntax_error), lineno=lineno
+                        msg="\n".join(syntax_error) + hint, lineno=lineno
                     )
             else:
                 tmpio = io.StringIO()

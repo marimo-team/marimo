@@ -1,6 +1,11 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import { NotebookPenIcon, SquareArrowOutUpRightIcon } from "lucide-react";
+import {
+  NotebookPenIcon,
+  PackageIcon,
+  SquareArrowOutUpRightIcon,
+  TerminalIcon,
+} from "lucide-react";
 import { Fragment, type JSX } from "react";
 import {
   Accordion,
@@ -15,9 +20,11 @@ import type { CellId } from "@/core/cells/ids";
 import type { MarimoError } from "../../../core/kernel/messages";
 import { cn } from "../../../utils/cn";
 import { Alert, AlertTitle } from "../../ui/alert";
+import { openPackageManager } from "../chrome/panels/packages-utils";
 import { useChromeActions } from "../chrome/state";
 import { AutoFixButton } from "../errors/auto-fix";
 import { CellLinkError } from "../links/cell-link";
+import { processTextForUrls } from "./console/text-rendering";
 
 const Tip = (props: {
   title?: string;
@@ -142,14 +149,53 @@ export const MarimoErrorOutput = ({
     const messages: JSX.Element[] = [];
 
     if (syntaxErrors.length > 0 || unknownErrors.length > 0) {
+      // Detect if this is a pip/package manager related syntax error
+      const hasPipHint = syntaxErrors.some((error) =>
+        error.msg.includes("!pip"),
+      );
+      // Detect if this is a shell command syntax error (not pip)
+      const hasShellHint =
+        !hasPipHint &&
+        syntaxErrors.some((error) => error.msg.includes("use os.subprocess"));
+
+      const openTerminal = () => {
+        chromeActions.setIsTerminalOpen(true);
+      };
+
       messages.push(
         <div key="syntax-unknown">
           {syntaxErrors.map((error, idx) => (
-            <p key={`syntax-${idx}`}>{error.msg}</p>
+            <pre key={`syntax-${idx}`}>
+              {processTextForUrls(error.msg, `syntax-${idx}`)}
+            </pre>
           ))}
           {unknownErrors.map((error, idx) => (
-            <p key={`unknown-${idx}`}>{error.msg}</p>
+            <pre key={`unknown-${idx}`}>
+              {processTextForUrls(error.msg, `unknown-${idx}`)}
+            </pre>
           ))}
+          {hasPipHint && (
+            <Button
+              size="xs"
+              variant="outline"
+              className="mt-2 font-normal"
+              onClick={() => openPackageManager(chromeActions)}
+            >
+              <PackageIcon className="h-3.5 w-3.5 mr-1.5 mb-0.5" />
+              <span>Open package manager</span>
+            </Button>
+          )}
+          {hasShellHint && (
+            <Button
+              size="xs"
+              variant="outline"
+              className="mt-2 font-normal"
+              onClick={openTerminal}
+            >
+              <TerminalIcon className="h-3.5 w-3.5 mr-1.5" />
+              <span>Open terminal</span>
+            </Button>
+          )}
           {cellId && (
             <AutoFixButton
               errors={[...syntaxErrors, ...unknownErrors]}
@@ -439,14 +485,16 @@ export const MarimoErrorOutput = ({
               <li className="my-2" key={`exception-${idx}`}>
                 {error.raising_cell == null ? (
                   <div>
-                    <p className="text-muted-foreground">{error.msg}</p>
+                    <p className="text-muted-foreground">
+                      {processTextForUrls(error.msg, `exception-${idx}`)}
+                    </p>
                     <div className="text-muted-foreground mt-2">
                       See the console area for a traceback.
                     </div>
                   </div>
                 ) : (
                   <div>
-                    {error.msg}
+                    {processTextForUrls(error.msg, `exception-${idx}`)}
                     <CellLinkError cellId={error.raising_cell as CellId} />
                   </div>
                 )}
