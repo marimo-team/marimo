@@ -159,7 +159,7 @@ export const MarimoErrorOutput = ({
         syntaxErrors.some((error) => error.msg.includes("use os.subprocess"));
 
       const openTerminal = () => {
-        chromeActions.setIsTerminalOpen(true);
+        chromeActions.setIsDeveloperPanelOpen(true);
       };
 
       messages.push(
