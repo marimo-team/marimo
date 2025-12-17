@@ -190,9 +190,8 @@ class PydanticProvider(ABC, Generic[ProviderT]):
         # TODO: Text only and format stream are not supported yet
         stream_options = stream_options or StreamOptions()
 
-        adapter_type = self.get_vercel_adapter()
-
-        adapter = adapter_type(
+        vercel_adapter = self.get_vercel_adapter()
+        adapter = vercel_adapter(
             agent=agent, run_input=run_input, accept=stream_options.accept
         )
         event_stream = adapter.run_stream()
