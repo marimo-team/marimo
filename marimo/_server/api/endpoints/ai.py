@@ -167,7 +167,7 @@ async def ai_completion(
         # So, we can stream back the UI messages here. Else, we stream back the text.
         if use_messages:
             return await provider.stream_completion(
-                messages=convert_to_pydantic_messages(body.ui_messages),
+                messages=body.ui_messages,
                 system_prompt=system_prompt,
                 max_tokens=get_max_tokens(config),
                 additional_tools=[],

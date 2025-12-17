@@ -62,7 +62,7 @@ if TYPE_CHECKING:
     from openai.types.chat import (  # type: ignore[import-not-found]
         ChatCompletionChunk,
     )
-    from pydantic_ai import Agent, DeferredToolRequests
+    from pydantic_ai import Agent, DeferredToolRequests, FunctionToolset
     from pydantic_ai.providers import Provider
     from pydantic_ai.providers.anthropic import (
         AnthropicProvider as PydanticAnthropic,
@@ -239,6 +239,20 @@ class PydanticProvider(ABC, Generic[ProviderT]):
 
         return str(result.output)
 
+    def _get_toolsets_and_output_type(
+        self, tools: list[ToolDefinition]
+    ) -> tuple[FunctionToolset, list | type[str]]:
+        from pydantic_ai import DeferredToolRequests
+
+        tool_manager = get_tool_manager()
+        toolset, deferred_tool_requests = form_toolsets(
+            tools, tool_manager.invoke_tool
+        )
+        output_type = (
+            [str, DeferredToolRequests] if deferred_tool_requests else str
+        )
+        return toolset, output_type
+
 
 class GoogleProvider(PydanticProvider["PydanticGoogle"]):
     def create_provider(self, config: AnyProviderConfig) -> PydanticGoogle:
@@ -272,17 +286,10 @@ class GoogleProvider(PydanticProvider["PydanticGoogle"]):
     def create_agent(
         self, max_tokens: int, tools: list[ToolDefinition], system_prompt: str
     ) -> Agent[None, DeferredToolRequests | str]:
-        from pydantic_ai import Agent, DeferredToolRequests
+        from pydantic_ai import Agent
         from pydantic_ai.models.google import GoogleModel, GoogleModelSettings
 
-        tool_manager = get_tool_manager()
-
-        toolset, deferred_tool_requests = form_toolsets(
-            tools, tool_manager.invoke_tool
-        )
-        output_type = (
-            [str, DeferredToolRequests] if deferred_tool_requests else str
-        )
+        toolset, output_type = self._get_toolsets_and_output_type(tools)
 
         return Agent(
             GoogleModel(
@@ -941,21 +948,13 @@ class AnthropicProvider(PydanticProvider["PydanticAnthropic"]):
     def create_agent(
         self, max_tokens: int, tools: list[ToolDefinition], system_prompt: str
     ) -> Agent[None, DeferredToolRequests | str]:
-        from pydantic_ai import Agent, DeferredToolRequests
+        from pydantic_ai import Agent
         from pydantic_ai.models.anthropic import (
             AnthropicModel,
             AnthropicModelSettings,
         )
 
-        tool_manager = get_tool_manager()
-
-        toolset, deferred_tool_requests = form_toolsets(
-            tools, tool_manager.invoke_tool
-        )
-        output_type = (
-            [str, DeferredToolRequests] if deferred_tool_requests else str
-        )
-
+        toolset, output_type = self._get_toolsets_and_output_type(tools)
         is_thinking_model = self.is_extended_thinking_model(self.model)
         thinking_config: BetaThinkingConfigParam = {"type": "disabled"}
         if is_thinking_model:
