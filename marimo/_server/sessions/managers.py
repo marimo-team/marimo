@@ -229,6 +229,15 @@ class KernelManagerImpl(KernelManager):
             )
 
     @property
+    def pid(self) -> int | None:
+        """Get the PID of the kernel."""
+        if self.kernel_task is None:
+            return None
+        if isinstance(self.kernel_task, threading.Thread):
+            return None
+        return self.kernel_task.pid
+
+    @property
     def profile_path(self) -> str | None:
         self._profile_path: str | None
 

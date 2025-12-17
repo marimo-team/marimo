@@ -1,9 +1,8 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-import abc
 from enum import Enum
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING, Callable, Protocol
 
 from marimo._types.ids import ConsumerId
 
@@ -30,7 +29,7 @@ class SessionMode(str, Enum):
     RUN = "run"
 
 
-class SessionConsumer(metaclass=abc.ABCMeta):
+class SessionConsumer(Protocol):
     """
     Consumer for a session
 
@@ -38,10 +37,9 @@ class SessionConsumer(metaclass=abc.ABCMeta):
     connection types. Currently we consume a session via WebSocket
     """
 
-    def __init__(self, consumer_id: ConsumerId) -> None:
-        self.consumer_id = consumer_id
+    @property
+    def consumer_id(self) -> ConsumerId: ...
 
-    @abc.abstractmethod
     def on_start(
         self,
     ) -> Callable[[KernelMessage], None]:
@@ -49,16 +47,10 @@ class SessionConsumer(metaclass=abc.ABCMeta):
         Start the session consumer
         and return a subscription function for the session consumer
         """
-        raise NotImplementedError
+        ...
 
-    @abc.abstractmethod
-    def on_stop(self) -> None:
-        raise NotImplementedError
+    def on_stop(self) -> None: ...
 
-    @abc.abstractmethod
-    def write_operation(self, op: MessageOperation) -> None:
-        raise NotImplementedError
+    def write_operation(self, op: MessageOperation) -> None: ...
 
-    @abc.abstractmethod
-    def connection_state(self) -> ConnectionState:
-        raise NotImplementedError
+    def connection_state(self) -> ConnectionState: ...

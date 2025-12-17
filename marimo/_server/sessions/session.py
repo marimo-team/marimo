@@ -43,23 +43,97 @@ from marimo._server.sessions.managers import (
     QueueManagerImpl,
 )
 from marimo._server.sessions.room import Room
-from marimo._server.sessions.types import KernelManager, QueueManager, Session
+from marimo._server.sessions.types import (
+    KernelManager,
+    KernelState,
+    QueueManager,
+    Session,
+)
 from marimo._server.utils import print_, print_tabbed
 from marimo._types.ids import ConsumerId
 from marimo._utils.distributor import (
     ConnectionDistributor,
+    Distributor,
     QueueDistributor,
 )
 from marimo._utils.repr import format_repr
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
+    from collections.abc import Callable, Mapping
 
 LOGGER = _loggers.marimo_logger()
 
 _DEFAULT_TTL_SECONDS = 120
 
 __all__ = ["Session", "SessionImpl"]
+
+
+class SessionHeartbeatMonitor:
+    """Monitors kernel health and handles cleanup when kernel dies."""
+
+    def __init__(
+        self,
+        kernel_manager: KernelManager,
+        on_kernel_died: Callable[[], None],
+        app_filename: Optional[str],
+    ) -> None:
+        """Initialize the heartbeat monitor.
+
+        Args:
+            kernel_manager: The kernel manager to monitor
+            on_kernel_died: Callback to invoke when kernel dies
+            app_filename: Filename for error messages (optional)
+        """
+        self.kernel_manager = kernel_manager
+        self.on_kernel_died = on_kernel_died
+        self.app_filename = app_filename
+        self.heartbeat_task: Optional[asyncio.Task[Any]] = None
+
+    def start(self) -> None:
+        """Start the heartbeat monitoring."""
+
+        def _check_alive() -> None:
+            if not self.kernel_manager.is_alive():
+                LOGGER.debug("Kernel died, invoking cleanup callback")
+                self.on_kernel_died()
+                print_()
+                filename_str = self.app_filename or "unknown"
+                print_tabbed(
+                    red(
+                        "The Python kernel for file "
+                        f"{filename_str} died unexpectedly."
+                    )
+                )
+                print_()
+
+        async def _heartbeat() -> None:
+            while True:
+                await asyncio.sleep(1)
+                _check_alive()
+
+        try:
+            loop = asyncio.get_event_loop()
+            self.heartbeat_task = loop.create_task(_heartbeat())
+        except RuntimeError:
+            # This can happen if there is no event loop running
+            self.heartbeat_task = None
+
+    def stop(self) -> None:
+        """Stop the heartbeat monitoring."""
+        if self.heartbeat_task:
+            self.heartbeat_task.cancel()
+
+
+def _create_message_distributor(
+    kernel_manager: KernelManager,
+    queue_manager: QueueManager,
+) -> Distributor[KernelMessage]:
+    if kernel_manager.mode == SessionMode.EDIT:
+        return ConnectionDistributor(kernel_manager.kernel_connection)
+    else:
+        q = queue_manager.stream_queue
+        assert q is not None
+        return QueueDistributor(queue=q)
 
 
 class SessionImpl(Session):
@@ -145,20 +219,17 @@ class SessionImpl(Session):
         self.session_cache_manager: SessionCacheManager | None = None
         self.config_manager = config_manager
         self.kernel_manager.start_kernel()
-        # Reads from the kernel connection and distributes the
-        # messages to each subscriber.
-        self.message_distributor: (
-            ConnectionDistributor[KernelMessage]
-            | QueueDistributor[KernelMessage]
+
+        # Create composed objects
+        self.message_distributor = _create_message_distributor(
+            kernel_manager=self.kernel_manager,
+            queue_manager=queue_manager,
         )
-        if self.kernel_manager.mode == SessionMode.EDIT:
-            self.message_distributor = ConnectionDistributor[KernelMessage](
-                self.kernel_manager.kernel_connection
-            )
-        else:
-            q = self._queue_manager.stream_queue
-            assert q is not None
-            self.message_distributor = QueueDistributor[KernelMessage](queue=q)
+        self.heartbeat_monitor = SessionHeartbeatMonitor(
+            kernel_manager=self.kernel_manager,
+            on_kernel_died=self._on_kernel_died,
+            app_filename=self.app_file_manager.filename,
+        )
 
         self.message_distributor.add_consumer(
             lambda msg: self.session_view.add_raw_operation(msg)
@@ -166,8 +237,7 @@ class SessionImpl(Session):
         self.connect_consumer(session_consumer, main=True)
         self.message_distributor.start()
 
-        self.heartbeat_task: Optional[asyncio.Task[Any]] = None
-        self._start_heartbeat()
+        self.heartbeat_monitor.start()
         self._closed = False
 
     @property
@@ -175,42 +245,38 @@ class SessionImpl(Session):
         """Get the consumers in the session."""
         return self.room.consumers
 
-    def _start_heartbeat(self) -> None:
-        def _check_alive() -> None:
-            if not self.kernel_manager.is_alive():
-                LOGGER.debug(
-                    "Closing session %s because kernel died",
-                    self.initialization_id,
-                )
-                self.close()
-                print_()
-                print_tabbed(
-                    red(
-                        "The Python kernel for file "
-                        f"{self.app_file_manager.filename} died unexpectedly."
-                    )
-                )
-                print_()
-                self.close()
+    def flush_messages(self) -> None:
+        """Flush any pending messages."""
+        self.message_distributor.flush()
 
-        # Start a heartbeat task, which checks if the kernel is alive
-        # every second
+    def rename_path(self, new_path: str) -> None:
+        """Rename the path of the session."""
+        if self.session_cache_manager:
+            self.session_cache_manager.rename_path(new_path)
 
-        async def _heartbeat() -> None:
-            while True:
-                await asyncio.sleep(1)
-                _check_alive()
-
-        try:
-            loop = asyncio.get_event_loop()
-            self.heartbeat_task = loop.create_task(_heartbeat())
-        except RuntimeError:
-            # This can happen if there is no event loop running
-            self.heartbeat_task = None
+    def _on_kernel_died(self) -> None:
+        """Callback invoked when the kernel dies unexpectedly."""
+        LOGGER.debug(
+            "Closing session %s because kernel died",
+            self.initialization_id,
+        )
+        self.close()
 
     def try_interrupt(self) -> None:
         """Try to interrupt the kernel."""
         self.kernel_manager.interrupt_kernel()
+
+    def kernel_state(self) -> KernelState:
+        """Get the state of the kernel."""
+        if self.kernel_manager.kernel_task is None:
+            return KernelState.NOT_STARTED
+        if self.kernel_manager.kernel_task.is_alive():
+            return KernelState.RUNNING
+        return KernelState.STOPPED
+
+    def kernel_pid(self) -> int | None:
+        """Get the PID of the kernel."""
+        return self.kernel_manager.pid
 
     def put_control_request(
         self,
@@ -326,8 +392,7 @@ class SessionImpl(Session):
         self.room.close()
         # Close the kernel
         self.message_distributor.stop()
-        if self.heartbeat_task:
-            self.heartbeat_task.cancel()
+        self.heartbeat_monitor.stop()
         if self.session_cache_manager:
             self.session_cache_manager.stop()
         self.kernel_manager.close_kernel()

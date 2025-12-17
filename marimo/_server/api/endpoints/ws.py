@@ -273,8 +273,11 @@ class WebsocketHandler(SessionConsumer):
         # to be sent to the frontend
         self.message_queue: asyncio.Queue[KernelMessage]
         self.ws_future: asyncio.Future[tuple[None, None]] | None = None
+        self._consumer_id = ConsumerId(session_id)
 
-        super().__init__(consumer_id=ConsumerId(session_id))
+    @property
+    def consumer_id(self) -> ConsumerId:
+        return self._consumer_id
 
     def _write_kernel_ready(
         self,
