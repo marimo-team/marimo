@@ -885,17 +885,12 @@ class Kernel:
                     def _get_syntax_hints(broken_line: str) -> str:
                         if broken_line.startswith("!"):
                             if "pip" in broken_line:
-                                return (
-                                    "\nHint: Use the package manager to add a "
-                                    "dependency to the notebook"
-                                )
-                            return "\nHint: Use os.subprocess to run commands"
+                                return "\nTo install packages, use the package manager panel."
+                            return "\nTo run shell commands, use os.subprocess(...)"
                         elif broken_line.startswith("%"):
                             return (
-                                "\nHint: marimo notebooks are pure Python and "
-                                "don't support IPython's magic commands.\n"
-                                "For workarounds, see our documentation: "
-                                "http://links.marimo.app/from-jupyter-magics"
+                                "\nIPython magic commands (starting with %) are not supported."
+                                "\nSee: http://links.marimo.app/from-jupyter-magics"
                             )
                         return ""
 

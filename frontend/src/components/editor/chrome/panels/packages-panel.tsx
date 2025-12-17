@@ -35,9 +35,8 @@ import { ErrorBanner } from "@/plugins/impl/common/error-banner";
 import { cn } from "@/utils/cn";
 import { copyToClipboard } from "@/utils/copy";
 import { Events } from "@/utils/events";
-import { PACKAGES_INPUT_ID } from "./constants";
 import { PanelEmptyState } from "./empty-state";
-import { packagesToInstallAtom } from "./packages-state";
+import { PACKAGES_INPUT_ID, packagesToInstallAtom } from "./packages-utils";
 
 type ViewMode = "tree" | "list";
 
