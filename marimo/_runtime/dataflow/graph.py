@@ -47,15 +47,6 @@ class DirectedGraph(GraphTopology):
     )
     cycle_tracker: CycleTracker = field(default_factory=CycleTracker)
 
-    # Cells that define the same name
-    #
-    # siblings[cell_id] is a set of cell ids, one for each cell that shares a
-    # definition with cell_id.
-    #
-    # If this dict is non-empty, then the marimo program contains multiply
-    # defined names (and is therefore in an error state)
-    siblings: dict[CellId_t, set[CellId_t]] = field(default_factory=dict)
-
     # This lock must be acquired during methods that mutate the graph; it's
     # only needed because a graph is shared between the kernel and the code
     # completion service. It should almost always be uncontended.
