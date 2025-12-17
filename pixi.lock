@@ -1104,7 +1104,7 @@ packages:
 - pypi: ./
   name: marimo
   version: 0.18.4
-  sha256: 2b908b7d2f0120eb2fee842982fb2e1677452df95b5035cf64b1dd90456dc615
+  sha256: 13804872ca0a78be9ec58474b17f110701787ebbef57db51dcb57280c4a60125
   requires_dist:
   - click>=8.0,<9
   - jedi>=0.18.0
@@ -1142,7 +1142,7 @@ packages:
   - sqlglot[rs]>=26.2.0 ; extra == 'dev'
   - ruff>=0.13.2 ; extra == 'dev'
   - openai>=1.55.3 ; extra == 'dev'
-  - pydantic-ai-slim>=1.31.0 ; extra == 'dev'
+  - pydantic-ai-slim[google,anthropic]>=1.34.0 ; extra == 'dev'
   - python-lsp-server>=1.13.0 ; extra == 'lsp'
   - python-lsp-ruff>=2.0.0 ; extra == 'lsp'
   - mcp>=1.0.0 ; python_full_version >= '3.10' and extra == 'mcp'

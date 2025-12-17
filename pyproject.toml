@@ -112,7 +112,7 @@ dev = [
     "ruff>=0.13.2",
     # For AI
     "openai>=1.55.3",
-    "pydantic-ai-slim>=1.31.0"
+    "pydantic-ai-slim[google,anthropic]>=1.34.0"
 ]
 
 lsp = [
@@ -162,7 +162,7 @@ dependencies = [
     "matplotlib>=3.8.0",
     "sqlglot[rs]>=26.2.0",
     "sqlalchemy>=2.0.40",
-    "pydantic-ai-slim[google,anthropic]>=1.31.0",
+    "pydantic-ai-slim[google,anthropic]>=1.34.0",
     "openai>=1.55.3",
     "loro>=1.5.0",
     "pandas-stubs>=1.5.3.230321",
@@ -268,7 +268,7 @@ extra-dependencies = [
     "ipython~=8.12.3",
     # testing gen ai
     "openai>=1.55.3",
-    "pydantic-ai-slim[google,anthropic]>=1.31.0",
+    "pydantic-ai-slim[google,anthropic]>=1.34.0",
     "boto3>=1.38.46",
     "litellm>=1.70.0",
     # exporting as ipynb
