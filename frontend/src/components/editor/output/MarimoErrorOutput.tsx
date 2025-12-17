@@ -20,11 +20,11 @@ import type { CellId } from "@/core/cells/ids";
 import type { MarimoError } from "../../../core/kernel/messages";
 import { cn } from "../../../utils/cn";
 import { Alert, AlertTitle } from "../../ui/alert";
+import { PACKAGES_INPUT_ID } from "../chrome/panels/constants";
 import { useChromeActions } from "../chrome/state";
 import { AutoFixButton } from "../errors/auto-fix";
 import { CellLinkError } from "../links/cell-link";
 import { processTextForUrls } from "./console/text-rendering";
-import { PACKAGES_INPUT_ID } from "../chrome/panels/constants";
 
 const Tip = (props: {
   title?: string;
@@ -525,9 +525,7 @@ export const MarimoErrorOutput = ({
       messages.push(
         <div key="internal">
           {internalErrors.map((error, idx) => (
-            <p key={`internal-${idx}`}>
-              {error.msg}
-            </p>
+            <p key={`internal-${idx}`}>{error.msg}</p>
           ))}
           {cellId && <AutoFixButton errors={internalErrors} cellId={cellId} />}
         </div>,
