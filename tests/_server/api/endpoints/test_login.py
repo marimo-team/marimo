@@ -41,7 +41,7 @@ def create_app(base_url: str = "") -> Starlette:
         ],
     )
     app.state.session_manager = get_mock_session_manager()
-    app.state.session_manager.auth_token = AUTH_TOKEN
+    app.state.session_manager._token_manager.auth_token = AUTH_TOKEN
     app.state.base_url = base_url
     return app
 

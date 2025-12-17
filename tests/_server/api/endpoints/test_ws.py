@@ -211,11 +211,12 @@ def test_fails_on_multiple_connections_with_same_file(
 @pytest.mark.flaky(reruns=3)
 async def test_file_watcher_calls_reload(client: TestClient) -> None:
     session_manager: SessionManager = get_session_manager(client)
+    session_manager.mode = SessionMode.RUN
     session_manager.watch = True
+    session_manager._setup_file_watching()
     with client.websocket_connect(WS_URL) as websocket:
         data = websocket.receive_json()
         assert_kernel_ready_response(data)
-        session_manager.mode = SessionMode.RUN
         filename = session_manager.file_router.get_unique_file_key()
         assert filename
         with open(filename, "a") as f:  # noqa: ASYNC230

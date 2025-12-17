@@ -79,16 +79,16 @@ class ToolContext:
         return app
 
     def get_session(self, session_id: SessionId) -> Session:
-        session_manager = self.session_manager
-        if session_id not in session_manager.sessions:
+        session = self.session_manager.get_session(session_id)
+        if session is None:
             raise ToolExecutionError(
                 f"Session {session_id} not found",
                 code="SESSION_NOT_FOUND",
                 is_retryable=False,
-                suggested_fix="Use get_active_notebooks to find valid session IDs",
+                suggested_fix="Use get_active_sessions to find valid session IDs",
                 meta={"session_id": session_id},
             )
-        return session_manager.sessions[session_id]
+        return session
 
     def get_cell_ops(self, session_id: SessionId, cell_id: CellId_t) -> CellOp:
         session_view = self.get_session(session_id).session_view
