@@ -894,7 +894,9 @@ class Kernel:
                             )
                         return ""
 
-                    hint = _get_syntax_hints(syntax_error[1].strip())
+                    hint = ""
+                    if len(syntax_error) > 1:
+                        hint = _get_syntax_hints(syntax_error[1].strip())
                     error = MarimoSyntaxError(
                         msg="\n".join(syntax_error) + hint, lineno=lineno
                     )
