@@ -7,14 +7,13 @@ kernel processes/threads and their associated communication queues.
 
 from __future__ import annotations
 
-import multiprocessing as mp
 import os
 import queue
 import signal
 import sys
 import threading
 import time
-from multiprocessing import connection
+from multiprocessing import Process, connection, get_context
 from multiprocessing.queues import Queue as MPQueue
 from typing import Any, Optional, Union
 from uuid import uuid4
@@ -41,12 +40,12 @@ class QueueManagerImpl(QueueManager):
     """Manages queues for a session."""
 
     def __init__(self, *, use_multiprocessing: bool):
-        context = mp.get_context("spawn") if use_multiprocessing else None
+        context = get_context("spawn") if use_multiprocessing else None
 
         # Control messages for the kernel (run, set UI element, set config, etc
         # ) are sent through the control queue
         self.control_queue: Union[
-            mp.Queue[requests.ControlRequest],
+            MPQueue[requests.ControlRequest],
             queue.Queue[requests.ControlRequest],
         ] = context.Queue() if context is not None else queue.Queue()
 
@@ -54,18 +53,18 @@ class QueueManagerImpl(QueueManager):
         # this queue, so that the backend can merge/batch set-ui-element
         # requests.
         self.set_ui_element_queue: Union[
-            mp.Queue[requests.SetUIElementValueRequest],
+            MPQueue[requests.SetUIElementValueRequest],
             queue.Queue[requests.SetUIElementValueRequest],
         ] = context.Queue() if context is not None else queue.Queue()
 
         # Code completion requests are sent through a separate queue
         self.completion_queue: Union[
-            mp.Queue[requests.CodeCompletionRequest],
+            MPQueue[requests.CodeCompletionRequest],
             queue.Queue[requests.CodeCompletionRequest],
         ] = context.Queue() if context is not None else queue.Queue()
 
         self.win32_interrupt_queue: (
-            Union[mp.Queue[bool], queue.Queue[bool]] | None
+            Union[MPQueue[bool], queue.Queue[bool]] | None
         )
         if sys.platform == "win32":
             self.win32_interrupt_queue = (
@@ -76,7 +75,7 @@ class QueueManagerImpl(QueueManager):
 
         # Input messages for the user's Python code are sent through the
         # input queue
-        self.input_queue: Union[mp.Queue[str], queue.Queue[str]] = (
+        self.input_queue: Union[MPQueue[str], queue.Queue[str]] = (
             context.Queue(maxsize=1)
             if context is not None
             else queue.Queue(maxsize=1)
@@ -150,7 +149,7 @@ class KernelManagerImpl(KernelManager):
         if is_edit_mode:
             # Need to use a socket for windows compatibility
             listener = connection.Listener(family="AF_INET")
-            self.kernel_task = mp.Process(
+            self.kernel_task = Process(
                 target=runtime.launch_kernel,
                 args=(
                     self.queue_manager.control_queue,
