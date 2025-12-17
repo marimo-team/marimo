@@ -60,7 +60,7 @@ if __name__ == "__main__":
         redirect_console_to_browser=False,
         ttl_seconds=None,
     )
-    sm.skew_protection_token = SkewProtectionToken("skew-id-1")
+    sm._token_manager.skew_protection_token = SkewProtectionToken("skew-id-1")
     return sm
 
 

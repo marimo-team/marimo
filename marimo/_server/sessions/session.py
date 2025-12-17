@@ -229,15 +229,16 @@ class SessionImpl(Session):
             else:
                 cell_ids = request.run_ids
                 codes = [request.cells[cell_id] for cell_id in cell_ids]
-            self.room.broadcast(
-                UpdateCellCodes(
-                    cell_ids=cell_ids,
-                    codes=codes,
-                    # Not stale because we just ran the code
-                    code_is_stale=False,
-                ),
-                except_consumer=from_consumer_id,
-            )
+            if cell_ids:
+                self.room.broadcast(
+                    UpdateCellCodes(
+                        cell_ids=cell_ids,
+                        codes=codes,
+                        # Not stale because we just ran the code
+                        code_is_stale=False,
+                    ),
+                    except_consumer=from_consumer_id,
+                )
             if len(cell_ids) == 1:
                 self.room.broadcast(
                     FocusCell(cell_id=cell_ids[0]),

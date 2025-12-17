@@ -177,7 +177,8 @@ def no_auth_edit_app() -> Starlette:
     app = create_starlette_app(base_url="", enable_auth=False)
     app.state.session_manager = get_mock_session_manager()
     app.state.session_manager.mode = SessionMode.EDIT
-    app.state.session_manager.auth_token = AuthToken("")  # no auth
+    # no auth
+    app.state.session_manager._token_manager.auth_token = AuthToken("")
     app.state.config_manager = MarimoConfigManager(UserConfigManager())
     # Mock out the server
     uvicorn_server = uvicorn.Server(uvicorn.Config(app))
@@ -194,7 +195,8 @@ def no_auth_read_app() -> Starlette:
     app = create_starlette_app(base_url="", enable_auth=False)
     app.state.session_manager = get_mock_session_manager()
     app.state.session_manager.mode = SessionMode.RUN
-    app.state.session_manager.auth_token = AuthToken("")  # no auth
+    # no auth
+    app.state.session_manager._token_manager.auth_token = AuthToken("")
     app.state.config_manager = MarimoConfigManager(UserConfigManager())
     # Mock out the server
     uvicorn_server = uvicorn.Server(uvicorn.Config(app))
