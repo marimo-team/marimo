@@ -331,7 +331,7 @@ async def test_connects_to_existing_session_with_same_file(
                 # Check in the same room
                 session_manager = get_session_manager(client)
                 assert len(session_manager.sessions) == 1
-                assert session_manager.sessions["123"].room.size == 2
+                assert len(session_manager.sessions["123"].consumers) == 2
 
                 data2 = websocket2.receive_json()
                 assert_parse_ready_response(data2)

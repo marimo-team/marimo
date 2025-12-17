@@ -44,7 +44,6 @@ def session_manager():
     return SessionManager(
         file_router=AppFileRouter.new_file(),
         mode=SessionMode.EDIT,
-        development_mode=False,
         quiet=False,
         include_code=True,
         lsp_server=MagicMock(spec=LspServer),
@@ -263,7 +262,6 @@ def test_session_manager_auth_token_edit_mode_with_provided_token():
     session_manager = SessionManager(
         file_router=AppFileRouter.new_file(),
         mode=SessionMode.EDIT,
-        development_mode=False,
         quiet=False,
         include_code=True,
         lsp_server=MagicMock(spec=LspServer),
@@ -285,7 +283,6 @@ def test_session_manager_auth_token_edit_mode_without_provided_token():
     session_manager = SessionManager(
         file_router=AppFileRouter.new_file(),
         mode=SessionMode.EDIT,
-        development_mode=False,
         quiet=False,
         include_code=True,
         lsp_server=MagicMock(spec=LspServer),
@@ -311,7 +308,6 @@ def test_session_manager_auth_token_run_mode_with_provided_token():
     session_manager = SessionManager(
         file_router=AppFileRouter.new_file(),
         mode=SessionMode.RUN,
-        development_mode=False,
         quiet=False,
         include_code=True,
         lsp_server=MagicMock(spec=LspServer),
@@ -354,7 +350,6 @@ def test_session_manager_auth_token_run_mode_without_provided_token(
     session_manager = SessionManager(
         file_router=AppFileRouter.infer(str(file_path)),
         mode=SessionMode.RUN,
-        development_mode=False,
         quiet=False,
         include_code=True,
         lsp_server=MagicMock(spec=LspServer),
@@ -375,7 +370,6 @@ def test_session_manager_auth_token_run_mode_without_provided_token(
     session_manager2 = SessionManager(
         file_router=AppFileRouter.infer(str(file_path)),
         mode=SessionMode.RUN,
-        development_mode=False,
         quiet=False,
         include_code=True,
         lsp_server=MagicMock(spec=LspServer),

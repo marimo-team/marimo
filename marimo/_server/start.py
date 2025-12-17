@@ -226,7 +226,6 @@ def start(
     session_manager = SessionManager(
         file_router=file_router,
         mode=mode,
-        development_mode=development_mode,
         quiet=quiet,
         include_code=include_code,
         ttl_seconds=ttl_seconds,

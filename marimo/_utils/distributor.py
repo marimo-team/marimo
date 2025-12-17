@@ -4,14 +4,12 @@ from __future__ import annotations
 import asyncio
 import threading
 import time
-from typing import TYPE_CHECKING, Callable, Generic, TypeVar, Union
+from typing import Callable, Generic, TypeVar, Union
 
 from marimo import _loggers
+from marimo._server.types import QueueType
 from marimo._utils.disposable import Disposable
 from marimo._utils.typed_connection import TypedConnection
-
-if TYPE_CHECKING:
-    import queue
 
 LOGGER = _loggers.marimo_logger()
 
@@ -95,7 +93,7 @@ class ConnectionDistributor(Generic[T]):
 
 
 class QueueDistributor(Generic[T]):
-    def __init__(self, queue: queue.Queue[Union[T, None]]) -> None:
+    def __init__(self, queue: QueueType[Union[T, None]]) -> None:
         self.consumers: list[Consumer[T]] = []
         # distributor uses None as a signal to stop
         self.queue = queue
