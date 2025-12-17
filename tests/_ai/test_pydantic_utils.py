@@ -312,6 +312,154 @@ class TestConvertToPydanticMessages:
         assert result[1].id == "msg_2"
         assert result[2].id.startswith("message_")
 
+    def test_convert_with_part_processor(self):
+        """Test that part_processor is called on each part."""
+        from pydantic_ai.ui.vercel_ai.request_types import (
+            TextUIPart,
+            UIMessage,
+        )
+
+        call_count = 0
+
+        def processor(part):
+            nonlocal call_count
+            call_count += 1
+            # Modify the text
+            if isinstance(part, TextUIPart):
+                return TextUIPart(
+                    type="text",
+                    text=f"processed: {part.text}",
+                    state=part.state,
+                    provider_metadata=part.provider_metadata,
+                )
+            return part
+
+        messages = [
+            {
+                "id": "msg_1",
+                "role": "user",
+                "parts": [
+                    {"type": "text", "text": "Hello"},
+                    {"type": "text", "text": "World"},
+                ],
+            }
+        ]
+        result = convert_to_pydantic_messages(
+            messages, part_processor=processor
+        )
+
+        assert call_count == 2
+        assert result == [
+            UIMessage(
+                id="msg_1",
+                role="user",
+                metadata=None,
+                parts=[
+                    TextUIPart(
+                        type="text",
+                        text="processed: Hello",
+                        state=None,
+                        provider_metadata=None,
+                    ),
+                    TextUIPart(
+                        type="text",
+                        text="processed: World",
+                        state=None,
+                        provider_metadata=None,
+                    ),
+                ],
+            )
+        ]
+
+    def test_convert_with_part_processor_error_returns_original(self):
+        """Test that part_processor errors are caught and original part is returned."""
+        from pydantic_ai.ui.vercel_ai.request_types import (
+            TextUIPart,
+            UIMessage,
+        )
+
+        def failing_processor(_part):
+            raise ValueError("Processing failed!")
+
+        messages = [
+            {
+                "id": "msg_1",
+                "role": "user",
+                "parts": [{"type": "text", "text": "Hello"}],
+            }
+        ]
+        result = convert_to_pydantic_messages(
+            messages, part_processor=failing_processor
+        )
+
+        # Should return original part when processor fails
+        assert result == [
+            UIMessage(
+                id="msg_1",
+                role="user",
+                metadata=None,
+                parts=[
+                    TextUIPart(
+                        type="text",
+                        text="Hello",
+                        state=None,
+                        provider_metadata=None,
+                    )
+                ],
+            )
+        ]
+
+    def test_convert_with_part_processor_empty_parts(self):
+        """Test that part_processor is not called when parts is empty."""
+        call_count = 0
+
+        def processor(_part):
+            nonlocal call_count
+            call_count += 1
+            return _part
+
+        messages = [
+            {
+                "id": "msg_1",
+                "role": "user",
+                "parts": [],
+            }
+        ]
+        result = convert_to_pydantic_messages(
+            messages, part_processor=processor
+        )
+
+        assert call_count == 0
+        assert len(result) == 1
+        assert result[0].parts == []
+
+    def test_convert_with_part_processor_multiple_messages(self):
+        """Test that part_processor is applied to all messages."""
+        from pydantic_ai.ui.vercel_ai.request_types import TextUIPart
+
+        processed_parts = []
+
+        def processor(part):
+            if isinstance(part, TextUIPart):
+                processed_parts.append(part.text)
+            return part
+
+        messages = [
+            {
+                "id": "msg_1",
+                "role": "user",
+                "parts": [{"type": "text", "text": "First"}],
+            },
+            {
+                "id": "msg_2",
+                "role": "assistant",
+                "parts": [{"type": "text", "text": "Second"}],
+            },
+        ]
+        convert_to_pydantic_messages(messages, part_processor=processor)
+
+        assert processed_parts == ["First", "Second"]
+
 
 class TestCreateSimplePrompt:
     def test_create_simple_prompt(self):
