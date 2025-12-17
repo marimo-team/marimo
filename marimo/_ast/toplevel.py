@@ -17,7 +17,8 @@ from marimo._ast.names import (
 )
 from marimo._ast.variables import BUILTINS
 from marimo._ast.visitor import Name, VariableData
-from marimo._runtime.dataflow import DirectedGraph, topological_sort
+from marimo._runtime.dataflow import topological_sort
+from marimo._runtime.dataflow.topology import GraphTopology
 from marimo._types.ids import CellId_t
 
 if TYPE_CHECKING:
@@ -379,7 +380,7 @@ class TopLevelExtraction:
     @classmethod
     def from_graph(
         cls,
-        graph: DirectedGraph,
+        graph: GraphTopology,
         cell: CellImpl | None = None,
     ) -> TopLevelExtraction:
         if cell:

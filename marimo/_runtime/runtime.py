@@ -1743,7 +1743,7 @@ class Kernel:
             dataflow.transitive_closure(
                 self.graph,
                 cells_to_run,
-                relatives=dataflow.import_block_relatives,
+                relatives=dataflow.get_import_block_relatives(self.graph),
             )
         )
         if self.module_watcher is not None:

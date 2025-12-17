@@ -1204,7 +1204,7 @@ def test_import_block_relatives() -> None:
     graph.register_cell("3", fourth_cell)
 
     # Test the function
-    children = dataflow.import_block_relatives(graph, "0", True)
+    children = dataflow.get_import_block_relatives(graph)("0", True)
 
     # Should include cells that use pd and np
     assert "1" in children
@@ -1212,7 +1212,7 @@ def test_import_block_relatives() -> None:
     assert "3" not in children
 
     # Test with a non-import block
-    children = dataflow.import_block_relatives(graph, "3", True)
+    children = dataflow.get_import_block_relatives(graph)("3", True)
 
     # Should just return normal children
     assert children == graph.children["3"]

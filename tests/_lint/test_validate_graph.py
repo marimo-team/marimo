@@ -75,12 +75,16 @@ def test_two_node_cycle() -> None:
     graph.register_cell("1", parse_cell("y = x"))
     errors = check_for_errors(graph)
     assert set(errors.keys()) == set(["0", "1"])
-    assert errors["0"] == (
+    # Edge ordering in returned error is not deterministic, so we list both
+    # possible cycles
+    expected_cycle = [
         CycleError(edges_with_vars=(("0", ("x",), "1"), ("1", ("y",), "0"))),
-    )
-    assert errors["1"] == (
-        CycleError(edges_with_vars=(("0", ("x",), "1"), ("1", ("y",), "0"))),
-    )
+        CycleError(edges_with_vars=(("1", ("y",), "0"), ("0", ("x",), "1"))),
+    ]
+    assert len(errors["0"]) == 1
+    assert len(errors["1"]) == 1
+    assert errors["0"][0] in expected_cycle
+    assert errors["1"][0] in expected_cycle
 
 
 def test_three_node_cycle() -> None:
