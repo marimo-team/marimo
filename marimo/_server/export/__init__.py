@@ -237,7 +237,7 @@ async def run_app_until_completion(
     cli_args: SerializedCLIArgs,
     argv: list[str] | None,
 ) -> tuple[SessionView, bool]:
-    from marimo._server.sessions import Session
+    from marimo._server.sessions.session import SessionImpl
 
     instantiated_event = asyncio.Event()
 
@@ -317,7 +317,7 @@ async def run_app_until_completion(
 
     # Create a session
     session_consumer = DefaultSessionConsumer()
-    session = Session.create(
+    session = SessionImpl.create(
         # Any initialization ID will do
         initialization_id="_any_",
         session_consumer=session_consumer,

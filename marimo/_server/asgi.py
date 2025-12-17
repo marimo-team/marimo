@@ -456,7 +456,6 @@ def create_asgi_app(
             session_manager = SessionManager(
                 file_router=AppFileRouter.from_filename(MarimoPath(file_path)),
                 mode=SessionMode.RUN,
-                development_mode=False,
                 quiet=quiet,
                 include_code=include_code,
                 # Currently we only support run mode,

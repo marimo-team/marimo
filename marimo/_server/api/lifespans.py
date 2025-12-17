@@ -156,12 +156,13 @@ async def open_browser(app: Starlette) -> AsyncIterator[None]:
 async def logging(app: Starlette) -> AsyncIterator[None]:
     state = AppState.from_app(app)
     manager: SessionManager = state.session_manager
+    quiet = state.quiet
     file_router = manager.file_router
     mcp_server_enabled = state.mcp_server_enabled
     skew_protection_enabled = state.skew_protection
 
     # Startup message
-    if not manager.quiet:
+    if not quiet:
         file = file_router.maybe_get_single_file()
         print_startup(
             file_name=file.name if file else None,
@@ -183,7 +184,7 @@ async def logging(app: Starlette) -> AsyncIterator[None]:
     yield
 
     # Shutdown message
-    if not manager.quiet:
+    if not quiet:
         print_shutdown()
 
 
@@ -199,7 +200,7 @@ async def signal_handler(app: Starlette) -> AsyncIterator[None]:
             close_uvicorn(state.server)
 
     InterruptHandler(
-        quiet=manager.quiet,
+        quiet=state.quiet,
         shutdown=shutdown,
     ).register()
     yield
