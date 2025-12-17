@@ -85,7 +85,7 @@ class ToolContext:
                 f"Session {session_id} not found",
                 code="SESSION_NOT_FOUND",
                 is_retryable=False,
-                suggested_fix="Use get_active_sessions to find valid session IDs",
+                suggested_fix="Use get_active_notebooks to find valid session IDs",
                 meta={"session_id": session_id},
             )
         return session
