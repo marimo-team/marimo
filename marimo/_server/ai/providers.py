@@ -241,7 +241,7 @@ class PydanticProvider(ABC, Generic[ProviderT]):
 
     def _get_toolsets_and_output_type(
         self, tools: list[ToolDefinition]
-    ) -> tuple[FunctionToolset, list | type[str]]:
+    ) -> tuple[FunctionToolset, list[Any] | type[str]]:
         from pydantic_ai import DeferredToolRequests
 
         tool_manager = get_tool_manager()
