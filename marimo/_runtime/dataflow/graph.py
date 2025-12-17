@@ -10,9 +10,9 @@ from typing import TYPE_CHECKING, Callable, Literal, Optional
 from marimo import _loggers
 from marimo._ast.compiler import code_key
 from marimo._ast.variables import is_mangled_local
+from marimo._runtime.dataflow import edges
 from marimo._runtime.dataflow.cycles import CycleTracker
 from marimo._runtime.dataflow.definitions import DefinitionRegistry
-from marimo._runtime.dataflow.edges import EdgeComputer
 from marimo._runtime.dataflow.topology import (
     GraphTopology,
     MutableGraphTopology,
@@ -33,7 +33,7 @@ class DirectedGraph(GraphTopology):
     """Main entry point that coordinates all graph operations.
 
     Responsibilities:
-    - Coordinate topology, definitions, cycles, siblings
+    - Coordinate topology, definitions, cycles
     - Execute register_cell/delete_cell operations
     - Maintain thread safety
     - Delegate to specialists
@@ -54,7 +54,6 @@ class DirectedGraph(GraphTopology):
     #
     # If this dict is non-empty, then the marimo program contains multiply
     # defined names (and is therefore in an error state)
-    # TODO: remove this field (might be unused)
     siblings: dict[CellId_t, set[CellId_t]] = field(default_factory=dict)
 
     # This lock must be acquired during methods that mutate the graph; it's
@@ -88,8 +87,7 @@ class DirectedGraph(GraphTopology):
         Only does a local analysis of refs, without taking into consideration
         whether refs are defined by other cells.
         """
-        edge_computer = EdgeComputer(self.topology, self.definition_registry)
-        return edge_computer.get_referring_cells(name, language)
+        return edges.get_referring_cells(name, language, self.topology)
 
     def register_cell(self, cell_id: CellId_t, cell: CellImpl) -> None:
         """Add a cell to the graph.
@@ -106,27 +104,16 @@ class DirectedGraph(GraphTopology):
             # Add the cell to topology
             self.topology.add_node(cell_id, cell)
 
-            # Initialize siblings for this cell
-            self.siblings[cell_id] = set()
-
             # Process definitions and build sibling relationships FIRST
             # This must happen before computing edges because edge computation
             # needs to look up definitions
             for name, variable_data in cell.variable_data.items():
-                siblings = self.definition_registry.register_definition(
+                self.definition_registry.register_definition(
                     cell_id, name, variable_data
                 )
-                # Update siblings bidirectionally
-                for sibling in siblings:
-                    self.siblings[cell_id].add(sibling)
-                    self.siblings[sibling].add(cell_id)
-
-            # Now compute edges using EdgeComputer (which can now find the definitions)
-            edge_computer = EdgeComputer(
-                self.topology, self.definition_registry
-            )
-            parents, children = edge_computer.compute_edges_for_cell(
-                cell_id, cell
+            # Now compute edges (which can now find the definitions)
+            parents, children = edges.compute_edges_for_cell(
+                cell_id, cell, self.topology, self.definition_registry
             )
 
             # Add edges to topology
@@ -234,11 +221,6 @@ class DirectedGraph(GraphTopology):
             ]
             for e in edges:
                 self.cycle_tracker.remove_cycles_with_edge(e)
-
-            # Remove from siblings
-            for sibling_id in self.siblings.get(cell_id, set()):
-                self.siblings[sibling_id].discard(cell_id)
-            self.siblings.pop(cell_id, None)
 
             # Purge this cell from the graph topology
             self.topology.remove_node(cell_id)
