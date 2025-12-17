@@ -13,6 +13,8 @@ import { filenameAtom } from "@/core/saving/file-state";
 import { store } from "@/core/state/jotai";
 import { type FilePath, Paths } from "@/utils/paths";
 
+const MAX_BASE64_SIZE_KB = 100;
+
 function hasSelection(view: EditorView) {
   return !view.state.selection.main.empty;
 }
@@ -341,6 +343,16 @@ export async function insertImage(view: EditorView, file: File) {
 
         if (createFileRes.success) {
           savedFilePath = createFileRes.info?.path;
+
+          // We want the relative path to the public folder
+          if (
+            savedFilePath &&
+            notebookDir &&
+            savedFilePath.startsWith(notebookDir)
+          ) {
+            savedFilePath = Paths.rest(savedFilePath, notebookDir);
+          }
+
           toast({
             title: "Image uploaded successfully",
             description: `We've uploaded your image at ${savedFilePath}`,
@@ -349,6 +361,16 @@ export async function insertImage(view: EditorView, file: File) {
           toast({
             title: "Failed to upload image. Using raw base64 string.",
           });
+        }
+      } else {
+        // Large strings do not make sense to write/save to the document
+        const base64SizeKB = Math.round(dataUrl.length / 1024);
+        if (base64SizeKB > MAX_BASE64_SIZE_KB) {
+          toast({
+            title: "Content too large",
+            description: `The content size is ${base64SizeKB} KB, which is too large to paste directly into the document.`,
+          });
+          return;
         }
       }
     }
@@ -359,7 +381,10 @@ export async function insertImage(view: EditorView, file: File) {
   }
 
   const changes = view.state.changeByRange((range) => {
-    const text = view.state.sliceDoc(range.from, range.to);
+    let text = view.state.sliceDoc(range.from, range.to);
+    if (text.trim() === "") {
+      text = "alt";
+    }
     return {
       changes: [
         {
