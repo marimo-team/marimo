@@ -13,10 +13,7 @@ from starlette.responses import (
 
 from marimo import _loggers
 from marimo._ai._convert import convert_to_ai_sdk_messages
-from marimo._ai._pydantic_ai_utils import (
-    convert_to_pydantic_messages,
-    create_simple_prompt,
-)
+from marimo._ai._pydantic_ai_utils import create_simple_prompt
 from marimo._ai._types import ChatMessage
 from marimo._config.config import AiConfig, MarimoConfig
 from marimo._server.ai.config import (
@@ -170,14 +167,14 @@ async def ai_completion(
         # So, we can stream back the UI messages here. Else, we stream back the text.
         if use_messages:
             return await provider.stream_completion(
-                messages=convert_to_pydantic_messages(body.ui_messages),
+                messages=body.ui_messages,
                 system_prompt=system_prompt,
                 max_tokens=get_max_tokens(config),
                 additional_tools=[],
             )
         response = provider.stream_text(
             user_prompt=prompt,
-            messages=convert_to_pydantic_messages(body.ui_messages),
+            messages=body.ui_messages,
             system_prompt=system_prompt,
             max_tokens=get_max_tokens(config),
             additional_tools=[],
@@ -280,7 +277,7 @@ async def ai_chat(
 
     if isinstance(provider, PydanticProvider):
         return await provider.stream_completion(
-            messages=convert_to_pydantic_messages(body.ui_messages),
+            messages=body.ui_messages,
             system_prompt=system_prompt,
             max_tokens=max_tokens,
             additional_tools=additional_tools,
