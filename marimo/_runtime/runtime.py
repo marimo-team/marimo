@@ -890,7 +890,7 @@ class Kernel:
                         elif broken_line.startswith("%"):
                             return (
                                 "\nIPython magic commands (starting with %) are not supported."
-                                "\nSee: http://links.marimo.app/from-jupyter-magics"
+                                "\nSee: https://links.marimo.app/from-jupyter-magics"
                             )
                         return ""
 
