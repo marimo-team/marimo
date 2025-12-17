@@ -13,13 +13,13 @@ from marimo._utils.typed_connection import TypedConnection
 
 LOGGER = _loggers.marimo_logger()
 
-T = TypeVar("T")
+T = TypeVar("T", covariant=True)
 
 
 Consumer = Callable[[T], None]
 
 
-class Distributor(Protocol, Generic[T]):
+class Distributor(Generic[T], Protocol):
     """Base class for distributors."""
 
     def add_consumer(self, consumer: Consumer[T]) -> Disposable:
