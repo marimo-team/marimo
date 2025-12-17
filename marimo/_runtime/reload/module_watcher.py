@@ -205,7 +205,7 @@ def watch_modules(
                         modname_to_cell_id[modname]
                         for modname in stale_modules
                     ),
-                    relatives=dataflow.import_block_relatives,
+                    relatives=dataflow.get_import_block_relatives(graph),
                 )
                 for cid in stale_cell_ids:
                     graph.cells[cid].set_stale(stale=True, stream=stream)
