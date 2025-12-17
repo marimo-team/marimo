@@ -153,7 +153,7 @@ export async function handleToolCall({
       // Invoke the backend/mcp tool
       const response = await invokeAiTool({
         toolName: toolCall.toolName,
-        arguments: toolCall.input,
+        arguments: toolCall.input ?? {}, // Some models pass in null, so we default to an empty object
       });
       addToolOutput({
         tool: toolCall.toolName,
