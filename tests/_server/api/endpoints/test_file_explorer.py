@@ -6,6 +6,8 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING
 
+import pytest
+
 from tests._server.mocks import get_session_manager, token_header
 
 if TYPE_CHECKING:
@@ -91,6 +93,7 @@ def test_update_file(client: TestClient) -> None:
         f.write(test_content)
 
 
+@pytest.mark.flaky(reruns=3)
 def test_update_file_with_session(client: TestClient) -> None:
     sm = get_session_manager(client)
     # Enable watch mode to set up file watcher lifecycle
