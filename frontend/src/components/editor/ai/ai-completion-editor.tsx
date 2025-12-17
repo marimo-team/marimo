@@ -296,6 +296,8 @@ export const AiCompletionEditor: React.FC<Props> = ({
         acceptShortcut="Mod-↵"
         runCell={runCell}
         borderless={true}
+        buttonStyles="hover:shadow-none"
+        playButtonStyles="hover:shadow-none"
       />
       <RejectCompletionButton
         onDecline={handleDeclineCompletion}
@@ -303,6 +305,7 @@ export const AiCompletionEditor: React.FC<Props> = ({
         multipleCompletions={false}
         declineShortcut="Shift-Mod-Delete"
         borderless={true}
+        className="hover:shadow-none"
       />
     </>
   );
