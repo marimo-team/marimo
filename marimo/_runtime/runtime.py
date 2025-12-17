@@ -999,11 +999,10 @@ class Kernel:
                     )
 
         LOGGER.debug(
-            "graph:\n\tcell id %s\n\tparents %s\n\tchildren %s\n\tsiblings %s",
+            "graph:\n\tcell id %s\n\tparents %s\n\tchildren %s",
             cell_id,
             self.graph.parents,
             self.graph.children,
-            self.graph.siblings,
         )
 
         # We only return cells that were previously children of cell_id

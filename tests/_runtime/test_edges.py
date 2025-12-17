@@ -7,8 +7,8 @@ import pytest
 
 from marimo._ast import compiler
 from marimo._dependencies.dependencies import DependencyManager
+from marimo._runtime.dataflow import edges
 from marimo._runtime.dataflow.definitions import DefinitionRegistry
-from marimo._runtime.dataflow.edges import EdgeComputer
 from marimo._runtime.dataflow.topology import MutableGraphTopology
 
 parse_cell = partial(compiler.compile_cell, cell_id="0")
@@ -17,21 +17,20 @@ HAS_SQL = DependencyManager.duckdb.has() and DependencyManager.polars.has()
 
 
 class TestEdgeComputer:
-    """Tests for EdgeComputer class."""
+    """Tests for edge computation functions."""
 
     def setup_method(self) -> None:
         """Set up a fresh topology and definitions for each test."""
         self.topology = MutableGraphTopology()
         self.definitions = DefinitionRegistry()
-        self.edge_computer = EdgeComputer(self.topology, self.definitions)
 
     def test_get_referring_cells_python_no_refs(self) -> None:
         """Test getting referring cells when no cells reference the variable."""
         cell1 = parse_cell("x = 1")
         self.topology.add_node("cell_1", cell1)
 
-        referring = self.edge_computer.get_referring_cells(
-            "x", language="python"
+        referring = edges.get_referring_cells(
+            "x", language="python", topology=self.topology
         )
 
         assert referring == set()
@@ -44,8 +43,8 @@ class TestEdgeComputer:
         self.topology.add_node("cell_1", cell1)
         self.topology.add_node("cell_2", cell2)
 
-        referring = self.edge_computer.get_referring_cells(
-            "x", language="python"
+        referring = edges.get_referring_cells(
+            "x", language="python", topology=self.topology
         )
 
         assert referring == {"cell_2"}
@@ -62,8 +61,8 @@ class TestEdgeComputer:
         self.topology.add_node("cell_3", cell3)
         self.topology.add_node("cell_4", cell4)
 
-        referring = self.edge_computer.get_referring_cells(
-            "x", language="python"
+        referring = edges.get_referring_cells(
+            "x", language="python", topology=self.topology
         )
 
         assert referring == {"cell_2", "cell_3", "cell_4"}
@@ -74,8 +73,8 @@ class TestEdgeComputer:
 
         self.topology.add_node("cell_1", cell1)
 
-        referring = self.edge_computer.get_referring_cells(
-            "x", language="python"
+        referring = edges.get_referring_cells(
+            "x", language="python", topology=self.topology
         )
 
         # cell_1 both defines and references x, but should be in the result
@@ -94,8 +93,8 @@ class TestEdgeComputer:
             self.definitions.register_definition("cell_1", name, var_data)
 
         # Compute edges for cell2
-        parents, children = self.edge_computer.compute_edges_for_cell(
-            "cell_2", cell2
+        parents, children = edges.compute_edges_for_cell(
+            "cell_2", cell2, self.topology, self.definitions
         )
 
         assert parents == {"cell_1"}
@@ -118,8 +117,8 @@ class TestEdgeComputer:
             self.definitions.register_definition("cell_2", name, var_data)
 
         # Compute edges for cell3
-        parents, children = self.edge_computer.compute_edges_for_cell(
-            "cell_3", cell3
+        parents, children = edges.compute_edges_for_cell(
+            "cell_3", cell3, self.topology, self.definitions
         )
 
         assert parents == {"cell_1", "cell_2"}
@@ -144,8 +143,8 @@ class TestEdgeComputer:
             self.definitions.register_definition("cell_2", name, var_data)
 
         # Compute edges for cell2 (middle cell)
-        parents, children = self.edge_computer.compute_edges_for_cell(
-            "cell_2", cell2
+        parents, children = edges.compute_edges_for_cell(
+            "cell_2", cell2, self.topology, self.definitions
         )
 
         assert parents == {"cell_1"}
@@ -157,8 +156,8 @@ class TestEdgeComputer:
 
         self.topology.add_node("cell_1", cell1)
 
-        parents, children = self.edge_computer.compute_edges_for_cell(
-            "cell_1", cell1
+        parents, children = edges.compute_edges_for_cell(
+            "cell_1", cell1, self.topology, self.definitions
         )
 
         assert parents == set()
@@ -179,8 +178,8 @@ class TestEdgeComputer:
             self.definitions.register_definition("cell_1", name, var_data)
 
         # Compute edges for cell3 (which deletes x)
-        parents, children = self.edge_computer.compute_edges_for_cell(
-            "cell_3", cell3
+        parents, children = edges.compute_edges_for_cell(
+            "cell_3", cell3, self.topology, self.definitions
         )
 
         # cell3 should become a child of cells that reference x (cell2)
@@ -202,13 +201,13 @@ class TestEdgeComputer:
             self.definitions.register_definition("cell_1", name, var_data)
 
         # Compute edges for cell2
-        parents2, children2 = self.edge_computer.compute_edges_for_cell(
-            "cell_2", cell2
+        parents2, children2 = edges.compute_edges_for_cell(
+            "cell_2", cell2, self.topology, self.definitions
         )
 
         # Compute edges for cell3
-        parents3, children3 = self.edge_computer.compute_edges_for_cell(
-            "cell_3", cell3
+        parents3, children3 = edges.compute_edges_for_cell(
+            "cell_3", cell3, self.topology, self.definitions
         )
 
         # Both cells should have cell1 as parent
@@ -225,8 +224,8 @@ class TestEdgeComputer:
 
         self.topology.add_node("cell_1", cell1)
 
-        parents, children = self.edge_computer.compute_edges_for_cell(
-            "cell_1", cell1
+        parents, children = edges.compute_edges_for_cell(
+            "cell_1", cell1, self.topology, self.definitions
         )
 
         # A cell doesn't create an edge to itself
@@ -254,14 +253,14 @@ class TestEdgeComputer:
             self.definitions.register_definition("cell_3", name, var_data)
 
         # Check cell1's children (only direct children, not grandchildren)
-        parents1, children1 = self.edge_computer.compute_edges_for_cell(
-            "cell_1", cell1
+        parents1, children1 = edges.compute_edges_for_cell(
+            "cell_1", cell1, self.topology, self.definitions
         )
         assert children1 == {"cell_2", "cell_3"}
 
         # Check cell4's parents (it references b and c, not a directly)
-        parents4, children4 = self.edge_computer.compute_edges_for_cell(
-            "cell_4", cell4
+        parents4, children4 = edges.compute_edges_for_cell(
+            "cell_4", cell4, self.topology, self.definitions
         )
         assert parents4 == {"cell_2", "cell_3"}
 
@@ -272,8 +271,8 @@ class TestEdgeComputer:
         self.topology.add_node("cell_1", cell1)
 
         # Should not raise an error, just return empty parents
-        parents, children = self.edge_computer.compute_edges_for_cell(
-            "cell_1", cell1
+        parents, children = edges.compute_edges_for_cell(
+            "cell_1", cell1, self.topology, self.definitions
         )
 
         assert parents == set()
@@ -292,8 +291,8 @@ class TestEdgeComputer:
             self.definitions.register_definition("cell_1", name, var_data)
 
         # Compute edges for cell2
-        parents, children = self.edge_computer.compute_edges_for_cell(
-            "cell_2", cell2
+        parents, children = edges.compute_edges_for_cell(
+            "cell_2", cell2, self.topology, self.definitions
         )
 
         assert parents == {"cell_1"}
@@ -312,8 +311,8 @@ class TestEdgeComputer:
             self.definitions.register_definition("cell_1", name, var_data)
 
         # Compute edges for cell2
-        parents, children = self.edge_computer.compute_edges_for_cell(
-            "cell_2", cell2
+        parents, children = edges.compute_edges_for_cell(
+            "cell_2", cell2, self.topology, self.definitions
         )
 
         assert parents == {"cell_1"}
@@ -336,8 +335,8 @@ class TestEdgeComputer:
                 self.definitions.register_definition(cell_id, name, var_data)
 
         # Check last cell's parents
-        parents, children = self.edge_computer.compute_edges_for_cell(
-            "cell_4", cells[-1][1]
+        parents, children = edges.compute_edges_for_cell(
+            "cell_4", cells[-1][1], self.topology, self.definitions
         )
 
         assert parents == {"cell_3"}
@@ -356,8 +355,8 @@ class TestEdgeComputer:
         self.topology.add_node("cell_1", cell1)
         self.topology.add_node("cell_2", cell2)
 
-        referring = self.edge_computer.get_referring_cells(
-            "df", language="python"
+        referring = edges.get_referring_cells(
+            "df", language="python", topology=self.topology
         )
 
         assert referring == {"cell_2"}
@@ -380,8 +379,8 @@ class TestEdgeComputer:
             self.definitions.register_definition("cell_1", name, var_data)
 
         # Compute edges for cell2 (Python cell)
-        parents, children = self.edge_computer.compute_edges_for_cell(
-            "cell_2", cell2
+        parents, children = edges.compute_edges_for_cell(
+            "cell_2", cell2, self.topology, self.definitions
         )
 
         # SQL definitions should not create edges to Python cells
@@ -407,8 +406,8 @@ class TestEdgeComputer:
             self.definitions.register_definition("cell_2", name, var_data)
 
         # Compute edges for cell3
-        parents, children = self.edge_computer.compute_edges_for_cell(
-            "cell_3", cell3
+        parents, children = edges.compute_edges_for_cell(
+            "cell_3", cell3, self.topology, self.definitions
         )
 
         # cell3 should depend on both cells that define x
@@ -446,8 +445,8 @@ class TestEdgeComputer:
                 self.definitions.register_definition(cell_id, name, var_data)
 
         # Compute edges for cell4
-        parents4, children4 = self.edge_computer.compute_edges_for_cell(
-            "cell_4", cell4
+        parents4, children4 = edges.compute_edges_for_cell(
+            "cell_4", cell4, self.topology, self.definitions
         )
 
         # cell4 should:
@@ -460,9 +459,9 @@ class TestEdgeComputer:
 
     def test_is_valid_cell_reference_missing_cell(self) -> None:
         """Test validation when a cell reference points to a non-existent cell."""
-        # The _is_valid_cell_reference method logs an error when a cell is not found
-        result = self.edge_computer._is_valid_cell_reference(
-            "nonexistent", "some_var"
+        # The _is_valid_cell_reference function logs an error when a cell is not found
+        result = edges._is_valid_cell_reference(
+            "nonexistent", "some_var", self.topology
         )
 
         assert result is False
@@ -472,7 +471,7 @@ class TestEdgeComputer:
         cell1 = parse_cell("x = 1")
         self.topology.add_node("cell_1", cell1)
 
-        result = self.edge_computer._is_valid_cell_reference("cell_1", "x")
+        result = edges._is_valid_cell_reference("cell_1", "x", self.topology)
 
         assert result is True
 
@@ -489,8 +488,8 @@ class TestEdgeComputer:
             self.definitions.register_definition("cell_1", name, var_data)
 
         # Compute edges for cell2
-        parents, children = self.edge_computer.compute_edges_for_cell(
-            "cell_2", cell2
+        parents, children = edges.compute_edges_for_cell(
+            "cell_2", cell2, self.topology, self.definitions
         )
 
         assert parents == {"cell_1"}
@@ -508,8 +507,8 @@ class TestEdgeComputer:
             self.definitions.register_definition("cell_1", name, var_data)
 
         # Compute edges for cell2
-        parents, children = self.edge_computer.compute_edges_for_cell(
-            "cell_2", cell2
+        parents, children = edges.compute_edges_for_cell(
+            "cell_2", cell2, self.topology, self.definitions
         )
 
         assert parents == {"cell_1"}
@@ -527,8 +526,8 @@ class TestEdgeComputer:
             self.definitions.register_definition("cell_1", name, var_data)
 
         # Compute edges for cell2
-        parents, children = self.edge_computer.compute_edges_for_cell(
-            "cell_2", cell2
+        parents, children = edges.compute_edges_for_cell(
+            "cell_2", cell2, self.topology, self.definitions
         )
 
         assert parents == {"cell_1"}
@@ -552,13 +551,13 @@ class TestEdgeComputer:
         # All cells should depend on cell1
         for cell_id in ["cell_2", "cell_3", "cell_4"]:
             cell = self.topology.cells[cell_id]
-            parents, children = self.edge_computer.compute_edges_for_cell(
-                cell_id, cell
+            parents, children = edges.compute_edges_for_cell(
+                cell_id, cell, self.topology, self.definitions
             )
             assert parents == {"cell_1"}
 
         # Check that cell1 has all three as children
-        parents1, children1 = self.edge_computer.compute_edges_for_cell(
-            "cell_1", cell1
+        parents1, children1 = edges.compute_edges_for_cell(
+            "cell_1", cell1, self.topology, self.definitions
         )
         assert children1 == {"cell_2", "cell_3", "cell_4"}
