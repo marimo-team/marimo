@@ -2095,7 +2095,7 @@ class Kernel:
 
         if self.graph.cells:
             del request
-            LOGGER.debug("App already instantiated.")
+            LOGGER.info("App is already instantiated, skipping instantiation.")
             return
 
         # Handle markdown cells specially during kernel-ready initialization
@@ -2128,6 +2128,7 @@ class Kernel:
         self, execution_requests: dict[CellId_t, ExecutionRequest]
     ) -> None:
         """Handle markdown cells during kernel-ready initialization.
+        Mutates the execution_requests to remove markdown cells.
 
         For cells that contain only markdown (mo.md calls), this method:
         1. Compiles the cells to extract markdown content

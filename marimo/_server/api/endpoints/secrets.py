@@ -12,7 +12,7 @@ from marimo._runtime.requests import (
 )
 from marimo._secrets.secrets import write_secret
 from marimo._server.api.deps import AppState
-from marimo._server.api.utils import parse_request
+from marimo._server.api.utils import dispatch_control_request, parse_request
 from marimo._server.models.models import BaseResponse, SuccessResponse
 from marimo._server.models.secrets import CreateSecretRequest
 from marimo._server.router import APIRouter
@@ -45,13 +45,7 @@ async def list_keys(request: Request) -> SuccessResponse:
                     schema:
                         $ref: "#/components/schemas/ListSecretKeysResponse"
     """
-    app_state = AppState(request)
-    body = await parse_request(request, cls=ListSecretKeysRequest)
-    app_state.require_current_session().put_control_request(
-        body,
-        from_consumer_id=ConsumerId(app_state.require_current_session_id()),
-    )
-    return SuccessResponse(success=True)
+    return await dispatch_control_request(request, ListSecretKeysRequest)
 
 
 @router.post("/create")

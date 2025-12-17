@@ -9,6 +9,9 @@ from pathlib import Path
 from shutil import which
 from typing import TYPE_CHECKING, Optional, TypeVar
 
+from marimo._runtime.requests import ControlRequest
+from marimo._server.models.models import SuccessResponse
+from marimo._types.ids import ConsumerId
 from marimo._utils.parse_dataclass import parse_raw
 
 if TYPE_CHECKING:
@@ -22,6 +25,27 @@ async def parse_request(
     return parse_raw(
         await request.body(), cls=cls, allow_unknown_keys=allow_unknown_keys
     )
+
+
+async def dispatch_control_request(
+    request: Request,
+    cls: type[ControlRequest] | ControlRequest,
+) -> SuccessResponse:
+    """
+    Parse a request and dispatch it to the current session.
+    """
+    from marimo._server.api.deps import AppState
+
+    app_state = AppState(request)
+    if isinstance(cls, type):
+        body = await parse_request(request, cls)
+    else:
+        body = cls
+    app_state.require_current_session().put_control_request(
+        body,
+        from_consumer_id=ConsumerId(app_state.require_current_session_id()),
+    )
+    return SuccessResponse()
 
 
 def parse_title(filepath: Optional[str]) -> str:
