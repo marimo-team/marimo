@@ -25,6 +25,12 @@ import {
   insertUL,
 } from "../commands";
 
+vi.mock("@/components/ui/use-toast", () => ({
+  toast: vi.fn(),
+}));
+
+import { toast } from "@/components/ui/use-toast";
+
 function createEditor(content: string) {
   const state = EditorState.create({
     doc: content,
@@ -198,7 +204,7 @@ describe("insertImage", () => {
     await insertImage(view, mockPngFile());
 
     expect(view.state.doc.toString()).toMatchInlineSnapshot(
-      `"Hello, ![](data:image/png;base64,AQID)world!"`,
+      `"Hello, ![alt](data:image/png;base64,AQID)world!"`,
     );
   });
 
@@ -245,7 +251,7 @@ describe("insertImage", () => {
     });
 
     expect(view.state.doc.toString()).toMatchInlineSnapshot(
-      `"Hello, ![](public/hello.png)world!"`,
+      `"Hello, ![alt](public/hello.png)world!"`,
     );
   });
 
@@ -290,7 +296,93 @@ describe("insertImage", () => {
     });
 
     expect(view.state.doc.toString()).toMatchInlineSnapshot(
-      `"Hello, ![](nested/public/hello.png)world!"`,
+      `"Hello, ![alt](public/hello.png)world!"`,
+    );
+  });
+
+  test("converts absolute path to relative path for image URL", async () => {
+    view = createEditor("Hello, world!");
+    view.dispatch({
+      selection: { anchor: 7, head: 7 },
+    });
+
+    // mock filenameAtom with absolute path
+    vi.spyOn(store, "get").mockImplementation((atom) => {
+      if (atom === filenameAtom) {
+        return "/Users/user/Development/project/notebook.py";
+      }
+      if (atom === requestClientAtom) {
+        return mockRequestClient;
+      }
+    });
+
+    // Server returns absolute path
+    mockRequestClient.sendCreateFileOrFolder.mockResolvedValueOnce({
+      success: true,
+      message: null,
+      info: {
+        path: "/Users/user/Development/project/public/hello.png",
+        name: "hello.png",
+        children: [],
+        id: "",
+        isDirectory: false,
+        isMarimoFile: false,
+        lastModified: null,
+      },
+    });
+
+    await insertImage(view, mockPngFile());
+
+    expect(mockRequestClient.sendCreateFileOrFolder).toHaveBeenCalledTimes(1);
+    expect(mockRequestClient.sendCreateFileOrFolder).toHaveBeenCalledWith({
+      path: "/Users/user/Development/project/public",
+      type: "file",
+      name: "hello.png",
+      contents: "AQID",
+    });
+
+    // Should convert absolute path to relative path
+    expect(view.state.doc.toString()).toMatchInlineSnapshot(
+      `"Hello, ![alt](public/hello.png)world!"`,
+    );
+  });
+
+  test("converts absolute path to relative path in nested directory", async () => {
+    view = createEditor("Hello, world!");
+    view.dispatch({
+      selection: { anchor: 7, head: 7 },
+    });
+
+    // mock filenameAtom with absolute path in nested directory
+    vi.spyOn(store, "get").mockImplementation((atom) => {
+      if (atom === filenameAtom) {
+        return "/Users/user/Development/project/wip/notebook.py";
+      }
+      if (atom === requestClientAtom) {
+        return mockRequestClient;
+      }
+    });
+
+    // Server returns absolute path
+    mockRequestClient.sendCreateFileOrFolder.mockResolvedValueOnce({
+      success: true,
+      message: null,
+      info: {
+        path: "/Users/user/Development/project/wip/public/image.png",
+        name: "image.png",
+        children: [],
+        id: "",
+        isDirectory: false,
+        isMarimoFile: false,
+        lastModified: null,
+      },
+    });
+
+    await insertImage(view, mockPngFile());
+
+    // Should convert absolute path to relative path
+    expect(view.state.doc.toString()).toMatchInlineSnapshot(
+      `"Hello, ![alt](public/image.png)world!"`,
     );
   });
 
@@ -321,7 +413,7 @@ describe("insertImage", () => {
 
     expect(mockRequestClient.sendCreateFileOrFolder).toHaveBeenCalledTimes(1);
     expect(view.state.doc.toString()).toMatchInlineSnapshot(
-      `"Hello, ![](public/hello.jpg)world!"`,
+      `"Hello, ![alt](public/hello.jpg)world!"`,
     );
   });
 
@@ -340,7 +432,52 @@ describe("insertImage", () => {
 
     expect(mockRequestClient.sendCreateFileOrFolder).toHaveBeenCalledTimes(1);
     expect(view.state.doc.toString()).toMatchInlineSnapshot(
-      `"Hello, ![](data:image/png;base64,AQID)world!"`,
+      `"Hello, ![alt](data:image/png;base64,AQID)world!"`,
+    );
+  });
+
+  test("rejects large files when user cancels prompt", async () => {
+    view = createEditor("Hello, world!");
+    view.dispatch({
+      selection: { anchor: 7, head: 7 },
+    });
+
+    // User cancels the prompt
+    vi.spyOn(window, "prompt").mockImplementation(() => null);
+
+    // Create a large file (> 100KB when base64 encoded)
+    // 100KB base64 = ~75KB binary, so we create 80KB to be safe
+    const largeData = new Uint8Array(80 * 1024);
+    const largeFile = new File([largeData], "large.png", { type: "image/png" });
+
+    await insertImage(view, largeFile);
+
+    // Should not insert anything
+    expect(view.state.doc.toString()).toBe("Hello, world!");
+
+    // Should show a toast about content being too large
+    expect(toast).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: "Content too large",
+      }),
+    );
+  });
+
+  test("inserts small base64 when user cancels prompt", async () => {
+    view = createEditor("Hello, world!");
+    view.dispatch({
+      selection: { anchor: 7, head: 7 },
+    });
+
+    // User cancels the prompt
+    vi.spyOn(window, "prompt").mockImplementation(() => null);
+
+    // Small file (3 bytes) - well under 100KB limit
+    await insertImage(view, mockPngFile());
+
+    // Should insert the base64 since it's small
+    expect(view.state.doc.toString()).toMatchInlineSnapshot(
+      `"Hello, ![alt](data:image/png;base64,AQID)world!"`,
     );
   });
 });
