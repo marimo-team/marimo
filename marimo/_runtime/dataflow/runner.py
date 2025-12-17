@@ -9,7 +9,7 @@ from marimo._runtime.executor import ExecutionConfig, get_executor
 
 if TYPE_CHECKING:
     from marimo._ast.cell import CellImpl
-    from marimo._runtime.dataflow.coordinator import DirectedGraph
+    from marimo._runtime.dataflow.graph import DirectedGraph
     from marimo._types.ids import CellId_t
 
 
