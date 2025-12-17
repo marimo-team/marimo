@@ -25,7 +25,7 @@ class MutableDirectedGraph(MutableGraphTopology):
     # Could be abstracted further with CellId_t -> Node
     # and "disabled", "stale" -> colourings
     # with distinctions between DG/ coloured DG.
-    # However, this is sufficent for our purposes
+    # However, this is sufficient for our purposes
 
     _cycles: set[tuple[Edge, ...]] = field(default_factory=set)
 
