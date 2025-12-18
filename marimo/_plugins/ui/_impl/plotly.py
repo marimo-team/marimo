@@ -45,7 +45,7 @@ class plotly(UIElement[PlotlySelection, list[dict[str, Any]]]):
     cursor on the frontend, get them as a list of dicts in Python!
 
     This function currently only supports scatter plots, treemaps charts,
-    and sunbursts charts.
+    sunbursts charts and heatmaps.
 
     Examples:
         ```python
@@ -98,6 +98,8 @@ class plotly(UIElement[PlotlySelection, list[dict[str, Any]]]):
     """
 
     name: Final[str] = "marimo-plotly"
+    _figure: go.Figure
+    _selection_data: PlotlySelection
 
     def __init__(
         self,
@@ -111,6 +113,11 @@ class plotly(UIElement[PlotlySelection, list[dict[str, Any]]]):
         DependencyManager.plotly.require("for `mo.ui.plotly`")
 
         import plotly.io as pio  # type:ignore
+
+        # Store figure for later use in _convert_value
+        self._figure = figure
+        # Initialize selection data storage
+        self._selection_data = {}
 
         json_str = pio.to_json(figure)
 
@@ -240,5 +247,75 @@ class plotly(UIElement[PlotlySelection, list[dict[str, Any]]]):
     def _convert_value(self, value: PlotlySelection) -> Any:
         # Store the selection data
         self._selection_data = value
-        # Default to returning the points
-        return self.points
+
+        # If points are empty but we have a range, try to extract heatmap cells
+        if (
+            not value.get("points") or len(value.get("points", [])) == 0
+        ) and value.get("range"):
+            heatmap_cells = self._extract_heatmap_cells_from_range(
+                value["range"]
+            )
+            if heatmap_cells:
+                self._selection_data["points"] = heatmap_cells
+
+        result = self.points
+        return result
+
+    def _extract_heatmap_cells_from_range(
+        self, range_data: dict[str, Any]
+    ) -> list[dict[str, Any]]:
+        """Extract heatmap cells that fall within a selection range."""
+
+        if not range_data.get("x") or not range_data.get("y"):
+            return []
+
+        x_range = range_data["x"]
+        y_range = range_data["y"]
+        x_min, x_max = min(x_range), max(x_range)
+        y_min, y_max = min(y_range), max(y_range)
+
+        selected_cells = []
+
+        # Iterate through traces to find heatmaps
+        for trace_idx, trace in enumerate(self._figure.data):
+            if getattr(trace, "type", None) != "heatmap":
+                continue
+
+            x_data = getattr(trace, "x", None)
+            y_data = getattr(trace, "y", None)
+            z_data = getattr(trace, "z", None)
+
+            if x_data is None or y_data is None or z_data is None:
+                continue
+
+            # Iterate through the heatmap cells
+            for i, y_val in enumerate(y_data):
+                for j, x_val in enumerate(x_data):
+                    # Check if cell is within selection range
+                    # Handle both numeric and categorical data
+                    x_in_range = False
+                    y_in_range = False
+
+                    if isinstance(x_val, (int, float)):
+                        x_in_range = x_min <= x_val <= x_max
+                    else:
+                        # Categorical - use index
+                        x_in_range = x_min <= j <= x_max
+
+                    if isinstance(y_val, (int, float)):
+                        y_in_range = y_min <= y_val <= y_max
+                    else:
+                        # Categorical - use index
+                        y_in_range = y_min <= i <= y_max
+
+                    if x_in_range and y_in_range:
+                        selected_cells.append(
+                            {
+                                "x": x_val,
+                                "y": y_val,
+                                "z": z_data[i][j],
+                                "curveNumber": trace_idx,
+                            }
+                        )
+
+        return selected_cells
