@@ -248,15 +248,24 @@ class plotly(UIElement[PlotlySelection, list[dict[str, Any]]]):
         # Store the selection data
         self._selection_data = value
 
-        # If points are empty but we have a range, try to extract heatmap cells
-        if (
-            not value.get("points") or len(value.get("points", [])) == 0
-        ) and value.get("range"):
+        # Check if we have a heatmap trace
+        has_heatmap = any(
+            getattr(trace, "type", None) == "heatmap"
+            for trace in self._figure.data
+        )
+
+        # For heatmaps with a range selection, always extract all cells in range
+        # (Plotly only sends corner/edge points, not all cells)
+        if has_heatmap and value.get("range"):
             heatmap_cells = self._extract_heatmap_cells_from_range(
                 value["range"]
             )
             if heatmap_cells:
                 self._selection_data["points"] = heatmap_cells
+                # Update indices to match the heatmap cells
+                self._selection_data["indices"] = list(
+                    range(len(heatmap_cells))
+                )
 
         result = self.points
         return result
@@ -299,14 +308,24 @@ class plotly(UIElement[PlotlySelection, list[dict[str, Any]]]):
                     if isinstance(x_val, (int, float)):
                         x_in_range = x_min <= x_val <= x_max
                     else:
-                        # Categorical - use index
-                        x_in_range = x_min <= j <= x_max
+                        # Categorical - each cell spans from (index - 0.5) to (index + 0.5)
+                        # Include cell if selection range overlaps with cell bounds
+                        cell_x_min = j - 0.5
+                        cell_x_max = j + 0.5
+                        x_in_range = not (
+                            x_max < cell_x_min or x_min > cell_x_max
+                        )
 
                     if isinstance(y_val, (int, float)):
                         y_in_range = y_min <= y_val <= y_max
                     else:
-                        # Categorical - use index
-                        y_in_range = y_min <= i <= y_max
+                        # Categorical - each cell spans from (index - 0.5) to (index + 0.5)
+                        # Include cell if selection range overlaps with cell bounds
+                        cell_y_min = i - 0.5
+                        cell_y_max = i + 0.5
+                        y_in_range = not (
+                            y_max < cell_y_min or y_min > cell_y_max
+                        )
 
                     if x_in_range and y_in_range:
                         selected_cells.append(
