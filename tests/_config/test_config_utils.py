@@ -8,6 +8,8 @@ from pathlib import Path
 from typing import Optional
 from unittest import mock
 
+import pytest
+
 from marimo._config.utils import (
     get_or_create_user_config_path,
     get_user_config_path,
@@ -136,3 +138,121 @@ def test_get_or_create_config_path_handles_oserror():
             assert found_config_path == xdg_config_path
             # Verify the config file was created
             assert Path(found_config_path).exists()
+
+
+class TestGetConfigPathParentTraversal:
+    """Tests for parent directory traversal in config discovery.
+
+    These tests verify the fix for issue #5825 - marimo should search
+    parent directories for .marimo.toml, not just the current directory.
+
+    Test cases are parameterized as (config_locations, cwd, home, expected):
+    - config_locations: list of paths (relative to tmpdir) where .marimo.toml exists
+    - cwd: current working directory (relative to tmpdir)
+    - home: home directory (relative to tmpdir, or absolute path if starts with /)
+    - expected: which config should be found (relative to tmpdir), or None
+    """
+
+    @pytest.mark.parametrize(
+        ("config_locations", "cwd", "home", "expected"),
+        [
+            pytest.param(
+                ["parent"],
+                "parent/child",
+                "",  # tmpdir is home
+                "parent",
+                id="config_in_parent_under_home",
+            ),
+            pytest.param(
+                ["grandparent"],
+                "grandparent/parent/child",
+                "",  # tmpdir is home
+                "grandparent",
+                id="config_in_grandparent_under_home",
+            ),
+            pytest.param(
+                ["grandparent", "grandparent/parent"],
+                "grandparent/parent/child",
+                "",  # tmpdir is home
+                "grandparent/parent",  # closer config wins
+                id="closer_config_takes_precedence",
+            ),
+            pytest.param(
+                ["project"],
+                "project/subdir",
+                "/home/testuser",  # absolute path, not under tmpdir
+                "project",
+                id="parent_traversal_outside_home",
+            ),
+            pytest.param(
+                ["opt/project", "home/user"],
+                "opt/project/subdir",
+                "home/user",
+                "opt/project",  # parent traversal before home
+                id="disjoint_paths_parent_before_home",
+            ),
+            pytest.param(
+                ["home/user"],
+                "opt/project",
+                "home/user",
+                "home/user",  # falls back to home
+                id="falls_back_to_home_when_no_parent_config",
+            ),
+            pytest.param(
+                ["project"],
+                "project/subdir",
+                "~",  # home expansion fails (service daemon account)
+                "project",
+                id="home_expansion_fails_still_finds_parent",
+            ),
+        ],
+    )
+    def test_config_path_discovery(
+        self, tmpdir, config_locations, cwd, home, expected
+    ):
+        # Create all necessary directories
+        cwd_path = tmpdir
+        for part in cwd.split("/"):
+            cwd_path = (
+                cwd_path.mkdir(part)
+                if not cwd_path.join(part).exists()
+                else cwd_path.join(part)
+            )
+
+        # Create config files at specified locations
+        for loc in config_locations:
+            config_dir = tmpdir
+            for part in loc.split("/"):
+                if not config_dir.join(part).exists():
+                    config_dir = config_dir.mkdir(part)
+                else:
+                    config_dir = config_dir.join(part)
+            config_dir.join(".marimo.toml").write("")
+
+        # Determine home path
+        if home == "~":
+            home_path = "~"  # simulate failed expansion
+        elif home.startswith("/"):
+            home_path = home  # absolute path
+        elif home == "":
+            home_path = str(tmpdir)
+        else:
+            home_path = str(tmpdir.join(home))
+
+        # Determine expected path
+        expected_path = str(tmpdir.join(expected).join(".marimo.toml"))
+
+        get_user_config_path.cache_clear()
+
+        with (
+            mock.patch(
+                "marimo._config.utils.os.getcwd",
+                return_value=str(cwd_path),
+            ),
+            mock.patch(
+                "marimo._config.utils.os.path.expanduser",
+                return_value=home_path,
+            ),
+        ):
+            found_config_path = get_user_config_path()
+            assert found_config_path == expected_path
