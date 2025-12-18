@@ -248,7 +248,6 @@ class plotly(UIElement[PlotlySelection, list[dict[str, Any]]]):
         # Store the selection data
         self._selection_data = value
 
-        # Check if we have a heatmap trace
         has_heatmap = any(
             getattr(trace, "type", None) == "heatmap"
             for trace in self._figure.data
