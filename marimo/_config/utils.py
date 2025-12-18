@@ -87,7 +87,7 @@ def get_user_config_path() -> Optional[str]:
     # Track whether we've already checked home during parent traversal
     checked_home = False
 
-    # Always traverse parent directories up to root
+    # Traverse parent directories, stopping at home if under home
     previous_directory = None
     search_directory = current_directory
     while search_directory != previous_directory:
@@ -98,10 +98,15 @@ def get_user_config_path() -> Optional[str]:
         if config_path is not None:
             return config_path
 
-        checked_home |= search_directory == home_directory
+        # Stop at home directory if we're under it
+        if search_directory == home_directory:
+            checked_home = True
+            break
+
         search_directory = os.path.realpath(os.path.dirname(search_directory))
 
     # Check home directory if not already checked during traversal
+    # (happens when cwd is not under home)
     if home_directory and not checked_home:
         config_path = _check_directory_for_file(
             home_directory, CONFIG_FILENAME

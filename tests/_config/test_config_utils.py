@@ -205,6 +205,20 @@ class TestGetConfigPathParentTraversal:
                 "project",
                 id="home_expansion_fails_still_finds_parent",
             ),
+            pytest.param(
+                ["", "home/user"],  # config at both root and home
+                "home/user/example",
+                "home/user",
+                "home/user",  # should stop at home, not traverse to root
+                id="stops_at_home_ignores_root_config",
+            ),
+            pytest.param(
+                [""],  # config ONLY at root
+                "home/user/example",
+                "home/user",
+                None,  # should NOT find root config when under home
+                id="does_not_traverse_past_home_to_root",
+            ),
         ],
     )
     def test_config_path_discovery(
@@ -222,11 +236,12 @@ class TestGetConfigPathParentTraversal:
         # Create config files at specified locations
         for loc in config_locations:
             config_dir = tmpdir
-            for part in loc.split("/"):
-                if not config_dir.join(part).exists():
-                    config_dir = config_dir.mkdir(part)
-                else:
-                    config_dir = config_dir.join(part)
+            if loc:  # non-empty path
+                for part in loc.split("/"):
+                    if not config_dir.join(part).exists():
+                        config_dir = config_dir.mkdir(part)
+                    else:
+                        config_dir = config_dir.join(part)
             config_dir.join(".marimo.toml").write("")
 
         # Determine home path
@@ -240,7 +255,10 @@ class TestGetConfigPathParentTraversal:
             home_path = str(tmpdir.join(home))
 
         # Determine expected path
-        expected_path = str(tmpdir.join(expected).join(".marimo.toml"))
+        if expected is None:
+            expected_path = None
+        else:
+            expected_path = str(tmpdir.join(expected).join(".marimo.toml"))
 
         get_user_config_path.cache_clear()
 
