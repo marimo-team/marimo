@@ -6,9 +6,14 @@ import { AlertCircleIcon, CheckCircle2Icon, PowerOffIcon } from "lucide-react";
 import type React from "react";
 import { Spinner } from "@/components/icons/spinner";
 import { connectionAtom } from "@/core/network/connection";
-import { useRuntimeManager } from "@/core/runtime/config";
+import { useConnectToRuntime, useRuntimeManager } from "@/core/runtime/config";
 import { isWasm } from "@/core/wasm/utils";
-import { WebSocketState } from "@/core/websocket/types";
+import {
+  isAppClosing,
+  isAppConnected,
+  isAppConnecting,
+  isAppNotStarted,
+} from "@/core/websocket/connection-utils";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { useInterval } from "@/hooks/useInterval";
 import { FooterItem } from "../footer-item";
@@ -18,12 +23,15 @@ const CHECK_HEALTH_INTERVAL_MS = 30_000;
 export const BackendConnection: React.FC = () => {
   const connection = useAtomValue(connectionAtom).state;
   const runtime = useRuntimeManager();
+  const connectToRuntime = useConnectToRuntime();
 
   const { isFetching, error, data, refetch } = useAsyncData(async () => {
-    if (connection !== WebSocketState.OPEN) {
+    // If the connection is not connected, return
+    if (!isAppConnected(connection)) {
       return;
     }
 
+    // Skip wasm since there is no health check for wasm
     if (isWasm()) {
       return {
         isHealthy: true,
@@ -49,12 +57,15 @@ export const BackendConnection: React.FC = () => {
   }, [runtime, connection]);
 
   useInterval(refetch, {
-    delayMs:
-      connection === WebSocketState.OPEN ? CHECK_HEALTH_INTERVAL_MS : null,
+    delayMs: isAppConnected(connection) ? CHECK_HEALTH_INTERVAL_MS : null,
     whenVisible: true,
   });
 
   const getStatusInfo = () => {
+    if (isAppNotStarted(connection)) {
+      return "Not connected to a runtime";
+    }
+
     const baseStatus = startCase(connection.toLowerCase());
     const healthInfo = data?.lastChecked
       ? data.isHealthy
@@ -68,15 +79,15 @@ export const BackendConnection: React.FC = () => {
   };
 
   const getStatusIcon = () => {
-    if (isFetching || connection === WebSocketState.CONNECTING) {
+    if (isFetching || isAppConnecting(connection)) {
       return <Spinner size="small" />;
     }
 
-    if (connection === WebSocketState.CLOSING) {
+    if (isAppClosing(connection)) {
       return <Spinner className="text-destructive" size="small" />;
     }
 
-    if (connection === WebSocketState.OPEN) {
+    if (isAppConnected(connection)) {
       if (data?.isHealthy) {
         return <CheckCircle2Icon className="w-4 h-4 text-(--green-9)" />;
       }
@@ -85,8 +96,19 @@ export const BackendConnection: React.FC = () => {
       }
       return <CheckCircle2Icon className="w-4 h-4" />;
     }
+    if (isAppNotStarted(connection)) {
+      return <PowerOffIcon className="w-4 h-4" />;
+    }
 
     return <PowerOffIcon className="w-4 h-4 text-red-500" />;
+  };
+
+  const handleClick = () => {
+    if (isAppNotStarted(connection)) {
+      void connectToRuntime();
+    } else {
+      void refetch();
+    }
   };
 
   return (
@@ -94,7 +116,7 @@ export const BackendConnection: React.FC = () => {
       tooltip={
         <div className="text-sm whitespace-pre-line">
           {getStatusInfo()}
-          {connection === WebSocketState.OPEN && (
+          {isAppConnected(connection) && (
             <div className="mt-2 text-xs text-muted-foreground">
               Click to refresh health status
             </div>
@@ -102,7 +124,7 @@ export const BackendConnection: React.FC = () => {
         </div>
       }
       selected={false}
-      onClick={refetch}
+      onClick={handleClick}
       data-testid="footer-backend-status"
     >
       {getStatusIcon()}

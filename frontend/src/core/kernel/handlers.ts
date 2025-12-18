@@ -1,6 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { deserializeLayout } from "@/components/editor/renderers/plugins";
 import type { LayoutType } from "@/components/editor/renderers/types";
+import { Logger } from "@/utils/Logger";
 import { Objects } from "@/utils/objects";
 import type { CellId, UIElementId } from "../cells/ids";
 import { type CellData, createCell } from "../cells/types";
@@ -18,6 +19,7 @@ import type {
   CellMessage,
   OperationMessageData,
 } from "./messages";
+import type { KernelState } from "./state";
 
 export function handleKernelReady(
   data: OperationMessageData<"kernel-ready">,
@@ -30,6 +32,7 @@ export function handleKernelReady(
     }) => void;
     setCapabilities: (capabilities: Capabilities) => void;
     setAppConfig: (config: AppConfig) => void;
+    setKernelState: (state: KernelState) => void;
     onError: (error: Error) => void;
   },
 ) {
@@ -40,6 +43,7 @@ export function handleKernelReady(
     onError,
     setAppConfig,
     setCapabilities,
+    setKernelState,
   } = opts;
 
   const {
@@ -97,6 +101,8 @@ export function handleKernelReady(
   const parsedAppConfig = AppConfigSchema.safeParse(app_config);
   if (parsedAppConfig.success) {
     setAppConfig(parsedAppConfig.data);
+  } else {
+    Logger.error("Failed to parse app config", parsedAppConfig.error);
   }
   setCapabilities(capabilities);
 
@@ -127,7 +133,11 @@ export function handleKernelReady(
       values,
       autoRun: autoInstantiate,
     })
+    .then(() => {
+      setKernelState({ isInstantiated: true, error: null });
+    })
     .catch((error) => {
+      setKernelState({ isInstantiated: false, error: error });
       onError(new Error("Failed to instantiate", { cause: error }));
     });
 }
