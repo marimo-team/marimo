@@ -13,7 +13,7 @@ from marimo._runtime.requests import (
     SetCellConfigRequest,
 )
 from marimo._server.api.deps import AppState
-from marimo._server.api.utils import parse_request
+from marimo._server.api.utils import dispatch_control_request, parse_request
 from marimo._server.models.models import (
     BaseResponse,
     FormatRequest,
@@ -73,14 +73,7 @@ async def delete_cell(request: Request) -> BaseResponse:
                     schema:
                         $ref: "#/components/schemas/SuccessResponse"
     """
-    app_state = AppState(request)
-    body = await parse_request(request, cls=DeleteCellRequest)
-    app_state.require_current_session().put_control_request(
-        body,
-        from_consumer_id=ConsumerId(app_state.require_current_session_id()),
-    )
-
-    return SuccessResponse()
+    return await dispatch_control_request(request, DeleteCellRequest)
 
 
 @router.post("/sync/cell_ids")
@@ -149,14 +142,7 @@ async def set_cell_config(request: Request) -> BaseResponse:
                     schema:
                         $ref: "#/components/schemas/SuccessResponse"
     """
-    app_state = AppState(request)
-    body = await parse_request(request, cls=SetCellConfigRequest)
-    app_state.require_current_session().put_control_request(
-        body,
-        from_consumer_id=ConsumerId(app_state.require_current_session_id()),
-    )
-
-    return SuccessResponse()
+    return await dispatch_control_request(request, SetCellConfigRequest)
 
 
 @router.post("/stdin")
@@ -200,10 +186,6 @@ async def install_missing_packages(request: Request) -> BaseResponse:
                     schema:
                         $ref: "#/components/schemas/SuccessResponse"
     """
-    app_state = AppState(request)
-    body = await parse_request(request, cls=InstallMissingPackagesRequest)
-    app_state.require_current_session().put_control_request(
-        body,
-        from_consumer_id=ConsumerId(app_state.require_current_session_id()),
+    return await dispatch_control_request(
+        request, InstallMissingPackagesRequest
     )
-    return SuccessResponse()

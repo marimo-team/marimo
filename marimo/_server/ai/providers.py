@@ -1248,22 +1248,31 @@ async def merge_backticks(
 ) -> AsyncGenerator[str, None]:
     buffer: Optional[str] = None
 
+    def only_whitespace_or_newlines(text: str) -> bool:
+        return all(char.isspace() or char == "\n" for char in text)
+
     async for chunk in chunks:
         if buffer is None:
             buffer = chunk
-        else:
-            # If buffer contains backticks, keep merging until we have no backticks,
-            # encounter a newline, or run out of chunks
-            if "`" in buffer:
-                buffer += chunk
-                # If we've hit a newline or no more backticks, yield the buffer
-                if "\n" in chunk or "`" not in buffer:
-                    yield buffer
-                    buffer = None
-            else:
-                # No backticks in buffer, yield it separately
+            continue
+
+        # Combine whitespace
+        if only_whitespace_or_newlines(buffer):
+            buffer += chunk
+            continue
+
+        # If buffer contains backticks, keep merging until we have no backticks,
+        # encounter a newline, or run out of chunks
+        if "`" in buffer:
+            buffer += chunk
+            # If we've hit a newline or no more backticks, yield the buffer
+            if "\n" in chunk or "`" not in buffer:
                 yield buffer
-                buffer = chunk
+                buffer = None
+        else:
+            # No backticks in buffer, yield it separately
+            yield buffer
+            buffer = chunk
 
     # Return the last chunk if there's anything left
     if buffer is not None:
@@ -1276,17 +1285,21 @@ async def without_wrapping_backticks(
     """
     Removes the first and last backticks (```) from a stream of text chunks.
 
+    This function removes opening backticks (with optional language identifier)
+    from the start of the stream and closing backticks from the end of the stream.
+    It does not remove backticks that appear in the middle of the content.
+
     Args:
         chunks: An async iterator of text chunks
 
     Yields:
         Text chunks with the first and last backticks removed if they exist
     """
-
-    # First, merge backticks across chunks
+    # First, merge backticks across chunks to avoid split patterns
     chunks = merge_backticks(chunks)
 
-    langs = ["python", "sql"]
+    # Supported language identifiers
+    langs = ["python", "sql", "markdown"]
 
     first_chunk = True
     buffer: Optional[str] = None
@@ -1330,8 +1343,9 @@ async def without_wrapping_backticks(
         trailing_space = buffer[len(stripped_buffer) :]
 
         # Remove ending newline if present
-        if stripped_buffer.endswith("\n```"):
-            buffer = stripped_buffer[:-4] + trailing_space
-        elif has_starting_backticks and stripped_buffer.endswith("```"):
-            buffer = stripped_buffer[:-3] + trailing_space
+        if has_starting_backticks:
+            if stripped_buffer.endswith("\n```"):
+                buffer = stripped_buffer[:-4] + trailing_space
+            elif stripped_buffer.endswith("```"):
+                buffer = stripped_buffer[:-3] + trailing_space
         yield buffer

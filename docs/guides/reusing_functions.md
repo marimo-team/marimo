@@ -118,6 +118,7 @@ print(stats)
 
 - Functions cannot depend on variables defined in regular cells
 - Like other cells, cyclic dependencies between functions are not allowed
+- Local variables (variables starting with `_`) cannot be made reusable
 - Functions cannot be exported from notebooks in [marimo's markdown format](editor_features/watching.md#as-markdown).
 
 ## Learn more

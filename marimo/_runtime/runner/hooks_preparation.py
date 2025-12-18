@@ -4,7 +4,6 @@ from __future__ import annotations
 from typing import Callable
 
 from marimo._runtime import dataflow
-from marimo._runtime.dataflow import import_block_relatives
 from marimo._runtime.runner import cell_runner
 from marimo._tracer import kernel_tracer
 
@@ -20,7 +19,7 @@ def _update_stale_statuses(runner: cell_runner.Runner) -> None:
             graph,
             set(runner.cells_to_run),
             inclusive=False,
-            relatives=import_block_relatives,
+            relatives=dataflow.get_import_block_relatives(graph),
         ):
             graph.cells[cid].set_stale(stale=True)
 

@@ -68,6 +68,9 @@ class VariableData:
             "class",
             "import",
             "variable",
+            # NB: only used when there's a need to stub. not generally carried
+            # on cell.
+            "temporary",
         ],
         SQLKind,
     ] = "variable"

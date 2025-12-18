@@ -489,7 +489,7 @@ def temp_md_marimo_file() -> Generator[str, None, None]:
             f.write(content)
         yield tmp_file
     finally:
-        tmp_dir.cleanup()
+        _cleanup_tmp_dir(tmp_dir)
 
 
 @pytest.fixture

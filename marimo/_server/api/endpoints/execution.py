@@ -20,7 +20,7 @@ from marimo._runtime.requests import (
 )
 from marimo._server.api.deps import AppState
 from marimo._server.api.endpoints.ws import DOC_MANAGER, FILE_QUERY_PARAM_KEY
-from marimo._server.api.utils import parse_request
+from marimo._server.api.utils import dispatch_control_request, parse_request
 from marimo._server.file_router import MarimoFileKey
 from marimo._server.models.models import (
     BaseResponse,
@@ -95,14 +95,7 @@ async def set_model_values(
                     schema:
                         $ref: "#/components/schemas/SuccessResponse"
     """
-    app_state = AppState(request)
-    body = await parse_request(request, cls=SetModelMessageRequest)
-    app_state.require_current_session().put_control_request(
-        body,
-        from_consumer_id=ConsumerId(app_state.require_current_session_id()),
-    )
-
-    return SuccessResponse()
+    return await dispatch_control_request(request, SetModelMessageRequest)
 
 
 @router.post("/instantiate")
@@ -153,14 +146,7 @@ async def function_call(
                     schema:
                         $ref: "#/components/schemas/SuccessResponse"
     """
-    app_state = AppState(request)
-    body = await parse_request(request, cls=FunctionCallRequest)
-    app_state.require_current_session().put_control_request(
-        body,
-        from_consumer_id=ConsumerId(app_state.require_current_session_id()),
-    )
-
-    return SuccessResponse()
+    return await dispatch_control_request(request, FunctionCallRequest)
 
 
 @router.post("/interrupt")
@@ -235,14 +221,7 @@ async def run_scratchpad(
                     schema:
                         $ref: "#/components/schemas/SuccessResponse"
     """  # noqa: E501
-    app_state = AppState(request)
-    body = await parse_request(request, cls=ExecuteScratchpadRequest)
-    app_state.require_current_session().put_control_request(
-        body,
-        from_consumer_id=ConsumerId(app_state.require_current_session_id()),
-    )
-
-    return SuccessResponse()
+    return await dispatch_control_request(request, ExecuteScratchpadRequest)
 
 
 @router.post("/pdb/pm")
@@ -265,14 +244,7 @@ async def run_post_mortem(
                     schema:
                         $ref: "#/components/schemas/SuccessResponse"
     """  # noqa: E501
-    app_state = AppState(request)
-    body = await parse_request(request, cls=PdbRequest)
-    app_state.require_current_session().put_control_request(
-        body,
-        from_consumer_id=ConsumerId(app_state.require_current_session_id()),
-    )
-
-    return SuccessResponse()
+    return await dispatch_control_request(request, PdbRequest)
 
 
 @router.post("/restart_session")

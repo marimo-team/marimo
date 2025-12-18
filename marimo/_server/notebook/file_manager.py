@@ -99,8 +99,10 @@ class AppFileManager:
             Set of cell IDs that were added, deleted, or modified
         """
         prev_cell_manager = self.app.cell_manager
-        self.app = self._load_app(self.path)
-        self.app.cell_manager.sort_cell_ids_by_similarity(prev_cell_manager)
+        new_app = self._load_app(self.path)
+        new_app.cell_manager.sort_cell_ids_by_similarity(prev_cell_manager)
+        # Only update self.app after successful reload
+        self.app = new_app
 
         # Return the changed cell IDs
         prev_cell_ids = set(prev_cell_manager.cell_ids())

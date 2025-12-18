@@ -9,7 +9,7 @@ from marimo._config.manager import get_default_config_manager
 from marimo._server.file_router import AppFileRouter
 from marimo._server.lsp import NoopLspServer
 from marimo._server.model import SessionMode
-from marimo._server.sessions import SessionManager
+from marimo._server.sessions.session_manager import SessionManager
 from marimo._server.tokens import AuthToken, SkewProtectionToken
 from marimo._utils.marimo_path import MarimoPath
 
@@ -50,7 +50,6 @@ if __name__ == "__main__":
     sm = SessionManager(
         file_router=AppFileRouter.from_filename(MarimoPath(temp_file.name)),
         mode=SessionMode.EDIT,
-        development_mode=False,
         quiet=False,
         include_code=True,
         lsp_server=lsp_server,
@@ -61,7 +60,7 @@ if __name__ == "__main__":
         redirect_console_to_browser=False,
         ttl_seconds=None,
     )
-    sm.skew_protection_token = SkewProtectionToken("skew-id-1")
+    sm._token_manager.skew_protection_token = SkewProtectionToken("skew-id-1")
     return sm
 
 

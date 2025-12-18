@@ -33,6 +33,8 @@ def mock_session_consumer():
 @pytest.fixture
 def mock_session():
     session = Mock(spec=Session)
+    session.initialization_id = "test_init_id"
+    session.session_cache_manager = None
     session.connection_state.return_value = ConnectionState.OPEN
     session.kernel_manager = Mock(spec=KernelManager)
     session.kernel_manager.kernel_task = None
@@ -44,7 +46,6 @@ def session_manager():
     return SessionManager(
         file_router=AppFileRouter.new_file(),
         mode=SessionMode.EDIT,
-        development_mode=False,
         quiet=False,
         include_code=True,
         lsp_server=MagicMock(spec=LspServer),
@@ -55,6 +56,13 @@ def session_manager():
         redirect_console_to_browser=False,
         ttl_seconds=None,
     )
+
+
+def add_session(
+    manager: SessionManager, session_id: SessionId, session: Session
+) -> None:
+    """Add a session to the manager (for tests)."""
+    manager._repository.add_sync(session_id, session)
 
 
 session_id = SessionId("test_session_id")
@@ -132,7 +140,7 @@ def test_maybe_resume_session_for_existing_file(
 ) -> None:
     mock_session.connection_state.return_value = ConnectionState.ORPHANED
     mock_session.app_file_manager = AppFileManager(filename=temp_marimo_file)
-    session_manager.sessions[session_id] = mock_session
+    add_session(session_manager, session_id, mock_session)
 
     # Resume the same session_id with the same file -> matches
     resumed_session = session_manager.maybe_resume_session(
@@ -158,7 +166,7 @@ def test_close_session(
     session_manager: SessionManager, mock_session: Session
 ) -> None:
     mock_session.app_file_manager = AppFileManager(filename=None)
-    session_manager.sessions[session_id] = mock_session
+    add_session(session_manager, session_id, mock_session)
     assert session_manager.close_session(session_id)
     assert session_id not in session_manager.sessions
     mock_session.close.assert_called_once()
@@ -167,7 +175,7 @@ def test_close_session(
 def test_any_clients_connected_new_file(
     session_manager: SessionManager, mock_session: Session
 ) -> None:
-    session_manager.sessions[session_id] = mock_session
+    add_session(session_manager, session_id, mock_session)
     mock_session.app_file_manager = AppFileManager(filename=None)
     assert (
         session_manager.any_clients_connected(AppFileRouter.NEW_FILE) is False
@@ -180,7 +188,7 @@ def test_any_clients_connected_existing_file(
     mock_session: Session,
     temp_marimo_file: str,
 ) -> None:
-    session_manager.sessions[session_id] = mock_session
+    add_session(session_manager, session_id, mock_session)
     mock_session.app_file_manager = AppFileManager(filename=temp_marimo_file)
     assert (
         session_manager.any_clients_connected(AppFileRouter.NEW_FILE) is False
@@ -192,10 +200,8 @@ def test_any_clients_connected_existing_file(
 def test_close_all_sessions(
     session_manager: SessionManager, mock_session: Session
 ) -> None:
-    session_manager.sessions = {
-        "session1": mock_session,
-        "session2": mock_session,
-    }
+    add_session(session_manager, SessionId("session1"), mock_session)
+    add_session(session_manager, SessionId("session2"), mock_session)
     session_manager.close_all_sessions()
     assert len(session_manager.sessions) == 0
     assert mock_session.close.call_count == 2
@@ -204,10 +210,8 @@ def test_close_all_sessions(
 def test_shutdown(
     session_manager: SessionManager, mock_session: Session
 ) -> None:
-    session_manager.sessions = {
-        "session1": mock_session,
-        "session2": mock_session,
-    }
+    add_session(session_manager, SessionId("session1"), mock_session)
+    add_session(session_manager, SessionId("session2"), mock_session)
 
     session_manager.shutdown()
     session_manager.lsp_server.stop.assert_called_once()
@@ -263,7 +267,6 @@ def test_session_manager_auth_token_edit_mode_with_provided_token():
     session_manager = SessionManager(
         file_router=AppFileRouter.new_file(),
         mode=SessionMode.EDIT,
-        development_mode=False,
         quiet=False,
         include_code=True,
         lsp_server=MagicMock(spec=LspServer),
@@ -285,7 +288,6 @@ def test_session_manager_auth_token_edit_mode_without_provided_token():
     session_manager = SessionManager(
         file_router=AppFileRouter.new_file(),
         mode=SessionMode.EDIT,
-        development_mode=False,
         quiet=False,
         include_code=True,
         lsp_server=MagicMock(spec=LspServer),
@@ -311,7 +313,6 @@ def test_session_manager_auth_token_run_mode_with_provided_token():
     session_manager = SessionManager(
         file_router=AppFileRouter.new_file(),
         mode=SessionMode.RUN,
-        development_mode=False,
         quiet=False,
         include_code=True,
         lsp_server=MagicMock(spec=LspServer),
@@ -354,7 +355,6 @@ def test_session_manager_auth_token_run_mode_without_provided_token(
     session_manager = SessionManager(
         file_router=AppFileRouter.infer(str(file_path)),
         mode=SessionMode.RUN,
-        development_mode=False,
         quiet=False,
         include_code=True,
         lsp_server=MagicMock(spec=LspServer),
@@ -375,7 +375,6 @@ def test_session_manager_auth_token_run_mode_without_provided_token(
     session_manager2 = SessionManager(
         file_router=AppFileRouter.infer(str(file_path)),
         mode=SessionMode.RUN,
-        development_mode=False,
         quiet=False,
         include_code=True,
         lsp_server=MagicMock(spec=LspServer),

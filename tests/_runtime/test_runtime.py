@@ -1,6 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import asyncio
 import pathlib
 import sys
 import textwrap
@@ -947,6 +948,49 @@ except NameError:
         assert k.errors["0"][0].lineno is not None
         # Python reports line numbers starting from 1
         assert k.errors["0"][0].lineno >= 1
+
+    async def test_syntax_error_hint_pip_install(
+        self, any_kernel: Kernel
+    ) -> None:
+        """Test that !pip commands show package manager hint"""
+        k = any_kernel
+        await k.run(
+            [
+                ExecutionRequest(cell_id="0", code="!pip install pandas"),
+            ]
+        )
+        assert set(k.errors.keys()) == {"0"}
+        assert isinstance(k.errors["0"][0], MarimoSyntaxError)
+        assert "package manager panel" in k.errors["0"][0].msg
+
+    async def test_syntax_error_hint_shell_command(
+        self, any_kernel: Kernel
+    ) -> None:
+        """Test that shell commands (not pip) show os.subprocess hint"""
+        k = any_kernel
+        await k.run(
+            [
+                ExecutionRequest(cell_id="0", code="!ls -la"),
+            ]
+        )
+        assert set(k.errors.keys()) == {"0"}
+        assert isinstance(k.errors["0"][0], MarimoSyntaxError)
+        assert "os.subprocess" in k.errors["0"][0].msg
+
+    async def test_syntax_error_hint_ipython_magic(
+        self, any_kernel: Kernel
+    ) -> None:
+        """Test that IPython magic commands show unsupported hint"""
+        k = any_kernel
+        await k.run(
+            [
+                ExecutionRequest(cell_id="0", code="%timeit x = 1"),
+            ]
+        )
+        assert set(k.errors.keys()) == {"0"}
+        assert isinstance(k.errors["0"][0], MarimoSyntaxError)
+        assert "IPython magic commands" in k.errors["0"][0].msg
+        assert "not supported" in k.errors["0"][0].msg
 
     async def test_child_of_errored_cell_with_error_not_stale(
         self,
@@ -2425,6 +2469,90 @@ class TestStoredOutput:
         cell = k.graph.cells[er.cell_id]
         assert cell.output is None
 
+    async def test_formatter_import_error_handled(
+        self, mocked_kernel: MockedKernel, exec_req: ExecReqProvider
+    ) -> None:
+        """Test that ImportError in formatter is handled gracefully.
+
+        When a formatter (like _repr_html_) raises an ImportError, the cell
+        should still execute successfully, but the exception should be stored
+        in runner.exceptions for the missing_packages_hook to detect.
+        """
+        k = mocked_kernel.k
+        assert k.packages_callbacks.package_manager is not None
+
+        await k.run(
+            [
+                er := exec_req.get(
+                    """
+                    class CustomObject:
+                        def _repr_html_(self):
+                            import missing_package
+
+                    obj = CustomObject()
+                    obj
+                    """
+                )
+            ]
+        )
+
+        # Cell should execute successfully (exception is in formatter, not execution)
+        cell = k.graph.cells[er.cell_id]
+        assert cell.exception is None
+        assert "obj" in k.globals
+        assert "CustomObject" in k.globals
+
+        # Check that the output was still broadcast (even if formatting failed)
+        stream = MockStream(mocked_kernel.stream)
+        cell_ops = stream.cell_ops
+        output_ops = [op for op in cell_ops if op.output is not None]
+        # Should have output, even if formatter failed (falls back to plain formatter)
+        assert len(output_ops) > 0
+        op_names = [op.get("op") for op in stream.operations]
+        assert "missing-package-alert" in op_names
+
+    async def test_formatter_module_not_found_error_handled(
+        self, mocked_kernel: MockedKernel, exec_req: ExecReqProvider
+    ) -> None:
+        """Test that ModuleNotFoundError in formatter is handled gracefully.
+
+        When a formatter (like _repr_html_) raises a ModuleNotFoundError, the cell
+        should still execute successfully, but the exception should be stored
+        in runner.exceptions for the missing_packages_hook to detect.
+        """
+        k = mocked_kernel.k
+        assert k.packages_callbacks.package_manager is not None
+
+        await k.run(
+            [
+                er := exec_req.get(
+                    """
+                    class CustomObject:
+                        def _repr_html_(self):
+                            raise ModuleNotFoundError("another_missing_package", name="another_missing_package")
+
+                    obj = CustomObject()
+                    obj
+                    """
+                )
+            ]
+        )
+
+        # Cell should execute successfully (exception is in formatter, not execution)
+        cell = k.graph.cells[er.cell_id]
+        assert cell.exception is None
+        assert "obj" in k.globals
+        assert "CustomObject" in k.globals
+
+        # Check that the output was still broadcast (even if formatting failed)
+        stream = MockStream(mocked_kernel.stream)
+        cell_ops = stream.cell_ops
+        output_ops = [op for op in cell_ops if op.output is not None]
+        # Should have output, even if formatter failed (falls back to plain formatter)
+        assert len(output_ops) > 0
+        op_names = [op.get("op") for op in stream.operations]
+        assert "missing-package-alert" in op_names
+
 
 class TestDisable:
     async def test_disable_and_reenable_not_stale(
@@ -2793,8 +2921,6 @@ class TestAsyncIO:
     async def test_wait_for(
         any_kernel: Kernel, exec_req: ExecReqProvider
     ) -> None:
-        import asyncio
-
         k = any_kernel
 
         await k.run(
@@ -3809,3 +3935,21 @@ def _filter_to_error_ops(cell_ops: list[CellOp]) -> list[CellOp]:
         if op.output is not None
         and op.output.channel == CellChannel.MARIMO_ERROR
     ]
+
+
+class TestRequestHandler:
+    async def test_request_handler_only_created_once(
+        self, any_kernel: Kernel
+    ) -> None:
+        """Test that request_handler property is only created once."""
+        k = any_kernel
+
+        # Access request_handler multiple times
+        handler1 = k.request_handler
+        handler2 = k.request_handler
+        handler3 = k.request_handler
+
+        # They should all be the same instance
+        assert handler1 is handler2
+        assert handler2 is handler3
+        assert handler1 is handler3

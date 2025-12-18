@@ -4,7 +4,7 @@ from __future__ import annotations
 import importlib.util
 import sys
 
-from marimo._runtime.dataflow import DirectedGraph
+from marimo._runtime.dataflow.topology import GraphTopology
 from marimo._types.ids import CellId_t
 
 
@@ -26,7 +26,7 @@ def _is_module_installed(module_name: str) -> bool:
 
 class ModuleRegistry:
     def __init__(
-        self, graph: DirectedGraph, excluded_modules: set[str] | None = None
+        self, graph: GraphTopology, excluded_modules: set[str] | None = None
     ) -> None:
         self.graph = graph
         # modules that do not have corresponding packages on package index

@@ -3,9 +3,8 @@
 
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Protocol
 
 from marimo import _loggers
 from marimo._server.api.status import HTTPException, HTTPStatus
@@ -13,10 +12,9 @@ from marimo._server.api.status import HTTPException, HTTPStatus
 LOGGER = _loggers.marimo_logger()
 
 
-class StorageInterface(ABC):
-    """Abstract interface for storage operations."""
+class StorageInterface(Protocol):
+    """Interface for storage operations."""
 
-    @abstractmethod
     def read(self, path: Path) -> str:
         """Read content from storage.
 
@@ -29,9 +27,8 @@ class StorageInterface(ABC):
         Raises:
             HTTPException: If read fails
         """
-        pass
+        ...
 
-    @abstractmethod
     def write(self, path: Path, content: str) -> None:
         """Write content to storage.
 
@@ -42,9 +39,8 @@ class StorageInterface(ABC):
         Raises:
             HTTPException: If write fails
         """
-        pass
+        ...
 
-    @abstractmethod
     def exists(self, path: Path) -> bool:
         """Check if path exists in storage.
 
@@ -54,9 +50,8 @@ class StorageInterface(ABC):
         Returns:
             True if path exists, False otherwise
         """
-        pass
+        ...
 
-    @abstractmethod
     def rename(self, old_path: Path, new_path: Path) -> None:
         """Rename/move a file in storage.
 
@@ -67,9 +62,8 @@ class StorageInterface(ABC):
         Raises:
             HTTPException: If rename fails
         """
-        pass
+        ...
 
-    @abstractmethod
     def is_same_path(self, path1: Path, path2: Path) -> bool:
         """Check if two paths refer to the same location.
 
@@ -80,9 +74,8 @@ class StorageInterface(ABC):
         Returns:
             True if paths refer to same location
         """
-        pass
+        ...
 
-    @abstractmethod
     def get_absolute_path(self, path: Path) -> Path:
         """Get absolute path.
 
@@ -92,9 +85,8 @@ class StorageInterface(ABC):
         Returns:
             Absolute path
         """
-        pass
+        ...
 
-    @abstractmethod
     def read_related_file(
         self, base_path: Path, relative_path: str
     ) -> Optional[str]:
@@ -109,7 +101,7 @@ class StorageInterface(ABC):
         Returns:
             File contents or None if not found
         """
-        pass
+        ...
 
 
 class FilesystemStorage(StorageInterface):

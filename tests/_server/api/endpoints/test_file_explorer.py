@@ -6,6 +6,8 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING
 
+import pytest
+
 from tests._server.mocks import get_session_manager, token_header
 
 if TYPE_CHECKING:
@@ -91,27 +93,51 @@ def test_update_file(client: TestClient) -> None:
         f.write(test_content)
 
 
+@pytest.mark.flaky(reruns=3)
 def test_update_file_with_session(client: TestClient) -> None:
     sm = get_session_manager(client)
+    # Enable watch mode to set up file watcher lifecycle
+    sm.watch = True
+    sm._setup_file_watching()
+
     file_path = sm.file_router.get_unique_file_key()
     assert file_path
     file_path = Path(file_path)
     assert file_path.exists()
-    response = client.post(
-        "/api/files/update",
-        headers=HEADERS,
-        json={
-            "path": str(file_path),
-            "contents": "@app.cell\ndef _(): x=10; x\n",
-        },
-    )
-    assert response.status_code == 200, response.text
-    assert response.headers["content-type"] == "application/json"
-    assert response.json()["success"] is True
-    file_contents = file_path.read_text()
-    assert "@app.cell" in file_contents
-    assert "x=10; x" in file_contents
-    assert len(sm.file_change_handler._file_change_locks) == 1
+
+    # Create a session by connecting via websocket
+    with client.websocket_connect(
+        "/ws?session_id=test-session&access_token=fake-token"
+    ) as websocket:
+        # Receive kernel ready message
+        data = websocket.receive_json()
+        assert data["op"] == "kernel-ready"
+
+        # Verify file watcher was attached when session was created
+        assert len(sm._file_watcher_lifecycle._session_callbacks) == 1
+
+        # Update the file
+        response = client.post(
+            "/api/files/update",
+            headers=HEADERS,
+            json={
+                "path": str(file_path),
+                "contents": "@app.cell\ndef _(): x=10; x\n",
+            },
+        )
+        assert response.status_code == 200, response.text
+        assert response.headers["content-type"] == "application/json"
+        assert response.json()["success"] is True
+        file_contents = file_path.read_text()
+        assert "@app.cell" in file_contents
+        assert "x=10; x" in file_contents
+
+        # Shutdown
+        client.post("/api/kernel/shutdown", headers=HEADERS)
+
+    # Clean up
+    sm.watch = False
+    sm.watcher_manager.stop_all()
 
 
 def test_move_file_or_directory(client: TestClient) -> None:

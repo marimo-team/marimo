@@ -4,24 +4,42 @@ from __future__ import annotations
 import asyncio
 import threading
 import time
-from typing import TYPE_CHECKING, Callable, Generic, TypeVar, Union
+from typing import Any, Callable, Generic, Protocol, TypeVar, Union
 
 from marimo import _loggers
+from marimo._server.types import QueueType
 from marimo._utils.disposable import Disposable
 from marimo._utils.typed_connection import TypedConnection
 
-if TYPE_CHECKING:
-    import queue
-
 LOGGER = _loggers.marimo_logger()
 
-T = TypeVar("T")
+T = TypeVar("T", covariant=True)
 
 
 Consumer = Callable[[T], None]
 
 
-class ConnectionDistributor(Generic[T]):
+class Distributor(Generic[T], Protocol):
+    """Base class for distributors."""
+
+    def add_consumer(self, consumer: Consumer[T]) -> Disposable:
+        """Add a consumer to the distributor."""
+        ...
+
+    def start(self) -> Any:
+        """Start the distributor."""
+        ...
+
+    def stop(self) -> None:
+        """Stop the distributor."""
+        ...
+
+    def flush(self) -> None:
+        """Flush the distributor."""
+        ...
+
+
+class ConnectionDistributor(Distributor[T]):
     """
     Used to distribute the response of a multiprocessing Connection to multiple
     consumers.
@@ -94,8 +112,8 @@ class ConnectionDistributor(Generic[T]):
                 break
 
 
-class QueueDistributor(Generic[T]):
-    def __init__(self, queue: queue.Queue[Union[T, None]]) -> None:
+class QueueDistributor(Distributor[T]):
+    def __init__(self, queue: QueueType[Union[T, None]]) -> None:
         self.consumers: list[Consumer[T]] = []
         # distributor uses None as a signal to stop
         self.queue = queue

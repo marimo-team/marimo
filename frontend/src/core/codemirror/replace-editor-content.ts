@@ -2,6 +2,7 @@
 
 import type { TransactionSpec } from "@codemirror/state";
 import type { EditorView } from "@codemirror/view";
+import { suppressSignatureHelp } from "@marimo-team/codemirror-languageserver";
 
 /**
  * Replace the entire content of the editor with new content.
@@ -70,6 +71,7 @@ export function replaceEditorContent(
     // Apply changes with preserved cursor position
     editor.dispatch({
       changes: { from: 0, to: doc.length, insert: newContent },
+      annotations: suppressSignatureHelp.of(true), // External edits should not show signature help
       selection: {
         anchor: newCursorPos,
       },

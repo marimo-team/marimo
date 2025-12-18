@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 from functools import lru_cache
-from multiprocessing import Process
 from typing import TYPE_CHECKING, Any, Optional
 
 from starlette.authentication import requires
@@ -241,10 +240,8 @@ async def usage(request: Request) -> JSONResponse:
     kernel_memory: Optional[int] = None
     session = AppState(request).get_current_session()
     try:
-        if session and isinstance(session.kernel_manager.kernel_task, Process):
-            kernel_process = psutil.Process(
-                session.kernel_manager.kernel_task.pid
-            )
+        if session and (pid := session.kernel_pid()) is not None:
+            kernel_process = psutil.Process(pid)
             kernel_memory = kernel_process.memory_info().rss
             kernel_children = kernel_process.children(recursive=True)
             for child in kernel_children:

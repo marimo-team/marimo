@@ -237,14 +237,17 @@ async def run_app_until_completion(
     cli_args: SerializedCLIArgs,
     argv: list[str] | None,
 ) -> tuple[SessionView, bool]:
-    from marimo._server.sessions import Session
+    from marimo._server.sessions.session import SessionImpl
 
     instantiated_event = asyncio.Event()
 
     class DefaultSessionConsumer(SessionConsumer):
         def __init__(self) -> None:
             self.did_error = False
-            super().__init__(consumer_id=ConsumerId("default"))
+
+        @property
+        def consumer_id(self) -> ConsumerId:
+            return ConsumerId("default")
 
         def on_start(
             self,
@@ -317,7 +320,7 @@ async def run_app_until_completion(
 
     # Create a session
     session_consumer = DefaultSessionConsumer()
-    session = Session.create(
+    session = SessionImpl.create(
         # Any initialization ID will do
         initialization_id="_any_",
         session_consumer=session_consumer,
@@ -349,7 +352,7 @@ async def run_app_until_completion(
     # might still exist; the better thing to do would be to flush
     # the worker, then ask it to quit and join on it. If we have an
     # issue with some outputs being missed, that's what we should do.
-    session.message_distributor.flush()
+    session.flush_messages()
     # Hack: yield to give the session view a chance to process the incoming
     # console operations.
     await asyncio.sleep(0.1)

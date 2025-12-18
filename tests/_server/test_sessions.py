@@ -7,6 +7,7 @@ import inspect
 import os
 import queue
 import sys
+import threading
 import time
 from multiprocessing.queues import Queue as MPQueue
 from pathlib import Path
@@ -34,12 +35,14 @@ from marimo._server.file_router import AppFileRouter
 from marimo._server.model import ConnectionState, SessionMode
 from marimo._server.notebook import AppFileManager
 from marimo._server.session.session_view import SessionView
-from marimo._server.sessions import (
-    KernelManager,
-    QueueManager,
-    Session,
-    SessionManager,
+from marimo._server.sessions.managers import (
+    KernelManagerImpl,
+    QueueManagerImpl,
 )
+from marimo._server.sessions.session import (
+    SessionImpl,
+)
+from marimo._server.sessions.session_manager import SessionManager
 from marimo._server.utils import initialize_asyncio
 from marimo._types.ids import SessionId
 from marimo._utils.marimo_path import MarimoPath
@@ -82,13 +85,13 @@ session_id = SessionId("test")
 @save_and_restore_main
 def test_queue_manager() -> None:
     # Test with multiprocessing queues
-    queue_manager_mp = QueueManager(use_multiprocessing=True)
+    queue_manager_mp = QueueManagerImpl(use_multiprocessing=True)
     assert isinstance(queue_manager_mp.control_queue, MPQueue)
     assert isinstance(queue_manager_mp.completion_queue, MPQueue)
     assert isinstance(queue_manager_mp.input_queue, MPQueue)
 
     # Test with threading queues
-    queue_manager_thread = QueueManager(use_multiprocessing=False)
+    queue_manager_thread = QueueManagerImpl(use_multiprocessing=False)
     assert isinstance(queue_manager_thread.control_queue, queue.Queue)
     assert isinstance(queue_manager_thread.completion_queue, queue.Queue)
     assert isinstance(queue_manager_thread.input_queue, queue.Queue)
@@ -97,16 +100,16 @@ def test_queue_manager() -> None:
 @save_and_restore_main
 def test_kernel_manager_run_mode() -> None:
     # Mock objects and data for testing
-    queue_manager = QueueManager(use_multiprocessing=False)
+    queue_manager = QueueManagerImpl(use_multiprocessing=False)
     mode = SessionMode.RUN
 
     # Instantiate a KernelManager
-    kernel_manager = KernelManager(
-        queue_manager,
-        mode,
-        {},
-        app_metadata,
-        get_default_config_manager(current_path=None),
+    kernel_manager = KernelManagerImpl(
+        queue_manager=queue_manager,
+        mode=mode,
+        configs={},
+        app_metadata=app_metadata,
+        config_manager=get_default_config_manager(current_path=None),
         virtual_files_supported=True,
         redirect_console_to_browser=False,
     )
@@ -121,6 +124,7 @@ def test_kernel_manager_run_mode() -> None:
     kernel_manager.close_kernel()
 
     # Assert shutdown
+    assert isinstance(kernel_manager.kernel_task, threading.Thread)
     kernel_manager.kernel_task.join()
     assert not kernel_manager.is_alive()
     assert queue_manager.input_queue.empty()
@@ -130,16 +134,16 @@ def test_kernel_manager_run_mode() -> None:
 @save_and_restore_main
 def test_kernel_manager_edit_mode() -> None:
     # Mock objects and data for testing
-    queue_manager = QueueManager(use_multiprocessing=True)
+    queue_manager = QueueManagerImpl(use_multiprocessing=True)
     mode = SessionMode.EDIT
 
     # Instantiate a KernelManager
-    kernel_manager = KernelManager(
-        queue_manager,
-        mode,
-        {},
-        app_metadata,
-        get_default_config_manager(current_path=None),
+    kernel_manager = KernelManagerImpl(
+        queue_manager=queue_manager,
+        mode=mode,
+        configs={},
+        app_metadata=app_metadata,
+        config_manager=get_default_config_manager(current_path=None),
         virtual_files_supported=True,
         redirect_console_to_browser=False,
     )
@@ -163,15 +167,15 @@ def test_kernel_manager_edit_mode() -> None:
 
 @save_and_restore_main
 def test_kernel_manager_interrupt(tmp_path: Path) -> None:
-    queue_manager = QueueManager(use_multiprocessing=True)
+    queue_manager = QueueManagerImpl(use_multiprocessing=True)
     mode = SessionMode.EDIT
 
-    kernel_manager = KernelManager(
-        queue_manager,
-        mode,
-        {},
-        app_metadata,
-        get_default_config_manager(current_path=None),
+    kernel_manager = KernelManagerImpl(
+        queue_manager=queue_manager,
+        mode=mode,
+        configs={},
+        app_metadata=app_metadata,
+        config_manager=get_default_config_manager(current_path=None),
         virtual_files_supported=True,
         redirect_console_to_browser=False,
     )
@@ -270,19 +274,19 @@ session_id = SessionId("test_session_id")
 async def test_session() -> None:
     session_consumer: Any = MagicMock()
     session_consumer.connection_state.return_value = ConnectionState.OPEN
-    queue_manager = QueueManager(use_multiprocessing=False)
-    kernel_manager = KernelManager(
-        queue_manager,
-        SessionMode.RUN,
-        {},
-        app_metadata,
-        get_default_config_manager(current_path=None),
+    queue_manager = QueueManagerImpl(use_multiprocessing=False)
+    kernel_manager = KernelManagerImpl(
+        queue_manager=queue_manager,
+        mode=SessionMode.RUN,
+        configs={},
+        app_metadata=app_metadata,
+        config_manager=get_default_config_manager(current_path=None),
         virtual_files_supported=True,
         redirect_console_to_browser=False,
     )
 
     # Instantiate a Session
-    session = Session(
+    session = SessionImpl(
         session_id,
         session_consumer,
         queue_manager,
@@ -317,27 +321,25 @@ async def test_session() -> None:
 def test_session_disconnect_reconnect() -> None:
     session_consumer: Any = MagicMock()
     session_consumer.connection_state.return_value = ConnectionState.OPEN
-    queue_manager = QueueManager(use_multiprocessing=False)
-    kernel_manager = KernelManager(
-        queue_manager,
-        SessionMode.RUN,
-        {},
-        AppMetadata(
-            query_params={}, cli_args={}, argv=None, app_config=_AppConfig()
-        ),
-        get_default_config_manager(current_path=None),
+    queue_manager = QueueManagerImpl(use_multiprocessing=False)
+    kernel_manager = KernelManagerImpl(
+        queue_manager=queue_manager,
+        mode=SessionMode.RUN,
+        configs={},
+        app_metadata=app_metadata,
+        config_manager=get_default_config_manager(current_path=None),
         virtual_files_supported=True,
         redirect_console_to_browser=False,
     )
 
     # Instantiate a Session
-    session = Session(
-        session_id,
-        session_consumer,
-        queue_manager,
-        kernel_manager,
-        AppFileManager.from_app(InternalApp(App())),
-        get_default_config_manager(current_path=None),
+    session = SessionImpl(
+        initialization_id=session_id,
+        session_consumer=session_consumer,
+        queue_manager=queue_manager,
+        kernel_manager=kernel_manager,
+        app_file_manager=AppFileManager.from_app(InternalApp(App())),
+        config_manager=get_default_config_manager(current_path=None),
         ttl_seconds=None,
     )
 
@@ -377,25 +379,25 @@ def test_session_disconnect_reconnect() -> None:
 def test_session_with_kiosk_consumers() -> None:
     session_consumer: Any = MagicMock()
     session_consumer.connection_state.return_value = ConnectionState.OPEN
-    queue_manager = QueueManager(use_multiprocessing=False)
-    kernel_manager = KernelManager(
-        queue_manager,
-        SessionMode.RUN,
-        {},
-        app_metadata,
-        get_default_config_manager(current_path=None),
+    queue_manager = QueueManagerImpl(use_multiprocessing=False)
+    kernel_manager = KernelManagerImpl(
+        queue_manager=queue_manager,
+        mode=SessionMode.RUN,
+        configs={},
+        app_metadata=app_metadata,
+        config_manager=get_default_config_manager(current_path=None),
         virtual_files_supported=True,
         redirect_console_to_browser=False,
     )
 
     # Instantiate a Session
-    session = Session(
-        session_id,
-        session_consumer,
-        queue_manager,
-        kernel_manager,
-        AppFileManager.from_app(InternalApp(App())),
-        get_default_config_manager(current_path=None),
+    session = SessionImpl(
+        initialization_id=session_id,
+        session_consumer=session_consumer,
+        queue_manager=queue_manager,
+        kernel_manager=kernel_manager,
+        app_file_manager=AppFileManager.from_app(InternalApp(App())),
+        config_manager=get_default_config_manager(current_path=None),
         ttl_seconds=None,
     )
 
@@ -461,7 +463,6 @@ def __():
         session_manager = SessionManager(
             file_router=file_router,
             mode=SessionMode.EDIT,
-            development_mode=False,
             quiet=True,
             include_code=True,
             lsp_server=MagicMock(),
@@ -497,6 +498,9 @@ def __():
             query_params={},
             file_key=file_key,
         )
+
+        # Wait a loop to ensure the session is created
+        await asyncio.sleep(0.01)
 
         tmp_file.write_text(
             """import marimo
@@ -615,7 +619,6 @@ def test_watch_mode_does_not_override_config(tmp_path: Path) -> None:
     session_manager = SessionManager(
         file_router=file_router,
         mode=SessionMode.EDIT,
-        development_mode=False,
         quiet=True,
         include_code=True,
         lsp_server=MagicMock(),
@@ -631,7 +634,6 @@ def test_watch_mode_does_not_override_config(tmp_path: Path) -> None:
     session_manager_no_watch = SessionManager(
         file_router=file_router,
         mode=SessionMode.EDIT,
-        development_mode=False,
         quiet=True,
         include_code=True,
         lsp_server=MagicMock(),
@@ -689,7 +691,6 @@ def __():
         session_manager = SessionManager(
             file_router=file_router,
             mode=SessionMode.EDIT,
-            development_mode=False,
             quiet=True,
             include_code=True,
             lsp_server=MagicMock(),
@@ -765,8 +766,9 @@ def __():
                 }
             }
         )
-        session_manager._config_manager = config_reader_lazy
-        session_manager.file_change_handler.config_manager = config_reader_lazy
+        session_manager._config_manager.get_config = (
+            lambda: config_reader_lazy.get_config()
+        )
 
         # Reset the mock
         session_consumer.put_control_request.reset_mock()
@@ -834,7 +836,6 @@ def __():
         session_manager = SessionManager(
             file_router=file_router,
             mode=SessionMode.EDIT,
-            development_mode=False,
             quiet=True,
             include_code=True,
             lsp_server=MagicMock(),
@@ -940,13 +941,13 @@ def __():
     # Create session with the temporary file
     session_consumer = MagicMock()
     session_consumer.connection_state.return_value = ConnectionState.OPEN
-    queue_manager = QueueManager(use_multiprocessing=False)
-    kernel_manager = KernelManager(
-        queue_manager,
-        SessionMode.RUN,
-        {},
-        app_metadata,
-        get_default_config_manager(current_path=None),
+    queue_manager = QueueManagerImpl(use_multiprocessing=False)
+    kernel_manager = KernelManagerImpl(
+        queue_manager=queue_manager,
+        mode=SessionMode.RUN,
+        configs={},
+        app_metadata=app_metadata,
+        config_manager=get_default_config_manager(current_path=None),
         virtual_files_supported=True,
         redirect_console_to_browser=False,
     )
@@ -956,13 +957,13 @@ def __():
         cell_data.code
         for cell_data in app_file_manager.app.cell_manager.cell_data()
     )
-    session = Session(
-        session_id,
-        session_consumer,
-        queue_manager,
-        kernel_manager,
-        app_file_manager,
-        get_default_config_manager(current_path=None),
+    session = SessionImpl(
+        initialization_id=session_id,
+        session_consumer=session_consumer,
+        queue_manager=queue_manager,
+        kernel_manager=kernel_manager,
+        app_file_manager=app_file_manager,
+        config_manager=get_default_config_manager(current_path=None),
         ttl_seconds=None,
     )
 
@@ -974,7 +975,7 @@ def __():
     assert session.session_cache_manager.path == str(notebook_path)
     assert (
         session.session_cache_manager.interval
-        == Session.SESSION_CACHE_INTERVAL_SECONDS
+        == SessionImpl.SESSION_CACHE_INTERVAL_SECONDS
     )
 
     # Add some operations to the session view
@@ -988,13 +989,13 @@ def __():
     )
 
     # Create a new session and sync from cache
-    session2 = Session(
-        "test2",
-        session_consumer,
-        queue_manager,
-        kernel_manager,
-        app_file_manager,
-        get_default_config_manager(current_path=None),
+    session2 = SessionImpl(
+        initialization_id="test2",
+        session_consumer=session_consumer,
+        queue_manager=queue_manager,
+        kernel_manager=kernel_manager,
+        app_file_manager=app_file_manager,
+        config_manager=get_default_config_manager(current_path=None),
         ttl_seconds=None,
     )
     session2.sync_session_view_from_cache()
@@ -1009,13 +1010,13 @@ def __():
 
     # Test syncing with no file path
     app_file_manager_no_path = AppFileManager.from_app(InternalApp(App()))
-    session3 = Session(
-        "test3",
-        session_consumer,
-        queue_manager,
-        kernel_manager,
-        app_file_manager_no_path,
-        get_default_config_manager(current_path=None),
+    session3 = SessionImpl(
+        initialization_id="test3",
+        session_consumer=session_consumer,
+        queue_manager=queue_manager,
+        kernel_manager=kernel_manager,
+        app_file_manager=app_file_manager_no_path,
+        config_manager=get_default_config_manager(current_path=None),
         ttl_seconds=None,
     )
     session3.sync_session_view_from_cache()
@@ -1056,7 +1057,7 @@ def test_session_with_script_config_overrides(
     app_file_manager = AppFileManager(filename=str(tmp_file))
 
     # Create session with the file that has script config
-    session = Session.create(
+    session = SessionImpl.create(
         initialization_id="test_id",
         session_consumer=session_consumer,
         mode=SessionMode.RUN,
@@ -1077,134 +1078,6 @@ def test_session_with_script_config_overrides(
             "line_length"
         ]
         == 999
-    )
-
-    # Cleanup
-    session.close()
-
-
-@save_and_restore_main
-async def test_file_change_handler_skips_own_writes(tmp_path: Path) -> None:
-    """Test that file change handler skips reloading when it detects its own writes."""
-    from marimo._ast.cell import CellConfig
-    from marimo._server.models.models import SaveNotebookRequest
-    from marimo._types.ids import CellId_t
-
-    # Create a temporary file with initial content
-    temp_file = tmp_path / "test_own_writes.py"
-    temp_file.write_text(
-        dedent(
-            """
-            import marimo
-            app = marimo.App()
-
-            @app.cell
-            def cell1():
-                x = 1
-                return x
-
-            if __name__ == "__main__":
-                app.run()
-            """
-        )
-    )
-
-    # Set up session with minimal dependencies
-    session_consumer = MagicMock()
-    session_consumer.connection_state.return_value = ConnectionState.OPEN
-    app_file_manager = AppFileManager(filename=str(temp_file))
-
-    session = Session.create(
-        initialization_id="test_id",
-        session_consumer=session_consumer,
-        mode=SessionMode.EDIT,
-        app_metadata=app_metadata,
-        app_file_manager=app_file_manager,
-        config_manager=get_default_config_manager(current_path=None),
-        virtual_files_supported=True,
-        redirect_console_to_browser=False,
-        ttl_seconds=None,
-    )
-
-    # Save the file to track the last saved content
-    session.app_file_manager.save(
-        SaveNotebookRequest(
-            cell_ids=[CellId_t("1")],
-            filename=str(temp_file),
-            codes=["x = 1"],
-            names=["cell1"],
-            configs=[CellConfig()],
-            persist=True,
-        )
-    )
-
-    # Create a minimal session manager for the file change handler
-    file_router = AppFileRouter.from_filename(MarimoPath(str(temp_file)))
-    session_manager = SessionManager(
-        file_router=file_router,
-        mode=SessionMode.EDIT,
-        development_mode=False,
-        quiet=False,
-        include_code=True,
-        lsp_server=MagicMock(),
-        config_manager=get_default_config_manager(current_path=None),
-        watch=False,
-        cli_args={},
-        argv=None,
-        auth_token=None,
-        redirect_console_to_browser=False,
-        ttl_seconds=None,
-    )
-
-    # Create file change handler
-    file_change_handler = session_manager.file_change_handler
-
-    # Mock the reload method to verify it's not called
-    original_reload = session.app_file_manager.reload
-    reload_called = False
-
-    def mock_reload():
-        nonlocal reload_called
-        reload_called = True
-        return original_reload()
-
-    session.app_file_manager.reload = mock_reload
-
-    # Call _handle_file_change - should skip reload because content matches
-    file_change_handler._handle_file_change(str(temp_file), session)
-
-    # Verify reload was NOT called (early return triggered)
-    assert not reload_called, (
-        "reload() should not have been called for own writes"
-    )
-
-    # Now externally modify the file
-    temp_file.write_text(
-        dedent(
-            """
-            import marimo
-            app = marimo.App()
-
-            @app.cell
-            def cell1():
-                x = 2  # Changed by external editor
-                return x
-
-            if __name__ == "__main__":
-                app.run()
-            """
-        )
-    )
-
-    # Reset the flag
-    reload_called = False
-
-    # Call _handle_file_change again - should now trigger reload
-    file_change_handler._handle_file_change(str(temp_file), session)
-
-    # Verify reload WAS called (content changed externally)
-    assert reload_called, (
-        "reload() should have been called for external changes"
     )
 
     # Cleanup

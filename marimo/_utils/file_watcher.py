@@ -5,7 +5,7 @@ import asyncio
 import os
 from abc import ABC, abstractmethod
 from collections import defaultdict
-from collections.abc import Coroutine
+from collections.abc import Awaitable, Coroutine
 from pathlib import Path
 from typing import Callable, Optional
 
@@ -155,6 +155,9 @@ def _create_watchdog(
     return WatchdogFileWatcher(path, callback, loop)
 
 
+FileCallback = Callable[[Path], Awaitable[None]]
+
+
 class FileWatcherManager:
     """Manages multiple file watchers, sharing watchers for the same file."""
 
@@ -162,9 +165,9 @@ class FileWatcherManager:
         # Map of file paths to their watchers
         self._watchers: dict[str, FileWatcher] = {}
         # Map of file paths to their callbacks
-        self._callbacks: dict[str, set[Callback]] = defaultdict(set)
+        self._callbacks: dict[str, set[FileCallback]] = defaultdict(set)
 
-    def add_callback(self, path: Path, callback: Callback) -> None:
+    def add_callback(self, path: Path, callback: FileCallback) -> None:
         """Add a callback for a file path. Creates watcher if needed."""
         path_str = str(path)
         self._callbacks[path_str].add(callback)
@@ -181,7 +184,7 @@ class FileWatcherManager:
             self._watchers[path_str] = watcher
             LOGGER.debug(f"Created new watcher for {path_str}")
 
-    def remove_callback(self, path: Path, callback: Callback) -> None:
+    def remove_callback(self, path: Path, callback: FileCallback) -> None:
         """Remove a callback for a file path. Removes watcher if no more callbacks."""
         path_str = str(path)
         if path_str not in self._callbacks:

@@ -1,7 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Protocol, TypeVar, Union
+from typing import Optional, Protocol, TypeVar, Union
 
 T = TypeVar("T")
 
@@ -31,9 +31,13 @@ class QueueType(Protocol[T]):
 
 
 class ProcessLike(Protocol):
+    """Protocol for process-like objects."""
+
     @property
     def pid(self) -> int | None: ...
 
     def is_alive(self) -> bool: ...
 
     def terminate(self) -> None: ...
+
+    def join(self, timeout: Optional[float] = None) -> None: ...

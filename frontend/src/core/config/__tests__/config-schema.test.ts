@@ -60,7 +60,7 @@ test("default UserConfig - empty", () => {
       },
       "diagnostics": {},
       "display": {
-        "cell_output": "above",
+        "cell_output": "below",
         "code_editor_font_size": 14,
         "dataframes": "rich",
         "default_table_max_columns": 50,
@@ -129,7 +129,7 @@ test("default UserConfig - one level", () => {
       },
       "diagnostics": {},
       "display": {
-        "cell_output": "above",
+        "cell_output": "below",
         "code_editor_font_size": 14,
         "dataframes": "rich",
         "default_table_max_columns": 50,
