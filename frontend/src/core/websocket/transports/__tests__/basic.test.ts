@@ -46,7 +46,7 @@ describe("BasicTransport", () => {
 
       transport.addEventListener("message", messageCallback);
 
-      await transport.send("test message");
+      transport.send("test message");
 
       expect(messageCallback).toHaveBeenCalledTimes(1);
       expect(messageCallback).toHaveBeenCalledWith(
@@ -63,7 +63,7 @@ describe("BasicTransport", () => {
       transport.addEventListener("message", messageCallback);
 
       const buffer = new ArrayBuffer(8);
-      await transport.send(buffer);
+      transport.send(buffer);
 
       expect(messageCallback).toHaveBeenCalledTimes(1);
       expect(messageCallback).toHaveBeenCalledWith(
@@ -106,7 +106,7 @@ describe("BasicTransport", () => {
       transport.addEventListener("message", callback);
       transport.removeEventListener("message", callback);
 
-      await transport.send("test");
+      transport.send("test");
 
       expect(callback).not.toHaveBeenCalled();
     });
@@ -217,7 +217,7 @@ describe("BasicTransport", () => {
 
       transport.addEventListener("message", messageCallback);
 
-      await transport.send("outgoing");
+      transport.send("outgoing");
       expect(messageCallback).toHaveBeenCalledWith(
         expect.objectContaining({ data: "outgoing" }),
       );
@@ -244,7 +244,7 @@ describe("BasicTransport", () => {
 
       transport.reconnect();
       await new Promise((resolve) => setTimeout(resolve, 10));
-      await transport.send("test");
+      transport.send("test");
       transport.close();
 
       expect(openCallback).toHaveBeenCalledTimes(1);
