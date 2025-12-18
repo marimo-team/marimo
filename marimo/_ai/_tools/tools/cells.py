@@ -303,7 +303,7 @@ class GetCellRuntimeData(
     ) -> CellRuntimeMetadata:
         """Get cell runtime metadata including status and execution info."""
         # Get basic runtime state from session view
-        session_view = session.session_view
+        session_view = session.get_current_state()
         cell_op = session_view.cell_operations.get(cell_id)
 
         runtime_state = None
@@ -325,7 +325,7 @@ class GetCellRuntimeData(
             return {}
 
         # Get all current variables from session view
-        session_view = session.session_view
+        session_view = session.get_current_state()
         all_variables = session_view.variable_values
 
         # Get variables defined by this cell
@@ -366,7 +366,7 @@ class GetCellOutputs(ToolBase[GetCellOutputArgs, GetCellOutputOutput]):
     def handle(self, args: GetCellOutputArgs) -> GetCellOutputOutput:
         context = self.context
         session = context.get_session(args.session_id)
-        session_view = session.session_view
+        session_view = session.get_current_state()
         cell_id = args.cell_id
         cell_op = session_view.cell_operations.get(cell_id)
 

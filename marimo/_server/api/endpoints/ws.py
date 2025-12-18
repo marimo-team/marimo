@@ -600,6 +600,7 @@ class WebsocketHandler(SessionConsumer):
                 session_id=session_id,
                 session_consumer=self,
                 file_key=self.file_key,
+                auto_instantiate=self.auto_instantiate,
             )
             self.status = ConnectionState.CONNECTING
             # Let the frontend know it can instantiate the app.
@@ -612,10 +613,7 @@ class WebsocketHandler(SessionConsumer):
                 kiosk=False,
             )
             self.status = ConnectionState.OPEN
-            # if auto-instantiate if false, replay the previous session
-            if not self.auto_instantiate:
-                new_session.sync_session_view_from_cache()
-                self._replay_previous_session(new_session)
+            self._replay_previous_session(new_session)
             return new_session
 
         get_session()

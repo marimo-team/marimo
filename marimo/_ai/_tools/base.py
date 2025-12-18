@@ -91,7 +91,7 @@ class ToolContext:
         return session
 
     def get_cell_ops(self, session_id: SessionId, cell_id: CellId_t) -> CellOp:
-        session_view = self.get_session(session_id).session_view
+        session_view = self.get_session(session_id).get_current_state()
         if cell_id not in session_view.cell_operations:
             raise ToolExecutionError(
                 f"Cell operation not found for cell {cell_id}",
@@ -143,7 +143,7 @@ class ToolContext:
         Optionally include stderr messages foreach cell.
         """
         session = self.get_session(session_id)
-        session_view = session.session_view
+        session_view = session.get_current_state()
         cell_errors_map: dict[CellId_t, MarimoCellErrors] = {}
         notebook_errors: list[MarimoCellErrors] = []
         stderr: list[str] = []

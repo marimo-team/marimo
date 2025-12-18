@@ -9,7 +9,6 @@ file watching, and LSP server management.
 from __future__ import annotations
 
 import asyncio
-import os
 from pathlib import Path
 from typing import TYPE_CHECKING, Optional, TypeVar
 
@@ -41,6 +40,7 @@ from marimo._server.sessions.token_manager import TokenManager
 from marimo._server.sessions.types import KernelState
 from marimo._server.tokens import AuthToken, SkewProtectionToken
 from marimo._types.ids import ConsumerId, SessionId
+from marimo._utils.async_path import AsyncPath
 from marimo._utils.file_watcher import FileWatcherManager
 
 if TYPE_CHECKING:
@@ -175,6 +175,7 @@ class SessionManager:
         session_consumer: SessionConsumer,
         query_params: SerializedQueryParams,
         file_key: MarimoFileKey,
+        auto_instantiate: bool,
     ) -> Session:
         """Create a new session."""
         LOGGER.debug("Creating new session for id %s", session_id)
@@ -211,6 +212,7 @@ class SessionManager:
             virtual_files_supported=True,
             redirect_console_to_browser=self.redirect_console_to_browser,
             ttl_seconds=self.ttl_seconds,
+            auto_instantiate=auto_instantiate,
         )
 
         # Add to repository
@@ -221,7 +223,7 @@ class SessionManager:
 
         return session
 
-    def handle_file_rename_for_watch(
+    async def handle_file_rename_for_watch(
         self, session_id: SessionId, prev_path: Optional[str], new_path: str
     ) -> tuple[bool, Optional[str]]:
         """Handle renaming a file for a session.
@@ -233,13 +235,13 @@ class SessionManager:
         if not session:
             return False, "Session not found"
 
-        if not os.path.exists(new_path):
+        if not await AsyncPath(new_path).exists():
             return False, f"File {new_path} does not exist"
 
         if not session.app_file_manager.path:
             return False, "Session has no associated file"
 
-        session.rename_path(new_path)
+        await session.rename_path(new_path)
 
         try:
             if self.watch and self._file_watcher_lifecycle:
