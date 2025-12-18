@@ -246,7 +246,7 @@
     "react": "^19.2.0",
     "react-compiler-runtime": "19.1.0-rc.3",
     "react-dom": "^19.2.0",
-    "storybook": "^10.1.1",
+    "storybook": "^10.1.10",
     "stylelint": "^16.26.1",
     "stylelint-config-standard": "^36.0.1",
     "tailwindcss": "^4.1.17",
