@@ -12,8 +12,9 @@ import {
   LayersIcon,
   MonitorIcon,
 } from "lucide-react";
-import React, { useId, useRef } from "react";
+import React, { useId, useMemo, useRef } from "react";
 import { useLocale } from "react-aria";
+import type { FieldValues } from "react-hook-form";
 import { useForm } from "react-hook-form";
 import type z from "zod";
 import { Button } from "@/components/ui/button";
@@ -58,6 +59,33 @@ import { formItemClasses, SettingGroup } from "./common";
 import { DataForm } from "./data-form";
 import { IsOverridden } from "./is-overridden";
 import { OptionalFeatures } from "./optional-features";
+
+/**
+ * Extract only the values that have been modified (dirty) from form state.
+ * This prevents sending unchanged fields that could overwrite backend values.
+ */
+function getDirtyValues<T extends FieldValues>(
+  values: T,
+  dirtyFields: Partial<Record<keyof T, unknown>>,
+): Partial<T> {
+  const result: Partial<T> = {};
+  for (const key of Object.keys(dirtyFields) as Array<keyof T>) {
+    const dirty = dirtyFields[key];
+    if (dirty === true) {
+      result[key] = values[key];
+    } else if (typeof dirty === "object" && dirty !== null) {
+      // Nested object - recurse
+      const nested = getDirtyValues(
+        values[key] as FieldValues,
+        dirty as Partial<Record<string, unknown>>,
+      );
+      if (Object.keys(nested).length > 0) {
+        result[key] = nested as T[keyof T];
+      }
+    }
+  }
+  return result;
+}
 
 const categories = [
   {
@@ -146,8 +174,15 @@ export const UserConfigForm: React.FC = () => {
   });
 
   const onSubmitNotDebounced = async (values: UserConfig) => {
-    await saveUserConfig({ config: values }).then(() => {
-      setConfig(values);
+    // Only send values that were actually changed to avoid
+    // overwriting backend values the form doesn't manage
+    const dirtyValues = getDirtyValues(values, form.formState.dirtyFields);
+    if (Object.keys(dirtyValues).length === 0) {
+      return; // Nothing changed
+    }
+    await saveUserConfig({ config: dirtyValues }).then(() => {
+      // Merge dirty values into current config for local state
+      setConfig({ ...config, ...values });
     });
   };
   const onSubmit = useDebouncedCallback(onSubmitNotDebounced, FORM_DEBOUNCE);
