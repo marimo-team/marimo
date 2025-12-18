@@ -13,7 +13,7 @@ import { RuntimeState } from "./kernel/RuntimeState";
 import { getSessionId } from "./kernel/session";
 import { useRequestClient } from "./network/requests";
 import { isAppConnecting } from "./websocket/connection-utils";
-import { useMarimoWebSocket } from "./websocket/useMarimoWebSocket";
+import { useMarimoKernelConnection } from "./websocket/useMarimoKernelConnection";
 
 interface AppProps {
   appConfig: AppConfig;
@@ -31,7 +31,7 @@ export const RunApp: React.FC<AppProps> = ({ appConfig }) => {
     };
   }, []);
 
-  const { connection } = useMarimoWebSocket({
+  const { connection } = useMarimoKernelConnection({
     autoInstantiate: true,
     setCells: setCells,
     sessionId: getSessionId(),
