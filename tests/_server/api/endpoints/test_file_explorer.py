@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
+from marimo._utils.platform import is_windows
 from tests._server.mocks import get_session_manager, token_header
 
 if TYPE_CHECKING:
@@ -94,6 +95,7 @@ def test_update_file(client: TestClient) -> None:
 
 
 @pytest.mark.flaky(reruns=3)
+@pytest.mark.skipif(is_windows(), reason="not supported on Windows")
 def test_update_file_with_session(client: TestClient) -> None:
     sm = get_session_manager(client)
     # Enable watch mode to set up file watcher lifecycle
