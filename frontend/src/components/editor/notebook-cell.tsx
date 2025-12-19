@@ -487,6 +487,8 @@ const EditableCellComponent = ({
     isEmptyMarkdownContent &&
     !needsRun && (
       <div
+        role="button"
+        aria-label="Double-click to edit markdown"
         className="relative cursor-pointer px-3 py-2"
         onDoubleClick={showHiddenCodeIfMarkdown}
         onKeyDown={(e) => {
