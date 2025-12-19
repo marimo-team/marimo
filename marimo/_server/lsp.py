@@ -457,6 +457,51 @@ class TyServer(BaseLspServer):
         )
 
 
+class PyreflyServer(BaseLspServer):
+    id = "pyrefly"
+
+    def __init__(self, port: int) -> None:
+        super().__init__(port)
+        self.log_file = _loggers.get_log_directory() / "pyrefly-lsp.log"
+
+    async def start(self) -> Optional[Alert]:
+        # Pyrefly is not required, so we don't want to alert or fail if it is not installed
+        if not DependencyManager.pyrefly.has():
+            LOGGER.debug("Pyrefly is not installed. Skipping LSP server.")
+            return None
+        return await super().start()
+
+    def validate_requirements(self) -> Union[str, Literal[True]]:
+        if not DependencyManager.pyrefly.has():
+            return "Pyrefly is missing. Install it with `pip install Pyrefly`."
+        if not DependencyManager.which("node"):
+            return "node.js binary is missing. Install node at https://nodejs.org/."
+        return True
+
+    def get_command(self) -> list[str]:
+        from pyrefly.__main__ import get_pyrefly_bin  # type: ignore
+
+        lsp_bin = marimo_package_path() / "_lsp" / "index.cjs"
+        pyrefly_command = f"pyrefly:{get_pyrefly_bin()}"
+        return [
+            "node",
+            str(lsp_bin),
+            "--port",
+            str(self.port),
+            "--lsp",
+            pyrefly_command,
+            "--log-file",
+            str(self.log_file),
+        ]
+
+    def missing_binary_alert(self) -> Alert:
+        return Alert(
+            title="Pyrefly: Connection Error",
+            description="<span><a class='hyperlink' href='https://github.com/facebook/pyrefly'>Install ty</a> for type checking support.</span>",
+            variant="danger",
+        )
+
+
 class NoopLspServer(LspServer):
     async def start(self) -> None:
         pass
@@ -473,6 +518,7 @@ class CompositeLspServer(LspServer):
         "pylsp": PyLspServer,
         "basedpyright": BasedpyrightServer,
         "ty": TyServer,
+        "pyrefly": PyreflyServer,
         "copilot": CopilotLspServer,
     }
 

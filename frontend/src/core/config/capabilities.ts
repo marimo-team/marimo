@@ -8,6 +8,7 @@ export const capabilitiesAtom = atom<Capabilities>({
   pylsp: false,
   basedpyright: false,
   ty: false,
+  pyrefly: false,
 });
 
 export function hasCapability(key: keyof Capabilities): boolean {

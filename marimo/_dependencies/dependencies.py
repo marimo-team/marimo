@@ -225,6 +225,7 @@ class DependencyManager:
     pylsp = Dependency("pylsp")
     basedpyright = Dependency("basedpyright")
     ty = Dependency("ty")
+    pyrefly = Dependency("pyrefly")
     pytest = Dependency("pytest")
     vegafusion = Dependency("vegafusion")
     vl_convert_python = Dependency("vl_convert")

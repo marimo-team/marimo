@@ -16,9 +16,9 @@ export const focusPackagesInput = () => {
   });
 };
 
-type ChromeActions = {
+interface ChromeActions {
   openApplication: (panel: PanelType) => void;
-};
+}
 
 export const openPackageManager = (chromeActions: ChromeActions) => {
   chromeActions.openApplication("packages");

@@ -130,6 +130,7 @@ export const UserConfigForm: React.FC = () => {
       pylsp: true,
       ty: true,
       basedpyright: true,
+      pyrefly: true,
     };
   }
 
@@ -525,6 +526,48 @@ export const UserConfigForm: React.FC = () => {
                         basedpyright is not available in your current
                         environment. Please install{" "}
                         <Kbd className="inline">basedpyright</Kbd> in your
+                        environment.
+                      </Banner>
+                    )}
+                  </div>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="language_servers.pyrefly.enabled"
+                render={({ field }) => (
+                  <div className="flex flex-col gap-1">
+                    <FormItem className={formItemClasses}>
+                      <FormLabel>
+                        <Badge variant="defaultOutline" className="mr-2">
+                          Beta
+                        </Badge>
+                        Pyrefly (
+                        <ExternalLink href="https://github.com/facebook/pyrefly">
+                          docs
+                        </ExternalLink>
+                        )
+                      </FormLabel>
+                      <FormControl>
+                        <Checkbox
+                          data-testid="pyrefly-checkbox"
+                          checked={field.value}
+                          disabled={field.disabled}
+                          onCheckedChange={(checked) => {
+                            field.onChange(Boolean(checked));
+                          }}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                      <IsOverridden
+                        userConfig={config}
+                        name="language_servers.pyrefly.enabled"
+                      />
+                    </FormItem>
+                    {field.value && !capabilities.pyrefly && (
+                      <Banner kind="danger">
+                        Pyrefly is not available in your current environment. Please
+                        install <Kbd className="inline">pyrefly</Kbd> in your
                         environment.
                       </Banner>
                     )}
