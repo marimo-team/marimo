@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import re
-from typing import Literal, Optional, Union
+from typing import Any, Literal, Optional, Union
 
 import msgspec
 
@@ -218,3 +218,49 @@ def replace_brackets_with_quotes(sql: str) -> tuple[str, dict[int, int]]:
     replaced_sql = re.sub(pattern, replacement_func, sql)
 
     return replaced_sql, offset_record
+
+
+def format_query_with_globals(query: str, globals_dict: dict[str, Any]) -> str:
+    """
+    Format a query by substituting brace expressions with values from globals_dict.
+    Braces inside single-quoted strings (SQL literals) are left untouched.
+    Braces inside double-quoted strings (SQL identifiers) are substituted.
+
+    Args:
+        query: The SQL query with brace expressions like {var}
+        globals_dict: Dictionary mapping variable names to their values
+
+    Returns:
+        The formatted query with substitutions applied
+
+    Example:
+        format_query_with_globals("SELECT {col} FROM '{table}'", {"col": "id"})
+        # => "SELECT id FROM '{table}'"
+    """
+    # Quick check - if no braces, return as-is
+    if "{" not in query or "}" not in query:
+        return query
+
+    # Pattern to match single-quoted strings or brace expressions
+    # Groups: 1=single quoted string, 2=full brace, 3=brace content (without braces)
+    pattern = r"(\'(?:[^\'\\]|\\.)*\')|(\{([^}]*)\})"
+
+    def replacement_func(match: re.Match[str]) -> str:
+        raw_query = match.group(0)
+        single_quoted = match.group(1)
+        has_braces = match.group(2) is not None
+
+        # If it's a single-quoted string, return it as-is
+        if single_quoted:
+            return raw_query
+
+        if has_braces:
+            key = match.group(3)  # The content inside the braces
+            if key in globals_dict:
+                return str(globals_dict[key])
+            # Key not found - return quoted key to convert it to a literal
+            return f"'{key}'"
+
+        return raw_query
+
+    return re.sub(pattern, replacement_func, query)

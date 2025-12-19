@@ -291,32 +291,40 @@ def test_duckdb_execute_in_explain_mode():
     engine = DuckDBEngine(duckdb_conn)
 
     # Test with valid query
-    result, error = engine.execute_in_explain_mode("SELECT 1, 2")
+    result, error = engine.execute_in_explain_mode("SELECT 1, 2", {})
     assert result is not None
     assert error is None
 
     # Test with invalid queries
     result, error = engine.execute_in_explain_mode(
-        "SELECT * FROM non_existent_table"  # catalog error
+        "SELECT * FROM non_existent_table",
+        {},  # catalog error
     )
     assert result is None
     assert error is not None
 
-    result, error = engine.execute_in_explain_mode("SELECT * FROM ")
+    result, error = engine.execute_in_explain_mode("SELECT * FROM ", {})
     assert result is None
     assert error is not None
 
     # Test with empty queries
-    result, error = engine.execute_in_explain_mode("")
+    result, error = engine.execute_in_explain_mode("", {})
     assert result is None
     assert error is None
 
-    result, error = engine.execute_in_explain_mode("-- SELECT * FROM ")
+    result, error = engine.execute_in_explain_mode("-- SELECT * FROM ", {})
     assert result is None
     assert error is None
 
-    # Test with brackets
-    result, error = engine.execute_in_explain_mode("SELECT {1}")
+    # Test with braces - substituted from globals
+    result, error = engine.execute_in_explain_mode(
+        "SELECT {val}", {"val": "1"}
+    )
+    assert result is not None
+    assert error is None
+
+    # Test with braces
+    result, error = engine.execute_in_explain_mode("SELECT {missing}", {})
     assert result is not None
     assert error is None
 
@@ -368,32 +376,33 @@ def test_sqlalchemy_execute_in_explain_mode():
     engine = SQLAlchemyEngine(sqlite_engine)
 
     # Test with valid query
-    result, error = engine.execute_in_explain_mode("SELECT 1, 2")
+    result, error = engine.execute_in_explain_mode("SELECT 1, 2", {})
     assert result is not None
     assert error is None
 
     # Test with invalid queries
     result, error = engine.execute_in_explain_mode(
-        "SELECT * FROM non_existent_table"  # catalog error
+        "SELECT * FROM non_existent_table",
+        {},  # catalog error
     )
     assert result is None
     assert error is not None
 
-    result, error = engine.execute_in_explain_mode("SELECT * FROM ")
+    result, error = engine.execute_in_explain_mode("SELECT * FROM ", {})
     assert result is None
     assert error is not None
 
     # Test with empty queries
-    result, error = engine.execute_in_explain_mode("")
+    result, error = engine.execute_in_explain_mode("", {})
     assert result is None
     assert error is None
 
-    result, error = engine.execute_in_explain_mode("-- SELECT * FROM ")
+    result, error = engine.execute_in_explain_mode("-- SELECT * FROM ", {})
     assert result is None
     assert error is None
 
-    # Test with brackets
-    result, error = engine.execute_in_explain_mode("SELECT {1}")
+    # Test with braces
+    result, error = engine.execute_in_explain_mode("SELECT {1}", {})
     assert result is not None
     assert error is None
 

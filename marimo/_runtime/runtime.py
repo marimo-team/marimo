@@ -2676,7 +2676,9 @@ class SqlCallbacks:
             ).broadcast()
             return
 
-        _, error_message = engine.execute_in_explain_mode(request.query)  # type: ignore
+        _, error_message = engine.execute_in_explain_mode(  # type: ignore
+            request.query, self._kernel.globals
+        )
         validate_result = SqlCatalogCheckResult(
             success=True if error_message is None else False,
             error_message=error_message,

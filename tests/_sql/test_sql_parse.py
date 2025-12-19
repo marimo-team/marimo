@@ -10,6 +10,7 @@ from marimo._dependencies.dependencies import DependencyManager
 from marimo._sql.parse import (
     SqlParseError,
     SqlParseResult,
+    format_query_with_globals,
     parse_sql,
     replace_brackets_with_quotes,
 )
@@ -757,3 +758,133 @@ FROM users"""
         result_sql, offset_record = replace_brackets_with_quotes(query)
         assert result_sql == "SELECT '{id}''{name}''{age}' FROM users"
         assert offset_record == {7: 2, 11: 2, 17: 2}
+
+
+class TestFormatQueryWithGlobals:
+    """Test the format_query_with_globals function."""
+
+    def test_basic_substitution(self):
+        """Test basic variable substitution."""
+        query = "SELECT {column} FROM users"
+        result = format_query_with_globals(query, {"column": "id"})
+        assert result == "SELECT id FROM users"
+
+    def test_multiple_substitutions(self):
+        """Test multiple variable substitutions."""
+        query = "SELECT {col1}, {col2} FROM {table}"
+        result = format_query_with_globals(
+            query, {"col1": "id", "col2": "name", "table": "users"}
+        )
+        assert result == "SELECT id, name FROM users"
+
+    def test_missing_variable_quoted(self):
+        """Test that missing variables are returned with quotes."""
+        query = "SELECT {missing} FROM users"
+        result = format_query_with_globals(query, {})
+        assert result == "SELECT 'missing' FROM users"
+
+    def test_mixed_present_and_missing(self):
+        """Test mix of present and missing variables."""
+        query = "SELECT {present}, {missing} FROM users"
+        result = format_query_with_globals(query, {"present": "id"})
+        assert result == "SELECT id, 'missing' FROM users"
+
+    def test_no_brackets_returns_unchanged(self):
+        """Test query without brackets returns unchanged."""
+        query = "SELECT * FROM users"
+        result = format_query_with_globals(query, {"unused": "value"})
+        assert result == "SELECT * FROM users"
+
+    def test_empty_query(self):
+        """Test empty query."""
+        result = format_query_with_globals("", {})
+        assert result == ""
+
+    def test_empty_globals(self):
+        """Test with empty globals dict - missing keys get quoted."""
+        query = "SELECT {var} FROM users"
+        result = format_query_with_globals(query, {})
+        assert result == "SELECT 'var' FROM users"
+
+    def test_quoted_brackets_ignored(self):
+        """Test that brackets inside single quotes are NOT substituted."""
+        query = "SELECT '{id}' FROM users"
+        result = format_query_with_globals(query, {"id": "REPLACED"})
+        assert result == "SELECT '{id}' FROM users"
+
+    def test_double_quoted_brackets_substituted(self):
+        """Test that brackets inside double quotes ARE substituted (identifiers)."""
+        query = 'SELECT "{col}" FROM users'
+        result = format_query_with_globals(query, {"col": "my_column"})
+        assert result == 'SELECT "my_column" FROM users'
+
+    def test_double_quoted_missing_key(self):
+        """Test that missing keys in double quotes get quoted."""
+        query = 'SELECT "{col}" FROM users'
+        result = format_query_with_globals(query, {})
+        assert result == "SELECT \"'col'\" FROM users"
+
+    def test_mixed_quoted_and_unquoted(self):
+        """Test mix of quoted and unquoted brackets."""
+        query = "SELECT '{literal}', {variable} FROM users"
+        result = format_query_with_globals(query, {"variable": "id"})
+        assert result == "SELECT '{literal}', id FROM users"
+
+    def test_numeric_value(self):
+        """Test numeric values in globals."""
+        query = "SELECT * FROM users WHERE id = {id}"
+        result = format_query_with_globals(query, {"id": 42})
+        assert result == "SELECT * FROM users WHERE id = 42"
+
+    def test_string_value_not_auto_quoted(self):
+        """Test that string values are inserted as-is (caller handles quoting)."""
+        query = "SELECT * FROM users WHERE name = {name}"
+        result = format_query_with_globals(query, {"name": "'Alice'"})
+        assert result == "SELECT * FROM users WHERE name = 'Alice'"
+
+    def test_escaped_quotes_in_strings(self):
+        """Test brackets near escaped quotes."""
+        query = "SELECT 'O\\'Brien', {id} FROM users"
+        result = format_query_with_globals(query, {"id": "123"})
+        assert result == "SELECT 'O\\'Brien', 123 FROM users"
+
+    def test_json_in_quoted_string(self):
+        """Test JSON-like content in quoted strings is preserved."""
+        query = "INSERT INTO t VALUES ('{\"id\": 1}', {value})"
+        result = format_query_with_globals(query, {"value": "42"})
+        assert result == "INSERT INTO t VALUES ('{\"id\": 1}', 42)"
+
+    def test_empty_brackets(self):
+        """Test empty bracket expression."""
+        query = "SELECT {} FROM users"
+        result = format_query_with_globals(query, {"": "value"})
+        assert result == "SELECT value FROM users"
+
+    def test_empty_brackets_missing_key(self):
+        """Test empty bracket expression with no matching key."""
+        query = "SELECT {} FROM users"
+        result = format_query_with_globals(query, {})
+        assert result == "SELECT '' FROM users"
+
+    def test_adjacent_brackets(self):
+        """Test adjacent bracket expressions."""
+        query = "SELECT {a}{b} FROM users"
+        result = format_query_with_globals(query, {"a": "1", "b": "2"})
+        assert result == "SELECT 12 FROM users"
+
+    def test_multiline_query(self):
+        """Test multiline query."""
+        query = dedent("""
+            SELECT {col}
+            FROM {table}
+            WHERE id = {id}
+        """)
+        result = format_query_with_globals(
+            query, {"col": "name", "table": "users", "id": "1"}
+        )
+        expected = dedent("""
+            SELECT name
+            FROM users
+            WHERE id = 1
+        """)
+        assert result == expected
