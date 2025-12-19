@@ -53,9 +53,9 @@ def _execute_startup_command(
                 for session in session_manager.sessions.values():
                     # Clear buffer if it has content
                     if buffer.content != "":
-                        session.write_operation(buffer, from_consumer_id=None)
+                        session.notify(buffer, from_consumer_id=None)
                         buffer = StartupLogs(content="", status="start")
-                    session.write_operation(content, from_consumer_id=None)
+                    session.notify(content, from_consumer_id=None)
                 else:
                     buffer.content += content.content
                     buffer.status = content.status

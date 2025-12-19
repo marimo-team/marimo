@@ -18,10 +18,10 @@ from marimo._runtime.requests import (
     SerializedCLIArgs,
     SerializedQueryParams,
 )
+from marimo._server.consumer import SessionConsumer
 from marimo._server.file_router import AppFileRouter, MarimoFileKey
 from marimo._server.lsp import LspServer
-from marimo._server.model import ConnectionState, SessionConsumer, SessionMode
-from marimo._server.notebook import AppFileManager
+from marimo._server.model import ConnectionState, SessionMode
 from marimo._server.recents import RecentFilesManager
 from marimo._server.sessions.events import SessionEventBus
 from marimo._server.sessions.file_change_handler import (
@@ -45,6 +45,8 @@ from marimo._utils.file_watcher import FileWatcherManager
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Coroutine, Mapping
+
+    from marimo._server.notebook import AppFileManager
 
 LOGGER = _loggers.marimo_logger()
 
@@ -361,7 +363,7 @@ class SessionManager:
                 f"LSP server startup failed: {alert.title} - {alert.description}"
             )
             for session in self._repository.get_all():
-                session.write_operation(alert, from_consumer_id=None)
+                session.notify(alert, from_consumer_id=None)
             return
         else:
             LOGGER.info("LSP server started successfully")

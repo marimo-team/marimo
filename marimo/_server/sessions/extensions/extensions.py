@@ -8,47 +8,37 @@ Extensions provide a way to add cross-cutting concerns to sessions
 from __future__ import annotations
 
 import asyncio
-from typing import TYPE_CHECKING, Optional, Protocol
+from typing import TYPE_CHECKING, Optional
 
 from marimo import _loggers
 from marimo._cli.print import red
+from marimo._messaging.types import KernelMessage
 from marimo._server.session.serialize import (
     SessionCacheKey,
     SessionCacheManager,
 )
-from marimo._server.sessions.events import (
-    SessionEventBus,
-    SessionEventListener,
+from marimo._server.sessions.events import SessionEventListener
+from marimo._server.sessions.extensions.types import SessionExtension
+from marimo._server.sessions.types import (
+    KernelManager,
+    KernelState,
+    QueueManager,
 )
-from marimo._server.sessions.types import KernelState
 from marimo._server.utils import print_, print_tabbed
-from marimo._types.ids import SessionId
+from marimo._utils.distributor import (
+    ConnectionDistributor,
+    Distributor,
+    QueueDistributor,
+)
 
 if TYPE_CHECKING:
+    from marimo._server.sessions.events import (
+        SessionEventBus,
+    )
     from marimo._server.sessions.types import Session
+    from marimo._types.ids import SessionId
 
 LOGGER = _loggers.marimo_logger()
-
-
-class SessionExtension(Protocol):
-    """Base class for session extensions.
-
-    Extensions can hook into session lifecycle events and add
-    functionality without modifying the core Session class.
-    """
-
-    def on_attach(self, session: Session, event_bus: SessionEventBus) -> None:
-        """Called when extension is attached to a session.
-
-        Args:
-            session: The session this extension is attached to
-            event_bus: Event bus for subscribing to session events
-        """
-        ...
-
-    def on_detach(self) -> None:
-        """Called when extension is detached from session (cleanup)."""
-        ...
 
 
 class HeartbeatExtension(SessionExtension):
@@ -180,6 +170,44 @@ class CachingExtension(SessionExtension, SessionEventListener):
         if self.session_cache_manager:
             self.session_cache_manager.stop()
             self.session_cache_manager = None
+
+
+class NotificationListenerExtension(SessionExtension):
+    """Extension for listening to notifications from the kernel and forwarding them to the session."""
+
+    def __init__(
+        self, kernel_manager: KernelManager, queue_manager: QueueManager
+    ) -> None:
+        self.kernel_manager = kernel_manager
+        self.queue_manager = queue_manager
+
+    def _create_distributor(
+        self,
+        kernel_manager: KernelManager,
+        queue_manager: QueueManager,
+    ) -> Distributor[KernelMessage]:
+        from marimo._server.model import SessionMode
+
+        if kernel_manager.mode == SessionMode.EDIT:
+            return ConnectionDistributor(kernel_manager.kernel_connection)
+        else:
+            q = queue_manager.stream_queue
+            assert q is not None
+            return QueueDistributor(queue=q)
+
+    def on_attach(self, session: Session, event_bus: SessionEventBus) -> None:
+        del event_bus
+        self.distributor = self._create_distributor(
+            kernel_manager=self.kernel_manager,
+            queue_manager=self.queue_manager,
+        )
+        self.distributor.add_consumer(
+            lambda msg: session.notify(msg, from_consumer_id=None)
+        )
+        self.distributor.start()
+
+    def on_detach(self) -> None:
+        self.distributor.stop()
 
 
 class LoggingExtension(SessionExtension, SessionEventListener):

@@ -5,7 +5,7 @@ import asyncio
 import os
 import sys
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Callable, Literal, Optional, cast
+from typing import TYPE_CHECKING, Literal, Optional, cast
 
 from marimo import _loggers
 from marimo._cli.print import echo
@@ -18,7 +18,6 @@ from marimo._messaging.errors import Error, is_unexpected_error
 from marimo._messaging.ops import (
     CellOp,
     CompletedRun,
-    MessageOperation,
     deserialize_kernel_message,
 )
 from marimo._messaging.types import KernelMessage
@@ -26,11 +25,10 @@ from marimo._output.hypertext import patch_html_for_non_interactive_output
 from marimo._runtime.requests import AppMetadata, SerializedCLIArgs
 from marimo._server.export.exporter import Exporter
 from marimo._server.file_router import AppFileRouter
-from marimo._server.model import ConnectionState, SessionConsumer, SessionMode
+from marimo._server.model import ConnectionState, SessionMode
 from marimo._server.models.export import ExportAsHTMLRequest
 from marimo._server.models.models import InstantiateRequest
 from marimo._server.notebook import AppFileManager
-from marimo._server.session.session_view import SessionView
 from marimo._types.ids import ConsumerId
 from marimo._utils.marimo_path import MarimoPath
 
@@ -38,6 +36,9 @@ LOGGER = _loggers.marimo_logger()
 
 if TYPE_CHECKING:
     from pathlib import Path
+
+    from marimo._server.session.session_view import SessionView
+    from marimo._server.sessions.types import Session
 
 
 @dataclass
@@ -237,11 +238,13 @@ async def run_app_until_completion(
     cli_args: SerializedCLIArgs,
     argv: list[str] | None,
 ) -> tuple[SessionView, bool]:
+    from marimo._server.consumer import SessionConsumer
+    from marimo._server.sessions.events import SessionEventBus
     from marimo._server.sessions.session import SessionImpl
 
     instantiated_event = asyncio.Event()
 
-    class DefaultSessionConsumer(SessionConsumer):
+    class RunUntilCompletionSessionConsumer(SessionConsumer):
         def __init__(self) -> None:
             self.did_error = False
 
@@ -249,53 +252,52 @@ async def run_app_until_completion(
         def consumer_id(self) -> ConsumerId:
             return ConsumerId("default")
 
-        def on_start(
-            self,
-        ) -> Callable[[KernelMessage], None]:
-            def listener(message: KernelMessage) -> None:
-                data = deserialize_kernel_message(message)
-                # Print errors to stderr
-                if isinstance(data, CellOp):
-                    output = data.output
-                    console_output = data.console
-                    if output and output.channel == CellChannel.MARIMO_ERROR:
-                        errors = cast(list[Error], output.data)
-                        for err in errors:
-                            # Not all errors are fatal
-                            if is_unexpected_error(err):
-                                echo(
-                                    f"{err.__class__.__name__}: {err.describe()}",
-                                    file=sys.stderr,
-                                )
-                                self.did_error = True
+        def notify(self, notification: KernelMessage) -> None:
+            data = deserialize_kernel_message(notification)
+            # Print errors to stderr
+            if isinstance(data, CellOp):
+                output = data.output
+                console_output = data.console
+                if output and output.channel == CellChannel.MARIMO_ERROR:
+                    errors = cast(list[Error], output.data)
+                    for err in errors:
+                        # Not all errors are fatal
+                        if is_unexpected_error(err):
+                            echo(
+                                f"{err.__class__.__name__}: {err.describe()}",
+                                file=sys.stderr,
+                            )
+                            self.did_error = True
 
-                    if console_output:
-                        console_as_list: list[CellOutput] = (
-                            console_output
-                            if isinstance(console_output, list)
-                            else [console_output]
-                        )
-                        try:
-                            for line in console_as_list:
-                                # We print to stderr to not interfere with the
-                                # piped output
-                                mimetype = line.mimetype
-                                if mimetype == "text/plain":
-                                    echo(line.data, file=sys.stderr, nl=False)
-                        except Exception:
-                            LOGGER.warning("Error printing console output")
-                            pass
+                if console_output:
+                    console_as_list: list[CellOutput] = (
+                        console_output
+                        if isinstance(console_output, list)
+                        else [console_output]
+                    )
+                    try:
+                        for line in console_as_list:
+                            # We print to stderr to not interfere with the
+                            # piped output
+                            mimetype = line.mimetype
+                            if mimetype == "text/plain":
+                                echo(line.data, file=sys.stderr, nl=False)
+                    except Exception:
+                        LOGGER.warning("Error printing console output")
+                        pass
 
-                if isinstance(data, CompletedRun):
-                    instantiated_event.set()
+            if isinstance(data, CompletedRun):
+                instantiated_event.set()
 
-            return listener
+        def on_attach(
+            self, session: Session, event_bus: SessionEventBus
+        ) -> None:
+            del session
+            del event_bus
+            return None
 
-        def on_stop(self) -> None:
-            pass
-
-        def write_operation(self, op: MessageOperation) -> None:
-            pass
+        def on_detach(self) -> None:
+            return None
 
         def connection_state(self) -> ConnectionState:
             return ConnectionState.OPEN
@@ -319,7 +321,7 @@ async def run_app_until_completion(
     )
 
     # Create a session
-    session_consumer = DefaultSessionConsumer()
+    session_consumer = RunUntilCompletionSessionConsumer()
     session = SessionImpl.create(
         # Any initialization ID will do
         initialization_id="_any_",

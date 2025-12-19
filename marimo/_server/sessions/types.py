@@ -11,21 +11,24 @@ from __future__ import annotations
 from enum import Enum
 from typing import TYPE_CHECKING, Any, Optional, Protocol, Union
 
-from marimo._messaging.ops import MessageOperation
-from marimo._messaging.types import KernelMessage
-from marimo._runtime import requests
-from marimo._server.model import ConnectionState, SessionConsumer, SessionMode
-from marimo._server.notebook.file_manager import AppFileManager
-from marimo._server.session.session_view import SessionView
-from marimo._server.types import ProcessLike, QueueType
-from marimo._types.ids import ConsumerId
-from marimo._utils.typed_connection import TypedConnection
-
 if TYPE_CHECKING:
     import threading
     from collections.abc import Mapping
 
     from marimo._config.manager import MarimoConfigManager
+    from marimo._messaging.ops import MessageOperation
+    from marimo._messaging.types import KernelMessage
+    from marimo._runtime import requests
+    from marimo._server.consumer import SessionConsumer
+    from marimo._server.model import (
+        ConnectionState,
+        SessionMode,
+    )
+    from marimo._server.notebook.file_manager import AppFileManager
+    from marimo._server.session.session_view import SessionView
+    from marimo._server.types import ProcessLike, QueueType
+    from marimo._types.ids import ConsumerId
+    from marimo._utils.typed_connection import TypedConnection
 
 
 class QueueManager(Protocol):
@@ -173,9 +176,9 @@ class Session(Protocol):
         """Return the connection state of the session."""
         ...
 
-    def write_operation(
+    def notify(
         self,
-        operation: MessageOperation,
+        operation: MessageOperation | KernelMessage,
         from_consumer_id: Optional[ConsumerId],
     ) -> None:
         """Write an operation to the session consumer and the session view."""

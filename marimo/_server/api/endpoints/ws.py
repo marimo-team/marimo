@@ -31,15 +31,17 @@ from marimo._runtime.params import QueryParams
 from marimo._server.api.auth import validate_auth
 from marimo._server.api.deps import AppState
 from marimo._server.codes import WebSocketCodes
+from marimo._server.consumer import SessionConsumer
 from marimo._server.file_router import MarimoFileKey
 from marimo._server.model import (
     ConnectionState,
-    SessionConsumer,
     SessionMode,
 )
 from marimo._server.router import APIRouter
 from marimo._server.rtc.doc import LoroDocManager
 from marimo._server.sessions import Session, SessionManager
+from marimo._server.sessions.events import SessionEventBus
+from marimo._server.sessions.extensions.types import SessionExtension
 from marimo._types.ids import CellId_t, ConsumerId, SessionId
 
 if TYPE_CHECKING:
@@ -115,7 +117,7 @@ async def websocket_endpoint(
         file_key=file_key,
         kiosk=kiosk,
         auto_instantiate=auto_instantiate,
-    ).start()
+    )._start()
 
 
 # WebSocket endpoint for LoroDoc synchronization
@@ -239,7 +241,7 @@ KIOSK_EXCLUDED_OPERATIONS = {
 }
 
 
-class WebsocketHandler(SessionConsumer):
+class WebsocketHandler(SessionConsumer, SessionExtension):
     """WebSocket that sessions use to send messages to frontends.
 
     Each new socket gets a unique session. At most one session can exist when
@@ -278,6 +280,12 @@ class WebsocketHandler(SessionConsumer):
     @property
     def consumer_id(self) -> ConsumerId:
         return self._consumer_id
+
+    def notify(self, notification: KernelMessage) -> None:
+        self.message_queue.put_nowait(notification)
+
+    def _serialize_and_notify(self, notification: MessageOperation) -> None:
+        self.notify(serialize_kernel_message(notification))
 
     def _write_kernel_ready(
         self,
@@ -341,25 +349,21 @@ class WebsocketHandler(SessionConsumer):
             last_executed_code = {}
             last_execution_time = {}
 
-        self.message_queue.put_nowait(
-            (
-                serialize_kernel_message(
-                    KernelReady(
-                        codes=codes,
-                        names=names,
-                        configs=configs,
-                        layout=file_manager.read_layout_config(),
-                        cell_ids=cell_ids,
-                        resumed=resumed,
-                        ui_values=ui_values,
-                        last_executed_code=last_executed_code,
-                        last_execution_time=last_execution_time,
-                        app_config=app.config,
-                        kiosk=kiosk,
-                        capabilities=KernelCapabilities(),
-                    )
-                )
-            ),
+        self._serialize_and_notify(
+            KernelReady(
+                codes=codes,
+                names=names,
+                configs=configs,
+                layout=file_manager.read_layout_config(),
+                cell_ids=cell_ids,
+                resumed=resumed,
+                ui_values=ui_values,
+                last_executed_code=last_executed_code,
+                last_execution_time=last_execution_time,
+                app_config=app.config,
+                kiosk=kiosk,
+                capabilities=KernelCapabilities(),
+            )
         )
 
     def _reconnect_session(self, session: Session, replay: bool) -> None:
@@ -376,11 +380,11 @@ class WebsocketHandler(SessionConsumer):
         session.connect_consumer(self, main=True)
 
         # Write reconnected message
-        self.write_operation(Reconnected())
+        self._serialize_and_notify(Reconnected())
 
         # If not replaying, just send a toast
         if not replay:
-            self.write_operation(
+            self._serialize_and_notify(
                 Alert(
                     title="Reconnected",
                     description="You have reconnected to an existing session.",
@@ -396,7 +400,7 @@ class WebsocketHandler(SessionConsumer):
             last_execution_time=session.session_view.last_execution_time,
             kiosk=self.kiosk,
         )
-        self.write_operation(
+        self._serialize_and_notify(
             Banner(
                 title="Reconnected",
                 description="You have reconnected to an existing session.",
@@ -442,7 +446,7 @@ class WebsocketHandler(SessionConsumer):
         LOGGER.debug(f"Replaying {len(operations)} operations")
         for op in operations:
             LOGGER.debug("Replaying operation %s", op)
-            self.write_operation(op)
+            self._serialize_and_notify(op)
 
     def _on_disconnect(
         self,
@@ -489,7 +493,7 @@ class WebsocketHandler(SessionConsumer):
         else:
             cleanup_fn()
 
-    async def start(self) -> None:
+    async def _start(self) -> None:
         # Accept the websocket connection
         await self.websocket.accept()
         # Create a new queue for this session
@@ -691,27 +695,18 @@ class WebsocketHandler(SessionConsumer):
             LOGGER.debug("Websocket terminated with CancelledError")
             pass
 
-    def on_start(
-        self,
-    ) -> Callable[[KernelMessage], None]:
-        def listener(response: KernelMessage) -> None:
-            self.message_queue.put_nowait(response)
+    def on_attach(self, session: Session, event_bus: SessionEventBus) -> None:
+        del session
+        del event_bus
+        return None
 
-        return listener
-
-    def write_operation(self, op: MessageOperation) -> None:
-        self.message_queue.put_nowait(serialize_kernel_message(op))
-
-    def on_stop(self) -> None:
-        # Cancel the heartbeat task, reader
-        if self.heartbeat_task and not self.heartbeat_task.cancelled():
-            self.heartbeat_task.cancel()
-
+    def on_detach(self) -> None:
         # If the websocket is open, send a close message
-        if (
+        is_connected = (
             self.status == ConnectionState.OPEN
             or self.status == ConnectionState.CONNECTING
-        ) and self.websocket.application_state is WebSocketState.CONNECTED:
+        ) and self.websocket.application_state is WebSocketState.CONNECTED
+        if is_connected:
             asyncio.create_task(
                 self.websocket.close(
                     WebSocketCodes.NORMAL_CLOSE, "MARIMO_SHUTDOWN"
@@ -758,7 +753,9 @@ class WebsocketHandler(SessionConsumer):
                 )
                 description += notices_text
 
-            self.write_operation(Alert(title=title, description=description))
+            self._serialize_and_notify(
+                Alert(title=title, description=description)
+            )
 
         check_for_updates(on_update)
 

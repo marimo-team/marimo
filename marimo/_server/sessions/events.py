@@ -9,6 +9,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from marimo import _loggers
+from marimo._messaging.types import KernelMessage
 from marimo._types.ids import SessionId
 
 if TYPE_CHECKING:
@@ -47,6 +48,14 @@ class SessionEventListener:
         """Called when a session notebook is renamed."""
         del session
         del new_path
+        return None
+
+    def on_notification_sent(
+        self, session: Session, notification: KernelMessage
+    ) -> None:
+        """Called when a notification is emitted by a session."""
+        del session
+        del notification
         return None
 
 
@@ -119,6 +128,21 @@ class SessionEventBus:
             except Exception as e:
                 LOGGER.error(
                     "Error handling session notebook renamed event for listener %s: %s",
+                    listener,
+                    e,
+                )
+                continue
+
+    def emit_notification_sent(
+        self, session: Session, notification: KernelMessage
+    ) -> None:
+        """Emit a notification sent event."""
+        for listener in self._listeners:
+            try:
+                listener.on_notification_sent(session, notification)
+            except Exception as e:
+                LOGGER.error(
+                    "Error handling notification sent event for listener %s: %s",
                     listener,
                     e,
                 )

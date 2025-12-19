@@ -301,8 +301,8 @@ async def test_session() -> None:
     assert session.room.main_consumer == session_consumer
     assert session._queue_manager == queue_manager
     assert session.kernel_manager == kernel_manager
-    session_consumer.on_start.assert_called_once()
-    assert session_consumer.on_stop.call_count == 0
+    session_consumer.on_attach.assert_called_once()
+    assert session_consumer.on_detach.call_count == 0
     assert session.connection_state() == ConnectionState.OPEN
 
     session.close()
@@ -313,8 +313,8 @@ async def test_session() -> None:
     assert not kernel_manager.is_alive()
     assert queue_manager.input_queue.empty()
     assert queue_manager.control_queue.empty()
-    session_consumer.on_start.assert_called_once()
-    session_consumer.on_stop.assert_called_once()
+    session_consumer.on_attach.assert_called_once()
+    session_consumer.on_detach.assert_called_once()
     assert session.connection_state() == ConnectionState.CLOSED
 
 
@@ -347,23 +347,23 @@ def test_session_disconnect_reconnect() -> None:
 
     # Assert startup
     assert session.room.main_consumer == session_consumer
-    session_consumer.on_start.assert_called_once()
-    assert session_consumer.on_stop.call_count == 0
+    session_consumer.on_attach.assert_called_once()
+    assert session_consumer.on_detach.call_count == 0
 
     session.disconnect_consumer(session_consumer)
 
     # Assert shutdown of consumer
     assert session.room.main_consumer is None
-    session_consumer.on_start.assert_called_once()
-    session_consumer.on_stop.assert_called_once()
+    session_consumer.on_attach.assert_called_once()
+    session_consumer.on_detach.assert_called_once()
     assert session.connection_state() == ConnectionState.ORPHANED
 
     # Reconnect
     new_session_consumer = MagicMock()
     session.connect_consumer(new_session_consumer, main=True)
     assert session.room.main_consumer == new_session_consumer
-    new_session_consumer.on_start.assert_called_once()
-    assert new_session_consumer.on_stop.call_count == 0
+    new_session_consumer.on_attach.assert_called_once()
+    assert new_session_consumer.on_detach.call_count == 0
 
     session.close()
     new_session_consumer.connection_state.return_value = ConnectionState.CLOSED
@@ -372,8 +372,8 @@ def test_session_disconnect_reconnect() -> None:
     assert kernel_manager.kernel_task is not None
     kernel_manager.kernel_task.join()
     assert not kernel_manager.is_alive()
-    new_session_consumer.on_start.assert_called_once()
-    new_session_consumer.on_stop.assert_called_once()
+    new_session_consumer.on_attach.assert_called_once()
+    new_session_consumer.on_detach.assert_called_once()
     assert session.connection_state() == ConnectionState.CLOSED
 
 
@@ -408,8 +408,8 @@ def test_session_with_kiosk_consumers() -> None:
     assert session.room.main_consumer == session_consumer
     assert session._queue_manager == queue_manager
     assert session.kernel_manager == kernel_manager
-    session_consumer.on_start.assert_called_once()
-    assert session_consumer.on_stop.call_count == 0
+    session_consumer.on_attach.assert_called_once()
+    assert session_consumer.on_detach.call_count == 0
     assert session.connection_state() == ConnectionState.OPEN
 
     # Create a kiosk consumer
@@ -420,8 +420,8 @@ def test_session_with_kiosk_consumers() -> None:
     # Assert startup of kiosk consumer
     assert session.room.main_consumer != kiosk_consumer
     assert kiosk_consumer in session.room.consumers
-    kiosk_consumer.on_start.assert_called_once()
-    assert kiosk_consumer.on_stop.call_count == 0
+    kiosk_consumer.on_attach.assert_called_once()
+    assert kiosk_consumer.on_detach.call_count == 0
     assert session.connection_state() == ConnectionState.OPEN
 
     session.close()
@@ -434,10 +434,10 @@ def test_session_with_kiosk_consumers() -> None:
     assert not kernel_manager.is_alive()
     assert queue_manager.input_queue.empty()
     assert queue_manager.control_queue.empty()
-    session_consumer.on_start.assert_called_once()
-    session_consumer.on_stop.assert_called_once()
-    kiosk_consumer.on_start.assert_called_once()
-    kiosk_consumer.on_stop.assert_called_once()
+    session_consumer.on_attach.assert_called_once()
+    session_consumer.on_detach.assert_called_once()
+    kiosk_consumer.on_attach.assert_called_once()
+    kiosk_consumer.on_detach.assert_called_once()
     assert session.connection_state() == ConnectionState.CLOSED
     assert not session.room.consumers
     assert session.room.main_consumer is None
@@ -490,9 +490,7 @@ def __():
         session_consumer = MagicMock()
         session_consumer.connection_state.return_value = ConnectionState.OPEN
         operations: list[Any] = []
-        session_consumer.write_operation = (
-            lambda op, *_args: operations.append(op)
-        )
+        session_consumer.notify = lambda op, *_args: operations.append(op)
 
         # Create a session
         session_manager.create_session(
@@ -534,9 +532,7 @@ def __():
         session_consumer2 = MagicMock()
         session_consumer2.connection_state.return_value = ConnectionState.OPEN
         operations2: list[Any] = []
-        session_consumer2.write_operation = (
-            lambda op, *_args: operations2.append(op)
-        )
+        session_consumer2.notify = lambda op, *_args: operations2.append(op)
 
         session_manager.create_session(
             session_id=SessionId("test2"),
@@ -712,9 +708,7 @@ def __():
         session_consumer = MagicMock()
         session_consumer.connection_state.return_value = ConnectionState.OPEN
         operations: list[Any] = []
-        session_consumer.write_operation = (
-            lambda op, *_args: operations.append(op)
-        )
+        session_consumer.notify = lambda op, *_args: operations.append(op)
 
         # Create a session
         session = session_manager.create_session(
@@ -858,9 +852,7 @@ def __():
         session_consumer = MagicMock()
         session_consumer.connection_state.return_value = ConnectionState.OPEN
         operations: list[Any] = []
-        session_consumer.write_operation = (
-            lambda op, *_args: operations.append(op)
-        )
+        session_consumer.notify = lambda op, *_args: operations.append(op)
 
         # Create a session
         session_manager.create_session(
@@ -988,7 +980,7 @@ def __():
     )
 
     # Add some operations to the session view
-    session.write_operation(
+    session.notify(
         UpdateCellCodes(
             cell_ids=["1"],
             codes=["print('hello')"],

@@ -16,6 +16,7 @@ from marimo._messaging.ops import (
     FocusCell,
     MessageOperation,
     UpdateCellCodes,
+    serialize_kernel_message,
 )
 from marimo._messaging.types import KernelMessage
 from marimo._runtime import requests
@@ -28,17 +29,19 @@ from marimo._runtime.requests import (
     SetUIElementValueRequest,
     SyncGraphRequest,
 )
-from marimo._server.model import ConnectionState, SessionConsumer, SessionMode
+from marimo._server.consumer import SessionConsumer
+from marimo._server.model import ConnectionState, SessionMode
 from marimo._server.models.models import InstantiateRequest
 from marimo._server.notebook import AppFileManager
 from marimo._server.session.session_view import SessionView
 from marimo._server.sessions.events import SessionEventBus
-from marimo._server.sessions.extensions import (
+from marimo._server.sessions.extensions.extensions import (
     CachingExtension,
     HeartbeatExtension,
     LoggingExtension,
-    SessionExtension,
+    NotificationListenerExtension,
 )
+from marimo._server.sessions.extensions.types import SessionExtension
 from marimo._server.sessions.managers import (
     KernelManagerImpl,
     QueueManagerImpl,
@@ -51,11 +54,6 @@ from marimo._server.sessions.types import (
     Session,
 )
 from marimo._types.ids import ConsumerId
-from marimo._utils.distributor import (
-    ConnectionDistributor,
-    Distributor,
-    QueueDistributor,
-)
 from marimo._utils.repr import format_repr
 
 if TYPE_CHECKING:
@@ -66,18 +64,6 @@ LOGGER = _loggers.marimo_logger()
 _DEFAULT_TTL_SECONDS = 120
 
 __all__ = ["Session", "SessionImpl"]
-
-
-def _create_message_distributor(
-    kernel_manager: KernelManager,
-    queue_manager: QueueManager,
-) -> Distributor[KernelMessage]:
-    if kernel_manager.mode == SessionMode.EDIT:
-        return ConnectionDistributor(kernel_manager.kernel_connection)
-    else:
-        q = queue_manager.stream_queue
-        assert q is not None
-        return QueueDistributor(queue=q)
 
 
 class SessionImpl(Session):
@@ -130,6 +116,9 @@ class SessionImpl(Session):
             LoggingExtension(),
             HeartbeatExtension(),
             CachingExtension(enabled=not auto_instantiate),
+            NotificationListenerExtension(
+                kernel_manager=kernel_manager, queue_manager=queue_manager
+            ),
             # TODO: Refactor more into extensions
             # KernelExtension()
             # RoomBroadcastExtension()
@@ -175,17 +164,9 @@ class SessionImpl(Session):
         self.extensions = extensions
 
         self.kernel_manager.start_kernel()
-        self.message_distributor = _create_message_distributor(
-            kernel_manager=self.kernel_manager,
-            queue_manager=queue_manager,
-        )
         self._event_bus = SessionEventBus()
 
-        self.message_distributor.add_consumer(
-            lambda msg: self.session_view.add_raw_operation(msg)
-        )
         self.connect_consumer(session_consumer, main=True)
-        self.message_distributor.start()
         self._closed = False
 
         # Attach all extensions
@@ -224,7 +205,11 @@ class SessionImpl(Session):
 
     def flush_messages(self) -> None:
         """Flush any pending messages."""
-        self.message_distributor.flush()
+        # HACK: Ideally we don't need to reach into this extension directly
+        for extension in self.extensions:
+            if isinstance(extension, NotificationListenerExtension):
+                extension.distributor.flush()
+                return
 
     async def rename_path(self, new_path: str) -> None:
         """Rename the path of the session."""
@@ -263,19 +248,19 @@ class SessionImpl(Session):
                 cell_ids = request.run_ids
                 codes = [request.cells[cell_id] for cell_id in cell_ids]
             if cell_ids:
-                self.room.broadcast(
+                self.notify(
                     UpdateCellCodes(
                         cell_ids=cell_ids,
                         codes=codes,
                         # Not stale because we just ran the code
                         code_is_stale=False,
                     ),
-                    except_consumer=from_consumer_id,
+                    from_consumer_id=from_consumer_id,
                 )
             if len(cell_ids) == 1:
-                self.room.broadcast(
+                self.notify(
                     FocusCell(cell_id=cell_ids[0]),
-                    except_consumer=from_consumer_id,
+                    from_consumer_id=from_consumer_id,
                 )
 
         self.session_view.add_control_request(request)
@@ -299,6 +284,7 @@ class SessionImpl(Session):
         or a kiosk consumer.
         """
         self.room.remove_consumer(session_consumer)
+        self.extensions.remove(session_consumer)
 
     def disconnect_main_consumer(self) -> None:
         """
@@ -316,12 +302,12 @@ class SessionImpl(Session):
         If its the main consumer and one already exists,
         an exception is raised.
         """
-        subscribe = session_consumer.on_start()
-        unsubscribe_consumer = self.message_distributor.add_consumer(subscribe)
+        # Consumers are also extensions, so we want to attach them to the session
+        self.extensions.append(session_consumer)
+        session_consumer.on_attach(self, self._event_bus)
         self.room.add_consumer(
             session_consumer,
-            unsubscribe_consumer,
-            session_consumer.consumer_id,
+            consumer_id=session_consumer.consumer_id,
             main=main,
         )
 
@@ -337,14 +323,19 @@ class SessionImpl(Session):
             return ConnectionState.ORPHANED
         return self.room.main_consumer.connection_state()
 
-    def write_operation(
+    def notify(
         self,
-        operation: MessageOperation,
+        operation: MessageOperation | KernelMessage,
         from_consumer_id: Optional[ConsumerId],
     ) -> None:
         """Write an operation to the session consumer and the session view."""
-        self.room.broadcast(operation, except_consumer=from_consumer_id)
-        self.session_view.add_operation(operation)
+        if isinstance(operation, bytes):
+            notification = operation
+        else:
+            notification = serialize_kernel_message(operation)
+        self.room.broadcast(notification, except_consumer=from_consumer_id)
+        self.session_view.add_raw_operation(notification)
+        self._event_bus.emit_notification_sent(self, notification)
 
     def close(self) -> None:
         """
@@ -361,8 +352,6 @@ class SessionImpl(Session):
         self._detach_extensions()
         # Close the room
         self.room.close()
-        # Close the kernel
-        self.message_distributor.stop()
         self.kernel_manager.close_kernel()
 
     def instantiate(
