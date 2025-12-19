@@ -130,7 +130,7 @@ class SessionImpl(Session):
             LoggingExtension(),
             HeartbeatExtension(),
             CachingExtension(enabled=not auto_instantiate),
-            # TODO
+            # TODO: Refactor more into extensions
             # KernelExtension()
             # RoomBroadcastExtension()
             # SessionView()

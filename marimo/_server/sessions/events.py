@@ -6,9 +6,13 @@ Provides an event bus and listeners for session creation, closure, and resumptio
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from marimo import _loggers
-from marimo._server.sessions.session import Session
 from marimo._types.ids import SessionId
+
+if TYPE_CHECKING:
+    from marimo._server.sessions.session import Session
 
 LOGGER = _loggers.marimo_logger()
 

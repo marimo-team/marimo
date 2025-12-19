@@ -158,7 +158,7 @@ class Session(Protocol):
         """Stop the session consumer but keep the kernel running."""
         ...
 
-    def maybe_disconnect_consumer(self) -> None:
+    def disconnect_main_consumer(self) -> None:
         """Disconnect the main session consumer if it connected."""
         ...
 

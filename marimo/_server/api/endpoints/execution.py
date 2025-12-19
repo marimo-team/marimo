@@ -377,7 +377,7 @@ async def takeover_endpoint(
         )
         # Wait 100ms to ensure the client has received the message
         await asyncio.sleep(0.1)
-        existing_session.maybe_disconnect_consumer()
+        existing_session.disconnect_main_consumer()
     else:
         LOGGER.warning("No existing session found for file key %s", file_key)
 

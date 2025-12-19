@@ -42,6 +42,9 @@ class MockSessionView:
 class MockSession(Session):
     session_view: MockSessionView
 
+    def get_current_state(self) -> MockSessionView:
+        return self.session_view
+
 
 @pytest.fixture
 def tool() -> GetTablesAndVariables:

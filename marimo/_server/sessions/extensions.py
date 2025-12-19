@@ -127,7 +127,7 @@ class CachingExtension(SessionExtension, SessionEventListener):
         """
         self.interval = interval
         self.enabled = enabled
-        self.cache_manager: Optional[SessionCacheManager] = None
+        self.session_cache_manager: Optional[SessionCacheManager] = None
 
     def on_attach(self, session: Session, event_bus: SessionEventBus) -> None:
         """Initialize cache manager when attached to session."""
@@ -164,20 +164,20 @@ class CachingExtension(SessionExtension, SessionEventListener):
         """Stop cache manager when detached."""
         self._stop()
 
-    async def on_session_renamed(
+    async def on_session_notebook_renamed(
         self, session: Session, new_path: str
     ) -> None:
         """Rename the path for the cache manager."""
         del session
-        if self.cache_manager:
-            self.cache_manager.rename_path(new_path)
+        if self.session_cache_manager:
+            self.session_cache_manager.rename_path(new_path)
         return None
 
     def _stop(self) -> None:
         """Stop the cache manager."""
-        if self.cache_manager:
-            self.cache_manager.stop()
-            self.cache_manager = None
+        if self.session_cache_manager:
+            self.session_cache_manager.stop()
+            self.session_cache_manager = None
 
 
 class LoggingExtension(SessionExtension, SessionEventListener):
@@ -214,7 +214,7 @@ class LoggingExtension(SessionExtension, SessionEventListener):
         )
         return None
 
-    async def on_session_renamed(
+    async def on_session_notebook_renamed(
         self, session: Session, new_path: str
     ) -> None:
         self.logger.debug(
