@@ -424,10 +424,16 @@ def test_pyrefly_server_uses_typed_format():
 
     # Mock the entire pyrefly module and its find_pyrefly_bin function
     mock_pyrefly_module = mock.MagicMock()
-    mock_pyrefly_module.find_pyrefly_bin.return_value = "/path/to/pyrefly/binary"
+    mock_pyrefly_module.find_pyrefly_bin.return_value = (
+        "/path/to/pyrefly/binary"
+    )
 
     with mock.patch.dict(
-        "sys.modules", {"pyrefly": mock_pyrefly_module, "pyrefly.__main__": mock_pyrefly_module}
+        "sys.modules",
+        {
+            "pyrefly": mock_pyrefly_module,
+            "pyrefly.__main__": mock_pyrefly_module,
+        },
     ):
         server = PyreflyServer(port=8000)
         command = server.get_command()
