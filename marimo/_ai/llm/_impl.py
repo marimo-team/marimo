@@ -1,7 +1,6 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-import json
 import os
 import re
 from typing import (
@@ -825,7 +824,6 @@ class pydantic_ai(ChatModel):
             ThinkingPart,
             ToolCallPart,
             ToolReturnPart,
-            UserPromptPart,
         )
 
         del config  # Agent has its own model_settings
@@ -946,7 +944,6 @@ class pydantic_ai(ChatModel):
                 final_result,
                 pending_tool_calls,
                 current_thinking,
-                has_thinking,
                 ModelRequest,
                 ModelResponse,
                 ThinkingPart,
@@ -1040,7 +1037,6 @@ class pydantic_ai(ChatModel):
         final_result: Any,
         pending_tool_calls: dict[str, dict[str, Any]],
         current_thinking: str,
-        has_thinking: bool,
         ModelRequest: type,
         ModelResponse: type,
         ThinkingPart: type,

@@ -4,7 +4,7 @@ import { type UIMessage, useChat } from "@ai-sdk/react";
 import { ChatBubbleIcon } from "@radix-ui/react-icons";
 import { PopoverAnchor } from "@radix-ui/react-popover";
 import type { ReactCodeMirrorRef } from "@uiw/react-codemirror";
-import { DefaultChatTransport, type FileUIPart, type ToolUIPart } from "ai";
+import { DefaultChatTransport, type FileUIPart } from "ai";
 import { startCase } from "lodash-es";
 import {
   BotMessageSquareIcon,
@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import React, { lazy, useEffect, useRef, useState } from "react";
 import { convertToFileUIPart } from "@/components/chat/chat-utils";
+import { isReasoningPart, isToolPart } from "@/components/chat/message-parts";
 import { ReasoningAccordion } from "@/components/chat/reasoning-accordion";
 import { ToolCallAccordion } from "@/components/chat/tool-call-accordion";
 import {
@@ -62,16 +63,6 @@ import type { ChatConfig, ChatMessage } from "./types";
 const LazyStreamdown = lazy(() =>
   import("streamdown").then((module) => ({ default: module.Streamdown })),
 );
-
-function isToolPart(part: UIMessage["parts"][number]): part is ToolUIPart {
-  return part.type.startsWith("tool-");
-}
-
-function isReasoningPart(
-  part: UIMessage["parts"][number],
-): part is { type: "reasoning"; text: string } {
-  return part.type === "reasoning";
-}
 
 interface Props extends PluginFunctions {
   prompts: string[];

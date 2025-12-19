@@ -30,7 +30,7 @@ export const ReasoningAccordion: React.FC<ReasoningAccordionProps> = ({
     }
 
     const interval = setInterval(() => {
-      setDots((prev) => (prev.length >= 3 ? "." : prev + "."));
+      setDots((prev) => (prev.length >= 3 ? "." : `${prev}.`));
     }, 400);
 
     return () => clearInterval(interval);
