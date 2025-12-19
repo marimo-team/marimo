@@ -588,7 +588,7 @@ const EditableCellComponent = ({
             className={cn(
               className,
               navigationProps.className,
-              "focus:ring-1 focus:ring-(--blue-7) focus:ring-offset-0",
+              "focus:ring-1 focus:ring-(--slate-7) focus:ring-offset-2",
             )}
             ref={cellContainerRef}
             {...cellDomProps(cellId, cellData.name)}

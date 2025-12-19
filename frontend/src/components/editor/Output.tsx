@@ -461,7 +461,10 @@ const ExpandableOutput = React.memo(
                     size="xs"
                     variant="text"
                   >
-                    <ExpandIcon className="size-4" strokeWidth={1.25} />
+                    <ExpandIcon
+                      className="size-4 opacity-60 hover:opacity-80"
+                      strokeWidth={1.25}
+                    />
                   </Button>
                 </Tooltip>
               )}
@@ -483,7 +486,7 @@ const ExpandableOutput = React.memo(
                     </Tooltip>
                   ) : (
                     <Tooltip content="Expand output" side="left">
-                      <ChevronsUpDownIcon className="h-4 w-4" />
+                      <ChevronsUpDownIcon className="h-4 w-4 opacity-60" />
                     </Tooltip>
                   )}
                 </Button>
