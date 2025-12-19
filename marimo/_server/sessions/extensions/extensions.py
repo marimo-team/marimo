@@ -32,6 +32,8 @@ from marimo._utils.distributor import (
 )
 
 if TYPE_CHECKING:
+    from logging import Logger
+
     from marimo._server.sessions.events import (
         SessionEventBus,
     )
@@ -118,6 +120,7 @@ class CachingExtension(SessionExtension, SessionEventListener):
         self.interval = interval
         self.enabled = enabled
         self.session_cache_manager: Optional[SessionCacheManager] = None
+        self.event_bus: Optional[SessionEventBus] = None
 
     def on_attach(self, session: Session, event_bus: SessionEventBus) -> None:
         """Initialize cache manager when attached to session."""
@@ -126,6 +129,7 @@ class CachingExtension(SessionExtension, SessionEventListener):
 
         # Subscribe to events (like rename)
         event_bus.subscribe(self)
+        self.event_bus = event_bus
 
         from marimo._version import __version__
 
@@ -155,6 +159,9 @@ class CachingExtension(SessionExtension, SessionEventListener):
     def on_detach(self) -> None:
         """Stop cache manager when detached."""
         self._stop()
+        if self.event_bus:
+            self.event_bus.unsubscribe(self)
+            self.event_bus = None
 
     async def on_session_notebook_renamed(
         self, session: Session, new_path: str
@@ -213,16 +220,21 @@ class NotificationListenerExtension(SessionExtension):
 class LoggingExtension(SessionExtension, SessionEventListener):
     """Extension for logging session events."""
 
-    def __init__(self) -> None:
-        self.logger = LOGGER
+    def __init__(self, logger: Logger = LOGGER) -> None:
+        self.logger = logger
+        self.event_bus: Optional[SessionEventBus] = None
 
     def on_attach(self, session: Session, event_bus: SessionEventBus) -> None:
         del session
         self.logger.debug("Attaching extensions")
         event_bus.subscribe(self)
+        self.event_bus = event_bus
 
     def on_detach(self) -> None:
         self.logger.debug("Detaching extensions")
+        if self.event_bus:
+            self.event_bus.unsubscribe(self)
+            self.event_bus = None
 
     async def on_session_created(self, session: Session) -> None:
         self.logger.debug("Session created: %s", session.initialization_id)
