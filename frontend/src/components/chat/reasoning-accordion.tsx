@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import { BotMessageSquareIcon } from "lucide-react";
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { MarkdownRenderer } from "@/components/markdown/markdown-renderer";
 import {
   Accordion,
