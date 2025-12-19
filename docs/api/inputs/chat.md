@@ -296,13 +296,14 @@ mo.ui.chat(
 The `pydantic_ai` model provides advanced features like **tool calling** and
 **thinking/reasoning** support using [pydantic-ai](https://ai.pydantic.dev/).
 
-It works just like other `mo.ai.llm` classes - pass a model string and options.
-For full control, you can also pass a pre-configured `Agent` directly.
+Create a [Pydantic AI Agent](https://ai.pydantic.dev/agents/) with your desired
+configuration (model, tools, instructions, etc.) and pass it to `mo.ai.llm.pydantic_ai()`.
 
 #### Basic Usage with Tools
 
 ```python
 import marimo as mo
+from pydantic_ai import Agent
 
 def get_weather(location: str) -> dict:
     """Get weather for a location."""
@@ -312,13 +313,14 @@ def calculate(expression: str) -> float:
     """Evaluate a math expression."""
     return eval(expression)
 
-chat = mo.ui.chat(
-    mo.ai.llm.pydantic_ai(
-        "anthropic:claude-sonnet-4-5",  # or "openai:gpt-4.1", etc.
-        tools=[get_weather, calculate],
-        instructions="You are a helpful assistant.",
-    )
+# Create a Pydantic AI Agent
+agent = Agent(
+    "anthropic:claude-sonnet-4-5",  # or "openai:gpt-4.1", etc.
+    tools=[get_weather, calculate],
+    instructions="You are a helpful assistant.",
 )
+
+chat = mo.ui.chat(mo.ai.llm.pydantic_ai(agent))
 chat
 ```
 
@@ -330,27 +332,28 @@ the tool name, inputs, and outputs.
 Enable thinking to see the LLM's step-by-step reasoning process:
 
 ```python
+from pydantic_ai import Agent
 from pydantic_ai.models.anthropic import AnthropicModelSettings
 
-chat = mo.ui.chat(
-    mo.ai.llm.pydantic_ai(
-        "anthropic:claude-sonnet-4-5",
-        tools=[get_weather],
-        instructions="Think step-by-step.",
-        model_settings=AnthropicModelSettings(
-            max_tokens=8000,
-            anthropic_thinking={"type": "enabled", "budget_tokens": 4000},
-        ),
-    )
+agent = Agent(
+    "anthropic:claude-sonnet-4-5",
+    tools=[get_weather],
+    instructions="Think step-by-step.",
+    model_settings=AnthropicModelSettings(
+        max_tokens=8000,
+        anthropic_thinking={"type": "enabled", "budget_tokens": 4000},
+    ),
 )
+
+chat = mo.ui.chat(mo.ai.llm.pydantic_ai(agent))
 ```
 
 When enabled, a "View reasoning" accordion appears before the response,
 showing the LLM's thinking process in real-time.
 
-#### Using a Pre-configured Agent
+#### Full Agent Configuration
 
-For full control over Agent configuration, pass a `pydantic_ai.Agent` directly:
+The Agent API gives you full control over Pydantic AI features:
 
 ```python
 from pydantic_ai import Agent
@@ -358,8 +361,9 @@ from pydantic_ai import Agent
 agent = Agent(
     "anthropic:claude-sonnet-4-5",
     tools=[get_weather],
-    deps_type=MyDeps,      # Full Agent configuration
-    output_type=MyOutput,
+    deps_type=MyDeps,      # Dependency injection for tools
+    output_type=MyOutput,  # Structured output schema
+    retries=3,             # Retry configuration
     # ... any other Agent options
 )
 
@@ -372,6 +376,7 @@ For custom endpoints, configure a Model object with provider and profile:
 
 ```python
 import marimo as mo
+from pydantic_ai import Agent
 from pydantic_ai.models.openai import OpenAIChatModel
 from pydantic_ai.providers.openai import OpenAIProvider
 from pydantic_ai.profiles.openai import OpenAIModelProfile
@@ -388,9 +393,10 @@ model = OpenAIChatModel(
     ),
 )
 
-chat = mo.ui.chat(
-    mo.ai.llm.pydantic_ai(model, instructions="Think step-by-step.")
-)
+# Create an Agent with the custom model
+agent = Agent(model, instructions="Think step-by-step.")
+
+chat = mo.ui.chat(mo.ai.llm.pydantic_ai(agent))
 ```
 
 This works with any OpenAI-compatible endpoint:

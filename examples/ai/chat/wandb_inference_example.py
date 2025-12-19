@@ -101,6 +101,7 @@ def _(key, model_dropdown):
     # This is necessary because W&B uses a custom base_url and returns
     # reasoning in the "reasoning_content" field.
 
+    from pydantic_ai import Agent
     from pydantic_ai.models.openai import OpenAIChatModel
     from pydantic_ai.profiles.openai import OpenAIModelProfile
     from pydantic_ai.providers.openai import OpenAIProvider
@@ -117,18 +118,20 @@ def _(key, model_dropdown):
             openai_chat_thinking_field="reasoning_content",
         ),
     )
-    return OpenAIChatModel, OpenAIModelProfile, OpenAIProvider, wandb_model
+
+    # Create a Pydantic AI Agent with the model
+    agent = Agent(
+        wandb_model,
+        instructions="You are a helpful assistant. Think step-by-step.",
+    )
+    return Agent, OpenAIChatModel, OpenAIModelProfile, OpenAIProvider, agent, wandb_model
 
 
 @app.cell
-def _(mo, wandb_model):
-    # Create the chat UI - pass the configured model directly
-    # pydantic_ai will create an Agent internally
+def _(agent, mo):
+    # Create the chat UI - pass the Agent directly
     chatbot = mo.ui.chat(
-        mo.ai.llm.pydantic_ai(
-            wandb_model,
-            instructions="You are a helpful assistant. Think step-by-step.",
-        ),
+        mo.ai.llm.pydantic_ai(agent),
         prompts=[
             "What is 15% of 85?",
             "Explain the difference between a list and a tuple in Python.",
@@ -154,10 +157,12 @@ def _(mo):
     2. Reasoning models return thinking in the `reasoning_content` field
 
     ```python
+    from pydantic_ai import Agent
     from pydantic_ai.models.openai import OpenAIChatModel
     from pydantic_ai.providers.openai import OpenAIProvider
     from pydantic_ai.profiles.openai import OpenAIModelProfile
 
+    # Configure the model
     model = OpenAIChatModel(
         model_name="deepseek-ai/DeepSeek-R1-0528",
         provider=OpenAIProvider(
@@ -169,23 +174,27 @@ def _(mo):
         ),
     )
 
-    chat = mo.ui.chat(
-        mo.ai.llm.pydantic_ai(model, instructions="Think step-by-step.")
-    )
+    # Create an Agent with the model
+    agent = Agent(model, instructions="Think step-by-step.")
+
+    # Use with marimo
+    chat = mo.ui.chat(mo.ai.llm.pydantic_ai(agent))
     ```
 
-    ### Standard Providers (Simpler)
+    ### Standard Providers
 
-    For standard providers like OpenAI, Anthropic, Google, you can just use a model string:
+    For standard providers like OpenAI, Anthropic, Google:
 
     ```python
-    chat = mo.ui.chat(
-        mo.ai.llm.pydantic_ai(
-            "openai:gpt-4.1",
-            tools=[my_tool],
-            instructions="You are helpful.",
-        )
+    from pydantic_ai import Agent
+
+    agent = Agent(
+        "openai:gpt-4.1",
+        tools=[my_tool],
+        instructions="You are helpful.",
     )
+
+    chat = mo.ui.chat(mo.ai.llm.pydantic_ai(agent))
     ```
     """)
     return

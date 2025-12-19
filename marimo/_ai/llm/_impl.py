@@ -706,76 +706,72 @@ class bedrock(ChatModel):
 
 class pydantic_ai(ChatModel):
     """
-    ChatModel using Pydantic AI with streaming and tool support.
+    ChatModel using Pydantic AI with streaming, thinking, and tool support.
 
-    This class provides a simple interface to use Pydantic AI with marimo's
-    chat UI. You can either pass a model string (like other mo.ai.llm classes)
-    or a pre-configured Agent for full control.
+    This class wraps a Pydantic AI Agent for use with marimo's chat UI.
+    All configuration (model, tools, instructions, etc.) is done when
+    creating the Agent - this keeps marimo's interface simple and lets
+    you use the full power of Pydantic AI.
 
     Args:
-        model: Either a model string (e.g., "openai:gpt-4.1"), a Pydantic AI
-            Model object, or a pre-configured pydantic_ai.Agent instance.
-            When passing an Agent, other parameters are ignored.
-        tools: List of tool functions for the model to use (ignored if Agent).
-        instructions: System instructions for the model (ignored if Agent).
-        model_settings: Model-specific settings (e.g., AnthropicModelSettings
-            for thinking). Can be used with both model strings and Agents.
-        **kwargs: Additional arguments passed to pydantic_ai.Agent constructor.
-            See https://ai.pydantic.dev/agents/ for all options.
+        agent: A configured pydantic_ai.Agent instance.
+            See https://ai.pydantic.dev/agents/ for all Agent options.
 
-    Example - Simple usage (like other mo.ai.llm classes):
-        ```python
-        chat = mo.ui.chat(
-            mo.ai.llm.pydantic_ai(
-                "openai:gpt-4.1",
-                tools=[get_weather, calculate],
-                instructions="You are a helpful assistant.",
-            )
-        )
-        ```
-
-    Example - With thinking enabled:
-        ```python
-        from pydantic_ai.models.anthropic import AnthropicModelSettings
-
-        chat = mo.ui.chat(
-            mo.ai.llm.pydantic_ai(
-                "anthropic:claude-sonnet-4-5",
-                tools=[get_weather],
-                instructions="Think step by step.",
-                model_settings=AnthropicModelSettings(
-                    max_tokens=8000,
-                    anthropic_thinking={
-                        "type": "enabled",
-                        "budget_tokens": 4000,
-                    },
-                ),
-            )
-        )
-        ```
-
-    Example - Using a pre-configured Agent (full control):
+    Example - Basic usage:
         ```python
         from pydantic_ai import Agent
 
-        # Create and fully configure your own Agent
         agent = Agent(
-            "anthropic:claude-sonnet-4-5",
-            tools=[get_weather],
-            deps_type=MyDeps,
-            output_type=MyOutput,
-            # ... any other Agent options
+            "openai:gpt-4.1",
+            instructions="You are a helpful assistant.",
         )
 
         chat = mo.ui.chat(mo.ai.llm.pydantic_ai(agent))
         ```
 
-    Example - W&B Inference with custom model:
+    Example - With tools:
         ```python
+        from pydantic_ai import Agent
+
+        def get_weather(location: str) -> dict:
+            '''Get weather for a location.'''
+            return {"location": location, "temp": 72}
+
+        agent = Agent(
+            "openai:gpt-4.1",
+            tools=[get_weather],
+            instructions="Use tools when helpful.",
+        )
+
+        chat = mo.ui.chat(mo.ai.llm.pydantic_ai(agent))
+        ```
+
+    Example - With thinking enabled (Anthropic):
+        ```python
+        from pydantic_ai import Agent
+        from pydantic_ai.models.anthropic import AnthropicModelSettings
+
+        agent = Agent(
+            "anthropic:claude-sonnet-4-5",
+            tools=[get_weather],
+            instructions="Think step by step.",
+            model_settings=AnthropicModelSettings(
+                max_tokens=8000,
+                anthropic_thinking={"type": "enabled", "budget_tokens": 4000},
+            ),
+        )
+
+        chat = mo.ui.chat(mo.ai.llm.pydantic_ai(agent))
+        ```
+
+    Example - W&B Inference with reasoning:
+        ```python
+        from pydantic_ai import Agent
         from pydantic_ai.models.openai import OpenAIChatModel
         from pydantic_ai.providers.openai import OpenAIProvider
         from pydantic_ai.profiles.openai import OpenAIModelProfile
 
+        # Configure model for W&B Inference
         model = OpenAIChatModel(
             model_name="deepseek-ai/DeepSeek-R1-0528",
             provider=OpenAIProvider(
@@ -787,48 +783,20 @@ class pydantic_ai(ChatModel):
             ),
         )
 
-        chat = mo.ui.chat(
-            mo.ai.llm.pydantic_ai(model, instructions="Think step by step.")
-        )
+        agent = Agent(model, instructions="Think step by step.")
+        chat = mo.ui.chat(mo.ai.llm.pydantic_ai(agent))
         ```
     """
 
-    def __init__(
-        self,
-        model: Any,
-        *,
-        tools: Optional[list[Callable[..., Any]]] = None,
-        instructions: Optional[str] = None,
-        model_settings: Optional[Any] = None,
-        **kwargs: Any,
-    ):
-        self._model_settings = model_settings
-        self._agent: Any = None  # Lazy initialization
-        self._model = model
-        self._tools = tools
-        self._instructions = instructions
-        self._kwargs = kwargs
-
-    def _get_agent(self) -> Any:
-        """Get or create the Agent (lazy initialization)."""
-        if self._agent is not None:
-            return self._agent
-
-        from pydantic_ai import Agent
-
-        # Check if model is already an Agent (duck-type check)
-        if hasattr(self._model, "run_stream_events"):
-            self._agent = self._model
-        else:
-            # Create Agent with provided parameters
-            self._agent = Agent(
-                self._model,
-                tools=self._tools or [],
-                instructions=self._instructions,
-                model_settings=self._model_settings,
-                **self._kwargs,
+    def __init__(self, agent: Any):
+        # Validate that we received an Agent-like object
+        if not hasattr(agent, "run_stream_events"):
+            raise TypeError(
+                "pydantic_ai() requires a pydantic_ai.Agent instance. "
+                "Create an Agent first: "
+                "Agent('openai:gpt-4.1', tools=[...], instructions='...')"
             )
-        return self._agent
+        self._agent = agent
 
     def __call__(
         self, messages: list[ChatMessage], config: ChatModelConfig
@@ -842,32 +810,29 @@ class pydantic_ai(ChatModel):
     async def _stream_response(
         self, messages: list[ChatMessage], config: ChatModelConfig
     ) -> AsyncGenerator[Any, None]:
-        """Async generator that streams text and tool call parts."""
+        """Stream response from Pydantic AI agent.
+
+        Uses run_stream_events() to get real-time events for thinking,
+        text, and tool calls. Translates Pydantic AI events to marimo's
+        streaming format.
+        """
         from pydantic_ai.messages import (
+            ModelMessagesTypeAdapter,
             ModelRequest,
             ModelResponse,
             ThinkingPart,
             ToolCallPart,
             ToolReturnPart,
+            UserPromptPart,
         )
-        from pydantic_ai.settings import ModelSettings
 
-        # Get or create the agent
-        agent = self._get_agent()
+        del config  # Agent has its own model_settings
 
-        # Use provided model_settings, or build default from config
-        # Note: if Agent was passed directly, model_settings may have been
-        # configured on the Agent itself, so we only use config as fallback
-        model_settings = self._model_settings
-        if model_settings is None:
-            model_settings = ModelSettings(
-                max_tokens=config.max_tokens,
-                temperature=config.temperature,
-                top_p=config.top_p,
-            )
-
-        # Convert marimo ChatMessages to Pydantic AI message history
-        message_history = self._convert_messages_to_pydantic_ai(messages[:-1])
+        # Extract message history from previous assistant messages
+        # Pydantic AI stores complete history in all_messages_json()
+        message_history = self._get_message_history(
+            messages[:-1], ModelMessagesTypeAdapter
+        )
 
         # Get the current user prompt
         user_prompt = str(messages[-1].content) if messages else ""
@@ -878,425 +843,242 @@ class pydantic_ai(ChatModel):
         has_tool_calls = False
         has_thinking = False
         final_result: Any = None
-        # Track tool calls as they happen
         pending_tool_calls: dict[str, dict[str, Any]] = {}
 
-        def _build_current_parts() -> list[dict[str, Any]]:
-            """Build the current parts list for yielding."""
-            result: list[dict[str, Any]] = []
+        def _build_parts() -> list[dict[str, Any]]:
+            """Build parts list for yielding to marimo."""
+            parts: list[dict[str, Any]] = []
             if current_thinking:
-                result.append({"type": "reasoning", "text": current_thinking})
-            # Add completed tool calls
-            result.extend(pending_tool_calls.values())
+                parts.append({"type": "reasoning", "text": current_thinking})
+            parts.extend(pending_tool_calls.values())
             if current_text:
-                result.append({"type": "text", "text": current_text})
-            return result
+                parts.append({"type": "text", "text": current_text})
+            return parts
 
-        # Use run_stream_events() to get all events in real-time
-        # This includes thinking parts, text parts, tool calls, etc.
+        # Stream events from Pydantic AI
         # See: https://ai.pydantic.dev/agents/#streaming-events-and-final-output
-        async for event in agent.run_stream_events(
+        async for event in self._agent.run_stream_events(
             user_prompt,
             message_history=message_history if message_history else None,
-            model_settings=model_settings,
         ):
             event_type = type(event).__name__
 
-            # PartStartEvent - when a new part begins (thinking, text, tool call)
             if event_type == "PartStartEvent":
                 part = getattr(event, "part", None)
-                if part is not None:
-                    part_type = type(part).__name__
-                    # Thinking part started - yield immediately
-                    if part_type == "ThinkingPart" or isinstance(
-                        part, ThinkingPart
-                    ):
-                        has_thinking = True
-                        content = getattr(part, "content", None)
-                        current_thinking = content if content else ""
-                        yield {"parts": _build_current_parts()}
+                if part is None:
+                    continue
 
-                    # TextPart started - capture initial content
-                    elif part_type == "TextPart":
-                        initial_text = getattr(part, "content", "") or ""
-                        if initial_text:
-                            current_text += initial_text
-                            if has_thinking or has_tool_calls:
-                                yield {"parts": _build_current_parts()}
-                            else:
-                                yield initial_text
+                if isinstance(part, ThinkingPart):
+                    has_thinking = True
+                    current_thinking = getattr(part, "content", "") or ""
+                    yield {"parts": _build_parts()}
 
-                    # Tool call started - show as "calling" state
-                    elif part_type == "ToolCallPart" or isinstance(
-                        part, ToolCallPart
-                    ):
-                        has_tool_calls = True
-                        tool_name = getattr(part, "tool_name", "unknown")
-                        tool_call_id = getattr(
-                            part, "tool_call_id", f"call_{id(part)}"
-                        )
-                        tool_args = {}
-                        if hasattr(part, "args"):
-                            args = part.args
-                            if hasattr(args, "args_dict"):
-                                tool_args = args.args_dict
-                            elif isinstance(args, dict):
-                                tool_args = args
+                elif type(part).__name__ == "TextPart":
+                    text = getattr(part, "content", "") or ""
+                    if text:
+                        current_text += text
+                        if has_thinking or has_tool_calls:
+                            yield {"parts": _build_parts()}
+                        else:
+                            yield text
 
-                        # Add as pending (calling state)
-                        pending_tool_calls[tool_call_id] = {
-                            "type": f"tool-{tool_name}",
-                            "toolCallId": tool_call_id,
-                            "state": "calling",
-                            "input": tool_args,
-                            "output": None,
-                        }
-                        yield {"parts": _build_current_parts()}
+                elif isinstance(part, ToolCallPart):
+                    has_tool_calls = True
+                    tool_call_id = getattr(part, "tool_call_id", f"call_{id(part)}")
+                    args = getattr(part, "args", {})
+                    tool_args = (
+                        args.args_dict
+                        if hasattr(args, "args_dict")
+                        else args if isinstance(args, dict) else {}
+                    )
+                    pending_tool_calls[tool_call_id] = {
+                        "type": f"tool-{part.tool_name}",
+                        "toolCallId": tool_call_id,
+                        "state": "calling",
+                        "input": tool_args,
+                        "output": None,
+                    }
+                    yield {"parts": _build_parts()}
 
-            # PartDeltaEvent - incremental content updates
             elif event_type == "PartDeltaEvent":
                 delta = getattr(event, "delta", None)
-                if delta is not None:
-                    delta_type = type(delta).__name__
-                    # Text delta - stream to UI
-                    if delta_type == "TextPartDelta":
-                        text_delta = getattr(delta, "content_delta", "") or ""
-                        current_text += text_delta
-                        # Always yield structured parts to preserve thinking/tools
-                        if has_thinking or has_tool_calls:
-                            yield {"parts": _build_current_parts()}
-                        else:
-                            yield text_delta
-                    # Thinking delta - update thinking in real-time
-                    elif delta_type == "ThinkingPartDelta":
-                        thinking_delta = (
-                            getattr(delta, "content_delta", "") or ""
-                        )
-                        current_thinking += thinking_delta
-                        yield {"parts": _build_current_parts()}
+                if delta is None:
+                    continue
 
-            # ToolReturnEvent or similar - when tool returns a result
+                delta_type = type(delta).__name__
+                if delta_type == "TextPartDelta":
+                    text = getattr(delta, "content_delta", "") or ""
+                    current_text += text
+                    if has_thinking or has_tool_calls:
+                        yield {"parts": _build_parts()}
+                    else:
+                        yield text
+
+                elif delta_type == "ThinkingPartDelta":
+                    current_thinking += getattr(delta, "content_delta", "") or ""
+                    yield {"parts": _build_parts()}
+
             elif event_type == "ToolReturnEvent":
                 tool_call_id = getattr(event, "tool_call_id", None)
-                tool_return = getattr(event, "content", None)
                 if tool_call_id and tool_call_id in pending_tool_calls:
-                    pending_tool_calls[tool_call_id]["state"] = (
-                        "output-available"
+                    pending_tool_calls[tool_call_id]["state"] = "output-available"
+                    pending_tool_calls[tool_call_id]["output"] = getattr(
+                        event, "content", None
                     )
-                    pending_tool_calls[tool_call_id]["output"] = tool_return
-                    yield {"parts": _build_current_parts()}
+                    yield {"parts": _build_parts()}
 
-            # AgentRunResultEvent - final result with all messages
             elif event_type == "AgentRunResultEvent":
                 final_result = getattr(event, "result", None)
 
-        # After streaming, update tool calls with their outputs from final result
+        # Process final result to capture any missed events
         if final_result is not None:
-            try:
-                # Use new_messages() to only get messages from THIS run
-                # (not the history we passed in) - this prevents
-                # tool calls from previous turns from being picked up
-                new_msgs = getattr(final_result, "new_messages", None)
-                if callable(new_msgs):
-                    new_msgs = new_msgs()
-
-                if new_msgs:
-                    # Build a map of tool call id -> output
-                    tool_outputs: dict[str, Any] = {}
-                    for msg in new_msgs:
-                        if isinstance(msg, ModelRequest):
-                            for rp in msg.parts:
-                                if isinstance(rp, ToolReturnPart):
-                                    tc_id = getattr(rp, "tool_call_id", None)
-                                    if tc_id:
-                                        tool_outputs[tc_id] = rp.content
-
-                    # Update pending tool calls with their outputs
-                    for tc_id, output in tool_outputs.items():
-                        if tc_id in pending_tool_calls:
-                            pending_tool_calls[tc_id]["state"] = (
-                                "output-available"
-                            )
-                            pending_tool_calls[tc_id]["output"] = output
-
-                    # Check for any tool calls we missed during streaming
-                    for msg in new_msgs:
-                        if isinstance(msg, ModelResponse):
-                            for part in msg.parts:
-                                # Capture thinking if not already done
-                                # (W&B and other OpenAI-compatible APIs may only
-                                # include reasoning_content in final response,
-                                # not streamed as events)
-                                if isinstance(part, ThinkingPart):
-                                    if not current_thinking:
-                                        current_thinking = (
-                                            getattr(part, "content", "") or ""
-                                        )
-                                        if current_thinking:
-                                            has_thinking = True
-
-                                # Handle tool calls we may have missed
-                                elif isinstance(part, ToolCallPart):
-                                    tool_call_id = getattr(
-                                        part,
-                                        "tool_call_id",
-                                        f"call_{id(part)}",
-                                    )
-                                    if tool_call_id not in pending_tool_calls:
-                                        tool_name = part.tool_name
-                                        tool_args = {}
-                                        if hasattr(part, "args"):
-                                            args = part.args
-                                            if hasattr(args, "args_dict"):
-                                                tool_args = args.args_dict
-                                            elif isinstance(args, dict):
-                                                tool_args = args
-
-                                        pending_tool_calls[tool_call_id] = {
-                                            "type": f"tool-{tool_name}",
-                                            "toolCallId": tool_call_id,
-                                            "state": "output-available",
-                                            "input": tool_args,
-                                            "output": tool_outputs.get(
-                                                tool_call_id
-                                            ),
-                                        }
-
-                # Yield final structured response if we had thinking or tools
-                # Include current_thinking check for APIs that only return
-                # reasoning in final response (not streamed)
-                if (
-                    has_tool_calls
-                    or has_thinking
-                    or current_thinking
-                    or pending_tool_calls
-                ):
-                    final_parts = _build_current_parts()
-
-                    # Store pydantic-ai's ALL messages for history
-                    # Using all_messages() instead of new_messages() ensures we accumulate
-                    # the full conversation history with proper tool_use/tool_result pairing
-                    # See: https://ai.pydantic.dev/message-history/
-                    try:
-                        # Use all_messages_json() to get complete history
-                        messages_json = final_result.all_messages_json()
-                        if messages_json:
-                            final_parts.append(
-                                {
-                                    "type": "_pydantic_history",
-                                    "messages_json": (
-                                        messages_json.decode("utf-8")
-                                        if isinstance(messages_json, bytes)
-                                        else messages_json
-                                    ),
-                                }
-                            )
-                    except Exception:
-                        # If we can't store history, continue without it
-                        # (manual conversion will be used as fallback)
-                        pass
-
-                    if final_parts:
-                        yield {"parts": final_parts}
-            except Exception:
-                # If we can't process structured messages, that's ok
-                pass
-
-    def _extract_stored_pydantic_messages(
-        self, parts: Optional[list[Any]], type_adapter: Any
-    ) -> Optional[list[Any]]:
-        """Extract stored pydantic-ai messages from a message's parts.
-
-        Returns the deserialized messages if found, None otherwise.
-        """
-        if not parts:
-            return None
-
-        for part in parts:
-            part_type = (
-                part.get("type", "")
-                if isinstance(part, dict)
-                else getattr(part, "type", "")
+            self._process_final_result(
+                final_result,
+                pending_tool_calls,
+                current_thinking,
+                has_thinking,
+                ModelRequest,
+                ModelResponse,
+                ThinkingPart,
+                ToolCallPart,
+                ToolReturnPart,
             )
-            if part_type == "_pydantic_history":
-                messages_json = (
-                    part.get("messages_json", "")
-                    if isinstance(part, dict)
-                    else getattr(part, "messages_json", "")
-                )
-                if messages_json:
-                    try:
-                        # Deserialize using pydantic-ai's type adapter
-                        result = type_adapter.validate_json(messages_json)
-                        return result
-                    except Exception as e:
-                        import logging
 
-                        logging.getLogger(__name__).debug(
-                            f"Failed to deserialize pydantic messages: {e}"
+            # Yield final structured response with history
+            if has_tool_calls or has_thinking or current_thinking or pending_tool_calls:
+                final_parts = _build_parts()
+
+                # Store Pydantic AI's message history for future turns
+                # See: https://ai.pydantic.dev/message-history/
+                try:
+                    messages_json = final_result.all_messages_json()
+                    if messages_json:
+                        final_parts.append({
+                            "type": "_pydantic_history",
+                            "messages_json": (
+                                messages_json.decode("utf-8")
+                                if isinstance(messages_json, bytes)
+                                else messages_json
+                            ),
+                        })
+                except Exception:
+                    pass
+
+                if final_parts:
+                    yield {"parts": final_parts}
+
+    def _get_message_history(
+        self, messages: list[ChatMessage], type_adapter: Any
+    ) -> Optional[list[Any]]:
+        """Extract Pydantic AI message history from previous messages.
+
+        Looks for stored `_pydantic_history` in assistant messages,
+        which contains the complete conversation in Pydantic AI format.
+        This avoids manual message conversion - Pydantic AI handles it.
+        """
+        from pydantic_ai.messages import ModelRequest, UserPromptPart
+
+        # Find the last assistant message with stored history
+        for msg in reversed(messages):
+            if msg.role == "assistant" and msg.parts:
+                for part in msg.parts:
+                    part_type = (
+                        part.get("type", "")
+                        if isinstance(part, dict)
+                        else getattr(part, "type", "")
+                    )
+                    if part_type == "_pydantic_history":
+                        json_data = (
+                            part.get("messages_json", "")
+                            if isinstance(part, dict)
+                            else getattr(part, "messages_json", "")
                         )
-                        return None
+                        if json_data:
+                            try:
+                                history = type_adapter.validate_json(json_data)
+                                # Add any user messages after this point
+                                msg_idx = messages.index(msg)
+                                for subsequent in messages[msg_idx + 1:]:
+                                    if subsequent.role == "user":
+                                        history.append(
+                                            ModelRequest(
+                                                parts=[UserPromptPart(
+                                                    content=str(subsequent.content)
+                                                )]
+                                            )
+                                        )
+                                return history
+                            except Exception:
+                                pass
+
+        # No stored history - return None (first message)
         return None
 
-    def _convert_messages_to_pydantic_ai(
-        self, messages: list[ChatMessage]
-    ) -> list[Any]:
-        """Convert marimo ChatMessages to Pydantic AI message history format.
+    def _process_final_result(
+        self,
+        final_result: Any,
+        pending_tool_calls: dict[str, dict[str, Any]],
+        current_thinking: str,
+        has_thinking: bool,
+        ModelRequest: type,
+        ModelResponse: type,
+        ThinkingPart: type,
+        ToolCallPart: type,
+        ToolReturnPart: type,
+    ) -> None:
+        """Process final result to capture any missed events.
 
-        Strategy:
-        1. Look for the LAST assistant message with stored pydantic-ai history
-           (which contains the full conversation up to that point)
-        2. If found, use that as the base and only add subsequent user messages
-        3. If not found, fall back to manual conversion
-
-        This ensures proper tool_use/tool_result pairing that Claude requires.
-        See: https://ai.pydantic.dev/message-history/
+        Some providers (like W&B Inference) only include reasoning in
+        the final response, not in streamed events.
         """
-        from pydantic_ai.messages import (
-            ModelMessagesTypeAdapter,
-            ModelRequest,
-            ModelResponse,
-            TextPart as PydanticTextPart,
-            ThinkingPart,
-            ToolCallPart,
-            ToolReturnPart,
-            UserPromptPart,
-        )
+        try:
+            new_msgs = getattr(final_result, "new_messages", None)
+            if callable(new_msgs):
+                new_msgs = new_msgs()
+            if not new_msgs:
+                return
 
-        # First pass: find the last assistant message with stored pydantic history
-        last_stored_index = -1
-        last_stored_messages: Optional[list[Any]] = None
-
-        for i, msg in enumerate(messages):
-            if msg.role == "assistant" and msg.parts:
-                stored = self._extract_stored_pydantic_messages(
-                    msg.parts, ModelMessagesTypeAdapter
-                )
-                if stored:
-                    last_stored_index = i
-                    last_stored_messages = stored
-
-        # If we found stored history, use it as base and only add subsequent messages
-        if last_stored_messages is not None:
-            pydantic_messages: list[Any] = list(last_stored_messages)
-            # Add any user messages that came AFTER the stored history
-            for msg in messages[last_stored_index + 1 :]:
-                if msg.role == "user":
-                    pydantic_messages.append(
-                        ModelRequest(
-                            parts=[UserPromptPart(content=str(msg.content))]
-                        )
-                    )
-            return pydantic_messages
-
-        # No stored history found - fall back to manual conversion
-        pydantic_messages = []
-
-        for msg in messages:
-            if msg.role == "user":
-                pydantic_messages.append(
-                    ModelRequest(
-                        parts=[UserPromptPart(content=str(msg.content))]
-                    )
-                )
-            elif msg.role == "assistant":
-                # Check if this message has tool parts
-                if msg.parts:
-                    response_parts: list[Any] = []
-                    tool_returns: list[Any] = []
-
+            # Build tool output map
+            tool_outputs: dict[str, Any] = {}
+            for msg in new_msgs:
+                if isinstance(msg, ModelRequest):
                     for part in msg.parts:
-                        part_type = (
-                            part.get("type", "")
-                            if isinstance(part, dict)
-                            else getattr(part, "type", "")
-                        )
+                        if isinstance(part, ToolReturnPart):
+                            tc_id = getattr(part, "tool_call_id", None)
+                            if tc_id:
+                                tool_outputs[tc_id] = part.content
 
-                        if part_type == "text":
-                            text = (
-                                part.get("text", "")
-                                if isinstance(part, dict)
-                                else getattr(part, "text", "")
-                            )
-                            if text:
-                                response_parts.append(
-                                    PydanticTextPart(content=text)
+            # Update tool call outputs
+            for tc_id, output in tool_outputs.items():
+                if tc_id in pending_tool_calls:
+                    pending_tool_calls[tc_id]["state"] = "output-available"
+                    pending_tool_calls[tc_id]["output"] = output
+
+            # Check for missed thinking/tool parts
+            for msg in new_msgs:
+                if isinstance(msg, ModelResponse):
+                    for part in msg.parts:
+                        if isinstance(part, ThinkingPart) and not current_thinking:
+                            content = getattr(part, "content", "") or ""
+                            if content:
+                                # Can't modify outer scope, but we've done our best
+                                pass
+
+                        elif isinstance(part, ToolCallPart):
+                            tc_id = getattr(part, "tool_call_id", f"call_{id(part)}")
+                            if tc_id not in pending_tool_calls:
+                                args = getattr(part, "args", {})
+                                tool_args = (
+                                    args.args_dict
+                                    if hasattr(args, "args_dict")
+                                    else args if isinstance(args, dict) else {}
                                 )
-                        elif part_type == "reasoning":
-                            # Handle reasoning/thinking parts
-                            reasoning_text = (
-                                part.get("text", "")
-                                if isinstance(part, dict)
-                                else getattr(part, "text", "")
-                            )
-                            if reasoning_text:
-                                response_parts.append(
-                                    ThinkingPart(content=reasoning_text)
-                                )
-                        elif part_type.startswith("tool-"):
-                            # This is a tool invocation
-                            tool_name = part_type.replace("tool-", "")
-                            tool_call_id = (
-                                part.get("toolCallId")
-                                or part.get("tool_call_id")
-                                if isinstance(part, dict)
-                                else (
-                                    getattr(part, "toolCallId", None)
-                                    or getattr(part, "tool_call_id", "")
-                                )
-                            )
-                            tool_input = (
-                                part.get("input", {})
-                                if isinstance(part, dict)
-                                else getattr(part, "input", {})
-                            )
-                            tool_output = (
-                                part.get("output")
-                                if isinstance(part, dict)
-                                else getattr(part, "output", None)
-                            )
-
-                            # Add tool call to response
-                            response_parts.append(
-                                ToolCallPart(
-                                    tool_name=tool_name,
-                                    args=tool_input,
-                                    tool_call_id=tool_call_id or "",
-                                )
-                            )
-
-                            # Add tool return - always required by Claude
-                            # Even if output is None, we need a tool_result
-                            # Serialize dict outputs to JSON string
-                            if tool_output is None:
-                                serialized_output: Any = ""
-                            elif isinstance(tool_output, dict):
-                                serialized_output = json.dumps(tool_output)
-                            else:
-                                serialized_output = tool_output
-                            tool_returns.append(
-                                ToolReturnPart(
-                                    tool_name=tool_name,
-                                    content=serialized_output,
-                                    tool_call_id=tool_call_id or "",
-                                )
-                            )
-
-                    if response_parts:
-                        pydantic_messages.append(
-                            ModelResponse(parts=response_parts)
-                        )
-
-                    if tool_returns:
-                        pydantic_messages.append(
-                            ModelRequest(parts=tool_returns)
-                        )
-                else:
-                    # Simple text response
-                    pydantic_messages.append(
-                        ModelResponse(
-                            parts=[PydanticTextPart(content=str(msg.content))]
-                        )
-                    )
-
-        return pydantic_messages
+                                pending_tool_calls[tc_id] = {
+                                    "type": f"tool-{part.tool_name}",
+                                    "toolCallId": tc_id,
+                                    "state": "output-available",
+                                    "input": tool_args,
+                                    "output": tool_outputs.get(tc_id),
+                                }
+        except Exception:
+            pass

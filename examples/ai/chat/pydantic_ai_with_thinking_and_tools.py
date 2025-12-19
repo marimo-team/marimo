@@ -110,28 +110,31 @@ def _():
 
 @app.cell
 def _(calculate, get_weather, mo):
-    # Import thinking-specific settings
+    # Import Pydantic AI components
+    from pydantic_ai import Agent
     from pydantic_ai.models.anthropic import AnthropicModelSettings
 
-    # Create the chat with thinking and tools enabled
-    # This is similar to other mo.ai.llm classes - just pass model string and options
-    chatbot = mo.ui.chat(
-        mo.ai.llm.pydantic_ai(
-            "anthropic:claude-sonnet-4-5",
-            tools=[get_weather, calculate],
-            instructions=(
-                "You are a helpful assistant. Think step-by-step when solving "
-                "problems. Use the provided tools when appropriate."
-            ),
-            # Enable thinking with Anthropic-specific settings
-            model_settings=AnthropicModelSettings(
-                max_tokens=8000,
-                anthropic_thinking={
-                    "type": "enabled",
-                    "budget_tokens": 4000,
-                },
-            ),
+    # Create a Pydantic AI Agent with tools and thinking enabled
+    agent = Agent(
+        "anthropic:claude-sonnet-4-5",
+        tools=[get_weather, calculate],
+        instructions=(
+            "You are a helpful assistant. Think step-by-step when solving "
+            "problems. Use the provided tools when appropriate."
         ),
+        # Enable thinking with Anthropic-specific settings
+        model_settings=AnthropicModelSettings(
+            max_tokens=8000,
+            anthropic_thinking={
+                "type": "enabled",
+                "budget_tokens": 4000,
+            },
+        ),
+    )
+
+    # Pass the agent to mo.ai.llm.pydantic_ai
+    chatbot = mo.ui.chat(
+        mo.ai.llm.pydantic_ai(agent),
         prompts=[
             "What's the weather in San Francisco and Tokyo? Compare them.",
             "If the temperature in SF is 72°F, what is it in Celsius? "
@@ -141,7 +144,7 @@ def _(calculate, get_weather, mo):
         ],
     )
     chatbot
-    return AnthropicModelSettings, chatbot
+    return Agent, AnthropicModelSettings, agent, chatbot
 
 
 @app.cell(hide_code=True)
@@ -164,47 +167,36 @@ def _(mo):
     3. 🔧 **Tool: get_weather** → Tokyo: 22°C, sunny
     4. 💬 **Response**: "San Francisco is 72°F (22°C) and Tokyo is 22°C. Both are sunny..."
 
-    ### Simple Usage
+    ### Usage
+
+    Create a Pydantic AI Agent and pass it to `mo.ai.llm.pydantic_ai()`:
 
     ```python
-    # Basic - just like other mo.ai.llm classes
-    mo.ai.llm.pydantic_ai(
+    from pydantic_ai import Agent
+    from pydantic_ai.models.anthropic import AnthropicModelSettings
+
+    # Create your agent with all configuration
+    agent = Agent(
         "anthropic:claude-sonnet-4-5",
         tools=[get_weather, calculate],
         instructions="You are a helpful assistant.",
-    )
-
-    # With thinking enabled
-    from pydantic_ai.models.anthropic import AnthropicModelSettings
-
-    mo.ai.llm.pydantic_ai(
-        "anthropic:claude-sonnet-4-5",
-        tools=[get_weather],
         model_settings=AnthropicModelSettings(
             max_tokens=8000,
             anthropic_thinking={"type": "enabled", "budget_tokens": 4000},
         ),
     )
+
+    # Pass it to marimo
+    chat = mo.ui.chat(mo.ai.llm.pydantic_ai(agent))
     ```
 
-    ### Using a Pre-configured Agent
-
-    For full control, you can pass a pydantic_ai.Agent directly:
-
-    ```python
-    from pydantic_ai import Agent
-
-    agent = Agent(
-        "anthropic:claude-sonnet-4-5",
-        tools=[...],
-        deps_type=MyDeps,  # Full Agent configuration
-        output_type=MyOutput,
-    )
-
-    mo.ai.llm.pydantic_ai(agent)
-    ```
-
-    See https://ai.pydantic.dev/ for all Agent options.
+    The Agent API gives you full control over:
+    - `tools` - Functions the model can call
+    - `instructions` - System prompt
+    - `model_settings` - Provider-specific settings (thinking, max_tokens, etc.)
+    - `deps_type` - Dependency injection for tools
+    - `output_type` - Structured output schema
+    - And more - see https://ai.pydantic.dev/agents/
     """)
     return
 

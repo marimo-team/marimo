@@ -1109,158 +1109,97 @@ class TestBedrock:
     reason="pydantic-ai is not installed",
 )
 class TestPydanticAI:
-    """Tests for the pydantic_ai class."""
+    """Tests for the pydantic_ai class.
 
-    def test_init_with_model_string(self):
-        """Test initialization with a model string (like other mo.ai.llm classes)."""
-        model = pydantic_ai("openai:gpt-4.1")
+    The pydantic_ai class now only accepts a Pydantic AI Agent instance.
+    All configuration (model, tools, instructions, etc.) is done when
+    creating the Agent.
+    """
 
-        assert model._model == "openai:gpt-4.1"
-        assert model._tools is None
-        assert model._instructions is None
-        assert model._model_settings is None
+    def test_init_requires_agent(self):
+        """Test that pydantic_ai requires an Agent instance."""
+        with pytest.raises(TypeError) as exc_info:
+            pydantic_ai("openai:gpt-4.1")
 
-    def test_init_with_model_string_and_options(self):
-        """Test initialization with model string and options."""
-
-        def my_tool(arg: str) -> str:
-            """A test tool."""
-            return arg
-
-        model = pydantic_ai(
-            "openai:gpt-4.1",
-            tools=[my_tool],
-            instructions="You are helpful.",
-        )
-
-        assert model._model == "openai:gpt-4.1"
-        assert len(model._tools) == 1
-        assert model._instructions == "You are helpful."
+        assert "requires a pydantic_ai.Agent instance" in str(exc_info.value)
 
     def test_init_with_agent(self):
-        """Test initialization with a pre-configured Agent."""
+        """Test initialization with a pydantic_ai.Agent."""
         from pydantic_ai import Agent
 
         agent = Agent("openai:gpt-4.1", instructions="Test instructions")
         model = pydantic_ai(agent)
 
-        # When passing an Agent, it should be detected
-        assert model._model is agent
-        # Agent should be used directly when _get_agent() is called
-        assert model._get_agent() is agent
+        assert model._agent is agent
 
-    def test_init_with_model_settings(self):
-        """Test initialization with model settings."""
-        from pydantic_ai.settings import ModelSettings
-
-        settings = ModelSettings(max_tokens=1000, temperature=0.7)
-        model = pydantic_ai("openai:gpt-4.1", model_settings=settings)
-
-        assert model._model_settings is settings
-        assert model._model_settings.max_tokens == 1000
-        assert model._model_settings.temperature == 0.7
-
-    def test_get_agent_creates_agent_from_string(self):
-        """Test that _get_agent creates an Agent from model string."""
+    def test_init_with_agent_and_tools(self):
+        """Test initialization with an Agent that has tools."""
         from pydantic_ai import Agent
 
-        model = pydantic_ai(
+        def my_tool(arg: str) -> str:
+            """A test tool."""
+            return arg
+
+        agent = Agent(
             "openai:gpt-4.1",
-            instructions="Test",
+            tools=[my_tool],
+            instructions="Use tools when helpful.",
         )
+        model = pydantic_ai(agent)
 
-        agent = model._get_agent()
-        assert isinstance(agent, Agent)
+        assert model._agent is agent
 
-    def test_get_agent_returns_same_agent(self):
-        """Test that _get_agent returns the same Agent on repeated calls."""
-        model = pydantic_ai("openai:gpt-4.1")
-
-        agent1 = model._get_agent()
-        agent2 = model._get_agent()
-        assert agent1 is agent2
-
-    def test_call_returns_async_generator(self, test_messages, test_config):
-        """Test that calling returns an async generator."""
-        import inspect
-
-        model = pydantic_ai("openai:gpt-4.1")
-        result = model(test_messages, test_config)
-
-        assert inspect.isasyncgen(result)
-
-    def test_convert_messages_to_pydantic_ai(self):
-        """Test message conversion to Pydantic AI format."""
-        from pydantic_ai.messages import ModelRequest, ModelResponse
-
-        model = pydantic_ai("openai:gpt-4.1")
-
-        messages = [
-            ChatMessage(role="user", content="Hello"),
-            ChatMessage(role="assistant", content="Hi there!"),
-            ChatMessage(role="user", content="How are you?"),
-        ]
-
-        converted = model._convert_messages_to_pydantic_ai(messages)
-
-        assert len(converted) == 3
-        assert isinstance(converted[0], ModelRequest)
-        assert isinstance(converted[1], ModelResponse)
-        assert isinstance(converted[2], ModelRequest)
-
-    def test_convert_messages_with_tool_parts(self):
-        """Test message conversion with tool invocation parts."""
-        from pydantic_ai.messages import ModelRequest, ModelResponse
-
-        model = pydantic_ai("openai:gpt-4.1")
-
-        messages = [
-            ChatMessage(role="user", content="What's the weather?"),
-            ChatMessage(
-                role="assistant",
-                content="Let me check...",
-                parts=[
-                    {"type": "text", "text": "Let me check..."},
-                    {
-                        "type": "tool-get_weather",
-                        "toolCallId": "call_123",
-                        "state": "output-available",
-                        "input": {"location": "SF"},
-                        "output": {"temp": 72},
-                    },
-                ],
-            ),
-        ]
-
-        converted = model._convert_messages_to_pydantic_ai(messages)
-
-        assert len(converted) >= 2
-        # First is user request
-        assert isinstance(converted[0], ModelRequest)
-        # Second should be response with tool call
-        assert isinstance(converted[1], ModelResponse)
-
-    def test_anthropic_thinking_settings(self):
-        """Test creating a model with Anthropic thinking settings."""
+    def test_init_with_anthropic_thinking_settings(self):
+        """Test initialization with an Agent using Anthropic thinking settings."""
+        from pydantic_ai import Agent
         from pydantic_ai.models.anthropic import AnthropicModelSettings
 
         settings = AnthropicModelSettings(
             max_tokens=8000,
             anthropic_thinking={"type": "enabled", "budget_tokens": 4000},
         )
-        model = pydantic_ai(
+        agent = Agent(
             "anthropic:claude-sonnet-4-5",
             model_settings=settings,
         )
+        model = pydantic_ai(agent)
 
-        assert model._model_settings is settings
-        assert model._model_settings.anthropic_thinking == {
-            "type": "enabled",
-            "budget_tokens": 4000,
-        }
+        assert model._agent is agent
+        # Settings are on the agent, not the wrapper
+        assert agent.model_settings is settings
 
-    def test_extract_stored_pydantic_messages(self):
-        """Test extraction of stored pydantic-ai messages from parts."""
+    def test_call_returns_async_generator(self, test_messages, test_config):
+        """Test that calling returns an async generator."""
+        import inspect
+
+        from pydantic_ai import Agent
+
+        agent = Agent("openai:gpt-4.1")
+        model = pydantic_ai(agent)
+        result = model(test_messages, test_config)
+
+        assert inspect.isasyncgen(result)
+
+    def test_get_message_history_returns_none_without_history(self):
+        """Test that _get_message_history returns None on first message."""
+        from pydantic_ai import Agent
+        from pydantic_ai.messages import ModelMessagesTypeAdapter
+
+        agent = Agent("openai:gpt-4.1")
+        model = pydantic_ai(agent)
+
+        # Empty messages - should return None
+        result = model._get_message_history([], ModelMessagesTypeAdapter)
+        assert result is None
+
+        # Messages without stored history - should return None
+        messages = [ChatMessage(role="user", content="Hello")]
+        result = model._get_message_history(messages, ModelMessagesTypeAdapter)
+        assert result is None
+
+    def test_get_message_history_extracts_stored_history(self):
+        """Test that _get_message_history extracts stored Pydantic AI history."""
+        from pydantic_ai import Agent
         from pydantic_ai.messages import (
             ModelMessagesTypeAdapter,
             ModelRequest,
@@ -1269,119 +1208,84 @@ class TestPydanticAI:
             UserPromptPart,
         )
 
-        model = pydantic_ai("openai:gpt-4.1")
+        agent = Agent("openai:gpt-4.1")
+        model = pydantic_ai(agent)
 
         # Create some test messages and serialize them
-        test_messages = [
+        stored_history = [
             ModelRequest(parts=[UserPromptPart(content="Hello")]),
             ModelResponse(parts=[PydanticTextPart(content="Hi there!")]),
         ]
-        messages_json = ModelMessagesTypeAdapter.dump_json(test_messages)
+        messages_json = ModelMessagesTypeAdapter.dump_json(stored_history)
 
-        # Create parts with stored history
-        parts = [
-            {"type": "text", "text": "Some response"},
-            {
-                "type": "_pydantic_history",
-                "messages_json": messages_json.decode("utf-8"),
-            },
-        ]
-
-        # Extract should find and deserialize the messages
-        extracted = model._extract_stored_pydantic_messages(
-            parts, ModelMessagesTypeAdapter
-        )
-
-        assert extracted is not None
-        assert len(extracted) == 2
-        assert isinstance(extracted[0], ModelRequest)
-        assert isinstance(extracted[1], ModelResponse)
-
-    def test_extract_stored_pydantic_messages_none_when_missing(self):
-        """Test that extraction returns None when no stored history."""
-        from pydantic_ai.messages import ModelMessagesTypeAdapter
-
-        model = pydantic_ai("openai:gpt-4.1")
-
-        # Parts without _pydantic_history
-        parts = [
-            {"type": "text", "text": "Some response"},
-            {"type": "reasoning", "text": "Some thinking"},
-        ]
-
-        extracted = model._extract_stored_pydantic_messages(
-            parts, ModelMessagesTypeAdapter
-        )
-
-        assert extracted is None
-
-    def test_convert_messages_uses_stored_history(self):
-        """Test that message conversion uses stored pydantic history when available."""
-        from pydantic_ai.messages import (
-            ModelMessagesTypeAdapter,
-            ModelRequest,
-            ModelResponse,
-            TextPart as PydanticTextPart,
-            ToolCallPart,
-            ToolReturnPart,
-            UserPromptPart,
-        )
-
-        model = pydantic_ai("openai:gpt-4.1")
-
-        # Create properly paired tool messages
-        stored_messages = [
-            ModelRequest(
-                parts=[UserPromptPart(content="What's the weather?")]
-            ),
-            ModelResponse(
-                parts=[
-                    ToolCallPart(
-                        tool_name="get_weather",
-                        args={"location": "SF"},
-                        tool_call_id="call_123",
-                    ),
-                ]
-            ),
-            ModelRequest(
-                parts=[
-                    ToolReturnPart(
-                        tool_name="get_weather",
-                        content='{"temp": 72}',
-                        tool_call_id="call_123",
-                    ),
-                ]
-            ),
-            ModelResponse(
-                parts=[PydanticTextPart(content="The weather is 72F")]
-            ),
-        ]
-        messages_json = ModelMessagesTypeAdapter.dump_json(stored_messages)
-
-        # Create chat messages with stored history
+        # Create chat messages with stored history in parts
         messages = [
-            ChatMessage(role="user", content="What's the weather?"),
+            ChatMessage(role="user", content="Hello"),
             ChatMessage(
                 role="assistant",
-                content="The weather is 72F",
+                content="Hi there!",
                 parts=[
-                    {"type": "text", "text": "The weather is 72F"},
+                    {"type": "text", "text": "Hi there!"},
                     {
                         "type": "_pydantic_history",
                         "messages_json": messages_json.decode("utf-8"),
                     },
                 ],
             ),
-            ChatMessage(role="user", content="Thanks!"),
         ]
 
-        converted = model._convert_messages_to_pydantic_ai(messages)
+        result = model._get_message_history(messages, ModelMessagesTypeAdapter)
 
-        # Should have: 4 stored messages + 1 new user message = 5
-        assert len(converted) == 5
-        # Last should be the new user message
-        assert isinstance(converted[4], ModelRequest)
-        assert converted[4].parts[0].content == "Thanks!"
+        assert result is not None
+        assert len(result) == 2
+        assert isinstance(result[0], ModelRequest)
+        assert isinstance(result[1], ModelResponse)
+
+    def test_get_message_history_appends_subsequent_user_messages(self):
+        """Test that subsequent user messages are appended to stored history."""
+        from pydantic_ai import Agent
+        from pydantic_ai.messages import (
+            ModelMessagesTypeAdapter,
+            ModelRequest,
+            ModelResponse,
+            TextPart as PydanticTextPart,
+            UserPromptPart,
+        )
+
+        agent = Agent("openai:gpt-4.1")
+        model = pydantic_ai(agent)
+
+        # Create stored history
+        stored_history = [
+            ModelRequest(parts=[UserPromptPart(content="Hello")]),
+            ModelResponse(parts=[PydanticTextPart(content="Hi!")]),
+        ]
+        messages_json = ModelMessagesTypeAdapter.dump_json(stored_history)
+
+        # Chat messages: history + new user message
+        messages = [
+            ChatMessage(role="user", content="Hello"),
+            ChatMessage(
+                role="assistant",
+                content="Hi!",
+                parts=[
+                    {"type": "text", "text": "Hi!"},
+                    {
+                        "type": "_pydantic_history",
+                        "messages_json": messages_json.decode("utf-8"),
+                    },
+                ],
+            ),
+            ChatMessage(role="user", content="How are you?"),
+        ]
+
+        result = model._get_message_history(messages, ModelMessagesTypeAdapter)
+
+        # Should have: 2 stored + 1 new user message = 3
+        assert result is not None
+        assert len(result) == 3
+        assert isinstance(result[2], ModelRequest)
+        assert result[2].parts[0].content == "How are you?"
 
 
 class TestChatMessagePartConversion:
