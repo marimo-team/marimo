@@ -1,9 +1,8 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import type React from "react";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { ListBox, ListBoxItem, useDragAndDrop } from "react-aria-components";
-import { useListData } from "react-stately";
 import {
   ContextMenu,
   ContextMenuCheckboxItem,
@@ -78,51 +77,26 @@ export function ReorderableList<T extends { id: string | number }>({
   ariaLabel = "Reorderable list",
   className,
 }: ReorderableListProps<T>) {
-  const list = useListData({
-    initialItems: value,
-    getKey: (item) => item.id,
-  });
-
-  const [needsSync, setNeedsSync] = useState(false);
-
-  // Sync external value changes to internal list state
-  // useEffect(() => {
-  //   // Only update if the items have actually changed
-  //   if (isEqual(list.items, value)) {
-  //     return;
-  //   }
-
-  //   list.setSelectedKeys(new Set());
-  //   list.remove(...list.items.map((item) => item.id));
-  //   for (const item of value) {
-  //     list.append(item);
-  //   }
-  // }, [value, list]);
-
   const { dragAndDropHooks } = useDragAndDrop<T>({
-    getItems: (_keys, items) =>
-      items.map((item) => {
-        return { "text/plain": String(item.id) };
-      }),
+    getItems: (keys) => [...keys].map((key) => ({ "text/plain": String(key) })),
     onReorder(e) {
-      if (e.target.dropPosition === "before") {
-        list.moveBefore(e.target.key, e.keys);
-      } else if (e.target.dropPosition === "after") {
-        list.moveAfter(e.target.key, e.keys);
-      }
-      setNeedsSync(true);
+      const keySet = new Set(e.keys);
+      const draggedItems = value.filter((item) => keySet.has(item.id));
+      const remaining = value.filter((item) => !keySet.has(item.id));
+
+      const targetIndex = remaining.findIndex(
+        (item) => item.id === e.target.key,
+      );
+      const insertIndex =
+        e.target.dropPosition === "before" ? targetIndex : targetIndex + 1;
+
+      setValue([
+        ...remaining.slice(0, insertIndex),
+        ...draggedItems,
+        ...remaining.slice(insertIndex),
+      ]);
     },
   });
-
-  // Calling this in the onReorder callback does not work since
-  // the reordering is not complete yet.
-  useEffect(() => {
-    if (!needsSync) {
-      return;
-    }
-    setNeedsSync(false);
-    setValue(list.items);
-  }, [list.items, setValue, needsSync, setNeedsSync]);
 
   // Track which items are currently in the list
   const currentItemIds = useMemo(
@@ -132,22 +106,17 @@ export function ReorderableList<T extends { id: string | number }>({
 
   const handleToggleItem = (item: T, isChecked: boolean) => {
     if (isChecked) {
-      // Add item to the list
-      list.append(item);
-    } else {
-      // Remove item from the list (only if we're above minItems)
-      if (value.length > minItems) {
-        list.remove(item.id);
-      }
+      setValue([...value, item]);
+    } else if (value.length > minItems) {
+      setValue(value.filter((v) => v.id !== item.id));
     }
-    setNeedsSync(true);
   };
 
   const listBox = (
     <ListBox
       aria-label={ariaLabel}
       selectionMode="single"
-      items={list.items}
+      items={value}
       dragAndDropHooks={dragAndDropHooks}
       className={className}
     >
@@ -178,7 +147,7 @@ export function ReorderableList<T extends { id: string | number }>({
               checked={isChecked}
               disabled={isDisabled}
               onCheckedChange={(checked) => {
-                handleToggleItem(item, checked === true);
+                handleToggleItem(item, checked);
               }}
             >
               {getItemLabel(item)}
