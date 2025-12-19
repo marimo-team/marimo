@@ -340,12 +340,12 @@ requirements. These and other issues are described in
 https://github.com/marimo-team/marimo/issues/5219.""",
 )
 @click.option(
-    "--trusted/--no-trusted",
+    "--trusted/--untrusted",
     is_flag=True,
     default=None,
     show_default=False,
     type=bool,
-    help="Run notebooks hosted remotely on the host machine; if --no-trusted, runs marimo in a Docker container.",
+    help="Run notebooks hosted remotely on the host machine; if --untrusted, runs marimo in a Docker container.",
 )
 @click.option("--profile-dir", default=None, type=str, hidden=True)
 @click.option(
@@ -891,12 +891,12 @@ Example:
     help=check_message,
 )
 @click.option(
-    "--trusted/--no-trusted",
+    "--trusted/--untrusted",
     is_flag=True,
     default=None,
     show_default=False,
     type=bool,
-    help="Run notebooks hosted remotely on the host machine; if --no-trusted, runs marimo in a Docker container.",
+    help="Run notebooks hosted remotely on the host machine; if --untrusted, runs marimo in a Docker container.",
 )
 @click.option(
     "--server-startup-command",

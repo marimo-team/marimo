@@ -1368,13 +1368,13 @@ def test_cli_edit_trusted(temp_marimo_file: str) -> None:
     HAS_DOCKER, reason="docker is required to be not installed"
 )
 def test_cli_edit_no_trusted(temp_marimo_file: str) -> None:
-    # --no-trusted should try to use Docker, fail if not installed
+    # --untrusted should try to use Docker, fail if not installed
     p = subprocess.Popen(
         [
             "marimo",
             "edit",
             temp_marimo_file,
-            "--no-trusted",
+            "--untrusted",
         ],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
@@ -1408,13 +1408,13 @@ def test_cli_run_trusted(temp_marimo_file: str) -> None:
     HAS_DOCKER, reason="docker is required to be not installed"
 )
 def test_cli_run_no_trusted(temp_marimo_file: str) -> None:
-    # --no-trusted should try to use Docker, fail if not installed
+    # --untrusted should try to use Docker, fail if not installed
     p = subprocess.Popen(
         [
             "marimo",
             "run",
             temp_marimo_file,
-            "--no-trusted",
+            "--untrusted",
         ],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,

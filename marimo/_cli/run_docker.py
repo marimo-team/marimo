@@ -142,7 +142,7 @@ def run_in_docker(
         f"{port}",
         "--host",
         host,
-        file_path,
+        file_path if file_path is not None else "",
     ]
     # Remove empty strings from command
     container_command = [arg for arg in container_command if arg]
