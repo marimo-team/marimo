@@ -391,9 +391,9 @@ class WebsocketHandler(SessionConsumer):
         self._write_kernel_ready(
             session=session,
             resumed=True,
-            ui_values=session.get_current_state().ui_values,
-            last_executed_code=session.get_current_state().last_executed_code,
-            last_execution_time=session.get_current_state().last_execution_time,
+            ui_values=session.session_view.ui_values,
+            last_executed_code=session.session_view.last_executed_code,
+            last_execution_time=session.session_view.last_execution_time,
             kiosk=self.kiosk,
         )
         self.write_operation(
@@ -425,9 +425,9 @@ class WebsocketHandler(SessionConsumer):
         self._write_kernel_ready(
             session=session,
             resumed=True,
-            ui_values=session.get_current_state().ui_values,
-            last_executed_code=session.get_current_state().last_executed_code,
-            last_execution_time=session.get_current_state().last_execution_time,
+            ui_values=session.session_view.ui_values,
+            last_executed_code=session.session_view.last_executed_code,
+            last_execution_time=session.session_view.last_execution_time,
             kiosk=True,
         )
         self.status = ConnectionState.OPEN
@@ -435,7 +435,7 @@ class WebsocketHandler(SessionConsumer):
 
     def _replay_previous_session(self, session: Session) -> None:
         """Replay the previous session view."""
-        operations = session.get_current_state().operations
+        operations = session.session_view.operations
         if len(operations) == 0:
             LOGGER.debug("No operations to replay")
             return
@@ -557,7 +557,7 @@ class WebsocketHandler(SessionConsumer):
             if existing_session is not None:
                 LOGGER.debug("Reconnecting session %s", session_id)
                 # In case there is a lingering connection, close it
-                existing_session.maybe_disconnect_consumer()
+                existing_session.disconnect_main_consumer()
                 self._reconnect_session(existing_session, replay=False)
                 return existing_session
 
@@ -600,6 +600,7 @@ class WebsocketHandler(SessionConsumer):
                 session_id=session_id,
                 session_consumer=self,
                 file_key=self.file_key,
+                auto_instantiate=self.auto_instantiate,
             )
             self.status = ConnectionState.CONNECTING
             # Let the frontend know it can instantiate the app.
@@ -612,10 +613,7 @@ class WebsocketHandler(SessionConsumer):
                 kiosk=False,
             )
             self.status = ConnectionState.OPEN
-            # if auto-instantiate if false, replay the previous session
-            if not self.auto_instantiate:
-                new_session.sync_session_view_from_cache()
-                self._replay_previous_session(new_session)
+            self._replay_previous_session(new_session)
             return new_session
 
         get_session()
@@ -773,9 +771,9 @@ class WebsocketHandler(SessionConsumer):
         self._write_kernel_ready(
             session=session,
             resumed=True,
-            ui_values=session.get_current_state().ui_values,
-            last_executed_code=session.get_current_state().last_executed_code,
-            last_execution_time=session.get_current_state().last_execution_time,
+            ui_values=session.session_view.ui_values,
+            last_executed_code=session.session_view.last_executed_code,
+            last_execution_time=session.session_view.last_execution_time,
             kiosk=False,
         )
         self.status = ConnectionState.OPEN

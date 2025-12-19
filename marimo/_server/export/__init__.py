@@ -338,6 +338,7 @@ async def run_app_until_completion(
         virtual_files_supported=False,
         redirect_console_to_browser=False,
         ttl_seconds=None,
+        auto_instantiate=True,
     )
 
     # Run the notebook to completion once

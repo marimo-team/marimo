@@ -115,6 +115,22 @@ class QueueManagerImpl(QueueManager):
             self.win32_interrupt_queue.cancel_join_thread()
             self.win32_interrupt_queue.close()
 
+    def put_control_request(self, request: requests.ControlRequest) -> None:
+        """Put a control request in the control queue."""
+        self.control_queue.put(request)
+        if isinstance(request, requests.SetUIElementValueRequest):
+            self.set_ui_element_queue.put(request)
+
+    def put_completion_request(
+        self, request: requests.CodeCompletionRequest
+    ) -> None:
+        """Put a code completion request in the completion queue."""
+        self.completion_queue.put(request)
+
+    def put_input(self, text: str) -> None:
+        """Put an input request in the input queue."""
+        self.input_queue.put(text)
+
 
 class KernelManagerImpl(KernelManager):
     def __init__(
@@ -286,11 +302,11 @@ class KernelManagerImpl(KernelManager):
             if self.kernel_task.is_alive():
                 # We don't join the kernel thread because we don't want to server
                 # to block on it finishing
-                self.queue_manager.control_queue.put(requests.StopRequest())
+                self.queue_manager.put_control_request(requests.StopRequest())
         else:
             # otherwise we have something that is `ProcessLike`
             if self.profile_path is not None and self.kernel_task.is_alive():
-                self.queue_manager.control_queue.put(requests.StopRequest())
+                self.queue_manager.put_control_request(requests.StopRequest())
                 # Hack: Wait for kernel to exit and write out profile;
                 # joining the process hangs, but not sure why.
                 print_(

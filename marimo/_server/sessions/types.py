@@ -42,6 +42,20 @@ class QueueManager(Protocol):
         """Close all queues."""
         ...
 
+    def put_control_request(self, request: requests.ControlRequest) -> None:
+        """Put a control request in the control queue."""
+        ...
+
+    def put_completion_request(
+        self, request: requests.CodeCompletionRequest
+    ) -> None:
+        """Put a code completion request in the completion queue."""
+        ...
+
+    def put_input(self, text: str) -> None:
+        """Put an input() request in the input queue."""
+        ...
+
 
 class KernelManager(Protocol):
     """Protocol for kernel management."""
@@ -93,9 +107,9 @@ class Session(Protocol):
     """Protocol for session management."""
 
     initialization_id: str
-    session_view: SessionView
     app_file_manager: AppFileManager
     config_manager: MarimoConfigManager
+    session_view: SessionView
     ttl_seconds: int
 
     @property
@@ -119,7 +133,7 @@ class Session(Protocol):
         """Flush any pending messages."""
         ...
 
-    def rename_path(self, new_path: str) -> None:
+    async def rename_path(self, new_path: str) -> None:
         """Rename the path of the session."""
         ...
 
@@ -145,7 +159,7 @@ class Session(Protocol):
         """Stop the session consumer but keep the kernel running."""
         ...
 
-    def maybe_disconnect_consumer(self) -> None:
+    def disconnect_main_consumer(self) -> None:
         """Disconnect the main session consumer if it connected."""
         ...
 
@@ -153,10 +167,6 @@ class Session(Protocol):
         self, session_consumer: SessionConsumer, *, main: bool
     ) -> None:
         """Connect or resume the session with a new consumer."""
-        ...
-
-    def get_current_state(self) -> SessionView:
-        """Return the current state of the session."""
         ...
 
     def connection_state(self) -> ConnectionState:
@@ -178,10 +188,6 @@ class Session(Protocol):
         http_request: Optional[requests.HTTPRequest],
     ) -> None:
         """Instantiate the app."""
-        ...
-
-    def sync_session_view_from_cache(self) -> None:
-        """Sync the session view from cache."""
         ...
 
     def close(self) -> None:

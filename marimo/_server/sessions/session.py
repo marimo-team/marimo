@@ -7,12 +7,10 @@ and websocket for bidirectional communication.
 
 from __future__ import annotations
 
-import asyncio
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Optional
 from uuid import uuid4
 
 from marimo import _loggers
-from marimo._cli.print import red
 from marimo._config.manager import MarimoConfigManager, ScriptConfigManager
 from marimo._messaging.ops import (
     FocusCell,
@@ -33,11 +31,14 @@ from marimo._runtime.requests import (
 from marimo._server.model import ConnectionState, SessionConsumer, SessionMode
 from marimo._server.models.models import InstantiateRequest
 from marimo._server.notebook import AppFileManager
-from marimo._server.session.serialize import (
-    SessionCacheKey,
-    SessionCacheManager,
-)
 from marimo._server.session.session_view import SessionView
+from marimo._server.sessions.events import SessionEventBus
+from marimo._server.sessions.extensions import (
+    CachingExtension,
+    HeartbeatExtension,
+    LoggingExtension,
+    SessionExtension,
+)
 from marimo._server.sessions.managers import (
     KernelManagerImpl,
     QueueManagerImpl,
@@ -49,7 +50,6 @@ from marimo._server.sessions.types import (
     QueueManager,
     Session,
 )
-from marimo._server.utils import print_, print_tabbed
 from marimo._types.ids import ConsumerId
 from marimo._utils.distributor import (
     ConnectionDistributor,
@@ -59,69 +59,13 @@ from marimo._utils.distributor import (
 from marimo._utils.repr import format_repr
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Mapping
+    from collections.abc import Mapping
 
 LOGGER = _loggers.marimo_logger()
 
 _DEFAULT_TTL_SECONDS = 120
 
 __all__ = ["Session", "SessionImpl"]
-
-
-class SessionHeartbeatMonitor:
-    """Monitors kernel health and handles cleanup when kernel dies."""
-
-    def __init__(
-        self,
-        kernel_manager: KernelManager,
-        on_kernel_died: Callable[[], None],
-        app_filename: Optional[str],
-    ) -> None:
-        """Initialize the heartbeat monitor.
-
-        Args:
-            kernel_manager: The kernel manager to monitor
-            on_kernel_died: Callback to invoke when kernel dies
-            app_filename: Filename for error messages (optional)
-        """
-        self.kernel_manager = kernel_manager
-        self.on_kernel_died = on_kernel_died
-        self.app_filename = app_filename
-        self.heartbeat_task: Optional[asyncio.Task[Any]] = None
-
-    def start(self) -> None:
-        """Start the heartbeat monitoring."""
-
-        def _check_alive() -> None:
-            if not self.kernel_manager.is_alive():
-                LOGGER.debug("Kernel died, invoking cleanup callback")
-                self.on_kernel_died()
-                print_()
-                filename_str = self.app_filename or "unknown"
-                print_tabbed(
-                    red(
-                        "The Python kernel for file "
-                        f"{filename_str} died unexpectedly."
-                    )
-                )
-                print_()
-
-        async def _heartbeat() -> None:
-            while True:
-                await asyncio.sleep(1)
-                _check_alive()
-
-        try:
-            loop = asyncio.get_event_loop()
-            self.heartbeat_task = loop.create_task(_heartbeat())
-        except RuntimeError:
-            # This can happen if there is no event loop running
-            self.heartbeat_task = None
-
-    def stop(self) -> None:
-        """Stop the heartbeat monitoring."""
-        if self.heartbeat_task:
-            self.heartbeat_task.cancel()
 
 
 def _create_message_distributor(
@@ -143,8 +87,6 @@ class SessionImpl(Session):
     and its own websocket, for sending messages to the client.
     """
 
-    SESSION_CACHE_INTERVAL_SECONDS = 2
-
     @classmethod
     def create(
         cls,
@@ -157,6 +99,7 @@ class SessionImpl(Session):
         config_manager: MarimoConfigManager,
         virtual_files_supported: bool,
         redirect_console_to_browser: bool,
+        auto_instantiate: bool,
         ttl_seconds: Optional[int],
     ) -> Session:
         """
@@ -183,6 +126,16 @@ class SessionImpl(Session):
             redirect_console_to_browser=redirect_console_to_browser,
         )
 
+        extensions = [
+            LoggingExtension(),
+            HeartbeatExtension(),
+            CachingExtension(enabled=not auto_instantiate),
+            # TODO: Refactor more into extensions
+            # KernelExtension()
+            # RoomBroadcastExtension()
+            # SessionView()
+        ]
+
         return cls(
             initialization_id=initialization_id,
             session_consumer=session_consumer,
@@ -191,6 +144,7 @@ class SessionImpl(Session):
             app_file_manager=app_file_manager,
             config_manager=config_manager,
             ttl_seconds=ttl_seconds,
+            extensions=extensions,
         )
 
     def __init__(
@@ -202,6 +156,7 @@ class SessionImpl(Session):
         app_file_manager: AppFileManager,
         config_manager: MarimoConfigManager,
         ttl_seconds: Optional[int],
+        extensions: list[SessionExtension],
     ) -> None:
         """Initialize kernel and client connection to it."""
         # This is some unique ID that we can use to identify the session
@@ -216,29 +171,51 @@ class SessionImpl(Session):
             ttl_seconds if ttl_seconds is not None else _DEFAULT_TTL_SECONDS
         )
         self.session_view = SessionView()
-        self.session_cache_manager: SessionCacheManager | None = None
         self.config_manager = config_manager
-        self.kernel_manager.start_kernel()
+        self.extensions = extensions
 
-        # Create composed objects
+        self.kernel_manager.start_kernel()
         self.message_distributor = _create_message_distributor(
             kernel_manager=self.kernel_manager,
             queue_manager=queue_manager,
         )
-        self.heartbeat_monitor = SessionHeartbeatMonitor(
-            kernel_manager=self.kernel_manager,
-            on_kernel_died=self._on_kernel_died,
-            app_filename=self.app_file_manager.filename,
-        )
+        self._event_bus = SessionEventBus()
 
         self.message_distributor.add_consumer(
             lambda msg: self.session_view.add_raw_operation(msg)
         )
         self.connect_consumer(session_consumer, main=True)
         self.message_distributor.start()
-
-        self.heartbeat_monitor.start()
         self._closed = False
+
+        # Attach all extensions
+        self._attach_extensions()
+
+    def _attach_extensions(self) -> None:
+        """Attach all extensions to the session."""
+        for extension in self.extensions:
+            try:
+                extension.on_attach(self, self._event_bus)
+            except Exception as e:
+                LOGGER.error(
+                    "Error attaching extension %s: %s",
+                    extension,
+                    e,
+                )
+                continue
+
+    def _detach_extensions(self) -> None:
+        """Detach all extensions from the session."""
+        for extension in self.extensions:
+            try:
+                extension.on_detach()
+            except Exception as e:
+                LOGGER.error(
+                    "Error detaching extension %s: %s",
+                    extension,
+                    e,
+                )
+                continue
 
     @property
     def consumers(self) -> Mapping[SessionConsumer, ConsumerId]:
@@ -249,18 +226,9 @@ class SessionImpl(Session):
         """Flush any pending messages."""
         self.message_distributor.flush()
 
-    def rename_path(self, new_path: str) -> None:
+    async def rename_path(self, new_path: str) -> None:
         """Rename the path of the session."""
-        if self.session_cache_manager:
-            self.session_cache_manager.rename_path(new_path)
-
-    def _on_kernel_died(self) -> None:
-        """Callback invoked when the kernel dies unexpectedly."""
-        LOGGER.debug(
-            "Closing session %s because kernel died",
-            self.initialization_id,
-        )
-        self.close()
+        await self._event_bus.emit_session_notebook_renamed(self, new_path)
 
     def try_interrupt(self) -> None:
         """Try to interrupt the kernel."""
@@ -284,9 +252,8 @@ class SessionImpl(Session):
         from_consumer_id: Optional[ConsumerId],
     ) -> None:
         """Put a control request in the control queue."""
-        self._queue_manager.control_queue.put(request)
-        if isinstance(request, SetUIElementValueRequest):
-            self._queue_manager.set_ui_element_queue.put(request)
+        self._queue_manager.put_control_request(request)
+
         # Propagate the control request to the room
         if isinstance(request, (ExecuteMultipleRequest, SyncGraphRequest)):
             if isinstance(request, ExecuteMultipleRequest):
@@ -310,6 +277,7 @@ class SessionImpl(Session):
                     FocusCell(cell_id=cell_ids[0]),
                     except_consumer=from_consumer_id,
                 )
+
         self.session_view.add_control_request(request)
 
     def put_completion_request(
@@ -320,7 +288,7 @@ class SessionImpl(Session):
 
     def put_input(self, text: str) -> None:
         """Put an input() request in the input queue."""
-        self._queue_manager.input_queue.put(text)
+        self._queue_manager.put_input(text)
         self.session_view.add_stdin(text)
 
     def disconnect_consumer(self, session_consumer: SessionConsumer) -> None:
@@ -332,7 +300,7 @@ class SessionImpl(Session):
         """
         self.room.remove_consumer(session_consumer)
 
-    def maybe_disconnect_consumer(self) -> None:
+    def disconnect_main_consumer(self) -> None:
         """
         Disconnect the main session consumer if it connected.
         """
@@ -375,8 +343,8 @@ class SessionImpl(Session):
         from_consumer_id: Optional[ConsumerId],
     ) -> None:
         """Write an operation to the session consumer and the session view."""
-        self.session_view.add_operation(operation)
         self.room.broadcast(operation, except_consumer=from_consumer_id)
+        self.session_view.add_operation(operation)
 
     def close(self) -> None:
         """
@@ -388,13 +356,13 @@ class SessionImpl(Session):
             return
 
         self._closed = True
+
+        # Close extensions
+        self._detach_extensions()
         # Close the room
         self.room.close()
         # Close the kernel
         self.message_distributor.stop()
-        self.heartbeat_monitor.stop()
-        if self.session_cache_manager:
-            self.session_cache_manager.stop()
         self.kernel_manager.close_kernel()
 
     def instantiate(
@@ -427,32 +395,6 @@ class SessionImpl(Session):
             ),
             from_consumer_id=None,
         )
-
-    def sync_session_view_from_cache(self) -> None:
-        """Sync the session view from a file.
-
-        Overwrites the existing session view.
-        Mutates the existing session.
-        """
-        from marimo._version import __version__
-
-        LOGGER.debug("Syncing session view from cache")
-        self.session_cache_manager = SessionCacheManager(
-            session_view=self.session_view,
-            path=self.app_file_manager.path,
-            interval=self.SESSION_CACHE_INTERVAL_SECONDS,
-        )
-
-        app = self.app_file_manager.app
-        codes = tuple(
-            cell_data.code for cell_data in app.cell_manager.cell_data()
-        )
-        cell_ids = tuple(app.cell_manager.cell_ids())
-        key = SessionCacheKey(
-            codes=codes, marimo_version=__version__, cell_ids=cell_ids
-        )
-        self.session_view = self.session_cache_manager.read_session_view(key)
-        self.session_cache_manager.start()
 
     def __repr__(self) -> str:
         return format_repr(

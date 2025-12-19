@@ -81,6 +81,7 @@ async def test_create_session_new(
         mock_session_consumer,
         query_params={},
         file_key=AppFileRouter.NEW_FILE,
+        auto_instantiate=False,
     )
     assert session_id in session_manager.sessions
     assert session_manager.get_session(session_id) is session
@@ -98,6 +99,7 @@ async def test_create_session_absolute_url(
         mock_session_consumer,
         query_params={},
         file_key=temp_marimo_file,
+        auto_instantiate=False,
     )
     assert session_id in session_manager.sessions
     assert session_manager.get_session(session_id) is session
@@ -241,6 +243,7 @@ async def test_create_session_with_script_config_overrides(
         mock_session_consumer,
         query_params={},
         file_key=str(tmp_path / "test.py"),
+        auto_instantiate=False,
     )
     assert session_id in session_manager.sessions
     assert session_manager.get_session(session_id) is session

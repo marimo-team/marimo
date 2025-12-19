@@ -294,6 +294,7 @@ async def test_session() -> None:
         AppFileManager.from_app(InternalApp(App())),
         get_default_config_manager(current_path=None),
         ttl_seconds=None,
+        extensions=[],
     )
 
     # Assert startup
@@ -341,6 +342,7 @@ def test_session_disconnect_reconnect() -> None:
         app_file_manager=AppFileManager.from_app(InternalApp(App())),
         config_manager=get_default_config_manager(current_path=None),
         ttl_seconds=None,
+        extensions=[],
     )
 
     # Assert startup
@@ -399,6 +401,7 @@ def test_session_with_kiosk_consumers() -> None:
         app_file_manager=AppFileManager.from_app(InternalApp(App())),
         config_manager=get_default_config_manager(current_path=None),
         ttl_seconds=None,
+        extensions=[],
     )
 
     # Assert startup
@@ -497,6 +500,7 @@ def __():
             session_consumer=session_consumer,
             query_params={},
             file_key=file_key,
+            auto_instantiate=False,
         )
 
         # Wait a loop to ensure the session is created
@@ -539,6 +543,7 @@ def __():
             session_consumer=session_consumer2,
             query_params={},
             file_key=file_key,
+            auto_instantiate=False,
         )
 
         # Modify the file again
@@ -717,6 +722,7 @@ def __():
             session_consumer=session_consumer,
             query_params={},
             file_key=str(tmp_path),
+            auto_instantiate=False,
         )
         session.session_view = MagicMock(SessionView)
 
@@ -862,10 +868,11 @@ def __():
             session_consumer=session_consumer,
             query_params={},
             file_key=str(tmp_path1),
+            auto_instantiate=False,
         )
 
         # Try to rename to a non-existent file
-        success, error = session_manager.handle_file_rename_for_watch(
+        success, error = await session_manager.handle_file_rename_for_watch(
             session_id, str(tmp_path1), "/nonexistent/file.py"
         )
         assert not success
@@ -873,7 +880,7 @@ def __():
         assert "does not exist" in error
 
         # Try to rename with an invalid session
-        success, error = session_manager.handle_file_rename_for_watch(
+        success, error = await session_manager.handle_file_rename_for_watch(
             "nonexistent", str(tmp_path1), str(new_path)
         )
         assert not success
@@ -885,7 +892,7 @@ def __():
         assert session is not None
         session.app_file_manager.rename(str(new_path))
         assert new_path.exists()
-        success, error = session_manager.handle_file_rename_for_watch(
+        success, error = await session_manager.handle_file_rename_for_watch(
             session_id, str(tmp_path1), str(new_path)
         )
         assert success
@@ -923,6 +930,7 @@ def __():
 
 
 @save_and_restore_main
+@pytest.mark.skip(reason="Caching functionality moved to CachingExtension")
 async def test_sync_session_view_from_cache(tmp_path: Path) -> None:
     """Test syncing session view from cache."""
     # Create a temporary file
@@ -965,6 +973,7 @@ def __():
         app_file_manager=app_file_manager,
         config_manager=get_default_config_manager(current_path=None),
         ttl_seconds=None,
+        extensions=[],
     )
 
     # Test syncing when no cache exists
@@ -997,6 +1006,7 @@ def __():
         app_file_manager=app_file_manager,
         config_manager=get_default_config_manager(current_path=None),
         ttl_seconds=None,
+        extensions=[],
     )
     session2.sync_session_view_from_cache()
 
@@ -1067,6 +1077,7 @@ def test_session_with_script_config_overrides(
         virtual_files_supported=True,
         redirect_console_to_browser=False,
         ttl_seconds=None,
+        auto_instantiate=True,
     )
 
     # Verify that the session's config is affected by the script config

@@ -8,19 +8,17 @@ import re
 import signal
 import typing
 from pathlib import Path
-from typing import Any, Callable, TypeVar, cast
+from typing import TYPE_CHECKING, Any, Callable, TypeVar, cast
 
 import msgspec
 
 from marimo import _loggers
-from marimo._ast.cell import CellConfig
 from marimo._config.config import (
     MarimoConfig,
     PartialMarimoConfig,
     merge_default_config,
 )
 from marimo._messaging.msgspec_encoder import encode_json_str
-from marimo._messaging.types import KernelMessage
 from marimo._pyodide.restartable_task import RestartableTask
 from marimo._pyodide.streams import (
     PyodideStderr,
@@ -73,13 +71,17 @@ from marimo._server.models.models import (
     SaveNotebookRequest,
     SaveUserConfigurationRequest,
 )
-from marimo._server.notebook import AppFileManager
 from marimo._server.session.session_view import SessionView
 from marimo._snippets.snippets import read_snippets
-from marimo._types.ids import CellId_t
 from marimo._utils.formatter import DefaultFormatter
 from marimo._utils.inline_script_metadata import PyProjectReader
 from marimo._utils.parse_dataclass import parse_raw
+
+if TYPE_CHECKING:
+    from marimo._ast.cell import CellConfig
+    from marimo._messaging.types import KernelMessage
+    from marimo._server.notebook.file_manager import AppFileManager
+    from marimo._types.ids import CellId_t
 
 LOGGER = _loggers.marimo_logger()
 
