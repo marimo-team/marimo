@@ -19,6 +19,11 @@ components:
 
         /example/foo-0.1.0-py3-none-any.whl'
       properties:
+        dev:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          default: false
         package:
           type: string
         upgrade:
@@ -2764,6 +2769,11 @@ components:
       type: object
     RemovePackageRequest:
       properties:
+        dev:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          default: false
         package:
           type: string
       required:
