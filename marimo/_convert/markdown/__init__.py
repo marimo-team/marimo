@@ -3,6 +3,7 @@ from __future__ import annotations
 import ast
 import os
 import re
+import textwrap
 from typing import TYPE_CHECKING
 
 from marimo import _loggers
@@ -93,11 +94,16 @@ def convert_from_ir_to_markdown(
     for cell in notebook.cells:
         code = cell.code
         # Config values are opt in, so only include if they are set.
-        attributes = cell.options
+        attributes = cell.options.copy()
+
+        # Extract name from options if present (for unparsable cells)
+        # and use it instead of cell.name
+        cell_name = attributes.pop("name", None) or cell.name
+
         # Allow for attributes like column index.
         attributes = {k: repr(v).lower() for k, v in attributes.items() if v}
-        if not is_internal_cell_name(cell.name):
-            attributes["name"] = cell.name
+        if not is_internal_cell_name(cell_name):
+            attributes["name"] = cell_name
 
         # No "cell" typically means not parseable. However newly added
         # cells require compilation before cell is set.
@@ -151,6 +157,10 @@ def convert_from_ir_to_markdown(
         # marimo is code.
         else:
             attributes["unparsable"] = "true"
+
+        # Dedent and strip code to prevent whitespace accumulation on roundtrips
+        code = textwrap.dedent(code).strip()
+
         # Add a blank line between markdown and code
         if previous_was_markdown:
             document.append("")
