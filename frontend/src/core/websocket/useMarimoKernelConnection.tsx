@@ -7,7 +7,7 @@ import { toast } from "@/components/ui/use-toast";
 import { getNotebook, useCellActions } from "@/core/cells/cells";
 import { AUTOCOMPLETER } from "@/core/codemirror/completion/Autocompleter";
 import type { OperationMessage } from "@/core/kernel/messages";
-import { useWebSocket } from "@/core/websocket/useWebSocket";
+import { useConnectionTransport } from "@/core/websocket/useWebSocket";
 import { renderHTML } from "@/plugins/core/RenderHTML";
 import {
   handleWidgetMessage,
@@ -58,12 +58,13 @@ import { SECRETS_REGISTRY } from "../secrets/request-registry";
 import { isStaticNotebook } from "../static/static-state";
 import { useVariablesActions } from "../variables/state";
 import type { VariableName } from "../variables/types";
+import { isWasm } from "../wasm/utils";
 import { WebSocketClosedReason, WebSocketState } from "./types";
 
 /**
- * WebSocket that connects to the Marimo kernel and handles incoming messages.
+ * Creates a connection to the Marimo kernel and handles incoming messages.
  */
-export function useMarimoWebSocket(opts: {
+export function useMarimoKernelConnection(opts: {
   sessionId: SessionId;
   autoInstantiate: boolean;
   setCells: (cells: CellData[], layout: LayoutState) => void;
@@ -296,7 +297,7 @@ export function useMarimoWebSocket(opts: {
     }
   };
 
-  const ws = useWebSocket({
+  const ws = useConnectionTransport({
     static: isStaticNotebook(),
     /**
      * Unique URL for this session.
@@ -317,7 +318,17 @@ export function useMarimoWebSocket(opts: {
       setConnection({ state: WebSocketState.OPEN });
     },
 
+    /**
+     * Wait to connect, in case the remote kernel still starting up.
+     */
     waitToConnect: async () => {
+      if (isStaticNotebook()) {
+        return;
+      }
+      if (isWasm()) {
+        return;
+      }
+
       if (runtimeManager.isSameOrigin) {
         return;
       }
@@ -325,7 +336,7 @@ export function useMarimoWebSocket(opts: {
     },
 
     /**
-     * Message callback. Handle messages sent by the kernel.
+     * Handle messages sent by the kernel.
      */
     onMessage: (e) => {
       try {
