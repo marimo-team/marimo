@@ -1,6 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
-import { describe, expect, test } from "vitest";
+
 import type { FieldValues } from "react-hook-form";
+import { describe, expect, test } from "vitest";
 
 /**
  * Extract only the values that have been modified (dirty) from form state.

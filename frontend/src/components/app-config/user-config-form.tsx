@@ -12,7 +12,7 @@ import {
   LayersIcon,
   MonitorIcon,
 } from "lucide-react";
-import React, { useId, useMemo, useRef } from "react";
+import React, { useId, useRef } from "react";
 import { useLocale } from "react-aria";
 import type { FieldValues } from "react-hook-form";
 import { useForm } from "react-hook-form";
