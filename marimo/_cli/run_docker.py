@@ -16,16 +16,18 @@ from marimo._utils.url import is_url
 LOGGER = _loggers.marimo_logger()
 
 
-def prompt_run_in_docker_container(name: str | None) -> bool:
+def prompt_run_in_docker_container(
+    name: str | None, trusted: Optional[bool] = None
+) -> bool:
     if GLOBAL_SETTINGS.IN_SECURE_ENVIRONMENT:
         return False
     if GLOBAL_SETTINGS.MANAGE_SCRIPT_METADATA:
         return False
 
-    # Only prompt for remote files
-    if name is None:
-        return False
-    if not is_url(name):
+    if trusted is not None:
+        return not trusted
+
+    if name is None or not is_url(name):
         return False
 
     if GLOBAL_SETTINGS.YES:
