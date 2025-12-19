@@ -22,11 +22,9 @@ class MarimoConverterIntermediate:
 
     def to_markdown(self, filename: str | None = None) -> str:
         """Convert to markdown format."""
-        from marimo._server.export.exporter import Exporter
+        from marimo._convert.markdown import convert_from_ir_to_markdown
 
-        exporter = Exporter()
-        generated_contents, _ = exporter.export_as_md(self.ir, filename)
-        return generated_contents
+        return convert_from_ir_to_markdown(self.ir, filename)
 
     def to_py(self) -> str:
         """Convert to python format."""

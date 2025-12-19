@@ -262,7 +262,7 @@ class Linter:
 
         with capture_output():
             if filename.endswith((".md", ".qmd")):
-                return converter.to_markdown(filename)
+                return converter.to_markdown()
             else:
                 return converter.to_py()
 

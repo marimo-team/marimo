@@ -12,9 +12,9 @@ import pytest
 from marimo import __version__
 from marimo._ast.app import InternalApp
 from marimo._convert.converters import MarimoConvert
+from marimo._convert.markdown import _format_filename_title
 from marimo._convert.markdown.markdown import convert_from_md_to_app
 from marimo._server.export import export_as_md
-from marimo._server.export.utils import format_filename_title
 
 # Just a handful of scripts to test
 from marimo._tutorials import dataflow, for_jupyter_users, sql
@@ -59,7 +59,7 @@ def convert_from_py(py: str) -> str:
     finally:
         os.remove(tempfile_name)
 
-    title = format_filename_title(tempfile_name)
+    title = _format_filename_title(tempfile_name)
     output = re.sub(rf"'?{title}'?", "Test Notebook", output)
     return sanitized_version(output)
 

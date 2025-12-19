@@ -53,7 +53,7 @@ def test_basic_marimo_example_jupytext_compatibility():
 
     # Test conversion to markdown (now works without file existing)
     converted_to_md = MarimoConvert.from_py(marimo_script).to_markdown(
-        "Test Notebook.py"
+        filename="Test Notebook.py"
     )
     snapshot("basic_marimo_example_to_md.txt", converted_to_md)
 

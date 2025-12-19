@@ -19,6 +19,7 @@ from marimo._config.config import (
     PartialMarimoConfig,
     merge_default_config,
 )
+from marimo._convert.markdown import convert_from_ir_to_markdown
 from marimo._messaging.msgspec_encoder import encode_json_str
 from marimo._messaging.types import KernelMessage
 from marimo._pyodide.restartable_task import RestartableTask
@@ -398,10 +399,7 @@ class PyodideBridge:
 
     def export_markdown(self, request: str) -> str:
         del request
-        md, _filename = Exporter().export_as_md(
-            notebook=self.session.app_manager.app.to_ir(),
-            filename=self.session.app_manager.filename,
-        )
+        md = convert_from_ir_to_markdown(self.session.app_manager.app.to_ir())
         return json.dumps(md)
 
     def _parse(self, request: str, cls: type[T]) -> T:

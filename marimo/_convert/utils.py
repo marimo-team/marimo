@@ -1,7 +1,13 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+from typing import TYPE_CHECKING, Optional, Union
+
 from marimo._ast import codegen
+from marimo._ast.compiler import extract_markdown
+
+if TYPE_CHECKING:
+    from marimo._ast.cell import Cell, CellImpl
 
 
 def markdown_to_marimo(source: str) -> str:
@@ -38,3 +44,13 @@ def sql_to_marimo(
             ")",
         ]
     )
+
+
+def get_markdown_from_cell(
+    cell: Union[CellImpl, Cell], code: str
+) -> Optional[str]:
+    """Attempt to extract markdown from a cell, or return None"""
+
+    if not (cell.refs == {"mo"} and not cell.defs):
+        return None
+    return extract_markdown(code)

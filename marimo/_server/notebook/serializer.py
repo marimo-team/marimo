@@ -3,25 +3,19 @@
 
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Protocol
 
 from marimo._ast import codegen
 from marimo._convert.converters import MarimoConvert
-from marimo._schemas.serialization import Header, NotebookSerializationV1
+from marimo._convert.markdown import convert_from_ir_to_markdown
+from marimo._schemas.serialization import NotebookSerializationV1
 
 
-class NotebookSerializer(ABC):
+class NotebookSerializer(Protocol):
     """Abstract base class for notebook format handlers."""
 
-    @abstractmethod
-    def serialize(
-        self,
-        notebook: NotebookSerializationV1,
-        path: Path,
-        previous_path: Optional[Path] = None,
-    ) -> str:
+    def serialize(self, notebook: NotebookSerializationV1) -> str:
         """Convert notebook IR to the target format.
 
         Args:
@@ -32,9 +26,8 @@ class NotebookSerializer(ABC):
         Returns:
             Serialized notebook content as string
         """
-        pass
+        ...
 
-    @abstractmethod
     def extract_header(self, path: Path) -> Optional[str]:
         """Extract header/metadata from an existing file.
 
@@ -44,39 +37,18 @@ class NotebookSerializer(ABC):
         Returns:
             Header content or None
         """
-        pass
+        ...
 
 
 class PythonNotebookSerializer(NotebookSerializer):
     """Handler for Python (.py) notebook files."""
 
-    def serialize(
-        self,
-        notebook: NotebookSerializationV1,
-        path: Path,
-        previous_path: Optional[Path] = None,
-    ) -> str:
+    def serialize(self, notebook: NotebookSerializationV1) -> str:
         """Serialize notebook to Python format.
 
         Handles header preservation when converting from other formats.
         """
-        # Path changed, extract headers from previous path
-        if previous_path is not None and path.suffix != previous_path.suffix:
-            prev_header = get_format_handler(previous_path).extract_header(
-                previous_path
-            )
-            header_comments = prev_header
-        else:
-            header_comments = self.extract_header(path)
-
-        # Convert to Python with headers
-        contents = MarimoConvert.from_ir(
-            NotebookSerializationV1(
-                app=notebook.app,
-                cells=notebook.cells,
-                header=Header(value=header_comments or ""),
-            )
-        ).to_py()
+        contents = MarimoConvert.from_ir(notebook).to_py()
 
         return contents
 
@@ -88,22 +60,9 @@ class PythonNotebookSerializer(NotebookSerializer):
 class MarkdownNotebookSerializer(NotebookSerializer):
     """Handler for Markdown (.md) notebook files."""
 
-    def serialize(
-        self,
-        notebook: NotebookSerializationV1,
-        path: Path,
-        previous_path: Optional[Path] = None,
-    ) -> str:
+    def serialize(self, notebook: NotebookSerializationV1) -> str:
         """Serialize notebook to Markdown format."""
-        from marimo._server.export.exporter import Exporter
-
-        contents, _ = Exporter().export_as_md(
-            notebook,
-            str(path),
-            previous_path,
-        )
-
-        return contents
+        return convert_from_ir_to_markdown(notebook)
 
     def extract_header(self, path: Path) -> Optional[str]:
         """Extract YAML frontmatter from Markdown file."""

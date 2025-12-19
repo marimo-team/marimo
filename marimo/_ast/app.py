@@ -61,6 +61,7 @@ from marimo._runtime.requests import (
 from marimo._schemas.serialization import (
     AppInstantiation,
     CellDef,
+    Header,
     NotebookSerializationV1,
 )
 from marimo._types.ids import CellId_t
@@ -243,6 +244,7 @@ class App:
         self._graph = dataflow.DirectedGraph()
         self._execution_context: ExecutionContext | None = None
         self._runner = dataflow.Runner(self._graph)
+        self._header: str | None = None
 
         self._unparsable_code: list[str] = []
         self._unparsable = False
@@ -1015,6 +1017,9 @@ class InternalApp:
 
     def to_ir(self) -> NotebookSerializationV1:
         return NotebookSerializationV1(
+            header=Header(value=self._app._header)
+            if self._app._header
+            else None,
             cells=[
                 CellDef(
                     code=cell_data.code,

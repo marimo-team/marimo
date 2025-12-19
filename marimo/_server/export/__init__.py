@@ -5,14 +5,17 @@ import asyncio
 import os
 import sys
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Callable, Literal, Optional, cast
+from typing import Callable, Literal, Optional, cast
 
 from marimo import _loggers
+from marimo._ast.app import InternalApp
+from marimo._ast.load import load_app
 from marimo._cli.print import echo
 from marimo._config.config import RuntimeConfig
 from marimo._config.manager import (
     get_default_config_manager,
 )
+from marimo._convert.converters import MarimoConvert
 from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.errors import Error, is_unexpected_error
 from marimo._messaging.ops import (
@@ -24,7 +27,9 @@ from marimo._messaging.ops import (
 from marimo._messaging.types import KernelMessage
 from marimo._output.hypertext import patch_html_for_non_interactive_output
 from marimo._runtime.requests import AppMetadata, SerializedCLIArgs
+from marimo._schemas.serialization import NotebookSerialization
 from marimo._server.export.exporter import Exporter
+from marimo._server.export.utils import get_download_filename
 from marimo._server.file_router import AppFileRouter
 from marimo._server.model import ConnectionState, SessionConsumer, SessionMode
 from marimo._server.models.export import ExportAsHTMLRequest
@@ -36,9 +41,6 @@ from marimo._utils.marimo_path import MarimoPath
 
 LOGGER = _loggers.marimo_logger()
 
-if TYPE_CHECKING:
-    from pathlib import Path
-
 
 @dataclass
 class ExportResult:
@@ -47,66 +49,56 @@ class ExportResult:
     did_error: bool
 
 
-def export_as_script(
-    path: MarimoPath,
-) -> ExportResult:
-    file_router = AppFileRouter.from_filename(path)
-    file_key = file_router.get_unique_file_key()
-    assert file_key is not None
-    file_manager = file_router.get_file_manager(file_key)
+def _as_ir(path: MarimoPath) -> NotebookSerialization:
+    if path.is_python():
+        py_contents = path.read_text(encoding="utf-8")
+        converter = MarimoConvert.from_py(py_contents)
+        return _with_filename(converter.ir, path.short_name)
+    elif path.is_markdown():
+        md_contents = path.read_text(encoding="utf-8")
+        converter = MarimoConvert.from_md(md_contents)
+        return _with_filename(converter.ir, path.short_name)
+    raise ValueError(f"Unsupported file type: {path.path.suffix}")
 
-    result = Exporter().export_as_script(
-        filename=file_manager.filename,
-        app=file_manager.app,
-    )
+
+def export_as_script(path: MarimoPath) -> ExportResult:
+    from marimo._convert.script import convert_from_ir_to_script
+
+    ir = _as_ir(path)
     return ExportResult(
-        contents=result[0],
-        download_filename=result[1],
+        contents=convert_from_ir_to_script(ir),
+        download_filename=get_download_filename(path.short_name, "script.py"),
         did_error=False,
     )
 
 
-def export_as_md(
-    path: MarimoPath,
-    new_filename: Optional[Path] = None,
-) -> ExportResult:
-    file_router = AppFileRouter.from_filename(path)
-    file_key = file_router.get_unique_file_key()
-    assert file_key is not None
-    file_manager = file_router.get_file_manager(file_key)
-
-    # py -> md
-    if new_filename:
-        file_manager.filename = str(new_filename)
-    result = Exporter().export_as_md(
-        notebook=file_manager.app.to_ir(),
-        filename=file_manager.filename,
-        previous=path.path,
-    )
+def export_as_md(path: MarimoPath) -> ExportResult:
+    ir = _as_ir(path)
     return ExportResult(
-        contents=result[0],
-        download_filename=result[1],
+        contents=MarimoConvert.from_ir(ir).to_markdown(),
+        download_filename=get_download_filename(path.short_name, "md"),
         did_error=False,
     )
 
 
 def export_as_ipynb(
-    path: MarimoPath,
-    sort_mode: Literal["top-down", "topological"],
+    path: MarimoPath, sort_mode: Literal["top-down", "topological"]
 ) -> ExportResult:
-    file_router = AppFileRouter.from_filename(path)
-    file_key = file_router.get_unique_file_key()
-    assert file_key is not None
-    file_manager = file_router.get_file_manager(file_key)
+    app = load_app(path.absolute_name)
+    if app is None:
+        return ExportResult(
+            contents="",
+            download_filename=get_download_filename(path.short_name, "ipynb"),
+            did_error=True,
+        )
 
     result = Exporter().export_as_ipynb(
-        filename=file_manager.filename,
-        app=file_manager.app,
+        app=InternalApp(app),
         sort_mode=sort_mode,
     )
     return ExportResult(
-        contents=result[0],
-        download_filename=result[1],
+        contents=result,
+        download_filename=get_download_filename(path.short_name, "ipynb"),
         did_error=False,
     )
 
@@ -117,20 +109,26 @@ def export_as_wasm(
     show_code: bool,
     asset_url: Optional[str] = None,
 ) -> ExportResult:
-    file_router = AppFileRouter.from_filename(path)
-    file_key = file_router.get_unique_file_key()
-    assert file_key is not None
-    file_manager = file_router.get_file_manager(file_key)
+    _app = load_app(path.absolute_name)
+    if _app is None:
+        return ExportResult(
+            contents="",
+            download_filename=get_download_filename(
+                path.short_name, "wasm.html"
+            ),
+            did_error=True,
+        )
+    app = InternalApp(_app)
     # Inline the layout file, if it exists
-    file_manager.app.inline_layout_file()
-    config = get_default_config_manager(current_path=file_manager.path)
+    app.inline_layout_file()
+    config = get_default_config_manager(current_path=path.absolute_name)
 
     result = Exporter().export_as_wasm(
-        filename=file_manager.filename,
-        app=file_manager.app,
+        filename=path.short_name,
+        app=app,
         display_config=config.get_config()["display"],
         mode=mode,
-        code=file_manager.to_code(),
+        code=app.to_py(),
         asset_url=asset_url,
         show_code=show_code,
     )
@@ -160,14 +158,13 @@ async def run_app_then_export_as_ipynb(
         )
 
     result = Exporter().export_as_ipynb(
-        filename=file_manager.filename,
         app=file_manager.app,
         sort_mode=sort_mode,
         session_view=session_view,
     )
     return ExportResult(
-        contents=result[0],
-        download_filename=result[1],
+        contents=result,
+        download_filename=get_download_filename(filepath.short_name, "ipynb"),
         did_error=did_error,
     )
 
@@ -361,3 +358,16 @@ async def run_app_until_completion(
     session.close()
 
     return session.session_view, session_consumer.did_error
+
+
+def _with_filename(
+    ir: NotebookSerialization, filename: str
+) -> NotebookSerialization:
+    return NotebookSerialization(
+        app=ir.app,
+        header=ir.header,
+        cells=ir.cells,
+        violations=ir.violations,
+        valid=ir.valid,
+        filename=filename,
+    )

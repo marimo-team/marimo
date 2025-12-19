@@ -16,11 +16,9 @@ from typing import (
 )
 
 from marimo import _loggers
-from marimo._ast import codegen
 from marimo._ast.app import InternalApp
 from marimo._ast.cell import Cell, CellImpl
 from marimo._ast.names import DEFAULT_CELL_NAME, is_internal_cell_name
-from marimo._ast.visitor import Language
 from marimo._config.config import (
     DEFAULT_CONFIG,
     DisplayConfig,
@@ -28,23 +26,20 @@ from marimo._config.config import (
 )
 from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._config.utils import deep_copy
+from marimo._convert.utils import get_markdown_from_cell
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._runtime import dataflow
 from marimo._runtime.virtual_file import read_virtual_file
 from marimo._schemas.notebook import NotebookV1
-from marimo._schemas.serialization import NotebookSerializationV1
 from marimo._schemas.session import NotebookSessionV1
 from marimo._server.export.dom_traversal import (
     replace_virtual_files_with_data_uris,
 )
 from marimo._server.export.utils import (
-    format_filename_title,
     get_download_filename,
     get_filename,
-    get_markdown_from_cell,
-    get_sql_options_from_cell,
 )
 from marimo._server.models.export import ExportAsHTMLRequest
 from marimo._server.session.serialize import (
@@ -57,7 +52,6 @@ from marimo._server.templates.templates import (
     wasm_notebook_template,
 )
 from marimo._server.tokens import SkewProtectionToken
-from marimo._types.ids import CellId_t
 from marimo._utils import async_path
 from marimo._utils.code import hash_code
 from marimo._utils.data_uri import build_data_url
@@ -275,43 +269,12 @@ class Exporter:
             base64.b64encode(buffer_contents),
         )
 
-    def export_as_script(
-        self,
-        filename: Optional[str],
-        app: InternalApp,
-    ) -> tuple[str, str]:
-        # Check if any code is async, if so, raise an error
-        for cell in app.cell_manager.cells():
-            if not cell:
-                continue
-            if cell._is_coroutine:
-                from click import UsageError
-
-                raise UsageError(
-                    "Cannot export a notebook with async code to a flat script"
-                )
-
-        graph = app.graph
-        header = codegen.get_header_comments(filename) if filename else ""
-        codes: list[str] = [
-            "# %%\n" + graph.cells[cid].code
-            for cid in dataflow.topological_sort(graph, graph.cells.keys())
-        ]
-        code = (
-            f'{header}\n__generated_with = "{__version__}"\n\n'
-            + "\n\n".join(codes)
-        )
-
-        download_filename = get_download_filename(filename, "script.py")
-        return code, download_filename
-
     def export_as_ipynb(
         self,
         app: InternalApp,
-        filename: Optional[str],
         sort_mode: Literal["top-down", "topological"],
         session_view: Optional[SessionView] = None,
-    ) -> tuple[str, str]:
+    ) -> str:
         """Export notebook as .ipynb, optionally including outputs if session_view provided."""
         DependencyManager.nbformat.require(
             "to convert marimo notebooks to ipynb"
@@ -366,160 +329,7 @@ class Exporter:
         stream = io.StringIO()
         nbformat.write(notebook, stream)  # type: ignore[no-untyped-call]
         stream.seek(0)
-        download_filename = get_download_filename(filename, "ipynb")
-        return stream.read(), download_filename
-
-    def export_as_md(
-        self,
-        notebook: NotebookSerializationV1,
-        filename: Optional[str],
-        previous: Path | None = None,
-    ) -> tuple[str, str]:
-        from marimo._ast.app_config import _AppConfig
-        from marimo._ast.compiler import compile_cell
-        from marimo._convert.markdown.markdown import (
-            extract_frontmatter,
-            formatted_code_block,
-            is_sanitized_markdown,
-        )
-        from marimo._utils import yaml
-
-        filename = get_filename(filename)
-        app_title = notebook.app.options.get("app_title", None)
-        if not app_title:
-            app_title = format_filename_title(filename)
-
-        metadata: dict[str, str | list[str]] = {}
-        metadata.update(
-            {
-                "title": app_title,
-                "marimo-version": __version__,
-            }
-        )
-
-        # Put data from AppFileManager into the yaml header.
-        ignored_keys = {"app_title"}
-        default_config = _AppConfig().asdict()
-
-        # Get values defined in _AppConfig without explicitly extracting keys,
-        # as long as it isn't the default.
-        metadata.update(
-            {
-                k: v
-                for k, v in notebook.app.options.items()
-                if k not in ignored_keys and v != default_config.get(k)
-            }
-        )
-        # If previously a markdown file, extract frontmatter.
-        # otherwise if it was a python file, extract header.
-        if previous and previous.suffix == ".py":
-            header = codegen.get_header_comments(previous)
-            if header:
-                metadata["header"] = header.strip()
-        else:
-            header_file = previous if previous else filename
-            if header_file and Path(header_file).exists():
-                with open(header_file, encoding="utf-8") as f:
-                    _metadata, _ = extract_frontmatter(f.read())
-                metadata.update(_metadata)
-
-        # Add the expected qmd filter to the metadata.
-        if filename.endswith(".qmd"):
-            if "filters" not in metadata:
-                metadata["filters"] = []
-            if "marimo" not in str(metadata["filters"]):
-                if isinstance(metadata["filters"], str):
-                    metadata["filters"] = metadata["filters"].split(",")
-                if isinstance(metadata["filters"], list):
-                    metadata["filters"].append("marimo-team/marimo")
-                else:
-                    LOGGER.warning(
-                        "Unexpected type for filters: %s",
-                        type(metadata["filters"]),
-                    )
-
-        header = yaml.marimo_compat_dump(
-            {
-                k: v
-                for k, v in metadata.items()
-                if v is not None and v != "" and v != []
-            },
-            sort_keys=False,
-        )
-        document = ["---", header.strip(), "---", ""]
-        previous_was_markdown = False
-
-        for cell in notebook.cells:
-            code = cell.code
-            # Config values are opt in, so only include if they are set.
-            attributes = cell.options
-            # Allow for attributes like column index.
-            attributes = {
-                k: repr(v).lower() for k, v in attributes.items() if v
-            }
-            if not is_internal_cell_name(cell.name):
-                attributes["name"] = cell.name
-
-            # No "cell" typically means not parseable. However newly added
-            # cells require compilation before cell is set.
-            # TODO: Refactor so it doesn't occur in export (codegen
-            # does this too)
-            # NB. Also need to recompile in the sql case since sql parsing is
-            # cached.
-            language: Language = "python"
-            cell_impl: CellImpl | None = None
-            try:
-                cell_impl = compile_cell(code, cell_id=CellId_t("dummy"))
-                language = cell_impl.language
-            except SyntaxError:
-                pass
-
-            if cell_impl:
-                # Markdown that starts a column is forced to code.
-                column = attributes.get("column", None)
-                if not column or column == "0":
-                    markdown = get_markdown_from_cell(cell_impl, code)
-                    # Unsanitized markdown is forced to code.
-                    if markdown and is_sanitized_markdown(markdown):
-                        # Use blank HTML comment to separate markdown codeblocks
-                        if previous_was_markdown:
-                            document.append("<!---->")
-                        previous_was_markdown = True
-                        document.append(markdown)
-                        continue
-                    # In which case we need to format it like our python blocks.
-                    elif cell_impl.markdown:
-                        code = codegen.format_markdown(cell_impl)
-
-                attributes["language"] = language
-                # Definitely a code cell, but need to determine if it can be
-                # formatted as non-python.
-                if attributes["language"] == "sql":
-                    sql_options: dict[str, str] | None = (
-                        get_sql_options_from_cell(code)
-                    )
-                    if not sql_options:
-                        # means not sql.
-                        attributes.pop("language")
-                    else:
-                        # Ignore default query value.
-                        if sql_options.get("query") == "_df":
-                            sql_options.pop("query")
-                        attributes.update(sql_options)
-                        code = "\n".join(cell_impl.raw_sqls).strip()
-
-            # Definitely no "cell"; as such, treat as code, as everything in
-            # marimo is code.
-            else:
-                attributes["unparsable"] = "true"
-            # Add a blank line between markdown and code
-            if previous_was_markdown:
-                document.append("")
-            previous_was_markdown = False
-            document.append(formatted_code_block(code, attributes))
-
-        download_filename = get_download_filename(filename, "md")
-        return "\n".join(document).strip(), download_filename
+        return stream.read()
 
     def export_as_wasm(
         self,

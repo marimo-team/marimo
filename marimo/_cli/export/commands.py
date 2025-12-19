@@ -353,7 +353,7 @@ def md(
         return
 
     def export_callback(file_path: MarimoPath) -> ExportResult:
-        return export_as_md(file_path, new_filename=output)
+        return export_as_md(file_path)
 
     return watch_and_export(
         MarimoPath(name), output, watch, export_callback, force

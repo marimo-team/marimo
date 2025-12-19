@@ -16,7 +16,7 @@ from marimo._runtime.layout.layout import (
     read_layout_config,
     save_layout_config,
 )
-from marimo._schemas.serialization import NotebookSerializationV1
+from marimo._schemas.serialization import Header, NotebookSerializationV1
 from marimo._server.api.status import HTTPException, HTTPStatus
 from marimo._server.models.models import (
     CopyNotebookRequest,
@@ -172,9 +172,19 @@ class AppFileManager:
         """
         LOGGER.debug("Saving app to %s", path)
 
-        # Get the appropriate format handler and serialize
+        # Get the header in case is was modified by the user (e.g. package installation)
         handler = get_format_handler(path)
-        contents = handler.serialize(notebook, path, previous_path)
+        header = handler.extract_header(previous_path or path)
+        if header:
+            notebook = NotebookSerializationV1(
+                app=notebook.app,
+                header=Header(value=header),
+                cells=notebook.cells,
+                violations=notebook.violations,
+                valid=notebook.valid,
+                filename=notebook.filename,
+            )
+        contents = handler.serialize(notebook)
 
         if persist:
             self.storage.write(path, contents)
