@@ -117,7 +117,7 @@ async def websocket_endpoint(
         file_key=file_key,
         kiosk=kiosk,
         auto_instantiate=auto_instantiate,
-    )._start()
+    ).start()
 
 
 # WebSocket endpoint for LoroDoc synchronization
@@ -493,7 +493,7 @@ class WebsocketHandler(SessionConsumer, SessionExtension):
         else:
             cleanup_fn()
 
-    async def _start(self) -> None:
+    async def start(self) -> None:
         # Accept the websocket connection
         await self.websocket.accept()
         # Create a new queue for this session
