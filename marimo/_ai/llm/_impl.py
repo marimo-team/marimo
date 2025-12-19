@@ -733,9 +733,11 @@ class pydantic_ai(ChatModel):
         ```python
         from pydantic_ai import Agent
 
+
         def get_weather(location: str) -> dict:
             '''Get weather for a location.'''
             return {"location": location, "temp": 72}
+
 
         agent = Agent(
             "openai:gpt-4.1",
@@ -884,12 +886,16 @@ class pydantic_ai(ChatModel):
 
                 elif isinstance(part, ToolCallPart):
                     has_tool_calls = True
-                    tool_call_id = getattr(part, "tool_call_id", f"call_{id(part)}")
+                    tool_call_id = getattr(
+                        part, "tool_call_id", f"call_{id(part)}"
+                    )
                     args = getattr(part, "args", {})
                     tool_args = (
                         args.args_dict
                         if hasattr(args, "args_dict")
-                        else args if isinstance(args, dict) else {}
+                        else args
+                        if isinstance(args, dict)
+                        else {}
                     )
                     pending_tool_calls[tool_call_id] = {
                         "type": f"tool-{part.tool_name}",
@@ -915,13 +921,17 @@ class pydantic_ai(ChatModel):
                         yield text
 
                 elif delta_type == "ThinkingPartDelta":
-                    current_thinking += getattr(delta, "content_delta", "") or ""
+                    current_thinking += (
+                        getattr(delta, "content_delta", "") or ""
+                    )
                     yield {"parts": _build_parts()}
 
             elif event_type == "ToolReturnEvent":
                 tool_call_id = getattr(event, "tool_call_id", None)
                 if tool_call_id and tool_call_id in pending_tool_calls:
-                    pending_tool_calls[tool_call_id]["state"] = "output-available"
+                    pending_tool_calls[tool_call_id]["state"] = (
+                        "output-available"
+                    )
                     pending_tool_calls[tool_call_id]["output"] = getattr(
                         event, "content", None
                     )
@@ -945,7 +955,12 @@ class pydantic_ai(ChatModel):
             )
 
             # Yield final structured response with history
-            if has_tool_calls or has_thinking or current_thinking or pending_tool_calls:
+            if (
+                has_tool_calls
+                or has_thinking
+                or current_thinking
+                or pending_tool_calls
+            ):
                 final_parts = _build_parts()
 
                 # Store Pydantic AI's message history for future turns
@@ -953,14 +968,16 @@ class pydantic_ai(ChatModel):
                 try:
                     messages_json = final_result.all_messages_json()
                     if messages_json:
-                        final_parts.append({
-                            "type": "_pydantic_history",
-                            "messages_json": (
-                                messages_json.decode("utf-8")
-                                if isinstance(messages_json, bytes)
-                                else messages_json
-                            ),
-                        })
+                        final_parts.append(
+                            {
+                                "type": "_pydantic_history",
+                                "messages_json": (
+                                    messages_json.decode("utf-8")
+                                    if isinstance(messages_json, bytes)
+                                    else messages_json
+                                ),
+                            }
+                        )
                 except Exception:
                     pass
 
@@ -998,13 +1015,17 @@ class pydantic_ai(ChatModel):
                                 history = type_adapter.validate_json(json_data)
                                 # Add any user messages after this point
                                 msg_idx = messages.index(msg)
-                                for subsequent in messages[msg_idx + 1:]:
+                                for subsequent in messages[msg_idx + 1 :]:
                                     if subsequent.role == "user":
                                         history.append(
                                             ModelRequest(
-                                                parts=[UserPromptPart(
-                                                    content=str(subsequent.content)
-                                                )]
+                                                parts=[
+                                                    UserPromptPart(
+                                                        content=str(
+                                                            subsequent.content
+                                                        )
+                                                    )
+                                                ]
                                             )
                                         )
                                 return history
@@ -1058,20 +1079,27 @@ class pydantic_ai(ChatModel):
             for msg in new_msgs:
                 if isinstance(msg, ModelResponse):
                     for part in msg.parts:
-                        if isinstance(part, ThinkingPart) and not current_thinking:
+                        if (
+                            isinstance(part, ThinkingPart)
+                            and not current_thinking
+                        ):
                             content = getattr(part, "content", "") or ""
                             if content:
                                 # Can't modify outer scope, but we've done our best
                                 pass
 
                         elif isinstance(part, ToolCallPart):
-                            tc_id = getattr(part, "tool_call_id", f"call_{id(part)}")
+                            tc_id = getattr(
+                                part, "tool_call_id", f"call_{id(part)}"
+                            )
                             if tc_id not in pending_tool_calls:
                                 args = getattr(part, "args", {})
                                 tool_args = (
                                     args.args_dict
                                     if hasattr(args, "args_dict")
-                                    else args if isinstance(args, dict) else {}
+                                    else args
+                                    if isinstance(args, dict)
+                                    else {}
                                 )
                                 pending_tool_calls[tc_id] = {
                                     "type": f"tool-{part.tool_name}",
