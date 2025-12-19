@@ -116,6 +116,11 @@ class Session(Protocol):
         """Get the consumers in the session."""
         ...
 
+    @property
+    def session_view(self) -> SessionView:
+        """Get the session view."""
+        ...
+
     def kernel_state(self) -> KernelState:
         """Get the state of the kernel."""
         ...
@@ -166,10 +171,6 @@ class Session(Protocol):
         self, session_consumer: SessionConsumer, *, main: bool
     ) -> None:
         """Connect or resume the session with a new consumer."""
-        ...
-
-    def get_current_state(self) -> SessionView:
-        """Return the current state of the session."""
         ...
 
     def connection_state(self) -> ConnectionState:

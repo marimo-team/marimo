@@ -543,6 +543,7 @@ def __():
             session_consumer=session_consumer2,
             query_params={},
             file_key=file_key,
+            auto_instantiate=False,
         )
 
         # Modify the file again

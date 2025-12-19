@@ -391,9 +391,9 @@ class WebsocketHandler(SessionConsumer):
         self._write_kernel_ready(
             session=session,
             resumed=True,
-            ui_values=session.get_current_state().ui_values,
-            last_executed_code=session.get_current_state().last_executed_code,
-            last_execution_time=session.get_current_state().last_execution_time,
+            ui_values=session.session_view.ui_values,
+            last_executed_code=session.session_view.last_executed_code,
+            last_execution_time=session.session_view.last_execution_time,
             kiosk=self.kiosk,
         )
         self.write_operation(
@@ -425,9 +425,9 @@ class WebsocketHandler(SessionConsumer):
         self._write_kernel_ready(
             session=session,
             resumed=True,
-            ui_values=session.get_current_state().ui_values,
-            last_executed_code=session.get_current_state().last_executed_code,
-            last_execution_time=session.get_current_state().last_execution_time,
+            ui_values=session.session_view.ui_values,
+            last_executed_code=session.session_view.last_executed_code,
+            last_execution_time=session.session_view.last_execution_time,
             kiosk=True,
         )
         self.status = ConnectionState.OPEN
@@ -435,7 +435,7 @@ class WebsocketHandler(SessionConsumer):
 
     def _replay_previous_session(self, session: Session) -> None:
         """Replay the previous session view."""
-        operations = session.get_current_state().operations
+        operations = session.session_view.operations
         if len(operations) == 0:
             LOGGER.debug("No operations to replay")
             return
@@ -771,9 +771,9 @@ class WebsocketHandler(SessionConsumer):
         self._write_kernel_ready(
             session=session,
             resumed=True,
-            ui_values=session.get_current_state().ui_values,
-            last_executed_code=session.get_current_state().last_executed_code,
-            last_execution_time=session.get_current_state().last_execution_time,
+            ui_values=session.session_view.ui_values,
+            last_executed_code=session.session_view.last_executed_code,
+            last_execution_time=session.session_view.last_execution_time,
             kiosk=False,
         )
         self.status = ConnectionState.OPEN

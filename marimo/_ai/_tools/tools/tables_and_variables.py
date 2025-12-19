@@ -80,7 +80,7 @@ class GetTablesAndVariables(
     def _get_tables_and_variables(
         self, session: Session, variable_names: list[str]
     ) -> TablesAndVariablesOutput:
-        session_view = session.get_current_state()
+        session_view = session.session_view
         # convert to set for O(1) lookup
         variable_names_set = set(variable_names)
         return_all_vars = variable_names_set == set()

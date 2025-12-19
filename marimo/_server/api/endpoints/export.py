@@ -75,7 +75,7 @@ async def export_as_html(
     html, filename = Exporter().export_as_html(
         app=session.app_file_manager.app,
         filename=session.app_file_manager.filename,
-        session_view=session.get_current_state(),
+        session_view=session.session_view,
         display_config=session.config_manager.get_config()["display"],
         request=body,
     )
@@ -120,7 +120,7 @@ async def auto_export_as_html(
 
     # Reload the file manager to get the latest state
     session.app_file_manager.reload()
-    session_view = session.get_current_state()
+    session_view = session.session_view
 
     if not session.app_file_manager.is_notebook_named:
         raise HTTPException(
@@ -278,7 +278,7 @@ async def auto_export_as_markdown(
     """
     app_state = AppState(request)
     session = app_state.require_current_session()
-    session_view = session.get_current_state()
+    session_view = session.session_view
 
     if not session.app_file_manager.is_notebook_named:
         raise HTTPException(
@@ -337,7 +337,7 @@ async def auto_export_as_ipynb(
     """
     app_state = AppState(request)
     session = app_state.require_current_session()
-    session_view = session.get_current_state()
+    session_view = session.session_view
 
     if not session.app_file_manager.is_notebook_named:
         raise HTTPException(

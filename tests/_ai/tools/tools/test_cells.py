@@ -14,8 +14,8 @@ from marimo._ai._tools.tools.cells import (
     GetLightweightCellMap,
 )
 from marimo._messaging.ops import VariableValue
-from marimo._server.sessions import Session
 from marimo._types.ids import CellId_t, SessionId
+from tests._ai.tools.test_utils import MockSession, MockSessionView
 
 
 @dataclass
@@ -48,26 +48,6 @@ class MockError:
         return self._message
 
 
-@dataclass
-class MockSessionView:
-    cell_operations: dict | None = None
-    last_execution_time: dict | None = None
-    variable_values: dict | None = None
-
-    def __post_init__(self) -> None:
-        if self.cell_operations is None:
-            self.cell_operations = {}
-        if self.last_execution_time is None:
-            self.last_execution_time = {}
-        if self.variable_values is None:
-            self.variable_values = {}
-
-
-@dataclass
-class MockSession(Session):
-    session_view: MockSessionView
-
-
 def test_is_markdown_cell():
     tool = GetLightweightCellMap(ToolContext())
     assert tool._is_markdown_cell('mo.md("hi")') is True
@@ -78,7 +58,7 @@ def test_get_cell_metadata_basic():
     tool = GetCellRuntimeData(ToolContext())
     cell_op = MockCellOp(status="idle")
     session = MockSession(
-        MockSessionView(
+        _session_view=MockSessionView(
             cell_operations={"c1": cell_op}, last_execution_time={"c1": 42.5}
         )
     )
@@ -91,7 +71,7 @@ def test_get_cell_metadata_basic():
 
 def test_get_cell_metadata_no_cell_op():
     tool = GetCellRuntimeData(ToolContext())
-    session = MockSession(MockSessionView())
+    session = MockSession(_session_view=MockSessionView())
 
     result = tool._get_cell_metadata(session, CellId_t("missing"))
     assert result == CellRuntimeMetadata(
@@ -112,7 +92,9 @@ def test_get_cell_variables():
     var_z = VariableValue("z", "[1]", "list")
 
     session = MockSession(
-        MockSessionView(variable_values={"x": var_x, "y": var_y, "z": var_z})
+        _session_view=MockSessionView(
+            variable_values={"x": var_x, "y": var_y, "z": var_z}
+        )
     )
 
     result = tool._get_cell_variables(session, cell_data)

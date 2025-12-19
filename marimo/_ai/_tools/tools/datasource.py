@@ -75,7 +75,7 @@ class GetDatabaseTables(
     def _get_tables(
         self, session: Session, query: Optional[str]
     ) -> GetDatabaseTablesOutput:
-        session_view = session.get_current_state()
+        session_view = session.session_view
         data_connectors = session_view.data_connectors
 
         if len(data_connectors.connections) == 0:

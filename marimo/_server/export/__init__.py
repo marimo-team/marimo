@@ -361,4 +361,4 @@ async def run_app_until_completion(
     # captured by the session view.
     session.close()
 
-    return session.get_current_state(), session_consumer.did_error
+    return session.session_view, session_consumer.did_error
