@@ -172,7 +172,7 @@ class AppFileManager:
         """
         LOGGER.debug("Saving app to %s", path)
 
-        # Get the header in case is was modified by the user (e.g. package installation)
+        # Get the header in case it was modified by the user (e.g. package installation)
         handler = get_format_handler(path)
         header = handler.extract_header(previous_path or path)
         if header:

@@ -4,7 +4,7 @@ from __future__ import annotations
 import asyncio
 import os
 import sys
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Callable, Literal, Optional, cast
 
 from marimo import _loggers
@@ -363,11 +363,4 @@ async def run_app_until_completion(
 def _with_filename(
     ir: NotebookSerialization, filename: str
 ) -> NotebookSerialization:
-    return NotebookSerialization(
-        app=ir.app,
-        header=ir.header,
-        cells=ir.cells,
-        violations=ir.violations,
-        valid=ir.valid,
-        filename=filename,
-    )
+    return replace(ir, filename=filename)

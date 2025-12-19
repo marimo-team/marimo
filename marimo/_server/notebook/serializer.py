@@ -13,7 +13,7 @@ from marimo._schemas.serialization import NotebookSerializationV1
 
 
 class NotebookSerializer(Protocol):
-    """Abstract base class for notebook format handlers."""
+    """Protocol for notebook format handlers."""
 
     def serialize(self, notebook: NotebookSerializationV1) -> str:
         """Convert notebook IR to the target format.

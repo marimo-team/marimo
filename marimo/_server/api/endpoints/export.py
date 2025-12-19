@@ -243,8 +243,11 @@ async def export_as_markdown(
     markdown = convert_from_ir_to_markdown(app_file_manager.app.to_ir())
 
     if body.download:
+        download_filename = get_download_filename(
+            app_file_manager.filename, "md"
+        )
         headers = {
-            "Content-Disposition": f"attachment; filename={app_file_manager.filename}"
+            "Content-Disposition": f"attachment; filename={download_filename}"
         }
     else:
         headers = {}

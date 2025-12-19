@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+import re
 import shutil
 import time
 from pathlib import Path
@@ -177,6 +178,12 @@ def test_export_markdown(client: TestClient) -> None:
     assert response.status_code == 200
     assert f"marimo-version: {__version__}" in response.text
     assert "```python {.marimo}" in response.text
+    # Check that the Content-Disposition header has the correct .md extension
+    assert "Content-Disposition" in response.headers
+    # The temp file has .py extension, should be converted to .md
+    assert re.match(
+        r"filename=.*\.md", response.headers["Content-Disposition"]
+    )
 
 
 @with_read_session(SESSION_ID)
