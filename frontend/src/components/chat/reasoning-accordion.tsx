@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import { BotMessageSquareIcon } from "lucide-react";
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { MarkdownRenderer } from "@/components/markdown/markdown-renderer";
 import {
   Accordion,
@@ -21,6 +21,21 @@ export const ReasoningAccordion: React.FC<ReasoningAccordionProps> = ({
   index = 0,
   isStreaming = false,
 }) => {
+  const [dots, setDots] = useState(".");
+
+  // Animate ellipsis while streaming
+  useEffect(() => {
+    if (!isStreaming) {
+      return;
+    }
+
+    const interval = setInterval(() => {
+      setDots((prev) => (prev.length >= 3 ? "." : prev + "."));
+    }, 400);
+
+    return () => clearInterval(interval);
+  }, [isStreaming]);
+
   return (
     <Accordion
       key={index}
@@ -33,7 +48,13 @@ export const ReasoningAccordion: React.FC<ReasoningAccordionProps> = ({
         <AccordionTrigger className="text-xs text-muted-foreground hover:bg-muted/50 px-2 py-1 h-auto rounded-sm [&[data-state=open]>svg]:rotate-180">
           <span className="flex items-center gap-2">
             <BotMessageSquareIcon className="h-3 w-3" />
-            Thinking ({reasoning.length} chars)
+            {isStreaming ? (
+              <span>
+                Thinking<span className="inline-block w-4">{dots}</span>
+              </span>
+            ) : (
+              `Thinking (${reasoning.length} chars)`
+            )}
           </span>
         </AccordionTrigger>
         <AccordionContent className="pb-2 px-2">
