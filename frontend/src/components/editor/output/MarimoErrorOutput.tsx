@@ -142,7 +142,7 @@ export const MarimoErrorOutput = ({
   );
 
   const openScratchpad = () => {
-    chromeActions.openApplication("scratchpad");
+    chromeActions.openDeveloperPanelTab("scratchpad");
   };
 
   const renderMessages = () => {
@@ -157,10 +157,6 @@ export const MarimoErrorOutput = ({
       const hasShellHint =
         !hasPipHint &&
         syntaxErrors.some((error) => error.msg.includes("use os.subprocess"));
-
-      const openTerminal = () => {
-        chromeActions.setIsTerminalOpen(true);
-      };
 
       messages.push(
         <div key="syntax-unknown">
@@ -190,7 +186,7 @@ export const MarimoErrorOutput = ({
               size="xs"
               variant="outline"
               className="mt-2 font-normal"
-              onClick={openTerminal}
+              onClick={() => chromeActions.openDeveloperPanelTab("terminal")}
             >
               <TerminalIcon className="h-3.5 w-3.5 mr-1.5" />
               <span>Open terminal</span>
