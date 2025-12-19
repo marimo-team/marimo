@@ -94,7 +94,7 @@ def _check_port_in_use(port: int) -> Optional[str]:
 
 
 def run_in_docker(
-    file_path: str,
+    file_path: str | None,
     mode: Literal["edit", "run"],
     *,
     port: Optional[int],
