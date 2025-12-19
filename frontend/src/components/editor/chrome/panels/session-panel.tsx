@@ -1,7 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
+import { useAtom } from "jotai";
+import { atomWithStorage } from "jotai/utils";
 import { DatabaseIcon, VariableIcon } from "lucide-react";
-import React, { useState } from "react";
+import React from "react";
 import { DataSources } from "@/components/datasources/datasources";
 import {
   Accordion,
@@ -15,11 +17,16 @@ import { useCellIds } from "@/core/cells/cells";
 import { useDatasets } from "@/core/datasets/state";
 import { useVariables } from "@/core/variables/state";
 
+const openSectionsAtom = atomWithStorage<string[]>(
+  "marimo:session-panel:open-sections",
+  ["variables"],
+);
+
 const SessionPanel: React.FC = () => {
   const variables = useVariables();
   const cellIds = useCellIds();
   const datasets = useDatasets();
-  const [openSections, setOpenSections] = useState<string[]>(["variables"]);
+  const [openSections, setOpenSections] = useAtom(openSectionsAtom);
 
   const datasourcesCount = datasets.tables.length;
   const isDatasourcesOpen = openSections.includes("datasources");

@@ -66,7 +66,7 @@ export const PANELS: PanelDescriptor[] = [
   {
     id: "variables",
     Icon: VariableIcon,
-    tooltip: "Explore variables",
+    tooltip: "Explore variables and data sources",
     position: "sidebar",
   },
   // Every notebook has a package environment that must
