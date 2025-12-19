@@ -6,19 +6,15 @@ import uuid
 from dataclasses import dataclass
 from typing import Any, Callable, Final, Optional, Union, cast
 
-from marimo._ai._types import (
-    ChatMessage,
-    ChatModelConfig,
-    ChatModelConfigDict,
-)
+from marimo._ai._types import ChatModelConfig, ChatModelConfigDict
 from marimo._output.formatting import as_html
 from marimo._output.rich_help import mddoc
 from marimo._plugins.core.web_component import JSONType
 from marimo._plugins.ui._core.ui_element import UIElement
-from marimo._plugins.ui._impl.chat.utils import from_chat_message_dict
 from marimo._runtime.context.types import ContextNotInitializedError
 from marimo._runtime.functions import EmptyArgs, Function
 from marimo._runtime.requests import SetUIElementValueRequest
+from marimo._server.models.completion import UIMessage as ServerUIMessage
 
 DEFAULT_CONFIG = ChatModelConfigDict(
     max_tokens=4096,
@@ -32,13 +28,13 @@ DEFAULT_CONFIG = ChatModelConfigDict(
 
 @dataclass
 class SendMessageRequest:
-    messages: list[ChatMessage]
+    messages: list[ServerUIMessage]
     config: ChatModelConfig
 
 
 @dataclass
 class GetChatHistoryResponse:
-    messages: list[ChatMessage]
+    messages: list[ServerUIMessage]
 
 
 @dataclass
@@ -47,10 +43,10 @@ class DeleteChatMessageRequest:
 
 
 @mddoc
-class chat(UIElement[dict[str, Any], list[ChatMessage]]):
+class chat(UIElement[dict[str, Any], list[ServerUIMessage]]):
     """A chatbot UI element for interactive conversations.
 
-    Define a chatbot by implementing a function that takes a list of ChatMessages and
+    Define a chatbot by implementing a function that takes a list of ServerUIMessages and
     optionally a config object as input, and returns the chat response. The response
     can be any object, including text, plots, or marimo UI elements.
 
@@ -117,10 +113,10 @@ class chat(UIElement[dict[str, Any], list[ChatMessage]]):
         ```
 
     Attributes:
-        value (List[ChatMessage]): The current chat history, a list of ChatMessage objects.
+        value (List[ServerUIMessage]): The current chat history, a list of ServerUIMessage objects.
 
     Args:
-        model (Callable[[List[ChatMessage], ChatModelConfig], object]): A callable that
+        model (Callable[[List[ServerUIMessage], ChatModelConfig], object]): A callable that
             takes in the chat history and returns a response.
         prompts (List[str], optional): Optional list of initial prompts to present to
             the user. Defaults to None.
@@ -146,17 +142,17 @@ class chat(UIElement[dict[str, Any], list[ChatMessage]]):
 
     def __init__(
         self,
-        model: Callable[[list[ChatMessage], ChatModelConfig], object],
+        model: Callable[[list[ServerUIMessage], ChatModelConfig], object],
         *,
         prompts: Optional[list[str]] = None,
-        on_message: Optional[Callable[[list[ChatMessage]], None]] = None,
+        on_message: Optional[Callable[[list[ServerUIMessage]], None]] = None,
         show_configuration_controls: bool = False,
         config: Optional[ChatModelConfigDict] = DEFAULT_CONFIG,
         allow_attachments: Union[bool, list[str]] = False,
         max_height: Optional[int] = None,
     ) -> None:
         self._model = model
-        self._chat_history: list[ChatMessage] = []
+        self._chat_history: list[ServerUIMessage] = []
 
         if config is None:
             config = DEFAULT_CONFIG
@@ -292,7 +288,9 @@ class chat(UIElement[dict[str, Any], list[ChatMessage]]):
             # representation of the response, and the last value is the full value
             response = await self._handle_streaming_response(response)
 
-        response_message = ChatMessage(role="assistant", content=response)
+        response_message = ServerUIMessage(
+            role="assistant", parts=[{"type": "text", "text": response}]
+        )
         self._chat_history = messages + [response_message]
 
         from marimo._runtime.context import get_context
@@ -326,9 +324,8 @@ class chat(UIElement[dict[str, Any], list[ChatMessage]]):
             return response
         return as_html(response).text
 
-    def _convert_value(self, value: dict[str, Any]) -> list[ChatMessage]:
+    def _convert_value(self, value: dict[str, Any]) -> list[ServerUIMessage]:
         if not isinstance(value, dict) or "messages" not in value:
             raise ValueError("Invalid chat history format")
 
-        messages = value["messages"]
-        return [from_chat_message_dict(msg) for msg in messages]
+        return value["messages"]

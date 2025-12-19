@@ -11,7 +11,7 @@ export interface ChatMessage {
 }
 
 export interface SendMessageRequest {
-  messages: ChatMessage[];
+  messages: UIMessage[];
   config: {
     max_tokens?: number;
     temperature?: number;
