@@ -457,10 +457,7 @@ def edit(
         )
         name = path.absolute_name
 
-    # If file is a url, we prompt to run in docker
-    if name is not None and prompt_run_in_docker_container(
-        name, trusted=trusted
-    ):
+    if prompt_run_in_docker_container(name, trusted=trusted):
         from marimo._cli.run_docker import run_in_docker
 
         run_in_docker(
@@ -946,7 +943,6 @@ def run(
 ) -> None:
     from marimo._cli.sandbox import run_in_sandbox, should_run_in_sandbox
 
-    # If file is a url, we prompt to run in docker
     if prompt_run_in_docker_container(name, trusted=trusted):
         from marimo._cli.run_docker import run_in_docker
 
