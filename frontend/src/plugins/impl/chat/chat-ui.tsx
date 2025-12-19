@@ -549,11 +549,15 @@ export const Chatbot: React.FC<Props> = (props) => {
             </p>
           </div>
         )}
-        {messages.map((message) => {
+        {messages.map((message, messageIndex) => {
           const textContent = message.parts
             ?.filter((p) => p.type === "text")
             .map((p) => p.text)
             .join("\n");
+
+          // Check if this message is currently streaming
+          const isMessageStreaming =
+            streamingStateRef.current.frontendMessageIndex === messageIndex;
 
           // Separate tool parts, reasoning parts, and other parts for assistant messages
           const toolParts =
@@ -594,6 +598,7 @@ export const Chatbot: React.FC<Props> = (props) => {
                         key={`reasoning-${index}`}
                         reasoning={part.text}
                         index={index}
+                        isStreaming={isMessageStreaming}
                       />
                     ) : null,
                   )}

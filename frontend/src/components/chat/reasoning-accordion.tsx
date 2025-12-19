@@ -42,7 +42,6 @@ export const ReasoningAccordion: React.FC<ReasoningAccordionProps> = ({
       type="single"
       collapsible={true}
       className="w-full mb-2"
-      value={isStreaming ? "reasoning" : undefined}
     >
       <AccordionItem value="reasoning" className="border-0">
         <AccordionTrigger className="text-xs text-muted-foreground hover:bg-muted/50 px-2 py-1 h-auto rounded-sm [&[data-state=open]>svg]:rotate-180">
