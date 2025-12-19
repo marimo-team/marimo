@@ -2,6 +2,7 @@
 
 import type { ChangeEvent } from "react";
 import type { FieldPath, UseFormReturn } from "react-hook-form";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   FormControl,
   FormDescription,
@@ -212,8 +213,7 @@ export const DataForm = ({
           {renderDiscoveryForm("datasources.auto_discover_columns", "Columns")}
         </div>
 
-        {/* TODO: Issue with frontend being stuck */}
-        {/* <FormField
+        <FormField
           control={form.control}
           name="diagnostics.sql_linter"
           render={({ field }) => (
@@ -238,7 +238,7 @@ export const DataForm = ({
               </FormDescription>
             </div>
           )}
-        /> */}
+        />
 
         <FormField
           control={form.control}
