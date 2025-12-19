@@ -1,33 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import type { FieldValues } from "react-hook-form";
 import { describe, expect, test } from "vitest";
-
-/**
- * Extract only the values that have been modified (dirty) from form state.
- * Copy of the function from user-config-form.tsx for testing.
- */
-function getDirtyValues<T extends FieldValues>(
-  values: T,
-  dirtyFields: Partial<Record<keyof T, unknown>>,
-): Partial<T> {
-  const result: Partial<T> = {};
-  for (const key of Object.keys(dirtyFields) as Array<keyof T>) {
-    const dirty = dirtyFields[key];
-    if (dirty === true) {
-      result[key] = values[key];
-    } else if (typeof dirty === "object" && dirty !== null) {
-      const nested = getDirtyValues(
-        values[key] as FieldValues,
-        dirty as Partial<Record<string, unknown>>,
-      );
-      if (Object.keys(nested).length > 0) {
-        result[key] = nested as T[keyof T];
-      }
-    }
-  }
-  return result;
-}
+import { getDirtyValues } from "../user-config-form";
 
 describe("getDirtyValues", () => {
   test("extracts only dirty fields", () => {

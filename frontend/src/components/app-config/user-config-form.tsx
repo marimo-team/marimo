@@ -64,7 +64,7 @@ import { OptionalFeatures } from "./optional-features";
  * Extract only the values that have been modified (dirty) from form state.
  * This prevents sending unchanged fields that could overwrite backend values.
  */
-function getDirtyValues<T extends FieldValues>(
+export function getDirtyValues<T extends FieldValues>(
   values: T,
   dirtyFields: Partial<Record<keyof T, unknown>>,
 ): Partial<T> {
