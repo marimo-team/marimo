@@ -35,7 +35,7 @@ export type PanelType =
   | "cache";
 
 export interface PanelDescriptor {
-  type: PanelType;
+  id: PanelType;
   Icon: LucideIcon;
   hidden?: boolean;
   tooltip: string;
@@ -57,7 +57,7 @@ export const PANELS: PanelDescriptor[] = [
   // them a quick glance at their project structure,
   // without having to leave their editor.
   {
-    type: "files",
+    id: "files",
     Icon: FolderTreeIcon,
     tooltip: "View files",
     position: "sidebar",
@@ -66,13 +66,13 @@ export const PANELS: PanelDescriptor[] = [
   // it's important to give humans visibility into
   // what that data is.
   {
-    type: "variables",
+    id: "variables",
     Icon: FunctionSquareIcon,
     tooltip: "Explore variables",
     position: "sidebar",
   },
   {
-    type: "datasources",
+    id: "datasources",
     Icon: DatabaseIcon,
     tooltip: "Explore data sources",
     position: "sidebar",
@@ -80,7 +80,7 @@ export const PANELS: PanelDescriptor[] = [
   // Every notebook has a package environment that must
   // be managed.
   {
-    type: "packages",
+    id: "packages",
     Icon: BoxIcon,
     tooltip: "Manage packages",
     position: "sidebar",
@@ -89,7 +89,7 @@ export const PANELS: PanelDescriptor[] = [
   //
   // The AI panel holds both agents and in-editor chat.
   {
-    type: "ai",
+    id: "ai",
     Icon: BotIcon,
     tooltip: "Chat & Agents",
     position: "sidebar",
@@ -97,7 +97,7 @@ export const PANELS: PanelDescriptor[] = [
   {
     // TODO(akshayka): Consider making snippets default
     // off, user configuration to enable.
-    type: "snippets",
+    id: "snippets",
     Icon: SquareDashedBottomCodeIcon,
     tooltip: "Snippets",
     position: "sidebar",
@@ -110,13 +110,13 @@ export const PANELS: PanelDescriptor[] = [
   // or datasets, so they are positioned at the end of the
   // sidebar.
   {
-    type: "outline",
+    id: "outline",
     Icon: ScrollTextIcon,
     tooltip: "View outline",
     position: "sidebar",
   },
   {
-    type: "documentation",
+    id: "documentation",
     Icon: TextSearchIcon,
     tooltip: "View live docs",
     position: "sidebar",
@@ -125,12 +125,16 @@ export const PANELS: PanelDescriptor[] = [
     // TODO(akshayka): Consider making dependencies
     // default off; the minimap is a more effective
     // overview.
-    type: "dependencies",
+    id: "dependencies",
     Icon: NetworkIcon,
     tooltip: "Explore dependencies",
     position: "sidebar",
   },
 ];
+
+export const PANEL_MAP = new Map<PanelType, PanelDescriptor>(
+  PANELS.map((p) => [p.id, p]),
+);
 
 export type DeveloperPanelTabType =
   | "errors"
