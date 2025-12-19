@@ -20,6 +20,9 @@ import msgspec
 from marimo import _loggers
 from marimo._utils.parse_dataclass import parse_raw
 
+if TYPE_CHECKING:
+    from marimo._server.models.completion import UIMessage as ServerUIMessage
+
 LOGGER = _loggers.marimo_logger()
 
 
@@ -194,7 +197,7 @@ class ChatMessage(msgspec.Struct):
     role: Literal["user", "assistant", "system"]
 
     # The content of the message.
-    content: Any
+    content: Optional[Any] = None
 
     # Optional attachments to the message.
     # TODO: Deprecate in favour of parts
@@ -252,6 +255,6 @@ class ChatModelConfig:
 class ChatModel(abc.ABC):
     @abc.abstractmethod
     def __call__(
-        self, messages: list[ChatMessage], config: ChatModelConfig
+        self, messages: list[ServerUIMessage], config: ChatModelConfig
     ) -> object:
         pass

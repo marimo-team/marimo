@@ -5,8 +5,13 @@ import os
 import re
 from typing import TYPE_CHECKING, Any, Callable, Optional, cast
 
+from marimo._ai._pydantic_ai_utils import convert_to_pydantic_messages
+from marimo._utils.parse_dataclass import parse_raw
+
 if TYPE_CHECKING:
-    from collections.abc import Generator
+    from collections.abc import AsyncGenerator, Generator
+
+    from pydantic_ai import Agent
 
 from marimo._ai._convert import (
     convert_to_anthropic_messages,
@@ -20,6 +25,7 @@ from marimo._ai._types import (
     ChatModelConfig,
 )
 from marimo._dependencies.dependencies import DependencyManager
+from marimo._server.models.completion import UIMessage as ServerUIMessage
 
 DEFAULT_SYSTEM_MESSAGE = (
     "You are a helpful assistant specializing in data science."
@@ -50,10 +56,14 @@ class simple(ChatModel):
         self.delegate = delegate
 
     def __call__(
-        self, messages: list[ChatMessage], config: ChatModelConfig
+        self, messages: list[ServerUIMessage], config: ChatModelConfig
     ) -> object:
         del config
-        prompt = str(messages[-1].content)
+        chat_messages = [
+            parse_raw(message, cls=ChatMessage, allow_unknown_keys=True)
+            for message in messages
+        ]
+        prompt = str(chat_messages[-1].content)
         return self.delegate(prompt)
 
 
@@ -123,7 +133,7 @@ class openai(ChatModel):
                     yield delta.content
 
     def __call__(
-        self, messages: list[ChatMessage], config: ChatModelConfig
+        self, messages: list[ServerUIMessage], config: ChatModelConfig
     ) -> object:
         DependencyManager.openai.require(
             "chat model requires openai. `pip install openai`"
@@ -157,9 +167,13 @@ class openai(ChatModel):
                 base_url=self.base_url or None,
             )
 
+        chat_messages = [
+            parse_raw(message, cls=ChatMessage, allow_unknown_keys=True)
+            for message in messages
+        ]
         openai_messages = convert_to_openai_messages(
             [ChatMessage(role="system", content=self.system_message)]
-            + messages
+            + chat_messages
         )
 
         # Try streaming first, fall back to non-streaming on error
@@ -263,7 +277,7 @@ class anthropic(ChatModel):
             yield from stream.text_stream
 
     def __call__(
-        self, messages: list[ChatMessage], config: ChatModelConfig
+        self, messages: list[ServerUIMessage], config: ChatModelConfig
     ) -> object:
         DependencyManager.anthropic.require(
             "chat model requires anthropic. `pip install anthropic`"
@@ -275,7 +289,8 @@ class anthropic(ChatModel):
             base_url=self.base_url,
         )
 
-        anthropic_messages = convert_to_anthropic_messages(messages)
+        chat_messages = convert_to_chat_messages(messages)
+        anthropic_messages = convert_to_anthropic_messages(chat_messages)
         params: dict[str, Any] = {
             "model": self.model,
             "system": self.system_message,
@@ -373,7 +388,7 @@ class google(ChatModel):
                 yield chunk.text
 
     def __call__(
-        self, messages: list[ChatMessage], config: ChatModelConfig
+        self, messages: list[ServerUIMessage], config: ChatModelConfig
     ) -> object:
         DependencyManager.google_ai.require(
             "chat model requires google. `pip install google-genai`"
@@ -382,7 +397,11 @@ class google(ChatModel):
 
         client = genai.Client(api_key=self._require_api_key)
 
-        google_messages = convert_to_google_messages(messages)
+        chat_messages = [
+            parse_raw(message, cls=ChatMessage, allow_unknown_keys=True)
+            for message in messages
+        ]
+        google_messages = convert_to_google_messages(chat_messages)
 
         # Build config once to avoid duplication
         generation_config = {
@@ -491,7 +510,7 @@ class groq(ChatModel):
                     yield delta.content
 
     def __call__(
-        self, messages: list[ChatMessage], config: ChatModelConfig
+        self, messages: list[ServerUIMessage], config: ChatModelConfig
     ) -> object:
         DependencyManager.groq.require(
             "chat model requires groq. `pip install groq`"
@@ -500,9 +519,10 @@ class groq(ChatModel):
 
         client = Groq(api_key=self._require_api_key, base_url=self.base_url)
 
+        chat_messages = convert_to_chat_messages(messages)
         groq_messages = convert_to_groq_messages(
             [ChatMessage(role="system", content=self.system_message)]
-            + messages
+            + chat_messages
         )
 
         # Try streaming first, fall back to non-streaming on error
@@ -600,7 +620,7 @@ class bedrock(ChatModel):
                     yield delta.content
 
     def __call__(
-        self, messages: list[ChatMessage], config: ChatModelConfig
+        self, messages: list[ServerUIMessage], config: ChatModelConfig
     ) -> object:
         DependencyManager.boto3.require(
             "bedrock chat model requires boto3. `pip install boto3`"
@@ -610,10 +630,12 @@ class bedrock(ChatModel):
         )
         self._setup_credentials()
 
+        chat_messages = convert_to_chat_messages(messages)
+
         try:
             # Try streaming first, fall back to non-streaming on error
             try:
-                return self._stream_response(messages, config)
+                return self._stream_response(chat_messages, config)
             except Exception as stream_error:
                 # Fall back to non-streaming if streaming fails
                 if _looks_like_streaming_error(stream_error):
@@ -628,7 +650,7 @@ class bedrock(ChatModel):
                                     content=self.system_message,
                                 )
                             ]
-                            + messages
+                            + chat_messages
                         ),
                         max_tokens=config.max_tokens,
                         temperature=config.temperature,
@@ -664,3 +686,53 @@ class bedrock(ChatModel):
             else:
                 # Re-raise original exception if not handled
                 raise
+
+
+class pydantic_ai(ChatModel):
+    """
+    Pydantic AI ChatModel
+
+    Args:
+        agent: The Pydantic AI agent to use.
+    """
+
+    def __init__(self, agent: Agent[Any, Any]):
+        DependencyManager.pydantic_ai.require(
+            "pydantic-ai chat model requires pydantic-ai. `pip install pydantic-ai`"
+        )
+        self.agent = agent
+
+    def __call__(
+        self, messages: list[ServerUIMessage], config: ChatModelConfig
+    ):
+        del config
+        return self._stream_response(messages)
+
+    async def _stream_response(
+        self, messages: list[ServerUIMessage]
+    ) -> AsyncGenerator[str, None]:
+        from pydantic_ai.ui.vercel_ai import VercelAIAdapter
+
+        ai_sdk_messages = convert_to_pydantic_messages(messages)
+        pydantic_model_messages = VercelAIAdapter.load_messages(
+            ai_sdk_messages
+        )
+
+        async with self.agent.run_stream(
+            user_prompt=None, message_history=pydantic_model_messages
+        ) as result:
+            async for text in result.stream_text(delta=True):
+                yield text
+
+
+def convert_to_chat_messages(
+    messages: list[ServerUIMessage],
+) -> list[ChatMessage]:
+    """
+    As we migrate to pydantic-ai, we want to keep old providers working.
+    This function converts server messages to chat messages.
+    """
+    return [
+        parse_raw(message, cls=ChatMessage, allow_unknown_keys=True)
+        for message in messages
+    ]

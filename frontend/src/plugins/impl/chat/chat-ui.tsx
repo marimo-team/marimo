@@ -55,7 +55,7 @@ import { Logger } from "@/utils/Logger";
 import { Objects } from "@/utils/objects";
 import { ErrorBanner } from "../common/error-banner";
 import type { PluginFunctions } from "./ChatPlugin";
-import type { ChatConfig, ChatMessage } from "./types";
+import type { ChatConfig } from "./types";
 
 const LazyStreamdown = lazy(() =>
   import("streamdown").then((module) => ({ default: module.Streamdown })),
@@ -67,8 +67,8 @@ interface Props extends PluginFunctions {
   showConfigurationControls: boolean;
   maxHeight: number | undefined;
   allowAttachments: boolean | string[];
-  value: ChatMessage[];
-  setValue: (messages: ChatMessage[]) => void;
+  value: UIMessage[];
+  setValue: (messages: UIMessage[]) => void;
   host: HTMLElement;
 }
 
@@ -89,8 +89,8 @@ export const Chatbot: React.FC<Props> = (props) => {
 
   const { data: initialMessages } = useAsyncData(async () => {
     const chatMessages = await props.get_chat_history({});
-    const messages: UIMessage[] = chatMessages.messages.map((message, idx) => ({
-      id: idx.toString(),
+    const messages: UIMessage[] = chatMessages.messages.map((message) => ({
+      id: message.id,
       role: message.role,
       parts: message.parts ?? [],
     }));
@@ -119,14 +119,6 @@ export const Chatbot: React.FC<Props> = (props) => {
           messages: UIMessage[];
         };
         try {
-          const messages = body.messages.map((m) => ({
-            role: m.role,
-            content: m.parts
-              ?.map((p) => ("text" in p ? p.text : ""))
-              .join("\n"),
-            parts: m.parts,
-          }));
-
           // Create a placeholder message for streaming
           const messageId = Date.now().toString();
 
@@ -140,7 +132,7 @@ export const Chatbot: React.FC<Props> = (props) => {
           ]);
 
           const response = await props.send_prompt({
-            messages: messages,
+            messages: body.messages,
             config: {
               max_tokens: config.max_tokens,
               temperature: config.temperature,

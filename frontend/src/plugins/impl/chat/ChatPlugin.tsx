@@ -1,5 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
+import type { UIMessage } from "ai";
 import { Suspense } from "react";
 import { z } from "zod";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -7,17 +8,16 @@ import { createPlugin } from "@/plugins/core/builder";
 import { rpc } from "@/plugins/core/rpc";
 import { Arrays } from "@/utils/arrays";
 import { Chatbot } from "./chat-ui";
-import type { ChatMessage, SendMessageRequest } from "./types";
+import type { SendMessageRequest } from "./types";
 
-// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export type PluginFunctions = {
-  get_chat_history: (req: {}) => Promise<{ messages: ChatMessage[] }>;
+  get_chat_history: (req: {}) => Promise<{ messages: UIMessage[] }>;
   delete_chat_history: (req: {}) => Promise<null>;
   delete_chat_message: (req: { index: number }) => Promise<null>;
   send_prompt: (req: SendMessageRequest) => Promise<string>;
 };
 
-export const ChatPlugin = createPlugin<{ messages: ChatMessage[] }>(
+export const ChatPlugin = createPlugin<{ messages: UIMessage[] }>(
   "marimo-chatbot",
 )
   .withData(
@@ -41,9 +41,10 @@ export const ChatPlugin = createPlugin<{ messages: ChatMessage[] }>(
       z.object({
         messages: z.array(
           z.object({
+            id: z.string(),
             role: z.enum(["system", "user", "assistant"]),
-            content: z.string(),
-            parts: z.array(z.any()).nullable(),
+            parts: z.array(z.any()),
+            metadata: z.any().nullable(),
           }),
         ),
       }),
@@ -57,9 +58,10 @@ export const ChatPlugin = createPlugin<{ messages: ChatMessage[] }>(
         z.object({
           messages: z.array(
             z.object({
+              id: z.string(),
               role: z.enum(["system", "user", "assistant"]),
-              content: z.string(),
               parts: z.array(z.any()),
+              metadata: z.any().nullable(),
             }),
           ),
           config: z.object({
