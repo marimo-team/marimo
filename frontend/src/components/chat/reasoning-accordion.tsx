@@ -33,8 +33,7 @@ export const ReasoningAccordion: React.FC<ReasoningAccordionProps> = ({
         <AccordionTrigger className="text-xs text-muted-foreground hover:bg-muted/50 px-2 py-1 h-auto rounded-sm [&[data-state=open]>svg]:rotate-180">
           <span className="flex items-center gap-2">
             <BotMessageSquareIcon className="h-3 w-3" />
-            {isStreaming ? "Thinking" : "View reasoning"} ({reasoning.length}{" "}
-            chars)
+            Thinking ({reasoning.length} chars)
           </span>
         </AccordionTrigger>
         <AccordionContent className="pb-2 px-2">

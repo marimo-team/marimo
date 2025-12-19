@@ -348,8 +348,8 @@ agent = Agent(
 chat = mo.ui.chat(mo.ai.llm.pydantic_ai(agent))
 ```
 
-When enabled, a "View reasoning" accordion appears before the response,
-showing the LLM's thinking process in real-time.
+When enabled, a "Thinking" accordion appears before the response,
+showing the LLM's reasoning process in real-time.
 
 #### Full Agent Configuration
 
