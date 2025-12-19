@@ -155,7 +155,9 @@ class CachingExtension(SessionExtension, SessionEventListener):
         key = SessionCacheKey(
             codes=codes, marimo_version=__version__, cell_ids=cell_ids
         )
-        self.session_view = self.session_cache_manager.read_session_view(key)
+        session.session_view = self.session_cache_manager.read_session_view(
+            key
+        )
 
         # Start the background task to write the session view to disk
         self.session_cache_manager.start()
@@ -190,19 +192,15 @@ class LoggingExtension(SessionExtension, SessionEventListener):
         del session
         self.logger.debug("Attaching extensions")
         event_bus.subscribe(self)
-        return None
 
     def on_detach(self) -> None:
         self.logger.debug("Detaching extensions")
-        return None
 
     async def on_session_created(self, session: Session) -> None:
         self.logger.debug("Session created: %s", session.initialization_id)
-        return None
 
     async def on_session_closed(self, session: Session) -> None:
         self.logger.debug("Session closed: %s", session.initialization_id)
-        return None
 
     async def on_session_resumed(
         self, session: Session, old_id: SessionId
@@ -212,7 +210,6 @@ class LoggingExtension(SessionExtension, SessionEventListener):
             session.initialization_id,
             old_id,
         )
-        return None
 
     async def on_session_notebook_renamed(
         self, session: Session, new_path: str
@@ -222,4 +219,3 @@ class LoggingExtension(SessionExtension, SessionEventListener):
             session.initialization_id,
             new_path,
         )
-        return None

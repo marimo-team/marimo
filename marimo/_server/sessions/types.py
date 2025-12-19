@@ -109,16 +109,12 @@ class Session(Protocol):
     initialization_id: str
     app_file_manager: AppFileManager
     config_manager: MarimoConfigManager
+    session_view: SessionView
     ttl_seconds: int
 
     @property
     def consumers(self) -> Mapping[SessionConsumer, ConsumerId]:
         """Get the consumers in the session."""
-        ...
-
-    @property
-    def session_view(self) -> SessionView:
-        """Get the session view."""
         ...
 
     def kernel_state(self) -> KernelState:

@@ -170,7 +170,7 @@ class SessionImpl(Session):
         self.ttl_seconds = (
             ttl_seconds if ttl_seconds is not None else _DEFAULT_TTL_SECONDS
         )
-        self._session_view = SessionView()
+        self.session_view = SessionView()
         self.config_manager = config_manager
         self.extensions = extensions
 
@@ -182,7 +182,7 @@ class SessionImpl(Session):
         self._event_bus = SessionEventBus()
 
         self.message_distributor.add_consumer(
-            lambda msg: self._session_view.add_raw_operation(msg)
+            lambda msg: self.session_view.add_raw_operation(msg)
         )
         self.connect_consumer(session_consumer, main=True)
         self.message_distributor.start()
@@ -221,11 +221,6 @@ class SessionImpl(Session):
     def consumers(self) -> Mapping[SessionConsumer, ConsumerId]:
         """Get the consumers in the session."""
         return self.room.consumers
-
-    @property
-    def session_view(self) -> SessionView:
-        """Get the session view."""
-        return self._session_view
 
     def flush_messages(self) -> None:
         """Flush any pending messages."""
@@ -283,7 +278,7 @@ class SessionImpl(Session):
                     except_consumer=from_consumer_id,
                 )
 
-        self._session_view.add_control_request(request)
+        self.session_view.add_control_request(request)
 
     def put_completion_request(
         self, request: requests.CodeCompletionRequest
@@ -294,7 +289,7 @@ class SessionImpl(Session):
     def put_input(self, text: str) -> None:
         """Put an input() request in the input queue."""
         self._queue_manager.put_input(text)
-        self._session_view.add_stdin(text)
+        self.session_view.add_stdin(text)
 
     def disconnect_consumer(self, session_consumer: SessionConsumer) -> None:
         """
@@ -332,7 +327,7 @@ class SessionImpl(Session):
 
     def get_current_state(self) -> SessionView:
         """Return the current state of the session."""
-        return self._session_view
+        return self.session_view
 
     def connection_state(self) -> ConnectionState:
         """Return the connection state of the session."""
@@ -349,7 +344,7 @@ class SessionImpl(Session):
     ) -> None:
         """Write an operation to the session consumer and the session view."""
         self.room.broadcast(operation, except_consumer=from_consumer_id)
-        self._session_view.add_operation(operation)
+        self.session_view.add_operation(operation)
 
     def close(self) -> None:
         """
