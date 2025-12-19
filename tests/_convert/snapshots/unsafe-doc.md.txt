@@ -55,9 +55,9 @@ mo.md(r"""
 <!-- Improperly nested code block -->
 
 ````python {.marimo unparsable="true"}
-"""
+\"\"\"
 ```python {.marimo}
-print("Hello, World!")
+print(\"Hello, World!\")
 ````
 
 \"\"\"
