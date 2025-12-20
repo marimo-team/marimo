@@ -164,12 +164,13 @@ class CachingExtension(SessionExtension, SessionEventListener):
             self.event_bus = None
 
     async def on_session_notebook_renamed(
-        self, session: Session, new_path: str
+        self, session: Session, old_path: str | None
     ) -> None:
         """Rename the path for the cache manager."""
-        del session
-        if self.session_cache_manager:
-            self.session_cache_manager.rename_path(new_path)
+        del old_path
+        path = session.app_file_manager.path
+        if self.session_cache_manager and path:
+            self.session_cache_manager.rename_path(path)
         return None
 
     def _stop(self) -> None:
@@ -187,6 +188,7 @@ class NotificationListenerExtension(SessionExtension):
     ) -> None:
         self.kernel_manager = kernel_manager
         self.queue_manager = queue_manager
+        self.distributor: Optional[Distributor[KernelMessage]] = None
 
     def _create_distributor(
         self,
@@ -214,7 +216,9 @@ class NotificationListenerExtension(SessionExtension):
         self.distributor.start()
 
     def on_detach(self) -> None:
-        self.distributor.stop()
+        if self.distributor is not None:
+            self.distributor.stop()
+            self.distributor = None
 
 
 class LoggingExtension(SessionExtension, SessionEventListener):
@@ -252,10 +256,10 @@ class LoggingExtension(SessionExtension, SessionEventListener):
         )
 
     async def on_session_notebook_renamed(
-        self, session: Session, new_path: str
+        self, session: Session, old_path: str | None
     ) -> None:
         self.logger.debug(
             "Session file renamed: %s (new path: %s)",
             session.initialization_id,
-            new_path,
+            old_path,
         )

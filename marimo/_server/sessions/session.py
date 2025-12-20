@@ -87,6 +87,7 @@ class SessionImpl(Session):
         redirect_console_to_browser: bool,
         auto_instantiate: bool,
         ttl_seconds: Optional[int],
+        extensions: list[SessionExtension] | None = None,
     ) -> Session:
         """
         Create a new session.
@@ -113,6 +114,7 @@ class SessionImpl(Session):
         )
 
         extensions = [
+            *(extensions or []),
             LoggingExtension(),
             HeartbeatExtension(),
             CachingExtension(enabled=not auto_instantiate),
@@ -166,11 +168,13 @@ class SessionImpl(Session):
         self.kernel_manager.start_kernel()
         self._event_bus = SessionEventBus()
 
-        self.connect_consumer(session_consumer, main=True)
         self._closed = False
 
         # Attach all extensions
         self._attach_extensions()
+        # Connect the main consumer after attaching extensions,
+        # to avoid calling on_attach on the main consumer twice.
+        self.connect_consumer(session_consumer, main=True)
 
     def _attach_extensions(self) -> None:
         """Attach all extensions to the session."""
@@ -208,12 +212,15 @@ class SessionImpl(Session):
         # HACK: Ideally we don't need to reach into this extension directly
         for extension in self.extensions:
             if isinstance(extension, NotificationListenerExtension):
-                extension.distributor.flush()
+                if extension.distributor is not None:
+                    extension.distributor.flush()
                 return
 
     async def rename_path(self, new_path: str) -> None:
         """Rename the path of the session."""
-        await self._event_bus.emit_session_notebook_renamed(self, new_path)
+        old_path = self.app_file_manager.path
+        self.app_file_manager.rename(new_path)
+        await self._event_bus.emit_session_notebook_renamed(self, old_path)
 
     def try_interrupt(self) -> None:
         """Try to interrupt the kernel."""

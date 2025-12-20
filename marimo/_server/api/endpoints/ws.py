@@ -41,7 +41,6 @@ from marimo._server.router import APIRouter
 from marimo._server.rtc.doc import LoroDocManager
 from marimo._server.sessions import Session, SessionManager
 from marimo._server.sessions.events import SessionEventBus
-from marimo._server.sessions.extensions.types import SessionExtension
 from marimo._types.ids import CellId_t, ConsumerId, SessionId
 
 if TYPE_CHECKING:
@@ -241,7 +240,7 @@ KIOSK_EXCLUDED_OPERATIONS = {
 }
 
 
-class WebsocketHandler(SessionConsumer, SessionExtension):
+class WebsocketHandler(SessionConsumer):
     """WebSocket that sessions use to send messages to frontends.
 
     Each new socket gets a unique session. At most one session can exist when

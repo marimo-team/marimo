@@ -78,5 +78,7 @@ class Room:
                 consumer.notify(notification)
 
     def close(self) -> None:
+        # We don't need to detach consumers here because
+        # they will be detached when the session is closed.
         self.consumers = {}
         self.main_consumer = None

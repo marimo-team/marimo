@@ -156,9 +156,7 @@ class FileChangeCoordinator:
         # Track ongoing file change operations to prevent duplicates
         self._file_change_locks: dict[str, asyncio.Lock] = {}
 
-    async def handle_change(
-        self, file_path: Path, session: Session
-    ) -> FileChangeResult:
+    async def handle_change(self, file_path: Path, session: Session) -> None:
         """Handle a file change for a session.
 
         This method reloads the notebook and sends appropriate operations
@@ -178,7 +176,7 @@ class FileChangeCoordinator:
             self._file_change_locks[str(abs_file_path)] = asyncio.Lock()
 
         async with self._file_change_locks[str(abs_file_path)]:
-            return self._handle_file_change_locked(abs_file_path, session)
+            self._handle_file_change_locked(abs_file_path, session)
 
     def _handle_file_change_locked(
         self, file_path: str, session: Session
@@ -221,6 +219,9 @@ class FileChangeCoordinator:
         # Delegate to the reload strategy
         self._reload_strategy.handle_reload(
             session, changed_cell_ids=changed_cell_ids
+        )
+        print(
+            f"Reloaded file: {file_path}, changed_cell_ids: {changed_cell_ids}"
         )
 
         return FileChangeResult(

@@ -15,7 +15,7 @@ class SessionConsumer(ABC, SessionExtension):
     """
     Consumer for a session. This extends the SessionExtension interface.
 
-    This allows use to communicate with a session via different
+    This allows us to communicate with a session via different
     connection types.
     """
 

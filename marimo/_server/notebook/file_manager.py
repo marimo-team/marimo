@@ -228,11 +228,14 @@ class AppFileManager:
         result.cell_manager.ensure_one_cell()
         return result
 
-    def rename(self, new_filename: str | Path) -> None:
+    def rename(self, new_filename: str | Path) -> str:
         """Rename the notebook file.
 
         Args:
             new_filename: New filename (will be canonicalized)
+
+        Returns:
+            The filename of the new file.
 
         Raises:
             HTTPException: If rename fails or target exists
@@ -240,7 +243,7 @@ class AppFileManager:
         new_path = Path(canonicalize_filename(str(new_filename)))
 
         if self._is_same_path(new_path):
-            return
+            return new_path.name
 
         self._assert_path_does_not_exist(new_path)
 
@@ -264,6 +267,8 @@ class AppFileManager:
                 persist=True,
                 previous_path=previous_filename,
             )
+
+        return new_path.name
 
     def read_layout_config(self) -> Optional[LayoutConfig]:
         """Read layout configuration file.

@@ -284,7 +284,6 @@ async def run_app_until_completion(
                                 echo(line.data, file=sys.stderr, nl=False)
                     except Exception:
                         LOGGER.warning("Error printing console output")
-                        pass
 
             if isinstance(data, CompletedRun):
                 instantiated_event.set()

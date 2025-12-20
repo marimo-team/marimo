@@ -43,11 +43,11 @@ class SessionEventListener:
         return None
 
     async def on_session_notebook_renamed(
-        self, session: Session, new_path: str
+        self, session: Session, old_path: str | None
     ) -> None:
         """Called when a session notebook is renamed."""
         del session
-        del new_path
+        del old_path
         return None
 
     def on_notification_sent(
@@ -119,12 +119,12 @@ class SessionEventBus:
                 continue
 
     async def emit_session_notebook_renamed(
-        self, session: Session, new_path: str
+        self, session: Session, old_path: str | None
     ) -> None:
         """Emit a session renamed event."""
         for listener in self._listeners:
             try:
-                await listener.on_session_notebook_renamed(session, new_path)
+                await listener.on_session_notebook_renamed(session, old_path)
             except Exception as e:
                 LOGGER.error(
                     "Error handling session notebook renamed event for listener %s: %s",
