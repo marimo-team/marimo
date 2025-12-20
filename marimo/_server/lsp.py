@@ -473,7 +473,7 @@ class PyreflyServer(BaseLspServer):
 
     def validate_requirements(self) -> Union[str, Literal[True]]:
         if not DependencyManager.pyrefly.has():
-            return "Pyrefly is missing. Install it with `pip install Pyrefly`."
+            return "Pyrefly is missing. Install it with `pip install pyrefly`."
         if not DependencyManager.which("node"):
             return "node.js binary is missing. Install node at https://nodejs.org/."
         return True
@@ -497,7 +497,7 @@ class PyreflyServer(BaseLspServer):
     def missing_binary_alert(self) -> Alert:
         return Alert(
             title="Pyrefly: Connection Error",
-            description="<span><a class='hyperlink' href='https://github.com/facebook/pyrefly'>Install ty</a> for type checking support.</span>",
+            description="<span><a class='hyperlink' href='https://github.com/facebook/pyrefly'>Install pyrefly</a> for type checking support.</span>",
             variant="danger",
         )
 
