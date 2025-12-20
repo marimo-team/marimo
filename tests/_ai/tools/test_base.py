@@ -148,11 +148,13 @@ def test_get_notebook_errors_orders_by_cell_manager():
 
     # Mock session with cells c1, c2, c3
     session = Mock()
-    session.session_view.cell_operations = {
+    session_view = Mock()
+    session_view.cell_operations = {
         CellId_t("c1"): error_op,
         CellId_t("c2"): error_op,
         CellId_t("c3"): error_op,
     }
+    session.session_view = session_view
 
     # Cell manager returns in order: c3, c2, c1 (not alphabetical)
     cell_data = [

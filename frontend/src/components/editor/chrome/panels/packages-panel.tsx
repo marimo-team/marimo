@@ -35,9 +35,8 @@ import { ErrorBanner } from "@/plugins/impl/common/error-banner";
 import { cn } from "@/utils/cn";
 import { copyToClipboard } from "@/utils/copy";
 import { Events } from "@/utils/events";
-import { PACKAGES_INPUT_ID } from "./constants";
 import { PanelEmptyState } from "./empty-state";
-import { packagesToInstallAtom } from "./packages-state";
+import { PACKAGES_INPUT_ID, packagesToInstallAtom } from "./packages-utils";
 
 type ViewMode = "tree" | "list";
 
@@ -387,15 +386,22 @@ const UpgradeButton: React.FC<{
 
 const RemoveButton: React.FC<{
   packageName: string;
+  tags?: { kind: string; value: string }[];
   onSuccess: () => void;
-}> = ({ packageName, onSuccess }) => {
+}> = ({ packageName, tags, onSuccess }) => {
   const [loading, setLoading] = React.useState(false);
   const { removePackage } = useRequestClient();
 
   const handleRemovePackage = async () => {
     try {
       setLoading(true);
-      const response = await removePackage({ package: packageName });
+      const isDev = tags?.some(
+        (tag) => tag.kind === "group" && tag.value === "dev",
+      );
+      const response = await removePackage({
+        package: packageName,
+        dev: isDev,
+      });
       if (response.success) {
         onSuccess();
         showRemovePackageToast(packageName);
@@ -599,7 +605,14 @@ const DependencyTreeNode: React.FC<{
         {isTopLevel && (
           <div className="flex gap-1 invisible group-hover:visible">
             <UpgradeButton packageName={node.name} onSuccess={onSuccess} />
-            <RemoveButton packageName={node.name} onSuccess={onSuccess} />
+            <RemoveButton
+              packageName={node.name}
+              // FIXME: Backend types are wrong/outdated.
+              // tags actually have the shape: Array<{ kind: string; value: string }>
+              // @ts-expect-error — backend tag types do not match frontend expectations yet
+              tags={node.tags}
+              onSuccess={onSuccess}
+            />
           </div>
         )}
       </div>

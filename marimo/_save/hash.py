@@ -22,6 +22,7 @@ from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins.ui._core.ui_element import UIElement
 from marimo._runtime.context import ContextNotInitializedError, get_context
 from marimo._runtime.dataflow import induced_subgraph
+from marimo._runtime.dataflow.topology import GraphTopology
 from marimo._runtime.primitives import (
     CLONE_PRIMITIVES,
     FN_CACHE_TYPE,
@@ -146,7 +147,7 @@ def hash_function(
 
 def hash_cell_group(
     cell_ids: set[CellId_t],
-    graph: DirectedGraph,
+    graph: GraphTopology,
     hash_type: str = DEFAULT_HASH,
 ) -> bytes:
     hash_alg = hashlib.new(hash_type, usedforsecurity=False)
@@ -162,7 +163,7 @@ def hash_cell_group(
 
 
 def hash_cell_execution(
-    cell_id: CellId_t, graph: DirectedGraph, hash_type: str = DEFAULT_HASH
+    cell_id: CellId_t, graph: GraphTopology, hash_type: str = DEFAULT_HASH
 ) -> bytes:
     ancestors = graph.ancestors(cell_id)
     return hash_cell_group(ancestors, graph, hash_type)

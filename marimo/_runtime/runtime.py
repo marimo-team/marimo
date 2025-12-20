@@ -881,8 +881,24 @@ class Kernel:
                 if isinstance(e, ImportStarError):
                     error = MarimoImportStarError(msg=str(e), lineno=lineno)
                 else:
+
+                    def _get_syntax_hints(broken_line: str) -> str:
+                        if broken_line.startswith("!"):
+                            if "pip" in broken_line:
+                                return "\nTo install packages, use the package manager panel."
+                            return "\nTo run shell commands, use os.subprocess(...)"
+                        elif broken_line.startswith("%"):
+                            return (
+                                "\nIPython magic commands (starting with %) are not supported."
+                                "\nSee: https://links.marimo.app/from-jupyter-magics"
+                            )
+                        return ""
+
+                    hint = ""
+                    if len(syntax_error) > 1:
+                        hint = _get_syntax_hints(syntax_error[1].strip())
                     error = MarimoSyntaxError(
-                        msg="\n".join(syntax_error), lineno=lineno
+                        msg="\n".join(syntax_error) + hint, lineno=lineno
                     )
             else:
                 tmpio = io.StringIO()
@@ -983,11 +999,10 @@ class Kernel:
                     )
 
         LOGGER.debug(
-            "graph:\n\tcell id %s\n\tparents %s\n\tchildren %s\n\tsiblings %s",
+            "graph:\n\tcell id %s\n\tparents %s\n\tchildren %s",
             cell_id,
             self.graph.parents,
             self.graph.children,
-            self.graph.siblings,
         )
 
         # We only return cells that were previously children of cell_id
@@ -1743,7 +1758,7 @@ class Kernel:
             dataflow.transitive_closure(
                 self.graph,
                 cells_to_run,
-                relatives=dataflow.import_block_relatives,
+                relatives=dataflow.get_import_block_relatives(self.graph),
             )
         )
         if self.module_watcher is not None:
@@ -2080,7 +2095,7 @@ class Kernel:
 
         if self.graph.cells:
             del request
-            LOGGER.debug("App already instantiated.")
+            LOGGER.info("App is already instantiated, skipping instantiation.")
             return
 
         # Handle markdown cells specially during kernel-ready initialization
@@ -2113,6 +2128,7 @@ class Kernel:
         self, execution_requests: dict[CellId_t, ExecutionRequest]
     ) -> None:
         """Handle markdown cells during kernel-ready initialization.
+        Mutates the execution_requests to remove markdown cells.
 
         For cells that contain only markdown (mo.md calls), this method:
         1. Compiles the cells to extract markdown content

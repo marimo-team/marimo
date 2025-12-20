@@ -302,10 +302,17 @@ class TestEmbedTrace:
                         from tests._runtime.script_data import (
                             script_exception_with_output
                         )
+                    """
+                    ),
+                ),
+                ExecutionRequest(
+                    cell_id="1",
+                    code=textwrap.dedent(
+                        """
                         await script_exception_with_output.app.embed()
                     """
                     ),
-                )
+                ),
             ]
         )
 

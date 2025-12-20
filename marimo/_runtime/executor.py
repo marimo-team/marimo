@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Optional
 
 from marimo._ast.cell import CellImpl, _is_coroutine
-from marimo._ast.variables import is_mangled_local, unmangle_local
+from marimo._ast.variables import is_mangled_local
 from marimo._entrypoints.registry import EntryPointRegistry
 from marimo._runtime.copy import (
     CloneError,
@@ -66,8 +66,8 @@ def _raise_name_error(
     if graph is None:
         raise MarimoRuntimeException from name_error
     (missing_name,) = re.findall(r"'([^']*)'", str(name_error))
-    _, private_cell_id = unmangle_local(missing_name)
-    if missing_name in graph.definitions or private_cell_id:
+    # Will miss "locals" by default since not in the graph defs.
+    if missing_name in graph.definitions:
         raise MarimoRuntimeException from MarimoMissingRefError(
             missing_name, name_error
         )

@@ -2,14 +2,14 @@
 
 This guide introduces some of marimo editor's features, including
 a variables panel, dependency graph viewer, table of contents, HTML export,
-GitHub copilot, code formatting, a feedback form, and more.
+[GitHub copilot](ai_completion.md#github-copilot), code formatting, a feedback form, and more.
 
 ## Configuration
 
 The editor exposes of a number of settings for the current notebook,
 as well as user-wide configuration that will apply to all your notebooks.
 These settings include the option to display the current notebook in
-full width, to use vim keybindings, to enable GitHub copilot, and more.
+full width, to use [vim keybindings](#vim-keybindings), to enable [GitHub copilot](ai_completion.md#github-copilot), and more.
 
 To access these settings, click the gear icon in the top-right of the editor:
 
@@ -29,7 +29,7 @@ A non-exhaustive list of settings:
 - Auto-complete
 - Editor font-size
 - Code formatting with ruff/black
-- [GitHub Copilot](ai_completion.md)
+- [GitHub Copilot](ai_completion.md#github-copilot)
 - [LLM coding assistant](ai_completion.md)
 - [Module autoreloading](../configuration/runtime_configuration.md#on-module-change)
 - [Reactive reference highlighting](dataflow.md#reactive-reference-highlighting)
@@ -44,7 +44,7 @@ editing their contents.
 
 **Enter/Exit:**
 
-- Enter command mode: `Esc` (from cell editor) or `Ctrl+Esc`/`Cmd+Esc` (when vim keybindings are enabled, `Shift+Esc` on Windows)
+- Enter command mode: `Esc` (from cell editor) or `Ctrl+Esc`/`Cmd+Esc` (when [vim keybindings](#vim-keybindings) are enabled, `Shift+Esc` on Windows)
 - Exit command mode: `Enter` or click on a cell
 
 **Shortcuts:**
@@ -149,6 +149,18 @@ create.
 - Click on a variable in the editor to see where it's defined and used
 - `Cmd/Ctrl-Click` on a variable to jump to its definition
 - Right-click on a variable to see a context menu with options to jump to its definition
+
+## Signature hints
+
+Signature hints show a function’s docstring above your code as you type, making it easy to recall its arguments and usage.
+Enable this feature under the **Editor** section in the Settings panel.
+
+<div align="center">
+<figure>
+<img src="/_static/docs-signature-hint.png" width="600px" />
+</figure>
+</div>
+
 
 ## Keyboard shortcuts
 

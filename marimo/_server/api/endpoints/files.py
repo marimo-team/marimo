@@ -103,7 +103,7 @@ async def rename_file(
 
     if new_path:
         # Handle rename for watch
-        app_state.session_manager.handle_file_rename_for_watch(
+        await app_state.session_manager.handle_file_rename_for_watch(
             app_state.require_current_session_id(), prev_path, new_path
         )
 

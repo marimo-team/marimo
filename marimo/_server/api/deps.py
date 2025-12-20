@@ -51,10 +51,6 @@ class AppStateBase:
         return self.session_manager.quiet
 
     @property
-    def development_mode(self) -> bool:
-        return self.session_manager.development_mode
-
-    @property
     def host(self) -> str:
         host: str = self.state.host
         return host
@@ -164,9 +160,9 @@ class AppState(AppStateBase):
             LOGGER.warning(
                 "Valid consumers ids: %s",
                 [
-                    list(session.room.consumers.values())
+                    list(session.consumers.values())
                     for session in self.session_manager.sessions.values()
-                    if session.room.consumers
+                    if session.consumers
                 ],
             )
             raise ValueError(f"Invalid session id: {session_id}")

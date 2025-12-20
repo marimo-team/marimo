@@ -195,10 +195,13 @@ class Runner:
                 predicate=lambda cell: cell.stale,
             )
         )
+
         if execution_mode == "autorun":
             # in autorun/eager mode, descendants are also run;
             cells_to_run = dataflow.transitive_closure(
-                graph, cells_to_run, relatives=dataflow.import_block_relatives
+                graph,
+                cells_to_run,
+                relatives=dataflow.get_import_block_relatives(graph),
             )
 
         return dataflow.topological_sort(
@@ -643,7 +646,7 @@ class Runner:
         blamed_cell = None
         try:
             (blamed_cell, *_) = self.graph.get_defining_cells(ref)
-        except KeyError:
+        except (KeyError, ValueError):
             # The reference is not found anywhere else in the graph
             # but it might be private
             ref, var_cell_id = unmangle_local(ref)

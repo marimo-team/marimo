@@ -32,7 +32,7 @@ from marimo._utils.toml import read_toml
 from tests.utils import try_assert_n_times
 
 if TYPE_CHECKING:
-    from collections.abc import Generator, Iterator
+    from collections.abc import Iterator
 
 HAS_UV = DependencyManager.which("uv")
 
@@ -157,23 +157,19 @@ def _read_toml(filepath: Path) -> Optional[dict[str, Any]]:
     return read_toml(filepath)
 
 
-@contextlib.contextmanager
-def _write_temp_notebook(notebook: str) -> Generator[str, None, None]:
-    tmp_dir = tempfile.TemporaryDirectory()
-    tmp_file = os.path.join(tmp_dir.name, "notebook.py")
+def _write_temp_notebook(notebook: str, tmp_dir: Path) -> Path:
+    tmp_file = tmp_dir / "notebook.py"
     content = inspect.cleandoc(notebook)
-
-    try:
-        with open(tmp_file, "w") as f:
-            f.write(content)
-        yield tmp_file
-    finally:
-        tmp_dir.cleanup()
+    with open(tmp_file, "w") as f:
+        f.write(content)
+    return tmp_file
 
 
 @pytest.fixture
-def temp_marimo_file_with_inline_metadata() -> Generator[str, None, None]:
-    with _write_temp_notebook(
+def temp_marimo_file_with_inline_metadata(
+    tmp_path: Path,
+) -> str:
+    tmp_file = _write_temp_notebook(
         """
         # /// script
         # requires-python = ">=3.11"
@@ -195,14 +191,15 @@ def temp_marimo_file_with_inline_metadata() -> Generator[str, None, None]:
 
         if __name__ == "__main__":
             app.run()
-        """
-    ) as temp_file:
-        yield temp_file
+        """,
+        tmp_path,
+    )
+    return str(tmp_file)
 
 
 @pytest.fixture
-def temp_non_marimo_file() -> Generator[str, None, None]:
-    with _write_temp_notebook(
+def temp_non_marimo_file(tmp_path: Path) -> str:
+    tmp_file = _write_temp_notebook(
         """
         import numpy as np
 
@@ -210,33 +207,36 @@ def temp_non_marimo_file() -> Generator[str, None, None]:
 
         if __name__ == "__main__":
             print("This is a non-marimo file.")
-        """
-    ) as temp_file:
-        yield temp_file
+        """,
+        tmp_path,
+    )
+    return str(tmp_file)
 
 
 @pytest.fixture
-def temp_non_marimo_file_with_marimo() -> Generator[str, None, None]:
-    with _write_temp_notebook(
+def temp_non_marimo_file_with_marimo(tmp_path: Path) -> str:
+    tmp_file = _write_temp_notebook(
         """
         import numpy as np
         import marimo as mo
 
         if __name__ == "__main__":
             print("This is a non-marimo file with a marimo import.")
-        """
-    ) as temp_file:
-        yield temp_file
+        """,
+        tmp_path,
+    )
+    return str(tmp_file)
 
 
 @pytest.fixture
-def temp_text_file() -> Generator[str, None, None]:
-    with _write_temp_notebook(
+def temp_text_file(tmp_path: Path) -> str:
+    tmp_file = _write_temp_notebook(
         """
         This is a syntax invalid file.
-        """
-    ) as temp_file:
-        yield temp_file
+        """,
+        tmp_path,
+    )
+    return str(tmp_file)
 
 
 @pytest.fixture(
@@ -361,35 +361,36 @@ def test_cli_edit_token_password_mutual_exclusivity() -> None:
     )
 
 
-def test_cli_run_token_password_file_stdin() -> None:
+def test_cli_run_token_password_file_stdin(tmp_path: Path) -> None:
     # Test stdin with run command using --token-password-file -
-    with _write_temp_notebook(
+    tmp_file = _write_temp_notebook(
         """
         import marimo
         app = marimo.App()
-        """
-    ) as tmp_file:
-        port = _get_port()
-        p = subprocess.Popen(
-            [
-                "marimo",
-                "run",
-                tmp_file,
-                "-p",
-                str(port),
-                "--headless",
-                "--token",
-                "--token-password-file",
-                "-",
-            ],
-            stdin=subprocess.PIPE,
-        )
-        if p.stdin:
-            p.stdin.write(b"run_secret")
-            p.stdin.close()
+        """,
+        tmp_path,
+    )
+    port = _get_port()
+    p = subprocess.Popen(
+        [
+            "marimo",
+            "run",
+            tmp_file,
+            "-p",
+            str(port),
+            "--headless",
+            "--token",
+            "--token-password-file",
+            "-",
+        ],
+        stdin=subprocess.PIPE,
+    )
+    if p.stdin:
+        p.stdin.write(b"run_secret")
+        p.stdin.close()
 
-        contents = _try_fetch(port, "localhost", "run_secret")
-        _check_contents(p, b'"appConfig":', contents)
+    contents = _try_fetch(port, "localhost", "run_secret")
+    _check_contents(p, b'"appConfig":', contents)
 
 
 def test_cli_edit_token_password_file_path() -> None:
@@ -1333,6 +1334,87 @@ def test_cli_run_docker_remote_url():
             "-y",
             "edit",
             remote_url,
+        ],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+
+    # Should fail with missing docker
+    assert p.returncode != 0
+    assert p.stdout is not None
+    assert "Docker is not installed" in p.stdout.read().decode()
+
+
+def test_cli_edit_trusted(temp_marimo_file: str) -> None:
+    # --trusted should work normally with local files
+    port = _get_port()
+    p = subprocess.Popen(
+        [
+            "marimo",
+            "edit",
+            temp_marimo_file,
+            "-p",
+            str(port),
+            "--headless",
+            "--no-token",
+            "--trusted",
+        ]
+    )
+    contents = _try_fetch(port)
+    _check_contents(p, b'"mode": "edit"', contents)
+
+
+@pytest.mark.skipif(
+    HAS_DOCKER, reason="docker is required to be not installed"
+)
+def test_cli_edit_no_trusted(temp_marimo_file: str) -> None:
+    # --untrusted should try to use Docker, fail if not installed
+    p = subprocess.Popen(
+        [
+            "marimo",
+            "edit",
+            temp_marimo_file,
+            "--untrusted",
+        ],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+
+    # Should fail with missing docker
+    assert p.returncode != 0
+    assert p.stdout is not None
+    assert "Docker is not installed" in p.stdout.read().decode()
+
+
+def test_cli_run_trusted(temp_marimo_file: str) -> None:
+    # --trusted should work normally with local files
+    port = _get_port()
+    p = subprocess.Popen(
+        [
+            "marimo",
+            "run",
+            temp_marimo_file,
+            "-p",
+            str(port),
+            "--headless",
+            "--trusted",
+        ]
+    )
+    contents = _try_fetch(port)
+    _check_contents(p, b'"mode": "read"', contents)
+
+
+@pytest.mark.skipif(
+    HAS_DOCKER, reason="docker is required to be not installed"
+)
+def test_cli_run_no_trusted(temp_marimo_file: str) -> None:
+    # --untrusted should try to use Docker, fail if not installed
+    p = subprocess.Popen(
+        [
+            "marimo",
+            "run",
+            temp_marimo_file,
+            "--untrusted",
         ],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,

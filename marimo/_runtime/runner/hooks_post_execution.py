@@ -286,7 +286,7 @@ def _issue_exception_side_effect(
 @kernel_tracer.start_as_current_span("broadcast_outputs")
 def _broadcast_outputs(
     cell: CellImpl,
-    _runner: cell_runner.Runner,
+    runner: cell_runner.Runner,
     run_result: cell_runner.RunResult,
 ) -> None:
     # TODO: clean this logic up ...
@@ -311,6 +311,12 @@ def _broadcast_outputs(
             formatted_output = formatting.try_format(
                 run_result.output, include_opinionated=False
             )
+        # For ImportError and ModuleNotFoundError, store the exception in the runner
+        # so it can be reported by the missing_packages_hook.
+        if isinstance(
+            formatted_output.exception, (ImportError, ModuleNotFoundError)
+        ):
+            runner.exceptions[cell.cell_id] = formatted_output.exception
         if formatted_output.traceback is not None:
             write_traceback(formatted_output.traceback)
 

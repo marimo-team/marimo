@@ -77,7 +77,7 @@ interface UpdateStagedCellAction {
 export function useStagedCells(store: JotaiStore) {
   const { addStagedCell, removeStagedCell, clearStagedCells } =
     useStagedAICellsActions();
-  const { createNewCell } = useCellActions();
+  const { createNewCell, updateCellCode } = useCellActions();
   const deleteCellCallback = useDeleteCellCallback();
 
   const cellCreationStream = useRef<CellCreationStream | null>(null);
@@ -103,13 +103,14 @@ export function useStagedCells(store: JotaiStore) {
       return;
     }
 
+    // Update the editor code if the cell is mounted
+    // Else, update the cell code in the notebook
     const editorView = getCellEditorView(cellId);
-    if (!editorView) {
-      Logger.error("Editor for this cell not found", { cellId });
-      return;
+    if (editorView) {
+      updateEditorCodeFromPython(editorView, code);
+    } else {
+      updateCellCode({ cellId, code, formattingChange: false });
     }
-    // TODO: Update the language
-    updateEditorCodeFromPython(editorView, code);
   };
 
   // Delete a staged cell and the corresponding cell in the notebook.

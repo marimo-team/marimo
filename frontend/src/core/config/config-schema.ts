@@ -74,6 +74,7 @@ export const UserConfigSchema = z
     completion: z
       .object({
         activate_on_typing: z.boolean().prefault(true),
+        signature_hint_on_typing: z.boolean().prefault(false),
         copilot: z
           .union([z.boolean(), z.enum(["github", "codeium", "custom"])])
           .prefault(false)
@@ -131,7 +132,7 @@ export const UserConfigSchema = z
       .looseObject({
         theme: z.enum(["light", "dark", "system"]).prefault("light"),
         code_editor_font_size: z.number().nonnegative().prefault(14),
-        cell_output: z.enum(["above", "below"]).prefault("above"),
+        cell_output: z.enum(["above", "below"]).prefault("below"),
         dataframes: z.enum(["rich", "plain"]).prefault("rich"),
         default_table_page_size: z.number().prefault(10),
         default_table_max_columns: z.number().prefault(50),

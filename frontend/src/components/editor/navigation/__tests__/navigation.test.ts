@@ -51,6 +51,8 @@ vi.mock("../clipboard", () => ({
 vi.mock("../focus-utils", () => ({
   focusCellEditor: vi.fn(),
   focusCell: vi.fn(),
+  scrollCellIntoView: vi.fn(),
+  raf2: vi.fn((callback: () => void) => callback()),
 }));
 
 // Mock simplifySelection from @codemirror/commands
@@ -1673,6 +1675,7 @@ describe("useCellEditorNavigationProps", () => {
                 { from: 15, to: 15, empty: true },
               ],
             },
+            field: vi.fn().mockReturnValue(false),
           },
           dispatch: vi.fn(),
         } as unknown as EditorView,
@@ -1715,6 +1718,7 @@ describe("useCellEditorNavigationProps", () => {
         current: {
           state: {
             selection: { main: { from: 5, to: 5, empty: true } },
+            field: vi.fn().mockReturnValue(false),
           },
           dispatch: vi.fn(),
         } as unknown as EditorView,

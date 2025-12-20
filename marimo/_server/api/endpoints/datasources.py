@@ -12,11 +12,9 @@ from marimo._runtime.requests import (
     PreviewSQLTableListRequest,
     PreviewSQLTableRequest,
 )
-from marimo._server.api.deps import AppState
-from marimo._server.api.utils import parse_request
-from marimo._server.models.models import BaseResponse, SuccessResponse
+from marimo._server.api.utils import dispatch_control_request
+from marimo._server.models.models import BaseResponse
 from marimo._server.router import APIRouter
-from marimo._types.ids import ConsumerId
 
 if TYPE_CHECKING:
     from starlette.requests import Request
@@ -46,13 +44,7 @@ async def preview_column(
                     schema:
                         $ref: "#/components/schemas/SuccessResponse"
     """
-    app_state = AppState(request)
-    body = await parse_request(request, PreviewDatasetColumnRequest)
-    app_state.require_current_session().put_control_request(
-        body,
-        from_consumer_id=ConsumerId(app_state.require_current_session_id()),
-    )
-    return SuccessResponse()
+    return await dispatch_control_request(request, PreviewDatasetColumnRequest)
 
 
 @router.post("/preview_sql_table")
@@ -72,13 +64,7 @@ async def preview_sql_table(request: Request) -> BaseResponse:
                     schema:
                         $ref: "#/components/schemas/SuccessResponse"
     """
-    app_state = AppState(request)
-    body = await parse_request(request, PreviewSQLTableRequest)
-    app_state.require_current_session().put_control_request(
-        body,
-        from_consumer_id=ConsumerId(app_state.require_current_session_id()),
-    )
-    return SuccessResponse()
+    return await dispatch_control_request(request, PreviewSQLTableRequest)
 
 
 @router.post("/preview_sql_table_list")
@@ -98,13 +84,7 @@ async def preview_sql_table_list(request: Request) -> BaseResponse:
                     schema:
                         $ref: "#/components/schemas/SuccessResponse"
     """
-    app_state = AppState(request)
-    body = await parse_request(request, PreviewSQLTableListRequest)
-    app_state.require_current_session().put_control_request(
-        body,
-        from_consumer_id=ConsumerId(app_state.require_current_session_id()),
-    )
-    return SuccessResponse()
+    return await dispatch_control_request(request, PreviewSQLTableListRequest)
 
 
 @router.post("/preview_datasource_connection")
@@ -124,10 +104,6 @@ async def preview_datasource_connection(request: Request) -> BaseResponse:
                     schema:
                         $ref: "#/components/schemas/SuccessResponse"
     """
-    app_state = AppState(request)
-    body = await parse_request(request, PreviewDataSourceConnectionRequest)
-    app_state.require_current_session().put_control_request(
-        body,
-        from_consumer_id=ConsumerId(app_state.require_current_session_id()),
+    return await dispatch_control_request(
+        request, PreviewDataSourceConnectionRequest
     )
-    return SuccessResponse()

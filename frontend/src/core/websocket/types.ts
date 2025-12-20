@@ -1,7 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import type ReconnectingWebSocket from "partysocket/ws";
-
+// TODO: rename to ConnectionState
 export const WebSocketState = {
   CONNECTING: "CONNECTING",
   OPEN: "OPEN",
@@ -41,9 +40,3 @@ export type ConnectionStatus =
         | typeof WebSocketState.OPEN
         | typeof WebSocketState.CLOSING;
     };
-
-type PublicInterface<T> = {
-  [P in keyof T]: T[P];
-};
-
-export type IReconnectingWebSocket = PublicInterface<ReconnectingWebSocket>;

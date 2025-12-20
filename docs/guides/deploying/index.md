@@ -26,8 +26,9 @@ Here are a few ways to deploy an edit server on a remote instance:
 1. With [ssh-port forwarding](../../faq.md#faq-remote), using `marimo edit --headless`.
 2. Via docker and our [prebuilt containers](prebuilt_containers.md).
 3. Via a deployment service [such as Railway](deploying_railway.md).
-4. [On Slurm/HPC clusters](deploying_slurm.md).
-5. [Behind JupyterHub](../../faq.md#faq-jupyter-hub).
+4. Via [SkyPilot](deploying_skypilot.md).
+5. [On Slurm/HPC clusters](deploying_slurm.md).
+6. [Behind JupyterHub](../../faq.md#faq-jupyter-hub).
 
 ## Deploying as read-only apps
 

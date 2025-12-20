@@ -65,6 +65,7 @@ describe("Cell data attributes", () => {
       keymap: { preset: "default" },
       completion: {
         activate_on_typing: true,
+        signature_hint_on_typing: false,
         copilot: false,
       },
       formatting: { line_length: 88 },

@@ -1204,7 +1204,7 @@ def test_import_block_relatives() -> None:
     graph.register_cell("3", fourth_cell)
 
     # Test the function
-    children = dataflow.import_block_relatives(graph, "0", True)
+    children = dataflow.get_import_block_relatives(graph)("0", True)
 
     # Should include cells that use pd and np
     assert "1" in children
@@ -1212,7 +1212,7 @@ def test_import_block_relatives() -> None:
     assert "3" not in children
 
     # Test with a non-import block
-    children = dataflow.import_block_relatives(graph, "3", True)
+    children = dataflow.get_import_block_relatives(graph)("3", True)
 
     # Should just return normal children
     assert children == graph.children["3"]
@@ -1405,3 +1405,187 @@ def test_directed_graph_copy_no_filename() -> None:
         # Verify the copied graph has the same structure
         assert len(copied_graph.cells) == 1
         assert "0" in copied_graph.cells
+
+
+def test_prune_cells_for_overrides_empty() -> None:
+    """Test prune_cells_for_overrides with no overrides returns all cells."""
+    graph = dataflow.DirectedGraph()
+
+    # Create cells: x = 0, y = x, z = y
+    cell_0 = parse_cell("x = 0")
+    graph.register_cell("0", cell_0)
+
+    cell_1 = parse_cell("y = x")
+    graph.register_cell("1", cell_1)
+
+    cell_2 = parse_cell("z = y")
+    graph.register_cell("2", cell_2)
+
+    execution_order = ["0", "1", "2"]
+
+    # Test with empty overrides
+    result = dataflow.prune_cells_for_overrides(graph, execution_order, {})
+    assert result == ["0", "1", "2"]
+
+
+def test_prune_cells_for_overrides_single_cell() -> None:
+    """Test pruning a single cell that defines a single variable."""
+    graph = dataflow.DirectedGraph()
+
+    # Create cells: x = 0, y = x, z = y
+    cell_0 = parse_cell("x = 0")
+    graph.register_cell("0", cell_0)
+
+    cell_1 = parse_cell("y = x")
+    graph.register_cell("1", cell_1)
+
+    cell_2 = parse_cell("z = y")
+    graph.register_cell("2", cell_2)
+
+    execution_order = ["0", "1", "2"]
+
+    # Override x - should prune cell 0
+    result = dataflow.prune_cells_for_overrides(
+        graph, execution_order, {"x": 100}
+    )
+    assert result == ["1", "2"]
+
+
+def test_prune_cells_for_overrides_multiple_defs() -> None:
+    """Test pruning a cell that defines multiple variables."""
+    graph = dataflow.DirectedGraph()
+
+    # Create cell that defines both x and y
+    cell_0 = parse_cell("x = 0\ny = 1")
+    graph.register_cell("0", cell_0)
+
+    # Cell that uses x and y
+    cell_1 = parse_cell("z = x + y")
+    graph.register_cell("1", cell_1)
+
+    execution_order = ["0", "1"]
+
+    # Override both x and y - should prune cell 0
+    result = dataflow.prune_cells_for_overrides(
+        graph, execution_order, {"x": 100, "y": 200}
+    )
+    assert result == ["1"]
+
+
+def test_prune_cells_for_overrides_incomplete_refs_error() -> None:
+    """Test that incomplete overrides raise IncompleteRefsError."""
+    from marimo._ast.errors import IncompleteRefsError
+
+    graph = dataflow.DirectedGraph()
+
+    # Create cell that defines both x and y
+    cell_0 = parse_cell("x = 0\ny = 1")
+    graph.register_cell("0", cell_0)
+
+    # Cell that uses x and y
+    cell_1 = parse_cell("z = x + y")
+    graph.register_cell("1", cell_1)
+
+    execution_order = ["0", "1"]
+
+    # Override only x (not y) - should raise error
+    with pytest.raises(IncompleteRefsError) as exc_info:
+        dataflow.prune_cells_for_overrides(graph, execution_order, {"x": 100})
+
+    assert "y" in str(exc_info.value)
+    assert "Missing: ['y']" in str(exc_info.value)
+    assert "Provided refs: ['x']" in str(exc_info.value)
+
+
+def test_prune_cells_for_overrides_multiple_cells() -> None:
+    """Test pruning multiple cells when overriding multiple variables."""
+    graph = dataflow.DirectedGraph()
+
+    # Create separate cells for x and y
+    cell_0 = parse_cell("x = 0")
+    graph.register_cell("0", cell_0)
+
+    cell_1 = parse_cell("y = 1")
+    graph.register_cell("1", cell_1)
+
+    # Cell that uses both x and y
+    cell_2 = parse_cell("z = x + y")
+    graph.register_cell("2", cell_2)
+
+    execution_order = ["0", "1", "2"]
+
+    # Override both x and y - should prune cells 0 and 1
+    result = dataflow.prune_cells_for_overrides(
+        graph, execution_order, {"x": 100, "y": 200}
+    )
+    assert result == ["2"]
+
+
+def test_prune_cells_for_overrides_partial_override() -> None:
+    """Test partial override where only some cells are pruned."""
+    graph = dataflow.DirectedGraph()
+
+    # Create separate cells for x and y
+    cell_0 = parse_cell("x = 0")
+    graph.register_cell("0", cell_0)
+
+    cell_1 = parse_cell("y = 1")
+    graph.register_cell("1", cell_1)
+
+    # Cell that uses both x and y
+    cell_2 = parse_cell("z = x + y")
+    graph.register_cell("2", cell_2)
+
+    execution_order = ["0", "1", "2"]
+
+    # Override only x - should prune only cell 0
+    result = dataflow.prune_cells_for_overrides(
+        graph, execution_order, {"x": 100}
+    )
+    assert result == ["1", "2"]
+
+
+def test_prune_cells_for_overrides_nonexistent_variable() -> None:
+    """Test overriding a variable that doesn't exist in the graph."""
+    graph = dataflow.DirectedGraph()
+
+    # Create cells: x = 0, y = x
+    cell_0 = parse_cell("x = 0")
+    graph.register_cell("0", cell_0)
+
+    cell_1 = parse_cell("y = x")
+    graph.register_cell("1", cell_1)
+
+    execution_order = ["0", "1"]
+
+    # Override a variable that doesn't exist - should not prune anything
+    result = dataflow.prune_cells_for_overrides(
+        graph, execution_order, {"nonexistent": 100}
+    )
+    assert result == ["0", "1"]
+
+
+def test_prune_cells_for_overrides_preserves_order() -> None:
+    """Test that pruning preserves the original execution order."""
+    graph = dataflow.DirectedGraph()
+
+    # Create cells in specific order
+    cell_0 = parse_cell("a = 0")
+    graph.register_cell("0", cell_0)
+
+    cell_1 = parse_cell("b = 1")
+    graph.register_cell("1", cell_1)
+
+    cell_2 = parse_cell("c = 2")
+    graph.register_cell("2", cell_2)
+
+    cell_3 = parse_cell("d = a + c")
+    graph.register_cell("3", cell_3)
+
+    execution_order = ["0", "1", "2", "3"]
+
+    # Override b - should prune only cell 1, preserving order
+    result = dataflow.prune_cells_for_overrides(
+        graph, execution_order, {"b": 100}
+    )
+    assert result == ["0", "2", "3"]

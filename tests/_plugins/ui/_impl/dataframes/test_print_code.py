@@ -426,11 +426,21 @@ def test_print_code_result_matches_actual_transform_pandas(
             code_result = code_result.to_frame()
         if isinstance(real_result, pd.Series):
             real_result = real_result.to_frame()
-        # Remove index to compare
-        pd.testing.assert_frame_equal(
-            cast(pd.DataFrame, code_result).reset_index(drop=True),
-            real_result.reset_index(drop=True),
-        )
+
+        code_result = cast(pd.DataFrame, code_result).reset_index(drop=True)
+        real_result = real_result.reset_index(drop=True)
+
+        # For group_by transforms, the row order might differ
+        # Sort both dataframes by all columns before comparing
+        if transform.type == TransformType.GROUP_BY:
+            code_result = code_result.sort_values(
+                by=list(code_result.columns)
+            ).reset_index(drop=True)
+            real_result = real_result.sort_values(
+                by=list(real_result.columns)
+            ).reset_index(drop=True)
+
+        pd.testing.assert_frame_equal(code_result, real_result)
 
 
 @given(

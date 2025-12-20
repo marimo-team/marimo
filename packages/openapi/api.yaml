@@ -19,6 +19,11 @@ components:
 
         /example/foo-0.1.0-py3-none-any.whl'
       properties:
+        dev:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          default: false
         package:
           type: string
         upgrade:
@@ -662,8 +667,9 @@ components:
       description: "Configuration for code completion.\n\n    A dict with key/value\
         \ pairs configuring code completion in the marimo\n    editor.\n\n    **Keys.**\n\
         \n    - `activate_on_typing`: if `False`, completion won't activate\n    until\
-        \ the completion hotkey is entered\n    - `copilot`: one of `\"github\"`,\
-        \ `\"codeium\"`, or `\"custom\"`\n    - `codeium_api_key`: the Codeium API\
+        \ the completion hotkey is entered\n    - `signature_hint_on_typing`: if `False`,\
+        \ signature hint won't be shown when typing\n    - `copilot`: one of `\"github\"\
+        `, `\"codeium\"`, or `\"custom\"`\n    - `codeium_api_key`: the Codeium API\
         \ key"
       properties:
         activate_on_typing:
@@ -691,9 +697,12 @@ components:
           anyOf:
           - type: string
           - type: 'null'
+        signature_hint_on_typing:
+          type: boolean
       required:
       - activate_on_typing
       - copilot
+      - signature_hint_on_typing
       title: CompletionConfig
       type: object
     CompletionOption:
@@ -2760,6 +2769,11 @@ components:
       type: object
     RemovePackageRequest:
       properties:
+        dev:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          default: false
         package:
           type: string
       required:

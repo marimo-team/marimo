@@ -268,7 +268,11 @@ def test_composite_server():
             }
         )
         completion_config = CompletionConfig(
-            {"copilot": True, "activate_on_typing": True}
+            {
+                "copilot": True,
+                "activate_on_typing": True,
+                "signature_hint_on_typing": False,
+            }
         )
         config_reader = as_reader(completion_config, config)
         config = config_reader.get_config()
@@ -284,7 +288,11 @@ def test_composite_server():
         # Test with only pylsp
         config = LanguageServersConfig({"pylsp": {"enabled": True}})
         completion_config = CompletionConfig(
-            {"copilot": False, "activate_on_typing": True}
+            {
+                "copilot": False,
+                "activate_on_typing": True,
+                "signature_hint_on_typing": False,
+            }
         )
         config_reader = as_reader(completion_config, config)
         config = config_reader.get_config()
@@ -303,7 +311,11 @@ def test_composite_server():
             }
         )
         completion_config = CompletionConfig(
-            {"copilot": False, "activate_on_typing": True}
+            {
+                "copilot": False,
+                "activate_on_typing": True,
+                "signature_hint_on_typing": False,
+            }
         )
         config_reader = as_reader(completion_config, config)
         config = config_reader.get_config()
@@ -323,7 +335,11 @@ def test_composite_server():
             }
         )
         completion_config = CompletionConfig(
-            {"copilot": False, "activate_on_typing": True}
+            {
+                "copilot": False,
+                "activate_on_typing": True,
+                "signature_hint_on_typing": False,
+            }
         )
         config_reader = as_reader(completion_config, config)
         config = config_reader.get_config()
@@ -337,7 +353,11 @@ def test_composite_server():
         # Test with nothing enabled
         config = LanguageServersConfig({"pylsp": {"enabled": False}})
         completion_config = CompletionConfig(
-            {"copilot": False, "activate_on_typing": True}
+            {
+                "copilot": False,
+                "activate_on_typing": True,
+                "signature_hint_on_typing": False,
+            }
         )
         config_reader = as_reader(completion_config, config)
         config = config_reader.get_config()
@@ -416,7 +436,11 @@ def test_any_lsp_server_running():
     # Test any_lsp_server_running function
     config: MarimoConfig = merge_default_config(
         {
-            "completion": {"copilot": True, "activate_on_typing": True},
+            "completion": {
+                "copilot": True,
+                "activate_on_typing": True,
+                "signature_hint_on_typing": False,
+            },
             "language_servers": {"pylsp": {"enabled": False}},
         }
     )
@@ -424,7 +448,11 @@ def test_any_lsp_server_running():
 
     config: MarimoConfig = merge_default_config(
         {
-            "completion": {"copilot": False, "activate_on_typing": True},
+            "completion": {
+                "copilot": False,
+                "activate_on_typing": True,
+                "signature_hint_on_typing": False,
+            },
             "language_servers": {"pylsp": {"enabled": True}},
         }
     )
@@ -432,7 +460,11 @@ def test_any_lsp_server_running():
 
     config: MarimoConfig = merge_default_config(
         {
-            "completion": {"copilot": False, "activate_on_typing": True},
+            "completion": {
+                "copilot": False,
+                "activate_on_typing": True,
+                "signature_hint_on_typing": False,
+            },
             "language_servers": {"pylsp": {"enabled": False}},
         }
     )
@@ -440,7 +472,23 @@ def test_any_lsp_server_running():
 
     config: MarimoConfig = merge_default_config(
         {
-            "completion": {"copilot": False, "activate_on_typing": True},
+            "completion": {
+                "copilot": False,
+                "activate_on_typing": True,
+                "signature_hint_on_typing": False,
+            },
+            "language_servers": {},  # default is false
+        }
+    )
+    assert any_lsp_server_running(config) is False
+
+    config: MarimoConfig = merge_default_config(
+        {
+            "completion": {
+                "copilot": False,
+                "activate_on_typing": True,
+                "signature_hint_on_typing": True,
+            },
             "language_servers": {},  # default is false
         }
     )

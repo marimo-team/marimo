@@ -399,6 +399,38 @@ export const UserConfigForm: React.FC = () => {
                   </div>
                 )}
               />
+              <FormField
+                control={form.control}
+                name="completion.signature_hint_on_typing"
+                render={({ field }) => (
+                  <div className="flex flex-col space-y-1">
+                    <FormItem className={formItemClasses}>
+                      <FormLabel className="font-normal">
+                        Signature hints
+                      </FormLabel>
+                      <FormControl>
+                        <Checkbox
+                          data-testid="signature-hint-on-type-checkbox"
+                          checked={field.value ?? false}
+                          disabled={field.disabled}
+                          onCheckedChange={(checked) => {
+                            field.onChange(Boolean(checked));
+                          }}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                      <IsOverridden
+                        userConfig={config}
+                        name="completion.signature_hint_on_typing"
+                      />
+                    </FormItem>
+                    <FormDescription>
+                      Display signature hints while typing within function
+                      calls.
+                    </FormDescription>
+                  </div>
+                )}
+              />
             </SettingGroup>
             <SettingGroup title="Language Servers">
               <FormDescription>
