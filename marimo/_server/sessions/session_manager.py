@@ -222,6 +222,8 @@ class SessionManager:
         Returns:
             tuple[bool, Optional[str]]: (success, error_message)
         """
+        from marimo._server.api.status import HTTPException
+
         session = self.get_session(session_id)
         if not session:
             return False, "Session not found"
@@ -230,6 +232,9 @@ class SessionManager:
 
         try:
             await session.rename_path(new_path)
+        except HTTPException as e:
+            # HTTPException stores the message in detail, not in __str__
+            return False, e.detail or str(e)
         except Exception as e:
             return False, str(e)
 

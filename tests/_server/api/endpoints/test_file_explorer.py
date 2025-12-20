@@ -115,7 +115,7 @@ def test_update_file_with_session(client: TestClient) -> None:
         assert data["op"] == "kernel-ready"
 
         # Verify file watcher was attached when session was created
-        assert len(sm._file_watcher_lifecycle._session_callbacks) == 1
+        assert len(sm._watcher_manager._callbacks) == 1
 
         # Update the file
         response = client.post(
@@ -138,7 +138,7 @@ def test_update_file_with_session(client: TestClient) -> None:
 
     # Clean up
     sm.watch = False
-    sm.watcher_manager.stop_all()
+    sm._watcher_manager.stop_all()
 
 
 def test_move_file_or_directory(client: TestClient) -> None:

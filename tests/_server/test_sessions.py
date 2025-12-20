@@ -958,7 +958,7 @@ def __():
         )
         assert not success
         assert error is not None
-        assert "does not exist" in error
+        assert "Failed to rename" in error
 
         # Try to rename with an invalid session
         success, error = await session_manager.rename_session(

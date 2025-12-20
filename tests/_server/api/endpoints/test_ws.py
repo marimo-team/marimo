@@ -212,6 +212,10 @@ def test_fails_on_multiple_connections_with_same_file(
 async def test_file_watcher_calls_reload(client: TestClient) -> None:
     session_manager: SessionManager = get_session_manager(client)
     session_manager.mode = SessionMode.RUN
+    # Recreate the file change coordinator with the new mode's strategy
+    session_manager._file_change_coordinator = (
+        session_manager._create_file_change_coordinator()
+    )
     session_manager.watch = True
     with client.websocket_connect(WS_URL) as websocket:
         data = websocket.receive_json()
@@ -221,8 +225,8 @@ async def test_file_watcher_calls_reload(client: TestClient) -> None:
         with open(filename, "a") as f:  # noqa: ASYNC230
             f.write("\n# test")
             f.close()
-        assert session_manager.watcher_manager._watchers
-        watcher = list(session_manager.watcher_manager._watchers.values())[0]
+        assert session_manager._watcher_manager._watchers
+        watcher = list(session_manager._watcher_manager._watchers.values())[0]
         await watcher.callback(Path(filename))
         data = websocket.receive_json()
         assert data == {"op": "reload", "data": {"op": "reload"}}

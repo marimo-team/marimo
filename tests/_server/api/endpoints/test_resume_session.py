@@ -372,7 +372,7 @@ def test_resume_session_with_watch(client: TestClient) -> None:
     assert session_view.last_executed_code == {"MJUe": "x=10; x"}
 
     session_manager.watch = False
-    session_manager.watcher_manager.stop_all()
+    session_manager._watcher_manager.stop_all()
     client.post("/api/kernel/shutdown", headers=HEADERS)
 
 
