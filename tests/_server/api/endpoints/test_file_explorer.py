@@ -98,9 +98,8 @@ def test_update_file(client: TestClient) -> None:
 @pytest.mark.skipif(is_windows(), reason="not supported on Windows")
 def test_update_file_with_session(client: TestClient) -> None:
     sm = get_session_manager(client)
-    # Enable watch mode to set up file watcher lifecycle
+    # Enable watch mode (file watcher is set up automatically)
     sm.watch = True
-    sm._setup_file_watching()
 
     file_path = sm.file_router.get_unique_file_key()
     assert file_path

@@ -689,8 +689,8 @@ def test_watch_mode_does_not_override_config(tmp_path: Path) -> None:
 
 
 @save_and_restore_main
-async def test_watch_mode_with_watcher_on_save_config(tmp_path: Path) -> None:
-    """Test that watch mode works correctly with watcher_on_save config."""
+async def test_watch_mode_with_watcher_on_save_autorun(tmp_path: Path) -> None:
+    """Test that watch mode with autorun config auto-executes changed cells."""
     tmp_file = tmp_path / "test.py"
     tmp_file.write_text(
         dedent(
@@ -789,7 +789,33 @@ async def test_watch_mode_with_watcher_on_save_config(tmp_path: Path) -> None:
         last_call = session.session_view.add_control_request.call_args[0][0]
         assert isinstance(last_call, SyncGraphRequest)
 
-        # Now change config to lazy mode
+    finally:
+        # Cleanup
+        if session_manager:
+            session_manager.shutdown()
+
+
+@save_and_restore_main
+async def test_watch_mode_with_watcher_on_save_lazy(tmp_path: Path) -> None:
+    """Test that watch mode with lazy config marks cells as stale without executing."""
+    tmp_file = tmp_path / "test.py"
+    tmp_file.write_text(
+        dedent(
+            """
+        import marimo
+        app = marimo.App()
+
+        @app.cell
+        def __():
+            1
+        """
+        )
+    )
+    session_manager: SessionManager | None = None
+
+    try:
+        # Create a config with watcher_on_save set to lazy
+        config_reader = get_default_config_manager(current_path=None)
         config_reader_lazy = config_reader.with_overrides(
             {
                 "runtime": {
@@ -797,11 +823,43 @@ async def test_watch_mode_with_watcher_on_save_config(tmp_path: Path) -> None:
                 }
             }
         )
-        session_manager._config_manager.get_config = (
-            lambda: config_reader_lazy.get_config()
+
+        # Create a session manager with file watching enabled
+        file_router = AppFileRouter.from_filename(MarimoPath(str(tmp_file)))
+        session_manager = SessionManager(
+            file_router=file_router,
+            mode=SessionMode.EDIT,
+            quiet=True,
+            include_code=True,
+            lsp_server=MagicMock(),
+            config_manager=config_reader_lazy,
+            cli_args={},
+            argv=None,
+            auth_token=None,
+            redirect_console_to_browser=False,
+            ttl_seconds=None,
+            watch=True,
         )
 
-        # Modify the file again
+        # Create a mock session consumer
+        session_consumer = MockSessionConsumer()
+
+        # Create a session
+        session = session_manager.create_session(
+            session_id=session_id,
+            session_consumer=session_consumer,
+            query_params={},
+            file_key=str(tmp_file),
+            auto_instantiate=False,
+        )
+
+        # Wait a bit for session to be ready
+        for _ in range(16):  # noqa: B007
+            await asyncio.sleep(0.1)
+            if len(session_consumer.notify_calls) > 0:
+                break
+
+        # Modify the file
         session_consumer.notify_calls.clear()
         tmp_file.write_text(
             dedent(
@@ -811,7 +869,7 @@ async def test_watch_mode_with_watcher_on_save_config(tmp_path: Path) -> None:
 
             @app.cell
             def __():
-                3
+                2
             """
             )
         )
@@ -828,11 +886,10 @@ async def test_watch_mode_with_watcher_on_save_config(tmp_path: Path) -> None:
             for op in session_consumer.notify_calls
             if isinstance(op, UpdateCellCodes)
         ]
-        assert len(update_ops) == 1, (
-            f"UpdateCellCodes not in {session_consumer.notify_calls}"
-        )
-        assert "3" in update_ops[0].codes[0]
+        assert len(update_ops) == 1
+        assert "2" in update_ops[0].codes[0]
         assert update_ops[0].code_is_stale is True
+
     finally:
         # Cleanup
         if session_manager:
@@ -882,7 +939,9 @@ def __():
         session_consumer = MagicMock()
         session_consumer.connection_state.return_value = ConnectionState.OPEN
         operations: list[Any] = []
-        session_consumer.notify = lambda op, *_args: operations.append(op)
+        session_consumer.notify = lambda op, *_args: operations.append(
+            deserialize_kernel_message(op)
+        )
 
         # Create a session
         session_manager.create_session(
@@ -895,7 +954,7 @@ def __():
 
         # Try to rename to a non-existent file
         success, error = await session_manager.rename_session(
-            session_id, str(tmp_path1), "/nonexistent/file.py"
+            session_id, "/nonexistent/file.py"
         )
         assert not success
         assert error is not None
@@ -903,7 +962,7 @@ def __():
 
         # Try to rename with an invalid session
         success, error = await session_manager.rename_session(
-            "nonexistent", str(tmp_path1), str(new_path)
+            "nonexistent", str(new_path)
         )
         assert not success
         assert error is not None
@@ -915,7 +974,7 @@ def __():
         session.app_file_manager.rename(str(new_path))
         assert new_path.exists()
         success, error = await session_manager.rename_session(
-            session_id, str(tmp_path1), str(new_path)
+            session_id, str(new_path)
         )
         assert success
         assert error is None
@@ -948,7 +1007,10 @@ def __():
     finally:
         # Cleanup
         session_manager.shutdown()
-        os.remove(new_path)
+        if new_path.exists():  # noqa: ASYNC240
+            os.remove(new_path)
+        if tmp_path1.exists():  # noqa: ASYNC240
+            os.remove(tmp_path1)
 
 
 @save_and_restore_main

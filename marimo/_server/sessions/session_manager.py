@@ -40,7 +40,6 @@ from marimo._server.sessions.token_manager import TokenManager
 from marimo._server.sessions.types import KernelState
 from marimo._server.tokens import AuthToken, SkewProtectionToken
 from marimo._types.ids import ConsumerId, SessionId
-from marimo._utils.async_path import AsyncPath
 from marimo._utils.file_watcher import FileWatcherManager
 
 if TYPE_CHECKING:
@@ -227,13 +226,13 @@ class SessionManager:
         if not session:
             return False, "Session not found"
 
-        if not await AsyncPath(new_path).exists():
-            return False, f"File {new_path} does not exist"
-
         old_path = session.app_file_manager.path
 
-        # Rename the session file
-        await session.rename_path(new_path)
+        try:
+            await session.rename_path(new_path)
+        except Exception as e:
+            return False, str(e)
+
         # Emit the session notebook renamed event
         await self._event_bus.emit_session_notebook_renamed(session, old_path)
 

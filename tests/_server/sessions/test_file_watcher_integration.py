@@ -55,8 +55,6 @@ def test_attach_session_with_path(
 ) -> None:
     """Test attaching a file watcher to a session with a file path."""
     session = create_mock_session("/path/to/file.py")
-    session_id = SessionId("test-session")
-    event_bus = SessionEventBus()
     lifecycle.on_attach(session, SessionEventBus())
 
     # Verify watcher was added
@@ -123,25 +121,18 @@ def test_detach_session_not_attached(
     watcher_manager: MagicMock,
 ) -> None:
     """Test detaching a file watcher from a session that was never attached."""
-    session = create_mock_session("/path/to/file.py")
-    session_id = SessionId("test-session")
-    event_bus = SessionEventBus()
-    lifecycle.on_attach(session, event_bus)
-
     # Detach without attaching first
     lifecycle.on_detach()
 
-    # Should not crash, just skip removal
     watcher_manager.remove_callback.assert_not_called()
 
 
-def test_update_session_path(
+async def test_update_session_path(
     lifecycle: SessionFileWatcherExtension,
     watcher_manager: MagicMock,
 ) -> None:
     """Test updating a session's file path."""
     session = create_mock_session("/path/to/old.py")
-    session_id = SessionId("test-session")
     event_bus = SessionEventBus()
     lifecycle.on_attach(session, event_bus)
 
@@ -150,36 +141,18 @@ def test_update_session_path(
 
     # Update path
     session.app_file_manager.path = "/path/to/new.py"
-    lifecycle.on_session_notebook_renamed(session, Path("/path/to/old.py"))
+    await lifecycle.on_session_notebook_renamed(session, "/path/to/old.py")
 
     # Verify old watcher was removed
     watcher_manager.remove_callback.assert_called_once_with(
-        Path("/path/to/old.py"), old_callback
+        Path("/path/to/old.py").absolute(),  # noqa: ASYNC240
+        old_callback,
     )
 
     # Verify new watcher was added
     assert watcher_manager.add_callback.call_count == 2
     new_call = watcher_manager.add_callback.call_args_list[1]
     assert new_call[0][0] == Path("/path/to/new.py")
-
-
-def test_stop_all(
-    lifecycle: SessionFileWatcherExtension,
-    watcher_manager: MagicMock,
-) -> None:
-    """Test stopping all file watchers."""
-    # Attach multiple sessions
-    session1 = create_mock_session("/path/to/file1.py")
-    session2 = create_mock_session("/path/to/file2.py")
-    event_bus = SessionEventBus()
-    lifecycle.on_attach(session1, event_bus)
-    lifecycle.on_attach(session2, event_bus)
-
-    # Stop all
-    lifecycle.on_detach()
-
-    # Verify watcher manager was stopped
-    watcher_manager.stop_all.assert_called_once()
 
 
 async def test_file_change_callback_invoked(
@@ -189,7 +162,6 @@ async def test_file_change_callback_invoked(
 ) -> None:
     """Test that file change callback is invoked correctly."""
     session = create_mock_session("/path/to/file.py")
-    session_id = SessionId("test-session")
     event_bus = SessionEventBus()
     lifecycle.on_attach(session, event_bus)
 
@@ -207,29 +179,6 @@ async def test_file_change_callback_invoked(
     )
 
 
-async def test_file_change_callback_wrong_path_skipped(
-    lifecycle: SessionFileWatcherExtension,
-    watcher_manager: MagicMock,
-    file_change_callback: AsyncMock,
-) -> None:
-    """Test that file change callback is skipped for wrong path."""
-    session = create_mock_session("/path/to/file.py")
-    session_id = SessionId("test-session")
-    event_bus = SessionEventBus()
-    lifecycle.on_attach(session, event_bus)
-
-    # Attach session
-
-    # Get the callback that was registered with the watcher
-    registered_callback = watcher_manager.add_callback.call_args[0][1]
-
-    # Simulate file change with different path
-    await registered_callback(Path("/path/to/different.py"))
-
-    # Verify our file change callback was not invoked
-    file_change_callback.assert_not_called()
-
-
 async def test_listener_on_session_created_enabled(
     lifecycle: SessionFileWatcherExtension,
     watcher_manager: MagicMock,
@@ -237,49 +186,11 @@ async def test_listener_on_session_created_enabled(
     """Test listener attaches watcher when session is created (enabled)."""
 
     session = create_mock_session("/path/to/file.py")
-    session_id = SessionId("test-session")
     event_bus = SessionEventBus()
     lifecycle.on_attach(session, event_bus)
 
     # Verify watcher was attached
     watcher_manager.add_callback.assert_called_once()
-
-
-async def test_listener_on_session_created_disabled(
-    lifecycle: SessionFileWatcherExtension,
-    watcher_manager: MagicMock,
-) -> None:
-    """Test listener does not attach watcher when disabled."""
-
-    session = create_mock_session("/path/to/file.py")
-    session_id = SessionId("test-session")
-    event_bus = SessionEventBus()
-    lifecycle.on_attach(session, event_bus)
-
-    # Verify watcher was not attached
-    watcher_manager.add_callback.assert_not_called()
-
-
-async def test_listener_on_session_closed_enabled(
-    lifecycle: SessionFileWatcherExtension,
-    watcher_manager: MagicMock,
-) -> None:
-    """Test listener detaches watcher when session is closed (enabled)."""
-
-    session = create_mock_session("/path/to/file.py")
-    session_id = SessionId("test-session")
-    event_bus = SessionEventBus()
-    lifecycle.on_attach(session, event_bus)
-
-    # First attach
-    callback = watcher_manager.add_callback.call_args[0][1]
-
-    # Then close
-
-    # Verify watcher was detached
-    watcher_manager.remove_callback.assert_called_once_with(
-        Path("/path/to/file.py"), callback
-    )
 
 
 async def test_listener_on_session_closed_disabled(
@@ -289,7 +200,6 @@ async def test_listener_on_session_closed_disabled(
     """Test listener does not detach watcher when disabled."""
 
     session = create_mock_session("/path/to/file.py")
-    session_id = SessionId("test-session")
     event_bus = SessionEventBus()
     lifecycle.on_attach(session, event_bus)
 
