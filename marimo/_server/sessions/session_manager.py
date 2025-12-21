@@ -175,7 +175,7 @@ class SessionManager:
             extensions.append(
                 SessionFileWatcherExtension(
                     self._watcher_manager,
-                    self._file_change_coordinator.handle_change,
+                    self._handle_file_change,
                 )
             )
 
@@ -213,6 +213,11 @@ class SessionManager:
             self.mode, self._config_manager
         )
         return FileChangeCoordinator(reload_strategy)
+
+    async def _handle_file_change(
+        self, file_path: Path, session: Session
+    ) -> None:
+        await self._file_change_coordinator.handle_change(file_path, session)
 
     async def rename_session(
         self, session_id: SessionId, new_path: str
