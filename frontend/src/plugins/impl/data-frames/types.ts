@@ -89,12 +89,3 @@ export const AGGREGATION_FNS = [
   "min",
   "max",
 ] as const;
-
-export const PIVOT_AGGREGATION_FNS = [
-  "len",
-  "sum",
-  "mean",
-  "median",
-  "min",
-  "max",
-] as const;

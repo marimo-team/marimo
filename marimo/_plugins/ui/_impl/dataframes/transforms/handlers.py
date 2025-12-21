@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import datetime
+from functools import reduce
 from typing import TYPE_CHECKING, Any, Callable
 
 import narwhals.stable.v2 as nw
@@ -373,41 +374,41 @@ class NarwhalsTransformHandler(TransformHandler[DataFrame]):
 
     @staticmethod
     def handle_pivot(df: DataFrame, transform: PivotTransform) -> DataFrame:
-        # Note: narwhals pivot requires collecting first
-        # also, we fill nulls with 0 for count and sum aggregations to keep consistency
+        # Since ibis does not have a native pivot, and pivot is not supported for LazyFrame
+        # we implement it manually
+        # pivot results are also highly inconsistent across backends, so we standardize the output here
+
         collected_df, undo = collect_and_preserve_type(df)
-        pivot_df = (
-            collected_df
-            .pivot(
-                on=transform.column_ids,
-                index=transform.index_column_ids,
-                values=transform.value_column_ids,
-                aggregate_function=transform.aggregation,
-                sort_columns=False,
-            )
-            .select(
-                nw.all().fill_null(0)
-                if transform.aggregation in ["len", "sum"]
-                else nw.all()
-            )
-            .sort(by=transform.index_column_ids)
-        )
+        pivot_columns = collected_df.select(*transform.column_ids).unique().sort(by=transform.column_ids)
+        if type(pivot_columns) is nw.LazyFrame:
+            pivot_columns = pivot_columns.collect()
 
-        new_columns = {}
-        replacements = str.maketrans({"{": "", "}": "", '"': "", ",": "_"})
-        for column in pivot_df.columns:
-            new_column = str(column).translate(replacements)
+        dfs = []
+        for col in pivot_columns.rows():
+            aggs = []
+            for val in transform.value_column_ids:
+                mask = reduce(lambda x, y: x & y, [nw.col(on_col) == on_val for on_col, on_val in zip(transform.column_ids, col)])
+                expr = nw.col(val)
+                if transform.aggregation == 'mean':
+                    aggs.append(expr.mean().alias(f"{val}_{'_'.join(map(str, col))}_mean"))
+                elif transform.aggregation == 'sum':
+                    aggs.append(expr.sum().alias(f"{val}_{'_'.join(map(str, col))}_sum"))
+                elif transform.aggregation == 'count':
+                    aggs.append(expr.len().alias(f"{val}_{'_'.join(map(str, col))}_count"))
+                elif transform.aggregation == 'median':
+                    aggs.append(expr.median().alias(f"{val}_{'_'.join(map(str, col))}_median"))
+                elif transform.aggregation == 'min':
+                    aggs.append(expr.min().alias(f"{val}_{'_'.join(map(str, col))}_min"))
+                elif transform.aggregation == 'max':
+                    aggs.append(expr.max().alias(f"{val}_{'_'.join(map(str, col))}_max"))
+                else:
+                    raise ValueError(f"Unsupported aggregation function: {transform.aggregation}")
+            dfs.append(collected_df.filter(mask).group_by(*transform.index_column_ids).agg(*aggs))
 
-            if len(transform.value_column_ids) == 1:
-                new_column = f"{transform.value_column_ids[0]}_{new_column}"
-
-            if column not in transform.index_column_ids:
-                new_columns[column] = f"{new_column}_{transform.aggregation}"
-            else:
-                new_columns[column] = column
-
-        pivot_df = pivot_df.rename(new_columns)
-        return undo(pivot_df)
+        result = collected_df.select(*transform.index_column_ids).unique()
+        for df_ in dfs:
+            result = result.join(df_, on=transform.index_column_ids, how='left')
+        return undo(result.sort(by=transform.index_column_ids))
 
     @staticmethod
     def as_python_code(

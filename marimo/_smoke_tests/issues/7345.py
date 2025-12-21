@@ -10,33 +10,18 @@ def _():
     import narwhals as nw
     import polars as pl
     import pandas as pd
-    return mo, pd, pl
+
+    # import ibis
+    from vega_datasets import data
+    return data, mo, pd, pl
 
 
 @app.cell
-def _(pd, pl):
-    data = data = {
-        "A": ["foo", "foo", "foo", "foo", "foo", "bar", "bar", "bar", "bar"],
-        "B": ["one", "one", "one", "two", "two", "one", "one", "two", "two"],
-        "C": [
-            "small",
-            "large",
-            "large",
-            "small",
-            "small",
-            "large",
-            "small",
-            "small",
-            "large",
-        ],
-        "D": [1, 2, 2, 3, 3, 4, 5, 6, 7],
-        "E": [2, 4, 5, 5, 6, 6, 8, 9, 9],
-        "F": [True, False, False, False, True, True, False, False, True],
-    }
-
-    pl_df = pl.DataFrame(data)
-    pd_df = pd.DataFrame(data)
-    return pd_df, pl_df
+def _(data, pd, pl):
+    cars = data.cars()
+    df_pandas = pd.DataFrame(cars)
+    df_polars = pl.DataFrame(cars)
+    return df_pandas, df_polars
 
 
 @app.cell
@@ -45,14 +30,14 @@ def _():
 
 
 @app.cell(column=1)
-def _(mo, pd_df):
-    mo.ui.dataframe(pd_df)
+def _(df_pandas, mo):
+    mo.ui.dataframe(df_pandas)
     return
 
 
 @app.cell
-def _(mo, pl_df):
-    mo.ui.dataframe(pl_df)
+def _(df_polars, mo):
+    mo.ui.dataframe(df_polars)
     return
 
 
@@ -62,27 +47,24 @@ def _():
 
 
 @app.cell(column=2)
-def _(pd_df):
-    pd_df_next = pd_df
-    pd_df_next = pd_df_next.pivot_table(index=["B"], columns=["A"], values=["F"], aggfunc="sum", sort=False, fill_value=0).sort_index(axis=0)
-    pd_df_next.columns = [f"{'_'.join(map(str, col)).strip()}_sum" if isinstance(col, tuple) else f"{col}_sum" for col in pd_df_next.columns]
-    pd_df_next = pd_df_next.reset_index()
-    pd_df_next
+def _(df_pandas):
+    df_pandas_next = df_pandas
+    df_pandas_next = df_pandas_next.pivot_table(index=["Year"], columns=["Origin"], values=["Acceleration"], aggfunc="mean", sort=False, fill_value=None).sort_index(axis=0)
+    df_pandas_next.columns = [f"{'_'.join(map(str, col)).strip()}_mean" if isinstance(col, tuple) else f"{col}_mean" for col in df_pandas_next.columns]
+    df_pandas_next = df_pandas_next.reset_index()
+    df_pandas_next = df_pandas_next[["Year", "Acceleration_Europe_mean", "Acceleration_Japan_mean"]]
+    df_pandas_next
     return
 
 
 @app.cell
-def _(pl_df):
-    pl_df_next = pl_df
-    pl_df_next = pl_df_next.pivot(
-        on=["A", "F"],
-        index=["B", "C"],
-        values=["D"],
-        aggregate_function="mean",
-    )
-
-    replacements = str.maketrans({'{': '', '}': '', '"': '', ',': '_'})
-    pl_df_next.rename(lambda col: f'D_{col.translate(replacements)}_mean' if col not in ['B', 'C'] else col)
+def _(df_polars):
+    df_polars_next = df_polars
+    df_polars_next = df_polars_next.pivot(on=["Origin"], index=["Year"], values=["Acceleration"], aggregate_function="median").sort(["Year"])
+    replacements = str.maketrans({"{": "", "}": "", '"': "", ",": "_"})
+    df_polars_next = df_polars_next.rename(lambda col: f'Acceleration_{col.translate(replacements)}_median' if col not in ["Year"] else col)
+    df_polars_next = df_polars_next.select(["Year", "Acceleration_Europe_median", "Acceleration_Japan_median"])
+    df_polars_next
     return
 
 
