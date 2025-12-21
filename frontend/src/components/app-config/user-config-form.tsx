@@ -566,9 +566,9 @@ export const UserConfigForm: React.FC = () => {
                     </FormItem>
                     {field.value && !capabilities.pyrefly && (
                       <Banner kind="danger">
-                        Pyrefly is not available in your current environment. Please
-                        install <Kbd className="inline">pyrefly</Kbd> in your
-                        environment.
+                        Pyrefly is not available in your current environment.
+                        Please install <Kbd className="inline">pyrefly</Kbd> in
+                        your environment.
                       </Banner>
                     )}
                   </div>
