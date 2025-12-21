@@ -375,8 +375,9 @@ class NarwhalsTransformHandler(TransformHandler[DataFrame]):
     def handle_pivot(df: DataFrame, transform: PivotTransform) -> DataFrame:
         # Note: narwhals pivot requires collecting first
         # also, we fill nulls with 0 for count and sum aggregations to keep consistency
+        collected_df, undo = collect_and_preserve_type(df)
         pivot_df = (
-            df.collect()
+            collected_df
             .pivot(
                 on=transform.column_ids,
                 index=transform.index_column_ids,
@@ -390,7 +391,6 @@ class NarwhalsTransformHandler(TransformHandler[DataFrame]):
                 else nw.all()
             )
             .sort(by=transform.index_column_ids)
-            .lazy()
         )
 
         new_columns = {}
@@ -407,7 +407,7 @@ class NarwhalsTransformHandler(TransformHandler[DataFrame]):
                 new_columns[column] = column
 
         pivot_df = pivot_df.rename(new_columns)
-        return pivot_df
+        return undo(pivot_df)
 
     @staticmethod
     def as_python_code(

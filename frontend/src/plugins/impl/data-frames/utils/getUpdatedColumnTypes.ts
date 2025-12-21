@@ -3,7 +3,7 @@ import { logNever } from "@/utils/assertNever";
 import { Maps } from "@/utils/maps";
 import type { TransformType } from "../schema";
 import type { ColumnDataTypes, ColumnId } from "../types";
-import { Column } from "react-aria-components";
+import { get } from "node:http";
 
 /**
  * Given a list of transforms, return the updated column names/types.
@@ -36,7 +36,7 @@ function cartesianProduct<T>(arrays: T[][]): T[][] {
 function handleTransform(
   transform: TransformType,
   next: ColumnDataTypes,
-  uniqueColumnValues: Record<string, unknown[]>
+  uniqueColumnValues: Record<string, unknown[]>,
 ): ColumnDataTypes {
   switch (transform.type) {
     case "column_conversion":
@@ -80,7 +80,7 @@ function handleTransform(
 
       return updated;
     }
-    case "pivot": {
+    case "pivot":{
       const updated = new Map<ColumnId, string>();
 
       for (const [columnId, type] of next.entries()) {
@@ -97,7 +97,7 @@ function handleTransform(
       const rawColumns = cartesianProduct([transform.value_column_ids, ...uniqueValues]);
       for (const rawColumn of rawColumns) {
         const newColumn = `${(rawColumn as string[]).join("_")}_${transform.aggregation}`;
-        const type = transform.aggregation === "count" ? "int64" : next.get(rawColumn[0] as ColumnId);
+        const type = transform.aggregation === "len" ? "int64" : next.get(rawColumn[0] as ColumnId);
         updated.set(newColumn as ColumnId, type as string);
       }
 

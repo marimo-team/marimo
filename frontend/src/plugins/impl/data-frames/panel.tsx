@@ -160,35 +160,62 @@ export const TransformPanel: React.FC<Props> = ({
 
   const [columnValueCache, setColumnValueCache] = useState<Record<string, unknown[]>>({});
 
+  // Get all column names from the original columns prop
+  const allColumnNames = useMemo(() => {
+    return Array.from(columns.keys()).map(String);
+  }, [columns]);
+
+  // Determine which columns need to be fetched (not yet in cache)
+  const columnsToFetch = useMemo(() => {
+    return allColumnNames.filter((col) => !(col in columnValueCache));
+  }, [allColumnNames, columnValueCache]);
+
+  // Fetch column values for all columns upfront
   useEffect(() => {
-    async function fetchUniqueValues() {
-      if (transforms.length === 0 || selectedTransform === undefined) {
+    let isCancelled = false;
+
+    async function fetchAllColumnValues() {
+      // Exit early if nothing to fetch
+      if (columnsToFetch.length === 0) {
         return;
       }
-      const previousTransform =
-      selectedTransform > 0 ? transforms[selectedTransform - 1] : undefined;
 
-      if (!previousTransform) {
-        return; // nothing before this transform
+      // Fetch all columns in parallel
+      const results = await Promise.allSettled(
+        columnsToFetch.map((col) => getColumnValues({ column: col }))
+      );
+
+      // Check if effect was cancelled during async operation
+      if (isCancelled) {
+        return;
       }
 
+      // Build new cache with fetched values
       const newCache: Record<string, unknown[]> = { ...columnValueCache };
+      let hasNewValues = false;
 
-      // Example: handle transforms that have column lists
-      if ("column_ids" in previousTransform && previousTransform.column_ids) {
-        for (const col of previousTransform.column_ids) {
-          if (!newCache[col]) {
-            const { values } = await getColumnValues({ column: String(col) });
-            newCache[col] = [...new Set(values)];
-          }
+      results.forEach((result, index) => {
+        if (result.status === "fulfilled" && !result.value.too_many_values) {
+          newCache[columnsToFetch[index]] = [...new Set(result.value.values)];
+          hasNewValues = true;
         }
-      }
+        // If rejected or too_many_values, leave column out of cache
+        // getUpdatedColumnTypes will handle missing values gracefully
+      });
 
-      setColumnValueCache(newCache);
+      // Only update state if we actually got new values
+      if (hasNewValues) {
+        setColumnValueCache(newCache);
+      }
     }
 
-    fetchUniqueValues();
-  }, [transforms, selectedTransform, getColumnValues]);
+    fetchAllColumnValues();
+
+    // Cleanup function to prevent state updates after unmount
+    return () => {
+      isCancelled = true;
+    };
+  }, [columnsToFetch, getColumnValues]);
 
   const effectiveColumns = useMemo(() => {
     const transformsBeforeSelected = transforms.slice(0, selectedTransform);
