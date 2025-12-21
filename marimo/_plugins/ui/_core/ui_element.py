@@ -373,7 +373,7 @@ class UIElement(Html, Generic[S, T]):
             Combine with `HTML.batch` to create a form made out of multiple `UIElements`:
                 ```python
                 form = (
-                    mo.ui.md(
+                    mo.md(
                         '''
                     **Enter your prompt.**
 
