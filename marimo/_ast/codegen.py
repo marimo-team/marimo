@@ -366,7 +366,7 @@ def generate_unparsable_cell(
 ) -> str:
     text = ["app._unparsable_cell("]
     # escape double quotes to not interfere with string
-    quote_escaped_code = code.replace('"', '\\"')
+    quote_escaped_code = code.replace('""', '"\\"')
     # use r-string to handle backslashes (don't want to write
     # escape characters, want to actually write backslash characters)
     code_as_str = f'r"""\n{quote_escaped_code}\n"""'

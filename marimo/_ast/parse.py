@@ -380,9 +380,10 @@ class Extractor:
             # but mypy is struggling.
             kwargs, _violations = _eval_kwargs(node.value.keywords)  # type: ignore
             violations.extend(_violations)
+            unparsable = node.value.args[0].value  # type: ignore
             return ParseResult(
                 UnparsableCell(
-                    code=node.value.args[0].value,  # type: ignore
+                    code=fixed_dedent(unparsable).strip(),
                     options=kwargs,
                     _ast=node,
                 ),
