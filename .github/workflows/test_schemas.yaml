@@ -84,8 +84,8 @@ jobs:
       - name: Install openapi-diff
         if: ${{ matrix.schema.condition }}
         run: |
-          # Download openapi-diff CLI
-          curl -fsSL https://repo1.maven.org/maven2/org/openapitools/openapidiff/openapi-diff-cli/2.1.6/openapi-diff-cli-2.1.6.jar -o openapi-diff.jar
+          # Download openapi-diff CLI (all.jar includes all dependencies and manifest)
+          curl -fsSL https://repo1.maven.org/maven2/org/openapitools/openapidiff/openapi-diff-cli/2.1.6/openapi-diff-cli-2.1.6-all.jar -o openapi-diff.jar
 
       - name: Compare ${{ matrix.schema.display_name }}
         if: ${{ matrix.schema.condition }}
