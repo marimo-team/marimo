@@ -386,21 +386,21 @@ class NarwhalsTransformHandler(TransformHandler[DataFrame]):
         dfs = []
         for col in pivot_columns.rows():
             aggs = []
+            mask = reduce(lambda x, y: x & y, [nw.col(on_col) == on_val for on_col, on_val in zip(transform.column_ids, col)])
             for val in transform.value_column_ids:
-                mask = reduce(lambda x, y: x & y, [nw.col(on_col) == on_val for on_col, on_val in zip(transform.column_ids, col)])
-                expr = nw.col(val)
-                if transform.aggregation == 'mean':
-                    aggs.append(expr.mean().alias(f"{val}_{'_'.join(map(str, col))}_mean"))
+                expr = nw.col(val).alias(f"{val}_{'_'.join(map(str, col))}_{transform.aggregation}")
+                if transform.aggregation == 'count':
+                    aggs.append(expr.len())
                 elif transform.aggregation == 'sum':
-                    aggs.append(expr.sum().alias(f"{val}_{'_'.join(map(str, col))}_sum"))
-                elif transform.aggregation == 'count':
-                    aggs.append(expr.len().alias(f"{val}_{'_'.join(map(str, col))}_count"))
+                    aggs.append(expr.sum())
+                elif transform.aggregation == 'mean':
+                    aggs.append(expr.mean())
                 elif transform.aggregation == 'median':
-                    aggs.append(expr.median().alias(f"{val}_{'_'.join(map(str, col))}_median"))
+                    aggs.append(expr.median())
                 elif transform.aggregation == 'min':
-                    aggs.append(expr.min().alias(f"{val}_{'_'.join(map(str, col))}_min"))
+                    aggs.append(expr.min())
                 elif transform.aggregation == 'max':
-                    aggs.append(expr.max().alias(f"{val}_{'_'.join(map(str, col))}_max"))
+                    aggs.append(expr.max())
                 else:
                     raise ValueError(f"Unsupported aggregation function: {transform.aggregation}")
             dfs.append(collected_df.filter(mask).group_by(*transform.index_column_ids).agg(*aggs))
