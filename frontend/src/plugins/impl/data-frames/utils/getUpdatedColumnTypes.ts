@@ -97,7 +97,7 @@ function handleTransform(
       const rawColumns = cartesianProduct([transform.value_column_ids, ...uniqueValues]);
       for (const rawColumn of rawColumns) {
         const newColumn = `${(rawColumn as string[]).join("_")}_${transform.aggregation}`;
-        const type = transform.aggregation === "len" ? "int64" : next.get(rawColumn[0] as ColumnId);
+        const type = transform.aggregation === "count" ? "int64" : next.get(rawColumn[0] as ColumnId);
         updated.set(newColumn as ColumnId, type as string);
       }
 

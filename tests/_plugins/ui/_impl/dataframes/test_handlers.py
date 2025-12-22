@@ -1288,8 +1288,8 @@ class TestTransformHandler:
                     {
                         "B": ["one", "one", "two", "two"],
                         "C": ["large", "small", "large", "small"],
-                        "D_foo_sum": [4, 1, 0, 6],
                         "D_bar_sum": [4, 5, 7, 6],
+                        "D_foo_sum": [4, 1, None, 6],
                     }
                 ),
                 [
@@ -1308,7 +1308,7 @@ class TestTransformHandler:
         df: DataFrameType, expected: DataFrameType, transform: PivotTransform
     ) -> None:
         result = apply(df, transform)
-        assert_frame_equal(result, expected)
+        assert_frame_equal_with_nans(result, expected)
 
     @staticmethod
     @pytest.mark.parametrize(
