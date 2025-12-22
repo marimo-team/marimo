@@ -36,7 +36,6 @@ from marimo._server.ai.tools.types import (
 )
 from marimo._server.api.deps import AppStateBase
 from marimo._server.model import ConnectionState
-from marimo._server.sessions import Session, SessionManager
 from marimo._types.ids import CellId_t, SessionId
 from marimo._utils.case import to_snake_case
 from marimo._utils.dataclass_to_openapi import PythonTypeToOpenAPI
@@ -54,6 +53,8 @@ if TYPE_CHECKING:
     from collections.abc import Awaitable
 
     from starlette.applications import Starlette
+
+    from marimo._server.sessions import Session, SessionManager
 
 
 @dataclass

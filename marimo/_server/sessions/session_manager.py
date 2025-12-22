@@ -18,19 +18,19 @@ from marimo._runtime.requests import (
     SerializedCLIArgs,
     SerializedQueryParams,
 )
+from marimo._server.consumer import SessionConsumer
 from marimo._server.file_router import AppFileRouter, MarimoFileKey
 from marimo._server.lsp import LspServer
-from marimo._server.model import ConnectionState, SessionConsumer, SessionMode
-from marimo._server.notebook import AppFileManager
+from marimo._server.model import ConnectionState, SessionMode
 from marimo._server.recents import RecentFilesManager
 from marimo._server.sessions.events import SessionEventBus
+from marimo._server.sessions.extensions.types import SessionExtension
 from marimo._server.sessions.file_change_handler import (
     FileChangeCoordinator,
     create_reload_strategy,
 )
 from marimo._server.sessions.file_watcher_integration import (
-    FileWatcherAttachmentListener,
-    SessionFileWatcherLifecycle,
+    SessionFileWatcherExtension,
 )
 from marimo._server.sessions.listeners import RecentsTrackerListener
 from marimo._server.sessions.resume_strategies import create_resume_strategy
@@ -40,11 +40,12 @@ from marimo._server.sessions.token_manager import TokenManager
 from marimo._server.sessions.types import KernelState
 from marimo._server.tokens import AuthToken, SkewProtectionToken
 from marimo._types.ids import ConsumerId, SessionId
-from marimo._utils.async_path import AsyncPath
 from marimo._utils.file_watcher import FileWatcherManager
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Coroutine, Mapping
+
+    from marimo._server.notebook import AppFileManager
 
 LOGGER = _loggers.marimo_logger()
 
@@ -107,17 +108,14 @@ class SessionManager:
         # Initialize resume strategy
         self._resume_strategy = create_resume_strategy(mode, self._repository)
 
-        # Initialize event bus and listeners
-        self._event_bus = SessionEventBus()
-
         # Add recents tracking listener
         self.recents = RecentFilesManager()
-        self._event_bus.subscribe(RecentsTrackerListener(self.recents))
+        self._event_bus = SessionEventBus()
 
-        # Initialize file watching components if enabled
+        # Initialize file watching components
+        self._watcher_manager = FileWatcherManager()
         self.watch = watch
-        if watch:
-            self._setup_file_watching()
+        self._file_change_coordinator = self._create_file_change_coordinator()
 
     @property
     def auth_token(self) -> AuthToken:
@@ -133,32 +131,6 @@ class SessionManager:
     def sessions(self) -> Mapping[SessionId, Session]:
         """Get all sessions as a dict."""
         return self._repository.sessions
-
-    def _setup_file_watching(self) -> None:
-        """Set up file watching components."""
-        # Create file watcher manager
-        self.watcher_manager = FileWatcherManager()
-
-        # Create file change coordinator with appropriate reload strategy
-        reload_strategy = create_reload_strategy(
-            self.mode, self._config_manager
-        )
-        self._file_change_coordinator = FileChangeCoordinator(reload_strategy)
-
-        # Create file watcher lifecycle manager
-        async def on_file_change(path: Path, session: Session) -> None:
-            await self._file_change_coordinator.handle_change(path, session)
-
-        self._file_watcher_lifecycle = SessionFileWatcherLifecycle(
-            self.watcher_manager, on_file_change, self._repository
-        )
-
-        # Register file watcher attachment listener
-        self._event_bus.subscribe(
-            FileWatcherAttachmentListener(
-                self._file_watcher_lifecycle, enabled=True
-            )
-        )
 
     def app_manager(self, key: MarimoFileKey) -> AppFileManager:
         """Get the app manager for the given key."""
@@ -196,6 +168,17 @@ class SessionManager:
         # Create the session
         from marimo._runtime.requests import AppMetadata
 
+        extensions: list[SessionExtension] = [
+            RecentsTrackerListener(self.recents)
+        ]
+        if self.watch:
+            extensions.append(
+                SessionFileWatcherExtension(
+                    self._watcher_manager,
+                    self._handle_file_change,
+                )
+            )
+
         session = SessionImpl.create(
             initialization_id=file_key,
             session_consumer=session_consumer,
@@ -213,6 +196,7 @@ class SessionManager:
             redirect_console_to_browser=self.redirect_console_to_browser,
             ttl_seconds=self.ttl_seconds,
             auto_instantiate=auto_instantiate,
+            extensions=extensions,
         )
 
         # Add to repository
@@ -223,46 +207,48 @@ class SessionManager:
 
         return session
 
-    async def handle_file_rename_for_watch(
-        self, session_id: SessionId, prev_path: Optional[str], new_path: str
+    def _create_file_change_coordinator(self) -> FileChangeCoordinator:
+        """Create a file change coordinator."""
+        reload_strategy = create_reload_strategy(
+            self.mode, self._config_manager
+        )
+        return FileChangeCoordinator(reload_strategy)
+
+    async def _handle_file_change(
+        self, file_path: Path, session: Session
+    ) -> None:
+        await self._file_change_coordinator.handle_change(file_path, session)
+
+    async def rename_session(
+        self, session_id: SessionId, new_path: str
     ) -> tuple[bool, Optional[str]]:
         """Handle renaming a file for a session.
 
         Returns:
             tuple[bool, Optional[str]]: (success, error_message)
         """
+        from marimo._server.api.status import HTTPException
+
         session = self.get_session(session_id)
         if not session:
             return False, "Session not found"
 
-        if not await AsyncPath(new_path).exists():
-            return False, f"File {new_path} does not exist"
-
-        if not session.app_file_manager.path:
-            return False, "Session has no associated file"
-
-        await session.rename_path(new_path)
+        old_path = session.app_file_manager.path
 
         try:
-            if self.watch and self._file_watcher_lifecycle:
-                # Update the file watcher
-                if prev_path:
-                    self._file_watcher_lifecycle.update(
-                        session, Path(prev_path), Path(new_path)
-                    )
-                else:
-                    self._file_watcher_lifecycle.attach(session)
-
-            return True, None
-
+            await session.rename_path(new_path)
+        except HTTPException as e:
+            # HTTPException stores the message in detail, not in __str__
+            return False, e.detail or str(e)
         except Exception as e:
-            LOGGER.error(f"Error handling file rename: {e}")
-
-            if self.watch and hasattr(self, "_file_watcher_lifecycle"):
-                self._file_watcher_lifecycle.attach(session)
             return False, str(e)
 
-    async def handle_file_change(self, path: str) -> None:
+        # Emit the session notebook renamed event
+        await self._event_bus.emit_session_notebook_renamed(session, old_path)
+
+        return True, None
+
+    async def trigger_file_change(self, path: str) -> None:
         """Handle a file change for all relevant sessions."""
         # Find all sessions associated with this file
         sessions_for_file = self._repository.get_by_file_path(path)
@@ -271,18 +257,10 @@ class SessionManager:
             return
 
         # Handle file change for each session
-        if self.watch and hasattr(self, "_file_watcher_lifecycle"):
-            from marimo._server.sessions.file_change_handler import (
-                FileChangeCoordinator,
+        for session in sessions_for_file:
+            await self._file_change_coordinator.handle_change(
+                Path(path), session
             )
-
-            reload_strategy = create_reload_strategy(
-                self.mode, self._config_manager
-            )
-            coordinator = FileChangeCoordinator(reload_strategy)
-
-            for session in sessions_for_file:
-                await coordinator.handle_change(Path(path), session)
 
     def get_session(self, session_id: SessionId) -> Optional[Session]:
         """Get a session by ID, checking both direct and consumer IDs."""
@@ -361,7 +339,7 @@ class SessionManager:
                 f"LSP server startup failed: {alert.title} - {alert.description}"
             )
             for session in self._repository.get_all():
-                session.write_operation(alert, from_consumer_id=None)
+                session.notify(alert, from_consumer_id=None)
             return
         else:
             LOGGER.info("LSP server started successfully")
@@ -391,8 +369,7 @@ class SessionManager:
         LOGGER.debug("Shutting down")
         self.close_all_sessions()
         self.lsp_server.stop()
-        if self.watch and hasattr(self, "watcher_manager"):
-            self.watcher_manager.stop_all()
+        self._watcher_manager.stop_all()
 
     def should_send_code_to_frontend(self) -> bool:
         """Returns True if the server can send messages to the frontend."""

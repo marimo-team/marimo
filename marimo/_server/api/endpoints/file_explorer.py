@@ -222,7 +222,7 @@ async def update_file(
 
         # Handle marimo notebook reload if there's an active session
         session_manager = app_state.session_manager
-        await session_manager.handle_file_change(body.path)
+        await session_manager.trigger_file_change(body.path)
 
         return FileUpdateResponse(success=True, info=info)
     except Exception as e:

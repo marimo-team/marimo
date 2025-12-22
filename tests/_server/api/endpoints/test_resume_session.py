@@ -303,7 +303,6 @@ def test_restart_session(client: TestClient) -> None:
 def test_resume_session_with_watch(client: TestClient) -> None:
     session_manager = get_session_manager(client)
     session_manager.watch = True
-    session_manager._setup_file_watching()
 
     with client.websocket_connect(_create_ws_url("123")) as websocket:
         data = websocket.receive_json()
@@ -373,7 +372,7 @@ def test_resume_session_with_watch(client: TestClient) -> None:
     assert session_view.last_executed_code == {"MJUe": "x=10; x"}
 
     session_manager.watch = False
-    session_manager.watcher_manager.stop_all()
+    session_manager._watcher_manager.stop_all()
     client.post("/api/kernel/shutdown", headers=HEADERS)
 
 

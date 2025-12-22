@@ -367,7 +367,7 @@ async def takeover_endpoint(
     )
     if existing_session is not None:
         # Send a disconnect message to the client
-        existing_session.write_operation(
+        existing_session.notify(
             Alert(
                 title="Session taken over",
                 description="Another user has taken over this session.",
