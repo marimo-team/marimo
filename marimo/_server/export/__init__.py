@@ -293,7 +293,6 @@ async def run_app_until_completion(
         ) -> None:
             del session
             del event_bus
-            return None
 
         def on_detach(self) -> None:
             return None

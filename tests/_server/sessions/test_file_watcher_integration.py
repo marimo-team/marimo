@@ -96,7 +96,7 @@ def test_detach_session_with_path(
 
     # Verify watcher was removed with the same callback
     watcher_manager.remove_callback.assert_called_once_with(
-        Path("/path/to/file.py"), callback
+        Path("/path/to/file.py").absolute(), callback
     )
 
 
@@ -152,7 +152,7 @@ async def test_update_session_path(
     # Verify new watcher was added
     assert watcher_manager.add_callback.call_count == 2
     new_call = watcher_manager.add_callback.call_args_list[1]
-    assert new_call[0][0] == Path("/path/to/new.py")
+    assert new_call[0][0] == Path("/path/to/new.py").absolute()  # noqa: ASYNC240
 
 
 async def test_file_change_callback_invoked(

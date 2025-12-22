@@ -697,7 +697,6 @@ class WebsocketHandler(SessionConsumer):
     def on_attach(self, session: Session, event_bus: SessionEventBus) -> None:
         del session
         del event_bus
-        return None
 
     def on_detach(self) -> None:
         # If the websocket is open, send a close message
