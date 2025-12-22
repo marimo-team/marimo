@@ -205,7 +205,7 @@ def test_auto_export_html(client: TestClient, temp_marimo_file: str) -> None:
     assert session
     assert temp_marimo_file is not None
     session.app_file_manager.filename = temp_marimo_file
-    session.session_view.add_operation(
+    session.session_view.add_notification(
         CellNotification(
             cell_id=CellId_t("new_cell"),
             output=CellOutput(
@@ -253,7 +253,7 @@ def test_auto_export_html_no_code(
     session = get_session_manager(client).get_session(SESSION_ID)
     assert session
     session.app_file_manager.filename = temp_marimo_file
-    session.session_view.add_operation(
+    session.session_view.add_notification(
         CellNotification(
             cell_id=CellId_t("new_cell"),
             output=None,

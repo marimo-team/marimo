@@ -276,7 +276,7 @@ async def test_run_until_completion_with_stop():
     assert did_error is False
     cell_notifications = [
         op
-        for op in session_view.operations
+        for op in session_view.notifications
         if isinstance(op, CellNotification)
     ]
     snapshot(
@@ -322,7 +322,7 @@ async def test_run_until_completion_with_stack_trace():
     assert did_error is True
     cell_notifications = [
         op
-        for op in session_view.operations
+        for op in session_view.notifications
         if isinstance(op, CellNotification)
     ]
 
@@ -501,7 +501,7 @@ async def test_run_until_completion_with_console_output(mock_echo: MagicMock):
 
     cell_notifications = [
         op
-        for op in session_view.operations
+        for op in session_view.notifications
         if isinstance(op, CellNotification)
     ]
     snapshot(
