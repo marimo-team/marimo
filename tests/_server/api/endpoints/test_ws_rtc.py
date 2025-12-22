@@ -5,11 +5,12 @@ from contextlib import contextmanager
 from typing import TYPE_CHECKING, Any, Optional
 
 import pytest
+from starlette.websockets import WebSocketDisconnect
 
 from marimo._config.manager import UserConfigManager
 from marimo._messaging.msgspec_encoder import asdict
 from marimo._messaging.ops import KernelCapabilities, KernelReady
-from marimo._server.api.endpoints.ws import DOC_MANAGER
+from marimo._server.api.endpoints.ws_endpoint import DOC_MANAGER
 from marimo._utils.parse_dataclass import parse_raw
 from tests._server.conftest import get_session_manager, get_user_config_manager
 from tests._server.mocks import token_header
@@ -241,5 +242,121 @@ async def test_loro_persistence(client: TestClient) -> None:
             sync_msg = cell_ws2.receive_bytes()
             # Verify initial sync contains data
             assert len(sync_msg) > 0
+
+    client.post("/api/kernel/shutdown", headers=HEADERS)
+
+
+# ==============================================================================
+# Edge Cases - RTC Availability and Graceful Degradation
+# ==============================================================================
+
+
+@pytest.mark.skipif(
+    "sys.version_info < (3, 11) or sys.version_info >= (3, 14)"
+)
+async def test_rtc_degrades_without_loro(client: TestClient) -> None:
+    """Test that RTC gracefully degrades when Loro is unavailable.
+
+    Connection should succeed and no RTC doc should be created.
+    """
+    from unittest.mock import patch
+
+    file_key = get_session_manager(client).file_router.get_unique_file_key()
+    assert file_key is not None
+
+    # Clear any existing docs
+    DOC_MANAGER.loro_docs.clear()
+
+    # Mock Loro as not available
+    with (
+        rtc_enabled(get_user_config_manager(client)),
+        patch(
+            "marimo._server.api.endpoints.ws.ws_kernel_ready.DependencyManager.loro.has",
+            return_value=False,
+        ),
+    ):
+        with client.websocket_connect(
+            "/ws?session_id=123&access_token=fake-token"
+        ) as websocket:
+            data = websocket.receive_json()
+            # Should still get kernel ready, but without RTC initialized
+            assert_kernel_ready_response(data)
+
+            # Give time for any async doc creation
+            await asyncio.sleep(0.2)
+
+            # Verify no RTC doc was created
+            assert file_key not in DOC_MANAGER.loro_docs
+
+    client.post("/api/kernel/shutdown", headers=HEADERS)
+
+
+# ==============================================================================
+# Edge Cases - RTC Sync Endpoint
+# ==============================================================================
+
+
+@pytest.mark.skipif(
+    "sys.version_info < (3, 11) or sys.version_info >= (3, 14)"
+)
+async def test_ws_sync_without_existing_session(client: TestClient) -> None:
+    """Test that ws_sync endpoint requires an existing session."""
+    file_key = get_session_manager(client).file_router.get_unique_file_key()
+    assert file_key is not None
+
+    ws_sync_url = f"/ws_sync?file={file_key}&access_token=fake-token"
+
+    # Try to connect to ws_sync without creating a main session first
+    with pytest.raises(WebSocketDisconnect) as exc_info:
+        with client.websocket_connect(ws_sync_url):
+            pass
+
+    from marimo._server.codes import WebSocketCodes
+
+    assert exc_info.value.code == WebSocketCodes.FORBIDDEN
+    assert exc_info.value.reason == "MARIMO_NOT_ALLOWED"
+
+
+@pytest.mark.skipif(
+    "sys.version_info < (3, 11) or sys.version_info >= (3, 14)"
+)
+async def test_ws_sync_cleanup_on_main_disconnect(client: TestClient) -> None:
+    """Test that ws_sync clients are cleaned up when main session disconnects."""
+    file_key = get_session_manager(client).file_router.get_unique_file_key()
+    assert file_key is not None
+
+    # Clear any existing docs
+    DOC_MANAGER.loro_docs_clients.clear()
+
+    ws_1 = "/ws?session_id=123&access_token=fake-token"
+    ws_sync_url = f"/ws_sync?file={file_key}&access_token=fake-token"
+
+    with rtc_enabled(get_user_config_manager(client)):
+        with client.websocket_connect(ws_1) as main_websocket:
+            data = main_websocket.receive_json()
+            assert_kernel_ready_response(data)
+
+            # Connect to sync endpoint
+            with client.websocket_connect(ws_sync_url) as sync_websocket:
+                # Should receive initial sync
+                sync_msg = sync_websocket.receive_bytes()
+                assert len(sync_msg) > 0
+
+                # Verify client was added
+                assert file_key in DOC_MANAGER.loro_docs_clients
+                initial_client_count = len(
+                    DOC_MANAGER.loro_docs_clients[file_key]
+                )
+                assert initial_client_count == 1
+
+                # Close sync websocket
+                sync_websocket.close()
+
+                # Wait for cleanup
+                await asyncio.sleep(0.2)
+
+                # Client should be removed
+                if file_key in DOC_MANAGER.loro_docs_clients:
+                    assert len(DOC_MANAGER.loro_docs_clients[file_key]) == 0
 
     client.post("/api/kernel/shutdown", headers=HEADERS)

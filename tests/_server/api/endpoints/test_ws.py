@@ -1,6 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import asyncio
 from contextlib import contextmanager
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Optional
@@ -409,4 +410,161 @@ def test_ws_with_valid_authentication(client: TestClient) -> None:
         assert_kernel_ready_response(data)
 
     # Clean up
+    client.post("/api/kernel/shutdown", headers=HEADERS)
+
+
+# ==============================================================================
+# Edge Cases - Session Resumption
+# ==============================================================================
+
+
+async def test_session_resumption(client: TestClient) -> None:
+    """Test that session resumption restores state and replays operations."""
+    # Create a session and instantiate it
+    with client.websocket_connect(WS_URL) as websocket:
+        data = websocket.receive_json()
+        assert_kernel_ready_response(data)
+
+        # Instantiate to generate some operations
+        client.post(
+            "/api/kernel/instantiate",
+            headers=headers("123"),
+            json={"objectIds": [], "values": [], "auto_run": True},
+        )
+
+        # Flush initial messages
+        flush_messages(websocket, at_least=1)
+
+    await asyncio.sleep(0.2)
+
+    # Resume with new session ID (simulates browser refresh)
+    with client.websocket_connect(OTHER_WS_URL) as websocket:
+        # Should receive reconnected + resumed state
+        reconnect_msg = websocket.receive_json()
+        assert reconnect_msg["op"] == "reconnected"
+
+        kernel_ready_msg = websocket.receive_json()
+        assert kernel_ready_msg["op"] == "kernel-ready"
+
+        # Verify resumed flag is True
+        data = parse_raw(kernel_ready_msg["data"], KernelReady)
+        assert data.resumed is True
+
+        # Should replay operations - collect some messages
+        replayed = flush_messages(websocket, at_least=1)
+        assert len(replayed) >= 1
+
+    client.post("/api/kernel/shutdown", headers=HEADERS)
+
+
+# ==============================================================================
+# Edge Cases - Disconnection/Reconnection
+# ==============================================================================
+
+
+async def test_reconnection_cancels_close_handle(client: TestClient) -> None:
+    """Test that reconnection properly cancels pending close handle."""
+    session_manager = get_session_manager(client)
+    session_manager.mode = SessionMode.RUN
+
+    with client.websocket_connect(WS_URL) as websocket:
+        data = websocket.receive_json()
+        assert_kernel_ready_response(data)
+
+        # Close the websocket
+        websocket.close()
+
+        # Wait briefly for disconnect handling
+        await asyncio.sleep(0.1)
+
+        # Reconnect immediately (before TTL expires)
+        with client.websocket_connect(WS_URL) as new_websocket:
+            data = new_websocket.receive_json()
+            # Should get reconnected message
+            assert data["op"] == "reconnected"
+
+            # Session should still exist (TTL was canceled)
+            session = session_manager.get_session("123")
+            assert session is not None
+
+    session_manager.mode = SessionMode.EDIT
+    client.post("/api/kernel/shutdown", headers=HEADERS)
+
+
+async def test_run_mode_ttl_expiration(client: TestClient) -> None:
+    """Test that sessions expire after TTL in RUN mode."""
+    session_manager = get_session_manager(client)
+    session_manager.mode = SessionMode.RUN
+
+    with client.websocket_connect(WS_URL) as websocket:
+        data = websocket.receive_json()
+        assert_kernel_ready_response(data)
+
+        session = session_manager.get_session("123")
+        assert session is not None
+
+        # Override TTL to be very short for testing
+        original_ttl = session.ttl_seconds
+        session.ttl_seconds = 0.1
+
+        # Close websocket
+        websocket.close()
+
+        # Wait for TTL to expire
+        await asyncio.sleep(0.3)
+
+        # Session should be closed
+        session = session_manager.get_session("123")
+        assert session is None
+
+    session_manager.mode = SessionMode.EDIT
+
+
+# ==============================================================================
+# Edge Cases - Connection Validation
+# ==============================================================================
+
+
+def test_missing_file_key_closes_connection(client: TestClient) -> None:
+    """Test that missing file key causes connection to close.
+
+    This can happen when file_router.get_unique_file_key() returns None.
+    """
+    from unittest.mock import patch
+
+    session_manager = get_session_manager(client)
+
+    # Mock get_unique_file_key to return None
+    with patch.object(
+        session_manager.file_router,
+        "get_unique_file_key",
+        return_value=None,
+    ):
+        with pytest.raises(WebSocketDisconnect) as exc_info:
+            with client.websocket_connect(
+                "/ws?session_id=123&access_token=fake-token"
+            ):
+                pass
+
+        assert exc_info.value.code == WebSocketCodes.NORMAL_CLOSE
+        assert exc_info.value.reason == "MARIMO_NO_FILE_KEY"
+
+
+async def test_rtc_config_with_loro_unavailable(client: TestClient) -> None:
+    """Regression test: connection works when RTC enabled but Loro unavailable."""
+    from unittest.mock import patch
+
+    # Enable RTC in config but mock Loro as unavailable
+    with (
+        rtc_enabled(get_user_config_manager(client)),
+        patch(
+            "marimo._server.api.endpoints.ws.ws_kernel_ready.is_rtc_available",
+            return_value=False,
+        ),
+    ):
+        # Connection should succeed without errors
+        with client.websocket_connect(WS_URL) as websocket:
+            data = websocket.receive_json()
+            assert_kernel_ready_response(data)
+
     client.post("/api/kernel/shutdown", headers=HEADERS)
