@@ -379,35 +379,55 @@ class NarwhalsTransformHandler(TransformHandler[DataFrame]):
         # pivot results are also highly inconsistent across backends, so we standardize the output here
 
         collected_df, undo = collect_and_preserve_type(df)
-        pivot_columns = collected_df.select(*transform.column_ids).unique().sort(by=transform.column_ids)
+        pivot_columns = (
+            collected_df.select(*transform.column_ids)
+            .unique()
+            .sort(by=transform.column_ids)
+        )
         if type(pivot_columns) is nw.LazyFrame:
             pivot_columns = pivot_columns.collect()
 
         dfs = []
         for col in pivot_columns.rows():
             aggs = []
-            mask = reduce(lambda x, y: x & y, [nw.col(on_col) == on_val for on_col, on_val in zip(transform.column_ids, col)])
+            mask = reduce(
+                lambda x, y: x & y,
+                [
+                    nw.col(on_col) == on_val
+                    for on_col, on_val in zip(transform.column_ids, col)
+                ],
+            )
             for val in transform.value_column_ids:
-                expr = nw.col(val).alias(f"{val}_{'_'.join(map(str, col))}_{transform.aggregation}")
-                if transform.aggregation == 'count':
+                expr = nw.col(val).alias(
+                    f"{val}_{'_'.join(map(str, col))}_{transform.aggregation}"
+                )
+                if transform.aggregation == "count":
                     aggs.append(expr.len())
-                elif transform.aggregation == 'sum':
+                elif transform.aggregation == "sum":
                     aggs.append(expr.sum())
-                elif transform.aggregation == 'mean':
+                elif transform.aggregation == "mean":
                     aggs.append(expr.mean())
-                elif transform.aggregation == 'median':
+                elif transform.aggregation == "median":
                     aggs.append(expr.median())
-                elif transform.aggregation == 'min':
+                elif transform.aggregation == "min":
                     aggs.append(expr.min())
-                elif transform.aggregation == 'max':
+                elif transform.aggregation == "max":
                     aggs.append(expr.max())
                 else:
-                    raise ValueError(f"Unsupported aggregation function: {transform.aggregation}")
-            dfs.append(collected_df.filter(mask).group_by(*transform.index_column_ids).agg(*aggs))
+                    raise ValueError(
+                        f"Unsupported aggregation function: {transform.aggregation}"
+                    )
+            dfs.append(
+                collected_df.filter(mask)
+                .group_by(*transform.index_column_ids)
+                .agg(*aggs)
+            )
 
         result = collected_df.select(*transform.index_column_ids).unique()
         for df_ in dfs:
-            result = result.join(df_, on=transform.index_column_ids, how='left')
+            result = result.join(
+                df_, on=transform.index_column_ids, how="left"
+            )
         return undo(result.sort(by=transform.index_column_ids))
 
     @staticmethod

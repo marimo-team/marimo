@@ -415,13 +415,20 @@ def python_print_polars(
             f"values={_list_of_strings(transform.value_column_ids)}",
             f"aggregate_function={_as_literal(transform.aggregation)}",
         )
-        fill_null_code = ".select(pl.all().fill_null(0))" if transform.aggregation in ["len", "sum"] else ""  # noqa: E501
+        fill_null_code = (
+            ".select(pl.all().fill_null(0))"
+            if transform.aggregation in ["len", "sum"]
+            else ""
+        )  # noqa: E501
         pivot_code = f"{df_name}{fill_null_code}.pivot({args}).sort({_list_of_strings(transform.index_column_ids)})"  # noqa: E501
         lambda_code = (
-            f"lambda col: f'{transform.value_column_ids[0]}_{{col.translate(replacements)}}_{transform.aggregation}'"  # noqa: E501
-            if len(transform.value_column_ids) == 1
-            else f"lambda col: f'{{col.translate(replacements)}}_{transform.aggregation}'"
-        ) + f" if col not in {_list_of_strings(transform.index_column_ids)} else col"
+            (
+                f"lambda col: f'{transform.value_column_ids[0]}_{{col.translate(replacements)}}_{transform.aggregation}'"  # noqa: E501
+                if len(transform.value_column_ids) == 1
+                else f"lambda col: f'{{col.translate(replacements)}}_{transform.aggregation}'"
+            )
+            + f" if col not in {_list_of_strings(transform.index_column_ids)} else col"
+        )
         rename_code = (
             'replacements = str.maketrans({"{": "", "}": "", \'"\': "", ",": "_"})\n'
             f"{df_name} = {df_name}.rename({lambda_code})"
@@ -572,9 +579,7 @@ def python_print_ibis(
             f"values_agg={agg_func})"
         )
 
-        rename_code = (
-            f'df_name = {df_name}.rename(**{f"{{col}}_{agg_func}": col for col in {df_name}.columns if col not in {_list_of_strings(index_column_ids)}})'  # noqa: E501
-        )
+        rename_code = f"df_name = {df_name}.rename(**{f'{{col}}_{agg_func}': col for col in {df_name}.columns if col not in {_list_of_strings(index_column_ids)}})"  # noqa: E501
         return f"{pivot_code}\n{rename_code}"
 
     assert_never(transform.type)
