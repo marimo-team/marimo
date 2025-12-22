@@ -11,14 +11,14 @@ from typing import Any
 class MockSessionView:
     """Mock session view for testing."""
 
-    cell_operations: dict | None = None
+    cell_notifications: dict | None = None
     last_execution_time: dict | None = None
     variable_values: dict | None = None
     data_connectors: Any = None
 
     def __post_init__(self) -> None:
-        if self.cell_operations is None:
-            self.cell_operations = {}
+        if self.cell_notifications is None:
+            self.cell_notifications = {}
         if self.last_execution_time is None:
             self.last_execution_time = {}
         if self.variable_values is None:

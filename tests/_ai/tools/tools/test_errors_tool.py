@@ -39,12 +39,12 @@ class MockUpdateCellIdsRequest:
 
 @dataclass
 class MockSessionView:
-    cell_operations: dict | None = None
+    cell_notifications: dict | None = None
     cell_ids: MockUpdateCellIdsRequest | None = None
 
     def __post_init__(self) -> None:
-        if self.cell_operations is None:
-            self.cell_operations = {}
+        if self.cell_notifications is None:
+            self.cell_notifications = {}
 
 
 @dataclass

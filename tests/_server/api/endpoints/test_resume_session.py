@@ -97,10 +97,10 @@ def test_refresh_session(client: TestClient) -> None:
     session_view = session.session_view
 
     # Mimic cell execution time save
-    cell_op = CellNotification("Hbol")
-    session_view.save_execution_time(cell_op, "start")
+    cell_notification = CellNotification("Hbol")
+    session_view.save_execution_time(cell_notification, "start")
     time.sleep(0.123)
-    session_view.save_execution_time(cell_op, "end")
+    session_view.save_execution_time(cell_notification, "end")
     last_exec_time = session_view.last_execution_time["Hbol"]
 
     # New session with new ID (simulates refresh)

@@ -463,10 +463,14 @@ class TestExecution:
 
         await k.run([er1])
         stream = MockStream(k.stream)
-        cell_ops = [deserialize_kernel_message(msg) for msg in stream.messages]
-        cell_ops = [op for op in cell_ops if isinstance(op, CellNotification)]
+        cell_notifications = [
+            deserialize_kernel_message(msg) for msg in stream.messages
+        ]
+        cell_notifications = [
+            op for op in cell_notifications if isinstance(op, CellNotification)
+        ]
         er1_set_not_stale_before_run = False
-        for op in cell_ops:
+        for op in cell_notifications:
             if op.cell_id == er1.cell_id and op.status == "running":
                 break
             if (
@@ -563,7 +567,7 @@ class TestExecution:
 
         # Check the stream for stale broadcasts
         stream = MockStream(k.stream)
-        cell_ops = [
+        cell_notifications = [
             op
             for op in stream.parsed_operations
             if isinstance(op, CellNotification)
@@ -572,7 +576,7 @@ class TestExecution:
         # Filter for stale broadcasts
         stale_broadcasts = [
             op
-            for op in cell_ops
+            for op in cell_notifications
             if op.stale_inputs is not None and op.stale_inputs
         ]
 
@@ -1762,18 +1766,20 @@ except NameError:
         await k.run([exec_req.get("print(2)")])
 
         stream = MockStream(mocked_kernel.stream)
-        cell_ops = [
+        cell_notifications = [
             parse_raw(op_data, CellNotification)
             for op_data in stream.operations
             if op_data["op"] == "cell-op"
         ]
 
-        assert len(cell_ops) == 4  # queued -> running -> output -> idle
-        for cell_op in cell_ops:
-            if cell_op.status == "idle":
-                assert cell_op.run_id is None
+        assert (
+            len(cell_notifications) == 4
+        )  # queued -> running -> output -> idle
+        for cell_notification in cell_notifications:
+            if cell_notification.status == "idle":
+                assert cell_notification.run_id is None
             else:
-                assert cell_op.run_id is not None
+                assert cell_notification.run_id is not None
 
     async def test_sync_graph_basic(self, execution_kernel: Kernel) -> None:
         """Test basic synchronization: file changes cell B in A→B→C chain.
@@ -2506,8 +2512,8 @@ class TestStoredOutput:
 
         # Check that the output was still broadcast (even if formatting failed)
         stream = MockStream(mocked_kernel.stream)
-        cell_ops = stream.cell_ops
-        output_ops = [op for op in cell_ops if op.output is not None]
+        cell_notifications = stream.cell_notifications
+        output_ops = [op for op in cell_notifications if op.output is not None]
         # Should have output, even if formatter failed (falls back to plain formatter)
         assert len(output_ops) > 0
         op_names = [op.get("op") for op in stream.operations]
@@ -2548,8 +2554,8 @@ class TestStoredOutput:
 
         # Check that the output was still broadcast (even if formatting failed)
         stream = MockStream(mocked_kernel.stream)
-        cell_ops = stream.cell_ops
-        output_ops = [op for op in cell_ops if op.output is not None]
+        cell_notifications = stream.cell_notifications
+        output_ops = [op for op in cell_notifications if op.output is not None]
         # Should have output, even if formatter failed (falls back to plain formatter)
         assert len(output_ops) > 0
         op_names = [op.get("op") for op in stream.operations]
@@ -3261,15 +3267,19 @@ class TestStateTransitions:
         )
 
         stream = MockStream(mocked_kernel.stream)
-        cell_ops = stream.cell_ops
+        cell_notifications = stream.cell_notifications
 
-        n_queued = sum([1 for op in cell_ops if op.status == "queued"])
+        n_queued = sum(
+            [1 for op in cell_notifications if op.status == "queued"]
+        )
         assert n_queued == 1
 
-        n_running = sum([1 for op in cell_ops if op.status == "running"])
+        n_running = sum(
+            [1 for op in cell_notifications if op.status == "running"]
+        )
         assert n_running == 1
 
-        n_idle = sum([1 for op in cell_ops if op.status == "idle"])
+        n_idle = sum([1 for op in cell_notifications if op.status == "idle"])
         assert n_idle == 1
 
     async def test_statuses_not_repeated_on_stop(
@@ -3282,15 +3292,19 @@ class TestStateTransitions:
             ]
         )
 
-        cell_ops = mocked_kernel.stream.cell_ops
+        cell_notifications = mocked_kernel.stream.cell_notifications
 
-        n_queued = sum([1 for op in cell_ops if op.status == "queued"])
+        n_queued = sum(
+            [1 for op in cell_notifications if op.status == "queued"]
+        )
         assert n_queued == 1
 
-        n_running = sum([1 for op in cell_ops if op.status == "running"])
+        n_running = sum(
+            [1 for op in cell_notifications if op.status == "running"]
+        )
         assert n_running == 1
 
-        n_idle = sum([1 for op in cell_ops if op.status == "idle"])
+        n_idle = sum([1 for op in cell_notifications if op.status == "idle"])
         assert n_idle == 1
 
     async def test_statuses_not_repeated_on_interruption(
@@ -3306,15 +3320,19 @@ class TestStateTransitions:
         )
 
         stream = MockStream(mocked_kernel.stream)
-        cell_ops = stream.cell_ops
+        cell_notifications = stream.cell_notifications
 
-        n_queued = sum([1 for op in cell_ops if op.status == "queued"])
+        n_queued = sum(
+            [1 for op in cell_notifications if op.status == "queued"]
+        )
         assert n_queued == 1
 
-        n_running = sum([1 for op in cell_ops if op.status == "running"])
+        n_running = sum(
+            [1 for op in cell_notifications if op.status == "running"]
+        )
         assert n_running == 1
 
-        n_idle = sum([1 for op in cell_ops if op.status == "idle"])
+        n_idle = sum([1 for op in cell_notifications if op.status == "idle"])
         assert n_idle == 1
 
     async def test_statuses_not_repeated_on_exception(
@@ -3328,15 +3346,19 @@ class TestStateTransitions:
         )
 
         stream = MockStream(mocked_kernel.stream)
-        cell_ops = stream.cell_ops
+        cell_notifications = stream.cell_notifications
 
-        n_queued = sum([1 for op in cell_ops if op.status == "queued"])
+        n_queued = sum(
+            [1 for op in cell_notifications if op.status == "queued"]
+        )
         assert n_queued == 1
 
-        n_running = sum([1 for op in cell_ops if op.status == "running"])
+        n_running = sum(
+            [1 for op in cell_notifications if op.status == "running"]
+        )
         assert n_running == 1
 
-        n_idle = sum([1 for op in cell_ops if op.status == "idle"])
+        n_idle = sum([1 for op in cell_notifications if op.status == "idle"])
         assert n_idle == 1
 
     async def test_descendant_status_reset_to_idle_on_error(
@@ -3351,18 +3373,22 @@ class TestStateTransitions:
         )
 
         stream = MockStream(mocked_kernel.stream)
-        cell_ops = stream.cell_ops
+        cell_notifications = stream.cell_notifications
 
         # er_1 and er_2
-        n_queued = sum([1 for op in cell_ops if op.status == "queued"])
+        n_queued = sum(
+            [1 for op in cell_notifications if op.status == "queued"]
+        )
         assert n_queued == 2
 
         # only er_1 runs
-        n_running = sum([1 for op in cell_ops if op.status == "running"])
+        n_running = sum(
+            [1 for op in cell_notifications if op.status == "running"]
+        )
         assert n_running == 1
 
         # er_1 and er_2
-        n_idle = sum([1 for op in cell_ops if op.status == "idle"])
+        n_idle = sum([1 for op in cell_notifications if op.status == "idle"])
         assert n_idle == 2
 
         assert k.graph.cells[er_1.cell_id].runtime_state == "idle"
@@ -3387,18 +3413,22 @@ class TestStateTransitions:
         )
 
         stream = MockStream(mocked_kernel.stream)
-        cell_ops = stream.cell_ops
+        cell_notifications = stream.cell_notifications
 
         # er_1 and er_2
-        n_queued = sum([1 for op in cell_ops if op.status == "queued"])
+        n_queued = sum(
+            [1 for op in cell_notifications if op.status == "queued"]
+        )
         assert n_queued == 2
 
         # only er_1 runs
-        n_running = sum([1 for op in cell_ops if op.status == "running"])
+        n_running = sum(
+            [1 for op in cell_notifications if op.status == "running"]
+        )
         assert n_running == 1
 
         # er_1 and er_2
-        n_idle = sum([1 for op in cell_ops if op.status == "idle"])
+        n_idle = sum([1 for op in cell_notifications if op.status == "idle"])
         assert n_idle == 2
 
         assert k.graph.cells[er_1.cell_id].runtime_state == "idle"
@@ -3546,10 +3576,10 @@ class TestErrorHandling:
     ) -> None:
         k = mocked_kernel.k
         await k.run([exec_req.get("raise ValueError('some secret error')")])
-        cell_ops = mocked_kernel.stream.cell_ops
-        error_cell_op = _filter_to_error_ops(cell_ops)
-        assert len(error_cell_op) == 1
-        errors = _parse_error_output(error_cell_op[0])
+        cell_notifications = mocked_kernel.stream.cell_notifications
+        error_cell_notification = _filter_to_error_ops(cell_notifications)
+        assert len(error_cell_notification) == 1
+        errors = _parse_error_output(error_cell_notification[0])
 
         assert len(errors) == 1
         assert isinstance(errors[0], MarimoExceptionRaisedError)
@@ -3561,10 +3591,10 @@ class TestErrorHandling:
     ) -> None:
         k = run_mode_kernel.k
         await k.run([exec_req.get("raise ValueError('some secret error')")])
-        cell_ops = run_mode_kernel.stream.cell_ops
-        error_cell_op = _filter_to_error_ops(cell_ops)
-        assert len(error_cell_op) == 1
-        errors = _parse_error_output(error_cell_op[0])
+        cell_notifications = run_mode_kernel.stream.cell_notifications
+        error_cell_notification = _filter_to_error_ops(cell_notifications)
+        assert len(error_cell_notification) == 1
+        errors = _parse_error_output(error_cell_notification[0])
 
         assert len(errors) == 1
         assert isinstance(errors[0], MarimoInternalError)
@@ -3580,10 +3610,10 @@ class TestErrorHandling:
                 exec_req.get("x = 20"),
             ]
         )
-        cell_ops = run_mode_kernel.stream.cell_ops
-        error_cell_op = _filter_to_error_ops(cell_ops)
-        assert len(error_cell_op) == 2
-        for op in error_cell_op:
+        cell_notifications = run_mode_kernel.stream.cell_notifications
+        error_cell_notification = _filter_to_error_ops(cell_notifications)
+        assert len(error_cell_notification) == 2
+        for op in error_cell_notification:
             errors = _parse_error_output(op)
             assert len(errors) == 1
             assert isinstance(errors[0], MarimoInternalError)
@@ -3671,17 +3701,25 @@ class TestMarkdownHandling:
         assert "regular_cell" in k._uninstantiated_execution_requests
 
         # Check that the markdown cell output was broadcast
-        cell_ops = [deserialize_kernel_message(msg) for msg in stream.messages]
-        cell_ops = [op for op in cell_ops if isinstance(op, CellNotification)]
+        cell_notifications = [
+            deserialize_kernel_message(msg) for msg in stream.messages
+        ]
+        cell_notifications = [
+            op for op in cell_notifications if isinstance(op, CellNotification)
+        ]
 
         # Find operations for the markdown cell
-        md_cell_ops = [op for op in cell_ops if op.cell_id == "md_cell"]
+        md_cell_notifications = [
+            op for op in cell_notifications if op.cell_id == "md_cell"
+        ]
 
         # Should have at least one output operation and one stale operation
-        assert len(md_cell_ops) >= 2
+        assert len(md_cell_notifications) >= 2
 
         # Check that there's an output operation with HTML content
-        output_ops = [op for op in md_cell_ops if op.output is not None]
+        output_ops = [
+            op for op in md_cell_notifications if op.output is not None
+        ]
         assert len(output_ops) == 1
 
         output_op = output_ops[0]
@@ -3692,16 +3730,20 @@ class TestMarkdownHandling:
         assert output_op.status == "idle"
 
         # Check that the cell was marked as not stale
-        stale_ops = [op for op in md_cell_ops if op.stale_inputs is not None]
+        stale_ops = [
+            op for op in md_cell_notifications if op.stale_inputs is not None
+        ]
         assert len(stale_ops) == 1
         assert stale_ops[0].stale_inputs is False
 
         # Check that regular cell was marked as stale
-        regular_cell_ops = [
-            op for op in cell_ops if op.cell_id == "regular_cell"
+        regular_cell_notifications = [
+            op for op in cell_notifications if op.cell_id == "regular_cell"
         ]
         regular_stale_ops = [
-            op for op in regular_cell_ops if op.stale_inputs is not None
+            op
+            for op in regular_cell_notifications
+            if op.stale_inputs is not None
         ]
         assert len(regular_stale_ops) == 1
         assert regular_stale_ops[0].stale_inputs is True
@@ -3822,13 +3864,21 @@ class TestMarkdownHandling:
         assert "cell2" in k._uninstantiated_execution_requests
 
         # Check that all cells were marked as stale
-        cell_ops = [deserialize_kernel_message(msg) for msg in stream.messages]
-        cell_ops = [op for op in cell_ops if isinstance(op, CellNotification)]
+        cell_notifications = [
+            deserialize_kernel_message(msg) for msg in stream.messages
+        ]
+        cell_notifications = [
+            op for op in cell_notifications if isinstance(op, CellNotification)
+        ]
 
         for cell_id in ["cell1", "cell2"]:
-            cell_ops_for_id = [op for op in cell_ops if op.cell_id == cell_id]
+            cell_notifications_for_id = [
+                op for op in cell_notifications if op.cell_id == cell_id
+            ]
             stale_ops = [
-                op for op in cell_ops_for_id if op.stale_inputs is not None
+                op
+                for op in cell_notifications_for_id
+                if op.stale_inputs is not None
             ]
             assert len(stale_ops) == 1
             assert stale_ops[0].stale_inputs is True
@@ -3881,20 +3931,30 @@ class TestMarkdownHandling:
         assert "good_md" not in k._uninstantiated_execution_requests
 
         # Check operations
-        cell_ops = [deserialize_kernel_message(msg) for msg in stream.messages]
-        cell_ops = [op for op in cell_ops if isinstance(op, CellNotification)]
+        cell_notifications = [
+            deserialize_kernel_message(msg) for msg in stream.messages
+        ]
+        cell_notifications = [
+            op for op in cell_notifications if isinstance(op, CellNotification)
+        ]
 
         # Bad cell should be marked as stale
-        bad_cell_ops = [op for op in cell_ops if op.cell_id == "bad_cell"]
+        bad_cell_notifications = [
+            op for op in cell_notifications if op.cell_id == "bad_cell"
+        ]
         bad_stale_ops = [
-            op for op in bad_cell_ops if op.stale_inputs is not None
+            op for op in bad_cell_notifications if op.stale_inputs is not None
         ]
         assert len(bad_stale_ops) == 1
         assert bad_stale_ops[0].stale_inputs is True
 
         # Good cell should have output and be marked as not stale
-        good_cell_ops = [op for op in cell_ops if op.cell_id == "good_md"]
-        good_output_ops = [op for op in good_cell_ops if op.output is not None]
+        good_cell_notifications = [
+            op for op in cell_notifications if op.cell_id == "good_md"
+        ]
+        good_output_ops = [
+            op for op in good_cell_notifications if op.output is not None
+        ]
         assert len(good_output_ops) == 1
         assert "Good" in good_output_ops[0].output.data
 
@@ -3934,24 +3994,32 @@ class TestMarkdownHandling:
         assert "regular_cell" in k._uninstantiated_execution_requests
 
         # Check that all cells were marked as stale
-        cell_ops = [deserialize_kernel_message(msg) for msg in stream.messages]
-        cell_ops = [op for op in cell_ops if isinstance(op, CellNotification)]
+        cell_notifications = [
+            deserialize_kernel_message(msg) for msg in stream.messages
+        ]
+        cell_notifications = [
+            op for op in cell_notifications if isinstance(op, CellNotification)
+        ]
 
         for cell_id in ["md_cell1", "md_cell2", "regular_cell"]:
-            cell_ops_for_id = [op for op in cell_ops if op.cell_id == cell_id]
+            cell_notifications_for_id = [
+                op for op in cell_notifications if op.cell_id == cell_id
+            ]
             stale_ops = [
-                op for op in cell_ops_for_id if op.stale_inputs is not None
+                op
+                for op in cell_notifications_for_id
+                if op.stale_inputs is not None
             ]
             assert len(stale_ops) == 1
             assert stale_ops[0].stale_inputs is True
 
         # No cells should have output operations
-        output_ops = [op for op in cell_ops if op.output is not None]
+        output_ops = [op for op in cell_notifications if op.output is not None]
         assert len(output_ops) == 0
 
 
-def _parse_error_output(cell_op: CellNotification) -> list[Error]:
-    error_output = cell_op.output
+def _parse_error_output(cell_notification: CellNotification) -> list[Error]:
+    error_output = cell_notification.output
     assert error_output is not None
     assert error_output.channel == CellChannel.MARIMO_ERROR
     assert error_output.mimetype == "application/vnd.marimo+error"
@@ -3960,11 +4028,11 @@ def _parse_error_output(cell_op: CellNotification) -> list[Error]:
 
 
 def _filter_to_error_ops(
-    cell_ops: list[CellNotification],
+    cell_notifications: list[CellNotification],
 ) -> list[CellNotification]:
     return [
         op
-        for op in cell_ops
+        for op in cell_notifications
         if op.output is not None
         and op.output.channel == CellChannel.MARIMO_ERROR
     ]

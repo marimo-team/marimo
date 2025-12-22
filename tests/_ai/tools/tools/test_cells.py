@@ -56,10 +56,11 @@ def test_is_markdown_cell():
 
 def test_get_cell_metadata_basic():
     tool = GetCellRuntimeData(ToolContext())
-    cell_op = MockCellNotification(status="idle")
+    cell_notification = MockCellNotification(status="idle")
     session = MockSession(
         _session_view=MockSessionView(
-            cell_operations={"c1": cell_op}, last_execution_time={"c1": 42.5}
+            cell_notifications={"c1": cell_notification},
+            last_execution_time={"c1": 42.5},
         )
     )
 
@@ -69,7 +70,7 @@ def test_get_cell_metadata_basic():
     )
 
 
-def test_get_cell_metadata_no_cell_op():
+def test_get_cell_metadata_no_cell_notification():
     tool = GetCellRuntimeData(ToolContext())
     session = MockSession(_session_view=MockSessionView())
 
@@ -157,17 +158,17 @@ def test_get_cell_runtime_data_invalid_cell():
 def test_get_visual_output_with_html():
     tool = GetCellOutputs(ToolContext())
     output = MockOutput(data="<div>test</div>", mimetype="text/html")
-    cell_op = MockCellNotification(output=output)
+    cell_notification = MockCellNotification(output=output)
 
-    visual_output, mimetype = tool._get_visual_output(cell_op)  # type: ignore[arg-type]
+    visual_output, mimetype = tool._get_visual_output(cell_notification)  # type: ignore[arg-type]
     assert visual_output == "<div>test</div>"
     assert mimetype == "text/html"
 
 
 def test_get_visual_output_no_output():
     tool = GetCellOutputs(ToolContext())
-    cell_op = MockCellNotification(output=None)
+    cell_notification = MockCellNotification(output=None)
 
-    visual_output, mimetype = tool._get_visual_output(cell_op)  # type: ignore[arg-type]
+    visual_output, mimetype = tool._get_visual_output(cell_notification)  # type: ignore[arg-type]
     assert visual_output is None
     assert mimetype is None

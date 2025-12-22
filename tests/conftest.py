@@ -85,7 +85,7 @@ class _MockStream(ThreadSafeStream):
         ]
 
     @property
-    def cell_ops(self) -> list[CellNotification]:
+    def cell_notifications(self) -> list[CellNotification]:
         return [
             op for op in self.operations if isinstance(op, CellNotification)
         ]

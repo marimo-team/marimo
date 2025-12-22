@@ -36,7 +36,7 @@ class MockStream(Stream):
         ]
 
     @property
-    def cell_ops(self) -> list[CellNotification]:
+    def cell_notifications(self) -> list[CellNotification]:
         return [
             op
             for op in self.parsed_operations

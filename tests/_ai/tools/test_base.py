@@ -139,7 +139,7 @@ def test_get_notebook_errors_orders_by_cell_manager():
 
     context = ToolContext()
 
-    # Mock error cell_op
+    # Mock error cell_notification
     error_op = Mock()
     error_op.output = Mock()
     error_op.output.channel = CellChannel.MARIMO_ERROR
@@ -149,7 +149,7 @@ def test_get_notebook_errors_orders_by_cell_manager():
     # Mock session with cells c1, c2, c3
     session = Mock()
     session_view = Mock()
-    session_view.cell_operations = {
+    session_view.cell_notifications = {
         CellId_t("c1"): error_op,
         CellId_t("c2"): error_op,
         CellId_t("c3"): error_op,
@@ -187,16 +187,18 @@ def test_get_cell_errors_extracts_from_output():
 
     context = ToolContext()
 
-    # Mock cell_op with error
-    cell_op = Mock()
-    cell_op.output = Mock()
-    cell_op.output.channel = CellChannel.MARIMO_ERROR
-    cell_op.output.data = [
+    # Mock cell_notification with error
+    cell_notification = Mock()
+    cell_notification.output = Mock()
+    cell_notification.output.channel = CellChannel.MARIMO_ERROR
+    cell_notification.output.data = [
         {"type": "ValueError", "msg": "bad value", "traceback": ["line 1"]}
     ]
 
     errors = context.get_cell_errors(
-        SessionId("test"), CellId_t("c1"), maybe_cell_op=cell_op
+        SessionId("test"),
+        CellId_t("c1"),
+        maybe_cell_notification=cell_notification,
     )
 
     assert len(errors) == 1
@@ -213,7 +215,7 @@ def test_get_cell_console_outputs_separates_stdout_stderr():
 
     context = ToolContext()
 
-    # Mock cell_op with stdout and stderr
+    # Mock cell_notification with stdout and stderr
     stdout_output = Mock()
     stdout_output.channel = CellChannel.STDOUT
     stdout_output.data = "hello"
@@ -222,10 +224,10 @@ def test_get_cell_console_outputs_separates_stdout_stderr():
     stderr_output.channel = CellChannel.STDERR
     stderr_output.data = "warning"
 
-    cell_op = Mock()
-    cell_op.console = [stdout_output, stderr_output]
+    cell_notification = Mock()
+    cell_notification.console = [stdout_output, stderr_output]
 
-    result = context.get_cell_console_outputs(cell_op)
+    result = context.get_cell_console_outputs(cell_notification)
 
     assert len(result.stdout) == 1
     assert "hello" in result.stdout[0]

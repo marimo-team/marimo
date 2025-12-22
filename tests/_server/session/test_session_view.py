@@ -73,21 +73,21 @@ def test_cell_ids(session_view: SessionView) -> None:
     assert operation.cell_ids == [cell_id]
 
 
-def test_session_view_cell_op(session_view: SessionView) -> None:
+def test_session_view_cell_notification(session_view: SessionView) -> None:
     # Create initial CellNotification
-    initial_cell_op = CellNotification(
+    initial_cell_notification = CellNotification(
         cell_id=cell_id, output=initial_output, status=initial_status
     )
-    session_view.add_operation(initial_cell_op)
+    session_view.add_operation(initial_cell_notification)
 
     # Add updated CellNotification to SessionView
-    updated_cell_op = CellNotification(
+    updated_cell_notification = CellNotification(
         cell_id=cell_id, output=updated_output, status=updated_status
     )
-    session_view.add_operation(updated_cell_op)
+    session_view.add_operation(updated_cell_notification)
 
-    assert session_view.cell_operations[cell_id].output == updated_output
-    assert session_view.cell_operations[cell_id].status == updated_status
+    assert session_view.cell_notifications[cell_id].output == updated_output
+    assert session_view.cell_notifications[cell_id].status == updated_status
 
 
 # Test adding Variables to SessionView
@@ -687,7 +687,7 @@ def test_add_sql_table_previews() -> None:
     ]
 
 
-def test_add_cell_op(session_view: SessionView) -> None:
+def test_add_cell_notification(session_view: SessionView) -> None:
     session_view.add_raw_operation(
         serialize_kernel_message(
             CellNotification(
@@ -696,8 +696,8 @@ def test_add_cell_op(session_view: SessionView) -> None:
         )
     )
 
-    assert session_view.cell_operations[cell_id].output == initial_output
-    assert session_view.cell_operations[cell_id].status == initial_status
+    assert session_view.cell_notifications[cell_id].output == initial_output
+    assert session_view.cell_notifications[cell_id].status == initial_status
 
 
 # patch time
@@ -722,7 +722,7 @@ def test_combine_console_outputs(
     )
 
     # Consecutive text/plain stdout outputs are merged
-    assert session_view.cell_operations[cell_id].console == [
+    assert session_view.cell_notifications[cell_id].console == [
         CellOutput.stdout("onetwo"),
     ]
 
@@ -735,7 +735,7 @@ def test_combine_console_outputs(
         )
     )
 
-    assert session_view.cell_operations[cell_id].console == [
+    assert session_view.cell_notifications[cell_id].console == [
         CellOutput.stdout("onetwo"),
     ]
 
@@ -747,7 +747,7 @@ def test_combine_console_outputs(
             status="running",
         )
     )
-    assert session_view.cell_operations[cell_id].console == []
+    assert session_view.cell_notifications[cell_id].console == []
 
     # Write again
     session_view.add_operation(
@@ -757,7 +757,7 @@ def test_combine_console_outputs(
             status="running",
         )
     )
-    assert session_view.cell_operations[cell_id].console == [
+    assert session_view.cell_notifications[cell_id].console == [
         CellOutput.stdout("three")
     ]
 
@@ -780,14 +780,14 @@ def test_stdin(time_mock: Any, session_view: SessionView) -> None:
         )
     )
 
-    assert session_view.cell_operations[cell_id].console == [
+    assert session_view.cell_notifications[cell_id].console == [
         CellOutput.stdout("Hello"),
         CellOutput.stdin("What is your name?"),
     ]
 
     session_view.add_stdin("marimo")
 
-    assert session_view.cell_operations[cell_id].console == [
+    assert session_view.cell_notifications[cell_id].console == [
         CellOutput.stdout("Hello"),
         CellOutput.stdout("What is your name? marimo\n"),
     ]
@@ -824,12 +824,13 @@ def test_merge_consecutive_text_plain_outputs(
     )
 
     # Should be merged into a single output
-    assert len(session_view.cell_operations[cell_id].console) == 1
+    assert len(session_view.cell_notifications[cell_id].console) == 1
     assert (
-        session_view.cell_operations[cell_id].console[0].data == "Hello World!"
+        session_view.cell_notifications[cell_id].console[0].data
+        == "Hello World!"
     )
     assert (
-        session_view.cell_operations[cell_id].console[0].channel
+        session_view.cell_notifications[cell_id].console[0].channel
         == CellChannel.STDOUT
     )
 
@@ -857,13 +858,13 @@ def test_merge_different_channels_not_merged(
     )
 
     # Should remain separate
-    assert len(session_view.cell_operations[cell_id].console) == 2
+    assert len(session_view.cell_notifications[cell_id].console) == 2
     assert (
-        session_view.cell_operations[cell_id].console[0].channel
+        session_view.cell_notifications[cell_id].console[0].channel
         == CellChannel.STDOUT
     )
     assert (
-        session_view.cell_operations[cell_id].console[1].channel
+        session_view.cell_notifications[cell_id].console[1].channel
         == CellChannel.STDERR
     )
 
@@ -891,13 +892,13 @@ def test_merge_different_mimetypes_not_merged(
     )
 
     # Should remain separate
-    assert len(session_view.cell_operations[cell_id].console) == 2
+    assert len(session_view.cell_notifications[cell_id].console) == 2
     assert (
-        session_view.cell_operations[cell_id].console[0].mimetype
+        session_view.cell_notifications[cell_id].console[0].mimetype
         == "text/plain"
     )
     assert (
-        session_view.cell_operations[cell_id].console[1].mimetype
+        session_view.cell_notifications[cell_id].console[1].mimetype
         == "text/html"
     )
 
@@ -929,7 +930,7 @@ def test_merge_with_non_string_data_not_merged(
     )
 
     # Should remain separate
-    assert len(session_view.cell_operations[cell_id].console) == 2
+    assert len(session_view.cell_notifications[cell_id].console) == 2
 
 
 @patch("time.time", return_value=123)

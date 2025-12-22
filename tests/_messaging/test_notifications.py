@@ -61,9 +61,11 @@ def test_broadcast_serialization() -> None:
 
     assert len(stream.messages) == 1
     assert stream.operations[0]["serialization"] == str(HINT_UNPARSABLE)
-    cell_op = stream.operations[0]
+    cell_notification = stream.operations[0]
 
-    assert isinstance(parse_raw(cell_op, CellNotification), CellNotification)
+    assert isinstance(
+        parse_raw(cell_notification, CellNotification), CellNotification
+    )
 
 
 def test_startup_logs_creation() -> None:

@@ -445,17 +445,20 @@ def test_auto_export_ipynb_with_new_cell(
     # Wait for the cell operation to be created
     timeout = 2
     start = time.time()
-    cell_op = None
+    cell_notification = None
     while time.time() - start < timeout:
-        if "new_cell" not in session.session_view.cell_operations:
+        if "new_cell" not in session.session_view.cell_notifications:
             time.sleep(0.1)
             continue
-        cell_op = session.session_view.cell_operations["new_cell"]
-        if cell_op.output is not None and cell_op.output.data:
+        cell_notification = session.session_view.cell_notifications["new_cell"]
+        if (
+            cell_notification.output is not None
+            and cell_notification.output.data
+        ):
             break
-    assert cell_op
-    assert cell_op.output is not None
-    assert "3.14" in cell_op.output.data
+    assert cell_notification
+    assert cell_notification.output is not None
+    assert "3.14" in cell_notification.output.data
 
     # Now attempt to auto-export as ipynb
     export_response = client.post(

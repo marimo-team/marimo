@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import time
 
 from marimo._runtime.requests import DeleteCellRequest
@@ -90,14 +92,16 @@ async def test_thread_output_append(
     assert not k.errors
     time.sleep(0.01)  # noqa: ASYNC251
     # The main thread should not have any output, but the new thread should
-    cell_ops = MockStream(k.globals["stream"]).cell_ops
-    for m in cell_ops:
+    cell_notifications = MockStream(k.globals["stream"]).cell_notifications
+    for m in cell_notifications:
         if m.output is not None:
             assert "hello" not in m.output.data
             assert "world" not in m.output.data
-    thread_stream_cell_ops = MockStream(k.globals["thread_stream"]).cell_ops
-    assert "hello" in thread_stream_cell_ops[0].output.data
-    assert "world" in thread_stream_cell_ops[1].output.data
+    thread_stream_cell_notifications = MockStream(
+        k.globals["thread_stream"]
+    ).cell_notifications
+    assert "hello" in thread_stream_cell_notifications[0].output.data
+    assert "world" in thread_stream_cell_notifications[1].output.data
 
 
 async def test_thread_print(k: Kernel, exec_req: ExecReqProvider) -> None:

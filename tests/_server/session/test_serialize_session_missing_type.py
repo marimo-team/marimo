@@ -9,7 +9,7 @@ from marimo._server.session.session_view import SessionView
 def test_serialize_session_with_dict_error_missing_type():
     """Test serialization of a session with a dictionary error missing the type key"""
     view = SessionView()
-    view.cell_operations["cell1"] = CellNotification(
+    view.cell_notifications["cell1"] = CellNotification(
         cell_id="cell1",
         status="idle",
         output=CellOutput(
