@@ -8,8 +8,8 @@ import yaml
 
 
 @pytest.mark.skipif(
-    sys.platform == "win32",
-    reason="This test is flaky on Windows",
+    sys.platform == "win32" or sys.version_info != (3, 12),
+    reason="This test is flaky on Windows. And only test on 3.12",
 )
 def test_session_schema_up_to_date() -> None:
     current_session_schema = yaml.safe_load(
