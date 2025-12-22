@@ -105,7 +105,9 @@ async def ws_sync(
     # Check if Loro is available
     if not (LORO_ALLOWED and DependencyManager.loro.has()):
         if not LORO_ALLOWED:
-            LOGGER.warning("RTC: Python version is not supported")
+            LOGGER.warning(
+                "RTC: Python version is not supported (requires 3.11+)"
+            )
         else:
             LOGGER.warning("RTC: Loro is not installed, closing websocket")
         await websocket.close(

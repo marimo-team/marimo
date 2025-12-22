@@ -164,7 +164,9 @@ def _try_init_rtc_doc(
         file_key: File key for the document
         doc_manager: LoroDoc manager
     """
-    if not (LORO_ALLOWED and DependencyManager.loro.has()):
+    if not LORO_ALLOWED:
+        LOGGER.warning("RTC: Python version is not supported (requires 3.11+)")
+    elif not DependencyManager.loro.has():
         LOGGER.warning(
             "RTC: Loro is not installed, disabling real-time collaboration"
         )

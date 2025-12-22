@@ -74,7 +74,6 @@ class WebSocketMessageLoop:
             data = await self.message_queue.get()
             op: str = deserialize_kernel_operation_name(data)
 
-            # Filter operations based on kiosk mode
             if self._should_filter_operation(op):
                 continue
 
@@ -82,8 +81,7 @@ class WebSocketMessageLoop:
             try:
                 text = f'{{"op": "{op}", "data": {data.decode("utf-8")}}}'
             except Exception as e:
-                # This is a deserialization error
-                LOGGER.error("Failed to send message to frontend: %s", str(e))
+                LOGGER.error("Failed to deserialize message: %s", str(e))
                 LOGGER.error("Message: %s", data)
                 continue
 
@@ -102,6 +100,13 @@ class WebSocketMessageLoop:
                     == WebSocketState.DISCONNECTED
                 ):
                     self.on_disconnect(e, self._cancel_disconnect_task)
+                else:
+                    LOGGER.error(
+                        "Error sending message to frontend: %s", str(e)
+                    )
+            except Exception as e:
+                LOGGER.error("Error sending message to frontend: %s", str(e))
+                raise e
 
     async def _listen_for_disconnect(self) -> None:
         """Listen for WebSocket disconnect."""
@@ -112,6 +117,9 @@ class WebSocketMessageLoop:
             await self.websocket.receive_text()
         except WebSocketDisconnect as e:
             self.on_disconnect(e, self._cancel_messages_task)
+        except Exception as e:
+            LOGGER.error("Error listening for disconnect: %s", str(e))
+            raise e
 
     def _should_filter_operation(self, op: str) -> bool:
         """Determine if operation should be filtered based on kiosk mode.
