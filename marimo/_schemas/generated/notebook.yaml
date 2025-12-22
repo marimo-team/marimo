@@ -2,73 +2,80 @@
 components:
   schemas:
     NotebookCell:
+      description: Code cell specific structure
       properties:
         code:
-          nullable: true
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
         code_hash:
-          nullable: true
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
         config:
-          properties:
-            column:
-              nullable: true
-              type: integer
-            disabled:
-              nullable: true
-              type: boolean
-            hide_code:
-              nullable: true
-              type: boolean
-          type: object
+          $ref: '#/$defs/NotebookCellConfig'
         id:
-          nullable: true
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
         name:
-          nullable: true
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
       required:
-      - id
       - code
       - code_hash
-      - name
       - config
+      - id
+      - name
+      title: NotebookCell
       type: object
     NotebookCellConfig:
+      description: Configuration for a notebook cell
       properties:
         column:
-          nullable: true
-          type: integer
+          anyOf:
+          - type: integer
+          - type: 'null'
         disabled:
-          nullable: true
-          type: boolean
+          anyOf:
+          - type: boolean
+          - type: 'null'
         hide_code:
-          nullable: true
-          type: boolean
+          anyOf:
+          - type: boolean
+          - type: 'null'
+      required: []
+      title: NotebookCellConfig
       type: object
     NotebookMetadata:
+      description: Metadata about the notebook
       properties:
         marimo_version:
-          nullable: true
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
+      required: []
+      title: NotebookMetadata
       type: object
     NotebookV1:
+      description: Main notebook structure
       properties:
         cells:
           items:
-            $ref: '#/components/schemas/NotebookCell'
+            $ref: '#/$defs/NotebookCell'
           type: array
         metadata:
-          $ref: '#/components/schemas/NotebookMetadata'
+          $ref: '#/$defs/NotebookMetadata'
         version:
           enum:
           - '1'
-          type: string
       required:
-      - version
-      - metadata
       - cells
+      - metadata
+      - version
+      title: NotebookV1
       type: object
 info:
-  title: marimo_session
+  title: marimo
 openapi: 3.0.0
