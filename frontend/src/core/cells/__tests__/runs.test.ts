@@ -26,7 +26,7 @@ describe("RunsState Reducer", () => {
   const timestamp = Date.now();
   const code = "print('Hello World')";
 
-  const cellOperation: CellMessage = {
+  const cellNotification: CellMessage = {
     run_id: runId,
     cell_id: cellId,
     timestamp,
@@ -35,9 +35,9 @@ describe("RunsState Reducer", () => {
 
   function addQueuedCell(): RunsState {
     return reducer(state, {
-      type: "addCellOperation",
+      type: "addCellNotification",
       payload: {
-        cellOperation: cellOperation,
+        cellNotification: cellNotification,
         code: "print('Hello World')",
       },
     });
@@ -94,9 +94,9 @@ describe("RunsState Reducer", () => {
     let intermediateState = addQueuedCell();
 
     intermediateState = reducer(intermediateState, {
-      type: "addCellOperation",
+      type: "addCellNotification",
       payload: {
-        cellOperation: {
+        cellNotification: {
           run_id: runId2,
           cell_id: "cell2",
           timestamp,
@@ -120,9 +120,9 @@ describe("RunsState Reducer", () => {
 
     const runStartTimestamp = timestamp + 1000;
     const updatedState = reducer(state, {
-      type: "addCellOperation",
+      type: "addCellNotification",
       payload: {
-        cellOperation: {
+        cellNotification: {
           run_id: runId,
           cell_id: cellId,
           timestamp: timestamp + 1000,
@@ -141,9 +141,9 @@ describe("RunsState Reducer", () => {
     );
 
     const successState = reducer(updatedState, {
-      type: "addCellOperation",
+      type: "addCellNotification",
       payload: {
-        cellOperation: {
+        cellNotification: {
           run_id: runId,
           cell_id: cellId,
           timestamp: runStartTimestamp + 5000,
@@ -168,9 +168,9 @@ describe("RunsState Reducer", () => {
   it("should limit the number of runs to MAX_RUNS", () => {
     for (let i = 1; i <= MAX_RUNS + 1; i++) {
       state = reducer(state, {
-        type: "addCellOperation",
+        type: "addCellNotification",
         payload: {
-          cellOperation: {
+          cellNotification: {
             run_id: `run${i}`,
             cell_id: `cell${i}`,
             timestamp: timestamp,
@@ -194,9 +194,9 @@ describe("RunsState Reducer", () => {
     const truncatedCode = longCode.slice(0, MAX_CODE_LENGTH);
 
     const nextState = reducer(state, {
-      type: "addCellOperation",
+      type: "addCellNotification",
       payload: {
-        cellOperation: {
+        cellNotification: {
           run_id: runId,
           cell_id: cellId,
           timestamp,
@@ -216,9 +216,9 @@ describe("RunsState Reducer", () => {
 
     const errorTimestamp = timestamp + 2000;
     const errorState = reducer(state, {
-      type: "addCellOperation",
+      type: "addCellNotification",
       payload: {
-        cellOperation: {
+        cellNotification: {
           run_id: runId,
           cell_id: cellId,
           timestamp: errorTimestamp,
@@ -244,9 +244,9 @@ describe("RunsState Reducer", () => {
 
     const errorTimestamp = timestamp + 2000;
     const errorState = reducer(state, {
-      type: "addCellOperation",
+      type: "addCellNotification",
       payload: {
-        cellOperation: {
+        cellNotification: {
           run_id: runId,
           cell_id: cellId,
           timestamp: errorTimestamp,
@@ -269,9 +269,9 @@ describe("RunsState Reducer", () => {
 
   it("should maintain status as error when there was a previous error", () => {
     const erroredState = reducer(state, {
-      type: "addCellOperation",
+      type: "addCellNotification",
       payload: {
-        cellOperation: {
+        cellNotification: {
           run_id: runId,
           cell_id: cellId,
           timestamp,
@@ -284,9 +284,9 @@ describe("RunsState Reducer", () => {
     });
 
     const finalState = reducer(erroredState, {
-      type: "addCellOperation",
+      type: "addCellNotification",
       payload: {
-        cellOperation: {
+        cellNotification: {
           run_id: runId,
           cell_id: cellId,
           timestamp: timestamp + 2000,
@@ -308,9 +308,9 @@ describe("RunsState Reducer", () => {
     let intermediateState = addQueuedCell();
 
     intermediateState = reducer(intermediateState, {
-      type: "addCellOperation",
+      type: "addCellNotification",
       payload: {
-        cellOperation: {
+        cellNotification: {
           run_id: runId2,
           cell_id: "cell2",
           timestamp: timestamp + 1000,
@@ -321,9 +321,9 @@ describe("RunsState Reducer", () => {
     });
 
     const finalState = reducer(intermediateState, {
-      type: "addCellOperation",
+      type: "addCellNotification",
       payload: {
-        cellOperation: {
+        cellNotification: {
           run_id: runId3,
           cell_id: "cell3",
           timestamp: timestamp + 2000,
@@ -341,9 +341,9 @@ describe("RunsState Reducer", () => {
     const run1 = state1.runMap.get(runId);
 
     const state2 = reducer(state1, {
-      type: "addCellOperation",
+      type: "addCellNotification",
       payload: {
-        cellOperation: {
+        cellNotification: {
           run_id: runId,
           cell_id: "cell2",
           timestamp: timestamp + 1000,
@@ -363,9 +363,9 @@ describe("RunsState Reducer", () => {
     const run1 = state1.runMap.get(runId);
 
     const state2 = reducer(state1, {
-      type: "addCellOperation",
+      type: "addCellNotification",
       payload: {
-        cellOperation: {
+        cellNotification: {
           run_id: runId,
           cell_id: cellId,
           timestamp: timestamp + 1000,
@@ -382,9 +382,9 @@ describe("RunsState Reducer", () => {
 
   it("should skip markdown for first run", () => {
     const markdownState = reducer(state, {
-      type: "addCellOperation",
+      type: "addCellNotification",
       payload: {
-        cellOperation: {
+        cellNotification: {
           run_id: runId,
           cell_id: cellId,
           timestamp,
@@ -401,9 +401,9 @@ describe("RunsState Reducer", () => {
   it("should not skip markdown if first run was not markdown", () => {
     // Add non-markdown run first
     let nextState = reducer(state, {
-      type: "addCellOperation",
+      type: "addCellNotification",
       payload: {
-        cellOperation: {
+        cellNotification: {
           run_id: runId,
           cell_id: cellId,
           timestamp,
@@ -415,9 +415,9 @@ describe("RunsState Reducer", () => {
 
     // Add markdown run second
     nextState = reducer(nextState, {
-      type: "addCellOperation",
+      type: "addCellNotification",
       payload: {
-        cellOperation: {
+        cellNotification: {
           run_id: runId,
           cell_id: "cell2",
           timestamp: timestamp + 1000,

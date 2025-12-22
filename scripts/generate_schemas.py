@@ -32,7 +32,7 @@ with app.setup:
     ]
     OPS_MESSAGES = [
         # Message operations
-        o.CellOpNotification,
+        o.CellNotification,
         o.FunctionCallResultNotification,
         o.RemoveUIElementsNotification,
         o.SendUIElementMessageNotification,

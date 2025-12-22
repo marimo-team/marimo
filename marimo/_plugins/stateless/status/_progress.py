@@ -17,7 +17,7 @@ from typing import (
 import marimo._runtime.output._output as output
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._messaging.notification import AlertNotification
-from marimo._messaging.notification_utils import broadcast_op
+from marimo._messaging.notification_utils import broadcast_notification
 from marimo._output.hypertext import Html
 from marimo._output.rich_help import mddoc
 from marimo._plugins.core.web_component import build_stateless_plugin
@@ -501,6 +501,6 @@ def toast(
         kind (Literal["danger"], optional): Optional kind, use "danger" for error toasts.
             Defaults to None.
     """
-    broadcast_op(
+    broadcast_notification(
         AlertNotification(title=title, description=description, variant=kind),
     )

@@ -10,7 +10,7 @@ import pytest
 from marimo._config.manager import UserConfigManager
 from marimo._messaging.msgspec_encoder import asdict
 from marimo._messaging.notification import (
-    CellOpNotification,
+    CellNotification,
     KernelCapabilitiesNotification,
     KernelReadyNotification,
 )
@@ -97,7 +97,7 @@ def test_refresh_session(client: TestClient) -> None:
     session_view = session.session_view
 
     # Mimic cell execution time save
-    cell_op = CellOpNotification("Hbol")
+    cell_op = CellNotification("Hbol")
     session_view.save_execution_time(cell_op, "start")
     time.sleep(0.123)
     session_view.save_execution_time(cell_op, "end")

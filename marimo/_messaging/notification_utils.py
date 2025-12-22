@@ -37,10 +37,10 @@ if TYPE_CHECKING:
 LOGGER = loggers.marimo_logger()
 
 
-def broadcast_op(
-    op: NotificationMessage, stream: Optional[Stream] = None
+def broadcast_notification(
+    notification: NotificationMessage, stream: Optional[Stream] = None
 ) -> None:
-    """Broadcast an operation to the stream."""
+    """Broadcast a notification to the stream."""
     if stream is None:
         try:
             ctx = get_context()
@@ -51,11 +51,11 @@ def broadcast_op(
             stream = ctx.stream
 
     try:
-        stream.write(serialize_kernel_message(op))
+        stream.write(serialize_kernel_message(notification))
     except Exception as e:
         LOGGER.exception(
-            "Error serializing op %s: %s",
-            op.__class__.__name__,
+            "Error serializing notification %s: %s",
+            notification.__class__.__name__,
             e,
         )
         return
@@ -116,7 +116,7 @@ class CellNotificationUtils:
         stream: Stream | None = None,
     ) -> None:
         # Import here to avoid circular dependency
-        from marimo._messaging.notification import CellOpNotification
+        from marimo._messaging.notification import CellNotification
 
         mimetype, data = CellNotificationUtils.maybe_truncate_output(
             mimetype, data
@@ -125,8 +125,8 @@ class CellNotificationUtils:
             cell_id if cell_id is not None else get_context().stream.cell_id
         )
         assert cell_id is not None
-        broadcast_op(
-            CellOpNotification(
+        broadcast_notification(
+            CellNotification(
                 cell_id=cell_id,
                 output=CellOutput(
                     channel=channel,
@@ -145,14 +145,14 @@ class CellNotificationUtils:
         stream: Stream | None = None,
     ) -> None:
         # Import here to avoid circular dependency
-        from marimo._messaging.notification import CellOpNotification
+        from marimo._messaging.notification import CellNotification
 
         cell_id = (
             cell_id if cell_id is not None else get_context().stream.cell_id
         )
         assert cell_id is not None
-        broadcast_op(
-            CellOpNotification(
+        broadcast_notification(
+            CellNotification(
                 cell_id=cell_id,
                 output=CellOutput.empty(),
                 status=status,
@@ -170,7 +170,7 @@ class CellNotificationUtils:
         stream: Stream | None = None,
     ) -> None:
         # Import here to avoid circular dependency
-        from marimo._messaging.notification import CellOpNotification
+        from marimo._messaging.notification import CellNotification
 
         mimetype, data = CellNotificationUtils.maybe_truncate_output(
             mimetype, data
@@ -179,8 +179,8 @@ class CellNotificationUtils:
             cell_id if cell_id is not None else get_context().stream.cell_id
         )
         assert cell_id is not None
-        broadcast_op(
-            CellOpNotification(
+        broadcast_notification(
+            CellNotification(
                 cell_id=cell_id,
                 console=CellOutput(
                     channel=channel,
@@ -199,16 +199,16 @@ class CellNotificationUtils:
         stream: Stream | None = None,
     ) -> None:
         # Import here to avoid circular dependency
-        from marimo._messaging.notification import CellOpNotification
+        from marimo._messaging.notification import CellNotification
 
         if status != "running":
-            broadcast_op(
-                CellOpNotification(cell_id=cell_id, status=status), stream
+            broadcast_notification(
+                CellNotification(cell_id=cell_id, status=status), stream
             )
         else:
             # Console gets cleared on "running"
-            broadcast_op(
-                CellOpNotification(cell_id=cell_id, console=[], status=status),
+            broadcast_notification(
+                CellNotification(cell_id=cell_id, console=[], status=status),
                 stream=stream,
             )
 
@@ -219,7 +219,7 @@ class CellNotificationUtils:
         cell_id: CellId_t,
     ) -> None:
         # Import here to avoid circular dependency
-        from marimo._messaging.notification import CellOpNotification
+        from marimo._messaging.notification import CellNotification
 
         console: Optional[list[CellOutput]] = [] if clear_console else None
 
@@ -242,8 +242,8 @@ class CellNotificationUtils:
         else:
             safe_errors = list(data)
 
-        broadcast_op(
-            CellOpNotification(
+        broadcast_notification(
+            CellNotification(
                 cell_id=cell_id,
                 output=CellOutput.errors(safe_errors),
                 console=console,
@@ -256,10 +256,10 @@ class CellNotificationUtils:
         cell_id: CellId_t, stale: bool, stream: Stream | None = None
     ) -> None:
         # Import here to avoid circular dependency
-        from marimo._messaging.notification import CellOpNotification
+        from marimo._messaging.notification import CellNotification
 
-        broadcast_op(
-            CellOpNotification(cell_id=cell_id, stale_inputs=stale), stream
+        broadcast_notification(
+            CellNotification(cell_id=cell_id, stale_inputs=stale), stream
         )
 
     @staticmethod
@@ -269,10 +269,10 @@ class CellNotificationUtils:
         stream: Stream | None = None,
     ) -> None:
         # Import here to avoid circular dependency
-        from marimo._messaging.notification import CellOpNotification
+        from marimo._messaging.notification import CellNotification
 
         status: Optional[TopLevelHints] = serialization.hint
-        broadcast_op(
-            CellOpNotification(cell_id=cell_id, serialization=str(status)),
+        broadcast_notification(
+            CellNotification(cell_id=cell_id, serialization=str(status)),
             stream,
         )

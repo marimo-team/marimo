@@ -83,10 +83,10 @@ def create_session(
     This function is called by the WebAssembly frontend.
     """
 
-    def write_kernel_message(op: KernelMessage) -> None:
-        data_json_str = op.decode("utf-8")
-        op_name = deserialize_kernel_message(op).name
-        text = f'{{"op": "{op_name}", "data": {data_json_str}}}'
+    def write_kernel_message(notification: KernelMessage) -> None:
+        data_json_str = notification.decode("utf-8")
+        name = deserialize_kernel_message(notification).name
+        text = f'{{"op": "{name}", "data": {data_json_str}}}'
         message_callback(text)
 
     # Lazy import to decrease startup time

@@ -143,7 +143,7 @@ export function handleRemoveUIElements(
   VirtualFileTracker.INSTANCE.removeForCellId(cellId);
 }
 
-export function handleCellOperation(
+export function handleCellNotificationeration(
   data: NotificationMessageData<"cell-op">,
   handleCellMessage: (message: CellMessage) => void,
 ) {

@@ -1,7 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from marimo._messaging.notification import CellOpNotification
+from marimo._messaging.notification import CellNotification
 from marimo._runtime import output
 from tests.conftest import ExecReqProvider, MockedKernel
 
@@ -25,7 +25,7 @@ async def test_spinner_removed(
     found_progress = False
     for i, msg in enumerate(mocked_kernel.stream.operations):
         if (
-            isinstance(msg, CellOpNotification)
+            isinstance(msg, CellNotification)
             and msg.output is not None
             and "marimo-progress" in msg.output.data
         ):
@@ -59,7 +59,7 @@ async def test_mutating_appended_outputs(
     )
     outputs: list[str] = []
     for msg in mocked_kernel.stream.operations:
-        if isinstance(msg, CellOpNotification) and msg.output is not None:
+        if isinstance(msg, CellNotification) and msg.output is not None:
             outputs.append(str(msg.output.data))
     assert len(outputs) == 2
     assert "before" in outputs[0]
@@ -84,7 +84,7 @@ async def test_nested_output(
     )
     outputs: list[str] = []
     for msg in mocked_kernel.stream.operations:
-        if isinstance(msg, CellOpNotification) and msg.output is not None:
+        if isinstance(msg, CellNotification) and msg.output is not None:
             outputs.append(str(msg.output.data))
     assert len(outputs) == 1
     assert outputs[0] == "['hi', [...], [...], [...], [...], [...]]"

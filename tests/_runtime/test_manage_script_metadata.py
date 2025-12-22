@@ -337,7 +337,9 @@ async def test_missing_packages_hook(
             }
 
     with (
-        patch("marimo._runtime.runtime.broadcast_op", mock_broadcast),
+        patch(
+            "marimo._runtime.runtime.broadcast_notification", mock_broadcast
+        ),
         patch("micropip.install", new_callable=AsyncMock),
     ):
         # Case 1: Auto-install enabled
@@ -469,7 +471,9 @@ def test_missing_packages_hook_pip(
             }
 
     with (
-        patch("marimo._runtime.runtime.broadcast_op", mock_broadcast),
+        patch(
+            "marimo._runtime.runtime.broadcast_notification", mock_broadcast
+        ),
     ):
         k.packages_callbacks.package_manager = create_package_manager("pip")
         package_manager = k.packages_callbacks.package_manager
@@ -523,7 +527,7 @@ async def test_install_missing_packages_with_streaming_logs(
     broadcast_messages: list[InstallingPackageAlertNotification] = []
 
     def mock_broadcast(msg, stream=None):
-        """Mock the broadcast_op function to capture alerts"""
+        """Mock the broadcast_notification function to capture alerts"""
         del stream
         if isinstance(msg, InstallingPackageAlertNotification):
             broadcast_messages.append(msg)
@@ -551,7 +555,9 @@ async def test_install_missing_packages_with_streaming_logs(
     k.packages_callbacks.package_manager = mock_package_manager
 
     with (
-        patch("marimo._runtime.runtime.broadcast_op", mock_broadcast),
+        patch(
+            "marimo._runtime.runtime.broadcast_notification", mock_broadcast
+        ),
     ):
         # Create install request
         request = InstallMissingPackagesRequest(
@@ -624,7 +630,9 @@ async def test_install_missing_packages_streaming_logs_failure(
     k.packages_callbacks.package_manager = mock_package_manager
 
     with (
-        patch("marimo._runtime.runtime.broadcast_op", mock_broadcast),
+        patch(
+            "marimo._runtime.runtime.broadcast_notification", mock_broadcast
+        ),
     ):
         request = InstallMissingPackagesRequest(
             manager="pip", versions={"nonexistent-package": ""}
@@ -685,7 +693,9 @@ async def test_install_missing_packages_streaming_logs_multiple_packages(
     k.packages_callbacks.package_manager = mock_package_manager
 
     with (
-        patch("marimo._runtime.runtime.broadcast_op", mock_broadcast),
+        patch(
+            "marimo._runtime.runtime.broadcast_notification", mock_broadcast
+        ),
     ):
         request = InstallMissingPackagesRequest(
             manager="pip", versions={"numpy": "", "pandas": "", "scipy": ""}
@@ -757,7 +767,9 @@ async def test_install_missing_packages_no_logs_backward_compatibility(
     k.packages_callbacks.package_manager = mock_package_manager
 
     with (
-        patch("marimo._runtime.runtime.broadcast_op", mock_broadcast),
+        patch(
+            "marimo._runtime.runtime.broadcast_notification", mock_broadcast
+        ),
     ):
         request = InstallMissingPackagesRequest(
             manager="pip", versions={"requests": ""}

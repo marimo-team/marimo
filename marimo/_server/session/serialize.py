@@ -18,7 +18,7 @@ from marimo._messaging.errors import (
 )
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._messaging.msgspec_encoder import asdict
-from marimo._messaging.notification import CellOpNotification
+from marimo._messaging.notification import CellNotification
 from marimo._schemas.notebook import (
     NotebookCell,
     NotebookCellConfig,
@@ -99,12 +99,12 @@ def serialize_session_view(
                 "reconstruct the notebook state from the serialized session "
                 "view."
             )
-            cell_ids = view.cell_operations.keys()
+            cell_ids = view.cell_notifications.keys()
 
     for cell_id in cell_ids:
-        cell_op = view.cell_operations.get(cell_id)
-        if cell_op is None:
-            # We haven't seen any outputs or operations for this cell.
+        cell_notif = view.cell_notifications.get(cell_id)
+        if cell_notif is None:
+            # We haven't seen any outputs or notifications for this cell.
             cells.append(
                 Cell(id=cell_id, code_hash=None, outputs=[], console=[])
             )
@@ -113,11 +113,11 @@ def serialize_session_view(
         console: list[ConsoleType] = []
 
         # Convert output
-        if cell_op.output:
-            if cell_op.output.channel == CellChannel.MARIMO_ERROR:
+        if cell_notif.output:
+            if cell_notif.output.channel == CellChannel.MARIMO_ERROR:
                 for error in cast(
                     list[Union[MarimoError, dict[str, Any]]],
-                    cell_op.output.data,
+                    cell_notif.output.data,
                 ):
                     outputs.append(_normalize_error(error))
             else:
@@ -125,13 +125,13 @@ def serialize_session_view(
                     DataOutput(
                         type="data",
                         data={
-                            cell_op.output.mimetype: cell_op.output.data,
+                            cell_notif.output.mimetype: cell_notif.output.data,
                         },
                     )
                 )
 
         # Convert console outputs
-        for console_out in as_list(cell_op.console):
+        for console_out in as_list(cell_notif.console):
             assert isinstance(console_out, CellOutput)
             if console_out.channel == CellChannel.MEDIA:
                 console.append(
@@ -293,7 +293,7 @@ def deserialize_session(
             )
             continue
 
-        view.cell_operations[cell_id] = CellOpNotification(
+        view.cell_notifications[cell_id] = CellNotification(
             cell_id=cell_id,
             status="idle",
             output=cell_outputs[0] if cell_outputs else None,

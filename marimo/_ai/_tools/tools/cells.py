@@ -16,7 +16,7 @@ from marimo._ai._tools.utils.exceptions import ToolExecutionError
 from marimo._ast.models import CellData
 from marimo._messaging.errors import Error
 from marimo._messaging.notification import (
-    CellOpNotification,
+    CellNotification,
     VariableValue,
 )
 from marimo._types.ids import CellId_t, SessionId
@@ -307,11 +307,11 @@ class GetCellRuntimeData(
         """Get cell runtime metadata including status and execution info."""
         # Get basic runtime state from session view
         session_view = session.session_view
-        cell_op = session_view.cell_operations.get(cell_id)
+        cell_notif = session_view.cell_notifications.get(cell_id)
 
         runtime_state = None
-        if cell_op and cell_op.status is not None:
-            runtime_state = cell_op.status
+        if cell_notif and cell_notif.status is not None:
+            runtime_state = cell_notif.status
 
         # Get execution time if available
         execution_time = session_view.last_execution_time.get(cell_id)
@@ -371,9 +371,9 @@ class GetCellOutputs(ToolBase[GetCellOutputArgs, GetCellOutputOutput]):
         session = context.get_session(args.session_id)
         session_view = session.session_view
         cell_id = args.cell_id
-        cell_op = session_view.cell_operations.get(cell_id)
+        cell_notif = session_view.cell_notifications.get(cell_id)
 
-        if cell_op is None:
+        if cell_notif is None:
             raise ToolExecutionError(
                 f"Cell {cell_id} not found in session {args.session_id}",
                 code="CELL_NOT_FOUND",
@@ -381,8 +381,8 @@ class GetCellOutputs(ToolBase[GetCellOutputArgs, GetCellOutputOutput]):
                 suggested_fix="Use get_lightweight_cell_map to find valid cell IDs",
             )
 
-        visual_output, visual_mimetype = self._get_visual_output(cell_op)
-        console_outputs = context.get_cell_console_outputs(cell_op)
+        visual_output, visual_mimetype = self._get_visual_output(cell_notif)
+        console_outputs = context.get_cell_console_outputs(cell_notif)
 
         return GetCellOutputOutput(
             visual_output=CellVisualOutput(
@@ -397,14 +397,14 @@ class GetCellOutputs(ToolBase[GetCellOutputArgs, GetCellOutputOutput]):
         )
 
     def _get_visual_output(
-        self, cell_op: CellOpNotification
+        self, cell_notif: CellNotification
     ) -> tuple[Optional[str], Optional[str]]:
         visual_output = None
         visual_mimetype = None
-        if cell_op.output:
-            data = cell_op.output.data
+        if cell_notif.output:
+            data = cell_notif.output.data
             visual_output = self._get_str_output_data(data)
-            visual_mimetype = cell_op.output.mimetype
+            visual_mimetype = cell_notif.output.mimetype
         return visual_output, visual_mimetype
 
     def _get_str_output_data(

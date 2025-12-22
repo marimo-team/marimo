@@ -28,7 +28,7 @@ from marimo._ai._tools.utils.exceptions import ToolExecutionError
 from marimo._ai._tools.utils.output_cleaning import clean_output
 from marimo._config.config import CopilotMode
 from marimo._messaging.cell_output import CellChannel
-from marimo._messaging.notification import CellOpNotification
+from marimo._messaging.notification import CellNotification
 from marimo._server.ai.tools.types import (
     FunctionArgs,
     ToolDefinition,
@@ -91,19 +91,19 @@ class ToolContext:
             )
         return session
 
-    def get_cell_ops(
+    def get_cell_notification(
         self, session_id: SessionId, cell_id: CellId_t
-    ) -> CellOpNotification:
+    ) -> CellNotification:
         session_view = self.get_session(session_id).session_view
-        if cell_id not in session_view.cell_operations:
+        if cell_id not in session_view.cell_notifications:
             raise ToolExecutionError(
-                f"Cell operation not found for cell {cell_id}",
-                code="CELL_OPERATION_NOT_FOUND",
+                f"Cell notification not found for cell {cell_id}",
+                code="CELL_NOTIFICATION_NOT_FOUND",
                 is_retryable=False,
                 suggested_fix="Try again with a valid cell ID.",
                 meta={"cell_id": cell_id},
             )
-        return session_view.cell_operations[cell_id]
+        return session_view.cell_notifications[cell_id]
 
     def get_active_sessions_internal(self) -> list[MarimoNotebookInfo]:
         """
@@ -151,14 +151,14 @@ class ToolContext:
         notebook_errors: list[MarimoCellErrors] = []
         stderr: list[str] = []
 
-        for cell_id, cell_op in session_view.cell_operations.items():
+        for cell_id, cell_notif in session_view.cell_notifications.items():
             errors = self.get_cell_errors(
                 session_id,
                 cell_id,
-                maybe_cell_op=cell_op,
+                maybe_cell_notif=cell_notif,
             )
             if include_stderr:
-                stderr = self.get_cell_console_outputs(cell_op).stderr
+                stderr = self.get_cell_console_outputs(cell_notif).stderr
             if errors:
                 cell_errors_map[cell_id] = MarimoCellErrors(
                     cell_id=cell_id,
@@ -179,21 +179,23 @@ class ToolContext:
         self,
         session_id: SessionId,
         cell_id: CellId_t,
-        maybe_cell_op: Optional[CellOpNotification] = None,
+        maybe_cell_notif: Optional[CellNotification] = None,
     ) -> list[MarimoErrorDetail]:
         """
         Get all errors for a given cell.
         """
         errors: list[MarimoErrorDetail] = []
-        cell_op = maybe_cell_op or self.get_cell_ops(session_id, cell_id)
+        cell_notif = maybe_cell_notif or self.get_cell_notification(
+            session_id, cell_id
+        )
 
         if (
-            not cell_op.output
-            or cell_op.output.channel != CellChannel.MARIMO_ERROR
+            not cell_notif.output
+            or cell_notif.output.channel != CellChannel.MARIMO_ERROR
         ):
             return errors
 
-        items = cell_op.output.data
+        items = cell_notif.output.data
 
         if not isinstance(items, list):
             # no errors
@@ -230,21 +232,21 @@ class ToolContext:
         return errors
 
     def get_cell_console_outputs(
-        self, cell_op: CellOpNotification
+        self, cell_notif: CellNotification
     ) -> MarimoCellConsoleOutputs:
         """
-        Get the console outputs for a given cell operation.
+        Get the console outputs for a given cell notification.
         """
         stdout_messages: list[str] = []
         stderr_messages: list[str] = []
 
-        if cell_op.console is None:
+        if cell_notif.console is None:
             return MarimoCellConsoleOutputs(stdout=[], stderr=[])
 
         console_outputs = (
-            cell_op.console
-            if isinstance(cell_op.console, list)
-            else [cell_op.console]
+            cell_notif.console
+            if isinstance(cell_notif.console, list)
+            else [cell_notif.console]
         )
         for output in console_outputs:
             if output is None:

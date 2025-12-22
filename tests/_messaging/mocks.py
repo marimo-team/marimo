@@ -4,7 +4,7 @@ from typing import Any, Optional
 
 from marimo._messaging.mimetypes import ConsoleMimeType
 from marimo._messaging.notification import (
-    CellOpNotification,
+    CellNotification,
     NotificationMessage,
 )
 from marimo._messaging.serde import deserialize_kernel_message
@@ -36,11 +36,11 @@ class MockStream(Stream):
         ]
 
     @property
-    def cell_ops(self) -> list[CellOpNotification]:
+    def cell_ops(self) -> list[CellNotification]:
         return [
             op
             for op in self.parsed_operations
-            if isinstance(op, CellOpNotification)
+            if isinstance(op, CellNotification)
         ]
 
 

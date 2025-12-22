@@ -43,7 +43,7 @@ import { UI_ELEMENT_REGISTRY } from "../dom/uiregistry";
 import { useBannersActions } from "../errors/state";
 import { FUNCTIONS_REGISTRY } from "../functions/FunctionRegistry";
 import {
-  handleCellOperation,
+  handleCellNotificationeration,
   handleKernelReady,
   handleRemoveUIElements,
 } from "../kernel/handlers";
@@ -75,7 +75,7 @@ export function useMarimoKernelConnection(opts: {
   const { showBoundary } = useErrorBoundary();
 
   const { handleCellMessage, setCellCodes, setCellIds } = useCellActions();
-  const { addCellOperation } = useRunsActions();
+  const { addCellNotification } = useRunsActions();
   const setAppConfig = useSetAppConfig();
   const { setVariables, setMetadata } = useVariablesActions();
   const { addColumnPreview } = useDatasetsActions();
@@ -154,12 +154,15 @@ export function useMarimoKernelConnection(opts: {
         );
         return;
       case "cell-op": {
-        handleCellOperation(msg.data, handleCellMessage);
+        handleCellNotificationeration(msg.data, handleCellMessage);
         const cellData = getNotebook().cellData[msg.data.cell_id as CellId];
         if (!cellData) {
           return;
         }
-        addCellOperation({ cellOperation: msg.data, code: cellData.code });
+        addCellNotification({
+          cellNotification: msg.data,
+          code: cellData.code,
+        });
         return;
       }
 

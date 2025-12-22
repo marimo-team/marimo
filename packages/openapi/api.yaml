@@ -347,8 +347,8 @@ components:
       required: []
       title: CellConfig
       type: object
-    CellOpNotification:
-      description: "Op to transition a cell.\n\n    A CellOp's data has some optional\
+    CellNotification:
+      description: "Op to transition a cell.\n\n    A CellNotification's data has some optional\
         \ fields:\n\n    output        - a CellOutput\n    console       - a CellOutput\
         \ (console msg to append), or a list of\n                    CellOutputs\n\
         \    status        - execution status\n    stale_inputs  - whether the cell\
@@ -404,7 +404,7 @@ components:
       required:
       - op
       - cell_id
-      title: CellOpNotification
+      title: CellNotification
       type: object
     CellOutput:
       properties:
@@ -1991,7 +1991,7 @@ components:
             propertyName: type
         notification:
           anyOf:
-          - $ref: '#/components/schemas/CellOpNotification'
+          - $ref: '#/components/schemas/CellNotification'
           - $ref: '#/components/schemas/FunctionCallResultNotification'
           - $ref: '#/components/schemas/SendUIElementMessageNotification'
           - $ref: '#/components/schemas/RemoveUIElementsNotification'
@@ -2030,7 +2030,7 @@ components:
               banner: '#/components/schemas/BannerNotification'
               cache-cleared: '#/components/schemas/CacheClearedNotification'
               cache-info: '#/components/schemas/CacheInfoNotification'
-              cell-op: '#/components/schemas/CellOpNotification'
+              cell-op: '#/components/schemas/CellNotification'
               completed-run: '#/components/schemas/CompletedRunNotification'
               completion-result: '#/components/schemas/CompletionResultNotification'
               data-column-preview: '#/components/schemas/DataColumnPreviewNotification'
@@ -4823,4 +4823,3 @@ paths:
       summary: Submit login form
       tags:
       - auth
-

@@ -15,7 +15,7 @@ from marimo._data.models import (
 from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.msgspec_encoder import asdict as serialize
 from marimo._messaging.notification import (
-    CellOpNotification,
+    CellNotification,
     DatasetsNotification,
     DataSourceConnectionsNotification,
     InstallingPackageAlertNotification,
@@ -74,14 +74,14 @@ def test_cell_ids(session_view: SessionView) -> None:
 
 
 def test_session_view_cell_op(session_view: SessionView) -> None:
-    # Create initial CellOp
-    initial_cell_op = CellOpNotification(
+    # Create initial CellNotification
+    initial_cell_op = CellNotification(
         cell_id=cell_id, output=initial_output, status=initial_status
     )
     session_view.add_operation(initial_cell_op)
 
-    # Add updated CellOp to SessionView
-    updated_cell_op = CellOpNotification(
+    # Add updated CellNotification to SessionView
+    updated_cell_op = CellNotification(
         cell_id=cell_id, output=updated_output, status=updated_status
     )
     session_view.add_operation(updated_cell_op)
@@ -690,7 +690,7 @@ def test_add_sql_table_previews() -> None:
 def test_add_cell_op(session_view: SessionView) -> None:
     session_view.add_raw_operation(
         serialize_kernel_message(
-            CellOpNotification(
+            CellNotification(
                 cell_id=cell_id, output=initial_output, status=initial_status
             )
         )
@@ -707,14 +707,14 @@ def test_combine_console_outputs(
 ) -> None:
     del time_mock
     session_view.add_operation(
-        CellOpNotification(
+        CellNotification(
             cell_id=cell_id,
             console=CellOutput.stdout("one"),
             status="running",
         )
     )
     session_view.add_operation(
-        CellOpNotification(
+        CellNotification(
             cell_id=cell_id,
             console=CellOutput.stdout("two"),
             status="running",
@@ -728,7 +728,7 @@ def test_combine_console_outputs(
 
     # Moves to queued
     session_view.add_operation(
-        CellOpNotification(
+        CellNotification(
             cell_id=cell_id,
             console=None,
             status="queued",
@@ -741,7 +741,7 @@ def test_combine_console_outputs(
 
     # Moves to running clears console
     session_view.add_operation(
-        CellOpNotification(
+        CellNotification(
             cell_id=cell_id,
             console=None,
             status="running",
@@ -751,7 +751,7 @@ def test_combine_console_outputs(
 
     # Write again
     session_view.add_operation(
-        CellOpNotification(
+        CellNotification(
             cell_id=cell_id,
             console=CellOutput.stdout("three"),
             status="running",
@@ -766,14 +766,14 @@ def test_combine_console_outputs(
 def test_stdin(time_mock: Any, session_view: SessionView) -> None:
     del time_mock
     session_view.add_operation(
-        CellOpNotification(
+        CellNotification(
             cell_id=cell_id,
             console=CellOutput.stdout("Hello"),
             status="running",
         )
     )
     session_view.add_operation(
-        CellOpNotification(
+        CellNotification(
             cell_id=cell_id,
             console=CellOutput.stdin("What is your name?"),
             status="running",
@@ -802,21 +802,21 @@ def test_merge_consecutive_text_plain_outputs(
 
     # Add multiple consecutive stdout outputs
     session_view.add_operation(
-        CellOpNotification(
+        CellNotification(
             cell_id=cell_id,
             console=CellOutput.stdout("Hello "),
             status="running",
         )
     )
     session_view.add_operation(
-        CellOpNotification(
+        CellNotification(
             cell_id=cell_id,
             console=CellOutput.stdout("World"),
             status="running",
         )
     )
     session_view.add_operation(
-        CellOpNotification(
+        CellNotification(
             cell_id=cell_id,
             console=CellOutput.stdout("!"),
             status="running",
@@ -842,14 +842,14 @@ def test_merge_different_channels_not_merged(
     del time_mock
 
     session_view.add_operation(
-        CellOpNotification(
+        CellNotification(
             cell_id=cell_id,
             console=CellOutput.stdout("stdout message"),
             status="running",
         )
     )
     session_view.add_operation(
-        CellOpNotification(
+        CellNotification(
             cell_id=cell_id,
             console=CellOutput.stderr("stderr message"),
             status="running",
@@ -876,14 +876,14 @@ def test_merge_different_mimetypes_not_merged(
     del time_mock
 
     session_view.add_operation(
-        CellOpNotification(
+        CellNotification(
             cell_id=cell_id,
             console=CellOutput.stdout("plain text", mimetype="text/plain"),
             status="running",
         )
     )
     session_view.add_operation(
-        CellOpNotification(
+        CellNotification(
             cell_id=cell_id,
             console=CellOutput.stdout("html content", mimetype="text/html"),
             status="running",
@@ -910,14 +910,14 @@ def test_merge_with_non_string_data_not_merged(
     del time_mock
 
     session_view.add_operation(
-        CellOpNotification(
+        CellNotification(
             cell_id=cell_id,
             console=CellOutput.stdout("text"),
             status="running",
         )
     )
     session_view.add_operation(
-        CellOpNotification(
+        CellNotification(
             cell_id=cell_id,
             console=CellOutput(
                 channel=CellChannel.STDOUT,
@@ -937,14 +937,14 @@ def test_get_cell_outputs(time_mock: Any, session_view: SessionView) -> None:
     del time_mock
     cell_2_id = "cell_2"
     session_view.add_operation(
-        CellOpNotification(
+        CellNotification(
             cell_id=cell_id,
             output=initial_output,
             status=initial_status,
         ),
     )
     session_view.add_operation(
-        CellOpNotification(
+        CellNotification(
             cell_id=cell_2_id,
             output=None,
             status=updated_status,
@@ -959,14 +959,14 @@ def test_get_cell_outputs(time_mock: Any, session_view: SessionView) -> None:
     }
 
     session_view.add_operation(
-        CellOpNotification(
+        CellNotification(
             cell_id=cell_id,
             output=updated_output,
             status=updated_status,
         )
     )
     session_view.add_operation(
-        CellOpNotification(
+        CellNotification(
             cell_id=cell_2_id,
             output=updated_output,
             status=updated_status,
@@ -986,14 +986,14 @@ def test_get_cell_console_outputs(
     del time_mock
     cell_2_id = "cell_2"
     session_view.add_operation(
-        CellOpNotification(
+        CellNotification(
             cell_id=cell_id,
             console=[CellOutput.stdout("one")],
             status=initial_status,
         )
     )
     session_view.add_operation(
-        CellOpNotification(
+        CellNotification(
             cell_id=cell_2_id,
             console=None,
             status=updated_status,
@@ -1008,14 +1008,14 @@ def test_get_cell_console_outputs(
     }
 
     session_view.add_operation(
-        CellOpNotification(
+        CellNotification(
             cell_id=cell_id,
             console=[CellOutput.stdout("two")],
             status=updated_status,
         )
     )
     session_view.add_operation(
-        CellOpNotification(
+        CellNotification(
             cell_id=cell_2_id,
             console=[CellOutput.stdout("two")],
             status=updated_status,
@@ -1046,7 +1046,7 @@ def test_mark_auto_export(session_view: SessionView):
     session_view.mark_auto_export_html()
     session_view.mark_auto_export_md()
     session_view.add_operation(
-        CellOpNotification(
+        CellNotification(
             cell_id=cell_id,
             output=initial_output,
             status=initial_status,
@@ -1193,7 +1193,7 @@ def test_is_empty(session_view: SessionView) -> None:
 
     # Add a cell operation without output or console
     session_view.add_operation(
-        CellOpNotification(
+        CellNotification(
             cell_id=cell_id,
             status=initial_status,
         )
@@ -1201,7 +1201,7 @@ def test_is_empty(session_view: SessionView) -> None:
 
     # Add a cell operation
     session_view.add_operation(
-        CellOpNotification(
+        CellNotification(
             cell_id=cell_id,
             output=initial_output,
             status=initial_status,
@@ -1217,14 +1217,14 @@ def test_is_empty_multiple_operations(session_view: SessionView) -> None:
 
     # Add multiple operations - should still not be empty
     session_view.add_operation(
-        CellOpNotification(
+        CellNotification(
             cell_id="cell1",
             output=initial_output,
             status="idle",
         )
     )
     session_view.add_operation(
-        CellOpNotification(
+        CellNotification(
             cell_id="cell2",
             output=updated_output,
             status="idle",

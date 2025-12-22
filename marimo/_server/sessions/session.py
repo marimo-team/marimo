@@ -341,7 +341,7 @@ class SessionImpl(Session):
         else:
             notification = serialize_kernel_message(operation)
         self.room.broadcast(notification, except_consumer=from_consumer_id)
-        self.session_view.add_raw_operation(notification)
+        self.session_view.add_raw_notification(notification)
         self._event_bus.emit_notification_sent(self, notification)
 
     def close(self) -> None:

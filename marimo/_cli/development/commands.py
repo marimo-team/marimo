@@ -102,7 +102,7 @@ def _generate_server_api_schema() -> dict[str, Any]:
         secrets_models.SecretKeysWithProvider,
         secrets.CreateSecretRequest,
         # Operations
-        notification.CellOpNotification,
+        notification.CellNotification,
         notification.HumanReadableStatus,
         notification.FunctionCallResultNotification,
         notification.SendUIElementMessageNotification,

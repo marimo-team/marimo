@@ -24,7 +24,7 @@ from marimo._messaging.errors import (
     MultipleDefinitionError,
 )
 from marimo._messaging.notification import (
-    CellOpNotification,
+    CellNotification,
     VariablesNotification,
 )
 from marimo._messaging.serde import deserialize_kernel_message
@@ -464,9 +464,7 @@ class TestExecution:
         await k.run([er1])
         stream = MockStream(k.stream)
         cell_ops = [deserialize_kernel_message(msg) for msg in stream.messages]
-        cell_ops = [
-            op for op in cell_ops if isinstance(op, CellOpNotification)
-        ]
+        cell_ops = [op for op in cell_ops if isinstance(op, CellNotification)]
         er1_set_not_stale_before_run = False
         for op in cell_ops:
             if op.cell_id == er1.cell_id and op.status == "running":
@@ -568,7 +566,7 @@ class TestExecution:
         cell_ops = [
             op
             for op in stream.parsed_operations
-            if isinstance(op, CellOpNotification)
+            if isinstance(op, CellNotification)
         ]
 
         # Filter for stale broadcasts
@@ -1765,7 +1763,7 @@ except NameError:
 
         stream = MockStream(mocked_kernel.stream)
         cell_ops = [
-            parse_raw(op_data, CellOpNotification)
+            parse_raw(op_data, CellNotification)
             for op_data in stream.operations
             if op_data["op"] == "cell-op"
         ]
@@ -3674,9 +3672,7 @@ class TestMarkdownHandling:
 
         # Check that the markdown cell output was broadcast
         cell_ops = [deserialize_kernel_message(msg) for msg in stream.messages]
-        cell_ops = [
-            op for op in cell_ops if isinstance(op, CellOpNotification)
-        ]
+        cell_ops = [op for op in cell_ops if isinstance(op, CellNotification)]
 
         # Find operations for the markdown cell
         md_cell_ops = [op for op in cell_ops if op.cell_id == "md_cell"]
@@ -3827,9 +3823,7 @@ class TestMarkdownHandling:
 
         # Check that all cells were marked as stale
         cell_ops = [deserialize_kernel_message(msg) for msg in stream.messages]
-        cell_ops = [
-            op for op in cell_ops if isinstance(op, CellOpNotification)
-        ]
+        cell_ops = [op for op in cell_ops if isinstance(op, CellNotification)]
 
         for cell_id in ["cell1", "cell2"]:
             cell_ops_for_id = [op for op in cell_ops if op.cell_id == cell_id]
@@ -3888,9 +3882,7 @@ class TestMarkdownHandling:
 
         # Check operations
         cell_ops = [deserialize_kernel_message(msg) for msg in stream.messages]
-        cell_ops = [
-            op for op in cell_ops if isinstance(op, CellOpNotification)
-        ]
+        cell_ops = [op for op in cell_ops if isinstance(op, CellNotification)]
 
         # Bad cell should be marked as stale
         bad_cell_ops = [op for op in cell_ops if op.cell_id == "bad_cell"]
@@ -3943,9 +3935,7 @@ class TestMarkdownHandling:
 
         # Check that all cells were marked as stale
         cell_ops = [deserialize_kernel_message(msg) for msg in stream.messages]
-        cell_ops = [
-            op for op in cell_ops if isinstance(op, CellOpNotification)
-        ]
+        cell_ops = [op for op in cell_ops if isinstance(op, CellNotification)]
 
         for cell_id in ["md_cell1", "md_cell2", "regular_cell"]:
             cell_ops_for_id = [op for op in cell_ops if op.cell_id == cell_id]
@@ -3960,7 +3950,7 @@ class TestMarkdownHandling:
         assert len(output_ops) == 0
 
 
-def _parse_error_output(cell_op: CellOpNotification) -> list[Error]:
+def _parse_error_output(cell_op: CellNotification) -> list[Error]:
     error_output = cell_op.output
     assert error_output is not None
     assert error_output.channel == CellChannel.MARIMO_ERROR
@@ -3970,8 +3960,8 @@ def _parse_error_output(cell_op: CellOpNotification) -> list[Error]:
 
 
 def _filter_to_error_ops(
-    cell_ops: list[CellOpNotification],
-) -> list[CellOpNotification]:
+    cell_ops: list[CellNotification],
+) -> list[CellNotification]:
     return [
         op
         for op in cell_ops

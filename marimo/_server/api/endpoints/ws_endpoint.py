@@ -279,14 +279,14 @@ class WebSocketHandler(SessionConsumer):
 
     def _replay_previous_session(self, session: Session) -> None:
         """Replay the previous session view."""
-        operations = session.session_view.operations
-        if len(operations) == 0:
-            LOGGER.debug("No operations to replay")
+        notifications = session.session_view.notifications
+        if len(notifications) == 0:
+            LOGGER.debug("No notifications to replay")
             return
-        LOGGER.debug(f"Replaying {len(operations)} operations")
-        for op in operations:
-            LOGGER.debug("Replaying operation %s", op)
-            self._serialize_and_notify(op)
+        LOGGER.debug(f"Replaying {len(notifications)} notifications")
+        for notif in notifications:
+            LOGGER.debug("Replaying notification %s", notif)
+            self._serialize_and_notify(notif)
 
     def _on_disconnect(
         self,

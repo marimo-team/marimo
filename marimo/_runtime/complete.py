@@ -17,7 +17,7 @@ from marimo import _loggers as loggers
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.completion_option import CompletionOption
 from marimo._messaging.notification import CompletionResultNotification
-from marimo._messaging.notification_utils import broadcast_op
+from marimo._messaging.notification_utils import broadcast_notification
 from marimo._messaging.types import Stream
 from marimo._output.md import _md
 from marimo._runtime import dataflow
@@ -299,7 +299,7 @@ def _write_completion_result(
     prefix_length: int,
     options: list[CompletionOption],
 ) -> None:
-    broadcast_op(
+    broadcast_notification(
         CompletionResultNotification(
             completion_id=completion_id,
             prefix_length=prefix_length,

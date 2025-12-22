@@ -5,7 +5,7 @@ from unittest.mock import MagicMock
 
 from marimo._ast.toplevel import HINT_UNPARSABLE, TopLevelStatus
 from marimo._messaging.notification import (
-    CellOpNotification,
+    CellNotification,
     InstallingPackageAlertNotification,
     SendUIElementMessageNotification,
     StartupLogsNotification,
@@ -13,7 +13,7 @@ from marimo._messaging.notification import (
 )
 from marimo._messaging.notification_utils import (
     CellNotificationUtils,
-    broadcast_op,
+    broadcast_notification,
 )
 from marimo._output.hypertext import Html
 from marimo._plugins.ui._impl.input import slider
@@ -63,9 +63,7 @@ def test_broadcast_serialization() -> None:
     assert stream.operations[0]["serialization"] == str(HINT_UNPARSABLE)
     cell_op = stream.operations[0]
 
-    assert isinstance(
-        parse_raw(cell_op, CellOpNotification), CellOpNotification
-    )
+    assert isinstance(parse_raw(cell_op, CellNotification), CellNotification)
 
 
 def test_startup_logs_creation() -> None:
@@ -123,7 +121,7 @@ def test_send_ui_element_message_broadcast() -> None:
         buffers=[b"buffer1", b"buffer2"],
     )
 
-    broadcast_op(msg, stream)
+    broadcast_notification(msg, stream)
 
     assert len(stream.messages) == 1
 

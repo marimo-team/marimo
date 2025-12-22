@@ -19,7 +19,7 @@ from tests._ai.tools.test_utils import MockSession, MockSessionView
 
 
 @dataclass
-class MockCellOp:
+class MockCellNotification:
     output: object | None = None
     console: object | None = None
     status: object | None = None
@@ -56,7 +56,7 @@ def test_is_markdown_cell():
 
 def test_get_cell_metadata_basic():
     tool = GetCellRuntimeData(ToolContext())
-    cell_op = MockCellOp(status="idle")
+    cell_op = MockCellNotification(status="idle")
     session = MockSession(
         _session_view=MockSessionView(
             cell_operations={"c1": cell_op}, last_execution_time={"c1": 42.5}
@@ -157,7 +157,7 @@ def test_get_cell_runtime_data_invalid_cell():
 def test_get_visual_output_with_html():
     tool = GetCellOutputs(ToolContext())
     output = MockOutput(data="<div>test</div>", mimetype="text/html")
-    cell_op = MockCellOp(output=output)
+    cell_op = MockCellNotification(output=output)
 
     visual_output, mimetype = tool._get_visual_output(cell_op)  # type: ignore[arg-type]
     assert visual_output == "<div>test</div>"
@@ -166,7 +166,7 @@ def test_get_visual_output_with_html():
 
 def test_get_visual_output_no_output():
     tool = GetCellOutputs(ToolContext())
-    cell_op = MockCellOp(output=None)
+    cell_op = MockCellNotification(output=None)
 
     visual_output, mimetype = tool._get_visual_output(cell_op)  # type: ignore[arg-type]
     assert visual_output is None

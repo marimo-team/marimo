@@ -2999,10 +2999,10 @@ export interface components {
       hide_code?: boolean;
     };
     /**
-     * CellOpNotification
+     * CellNotification
      * @description Op to transition a cell.
      *
-     *         A CellOp's data has some optional fields:
+     *         A CellNotification's data has some optional fields:
      *
      *         output        - a CellOutput
      *         console       - a CellOutput (console msg to append), or a list of
@@ -3018,7 +3018,7 @@ export interface components {
      *
      *         cell_id - the cell id
      */
-    CellOpNotification: {
+    CellNotification: {
       cell_id: string;
       /** @default null */
       console?:
@@ -3863,7 +3863,7 @@ export interface components {
         | components["schemas"]["MarimoSQLError"]
         | components["schemas"]["UnknownError"];
       notification:
-        | components["schemas"]["CellOpNotification"]
+        | components["schemas"]["CellNotification"]
         | components["schemas"]["FunctionCallResultNotification"]
         | components["schemas"]["SendUIElementMessageNotification"]
         | components["schemas"]["RemoveUIElementsNotification"]

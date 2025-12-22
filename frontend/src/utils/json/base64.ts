@@ -64,10 +64,10 @@ export function binaryToByteString(binary: Uint8Array): ByteString {
 }
 
 export function safeExtractSetUIElementMessageBuffers(
-  op: NotificationMessageData<"send-ui-element-message">,
+  notification: NotificationMessageData<"send-ui-element-message">,
 ): readonly DataView[] {
   // @ts-expect-error - TypeScript doesn't know that these strings are actually base64 strings
-  const strs: Base64String[] = op.buffers ?? [];
+  const strs: Base64String[] = notification.buffers ?? [];
   return strs.map((str) => {
     const bytes = byteStringToBinary(typedAtob(str));
     return new DataView(bytes.buffer);

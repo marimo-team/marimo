@@ -51,10 +51,10 @@ class Notification(msgspec.Struct, tag_field="op"):
     name: ClassVar[str]
 
 
-class CellOpNotification(Notification, tag="cell-op"):
+class CellNotification(Notification, tag="cell-op"):
     """Op to transition a cell.
 
-    A CellOp's data has some optional fields:
+    A CellNotification's data has some optional fields:
 
     output        - a CellOutput
     console       - a CellOutput (console msg to append), or a list of
@@ -507,8 +507,8 @@ class UpdateCellIdsNotification(Notification, tag="update-cell-ids"):
 
 
 NotificationMessage = Union[
-    # Cell operations
-    CellOpNotification,
+    # Cell notifications
+    CellNotification,
     FunctionCallResultNotification,
     SendUIElementMessageNotification,
     RemoveUIElementsNotification,

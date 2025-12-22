@@ -14,7 +14,7 @@ export type CellConfig = schemas["CellConfig"];
  * idle: not running.
  * disabled-transitively: disabled because an ancestor was disabled.
  */
-export type RuntimeState = schemas["CellOpNotification"]["status"];
+export type RuntimeState = schemas["CellNotification"]["status"];
 export type CodeCompletionRequest = schemas["CodeCompletionRequest"];
 export type DeleteCellRequest = schemas["DeleteCellRequest"];
 export type ExecuteMultipleRequest = schemas["ExecuteMultipleRequest"];

@@ -12,7 +12,7 @@ import pytest
 from marimo import __version__
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.cell_output import CellChannel, CellOutput
-from marimo._messaging.notification import CellOpNotification
+from marimo._messaging.notification import CellNotification
 from marimo._output.utils import uri_encode_component
 from marimo._types.ids import CellId_t, SessionId
 from marimo._utils.platform import is_windows
@@ -206,7 +206,7 @@ def test_auto_export_html(client: TestClient, temp_marimo_file: str) -> None:
     assert temp_marimo_file is not None
     session.app_file_manager.filename = temp_marimo_file
     session.session_view.add_operation(
-        CellOpNotification(
+        CellNotification(
             cell_id=CellId_t("new_cell"),
             output=CellOutput(
                 data="hello",
@@ -254,7 +254,7 @@ def test_auto_export_html_no_code(
     assert session
     session.app_file_manager.filename = temp_marimo_file
     session.session_view.add_operation(
-        CellOpNotification(
+        CellNotification(
             cell_id=CellId_t("new_cell"),
             output=None,
             console=[CellOutput.stdout("hello")],

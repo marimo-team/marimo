@@ -117,8 +117,8 @@ components:
       required: []
       title: CellConfig
       type: object
-    CellOpNotification:
-      description: "Op to transition a cell.\n\nA CellOp's data has some optional\
+    CellNotification:
+      description: "Op to transition a cell.\n\nA CellNotification's data has some optional\
         \ fields:\n\noutput        - a CellOutput\nconsole       - a CellOutput (console\
         \ msg to append), or a list of\n                CellOutputs\nstatus      \
         \  - execution status\nstale_inputs  - whether the cell has stale inputs (variables,\
@@ -174,7 +174,7 @@ components:
       required:
       - op
       - cell_id
-      title: CellOpNotification
+      title: CellNotification
       type: object
     CellOutput:
       properties:

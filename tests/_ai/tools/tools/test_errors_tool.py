@@ -15,7 +15,7 @@ from marimo._types.ids import CellId_t, SessionId
 
 
 @dataclass
-class MockCellOp:
+class MockCellNotification:
     output: object | None = None
     console: object | None = None
 

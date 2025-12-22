@@ -19,7 +19,7 @@ from marimo._ast.cell_manager import CellManager
 from marimo._config.config import DEFAULT_CONFIG
 from marimo._messaging.mimetypes import ConsoleMimeType
 from marimo._messaging.notification import (
-    CellOpNotification,
+    CellNotification,
     NotificationMessage,
 )
 from marimo._messaging.print_override import print_override
@@ -85,9 +85,9 @@ class _MockStream(ThreadSafeStream):
         ]
 
     @property
-    def cell_ops(self) -> list[CellOpNotification]:
+    def cell_ops(self) -> list[CellNotification]:
         return [
-            op for op in self.operations if isinstance(op, CellOpNotification)
+            op for op in self.operations if isinstance(op, CellNotification)
         ]
 
 

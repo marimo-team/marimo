@@ -221,12 +221,12 @@ class MarimoComm:
         from marimo._messaging.notification import (
             SendUIElementMessageNotification,
         )
-        from marimo._messaging.notification_utils import broadcast_op
+        from marimo._messaging.notification_utils import broadcast_notification
 
         while self._publish_message_buffer:
             item = self._publish_message_buffer.pop(0)
 
-            broadcast_op(
+            broadcast_notification(
                 SendUIElementMessageNotification(
                     # ui_element_id can be None. In this case, we are creating a model
                     # not tied to a specific UI element

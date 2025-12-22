@@ -436,9 +436,9 @@ class UIElement(Html, Generic[S, T]):
         from marimo._messaging.notification import (
             SendUIElementMessageNotification,
         )
-        from marimo._messaging.notification_utils import broadcast_op
+        from marimo._messaging.notification_utils import broadcast_notification
 
-        broadcast_op(
+        broadcast_notification(
             SendUIElementMessageNotification(
                 ui_element=self._id,
                 model_id=None,
