@@ -24,7 +24,7 @@ def convert_from_ir_to_script(ir: NotebookSerialization) -> str:
             )
 
     graph = app.graph
-    header = codegen.get_header_comments(filename) if filename else ""
+    header = codegen.get_header_comments(filename) or "" if filename else ""
     codes: list[str] = [
         "# %%\n" + graph.cells[cid].code
         for cid in topological_sort(graph, graph.cells.keys())
