@@ -9,7 +9,7 @@ from starlette.websockets import WebSocketDisconnect
 from marimo import _loggers
 
 if TYPE_CHECKING:
-    from loro import DiffEvent
+    from loro import DiffEvent, ExportMode, LoroDoc
     from starlette.websockets import WebSocket
 
     from marimo._server.file_router import MarimoFileKey
@@ -83,7 +83,9 @@ class RTCWebSocketHandler:
             subscription.unsubscribe()
             await self.doc_manager.remove_client(self.file_key, update_queue)
 
-    async def _send_initial_sync(self, doc: any, export_mode: any) -> None:
+    async def _send_initial_sync(
+        self, doc: LoroDoc, export_mode: type[ExportMode]
+    ) -> None:
         """Send initial document sync to client.
 
         Args:
@@ -116,7 +118,7 @@ class RTCWebSocketHandler:
             )
 
     async def _receive_updates_from_client(
-        self, doc: any, update_queue: asyncio.Queue[bytes]
+        self, doc: LoroDoc, update_queue: asyncio.Queue[bytes]
     ) -> None:
         """Receive and process updates from the client.
 

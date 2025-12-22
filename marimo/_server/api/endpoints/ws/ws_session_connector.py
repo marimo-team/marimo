@@ -10,7 +10,7 @@ if TYPE_CHECKING:
     from marimo._server.api.endpoints.ws.ws_connection_validator import (
         ConnectionParams,
     )
-    from marimo._server.api.endpoints.ws_endpoint import WebsocketHandler
+    from marimo._server.api.endpoints.ws_endpoint import WebSocketHandler
     from marimo._server.sessions import Session, SessionManager
 
 from starlette.websockets import WebSocketDisconnect
@@ -40,7 +40,7 @@ class SessionConnector:
     def __init__(
         self,
         manager: SessionManager,
-        handler: WebsocketHandler,
+        handler: WebSocketHandler,
         params: ConnectionParams,
         websocket: WebSocket,
     ):

@@ -17,8 +17,8 @@ from marimo._messaging.ops import (
     Banner,
     MessageOperation,
     Reconnected,
-    serialize_kernel_message,
 )
+from marimo._messaging.serde import serialize_kernel_message
 from marimo._messaging.types import KernelMessage
 from marimo._plugins.core.web_component import JSONType
 from marimo._server.api.deps import AppState
@@ -81,7 +81,7 @@ async def websocket_endpoint(
         return
 
     # Start handler
-    await WebsocketHandler(
+    await WebSocketHandler(
         websocket=websocket,
         manager=app_state.session_manager,
         params=params,
@@ -133,7 +133,7 @@ async def ws_sync(
     await handler.handle()
 
 
-class WebsocketHandler(SessionConsumer):
+class WebSocketHandler(SessionConsumer):
     """WebSocket that sessions use to send messages to frontends.
 
     Each new socket gets a unique session. At most one session can exist when
