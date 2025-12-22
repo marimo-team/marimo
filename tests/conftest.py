@@ -18,9 +18,9 @@ from marimo._ast.app_config import _AppConfig
 from marimo._ast.cell_manager import CellManager
 from marimo._config.config import DEFAULT_CONFIG
 from marimo._messaging.mimetypes import ConsoleMimeType
-from marimo._messaging.notifcation import (
-    CellOp,
-    MessageOperation,
+from marimo._messaging.notification import (
+    CellOpNotification,
+    NotificationMessage,
 )
 from marimo._messaging.print_override import print_override
 from marimo._messaging.serde import deserialize_kernel_message
@@ -79,14 +79,16 @@ class _MockStream(ThreadSafeStream):
         deserialize_kernel_message(data)
 
     @property
-    def operations(self) -> list[MessageOperation]:
+    def operations(self) -> list[NotificationMessage]:
         return [
             deserialize_kernel_message(op_data) for op_data in self.messages
         ]
 
     @property
-    def cell_ops(self) -> list[CellOp]:
-        return [op for op in self.operations if isinstance(op, CellOp)]
+    def cell_ops(self) -> list[CellOpNotification]:
+        return [
+            op for op in self.operations if isinstance(op, CellOpNotification)
+        ]
 
 
 class MockStdout(ThreadSafeStdout):

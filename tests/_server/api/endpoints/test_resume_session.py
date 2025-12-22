@@ -9,10 +9,10 @@ import pytest
 
 from marimo._config.manager import UserConfigManager
 from marimo._messaging.msgspec_encoder import asdict
-from marimo._messaging.notifcation import (
-    CellOp,
-    KernelCapabilities,
-    KernelReady,
+from marimo._messaging.notification import (
+    CellOpNotification,
+    KernelCapabilitiesNotification,
+    KernelReadyNotification,
 )
 from marimo._server.sessions import Session
 from marimo._types.ids import SessionId
@@ -39,7 +39,7 @@ def create_response(
         "kiosk": False,
         "configs": [{"disabled": False, "hide_code": False}],
         "app_config": {"width": "full"},
-        "capabilities": asdict(KernelCapabilities()),
+        "capabilities": asdict(KernelCapabilitiesNotification()),
     }
     response.update(partial_response)
     return response
@@ -60,9 +60,9 @@ HEADERS = {
 def assert_kernel_ready_response(
     raw_data: dict[str, Any], response: dict[str, Any]
 ) -> None:
-    data = parse_raw(raw_data["data"], KernelReady)
+    data = parse_raw(raw_data["data"], KernelReadyNotification)
     print(response)
-    expected = parse_raw(response, KernelReady)
+    expected = parse_raw(response, KernelReadyNotification)
     assert data.cell_ids == expected.cell_ids
     assert data.codes == expected.codes
     assert data.names == expected.names
@@ -97,7 +97,7 @@ def test_refresh_session(client: TestClient) -> None:
     session_view = session.session_view
 
     # Mimic cell execution time save
-    cell_op = CellOp("Hbol")
+    cell_op = CellOpNotification("Hbol")
     session_view.save_execution_time(cell_op, "start")
     time.sleep(0.123)
     session_view.save_execution_time(cell_op, "end")
@@ -350,7 +350,7 @@ def test_resume_session_with_watch(client: TestClient) -> None:
 
         # Check for KernelReady message
         data = websocket.receive_json()
-        assert parse_raw(data["data"], KernelReady)
+        assert parse_raw(data["data"], KernelReadyNotification)
         messages: list[dict[str, Any]] = []
 
         # Wait for update-cell-codes message

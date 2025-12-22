@@ -4,11 +4,11 @@ from __future__ import annotations
 from unittest.mock import MagicMock
 
 from marimo._ast.toplevel import HINT_UNPARSABLE, TopLevelStatus
-from marimo._messaging.notifcation import (
-    CellOp,
-    InstallingPackageAlert,
-    SendUIElementMessage,
-    StartupLogs,
+from marimo._messaging.notification import (
+    CellOpNotification,
+    InstallingPackageAlertNotification,
+    SendUIElementMessageNotification,
+    StartupLogsNotification,
     VariableValue,
 )
 from marimo._messaging.notification_utils import (
@@ -63,11 +63,15 @@ def test_broadcast_serialization() -> None:
     assert stream.operations[0]["serialization"] == str(HINT_UNPARSABLE)
     cell_op = stream.operations[0]
 
-    assert isinstance(parse_raw(cell_op, CellOp), CellOp)
+    assert isinstance(
+        parse_raw(cell_op, CellOpNotification), CellOpNotification
+    )
 
 
 def test_startup_logs_creation() -> None:
-    startup_log = StartupLogs(content="Starting up...", status="start")
+    startup_log = StartupLogsNotification(
+        content="Starting up...", status="start"
+    )
     assert startup_log.name == "startup-logs"
     assert startup_log.content == "Starting up..."
     assert startup_log.status == "start"
@@ -75,14 +79,16 @@ def test_startup_logs_creation() -> None:
 
 def test_startup_logs_all_statuses() -> None:
     for status in ["start", "append", "done"]:
-        startup_log = StartupLogs(content=f"Test {status}", status=status)
+        startup_log = StartupLogsNotification(
+            content=f"Test {status}", status=status
+        )
         assert startup_log.status == status
         assert startup_log.content == f"Test {status}"
 
 
 def test_installing_package_alert_basic() -> None:
     """Test basic InstallingPackageAlert without streaming logs."""
-    alert = InstallingPackageAlert(
+    alert = InstallingPackageAlertNotification(
         packages={"numpy": "queued", "pandas": "installing"}
     )
     assert alert.name == "installing-package-alert"
@@ -96,7 +102,7 @@ def test_installing_package_alert_with_logs() -> None:
     packages = {"numpy": "installing"}
     logs = {"numpy": "Installing numpy...\n"}
 
-    alert = InstallingPackageAlert(
+    alert = InstallingPackageAlertNotification(
         packages=packages, logs=logs, log_status="start"
     )
 
@@ -110,7 +116,7 @@ def test_send_ui_element_message_broadcast() -> None:
     """Test SendUIElementMessage broadcasting and serialization."""
     stream = MockStream()
 
-    msg = SendUIElementMessage(
+    msg = SendUIElementMessageNotification(
         ui_element="test_element",
         model_id=None,
         message={"action": "update", "value": 42},

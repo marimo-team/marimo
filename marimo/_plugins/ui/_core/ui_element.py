@@ -433,11 +433,13 @@ class UIElement(Html, Generic[S, T]):
         from the backend.
         """
 
-        from marimo._messaging.notifcation import SendUIElementMessage
+        from marimo._messaging.notification import (
+            SendUIElementMessageNotification,
+        )
         from marimo._messaging.notification_utils import broadcast_op
 
         broadcast_op(
-            SendUIElementMessage(
+            SendUIElementMessageNotification(
                 ui_element=self._id,
                 model_id=None,
                 message=message,

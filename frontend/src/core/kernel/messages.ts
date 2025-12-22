@@ -43,16 +43,16 @@ export type SecretKeysResult = OperationMessageData<"secret-keys-result">;
 export type StartupLogs = OperationMessageData<"startup-logs">;
 export type CellMessage = OperationMessageData<"cell-op">;
 export type Capabilities = OperationMessageData<"kernel-ready">["capabilities"];
-export type CacheInfoFetched = OperationMessageData<"cache-info-fetched">;
+export type CacheInfoFetched = OperationMessageData<"cache-info">;
 
-export type MessageOperationUnion = schemas["KnownUnions"]["operation"];
+export type NotificationMessageUnion = schemas["KnownUnions"]["operation"];
 
-export type OperationMessageType = MessageOperationUnion["op"];
+export type OperationMessageType = NotificationMessageUnion["op"];
 export interface OperationMessage {
-  data: MessageOperationUnion;
+  data: NotificationMessageUnion;
 }
 
 export type OperationMessageData<T extends OperationMessageType> = Omit<
-  Extract<MessageOperationUnion, { op: T }>,
+  Extract<NotificationMessageUnion, { op: T }>,
   "op"
 >;

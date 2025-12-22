@@ -11,7 +11,7 @@ from marimo._ai._tools.tools.tables_and_variables import (
     TablesAndVariablesOutput,
 )
 from marimo._data.models import DataTableColumn
-from marimo._messaging.notifcation import VariableValue
+from marimo._messaging.notification import VariableValue
 from marimo._server.sessions import Session
 
 

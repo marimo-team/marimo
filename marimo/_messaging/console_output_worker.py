@@ -37,11 +37,11 @@ def _write_console_output(
     data: str,
     mimetype: ConsoleMimeType,
 ) -> None:
-    from marimo._messaging.notifcation import CellOp
+    from marimo._messaging.notification import CellOpNotification
     from marimo._messaging.notification_utils import broadcast_op
 
     broadcast_op(
-        CellOp(
+        CellOpNotification(
             cell_id=cell_id,
             console=CellOutput(
                 channel=stream_type,

@@ -12,7 +12,10 @@ from starlette.websockets import WebSocketDisconnect
 from marimo._config.config import ExperimentalConfig
 from marimo._config.manager import UserConfigManager
 from marimo._messaging.msgspec_encoder import asdict
-from marimo._messaging.notifcation import KernelCapabilities, KernelReady
+from marimo._messaging.notification import (
+    KernelCapabilitiesNotification,
+    KernelReadyNotification,
+)
 from marimo._server.codes import WebSocketCodes
 from marimo._server.model import SessionMode
 from marimo._server.sessions import SessionManager
@@ -39,7 +42,7 @@ def create_response(
         "kiosk": False,
         "configs": [{"disabled": False, "hide_code": False}],
         "app_config": {"width": "full"},
-        "capabilities": asdict(KernelCapabilities()),
+        "capabilities": asdict(KernelCapabilitiesNotification()),
     }
     response.update(partial_response)
     return response
@@ -70,8 +73,8 @@ def assert_kernel_ready_response(
 ) -> None:
     if response is None:
         response = create_response({})
-    data = parse_raw(raw_data["data"], KernelReady)
-    expected = parse_raw(response, KernelReady)
+    data = parse_raw(raw_data["data"], KernelReadyNotification)
+    expected = parse_raw(response, KernelReadyNotification)
     assert data.cell_ids == expected.cell_ids
     assert data.codes == expected.codes
     assert data.names == expected.names
@@ -85,7 +88,7 @@ def assert_kernel_ready_response(
 
 
 def assert_parse_ready_response(raw_data: dict[str, Any]) -> None:
-    data = parse_raw(raw_data["data"], KernelReady)
+    data = parse_raw(raw_data["data"], KernelReadyNotification)
     assert data is not None
 
 
@@ -447,7 +450,7 @@ async def test_session_resumption(client: TestClient) -> None:
         assert kernel_ready_msg["op"] == "kernel-ready"
 
         # Verify resumed flag is True
-        data = parse_raw(kernel_ready_msg["data"], KernelReady)
+        data = parse_raw(kernel_ready_msg["data"], KernelReadyNotification)
         assert data.resumed is True
 
         # Should replay operations - collect some messages

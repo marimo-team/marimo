@@ -3,9 +3,9 @@ from __future__ import annotations
 from typing import Any, Optional
 
 from marimo._messaging.mimetypes import ConsoleMimeType
-from marimo._messaging.notifcation import (
-    CellOp,
-    MessageOperation,
+from marimo._messaging.notification import (
+    CellOpNotification,
+    NotificationMessage,
 )
 from marimo._messaging.serde import deserialize_kernel_message
 from marimo._messaging.types import KernelMessage, Stderr, Stream
@@ -30,14 +30,18 @@ class MockStream(Stream):
         return [json.loads(op_data) for op_data in self.messages]
 
     @property
-    def parsed_operations(self) -> list[MessageOperation]:
+    def parsed_operations(self) -> list[NotificationMessage]:
         return [
             deserialize_kernel_message(op_data) for op_data in self.messages
         ]
 
     @property
-    def cell_ops(self) -> list[CellOp]:
-        return [op for op in self.parsed_operations if isinstance(op, CellOp)]
+    def cell_ops(self) -> list[CellOpNotification]:
+        return [
+            op
+            for op in self.parsed_operations
+            if isinstance(op, CellOpNotification)
+        ]
 
 
 class MockStderr(Stderr):

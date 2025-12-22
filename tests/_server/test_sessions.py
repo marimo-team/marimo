@@ -23,9 +23,9 @@ from marimo._ast.app_config import _AppConfig
 from marimo._config.manager import (
     get_default_config_manager,
 )
-from marimo._messaging.notifcation import (
-    MessageOperation,
-    UpdateCellCodes,
+from marimo._messaging.notification import (
+    NotificationMessage,
+    UpdateCellCodesNotification,
 )
 from marimo._messaging.serde import deserialize_kernel_message
 from marimo._messaging.types import KernelMessage
@@ -70,7 +70,7 @@ app_metadata = AppMetadata(
 
 class MockSessionConsumer(SessionConsumer):
     def __init__(self) -> None:
-        self.notify_calls: list[MessageOperation] = []
+        self.notify_calls: list[NotificationMessage] = []
 
     def on_attach(self, session: Session, event_bus: SessionEventBus) -> None:
         pass
@@ -549,7 +549,7 @@ def __():
         update_ops = [
             op
             for op in session_consumer.notify_calls
-            if isinstance(op, UpdateCellCodes)
+            if isinstance(op, UpdateCellCodesNotification)
         ]
         assert len(update_ops) == 1
         assert "2" == update_ops[0].codes[0]
@@ -588,12 +588,12 @@ def __():
         update_ops = [
             op
             for op in session_consumer.notify_calls
-            if isinstance(op, UpdateCellCodes)
+            if isinstance(op, UpdateCellCodesNotification)
         ]
         update_ops2 = [
             op
             for op in session_consumer2.notify_calls
-            if isinstance(op, UpdateCellCodes)
+            if isinstance(op, UpdateCellCodesNotification)
         ]
         assert len(update_ops) == 1
         assert len(update_ops2) == 1
@@ -625,7 +625,7 @@ def __():
         update_ops2 = [
             op
             for op in session_consumer2.notify_calls
-            if isinstance(op, UpdateCellCodes)
+            if isinstance(op, UpdateCellCodesNotification)
         ]
         assert len(update_ops2) == 1
         assert "4" == update_ops2[0].codes[0]
@@ -773,13 +773,13 @@ async def test_watch_mode_with_watcher_on_save_autorun(tmp_path: Path) -> None:
         )
 
         # Wait for the watcher to detect the change and send UpdateCellCodes
-        update_ops: list[UpdateCellCodes] = []
+        update_ops: list[UpdateCellCodesNotification] = []
         for _ in range(20):  # noqa: B007
             await asyncio.sleep(0.1)
             update_ops = [
                 op
                 for op in session_consumer.notify_calls
-                if isinstance(op, UpdateCellCodes)
+                if isinstance(op, UpdateCellCodesNotification)
             ]
             if update_ops:
                 break
@@ -889,7 +889,7 @@ async def test_watch_mode_with_watcher_on_save_lazy(tmp_path: Path) -> None:
         update_ops = [
             op
             for op in session_consumer.notify_calls
-            if isinstance(op, UpdateCellCodes)
+            if isinstance(op, UpdateCellCodesNotification)
         ]
         assert len(update_ops) == 1
         assert "2" in update_ops[0].codes[0]
@@ -1004,7 +1004,9 @@ def __():
 
         # Check that UpdateCellCodes was sent with the new code
         update_ops = [
-            op for op in operations if isinstance(op, UpdateCellCodes)
+            op
+            for op in operations
+            if isinstance(op, UpdateCellCodesNotification)
         ]
         assert len(update_ops) == 1
         assert "2" == update_ops[0].codes[0]

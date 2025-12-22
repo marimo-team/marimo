@@ -7,11 +7,11 @@ from typing import TYPE_CHECKING, Any, Callable
 from starlette.websockets import WebSocketDisconnect, WebSocketState
 
 from marimo import _loggers
-from marimo._messaging.notifcation import (
-    CompletionResult,
-    FocusCell,
+from marimo._messaging.notification import (
+    CompletionResultNotification,
+    FocusCellNotification,
 )
-from marimo._messaging.serde import deserialize_kernel_operation_name
+from marimo._messaging.serde import deserialize_kernel_notification_name
 from marimo._messaging.types import KernelMessage
 
 if TYPE_CHECKING:
@@ -21,12 +21,12 @@ LOGGER = _loggers.marimo_logger()
 
 # Operations that are only sent in kiosk mode
 KIOSK_ONLY_OPERATIONS = {
-    FocusCell.name,
+    FocusCellNotification.name,
 }
 
 # Operations that are excluded from kiosk mode
 KIOSK_EXCLUDED_OPERATIONS = {
-    CompletionResult.name,
+    CompletionResultNotification.name,
 }
 
 
@@ -72,7 +72,7 @@ class WebSocketMessageLoop:
         """Listen for messages from kernel and send to frontend."""
         while True:
             data = await self.message_queue.get()
-            op: str = deserialize_kernel_operation_name(data)
+            op: str = deserialize_kernel_notification_name(data)
 
             if self._should_filter_operation(op):
                 continue

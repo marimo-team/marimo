@@ -23,9 +23,9 @@ from marimo._messaging.errors import (
     MarimoSyntaxError,
     MultipleDefinitionError,
 )
-from marimo._messaging.notifcation import (
-    CellOp,
-    Variables,
+from marimo._messaging.notification import (
+    CellOpNotification,
+    VariablesNotification,
 )
 from marimo._messaging.serde import deserialize_kernel_message
 from marimo._messaging.types import NoopStream
@@ -464,7 +464,9 @@ class TestExecution:
         await k.run([er1])
         stream = MockStream(k.stream)
         cell_ops = [deserialize_kernel_message(msg) for msg in stream.messages]
-        cell_ops = [op for op in cell_ops if isinstance(op, CellOp)]
+        cell_ops = [
+            op for op in cell_ops if isinstance(op, CellOpNotification)
+        ]
         er1_set_not_stale_before_run = False
         for op in cell_ops:
             if op.cell_id == er1.cell_id and op.status == "running":
@@ -564,7 +566,9 @@ class TestExecution:
         # Check the stream for stale broadcasts
         stream = MockStream(k.stream)
         cell_ops = [
-            op for op in stream.parsed_operations if isinstance(op, CellOp)
+            op
+            for op in stream.parsed_operations
+            if isinstance(op, CellOpNotification)
         ]
 
         # Filter for stale broadcasts
@@ -1761,7 +1765,7 @@ except NameError:
 
         stream = MockStream(mocked_kernel.stream)
         cell_ops = [
-            parse_raw(op_data, CellOp)
+            parse_raw(op_data, CellOpNotification)
             for op_data in stream.operations
             if op_data["op"] == "cell-op"
         ]
@@ -3413,7 +3417,11 @@ class TestStateTransitions:
         er = exec_req.get("x = 1")
         await k.run([er])
         initial_messages = len(
-            [m for m in stream.operations if isinstance(m, Variables)]
+            [
+                m
+                for m in stream.operations
+                if isinstance(m, VariablesNotification)
+            ]
         )
         assert initial_messages == 1
 
@@ -3421,7 +3429,12 @@ class TestStateTransitions:
         stream.messages.clear()
         await k.run([er])
         assert (
-            sum(1 for m in stream.operations if isinstance(m, Variables)) == 1
+            sum(
+                1
+                for m in stream.operations
+                if isinstance(m, VariablesNotification)
+            )
+            == 1
         )
 
         # Adding a new variable should broadcast Variables
@@ -3429,14 +3442,24 @@ class TestStateTransitions:
         er_2 = exec_req.get("y = 1")
         await k.run([er_2])
         assert (
-            sum(1 for m in stream.operations if isinstance(m, Variables)) == 1
+            sum(
+                1
+                for m in stream.operations
+                if isinstance(m, VariablesNotification)
+            )
+            == 1
         )
 
         # Adding a new edge should broadcast Variables
         stream.messages.clear()
         await k.run([exec_req.get("z = y")])
         assert (
-            sum(1 for m in stream.operations if isinstance(m, Variables)) == 1
+            sum(
+                1
+                for m in stream.operations
+                if isinstance(m, VariablesNotification)
+            )
+            == 1
         )
 
         # Modifying value without changing edges/defs should now broadcast
@@ -3444,14 +3467,24 @@ class TestStateTransitions:
         er_2.code = "y = 2"
         await k.run([exec_req.get_with_id(er_2.cell_id, er_2.code)])
         assert (
-            sum(1 for m in stream.operations if isinstance(m, Variables)) == 1
+            sum(
+                1
+                for m in stream.operations
+                if isinstance(m, VariablesNotification)
+            )
+            == 1
         )
 
         # Deleting a cell should broadcast Variables
         stream.messages.clear()
         await k.delete_cell(DeleteCellRequest(cell_id=er_2.cell_id))
         assert (
-            sum(1 for m in stream.operations if isinstance(m, Variables)) == 1
+            sum(
+                1
+                for m in stream.operations
+                if isinstance(m, VariablesNotification)
+            )
+            == 1
         )
 
     @staticmethod
@@ -3641,7 +3674,9 @@ class TestMarkdownHandling:
 
         # Check that the markdown cell output was broadcast
         cell_ops = [deserialize_kernel_message(msg) for msg in stream.messages]
-        cell_ops = [op for op in cell_ops if isinstance(op, CellOp)]
+        cell_ops = [
+            op for op in cell_ops if isinstance(op, CellOpNotification)
+        ]
 
         # Find operations for the markdown cell
         md_cell_ops = [op for op in cell_ops if op.cell_id == "md_cell"]
@@ -3792,7 +3827,9 @@ class TestMarkdownHandling:
 
         # Check that all cells were marked as stale
         cell_ops = [deserialize_kernel_message(msg) for msg in stream.messages]
-        cell_ops = [op for op in cell_ops if isinstance(op, CellOp)]
+        cell_ops = [
+            op for op in cell_ops if isinstance(op, CellOpNotification)
+        ]
 
         for cell_id in ["cell1", "cell2"]:
             cell_ops_for_id = [op for op in cell_ops if op.cell_id == cell_id]
@@ -3851,7 +3888,9 @@ class TestMarkdownHandling:
 
         # Check operations
         cell_ops = [deserialize_kernel_message(msg) for msg in stream.messages]
-        cell_ops = [op for op in cell_ops if isinstance(op, CellOp)]
+        cell_ops = [
+            op for op in cell_ops if isinstance(op, CellOpNotification)
+        ]
 
         # Bad cell should be marked as stale
         bad_cell_ops = [op for op in cell_ops if op.cell_id == "bad_cell"]
@@ -3904,7 +3943,9 @@ class TestMarkdownHandling:
 
         # Check that all cells were marked as stale
         cell_ops = [deserialize_kernel_message(msg) for msg in stream.messages]
-        cell_ops = [op for op in cell_ops if isinstance(op, CellOp)]
+        cell_ops = [
+            op for op in cell_ops if isinstance(op, CellOpNotification)
+        ]
 
         for cell_id in ["md_cell1", "md_cell2", "regular_cell"]:
             cell_ops_for_id = [op for op in cell_ops if op.cell_id == cell_id]
@@ -3919,7 +3960,7 @@ class TestMarkdownHandling:
         assert len(output_ops) == 0
 
 
-def _parse_error_output(cell_op: CellOp) -> list[Error]:
+def _parse_error_output(cell_op: CellOpNotification) -> list[Error]:
     error_output = cell_op.output
     assert error_output is not None
     assert error_output.channel == CellChannel.MARIMO_ERROR
@@ -3928,7 +3969,9 @@ def _parse_error_output(cell_op: CellOp) -> list[Error]:
     return cast(list[Error], data)
 
 
-def _filter_to_error_ops(cell_ops: list[CellOp]) -> list[CellOp]:
+def _filter_to_error_ops(
+    cell_ops: list[CellOpNotification],
+) -> list[CellOpNotification]:
     return [
         op
         for op in cell_ops

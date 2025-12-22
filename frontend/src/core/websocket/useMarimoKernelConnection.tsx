@@ -251,7 +251,7 @@ export function useMarimoKernelConnection(opts: {
       case "secret-keys-result":
         SECRETS_REGISTRY.resolve(msg.data.request_id as RequestId, msg.data);
         return;
-      case "cache-info-fetched":
+      case "cache-info":
         setCacheInfo(msg.data);
         return;
       case "cache-cleared":

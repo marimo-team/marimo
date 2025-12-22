@@ -19,11 +19,11 @@ from marimo._messaging.errors import (
     MarimoSQLError,
     MarimoStrictExecutionError,
 )
-from marimo._messaging.notifcation import (
-    Datasets,
-    DataSourceConnections,
+from marimo._messaging.notification import (
+    DatasetsNotification,
+    DataSourceConnectionsNotification,
     VariableValue,
-    VariableValues,
+    VariableValuesNotification,
 )
 from marimo._messaging.notification_utils import (
     CellNotificationUtils,
@@ -132,7 +132,7 @@ def _broadcast_variables(
         for variable in cell.defs
     ]
     if values:
-        broadcast_op(VariableValues(variables=values))
+        broadcast_op(VariableValuesNotification(variables=values))
 
 
 @kernel_tracer.start_as_current_span("broadcast_datasets")
@@ -155,7 +155,7 @@ def _broadcast_datasets(
     )
     if tables:
         LOGGER.debug("Broadcasting data tables")
-        broadcast_op(Datasets(tables=tables))
+        broadcast_op(DatasetsNotification(tables=tables))
 
 
 @kernel_tracer.start_as_current_span("broadcast_data_source_connection")
@@ -182,7 +182,7 @@ def _broadcast_data_source_connection(
 
     LOGGER.debug("Broadcasting data source connections")
     broadcast_op(
-        DataSourceConnections(
+        DataSourceConnectionsNotification(
             connections=[
                 engine_to_data_source_connection(variable, engine)
                 for variable, engine in engines
@@ -218,7 +218,7 @@ def _broadcast_duckdb_datasource(
 
         LOGGER.debug("Broadcasting internal duckdb datasource")
         broadcast_op(
-            DataSourceConnections(
+            DataSourceConnectionsNotification(
                 connections=[
                     engine_to_data_source_connection(
                         INTERNAL_DUCKDB_ENGINE, DuckDBEngine()

@@ -13,7 +13,7 @@ from marimo._config.config import DEFAULT_CONFIG
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.msgspec_encoder import encode_json_str
-from marimo._messaging.notifcation import CellOp
+from marimo._messaging.notification import CellOpNotification
 from marimo._server.export import (
     export_as_wasm,
     run_app_then_export_as_ipynb,
@@ -274,7 +274,11 @@ async def test_run_until_completion_with_stop():
         argv=None,
     )
     assert did_error is False
-    cell_ops = [op for op in session_view.operations if isinstance(op, CellOp)]
+    cell_ops = [
+        op
+        for op in session_view.operations
+        if isinstance(op, CellOpNotification)
+    ]
     snapshot("run_until_completion_with_stop.txt", _print_messages(cell_ops))
 
 
@@ -313,7 +317,11 @@ async def test_run_until_completion_with_stack_trace():
         file_manager, cli_args={}, argv=None
     )
     assert did_error is True
-    cell_ops = [op for op in session_view.operations if isinstance(op, CellOp)]
+    cell_ops = [
+        op
+        for op in session_view.operations
+        if isinstance(op, CellOpNotification)
+    ]
 
     messages = _print_messages(cell_ops)
     snapshot(
@@ -403,7 +411,7 @@ def __():
     assert "data:application/json" in result.contents
 
 
-def _print_messages(messages: list[CellOp]) -> str:
+def _print_messages(messages: list[CellOpNotification]) -> str:
     result: list[dict[str, Any]] = []
     for message in messages:
         result.append(
@@ -488,7 +496,11 @@ async def test_run_until_completion_with_console_output(mock_echo: MagicMock):
     if n_tries > limit:
         _assert_contents()
 
-    cell_ops = [op for op in session_view.operations if isinstance(op, CellOp)]
+    cell_ops = [
+        op
+        for op in session_view.operations
+        if isinstance(op, CellOpNotification)
+    ]
     snapshot(
         "run_until_completion_with_console_output.txt",
         _print_messages(cell_ops),
@@ -515,7 +527,7 @@ def test_export_as_html_with_serialization(session_view: SessionView):
 
     # Add some test data to session view
     cell_ids = list(file_manager.app.cell_manager.cell_ids())
-    session_view.cell_operations[cell_ids[0]] = CellOp(
+    session_view.cell_operations[cell_ids[0]] = CellOpNotification(
         cell_id=cell_ids[0],
         status="idle",
         output=CellOutput(
@@ -536,7 +548,7 @@ def test_export_as_html_with_serialization(session_view: SessionView):
         "print('Hello World')\nreturn 10"
     )
 
-    session_view.cell_operations[cell_ids[1]] = CellOp(
+    session_view.cell_operations[cell_ids[1]] = CellOpNotification(
         cell_id=cell_ids[1],
         status="idle",
         output=CellOutput(
@@ -586,7 +598,7 @@ def test_export_as_html_without_code(session_view: SessionView):
     file_manager = AppFileManager.from_app(InternalApp(app))
 
     cell_ids = list(file_manager.app.cell_manager.cell_ids())
-    session_view.cell_operations[cell_ids[0]] = CellOp(
+    session_view.cell_operations[cell_ids[0]] = CellOpNotification(
         cell_id=cell_ids[0],
         status="idle",
         output=CellOutput(
@@ -645,7 +657,7 @@ def test_export_as_html_with_files(session_view: SessionView):
     file_manager = AppFileManager.from_app(InternalApp(app))
 
     cell_ids = list(file_manager.app.cell_manager.cell_ids())
-    session_view.cell_operations[cell_ids[0]] = CellOp(
+    session_view.cell_operations[cell_ids[0]] = CellOpNotification(
         cell_id=cell_ids[0],
         status="idle",
         output=None,
@@ -692,7 +704,7 @@ def test_export_as_html_with_cell_configs(session_view: SessionView):
     file_manager = AppFileManager.from_app(InternalApp(app))
 
     cell_ids = list(file_manager.app.cell_manager.cell_ids())
-    session_view.cell_operations[cell_ids[0]] = CellOp(
+    session_view.cell_operations[cell_ids[0]] = CellOpNotification(
         cell_id=cell_ids[0],
         status="idle",
         output=CellOutput(
@@ -751,7 +763,7 @@ def test_export_as_html_preserves_output_order(session_view: SessionView):
 
     # Add cells in different order than execution
     for i, cell_id in enumerate(cell_ids):
-        session_view.cell_operations[cell_id] = CellOp(
+        session_view.cell_operations[cell_id] = CellOpNotification(
             cell_id=cell_id,
             status="idle",
             output=CellOutput(
@@ -808,7 +820,7 @@ def test_export_as_html_with_error_outputs(session_view: SessionView):
         raising_cell=cell_ids[0],
     )
 
-    session_view.cell_operations[cell_ids[0]] = CellOp(
+    session_view.cell_operations[cell_ids[0]] = CellOpNotification(
         cell_id=cell_ids[0],
         status="idle",
         output=CellOutput.errors([error]),
@@ -851,7 +863,7 @@ def test_export_as_html_code_hash_consistency(session_view: SessionView):
     file_manager = AppFileManager.from_app(InternalApp(app))
 
     cell_ids = list(file_manager.app.cell_manager.cell_ids())
-    session_view.cell_operations[cell_ids[0]] = CellOp(
+    session_view.cell_operations[cell_ids[0]] = CellOpNotification(
         cell_id=cell_ids[0],
         status="idle",
         output=None,
@@ -941,7 +953,7 @@ def test_export_html_replaces_virtual_files_in_outputs(
         '<img src="./@file/100-test.png" alt="Test image">'
     )
 
-    session_view.cell_operations[cell_ids[0]] = CellOp(
+    session_view.cell_operations[cell_ids[0]] = CellOpNotification(
         cell_id=cell_ids[0],
         status="idle",
         output=CellOutput(
@@ -1020,7 +1032,7 @@ def test_export_html_replaces_multiple_virtual_files_complex(
     cell_ids = list(file_manager.app.cell_manager.cell_ids())
 
     # Cell 1: Image with virtual file
-    session_view.cell_operations[cell_ids[0]] = CellOp(
+    session_view.cell_operations[cell_ids[0]] = CellOpNotification(
         cell_id=cell_ids[0],
         status="idle",
         output=CellOutput(
@@ -1036,7 +1048,7 @@ def test_export_html_replaces_multiple_virtual_files_complex(
     )
 
     # Cell 2: Markdown with virtual file
-    session_view.cell_operations[cell_ids[1]] = CellOp(
+    session_view.cell_operations[cell_ids[1]] = CellOpNotification(
         cell_id=cell_ids[1],
         status="idle",
         output=CellOutput(
@@ -1052,7 +1064,7 @@ def test_export_html_replaces_multiple_virtual_files_complex(
     )
 
     # Cell 3: Mixed - virtual file and external URL
-    session_view.cell_operations[cell_ids[2]] = CellOp(
+    session_view.cell_operations[cell_ids[2]] = CellOpNotification(
         cell_id=cell_ids[2],
         status="idle",
         output=CellOutput(

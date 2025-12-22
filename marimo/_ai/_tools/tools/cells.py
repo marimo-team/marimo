@@ -15,7 +15,10 @@ from marimo._ai._tools.types import (
 from marimo._ai._tools.utils.exceptions import ToolExecutionError
 from marimo._ast.models import CellData
 from marimo._messaging.errors import Error
-from marimo._messaging.notifcation import CellOp, VariableValue
+from marimo._messaging.notification import (
+    CellOpNotification,
+    VariableValue,
+)
 from marimo._types.ids import CellId_t, SessionId
 
 if TYPE_CHECKING:
@@ -394,7 +397,7 @@ class GetCellOutputs(ToolBase[GetCellOutputArgs, GetCellOutputOutput]):
         )
 
     def _get_visual_output(
-        self, cell_op: CellOp
+        self, cell_op: CellOpNotification
     ) -> tuple[Optional[str], Optional[str]]:
         visual_output = None
         visual_mimetype = None

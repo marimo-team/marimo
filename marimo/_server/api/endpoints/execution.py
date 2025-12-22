@@ -9,7 +9,7 @@ from starlette.authentication import requires
 from starlette.responses import JSONResponse
 
 from marimo import _loggers
-from marimo._messaging.notifcation import Alert
+from marimo._messaging.notification import AlertNotification
 from marimo._runtime.requests import (
     ExecuteScratchpadRequest,
     FunctionCallRequest,
@@ -371,7 +371,7 @@ async def takeover_endpoint(
     if existing_session is not None:
         # Send a disconnect message to the client
         existing_session.notify(
-            Alert(
+            AlertNotification(
                 title="Session taken over",
                 description="Another user has taken over this session.",
                 variant="danger",

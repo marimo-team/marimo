@@ -184,7 +184,7 @@ components:
       - displayed_models
       title: AiModelConfig
       type: object
-    Alert:
+    AlertNotification:
       properties:
         description:
           type: string
@@ -203,7 +203,7 @@ components:
       - op
       - title
       - description
-      title: Alert
+      title: AlertNotification
       type: object
     AnthropicConfig:
       description: "Configuration options for Anthropic.\n\n    **Keys.**\n\n    -\
@@ -214,7 +214,7 @@ components:
       required: []
       title: AnthropicConfig
       type: object
-    Banner:
+    BannerNotification:
       properties:
         action:
           anyOf:
@@ -239,7 +239,7 @@ components:
       - op
       - title
       - description
-      title: Banner
+      title: BannerNotification
       type: object
     BaseResponse:
       properties:
@@ -279,7 +279,7 @@ components:
       required: []
       title: BedrockConfig
       type: object
-    CacheCleared:
+    CacheClearedNotification:
       description: Result of clearing cache.
       properties:
         bytes_freed:
@@ -290,9 +290,9 @@ components:
       required:
       - op
       - bytes_freed
-      title: CacheCleared
+      title: CacheClearedNotification
       type: object
-    CacheInfoFetched:
+    CacheInfoNotification:
       description: Cache statistics information.
       properties:
         disk_to_free:
@@ -305,7 +305,7 @@ components:
           type: integer
         op:
           enum:
-          - cache-info-fetched
+          - cache-info
         time:
           type: number
       required:
@@ -315,7 +315,7 @@ components:
       - time
       - disk_to_free
       - disk_total
-      title: CacheInfoFetched
+      title: CacheInfoNotification
       type: object
     CellChannel:
       description: The channel of a cell's output.
@@ -347,7 +347,7 @@ components:
       required: []
       title: CellConfig
       type: object
-    CellOp:
+    CellOpNotification:
       description: "Op to transition a cell.\n\n    A CellOp's data has some optional\
         \ fields:\n\n    output        - a CellOutput\n    console       - a CellOutput\
         \ (console msg to append), or a list of\n                    CellOutputs\n\
@@ -404,7 +404,7 @@ components:
       required:
       - op
       - cell_id
-      title: CellOp
+      title: CellOpNotification
       type: object
     CellOutput:
       properties:
@@ -653,7 +653,7 @@ components:
       required: []
       title: ColumnStats
       type: object
-    CompletedRun:
+    CompletedRunNotification:
       description: Written on run completion (of submitted cells and their descendants.
       properties:
         op:
@@ -661,7 +661,7 @@ components:
           - completed-run
       required:
       - op
-      title: CompletedRun
+      title: CompletedRunNotification
       type: object
     CompletionConfig:
       description: "Configuration for code completion.\n\n    A dict with key/value\
@@ -721,7 +721,7 @@ components:
       - completion_info
       title: CompletionOption
       type: object
-    CompletionResult:
+    CompletionResultNotification:
       description: Code completion result.
       properties:
         completion_id:
@@ -740,7 +740,7 @@ components:
       - completion_id
       - prefix_length
       - options
-      title: CompletionResult
+      title: CompletionResultNotification
       type: object
     CopyNotebookRequest:
       properties:
@@ -795,7 +795,7 @@ components:
       - edges_with_vars
       title: CycleError
       type: object
-    DataColumnPreview:
+    DataColumnPreviewNotification:
       description: Preview of a column in a dataset.
       properties:
         chart_code:
@@ -836,7 +836,7 @@ components:
       - op
       - table_name
       - column_name
-      title: DataColumnPreview
+      title: DataColumnPreviewNotification
       type: object
     DataSourceConnection:
       description: "Represents a data source connection.\n\nAttributes:\n    source\
@@ -879,7 +879,7 @@ components:
       - databases
       title: DataSourceConnection
       type: object
-    DataSourceConnections:
+    DataSourceConnectionsNotification:
       properties:
         connections:
           items:
@@ -891,7 +891,7 @@ components:
       required:
       - op
       - connections
-      title: DataSourceConnections
+      title: DataSourceConnectionsNotification
       type: object
     DataTable:
       description: "Represents a data table.\n\nAttributes:\n    source_type (DataTableSource):\
@@ -1021,7 +1021,7 @@ components:
       - schemas
       title: Database
       type: object
-    Datasets:
+    DatasetsNotification:
       description: List of datasets.
       properties:
         clear_channel:
@@ -1043,7 +1043,7 @@ components:
       required:
       - op
       - tables
-      title: Datasets
+      title: DatasetsNotification
       type: object
     DatasourcesConfig:
       description: "Configuration for datasources panel.\n\n    **Keys.**\n\n    -\
@@ -1550,7 +1550,7 @@ components:
       - success
       title: FileUpdateResponse
       type: object
-    FocusCell:
+    FocusCellNotification:
       properties:
         cell_id:
           type: string
@@ -1560,7 +1560,7 @@ components:
       required:
       - op
       - cell_id
-      title: FocusCell
+      title: FocusCellNotification
       type: object
     FormatRequest:
       properties:
@@ -1612,7 +1612,7 @@ components:
       - args
       title: FunctionCallRequest
       type: object
-    FunctionCallResult:
+    FunctionCallResultNotification:
       description: Result of calling a function.
       properties:
         function_call_id:
@@ -1628,7 +1628,7 @@ components:
       - function_call_id
       - return_value
       - status
-      title: FunctionCallResult
+      title: FunctionCallResultNotification
       type: object
     GetCacheInfoRequest:
       properties: {}
@@ -1750,7 +1750,7 @@ components:
       - versions
       title: InstallMissingPackagesRequest
       type: object
-    InstallingPackageAlert:
+    InstallingPackageAlertNotification:
       properties:
         log_status:
           anyOf:
@@ -1781,7 +1781,7 @@ components:
       required:
       - op
       - packages
-      title: InstallingPackageAlert
+      title: InstallingPackageAlertNotification
       type: object
     InstantiateRequest:
       properties:
@@ -1799,7 +1799,7 @@ components:
       - values
       title: InstantiateRequest
       type: object
-    Interrupted:
+    InterruptedNotification:
       description: Written when the kernel is interrupted by the user.
       properties:
         op:
@@ -1807,7 +1807,7 @@ components:
           - interrupted
       required:
       - op
-      title: Interrupted
+      title: InterruptedNotification
       type: object
     InvokeAiToolRequest:
       properties:
@@ -1838,7 +1838,7 @@ components:
       - result
       title: InvokeAiToolResponse
       type: object
-    KernelCapabilities:
+    KernelCapabilitiesNotification:
       properties:
         basedpyright:
           default: false
@@ -1853,15 +1853,15 @@ components:
           default: false
           type: boolean
       required: []
-      title: KernelCapabilities
+      title: KernelCapabilitiesNotification
       type: object
-    KernelReady:
+    KernelReadyNotification:
       description: Kernel is ready for execution.
       properties:
         app_config:
           $ref: '#/components/schemas/_AppConfig'
         capabilities:
-          $ref: '#/components/schemas/KernelCapabilities'
+          $ref: '#/components/schemas/KernelCapabilitiesNotification'
         cell_ids:
           items:
             type: string
@@ -1919,7 +1919,7 @@ components:
       - app_config
       - kiosk
       - capabilities
-      title: KernelReady
+      title: KernelReadyNotification
       type: object
     KeymapConfig:
       description: "Configuration for keymaps.\n\n    **Keys.**\n\n    - `preset`:\
@@ -1991,74 +1991,74 @@ components:
             propertyName: type
         operation:
           anyOf:
-          - $ref: '#/components/schemas/CellOp'
-          - $ref: '#/components/schemas/FunctionCallResult'
-          - $ref: '#/components/schemas/SendUIElementMessage'
-          - $ref: '#/components/schemas/RemoveUIElements'
-          - $ref: '#/components/schemas/Reload'
-          - $ref: '#/components/schemas/Reconnected'
-          - $ref: '#/components/schemas/Interrupted'
-          - $ref: '#/components/schemas/CompletedRun'
-          - $ref: '#/components/schemas/KernelReady'
-          - $ref: '#/components/schemas/CompletionResult'
-          - $ref: '#/components/schemas/Alert'
-          - $ref: '#/components/schemas/Banner'
-          - $ref: '#/components/schemas/MissingPackageAlert'
-          - $ref: '#/components/schemas/InstallingPackageAlert'
-          - $ref: '#/components/schemas/StartupLogs'
-          - $ref: '#/components/schemas/Variables'
-          - $ref: '#/components/schemas/VariableValues'
-          - $ref: '#/components/schemas/QueryParamsSet'
-          - $ref: '#/components/schemas/QueryParamsAppend'
-          - $ref: '#/components/schemas/QueryParamsDelete'
-          - $ref: '#/components/schemas/QueryParamsClear'
-          - $ref: '#/components/schemas/Datasets'
-          - $ref: '#/components/schemas/DataColumnPreview'
-          - $ref: '#/components/schemas/SQLTablePreview'
-          - $ref: '#/components/schemas/SQLTableListPreview'
-          - $ref: '#/components/schemas/DataSourceConnections'
-          - $ref: '#/components/schemas/ValidateSQLResult'
-          - $ref: '#/components/schemas/SecretKeysResult'
-          - $ref: '#/components/schemas/CacheCleared'
-          - $ref: '#/components/schemas/CacheInfoFetched'
-          - $ref: '#/components/schemas/FocusCell'
-          - $ref: '#/components/schemas/UpdateCellCodes'
-          - $ref: '#/components/schemas/UpdateCellIdsRequest'
+          - $ref: '#/components/schemas/CellOpNotification'
+          - $ref: '#/components/schemas/FunctionCallResultNotification'
+          - $ref: '#/components/schemas/SendUIElementMessageNotification'
+          - $ref: '#/components/schemas/RemoveUIElementsNotification'
+          - $ref: '#/components/schemas/ReloadNotification'
+          - $ref: '#/components/schemas/ReconnectedNotification'
+          - $ref: '#/components/schemas/InterruptedNotification'
+          - $ref: '#/components/schemas/CompletedRunNotification'
+          - $ref: '#/components/schemas/KernelReadyNotification'
+          - $ref: '#/components/schemas/CompletionResultNotification'
+          - $ref: '#/components/schemas/AlertNotification'
+          - $ref: '#/components/schemas/BannerNotification'
+          - $ref: '#/components/schemas/MissingPackageAlertNotification'
+          - $ref: '#/components/schemas/InstallingPackageAlertNotification'
+          - $ref: '#/components/schemas/StartupLogsNotification'
+          - $ref: '#/components/schemas/VariablesNotification'
+          - $ref: '#/components/schemas/VariableValuesNotification'
+          - $ref: '#/components/schemas/QueryParamsSetNotification'
+          - $ref: '#/components/schemas/QueryParamsAppendNotification'
+          - $ref: '#/components/schemas/QueryParamsDeleteNotification'
+          - $ref: '#/components/schemas/QueryParamsClearNotification'
+          - $ref: '#/components/schemas/DatasetsNotification'
+          - $ref: '#/components/schemas/DataColumnPreviewNotification'
+          - $ref: '#/components/schemas/SQLTablePreviewNotification'
+          - $ref: '#/components/schemas/SQLTableListPreviewNotification'
+          - $ref: '#/components/schemas/DataSourceConnectionsNotification'
+          - $ref: '#/components/schemas/ValidateSQLResultNotification'
+          - $ref: '#/components/schemas/SecretKeysResultNotification'
+          - $ref: '#/components/schemas/CacheClearedNotification'
+          - $ref: '#/components/schemas/CacheInfoNotification'
+          - $ref: '#/components/schemas/FocusCellNotification'
+          - $ref: '#/components/schemas/UpdateCellCodesNotification'
+          - $ref: '#/components/schemas/UpdateCellIdsNotification'
           discriminator:
             mapping:
-              alert: '#/components/schemas/Alert'
-              banner: '#/components/schemas/Banner'
-              cache-cleared: '#/components/schemas/CacheCleared'
-              cache-info-fetched: '#/components/schemas/CacheInfoFetched'
-              cell-op: '#/components/schemas/CellOp'
-              completed-run: '#/components/schemas/CompletedRun'
-              completion-result: '#/components/schemas/CompletionResult'
-              data-column-preview: '#/components/schemas/DataColumnPreview'
-              data-source-connections: '#/components/schemas/DataSourceConnections'
-              datasets: '#/components/schemas/Datasets'
-              focus-cell: '#/components/schemas/FocusCell'
-              function-call-result: '#/components/schemas/FunctionCallResult'
-              installing-package-alert: '#/components/schemas/InstallingPackageAlert'
-              interrupted: '#/components/schemas/Interrupted'
-              kernel-ready: '#/components/schemas/KernelReady'
-              missing-package-alert: '#/components/schemas/MissingPackageAlert'
-              query-params-append: '#/components/schemas/QueryParamsAppend'
-              query-params-clear: '#/components/schemas/QueryParamsClear'
-              query-params-delete: '#/components/schemas/QueryParamsDelete'
-              query-params-set: '#/components/schemas/QueryParamsSet'
-              reconnected: '#/components/schemas/Reconnected'
-              reload: '#/components/schemas/Reload'
-              remove-ui-elements: '#/components/schemas/RemoveUIElements'
-              secret-keys-result: '#/components/schemas/SecretKeysResult'
-              send-ui-element-message: '#/components/schemas/SendUIElementMessage'
-              sql-table-list-preview: '#/components/schemas/SQLTableListPreview'
-              sql-table-preview: '#/components/schemas/SQLTablePreview'
-              startup-logs: '#/components/schemas/StartupLogs'
-              update-cell-codes: '#/components/schemas/UpdateCellCodes'
-              update-cell-ids: '#/components/schemas/UpdateCellIdsRequest'
-              validate-sql-result: '#/components/schemas/ValidateSQLResult'
-              variable-values: '#/components/schemas/VariableValues'
-              variables: '#/components/schemas/Variables'
+              alert: '#/components/schemas/AlertNotification'
+              banner: '#/components/schemas/BannerNotification'
+              cache-cleared: '#/components/schemas/CacheClearedNotification'
+              cache-info: '#/components/schemas/CacheInfoNotification'
+              cell-op: '#/components/schemas/CellOpNotification'
+              completed-run: '#/components/schemas/CompletedRunNotification'
+              completion-result: '#/components/schemas/CompletionResultNotification'
+              data-column-preview: '#/components/schemas/DataColumnPreviewNotification'
+              data-source-connections: '#/components/schemas/DataSourceConnectionsNotification'
+              datasets: '#/components/schemas/DatasetsNotification'
+              focus-cell: '#/components/schemas/FocusCellNotification'
+              function-call-result: '#/components/schemas/FunctionCallResultNotification'
+              installing-package-alert: '#/components/schemas/InstallingPackageAlertNotification'
+              interrupted: '#/components/schemas/InterruptedNotification'
+              kernel-ready: '#/components/schemas/KernelReadyNotification'
+              missing-package-alert: '#/components/schemas/MissingPackageAlertNotification'
+              query-params-append: '#/components/schemas/QueryParamsAppendNotification'
+              query-params-clear: '#/components/schemas/QueryParamsClearNotification'
+              query-params-delete: '#/components/schemas/QueryParamsDeleteNotification'
+              query-params-set: '#/components/schemas/QueryParamsSetNotification'
+              reconnected: '#/components/schemas/ReconnectedNotification'
+              reload: '#/components/schemas/ReloadNotification'
+              remove-ui-elements: '#/components/schemas/RemoveUIElementsNotification'
+              secret-keys-result: '#/components/schemas/SecretKeysResultNotification'
+              send-ui-element-message: '#/components/schemas/SendUIElementMessageNotification'
+              sql-table-list-preview: '#/components/schemas/SQLTableListPreviewNotification'
+              sql-table-preview: '#/components/schemas/SQLTablePreviewNotification'
+              startup-logs: '#/components/schemas/StartupLogsNotification'
+              update-cell-codes: '#/components/schemas/UpdateCellCodesNotification'
+              update-cell-ids: '#/components/schemas/UpdateCellIdsNotification'
+              validate-sql-result: '#/components/schemas/ValidateSQLResultNotification'
+              variable-values: '#/components/schemas/VariableValuesNotification'
+              variables: '#/components/schemas/VariablesNotification'
             propertyName: op
       required:
       - operation
@@ -2417,7 +2417,7 @@ components:
       - msg
       title: MarimoSyntaxError
       type: object
-    MissingPackageAlert:
+    MissingPackageAlertNotification:
       properties:
         isolated:
           type: boolean
@@ -2432,7 +2432,7 @@ components:
       - op
       - packages
       - isolated
-      title: MissingPackageAlert
+      title: MissingPackageAlertNotification
       type: object
     ModelMessage:
       properties:
@@ -2670,7 +2670,7 @@ components:
       required: []
       title: PythonLanguageServerConfig
       type: object
-    QueryParamsAppend:
+    QueryParamsAppendNotification:
       properties:
         key:
           type: string
@@ -2683,18 +2683,18 @@ components:
       - op
       - key
       - value
-      title: QueryParamsAppend
+      title: QueryParamsAppendNotification
       type: object
-    QueryParamsClear:
+    QueryParamsClearNotification:
       properties:
         op:
           enum:
           - query-params-clear
       required:
       - op
-      title: QueryParamsClear
+      title: QueryParamsClearNotification
       type: object
-    QueryParamsDelete:
+    QueryParamsDeleteNotification:
       properties:
         key:
           type: string
@@ -2709,9 +2709,9 @@ components:
       - op
       - key
       - value
-      title: QueryParamsDelete
+      title: QueryParamsDeleteNotification
       type: object
-    QueryParamsSet:
+    QueryParamsSetNotification:
       description: Set query parameters.
       properties:
         key:
@@ -2729,7 +2729,7 @@ components:
       - op
       - key
       - value
-      title: QueryParamsSet
+      title: QueryParamsSetNotification
       type: object
     ReadCodeResponse:
       properties:
@@ -2749,23 +2749,23 @@ components:
       - files
       title: RecentFilesResponse
       type: object
-    Reconnected:
+    ReconnectedNotification:
       properties:
         op:
           enum:
           - reconnected
       required:
       - op
-      title: Reconnected
+      title: ReconnectedNotification
       type: object
-    Reload:
+    ReloadNotification:
       properties:
         op:
           enum:
           - reload
       required:
       - op
-      title: Reload
+      title: ReloadNotification
       type: object
     RemovePackageRequest:
       properties:
@@ -2780,7 +2780,7 @@ components:
       - package
       title: RemovePackageRequest
       type: object
-    RemoveUIElements:
+    RemoveUIElementsNotification:
       description: Invalidate UI elements for a given cell.
       properties:
         cell_id:
@@ -2791,7 +2791,7 @@ components:
       required:
       - op
       - cell_id
-      title: RemoveUIElements
+      title: RemoveUIElementsNotification
       type: object
     RenameFileRequest:
       properties:
@@ -2945,7 +2945,7 @@ components:
       - schema
       title: SQLMetadata
       type: object
-    SQLTableListPreview:
+    SQLTableListPreviewNotification:
       description: Preview of a list of tables in a schema.
       properties:
         error:
@@ -2969,9 +2969,9 @@ components:
       - op
       - request_id
       - metadata
-      title: SQLTableListPreview
+      title: SQLTableListPreviewNotification
       type: object
-    SQLTablePreview:
+    SQLTablePreviewNotification:
       description: Preview of a table in a SQL database.
       properties:
         error:
@@ -2995,7 +2995,7 @@ components:
       - request_id
       - metadata
       - table
-      title: SQLTablePreview
+      title: SQLTablePreviewNotification
       type: object
     SaveAppConfigurationRequest:
       properties:
@@ -3109,7 +3109,7 @@ components:
       - columns
       title: SchemaTable
       type: object
-    SecretKeysResult:
+    SecretKeysResultNotification:
       description: Result of listing secret keys.
       properties:
         op:
@@ -3125,7 +3125,7 @@ components:
       - op
       - request_id
       - secrets
-      title: SecretKeysResult
+      title: SecretKeysResultNotification
       type: object
     SecretKeysWithProvider:
       properties:
@@ -3145,7 +3145,7 @@ components:
       - keys
       title: SecretKeysWithProvider
       type: object
-    SendUIElementMessage:
+    SendUIElementMessageNotification:
       description: Send a message to a UI element.
       properties:
         buffers:
@@ -3174,7 +3174,7 @@ components:
       - ui_element
       - model_id
       - message
-      title: SendUIElementMessage
+      title: SendUIElementMessageNotification
       type: object
     ServerConfig:
       description: "Configuration for the server.\n\n    **Keys.**\n\n    - `browser`:\
@@ -3403,7 +3403,7 @@ components:
       - errors
       title: SqlParseResult
       type: object
-    StartupLogs:
+    StartupLogsNotification:
       properties:
         content:
           type: string
@@ -3419,7 +3419,7 @@ components:
       - op
       - content
       - status
-      title: StartupLogs
+      title: StartupLogsNotification
       type: object
     StdinRequest:
       properties:
@@ -3515,7 +3515,7 @@ components:
       - msg
       title: UnknownError
       type: object
-    UpdateCellCodes:
+    UpdateCellCodesNotification:
       properties:
         cell_ids:
           items:
@@ -3535,9 +3535,9 @@ components:
       - cell_ids
       - codes
       - code_is_stale
-      title: UpdateCellCodes
+      title: UpdateCellCodesNotification
       type: object
-    UpdateCellIdsRequest:
+    UpdateCellIdsNotification:
       description: 'Update the cell ID ordering of the cells in the notebook.
 
 
@@ -3555,6 +3555,16 @@ components:
       required:
       - op
       - cell_ids
+      title: UpdateCellIdsNotification
+      type: object
+    UpdateCellIdsRequest:
+      properties:
+        cellIds:
+          items:
+            type: string
+          type: array
+      required:
+      - cellIds
       title: UpdateCellIdsRequest
       type: object
     UpdateComponentValuesRequest:
@@ -3595,7 +3605,7 @@ components:
       - onlyParse
       title: ValidateSQLRequest
       type: object
-    ValidateSQLResult:
+    ValidateSQLResultNotification:
       properties:
         error:
           anyOf:
@@ -3620,7 +3630,7 @@ components:
       required:
       - op
       - request_id
-      title: ValidateSQLResult
+      title: ValidateSQLResultNotification
       type: object
     VariableContext:
       properties:
@@ -3635,7 +3645,7 @@ components:
       - previewValue
       title: VariableContext
       type: object
-    VariableDeclaration:
+    VariableDeclarationNotification:
       properties:
         declared_by:
           items:
@@ -3651,7 +3661,7 @@ components:
       - name
       - declared_by
       - used_by
-      title: VariableDeclaration
+      title: VariableDeclarationNotification
       type: object
     VariableValue:
       properties:
@@ -3671,7 +3681,7 @@ components:
       - datatype
       title: VariableValue
       type: object
-    VariableValues:
+    VariableValuesNotification:
       description: List of variables and their types/values.
       properties:
         op:
@@ -3684,9 +3694,9 @@ components:
       required:
       - op
       - variables
-      title: VariableValues
+      title: VariableValuesNotification
       type: object
-    Variables:
+    VariablesNotification:
       description: List of variable declarations.
       properties:
         op:
@@ -3694,12 +3704,12 @@ components:
           - variables
         variables:
           items:
-            $ref: '#/components/schemas/VariableDeclaration'
+            $ref: '#/components/schemas/VariableDeclarationNotification'
           type: array
       required:
       - op
       - variables
-      title: Variables
+      title: VariablesNotification
       type: object
     WorkspaceFilesRequest:
       properties:

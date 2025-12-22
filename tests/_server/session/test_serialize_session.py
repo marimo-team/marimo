@@ -13,7 +13,7 @@ from marimo._ast.cell import CellConfig
 from marimo._ast.cell_manager import CellManager
 from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.errors import MarimoExceptionRaisedError, UnknownError
-from marimo._messaging.notifcation import CellOp
+from marimo._messaging.notification import CellOpNotification
 from marimo._runtime.requests import ExecuteMultipleRequest
 from marimo._schemas.session import NotebookSessionV1
 from marimo._server.session.serialize import (
@@ -47,7 +47,7 @@ def _build_code_hash_to_cell_id_mapping(
 def test_serialize_basic_session(session_view: SessionView):
     """Test serialization of a basic session with a single cell with data output"""
     view = session_view
-    view.cell_operations[CellId_t("cell1")] = CellOp(
+    view.cell_operations[CellId_t("cell1")] = CellOpNotification(
         cell_id=CellId_t("cell1"),
         status="idle",
         output=CellOutput(
@@ -67,7 +67,7 @@ def test_serialize_basic_session(session_view: SessionView):
 def test_serialize_session_with_error(session_view: SessionView):
     """Test serialization of a session with an error output"""
     view = session_view
-    view.cell_operations[CellId_t("cell1")] = CellOp(
+    view.cell_operations[CellId_t("cell1")] = CellOpNotification(
         cell_id=CellId_t("cell1"),
         status="idle",
         output=CellOutput(
@@ -89,7 +89,7 @@ def test_serialize_session_with_error(session_view: SessionView):
 def test_serialize_session_with_console(session_view: SessionView):
     """Test serialization of a session with console output"""
     view = session_view
-    view.cell_operations["cell1"] = CellOp(
+    view.cell_operations["cell1"] = CellOpNotification(
         cell_id="cell1",
         status="idle",
         output=None,
@@ -116,7 +116,7 @@ def test_serialize_session_with_console(session_view: SessionView):
 def test_serialize_session_with_mime_bundle(session_view: SessionView):
     """Test serialization of a session with a mime bundle output"""
     view = session_view
-    view.cell_operations["cell1"] = CellOp(
+    view.cell_operations["cell1"] = CellOpNotification(
         cell_id="cell1",
         status="idle",
         output=CellOutput(
@@ -151,7 +151,7 @@ def test_serialize_notebook_basic(session_view: SessionView):
     )
 
     # Add to session view
-    view.cell_operations[cell_id] = CellOp(
+    view.cell_operations[cell_id] = CellOpNotification(
         cell_id=cell_id,
         status="idle",
         output=CellOutput(
@@ -203,7 +203,7 @@ def test_serialize_notebook_multiple_cells(session_view: SessionView):
     )
 
     # Add first cell to session view
-    view.cell_operations[cell_id1] = CellOp(
+    view.cell_operations[cell_id1] = CellOpNotification(
         cell_id=cell_id1,
         status="idle",
         output=None,
@@ -213,7 +213,7 @@ def test_serialize_notebook_multiple_cells(session_view: SessionView):
     view.last_executed_code[cell_id1] = "x = 1"
 
     # Add second cell to session view
-    view.cell_operations[cell_id2] = CellOp(
+    view.cell_operations[cell_id2] = CellOpNotification(
         cell_id=cell_id2,
         status="idle",
         output=CellOutput(
@@ -274,7 +274,7 @@ def test_serialize_notebook_multiple_cells_not_top_down(
         config=CellConfig(column=0, disabled=False),
     )
 
-    view.cell_operations[cell_id2] = CellOp(
+    view.cell_operations[cell_id2] = CellOpNotification(
         cell_id=cell_id2,
         status="idle",
         output=None,
@@ -284,7 +284,7 @@ def test_serialize_notebook_multiple_cells_not_top_down(
     view.last_executed_code[cell_id2] = "x = 1"
 
     # Add second cell to session view
-    view.cell_operations[cell_id1] = CellOp(
+    view.cell_operations[cell_id1] = CellOpNotification(
         cell_id=cell_id1,
         status="idle",
         output=CellOutput(
@@ -331,7 +331,7 @@ def test_serialize_notebook_empty_code(session_view: SessionView):
     )
 
     # Add to session view but without executed code
-    view.cell_operations[cell_id] = CellOp(
+    view.cell_operations[cell_id] = CellOpNotification(
         cell_id=cell_id,
         status="idle",
         output=None,
@@ -382,7 +382,7 @@ def test_serialize_notebook_missing_cell_data(session_view: SessionView):
 
     # Add cell to session view but don't register it with cell manager
     cell_id = CellId_t("orphan_cell")
-    view.cell_operations[cell_id] = CellOp(
+    view.cell_operations[cell_id] = CellOpNotification(
         cell_id=cell_id,
         status="idle",
         output=CellOutput(
@@ -516,7 +516,7 @@ def test_deserialize_session_with_console():
 async def test_session_cache_writer(session_view: SessionView):
     """Test AsyncWriter writes session data periodically"""
     view = session_view
-    view.cell_operations["cell1"] = CellOp(
+    view.cell_operations["cell1"] = CellOpNotification(
         cell_id="cell1",
         status="idle",
         output=CellOutput(
@@ -756,7 +756,7 @@ def test_deserialize_session_with_console_mimetype():
 def test_serialize_session_with_dict_error():
     """Test serialization of a session with a dictionary error"""
     view = SessionView()
-    view.cell_operations["cell1"] = CellOp(
+    view.cell_operations["cell1"] = CellOpNotification(
         cell_id="cell1",
         status="idle",
         output=CellOutput(
@@ -798,7 +798,7 @@ def test_serialize_session_with_mixed_error_formats(session_view: SessionView):
         UnknownError(msg="Runtime error occurred", error_type="RuntimeError"),
     ]
 
-    view.cell_operations[CellId_t("cell1")] = CellOp(
+    view.cell_operations[CellId_t("cell1")] = CellOpNotification(
         cell_id=CellId_t("cell1"),
         status="idle",
         output=CellOutput(
@@ -899,7 +899,7 @@ class TestSessionCacheManager:
     ):
         """Test reading session view from cache file"""
         view = session_view
-        view.cell_operations["cell1"] = CellOp(
+        view.cell_operations["cell1"] = CellOpNotification(
             cell_id="cell1",
             status="idle",
             output=CellOutput(
@@ -936,7 +936,7 @@ class TestSessionCacheManager:
     ):
         """Test reading session view from cache file"""
         view = session_view
-        view.cell_operations["cell1"] = CellOp(
+        view.cell_operations["cell1"] = CellOpNotification(
             cell_id="cell1",
             status="idle",
             output=CellOutput(
@@ -1009,7 +1009,7 @@ class TestSessionCacheManager:
     ):
         """Test reading session view from cache file"""
         view = session_view
-        view.cell_operations["cell1"] = CellOp(
+        view.cell_operations["cell1"] = CellOpNotification(
             cell_id="cell1",
             status="idle",
             output=CellOutput(
@@ -1020,7 +1020,7 @@ class TestSessionCacheManager:
             console=[],
             timestamp=0,
         )
-        view.cell_operations["cell2"] = CellOp(
+        view.cell_operations["cell2"] = CellOpNotification(
             cell_id="cell2",
             status="idle",
             output=CellOutput(

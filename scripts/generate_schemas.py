@@ -9,7 +9,7 @@ with app.setup:
     import marimo as mo
     import marimo._schemas.session as s
     import marimo._schemas.notebook as n
-    import marimo._messaging.notifcation as o
+    import marimo._messaging.notification as o
     import typing as t
 
     SESSION_MESSAGES = [
@@ -32,39 +32,39 @@ with app.setup:
     ]
     OPS_MESSAGES = [
         # Message operations
-        o.CellOp,
-        o.FunctionCallResult,
-        o.RemoveUIElements,
-        o.SendUIElementMessage,
-        o.Interrupted,
-        o.CompletedRun,
-        o.KernelReady,
-        o.CompletionResult,
-        o.Alert,
-        o.MissingPackageAlert,
-        o.InstallingPackageAlert,
-        o.Reconnected,
-        o.StartupLogs,
-        o.Banner,
-        o.Reload,
-        o.Variables,
-        o.VariableValues,
-        o.Datasets,
-        o.SQLTablePreview,
-        o.SQLTableListPreview,
-        o.DataColumnPreview,
-        o.DataSourceConnections,
-        o.ValidateSQLResult,
-        o.QueryParamsSet,
-        o.QueryParamsAppend,
-        o.QueryParamsDelete,
-        o.QueryParamsClear,
-        o.FocusCell,
-        o.UpdateCellCodes,
-        o.SecretKeysResult,
-        o.CacheCleared,
-        o.CacheInfoFetched,
-        o.UpdateCellIdsRequest,
+        o.CellOpNotification,
+        o.FunctionCallResultNotification,
+        o.RemoveUIElementsNotification,
+        o.SendUIElementMessageNotification,
+        o.InterruptedNotification,
+        o.CompletedRunNotification,
+        o.KernelReadyNotification,
+        o.CompletionResultNotification,
+        o.AlertNotification,
+        o.MissingPackageAlertNotification,
+        o.InstallingPackageAlertNotification,
+        o.ReconnectedNotification,
+        o.StartupLogsNotification,
+        o.BannerNotification,
+        o.ReloadNotification,
+        o.VariablesNotification,
+        o.VariableValuesNotification,
+        o.DatasetsNotification,
+        o.SQLTablePreviewNotification,
+        o.SQLTableListPreviewNotification,
+        o.DataColumnPreviewNotification,
+        o.DataSourceConnectionsNotification,
+        o.ValidateSQLResultNotification,
+        o.QueryParamsSetNotification,
+        o.QueryParamsAppendNotification,
+        o.QueryParamsDeleteNotification,
+        o.QueryParamsClearNotification,
+        o.FocusCellNotification,
+        o.UpdateCellCodesNotification,
+        o.SecretKeysResultNotification,
+        o.CacheClearedNotification,
+        o.CacheInfoNotification,
+        o.UpdateCellIdsNotification,
     ]
 
 

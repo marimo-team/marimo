@@ -18,7 +18,7 @@ from marimo._messaging.errors import (
 )
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._messaging.msgspec_encoder import asdict
-from marimo._messaging.notifcation import CellOp
+from marimo._messaging.notification import CellOpNotification
 from marimo._schemas.notebook import (
     NotebookCell,
     NotebookCellConfig,
@@ -293,7 +293,7 @@ def deserialize_session(
             )
             continue
 
-        view.cell_operations[cell_id] = CellOp(
+        view.cell_operations[cell_id] = CellOpNotification(
             cell_id=cell_id,
             status="idle",
             output=cell_outputs[0] if cell_outputs else None,

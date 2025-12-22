@@ -11,7 +11,7 @@ from marimo import _loggers
 from marimo._config.config import PartialMarimoConfig
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.msgspec_encoder import asdict
-from marimo._messaging.notifcation import MissingPackageAlert
+from marimo._messaging.notification import MissingPackageAlertNotification
 from marimo._runtime.packages.utils import is_python_isolated
 from marimo._runtime.requests import SetUserConfigRequest
 from marimo._server.ai.mcp.config import is_mcp_config_empty
@@ -85,7 +85,7 @@ async def save_user_config(
             if session_id is not None and session is not None:
                 send_message_to_consumer(
                     session=session,
-                    operation=MissingPackageAlert(
+                    operation=MissingPackageAlertNotification(
                         packages=["mcp"],
                         isolated=is_python_isolated(),
                     ),

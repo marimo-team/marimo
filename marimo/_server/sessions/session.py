@@ -12,10 +12,10 @@ from uuid import uuid4
 
 from marimo import _loggers
 from marimo._config.manager import MarimoConfigManager, ScriptConfigManager
-from marimo._messaging.notifcation import (
-    FocusCell,
-    MessageOperation,
-    UpdateCellCodes,
+from marimo._messaging.notification import (
+    FocusCellNotification,
+    NotificationMessage,
+    UpdateCellCodesNotification,
 )
 from marimo._messaging.serde import serialize_kernel_message
 from marimo._messaging.types import KernelMessage
@@ -256,7 +256,7 @@ class SessionImpl(Session):
                 codes = [request.cells[cell_id] for cell_id in cell_ids]
             if cell_ids:
                 self.notify(
-                    UpdateCellCodes(
+                    UpdateCellCodesNotification(
                         cell_ids=cell_ids,
                         codes=codes,
                         # Not stale because we just ran the code
@@ -266,7 +266,7 @@ class SessionImpl(Session):
                 )
             if len(cell_ids) == 1:
                 self.notify(
-                    FocusCell(cell_id=cell_ids[0]),
+                    FocusCellNotification(cell_id=cell_ids[0]),
                     from_consumer_id=from_consumer_id,
                 )
 
@@ -332,7 +332,7 @@ class SessionImpl(Session):
 
     def notify(
         self,
-        operation: MessageOperation | KernelMessage,
+        operation: NotificationMessage | KernelMessage,
         from_consumer_id: Optional[ConsumerId],
     ) -> None:
         """Write an operation to the session consumer and the session view."""

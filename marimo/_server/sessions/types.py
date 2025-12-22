@@ -16,7 +16,7 @@ if TYPE_CHECKING:
     from collections.abc import Mapping
 
     from marimo._config.manager import MarimoConfigManager
-    from marimo._messaging.notifcation import MessageOperation
+    from marimo._messaging.notification import NotificationMessage
     from marimo._messaging.types import KernelMessage
     from marimo._runtime import requests
     from marimo._server.consumer import SessionConsumer
@@ -178,7 +178,7 @@ class Session(Protocol):
 
     def notify(
         self,
-        operation: MessageOperation | KernelMessage,
+        operation: NotificationMessage | KernelMessage,
         from_consumer_id: Optional[ConsumerId],
     ) -> None:
         """Write an operation to the session consumer and the session view."""

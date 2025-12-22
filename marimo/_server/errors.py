@@ -8,7 +8,7 @@ from starlette.exceptions import HTTPException
 from starlette.responses import JSONResponse
 
 from marimo import _loggers
-from marimo._messaging.notifcation import MissingPackageAlert
+from marimo._messaging.notification import MissingPackageAlertNotification
 from marimo._runtime.packages.utils import is_python_isolated
 from marimo._server.api.deps import AppState
 from marimo._server.api.status import (
@@ -64,7 +64,7 @@ async def handle_error(request: Request, response: Any) -> Any:
             ):
                 send_message_to_consumer(
                     session=session,
-                    operation=MissingPackageAlert(
+                    operation=MissingPackageAlertNotification(
                         packages=[response.name],
                         isolated=is_python_isolated(),
                     ),

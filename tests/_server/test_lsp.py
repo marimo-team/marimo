@@ -16,7 +16,7 @@ from marimo._config.manager import (
     MarimoConfigReaderWithOverrides,
 )
 from marimo._loggers import get_log_directory
-from marimo._messaging.notifcation import Alert
+from marimo._messaging.notification import AlertNotification
 from marimo._server.lsp import (
     BasedpyrightServer,
     BaseLspServer,
@@ -60,8 +60,10 @@ class MockLspServer(BaseLspServer):
     def get_command(self) -> list[str]:
         return ["mock_binary", "--port", str(self.port)]
 
-    def missing_binary_alert(self) -> Alert:
-        return Alert(title="Mock Alert", description="Mock missing binary")
+    def missing_binary_alert(self) -> AlertNotification:
+        return AlertNotification(
+            title="Mock Alert", description="Mock missing binary"
+        )
 
 
 async def test_base_lsp_server_start_stop(

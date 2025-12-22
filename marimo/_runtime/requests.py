@@ -304,6 +304,10 @@ class DeleteCellRequest(msgspec.Struct, rename="camel"):
     cell_id: CellId_t
 
 
+class UpdateCellIdsRequest(msgspec.Struct, rename="camel"):
+    cell_ids: list[CellId_t]
+
+
 class StopRequest(msgspec.Struct, rename="camel"):
     pass
 

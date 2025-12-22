@@ -11,10 +11,10 @@ import pytest
 
 from marimo._ast.cell import CellConfig
 from marimo._config.manager import get_default_config_manager
-from marimo._messaging.notifcation import (
-    Reload,
-    UpdateCellCodes,
-    UpdateCellIdsRequest,
+from marimo._messaging.notification import (
+    ReloadNotification,
+    UpdateCellCodesNotification,
+    UpdateCellIdsNotification,
 )
 from marimo._runtime.requests import DeleteCellRequest, SyncGraphRequest
 from marimo._server.models.models import SaveNotebookRequest
@@ -94,7 +94,7 @@ def test_edit_mode_reload_strategy_lazy(
     update_ids_calls = [
         call
         for call in mock_session.notify.call_args_list
-        if isinstance(call[0][0], UpdateCellIdsRequest)
+        if isinstance(call[0][0], UpdateCellIdsNotification)
     ]
     assert len(update_ids_calls) == 1
 
@@ -102,7 +102,7 @@ def test_edit_mode_reload_strategy_lazy(
     update_codes_calls = [
         call
         for call in mock_session.notify.call_args_list
-        if isinstance(call[0][0], UpdateCellCodes)
+        if isinstance(call[0][0], UpdateCellCodesNotification)
     ]
     assert len(update_codes_calls) == 1
     assert update_codes_calls[0][0][0].code_is_stale is True
@@ -139,7 +139,7 @@ def test_edit_mode_reload_strategy_autorun(
     update_ids_calls = [
         call
         for call in mock_session.notify.call_args_list
-        if isinstance(call[0][0], UpdateCellIdsRequest)
+        if isinstance(call[0][0], UpdateCellIdsNotification)
     ]
     assert len(update_ids_calls) == 1
 
@@ -199,7 +199,7 @@ def test_run_mode_reload_strategy(mock_session: MagicMock) -> None:
     # Should send Reload operation
     mock_session.notify.assert_called_once()
     operation = mock_session.notify.call_args[0][0]
-    assert isinstance(operation, Reload)
+    assert isinstance(operation, ReloadNotification)
 
 
 async def test_file_change_coordinator_handles_change(

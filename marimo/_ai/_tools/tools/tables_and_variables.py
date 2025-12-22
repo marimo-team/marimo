@@ -7,7 +7,7 @@ from typing import Optional
 from marimo._ai._tools.base import ToolBase
 from marimo._ai._tools.types import SuccessResult, ToolGuidelines
 from marimo._data.models import DataTableColumn
-from marimo._messaging.notifcation import VariableValue
+from marimo._messaging.notification import VariableValue
 from marimo._server.sessions import Session
 from marimo._types.ids import SessionId
 

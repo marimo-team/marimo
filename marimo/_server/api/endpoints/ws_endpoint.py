@@ -12,11 +12,11 @@ from marimo._cli.upgrade import check_for_updates
 from marimo._config.cli_state import MarimoCLIState
 from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._dependencies.dependencies import DependencyManager
-from marimo._messaging.notifcation import (
-    Alert,
-    Banner,
-    MessageOperation,
-    Reconnected,
+from marimo._messaging.notification import (
+    AlertNotification,
+    BannerNotification,
+    NotificationMessage,
+    ReconnectedNotification,
 )
 from marimo._messaging.serde import serialize_kernel_message
 from marimo._messaging.types import KernelMessage
@@ -169,7 +169,7 @@ class WebSocketHandler(SessionConsumer):
     def notify(self, notification: KernelMessage) -> None:
         self.message_queue.put_nowait(notification)
 
-    def _serialize_and_notify(self, notification: MessageOperation) -> None:
+    def _serialize_and_notify(self, notification: NotificationMessage) -> None:
         self.notify(serialize_kernel_message(notification))
 
     def _write_kernel_ready_from_session_view(
@@ -234,12 +234,12 @@ class WebSocketHandler(SessionConsumer):
         session.connect_consumer(self, main=True)
 
         # Write reconnected message
-        self._serialize_and_notify(Reconnected())
+        self._serialize_and_notify(ReconnectedNotification())
 
         # If not replaying, just send a toast
         if not replay:
             self._serialize_and_notify(
-                Alert(
+                AlertNotification(
                     title="Reconnected",
                     description="You have reconnected to an existing session.",
                 )
@@ -248,7 +248,7 @@ class WebSocketHandler(SessionConsumer):
 
         self._write_kernel_ready_from_session_view(session, self.params.kiosk)
         self._serialize_and_notify(
-            Banner(
+            BannerNotification(
                 title="Reconnected",
                 description="You have reconnected to an existing session.",
                 action="restart",
@@ -469,7 +469,7 @@ class WebSocketHandler(SessionConsumer):
                 description += notices_text
 
             self._serialize_and_notify(
-                Alert(title=title, description=description)
+                AlertNotification(title=title, description=description)
             )
 
         check_for_updates(on_update)

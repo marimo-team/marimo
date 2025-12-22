@@ -14,22 +14,22 @@ from marimo._data.models import (
 )
 from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.msgspec_encoder import asdict as serialize
-from marimo._messaging.notifcation import (
-    CellOp,
-    Datasets,
-    DataSourceConnections,
-    InstallingPackageAlert,
-    SendUIElementMessage,
+from marimo._messaging.notification import (
+    CellOpNotification,
+    DatasetsNotification,
+    DataSourceConnectionsNotification,
+    InstallingPackageAlertNotification,
+    SendUIElementMessageNotification,
     SQLMetadata,
-    SQLTableListPreview,
-    SQLTablePreview,
-    StartupLogs,
-    UpdateCellCodes,
-    UpdateCellIdsRequest,
-    VariableDeclaration,
-    Variables,
+    SQLTableListPreviewNotification,
+    SQLTablePreviewNotification,
+    StartupLogsNotification,
+    UpdateCellCodesNotification,
+    UpdateCellIdsNotification,
+    VariableDeclarationNotification,
+    VariablesNotification,
     VariableValue,
-    VariableValues,
+    VariableValuesNotification,
     serialize_kernel_message,
 )
 from marimo._runtime.requests import (
@@ -64,24 +64,24 @@ def test_cell_ids(session_view: SessionView) -> None:
     assert session_view.cell_ids is None
 
     session_view.add_operation(
-        UpdateCellIdsRequest(
+        UpdateCellIdsNotification(
             cell_ids=[cell_id],
         )
     )
     operation = session_view.operations[0]
-    assert isinstance(operation, UpdateCellIdsRequest)
+    assert isinstance(operation, UpdateCellIdsNotification)
     assert operation.cell_ids == [cell_id]
 
 
 def test_session_view_cell_op(session_view: SessionView) -> None:
     # Create initial CellOp
-    initial_cell_op = CellOp(
+    initial_cell_op = CellOpNotification(
         cell_id=cell_id, output=initial_output, status=initial_status
     )
     session_view.add_operation(initial_cell_op)
 
     # Add updated CellOp to SessionView
-    updated_cell_op = CellOp(
+    updated_cell_op = CellOpNotification(
         cell_id=cell_id, output=updated_output, status=updated_status
     )
     session_view.add_operation(updated_cell_op)
@@ -93,9 +93,11 @@ def test_session_view_cell_op(session_view: SessionView) -> None:
 # Test adding Variables to SessionView
 def test_session_view_variables(session_view: SessionView) -> None:
     # Create Variables operation
-    variables_op = Variables(
+    variables_op = VariablesNotification(
         variables=[
-            VariableDeclaration(name="var1", declared_by=[], used_by=[])
+            VariableDeclarationNotification(
+                name="var1", declared_by=[], used_by=[]
+            )
         ]
     )
     session_view.add_operation(variables_op)
@@ -107,12 +109,12 @@ def test_session_view_variables(session_view: SessionView) -> None:
 # Test adding VariableValues to SessionView
 def test_session_view_variable_values(session_view: SessionView) -> None:
     # Create Variables operation
-    variables_op = Variables(
+    variables_op = VariablesNotification(
         variables=[
-            VariableDeclaration(
+            VariableDeclarationNotification(
                 name="var1", declared_by=[cell_id], used_by=[]
             ),
-            VariableDeclaration(
+            VariableDeclarationNotification(
                 name="var2", declared_by=[cell_id], used_by=[]
             ),
         ]
@@ -120,7 +122,7 @@ def test_session_view_variable_values(session_view: SessionView) -> None:
     session_view.add_operation(variables_op)
 
     # Create VariableValues operation
-    variable_values_op = VariableValues(
+    variable_values_op = VariableValuesNotification(
         variables=[
             VariableValue.create(name="var1", value=1),
             VariableValue.create(name="var2", value="hello"),
@@ -132,12 +134,12 @@ def test_session_view_variable_values(session_view: SessionView) -> None:
     assert list(variables_names) == ["var1", "var2"]
 
     # Add new Variable operation without the previous variables
-    variables_op = Variables(
+    variables_op = VariablesNotification(
         variables=[
-            VariableDeclaration(
+            VariableDeclarationNotification(
                 name="var2", declared_by=[cell_id], used_by=[]
             ),
-            VariableDeclaration(
+            VariableDeclarationNotification(
                 name="var3", declared_by=[cell_id], used_by=[]
             ),
         ]
@@ -186,7 +188,7 @@ def test_model_message_values(session_view: SessionView) -> None:
     model_id2 = WidgetModelId("test_model2")
 
     session_view.add_operation(
-        SendUIElementMessage(
+        SendUIElementMessageNotification(
             model_id=model_id,
             message={"key": "value"},
             ui_element=None,
@@ -197,7 +199,7 @@ def test_model_message_values(session_view: SessionView) -> None:
 
     # Can add to existing model
     session_view.add_operation(
-        SendUIElementMessage(
+        SendUIElementMessageNotification(
             model_id=model_id,
             message={"key": "new_value"},
             ui_element=None,
@@ -210,7 +212,7 @@ def test_model_message_values(session_view: SessionView) -> None:
 
     # Can add multiple models
     session_view.add_operation(
-        SendUIElementMessage(
+        SendUIElementMessageNotification(
             model_id=model_id2,
             message={"key2": "value2"},
             ui_element=None,
@@ -267,12 +269,12 @@ def test_serialize_parse_variable_value() -> None:
 def test_add_variables(session_view: SessionView) -> None:
     session_view.add_raw_operation(
         serialize_kernel_message(
-            Variables(
+            VariablesNotification(
                 variables=[
-                    VariableDeclaration(
+                    VariableDeclarationNotification(
                         name="var1", declared_by=[cell_id], used_by=[]
                     ),
-                    VariableDeclaration(
+                    VariableDeclarationNotification(
                         name="var2", declared_by=[cell_id], used_by=[]
                     ),
                 ]
@@ -281,7 +283,7 @@ def test_add_variables(session_view: SessionView) -> None:
     )
     session_view.add_raw_operation(
         serialize_kernel_message(
-            VariableValues(
+            VariableValuesNotification(
                 variables=[
                     VariableValue.create(name="var1", value=1),
                     VariableValue.create(name="var2", value="hello"),
@@ -301,7 +303,7 @@ def test_add_variables(session_view: SessionView) -> None:
 def test_add_datasets(session_view: SessionView) -> None:
     session_view.add_raw_operation(
         serialize_kernel_message(
-            Datasets(
+            DatasetsNotification(
                 tables=[
                     DataTable(
                         source_type="local",
@@ -349,7 +351,7 @@ def test_add_datasets(session_view: SessionView) -> None:
 
     session_view.add_raw_operation(
         serialize_kernel_message(
-            Datasets(
+            DatasetsNotification(
                 tables=[
                     DataTable(
                         source_type="local",
@@ -393,9 +395,9 @@ def test_add_datasets(session_view: SessionView) -> None:
     # Can filter out tables from new variables
     session_view.add_raw_operation(
         serialize_kernel_message(
-            Variables(
+            VariablesNotification(
                 variables=[
-                    VariableDeclaration(
+                    VariableDeclarationNotification(
                         name="df2", declared_by=[cell_id], used_by=[]
                     ),
                 ]
@@ -410,7 +412,7 @@ def test_add_datasets(session_view: SessionView) -> None:
 def test_add_datasets_clear_channel(session_view: SessionView) -> None:
     session_view.add_raw_operation(
         serialize_kernel_message(
-            Datasets(
+            DatasetsNotification(
                 tables=[
                     DataTable(
                         source_type="duckdb",
@@ -443,7 +445,7 @@ def test_add_datasets_clear_channel(session_view: SessionView) -> None:
 
     session_view.add_raw_operation(
         serialize_kernel_message(
-            Datasets(
+            DatasetsNotification(
                 tables=[
                     DataTable(
                         source_type="local",
@@ -471,7 +473,7 @@ def test_add_data_source_connections(session_view: SessionView) -> None:
     # Add initial connections
     session_view.add_raw_operation(
         serialize_kernel_message(
-            DataSourceConnections(
+            DataSourceConnectionsNotification(
                 connections=[
                     DataSourceConnection(
                         source="duckdb",
@@ -508,7 +510,7 @@ def test_add_data_source_connections(session_view: SessionView) -> None:
     # Add new connection and update existing
     session_view.add_raw_operation(
         serialize_kernel_message(
-            DataSourceConnections(
+            DataSourceConnectionsNotification(
                 connections=[
                     DataSourceConnection(
                         source="duckdb",
@@ -549,9 +551,9 @@ def test_add_data_source_connections(session_view: SessionView) -> None:
     # Filter out connections from variables
     session_view.add_raw_operation(
         serialize_kernel_message(
-            Variables(
+            VariablesNotification(
                 variables=[
-                    VariableDeclaration(
+                    VariableDeclarationNotification(
                         name="mysql1", declared_by=[cell_id], used_by=[]
                     ),
                 ]
@@ -572,7 +574,7 @@ def test_add_sql_table_previews() -> None:
     # Add initial connections
     session_view.add_raw_operation(
         serialize_kernel_message(
-            DataSourceConnections(
+            DataSourceConnectionsNotification(
                 connections=[
                     DataSourceConnection(
                         source="duckdb",
@@ -622,7 +624,7 @@ def test_add_sql_table_previews() -> None:
 
     session_view.add_raw_operation(
         serialize_kernel_message(
-            SQLTablePreview(
+            SQLTablePreviewNotification(
                 metadata=SQLMetadata(
                     connection="connection1", database="db1", schema="db1"
                 ),
@@ -648,7 +650,7 @@ def test_add_sql_table_previews() -> None:
     # Add sql table preview list
     session_view.add_raw_operation(
         serialize_kernel_message(
-            SQLTableListPreview(
+            SQLTableListPreviewNotification(
                 metadata=SQLMetadata(
                     connection="connection1", database="db1", schema="db1"
                 ),
@@ -688,7 +690,7 @@ def test_add_sql_table_previews() -> None:
 def test_add_cell_op(session_view: SessionView) -> None:
     session_view.add_raw_operation(
         serialize_kernel_message(
-            CellOp(
+            CellOpNotification(
                 cell_id=cell_id, output=initial_output, status=initial_status
             )
         )
@@ -705,14 +707,14 @@ def test_combine_console_outputs(
 ) -> None:
     del time_mock
     session_view.add_operation(
-        CellOp(
+        CellOpNotification(
             cell_id=cell_id,
             console=CellOutput.stdout("one"),
             status="running",
         )
     )
     session_view.add_operation(
-        CellOp(
+        CellOpNotification(
             cell_id=cell_id,
             console=CellOutput.stdout("two"),
             status="running",
@@ -726,7 +728,7 @@ def test_combine_console_outputs(
 
     # Moves to queued
     session_view.add_operation(
-        CellOp(
+        CellOpNotification(
             cell_id=cell_id,
             console=None,
             status="queued",
@@ -739,7 +741,7 @@ def test_combine_console_outputs(
 
     # Moves to running clears console
     session_view.add_operation(
-        CellOp(
+        CellOpNotification(
             cell_id=cell_id,
             console=None,
             status="running",
@@ -749,7 +751,7 @@ def test_combine_console_outputs(
 
     # Write again
     session_view.add_operation(
-        CellOp(
+        CellOpNotification(
             cell_id=cell_id,
             console=CellOutput.stdout("three"),
             status="running",
@@ -764,14 +766,14 @@ def test_combine_console_outputs(
 def test_stdin(time_mock: Any, session_view: SessionView) -> None:
     del time_mock
     session_view.add_operation(
-        CellOp(
+        CellOpNotification(
             cell_id=cell_id,
             console=CellOutput.stdout("Hello"),
             status="running",
         )
     )
     session_view.add_operation(
-        CellOp(
+        CellOpNotification(
             cell_id=cell_id,
             console=CellOutput.stdin("What is your name?"),
             status="running",
@@ -800,21 +802,21 @@ def test_merge_consecutive_text_plain_outputs(
 
     # Add multiple consecutive stdout outputs
     session_view.add_operation(
-        CellOp(
+        CellOpNotification(
             cell_id=cell_id,
             console=CellOutput.stdout("Hello "),
             status="running",
         )
     )
     session_view.add_operation(
-        CellOp(
+        CellOpNotification(
             cell_id=cell_id,
             console=CellOutput.stdout("World"),
             status="running",
         )
     )
     session_view.add_operation(
-        CellOp(
+        CellOpNotification(
             cell_id=cell_id,
             console=CellOutput.stdout("!"),
             status="running",
@@ -840,14 +842,14 @@ def test_merge_different_channels_not_merged(
     del time_mock
 
     session_view.add_operation(
-        CellOp(
+        CellOpNotification(
             cell_id=cell_id,
             console=CellOutput.stdout("stdout message"),
             status="running",
         )
     )
     session_view.add_operation(
-        CellOp(
+        CellOpNotification(
             cell_id=cell_id,
             console=CellOutput.stderr("stderr message"),
             status="running",
@@ -874,14 +876,14 @@ def test_merge_different_mimetypes_not_merged(
     del time_mock
 
     session_view.add_operation(
-        CellOp(
+        CellOpNotification(
             cell_id=cell_id,
             console=CellOutput.stdout("plain text", mimetype="text/plain"),
             status="running",
         )
     )
     session_view.add_operation(
-        CellOp(
+        CellOpNotification(
             cell_id=cell_id,
             console=CellOutput.stdout("html content", mimetype="text/html"),
             status="running",
@@ -908,14 +910,14 @@ def test_merge_with_non_string_data_not_merged(
     del time_mock
 
     session_view.add_operation(
-        CellOp(
+        CellOpNotification(
             cell_id=cell_id,
             console=CellOutput.stdout("text"),
             status="running",
         )
     )
     session_view.add_operation(
-        CellOp(
+        CellOpNotification(
             cell_id=cell_id,
             console=CellOutput(
                 channel=CellChannel.STDOUT,
@@ -935,14 +937,14 @@ def test_get_cell_outputs(time_mock: Any, session_view: SessionView) -> None:
     del time_mock
     cell_2_id = "cell_2"
     session_view.add_operation(
-        CellOp(
+        CellOpNotification(
             cell_id=cell_id,
             output=initial_output,
             status=initial_status,
         ),
     )
     session_view.add_operation(
-        CellOp(
+        CellOpNotification(
             cell_id=cell_2_id,
             output=None,
             status=updated_status,
@@ -957,14 +959,14 @@ def test_get_cell_outputs(time_mock: Any, session_view: SessionView) -> None:
     }
 
     session_view.add_operation(
-        CellOp(
+        CellOpNotification(
             cell_id=cell_id,
             output=updated_output,
             status=updated_status,
         )
     )
     session_view.add_operation(
-        CellOp(
+        CellOpNotification(
             cell_id=cell_2_id,
             output=updated_output,
             status=updated_status,
@@ -984,14 +986,14 @@ def test_get_cell_console_outputs(
     del time_mock
     cell_2_id = "cell_2"
     session_view.add_operation(
-        CellOp(
+        CellOpNotification(
             cell_id=cell_id,
             console=[CellOutput.stdout("one")],
             status=initial_status,
         )
     )
     session_view.add_operation(
-        CellOp(
+        CellOpNotification(
             cell_id=cell_2_id,
             console=None,
             status=updated_status,
@@ -1006,14 +1008,14 @@ def test_get_cell_console_outputs(
     }
 
     session_view.add_operation(
-        CellOp(
+        CellOpNotification(
             cell_id=cell_id,
             console=[CellOutput.stdout("two")],
             status=updated_status,
         )
     )
     session_view.add_operation(
-        CellOp(
+        CellOpNotification(
             cell_id=cell_2_id,
             console=[CellOutput.stdout("two")],
             status=updated_status,
@@ -1044,7 +1046,7 @@ def test_mark_auto_export(session_view: SessionView):
     session_view.mark_auto_export_html()
     session_view.mark_auto_export_md()
     session_view.add_operation(
-        CellOp(
+        CellOpNotification(
             cell_id=cell_id,
             output=initial_output,
             status=initial_status,
@@ -1065,7 +1067,7 @@ def test_stale_code(session_view: SessionView) -> None:
     assert session_view.stale_code is None
 
     # Add stale code operation
-    stale_code_op = UpdateCellCodes(
+    stale_code_op = UpdateCellCodesNotification(
         cell_ids=["cell1"],
         codes=["print('hello')"],
         code_is_stale=True,
@@ -1077,7 +1079,7 @@ def test_stale_code(session_view: SessionView) -> None:
     assert session_view.stale_code in session_view.operations
 
     # Add non-stale code operation
-    non_stale_code_op = UpdateCellCodes(
+    non_stale_code_op = UpdateCellCodesNotification(
         cell_ids=["cell2"],
         codes=["print('world')"],
         code_is_stale=False,
@@ -1089,7 +1091,7 @@ def test_stale_code(session_view: SessionView) -> None:
     assert session_view.stale_code in session_view.operations
 
     # Update stale code
-    new_stale_code_op = UpdateCellCodes(
+    new_stale_code_op = UpdateCellCodesNotification(
         cell_ids=["cell3"],
         codes=["print('updated')"],
         code_is_stale=True,
@@ -1108,7 +1110,7 @@ def test_dataset_filter_by_engine_and_variable(
     # Initially add three tables: one with an engine, one with a variable name, and one with neither
     session_view.add_raw_operation(
         serialize_kernel_message(
-            Datasets(
+            DatasetsNotification(
                 tables=[
                     DataTable(
                         source_type="connection",
@@ -1149,12 +1151,12 @@ def test_dataset_filter_by_engine_and_variable(
 
     # Step 1: Add operation of all variables
     session_view.add_operation(
-        Variables(
+        VariablesNotification(
             variables=[
-                VariableDeclaration(
+                VariableDeclarationNotification(
                     name="some_engine", declared_by=[], used_by=[]
                 ),
-                VariableDeclaration(
+                VariableDeclarationNotification(
                     name="some_var", declared_by=[], used_by=[]
                 ),
             ]
@@ -1164,9 +1166,9 @@ def test_dataset_filter_by_engine_and_variable(
 
     # Step 2: Only "some_engine" is in scope => keep table_with_engine + table_none
     session_view.add_operation(
-        Variables(
+        VariablesNotification(
             variables=[
-                VariableDeclaration(
+                VariableDeclarationNotification(
                     name="some_engine", declared_by=[], used_by=[]
                 )
             ]
@@ -1178,7 +1180,7 @@ def test_dataset_filter_by_engine_and_variable(
     assert "table_none" in table_names
 
     # Step 3: No variables => only table with neither engine nor variable_name is kept
-    session_view.add_operation(Variables(variables=[]))
+    session_view.add_operation(VariablesNotification(variables=[]))
     table_names = [t.name for t in session_view.datasets.tables]
     assert table_names == ["table_none"]
 
@@ -1191,7 +1193,7 @@ def test_is_empty(session_view: SessionView) -> None:
 
     # Add a cell operation without output or console
     session_view.add_operation(
-        CellOp(
+        CellOpNotification(
             cell_id=cell_id,
             status=initial_status,
         )
@@ -1199,7 +1201,7 @@ def test_is_empty(session_view: SessionView) -> None:
 
     # Add a cell operation
     session_view.add_operation(
-        CellOp(
+        CellOpNotification(
             cell_id=cell_id,
             output=initial_output,
             status=initial_status,
@@ -1215,14 +1217,14 @@ def test_is_empty_multiple_operations(session_view: SessionView) -> None:
 
     # Add multiple operations - should still not be empty
     session_view.add_operation(
-        CellOp(
+        CellOpNotification(
             cell_id="cell1",
             output=initial_output,
             status="idle",
         )
     )
     session_view.add_operation(
-        CellOp(
+        CellOpNotification(
             cell_id="cell2",
             output=updated_output,
             status="idle",
@@ -1233,7 +1235,9 @@ def test_is_empty_multiple_operations(session_view: SessionView) -> None:
 
 def test_session_view_startup_logs(session_view: SessionView) -> None:
     # Test adding a startup log with "start" status
-    start_log = StartupLogs(content="Starting process...", status="start")
+    start_log = StartupLogsNotification(
+        content="Starting process...", status="start"
+    )
     session_view.add_operation(start_log)
 
     assert session_view.startup_logs is not None
@@ -1241,7 +1245,9 @@ def test_session_view_startup_logs(session_view: SessionView) -> None:
     assert session_view.startup_logs.status == "start"
 
     # Test appending to startup log
-    append_log = StartupLogs(content=" more content", status="append")
+    append_log = StartupLogsNotification(
+        content=" more content", status="append"
+    )
     session_view.add_operation(append_log)
 
     assert session_view.startup_logs is not None
@@ -1251,7 +1257,7 @@ def test_session_view_startup_logs(session_view: SessionView) -> None:
     assert session_view.startup_logs.status == "append"
 
     # Test marking startup log as done
-    done_log = StartupLogs(content=" done!", status="done")
+    done_log = StartupLogsNotification(content=" done!", status="done")
     session_view.add_operation(done_log)
 
     assert session_view.startup_logs is not None
@@ -1266,22 +1272,26 @@ def test_session_view_startup_logs_operations_exclude_done(
     session_view: SessionView,
 ) -> None:
     # Add startup log in progress
-    start_log = StartupLogs(content="Starting...", status="start")
+    start_log = StartupLogsNotification(content="Starting...", status="start")
     session_view.add_operation(start_log)
 
     # Should include in operations while in progress
     operations = session_view.operations
-    startup_ops = [op for op in operations if isinstance(op, StartupLogs)]
+    startup_ops = [
+        op for op in operations if isinstance(op, StartupLogsNotification)
+    ]
     assert len(startup_ops) == 1
     assert startup_ops[0].status == "start"
 
     # Mark as done
-    done_log = StartupLogs(content=" complete", status="done")
+    done_log = StartupLogsNotification(content=" complete", status="done")
     session_view.add_operation(done_log)
 
     # Should not include done startup logs in operations
     operations = session_view.operations
-    startup_ops = [op for op in operations if isinstance(op, StartupLogs)]
+    startup_ops = [
+        op for op in operations if isinstance(op, StartupLogsNotification)
+    ]
     assert len(startup_ops) == 0
 
 
@@ -1289,7 +1299,9 @@ def test_session_view_startup_logs_standalone_done(
     session_view: SessionView,
 ) -> None:
     # Add a standalone "done" log without prior start/append
-    done_log = StartupLogs(content="Process complete", status="done")
+    done_log = StartupLogsNotification(
+        content="Process complete", status="done"
+    )
     session_view.add_operation(done_log)
 
     assert session_view.startup_logs is not None
@@ -1309,7 +1321,7 @@ def test_session_view_package_logs_initialization(
 def test_session_view_package_logs_start(session_view: SessionView) -> None:
     """Test SessionView handles package logs start status."""
 
-    alert = InstallingPackageAlert(
+    alert = InstallingPackageAlertNotification(
         packages={"numpy": "installing"},
         logs={"numpy": "Installing numpy...\n"},
         log_status="start",
@@ -1325,7 +1337,7 @@ def test_session_view_package_logs_append(session_view: SessionView) -> None:
     """Test SessionView handles package logs append status."""
 
     # Start with initial log
-    start_alert = InstallingPackageAlert(
+    start_alert = InstallingPackageAlertNotification(
         packages={"pandas": "installing"},
         logs={"pandas": "Starting installation...\n"},
         log_status="start",
@@ -1333,7 +1345,7 @@ def test_session_view_package_logs_append(session_view: SessionView) -> None:
     session_view.add_operation(start_alert)
 
     # Append more logs
-    append_alert = InstallingPackageAlert(
+    append_alert = InstallingPackageAlertNotification(
         packages={"pandas": "installing"},
         logs={"pandas": "Downloading dependencies...\n"},
         log_status="append",
@@ -1350,7 +1362,7 @@ def test_session_view_package_logs_done(session_view: SessionView) -> None:
     """Test SessionView handles package logs done status."""
 
     # Start installation
-    start_alert = InstallingPackageAlert(
+    start_alert = InstallingPackageAlertNotification(
         packages={"scipy": "installing"},
         logs={"scipy": "Installing scipy...\n"},
         log_status="start",
@@ -1358,7 +1370,7 @@ def test_session_view_package_logs_done(session_view: SessionView) -> None:
     session_view.add_operation(start_alert)
 
     # Add progress log
-    append_alert = InstallingPackageAlert(
+    append_alert = InstallingPackageAlertNotification(
         packages={"scipy": "installing"},
         logs={"scipy": "Building wheels...\n"},
         log_status="append",
@@ -1366,7 +1378,7 @@ def test_session_view_package_logs_done(session_view: SessionView) -> None:
     session_view.add_operation(append_alert)
 
     # Finish installation
-    done_alert = InstallingPackageAlert(
+    done_alert = InstallingPackageAlertNotification(
         packages={"scipy": "installed"},
         logs={"scipy": "Successfully installed scipy!\n"},
         log_status="done",
@@ -1387,7 +1399,7 @@ def test_session_view_package_logs_multiple_packages(
     """Test SessionView handles logs for multiple packages simultaneously."""
 
     # Start installing multiple packages
-    multi_alert = InstallingPackageAlert(
+    multi_alert = InstallingPackageAlertNotification(
         packages={"numpy": "installing", "pandas": "installing"},
         logs={
             "numpy": "Starting numpy install...\n",
@@ -1398,7 +1410,7 @@ def test_session_view_package_logs_multiple_packages(
     session_view.add_operation(multi_alert)
 
     # Add logs for numpy only
-    numpy_alert = InstallingPackageAlert(
+    numpy_alert = InstallingPackageAlertNotification(
         packages={"numpy": "installing", "pandas": "installing"},
         logs={"numpy": "Numpy progress...\n"},
         log_status="append",
@@ -1406,7 +1418,7 @@ def test_session_view_package_logs_multiple_packages(
     session_view.add_operation(numpy_alert)
 
     # Add logs for pandas only
-    pandas_alert = InstallingPackageAlert(
+    pandas_alert = InstallingPackageAlertNotification(
         packages={"numpy": "installing", "pandas": "installing"},
         logs={"pandas": "Pandas progress...\n"},
         log_status="append",
@@ -1431,7 +1443,9 @@ def test_session_view_package_logs_without_logs(
     """Test SessionView handles InstallingPackageAlert without logs (backward compatibility)."""
 
     # Old-style alert without logs
-    alert = InstallingPackageAlert(packages={"requests": "installing"})
+    alert = InstallingPackageAlertNotification(
+        packages={"requests": "installing"}
+    )
     session_view.add_operation(alert)
 
     # Should not add any package logs
@@ -1444,7 +1458,7 @@ def test_session_view_package_logs_partial_logs(
     """Test SessionView handles alerts with logs but no log_status."""
 
     # Alert with logs but no log_status
-    alert = InstallingPackageAlert(
+    alert = InstallingPackageAlertNotification(
         packages={"matplotlib": "installing"},
         logs={"matplotlib": "Some log content...\n"},
         # log_status is None
@@ -1460,7 +1474,7 @@ def test_session_view_package_logs_start_without_existing(
 ) -> None:
     """Test package logs start status on package that doesn't exist yet."""
 
-    alert = InstallingPackageAlert(
+    alert = InstallingPackageAlertNotification(
         packages={"new_package": "installing"},
         logs={"new_package": "Starting fresh install...\n"},
         log_status="start",
@@ -1479,7 +1493,7 @@ def test_session_view_package_logs_append_without_existing(
     """Test package logs append status on package that doesn't exist yet."""
 
     # Append to non-existing package should start with empty string
-    alert = InstallingPackageAlert(
+    alert = InstallingPackageAlertNotification(
         packages={"orphan_package": "installing"},
         logs={"orphan_package": "Appending to nothing...\n"},
         log_status="append",
@@ -1497,7 +1511,7 @@ def test_session_view_package_logs_empty_content(
 ) -> None:
     """Test SessionView handles empty log content."""
 
-    alert = InstallingPackageAlert(
+    alert = InstallingPackageAlertNotification(
         packages={"empty_logs": "installing"},
         logs={"empty_logs": ""},
         log_status="start",

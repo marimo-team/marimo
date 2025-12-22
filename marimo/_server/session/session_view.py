@@ -7,22 +7,22 @@ from typing import Any, Literal, Optional
 
 from marimo._data.models import DataSourceConnection, DataTable
 from marimo._messaging.cell_output import CellChannel, CellOutput
-from marimo._messaging.notifcation import (
-    CellOp,
-    Datasets,
-    DataSourceConnections,
-    InstallingPackageAlert,
-    Interrupted,
-    MessageOperation,
-    SendUIElementMessage,
-    SQLTableListPreview,
-    SQLTablePreview,
-    StartupLogs,
-    UpdateCellCodes,
-    UpdateCellIdsRequest,
-    Variables,
+from marimo._messaging.notification import (
+    CellOpNotification,
+    DatasetsNotification,
+    DataSourceConnectionsNotification,
+    InstallingPackageAlertNotification,
+    InterruptedNotification,
+    NotificationMessage,
+    SendUIElementMessageNotification,
+    SQLTableListPreviewNotification,
+    SQLTablePreviewNotification,
+    StartupLogsNotification,
+    UpdateCellCodesNotification,
+    UpdateCellIdsNotification,
+    VariablesNotification,
     VariableValue,
-    VariableValues,
+    VariableValuesNotification,
 )
 from marimo._messaging.serde import deserialize_kernel_message
 from marimo._messaging.types import KernelMessage
@@ -81,15 +81,19 @@ class SessionView:
 
     def __init__(self) -> None:
         # Last seen notebook-order of cell IDs
-        self.cell_ids: Optional[UpdateCellIdsRequest] = None
+        self.cell_ids: Optional[UpdateCellIdsNotification] = None
         # A mapping from cell (IDs) to their last seen operation
-        self.cell_operations: dict[CellId_t, CellOp] = {}
+        self.cell_operations: dict[CellId_t, CellOpNotification] = {}
         # The most recent datasets operation.
-        self.datasets = Datasets(tables=[])
+        self.datasets = DatasetsNotification(tables=[])
         # The most recent data-connectors operation
-        self.data_connectors = DataSourceConnections(connections=[])
+        self.data_connectors = DataSourceConnectionsNotification(
+            connections=[]
+        )
         # The most recent Variables operation.
-        self.variable_operations: Variables = Variables(variables=[])
+        self.variable_operations: VariablesNotification = (
+            VariablesNotification(variables=[])
+        )
         # Map of variable name to value.
         self.variable_values: dict[str, VariableValue] = {}
         # Map of object id to value.
@@ -99,14 +103,14 @@ class SessionView:
         # Map of cell id to the last cell execution time
         self.last_execution_time: dict[CellId_t, float] = {}
         # Any stale code that was read from a file-watcher
-        self.stale_code: Optional[UpdateCellCodes] = None
+        self.stale_code: Optional[UpdateCellCodesNotification] = None
         # Model messages
         self.model_messages: dict[
-            WidgetModelId, list[SendUIElementMessage]
+            WidgetModelId, list[SendUIElementMessageNotification]
         ] = {}
 
         # Startup logs for startup command - only one at a time
-        self.startup_logs: Optional[StartupLogs] = None
+        self.startup_logs: Optional[StartupLogsNotification] = None
 
         # Package installation logs - accumulated per package
         self.package_logs: dict[
@@ -124,7 +128,7 @@ class SessionView:
 
     def add_raw_operation(self, raw_operation: KernelMessage) -> None:
         self._touch()
-        # Type ignore because MessageOperation is a Union, not a class
+        # Type ignore because NotificationMessage is a Union, not a class
         self.add_operation(deserialize_kernel_message(raw_operation))  # type: ignore[arg-type]
 
     def add_control_request(self, request: ControlRequest) -> None:
@@ -158,12 +162,12 @@ class SessionView:
                     cell_output.data = f"{cell_output.data} {stdin}\n"
                     return
 
-    def add_operation(self, operation: MessageOperation) -> None:
+    def add_operation(self, operation: NotificationMessage) -> None:
         """Add an operation to the session view."""
         self._touch()
         self.auto_export_state.mark_all_stale()
 
-        if isinstance(operation, CellOp):
+        if isinstance(operation, CellOpNotification):
             previous = self.cell_operations.get(operation.cell_id)
             self.cell_operations[operation.cell_id] = merge_cell_operation(
                 previous, operation
@@ -175,7 +179,7 @@ class SessionView:
             if previous.status == "running" and operation.status == "idle":
                 self.save_execution_time(operation, "end")
 
-        elif isinstance(operation, Variables):
+        elif isinstance(operation, VariablesNotification):
             self.variable_operations = operation
 
             # Set of variable names that are in scope.
@@ -204,7 +208,9 @@ class SessionView:
                         next_tables[table.name] = table
                 else:
                     next_tables[table.name] = table
-            self.datasets = Datasets(tables=list(next_tables.values()))
+            self.datasets = DatasetsNotification(
+                tables=list(next_tables.values())
+            )
 
             # Remove any data source connections that are no longer in scope.
             # Keep internal connections if they exist as these are not defined in variables
@@ -215,18 +221,18 @@ class SessionView:
                     or connection.name == INTERNAL_DUCKDB_ENGINE
                 ):
                     next_connections[connection.name] = connection
-            self.data_connectors = DataSourceConnections(
+            self.data_connectors = DataSourceConnectionsNotification(
                 connections=list(next_connections.values())
             )
 
-        elif isinstance(operation, VariableValues):
+        elif isinstance(operation, VariableValuesNotification):
             for value in operation.variables:
                 self.variable_values[value.name] = value
 
-        elif isinstance(operation, Interrupted):
+        elif isinstance(operation, InterruptedNotification):
             # Resolve stdin
             self.add_stdin("")
-        elif isinstance(operation, Datasets):
+        elif isinstance(operation, DatasetsNotification):
             # Merge datasets, dedupe by table name and keep the latest.
             # If clear_channel is set, clear those tables
             prev_tables = self.datasets.tables
@@ -240,9 +246,9 @@ class SessionView:
             tables = {t.name: t for t in prev_tables}
             for table in operation.tables:
                 tables[table.name] = table
-            self.datasets = Datasets(tables=list(tables.values()))
+            self.datasets = DatasetsNotification(tables=list(tables.values()))
 
-        elif isinstance(operation, DataSourceConnections):
+        elif isinstance(operation, DataSourceConnectionsNotification):
             # Update data source connections, dedupe by name and keep the latest
             prev_connections = self.data_connectors.connections
             connections = {c.name: c for c in prev_connections}
@@ -250,11 +256,11 @@ class SessionView:
             for c in operation.connections:
                 connections[c.name] = c
 
-            self.data_connectors = DataSourceConnections(
+            self.data_connectors = DataSourceConnectionsNotification(
                 connections=list(connections.values())
             )
 
-        elif isinstance(operation, SQLTablePreview):
+        elif isinstance(operation, SQLTablePreviewNotification):
             sql_table_preview = operation
             sql_metadata = sql_table_preview.metadata
             table_preview_connections = self.data_connectors.connections
@@ -265,7 +271,7 @@ class SessionView:
                     sql_table_preview.table,
                 )
 
-        elif isinstance(operation, SQLTableListPreview):
+        elif isinstance(operation, SQLTableListPreviewNotification):
             sql_table_list_preview = operation
             sql_metadata = sql_table_list_preview.metadata
             table_list_connections = self.data_connectors.connections
@@ -275,15 +281,16 @@ class SessionView:
                 sql_table_list_preview.tables,
             )
 
-        elif isinstance(operation, UpdateCellIdsRequest):
+        elif isinstance(operation, UpdateCellIdsNotification):
             self.cell_ids = operation
 
         elif (
-            isinstance(operation, UpdateCellCodes) and operation.code_is_stale
+            isinstance(operation, UpdateCellCodesNotification)
+            and operation.code_is_stale
         ):
             self.stale_code = operation
 
-        elif isinstance(operation, SendUIElementMessage):
+        elif isinstance(operation, SendUIElementMessageNotification):
             if operation.model_id is None:
                 return
             messages = self.model_messages.get(operation.model_id, [])
@@ -291,14 +298,14 @@ class SessionView:
             # TODO: cleanup/merge previous 'update' messages
             self.model_messages[operation.model_id] = messages
 
-        elif isinstance(operation, StartupLogs):
+        elif isinstance(operation, StartupLogsNotification):
             prev = self.startup_logs.content if self.startup_logs else ""
-            self.startup_logs = StartupLogs(
+            self.startup_logs = StartupLogsNotification(
                 content=prev + operation.content,
                 status=operation.status,
             )
 
-        elif isinstance(operation, InstallingPackageAlert):
+        elif isinstance(operation, InstallingPackageAlertNotification):
             # Handle streaming logs if present
             if operation.logs and operation.log_status:
                 for package_name, new_content in operation.logs.items():
@@ -343,10 +350,10 @@ class SessionView:
         return outputs
 
     def save_execution_time(
-        self, operation: MessageOperation, event: Literal["start", "end"]
+        self, operation: NotificationMessage, event: Literal["start", "end"]
     ) -> None:
         """Updates execution time for given cell."""
-        if not isinstance(operation, CellOp):
+        if not isinstance(operation, CellOpNotification):
             return
         cell_id = operation.cell_id
 
@@ -361,15 +368,17 @@ class SessionView:
         self.last_execution_time[cell_id] = time_elapsed
 
     @property
-    def operations(self) -> list[MessageOperation]:
-        all_ops: list[MessageOperation] = []
+    def operations(self) -> list[NotificationMessage]:
+        all_ops: list[NotificationMessage] = []
         if self.cell_ids:
             all_ops.append(self.cell_ids)
         if self.variable_operations.variables:
             all_ops.append(self.variable_operations)
         if self.variable_values:
             all_ops.append(
-                VariableValues(variables=list(self.variable_values.values()))
+                VariableValuesNotification(
+                    variables=list(self.variable_values.values())
+                )
             )
         if self.datasets.tables:
             all_ops.append(self.datasets)
@@ -444,9 +453,9 @@ def _merge_consecutive_console_outputs(
 
 
 def merge_cell_operation(
-    previous: Optional[CellOp],
-    next_: CellOp,
-) -> CellOp:
+    previous: Optional[CellOpNotification],
+    next_: CellOpNotification,
+) -> CellOpNotification:
     """Merge two cell operations."""
     if previous is None:
         return next_

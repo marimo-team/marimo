@@ -13,7 +13,7 @@ import pytest
 
 import marimo
 from marimo._dependencies.dependencies import DependencyManager
-from marimo._messaging.notifcation import CompletionResult
+from marimo._messaging.notification import CompletionResultNotification
 from marimo._messaging.serde import deserialize_kernel_message
 from marimo._messaging.types import KernelMessage, Stream
 from marimo._runtime.complete import (
@@ -490,7 +490,7 @@ mixed_keys = {"static_key": "foo", str(random.randint(0, 10)): "bar"}
     options_values = [option["name"] for option in options]
 
     assert len(local_stream.messages) == 1
-    assert message_name == CompletionResult.name
+    assert message_name == CompletionResultNotification.name
     # TODO if `expects_completions=False`, something else than `_maybe_get_key_options()`
     # could be returning values
     if expects_key_completion is False:

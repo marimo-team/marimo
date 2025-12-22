@@ -13,7 +13,7 @@ from marimo._ai._tools.tools.cells import (
     GetCellRuntimeData,
     GetLightweightCellMap,
 )
-from marimo._messaging.notifcation import VariableValue
+from marimo._messaging.notification import VariableValue
 from marimo._types.ids import CellId_t, SessionId
 from tests._ai.tools.test_utils import MockSession, MockSessionView
 

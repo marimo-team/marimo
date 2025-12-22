@@ -5,7 +5,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from marimo._messaging.notifcation import SecretKeysResult
+from marimo._messaging.notification import SecretKeysResultNotification
 from marimo._runtime.requests import (
     ListSecretKeysRequest,
     RefreshSecretsRequest,
@@ -38,7 +38,7 @@ async def test_list_secrets_with_values(
     secret_messages = [
         msg
         for msg in stream.parsed_operations
-        if isinstance(msg, SecretKeysResult)
+        if isinstance(msg, SecretKeysResultNotification)
     ]
     assert len(secret_messages) == 1
     first_secret_message = secret_messages[0]

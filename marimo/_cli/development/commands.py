@@ -15,7 +15,7 @@ import msgspec.json
 from marimo._cli.print import orange
 from marimo._data.models import DataType
 from marimo._messaging.errors import Error as MarimoError
-from marimo._messaging.notifcation import MessageOperation
+from marimo._messaging.notification import NotificationMessage
 from marimo._server.session.serialize import (
     serialize_notebook,
     serialize_session_view,
@@ -32,7 +32,7 @@ def _generate_server_api_schema() -> dict[str, Any]:
     import marimo._config.config as config
     import marimo._data.models as data
     import marimo._messaging.errors as errors
-    import marimo._messaging.notifcation as notifcation
+    import marimo._messaging.notification as notification
     import marimo._runtime.requests as requests
     import marimo._secrets.models as secrets_models
     import marimo._server.models.completion as completion
@@ -102,41 +102,41 @@ def _generate_server_api_schema() -> dict[str, Any]:
         secrets_models.SecretKeysWithProvider,
         secrets.CreateSecretRequest,
         # Operations
-        notifcation.CellOp,
-        notifcation.HumanReadableStatus,
-        notifcation.FunctionCallResult,
-        notifcation.SendUIElementMessage,
-        notifcation.RemoveUIElements,
-        notifcation.Interrupted,
-        notifcation.CompletedRun,
-        notifcation.KernelReady,
-        notifcation.CompletionResult,
-        notifcation.Alert,
-        notifcation.MissingPackageAlert,
-        notifcation.InstallingPackageAlert,
-        notifcation.Reconnected,
-        notifcation.Banner,
-        notifcation.Reload,
-        notifcation.VariableDeclaration,
-        notifcation.VariableValue,
-        notifcation.Variables,
-        notifcation.VariableValues,
-        notifcation.Datasets,
-        notifcation.DataColumnPreview,
-        notifcation.SQLTablePreview,
-        notifcation.SQLTableListPreview,
-        notifcation.DataSourceConnections,
-        notifcation.SecretKeysResult,
-        notifcation.CacheCleared,
-        notifcation.CacheInfoFetched,
-        notifcation.QueryParamsSet,
-        notifcation.QueryParamsAppend,
-        notifcation.QueryParamsDelete,
-        notifcation.QueryParamsClear,
-        notifcation.UpdateCellCodes,
-        notifcation.UpdateCellIdsRequest,
-        notifcation.FocusCell,
-        notifcation.MessageOperation,
+        notification.CellOpNotification,
+        notification.HumanReadableStatus,
+        notification.FunctionCallResultNotification,
+        notification.SendUIElementMessageNotification,
+        notification.RemoveUIElementsNotification,
+        notification.InterruptedNotification,
+        notification.CompletedRunNotification,
+        notification.KernelReadyNotification,
+        notification.CompletionResultNotification,
+        notification.AlertNotification,
+        notification.MissingPackageAlertNotification,
+        notification.InstallingPackageAlertNotification,
+        notification.ReconnectedNotification,
+        notification.BannerNotification,
+        notification.ReloadNotification,
+        notification.VariableDeclarationNotification,
+        notification.VariableValue,
+        notification.VariablesNotification,
+        notification.VariableValuesNotification,
+        notification.DatasetsNotification,
+        notification.DataColumnPreviewNotification,
+        notification.SQLTablePreviewNotification,
+        notification.SQLTableListPreviewNotification,
+        notification.DataSourceConnectionsNotification,
+        notification.SecretKeysResultNotification,
+        notification.CacheClearedNotification,
+        notification.CacheInfoNotification,
+        notification.QueryParamsSetNotification,
+        notification.QueryParamsAppendNotification,
+        notification.QueryParamsDeleteNotification,
+        notification.QueryParamsClearNotification,
+        notification.UpdateCellCodesNotification,
+        notification.UpdateCellIdsNotification,
+        notification.FocusCellNotification,
+        notification.NotificationMessage,
         # ai
         ChatMessage,
         ToolDefinition,
@@ -215,6 +215,7 @@ def _generate_server_api_schema() -> dict[str, Any]:
         models.MCPRefreshResponse,
         requests.CodeCompletionRequest,
         requests.DeleteCellRequest,
+        requests.UpdateCellIdsRequest,
         requests.HTTPRequest,
         requests.ExecuteMultipleRequest,
         requests.ExecuteScratchpadRequest,
@@ -266,12 +267,12 @@ def _generate_server_api_schema() -> dict[str, Any]:
         data.NonNestedLiteral: "NonNestedLiteral",
         RuntimeStateType: "RuntimeState",
         CellChannel: "CellChannel",
-        notifcation.MessageOperation: "MessageOperation",
+        notification.NotificationMessage: "NotificationMessage",
     }
 
     # Hack to get the unions to be included in the schema
     class KnownUnions(msgspec.Struct):
-        operation: MessageOperation
+        operation: NotificationMessage
         error: MarimoError
         data_type: DataType
 

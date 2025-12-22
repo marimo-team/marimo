@@ -5,9 +5,9 @@ import json
 from typing import TYPE_CHECKING, Callable
 
 from marimo._config.config import merge_config
-from marimo._messaging.notifcation import (
-    KernelCapabilities,
-    KernelReady,
+from marimo._messaging.notification import (
+    KernelCapabilitiesNotification,
+    KernelReadyNotification,
 )
 from marimo._messaging.serde import (
     deserialize_kernel_message,
@@ -112,7 +112,7 @@ def create_session(
     # should be after this message is sent
     write_kernel_message(
         serialize_kernel_message(
-            KernelReady(
+            KernelReadyNotification(
                 codes=tuple(app.cell_manager.codes()),
                 names=tuple(app.cell_manager.names()),
                 configs=tuple(app.cell_manager.configs()),
@@ -124,7 +124,7 @@ def create_session(
                 last_execution_time={},
                 app_config=app.config,
                 kiosk=False,
-                capabilities=KernelCapabilities(),
+                capabilities=KernelCapabilitiesNotification(),
             )
         ),
     )

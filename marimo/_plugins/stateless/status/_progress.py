@@ -16,7 +16,7 @@ from typing import (
 
 import marimo._runtime.output._output as output
 from marimo._messaging.mimetypes import KnownMimeType
-from marimo._messaging.notifcation import Alert
+from marimo._messaging.notification import AlertNotification
 from marimo._messaging.notification_utils import broadcast_op
 from marimo._output.hypertext import Html
 from marimo._output.rich_help import mddoc
@@ -502,5 +502,5 @@ def toast(
             Defaults to None.
     """
     broadcast_op(
-        Alert(title=title, description=description, variant=kind),
+        AlertNotification(title=title, description=description, variant=kind),
     )

@@ -189,7 +189,7 @@ export async function initialize() {
         return;
       case "cache-cleared":
         return;
-      case "cache-info-fetched":
+      case "cache-info":
         return;
       default:
         logNever(msg.data);

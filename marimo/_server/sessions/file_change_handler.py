@@ -12,10 +12,10 @@ from typing import TYPE_CHECKING, Optional, Protocol
 
 from marimo import _loggers
 from marimo._config.manager import MarimoConfigManager
-from marimo._messaging.notifcation import (
-    Reload,
-    UpdateCellCodes,
-    UpdateCellIdsRequest,
+from marimo._messaging.notification import (
+    ReloadNotification,
+    UpdateCellCodesNotification,
+    UpdateCellIdsNotification,
 )
 from marimo._runtime.requests import DeleteCellRequest, SyncGraphRequest
 from marimo._server.model import SessionMode
@@ -80,7 +80,7 @@ class EditModeReloadStrategy(ReloadStrategy):
 
         # Send the updated cell IDs to the frontend
         session.notify(
-            UpdateCellIdsRequest(cell_ids=cell_ids),
+            UpdateCellIdsNotification(cell_ids=cell_ids),
             from_consumer_id=None,
         )
 
@@ -117,7 +117,7 @@ class EditModeReloadStrategy(ReloadStrategy):
                 )
             if cell_ids:
                 session.notify(
-                    UpdateCellCodes(
+                    UpdateCellCodesNotification(
                         cell_ids=cell_ids,
                         codes=codes,
                         code_is_stale=True,
@@ -137,7 +137,7 @@ class RunModeReloadStrategy:
     ) -> None:
         """Handle reload in run mode by sending Reload operation."""
         del changed_cell_ids
-        session.notify(Reload(), from_consumer_id=None)
+        session.notify(ReloadNotification(), from_consumer_id=None)
 
 
 class FileChangeCoordinator:
