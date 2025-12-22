@@ -137,8 +137,7 @@ def build_openapi_schema(messages):
     except Exception as e:
         import traceback
 
-        print(e)
-        pass
+        traceback.print_exc()
 
     processed_classes: dict[t.Any, str] = {}
     component_schemas: dict[str, t.Any] = {}
