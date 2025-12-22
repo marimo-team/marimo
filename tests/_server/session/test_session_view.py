@@ -103,7 +103,7 @@ def test_session_view_variables(session_view: SessionView) -> None:
     session_view.add_notification(variables_op)
 
     # Check if the Variables operation was added correctly
-    assert session_view.variable_operations == variables_op
+    assert session_view.variable_notifications == variables_op
 
 
 # Test adding VariableValues to SessionView
@@ -267,7 +267,7 @@ def test_serialize_parse_variable_value() -> None:
 
 
 def test_add_variables(session_view: SessionView) -> None:
-    session_view.add_raw_operation(
+    session_view.add_raw_notification(
         serialize_kernel_message(
             VariablesNotification(
                 variables=[
@@ -281,7 +281,7 @@ def test_add_variables(session_view: SessionView) -> None:
             )
         )
     )
-    session_view.add_raw_operation(
+    session_view.add_raw_notification(
         serialize_kernel_message(
             VariableValuesNotification(
                 variables=[
@@ -292,8 +292,8 @@ def test_add_variables(session_view: SessionView) -> None:
         )
     )
 
-    assert session_view.variable_operations.variables[0].name == "var1"
-    assert session_view.variable_operations.variables[1].name == "var2"
+    assert session_view.variable_notifications.variables[0].name == "var1"
+    assert session_view.variable_notifications.variables[1].name == "var2"
     assert session_view.variable_values["var1"].value == "1"
     assert session_view.variable_values["var1"].datatype == "int"
     assert session_view.variable_values["var2"].value == "hello"
@@ -301,7 +301,7 @@ def test_add_variables(session_view: SessionView) -> None:
 
 
 def test_add_datasets(session_view: SessionView) -> None:
-    session_view.add_raw_operation(
+    session_view.add_raw_notification(
         serialize_kernel_message(
             DatasetsNotification(
                 tables=[
@@ -349,7 +349,7 @@ def test_add_datasets(session_view: SessionView) -> None:
 
     # Can add a new table and overwrite an existing table
 
-    session_view.add_raw_operation(
+    session_view.add_raw_notification(
         serialize_kernel_message(
             DatasetsNotification(
                 tables=[
@@ -393,7 +393,7 @@ def test_add_datasets(session_view: SessionView) -> None:
     assert session_view.datasets.tables[2].variable_name == "df3"
 
     # Can filter out tables from new variables
-    session_view.add_raw_operation(
+    session_view.add_raw_notification(
         serialize_kernel_message(
             VariablesNotification(
                 variables=[
@@ -410,7 +410,7 @@ def test_add_datasets(session_view: SessionView) -> None:
 
 
 def test_add_datasets_clear_channel(session_view: SessionView) -> None:
-    session_view.add_raw_operation(
+    session_view.add_raw_notification(
         serialize_kernel_message(
             DatasetsNotification(
                 tables=[
@@ -443,7 +443,7 @@ def test_add_datasets_clear_channel(session_view: SessionView) -> None:
     assert "db.table1" in names
     assert "df1" in names
 
-    session_view.add_raw_operation(
+    session_view.add_raw_notification(
         serialize_kernel_message(
             DatasetsNotification(
                 tables=[
@@ -471,7 +471,7 @@ def test_add_datasets_clear_channel(session_view: SessionView) -> None:
 
 def test_add_data_source_connections(session_view: SessionView) -> None:
     # Add initial connections
-    session_view.add_raw_operation(
+    session_view.add_raw_notification(
         serialize_kernel_message(
             DataSourceConnectionsNotification(
                 connections=[
@@ -508,7 +508,7 @@ def test_add_data_source_connections(session_view: SessionView) -> None:
     assert INTERNAL_DUCKDB_ENGINE in names
 
     # Add new connection and update existing
-    session_view.add_raw_operation(
+    session_view.add_raw_notification(
         serialize_kernel_message(
             DataSourceConnectionsNotification(
                 connections=[
@@ -549,7 +549,7 @@ def test_add_data_source_connections(session_view: SessionView) -> None:
     assert session_view.data_connectors in session_view.notifications
 
     # Filter out connections from variables
-    session_view.add_raw_operation(
+    session_view.add_raw_notification(
         serialize_kernel_message(
             VariablesNotification(
                 variables=[
@@ -572,7 +572,7 @@ def test_add_sql_table_previews() -> None:
     session_view = SessionView()
 
     # Add initial connections
-    session_view.add_raw_operation(
+    session_view.add_raw_notification(
         serialize_kernel_message(
             DataSourceConnectionsNotification(
                 connections=[
@@ -622,7 +622,7 @@ def test_add_sql_table_previews() -> None:
         )
     ]
 
-    session_view.add_raw_operation(
+    session_view.add_raw_notification(
         serialize_kernel_message(
             SQLTablePreviewNotification(
                 metadata=SQLMetadata(
@@ -648,7 +648,7 @@ def test_add_sql_table_previews() -> None:
     )
 
     # Add sql table preview list
-    session_view.add_raw_operation(
+    session_view.add_raw_notification(
         serialize_kernel_message(
             SQLTableListPreviewNotification(
                 metadata=SQLMetadata(
@@ -688,7 +688,7 @@ def test_add_sql_table_previews() -> None:
 
 
 def test_add_cell_notification(session_view: SessionView) -> None:
-    session_view.add_raw_operation(
+    session_view.add_raw_notification(
         serialize_kernel_message(
             CellNotification(
                 cell_id=cell_id, output=initial_output, status=initial_status
@@ -1109,7 +1109,7 @@ def test_dataset_filter_by_engine_and_variable(
     session_view: SessionView,
 ) -> None:
     # Initially add three tables: one with an engine, one with a variable name, and one with neither
-    session_view.add_raw_operation(
+    session_view.add_raw_notification(
         serialize_kernel_message(
             DatasetsNotification(
                 tables=[

@@ -198,7 +198,7 @@ def test_get_cell_errors_extracts_from_output():
     errors = context.get_cell_errors(
         SessionId("test"),
         CellId_t("c1"),
-        maybe_cell_notification=cell_notification,
+        maybe_cell_notif=cell_notification,
     )
 
     assert len(errors) == 1
