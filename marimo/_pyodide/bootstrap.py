@@ -5,9 +5,9 @@ import json
 from typing import TYPE_CHECKING, Callable
 
 from marimo._config.config import merge_config
-from marimo._messaging.ops import (
-    KernelCapabilities,
-    KernelReady,
+from marimo._messaging.notification import (
+    KernelCapabilitiesNotification,
+    KernelReadyNotification,
 )
 from marimo._messaging.serde import (
     deserialize_kernel_message,
@@ -83,10 +83,10 @@ def create_session(
     This function is called by the WebAssembly frontend.
     """
 
-    def write_kernel_message(op: KernelMessage) -> None:
-        data_json_str = op.decode("utf-8")
-        op_name = deserialize_kernel_message(op).name
-        text = f'{{"op": "{op_name}", "data": {data_json_str}}}'
+    def write_kernel_message(notification: KernelMessage) -> None:
+        data_json_str = notification.decode("utf-8")
+        name = deserialize_kernel_message(notification).name
+        text = f'{{"op": "{name}", "data": {data_json_str}}}'
         message_callback(text)
 
     # Lazy import to decrease startup time
@@ -112,7 +112,7 @@ def create_session(
     # should be after this message is sent
     write_kernel_message(
         serialize_kernel_message(
-            KernelReady(
+            KernelReadyNotification(
                 codes=tuple(app.cell_manager.codes()),
                 names=tuple(app.cell_manager.names()),
                 configs=tuple(app.cell_manager.configs()),
@@ -124,7 +124,7 @@ def create_session(
                 last_execution_time={},
                 app_config=app.config,
                 kiosk=False,
-                capabilities=KernelCapabilities(),
+                capabilities=KernelCapabilitiesNotification(),
             )
         ),
     )

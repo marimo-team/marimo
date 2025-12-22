@@ -47,14 +47,14 @@ from marimo._utils.platform import is_pyodide, is_windows
 LOGGER = loggers.marimo_logger()
 
 
-class Op(msgspec.Struct, tag_field="op"):
+class Notification(msgspec.Struct, tag_field="op"):
     name: ClassVar[str]
 
 
-class CellOp(Op, tag="cell-op"):
+class CellNotification(Notification, tag="cell-op"):
     """Op to transition a cell.
 
-    A CellOp's data has some optional fields:
+    A CellNotification's data has some optional fields:
 
     output        - a CellOutput
     console       - a CellOutput (console msg to append), or a list of
@@ -109,7 +109,7 @@ class HumanReadableStatus(msgspec.Struct):
     message: Union[str, None] = None
 
 
-class FunctionCallResult(Op, tag="function-call-result"):
+class FunctionCallResultNotification(Notification, tag="function-call-result"):
     """Result of calling a function."""
 
     name: ClassVar[str] = "function-call-result"
@@ -128,7 +128,7 @@ class FunctionCallResult(Op, tag="function-call-result"):
                 e,
             )
             return serialize_kernel_message(
-                FunctionCallResult(
+                FunctionCallResultNotification(
                     function_call_id=self.function_call_id,
                     return_value=None,
                     status=HumanReadableStatus(
@@ -140,14 +140,16 @@ class FunctionCallResult(Op, tag="function-call-result"):
             )
 
 
-class RemoveUIElements(Op, tag="remove-ui-elements"):
+class RemoveUIElementsNotification(Notification, tag="remove-ui-elements"):
     """Invalidate UI elements for a given cell."""
 
     name: ClassVar[str] = "remove-ui-elements"
     cell_id: CellId_t
 
 
-class SendUIElementMessage(Op, tag="send-ui-element-message"):
+class UIElementMessageNotification(
+    Notification, tag="send-ui-element-message"
+):
     """Send a message to a UI element."""
 
     name: ClassVar[str] = "send-ui-element-message"
@@ -157,19 +159,19 @@ class SendUIElementMessage(Op, tag="send-ui-element-message"):
     buffers: Optional[list[bytes]] = None
 
 
-class Interrupted(Op, tag="interrupted"):
+class InterruptedNotification(Notification, tag="interrupted"):
     """Written when the kernel is interrupted by the user."""
 
     name: ClassVar[str] = "interrupted"
 
 
-class CompletedRun(Op, tag="completed-run"):
+class CompletedRunNotification(Notification, tag="completed-run"):
     """Written on run completion (of submitted cells and their descendants."""
 
     name: ClassVar[str] = "completed-run"
 
 
-class KernelCapabilities(msgspec.Struct):
+class KernelCapabilitiesNotification(msgspec.Struct):
     terminal: bool = False
     pylsp: bool = False
     ty: bool = False
@@ -183,7 +185,7 @@ class KernelCapabilities(msgspec.Struct):
         self.ty = DependencyManager.ty.has()
 
 
-class KernelReady(Op, tag="kernel-ready"):
+class KernelReadyNotification(Notification, tag="kernel-ready"):
     """Kernel is ready for execution."""
 
     name: ClassVar[str] = "kernel-ready"
@@ -205,10 +207,10 @@ class KernelReady(Op, tag="kernel-ready"):
     # Whether the kernel is kiosk mode
     kiosk: bool
     # Kernel capabilities
-    capabilities: KernelCapabilities
+    capabilities: KernelCapabilitiesNotification
 
 
-class CompletionResult(Op, tag="completion-result"):
+class CompletionResultNotification(Notification, tag="completion-result"):
     """Code completion result."""
 
     name: ClassVar[str] = "completion-result"
@@ -217,7 +219,7 @@ class CompletionResult(Op, tag="completion-result"):
     options: list[CompletionOption]
 
 
-class Alert(Op, tag="alert"):
+class AlertNotification(Notification, tag="alert"):
     name: ClassVar[str] = "alert"
     title: str
     # description may be HTML
@@ -225,7 +227,9 @@ class Alert(Op, tag="alert"):
     variant: Optional[Literal["danger"]] = None
 
 
-class MissingPackageAlert(Op, tag="missing-package-alert"):
+class MissingPackageAlertNotification(
+    Notification, tag="missing-package-alert"
+):
     name: ClassVar[str] = "missing-package-alert"
     packages: list[str]
     isolated: bool
@@ -237,7 +241,9 @@ PackageStatusType = dict[
 ]
 
 
-class InstallingPackageAlert(Op, tag="installing-package-alert"):
+class InstallingPackageAlertNotification(
+    Notification, tag="installing-package-alert"
+):
     name: ClassVar[str] = "installing-package-alert"
     packages: PackageStatusType
     # Optional fields for streaming logs per package
@@ -245,17 +251,17 @@ class InstallingPackageAlert(Op, tag="installing-package-alert"):
     log_status: Optional[Literal["append", "start", "done"]] = None
 
 
-class Reconnected(Op, tag="reconnected"):
+class ReconnectedNotification(Notification, tag="reconnected"):
     name: ClassVar[str] = "reconnected"
 
 
-class StartupLogs(Op, tag="startup-logs"):
+class StartupLogsNotification(Notification, tag="startup-logs"):
     name: ClassVar[str] = "startup-logs"
     content: str
     status: Literal["append", "start", "done"]
 
 
-class Banner(Op, tag="banner"):
+class BannerNotification(Notification, tag="banner"):
     name: ClassVar[str] = "banner"
     title: str
     # description may be HTML
@@ -264,11 +270,11 @@ class Banner(Op, tag="banner"):
     action: Optional[Literal["restart"]] = None
 
 
-class Reload(Op, tag="reload"):
+class ReloadNotification(Notification, tag="reload"):
     name: ClassVar[str] = "reload"
 
 
-class VariableDeclaration(msgspec.Struct):
+class VariableDeclarationNotification(msgspec.Struct):
     name: str
     declared_by: list[CellId_t]
     used_by: list[CellId_t]
@@ -336,21 +342,21 @@ class VariableValue(BaseStruct):
         return VariableValue._stringify_static(resolved)
 
 
-class Variables(Op, tag="variables"):
+class VariablesNotification(Notification, tag="variables"):
     """List of variable declarations."""
 
     name: ClassVar[str] = "variables"
-    variables: list[VariableDeclaration]
+    variables: list[VariableDeclarationNotification]
 
 
-class VariableValues(Op, tag="variable-values"):
+class VariableValuesNotification(Notification, tag="variable-values"):
     """List of variables and their types/values."""
 
     name: ClassVar[str] = "variable-values"
     variables: list[VariableValue]
 
 
-class Datasets(Op, tag="datasets"):
+class DatasetsNotification(Notification, tag="datasets"):
     """List of datasets."""
 
     name: ClassVar[str] = "datasets"
@@ -366,7 +372,7 @@ class SQLMetadata(msgspec.Struct, tag="sql-metadata"):
     schema: str
 
 
-class SQLTablePreview(Op, tag="sql-table-preview"):
+class SQLTablePreviewNotification(Notification, tag="sql-table-preview"):
     """Preview of a table in a SQL database."""
 
     name: ClassVar[str] = "sql-table-preview"
@@ -376,7 +382,9 @@ class SQLTablePreview(Op, tag="sql-table-preview"):
     error: Optional[str] = None
 
 
-class SQLTableListPreview(Op, tag="sql-table-list-preview"):
+class SQLTableListPreviewNotification(
+    Notification, tag="sql-table-list-preview"
+):
     """Preview of a list of tables in a schema."""
 
     name: ClassVar[str] = "sql-table-list-preview"
@@ -394,8 +402,8 @@ class ColumnPreview(msgspec.Struct):
     stats: Optional[ColumnStats] = None
 
 
-class DataColumnPreview(
-    Op, ColumnPreview, kw_only=True, tag="data-column-preview"
+class DataColumnPreviewNotification(
+    Notification, ColumnPreview, kw_only=True, tag="data-column-preview"
 ):
     """Preview of a column in a dataset."""
 
@@ -404,12 +412,14 @@ class DataColumnPreview(
     column_name: str
 
 
-class DataSourceConnections(Op, tag="data-source-connections"):
+class DataSourceConnectionsNotification(
+    Notification, tag="data-source-connections"
+):
     name: ClassVar[str] = "data-source-connections"
     connections: list[DataSourceConnection]
 
 
-class ValidateSQLResult(Op, tag="validate-sql-result"):
+class ValidateSQLResultNotification(Notification, tag="validate-sql-result"):
     name: ClassVar[str] = "validate-sql-result"
     request_id: RequestId
     parse_result: Optional[SqlParseResult] = None
@@ -417,7 +427,7 @@ class ValidateSQLResult(Op, tag="validate-sql-result"):
     error: Optional[str] = None
 
 
-class QueryParamsSet(Op, tag="query-params-set"):
+class QueryParamsSetNotification(Notification, tag="query-params-set"):
     """Set query parameters."""
 
     name: ClassVar[str] = "query-params-set"
@@ -425,13 +435,13 @@ class QueryParamsSet(Op, tag="query-params-set"):
     value: Union[str, list[str]]
 
 
-class QueryParamsAppend(Op, tag="query-params-append"):
+class QueryParamsAppendNotification(Notification, tag="query-params-append"):
     name: ClassVar[str] = "query-params-append"
     key: str
     value: str
 
 
-class QueryParamsDelete(Op, tag="query-params-delete"):
+class QueryParamsDeleteNotification(Notification, tag="query-params-delete"):
     name: ClassVar[str] = "query-params-delete"
     key: str
     # If value is None, delete all values for the key
@@ -439,17 +449,17 @@ class QueryParamsDelete(Op, tag="query-params-delete"):
     value: Optional[str]
 
 
-class QueryParamsClear(Op, tag="query-params-clear"):
+class QueryParamsClearNotification(Notification, tag="query-params-clear"):
     # Clear all query parameters
     name: ClassVar[str] = "query-params-clear"
 
 
-class FocusCell(Op, tag="focus-cell"):
+class FocusCellNotification(Notification, tag="focus-cell"):
     name: ClassVar[str] = "focus-cell"
     cell_id: CellId_t
 
 
-class UpdateCellCodes(Op, tag="update-cell-codes"):
+class UpdateCellCodesNotification(Notification, tag="update-cell-codes"):
     name: ClassVar[str] = "update-cell-codes"
     cell_ids: list[CellId_t]
     codes: list[str]
@@ -458,7 +468,7 @@ class UpdateCellCodes(Op, tag="update-cell-codes"):
     code_is_stale: bool
 
 
-class SecretKeysResult(Op, tag="secret-keys-result"):
+class SecretKeysResultNotification(Notification, tag="secret-keys-result"):
     """Result of listing secret keys."""
 
     request_id: RequestId
@@ -466,17 +476,17 @@ class SecretKeysResult(Op, tag="secret-keys-result"):
     secrets: list[SecretKeysWithProvider]
 
 
-class CacheCleared(Op, tag="cache-cleared"):
+class CacheClearedNotification(Notification, tag="cache-cleared"):
     """Result of clearing cache."""
 
     name: ClassVar[str] = "cache-cleared"
     bytes_freed: int
 
 
-class CacheInfoFetched(Op, tag="cache-info-fetched"):
+class CacheInfoNotification(Notification, tag="cache-info"):
     """Cache statistics information."""
 
-    name: ClassVar[str] = "cache-info-fetched"
+    name: ClassVar[str] = "cache-info"
     hits: int
     misses: int
     time: float
@@ -484,7 +494,7 @@ class CacheInfoFetched(Op, tag="cache-info-fetched"):
     disk_total: int
 
 
-class UpdateCellIdsRequest(Op, tag="update-cell-ids"):
+class UpdateCellIdsNotification(Notification, tag="update-cell-ids"):
     """
     Update the cell ID ordering of the cells in the notebook.
 
@@ -496,48 +506,48 @@ class UpdateCellIdsRequest(Op, tag="update-cell-ids"):
     cell_ids: list[CellId_t]
 
 
-MessageOperation = Union[
-    # Cell operations
-    CellOp,
-    FunctionCallResult,
-    SendUIElementMessage,
-    RemoveUIElements,
+NotificationMessage = Union[
+    # Cell notifications
+    CellNotification,
+    FunctionCallResultNotification,
+    UIElementMessageNotification,
+    RemoveUIElementsNotification,
     # Notebook operations
-    Reload,
-    Reconnected,
-    Interrupted,
-    CompletedRun,
-    KernelReady,
+    ReloadNotification,
+    ReconnectedNotification,
+    InterruptedNotification,
+    CompletedRunNotification,
+    KernelReadyNotification,
     # Editor operations
-    CompletionResult,
+    CompletionResultNotification,
     # Alerts
-    Alert,
-    Banner,
-    MissingPackageAlert,
-    InstallingPackageAlert,
-    StartupLogs,
+    AlertNotification,
+    BannerNotification,
+    MissingPackageAlertNotification,
+    InstallingPackageAlertNotification,
+    StartupLogsNotification,
     # Variables
-    Variables,
-    VariableValues,
+    VariablesNotification,
+    VariableValuesNotification,
     # Query params
-    QueryParamsSet,
-    QueryParamsAppend,
-    QueryParamsDelete,
-    QueryParamsClear,
+    QueryParamsSetNotification,
+    QueryParamsAppendNotification,
+    QueryParamsDeleteNotification,
+    QueryParamsClearNotification,
     # Datasets
-    Datasets,
-    DataColumnPreview,
-    SQLTablePreview,
-    SQLTableListPreview,
-    DataSourceConnections,
-    ValidateSQLResult,
+    DatasetsNotification,
+    DataColumnPreviewNotification,
+    SQLTablePreviewNotification,
+    SQLTableListPreviewNotification,
+    DataSourceConnectionsNotification,
+    ValidateSQLResultNotification,
     # Secrets
-    SecretKeysResult,
+    SecretKeysResultNotification,
     # Cache
-    CacheCleared,
-    CacheInfoFetched,
+    CacheClearedNotification,
+    CacheInfoNotification,
     # Kiosk specific
-    FocusCell,
-    UpdateCellCodes,
-    UpdateCellIdsRequest,
+    FocusCellNotification,
+    UpdateCellCodesNotification,
+    UpdateCellIdsNotification,
 ]

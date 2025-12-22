@@ -10,13 +10,13 @@ from marimo._server.model import ConnectionState
 from marimo._types.ids import ConsumerId
 
 if TYPE_CHECKING:
-    from marimo._messaging.ops import MessageOperation
+    from marimo._messaging.notification import NotificationMessage
     from marimo._server.sessions.session import Session
 
 
 def send_message_to_consumer(
     session: Session,
-    operation: MessageOperation,
+    operation: NotificationMessage,
     consumer_id: Optional[ConsumerId],
 ) -> None:
     """Send a message operation to a specific consumer in a session."""

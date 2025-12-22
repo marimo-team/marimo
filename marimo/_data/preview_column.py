@@ -13,7 +13,10 @@ from marimo._data.sql_summaries import (
     get_sql_stats,
 )
 from marimo._dependencies.dependencies import DependencyManager
-from marimo._messaging.ops import ColumnPreview, DataColumnPreview
+from marimo._messaging.notification import (
+    ColumnPreview,
+    DataColumnPreviewNotification,
+)
 from marimo._plugins.ui._impl.tables.table_manager import (
     FieldType,
     TableManager,
@@ -136,7 +139,7 @@ def get_column_preview_dataset(
 def get_column_preview_for_dataframe(
     item: object,
     request: PreviewDatasetColumnRequest,
-) -> DataColumnPreview | None:
+) -> DataColumnPreviewNotification | None:
     """
     Finds the table manager for the item and gets the column preview.
     """
@@ -148,7 +151,7 @@ def get_column_preview_for_dataframe(
         return None
 
     column_preview = get_column_preview_dataset(table, table_name, column_name)
-    return DataColumnPreview(
+    return DataColumnPreviewNotification(
         table_name=table_name,
         column_name=column_name,
         chart_spec=column_preview.chart_spec,
@@ -163,7 +166,7 @@ def get_column_preview_for_duckdb(
     *,
     fully_qualified_table_name: str,
     column_name: str,
-) -> Optional[DataColumnPreview]:
+) -> Optional[DataColumnPreviewNotification]:
     DependencyManager.duckdb.require(why="previewing DuckDB columns")
 
     column_type = get_column_type(fully_qualified_table_name, column_name)
@@ -202,7 +205,7 @@ def get_column_preview_for_duckdb(
         except Exception as e:
             LOGGER.warning(f"Failed to generate Altair chart: {str(e)}")
 
-    return DataColumnPreview(
+    return DataColumnPreviewNotification(
         table_name=fully_qualified_table_name,
         column_name=column_name,
         chart_spec=chart_spec,

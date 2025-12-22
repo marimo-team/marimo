@@ -6,7 +6,7 @@ import { useErrorBoundary } from "react-error-boundary";
 import { toast } from "@/components/ui/use-toast";
 import { getNotebook, useCellActions } from "@/core/cells/cells";
 import { AUTOCOMPLETER } from "@/core/codemirror/completion/Autocompleter";
-import type { OperationMessage } from "@/core/kernel/messages";
+import type { NotificationPayload } from "@/core/kernel/messages";
 import { useConnectionTransport } from "@/core/websocket/useWebSocket";
 import { renderHTML } from "@/plugins/core/RenderHTML";
 import {
@@ -43,7 +43,7 @@ import { UI_ELEMENT_REGISTRY } from "../dom/uiregistry";
 import { useBannersActions } from "../errors/state";
 import { FUNCTIONS_REGISTRY } from "../functions/FunctionRegistry";
 import {
-  handleCellOperation,
+  handleCellNotificationeration,
   handleKernelReady,
   handleRemoveUIElements,
 } from "../kernel/handlers";
@@ -75,7 +75,7 @@ export function useMarimoKernelConnection(opts: {
   const { showBoundary } = useErrorBoundary();
 
   const { handleCellMessage, setCellCodes, setCellIds } = useCellActions();
-  const { addCellOperation } = useRunsActions();
+  const { addCellNotification } = useRunsActions();
   const setAppConfig = useSetAppConfig();
   const { setVariables, setMetadata } = useVariablesActions();
   const { addColumnPreview } = useDatasetsActions();
@@ -91,7 +91,7 @@ export function useMarimoKernelConnection(opts: {
   const runtimeManager = useRuntimeManager();
   const setCacheInfo = useSetAtom(cacheInfoAtom);
 
-  const handleMessage = (e: MessageEvent<JsonString<OperationMessage>>) => {
+  const handleMessage = (e: MessageEvent<JsonString<NotificationPayload>>) => {
     const msg = jsonParseWithSpecialChar(e.data);
     switch (msg.data.op) {
       case "reload":
@@ -154,12 +154,15 @@ export function useMarimoKernelConnection(opts: {
         );
         return;
       case "cell-op": {
-        handleCellOperation(msg.data, handleCellMessage);
+        handleCellNotificationeration(msg.data, handleCellMessage);
         const cellData = getNotebook().cellData[msg.data.cell_id as CellId];
         if (!cellData) {
           return;
         }
-        addCellOperation({ cellOperation: msg.data, code: cellData.code });
+        addCellNotification({
+          cellNotification: msg.data,
+          code: cellData.code,
+        });
         return;
       }
 
@@ -251,7 +254,7 @@ export function useMarimoKernelConnection(opts: {
       case "secret-keys-result":
         SECRETS_REGISTRY.resolve(msg.data.request_id as RequestId, msg.data);
         return;
-      case "cache-info-fetched":
+      case "cache-info":
         setCacheInfo(msg.data);
         return;
       case "cache-cleared":

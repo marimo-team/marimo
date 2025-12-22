@@ -2888,8 +2888,8 @@ export interface components {
       displayed_models: string[];
       edit_model?: string;
     };
-    /** Alert */
-    Alert: {
+    /** AlertNotification */
+    AlertNotification: {
       description: string;
       /** @enum {unknown} */
       op: "alert";
@@ -2908,8 +2908,8 @@ export interface components {
     AnthropicConfig: {
       api_key?: string;
     };
-    /** Banner */
-    Banner: {
+    /** BannerNotification */
+    BannerNotification: {
       /** @default null */
       action?: "restart" | null;
       description: string;
@@ -2951,25 +2951,25 @@ export interface components {
       region_name?: string;
     };
     /**
-     * CacheCleared
+     * CacheClearedNotification
      * @description Result of clearing cache.
      */
-    CacheCleared: {
+    CacheClearedNotification: {
       bytes_freed: number;
       /** @enum {unknown} */
       op: "cache-cleared";
     };
     /**
-     * CacheInfoFetched
+     * CacheInfoNotification
      * @description Cache statistics information.
      */
-    CacheInfoFetched: {
+    CacheInfoNotification: {
       disk_to_free: number;
       disk_total: number;
       hits: number;
       misses: number;
       /** @enum {unknown} */
-      op: "cache-info-fetched";
+      op: "cache-info";
       time: number;
     };
     /**
@@ -2999,10 +2999,10 @@ export interface components {
       hide_code?: boolean;
     };
     /**
-     * CellOp
+     * CellNotification
      * @description Op to transition a cell.
      *
-     *         A CellOp's data has some optional fields:
+     *         A CellNotification's data has some optional fields:
      *
      *         output        - a CellOutput
      *         console       - a CellOutput (console msg to append), or a list of
@@ -3018,7 +3018,7 @@ export interface components {
      *
      *         cell_id - the cell id
      */
-    CellOp: {
+    CellNotification: {
       cell_id: string;
       /** @default null */
       console?:
@@ -3161,10 +3161,10 @@ export interface components {
       unique?: number | null;
     };
     /**
-     * CompletedRun
+     * CompletedRunNotification
      * @description Written on run completion (of submitted cells and their descendants.
      */
-    CompletedRun: {
+    CompletedRunNotification: {
       /** @enum {unknown} */
       op: "completed-run";
     };
@@ -3199,10 +3199,10 @@ export interface components {
       type: string;
     };
     /**
-     * CompletionResult
+     * CompletionResultNotification
      * @description Code completion result.
      */
-    CompletionResult: {
+    CompletionResultNotification: {
       completion_id: string;
       /** @enum {unknown} */
       op: "completion-result";
@@ -3229,10 +3229,10 @@ export interface components {
       type: "cycle";
     };
     /**
-     * DataColumnPreview
+     * DataColumnPreviewNotification
      * @description Preview of a column in a dataset.
      */
-    DataColumnPreview: {
+    DataColumnPreviewNotification: {
       /** @default null */
       chart_code?: string | null;
       /** @default null */
@@ -3272,8 +3272,8 @@ export interface components {
       name: string;
       source: string;
     };
-    /** DataSourceConnections */
-    DataSourceConnections: {
+    /** DataSourceConnectionsNotification */
+    DataSourceConnectionsNotification: {
       connections: components["schemas"]["DataSourceConnection"][];
       /** @enum {unknown} */
       op: "data-source-connections";
@@ -3359,10 +3359,10 @@ export interface components {
       schemas: components["schemas"]["Schema"][];
     };
     /**
-     * Datasets
+     * DatasetsNotification
      * @description List of datasets.
      */
-    Datasets: {
+    DatasetsNotification: {
       /** @default null */
       clear_channel?: ("catalog" | "connection" | "duckdb" | "local") | null;
       /** @enum {unknown} */
@@ -3610,8 +3610,8 @@ export interface components {
       message?: string | null;
       success: boolean;
     };
-    /** FocusCell */
-    FocusCell: {
+    /** FocusCellNotification */
+    FocusCellNotification: {
       cell_id: string;
       /** @enum {unknown} */
       op: "focus-cell";
@@ -3648,10 +3648,10 @@ export interface components {
       namespace: string;
     };
     /**
-     * FunctionCallResult
+     * FunctionCallResultNotification
      * @description Result of calling a function.
      */
-    FunctionCallResult: {
+    FunctionCallResultNotification: {
       function_call_id: string;
       /** @enum {unknown} */
       op: "function-call-result";
@@ -3739,8 +3739,8 @@ export interface components {
         [key: string]: string;
       };
     };
-    /** InstallingPackageAlert */
-    InstallingPackageAlert: {
+    /** InstallingPackageAlertNotification */
+    InstallingPackageAlertNotification: {
       /** @default null */
       log_status?: ("append" | "done" | "start") | null;
       /** @default null */
@@ -3761,10 +3761,10 @@ export interface components {
       values: unknown[];
     };
     /**
-     * Interrupted
+     * InterruptedNotification
      * @description Written when the kernel is interrupted by the user.
      */
-    Interrupted: {
+    InterruptedNotification: {
       /** @enum {unknown} */
       op: "interrupted";
     };
@@ -3781,8 +3781,8 @@ export interface components {
       success: boolean;
       toolName: string;
     };
-    /** KernelCapabilities */
-    KernelCapabilities: {
+    /** KernelCapabilitiesNotification */
+    KernelCapabilitiesNotification: {
       /** @default false */
       basedpyright?: boolean;
       /** @default false */
@@ -3793,12 +3793,12 @@ export interface components {
       ty?: boolean;
     };
     /**
-     * KernelReady
+     * KernelReadyNotification
      * @description Kernel is ready for execution.
      */
-    KernelReady: {
+    KernelReadyNotification: {
       app_config: components["schemas"]["_AppConfig"];
-      capabilities: components["schemas"]["KernelCapabilities"];
+      capabilities: components["schemas"]["KernelCapabilitiesNotification"];
       cell_ids: string[];
       codes: string[];
       configs: components["schemas"]["CellConfig"][];
@@ -3862,40 +3862,40 @@ export interface components {
         | components["schemas"]["MarimoInternalError"]
         | components["schemas"]["MarimoSQLError"]
         | components["schemas"]["UnknownError"];
-      operation:
-        | components["schemas"]["CellOp"]
-        | components["schemas"]["FunctionCallResult"]
-        | components["schemas"]["SendUIElementMessage"]
-        | components["schemas"]["RemoveUIElements"]
-        | components["schemas"]["Reload"]
-        | components["schemas"]["Reconnected"]
-        | components["schemas"]["Interrupted"]
-        | components["schemas"]["CompletedRun"]
-        | components["schemas"]["KernelReady"]
-        | components["schemas"]["CompletionResult"]
-        | components["schemas"]["Alert"]
-        | components["schemas"]["Banner"]
-        | components["schemas"]["MissingPackageAlert"]
-        | components["schemas"]["InstallingPackageAlert"]
-        | components["schemas"]["StartupLogs"]
-        | components["schemas"]["Variables"]
-        | components["schemas"]["VariableValues"]
-        | components["schemas"]["QueryParamsSet"]
-        | components["schemas"]["QueryParamsAppend"]
-        | components["schemas"]["QueryParamsDelete"]
-        | components["schemas"]["QueryParamsClear"]
-        | components["schemas"]["Datasets"]
-        | components["schemas"]["DataColumnPreview"]
-        | components["schemas"]["SQLTablePreview"]
-        | components["schemas"]["SQLTableListPreview"]
-        | components["schemas"]["DataSourceConnections"]
-        | components["schemas"]["ValidateSQLResult"]
-        | components["schemas"]["SecretKeysResult"]
-        | components["schemas"]["CacheCleared"]
-        | components["schemas"]["CacheInfoFetched"]
-        | components["schemas"]["FocusCell"]
-        | components["schemas"]["UpdateCellCodes"]
-        | components["schemas"]["UpdateCellIdsRequest"];
+      notification:
+        | components["schemas"]["CellNotification"]
+        | components["schemas"]["FunctionCallResultNotification"]
+        | components["schemas"]["UIElementMessageNotification"]
+        | components["schemas"]["RemoveUIElementsNotification"]
+        | components["schemas"]["ReloadNotification"]
+        | components["schemas"]["ReconnectedNotification"]
+        | components["schemas"]["InterruptedNotification"]
+        | components["schemas"]["CompletedRunNotification"]
+        | components["schemas"]["KernelReadyNotification"]
+        | components["schemas"]["CompletionResultNotification"]
+        | components["schemas"]["AlertNotification"]
+        | components["schemas"]["BannerNotification"]
+        | components["schemas"]["MissingPackageAlertNotification"]
+        | components["schemas"]["InstallingPackageAlertNotification"]
+        | components["schemas"]["StartupLogsNotification"]
+        | components["schemas"]["VariablesNotification"]
+        | components["schemas"]["VariableValuesNotification"]
+        | components["schemas"]["QueryParamsSetNotification"]
+        | components["schemas"]["QueryParamsAppendNotification"]
+        | components["schemas"]["QueryParamsDeleteNotification"]
+        | components["schemas"]["QueryParamsClearNotification"]
+        | components["schemas"]["DatasetsNotification"]
+        | components["schemas"]["DataColumnPreviewNotification"]
+        | components["schemas"]["SQLTablePreviewNotification"]
+        | components["schemas"]["SQLTableListPreviewNotification"]
+        | components["schemas"]["DataSourceConnectionsNotification"]
+        | components["schemas"]["ValidateSQLResultNotification"]
+        | components["schemas"]["SecretKeysResultNotification"]
+        | components["schemas"]["CacheClearedNotification"]
+        | components["schemas"]["CacheInfoNotification"]
+        | components["schemas"]["FocusCellNotification"]
+        | components["schemas"]["UpdateCellCodesNotification"]
+        | components["schemas"]["UpdateCellIdsNotification"];
     };
     /**
      * LanguageServersConfig
@@ -4073,8 +4073,8 @@ export interface components {
       /** @enum {unknown} */
       type: "syntax";
     };
-    /** MissingPackageAlert */
-    MissingPackageAlert: {
+    /** MissingPackageAlertNotification */
+    MissingPackageAlertNotification: {
       isolated: boolean;
       /** @enum {unknown} */
       op: "missing-package-alert";
@@ -4216,30 +4216,30 @@ export interface components {
       enable_ruff?: boolean;
       enabled?: boolean;
     };
-    /** QueryParamsAppend */
-    QueryParamsAppend: {
+    /** QueryParamsAppendNotification */
+    QueryParamsAppendNotification: {
       key: string;
       /** @enum {unknown} */
       op: "query-params-append";
       value: string;
     };
-    /** QueryParamsClear */
-    QueryParamsClear: {
+    /** QueryParamsClearNotification */
+    QueryParamsClearNotification: {
       /** @enum {unknown} */
       op: "query-params-clear";
     };
-    /** QueryParamsDelete */
-    QueryParamsDelete: {
+    /** QueryParamsDeleteNotification */
+    QueryParamsDeleteNotification: {
       key: string;
       /** @enum {unknown} */
       op: "query-params-delete";
       value: string | null;
     };
     /**
-     * QueryParamsSet
+     * QueryParamsSetNotification
      * @description Set query parameters.
      */
-    QueryParamsSet: {
+    QueryParamsSetNotification: {
       key: string;
       /** @enum {unknown} */
       op: "query-params-set";
@@ -4253,13 +4253,13 @@ export interface components {
     RecentFilesResponse: {
       files: components["schemas"]["MarimoFile"][];
     };
-    /** Reconnected */
-    Reconnected: {
+    /** ReconnectedNotification */
+    ReconnectedNotification: {
       /** @enum {unknown} */
       op: "reconnected";
     };
-    /** Reload */
-    Reload: {
+    /** ReloadNotification */
+    ReloadNotification: {
       /** @enum {unknown} */
       op: "reload";
     };
@@ -4270,10 +4270,10 @@ export interface components {
       package: string;
     };
     /**
-     * RemoveUIElements
+     * RemoveUIElementsNotification
      * @description Invalidate UI elements for a given cell.
      */
-    RemoveUIElements: {
+    RemoveUIElementsNotification: {
       cell_id: string;
       /** @enum {unknown} */
       op: "remove-ui-elements";
@@ -4372,10 +4372,10 @@ export interface components {
       type: "sql-metadata";
     };
     /**
-     * SQLTableListPreview
+     * SQLTableListPreviewNotification
      * @description Preview of a list of tables in a schema.
      */
-    SQLTableListPreview: {
+    SQLTableListPreviewNotification: {
       /** @default null */
       error?: string | null;
       metadata: components["schemas"]["SQLMetadata"];
@@ -4386,10 +4386,10 @@ export interface components {
       tables?: components["schemas"]["DataTable"][];
     };
     /**
-     * SQLTablePreview
+     * SQLTablePreviewNotification
      * @description Preview of a table in a SQL database.
      */
-    SQLTablePreview: {
+    SQLTablePreviewNotification: {
       /** @default null */
       error?: string | null;
       metadata: components["schemas"]["SQLMetadata"];
@@ -4451,10 +4451,10 @@ export interface components {
       name: string;
     };
     /**
-     * SecretKeysResult
+     * SecretKeysResultNotification
      * @description Result of listing secret keys.
      */
-    SecretKeysResult: {
+    SecretKeysResultNotification: {
       /** @enum {unknown} */
       op: "secret-keys-result";
       request_id: string;
@@ -4468,10 +4468,10 @@ export interface components {
       provider: "dotenv" | "env";
     };
     /**
-     * SendUIElementMessage
+     * UIElementMessageNotification
      * @description Send a message to a UI element.
      */
-    SendUIElementMessage: {
+    UIElementMessageNotification: {
       /** @default null */
       buffers?: string[] | null;
       message: Record<string, any>;
@@ -4609,8 +4609,8 @@ export interface components {
       errors: components["schemas"]["SqlParseError"][];
       success: boolean;
     };
-    /** StartupLogs */
-    StartupLogs: {
+    /** StartupLogsNotification */
+    StartupLogsNotification: {
       content: string;
       /** @enum {unknown} */
       op: "startup-logs";
@@ -4667,8 +4667,8 @@ export interface components {
       /** @enum {unknown} */
       type: "unknown";
     };
-    /** UpdateCellCodes */
-    UpdateCellCodes: {
+    /** UpdateCellCodesNotification */
+    UpdateCellCodesNotification: {
       cell_ids: string[];
       code_is_stale: boolean;
       codes: string[];
@@ -4676,16 +4676,20 @@ export interface components {
       op: "update-cell-codes";
     };
     /**
-     * UpdateCellIdsRequest
+     * UpdateCellIdsNotification
      * @description Update the cell ID ordering of the cells in the notebook.
      *
      *     Right now we send the entire list of cell IDs,
      *     but in the future we might want to send change-deltas.
      */
-    UpdateCellIdsRequest: {
+    UpdateCellIdsNotification: {
       cell_ids: string[];
       /** @enum {unknown} */
       op: "update-cell-ids";
+    };
+    /** UpdateCellIdsRequest */
+    UpdateCellIdsRequest: {
+      cellIds: string[];
     };
     /** UpdateComponentValuesRequest */
     UpdateComponentValuesRequest: {
@@ -4705,8 +4709,8 @@ export interface components {
       query: string;
       requestId: string;
     };
-    /** ValidateSQLResult */
-    ValidateSQLResult: {
+    /** ValidateSQLResultNotification */
+    ValidateSQLResultNotification: {
       /** @default null */
       error?: string | null;
       /** @enum {unknown} */
@@ -4723,8 +4727,8 @@ export interface components {
       previewValue: unknown;
       valueType: string;
     };
-    /** VariableDeclaration */
-    VariableDeclaration: {
+    /** VariableDeclarationNotification */
+    VariableDeclarationNotification: {
       declared_by: string[];
       name: string;
       used_by: string[];
@@ -4736,22 +4740,22 @@ export interface components {
       value: string | null;
     };
     /**
-     * VariableValues
+     * VariableValuesNotification
      * @description List of variables and their types/values.
      */
-    VariableValues: {
+    VariableValuesNotification: {
       /** @enum {unknown} */
       op: "variable-values";
       variables: components["schemas"]["VariableValue"][];
     };
     /**
-     * Variables
+     * VariablesNotification
      * @description List of variable declarations.
      */
-    Variables: {
+    VariablesNotification: {
       /** @enum {unknown} */
       op: "variables";
-      variables: components["schemas"]["VariableDeclaration"][];
+      variables: components["schemas"]["VariableDeclarationNotification"][];
     };
     /** WorkspaceFilesRequest */
     WorkspaceFilesRequest: {

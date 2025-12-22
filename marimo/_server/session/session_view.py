@@ -7,22 +7,22 @@ from typing import Any, Literal, Optional
 
 from marimo._data.models import DataSourceConnection, DataTable
 from marimo._messaging.cell_output import CellChannel, CellOutput
-from marimo._messaging.ops import (
-    CellOp,
-    Datasets,
-    DataSourceConnections,
-    InstallingPackageAlert,
-    Interrupted,
-    MessageOperation,
-    SendUIElementMessage,
-    SQLTableListPreview,
-    SQLTablePreview,
-    StartupLogs,
-    UpdateCellCodes,
-    UpdateCellIdsRequest,
-    Variables,
+from marimo._messaging.notification import (
+    CellNotification,
+    DatasetsNotification,
+    DataSourceConnectionsNotification,
+    InstallingPackageAlertNotification,
+    InterruptedNotification,
+    NotificationMessage,
+    SQLTableListPreviewNotification,
+    SQLTablePreviewNotification,
+    StartupLogsNotification,
+    UIElementMessageNotification,
+    UpdateCellCodesNotification,
+    UpdateCellIdsNotification,
+    VariablesNotification,
     VariableValue,
-    VariableValues,
+    VariableValuesNotification,
 )
 from marimo._messaging.serde import deserialize_kernel_message
 from marimo._messaging.types import KernelMessage
@@ -70,7 +70,7 @@ class SessionView:
 
     Of note, a SessionView stores:
     * the last-seen notebook-order of Cell IDs
-    * a mapping from cell IDs to their last seen operation of interest,
+    * a mapping from cell IDs to their last seen notification of interest,
       such as an output, status, or console output
     * various other state needed for replay
 
@@ -81,15 +81,19 @@ class SessionView:
 
     def __init__(self) -> None:
         # Last seen notebook-order of cell IDs
-        self.cell_ids: Optional[UpdateCellIdsRequest] = None
-        # A mapping from cell (IDs) to their last seen operation
-        self.cell_operations: dict[CellId_t, CellOp] = {}
-        # The most recent datasets operation.
-        self.datasets = Datasets(tables=[])
-        # The most recent data-connectors operation
-        self.data_connectors = DataSourceConnections(connections=[])
-        # The most recent Variables operation.
-        self.variable_operations: Variables = Variables(variables=[])
+        self.cell_ids: Optional[UpdateCellIdsNotification] = None
+        # A mapping from cell (IDs) to their last seen notification
+        self.cell_notifications: dict[CellId_t, CellNotification] = {}
+        # The most recent datasets notification.
+        self.datasets = DatasetsNotification(tables=[])
+        # The most recent data-connectors notification
+        self.data_connectors = DataSourceConnectionsNotification(
+            connections=[]
+        )
+        # The most recent Variables notification.
+        self.variable_notifications: VariablesNotification = (
+            VariablesNotification(variables=[])
+        )
         # Map of variable name to value.
         self.variable_values: dict[str, VariableValue] = {}
         # Map of object id to value.
@@ -99,14 +103,14 @@ class SessionView:
         # Map of cell id to the last cell execution time
         self.last_execution_time: dict[CellId_t, float] = {}
         # Any stale code that was read from a file-watcher
-        self.stale_code: Optional[UpdateCellCodes] = None
+        self.stale_code: Optional[UpdateCellCodesNotification] = None
         # Model messages
         self.model_messages: dict[
-            WidgetModelId, list[SendUIElementMessage]
+            WidgetModelId, list[UIElementMessageNotification]
         ] = {}
 
         # Startup logs for startup command - only one at a time
-        self.startup_logs: Optional[StartupLogs] = None
+        self.startup_logs: Optional[StartupLogsNotification] = None
 
         # Package installation logs - accumulated per package
         self.package_logs: dict[
@@ -122,10 +126,10 @@ class SessionView:
     def _add_last_run_code(self, req: ExecutionRequest) -> None:
         self.last_executed_code[req.cell_id] = req.code
 
-    def add_raw_operation(self, raw_operation: KernelMessage) -> None:
+    def add_raw_notification(self, raw_notification: KernelMessage) -> None:
         self._touch()
-        # Type ignore because MessageOperation is a Union, not a class
-        self.add_operation(deserialize_kernel_message(raw_operation))  # type: ignore[arg-type]
+        # Type ignore because NotificationMessage is a Union, not a class
+        self.add_notification(deserialize_kernel_message(raw_notification))  # type: ignore[arg-type]
 
     def add_control_request(self, request: ControlRequest) -> None:
         self._touch()
@@ -150,37 +154,40 @@ class SessionView:
 
         """Add a stdin request to the session view."""
         # Find the first cell that is waiting for stdin.
-        for cell_op in self.cell_operations.values():
-            console_ops: list[CellOutput] = as_list(cell_op.console)
-            for cell_output in console_ops:
+        for cell_notif in self.cell_notifications.values():
+            console_outputs: list[CellOutput] = as_list(cell_notif.console)
+            for cell_output in console_outputs:
                 if cell_output.channel == CellChannel.STDIN:
                     cell_output.channel = CellChannel.STDOUT
                     cell_output.data = f"{cell_output.data} {stdin}\n"
                     return
 
-    def add_operation(self, operation: MessageOperation) -> None:
-        """Add an operation to the session view."""
+    def add_notification(self, notification: NotificationMessage) -> None:
+        """Add a notification to the session view."""
         self._touch()
         self.auto_export_state.mark_all_stale()
 
-        if isinstance(operation, CellOp):
-            previous = self.cell_operations.get(operation.cell_id)
-            self.cell_operations[operation.cell_id] = merge_cell_operation(
-                previous, operation
+        if isinstance(notification, CellNotification):
+            previous = self.cell_notifications.get(notification.cell_id)
+            self.cell_notifications[notification.cell_id] = (
+                merge_cell_notification(previous, notification)
             )
             if not previous:
                 return
-            if previous.status == "queued" and operation.status == "running":
-                self.save_execution_time(operation, "start")
-            if previous.status == "running" and operation.status == "idle":
-                self.save_execution_time(operation, "end")
+            if (
+                previous.status == "queued"
+                and notification.status == "running"
+            ):
+                self.save_execution_time(notification, "start")
+            if previous.status == "running" and notification.status == "idle":
+                self.save_execution_time(notification, "end")
 
-        elif isinstance(operation, Variables):
-            self.variable_operations = operation
+        elif isinstance(notification, VariablesNotification):
+            self.variable_notifications = notification
 
             # Set of variable names that are in scope.
             variable_names: set[str] = set(
-                [v.name for v in self.variable_operations.variables]
+                [v.name for v in self.variable_notifications.variables]
             )
 
             # Remove any variable values that are no longer in scope.
@@ -204,7 +211,9 @@ class SessionView:
                         next_tables[table.name] = table
                 else:
                     next_tables[table.name] = table
-            self.datasets = Datasets(tables=list(next_tables.values()))
+            self.datasets = DatasetsNotification(
+                tables=list(next_tables.values())
+            )
 
             # Remove any data source connections that are no longer in scope.
             # Keep internal connections if they exist as these are not defined in variables
@@ -215,47 +224,47 @@ class SessionView:
                     or connection.name == INTERNAL_DUCKDB_ENGINE
                 ):
                     next_connections[connection.name] = connection
-            self.data_connectors = DataSourceConnections(
+            self.data_connectors = DataSourceConnectionsNotification(
                 connections=list(next_connections.values())
             )
 
-        elif isinstance(operation, VariableValues):
-            for value in operation.variables:
+        elif isinstance(notification, VariableValuesNotification):
+            for value in notification.variables:
                 self.variable_values[value.name] = value
 
-        elif isinstance(operation, Interrupted):
+        elif isinstance(notification, InterruptedNotification):
             # Resolve stdin
             self.add_stdin("")
-        elif isinstance(operation, Datasets):
+        elif isinstance(notification, DatasetsNotification):
             # Merge datasets, dedupe by table name and keep the latest.
             # If clear_channel is set, clear those tables
             prev_tables = self.datasets.tables
-            if operation.clear_channel is not None:
+            if notification.clear_channel is not None:
                 prev_tables = [
                     t
                     for t in prev_tables
-                    if t.source_type != operation.clear_channel
+                    if t.source_type != notification.clear_channel
                 ]
 
             tables = {t.name: t for t in prev_tables}
-            for table in operation.tables:
+            for table in notification.tables:
                 tables[table.name] = table
-            self.datasets = Datasets(tables=list(tables.values()))
+            self.datasets = DatasetsNotification(tables=list(tables.values()))
 
-        elif isinstance(operation, DataSourceConnections):
+        elif isinstance(notification, DataSourceConnectionsNotification):
             # Update data source connections, dedupe by name and keep the latest
             prev_connections = self.data_connectors.connections
             connections = {c.name: c for c in prev_connections}
 
-            for c in operation.connections:
+            for c in notification.connections:
                 connections[c.name] = c
 
-            self.data_connectors = DataSourceConnections(
+            self.data_connectors = DataSourceConnectionsNotification(
                 connections=list(connections.values())
             )
 
-        elif isinstance(operation, SQLTablePreview):
-            sql_table_preview = operation
+        elif isinstance(notification, SQLTablePreviewNotification):
+            sql_table_preview = notification
             sql_metadata = sql_table_preview.metadata
             table_preview_connections = self.data_connectors.connections
             if sql_table_preview.table is not None:
@@ -265,8 +274,8 @@ class SessionView:
                     sql_table_preview.table,
                 )
 
-        elif isinstance(operation, SQLTableListPreview):
-            sql_table_list_preview = operation
+        elif isinstance(notification, SQLTableListPreviewNotification):
+            sql_table_list_preview = notification
             sql_metadata = sql_table_list_preview.metadata
             table_list_connections = self.data_connectors.connections
             update_table_list_in_connection(
@@ -275,43 +284,44 @@ class SessionView:
                 sql_table_list_preview.tables,
             )
 
-        elif isinstance(operation, UpdateCellIdsRequest):
-            self.cell_ids = operation
+        elif isinstance(notification, UpdateCellIdsNotification):
+            self.cell_ids = notification
 
         elif (
-            isinstance(operation, UpdateCellCodes) and operation.code_is_stale
+            isinstance(notification, UpdateCellCodesNotification)
+            and notification.code_is_stale
         ):
-            self.stale_code = operation
+            self.stale_code = notification
 
-        elif isinstance(operation, SendUIElementMessage):
-            if operation.model_id is None:
+        elif isinstance(notification, UIElementMessageNotification):
+            if notification.model_id is None:
                 return
-            messages = self.model_messages.get(operation.model_id, [])
-            messages.append(operation)
+            messages = self.model_messages.get(notification.model_id, [])
+            messages.append(notification)
             # TODO: cleanup/merge previous 'update' messages
-            self.model_messages[operation.model_id] = messages
+            self.model_messages[notification.model_id] = messages
 
-        elif isinstance(operation, StartupLogs):
+        elif isinstance(notification, StartupLogsNotification):
             prev = self.startup_logs.content if self.startup_logs else ""
-            self.startup_logs = StartupLogs(
-                content=prev + operation.content,
-                status=operation.status,
+            self.startup_logs = StartupLogsNotification(
+                content=prev + notification.content,
+                status=notification.status,
             )
 
-        elif isinstance(operation, InstallingPackageAlert):
+        elif isinstance(notification, InstallingPackageAlertNotification):
             # Handle streaming logs if present
-            if operation.logs and operation.log_status:
-                for package_name, new_content in operation.logs.items():
-                    if operation.log_status == "start":
+            if notification.logs and notification.log_status:
+                for package_name, new_content in notification.logs.items():
+                    if notification.log_status == "start":
                         # Start new log for this package
                         self.package_logs[package_name] = new_content
-                    elif operation.log_status == "append":
+                    elif notification.log_status == "append":
                         # Append to existing log
                         prev_content = self.package_logs.get(package_name, "")
                         self.package_logs[package_name] = (
                             prev_content + new_content
                         )
-                    elif operation.log_status == "done":
+                    elif notification.log_status == "done":
                         # Append final content and mark as done
                         prev_content = self.package_logs.get(package_name, "")
                         self.package_logs[package_name] = (
@@ -326,9 +336,9 @@ class SessionView:
         """Get the outputs for the given cell ids."""
         outputs: dict[CellId_t, CellOutput] = {}
         for cell_id in ids:
-            cell_op = self.cell_operations.get(cell_id)
-            if cell_op is not None and cell_op.output is not None:
-                outputs[cell_id] = cell_op.output
+            cell_notif = self.cell_notifications.get(cell_id)
+            if cell_notif is not None and cell_notif.output is not None:
+                outputs[cell_id] = cell_notif.output
         return outputs
 
     def get_cell_console_outputs(
@@ -337,21 +347,21 @@ class SessionView:
         """Get the console outputs for the given cell ids."""
         outputs: dict[CellId_t, list[CellOutput]] = {}
         for cell_id in ids:
-            cell_op = self.cell_operations.get(cell_id)
-            if cell_op is not None and cell_op.console:
-                outputs[cell_id] = as_list(cell_op.console)
+            cell_notif = self.cell_notifications.get(cell_id)
+            if cell_notif is not None and cell_notif.console:
+                outputs[cell_id] = as_list(cell_notif.console)
         return outputs
 
     def save_execution_time(
-        self, operation: MessageOperation, event: Literal["start", "end"]
+        self, notification: NotificationMessage, event: Literal["start", "end"]
     ) -> None:
         """Updates execution time for given cell."""
-        if not isinstance(operation, CellOp):
+        if not isinstance(notification, CellNotification):
             return
-        cell_id = operation.cell_id
+        cell_id = notification.cell_id
 
         if event == "start":
-            time_elapsed = operation.timestamp
+            time_elapsed = notification.timestamp
         elif event == "end":
             start = self.last_execution_time.get(cell_id)
             start = start if start else 0
@@ -361,35 +371,37 @@ class SessionView:
         self.last_execution_time[cell_id] = time_elapsed
 
     @property
-    def operations(self) -> list[MessageOperation]:
-        all_ops: list[MessageOperation] = []
+    def notifications(self) -> list[NotificationMessage]:
+        all_notifications: list[NotificationMessage] = []
         if self.cell_ids:
-            all_ops.append(self.cell_ids)
-        if self.variable_operations.variables:
-            all_ops.append(self.variable_operations)
+            all_notifications.append(self.cell_ids)
+        if self.variable_notifications.variables:
+            all_notifications.append(self.variable_notifications)
         if self.variable_values:
-            all_ops.append(
-                VariableValues(variables=list(self.variable_values.values()))
+            all_notifications.append(
+                VariableValuesNotification(
+                    variables=list(self.variable_values.values())
+                )
             )
         if self.datasets.tables:
-            all_ops.append(self.datasets)
+            all_notifications.append(self.datasets)
         if self.data_connectors.connections:
-            all_ops.append(self.data_connectors)
-        all_ops.extend(self.cell_operations.values())
+            all_notifications.append(self.data_connectors)
+        all_notifications.extend(self.cell_notifications.values())
         if self.stale_code:
-            all_ops.append(self.stale_code)
+            all_notifications.append(self.stale_code)
         if self.model_messages:
             for messages in self.model_messages.values():
-                all_ops.extend(messages)
+                all_notifications.extend(messages)
         # Only include startup logs if they are in progress (not done)
         if self.startup_logs and self.startup_logs.status != "done":
-            all_ops.append(self.startup_logs)
-        return all_ops
+            all_notifications.append(self.startup_logs)
+        return all_notifications
 
     def is_empty(self) -> bool:
         return all(
-            op.output is None and op.console is None
-            for op in self.cell_operations.values()
+            notif.output is None and notif.console is None
+            for notif in self.cell_notifications.values()
         )
 
     def mark_auto_export_html(self) -> None:
@@ -443,32 +455,32 @@ def _merge_consecutive_console_outputs(
     return merged
 
 
-def merge_cell_operation(
-    previous: Optional[CellOp],
-    next_: CellOp,
-) -> CellOp:
-    """Merge two cell operations."""
+def merge_cell_notification(
+    previous: Optional[CellNotification],
+    current: CellNotification,
+) -> CellNotification:
+    """Merge two cell notifications."""
     if previous is None:
-        return next_
+        return current
 
-    assert previous.cell_id == next_.cell_id
+    assert previous.cell_id == current.cell_id
 
-    if next_.status is None:
-        next_.status = previous.status
+    if current.status is None:
+        current.status = previous.status
 
     # If we went from queued to running, clear the console.
-    if next_.status == "running" and previous.status == "queued":
-        next_.console = []
+    if current.status == "running" and previous.status == "queued":
+        current.console = []
     else:
         combined_console: list[CellOutput] = as_list(previous.console)
-        combined_console.extend(as_list(next_.console))
-        next_.console = _merge_consecutive_console_outputs(combined_console)
+        combined_console.extend(as_list(current.console))
+        current.console = _merge_consecutive_console_outputs(combined_console)
 
     # If we went from running to running, use the previous timestamp.
-    if next_.status == "running" and previous.status == "running":
-        next_.timestamp = previous.timestamp
+    if current.status == "running" and previous.status == "running":
+        current.timestamp = previous.timestamp
 
-    if next_.output is None:
-        next_.output = previous.output
+    if current.output is None:
+        current.output = previous.output
 
-    return next_
+    return current

@@ -6,14 +6,14 @@ import json
 import msgspec
 import pytest
 
-from marimo._messaging.ops import (
-    Alert,
-    CompletedRun,
-    Interrupted,
+from marimo._messaging.notification import (
+    AlertNotification,
+    CompletedRunNotification,
+    InterruptedNotification,
 )
 from marimo._messaging.serde import (
     deserialize_kernel_message,
-    deserialize_kernel_operation_name,
+    deserialize_kernel_notification_name,
     serialize_kernel_message,
 )
 from marimo._messaging.types import KernelMessage
@@ -22,7 +22,7 @@ from marimo._messaging.types import KernelMessage
 class TestSerializeKernelMessage:
     def test_serialize_interrupted(self) -> None:
         """Test serializing an Interrupted message."""
-        message = Interrupted()
+        message = InterruptedNotification()
 
         result = serialize_kernel_message(message)
 
@@ -33,7 +33,7 @@ class TestSerializeKernelMessage:
 
     def test_serialize_alert(self) -> None:
         """Test serializing an Alert message."""
-        message = Alert(
+        message = AlertNotification(
             title="Test Alert",
             description="This is a test alert",
             variant="danger",
@@ -59,7 +59,7 @@ class TestDeserializeKernelMessage:
 
         result = deserialize_kernel_message(kernel_message)
 
-        assert isinstance(result, Interrupted)
+        assert isinstance(result, InterruptedNotification)
 
     def test_deserialize_alert(self) -> None:
         """Test deserializing an Alert message."""
@@ -74,7 +74,7 @@ class TestDeserializeKernelMessage:
 
         result = deserialize_kernel_message(kernel_message)
 
-        assert isinstance(result, Alert)
+        assert isinstance(result, AlertNotification)
         assert result.title == "Test Alert"
         assert result.description == "This is a test alert"
         assert result.variant == "danger"
@@ -111,16 +111,16 @@ class TestDeserializeKernelMessage:
 class TestRoundTripSerialization:
     def test_round_trip_interrupted(self) -> None:
         """Test round-trip for Interrupted message."""
-        original = Interrupted()
+        original = InterruptedNotification()
 
         serialized = serialize_kernel_message(original)
         deserialized = deserialize_kernel_message(serialized)
 
-        assert isinstance(deserialized, Interrupted)
+        assert isinstance(deserialized, InterruptedNotification)
 
     def test_round_trip_alert(self) -> None:
         """Test round-trip for Alert message."""
-        original = Alert(
+        original = AlertNotification(
             title="Warning",
             description="Something went wrong",
             variant="danger",
@@ -129,14 +129,14 @@ class TestRoundTripSerialization:
         serialized = serialize_kernel_message(original)
         deserialized = deserialize_kernel_message(serialized)
 
-        assert isinstance(deserialized, Alert)
+        assert isinstance(deserialized, AlertNotification)
         assert deserialized.title == original.title
         assert deserialized.description == original.description
         assert deserialized.variant == original.variant
 
     def test_round_trip_with_unicode(self) -> None:
         """Test round-trip with unicode characters."""
-        original = Alert(
+        original = AlertNotification(
             title="测试标题",
             description="Тестовое описание with émojis 🚀",
             variant="danger",
@@ -145,14 +145,13 @@ class TestRoundTripSerialization:
         serialized = serialize_kernel_message(original)
         deserialized = deserialize_kernel_message(serialized)
 
-        assert isinstance(deserialized, Alert)
+        assert isinstance(deserialized, AlertNotification)
         assert deserialized.title == original.title
         assert deserialized.description == original.description
         assert deserialized.variant == original.variant
 
 
-def test_deserialize_kernel_operation_name() -> None:
-    """Test deserializing a KernelOperationName message."""
-    original = CompletedRun()
+def test_deserialize_kernel_notification_name() -> None:
+    original = CompletedRunNotification()
     serialized = serialize_kernel_message(original)
-    assert deserialize_kernel_operation_name(serialized) == "completed-run"
+    assert deserialize_kernel_notification_name(serialized) == "completed-run"

@@ -69,7 +69,7 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
     from types import FrameType, TracebackType
 
-    from marimo._messaging.ops import HumanReadableStatus
+    from marimo._messaging.notification import HumanReadableStatus
     from marimo._plugins.core.web_component import JSONType
     from marimo._runtime.context.types import ExecutionContext
 

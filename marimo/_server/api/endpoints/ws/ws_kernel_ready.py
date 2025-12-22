@@ -8,7 +8,10 @@ from typing import TYPE_CHECKING
 from marimo import _loggers
 from marimo._ast.cell import CellConfig
 from marimo._dependencies.dependencies import DependencyManager
-from marimo._messaging.ops import KernelCapabilities, KernelReady
+from marimo._messaging.notification import (
+    KernelCapabilitiesNotification,
+    KernelReadyNotification,
+)
 from marimo._plugins.core.web_component import JSONType
 from marimo._server.model import SessionMode
 from marimo._types.ids import CellId_t
@@ -35,7 +38,7 @@ def build_kernel_ready(
     file_key: MarimoFileKey,
     mode: SessionMode,
     doc_manager: LoroDocManager,
-) -> KernelReady:
+) -> KernelReadyNotification:
     """Build a KernelReady message.
 
     Args:
@@ -60,7 +63,7 @@ def build_kernel_ready(
     if _should_init_rtc(rtc_enabled, mode):
         _try_init_rtc_doc(cell_ids, codes, file_key, doc_manager)
 
-    return KernelReady(
+    return KernelReadyNotification(
         codes=codes,
         names=names,
         configs=configs,
@@ -72,7 +75,7 @@ def build_kernel_ready(
         last_execution_time=last_execution_time,
         app_config=session.app_file_manager.app.config,
         kiosk=kiosk,
-        capabilities=KernelCapabilities(),
+        capabilities=KernelCapabilitiesNotification(),
     )
 
 

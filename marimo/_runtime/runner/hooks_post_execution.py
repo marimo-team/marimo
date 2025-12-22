@@ -19,15 +19,15 @@ from marimo._messaging.errors import (
     MarimoSQLError,
     MarimoStrictExecutionError,
 )
+from marimo._messaging.notification import (
+    DatasetsNotification,
+    DataSourceConnectionsNotification,
+    VariableValue,
+    VariableValuesNotification,
+)
 from marimo._messaging.notification_utils import (
     CellNotificationUtils,
-    broadcast_op,
-)
-from marimo._messaging.ops import (
-    Datasets,
-    DataSourceConnections,
-    VariableValue,
-    VariableValues,
+    broadcast_notification,
 )
 from marimo._messaging.tracebacks import write_traceback
 from marimo._output import formatting
@@ -132,7 +132,7 @@ def _broadcast_variables(
         for variable in cell.defs
     ]
     if values:
-        broadcast_op(VariableValues(variables=values))
+        broadcast_notification(VariableValuesNotification(variables=values))
 
 
 @kernel_tracer.start_as_current_span("broadcast_datasets")
@@ -155,7 +155,7 @@ def _broadcast_datasets(
     )
     if tables:
         LOGGER.debug("Broadcasting data tables")
-        broadcast_op(Datasets(tables=tables))
+        broadcast_notification(DatasetsNotification(tables=tables))
 
 
 @kernel_tracer.start_as_current_span("broadcast_data_source_connection")
@@ -181,8 +181,8 @@ def _broadcast_data_source_connection(
         return
 
     LOGGER.debug("Broadcasting data source connections")
-    broadcast_op(
-        DataSourceConnections(
+    broadcast_notification(
+        DataSourceConnectionsNotification(
             connections=[
                 engine_to_data_source_connection(variable, engine)
                 for variable, engine in engines
@@ -217,8 +217,8 @@ def _broadcast_duckdb_datasource(
             return
 
         LOGGER.debug("Broadcasting internal duckdb datasource")
-        broadcast_op(
-            DataSourceConnections(
+        broadcast_notification(
+            DataSourceConnectionsNotification(
                 connections=[
                     engine_to_data_source_connection(
                         INTERNAL_DUCKDB_ENGINE, DuckDBEngine()

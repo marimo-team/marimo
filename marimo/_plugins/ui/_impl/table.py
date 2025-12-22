@@ -21,7 +21,7 @@ from marimo import _loggers
 from marimo._data.models import BinValue, ColumnStats, ValueCount
 from marimo._data.preview_column import get_column_preview_dataset
 from marimo._dependencies.dependencies import DependencyManager
-from marimo._messaging.ops import ColumnPreview
+from marimo._messaging.notification import ColumnPreview
 from marimo._output.mime import MIME
 from marimo._output.rich_help import mddoc
 from marimo._plugins.core.web_component import JSONType

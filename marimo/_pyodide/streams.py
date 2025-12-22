@@ -8,8 +8,8 @@ from typing import TYPE_CHECKING, Callable, Optional
 from marimo import _loggers
 from marimo._messaging.cell_output import CellOutput
 from marimo._messaging.mimetypes import ConsoleMimeType
-from marimo._messaging.notification_utils import broadcast_op
-from marimo._messaging.ops import CellOp
+from marimo._messaging.notification import CellNotification
+from marimo._messaging.notification_utils import broadcast_notification
 from marimo._messaging.streams import std_stream_max_bytes
 from marimo._messaging.types import (
     KernelMessage,
@@ -74,8 +74,8 @@ class PyodideStdout(Stdout):
                 "Warning: marimo truncated a very large console output.\n"
             )
             data = data[: int(max_bytes)] + " ... "
-        broadcast_op(
-            CellOp(
+        broadcast_notification(
+            CellNotification(
                 cell_id=self.stream.cell_id,
                 console=CellOutput.stdout(data, mimetype),
             ),
@@ -122,8 +122,8 @@ class PyodideStderr(Stderr):
                 + " ... "
             )
 
-        broadcast_op(
-            CellOp(
+        broadcast_notification(
+            CellNotification(
                 cell_id=self.stream.cell_id,
                 console=CellOutput.stderr(data, mimetype),
             ),
@@ -164,8 +164,8 @@ class PyodideStdin(Stdin):
                 + " ... "
             )
 
-        broadcast_op(
-            CellOp(
+        broadcast_notification(
+            CellNotification(
                 cell_id=self.stream.cell_id,
                 console=CellOutput.stdin(prompt),
             ),

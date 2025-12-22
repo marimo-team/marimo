@@ -12,7 +12,7 @@ from marimo._config.config import MarimoConfig
 from marimo._config.manager import MarimoConfigReader
 from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._dependencies.dependencies import DependencyManager
-from marimo._messaging.ops import Alert
+from marimo._messaging.notification import AlertNotification
 from marimo._server.utils import find_free_port
 from marimo._tracer import server_tracer
 from marimo._utils.paths import marimo_package_path
@@ -26,7 +26,7 @@ class LspServer(ABC):
     id: str
 
     @abstractmethod
-    async def start(self) -> Optional[Alert]:
+    async def start(self) -> Optional[AlertNotification]:
         pass
 
     @abstractmethod
@@ -47,7 +47,7 @@ class BaseLspServer(LspServer):
         self.log_file = _loggers.get_log_directory() / f"{self.id}.log"
 
     @server_tracer.start_as_current_span("lsp_server.start")
-    async def start(self) -> Optional[Alert]:
+    async def start(self) -> Optional[AlertNotification]:
         if self.process is not None:
             LOGGER.debug("LSP server already started")
             return None
@@ -104,7 +104,7 @@ class BaseLspServer(LspServer):
                 LOGGER.error(f"Command: {' '.join(cmd)}")
                 LOGGER.error(f"Error output: {stderr_output}")
 
-                return Alert(
+                return AlertNotification(
                     title=f"{self.id} LSP server failed to start",
                     description=f"The {self.id} server crashed on startup. Check {self.log_file} for details. Error: {stderr_output[:200]}",
                     variant="danger",
@@ -206,7 +206,7 @@ class BaseLspServer(LspServer):
     def get_command(self) -> list[str]:
         raise NotImplementedError()
 
-    def missing_binary_alert(self) -> Alert:
+    def missing_binary_alert(self) -> AlertNotification:
         raise NotImplementedError()
 
 
@@ -286,8 +286,8 @@ class CopilotLspServer(BaseLspServer):
             str(self.log_file),
         ]
 
-    def missing_binary_alert(self) -> Alert:
-        return Alert(
+    def missing_binary_alert(self) -> AlertNotification:
+        return AlertNotification(
             title="GitHub Copilot: Connection Error",
             description="<span><a class='hyperlink' href='https://docs.marimo.io/getting_started/index.html#github-copilot'>Install Node.js</a> to use copilot.</span>",
             variant="danger",
@@ -306,7 +306,7 @@ class PyLspServer(BaseLspServer):
 
     id = "pylsp"
 
-    async def start(self) -> Optional[Alert]:
+    async def start(self) -> Optional[AlertNotification]:
         # pylsp is not required, so we don't want to alert or fail if it is not installed
         if not DependencyManager.pylsp.has():
             LOGGER.info(
@@ -354,8 +354,8 @@ class PyLspServer(BaseLspServer):
             str(self.log_file),
         ]
 
-    def missing_binary_alert(self) -> Alert:
-        return Alert(
+    def missing_binary_alert(self) -> AlertNotification:
+        return AlertNotification(
             title="Python LSP: Connection Error",
             description=f"<span><a class='hyperlink' href='https://github.com/python-lsp/python-lsp-server'>Install python-lsp-server</a> for Python language support. If already installed, check {self.log_file} or disable pylsp in Settings > Editor > Language Servers.</span>",
             variant="danger",
@@ -369,7 +369,7 @@ class BasedpyrightServer(BaseLspServer):
         super().__init__(port)
         self.log_file = _loggers.get_log_directory() / "basedpyright-lsp.log"
 
-    async def start(self) -> Optional[Alert]:
+    async def start(self) -> Optional[AlertNotification]:
         # basedpyright is not required, so we don't want to alert or fail if it is not installed
         if not DependencyManager.basedpyright.has():
             LOGGER.debug("basedpyright is not installed. Skipping LSP server.")
@@ -399,8 +399,8 @@ class BasedpyrightServer(BaseLspServer):
             str(self.log_file),
         ]
 
-    def missing_binary_alert(self) -> Alert:
-        return Alert(
+    def missing_binary_alert(self) -> AlertNotification:
+        return AlertNotification(
             title="basedpyright: Connection Error",
             description="<span><a class='hyperlink' href='https://docs.basedpyright.com'>Install basedpyright</a> for type checking support.</span>",
             variant="danger",
@@ -414,7 +414,7 @@ class TyServer(BaseLspServer):
         super().__init__(port)
         self.log_file = _loggers.get_log_directory() / "ty-lsp.log"
 
-    async def start(self) -> Optional[Alert]:
+    async def start(self) -> Optional[AlertNotification]:
         # ty is not required, so we don't want to alert or fail if it is not installed
         if not DependencyManager.ty.has():
             LOGGER.debug("ty is not installed. Skipping LSP server.")
@@ -449,8 +449,8 @@ class TyServer(BaseLspServer):
             str(self.log_file),
         ]
 
-    def missing_binary_alert(self) -> Alert:
-        return Alert(
+    def missing_binary_alert(self) -> AlertNotification:
+        return AlertNotification(
             title="Ty: Connection Error",
             description="<span><a class='hyperlink' href='https://github.com/astral-sh/ty'>Install ty</a> for type checking support.</span>",
             variant="danger",
@@ -509,10 +509,10 @@ class CompositeLspServer(LspServer):
             .get("enabled", False),
         )
 
-    async def start(self) -> Optional[Alert]:
+    async def start(self) -> Optional[AlertNotification]:
         # .get_config() should not be cached, as it may be updated by the user
         config = self.config_reader.get_config()
-        tasks: list[asyncio.Task[Optional[Alert]]] = []
+        tasks: list[asyncio.Task[Optional[AlertNotification]]] = []
 
         for server_name, server in self.servers.items():
             if not self._is_enabled(config, server_name):

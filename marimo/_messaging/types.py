@@ -8,7 +8,7 @@ from typing import NewType, Optional
 from marimo._messaging.mimetypes import ConsoleMimeType
 from marimo._types.ids import CellId_t
 
-# A KernelMessage is a bytes object that contains a serialized MessageOperation.
+# A KernelMessage is a bytes object that contains a serialized NotificationMessage.
 KernelMessage = NewType("KernelMessage", bytes)
 
 

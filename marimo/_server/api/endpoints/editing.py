@@ -5,12 +5,13 @@ from typing import TYPE_CHECKING
 
 from starlette.authentication import requires
 
-from marimo._messaging.ops import UpdateCellIdsRequest
+from marimo._messaging.notification import UpdateCellIdsNotification
 from marimo._runtime.requests import (
     CodeCompletionRequest,
     DeleteCellRequest,
     InstallMissingPackagesRequest,
     SetCellConfigRequest,
+    UpdateCellIdsRequest,
 )
 from marimo._server.api.deps import AppState
 from marimo._server.api.utils import dispatch_control_request, parse_request
@@ -97,7 +98,8 @@ async def sync_cell_ids(request: Request) -> BaseResponse:
     body = await parse_request(request, cls=UpdateCellIdsRequest)
     session_id = app_state.require_current_session_id()
     app_state.require_current_session().notify(
-        body, from_consumer_id=ConsumerId(session_id)
+        UpdateCellIdsNotification(cell_ids=body.cell_ids),
+        from_consumer_id=ConsumerId(session_id),
     )
     return SuccessResponse()
 

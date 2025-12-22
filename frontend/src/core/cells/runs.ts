@@ -40,13 +40,13 @@ const {
   valueAtom: runsAtom,
   useActions: useRunsActions,
 } = createReducerAndAtoms(initialState, {
-  addCellOperation: (
+  addCellNotification: (
     state: RunsState,
-    opts: { cellOperation: CellMessage; code: string },
+    opts: { cellNotification: CellMessage; code: string },
   ): RunsState => {
-    const { cellOperation, code } = opts;
-    const timestamp = cellOperation.timestamp ?? 0;
-    const runId = cellOperation.run_id as RunId | undefined;
+    const { cellNotification, code } = opts;
+    const timestamp = cellNotification.timestamp ?? 0;
+    const runId = cellNotification.run_id as RunId | undefined;
     if (!runId) {
       return state;
     }
@@ -61,15 +61,15 @@ const {
 
     // We determine if the cell operation errored by looking at the output
     const erroredOutput =
-      cellOperation.output &&
-      (cellOperation.output.channel === "marimo-error" ||
-        cellOperation.output.channel === "stderr");
+      cellNotification.output &&
+      (cellNotification.output.channel === "marimo-error" ||
+        cellNotification.output.channel === "stderr");
 
     let status: CellRun["status"] = erroredOutput
       ? "error"
-      : cellOperation.status === "queued"
+      : cellNotification.status === "queued"
         ? "queued"
-        : cellOperation.status === "running"
+        : cellNotification.status === "running"
           ? "running"
           : "success";
 
@@ -79,9 +79,9 @@ const {
         runId,
         cellRuns: new Map([
           [
-            cellOperation.cell_id as CellId,
+            cellNotification.cell_id as CellId,
             {
-              cellId: cellOperation.cell_id as CellId,
+              cellId: cellNotification.cell_id as CellId,
               code: code.slice(0, MAX_CODE_LENGTH),
               elapsedTime: 0,
               status: status,
@@ -111,13 +111,15 @@ const {
 
     // Update existing run
     const nextCellRuns = new Map(existingRun.cellRuns);
-    const existingCellRun = nextCellRuns.get(cellOperation.cell_id as CellId);
+    const existingCellRun = nextCellRuns.get(
+      cellNotification.cell_id as CellId,
+    );
 
     // Early return if nothing changed
     if (
       existingCellRun &&
       !erroredOutput &&
-      cellOperation.status === "queued"
+      cellNotification.status === "queued"
     ) {
       return state;
     }
@@ -129,7 +131,7 @@ const {
       status = hasErroredPreviously || erroredOutput ? "error" : status;
 
       const startTime =
-        cellOperation.status === "running"
+        cellNotification.status === "running"
           ? timestamp
           : existingCellRun.startTime;
 
@@ -138,15 +140,15 @@ const {
           ? timestamp - existingCellRun.startTime
           : undefined;
 
-      nextCellRuns.set(cellOperation.cell_id as CellId, {
+      nextCellRuns.set(cellNotification.cell_id as CellId, {
         ...existingCellRun,
         startTime,
         elapsedTime,
         status,
       });
     } else {
-      nextCellRuns.set(cellOperation.cell_id as CellId, {
-        cellId: cellOperation.cell_id as CellId,
+      nextCellRuns.set(cellNotification.cell_id as CellId, {
+        cellId: cellNotification.cell_id as CellId,
         code: code.slice(0, MAX_CODE_LENGTH),
         elapsedTime: 0,
         status: status,

@@ -13,7 +13,7 @@ export const DATA_TYPES = [
   "time",
   "unknown",
 ] as const;
-export type Banner = OperationMessageData<"banner">;
+export type Banner = NotificationMessageData<"banner">;
 export type AiInlineCompletionRequest = schemas["AiInlineCompletionRequest"];
 export type DataTableColumn = schemas["DataTableColumn"];
 export type DataTable = schemas["DataTable"];
@@ -27,32 +27,35 @@ export type MarimoError = Extract<
   { type: string }[]
 >[number];
 export type OutputMessage = schemas["CellOutput"];
-export type CompletionOption = schemas["CompletionResult"]["options"][0];
-export type CompletionResultMessage = OperationMessageData<"completion-result">;
+export type CompletionOption =
+  schemas["CompletionResultNotification"]["options"][0];
+export type CompletionResultMessage =
+  NotificationMessageData<"completion-result">;
 export type HumanReadableStatus = schemas["HumanReadableStatus"];
 export type FunctionCallResultMessage =
-  OperationMessageData<"function-call-result">;
+  NotificationMessageData<"function-call-result">;
 export type PackageInstallationStatus =
-  schemas["InstallingPackageAlert"]["packages"];
-export type DataColumnPreview = OperationMessageData<"data-column-preview">;
-export type SQLTablePreview = OperationMessageData<"sql-table-preview">;
+  schemas["InstallingPackageAlertNotification"]["packages"];
+export type DataColumnPreview = NotificationMessageData<"data-column-preview">;
+export type SQLTablePreview = NotificationMessageData<"sql-table-preview">;
 export type SQLTableListPreview =
-  OperationMessageData<"sql-table-list-preview">;
-export type ValidateSQLResult = OperationMessageData<"validate-sql-result">;
-export type SecretKeysResult = OperationMessageData<"secret-keys-result">;
-export type StartupLogs = OperationMessageData<"startup-logs">;
-export type CellMessage = OperationMessageData<"cell-op">;
-export type Capabilities = OperationMessageData<"kernel-ready">["capabilities"];
-export type CacheInfoFetched = OperationMessageData<"cache-info-fetched">;
+  NotificationMessageData<"sql-table-list-preview">;
+export type ValidateSQLResult = NotificationMessageData<"validate-sql-result">;
+export type SecretKeysResult = NotificationMessageData<"secret-keys-result">;
+export type StartupLogs = NotificationMessageData<"startup-logs">;
+export type CellMessage = NotificationMessageData<"cell-op">;
+export type Capabilities =
+  NotificationMessageData<"kernel-ready">["capabilities"];
+export type CacheInfoFetched = NotificationMessageData<"cache-info">;
 
-export type MessageOperationUnion = schemas["KnownUnions"]["operation"];
+export type NotificationMessage = schemas["KnownUnions"]["notification"];
 
-export type OperationMessageType = MessageOperationUnion["op"];
-export interface OperationMessage {
-  data: MessageOperationUnion;
+export type NotificationMessageType = NotificationMessage["op"];
+export interface NotificationPayload {
+  data: NotificationMessage;
 }
 
-export type OperationMessageData<T extends OperationMessageType> = Omit<
-  Extract<MessageOperationUnion, { op: T }>,
+export type NotificationMessageData<T extends NotificationMessageType> = Omit<
+  Extract<NotificationMessage, { op: T }>,
   "op"
 >;

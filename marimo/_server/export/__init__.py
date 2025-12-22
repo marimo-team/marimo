@@ -15,9 +15,9 @@ from marimo._config.manager import (
 )
 from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.errors import Error, is_unexpected_error
-from marimo._messaging.ops import (
-    CellOp,
-    CompletedRun,
+from marimo._messaging.notification import (
+    CellNotification,
+    CompletedRunNotification,
 )
 from marimo._messaging.serde import deserialize_kernel_message
 from marimo._messaging.types import KernelMessage
@@ -255,7 +255,7 @@ async def run_app_until_completion(
         def notify(self, notification: KernelMessage) -> None:
             data = deserialize_kernel_message(notification)
             # Print errors to stderr
-            if isinstance(data, CellOp):
+            if isinstance(data, CellNotification):
                 output = data.output
                 console_output = data.console
                 if output and output.channel == CellChannel.MARIMO_ERROR:
@@ -285,7 +285,7 @@ async def run_app_until_completion(
                     except Exception:
                         LOGGER.warning("Error printing console output")
 
-            if isinstance(data, CompletedRun):
+            if isinstance(data, CompletedRunNotification):
                 instantiated_event.set()
 
         def on_attach(

@@ -5,12 +5,12 @@ from __future__ import annotations
 import pytest
 
 from marimo._dependencies.dependencies import DependencyManager
-from marimo._messaging.ops import (
-    DataSourceConnections,
+from marimo._messaging.notification import (
+    DataSourceConnectionsNotification,
     SQLMetadata,
-    SQLTableListPreview,
-    SQLTablePreview,
-    ValidateSQLResult,
+    SQLTableListPreviewNotification,
+    SQLTablePreviewNotification,
+    ValidateSQLResultNotification,
 )
 from marimo._runtime.requests import (
     ExecutionRequest,
@@ -96,10 +96,12 @@ class TestPreviewSQLTable:
         await k.handle_message(preview_sql_table_request)
 
         preview_sql_table_results = [
-            op for op in stream.operations if isinstance(op, SQLTablePreview)
+            op
+            for op in stream.operations
+            if isinstance(op, SQLTablePreviewNotification)
         ]
         assert preview_sql_table_results == [
-            SQLTablePreview(
+            SQLTablePreviewNotification(
                 request_id=RequestId("0"),
                 table=None,
                 error="Engine not found",
@@ -129,10 +131,12 @@ class TestPreviewSQLTable:
         await k.handle_message(preview_sql_table_request)
 
         preview_sql_table_results = [
-            op for op in stream.operations if isinstance(op, SQLTablePreview)
+            op
+            for op in stream.operations
+            if isinstance(op, SQLTablePreviewNotification)
         ]
         assert preview_sql_table_results == [
-            SQLTablePreview(
+            SQLTablePreviewNotification(
                 request_id=RequestId("0"),
                 table=None,
                 error=None,
@@ -162,10 +166,12 @@ class TestPreviewSQLTable:
         await k.handle_message(preview_sql_table_request)
 
         preview_sql_table_results = [
-            op for op in stream.operations if isinstance(op, SQLTablePreview)
+            op
+            for op in stream.operations
+            if isinstance(op, SQLTablePreviewNotification)
         ]
         assert preview_sql_table_results == [
-            SQLTablePreview(
+            SQLTablePreviewNotification(
                 request_id=RequestId("0"),
                 table=None,
                 error="Connection does not support catalog operations",
@@ -194,10 +200,10 @@ class TestPreviewSQLTableList:
         preview_sql_table_list_results = [
             op
             for op in stream.operations
-            if isinstance(op, SQLTableListPreview)
+            if isinstance(op, SQLTableListPreviewNotification)
         ]
         assert preview_sql_table_list_results == [
-            SQLTableListPreview(
+            SQLTableListPreviewNotification(
                 request_id=RequestId("0"),
                 tables=[],
                 error="Engine not found",
@@ -228,10 +234,10 @@ class TestPreviewSQLTableList:
         preview_sql_table_list_results = [
             op
             for op in stream.operations
-            if isinstance(op, SQLTableListPreview)
+            if isinstance(op, SQLTableListPreviewNotification)
         ]
         assert preview_sql_table_list_results == [
-            SQLTableListPreview(
+            SQLTableListPreviewNotification(
                 request_id=RequestId("0"),
                 tables=[],
                 error=None,
@@ -262,10 +268,10 @@ class TestPreviewSQLTableList:
         preview_sql_table_list_results = [
             op
             for op in stream.operations
-            if isinstance(op, SQLTableListPreview)
+            if isinstance(op, SQLTableListPreviewNotification)
         ]
         assert preview_sql_table_list_results == [
-            SQLTableListPreview(
+            SQLTableListPreviewNotification(
                 request_id=RequestId("0"),
                 tables=[],
                 error="Connection does not support catalog operations",
@@ -290,7 +296,7 @@ class TestPreviewDatasourceConnection:
         preview_datasource_connection_results = [
             op
             for op in stream.operations
-            if isinstance(op, DataSourceConnections)
+            if isinstance(op, DataSourceConnectionsNotification)
         ]
         assert preview_datasource_connection_results == []
 
@@ -315,7 +321,7 @@ class TestPreviewDatasourceConnection:
         preview_datasource_connection_results = [
             op
             for op in stream.operations
-            if isinstance(op, DataSourceConnections)
+            if isinstance(op, DataSourceConnectionsNotification)
         ]
         assert len(preview_datasource_connection_results) == 2
 
@@ -337,10 +343,12 @@ class TestSQLValidate:
         )
         await k.handle_message(validate_sql_request)
         validate_sql_results = [
-            op for op in stream.operations if isinstance(op, ValidateSQLResult)
+            op
+            for op in stream.operations
+            if isinstance(op, ValidateSQLResultNotification)
         ]
         assert validate_sql_results == [
-            ValidateSQLResult(
+            ValidateSQLResultNotification(
                 request_id=RequestId("0"),
                 parse_result=None,
                 validate_result=None,
@@ -363,9 +371,11 @@ class TestSQLValidate:
         )
         await k.handle_message(validate_sql_request)
         validate_sql_results = [
-            op for op in stream.operations if isinstance(op, ValidateSQLResult)
+            op
+            for op in stream.operations
+            if isinstance(op, ValidateSQLResultNotification)
         ]
-        assert validate_sql_results[-1] == ValidateSQLResult(
+        assert validate_sql_results[-1] == ValidateSQLResultNotification(
             request_id=RequestId("1"),
             parse_result=SqlParseResult(success=True, errors=[]),
             validate_result=SqlCatalogCheckResult(
@@ -389,7 +399,9 @@ class TestSQLValidate:
         )
         await k.handle_message(validate_sql_request)
         validate_sql_results = [
-            op for op in stream.operations if isinstance(op, ValidateSQLResult)
+            op
+            for op in stream.operations
+            if isinstance(op, ValidateSQLResultNotification)
         ]
         latest_validate_sql_result = validate_sql_results[-1]
         assert latest_validate_sql_result.request_id == RequestId("2")
@@ -427,11 +439,13 @@ class TestSQLValidate:
         )
         await k.handle_message(validate_sql_request)
         validate_sql_results = [
-            op for op in stream.operations if isinstance(op, ValidateSQLResult)
+            op
+            for op in stream.operations
+            if isinstance(op, ValidateSQLResultNotification)
         ]
         assert (
             validate_sql_results[-1]
-            == ValidateSQLResult(
+            == ValidateSQLResultNotification(
                 request_id=RequestId("3"),
                 parse_result=None,  # Currently does not support parse errors for non-duckdb engines
                 validate_result=SqlCatalogCheckResult(
@@ -460,9 +474,11 @@ class TestSQLValidate:
         await k.handle_message(validate_sql_request)
 
         validate_sql_results = [
-            op for op in stream.operations if isinstance(op, ValidateSQLResult)
+            op
+            for op in stream.operations
+            if isinstance(op, ValidateSQLResultNotification)
         ]
-        assert validate_sql_results[-1] == ValidateSQLResult(
+        assert validate_sql_results[-1] == ValidateSQLResultNotification(
             request_id=RequestId("4"),
             parse_result=None,
             validate_result=None,
@@ -488,9 +504,11 @@ class TestSQLValidate:
         await k.handle_message(validate_sql_request)
 
         validate_sql_results = [
-            op for op in stream.operations if isinstance(op, ValidateSQLResult)
+            op
+            for op in stream.operations
+            if isinstance(op, ValidateSQLResultNotification)
         ]
-        assert validate_sql_results[-1] == ValidateSQLResult(
+        assert validate_sql_results[-1] == ValidateSQLResultNotification(
             request_id=RequestId("5"),
             parse_result=None,
             validate_result=None,
@@ -516,9 +534,11 @@ class TestSQLValidate:
         await k.handle_message(validate_sql_request)
 
         validate_sql_results = [
-            op for op in stream.operations if isinstance(op, ValidateSQLResult)
+            op
+            for op in stream.operations
+            if isinstance(op, ValidateSQLResultNotification)
         ]
-        assert validate_sql_results[-1] == ValidateSQLResult(
+        assert validate_sql_results[-1] == ValidateSQLResultNotification(
             request_id=RequestId("6"),
             parse_result=SqlParseResult(success=True, errors=[]),
             validate_result=None,
@@ -543,9 +563,11 @@ class TestSQLValidate:
         await k.handle_message(validate_sql_request)
 
         validate_sql_results = [
-            op for op in stream.operations if isinstance(op, ValidateSQLResult)
+            op
+            for op in stream.operations
+            if isinstance(op, ValidateSQLResultNotification)
         ]
-        assert validate_sql_results[-1] == ValidateSQLResult(
+        assert validate_sql_results[-1] == ValidateSQLResultNotification(
             request_id=RequestId("7"),
             parse_result=None,
             validate_result=None,

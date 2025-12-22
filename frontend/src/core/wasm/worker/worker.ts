@@ -8,7 +8,7 @@ import {
   type RPCSchema,
 } from "rpc-anywhere";
 import type { UserConfig } from "@/core/config/config-schema";
-import type { OperationMessage } from "@/core/kernel/messages";
+import type { NotificationPayload } from "@/core/kernel/messages";
 import type {
   ListPackagesResponse,
   PackageOperationResponse,
@@ -64,7 +64,7 @@ async function loadPyodideAndPackages() {
 }
 
 const messageBuffer = new MessageBuffer(
-  (message: JsonString<OperationMessage>) => {
+  (message: JsonString<NotificationPayload>) => {
     rpc.send.kernelMessage({ message });
   },
 );
@@ -330,7 +330,7 @@ export type WorkerSchema = RPCSchema<
       // Emitted when the worker is ready
       ready: {};
       // Emitted when the kernel sends a message
-      kernelMessage: { message: JsonString<OperationMessage> };
+      kernelMessage: { message: JsonString<NotificationPayload> };
       // Emitted when the Pyodide is initialized
       initialized: {};
       // Emitted when the Pyodide is initializing, with new messages

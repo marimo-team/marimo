@@ -6,7 +6,7 @@ import { Deferred } from "@/utils/Deferred";
 import { throwNotImplemented } from "@/utils/functions";
 import type { JsonString } from "@/utils/json/base64";
 import { Logger } from "@/utils/Logger";
-import type { OperationMessage } from "../kernel/messages";
+import type { NotificationPayload } from "../kernel/messages";
 import { getMarimoVersion } from "../meta/globals";
 import type { EditRequests, RunRequests } from "../network/types";
 import { store } from "../state/jotai";
@@ -30,7 +30,7 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
 
   private rpc: ReturnType<typeof getWorkerRPC<WorkerSchema>>;
   private messageConsumer:
-    | ((message: JsonString<OperationMessage>) => void)
+    | ((message: JsonString<NotificationPayload>) => void)
     | undefined;
 
   public initialized = new Deferred<void>();
@@ -94,7 +94,9 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
     await this.rpc.proxy.request.startSession(opts);
   }
 
-  consumeMessages(consumer: (message: JsonString<OperationMessage>) => void) {
+  consumeMessages(
+    consumer: (message: JsonString<NotificationPayload>) => void,
+  ) {
     this.messageConsumer = consumer;
     this.rpc.proxy.send.consumerReady({});
   }

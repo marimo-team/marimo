@@ -12,7 +12,10 @@ from marimo._config.config import merge_default_config
 from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._dependencies.errors import ManyModulesNotFoundError
-from marimo._messaging.ops import InstallingPackageAlert, MissingPackageAlert
+from marimo._messaging.notification import (
+    InstallingPackageAlertNotification,
+    MissingPackageAlertNotification,
+)
 from marimo._runtime.packages.package_managers import create_package_manager
 from marimo._runtime.packages.pypi_package_manager import (
     MicropipPackageManager,
@@ -295,13 +298,16 @@ async def test_missing_packages_hook(
     """Test that missing_packages_hook correctly handles missing packages for micropip"""
     k = mocked_kernel.k
     control_requests: list[ControlRequest] = []
-    broadcast_messages: list[InstallingPackageAlert | MissingPackageAlert] = []
+    broadcast_messages: list[
+        InstallingPackageAlertNotification | MissingPackageAlertNotification
+    ] = []
 
     def mock_enqueue(request: ControlRequest) -> None:
         control_requests.append(request)
 
     def mock_broadcast(
-        msg: InstallingPackageAlert | MissingPackageAlert,
+        msg: InstallingPackageAlertNotification
+        | MissingPackageAlertNotification,
         stream: Any = None,
     ) -> None:
         del stream
@@ -331,7 +337,9 @@ async def test_missing_packages_hook(
             }
 
     with (
-        patch("marimo._runtime.runtime.broadcast_op", mock_broadcast),
+        patch(
+            "marimo._runtime.runtime.broadcast_notification", mock_broadcast
+        ),
         patch("micropip.install", new_callable=AsyncMock),
     ):
         # Case 1: Auto-install enabled
@@ -366,7 +374,7 @@ async def test_missing_packages_hook(
         assert len(control_requests) == 0
         assert len(broadcast_messages) == 1
         alert = broadcast_messages[0]
-        assert isinstance(alert, MissingPackageAlert)
+        assert isinstance(alert, MissingPackageAlertNotification)
         assert alert.packages == [
             "grouped-one",
             "grouped-two",
@@ -428,13 +436,16 @@ def test_missing_packages_hook_pip(
     """Test that missing_packages_hook correctly handles missing packages for pip"""
     k = mocked_kernel.k
     control_requests: list[ControlRequest] = []
-    broadcast_messages: list[InstallingPackageAlert | MissingPackageAlert] = []
+    broadcast_messages: list[
+        InstallingPackageAlertNotification | MissingPackageAlertNotification
+    ] = []
 
     def mock_enqueue(request: ControlRequest) -> None:
         control_requests.append(request)
 
     def mock_broadcast(
-        msg: InstallingPackageAlert | MissingPackageAlert,
+        msg: InstallingPackageAlertNotification
+        | MissingPackageAlertNotification,
         stream: Any = None,
     ) -> None:
         del stream
@@ -460,7 +471,9 @@ def test_missing_packages_hook_pip(
             }
 
     with (
-        patch("marimo._runtime.runtime.broadcast_op", mock_broadcast),
+        patch(
+            "marimo._runtime.runtime.broadcast_notification", mock_broadcast
+        ),
     ):
         k.packages_callbacks.package_manager = create_package_manager("pip")
         package_manager = k.packages_callbacks.package_manager
@@ -477,7 +490,7 @@ def test_missing_packages_hook_pip(
         assert len(control_requests) == 0
         assert len(broadcast_messages) == 1
         alert = broadcast_messages[0]
-        assert isinstance(alert, MissingPackageAlert)
+        assert isinstance(alert, MissingPackageAlertNotification)
         assert alert.packages == ["ibis-framework[duckdb]", "numpy", "pandas"]
         assert alert.isolated == is_python_isolated()
 
@@ -511,12 +524,12 @@ async def test_install_missing_packages_with_streaming_logs(
 ) -> None:
     """Test that install_missing_packages uses streaming logs functionality."""
     k = mocked_kernel.k
-    broadcast_messages: list[InstallingPackageAlert] = []
+    broadcast_messages: list[InstallingPackageAlertNotification] = []
 
     def mock_broadcast(msg, stream=None):
-        """Mock the broadcast_op function to capture alerts"""
+        """Mock the broadcast_notification function to capture alerts"""
         del stream
-        if isinstance(msg, InstallingPackageAlert):
+        if isinstance(msg, InstallingPackageAlertNotification):
             broadcast_messages.append(msg)
 
     # Mock package manager
@@ -542,7 +555,9 @@ async def test_install_missing_packages_with_streaming_logs(
     k.packages_callbacks.package_manager = mock_package_manager
 
     with (
-        patch("marimo._runtime.runtime.broadcast_op", mock_broadcast),
+        patch(
+            "marimo._runtime.runtime.broadcast_notification", mock_broadcast
+        ),
     ):
         # Create install request
         request = InstallMissingPackagesRequest(
@@ -589,11 +604,11 @@ async def test_install_missing_packages_streaming_logs_failure(
 ) -> None:
     """Test streaming logs when package installation fails."""
     k = mocked_kernel.k
-    broadcast_messages: list[InstallingPackageAlert] = []
+    broadcast_messages: list[InstallingPackageAlertNotification] = []
 
     def mock_broadcast(msg, stream=None):
         del stream
-        if isinstance(msg, InstallingPackageAlert):
+        if isinstance(msg, InstallingPackageAlertNotification):
             broadcast_messages.append(msg)
 
     # Mock package manager
@@ -615,7 +630,9 @@ async def test_install_missing_packages_streaming_logs_failure(
     k.packages_callbacks.package_manager = mock_package_manager
 
     with (
-        patch("marimo._runtime.runtime.broadcast_op", mock_broadcast),
+        patch(
+            "marimo._runtime.runtime.broadcast_notification", mock_broadcast
+        ),
     ):
         request = InstallMissingPackagesRequest(
             manager="pip", versions={"nonexistent-package": ""}
@@ -645,11 +662,11 @@ async def test_install_missing_packages_streaming_logs_multiple_packages(
 ) -> None:
     """Test streaming logs for multiple packages."""
     k = mocked_kernel.k
-    broadcast_messages: list[InstallingPackageAlert] = []
+    broadcast_messages: list[InstallingPackageAlertNotification] = []
 
     def mock_broadcast(msg, stream=None):
         del stream
-        if isinstance(msg, InstallingPackageAlert):
+        if isinstance(msg, InstallingPackageAlertNotification):
             broadcast_messages.append(msg)
 
     # Mock package manager
@@ -676,7 +693,9 @@ async def test_install_missing_packages_streaming_logs_multiple_packages(
     k.packages_callbacks.package_manager = mock_package_manager
 
     with (
-        patch("marimo._runtime.runtime.broadcast_op", mock_broadcast),
+        patch(
+            "marimo._runtime.runtime.broadcast_notification", mock_broadcast
+        ),
     ):
         request = InstallMissingPackagesRequest(
             manager="pip", versions={"numpy": "", "pandas": "", "scipy": ""}
@@ -722,11 +741,11 @@ async def test_install_missing_packages_no_logs_backward_compatibility(
 ) -> None:
     """Test that package installation still works without streaming logs (backward compatibility)."""
     k = mocked_kernel.k
-    broadcast_messages: list[InstallingPackageAlert] = []
+    broadcast_messages: list[InstallingPackageAlertNotification] = []
 
     def mock_broadcast(msg, stream=None):
         del stream
-        if isinstance(msg, InstallingPackageAlert):
+        if isinstance(msg, InstallingPackageAlertNotification):
             broadcast_messages.append(msg)
 
     # Mock package manager that doesn't use log callbacks
@@ -748,7 +767,9 @@ async def test_install_missing_packages_no_logs_backward_compatibility(
     k.packages_callbacks.package_manager = mock_package_manager
 
     with (
-        patch("marimo._runtime.runtime.broadcast_op", mock_broadcast),
+        patch(
+            "marimo._runtime.runtime.broadcast_notification", mock_broadcast
+        ),
     ):
         request = InstallMissingPackagesRequest(
             manager="pip", versions={"requests": ""}

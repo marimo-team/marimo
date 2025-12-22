@@ -15,7 +15,7 @@ from marimo._ai._tools.tools.datasource import (
 )
 from marimo._ai._tools.utils.exceptions import ToolExecutionError
 from marimo._data.models import Database, DataTable, DataTableColumn, Schema
-from marimo._messaging.ops import DataSourceConnections
+from marimo._messaging.notification import DataSourceConnectionsNotification
 from marimo._sql.engines.duckdb import INTERNAL_DUCKDB_ENGINE
 from tests._ai.tools.test_utils import MockSession, MockSessionView
 
@@ -89,7 +89,7 @@ def sample_session(sample_connection: MockDataSourceConnection) -> MockSession:
     """Sample session with data connectors."""
     return MockSession(
         _session_view=MockSessionView(
-            data_connectors=DataSourceConnections(
+            data_connectors=DataSourceConnectionsNotification(
                 connections=[sample_connection]
             )
         )
@@ -146,7 +146,9 @@ def multi_table_session() -> MockSession:
 
     return MockSession(
         _session_view=MockSessionView(
-            data_connectors=DataSourceConnections(connections=[connection])
+            data_connectors=DataSourceConnectionsNotification(
+                connections=[connection]
+            )
         )
     )
 
@@ -263,7 +265,7 @@ def test_get_tables_empty_connections(tool: GetDatabaseTables):
     """Test getting tables when no connections exist."""
     empty_session = MockSession(
         _session_view=MockSessionView(
-            data_connectors=DataSourceConnections(connections=[])
+            data_connectors=DataSourceConnectionsNotification(connections=[])
         )
     )
 
@@ -370,7 +372,9 @@ def test_multiple_connections(tool: GetDatabaseTables):
 
     multi_conn_session = MockSession(
         _session_view=MockSessionView(
-            data_connectors=DataSourceConnections(connections=[conn1, conn2])
+            data_connectors=DataSourceConnectionsNotification(
+                connections=[conn1, conn2]
+            )
         )
     )
 
@@ -436,7 +440,9 @@ def test_query_matches_multiple_levels(tool: GetDatabaseTables):
 
     session = MockSession(
         _session_view=MockSessionView(
-            data_connectors=DataSourceConnections(connections=[connection])
+            data_connectors=DataSourceConnectionsNotification(
+                connections=[connection]
+            )
         )
     )
 
@@ -520,7 +526,9 @@ def test_query_no_duplicates(tool: GetDatabaseTables):
 
     session = MockSession(
         _session_view=MockSessionView(
-            data_connectors=DataSourceConnections(connections=[connection])
+            data_connectors=DataSourceConnectionsNotification(
+                connections=[connection]
+            )
         )
     )
 
