@@ -18,7 +18,6 @@ import {
 } from "@/core/websocket/connection-utils";
 import type { WebSocketState } from "@/core/websocket/types";
 import { cn } from "@/utils/cn";
-import { Events } from "@/utils/events";
 import { Tooltip } from "../../ui/tooltip";
 import { MarkdownIcon, PythonIcon } from "./code/icons";
 
@@ -35,6 +34,7 @@ export const CreateCellButton = ({
 }) => {
   const { createNewCell, addSetupCellIfDoesntExist } = useCellActions();
   const shortcut = `${oneClickShortcut}-Click`;
+  const [open, setOpen] = useState(false);
   const [justOpened, setJustOpened] = useState(false);
 
   const baseTooltipContent =
@@ -80,23 +80,34 @@ export const CreateCellButton = ({
     return <div className="mr-3 text-muted-foreground">{icon}</div>;
   };
 
-  const handleButtonClick = (e: React.MouseEvent) => {
+  // We use onPointerDownCapture (not onPointerDown) to intercept events in
+  // capture phase before Radix's DropdownMenuTrigger sees them. Radix ignores
+  // Ctrl+Click (likely to avoid interfering with browser), so we bypass its
+  // trigger entirely and manage the dropdown's open state ourselves.
+  const handlePointerDownCapture = (e: React.MouseEvent) => {
+    // Don't propagate event to Radix
+    e.preventDefault();
+    e.stopPropagation();
+
     const hasModifier =
       oneClickShortcut === "shift" ? e.shiftKey : e.metaKey || e.ctrlKey;
-    if (!hasModifier) {
-      e.preventDefault();
-      e.stopPropagation();
+
+    if (hasModifier) {
+      setOpen(true);
+      setJustOpened(true);
+      // Allow interactions after a brief delay
+      setTimeout(() => setJustOpened(false), 200);
+    } else {
       addPythonCell();
     }
   };
 
-  const handleOpenChange = (open: boolean) => {
-    if (open) {
+  const handleOpenChange = (isOpen: boolean) => {
+    setOpen(isOpen);
+    if (isOpen) {
       setJustOpened(true);
       // Allow interactions after a brief delay
-      setTimeout(() => {
-        setJustOpened(false);
-      }, 200);
+      setTimeout(() => setJustOpened(false), 200);
     }
   };
 
@@ -111,14 +122,14 @@ export const CreateCellButton = ({
   };
 
   return (
-    <DropdownMenu onOpenChange={handleOpenChange}>
-      <DropdownMenuTrigger asChild={true} onPointerDown={handleButtonClick}>
+    <DropdownMenu open={open} onOpenChange={handleOpenChange}>
+      <DropdownMenuTrigger asChild={true}>
         <Button
           className={cn(
             "border-none hover-action shadow-none! bg-transparent! focus-visible:outline-none",
             isAppInteractionDisabled(connectionState) && " inactive-button",
           )}
-          onMouseDown={Events.preventFocus}
+          onPointerDownCapture={handlePointerDownCapture}
           size="small"
           data-testid="create-cell-button"
         >
