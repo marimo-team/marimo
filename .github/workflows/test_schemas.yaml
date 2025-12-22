@@ -5,6 +5,7 @@ on:
     paths:
       - "marimo/_schemas/**/*.yaml"
       - "packages/openapi/api.yaml"
+      - ".github/workflows/test_schemas.yaml"
 
 permissions:
   contents: read
@@ -26,12 +27,16 @@ jobs:
           filters: |
             openapi:
               - 'packages/openapi/api.yaml'
+              - '.github/workflows/test_schemas.yaml'
             session:
               - 'marimo/_schemas/generated/session.yaml'
+              - '.github/workflows/test_schemas.yaml'
             notebook:
               - 'marimo/_schemas/generated/notebook.yaml'
+              - '.github/workflows/test_schemas.yaml'
             notifications:
               - 'marimo/_schemas/generated/notifications.yaml'
+              - '.github/workflows/test_schemas.yaml'
 
   check-schemas:
     needs: changes
@@ -69,25 +74,38 @@ jobs:
           ref: main
           path: main
 
-      - name: Install oasdiff
+      - name: Set up Java
+        if: ${{ matrix.schema.condition }}
+        uses: actions/setup-java@v4
+        with:
+          distribution: "temurin"
+          java-version: "17"
+
+      - name: Install openapi-diff
         if: ${{ matrix.schema.condition }}
         run: |
-          curl -sSL https://raw.githubusercontent.com/tufin/oasdiff/master/install.sh | sh
+          # Download openapi-diff CLI
+          curl -fsSL https://repo1.maven.org/maven2/org/openapitools/openapidiff/openapi-diff-cli/2.1.6/openapi-diff-cli-2.1.6.jar -o openapi-diff.jar
 
       - name: Compare ${{ matrix.schema.display_name }}
         if: ${{ matrix.schema.condition }}
         id: compare
         run: |
-          BREAKING_CHANGES=$(oasdiff breaking main/${{ matrix.schema.path }} current/${{ matrix.schema.path }})
-          if [ -n "$BREAKING_CHANGES" ]; then
+          set +e
+          OUTPUT=$(java -jar openapi-diff.jar main/${{ matrix.schema.path }} current/${{ matrix.schema.path }} --fail-on-incompatible 2>&1)
+          EXIT_CODE=$?
+          set -e
+
+          if [ $EXIT_CODE -ne 0 ]; then
             echo "breaking_changes<<EOF" >> $GITHUB_OUTPUT
-            echo "$BREAKING_CHANGES" >> $GITHUB_OUTPUT
+            echo "$OUTPUT" >> $GITHUB_OUTPUT
             echo "EOF" >> $GITHUB_OUTPUT
             echo "Breaking changes detected:"
-            echo "$BREAKING_CHANGES"
+            echo "$OUTPUT"
             exit 1
           else
             echo "No breaking changes detected"
+            echo "$OUTPUT"
           fi
 
       - name: Comment on PR
