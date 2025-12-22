@@ -4,6 +4,10 @@ from __future__ import annotations
 from unittest.mock import MagicMock
 
 from marimo._ast.toplevel import HINT_UNPARSABLE, TopLevelStatus
+from marimo._messaging.notification_utils import (
+    CellNotificationUtils,
+    broadcast_op,
+)
 from marimo._messaging.ops import (
     CellOp,
     InstallingPackageAlert,
@@ -51,7 +55,7 @@ def test_broadcast_serialization() -> None:
     status = MagicMock(TopLevelStatus)
     status.hint = HINT_UNPARSABLE
 
-    CellOp.broadcast_serialization(
+    CellNotificationUtils.broadcast_serialization(
         cell_id=cell_id, serialization=status, stream=stream
     )
 
@@ -113,7 +117,7 @@ def test_send_ui_element_message_broadcast() -> None:
         buffers=[b"buffer1", b"buffer2"],
     )
 
-    msg.broadcast(stream=stream)
+    broadcast_op(msg, stream)
 
     assert len(stream.messages) == 1
 

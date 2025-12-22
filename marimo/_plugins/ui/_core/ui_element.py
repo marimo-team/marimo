@@ -433,14 +433,17 @@ class UIElement(Html, Generic[S, T]):
         from the backend.
         """
 
+        from marimo._messaging.notification_utils import broadcast_op
         from marimo._messaging.ops import SendUIElementMessage
 
-        SendUIElementMessage(
-            ui_element=self._id,
-            model_id=None,
-            message=message,
-            buffers=list(buffers or []),
-        ).broadcast()
+        broadcast_op(
+            SendUIElementMessage(
+                ui_element=self._id,
+                model_id=None,
+                message=message,
+                buffers=list(buffers or []),
+            ),
+        )
 
     def _update(self, value: S) -> None:
         """Update value, given a value from the frontend

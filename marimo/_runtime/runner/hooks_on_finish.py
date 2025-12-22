@@ -12,7 +12,7 @@ from marimo._messaging.errors import (
     MarimoInterruptionError,
     MarimoStrictExecutionError,
 )
-from marimo._messaging.ops import CellOp
+from marimo._messaging.notification_utils import CellNotificationUtils
 from marimo._runtime.control_flow import MarimoStopError
 from marimo._runtime.runner import cell_runner
 from marimo._tracer import kernel_tracer
@@ -29,7 +29,7 @@ def _send_interrupt_errors(runner: cell_runner.Runner) -> None:
         for cid in runner.cells_to_run:
             # `cid` was not run
             runner.graph.cells[cid].set_runtime_state("idle")
-            CellOp.broadcast_error(
+            CellNotificationUtils.broadcast_error(
                 data=[MarimoInterruptionError()],
                 # these cells are transitioning from queued to stopped
                 # (interrupted); they didn't get to run, so their consoles
@@ -79,7 +79,7 @@ def _send_cancellation_errors(runner: cell_runner.Runner) -> None:
                     exception_type="Ancestor raised",
                     raising_cell=raising_cell,
                 )
-            CellOp.broadcast_error(
+            CellNotificationUtils.broadcast_error(
                 data=[data],
                 # these cells are transitioning from queued to stopped
                 # (interrupted); they didn't get to run, so their consoles

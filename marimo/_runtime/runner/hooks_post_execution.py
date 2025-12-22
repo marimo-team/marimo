@@ -19,8 +19,11 @@ from marimo._messaging.errors import (
     MarimoSQLError,
     MarimoStrictExecutionError,
 )
+from marimo._messaging.notification_utils import (
+    CellNotificationUtils,
+    broadcast_op,
+)
 from marimo._messaging.ops import (
-    CellOp,
     Datasets,
     DataSourceConnections,
     VariableValue,
@@ -129,7 +132,7 @@ def _broadcast_variables(
         for variable in cell.defs
     ]
     if values:
-        VariableValues(variables=values).broadcast()
+        broadcast_op(VariableValues(variables=values))
 
 
 @kernel_tracer.start_as_current_span("broadcast_datasets")
@@ -152,7 +155,7 @@ def _broadcast_datasets(
     )
     if tables:
         LOGGER.debug("Broadcasting data tables")
-        Datasets(tables=tables).broadcast()
+        broadcast_op(Datasets(tables=tables))
 
 
 @kernel_tracer.start_as_current_span("broadcast_data_source_connection")
@@ -178,12 +181,14 @@ def _broadcast_data_source_connection(
         return
 
     LOGGER.debug("Broadcasting data source connections")
-    DataSourceConnections(
-        connections=[
-            engine_to_data_source_connection(variable, engine)
-            for variable, engine in engines
-        ]
-    ).broadcast()
+    broadcast_op(
+        DataSourceConnections(
+            connections=[
+                engine_to_data_source_connection(variable, engine)
+                for variable, engine in engines
+            ]
+        )
+    )
 
 
 @kernel_tracer.start_as_current_span("broadcast_duckdb_datasource")
@@ -212,13 +217,15 @@ def _broadcast_duckdb_datasource(
             return
 
         LOGGER.debug("Broadcasting internal duckdb datasource")
-        DataSourceConnections(
-            connections=[
-                engine_to_data_source_connection(
-                    INTERNAL_DUCKDB_ENGINE, DuckDBEngine()
-                )
-            ]
-        ).broadcast()
+        broadcast_op(
+            DataSourceConnections(
+                connections=[
+                    engine_to_data_source_connection(
+                        INTERNAL_DUCKDB_ENGINE, DuckDBEngine()
+                    )
+                ]
+            )
+        )
     except Exception:
         return
 
@@ -320,7 +327,7 @@ def _broadcast_outputs(
         if formatted_output.traceback is not None:
             write_traceback(formatted_output.traceback)
 
-        CellOp.broadcast_output(
+        CellNotificationUtils.broadcast_output(
             channel=CellChannel.OUTPUT,
             mimetype=formatted_output.mimetype,
             data=formatted_output.data,
@@ -330,7 +337,7 @@ def _broadcast_outputs(
     elif isinstance(run_result.exception, MarimoStrictExecutionError):
         LOGGER.debug("Cell %s raised a strict error", cell.cell_id)
         # Cell never runs, so clear console
-        CellOp.broadcast_error(
+        CellNotificationUtils.broadcast_error(
             data=[run_result.output],
             clear_console=True,
             cell_id=cell.cell_id,
@@ -339,20 +346,20 @@ def _broadcast_outputs(
         LOGGER.debug("Cell %s was interrupted", cell.cell_id)
         # don't clear console because this cell was running and
         # its console outputs are not stale
-        CellOp.broadcast_error(
+        CellNotificationUtils.broadcast_error(
             data=[MarimoInterruptionError()],
             clear_console=False,
             cell_id=cell.cell_id,
         )
     elif isinstance(run_result.exception, MarimoExceptionRaisedError):
-        CellOp.broadcast_error(
+        CellNotificationUtils.broadcast_error(
             data=[run_result.exception],
             clear_console=False,
             cell_id=cell.cell_id,
         )
     elif isinstance(run_result.exception, MarimoSQLError):
         LOGGER.debug("Cell %s raised a SQL error", cell.cell_id)
-        CellOp.broadcast_error(
+        CellNotificationUtils.broadcast_error(
             data=[run_result.exception],
             clear_console=True,
             cell_id=cell.cell_id,
@@ -369,7 +376,7 @@ def _broadcast_outputs(
         msg = str(run_result.exception)
         if not msg:
             msg = f"This cell raised an exception: {exception_type}"
-        CellOp.broadcast_error(
+        CellNotificationUtils.broadcast_error(
             data=[
                 MarimoExceptionRaisedError(
                     msg=msg,
@@ -393,7 +400,7 @@ def render_toplevel_defs(
     if variable is not None:
         extractor = TopLevelExtraction.from_graph(runner.graph, cell=cell)
         serialization = list(iter(extractor))[-1]
-        CellOp.broadcast_serialization(
+        CellNotificationUtils.broadcast_serialization(
             serialization=serialization,
             cell_id=cell.cell_id,
         )

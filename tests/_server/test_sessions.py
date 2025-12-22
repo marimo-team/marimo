@@ -26,8 +26,8 @@ from marimo._config.manager import (
 from marimo._messaging.ops import (
     MessageOperation,
     UpdateCellCodes,
-    deserialize_kernel_message,
 )
+from marimo._messaging.serde import deserialize_kernel_message
 from marimo._messaging.types import KernelMessage
 from marimo._runtime.requests import (
     AppMetadata,

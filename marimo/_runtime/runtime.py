@@ -53,10 +53,13 @@ from marimo._messaging.errors import (
     MarimoSyntaxError,
     UnknownError,
 )
+from marimo._messaging.notification_utils import (
+    CellNotificationUtils,
+    broadcast_op,
+)
 from marimo._messaging.ops import (
     CacheCleared,
     CacheInfoFetched,
-    CellOp,
     CompletedRun,
     DataColumnPreview,
     DataSourceConnections,
@@ -1101,7 +1104,7 @@ class Kernel:
             get_context().cell_lifecycle_registry.dispose(
                 descendent, deletion=deletion
             )
-        RemoveUIElements(cell_id=cell_id).broadcast()
+        broadcast_op(RemoveUIElements(cell_id=cell_id))
 
     def _deactivate_cell(self, cell_id: CellId_t) -> set[CellId_t]:
         """Deactivate: remove from graph, invalidate state, but keep metadata
@@ -1265,7 +1268,7 @@ class Kernel:
         if self.reactive_execution_mode == "autorun":
             for cid in cells_that_no_longer_have_errors:
                 # clear error outputs before running
-                CellOp.broadcast_output(
+                CellNotificationUtils.broadcast_output(
                     channel=CellChannel.OUTPUT,
                     mimetype="text/plain",
                     data="",
@@ -1315,9 +1318,9 @@ class Kernel:
                 cell.set_stale(False)
             else:
                 # On syntax errors, we don't have a cell object.
-                CellOp.broadcast_stale(cell_id=cid, stale=False)
+                CellNotificationUtils.broadcast_stale(cell_id=cid, stale=False)
 
-            CellOp.broadcast_error(
+            CellNotificationUtils.broadcast_error(
                 data=self.errors[cid],
                 clear_console=True,
                 cell_id=cid,
@@ -1325,20 +1328,22 @@ class Kernel:
 
         # Always broadcast Variables message after graph mutation to ensure
         # frontend has the latest dependency information
-        Variables(
-            variables=[
-                VariableDeclaration(
-                    name=variable,
-                    declared_by=list(declared_by),
-                    used_by=list(
-                        self.graph.get_referring_cells(
-                            variable, language="python"
-                        )
-                    ),
-                )
-                for variable, declared_by in self.graph.definitions.items()
-            ]
-        ).broadcast()
+        broadcast_op(
+            Variables(
+                variables=[
+                    VariableDeclaration(
+                        name=variable,
+                        declared_by=list(declared_by),
+                        used_by=list(
+                            self.graph.get_referring_cells(
+                                variable, language="python"
+                            )
+                        ),
+                    )
+                    for variable, declared_by in self.graph.definitions.items()
+                ]
+            ),
+        )
 
         stale_cells = (
             set(
@@ -1652,7 +1657,7 @@ class Kernel:
         filtered_requests: list[ExecutionRequest] = []
         for request in execution_requests:
             if request.timestamp < self.last_interrupt_timestamp:
-                CellOp.broadcast_error(
+                CellNotificationUtils.broadcast_error(
                     data=[MarimoInterruptionError()],
                     clear_console=False,
                     cell_id=request.cell_id,
@@ -1664,7 +1669,7 @@ class Kernel:
                 # to backend (which will require moving execution requests to
                 # a dedicated multiprocessing queue and processing execution
                 # requests in a background thread).
-                CellOp.broadcast_status(
+                CellNotificationUtils.broadcast_status(
                     cell_id=request.cell_id,
                     status="idle",
                 )
@@ -1703,7 +1708,7 @@ class Kernel:
         # If cannot compile, don't run
         cell, error = self._try_compiling_cell(SCRATCH_CELL_ID, code, [])
         if error:
-            CellOp.broadcast_error(
+            CellNotificationUtils.broadcast_error(
                 data=[error],
                 clear_console=True,
                 cell_id=SCRATCH_CELL_ID,
@@ -1937,7 +1942,9 @@ class Kernel:
                     continue
 
             if variable_values:
-                VariableValues(variables=variable_values).broadcast()
+                broadcast_op(
+                    VariableValues(variables=variable_values), self.stream
+                )
 
         if self.reactive_execution_mode == "autorun":
             await self._run_cells(referring_cells)
@@ -2122,7 +2129,9 @@ class Kernel:
             ) in self._uninstantiated_execution_requests.items():
                 # Only mark non-empty cells as stale
                 if cell_request.code.strip():
-                    CellOp.broadcast_stale(cell_id=cell_id, stale=True)
+                    CellNotificationUtils.broadcast_stale(
+                        cell_id=cell_id, stale=True
+                    )
 
     def _handle_markdown_cells_on_instantiate(
         self, execution_requests: dict[CellId_t, ExecutionRequest]
@@ -2180,7 +2189,7 @@ class Kernel:
             mimetype, html_content = html_obj._mime_()
 
             # Broadcast the markdown output
-            CellOp.broadcast_output(
+            CellNotificationUtils.broadcast_output(
                 channel=CellChannel.OUTPUT,
                 mimetype=mimetype,
                 data=html_content,
@@ -2189,7 +2198,7 @@ class Kernel:
             )
 
             # Mark the cell as not stale (already "run")
-            CellOp.broadcast_stale(cell_id=cell_id, stale=False)
+            CellNotificationUtils.broadcast_stale(cell_id=cell_id, stale=False)
             del execution_requests[cell_id]
 
     def load_dotenv(self) -> None:
@@ -2214,14 +2223,14 @@ class Kernel:
         async def handle_instantiate(request: CreationRequest) -> None:
             with http_request_context(request.request):
                 await self.instantiate(request)
-            CompletedRun().broadcast()
+            broadcast_op(CompletedRun())
 
         async def handle_execute_multiple(
             request: ExecuteMultipleRequest,
         ) -> None:
             with http_request_context(request.request):
                 await self.run(request.execution_requests)
-            CompletedRun().broadcast()
+            broadcast_op(CompletedRun())
 
         async def handle_sync_graph(
             request: SyncGraphRequest,
@@ -2230,26 +2239,26 @@ class Kernel:
                 await self.sync_graph(
                     request.cells, request.run_ids, request.delete_ids
                 )
-            CompletedRun().broadcast()
+            broadcast_op(CompletedRun())
 
         async def handle_execute_scratchpad(
             request: ExecuteScratchpadRequest,
         ) -> None:
             with http_request_context(request.request):
                 await self.run_scratchpad(request.code)
-            CompletedRun().broadcast()
+            broadcast_op(CompletedRun())
 
         async def handle_execute_stale(request: ExecuteStaleRequest) -> None:
             with http_request_context(request.request):
                 await self.run_stale_cells()
-            CompletedRun().broadcast()
+            broadcast_op(CompletedRun())
 
         async def handle_set_ui_element_value(
             request: SetUIElementValueRequest,
         ) -> None:
             with http_request_context(request.request):
                 await self.set_ui_element_value(request)
-            CompletedRun().broadcast()
+            broadcast_op(CompletedRun())
 
         async def handle_pdb_request(request: PdbRequest) -> None:
             await self.pdb_request(request.cell_id)
@@ -2269,11 +2278,13 @@ class Kernel:
         async def handle_function_call(request: FunctionCallRequest) -> None:
             status, ret, _ = await self.function_call_request(request)
             LOGGER.debug("Function returned with status %s", status)
-            FunctionCallResult(
-                function_call_id=request.function_call_id,
-                return_value=ret,
-                status=status,
-            ).broadcast()
+            broadcast_op(
+                FunctionCallResult(
+                    function_call_id=request.function_call_id,
+                    return_value=ret,
+                    status=status,
+                ),
+            )
 
         async def handle_set_user_config(
             request: SetUserConfigRequest,
@@ -2284,7 +2295,7 @@ class Kernel:
             request: InstallMissingPackagesRequest,
         ) -> None:
             await self.packages_callbacks.install_missing_packages(request)
-            CompletedRun().broadcast()
+            broadcast_op(CompletedRun())
 
         async def handle_stop(request: StopRequest) -> None:
             del request
@@ -2435,30 +2446,36 @@ class DatasetCallbacks:
                     dataset, request
                 )
             elif source_type == "connection":
-                DataColumnPreview(
-                    error="Column preview for connection data sources is not supported",
-                    column_name=column_name,
-                    table_name=table_name,
-                ).broadcast()
+                broadcast_op(
+                    DataColumnPreview(
+                        error="Column preview for connection data sources is not supported",
+                        column_name=column_name,
+                        table_name=table_name,
+                    ),
+                )
                 return
             elif source_type == "catalog":
-                DataColumnPreview(
-                    error="Column preview for catalog data sources is not supported",
-                    column_name=column_name,
-                    table_name=table_name,
-                ).broadcast()
+                broadcast_op(
+                    DataColumnPreview(
+                        error="Column preview for catalog data sources is not supported",
+                        column_name=column_name,
+                        table_name=table_name,
+                    ),
+                )
                 return
             else:
                 assert_never(source_type)
 
             if column_preview is None:
-                DataColumnPreview(
-                    error=f"Column {column_name} not found",
-                    column_name=column_name,
-                    table_name=table_name,
-                ).broadcast()
+                broadcast_op(
+                    DataColumnPreview(
+                        error=f"Column {column_name} not found",
+                        column_name=column_name,
+                        table_name=table_name,
+                    ),
+                )
             else:
-                column_preview.broadcast()
+                broadcast_op(column_preview)
         except Exception as e:
             LOGGER.warning(
                 "Failed to get preview for column %s in table %s",
@@ -2466,11 +2483,13 @@ class DatasetCallbacks:
                 table_name,
                 exc_info=e,
             )
-            DataColumnPreview(
-                error=str(e),
-                column_name=column_name,
-                table_name=table_name,
-            ).broadcast()
+            broadcast_op(
+                DataColumnPreview(
+                    error=str(e),
+                    column_name=column_name,
+                    table_name=table_name,
+                ),
+            )
         return
 
     @kernel_tracer.start_as_current_span("preview_sql_table")
@@ -2496,12 +2515,14 @@ class DatasetCallbacks:
 
         engine, error = self.get_engine_catalog(variable_name)
         if error is not None or engine is None:
-            SQLTablePreview(
-                request_id=request.request_id,
-                table=None,
-                error=error,
-                metadata=sql_metadata,
-            ).broadcast()
+            broadcast_op(
+                SQLTablePreview(
+                    request_id=request.request_id,
+                    table=None,
+                    error=error,
+                    metadata=sql_metadata,
+                ),
+            )
             return
 
         try:
@@ -2511,23 +2532,27 @@ class DatasetCallbacks:
                 database_name=database_name,
             )
 
-            SQLTablePreview(
-                request_id=request.request_id,
-                table=table,
-                metadata=sql_metadata,
-            ).broadcast()
+            broadcast_op(
+                SQLTablePreview(
+                    request_id=request.request_id,
+                    table=table,
+                    metadata=sql_metadata,
+                ),
+            )
         except Exception as e:
             LOGGER.exception(
                 "Failed to get preview for table %s in schema %s",
                 table_name,
                 schema_name,
             )
-            SQLTablePreview(
-                request_id=request.request_id,
-                table=None,
-                error="Failed to get table details: " + str(e),
-                metadata=sql_metadata,
-            ).broadcast()
+            broadcast_op(
+                SQLTablePreview(
+                    request_id=request.request_id,
+                    table=None,
+                    error="Failed to get table details: " + str(e),
+                    metadata=sql_metadata,
+                ),
+            )
 
     @kernel_tracer.start_as_current_span("preview_sql_table_list")
     async def preview_sql_table_list(
@@ -2552,12 +2577,14 @@ class DatasetCallbacks:
 
         engine, error = self.get_engine_catalog(variable_name)
         if error is not None or engine is None:
-            SQLTableListPreview(
-                request_id=request.request_id,
-                tables=[],
-                error=error,
-                metadata=sql_metadata,
-            ).broadcast()
+            broadcast_op(
+                SQLTableListPreview(
+                    request_id=request.request_id,
+                    tables=[],
+                    error=error,
+                    metadata=sql_metadata,
+                ),
+            )
             return
 
         try:
@@ -2566,21 +2593,25 @@ class DatasetCallbacks:
                 database=database_name,
                 include_table_details=False,
             )
-            SQLTableListPreview(
-                request_id=request.request_id,
-                tables=table_list,
-                metadata=sql_metadata,
-            ).broadcast()
+            broadcast_op(
+                SQLTableListPreview(
+                    request_id=request.request_id,
+                    tables=table_list,
+                    metadata=sql_metadata,
+                ),
+            )
         except Exception as e:
             LOGGER.exception(
                 "Failed to get table list for schema %s", schema_name
             )
-            SQLTableListPreview(
-                request_id=request.request_id,
-                tables=[],
-                error="Failed to get table list: " + str(e),
-                metadata=sql_metadata,
-            ).broadcast()
+            broadcast_op(
+                SQLTableListPreview(
+                    request_id=request.request_id,
+                    tables=[],
+                    error="Failed to get table list: " + str(e),
+                    metadata=sql_metadata,
+                ),
+            )
 
     @kernel_tracer.start_as_current_span("preview_datasource_connection")
     async def preview_datasource_connection(
@@ -2600,9 +2631,11 @@ class DatasetCallbacks:
         LOGGER.debug(
             "Broadcasting datasource connection for %s engine", variable_name
         )
-        DataSourceConnections(
-            connections=[data_source_connection],
-        ).broadcast()
+        broadcast_op(
+            DataSourceConnections(
+                connections=[data_source_connection],
+            ),
+        )
 
 
 class SqlCallbacks:
@@ -2620,19 +2653,23 @@ class SqlCallbacks:
 
         if request.only_parse:
             if request.dialect is None:
-                ValidateSQLResult(
-                    request_id=request_id,
-                    error="Dialect is required when only parsing",
-                ).broadcast()
+                broadcast_op(
+                    ValidateSQLResult(
+                        request_id=request_id,
+                        error="Dialect is required when only parsing",
+                    ),
+                )
                 return
 
             # Just parse the query (no DB connection required)
             parse_result, error = parse_sql(request.query, request.dialect)
-            ValidateSQLResult(
-                request_id=request_id,
-                parse_result=parse_result,
-                error=error,
-            ).broadcast()
+            broadcast_op(
+                ValidateSQLResult(
+                    request_id=request_id,
+                    parse_result=parse_result,
+                    error=error,
+                ),
+            )
             return
 
         # Validate against the database
@@ -2641,10 +2678,12 @@ class SqlCallbacks:
         # For failed connections, we should not raise an error
 
         if request.engine is None:
-            ValidateSQLResult(
-                request_id=request_id,
-                error="Engine is required for validating catalog",
-            ).broadcast()
+            broadcast_op(
+                ValidateSQLResult(
+                    request_id=request_id,
+                    error="Engine is required for validating catalog",
+                ),
+            )
             return
 
         variable_name = cast(VariableName, request.engine)
@@ -2656,10 +2695,12 @@ class SqlCallbacks:
             engine, error = self._kernel.get_sql_connection(variable_name)
 
         if error is not None or engine is None:
-            ValidateSQLResult(
-                request_id=request_id,
-                error="Failed to get engine " + variable_name,
-            ).broadcast()
+            broadcast_op(
+                ValidateSQLResult(
+                    request_id=request_id,
+                    error="Failed to get engine " + variable_name,
+                ),
+            )
             return
 
         # Get the parse error for linting
@@ -2669,11 +2710,13 @@ class SqlCallbacks:
             LOGGER.debug("Parse error: %s", parse_error)
 
         if not isinstance(engine, QueryEngine):
-            ValidateSQLResult(
-                request_id=request_id,
-                error=f"Engine {variable_name} does not support catalog validation.",
-                parse_result=parse_result,
-            ).broadcast()
+            broadcast_op(
+                ValidateSQLResult(
+                    request_id=request_id,
+                    error=f"Engine {variable_name} does not support catalog validation.",
+                    parse_result=parse_result,
+                ),
+            )
             return
 
         _, error_message = engine.execute_in_explain_mode(request.query)  # type: ignore
@@ -2681,12 +2724,14 @@ class SqlCallbacks:
             success=True if error_message is None else False,
             error_message=error_message,
         )
-        ValidateSQLResult(
-            request_id=request_id,
-            validate_result=validate_result,
-            parse_result=parse_result,
-            error=None,
-        ).broadcast()
+        broadcast_op(
+            ValidateSQLResult(
+                request_id=request_id,
+                validate_result=validate_result,
+                parse_result=parse_result,
+                error=None,
+            ),
+        )
 
     @kernel_tracer.start_as_current_span("validate_sql")
     async def validate_sql(self, request: ValidateSQLRequest) -> None:
@@ -2696,10 +2741,12 @@ class SqlCallbacks:
             await self._validate_sql_query(request)
         except Exception as e:
             LOGGER.exception("Failed to validate SQL query")
-            ValidateSQLResult(
-                request_id=request.request_id,
-                error="Failed to validate SQL query: " + str(e),
-            ).broadcast()
+            broadcast_op(
+                ValidateSQLResult(
+                    request_id=request.request_id,
+                    error="Failed to validate SQL query: " + str(e),
+                ),
+            )
 
 
 class SecretsCallbacks:
@@ -2710,9 +2757,9 @@ class SecretsCallbacks:
         secrets = get_secret_keys(
             self._kernel.user_config, self._kernel._original_environ
         )
-        SecretKeysResult(
-            request_id=request.request_id, secrets=secrets
-        ).broadcast()
+        broadcast_op(
+            SecretKeysResult(request_id=request.request_id, secrets=secrets),
+        )
 
     async def refresh_secrets(self, request: RefreshSecretsRequest) -> None:
         del request
@@ -2751,10 +2798,12 @@ class PackagesCallbacks:
             )
         )
         # Deleting a cell can make the set of missing packages smaller
-        MissingPackageAlert(
-            packages=packages,
-            isolated=is_python_isolated(),
-        ).broadcast()
+        broadcast_op(
+            MissingPackageAlert(
+                packages=packages,
+                isolated=is_python_isolated(),
+            ),
+        )
 
     def missing_packages_hook(self, runner: cell_runner.Runner) -> None:
         module_not_found_errors = [
@@ -2828,10 +2877,12 @@ class PackagesCallbacks:
                 )
             )
         else:
-            MissingPackageAlert(
-                packages=packages,
-                isolated=is_python_isolated(),
-            ).broadcast()
+            broadcast_op(
+                MissingPackageAlert(
+                    packages=packages,
+                    isolated=is_python_isolated(),
+                ),
+            )
 
     async def install_missing_packages(
         self, request: InstallMissingPackagesRequest
@@ -2876,15 +2927,17 @@ class PackagesCallbacks:
         package_statuses: PackageStatusType = {
             pkg: "queued" for pkg in missing_packages
         }
-        InstallingPackageAlert(packages=package_statuses).broadcast()
+        broadcast_op(InstallingPackageAlert(packages=package_statuses))
 
         def create_log_callback(pkg: str) -> LogCallback:
             def log_callback(log_line: str) -> None:
-                InstallingPackageAlert(
-                    packages=package_statuses,
-                    logs={pkg: log_line},
-                    log_status="append",
-                ).broadcast()
+                broadcast_op(
+                    InstallingPackageAlert(
+                        packages=package_statuses,
+                        logs={pkg: log_line},
+                        log_status="append",
+                    ),
+                )
 
             return log_callback
 
@@ -2894,14 +2947,16 @@ class PackagesCallbacks:
                 # Skip the installation.
                 continue
             package_statuses[pkg] = "installing"
-            InstallingPackageAlert(packages=package_statuses).broadcast()
+            broadcast_op(InstallingPackageAlert(packages=package_statuses))
 
             # Send initial "start" log
-            InstallingPackageAlert(
-                packages=package_statuses,
-                logs={pkg: f"Installing {pkg}...\n"},
-                log_status="start",
-            ).broadcast()
+            broadcast_op(
+                InstallingPackageAlert(
+                    packages=package_statuses,
+                    logs={pkg: f"Installing {pkg}...\n"},
+                    log_status="start",
+                )
+            )
 
             version = request.versions.get(pkg)
             if await self.package_manager.install(
@@ -2909,21 +2964,25 @@ class PackagesCallbacks:
             ):
                 package_statuses[pkg] = "installed"
                 # Send final "done" log
-                InstallingPackageAlert(
-                    packages=package_statuses,
-                    logs={pkg: f"Successfully installed {pkg}\n"},
-                    log_status="done",
-                ).broadcast()
+                broadcast_op(
+                    InstallingPackageAlert(
+                        packages=package_statuses,
+                        logs={pkg: f"Successfully installed {pkg}\n"},
+                        log_status="done",
+                    ),
+                )
             else:
                 package_statuses[pkg] = "failed"
                 mod = self.package_manager.package_to_module(pkg)
                 self._kernel.module_registry.excluded_modules.add(mod)
                 # Send final "done" log with error
-                InstallingPackageAlert(
-                    packages=package_statuses,
-                    logs={pkg: f"Failed to install {pkg}\n"},
-                    log_status="done",
-                ).broadcast()
+                broadcast_op(
+                    InstallingPackageAlert(
+                        packages=package_statuses,
+                        logs={pkg: f"Failed to install {pkg}\n"},
+                        log_status="done",
+                    ),
+                )
 
         installed_modules = [
             self.package_manager.package_to_module(pkg)
@@ -3008,7 +3067,7 @@ class CacheCallbacks:
                 if isinstance(obj.loader, BasePersistenceLoader):
                     obj.loader.clear()
 
-        CacheCleared(bytes_freed=saved).broadcast()
+        broadcast_op(CacheCleared(bytes_freed=saved))
 
     async def get_cache_info(self, request: GetCacheInfoRequest) -> None:
         del request
@@ -3028,13 +3087,15 @@ class CacheCallbacks:
                 total_misses += misses
                 total_time += time
                 # d2f, dt = obj.loader.disk_usage()
-        CacheInfoFetched(
-            hits=total_hits,
-            misses=total_misses,
-            time=total_time,
-            disk_to_free=disk_to_free,
-            disk_total=disk_total,
-        ).broadcast()
+        broadcast_op(
+            CacheInfoFetched(
+                hits=total_hits,
+                misses=total_misses,
+                time=total_time,
+                disk_to_free=disk_to_free,
+                disk_total=disk_total,
+            ),
+        )
 
 
 class RequestHandler:

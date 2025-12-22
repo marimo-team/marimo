@@ -18,8 +18,8 @@ from marimo._messaging.errors import Error, is_unexpected_error
 from marimo._messaging.ops import (
     CellOp,
     CompletedRun,
-    deserialize_kernel_message,
 )
+from marimo._messaging.serde import deserialize_kernel_message
 from marimo._messaging.types import KernelMessage
 from marimo._output.hypertext import patch_html_for_non_interactive_output
 from marimo._runtime.requests import AppMetadata, SerializedCLIArgs

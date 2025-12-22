@@ -21,9 +21,9 @@ from marimo._messaging.mimetypes import ConsoleMimeType
 from marimo._messaging.ops import (
     CellOp,
     MessageOperation,
-    deserialize_kernel_message,
 )
 from marimo._messaging.print_override import print_override
+from marimo._messaging.serde import deserialize_kernel_message
 from marimo._messaging.streams import (
     ThreadSafeStderr,
     ThreadSafeStdin,

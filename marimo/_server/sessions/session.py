@@ -16,8 +16,8 @@ from marimo._messaging.ops import (
     FocusCell,
     MessageOperation,
     UpdateCellCodes,
-    serialize_kernel_message,
 )
+from marimo._messaging.serde import serialize_kernel_message
 from marimo._messaging.types import KernelMessage
 from marimo._runtime import requests
 from marimo._runtime.requests import (

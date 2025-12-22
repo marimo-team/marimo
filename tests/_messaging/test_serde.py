@@ -10,6 +10,8 @@ from marimo._messaging.ops import (
     Alert,
     CompletedRun,
     Interrupted,
+)
+from marimo._messaging.serde import (
     deserialize_kernel_message,
     deserialize_kernel_operation_name,
     serialize_kernel_message,

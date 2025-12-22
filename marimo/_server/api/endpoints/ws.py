@@ -22,6 +22,8 @@ from marimo._messaging.ops import (
     KernelReady,
     MessageOperation,
     Reconnected,
+)
+from marimo._messaging.serde import (
     deserialize_kernel_operation_name,
     serialize_kernel_message,
 )
