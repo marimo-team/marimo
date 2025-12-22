@@ -124,7 +124,7 @@ def build_openapi_schema(messages):
     import msgspec.json
 
     try:
-        components = msgspec.json.schema_components(messages)
+        components = msgspec.json.schema_components(messages, ref_template="#/components/schemas/{name}")
         return {
             "openapi": "3.0.0",
             "info": {"title": "marimo"},

@@ -132,10 +132,10 @@ components:
         console:
           anyOf:
           - items:
-              $ref: '#/$defs/CellOutput'
+              $ref: '#/components/schemas/CellOutput'
             type: array
           - type: 'null'
-          - $ref: '#/$defs/CellOutput'
+          - $ref: '#/components/schemas/CellOutput'
           default: null
         op:
           enum:
@@ -143,7 +143,7 @@ components:
         output:
           anyOf:
           - type: 'null'
-          - $ref: '#/$defs/CellOutput'
+          - $ref: '#/components/schemas/CellOutput'
           default: null
         run_id:
           anyOf:
@@ -179,40 +179,40 @@ components:
     CellOutput:
       properties:
         channel:
-          $ref: '#/$defs/CellChannel'
+          $ref: '#/components/schemas/CellChannel'
         data:
           anyOf:
           - type: string
           - items:
               anyOf:
-              - $ref: '#/$defs/SetupRootError'
-              - $ref: '#/$defs/CycleError'
-              - $ref: '#/$defs/MultipleDefinitionError'
-              - $ref: '#/$defs/ImportStarError'
-              - $ref: '#/$defs/MarimoAncestorStoppedError'
-              - $ref: '#/$defs/MarimoAncestorPreventedError'
-              - $ref: '#/$defs/MarimoExceptionRaisedError'
-              - $ref: '#/$defs/MarimoStrictExecutionError'
-              - $ref: '#/$defs/MarimoInterruptionError'
-              - $ref: '#/$defs/MarimoSyntaxError'
-              - $ref: '#/$defs/MarimoInternalError'
-              - $ref: '#/$defs/MarimoSQLError'
-              - $ref: '#/$defs/UnknownError'
+              - $ref: '#/components/schemas/SetupRootError'
+              - $ref: '#/components/schemas/CycleError'
+              - $ref: '#/components/schemas/MultipleDefinitionError'
+              - $ref: '#/components/schemas/ImportStarError'
+              - $ref: '#/components/schemas/MarimoAncestorStoppedError'
+              - $ref: '#/components/schemas/MarimoAncestorPreventedError'
+              - $ref: '#/components/schemas/MarimoExceptionRaisedError'
+              - $ref: '#/components/schemas/MarimoStrictExecutionError'
+              - $ref: '#/components/schemas/MarimoInterruptionError'
+              - $ref: '#/components/schemas/MarimoSyntaxError'
+              - $ref: '#/components/schemas/MarimoInternalError'
+              - $ref: '#/components/schemas/MarimoSQLError'
+              - $ref: '#/components/schemas/UnknownError'
               discriminator:
                 mapping:
-                  ancestor-prevented: '#/$defs/MarimoAncestorPreventedError'
-                  ancestor-stopped: '#/$defs/MarimoAncestorStoppedError'
-                  cycle: '#/$defs/CycleError'
-                  exception: '#/$defs/MarimoExceptionRaisedError'
-                  import-star: '#/$defs/ImportStarError'
-                  internal: '#/$defs/MarimoInternalError'
-                  interruption: '#/$defs/MarimoInterruptionError'
-                  multiple-defs: '#/$defs/MultipleDefinitionError'
-                  setup-refs: '#/$defs/SetupRootError'
-                  sql-error: '#/$defs/MarimoSQLError'
-                  strict-exception: '#/$defs/MarimoStrictExecutionError'
-                  syntax: '#/$defs/MarimoSyntaxError'
-                  unknown: '#/$defs/UnknownError'
+                  ancestor-prevented: '#/components/schemas/MarimoAncestorPreventedError'
+                  ancestor-stopped: '#/components/schemas/MarimoAncestorStoppedError'
+                  cycle: '#/components/schemas/CycleError'
+                  exception: '#/components/schemas/MarimoExceptionRaisedError'
+                  import-star: '#/components/schemas/ImportStarError'
+                  internal: '#/components/schemas/MarimoInternalError'
+                  interruption: '#/components/schemas/MarimoInterruptionError'
+                  multiple-defs: '#/components/schemas/MultipleDefinitionError'
+                  setup-refs: '#/components/schemas/SetupRootError'
+                  sql-error: '#/components/schemas/MarimoSQLError'
+                  strict-exception: '#/components/schemas/MarimoStrictExecutionError'
+                  syntax: '#/components/schemas/MarimoSyntaxError'
+                  unknown: '#/components/schemas/UnknownError'
                 propertyName: type
             type: array
           - type: object
@@ -359,7 +359,7 @@ components:
           - completion-result
         options:
           items:
-            $ref: '#/$defs/CompletionOption'
+            $ref: '#/components/schemas/CompletionOption'
           type: array
         prefix_length:
           type: integer
@@ -426,7 +426,7 @@ components:
         stats:
           anyOf:
           - type: 'null'
-          - $ref: '#/$defs/ColumnStats'
+          - $ref: '#/components/schemas/ColumnStats'
           default: null
         table_name:
           type: string
@@ -449,7 +449,7 @@ components:
       properties:
         databases:
           items:
-            $ref: '#/$defs/Database'
+            $ref: '#/components/schemas/Database'
           type: array
         default_database:
           anyOf:
@@ -481,7 +481,7 @@ components:
       properties:
         connections:
           items:
-            $ref: '#/$defs/DataSourceConnection'
+            $ref: '#/components/schemas/DataSourceConnection'
           type: array
         op:
           enum:
@@ -507,7 +507,7 @@ components:
       properties:
         columns:
           items:
-            $ref: '#/$defs/DataTableColumn'
+            $ref: '#/components/schemas/DataTableColumn'
           type: array
         engine:
           anyOf:
@@ -611,7 +611,7 @@ components:
           type: string
         schemas:
           items:
-            $ref: '#/$defs/Schema'
+            $ref: '#/components/schemas/Schema'
           type: array
       required:
       - name
@@ -636,7 +636,7 @@ components:
           - datasets
         tables:
           items:
-            $ref: '#/$defs/DataTable'
+            $ref: '#/components/schemas/DataTable'
           type: array
       required:
       - op
@@ -665,7 +665,7 @@ components:
           - function-call-result
         return_value: {}
         status:
-          $ref: '#/$defs/HumanReadableStatus'
+          $ref: '#/components/schemas/HumanReadableStatus'
       required:
       - op
       - function_call_id
@@ -775,9 +775,9 @@ components:
       description: Kernel is ready for execution.
       properties:
         app_config:
-          $ref: '#/$defs/_AppConfig'
+          $ref: '#/components/schemas/_AppConfig'
         capabilities:
-          $ref: '#/$defs/KernelCapabilities'
+          $ref: '#/components/schemas/KernelCapabilities'
         cell_ids:
           items:
             type: string
@@ -788,7 +788,7 @@ components:
           type: array
         configs:
           items:
-            $ref: '#/$defs/CellConfig'
+            $ref: '#/components/schemas/CellConfig'
           type: array
         kiosk:
           type: boolean
@@ -806,7 +806,7 @@ components:
           - type: 'null'
         layout:
           anyOf:
-          - $ref: '#/$defs/LayoutConfig'
+          - $ref: '#/components/schemas/LayoutConfig'
           - type: 'null'
         names:
           items:
@@ -1163,7 +1163,7 @@ components:
           - type: 'null'
           default: null
         metadata:
-          $ref: '#/$defs/SQLMetadata'
+          $ref: '#/components/schemas/SQLMetadata'
         op:
           enum:
           - sql-table-list-preview
@@ -1172,7 +1172,7 @@ components:
         tables:
           default: []
           items:
-            $ref: '#/$defs/DataTable'
+            $ref: '#/components/schemas/DataTable'
           type: array
       required:
       - op
@@ -1189,7 +1189,7 @@ components:
           - type: 'null'
           default: null
         metadata:
-          $ref: '#/$defs/SQLMetadata'
+          $ref: '#/components/schemas/SQLMetadata'
         op:
           enum:
           - sql-table-preview
@@ -1198,7 +1198,7 @@ components:
         table:
           anyOf:
           - type: 'null'
-          - $ref: '#/$defs/DataTable'
+          - $ref: '#/components/schemas/DataTable'
       required:
       - op
       - request_id
@@ -1212,7 +1212,7 @@ components:
           type: string
         tables:
           items:
-            $ref: '#/$defs/DataTable'
+            $ref: '#/components/schemas/DataTable'
           type: array
       required:
       - name
@@ -1229,7 +1229,7 @@ components:
           type: string
         secrets:
           items:
-            $ref: '#/$defs/SecretKeysWithProvider'
+            $ref: '#/components/schemas/SecretKeysWithProvider'
           type: array
       required:
       - op
@@ -1354,7 +1354,7 @@ components:
       properties:
         errors:
           items:
-            $ref: '#/$defs/SqlParseError'
+            $ref: '#/components/schemas/SqlParseError'
           type: array
         success:
           type: boolean
@@ -1453,14 +1453,14 @@ components:
         parse_result:
           anyOf:
           - type: 'null'
-          - $ref: '#/$defs/SqlParseResult'
+          - $ref: '#/components/schemas/SqlParseResult'
           default: null
         request_id:
           type: string
         validate_result:
           anyOf:
           - type: 'null'
-          - $ref: '#/$defs/SqlCatalogCheckResult'
+          - $ref: '#/components/schemas/SqlCatalogCheckResult'
           default: null
       required:
       - op
@@ -1511,7 +1511,7 @@ components:
           - variable-values
         variables:
           items:
-            $ref: '#/$defs/VariableValue'
+            $ref: '#/components/schemas/VariableValue'
           type: array
       required:
       - op
@@ -1526,7 +1526,7 @@ components:
           - variables
         variables:
           items:
-            $ref: '#/$defs/VariableDeclaration'
+            $ref: '#/components/schemas/VariableDeclaration'
           type: array
       required:
       - op

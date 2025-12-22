@@ -13,7 +13,7 @@ components:
           - type: string
           - type: 'null'
         config:
-          $ref: '#/$defs/NotebookCellConfig'
+          $ref: '#/components/schemas/NotebookCellConfig'
         id:
           anyOf:
           - type: string
@@ -63,10 +63,10 @@ components:
       properties:
         cells:
           items:
-            $ref: '#/$defs/NotebookCell'
+            $ref: '#/components/schemas/NotebookCell'
           type: array
         metadata:
-          $ref: '#/$defs/NotebookMetadata'
+          $ref: '#/components/schemas/NotebookMetadata'
         version:
           enum:
           - '1'
