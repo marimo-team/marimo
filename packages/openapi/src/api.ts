@@ -3865,7 +3865,7 @@ export interface components {
       notification:
         | components["schemas"]["CellNotification"]
         | components["schemas"]["FunctionCallResultNotification"]
-        | components["schemas"]["SendUIElementMessageNotification"]
+        | components["schemas"]["UIElementMessageNotification"]
         | components["schemas"]["RemoveUIElementsNotification"]
         | components["schemas"]["ReloadNotification"]
         | components["schemas"]["ReconnectedNotification"]
@@ -4468,10 +4468,10 @@ export interface components {
       provider: "dotenv" | "env";
     };
     /**
-     * SendUIElementMessageNotification
+     * UIElementMessageNotification
      * @description Send a message to a UI element.
      */
-    SendUIElementMessageNotification: {
+    UIElementMessageNotification: {
       /** @default null */
       buffers?: string[] | null;
       message: Record<string, any>;

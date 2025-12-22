@@ -35,7 +35,7 @@ with app.setup:
         o.CellNotification,
         o.FunctionCallResultNotification,
         o.RemoveUIElementsNotification,
-        o.SendUIElementMessageNotification,
+        o.UIElementMessageNotification,
         o.InterruptedNotification,
         o.CompletedRunNotification,
         o.KernelReadyNotification,

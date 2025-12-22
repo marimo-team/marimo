@@ -7,8 +7,8 @@ from marimo._ast.toplevel import HINT_UNPARSABLE, TopLevelStatus
 from marimo._messaging.notification import (
     CellNotification,
     InstallingPackageAlertNotification,
-    SendUIElementMessageNotification,
     StartupLogsNotification,
+    UIElementMessageNotification,
     VariableValue,
 )
 from marimo._messaging.notification_utils import (
@@ -116,7 +116,7 @@ def test_send_ui_element_message_broadcast() -> None:
     """Test SendUIElementMessage broadcasting and serialization."""
     stream = MockStream()
 
-    msg = SendUIElementMessageNotification(
+    msg = UIElementMessageNotification(
         ui_element="test_element",
         model_id=None,
         message={"action": "update", "value": 42},

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -164,7 +166,7 @@ def test_comm_flush(comm: MarimoComm):
     )
 
     with patch(
-        "marimo._messaging.notification.SendUIElementMessageNotification"
+        "marimo._messaging.notification.UIElementMessageNotification"
     ) as MockSendUIElementMessage:
         comm.flush()
         MockSendUIElementMessage.assert_called_once()

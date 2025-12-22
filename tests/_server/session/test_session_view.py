@@ -19,11 +19,11 @@ from marimo._messaging.notification import (
     DatasetsNotification,
     DataSourceConnectionsNotification,
     InstallingPackageAlertNotification,
-    SendUIElementMessageNotification,
     SQLMetadata,
     SQLTableListPreviewNotification,
     SQLTablePreviewNotification,
     StartupLogsNotification,
+    UIElementMessageNotification,
     UpdateCellCodesNotification,
     UpdateCellIdsNotification,
     VariableDeclarationNotification,
@@ -188,7 +188,7 @@ def test_model_message_values(session_view: SessionView) -> None:
     model_id2 = WidgetModelId("test_model2")
 
     session_view.add_notification(
-        SendUIElementMessageNotification(
+        UIElementMessageNotification(
             model_id=model_id,
             message={"key": "value"},
             ui_element=None,
@@ -199,7 +199,7 @@ def test_model_message_values(session_view: SessionView) -> None:
 
     # Can add to existing model
     session_view.add_notification(
-        SendUIElementMessageNotification(
+        UIElementMessageNotification(
             model_id=model_id,
             message={"key": "new_value"},
             ui_element=None,
@@ -212,7 +212,7 @@ def test_model_message_values(session_view: SessionView) -> None:
 
     # Can add multiple models
     session_view.add_notification(
-        SendUIElementMessageNotification(
+        UIElementMessageNotification(
             model_id=model_id2,
             message={"key2": "value2"},
             ui_element=None,

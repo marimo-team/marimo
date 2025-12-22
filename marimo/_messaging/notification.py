@@ -147,7 +147,7 @@ class RemoveUIElementsNotification(Notification, tag="remove-ui-elements"):
     cell_id: CellId_t
 
 
-class SendUIElementMessageNotification(
+class UIElementMessageNotification(
     Notification, tag="send-ui-element-message"
 ):
     """Send a message to a UI element."""
@@ -510,7 +510,7 @@ NotificationMessage = Union[
     # Cell notifications
     CellNotification,
     FunctionCallResultNotification,
-    SendUIElementMessageNotification,
+    UIElementMessageNotification,
     RemoveUIElementsNotification,
     # Notebook operations
     ReloadNotification,

@@ -219,7 +219,7 @@ class MarimoComm:
 
     def flush(self) -> None:
         from marimo._messaging.notification import (
-            SendUIElementMessageNotification,
+            UIElementMessageNotification,
         )
         from marimo._messaging.notification_utils import broadcast_notification
 
@@ -227,7 +227,7 @@ class MarimoComm:
             item = self._publish_message_buffer.pop(0)
 
             broadcast_notification(
-                SendUIElementMessageNotification(
+                UIElementMessageNotification(
                     # ui_element_id can be None. In this case, we are creating a model
                     # not tied to a specific UI element
                     ui_element=self.ui_element_id,

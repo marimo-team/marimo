@@ -1255,7 +1255,7 @@ components:
       - keys
       title: SecretKeysWithProvider
       type: object
-    SendUIElementMessageNotification:
+    UIElementMessageNotification:
       description: Send a message to a UI element.
       properties:
         buffers:
@@ -1284,7 +1284,7 @@ components:
       - ui_element
       - model_id
       - message
-      title: SendUIElementMessageNotification
+      title: UIElementMessageNotification
       type: object
     SetupRootError:
       properties:

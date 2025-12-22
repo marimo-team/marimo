@@ -105,7 +105,7 @@ def _generate_server_api_schema() -> dict[str, Any]:
         notification.CellNotification,
         notification.HumanReadableStatus,
         notification.FunctionCallResultNotification,
-        notification.SendUIElementMessageNotification,
+        notification.UIElementMessageNotification,
         notification.RemoveUIElementsNotification,
         notification.InterruptedNotification,
         notification.CompletedRunNotification,

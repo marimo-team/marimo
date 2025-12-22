@@ -14,10 +14,10 @@ from marimo._messaging.notification import (
     InstallingPackageAlertNotification,
     InterruptedNotification,
     NotificationMessage,
-    SendUIElementMessageNotification,
     SQLTableListPreviewNotification,
     SQLTablePreviewNotification,
     StartupLogsNotification,
+    UIElementMessageNotification,
     UpdateCellCodesNotification,
     UpdateCellIdsNotification,
     VariablesNotification,
@@ -106,7 +106,7 @@ class SessionView:
         self.stale_code: Optional[UpdateCellCodesNotification] = None
         # Model messages
         self.model_messages: dict[
-            WidgetModelId, list[SendUIElementMessageNotification]
+            WidgetModelId, list[UIElementMessageNotification]
         ] = {}
 
         # Startup logs for startup command - only one at a time
@@ -293,7 +293,7 @@ class SessionView:
         ):
             self.stale_code = notification
 
-        elif isinstance(notification, SendUIElementMessageNotification):
+        elif isinstance(notification, UIElementMessageNotification):
             if notification.model_id is None:
                 return
             messages = self.model_messages.get(notification.model_id, [])

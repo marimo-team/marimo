@@ -1993,7 +1993,7 @@ components:
           anyOf:
           - $ref: '#/components/schemas/CellNotification'
           - $ref: '#/components/schemas/FunctionCallResultNotification'
-          - $ref: '#/components/schemas/SendUIElementMessageNotification'
+          - $ref: '#/components/schemas/UIElementMessageNotification'
           - $ref: '#/components/schemas/RemoveUIElementsNotification'
           - $ref: '#/components/schemas/ReloadNotification'
           - $ref: '#/components/schemas/ReconnectedNotification'
@@ -2050,7 +2050,7 @@ components:
               reload: '#/components/schemas/ReloadNotification'
               remove-ui-elements: '#/components/schemas/RemoveUIElementsNotification'
               secret-keys-result: '#/components/schemas/SecretKeysResultNotification'
-              send-ui-element-message: '#/components/schemas/SendUIElementMessageNotification'
+              send-ui-element-message: '#/components/schemas/UIElementMessageNotification'
               sql-table-list-preview: '#/components/schemas/SQLTableListPreviewNotification'
               sql-table-preview: '#/components/schemas/SQLTablePreviewNotification'
               startup-logs: '#/components/schemas/StartupLogsNotification'
@@ -3145,7 +3145,7 @@ components:
       - keys
       title: SecretKeysWithProvider
       type: object
-    SendUIElementMessageNotification:
+    UIElementMessageNotification:
       description: Send a message to a UI element.
       properties:
         buffers:
@@ -3174,7 +3174,7 @@ components:
       - ui_element
       - model_id
       - message
-      title: SendUIElementMessageNotification
+      title: UIElementMessageNotification
       type: object
     ServerConfig:
       description: "Configuration for the server.\n\n    **Keys.**\n\n    - `browser`:\
