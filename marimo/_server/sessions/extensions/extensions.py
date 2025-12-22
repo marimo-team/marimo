@@ -8,47 +8,39 @@ Extensions provide a way to add cross-cutting concerns to sessions
 from __future__ import annotations
 
 import asyncio
-from typing import TYPE_CHECKING, Optional, Protocol
+from typing import TYPE_CHECKING, Optional
 
 from marimo import _loggers
 from marimo._cli.print import red
+from marimo._messaging.types import KernelMessage
 from marimo._server.session.serialize import (
     SessionCacheKey,
     SessionCacheManager,
 )
-from marimo._server.sessions.events import (
-    SessionEventBus,
-    SessionEventListener,
+from marimo._server.sessions.events import SessionEventListener
+from marimo._server.sessions.extensions.types import SessionExtension
+from marimo._server.sessions.types import (
+    KernelManager,
+    KernelState,
+    QueueManager,
 )
-from marimo._server.sessions.types import KernelState
 from marimo._server.utils import print_, print_tabbed
-from marimo._types.ids import SessionId
+from marimo._utils.distributor import (
+    ConnectionDistributor,
+    Distributor,
+    QueueDistributor,
+)
 
 if TYPE_CHECKING:
+    from logging import Logger
+
+    from marimo._server.sessions.events import (
+        SessionEventBus,
+    )
     from marimo._server.sessions.types import Session
+    from marimo._types.ids import SessionId
 
 LOGGER = _loggers.marimo_logger()
-
-
-class SessionExtension(Protocol):
-    """Base class for session extensions.
-
-    Extensions can hook into session lifecycle events and add
-    functionality without modifying the core Session class.
-    """
-
-    def on_attach(self, session: Session, event_bus: SessionEventBus) -> None:
-        """Called when extension is attached to a session.
-
-        Args:
-            session: The session this extension is attached to
-            event_bus: Event bus for subscribing to session events
-        """
-        ...
-
-    def on_detach(self) -> None:
-        """Called when extension is detached from session (cleanup)."""
-        ...
 
 
 class HeartbeatExtension(SessionExtension):
@@ -128,6 +120,7 @@ class CachingExtension(SessionExtension, SessionEventListener):
         self.interval = interval
         self.enabled = enabled
         self.session_cache_manager: Optional[SessionCacheManager] = None
+        self.event_bus: Optional[SessionEventBus] = None
 
     def on_attach(self, session: Session, event_bus: SessionEventBus) -> None:
         """Initialize cache manager when attached to session."""
@@ -136,6 +129,7 @@ class CachingExtension(SessionExtension, SessionEventListener):
 
         # Subscribe to events (like rename)
         event_bus.subscribe(self)
+        self.event_bus = event_bus
 
         from marimo._version import __version__
 
@@ -165,14 +159,18 @@ class CachingExtension(SessionExtension, SessionEventListener):
     def on_detach(self) -> None:
         """Stop cache manager when detached."""
         self._stop()
+        if self.event_bus:
+            self.event_bus.unsubscribe(self)
+            self.event_bus = None
 
     async def on_session_notebook_renamed(
-        self, session: Session, new_path: str
+        self, session: Session, old_path: str | None
     ) -> None:
         """Rename the path for the cache manager."""
-        del session
-        if self.session_cache_manager:
-            self.session_cache_manager.rename_path(new_path)
+        del old_path
+        path = session.app_file_manager.path
+        if self.session_cache_manager and path:
+            self.session_cache_manager.rename_path(path)
         return None
 
     def _stop(self) -> None:
@@ -182,19 +180,65 @@ class CachingExtension(SessionExtension, SessionEventListener):
             self.session_cache_manager = None
 
 
+class NotificationListenerExtension(SessionExtension):
+    """Extension for listening to notifications from the kernel and forwarding them to the session."""
+
+    def __init__(
+        self, kernel_manager: KernelManager, queue_manager: QueueManager
+    ) -> None:
+        self.kernel_manager = kernel_manager
+        self.queue_manager = queue_manager
+        self.distributor: Optional[Distributor[KernelMessage]] = None
+
+    def _create_distributor(
+        self,
+        kernel_manager: KernelManager,
+        queue_manager: QueueManager,
+    ) -> Distributor[KernelMessage]:
+        from marimo._server.model import SessionMode
+
+        if kernel_manager.mode == SessionMode.EDIT:
+            return ConnectionDistributor(kernel_manager.kernel_connection)
+        else:
+            q = queue_manager.stream_queue
+            assert q is not None
+            return QueueDistributor(queue=q)
+
+    def on_attach(self, session: Session, event_bus: SessionEventBus) -> None:
+        del event_bus
+        self.distributor = self._create_distributor(
+            kernel_manager=self.kernel_manager,
+            queue_manager=self.queue_manager,
+        )
+        self.distributor.add_consumer(
+            lambda msg: session.notify(msg, from_consumer_id=None)
+        )
+        self.distributor.start()
+
+    def on_detach(self) -> None:
+        if self.distributor is not None:
+            self.distributor.stop()
+            self.distributor = None
+
+
 class LoggingExtension(SessionExtension, SessionEventListener):
     """Extension for logging session events."""
 
-    def __init__(self) -> None:
-        self.logger = LOGGER
+    def __init__(self, logger: Logger = LOGGER) -> None:
+        self.logger = logger
+        self.event_bus: Optional[SessionEventBus] = None
 
     def on_attach(self, session: Session, event_bus: SessionEventBus) -> None:
         del session
         self.logger.debug("Attaching extensions")
         event_bus.subscribe(self)
+        self.event_bus = event_bus
 
     def on_detach(self) -> None:
         self.logger.debug("Detaching extensions")
+        if self.event_bus:
+            self.event_bus.unsubscribe(self)
+            self.event_bus = None
 
     async def on_session_created(self, session: Session) -> None:
         self.logger.debug("Session created: %s", session.initialization_id)
@@ -212,10 +256,10 @@ class LoggingExtension(SessionExtension, SessionEventListener):
         )
 
     async def on_session_notebook_renamed(
-        self, session: Session, new_path: str
+        self, session: Session, old_path: str | None
     ) -> None:
         self.logger.debug(
             "Session file renamed: %s (new path: %s)",
             session.initialization_id,
-            new_path,
+            old_path,
         )

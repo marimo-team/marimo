@@ -7,7 +7,7 @@ from typing import Any
 from marimo._config.config import Theme
 from marimo._messaging.cell_output import CellChannel
 from marimo._messaging.mimetypes import KnownMimeType
-from marimo._messaging.ops import CellOp
+from marimo._messaging.notification_utils import CellNotificationUtils
 from marimo._output.formatters.formatter_factory import FormatterFactory
 from marimo._output.hypertext import Html
 from marimo._plugins.core.web_component import build_stateless_plugin
@@ -58,7 +58,7 @@ class PlotlyFormatter(FormatterFactory):
                 # Extract config if provided
                 config = kwargs.get("config")
                 mimetype, data = _show_plotly_figure(self, config=config)
-                CellOp.broadcast_console_output(
+                CellNotificationUtils.broadcast_console_output(
                     channel=CellChannel.MEDIA,
                     mimetype=mimetype,
                     data=data,

@@ -6,6 +6,7 @@ import threading
 from typing import Any
 
 from marimo._messaging.cell_output import CellOutput
+from marimo._messaging.notification_utils import broadcast_op
 from marimo._messaging.ops import CellOp
 from marimo._runtime.context.types import (
     ContextNotInitializedError,
@@ -50,7 +51,10 @@ def print_override(*args: Any, **kwargs: Any) -> None:
     end = kwargs.get("end", "\n")
     msg = sep.join([str(arg) for arg in args]) + end
 
-    CellOp(
-        cell_id=cell_id,
-        console=CellOutput.stdout(msg),
-    ).broadcast(ctx.stream)
+    broadcast_op(
+        CellOp(
+            cell_id=cell_id,
+            console=CellOutput.stdout(msg),
+        ),
+        ctx.stream,
+    )

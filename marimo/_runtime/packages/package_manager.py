@@ -10,6 +10,7 @@ import msgspec
 
 from marimo import _loggers
 from marimo._dependencies.dependencies import DependencyManager
+from marimo._messaging.notification_utils import broadcast_op
 from marimo._messaging.ops import Alert
 from marimo._runtime.packages.utils import append_version
 
@@ -220,11 +221,13 @@ class PackageManager(abc.ABC):
 
     def alert_not_installed(self) -> None:
         """Alert the user that the package manager is not installed."""
-        Alert(
-            title="Package manager not installed",
-            description=(f"{self.name} is not available on your machine."),
-            variant="danger",
-        ).broadcast()
+        broadcast_op(
+            Alert(
+                title="Package manager not installed",
+                description=(f"{self.name} is not available on your machine."),
+                variant="danger",
+            ),
+        )
 
 
 class CanonicalizingPackageManager(PackageManager):

@@ -15,7 +15,6 @@ from marimo._config.manager import MarimoConfigManager
 from marimo._messaging.ops import Reload, UpdateCellCodes, UpdateCellIdsRequest
 from marimo._runtime.requests import DeleteCellRequest, SyncGraphRequest
 from marimo._server.model import SessionMode
-from marimo._server.sessions.session import Session
 from marimo._types.ids import CellId_t
 from marimo._utils import async_path
 
@@ -23,6 +22,8 @@ LOGGER = _loggers.marimo_logger()
 
 if TYPE_CHECKING:
     from pathlib import Path
+
+    from marimo._server.sessions.types import Session
 
 
 @dataclass
@@ -74,7 +75,7 @@ class EditModeReloadStrategy(ReloadStrategy):
         )
 
         # Send the updated cell IDs to the frontend
-        session.write_operation(
+        session.notify(
             UpdateCellIdsRequest(cell_ids=cell_ids),
             from_consumer_id=None,
         )
@@ -111,7 +112,7 @@ class EditModeReloadStrategy(ReloadStrategy):
                     from_consumer_id=None,
                 )
             if cell_ids:
-                session.write_operation(
+                session.notify(
                     UpdateCellCodes(
                         cell_ids=cell_ids,
                         codes=codes,
@@ -132,7 +133,7 @@ class RunModeReloadStrategy:
     ) -> None:
         """Handle reload in run mode by sending Reload operation."""
         del changed_cell_ids
-        session.write_operation(Reload(), from_consumer_id=None)
+        session.notify(Reload(), from_consumer_id=None)
 
 
 class FileChangeCoordinator:
@@ -221,7 +222,6 @@ class FileChangeCoordinator:
         self._reload_strategy.handle_reload(
             session, changed_cell_ids=changed_cell_ids
         )
-
         return FileChangeResult(
             handled=True, changed_cell_ids=changed_cell_ids
         )

@@ -96,7 +96,7 @@ async def sync_cell_ids(request: Request) -> BaseResponse:
     app_state = AppState(request)
     body = await parse_request(request, cls=UpdateCellIdsRequest)
     session_id = app_state.require_current_session_id()
-    app_state.require_current_session().write_operation(
+    app_state.require_current_session().notify(
         body, from_consumer_id=ConsumerId(session_id)
     )
     return SuccessResponse()

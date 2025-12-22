@@ -16,6 +16,7 @@ import jedi.api  # type: ignore # noqa: F401
 from marimo import _loggers as loggers
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.completion_option import CompletionOption
+from marimo._messaging.notification_utils import broadcast_op
 from marimo._messaging.ops import CompletionResult
 from marimo._messaging.types import Stream
 from marimo._output.md import _md
@@ -298,11 +299,14 @@ def _write_completion_result(
     prefix_length: int,
     options: list[CompletionOption],
 ) -> None:
-    CompletionResult(
-        completion_id=completion_id,
-        prefix_length=prefix_length,
-        options=options,
-    ).broadcast(stream=stream)
+    broadcast_op(
+        CompletionResult(
+            completion_id=completion_id,
+            prefix_length=prefix_length,
+            options=options,
+        ),
+        stream,
+    )
 
 
 def _write_no_completions(stream: Stream, completion_id: str) -> None:

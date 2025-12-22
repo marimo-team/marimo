@@ -1,6 +1,12 @@
 # Schemas
 
-This directory contains the schemas for the notebook and session.
+This directory contains the schemas for the notebook, session, and kernel messages.
+
+## Available Schemas
+
+- **notebook.py**: Schema for the notebook file format
+- **session.py**: Schema for the notebook session (outputs, console, etc.)
+- **notifications** (from `marimo/_messaging/ops.py`): Schema for kernel notifications sent to the client
 
 ## How to update the schemas
 

@@ -5,6 +5,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Optional
 
+from marimo._messaging.serde import serialize_kernel_message
 from marimo._server.model import ConnectionState
 from marimo._types.ids import ConsumerId
 
@@ -19,7 +20,8 @@ def send_message_to_consumer(
     consumer_id: Optional[ConsumerId],
 ) -> None:
     """Send a message operation to a specific consumer in a session."""
+    notification = serialize_kernel_message(operation)
     if session.connection_state() == ConnectionState.OPEN:
         for consumer, c_id in session.consumers.items():
             if c_id == consumer_id:
-                consumer.write_operation(operation)
+                consumer.notify(notification)

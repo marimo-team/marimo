@@ -19,7 +19,10 @@ from marimo._runtime.requests import (
     SetUIElementValueRequest,
 )
 from marimo._server.api.deps import AppState
-from marimo._server.api.endpoints.ws import DOC_MANAGER, FILE_QUERY_PARAM_KEY
+from marimo._server.api.endpoints.ws.ws_connection_validator import (
+    FILE_QUERY_PARAM_KEY,
+)
+from marimo._server.api.endpoints.ws_endpoint import DOC_MANAGER
 from marimo._server.api.utils import dispatch_control_request, parse_request
 from marimo._server.file_router import MarimoFileKey
 from marimo._server.models.models import (
@@ -367,7 +370,7 @@ async def takeover_endpoint(
     )
     if existing_session is not None:
         # Send a disconnect message to the client
-        existing_session.write_operation(
+        existing_session.notify(
             Alert(
                 title="Session taken over",
                 description="Another user has taken over this session.",
