@@ -23,8 +23,8 @@ from marimo._messaging.ops import (
     Variables,
     VariableValue,
     VariableValues,
-    deserialize_kernel_message,
 )
+from marimo._messaging.serde import deserialize_kernel_message
 from marimo._messaging.types import KernelMessage
 from marimo._runtime.requests import (
     ControlRequest,

@@ -5,7 +5,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Optional
 
-from marimo._messaging.ops import serialize_kernel_message
+from marimo._messaging.serde import serialize_kernel_message
 from marimo._server.model import ConnectionState
 from marimo._types.ids import ConsumerId
 

@@ -10,6 +10,7 @@ from typing import (
 )
 
 from marimo._messaging.mimetypes import KnownMimeType
+from marimo._messaging.notification_utils import broadcast_op
 from marimo._messaging.ops import (
     QueryParamsAppend,
     QueryParamsClear,
@@ -104,12 +105,12 @@ class QueryParams(State[SerializedQueryParams]):
             return
         # We always overwrite the value
         self._params[key] = value
-        QueryParamsSet(key, value).broadcast(self._stream)
+        broadcast_op(QueryParamsSet(key, value), self._stream)
         self._set_value(self._params)
 
     def __delitem__(self, key: str) -> None:
         del self._params[key]
-        QueryParamsDelete(key, None).broadcast(self._stream)
+        broadcast_op(QueryParamsDelete(key, None), self._stream)
         self._set_value(self._params)
 
     def set(self, key: str, value: Union[str, list[str]]) -> None:
@@ -125,7 +126,7 @@ class QueryParams(State[SerializedQueryParams]):
         """
         if key not in self._params:
             self._params[key] = value
-            QueryParamsAppend(key, value).broadcast(self._stream)
+            broadcast_op(QueryParamsAppend(key, value), self._stream)
             self._set_value(self._params)
             return
 
@@ -135,7 +136,7 @@ class QueryParams(State[SerializedQueryParams]):
         else:
             self._params[key] = [current_value, value]
 
-        QueryParamsAppend(key, value).broadcast(self._stream)
+        broadcast_op(QueryParamsAppend(key, value), self._stream)
         self._set_value(self._params)
 
     def remove(self, key: str, value: Optional[str] = None) -> None:
@@ -150,7 +151,7 @@ class QueryParams(State[SerializedQueryParams]):
         # If value is None, remove the key
         if value is None:
             del self._params[key]
-            QueryParamsDelete(key, value).broadcast(self._stream)
+            broadcast_op(QueryParamsDelete(key, value), self._stream)
             self._set_value(self._params)
             return
 
@@ -160,7 +161,7 @@ class QueryParams(State[SerializedQueryParams]):
         elif current_value == value:
             del self._params[key]
 
-        QueryParamsDelete(key, value).broadcast(self._stream)
+        broadcast_op(QueryParamsDelete(key, value), self._stream)
         self._set_value(self._params)
 
     def _mime_(self) -> tuple[KnownMimeType, str]:
@@ -171,7 +172,7 @@ class QueryParams(State[SerializedQueryParams]):
     def clear(self) -> None:
         """Clear all query params."""
         self._params.clear()
-        QueryParamsClear().broadcast(self._stream)
+        broadcast_op(QueryParamsClear(), self._stream)
         self._set_value(self._params)
 
     def to_dict(self) -> dict[str, Union[str, list[str]]]:
