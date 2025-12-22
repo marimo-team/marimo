@@ -17,6 +17,7 @@ jobs:
       openapi: ${{ steps.filter.outputs.openapi }}
       session: ${{ steps.filter.outputs.session }}
       notebook: ${{ steps.filter.outputs.notebook }}
+      notifications: ${{ steps.filter.outputs.notifications }}
     steps:
       - uses: actions/checkout@v4
       - uses: dorny/paths-filter@v3
@@ -29,6 +30,8 @@ jobs:
               - 'marimo/_schemas/generated/session.yaml'
             notebook:
               - 'marimo/_schemas/generated/notebook.yaml'
+            notifications:
+              - 'marimo/_schemas/generated/notifications.yaml'
 
   check-schemas:
     needs: changes
@@ -48,6 +51,10 @@ jobs:
             path: marimo/_schemas/generated/notebook.yaml
             display_name: Notebook Schema
             condition: ${{ needs.changes.outputs.notebook == 'true' }}
+          - name: notifications
+            path: marimo/_schemas/generated/notifications.yaml
+            display_name: Notifications Schema
+            condition: ${{ needs.changes.outputs.notifications == 'true' }}
     steps:
       - name: Checkout current branch
         if: ${{ matrix.schema.condition }}
