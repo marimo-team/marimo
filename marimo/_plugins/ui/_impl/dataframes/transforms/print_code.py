@@ -221,11 +221,7 @@ def python_print_pandas(
         column_ids = transform.column_ids
         index_column_ids = transform.index_column_ids
         value_column_ids = transform.value_column_ids
-        agg_func = (
-            "count"
-            if transform.aggregation == "len"
-            else transform.aggregation
-        )
+        agg_func = transform.aggregation
 
         args = _args_list(
             f"index={_list_of_strings(index_column_ids)}",
@@ -415,13 +411,20 @@ def python_print_polars(
             f"values={_list_of_strings(transform.value_column_ids)}",
             f"aggregate_function={_as_literal(transform.aggregation)}",
         )
-        fill_null_code = ".select(pl.all().fill_null(0))" if transform.aggregation in ["len", "sum"] else ""  # noqa: E501
+        fill_null_code = (
+            ".select(pl.all().fill_null(0))"
+            if transform.aggregation in ["len", "sum"]
+            else ""
+        )  # noqa: E501
         pivot_code = f"{df_name}{fill_null_code}.pivot({args}).sort({_list_of_strings(transform.index_column_ids)})"  # noqa: E501
         lambda_code = (
-            f"lambda col: f'{transform.value_column_ids[0]}_{{col.translate(replacements)}}_{transform.aggregation}'"  # noqa: E501
-            if len(transform.value_column_ids) == 1
-            else f"lambda col: f'{{col.translate(replacements)}}_{transform.aggregation}'"
-        ) + f" if col not in {_list_of_strings(transform.index_column_ids)} else col"
+            (
+                f"lambda col: f'{transform.value_column_ids[0]}_{{col.translate(replacements)}}_{transform.aggregation}'"  # noqa: E501
+                if len(transform.value_column_ids) == 1
+                else f"lambda col: f'{{col.translate(replacements)}}_{transform.aggregation}'"
+            )
+            + f" if col not in {_list_of_strings(transform.index_column_ids)} else col"
+        )
         rename_code = (
             'replacements = str.maketrans({"{": "", "}": "", \'"\': "", ",": "_"})\n'
             f"{df_name} = {df_name}.rename({lambda_code})"
@@ -562,29 +565,18 @@ def python_print_ibis(
         column_ids = transform.column_ids
         index_column_ids = transform.index_column_ids
         value_column_ids = transform.value_column_ids
-        agg_func = (
-            "count"
-            if transform.aggregation == "len"
-            else transform.aggregation
-        )
+        agg_func = transform.aggregation
         pivot_code = (
             f"{df_name}.pivot_wider("
             f"names_from={_list_of_strings(column_ids)}, "
             f"id_cols={_list_of_strings(index_column_ids)}, "
             f"values_from={_list_of_strings(value_column_ids)}, "
-            f"values_agg={_as_literal(agg_func)})"
+            f"names_prefix={_as_literal(value_column_ids[0]) if len(value_column_ids) == 1 else _as_literal('')}, "
+            f"values_agg={agg_func})"
         )
 
-        replacements_code = 'replacements = str.maketrans({"{": "", "}": "", \'"\': "", ",": "_"})'
-
-        rename_code = (
-            f"{df_name} = {df_name}.rename({{col: f'{transform.value_column_ids[0]}_{{col.translate(replacements)}}_{agg_func}' "
-            f"for col in {df_name}.columns if col not in {_list_of_strings(index_column_ids)}}})"
-            if len(transform.value_column_ids) == 1
-            else f"{df_name} = {df_name}.rename({{col: f'{{col.translate(replacements)}}_{agg_func}' "
-            f"for col in {df_name}.columns if col not in {_list_of_strings(index_column_ids)}}})"
-        )
-        return f"{pivot_code}\n{replacements_code}\n{rename_code}"
+        rename_code = f"df_name = {df_name}.rename(**{f'{{col}}_{agg_func}': col for col in {df_name}.columns if col not in {_list_of_strings(index_column_ids)}})"  # noqa: E501
+        return f"{pivot_code}\n{rename_code}"
 
     assert_never(transform.type)
 
