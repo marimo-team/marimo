@@ -8,6 +8,8 @@ from marimo._config.config import merge_config
 from marimo._messaging.ops import (
     KernelCapabilities,
     KernelReady,
+)
+from marimo._messaging.serde import (
     deserialize_kernel_message,
     serialize_kernel_message,
 )

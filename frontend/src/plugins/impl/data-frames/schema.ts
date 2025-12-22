@@ -110,7 +110,7 @@ const GroupByTransformSchema = z
     column_ids: z
       .array(column_id.describe(FieldOptions.of({ special: "column_id" })))
       .default([])
-      .describe(FieldOptions.of({ label: "Group by columns", minLength: 1})),
+      .describe(FieldOptions.of({ label: "Group by columns", minLength: 1 })),
     aggregation_column_ids: z
       .array(column_id.describe(FieldOptions.of({ special: "column_id" })))
       .default([])
@@ -196,14 +196,14 @@ const UniqueTransformSchema = z
   })
   .describe(FieldOptions.of({ direction: "row" }));
 
-  const PivotTransformSchema = z
+const PivotTransformSchema = z
   .object({
     type: z.literal("pivot"),
     column_ids: column_id_array,
     index_column_ids: z
       .array(column_id.describe(FieldOptions.of({ special: "column_id" })))
       .default([])
-      .describe(FieldOptions.of({ label: "Index on columns", minLength: 1})),
+      .describe(FieldOptions.of({ label: "Index on columns", minLength: 1 })),
     value_column_ids: z
       .array(column_id.describe(FieldOptions.of({ special: "column_id" })))
       .default([])

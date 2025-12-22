@@ -122,7 +122,7 @@ class ThreadSafeStream(Stream):
             try:
                 self.pipe.send(data)
             except OSError as e:
-                from marimo._messaging.ops import (
+                from marimo._messaging.serde import (
                     deserialize_kernel_operation_name,
                 )
 

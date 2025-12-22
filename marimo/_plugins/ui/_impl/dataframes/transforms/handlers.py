@@ -386,6 +386,7 @@ class NarwhalsTransformHandler(TransformHandler[DataFrame]):
             .rows()
         )
 
+
         dfs = []
         for raw_pivot_column in raw_pivot_columns:
             aggs = []
@@ -401,6 +402,7 @@ class NarwhalsTransformHandler(TransformHandler[DataFrame]):
             for value_column in transform.value_column_ids:
                 expr = nw.col(value_column).alias(
                     f"{value_column}_{'_'.join(map(str, raw_pivot_column))}_{transform.aggregation}"
+
                 )
                 if transform.aggregation == "count":
                     aggs.append(expr.len())
@@ -420,6 +422,7 @@ class NarwhalsTransformHandler(TransformHandler[DataFrame]):
                     )
             dfs.append(
                 df.filter(mask)
+
                 .group_by(*transform.index_column_ids)
                 .agg(*aggs)
             )

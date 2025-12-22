@@ -1,9 +1,9 @@
 /* Copyright 2024 Marimo. All rights reserved. */
+
 import { logNever } from "@/utils/assertNever";
 import { Maps } from "@/utils/maps";
 import type { TransformType } from "../schema";
 import type { ColumnDataTypes, ColumnId } from "../types";
-import { get } from "node:http";
 
 /**
  * Given a list of transforms, return the updated column names/types.
@@ -27,9 +27,8 @@ export function getUpdatedColumnTypes(
 
 function cartesianProduct<T>(arrays: T[][]): T[][] {
   return arrays.reduce<T[][]>(
-    (acc, curr) =>
-      acc.flatMap(a => curr.map(c => [...a, c])),
-    [[]]
+    (acc, curr) => acc.flatMap((a) => curr.map((c) => [...a, c])),
+    [[]],
   );
 }
 
@@ -80,7 +79,7 @@ function handleTransform(
 
       return updated;
     }
-    case "pivot":{
+    case "pivot": {
       const updated = new Map<ColumnId, string>();
 
       for (const [columnId, type] of next.entries()) {
@@ -92,12 +91,19 @@ function handleTransform(
       const uniqueValues = transform.column_ids.map((columnId) => {
         const values = uniqueColumnValues[columnId.toString()] || [];
         return values;
-      })
+      });
 
-      const rawColumns = cartesianProduct([transform.value_column_ids, ...uniqueValues]);
+      const rawColumns = cartesianProduct([
+        transform.value_column_ids,
+        ...uniqueValues,
+      ]);
       for (const rawColumn of rawColumns) {
         const newColumn = `${(rawColumn as string[]).join("_")}_${transform.aggregation}`;
-        const type = transform.aggregation === "count" ? "int64" : next.get(rawColumn[0] as ColumnId);
+
+        const type =
+          transform.aggregation === "count"
+            ? "int64"
+            : next.get(rawColumn[0] as ColumnId);
         updated.set(newColumn as ColumnId, type as string);
       }
 

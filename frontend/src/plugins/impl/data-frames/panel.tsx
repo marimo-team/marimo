@@ -158,7 +158,9 @@ export const TransformPanel: React.FC<Props> = ({
     return getUnionLiteral(option).value === selectedTransformType;
   });
 
-  const [columnValueCache, setColumnValueCache] = useState<Record<string, unknown[]>>({});
+  const [columnValueCache, setColumnValueCache] = useState<
+    Record<string, unknown[]>
+  >({});
 
   // Get all column names from the original columns prop
   const allColumnNames = useMemo(() => {
@@ -182,7 +184,7 @@ export const TransformPanel: React.FC<Props> = ({
 
       // Fetch all columns in parallel
       const results = await Promise.allSettled(
-        columnsToFetch.map((col) => getColumnValues({ column: col }))
+        columnsToFetch.map((col) => getColumnValues({ column: col })),
       );
 
       // Check if effect was cancelled during async operation
@@ -219,7 +221,11 @@ export const TransformPanel: React.FC<Props> = ({
 
   const effectiveColumns = useMemo(() => {
     const transformsBeforeSelected = transforms.slice(0, selectedTransform);
-    return getUpdatedColumnTypes(transformsBeforeSelected, columns, columnValueCache);
+    return getUpdatedColumnTypes(
+      transformsBeforeSelected,
+      columns,
+      columnValueCache,
+    );
   }, [columns, transforms, selectedTransform]);
 
   const handleAddTransform = (transform: z.ZodType) => {

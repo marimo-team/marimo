@@ -7,29 +7,41 @@ export type paths = Record<string, never>;
 export type webhooks = Record<string, never>;
 export interface components {
   schemas: {
+    /**
+     * NotebookCell
+     * @description Code cell specific structure
+     */
     NotebookCell: {
       code: string | null;
       code_hash: string | null;
-      config: {
-        column?: number | null;
-        disabled?: boolean | null;
-        hide_code?: boolean | null;
-      };
+      config: components["schemas"]["NotebookCellConfig"];
       id: string | null;
       name: string | null;
     };
+    /**
+     * NotebookCellConfig
+     * @description Configuration for a notebook cell
+     */
     NotebookCellConfig: {
       column?: number | null;
       disabled?: boolean | null;
       hide_code?: boolean | null;
     };
+    /**
+     * NotebookMetadata
+     * @description Metadata about the notebook
+     */
     NotebookMetadata: {
       marimo_version?: string | null;
     };
+    /**
+     * NotebookV1
+     * @description Main notebook structure
+     */
     NotebookV1: {
       cells: components["schemas"]["NotebookCell"][];
       metadata: components["schemas"]["NotebookMetadata"];
-      /** @enum {string} */
+      /** @enum {unknown} */
       version: "1";
     };
   };
