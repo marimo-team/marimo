@@ -429,12 +429,23 @@ def test_print_code_result_matches_actual_transform_pandas(
         # For group_by transforms, the row order might differ
         # Sort both dataframes by all columns before comparing
         if transform.type == TransformType.GROUP_BY:
-            code_result = code_result.sort_values(
-                by=list(code_result.columns)
-            ).reset_index(drop=True)
-            real_result = real_result.sort_values(
-                by=list(real_result.columns)
-            ).reset_index(drop=True)
+            # Filter out columns with unhashable types (dicts, lists)
+            sortable_cols = [
+                col
+                for col in code_result.columns
+                if not any(
+                    isinstance(val, (dict, list))
+                    for val in code_result[col]
+                    if val is not None
+                )
+            ]
+            if sortable_cols:
+                code_result = code_result.sort_values(
+                    by=sortable_cols
+                ).reset_index(drop=True)
+                real_result = real_result.sort_values(
+                    by=sortable_cols
+                ).reset_index(drop=True)
 
         pd.testing.assert_frame_equal(code_result, real_result)
 
@@ -571,8 +582,18 @@ def test_print_code_result_matches_actual_transform_polars(
         # For group_by transforms, the row order might differ even with maintain_order=True
         # Sort both dataframes by all columns before comparing
         if transform.type == TransformType.GROUP_BY:
-            code_result = code_result.sort(code_result.columns)
-            real_result = real_result.sort(real_result.columns)
+            # Filter out columns with unhashable types (dicts, lists)
+            import polars.datatypes as pl_dtypes
+
+            sortable_cols = [
+                col
+                for col in code_result.columns
+                if code_result[col].dtype
+                not in (pl_dtypes.List, pl_dtypes.Struct, pl_dtypes.Object)
+            ]
+            if sortable_cols:
+                code_result = code_result.sort(sortable_cols)
+                real_result = real_result.sort(sortable_cols)
 
         pl_testing.assert_frame_equal(code_result, real_result)
 
@@ -736,15 +757,36 @@ class TestCombinedTransforms:
         )
         if has_groupby:
             if isinstance(code_result, pl.DataFrame):
-                code_result = code_result.sort(code_result.columns)
-                result = result.sort(result.columns)
+                import polars.datatypes as pl_dtypes
+
+                # Filter out columns with unhashable types (dicts, lists)
+                sortable_cols = [
+                    col
+                    for col in code_result.columns
+                    if code_result[col].dtype
+                    not in (pl_dtypes.List, pl_dtypes.Struct, pl_dtypes.Object)
+                ]
+                if sortable_cols:
+                    code_result = code_result.sort(sortable_cols)
+                    result = result.sort(sortable_cols)
             elif isinstance(code_result, pd.DataFrame):
-                code_result = code_result.sort_values(
-                    by=list(code_result.columns)
-                ).reset_index(drop=True)
-                result = result.sort_values(
-                    by=list(result.columns)
-                ).reset_index(drop=True)
+                # Filter out columns with unhashable types (dicts, lists)
+                sortable_cols = [
+                    col
+                    for col in code_result.columns
+                    if not any(
+                        isinstance(val, (dict, list))
+                        for val in code_result[col]
+                        if val is not None
+                    )
+                ]
+                if sortable_cols:
+                    code_result = code_result.sort_values(
+                        by=sortable_cols
+                    ).reset_index(drop=True)
+                    result = result.sort_values(by=sortable_cols).reset_index(
+                        drop=True
+                    )
 
         # Test that the result matches the actual result
         testing_func(code_result, result)
