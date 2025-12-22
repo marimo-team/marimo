@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from textwrap import dedent
 
+from marimo import __version__
 from marimo._convert.converters import MarimoConvert
 from tests.mocks import snapshotter
 
@@ -60,3 +61,42 @@ def test_basic_marimo_example_jupytext_compatibility():
     # Test conversion back from markdown to marimo
     converted_back = MarimoConvert.from_md(converted_to_md).to_py()
     snapshot("basic_marimo_example_roundtrip.py.txt", converted_back)
+
+
+def test_unparsable_cell_with_escaped_quotes():
+    """Test an unparsable cell with escaped quotes."""
+    marimo_script = dedent(f'''
+        import marimo
+
+        __generated_with = "{__version__}"
+        app = marimo.App()
+
+        app._unparsable_cell(
+            r"""
+            return
+            """,
+            name="_"
+        )
+
+        app._unparsable_cell(
+            r"""
+            x = "hello \\"world\\""
+            x.
+            """,
+            name="_"
+        )
+
+        if __name__ == "__main__":
+            app.run()
+    ''').strip()
+
+    def identity(x: str) -> str:
+        return MarimoConvert.from_py(x).to_py()
+
+    # This is not equal since `_unparsable_cell` got written in a different way than our codegen
+    assert identity(marimo_script) != marimo_script
+    # But after being written once, it's idempotent
+    assert identity(identity(marimo_script)) == identity(marimo_script)
+    snapshot(
+        "unparsable_cell_with_escaped_quotes.py.txt", identity(marimo_script)
+    )
