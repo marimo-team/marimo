@@ -12,7 +12,7 @@ from uuid import uuid4
 
 from marimo import _loggers
 from marimo._config.manager import MarimoConfigManager, ScriptConfigManager
-from marimo._messaging.ops import (
+from marimo._messaging.notifcation import (
     FocusCell,
     MessageOperation,
     UpdateCellCodes,

@@ -13,7 +13,7 @@ from marimo._data.sql_summaries import (
     get_sql_stats,
 )
 from marimo._dependencies.dependencies import DependencyManager
-from marimo._messaging.ops import ColumnPreview, DataColumnPreview
+from marimo._messaging.notifcation import ColumnPreview, DataColumnPreview
 from marimo._plugins.ui._impl.tables.table_manager import (
     FieldType,
     TableManager,

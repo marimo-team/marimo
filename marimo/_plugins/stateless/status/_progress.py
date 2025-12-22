@@ -16,8 +16,8 @@ from typing import (
 
 import marimo._runtime.output._output as output
 from marimo._messaging.mimetypes import KnownMimeType
+from marimo._messaging.notifcation import Alert
 from marimo._messaging.notification_utils import broadcast_op
-from marimo._messaging.ops import Alert
 from marimo._output.hypertext import Html
 from marimo._output.rich_help import mddoc
 from marimo._plugins.core.web_component import build_stateless_plugin

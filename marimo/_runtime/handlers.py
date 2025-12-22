@@ -6,8 +6,8 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Callable
 
 from marimo import _loggers
+from marimo._messaging.notifcation import Interrupted
 from marimo._messaging.notification_utils import broadcast_op
-from marimo._messaging.ops import Interrupted
 from marimo._runtime.context import get_context
 from marimo._runtime.context.kernel_context import KernelRuntimeContext
 from marimo._runtime.control_flow import MarimoInterrupt

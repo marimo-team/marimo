@@ -14,7 +14,7 @@ from marimo._cli.print import echo
 from marimo._config.manager import get_default_config_manager
 from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._mcp.server.main import setup_mcp_server
-from marimo._messaging.ops import StartupLogs
+from marimo._messaging.notifcation import StartupLogs
 from marimo._runtime.requests import SerializedCLIArgs
 from marimo._server.file_router import AppFileRouter
 from marimo._server.lsp import CompositeLspServer, NoopLspServer

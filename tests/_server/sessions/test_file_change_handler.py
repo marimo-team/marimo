@@ -11,7 +11,11 @@ import pytest
 
 from marimo._ast.cell import CellConfig
 from marimo._config.manager import get_default_config_manager
-from marimo._messaging.ops import Reload, UpdateCellCodes, UpdateCellIdsRequest
+from marimo._messaging.notifcation import (
+    Reload,
+    UpdateCellCodes,
+    UpdateCellIdsRequest,
+)
 from marimo._runtime.requests import DeleteCellRequest, SyncGraphRequest
 from marimo._server.models.models import SaveNotebookRequest
 from marimo._server.notebook import AppFileManager

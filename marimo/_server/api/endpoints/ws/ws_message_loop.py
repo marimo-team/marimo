@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Any, Callable
 from starlette.websockets import WebSocketDisconnect, WebSocketState
 
 from marimo import _loggers
-from marimo._messaging.ops import (
+from marimo._messaging.notifcation import (
     CompletionResult,
     FocusCell,
 )

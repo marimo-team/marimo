@@ -10,7 +10,7 @@ from marimo._server.model import ConnectionState
 from marimo._types.ids import ConsumerId
 
 if TYPE_CHECKING:
-    from marimo._messaging.ops import MessageOperation
+    from marimo._messaging.notifcation import MessageOperation
     from marimo._server.sessions.session import Session
 
 

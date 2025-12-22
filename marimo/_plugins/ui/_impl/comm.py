@@ -218,8 +218,8 @@ class MarimoComm:
         )
 
     def flush(self) -> None:
+        from marimo._messaging.notifcation import SendUIElementMessage
         from marimo._messaging.notification_utils import broadcast_op
-        from marimo._messaging.ops import SendUIElementMessage
 
         while self._publish_message_buffer:
             item = self._publish_message_buffer.pop(0)

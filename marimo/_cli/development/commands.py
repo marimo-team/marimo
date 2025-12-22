@@ -15,7 +15,7 @@ import msgspec.json
 from marimo._cli.print import orange
 from marimo._data.models import DataType
 from marimo._messaging.errors import Error as MarimoError
-from marimo._messaging.ops import MessageOperation
+from marimo._messaging.notifcation import MessageOperation
 from marimo._server.session.serialize import (
     serialize_notebook,
     serialize_session_view,
@@ -32,7 +32,7 @@ def _generate_server_api_schema() -> dict[str, Any]:
     import marimo._config.config as config
     import marimo._data.models as data
     import marimo._messaging.errors as errors
-    import marimo._messaging.ops as ops
+    import marimo._messaging.notifcation as notifcation
     import marimo._runtime.requests as requests
     import marimo._secrets.models as secrets_models
     import marimo._server.models.completion as completion
@@ -102,41 +102,41 @@ def _generate_server_api_schema() -> dict[str, Any]:
         secrets_models.SecretKeysWithProvider,
         secrets.CreateSecretRequest,
         # Operations
-        ops.CellOp,
-        ops.HumanReadableStatus,
-        ops.FunctionCallResult,
-        ops.SendUIElementMessage,
-        ops.RemoveUIElements,
-        ops.Interrupted,
-        ops.CompletedRun,
-        ops.KernelReady,
-        ops.CompletionResult,
-        ops.Alert,
-        ops.MissingPackageAlert,
-        ops.InstallingPackageAlert,
-        ops.Reconnected,
-        ops.Banner,
-        ops.Reload,
-        ops.VariableDeclaration,
-        ops.VariableValue,
-        ops.Variables,
-        ops.VariableValues,
-        ops.Datasets,
-        ops.DataColumnPreview,
-        ops.SQLTablePreview,
-        ops.SQLTableListPreview,
-        ops.DataSourceConnections,
-        ops.SecretKeysResult,
-        ops.CacheCleared,
-        ops.CacheInfoFetched,
-        ops.QueryParamsSet,
-        ops.QueryParamsAppend,
-        ops.QueryParamsDelete,
-        ops.QueryParamsClear,
-        ops.UpdateCellCodes,
-        ops.UpdateCellIdsRequest,
-        ops.FocusCell,
-        ops.MessageOperation,
+        notifcation.CellOp,
+        notifcation.HumanReadableStatus,
+        notifcation.FunctionCallResult,
+        notifcation.SendUIElementMessage,
+        notifcation.RemoveUIElements,
+        notifcation.Interrupted,
+        notifcation.CompletedRun,
+        notifcation.KernelReady,
+        notifcation.CompletionResult,
+        notifcation.Alert,
+        notifcation.MissingPackageAlert,
+        notifcation.InstallingPackageAlert,
+        notifcation.Reconnected,
+        notifcation.Banner,
+        notifcation.Reload,
+        notifcation.VariableDeclaration,
+        notifcation.VariableValue,
+        notifcation.Variables,
+        notifcation.VariableValues,
+        notifcation.Datasets,
+        notifcation.DataColumnPreview,
+        notifcation.SQLTablePreview,
+        notifcation.SQLTableListPreview,
+        notifcation.DataSourceConnections,
+        notifcation.SecretKeysResult,
+        notifcation.CacheCleared,
+        notifcation.CacheInfoFetched,
+        notifcation.QueryParamsSet,
+        notifcation.QueryParamsAppend,
+        notifcation.QueryParamsDelete,
+        notifcation.QueryParamsClear,
+        notifcation.UpdateCellCodes,
+        notifcation.UpdateCellIdsRequest,
+        notifcation.FocusCell,
+        notifcation.MessageOperation,
         # ai
         ChatMessage,
         ToolDefinition,
@@ -266,7 +266,7 @@ def _generate_server_api_schema() -> dict[str, Any]:
         data.NonNestedLiteral: "NonNestedLiteral",
         RuntimeStateType: "RuntimeState",
         CellChannel: "CellChannel",
-        ops.MessageOperation: "MessageOperation",
+        notifcation.MessageOperation: "MessageOperation",
     }
 
     # Hack to get the unions to be included in the schema

@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 from marimo._messaging.cell_output import CellChannel, CellOutput
-from marimo._messaging.ops import CellOp
+from marimo._messaging.notifcation import CellOp
 from marimo._server.session.serialize import serialize_session_view
 from marimo._server.session.session_view import SessionView
 

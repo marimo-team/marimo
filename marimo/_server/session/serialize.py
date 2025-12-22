@@ -18,7 +18,7 @@ from marimo._messaging.errors import (
 )
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._messaging.msgspec_encoder import asdict
-from marimo._messaging.ops import CellOp
+from marimo._messaging.notifcation import CellOp
 from marimo._schemas.notebook import (
     NotebookCell,
     NotebookCellConfig,

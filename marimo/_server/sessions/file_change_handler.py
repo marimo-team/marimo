@@ -12,7 +12,11 @@ from typing import TYPE_CHECKING, Optional, Protocol
 
 from marimo import _loggers
 from marimo._config.manager import MarimoConfigManager
-from marimo._messaging.ops import Reload, UpdateCellCodes, UpdateCellIdsRequest
+from marimo._messaging.notifcation import (
+    Reload,
+    UpdateCellCodes,
+    UpdateCellIdsRequest,
+)
 from marimo._runtime.requests import DeleteCellRequest, SyncGraphRequest
 from marimo._server.model import SessionMode
 from marimo._types.ids import CellId_t

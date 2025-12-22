@@ -15,7 +15,7 @@ from marimo._config.manager import (
 )
 from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.errors import Error, is_unexpected_error
-from marimo._messaging.ops import (
+from marimo._messaging.notifcation import (
     CellOp,
     CompletedRun,
 )

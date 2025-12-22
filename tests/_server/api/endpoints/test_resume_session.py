@@ -9,7 +9,11 @@ import pytest
 
 from marimo._config.manager import UserConfigManager
 from marimo._messaging.msgspec_encoder import asdict
-from marimo._messaging.ops import CellOp, KernelCapabilities, KernelReady
+from marimo._messaging.notifcation import (
+    CellOp,
+    KernelCapabilities,
+    KernelReady,
+)
 from marimo._server.sessions import Session
 from marimo._types.ids import SessionId
 from marimo._utils.parse_dataclass import parse_raw

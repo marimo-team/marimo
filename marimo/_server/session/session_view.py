@@ -7,7 +7,7 @@ from typing import Any, Literal, Optional
 
 from marimo._data.models import DataSourceConnection, DataTable
 from marimo._messaging.cell_output import CellChannel, CellOutput
-from marimo._messaging.ops import (
+from marimo._messaging.notifcation import (
     CellOp,
     Datasets,
     DataSourceConnections,

@@ -5,7 +5,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from marimo._messaging.ops import SecretKeysResult
+from marimo._messaging.notifcation import SecretKeysResult
 from marimo._runtime.requests import (
     ListSecretKeysRequest,
     RefreshSecretsRequest,

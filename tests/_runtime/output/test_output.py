@@ -1,7 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
-from marimo._messaging.ops import CellOp
+from marimo._messaging.notifcation import CellOp
 from marimo._runtime import output
 from tests.conftest import ExecReqProvider, MockedKernel
 

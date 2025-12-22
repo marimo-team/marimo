@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Any, Optional
 
 from marimo._messaging.mimetypes import ConsoleMimeType
-from marimo._messaging.ops import (
+from marimo._messaging.notifcation import (
     CellOp,
     MessageOperation,
 )

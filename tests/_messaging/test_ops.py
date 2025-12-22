@@ -4,16 +4,16 @@ from __future__ import annotations
 from unittest.mock import MagicMock
 
 from marimo._ast.toplevel import HINT_UNPARSABLE, TopLevelStatus
-from marimo._messaging.notification_utils import (
-    CellNotificationUtils,
-    broadcast_op,
-)
-from marimo._messaging.ops import (
+from marimo._messaging.notifcation import (
     CellOp,
     InstallingPackageAlert,
     SendUIElementMessage,
     StartupLogs,
     VariableValue,
+)
+from marimo._messaging.notification_utils import (
+    CellNotificationUtils,
+    broadcast_op,
 )
 from marimo._output.hypertext import Html
 from marimo._plugins.ui._impl.input import slider

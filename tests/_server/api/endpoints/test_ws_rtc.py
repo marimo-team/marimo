@@ -9,7 +9,7 @@ from starlette.websockets import WebSocketDisconnect
 
 from marimo._config.manager import UserConfigManager
 from marimo._messaging.msgspec_encoder import asdict
-from marimo._messaging.ops import KernelCapabilities, KernelReady
+from marimo._messaging.notifcation import KernelCapabilities, KernelReady
 from marimo._server.api.endpoints.ws_endpoint import DOC_MANAGER
 from marimo._utils.parse_dataclass import parse_raw
 from tests._server.conftest import get_session_manager, get_user_config_manager

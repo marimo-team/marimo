@@ -12,7 +12,7 @@ from marimo._config.config import MarimoConfig
 from marimo._config.manager import MarimoConfigReader
 from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._dependencies.dependencies import DependencyManager
-from marimo._messaging.ops import Alert
+from marimo._messaging.notifcation import Alert
 from marimo._server.utils import find_free_port
 from marimo._tracer import server_tracer
 from marimo._utils.paths import marimo_package_path

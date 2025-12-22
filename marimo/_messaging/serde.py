@@ -11,7 +11,7 @@ from marimo._messaging.msgspec_encoder import encode_json_bytes
 from marimo._messaging.types import KernelMessage
 
 if TYPE_CHECKING:
-    from marimo._messaging.ops import MessageOperation
+    from marimo._messaging.notifcation import MessageOperation
 
 
 def serialize_kernel_message(message: msgspec.Struct) -> KernelMessage:
@@ -26,7 +26,7 @@ def deserialize_kernel_message(message: KernelMessage) -> MessageOperation:
     Deserialize a KernelMessage to a MessageOperation.
     """
     # Import here to avoid circular dependency
-    from marimo._messaging.ops import MessageOperation
+    from marimo._messaging.notifcation import MessageOperation
 
     return msgspec.json.decode(message, strict=True, type=MessageOperation)  # type: ignore[no-any-return]
 

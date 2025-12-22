@@ -13,7 +13,7 @@ import pytest
 
 import marimo
 from marimo._dependencies.dependencies import DependencyManager
-from marimo._messaging.ops import CompletionResult
+from marimo._messaging.notifcation import CompletionResult
 from marimo._messaging.serde import deserialize_kernel_message
 from marimo._messaging.types import KernelMessage, Stream
 from marimo._runtime.complete import (

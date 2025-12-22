@@ -28,7 +28,7 @@ from marimo._ai._tools.utils.exceptions import ToolExecutionError
 from marimo._ai._tools.utils.output_cleaning import clean_output
 from marimo._config.config import CopilotMode
 from marimo._messaging.cell_output import CellChannel
-from marimo._messaging.ops import CellOp
+from marimo._messaging.notifcation import CellOp
 from marimo._server.ai.tools.types import (
     FunctionArgs,
     ToolDefinition,

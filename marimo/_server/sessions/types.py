@@ -16,7 +16,7 @@ if TYPE_CHECKING:
     from collections.abc import Mapping
 
     from marimo._config.manager import MarimoConfigManager
-    from marimo._messaging.ops import MessageOperation
+    from marimo._messaging.notifcation import MessageOperation
     from marimo._messaging.types import KernelMessage
     from marimo._runtime import requests
     from marimo._server.consumer import SessionConsumer

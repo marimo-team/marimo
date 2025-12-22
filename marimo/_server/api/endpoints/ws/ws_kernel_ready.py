@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING
 from marimo import _loggers
 from marimo._ast.cell import CellConfig
 from marimo._dependencies.dependencies import DependencyManager
-from marimo._messaging.ops import KernelCapabilities, KernelReady
+from marimo._messaging.notifcation import KernelCapabilities, KernelReady
 from marimo._plugins.core.web_component import JSONType
 from marimo._server.model import SessionMode
 from marimo._types.ids import CellId_t

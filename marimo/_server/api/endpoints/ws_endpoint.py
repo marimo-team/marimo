@@ -12,7 +12,7 @@ from marimo._cli.upgrade import check_for_updates
 from marimo._config.cli_state import MarimoCLIState
 from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._dependencies.dependencies import DependencyManager
-from marimo._messaging.ops import (
+from marimo._messaging.notifcation import (
     Alert,
     Banner,
     MessageOperation,

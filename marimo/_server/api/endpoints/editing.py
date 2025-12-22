@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 
 from starlette.authentication import requires
 
-from marimo._messaging.ops import UpdateCellIdsRequest
+from marimo._messaging.notifcation import UpdateCellIdsRequest
 from marimo._runtime.requests import (
     CodeCompletionRequest,
     DeleteCellRequest,

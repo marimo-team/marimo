@@ -8,7 +8,7 @@ from starlette.exceptions import HTTPException
 from starlette.responses import JSONResponse
 
 from marimo import _loggers
-from marimo._messaging.ops import MissingPackageAlert
+from marimo._messaging.notifcation import MissingPackageAlert
 from marimo._runtime.packages.utils import is_python_isolated
 from marimo._server.api.deps import AppState
 from marimo._server.api.status import (

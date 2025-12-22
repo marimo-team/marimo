@@ -15,7 +15,7 @@ from marimo._ai._tools.tools.datasource import (
 )
 from marimo._ai._tools.utils.exceptions import ToolExecutionError
 from marimo._data.models import Database, DataTable, DataTableColumn, Schema
-from marimo._messaging.ops import DataSourceConnections
+from marimo._messaging.notifcation import DataSourceConnections
 from marimo._sql.engines.duckdb import INTERNAL_DUCKDB_ENGINE
 from tests._ai.tools.test_utils import MockSession, MockSessionView
 

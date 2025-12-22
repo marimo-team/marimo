@@ -9,7 +9,7 @@ from starlette.authentication import requires
 from starlette.responses import JSONResponse
 
 from marimo import _loggers
-from marimo._messaging.ops import Alert
+from marimo._messaging.notifcation import Alert
 from marimo._runtime.requests import (
     ExecuteScratchpadRequest,
     FunctionCallRequest,

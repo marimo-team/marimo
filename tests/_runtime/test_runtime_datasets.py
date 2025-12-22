@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 
 from marimo._dependencies.dependencies import DependencyManager
-from marimo._messaging.ops import (
+from marimo._messaging.notifcation import (
     DataSourceConnections,
     SQLMetadata,
     SQLTableListPreview,

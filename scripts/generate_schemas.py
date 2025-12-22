@@ -9,7 +9,7 @@ with app.setup:
     import marimo as mo
     import marimo._schemas.session as s
     import marimo._schemas.notebook as n
-    import marimo._messaging.ops as o
+    import marimo._messaging.notifcation as o
     import typing as t
 
     SESSION_MESSAGES = [

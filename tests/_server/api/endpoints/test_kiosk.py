@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Any, Optional
 import pytest
 
 from marimo._messaging.msgspec_encoder import asdict
-from marimo._messaging.ops import KernelCapabilities, KernelReady
+from marimo._messaging.notifcation import KernelCapabilities, KernelReady
 from marimo._utils.parse_dataclass import parse_raw
 from tests._server.mocks import token_header
 

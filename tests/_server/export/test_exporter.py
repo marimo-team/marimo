@@ -13,7 +13,7 @@ from marimo._config.config import DEFAULT_CONFIG
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.msgspec_encoder import encode_json_str
-from marimo._messaging.ops import CellOp
+from marimo._messaging.notifcation import CellOp
 from marimo._server.export import (
     export_as_wasm,
     run_app_then_export_as_ipynb,

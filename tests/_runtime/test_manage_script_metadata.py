@@ -12,7 +12,10 @@ from marimo._config.config import merge_default_config
 from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._dependencies.errors import ManyModulesNotFoundError
-from marimo._messaging.ops import InstallingPackageAlert, MissingPackageAlert
+from marimo._messaging.notifcation import (
+    InstallingPackageAlert,
+    MissingPackageAlert,
+)
 from marimo._runtime.packages.package_managers import create_package_manager
 from marimo._runtime.packages.pypi_package_manager import (
     MicropipPackageManager,

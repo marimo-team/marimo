@@ -15,7 +15,7 @@ from marimo._ai._tools.types import (
 from marimo._ai._tools.utils.exceptions import ToolExecutionError
 from marimo._ast.models import CellData
 from marimo._messaging.errors import Error
-from marimo._messaging.ops import CellOp, VariableValue
+from marimo._messaging.notifcation import CellOp, VariableValue
 from marimo._types.ids import CellId_t, SessionId
 
 if TYPE_CHECKING:

@@ -10,8 +10,8 @@ import msgspec
 
 from marimo import _loggers
 from marimo._dependencies.dependencies import DependencyManager
+from marimo._messaging.notifcation import Alert
 from marimo._messaging.notification_utils import broadcast_op
-from marimo._messaging.ops import Alert
 from marimo._runtime.packages.utils import append_version
 
 if TYPE_CHECKING:

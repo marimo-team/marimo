@@ -11,7 +11,7 @@ from marimo import _loggers
 from marimo._config.config import PartialMarimoConfig
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.msgspec_encoder import asdict
-from marimo._messaging.ops import MissingPackageAlert
+from marimo._messaging.notifcation import MissingPackageAlert
 from marimo._runtime.packages.utils import is_python_isolated
 from marimo._runtime.requests import SetUserConfigRequest
 from marimo._server.ai.mcp.config import is_mcp_config_empty

@@ -23,7 +23,7 @@ from marimo._messaging.errors import (
     MarimoSyntaxError,
     MultipleDefinitionError,
 )
-from marimo._messaging.ops import (
+from marimo._messaging.notifcation import (
     CellOp,
     Variables,
 )

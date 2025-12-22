@@ -1,4 +1,5 @@
 # Copyright 2025 Marimo. All rights reserved.
+from __future__ import annotations
 
 import time
 from typing import Callable
@@ -12,7 +13,7 @@ from marimo._data.models import (
     DataTableColumn,
     Schema,
 )
-from marimo._messaging.ops import SQLMetadata
+from marimo._messaging.notifcation import SQLMetadata
 from marimo._sql.connection_utils import (
     update_table_in_connection,
     update_table_list_in_connection,

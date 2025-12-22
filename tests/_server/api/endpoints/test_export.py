@@ -12,7 +12,7 @@ import pytest
 from marimo import __version__
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.cell_output import CellChannel, CellOutput
-from marimo._messaging.ops import CellOp
+from marimo._messaging.notifcation import CellOp
 from marimo._output.utils import uri_encode_component
 from marimo._types.ids import CellId_t, SessionId
 from marimo._utils.platform import is_windows

@@ -23,7 +23,7 @@ from marimo._ast.app_config import _AppConfig
 from marimo._config.manager import (
     get_default_config_manager,
 )
-from marimo._messaging.ops import (
+from marimo._messaging.notifcation import (
     MessageOperation,
     UpdateCellCodes,
 )

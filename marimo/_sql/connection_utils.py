@@ -1,7 +1,8 @@
 # Copyright 2025 Marimo. All rights reserved.
+from __future__ import annotations
 
 from marimo._data.models import DataSourceConnection, DataTable
-from marimo._messaging.ops import SQLMetadata
+from marimo._messaging.notifcation import SQLMetadata
 
 
 def update_table_in_connection(

@@ -14,7 +14,7 @@ from marimo._data.models import (
 )
 from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.msgspec_encoder import asdict as serialize
-from marimo._messaging.ops import (
+from marimo._messaging.notifcation import (
     CellOp,
     Datasets,
     DataSourceConnections,

@@ -21,7 +21,7 @@ from marimo._types.ids import CellId_t
 
 if TYPE_CHECKING:
     from marimo._ast.app import InternalApp
-    from marimo._messaging.ops import HumanReadableStatus
+    from marimo._messaging.notifcation import HumanReadableStatus
     from marimo._plugins.core.web_component import JSONType
 
 

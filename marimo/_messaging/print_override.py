@@ -6,8 +6,8 @@ import threading
 from typing import Any
 
 from marimo._messaging.cell_output import CellOutput
+from marimo._messaging.notifcation import CellOp
 from marimo._messaging.notification_utils import broadcast_op
-from marimo._messaging.ops import CellOp
 from marimo._runtime.context.types import (
     ContextNotInitializedError,
     get_context,

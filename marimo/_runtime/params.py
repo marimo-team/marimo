@@ -10,13 +10,13 @@ from typing import (
 )
 
 from marimo._messaging.mimetypes import KnownMimeType
-from marimo._messaging.notification_utils import broadcast_op
-from marimo._messaging.ops import (
+from marimo._messaging.notifcation import (
     QueryParamsAppend,
     QueryParamsClear,
     QueryParamsDelete,
     QueryParamsSet,
 )
+from marimo._messaging.notification_utils import broadcast_op
 from marimo._messaging.types import Stream
 from marimo._output.rich_help import mddoc
 from marimo._runtime.requests import (

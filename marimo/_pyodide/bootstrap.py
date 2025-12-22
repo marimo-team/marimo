@@ -5,7 +5,7 @@ import json
 from typing import TYPE_CHECKING, Callable
 
 from marimo._config.config import merge_config
-from marimo._messaging.ops import (
+from marimo._messaging.notifcation import (
     KernelCapabilities,
     KernelReady,
 )

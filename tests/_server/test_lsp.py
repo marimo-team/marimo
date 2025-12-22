@@ -16,7 +16,7 @@ from marimo._config.manager import (
     MarimoConfigReaderWithOverrides,
 )
 from marimo._loggers import get_log_directory
-from marimo._messaging.ops import Alert
+from marimo._messaging.notifcation import Alert
 from marimo._server.lsp import (
     BasedpyrightServer,
     BaseLspServer,

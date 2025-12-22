@@ -53,11 +53,7 @@ from marimo._messaging.errors import (
     MarimoSyntaxError,
     UnknownError,
 )
-from marimo._messaging.notification_utils import (
-    CellNotificationUtils,
-    broadcast_op,
-)
-from marimo._messaging.ops import (
+from marimo._messaging.notifcation import (
     CacheCleared,
     CacheInfoFetched,
     CompletedRun,
@@ -78,6 +74,10 @@ from marimo._messaging.ops import (
     Variables,
     VariableValue,
     VariableValues,
+)
+from marimo._messaging.notification_utils import (
+    CellNotificationUtils,
+    broadcast_op,
 )
 from marimo._messaging.print_override import print_override
 from marimo._messaging.streams import (

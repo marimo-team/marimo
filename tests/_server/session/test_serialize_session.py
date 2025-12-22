@@ -13,7 +13,7 @@ from marimo._ast.cell import CellConfig
 from marimo._ast.cell_manager import CellManager
 from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.errors import MarimoExceptionRaisedError, UnknownError
-from marimo._messaging.ops import CellOp
+from marimo._messaging.notifcation import CellOp
 from marimo._runtime.requests import ExecuteMultipleRequest
 from marimo._schemas.session import NotebookSessionV1
 from marimo._server.session.serialize import (

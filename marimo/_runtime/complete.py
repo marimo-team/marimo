@@ -16,8 +16,8 @@ import jedi.api  # type: ignore # noqa: F401
 from marimo import _loggers as loggers
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.completion_option import CompletionOption
+from marimo._messaging.notifcation import CompletionResult
 from marimo._messaging.notification_utils import broadcast_op
-from marimo._messaging.ops import CompletionResult
 from marimo._messaging.types import Stream
 from marimo._output.md import _md
 from marimo._runtime import dataflow

@@ -18,7 +18,7 @@ from marimo._ast.app_config import _AppConfig
 from marimo._ast.cell_manager import CellManager
 from marimo._config.config import DEFAULT_CONFIG
 from marimo._messaging.mimetypes import ConsoleMimeType
-from marimo._messaging.ops import (
+from marimo._messaging.notifcation import (
     CellOp,
     MessageOperation,
 )

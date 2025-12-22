@@ -6,7 +6,7 @@ import json
 import msgspec
 import pytest
 
-from marimo._messaging.ops import (
+from marimo._messaging.notifcation import (
     Alert,
     CompletedRun,
     Interrupted,

@@ -19,15 +19,15 @@ from marimo._messaging.errors import (
     MarimoSQLError,
     MarimoStrictExecutionError,
 )
-from marimo._messaging.notification_utils import (
-    CellNotificationUtils,
-    broadcast_op,
-)
-from marimo._messaging.ops import (
+from marimo._messaging.notifcation import (
     Datasets,
     DataSourceConnections,
     VariableValue,
     VariableValues,
+)
+from marimo._messaging.notification_utils import (
+    CellNotificationUtils,
+    broadcast_op,
 )
 from marimo._messaging.tracebacks import write_traceback
 from marimo._output import formatting
