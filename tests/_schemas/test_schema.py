@@ -41,5 +41,5 @@ def test_session_schema_up_to_date() -> None:
         f"notebook.yaml is not up to date. Run '{cmd}' and press 'Write schema' to update."
     )
     assert current_notifications_schema == generated_notifications_schema, (
-        f"ops.yaml is not up to date. Run '{cmd}' and press 'Write schema' to update."
+        f"notifications.yaml is not up to date. Run '{cmd}' and press 'Write schema' to update."
     )
