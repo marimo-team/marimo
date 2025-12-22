@@ -164,7 +164,7 @@ def test_comm_flush(comm: MarimoComm):
     )
 
     with patch(
-        "marimo._messaging.ops.SendUIElementMessage"
+        "marimo._messaging.notification.SendUIElementMessageNotification"
     ) as MockSendUIElementMessage:
         comm.flush()
         MockSendUIElementMessage.assert_called_once()
