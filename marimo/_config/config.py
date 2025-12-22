@@ -429,6 +429,17 @@ class TyLanguageServerConfig(TypedDict, total=False):
 
 
 @dataclass
+class PyreflyLanguageServerConfig(TypedDict, total=False):
+    """
+    Configuration options for Pyrefly Language Server.
+
+    Pyrefly handles completion, hover, go-to-definition, and diagnostics.
+    """
+
+    enabled: bool
+
+
+@dataclass
 class LanguageServersConfig(TypedDict, total=False):
     """Configuration options for language servers.
 
@@ -440,6 +451,7 @@ class LanguageServersConfig(TypedDict, total=False):
     pylsp: PythonLanguageServerConfig
     basedpyright: BasedpyrightServerConfig
     ty: TyLanguageServerConfig
+    pyrefly: PyreflyLanguageServerConfig
 
 
 @dataclass

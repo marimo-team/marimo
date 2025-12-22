@@ -14,7 +14,7 @@ import { getRuntimeManager } from "../../runtime/config";
  * @returns The transport.
  */
 export function createTransport(
-  serverName: "pylsp" | "basedpyright" | "copilot" | "ty",
+  serverName: "pylsp" | "basedpyright" | "copilot" | "ty" | "pyrefly",
   onReconnect?: () => Promise<void>,
 ) {
   const runtimeManager = getRuntimeManager();
