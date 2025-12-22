@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import type { PyodideInterface } from "pyodide";
 import type { UserConfig } from "@/core/config/config-schema";
-import type { OperationMessage } from "@/core/kernel/messages";
+import type { NotificationPayload } from "@/core/kernel/messages";
 import type { JsonString } from "@/utils/json/base64";
 import type {
   CodeCompletionRequest,
@@ -57,7 +57,7 @@ export interface WasmController {
     code: string;
     filename: string | null;
     userConfig: UserConfig;
-    onMessage: (message: JsonString<OperationMessage>) => void;
+    onMessage: (message: JsonString<NotificationPayload>) => void;
   }): Promise<SerializedBridge>;
 }
 

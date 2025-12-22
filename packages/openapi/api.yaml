@@ -1989,7 +1989,7 @@ components:
               syntax: '#/components/schemas/MarimoSyntaxError'
               unknown: '#/components/schemas/UnknownError'
             propertyName: type
-        operation:
+        notification:
           anyOf:
           - $ref: '#/components/schemas/CellOpNotification'
           - $ref: '#/components/schemas/FunctionCallResultNotification'
@@ -2061,7 +2061,7 @@ components:
               variables: '#/components/schemas/VariablesNotification'
             propertyName: op
       required:
-      - operation
+      - notification
       - error
       - data_type
       title: KnownUnions

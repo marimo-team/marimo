@@ -272,7 +272,7 @@ def _generate_server_api_schema() -> dict[str, Any]:
 
     # Hack to get the unions to be included in the schema
     class KnownUnions(msgspec.Struct):
-        operation: NotificationMessage
+        notification: NotificationMessage
         error: MarimoError
         data_type: DataType
 

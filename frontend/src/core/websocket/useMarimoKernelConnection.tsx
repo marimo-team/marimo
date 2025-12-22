@@ -6,7 +6,7 @@ import { useErrorBoundary } from "react-error-boundary";
 import { toast } from "@/components/ui/use-toast";
 import { getNotebook, useCellActions } from "@/core/cells/cells";
 import { AUTOCOMPLETER } from "@/core/codemirror/completion/Autocompleter";
-import type { OperationMessage } from "@/core/kernel/messages";
+import type { NotificationPayload } from "@/core/kernel/messages";
 import { useConnectionTransport } from "@/core/websocket/useWebSocket";
 import { renderHTML } from "@/plugins/core/RenderHTML";
 import {
@@ -91,7 +91,7 @@ export function useMarimoKernelConnection(opts: {
   const runtimeManager = useRuntimeManager();
   const setCacheInfo = useSetAtom(cacheInfoAtom);
 
-  const handleMessage = (e: MessageEvent<JsonString<OperationMessage>>) => {
+  const handleMessage = (e: MessageEvent<JsonString<NotificationPayload>>) => {
     const msg = jsonParseWithSpecialChar(e.data);
     switch (msg.data.op) {
       case "reload":

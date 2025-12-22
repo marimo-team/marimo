@@ -3862,7 +3862,7 @@ export interface components {
         | components["schemas"]["MarimoInternalError"]
         | components["schemas"]["MarimoSQLError"]
         | components["schemas"]["UnknownError"];
-      operation:
+      notification:
         | components["schemas"]["CellOpNotification"]
         | components["schemas"]["FunctionCallResultNotification"]
         | components["schemas"]["SendUIElementMessageNotification"]
