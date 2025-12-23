@@ -1796,9 +1796,12 @@ components:
       title: GoogleAiConfig
       type: object
     HTTPRequest:
+      description: 'A class that mimics the Request object from Starlette or FastAPI.
+
+
+        It is a subset and pickle-able version of the Request object.'
       properties:
-        baseUrl:
-          additionalProperties: {}
+        base_url:
           type: object
         cookies:
           additionalProperties:
@@ -1809,30 +1812,28 @@ components:
             type: string
           type: object
         meta:
-          additionalProperties: {}
           type: object
-        pathParams:
-          additionalProperties: {}
+        path_params:
           type: object
-        queryParams:
+        query_params:
           additionalProperties:
             items:
               type: string
             type: array
           type: object
         url:
-          additionalProperties: {}
           type: object
         user: {}
       required:
       - url
-      - baseUrl
+      - base_url
       - headers
-      - queryParams
-      - pathParams
+      - query_params
+      - path_params
       - cookies
       - meta
       - user
+      title: HTTPRequest
       type: object
     HumanReadableStatus:
       description: Human-readable status.
@@ -4261,13 +4262,13 @@ paths:
         schema:
           type: string
       responses:
-        '200':
+        200:
           content:
             application/octet-stream:
               schema:
                 type: string
           description: Get a virtual file
-        '404':
+        404:
           description: Invalid byte length in virtual file request
   /api/ai/chat:
     post:
@@ -4288,7 +4289,7 @@ paths:
         description: The request body for AI completion
         required: true
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4305,7 +4306,7 @@ paths:
         description: The request body for AI inline completion
         required: true
       responses:
-        '200':
+        200:
           content:
             text/plain:
               schema:
@@ -4321,7 +4322,7 @@ paths:
         description: The request body for tool invocation
         required: true
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4330,7 +4331,7 @@ paths:
   /api/ai/mcp/refresh:
     post:
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4339,7 +4340,7 @@ paths:
   /api/ai/mcp/status:
     get:
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4353,7 +4354,7 @@ paths:
             schema:
               $ref: '#/components/schemas/ClearCacheRequest'
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4367,7 +4368,7 @@ paths:
             schema:
               $ref: '#/components/schemas/GetCacheInfoRequest'
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4381,7 +4382,7 @@ paths:
             schema:
               $ref: '#/components/schemas/PreviewDatasetColumnRequest'
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4395,7 +4396,7 @@ paths:
             schema:
               $ref: '#/components/schemas/ListDataSourceConnectionRequest'
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4409,7 +4410,7 @@ paths:
             schema:
               $ref: '#/components/schemas/PreviewSQLTableRequest'
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4423,7 +4424,7 @@ paths:
             schema:
               $ref: '#/components/schemas/ListSQLTablesRequest'
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4432,7 +4433,7 @@ paths:
   /api/documentation/snippets:
     get:
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4446,13 +4447,13 @@ paths:
             schema:
               $ref: '#/components/schemas/ExportAsHTMLRequest'
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/SuccessResponse'
           description: Export the notebook as HTML
-        '400':
+        400:
           description: File must be saved before downloading
   /api/export/auto_export/ipynb:
     post:
@@ -4462,13 +4463,13 @@ paths:
             schema:
               $ref: '#/components/schemas/ExportAsIPYNBRequest'
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/SuccessResponse'
           description: Export the notebook as IPYNB
-        '400':
+        400:
           description: File must be saved before downloading
   /api/export/auto_export/markdown:
     post:
@@ -4478,13 +4479,13 @@ paths:
             schema:
               $ref: '#/components/schemas/ExportAsMarkdownRequest'
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/SuccessResponse'
           description: Export the notebook as a markdown
-        '400':
+        400:
           description: File must be saved before downloading
   /api/export/html:
     post:
@@ -4494,13 +4495,13 @@ paths:
             schema:
               $ref: '#/components/schemas/ExportAsHTMLRequest'
       responses:
-        '200':
+        200:
           content:
             text/html:
               schema:
                 type: string
           description: Export the notebook as HTML
-        '400':
+        400:
           description: File must be saved before downloading
   /api/export/markdown:
     post:
@@ -4510,13 +4511,13 @@ paths:
             schema:
               $ref: '#/components/schemas/ExportAsMarkdownRequest'
       responses:
-        '200':
+        200:
           content:
             text/plain:
               schema:
                 type: string
           description: Export the notebook as a markdown
-        '400':
+        400:
           description: File must be saved before downloading
   /api/export/script:
     post:
@@ -4526,13 +4527,13 @@ paths:
             schema:
               $ref: '#/components/schemas/ExportAsScriptRequest'
       responses:
-        '200':
+        200:
           content:
             text/plain:
               schema:
                 type: string
           description: Export the notebook as a script
-        '400':
+        400:
           description: File must be saved before downloading
   /api/files/create:
     post:
@@ -4542,7 +4543,7 @@ paths:
             schema:
               $ref: '#/components/schemas/FileCreateRequest'
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4556,7 +4557,7 @@ paths:
             schema:
               $ref: '#/components/schemas/FileDeleteRequest'
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4570,7 +4571,7 @@ paths:
             schema:
               $ref: '#/components/schemas/FileDetailsRequest'
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4584,7 +4585,7 @@ paths:
             schema:
               $ref: '#/components/schemas/FileListRequest'
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4598,7 +4599,7 @@ paths:
             schema:
               $ref: '#/components/schemas/FileMoveRequest'
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4612,7 +4613,7 @@ paths:
             schema:
               $ref: '#/components/schemas/FileOpenRequest'
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4626,7 +4627,7 @@ paths:
             schema:
               $ref: '#/components/schemas/FileSearchRequest'
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4640,7 +4641,7 @@ paths:
             schema:
               $ref: '#/components/schemas/FileUpdateRequest'
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4649,7 +4650,7 @@ paths:
   /api/home/recent_files:
     post:
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4658,7 +4659,7 @@ paths:
   /api/home/running_notebooks:
     post:
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4672,7 +4673,7 @@ paths:
             schema:
               $ref: '#/components/schemas/ShutdownSessionRequest'
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4686,7 +4687,7 @@ paths:
             schema:
               $ref: '#/components/schemas/OpenTutorialRequest'
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4700,7 +4701,7 @@ paths:
             schema:
               $ref: '#/components/schemas/WorkspaceFilesRequest'
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4714,7 +4715,7 @@ paths:
             schema:
               $ref: '#/components/schemas/CodeCompletionRequest'
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4728,7 +4729,7 @@ paths:
             schema:
               $ref: '#/components/schemas/CopyNotebookRequest'
       responses:
-        '200':
+        200:
           content:
             text/plain:
               schema:
@@ -4742,7 +4743,7 @@ paths:
             schema:
               $ref: '#/components/schemas/DeleteCellRequest'
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4756,7 +4757,7 @@ paths:
             schema:
               $ref: '#/components/schemas/FormatCellsRequest'
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4770,7 +4771,7 @@ paths:
             schema:
               $ref: '#/components/schemas/InvokeFunctionRequest'
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4784,7 +4785,7 @@ paths:
             schema:
               $ref: '#/components/schemas/InstallPackagesRequest'
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4798,7 +4799,7 @@ paths:
             schema:
               $ref: '#/components/schemas/InstantiateNotebookRequest'
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4807,7 +4808,7 @@ paths:
   /api/kernel/interrupt:
     post:
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4821,7 +4822,7 @@ paths:
             schema:
               $ref: '#/components/schemas/DebugCellRequest'
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4830,13 +4831,13 @@ paths:
   /api/kernel/read_code:
     post:
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ReadCodeResponse'
           description: Read the code from the server
-        '400':
+        400:
           description: File must be saved before downloading
   /api/kernel/rename:
     post:
@@ -4846,7 +4847,7 @@ paths:
             schema:
               $ref: '#/components/schemas/RenameNotebookRequest'
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4855,7 +4856,7 @@ paths:
   /api/kernel/restart_session:
     post:
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4869,7 +4870,7 @@ paths:
             schema:
               $ref: '#/components/schemas/ExecuteCellsRequest'
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4884,7 +4885,7 @@ paths:
             schema:
               $ref: '#/components/schemas/SaveNotebookRequest'
       responses:
-        '200':
+        200:
           content:
             text/plain:
               schema:
@@ -4898,7 +4899,7 @@ paths:
             schema:
               $ref: '#/components/schemas/SaveAppConfigurationRequest'
       responses:
-        '200':
+        200:
           content:
             text/plain:
               schema:
@@ -4912,7 +4913,7 @@ paths:
             schema:
               $ref: '#/components/schemas/SaveUserConfigurationRequest'
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4927,7 +4928,7 @@ paths:
             schema:
               $ref: '#/components/schemas/ExecuteScratchpadRequest'
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4941,7 +4942,7 @@ paths:
             schema:
               $ref: '#/components/schemas/UpdateCellConfigRequest'
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4955,7 +4956,7 @@ paths:
             schema:
               $ref: '#/components/schemas/UpdateWidgetModelRequest'
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4969,7 +4970,7 @@ paths:
             schema:
               $ref: '#/components/schemas/UpdateUIElementValuesRequest'
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4978,7 +4979,7 @@ paths:
   /api/kernel/shutdown:
     post:
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4992,7 +4993,7 @@ paths:
             schema:
               $ref: '#/components/schemas/StdinRequest'
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -5006,7 +5007,7 @@ paths:
             schema:
               $ref: '#/components/schemas/UpdateCellIdsRequest'
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -5015,7 +5016,7 @@ paths:
   /api/kernel/takeover:
     post:
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -5032,7 +5033,7 @@ paths:
             schema:
               $ref: '#/components/schemas/AddPackageRequest'
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -5041,7 +5042,7 @@ paths:
   /api/packages/list:
     get:
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -5055,7 +5056,7 @@ paths:
             schema:
               $ref: '#/components/schemas/RemovePackageRequest'
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -5064,7 +5065,7 @@ paths:
   /api/packages/tree:
     get:
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -5079,7 +5080,7 @@ paths:
               $ref: '#/components/schemas/CreateSecretRequest'
         required: true
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -5088,7 +5089,7 @@ paths:
   /api/secrets/delete:
     post:
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -5103,7 +5104,7 @@ paths:
               $ref: '#/components/schemas/ListSecretKeysRequest'
         required: true
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -5117,7 +5118,7 @@ paths:
             schema:
               $ref: '#/components/schemas/ValidateSQLRequest'
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -5126,7 +5127,7 @@ paths:
   /api/status:
     get:
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -5156,7 +5157,7 @@ paths:
   /api/status/connections:
     get:
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -5168,7 +5169,7 @@ paths:
   /api/usage:
     get:
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -5248,7 +5249,7 @@ paths:
   /api/version:
     get:
       responses:
-        '200':
+        200:
           content:
             text/plain:
               schema:
@@ -5266,13 +5267,13 @@ paths:
                   type: string
               type: object
       responses:
-        '200':
+        200:
           content:
             text/html:
               schema:
                 type: string
           description: Login page
-        '302':
+        302:
           description: Redirect to the next URL
           headers:
             Location:

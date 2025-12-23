@@ -48,38 +48,12 @@ def _generate_server_api_schema() -> dict[str, Any]:
     from marimo._ast.cell import CellConfig, RuntimeStateType
     from marimo._messaging.cell_output import CellChannel, CellOutput
     from marimo._messaging.mimetypes import KnownMimeType
-    from marimo._plugins.core.web_component import JSONType
     from marimo._runtime.packages.package_manager import PackageDescription
     from marimo._server.ai.tools.types import ToolDefinition
     from marimo._server.api.router import build_routes
-    from marimo._server.models.models import (
-        ClearCacheRequest,
-        DebugCellRequest,
-        DeleteCellRequest,
-        ExecuteScratchpadRequest,
-        GetCacheInfoRequest,
-        InstallPackagesRequest,
-        InvokeFunctionRequest,
-        ListDataSourceConnectionRequest,
-        ListSecretKeysRequest,
-        ListSQLTablesRequest,
-        PreviewDatasetColumnRequest,
-        PreviewSQLTableRequest,
-        RefreshSecretsRequest,
-        UpdateCellConfigRequest,
-        UpdateUIElementRequest,
-        UpdateUserConfigRequest,
-        UpdateWidgetModelRequest,
-        ValidateSQLRequest,
-    )
-    from marimo._utils.dataclass_to_openapi import (
-        PythonTypeToOpenAPI,
-    )
     from marimo._version import __version__
 
-    # dataclass components used in websocket messages
-    # these are always snake_case
-    MESSAGES = [
+    MODELS = [
         # Base
         RuntimeStateType,
         KnownMimeType,
@@ -161,10 +135,6 @@ def _generate_server_api_schema() -> dict[str, Any]:
         # ai
         ChatMessage,
         ToolDefinition,
-    ]
-
-    # dataclass components used in requests/responses
-    REQUEST_RESPONSES = [
         # Sub components
         home.MarimoFile,
         files.FileInfo,
@@ -280,55 +250,6 @@ def _generate_server_api_schema() -> dict[str, Any]:
         models.ValidateSQLRequest,
     ]
 
-    processed_classes: dict[Any, str] = {
-        JSONType: "JSONType",
-    }
-    component_schemas: dict[str, Any] = {
-        # Hand-written schema to avoid circular dependencies
-        "JSONType": {
-            "oneOf": [
-                {"type": "string"},
-                {"type": "number"},
-                {"type": "object"},
-                {"type": "array"},
-                {"type": "boolean"},
-                {"type": "null"},
-            ]
-        },
-        "HTTPRequest": {"type": "null"},
-    }
-    # We must override the names of some Union Types,
-    # otherwise, their __name__ is "Union"
-    name_overrides: dict[Any, str] = {
-        JSONType: "JSONType",
-        errors.Error: "Error",
-        KnownMimeType: "MimeType",
-        data.DataType: "DataType",
-        data.NonNestedLiteral: "NonNestedLiteral",
-        RuntimeStateType: "RuntimeState",
-        CellChannel: "CellChannel",
-        notification.NotificationMessage: "NotificationMessage",
-        # Request aliases for REST endpoints
-        ClearCacheRequest: "ClearCacheRequest",
-        GetCacheInfoRequest: "GetCacheInfoRequest",
-        DebugCellRequest: "DebugCellRequest",
-        ExecuteScratchpadRequest: "ExecuteScratchpadRequest",
-        InvokeFunctionRequest: "InvokeFunctionRequest",
-        UpdateUIElementRequest: "UpdateUIElementRequest",
-        UpdateWidgetModelRequest: "UpdateWidgetModelRequest",
-        ListSecretKeysRequest: "ListSecretKeysRequest",
-        RefreshSecretsRequest: "RefreshSecretsRequest",
-        ListDataSourceConnectionRequest: "ListDataSourceConnectionRequest",
-        ListSQLTablesRequest: "ListSQLTablesRequest",
-        PreviewDatasetColumnRequest: "PreviewDatasetColumnRequest",
-        PreviewSQLTableRequest: "PreviewSQLTableRequest",
-        ValidateSQLRequest: "ValidateSQLRequest",
-        UpdateUserConfigRequest: "UpdateUserConfigRequest",
-        DeleteCellRequest: "DeleteCellRequest",
-        InstallPackagesRequest: "InstallPackagesRequest",
-        UpdateCellConfigRequest: "UpdateCellConfigRequest",
-    }
-
     # Hack to get the unions to be included in the schema
     class KnownUnions(msgspec.Struct):
         notification: NotificationMessage
@@ -336,52 +257,22 @@ def _generate_server_api_schema() -> dict[str, Any]:
         error: MarimoError
         data_type: DataType
 
-    specs = msgspec.json.schema_components(
-        MESSAGES + [KnownUnions],
+    _defs, component_schemas = msgspec.json.schema_components(
+        MODELS + [KnownUnions],
         ref_template="#/components/schemas/{name}",
     )
-    component_schemas = {
-        **specs[1],
-    }
-    processed_classes = {
-        **processed_classes,
-        **{name: name for name in specs[1].keys()},
-    }
-
-    converter = PythonTypeToOpenAPI(
-        camel_case=True, name_overrides=name_overrides
-    )
-    for cls in REQUEST_RESPONSES:
-        # Remove self from the list
-        # since it may not have been processed yet
-        if cls in processed_classes:
-            del processed_classes[cls]
-        name = name_overrides.get(cls, cls.__name__)  # type: ignore[attr-defined]
-        component_schemas[name] = converter.convert(cls, processed_classes)
-        processed_classes[cls] = name
 
     schemas_generator = SchemaGenerator(
         {
             "openapi": "3.1.0",
             "info": {"title": "marimo API", "version": __version__},
             "components": {
-                "schemas": {
-                    **component_schemas,
-                }
+                "schemas": component_schemas,
             },
         }
     )
 
-    schemas = schemas_generator.get_schema(routes=build_routes())
-
-    # Find/replace #/$defs with #/components/schemas
-    import json
-
-    schemas_str = json.dumps(schemas)
-    schemas_str = schemas_str.replace("#/$defs", "#/components/schemas")
-    schemas = json.loads(schemas_str)
-
-    return schemas
+    return schemas_generator.get_schema(routes=build_routes())
 
 
 @click.group(

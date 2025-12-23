@@ -225,7 +225,7 @@ def parse_command(request: str) -> commands.CommandMessage:
         cls=commands.CommandMessage,  # type: ignore
         allow_unknown_keys=True,
     )
-    return parsed
+    return cast(commands.CommandMessage, parsed)
 
 
 class PyodideBridge:

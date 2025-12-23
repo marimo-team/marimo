@@ -3750,28 +3750,26 @@ export interface components {
     GoogleAiConfig: {
       api_key?: string;
     };
+    /**
+     * HTTPRequest
+     * @description A class that mimics the Request object from Starlette or FastAPI.
+     *
+     *     It is a subset and pickle-able version of the Request object.
+     */
     HTTPRequest: {
-      baseUrl: {
-        [key: string]: unknown;
-      };
+      base_url: Record<string, any>;
       cookies: {
         [key: string]: string;
       };
       headers: {
         [key: string]: string;
       };
-      meta: {
-        [key: string]: unknown;
-      };
-      pathParams: {
-        [key: string]: unknown;
-      };
-      queryParams: {
+      meta: Record<string, any>;
+      path_params: Record<string, any>;
+      query_params: {
         [key: string]: string[];
       };
-      url: {
-        [key: string]: unknown;
-      };
+      url: Record<string, any>;
       user: unknown;
     };
     /**
