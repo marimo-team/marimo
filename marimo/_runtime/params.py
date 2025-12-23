@@ -19,7 +19,7 @@ from marimo._messaging.notification import (
 from marimo._messaging.notification_utils import broadcast_notification
 from marimo._messaging.types import Stream
 from marimo._output.rich_help import mddoc
-from marimo._runtime.requests import (
+from marimo._runtime.commands import (
     ListOrValue,
     Primitive,
     SerializedCLIArgs,

@@ -19,27 +19,27 @@ from marimo._pyodide.pyodide_session import (
     PyodideSession,
     parse_wasm_control_request,
 )
-from marimo._runtime.context.types import teardown_context
-from marimo._runtime.requests import (
+from marimo._runtime.commands import (
     AppMetadata,
-    CreationRequest,
-    DeleteCellRequest,
-    ExecuteMultipleRequest,
-    ExecuteScratchpadRequest,
-    FunctionCallRequest,
-    InstallMissingPackagesRequest,
-    ListSecretKeysRequest,
-    PreviewDatasetColumnRequest,
-    PreviewDataSourceConnectionRequest,
-    PreviewSQLTableListRequest,
-    PreviewSQLTableRequest,
-    RenameRequest,
-    SetCellConfigRequest,
-    SetModelMessageRequest,
-    SetUIElementValueRequest,
-    StopRequest,
-    SyncGraphRequest,
+    CreateNotebookCommand,
+    DeleteCellCommand,
+    ExecuteCellsCommand,
+    ExecuteScratchpadCommand,
+    InstallPackagesCommand,
+    InvokeFunctionCommand,
+    ListDataSourceConnectionCommand,
+    ListSecretKeysCommand,
+    ListSQLTablesCommand,
+    PreviewDatasetColumnCommand,
+    PreviewSQLTableCommand,
+    RenameNotebookCommand,
+    StopKernelCommand,
+    SyncGraphCommand,
+    UpdateCellConfigCommand,
+    UpdateUIElementCommand,
+    UpdateWidgetModelCommand,
 )
+from marimo._runtime.context.types import teardown_context
 from marimo._server.model import SessionMode
 from marimo._server.notebook import AppFileManager
 from marimo._types.ids import CellId_t, UIElementId
@@ -132,8 +132,8 @@ async def pyodide_session(
 async def test_async_queue_manager() -> None:
     async_queue_manager = AsyncQueueManager()
     # Test putting and getting from queues
-    stop_request = StopRequest()
-    set_ui_element_request = SetUIElementValueRequest(
+    stop_request = StopKernelCommand()
+    set_ui_element_request = UpdateUIElementCommand(
         object_ids=[UIElementId("test")], values=["test"]
     )
 
@@ -168,11 +168,11 @@ async def test_pyodide_session_put_control_request(
     pyodide_session: PyodideSession,
 ) -> None:
     # Test putting control requests
-    execution_request = ExecuteMultipleRequest(
+    execution_request = ExecuteCellsCommand(
         cell_ids=[CellId_t("test")],
         codes=["test"],
     )
-    set_ui_element_request = SetUIElementValueRequest(
+    set_ui_element_request = UpdateUIElementCommand(
         object_ids=[UIElementId("test")], values=["test"]
     )
 
@@ -243,69 +243,72 @@ async def test_pyodide_session_put_input(
     [
         # Most specific requests with many required fields
         (
-            '{"executionRequests": [{"cellId": "cell-1", "code": "print(1)"}], '
-            '"setUiElementValueRequest": {"objectIds": [], "values": []}, '
+            '{"ExecuteCellCommands": [{"cellId": "cell-1", "code": "print(1)"}], '
+            '"UpdateUIElementRequest": {"objectIds": [], "values": []}, '
             '"autoRun": true}',
-            CreationRequest,
+            CreateNotebookCommand,
         ),
         (
             '{"cellIds": ["cell-1"], "codes": ["print(1)"]}',
-            ExecuteMultipleRequest,
+            ExecuteCellsCommand,
         ),
         (
             '{"manager": "pip", "packages": ["numpy"], "versions": {}}',
-            InstallMissingPackagesRequest,
+            InstallPackagesCommand,
         ),
         (
             '{"sourceType": "duckdb", "source": "test.db", "tableName": "users", "columnName": "id"}',
-            PreviewDatasetColumnRequest,
+            PreviewDatasetColumnCommand,
         ),
         (
             '{"requestId": "req-1", "engine": "duckdb", "database": "test.db", '
             '"schema": "main", "tableName": "users"}',
-            PreviewSQLTableRequest,
+            PreviewSQLTableCommand,
         ),
         (
             '{"requestId": "req-2", "engine": "duckdb", "database": "test.db", "schema": "main"}',
-            PreviewSQLTableListRequest,
+            ListSQLTablesCommand,
         ),
-        # SetUIElementValueRequest - has specific fields
+        # UpdateUIElementRequest - has specific fields
         (
             '{"objectIds": ["test-1"], "values": [42], "token": "test-token"}',
-            SetUIElementValueRequest,
+            UpdateUIElementCommand,
         ),
         (
             '{"objectIds": ["test-1"], "values": [42]}',  # Without token
-            SetUIElementValueRequest,
+            UpdateUIElementCommand,
         ),
         (
             '{"modelId": "model-1", "message": {"state": {}, "bufferPaths": []}}',
-            SetModelMessageRequest,
+            UpdateWidgetModelCommand,
         ),
         (
             '{"functionCallId": "fc-1", "namespace": "test", "functionName": "foo", "args": {}}',
-            FunctionCallRequest,
+            InvokeFunctionCommand,
         ),
         # Requests with single or few required fields
-        # DeleteCellRequest comes before PdbRequest
-        # Note: Can't test PdbRequest since DeleteCellRequest will always match first
-        ('{"cellId": "cell-1"}', DeleteCellRequest),
-        ('{"code": "print(1)"}', ExecuteScratchpadRequest),
+        # DeleteCellRequest comes before DebugCellCommand
+        # Note: Can't test DebugCellCommand since DeleteCellRequest will always match first
+        ('{"cellId": "cell-1"}', DeleteCellCommand),
+        ('{"code": "print(1)"}', ExecuteScratchpadCommand),
         (
             '{"cells": {"cell-1": "x=1"}, "runIds": ["cell-1"], "deleteIds": []}',
-            SyncGraphRequest,
+            SyncGraphCommand,
         ),
-        ('{"filename": "test.py"}', RenameRequest),
-        ('{"configs": {"cell-1": {"hide_code": true}}}', SetCellConfigRequest),
-        ('{"requestId": "req-1"}', ListSecretKeysRequest),
-        ('{"engine": "duckdb"}', PreviewDataSourceConnectionRequest),
-        # Note: Can't test SetUserConfigRequest or ValidateSQLRequest uniquely
-        # - SetUserConfigRequest requires a full MarimoConfig which is complex
+        ('{"filename": "test.py"}', RenameNotebookCommand),
+        (
+            '{"configs": {"cell-1": {"hide_code": true}}}',
+            UpdateCellConfigCommand,
+        ),
+        ('{"requestId": "req-1"}', ListSecretKeysCommand),
+        ('{"engine": "duckdb"}', ListDataSourceConnectionCommand),
+        # Note: Can't test UpdateUserConfigRequest or ValidateSQLRequest uniquely
+        # - UpdateUserConfigRequest requires a full MarimoConfig which is complex
         # - ValidateSQLRequest has requestId which matches ListSecretKeysRequest first
         # Empty objects - StopRequest matches first among the empty requests
         # Note: Can't test RefreshSecretsRequest, ClearCacheRequest, GetCacheInfoRequest,
         # or ExecuteStaleRequest since StopRequest will always match first (they all have no required fields)
-        ("{}", StopRequest),
+        ("{}", StopKernelCommand),
     ],
 )
 def test_control_request_parsing_order(
@@ -337,7 +340,7 @@ async def test_async_queue_manager_close() -> None:
     manager.close_queues()
 
     request = await manager.control_queue.get()
-    assert isinstance(request, StopRequest)
+    assert isinstance(request, StopKernelCommand)
 
 
 async def test_pyodide_session_on_message(
@@ -363,9 +366,9 @@ async def test_pyodide_session_put_completion_request(
     pyodide_session: PyodideSession,
 ) -> None:
     """Test putting completion requests."""
-    from marimo._runtime.requests import CodeCompletionRequest
+    from marimo._runtime.commands import CodeCompletionCommand
 
-    completion_request = CodeCompletionRequest(
+    completion_request = CodeCompletionCommand(
         id="test",
         document="test code",
         cell_id=CellId_t("test"),
@@ -500,7 +503,7 @@ def test_pyodide_bridge_save_user_config(
 
     pyodide_bridge.save_user_config(request_json)
 
-    # Should have put a SetUserConfigRequest in the queue
+    # Should have put a UpdateUserConfigRequest in the queue
     assert not pyodide_bridge.session._queue_manager.control_queue.empty()
 
 

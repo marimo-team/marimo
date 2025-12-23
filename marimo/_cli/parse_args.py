@@ -4,7 +4,7 @@ from __future__ import annotations
 import sys
 from typing import TYPE_CHECKING, Any
 
-from marimo._runtime.requests import SerializedCLIArgs
+from marimo._runtime.commands import SerializedCLIArgs
 
 if TYPE_CHECKING:
     from collections.abc import Iterable

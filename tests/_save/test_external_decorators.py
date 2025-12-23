@@ -4,7 +4,7 @@ from __future__ import annotations
 import sys
 import textwrap
 
-from marimo._runtime.requests import ExecutionRequest
+from marimo._runtime.commands import ExecuteCellCommand
 from marimo._runtime.runtime import Kernel
 from tests.conftest import ExecReqProvider
 
@@ -121,7 +121,7 @@ class TestDecoratorImports:
         k = lazy_kernel
         await k.run(
             [
-                ExecutionRequest(
+                ExecuteCellCommand(
                     cell_id="setup",
                     code=textwrap.dedent(
                         """
@@ -295,7 +295,7 @@ class TestAsExternalApp:
         k = lazy_kernel
         await k.run(
             [
-                ExecutionRequest(
+                ExecuteCellCommand(
                     cell_id="setup",
                     code=textwrap.dedent(
                         """
@@ -352,7 +352,7 @@ class TestAsExternalApp:
         k = lazy_kernel
         await k.run(
             [
-                ExecutionRequest(
+                ExecuteCellCommand(
                     cell_id="setup",
                     code=textwrap.dedent(
                         """

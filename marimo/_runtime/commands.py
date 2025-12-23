@@ -1,6 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import re
 import time
 from collections import defaultdict
 from collections.abc import Mapping
@@ -31,7 +32,24 @@ if TYPE_CHECKING:
     from starlette.requests import HTTPConnection
 
 
-CompletionRequestId = str
+def kebab_case(name: str) -> str:
+    if name.endswith("Command"):
+        name = name[:-7]  # Remove 'Command' (7 characters)
+    if not name:
+        return name
+    # Insert hyphens before uppercase letters that follow lowercase letters
+    # or before an uppercase letter followed by a lowercase letter (handling acronyms)
+    # This groups consecutive uppercase letters together (e.g., "SQL" -> "sql")
+    s1 = re.sub("(.)([A-Z][a-z]+)", r"\1-\2", name)
+    s2 = re.sub("([a-z0-9])([A-Z])", r"\1-\2", s1)
+    return s2.lower()
+
+
+class Command(
+    msgspec.Struct, rename="camel", tag_field="type", tag=kebab_case
+):
+    pass
+
 
 T = TypeVar("T")
 ListOrValue = Union[T, list[T]]
@@ -128,16 +146,16 @@ class HTTPRequest(Mapping[str, Any]):
         )
 
 
-class PdbRequest(msgspec.Struct, rename="camel"):
+class DebugCellCommand(Command):
     cell_id: CellId_t
     # incoming request, e.g. from Starlette or FastAPI
     request: Optional[HTTPRequest] = None
 
     def __repr__(self) -> str:
-        return f"PdbRequest(cell={self.cell_id})"
+        return f"DebugCellCommand(cell={self.cell_id})"
 
 
-class ExecutionRequest(msgspec.Struct, rename="camel"):
+class ExecuteCellCommand(Command):
     cell_id: CellId_t
     code: str
     # incoming request, e.g. from Starlette or FastAPI
@@ -146,14 +164,16 @@ class ExecutionRequest(msgspec.Struct, rename="camel"):
 
     def __repr__(self) -> str:
         preview = self.code[:10].replace("\n", " ")
-        return f"ExecutionRequest(cell={self.cell_id}, code_preview={preview})"
+        return (
+            f"ExecuteCellCommand(cell={self.cell_id}, code_preview={preview})"
+        )
 
 
-class ExecuteStaleRequest(msgspec.Struct, rename="camel"):
+class ExecuteStaleCellsCommand(Command):
     request: Optional[HTTPRequest] = None
 
 
-class ExecuteMultipleRequest(msgspec.Struct, rename="camel"):
+class ExecuteCellsCommand(Command):
     # ids of cells to run
     cell_ids: list[CellId_t]
     # code to register/run for each cell
@@ -164,12 +184,12 @@ class ExecuteMultipleRequest(msgspec.Struct, rename="camel"):
     timestamp: float = msgspec.field(default_factory=time.time)
 
     def __repr__(self) -> str:
-        return f"ExecuteMultipleRequest(cells={len(self.cell_ids)})"
+        return f"ExecuteCellsCommand(cells={len(self.cell_ids)})"
 
     @property
-    def execution_requests(self) -> list[ExecutionRequest]:
+    def execution_requests(self) -> list[ExecuteCellCommand]:
         return [
-            ExecutionRequest(
+            ExecuteCellCommand(
                 cell_id=cell_id,
                 code=code,
                 request=self.request,
@@ -184,7 +204,7 @@ class ExecuteMultipleRequest(msgspec.Struct, rename="camel"):
         )
 
 
-class SyncGraphRequest(msgspec.Struct, rename="camel"):
+class SyncGraphCommand(Command):
     # ids of cells known to filemanager
     cells: dict[CellId_t, str]
     # From the list of ALL cells that filemanager knows about,
@@ -195,9 +215,9 @@ class SyncGraphRequest(msgspec.Struct, rename="camel"):
     timestamp: float = msgspec.field(default_factory=time.time)
 
     @property
-    def execution_requests(self) -> list[ExecutionRequest]:
+    def execution_requests(self) -> list[ExecuteCellCommand]:
         return [
-            ExecutionRequest(
+            ExecuteCellCommand(
                 cell_id=cell_id,
                 code=self.cells[cell_id],
                 request=None,
@@ -207,17 +227,17 @@ class SyncGraphRequest(msgspec.Struct, rename="camel"):
         ]
 
 
-class ExecuteScratchpadRequest(msgspec.Struct, rename="camel"):
+class ExecuteScratchpadCommand(Command):
     code: str
     # incoming request, e.g. from Starlette or FastAPI
     request: Optional[HTTPRequest] = None
 
 
-class RenameRequest(msgspec.Struct, rename="camel"):
+class RenameNotebookCommand(Command):
     filename: str
 
 
-class SetUIElementValueRequest(msgspec.Struct, rename="camel"):
+class UpdateUIElementCommand(Command):
     object_ids: list[UIElementId]
     values: list[Any]
     # Incoming request, e.g. from Starlette or FastAPI
@@ -226,7 +246,7 @@ class SetUIElementValueRequest(msgspec.Struct, rename="camel"):
     token: str = msgspec.field(default_factory=lambda: str(uuid4()))
 
     def __repr__(self) -> str:
-        return f"SetUIElementValueRequest(n_elements={len(self.object_ids)}, token={self.token})"
+        return f"UpdateUIElementCommand(n_elements={len(self.object_ids)}, token={self.token})"
 
     def __post_init__(self) -> None:
         assert len(self.object_ids) == len(self.values), (
@@ -235,20 +255,20 @@ class SetUIElementValueRequest(msgspec.Struct, rename="camel"):
         # Empty token is not valid (but let's not fail)
         if not self.token:
             LOGGER.warning(
-                "SetUIElementValueRequest with empty token is invalid"
+                "UpdateUIElementRequest with empty token is invalid"
             )
 
     @staticmethod
     def from_ids_and_values(
         ids_and_values: list[tuple[UIElementId, Any]],
         request: Optional[HTTPRequest] = None,
-    ) -> SetUIElementValueRequest:
+    ) -> UpdateUIElementCommand:
         if not ids_and_values:
-            return SetUIElementValueRequest(
+            return UpdateUIElementCommand(
                 object_ids=[], values=[], request=request
             )
         object_ids, values = zip(*ids_and_values)
-        return SetUIElementValueRequest(
+        return UpdateUIElementCommand(
             object_ids=list(object_ids),
             values=list(values),
             request=request,
@@ -259,17 +279,17 @@ class SetUIElementValueRequest(msgspec.Struct, rename="camel"):
         return list(zip(self.object_ids, self.values))
 
 
-class FunctionCallRequest(msgspec.Struct, rename="camel"):
+class InvokeFunctionCommand(Command):
     function_call_id: RequestId
     namespace: str
     function_name: str
     args: dict[str, Any]
 
     def __repr__(self) -> str:
-        return f"FunctionCallRequest(id={self.function_call_id}, fn={self.namespace}.{self.function_name})"
+        return f"InvokeFunctionCommand(id={self.function_call_id}, fn={self.namespace}.{self.function_name})"
 
 
-class AppMetadata(msgspec.Struct, rename="camel"):
+class AppMetadata(Command):
     """Hold metadata about the app, like its filename."""
 
     query_params: SerializedQueryParams
@@ -280,49 +300,45 @@ class AppMetadata(msgspec.Struct, rename="camel"):
     filename: Optional[str] = None
 
 
-class SetCellConfigRequest(msgspec.Struct, rename="camel"):
+class UpdateCellConfigCommand(Command):
     # Map from Cell ID to (possibly partial) CellConfig
     configs: dict[CellId_t, dict[str, Any]]
 
 
-class SetUserConfigRequest(msgspec.Struct, rename="camel"):
+class UpdateUserConfigCommand(Command):
     # MarimoConfig TypedDict
     config: MarimoConfig
 
     def __repr__(self) -> str:
-        return "SetUserConfigRequest(config=...)"
+        return "UpdateUserConfigCommand(config=...)"
 
 
-class CreationRequest(msgspec.Struct, rename="camel"):
-    execution_requests: tuple[ExecutionRequest, ...]
-    set_ui_element_value_request: SetUIElementValueRequest
+class CreateNotebookCommand(Command):
+    execution_requests: tuple[ExecuteCellCommand, ...]
+    set_ui_element_value_request: UpdateUIElementCommand
     auto_run: bool
     request: Optional[HTTPRequest] = None
 
 
-class DeleteCellRequest(msgspec.Struct, rename="camel"):
+class DeleteCellCommand(Command):
     cell_id: CellId_t
 
 
-class UpdateCellIdsRequest(msgspec.Struct, rename="camel"):
-    cell_ids: list[CellId_t]
-
-
-class StopRequest(msgspec.Struct, rename="camel"):
+class StopKernelCommand(Command):
     pass
 
 
-class CodeCompletionRequest(msgspec.Struct, rename="camel"):
-    id: CompletionRequestId
+class CodeCompletionCommand(Command):
+    id: RequestId
     document: str
     """Source code found in the cell up to the cursor position."""
     cell_id: CellId_t
 
     def __repr__(self) -> str:
-        return f"CodeCompletionRequest(id={self.id}, cell={self.cell_id})"
+        return f"CodeCompletionCommand(id={self.id}, cell={self.cell_id})"
 
 
-class InstallMissingPackagesRequest(msgspec.Struct, rename="camel"):
+class InstallPackagesCommand(Command):
     # TODO: index URL (index/channel/...)
     manager: str
 
@@ -332,7 +348,7 @@ class InstallMissingPackagesRequest(msgspec.Struct, rename="camel"):
     versions: dict[str, str]
 
 
-class PreviewDatasetColumnRequest(msgspec.Struct, rename="camel"):
+class PreviewDatasetColumnCommand(Command):
     # The source type of the dataset
     source_type: DataTableSource
     # The source of the dataset
@@ -348,7 +364,7 @@ class PreviewDatasetColumnRequest(msgspec.Struct, rename="camel"):
     fully_qualified_table_name: Optional[str] = None
 
 
-class PreviewSQLTableRequest(msgspec.Struct, rename="camel"):
+class PreviewSQLTableCommand(Command):
     """Preview table details in an SQL database"""
 
     request_id: RequestId
@@ -358,7 +374,7 @@ class PreviewSQLTableRequest(msgspec.Struct, rename="camel"):
     table_name: str
 
 
-class PreviewSQLTableListRequest(msgspec.Struct, rename="camel"):
+class ListSQLTablesCommand(Command):
     """Preview list of tables in an SQL schema"""
 
     request_id: RequestId
@@ -367,13 +383,13 @@ class PreviewSQLTableListRequest(msgspec.Struct, rename="camel"):
     schema: str
 
 
-class PreviewDataSourceConnectionRequest(msgspec.Struct, rename="camel"):
+class ListDataSourceConnectionCommand(Command):
     """Fetch a datasource connection"""
 
     engine: str
 
 
-class ValidateSQLRequest(msgspec.Struct, rename="camel"):
+class ValidateSQLCommand(Command):
     """Validate an SQL query against the engine"""
 
     request_id: RequestId
@@ -385,15 +401,7 @@ class ValidateSQLRequest(msgspec.Struct, rename="camel"):
     dialect: Optional[str] = None
 
 
-class ParseSQLRequest(msgspec.Struct, rename="camel"):
-    """Parse an SQL query for linting"""
-
-    request_id: RequestId
-    dialect: str
-    query: str
-
-
-class ListSecretKeysRequest(msgspec.Struct, rename="camel"):
+class ListSecretKeysCommand(Command):
     request_id: RequestId
 
 
@@ -402,70 +410,56 @@ class ModelMessage(msgspec.Struct, rename="camel"):
     buffer_paths: list[list[Union[str, int]]]
 
 
-class SetModelMessageRequest(msgspec.Struct, rename="camel"):
+class UpdateWidgetModelCommand(Command):
     model_id: WidgetModelId
     message: ModelMessage
     buffers: Optional[list[str]] = None
 
 
-class RefreshSecretsRequest(msgspec.Struct, rename="camel"):
+class RefreshSecretsCommand(Command):
     pass
 
 
-class ClearCacheRequest(msgspec.Struct, rename="camel"):
+class ClearCacheCommand(Command):
     pass
 
 
-class GetCacheInfoRequest(msgspec.Struct, rename="camel"):
+class GetCacheInfoCommand(Command):
     pass
 
 
-# IMPORTANT: This is NOT a discriminated union. In WASM/Pyodide, we parse requests
-# by trying each type in order until one succeeds (see PyodideBridge.put_control_request).
-# The order matters because some types have overlapping structures when parsed with
-# msgspec (e.g., types with only optional fields).
-#
-# Ordering principles for WASM compatibility:
-# 1. Types with more specific/required fields should come before generic ones
-# 2. Types with unique field names should come before types with common field names
-# 3. Types with no fields or only optional fields should come last
-#
-# Known overlaps to be careful about:
-# - SetUIElementValueRequest has specific fields (object_ids, values) and should
-#   come before generic requests
-# - ExecuteStaleRequest has only an optional 'request' field and could match many
-#   payloads - should be near the end
-# - StopRequest and RefreshSecretsRequest have no fields and will match any empty
-#   object - should be last
-ControlRequest = Union[
-    # Requests with many specific required fields (most specific first)
-    CreationRequest,
-    ExecuteMultipleRequest,
-    InstallMissingPackagesRequest,
-    PreviewDatasetColumnRequest,
-    PreviewSQLTableRequest,
-    PreviewSQLTableListRequest,
-    SetUIElementValueRequest,
-    SetModelMessageRequest,
-    FunctionCallRequest,
-    # Requests with fewer but still specific required fields
-    # Note: DeleteCellRequest and PdbRequest both have only cellId as required field.
-    # We put DeleteCellRequest first as it's more commonly used in WASM.
-    # PdbRequest (debugger) is rarely/never used in WASM context.
-    DeleteCellRequest,
-    PdbRequest,
-    ExecuteScratchpadRequest,
-    SyncGraphRequest,
-    RenameRequest,
-    SetCellConfigRequest,
-    SetUserConfigRequest,
-    ListSecretKeysRequest,
-    PreviewDataSourceConnectionRequest,
-    ValidateSQLRequest,
-    # Requests with no fields (will match any empty object)
-    StopRequest,
-    RefreshSecretsRequest,
-    ClearCacheRequest,
-    GetCacheInfoRequest,
-    ExecuteStaleRequest,  # only comes from backend set low priority
+CommandMessage = Union[
+    # Notebook operations
+    CreateNotebookCommand,
+    RenameNotebookCommand,
+    # Cell execution and management
+    ExecuteCellsCommand,
+    ExecuteScratchpadCommand,
+    ExecuteStaleCellsCommand,
+    DebugCellCommand,
+    DeleteCellCommand,
+    SyncGraphCommand,
+    UpdateCellConfigCommand,
+    # Package management
+    InstallPackagesCommand,
+    # UI element and widget model operations
+    UpdateUIElementCommand,
+    UpdateWidgetModelCommand,
+    InvokeFunctionCommand,
+    # User/configuration operations
+    UpdateUserConfigCommand,
+    # Data SQL operations
+    PreviewDatasetColumnCommand,
+    PreviewSQLTableCommand,
+    ListSQLTablesCommand,
+    ValidateSQLCommand,
+    ListDataSourceConnectionCommand,
+    # Secrets management
+    ListSecretKeysCommand,
+    RefreshSecretsCommand,
+    # Cache management
+    ClearCacheCommand,
+    GetCacheInfoCommand,
+    # Kernel operations
+    StopKernelCommand,
 ]

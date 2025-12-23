@@ -17,7 +17,7 @@ from marimo._messaging.notification import (
     UpdateCellCodesNotification,
     UpdateCellIdsNotification,
 )
-from marimo._runtime.requests import DeleteCellRequest, SyncGraphRequest
+from marimo._runtime.commands import DeleteCellCommand, SyncGraphCommand
 from marimo._server.model import SessionMode
 from marimo._types.ids import CellId_t
 from marimo._utils import async_path
@@ -101,7 +101,7 @@ class EditModeReloadStrategy(ReloadStrategy):
             cells = dict(zip(cell_ids, codes))
 
             session.put_control_request(
-                SyncGraphRequest(
+                SyncGraphCommand(
                     cells=cells,
                     run_ids=changed_cell_ids_list,
                     delete_ids=list(deleted),
@@ -112,7 +112,7 @@ class EditModeReloadStrategy(ReloadStrategy):
             # Just send deletes and code updates
             for to_delete in deleted:
                 session.put_control_request(
-                    DeleteCellRequest(cell_id=to_delete),
+                    DeleteCellCommand(cell_id=to_delete),
                     from_consumer_id=None,
                 )
             if cell_ids:

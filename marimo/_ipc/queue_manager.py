@@ -11,10 +11,10 @@ from marimo._ipc.types import ConnectionInfo
 
 if typing.TYPE_CHECKING:
     from marimo._messaging.types import KernelMessage
-    from marimo._runtime.requests import (
-        CodeCompletionRequest,
-        ControlRequest,
-        SetUIElementValueRequest,
+    from marimo._runtime.commands import (
+        CodeCompletionCommand,
+        CommandMessage,
+        UpdateUIElementCommand,
     )
     from marimo._server.types import QueueType
 
@@ -38,17 +38,17 @@ class QueueManager:
     conn: Connection
 
     @property
-    def control_queue(self) -> QueueType[ControlRequest]:
+    def control_queue(self) -> QueueType[CommandMessage]:
         """Queue for control requests (execute, interrupt, etc.)."""
         return self.conn.control.queue
 
     @property
-    def set_ui_element_queue(self) -> QueueType[SetUIElementValueRequest]:
+    def set_ui_element_queue(self) -> QueueType[UpdateUIElementCommand]:
         """Queue for UI element value updates."""
         return self.conn.ui_element.queue
 
     @property
-    def completion_queue(self) -> QueueType[CodeCompletionRequest]:
+    def completion_queue(self) -> QueueType[CodeCompletionCommand]:
         """Queue for code completion requests."""
         return self.conn.completion.queue
 

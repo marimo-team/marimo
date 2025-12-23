@@ -26,19 +26,19 @@ from marimo._pyodide.streams import (
     PyodideStdout,
     PyodideStream,
 )
-from marimo._runtime import handlers, patches, requests
+from marimo._runtime import commands, handlers, patches
+from marimo._runtime.commands import (
+    AppMetadata,
+    CodeCompletionCommand,
+    CommandMessage,
+    UpdateUIElementCommand,
+    UpdateUserConfigCommand,
+)
 from marimo._runtime.context.kernel_context import initialize_kernel_context
 from marimo._runtime.input_override import input_override
 from marimo._runtime.marimo_pdb import MarimoPdb
 from marimo._runtime.packages.pypi_package_manager import (
     MicropipPackageManager,
-)
-from marimo._runtime.requests import (
-    AppMetadata,
-    CodeCompletionRequest,
-    ControlRequest,
-    SetUIElementValueRequest,
-    SetUserConfigRequest,
 )
 from marimo._runtime.runtime import Kernel
 from marimo._runtime.utils.set_ui_element_request_manager import (
@@ -64,7 +64,7 @@ from marimo._server.models.files import (
     FileUpdateResponse,
 )
 from marimo._server.models.models import (
-    FormatRequest,
+    FormatCellsRequest,
     FormatResponse,
     ReadCodeResponse,
     SaveAppConfigurationRequest,
@@ -92,15 +92,15 @@ class AsyncQueueManager:
     def __init__(self) -> None:
         # Control messages for the kernel (run, set UI element, set config, etc
         # ) are sent through the control queue
-        self.control_queue = asyncio.Queue[requests.ControlRequest]()
+        self.control_queue = asyncio.Queue[commands.CommandMessage]()
 
         # set UI elements duplicated in another queue so they can be batched
         self.set_ui_element_queue = asyncio.Queue[
-            requests.SetUIElementValueRequest
+            commands.UpdateUIElementCommand
         ]()
 
         # Code completion requests are sent through a separate queue
-        self.completion_queue = asyncio.Queue[requests.CodeCompletionRequest]()
+        self.completion_queue = asyncio.Queue[commands.CodeCompletionCommand]()
 
         # Input messages for the user's Python code are sent through the
         # input queue
@@ -109,7 +109,7 @@ class AsyncQueueManager:
     def close_queues(self) -> None:
         # kernel thread cleans up read/write conn and IOloop handler on
         # exit; we don't join the thread because we don't want to block
-        self.control_queue.put_nowait(requests.StopRequest())
+        self.control_queue.put_nowait(commands.StopKernelCommand())
 
 
 class PyodideSession:
@@ -155,13 +155,13 @@ class PyodideSession:
         )
         await self.kernel_task.start()
 
-    def put_control_request(self, request: requests.ControlRequest) -> None:
+    def put_control_request(self, request: commands.CommandMessage) -> None:
         self._queue_manager.control_queue.put_nowait(request)
-        if isinstance(request, requests.SetUIElementValueRequest):
+        if isinstance(request, commands.UpdateUIElementCommand):
             self._queue_manager.set_ui_element_queue.put_nowait(request)
 
     def put_completion_request(
-        self, request: requests.CodeCompletionRequest
+        self, request: commands.CodeCompletionCommand
     ) -> None:
         self._queue_manager.completion_queue.put_nowait(request)
 
@@ -211,7 +211,7 @@ class PyodideSession:
 T = TypeVar("T")
 
 
-def parse_wasm_control_request(request: str) -> requests.ControlRequest:
+def parse_wasm_control_request(request: str) -> commands.CommandMessage:
     """Parse a control request string for WASM/Pyodide.
 
     This iterates through ControlRequest types in order until one successfully
@@ -227,8 +227,8 @@ def parse_wasm_control_request(request: str) -> requests.ControlRequest:
     Raises:
         msgspec.DecodeError: If no type successfully parses
     """
-    parsed: typing.Union[requests.ControlRequest, None] = None
-    for ControlRequestType in typing.get_args(requests.ControlRequest):
+    parsed: typing.Union[commands.CommandMessage, None] = None
+    for ControlRequestType in typing.get_args(commands.CommandMessage):
         try:
             parsed = parse_raw(request, cls=ControlRequestType)
             break  # success
@@ -237,7 +237,7 @@ def parse_wasm_control_request(request: str) -> requests.ControlRequest:
 
     if parsed is None:
         raise msgspec.DecodeError(
-            f"Could not decode ControlRequest as any of {typing.get_args(requests.ControlRequest)}"
+            f"Could not decode ControlRequest as any of {typing.get_args(commands.CommandMessage)}"
         )
 
     return parsed
@@ -259,7 +259,7 @@ class PyodideBridge:
         self.session.put_input(text)
 
     def code_complete(self, request: str) -> None:
-        parsed = self._parse(request, requests.CodeCompletionRequest)
+        parsed = self._parse(request, commands.CodeCompletionCommand)
         self.session.put_completion_request(parsed)
 
     def read_code(self) -> str:
@@ -272,7 +272,7 @@ class PyodideBridge:
         return self._dump(snippets)
 
     async def format(self, request: str) -> str:
-        parsed = self._parse(request, FormatRequest)
+        parsed = self._parse(request, FormatCellsRequest)
         formatter = DefaultFormatter(line_length=parsed.line_length)
 
         response = FormatResponse(codes=await formatter.format(parsed.codes))
@@ -289,7 +289,9 @@ class PyodideBridge:
     def save_user_config(self, request: str) -> None:
         parsed = self._parse(request, SaveUserConfigurationRequest)
         config = merge_default_config(cast(PartialMarimoConfig, parsed.config))
-        self.session.put_control_request(SetUserConfigRequest(config=config))
+        self.session.put_control_request(
+            UpdateUserConfigCommand(config=config)
+        )
 
     def rename_file(self, filename: str) -> None:
         self.session.app_manager.rename(filename)
@@ -414,9 +416,9 @@ class PyodideBridge:
 
 
 def _launch_pyodide_kernel(
-    control_queue: asyncio.Queue[ControlRequest],
-    set_ui_element_queue: asyncio.Queue[SetUIElementValueRequest],
-    completion_queue: asyncio.Queue[CodeCompletionRequest],
+    control_queue: asyncio.Queue[CommandMessage],
+    set_ui_element_queue: asyncio.Queue[UpdateUIElementCommand],
+    completion_queue: asyncio.Queue[CodeCompletionCommand],
     input_queue: asyncio.Queue[str],
     on_message: Callable[[KernelMessage], None],
     is_edit_mode: bool,
@@ -444,9 +446,9 @@ def _launch_pyodide_kernel(
     stdin = PyodideStdin(stream) if is_edit_mode else None
     debugger = MarimoPdb(stdout=stdout, stdin=stdin) if is_edit_mode else None
 
-    def _enqueue_control_request(req: ControlRequest) -> None:
+    def _enqueue_control_request(req: CommandMessage) -> None:
         control_queue.put_nowait(req)
-        if isinstance(req, SetUIElementValueRequest):
+        if isinstance(req, UpdateUIElementCommand):
             set_ui_element_queue.put_nowait(req)
 
     kernel = Kernel(
@@ -481,9 +483,9 @@ def _launch_pyodide_kernel(
 
     async def listen_messages() -> None:
         while True:
-            request: ControlRequest | None = await control_queue.get()
+            request: CommandMessage | None = await control_queue.get()
             LOGGER.debug("received request %s", request)
-            if isinstance(request, requests.SetUIElementValueRequest):
+            if isinstance(request, commands.UpdateUIElementCommand):
                 request = ui_element_request_mgr.process_request(request)
 
             if request is not None:

@@ -5,12 +5,12 @@ from typing import TYPE_CHECKING
 
 from starlette.authentication import requires
 
-from marimo._runtime.requests import (
+from marimo._server.api.utils import dispatch_control_request
+from marimo._server.models.models import (
     ClearCacheRequest,
     GetCacheInfoRequest,
+    SuccessResponse,
 )
-from marimo._server.api.utils import dispatch_control_request
-from marimo._server.models.models import SuccessResponse
 from marimo._server.router import APIRouter
 
 if TYPE_CHECKING:

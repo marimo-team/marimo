@@ -6,7 +6,7 @@ from typing import Any, Optional
 from starlette.datastructures import URL, Headers, QueryParams
 from starlette.requests import HTTPConnection
 
-from marimo._runtime.requests import HTTPRequest
+from marimo._runtime.commands import HTTPRequest
 
 
 class MockHTTPConnection(HTTPConnection):

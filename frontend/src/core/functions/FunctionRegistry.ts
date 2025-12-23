@@ -3,10 +3,10 @@
 import type { FunctionCallResultMessage } from "../kernel/messages";
 import { DeferredRequestRegistry } from "../network/DeferredRequestRegistry";
 import { getRequestClient } from "../network/requests";
-import type { FunctionCallRequest } from "../network/types";
+import type { InvokeFunctionRequest } from "../network/types";
 
 export const FUNCTIONS_REGISTRY = new DeferredRequestRegistry<
-  Omit<FunctionCallRequest, "functionCallId">,
+  Omit<InvokeFunctionRequest, "functionCallId">,
   FunctionCallResultMessage
 >("function-call-result", async (requestId, req) => {
   const client = getRequestClient();

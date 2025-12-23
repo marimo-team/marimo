@@ -14,7 +14,7 @@ from marimo._ast.cell_manager import CellManager
 from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.errors import MarimoExceptionRaisedError, UnknownError
 from marimo._messaging.notification import CellNotification
-from marimo._runtime.requests import ExecuteMultipleRequest
+from marimo._runtime.commands import ExecuteCellsCommand
 from marimo._schemas.session import NotebookSessionV1
 from marimo._server.session.serialize import (
     SessionCacheKey,
@@ -948,7 +948,7 @@ class TestSessionCacheManager:
             timestamp=0,
         )
         view.add_control_request(
-            ExecuteMultipleRequest(cell_ids=["cell1"], codes=["a"])
+            ExecuteCellsCommand(cell_ids=["cell1"], codes=["a"])
         )
 
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -978,7 +978,7 @@ class TestSessionCacheManager:
         """Test reading session view from cache file"""
         view = session_view
         view.add_control_request(
-            ExecuteMultipleRequest(cell_ids=["1", "2"], codes=["a", "b"])
+            ExecuteCellsCommand(cell_ids=["1", "2"], codes=["a", "b"])
         )
 
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -1033,9 +1033,7 @@ class TestSessionCacheManager:
         )
 
         view.add_control_request(
-            ExecuteMultipleRequest(
-                cell_ids=["cell1", "cell2"], codes=["a", "b"]
-            )
+            ExecuteCellsCommand(cell_ids=["cell1", "cell2"], codes=["a", "b"])
         )
 
         with tempfile.TemporaryDirectory() as tmpdir:

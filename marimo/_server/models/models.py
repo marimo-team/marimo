@@ -7,22 +7,117 @@ from typing import Any, Literal, Optional
 import msgspec
 
 from marimo._ast.cell import CellConfig
-from marimo._runtime.requests import (
-    ExecuteMultipleRequest,
+from marimo._runtime.commands import (
+    ClearCacheCommand,
+    CodeCompletionCommand,
+    DebugCellCommand,
+    DeleteCellCommand,
+    ExecuteCellsCommand,
+    ExecuteScratchpadCommand,
+    GetCacheInfoCommand,
     HTTPRequest,
-    RenameRequest,
+    InstallPackagesCommand,
+    InvokeFunctionCommand,
+    ListDataSourceConnectionCommand,
+    ListSecretKeysCommand,
+    ListSQLTablesCommand,
+    PreviewDatasetColumnCommand,
+    PreviewSQLTableCommand,
+    RefreshSecretsCommand,
+    UpdateCellConfigCommand,
+    UpdateUIElementCommand,
+    UpdateUserConfigCommand,
+    UpdateWidgetModelCommand,
+    ValidateSQLCommand,
 )
 from marimo._types.ids import CellId_t, UIElementId
 
+# Request aliases for REST endpoints
+# These have the same shape as their corresponding Commands but are used
+# in REST API endpoints to distinguish from kernel commands
 
-class UpdateComponentValuesRequest(msgspec.Struct, rename="camel"):
+
+class ListSecretKeysRequest(ListSecretKeysCommand, tag=False):
+    pass
+
+
+class ClearCacheRequest(ClearCacheCommand, tag=False):
+    pass
+
+
+class GetCacheInfoRequest(GetCacheInfoCommand, tag=False):
+    pass
+
+
+class DebugCellRequest(DebugCellCommand, tag=False):
+    pass
+
+
+class ExecuteScratchpadRequest(ExecuteScratchpadCommand, tag=False):
+    pass
+
+
+class InvokeFunctionRequest(InvokeFunctionCommand, tag=False):
+    pass
+
+
+class UpdateUIElementRequest(UpdateUIElementCommand, tag=False):
+    pass
+
+
+class UpdateWidgetModelRequest(UpdateWidgetModelCommand, tag=False):
+    pass
+
+
+class RefreshSecretsRequest(RefreshSecretsCommand, tag=False):
+    pass
+
+
+class ListDataSourceConnectionRequest(
+    ListDataSourceConnectionCommand, tag=False
+):
+    pass
+
+
+class ListSQLTablesRequest(ListSQLTablesCommand, tag=False):
+    pass
+
+
+class PreviewDatasetColumnRequest(PreviewDatasetColumnCommand, tag=False):
+    pass
+
+
+class PreviewSQLTableRequest(PreviewSQLTableCommand, tag=False):
+    pass
+
+
+class ValidateSQLRequest(ValidateSQLCommand, tag=False):
+    pass
+
+
+class UpdateUserConfigRequest(UpdateUserConfigCommand, tag=False):
+    pass
+
+
+class DeleteCellRequest(DeleteCellCommand, tag=False):
+    pass
+
+
+class InstallPackagesRequest(InstallPackagesCommand, tag=False):
+    pass
+
+
+class UpdateCellConfigRequest(UpdateCellConfigCommand, tag=False):
+    pass
+
+
+class CodeCompletionRequest(CodeCompletionCommand, tag=False):
+    pass
+
+
+class UpdateUIElementValuesRequest(msgspec.Struct, rename="camel"):
     object_ids: list[UIElementId]
     values: list[Any]
-
-    def zip(
-        self,
-    ) -> list[tuple[UIElementId, Any]]:
-        return list(zip(self.object_ids, self.values))
 
     # Validate same length
     def __post_init__(self) -> None:
@@ -31,7 +126,7 @@ class UpdateComponentValuesRequest(msgspec.Struct, rename="camel"):
         )
 
 
-class InstantiateRequest(UpdateComponentValuesRequest):
+class InstantiateNotebookRequest(UpdateUIElementValuesRequest):
     auto_run: bool = True
 
 
@@ -48,7 +143,7 @@ class ErrorResponse(BaseResponse):
     message: Optional[str] = None
 
 
-class FormatRequest(msgspec.Struct, rename="camel"):
+class FormatCellsRequest(msgspec.Struct, rename="camel"):
     codes: dict[CellId_t, str]
     line_length: int
 
@@ -61,14 +156,15 @@ class ReadCodeResponse(msgspec.Struct, rename="camel"):
     contents: str
 
 
-class RenameFileRequest(msgspec.Struct, rename="camel"):
+class RenameNotebookRequest(msgspec.Struct, rename="camel"):
     filename: str
 
-    def as_execution_request(self) -> RenameRequest:
-        return RenameRequest(filename=os.path.abspath(self.filename))
+
+class UpdateCellIdsRequest(msgspec.Struct, rename="camel"):
+    cell_ids: list[CellId_t]
 
 
-class RunRequest(msgspec.Struct, rename="camel"):
+class ExecuteCellsRequest(msgspec.Struct, rename="camel"):
     # ids of cells to run
     cell_ids: list[CellId_t]
     # code to register/run for each cell
@@ -76,8 +172,8 @@ class RunRequest(msgspec.Struct, rename="camel"):
     # incoming request, e.g. from Starlette or FastAPI
     request: Optional[HTTPRequest] = None
 
-    def as_execution_request(self) -> ExecuteMultipleRequest:
-        return ExecuteMultipleRequest(
+    def as_command(self) -> ExecuteCellsCommand:
+        return ExecuteCellsCommand(
             cell_ids=self.cell_ids,
             codes=self.codes,
             request=self.request,

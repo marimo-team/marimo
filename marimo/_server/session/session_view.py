@@ -26,13 +26,13 @@ from marimo._messaging.notification import (
 )
 from marimo._messaging.serde import deserialize_kernel_message
 from marimo._messaging.types import KernelMessage
-from marimo._runtime.requests import (
-    ControlRequest,
-    CreationRequest,
-    ExecuteMultipleRequest,
-    ExecutionRequest,
-    SetUIElementValueRequest,
-    SyncGraphRequest,
+from marimo._runtime.commands import (
+    CommandMessage,
+    CreateNotebookCommand,
+    ExecuteCellCommand,
+    ExecuteCellsCommand,
+    SyncGraphCommand,
+    UpdateUIElementCommand,
 )
 from marimo._sql.connection_utils import (
     update_table_in_connection,
@@ -123,7 +123,7 @@ class SessionView:
     def _add_ui_value(self, name: str, value: Any) -> None:
         self.ui_values[name] = value
 
-    def _add_last_run_code(self, req: ExecutionRequest) -> None:
+    def _add_last_run_code(self, req: ExecuteCellCommand) -> None:
         self.last_executed_code[req.cell_id] = req.code
 
     def add_raw_notification(self, raw_notification: KernelMessage) -> None:
@@ -131,16 +131,16 @@ class SessionView:
         # Type ignore because NotificationMessage is a Union, not a class
         self.add_notification(deserialize_kernel_message(raw_notification))  # type: ignore[arg-type]
 
-    def add_control_request(self, request: ControlRequest) -> None:
+    def add_control_request(self, request: CommandMessage) -> None:
         self._touch()
 
-        if isinstance(request, SetUIElementValueRequest):
+        if isinstance(request, UpdateUIElementCommand):
             for object_id, value in request.ids_and_values:
                 self._add_ui_value(object_id, value)
-        elif isinstance(request, (ExecuteMultipleRequest, SyncGraphRequest)):
+        elif isinstance(request, (ExecuteCellsCommand, SyncGraphCommand)):
             for execution_request in request.execution_requests:
                 self._add_last_run_code(execution_request)
-        elif isinstance(request, CreationRequest):
+        elif isinstance(request, CreateNotebookCommand):
             for (
                 object_id,
                 value,

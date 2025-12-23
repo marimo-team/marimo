@@ -7,8 +7,8 @@ import subprocess
 import sys
 import textwrap
 
-from marimo._runtime.requests import (
-    ExecutionRequest,
+from marimo._runtime.commands import (
+    ExecuteCellCommand,
 )
 from marimo._runtime.runtime import Kernel
 from marimo._utils import async_path
@@ -148,7 +148,7 @@ class TestAppTrace:
         k = execution_kernel
         await k.run(
             [
-                ExecutionRequest(
+                ExecuteCellCommand(
                     cell_id="0",
                     code=textwrap.dedent(
                         """
@@ -192,7 +192,7 @@ class TestAppTrace:
         k = execution_kernel
         await k.run(
             [
-                ExecutionRequest(
+                ExecuteCellCommand(
                     cell_id="0",
                     code=textwrap.dedent(
                         """
@@ -206,7 +206,7 @@ class TestAppTrace:
                     """
                     ),
                 ),
-                ExecutionRequest(
+                ExecuteCellCommand(
                     cell_id="1",
                     code="foo()",
                 ),
@@ -241,7 +241,7 @@ class TestAppTrace:
         k = execution_kernel
         await k.run(
             [
-                ExecutionRequest(
+                ExecuteCellCommand(
                     cell_id="0",
                     code=textwrap.dedent(
                         """
@@ -253,7 +253,7 @@ class TestAppTrace:
                     """
                     ),
                 ),
-                ExecutionRequest(
+                ExecuteCellCommand(
                     cell_id="1",
                     code=textwrap.dedent(
                         """
@@ -295,7 +295,7 @@ class TestEmbedTrace:
     ) -> None:
         await k.run(
             [
-                ExecutionRequest(
+                ExecuteCellCommand(
                     cell_id="0",
                     code=textwrap.dedent(
                         """
@@ -305,7 +305,7 @@ class TestEmbedTrace:
                     """
                     ),
                 ),
-                ExecutionRequest(
+                ExecuteCellCommand(
                     cell_id="1",
                     code=textwrap.dedent(
                         """

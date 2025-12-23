@@ -16,6 +16,7 @@ from marimo._cli.print import orange
 from marimo._data.models import DataType
 from marimo._messaging.errors import Error as MarimoError
 from marimo._messaging.notification import NotificationMessage
+from marimo._runtime.commands import CommandMessage
 from marimo._server.session.serialize import (
     serialize_notebook,
     serialize_session_view,
@@ -33,7 +34,7 @@ def _generate_server_api_schema() -> dict[str, Any]:
     import marimo._data.models as data
     import marimo._messaging.errors as errors
     import marimo._messaging.notification as notification
-    import marimo._runtime.requests as requests
+    import marimo._runtime.commands as commands
     import marimo._secrets.models as secrets_models
     import marimo._server.models.completion as completion
     import marimo._server.models.export as export
@@ -51,6 +52,26 @@ def _generate_server_api_schema() -> dict[str, Any]:
     from marimo._runtime.packages.package_manager import PackageDescription
     from marimo._server.ai.tools.types import ToolDefinition
     from marimo._server.api.router import build_routes
+    from marimo._server.models.models import (
+        ClearCacheRequest,
+        DebugCellRequest,
+        DeleteCellRequest,
+        ExecuteScratchpadRequest,
+        GetCacheInfoRequest,
+        InstallPackagesRequest,
+        InvokeFunctionRequest,
+        ListDataSourceConnectionRequest,
+        ListSecretKeysRequest,
+        ListSQLTablesRequest,
+        PreviewDatasetColumnRequest,
+        PreviewSQLTableRequest,
+        RefreshSecretsRequest,
+        UpdateCellConfigRequest,
+        UpdateUIElementRequest,
+        UpdateUserConfigRequest,
+        UpdateWidgetModelRequest,
+        ValidateSQLRequest,
+    )
     from marimo._utils.dataclass_to_openapi import (
         PythonTypeToOpenAPI,
     )
@@ -147,11 +168,11 @@ def _generate_server_api_schema() -> dict[str, Any]:
         # Sub components
         home.MarimoFile,
         files.FileInfo,
-        requests.ExecutionRequest,
+        commands.ExecuteCellCommand,
         snippets.SnippetSection,
         snippets.Snippet,
         snippets.Snippets,
-        requests.SetUIElementValueRequest,
+        commands.UpdateUIElementCommand,
         # Requests/responses
         completion.VariableContext,
         completion.SchemaColumn,
@@ -194,50 +215,69 @@ def _generate_server_api_schema() -> dict[str, Any]:
         home.ShutdownSessionRequest,
         home.WorkspaceFilesRequest,
         home.WorkspaceFilesResponse,
+        commands.ClearCacheCommand,
+        commands.CodeCompletionCommand,
+        commands.DebugCellCommand,
+        commands.DeleteCellCommand,
+        commands.ExecuteCellsCommand,
+        commands.ExecuteScratchpadCommand,
+        commands.ExecuteStaleCellsCommand,
+        commands.ExecuteCellCommand,
+        commands.GetCacheInfoCommand,
+        commands.HTTPRequest,
+        commands.InstallPackagesCommand,
+        commands.InvokeFunctionCommand,
+        commands.ListDataSourceConnectionCommand,
+        commands.ListSecretKeysCommand,
+        commands.ListSQLTablesCommand,
+        commands.ModelMessage,
+        commands.PreviewDatasetColumnCommand,
+        commands.PreviewSQLTableCommand,
+        commands.RenameNotebookCommand,
+        commands.StopKernelCommand,
+        commands.UpdateCellConfigCommand,
+        commands.UpdateUserConfigCommand,
+        commands.UpdateWidgetModelCommand,
+        commands.ValidateSQLCommand,
         models.BaseResponse,
-        models.FormatRequest,
+        models.ClearCacheRequest,
+        models.CodeCompletionRequest,
+        models.CopyNotebookRequest,
+        models.DebugCellRequest,
+        models.DeleteCellRequest,
+        models.ExecuteScratchpadRequest,
+        models.FormatCellsRequest,
         models.FormatResponse,
-        models.InstantiateRequest,
+        models.GetCacheInfoRequest,
+        models.InstallPackagesRequest,
+        models.InstantiateNotebookRequest,
+        models.InvokeAiToolRequest,
+        models.InvokeAiToolResponse,
+        models.InvokeFunctionRequest,
+        models.ListDataSourceConnectionRequest,
+        models.ListSecretKeysRequest,
+        models.ListSQLTablesRequest,
+        models.MCPRefreshResponse,
+        models.MCPStatusResponse,
+        models.PreviewDatasetColumnRequest,
+        models.PreviewSQLTableRequest,
         models.ReadCodeResponse,
-        models.RenameFileRequest,
-        models.RunRequest,
+        models.RefreshSecretsRequest,
+        models.RenameNotebookRequest,
+        models.ExecuteCellsRequest,
         models.SaveAppConfigurationRequest,
         models.SaveNotebookRequest,
-        models.CopyNotebookRequest,
         models.SaveUserConfigurationRequest,
         models.StdinRequest,
         models.SuccessResponse,
         models.SuccessResponse,
-        models.UpdateComponentValuesRequest,
-        models.InvokeAiToolRequest,
-        models.InvokeAiToolResponse,
-        models.MCPStatusResponse,
-        models.MCPRefreshResponse,
-        requests.CodeCompletionRequest,
-        requests.DeleteCellRequest,
-        requests.UpdateCellIdsRequest,
-        requests.HTTPRequest,
-        requests.ExecuteMultipleRequest,
-        requests.ExecuteScratchpadRequest,
-        requests.ExecuteStaleRequest,
-        requests.ExecutionRequest,
-        requests.FunctionCallRequest,
-        requests.InstallMissingPackagesRequest,
-        requests.ListSecretKeysRequest,
-        requests.ClearCacheRequest,
-        requests.GetCacheInfoRequest,
-        requests.PdbRequest,
-        requests.PreviewDatasetColumnRequest,
-        requests.PreviewSQLTableListRequest,
-        requests.PreviewDataSourceConnectionRequest,
-        requests.PreviewSQLTableRequest,
-        requests.ValidateSQLRequest,
-        requests.RenameRequest,
-        requests.SetCellConfigRequest,
-        requests.ModelMessage,
-        requests.SetModelMessageRequest,
-        requests.SetUserConfigRequest,
-        requests.StopRequest,
+        models.UpdateCellConfigRequest,
+        models.UpdateCellIdsRequest,
+        models.UpdateUIElementValuesRequest,
+        models.UpdateUIElementRequest,
+        models.UpdateUserConfigRequest,
+        models.UpdateWidgetModelRequest,
+        models.ValidateSQLRequest,
     ]
 
     processed_classes: dict[Any, str] = {
@@ -268,11 +308,31 @@ def _generate_server_api_schema() -> dict[str, Any]:
         RuntimeStateType: "RuntimeState",
         CellChannel: "CellChannel",
         notification.NotificationMessage: "NotificationMessage",
+        # Request aliases for REST endpoints
+        ClearCacheRequest: "ClearCacheRequest",
+        GetCacheInfoRequest: "GetCacheInfoRequest",
+        DebugCellRequest: "DebugCellRequest",
+        ExecuteScratchpadRequest: "ExecuteScratchpadRequest",
+        InvokeFunctionRequest: "InvokeFunctionRequest",
+        UpdateUIElementRequest: "UpdateUIElementRequest",
+        UpdateWidgetModelRequest: "UpdateWidgetModelRequest",
+        ListSecretKeysRequest: "ListSecretKeysRequest",
+        RefreshSecretsRequest: "RefreshSecretsRequest",
+        ListDataSourceConnectionRequest: "ListDataSourceConnectionRequest",
+        ListSQLTablesRequest: "ListSQLTablesRequest",
+        PreviewDatasetColumnRequest: "PreviewDatasetColumnRequest",
+        PreviewSQLTableRequest: "PreviewSQLTableRequest",
+        ValidateSQLRequest: "ValidateSQLRequest",
+        UpdateUserConfigRequest: "UpdateUserConfigRequest",
+        DeleteCellRequest: "DeleteCellRequest",
+        InstallPackagesRequest: "InstallPackagesRequest",
+        UpdateCellConfigRequest: "UpdateCellConfigRequest",
     }
 
     # Hack to get the unions to be included in the schema
     class KnownUnions(msgspec.Struct):
         notification: NotificationMessage
+        command: CommandMessage
         error: MarimoError
         data_type: DataType
 

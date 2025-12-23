@@ -11,7 +11,7 @@ from marimo._messaging.context import (
     http_request_context,
     run_id_context,
 )
-from marimo._runtime.requests import HTTPRequest
+from marimo._runtime.commands import HTTPRequest
 
 
 class TestRunIDContext:

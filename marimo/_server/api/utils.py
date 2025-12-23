@@ -9,7 +9,7 @@ from pathlib import Path
 from shutil import which
 from typing import TYPE_CHECKING, Optional, TypeVar
 
-from marimo._runtime.requests import ControlRequest
+from marimo._runtime.commands import CommandMessage
 from marimo._server.models.models import SuccessResponse
 from marimo._types.ids import ConsumerId
 from marimo._utils.parse_dataclass import parse_raw
@@ -29,7 +29,7 @@ async def parse_request(
 
 async def dispatch_control_request(
     request: Request,
-    cls: type[ControlRequest] | ControlRequest,
+    cls: type[CommandMessage] | CommandMessage,
 ) -> SuccessResponse:
     """
     Parse a request and dispatch it to the current session.

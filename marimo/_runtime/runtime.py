@@ -101,6 +101,36 @@ from marimo._plugins.ui._core.ui_element import MarimoConvertValueException
 from marimo._plugins.ui._impl.anywidget.init import WIDGET_COMM_MANAGER
 from marimo._runtime import dataflow, handlers, marimo_pdb, patches
 from marimo._runtime.app_meta import AppMeta
+from marimo._runtime.commands import (
+    AppMetadata,
+    ClearCacheCommand,
+    CodeCompletionCommand,
+    CommandMessage,
+    CreateNotebookCommand,
+    DebugCellCommand,
+    DeleteCellCommand,
+    ExecuteCellCommand,
+    ExecuteCellsCommand,
+    ExecuteScratchpadCommand,
+    ExecuteStaleCellsCommand,
+    GetCacheInfoCommand,
+    InstallPackagesCommand,
+    InvokeFunctionCommand,
+    ListDataSourceConnectionCommand,
+    ListSecretKeysCommand,
+    ListSQLTablesCommand,
+    PreviewDatasetColumnCommand,
+    PreviewSQLTableCommand,
+    RefreshSecretsCommand,
+    RenameNotebookCommand,
+    StopKernelCommand,
+    SyncGraphCommand,
+    UpdateCellConfigCommand,
+    UpdateUIElementCommand,
+    UpdateUserConfigCommand,
+    UpdateWidgetModelCommand,
+    ValidateSQLCommand,
+)
 from marimo._runtime.context import (
     ContextNotInitializedError,
     ExecutionContext,
@@ -131,36 +161,6 @@ from marimo._runtime.params import CLIArgs, QueryParams
 from marimo._runtime.redirect_streams import redirect_streams
 from marimo._runtime.reload.autoreload import ModuleReloader
 from marimo._runtime.reload.module_watcher import ModuleWatcher
-from marimo._runtime.requests import (
-    AppMetadata,
-    ClearCacheRequest,
-    CodeCompletionRequest,
-    ControlRequest,
-    CreationRequest,
-    DeleteCellRequest,
-    ExecuteMultipleRequest,
-    ExecuteScratchpadRequest,
-    ExecuteStaleRequest,
-    ExecutionRequest,
-    FunctionCallRequest,
-    GetCacheInfoRequest,
-    InstallMissingPackagesRequest,
-    ListSecretKeysRequest,
-    PdbRequest,
-    PreviewDatasetColumnRequest,
-    PreviewDataSourceConnectionRequest,
-    PreviewSQLTableListRequest,
-    PreviewSQLTableRequest,
-    RefreshSecretsRequest,
-    RenameRequest,
-    SetCellConfigRequest,
-    SetModelMessageRequest,
-    SetUIElementValueRequest,
-    SetUserConfigRequest,
-    StopRequest,
-    SyncGraphRequest,
-    ValidateSQLRequest,
-)
 from marimo._runtime.runner import cell_runner
 from marimo._runtime.runner.hooks import (
     ON_FINISH_HOOKS,
@@ -501,7 +501,7 @@ class Kernel:
         stderr: Stderr | None,
         stdin: Stdin | None,
         module: ModuleType,
-        enqueue_control_request: Callable[[ControlRequest], None],
+        enqueue_control_request: Callable[[CommandMessage], None],
         preparation_hooks: list[PreparationHookType] | None = None,
         pre_execution_hooks: list[PreExecutionHookType] | None = None,
         post_execution_hooks: list[PostExecutionHookType] | None = None,
@@ -618,7 +618,7 @@ class Kernel:
         # not yet been run; these cells are removed when they or their
         # descendants are run
         self._uninstantiated_execution_requests: dict[
-            CellId_t, ExecutionRequest
+            CellId_t, ExecuteCellCommand
         ] = {}
         self.cell_metadata: dict[CellId_t, CellMetadata] = {
             cell_id: CellMetadata(config=config)
@@ -693,7 +693,7 @@ class Kernel:
         return self.reactive_execution_mode == "lazy"
 
     def _execute_stale_cells_callback(self) -> None:
-        return self.enqueue_control_request(ExecuteStaleRequest())
+        return self.enqueue_control_request(ExecuteStaleCellsCommand())
 
     def _update_runtime_from_user_config(self, config: MarimoConfig) -> None:
         package_manager = config["package_management"]["manager"]
@@ -748,7 +748,7 @@ class Kernel:
             yield
 
     def start_completion_worker(
-        self, completion_queue: QueueType[CodeCompletionRequest]
+        self, completion_queue: QueueType[CodeCompletionCommand]
     ) -> None:
         """Must be called after context is initialized"""
         from marimo._runtime.complete import completion_worker
@@ -768,7 +768,7 @@ class Kernel:
 
     @kernel_tracer.start_as_current_span("code_completion")
     def code_completion(
-        self, request: CodeCompletionRequest, docstrings_limit: int
+        self, request: CodeCompletionCommand, docstrings_limit: int
     ) -> None:
         from marimo._runtime.complete import complete
 
@@ -1144,8 +1144,8 @@ class Kernel:
 
     def mutate_graph(
         self,
-        execution_requests: Sequence[ExecutionRequest],
-        deletion_requests: Sequence[DeleteCellRequest],
+        execution_requests: Sequence[ExecuteCellCommand],
+        deletion_requests: Sequence[DeleteCellCommand],
         cells_starting_stale: set[CellId_t] | None = None,
     ) -> set[CellId_t]:
         """Add and remove cells to/from the graph.
@@ -1514,7 +1514,7 @@ class Kernel:
             self._execute_stale_cells_callback()
 
     @kernel_tracer.start_as_current_span("delete_cell")
-    async def delete_cell(self, request: DeleteCellRequest) -> None:
+    async def delete_cell(self, request: DeleteCellCommand) -> None:
         """Delete a cell from kernel and graph."""
         cell_id = request.cell_id
         if cell_id in self._uninstantiated_execution_requests:
@@ -1553,13 +1553,13 @@ class Kernel:
 
         # Create execution requests for cells to run
         execution_requests = [
-            ExecutionRequest(cell_id=cell_id, code=cells[cell_id])
+            ExecuteCellCommand(cell_id=cell_id, code=cells[cell_id])
             for cell_id in run_ids
         ]
 
         # Create deletion requests for all cells to delete
         deletion_requests = [
-            DeleteCellRequest(cell_id=cell_id) for cell_id in all_delete_ids
+            DeleteCellCommand(cell_id=cell_id) for cell_id in all_delete_ids
         ]
 
         # Clean up uninstantiated requests for deleted cells
@@ -1573,7 +1573,7 @@ class Kernel:
 
     @kernel_tracer.start_as_current_span("run")
     async def run(
-        self, execution_requests: Sequence[ExecutionRequest]
+        self, execution_requests: Sequence[ExecuteCellCommand]
     ) -> None:
         """Run cells and their descendants.
 
@@ -1587,7 +1587,7 @@ class Kernel:
         """
 
         async def _run_with_uninstantiated_requests(
-            execution_requests: Sequence[ExecutionRequest],
+            execution_requests: Sequence[ExecuteCellCommand],
         ) -> None:
             if not self._uninstantiated_execution_requests:
                 await self._run_cells(
@@ -1630,7 +1630,7 @@ class Kernel:
                 ancestors |= graph.ancestors(er.cell_id)
 
             # We run all uninstantiated ancestors of the requested cells
-            previously_uninstantiated_requests: list[ExecutionRequest] = []
+            previously_uninstantiated_requests: list[ExecuteCellCommand] = []
             for ancestor_cid in ancestors:
                 if ancestor_cid in self._uninstantiated_execution_requests:
                     previously_uninstantiated_requests.append(
@@ -1654,7 +1654,7 @@ class Kernel:
             return
 
         # Filter out requests that were created before the last interruption
-        filtered_requests: list[ExecutionRequest] = []
+        filtered_requests: list[ExecuteCellCommand] = []
         for request in execution_requests:
             if request.timestamp < self.last_interrupt_timestamp:
                 CellNotificationUtils.broadcast_error(
@@ -1770,7 +1770,7 @@ class Kernel:
             self.module_watcher.run_is_processed.set()
 
     @kernel_tracer.start_as_current_span("set_cell_config")
-    async def set_cell_config(self, request: SetCellConfigRequest) -> None:
+    async def set_cell_config(self, request: UpdateCellConfigCommand) -> None:
         """Update cell configs.
 
         Cells that are enabled (via config) but stale are run as a side-effect.
@@ -1795,12 +1795,12 @@ class Kernel:
             await self._run_cells(stale_cells)
 
     @kernel_tracer.start_as_current_span("set_user_config")
-    def set_user_config(self, request: SetUserConfigRequest) -> None:
+    def set_user_config(self, request: UpdateUserConfigCommand) -> None:
         self._update_runtime_from_user_config(request.config)
 
     @kernel_tracer.start_as_current_span("set_ui_element_value")
     async def set_ui_element_value(
-        self, request: SetUIElementValueRequest
+        self, request: UpdateUIElementCommand
     ) -> bool:
         """Set the value of a UI element bound to a global variable.
 
@@ -1829,7 +1829,7 @@ class Kernel:
                     if (
                         child_context.app is not None
                         and await child_context.app.set_ui_element_value(
-                            SetUIElementValueRequest(
+                            UpdateUIElementCommand(
                                 object_ids=[object_id],
                                 values=[value],
                                 request=request.request,
@@ -1996,14 +1996,14 @@ class Kernel:
 
     @kernel_tracer.start_as_current_span("function_call_request")
     async def function_call_request(
-        self, request: FunctionCallRequest
+        self, request: InvokeFunctionCommand
     ) -> tuple[HumanReadableStatus, JSONType, bool]:
         """Execute a function call.
 
         If the function is not found, children contexts are also searched.
 
         Args:
-            request (FunctionCallRequest): The function call request.
+            request (InvokeFunctionRequest): The function call request.
 
         Returns:
             tuple[HumanReadableStatus, JSONType, bool]: A tuple containing:
@@ -2090,7 +2090,7 @@ class Kernel:
         )
 
     @kernel_tracer.start_as_current_span("instantiate")
-    async def instantiate(self, request: CreationRequest) -> None:
+    async def instantiate(self, request: CreateNotebookCommand) -> None:
         """Instantiate the kernel with cells and UIElement initial values
 
         During instantiation, UIElements can check for an initial value
@@ -2135,7 +2135,7 @@ class Kernel:
                     )
 
     def _handle_markdown_cells_on_instantiate(
-        self, execution_requests: dict[CellId_t, ExecutionRequest]
+        self, execution_requests: dict[CellId_t, ExecuteCellCommand]
     ) -> None:
         """Handle markdown cells during kernel-ready initialization.
         Mutates the execution_requests to remove markdown cells.
@@ -2221,20 +2221,20 @@ class Kernel:
     def request_handler(self) -> RequestHandler:
         handler = RequestHandler()
 
-        async def handle_instantiate(request: CreationRequest) -> None:
+        async def handle_instantiate(request: CreateNotebookCommand) -> None:
             with http_request_context(request.request):
                 await self.instantiate(request)
             broadcast_notification(CompletedRunNotification())
 
         async def handle_execute_multiple(
-            request: ExecuteMultipleRequest,
+            request: ExecuteCellsCommand,
         ) -> None:
             with http_request_context(request.request):
                 await self.run(request.execution_requests)
             broadcast_notification(CompletedRunNotification())
 
         async def handle_sync_graph(
-            request: SyncGraphRequest,
+            request: SyncGraphCommand,
         ) -> None:
             with http_request_context(None):
                 await self.sync_graph(
@@ -2243,32 +2243,34 @@ class Kernel:
             broadcast_notification(CompletedRunNotification())
 
         async def handle_execute_scratchpad(
-            request: ExecuteScratchpadRequest,
+            request: ExecuteScratchpadCommand,
         ) -> None:
             with http_request_context(request.request):
                 await self.run_scratchpad(request.code)
             broadcast_notification(CompletedRunNotification())
 
-        async def handle_execute_stale(request: ExecuteStaleRequest) -> None:
+        async def handle_execute_stale(
+            request: ExecuteStaleCellsCommand,
+        ) -> None:
             with http_request_context(request.request):
                 await self.run_stale_cells()
             broadcast_notification(CompletedRunNotification())
 
         async def handle_set_ui_element_value(
-            request: SetUIElementValueRequest,
+            request: UpdateUIElementCommand,
         ) -> None:
             with http_request_context(request.request):
                 await self.set_ui_element_value(request)
             broadcast_notification(CompletedRunNotification())
 
-        async def handle_pdb_request(request: PdbRequest) -> None:
+        async def handle_pdb_request(request: DebugCellCommand) -> None:
             await self.pdb_request(request.cell_id)
 
-        async def handle_rename(request: RenameRequest) -> None:
+        async def handle_rename(request: RenameNotebookCommand) -> None:
             await self.rename_file(request.filename)
 
         async def handle_receive_model_message(
-            request: SetModelMessageRequest,
+            request: UpdateWidgetModelCommand,
         ) -> None:
             buffers = request.buffers or []
             buffers_as_bytes = [buffer.encode("utf-8") for buffer in buffers]
@@ -2276,7 +2278,7 @@ class Kernel:
                 request.model_id, request.message, buffers_as_bytes
             )
 
-        async def handle_function_call(request: FunctionCallRequest) -> None:
+        async def handle_function_call(request: InvokeFunctionCommand) -> None:
             status, ret, _ = await self.function_call_request(request)
             LOGGER.debug("Function returned with status %s", status)
             broadcast_notification(
@@ -2288,71 +2290,73 @@ class Kernel:
             )
 
         async def handle_set_user_config(
-            request: SetUserConfigRequest,
+            request: UpdateUserConfigCommand,
         ) -> None:
             self.set_user_config(request)
 
         async def handle_install_missing_packages(
-            request: InstallMissingPackagesRequest,
+            request: InstallPackagesCommand,
         ) -> None:
             await self.packages_callbacks.install_missing_packages(request)
             broadcast_notification(CompletedRunNotification())
 
-        async def handle_stop(request: StopRequest) -> None:
+        async def handle_stop(request: StopKernelCommand) -> None:
             del request
             return None
 
-        handler.register(CreationRequest, handle_instantiate)
-        handler.register(DeleteCellRequest, self.delete_cell)
-        handler.register(ExecuteMultipleRequest, handle_execute_multiple)
-        handler.register(SyncGraphRequest, handle_sync_graph)
-        handler.register(ExecuteScratchpadRequest, handle_execute_scratchpad)
-        handler.register(ExecuteStaleRequest, handle_execute_stale)
-        handler.register(FunctionCallRequest, handle_function_call)
+        handler.register(CreateNotebookCommand, handle_instantiate)
+        handler.register(DeleteCellCommand, self.delete_cell)
+        handler.register(ExecuteCellsCommand, handle_execute_multiple)
+        handler.register(SyncGraphCommand, handle_sync_graph)
+        handler.register(ExecuteScratchpadCommand, handle_execute_scratchpad)
+        handler.register(ExecuteStaleCellsCommand, handle_execute_stale)
+        handler.register(InvokeFunctionCommand, handle_function_call)
         handler.register(
-            InstallMissingPackagesRequest, handle_install_missing_packages
+            InstallPackagesCommand, handle_install_missing_packages
         )
-        handler.register(PdbRequest, handle_pdb_request)
-        handler.register(RenameRequest, handle_rename)
-        handler.register(SetCellConfigRequest, self.set_cell_config)
-        handler.register(SetUIElementValueRequest, handle_set_ui_element_value)
-        handler.register(SetModelMessageRequest, handle_receive_model_message)
-        handler.register(SetUserConfigRequest, handle_set_user_config)
-        handler.register(StopRequest, handle_stop)
+        handler.register(DebugCellCommand, handle_pdb_request)
+        handler.register(RenameNotebookCommand, handle_rename)
+        handler.register(UpdateCellConfigCommand, self.set_cell_config)
+        handler.register(UpdateUIElementCommand, handle_set_ui_element_value)
+        handler.register(
+            UpdateWidgetModelCommand, handle_receive_model_message
+        )
+        handler.register(UpdateUserConfigCommand, handle_set_user_config)
+        handler.register(StopKernelCommand, handle_stop)
         # Datasets
         handler.register(
-            PreviewDatasetColumnRequest,
+            PreviewDatasetColumnCommand,
             self.datasets_callbacks.preview_dataset_column,
         )
         handler.register(
-            PreviewSQLTableRequest, self.datasets_callbacks.preview_sql_table
+            PreviewSQLTableCommand, self.datasets_callbacks.preview_sql_table
         )
         handler.register(
-            PreviewSQLTableListRequest,
+            ListSQLTablesCommand,
             self.datasets_callbacks.preview_sql_table_list,
         )
         handler.register(
-            PreviewDataSourceConnectionRequest,
+            ListDataSourceConnectionCommand,
             self.datasets_callbacks.preview_datasource_connection,
         )
         # SQL
-        handler.register(ValidateSQLRequest, self.sql_callbacks.validate_sql)
+        handler.register(ValidateSQLCommand, self.sql_callbacks.validate_sql)
         # Secrets
         handler.register(
-            ListSecretKeysRequest, self.secrets_callbacks.list_secrets
+            ListSecretKeysCommand, self.secrets_callbacks.list_secrets
         )
         handler.register(
-            RefreshSecretsRequest, self.secrets_callbacks.refresh_secrets
+            RefreshSecretsCommand, self.secrets_callbacks.refresh_secrets
         )
         # Cache
-        handler.register(ClearCacheRequest, self.cache_callbacks.clear_cache)
+        handler.register(ClearCacheCommand, self.cache_callbacks.clear_cache)
         handler.register(
-            GetCacheInfoRequest, self.cache_callbacks.get_cache_info
+            GetCacheInfoCommand, self.cache_callbacks.get_cache_info
         )
 
         return handler
 
-    async def handle_message(self, request: ControlRequest) -> None:
+    async def handle_message(self, request: CommandMessage) -> None:
         """Handle a message from the client.
 
         The message is dispatched to the appropriate method based on its type.
@@ -2418,7 +2422,7 @@ class DatasetCallbacks:
 
     @kernel_tracer.start_as_current_span("preview_dataset_column")
     async def preview_dataset_column(
-        self, request: PreviewDatasetColumnRequest
+        self, request: PreviewDatasetColumnCommand
     ) -> None:
         """Preview a column of a dataset.
 
@@ -2494,7 +2498,7 @@ class DatasetCallbacks:
         return
 
     @kernel_tracer.start_as_current_span("preview_sql_table")
-    async def preview_sql_table(self, request: PreviewSQLTableRequest) -> None:
+    async def preview_sql_table(self, request: PreviewSQLTableCommand) -> None:
         """Get table details for an SQL table.
 
         Args:
@@ -2557,12 +2561,12 @@ class DatasetCallbacks:
 
     @kernel_tracer.start_as_current_span("preview_sql_table_list")
     async def preview_sql_table_list(
-        self, request: PreviewSQLTableListRequest
+        self, request: ListSQLTablesCommand
     ) -> None:
         """Get a list of tables from an SQL schema
 
         Args:
-            request (PreviewSQLTableListRequest): The request containing:
+            request (ListSQLTablesRequest): The request containing:
                 - engine: Name of the SQL engine / connection
                 - database: Name of the database
                 - schema: Name of the schema
@@ -2616,7 +2620,7 @@ class DatasetCallbacks:
 
     @kernel_tracer.start_as_current_span("preview_datasource_connection")
     async def preview_datasource_connection(
-        self, request: PreviewDataSourceConnectionRequest
+        self, request: ListDataSourceConnectionCommand
     ) -> None:
         """Broadcasts a datasource connection for a given engine"""
         variable_name = cast(VariableName, request.engine)
@@ -2643,7 +2647,7 @@ class SqlCallbacks:
     def __init__(self, kernel: Kernel):
         self._kernel = kernel
 
-    async def _validate_sql_query(self, request: ValidateSQLRequest) -> None:
+    async def _validate_sql_query(self, request: ValidateSQLCommand) -> None:
         """Validate an SQL query
 
         This will validate:
@@ -2735,7 +2739,7 @@ class SqlCallbacks:
         )
 
     @kernel_tracer.start_as_current_span("validate_sql")
-    async def validate_sql(self, request: ValidateSQLRequest) -> None:
+    async def validate_sql(self, request: ValidateSQLCommand) -> None:
         """Validate an SQL query"""
 
         try:
@@ -2754,7 +2758,7 @@ class SecretsCallbacks:
     def __init__(self, kernel: Kernel):
         self._kernel = kernel
 
-    async def list_secrets(self, request: ListSecretKeysRequest) -> None:
+    async def list_secrets(self, request: ListSecretKeysCommand) -> None:
         secrets = get_secret_keys(
             self._kernel.user_config, self._kernel._original_environ
         )
@@ -2764,7 +2768,7 @@ class SecretsCallbacks:
             ),
         )
 
-    async def refresh_secrets(self, request: RefreshSecretsRequest) -> None:
+    async def refresh_secrets(self, request: RefreshSecretsCommand) -> None:
         del request
         self._kernel.load_dotenv()
 
@@ -2875,7 +2879,7 @@ class PackagesCallbacks:
         if self.package_manager.should_auto_install():
             version = {pkg: "" for pkg in packages}
             self._kernel.enqueue_control_request(
-                InstallMissingPackagesRequest(
+                InstallPackagesCommand(
                     manager=self.package_manager.name, versions=version
                 )
             )
@@ -2888,7 +2892,7 @@ class PackagesCallbacks:
             )
 
     async def install_missing_packages(
-        self, request: InstallMissingPackagesRequest
+        self, request: InstallPackagesCommand
     ) -> None:
         """Attempts to install packages for modules that cannot be imported
 
@@ -3062,7 +3066,7 @@ class CacheCallbacks:
     def __init__(self, kernel: Kernel):
         self._kernel = kernel
 
-    async def clear_cache(self, request: ClearCacheRequest) -> None:
+    async def clear_cache(self, request: ClearCacheCommand) -> None:
         del request
         from marimo._save.cache import CacheContext
         from marimo._save.loaders import BasePersistenceLoader
@@ -3076,7 +3080,7 @@ class CacheCallbacks:
 
         broadcast_notification(CacheClearedNotification(bytes_freed=saved))
 
-    async def get_cache_info(self, request: GetCacheInfoRequest) -> None:
+    async def get_cache_info(self, request: GetCacheInfoCommand) -> None:
         del request
         from marimo._save.cache import CacheContext
 
@@ -3108,18 +3112,18 @@ class CacheCallbacks:
 class RequestHandler:
     def __init__(self) -> None:
         self._handlers: dict[
-            type[ControlRequest],
-            Callable[[ControlRequest], Awaitable[None]],
+            type[CommandMessage],
+            Callable[[CommandMessage], Awaitable[None]],
         ] = {}
 
     def register(
         self,
-        request_type: type[ControlRequest],
+        request_type: type[CommandMessage],
         handler: Callable[[Any], Awaitable[None]],
     ) -> None:
         self._handlers[request_type] = handler
 
-    async def handle(self, request: ControlRequest) -> None:
+    async def handle(self, request: CommandMessage) -> None:
         handler = self._handlers.get(type(request))
         if handler:
             return await handler(request)
@@ -3127,9 +3131,9 @@ class RequestHandler:
 
 
 def launch_kernel(
-    control_queue: QueueType[ControlRequest],
-    set_ui_element_queue: QueueType[SetUIElementValueRequest],
-    completion_queue: QueueType[CodeCompletionRequest],
+    control_queue: QueueType[CommandMessage],
+    set_ui_element_queue: QueueType[UpdateUIElementCommand],
+    completion_queue: QueueType[CodeCompletionCommand],
     input_queue: QueueType[str],
     stream_queue: QueueType[KernelMessage] | None,
     socket_addr: tuple[str, int] | None,
@@ -3215,9 +3219,9 @@ def launch_kernel(
         user_config["runtime"]["on_cell_change"] = "autorun"
         user_config["runtime"]["auto_reload"] = "off"
 
-    def _enqueue_control_request(req: ControlRequest) -> None:
+    def _enqueue_control_request(req: CommandMessage) -> None:
         control_queue.put_nowait(req)
-        if isinstance(req, SetUIElementValueRequest):
+        if isinstance(req, UpdateUIElementCommand):
             set_ui_element_queue.put_nowait(req)
 
     kernel = Kernel(
@@ -3290,7 +3294,7 @@ def launch_kernel(
                 # 100ms timeout to avoid blocking
                 # this does not mean ControlRequest will be blocked for 100ms
                 # but rather background tasks may not start until 100ms have passed
-                request: ControlRequest | None = control_queue.get(
+                request: CommandMessage | None = control_queue.get(
                     timeout=TIMEOUT_S
                 )
             except Empty:
@@ -3303,9 +3307,9 @@ def launch_kernel(
                 LOGGER.debug("kernel queue.get() failed %s", e)
                 break
             LOGGER.debug("Received control request: %s", request)
-            if isinstance(request, StopRequest):
+            if isinstance(request, StopKernelCommand):
                 break
-            elif isinstance(request, SetUIElementValueRequest):
+            elif isinstance(request, UpdateUIElementCommand):
                 request = ui_element_request_mgr.process_request(request)
 
             if request is not None:
