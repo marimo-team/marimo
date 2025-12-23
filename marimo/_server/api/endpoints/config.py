@@ -109,7 +109,6 @@ async def save_user_config(
 
     # Update the kernel's view of the config
     # Session could be None if the user is on the home page
-    session = app_state.get_current_session()
     if session is not None:
         session.put_control_request(
             UpdateUserConfigRequest(config),

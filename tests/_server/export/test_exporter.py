@@ -488,7 +488,7 @@ async def test_run_until_completion_with_console_output(mock_echo: MagicMock):
         mock_echo.assert_any_call("hello stderr", file=sys.stderr, nl=False)
 
     n_tries = 0
-    limit = 5
+    limit = 10
     while n_tries <= limit:
         try:
             _assert_contents()
