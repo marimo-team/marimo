@@ -4,6 +4,7 @@ from __future__ import annotations
 from types import ModuleType
 from typing import TYPE_CHECKING, Any, Union
 
+from marimo._messaging.notification import VariableValue
 from marimo._plugins.ui._impl.tables.utils import get_table_manager_or_none
 
 if TYPE_CHECKING:
@@ -173,12 +174,6 @@ def _stringify_variable_value(value: object) -> str:
     """Convert a value to its string representation.
 
     Limits string length and handles objects that may have expensive __str__.
-
-    Args:
-        value: The value to stringify
-
-    Returns:
-        String representation, truncated if needed
     """
     MAX_STR_LEN = 50
 
@@ -201,12 +196,6 @@ def _format_variable_value(value: object) -> str:
     """Format a variable value for display.
 
     Handles special types like UIElement, Html, and ModuleType.
-
-    Args:
-        value: The value to format
-
-    Returns:
-        Formatted string representation
     """
 
     from marimo._output.hypertext import Html
@@ -224,7 +213,7 @@ def _format_variable_value(value: object) -> str:
 
 def create_variable_value(
     name: str, value: object, datatype: str | None = None
-) -> Any:
+) -> VariableValue:
     """Factory function to create a VariableValue from an object.
 
     Args:
@@ -235,9 +224,6 @@ def create_variable_value(
     Returns:
         VariableValue with formatted value and datatype
     """
-    # Import here to avoid circular dependency
-    from marimo._messaging.notification import VariableValue
-
     # Defensively try-catch attribute accesses, which could raise exceptions
     # If datatype is already defined, don't try to infer it
     if datatype is None:
