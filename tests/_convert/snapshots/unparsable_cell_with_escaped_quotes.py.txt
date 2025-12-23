@@ -1,0 +1,25 @@
+import marimo
+
+__generated_with = "0.0.0"
+app = marimo.App()
+
+
+app._unparsable_cell(
+    r"""
+    return
+    """,
+    name="_"
+)
+
+
+app._unparsable_cell(
+    r"""
+    x = "hello \"world\""
+    x.
+    """,
+    name="_"
+)
+
+
+if __name__ == "__main__":
+    app.run()

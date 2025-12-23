@@ -239,8 +239,8 @@ class TestGeneration:
 
         # Verify the config is included in the output
         assert "hide_code=True" in raw
-        # Verify the code is properly escaped and included
-        assert 'mo.md(\\"markdown in marimo\\")' in raw
+        # Verify the code is properly included (raw string for code without triple quotes)
+        assert 'mo.md("markdown in marimo")' in raw
 
     @staticmethod
     def test_long_line_in_main() -> None:
@@ -609,6 +609,21 @@ class TestGeneration:
             "test_app_with_annotation_typing"
         )
         assert "import marimo" in source
+
+    @staticmethod
+    async def test_unparsable_cell_with_triple_quotes_roundtrip() -> None:
+        """Test that unparsable cells with triple quotes round-trip correctly.
+
+        This tests the idempotency of the codegen for unparsable cells that
+        contain triple quotes, which require escaped strings instead of raw
+        strings.
+        """
+        source = await get_idempotent_marimo_source(
+            "test_unparsable_cell_with_triple_quotes"
+        )
+        assert "import marimo" in source
+        # Verify the escaped triple quotes pattern is preserved
+        assert '"""' in source or '\\"\\"\\"' in source
 
 
 @pytest.fixture

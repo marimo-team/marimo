@@ -209,3 +209,21 @@ class TestParser:
         assert "@my_decorator" in function_cell.code, (
             f"Expected @my_decorator in extracted code, but got: {function_cell.code!r}"
         )
+
+    @staticmethod
+    def test_unparsable_cell_with_non_string_creates_violation() -> None:
+        """Test that unparsable cells with non-string args create violations."""
+        code = """
+import marimo
+__generated_with = "0.0.0"
+app = marimo.App()
+
+app._unparsable_cell(123, name="_")
+
+if __name__ == "__main__":
+    app.run()
+"""
+        notebook = parse_notebook(code)
+        assert notebook is not None
+        assert len(notebook.violations) == 1
+        assert "Expected string constant" in notebook.violations[0].description

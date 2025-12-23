@@ -365,11 +365,15 @@ def generate_unparsable_cell(
     code: str, name: Optional[str], config: CellConfig
 ) -> str:
     text = ["app._unparsable_cell("]
-    # escape double quotes to not interfere with string
-    quote_escaped_code = code.replace('"', '\\"')
-    # use r-string to handle backslashes (don't want to write
-    # escape characters, want to actually write backslash characters)
-    code_as_str = f'r"""\n{quote_escaped_code}\n"""'
+    # If code contains triple quotes, we can't use raw strings with delimiters
+    # Instead, use a normal string with proper escaping
+    if '"""' in code:
+        # Use normal string with escaping for backslashes and quotes
+        escaped_code = code.replace("\\", "\\\\").replace('"', '\\"')
+        code_as_str = f'"""\n{escaped_code}\n"""'
+    else:
+        # Use raw string to preserve backslashes and other special chars
+        code_as_str = f'r"""\n{code}\n"""'
 
     flags = {}
     if config != CellConfig():

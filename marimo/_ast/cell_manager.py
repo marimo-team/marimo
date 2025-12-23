@@ -22,6 +22,7 @@ from marimo._ast.compiler import (
 )
 from marimo._ast.models import CellData
 from marimo._ast.names import DEFAULT_CELL_NAME, SETUP_CELL_NAME
+from marimo._ast.parse import fixed_dedent
 from marimo._ast.pytest import process_for_pytest
 from marimo._schemas.serialization import (
     CellDef,
@@ -268,18 +269,9 @@ class CellManager:
         else:
             cell_id = self.create_cell_id()
 
-        # - code.split("\n")[1:-1] disregards first and last lines, which are
-        #   empty
-        # - line[4:] removes leading indent in multiline string
-        # - replace(...) unescapes double quotes
-        # - rstrip() removes an extra newline
-        code = "\n".join(
-            [line[4:].replace('\\"', '"') for line in code.split("\n")[1:-1]]
-        )
-
         self.register_cell(
             cell_id=cell_id,
-            code=code,
+            code=fixed_dedent(code).strip(),
             config=cell_config,
             name=name or DEFAULT_CELL_NAME,
             cell=None,
