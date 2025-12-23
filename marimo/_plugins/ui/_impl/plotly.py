@@ -272,6 +272,7 @@ class plotly(UIElement[PlotlySelection, list[dict[str, Any]]]):
         result = self.points
         return result
 
+    # PERF: we can use numpy to speed up the extraction process if necessary
     def _extract_heatmap_cells_from_range(
         self, range_data: dict[str, Any]
     ) -> list[dict[str, Any]]:
