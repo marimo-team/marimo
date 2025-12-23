@@ -3118,14 +3118,31 @@ export interface components {
       /** @default null */
       variables?: (string | components["schemas"]["VariableContext"])[] | null;
     };
-    /** ClearCacheCommand */
+    /**
+     * ClearCacheCommand
+     * @description Clear all cached data.
+     *
+     *         Clears all cache contexts, freeing memory and disk space.
+     *         Affects all cells using the @cache decorator.
+     */
     ClearCacheCommand: {
       /** @enum {unknown} */
       type: "clear-cache";
     };
     /** ClearCacheRequest */
     ClearCacheRequest: Record<string, any>;
-    /** CodeCompletionCommand */
+    /**
+     * CodeCompletionCommand
+     * @description Request code completion suggestions.
+     *
+     *         Sent when the user requests autocomplete. Provides code context up to
+     *         the cursor position for the language server.
+     *
+     *         Attributes:
+     *             id: Unique identifier for this request.
+     *             document: Source code up to the cursor position.
+     *             cell_id: Cell where completion is requested.
+     */
     CodeCompletionCommand: {
       cellId: string;
       document: string;
@@ -3227,7 +3244,18 @@ export interface components {
       destination: string;
       source: string;
     };
-    /** CreateNotebookCommand */
+    /**
+     * CreateNotebookCommand
+     * @description Instantiate and initialize a notebook.
+     *
+     *         Sent when a notebook is first loaded. Contains all cells and initial UI element values.
+     *
+     *         Attributes:
+     *             execution_requests: ExecuteCellCommand for each notebook cell.
+     *             set_ui_element_value_request: Initial UI element values.
+     *             auto_run: Whether to automatically execute cells on instantiation.
+     *             request: HTTP request context if available.
+     */
     CreateNotebookCommand: {
       autoRun: boolean;
       executionRequests: components["schemas"]["ExecuteCellCommand"][];
@@ -3407,7 +3435,16 @@ export interface components {
       auto_discover_schemas?: boolean | "auto";
       auto_discover_tables?: boolean | "auto";
     };
-    /** DebugCellCommand */
+    /**
+     * DebugCellCommand
+     * @description Enter debugger mode for a cell.
+     *
+     *         Starts the Python debugger (pdb) for the specified cell.
+     *
+     *         Attributes:
+     *             cell_id: Cell to debug.
+     *             request: HTTP request context if available.
+     */
     DebugCellCommand: {
       cellId: string;
       /** @default null */
@@ -3421,7 +3458,16 @@ export interface components {
       /** @default null */
       request?: components["schemas"]["HTTPRequest"] | null;
     };
-    /** DeleteCellCommand */
+    /**
+     * DeleteCellCommand
+     * @description Delete a cell from the notebook.
+     *
+     *         Removes cell from the dependency graph and cleans up its variables.
+     *         Dependent cells may become stale.
+     *
+     *         Attributes:
+     *             cell_id: Cell to delete.
+     */
     DeleteCellCommand: {
       cellId: string;
       /** @enum {unknown} */
@@ -3493,7 +3539,19 @@ export interface components {
       /** @enum {unknown} */
       theme: "dark" | "light" | "system";
     };
-    /** ExecuteCellCommand */
+    /**
+     * ExecuteCellCommand
+     * @description Execute a single cell.
+     *
+     *         Executes a cell with the provided code. Dependent cells may be
+     *         re-executed based on the reactive execution mode.
+     *
+     *         Attributes:
+     *             cell_id: Cell to execute.
+     *             code: Python code to execute.
+     *             request: HTTP request context if available.
+     *             timestamp: Unix timestamp when command was created.
+     */
     ExecuteCellCommand: {
       cellId: string;
       code: string;
@@ -3503,7 +3561,19 @@ export interface components {
       /** @enum {unknown} */
       type: "execute-cell";
     };
-    /** ExecuteCellsCommand */
+    /**
+     * ExecuteCellsCommand
+     * @description Execute multiple cells in a batch.
+     *
+     *         Executes multiple cells with their corresponding code. The kernel manages
+     *         dependency tracking and reactive execution.
+     *
+     *         Attributes:
+     *             cell_ids: Cells to execute.
+     *             codes: Python code for each cell. Must match length of cell_ids.
+     *             request: HTTP request context if available.
+     *             timestamp: Unix timestamp when command was created.
+     */
     ExecuteCellsCommand: {
       cellIds: string[];
       codes: string[];
@@ -3520,7 +3590,18 @@ export interface components {
       /** @default null */
       request?: components["schemas"]["HTTPRequest"] | null;
     };
-    /** ExecuteScratchpadCommand */
+    /**
+     * ExecuteScratchpadCommand
+     * @description Execute code in the scratchpad.
+     *
+     *         The scratchpad is a temporary execution environment that doesn't affect
+     *         the notebook's cells or dependencies. Runs in an isolated cell with a copy
+     *         of the global namespace, useful for experimentation.
+     *
+     *         Attributes:
+     *             code: Python code to execute.
+     *             request: HTTP request context if available.
+     */
     ExecuteScratchpadCommand: {
       code: string;
       /** @default null */
@@ -3534,7 +3615,16 @@ export interface components {
       /** @default null */
       request?: components["schemas"]["HTTPRequest"] | null;
     };
-    /** ExecuteStaleCellsCommand */
+    /**
+     * ExecuteStaleCellsCommand
+     * @description Execute all stale cells.
+     *
+     *         Cells become stale when their dependencies change but haven't been
+     *         re-executed yet. Brings the notebook to a consistent state.
+     *
+     *         Attributes:
+     *             request: HTTP request context if available.
+     */
     ExecuteStaleCellsCommand: {
       /** @default null */
       request?: components["schemas"]["HTTPRequest"] | null;
@@ -3715,7 +3805,12 @@ export interface components {
       return_value: unknown;
       status: components["schemas"]["HumanReadableStatus"];
     };
-    /** GetCacheInfoCommand */
+    /**
+     * GetCacheInfoCommand
+     * @description Retrieve cache statistics.
+     *
+     *         Collects cache usage info across all contexts (hit/miss rates, time saved, disk usage).
+     */
     GetCacheInfoCommand: {
       /** @enum {unknown} */
       type: "get-cache-info";
@@ -3752,9 +3847,20 @@ export interface components {
     };
     /**
      * HTTPRequest
-     * @description A class that mimics the Request object from Starlette or FastAPI.
+     * @description Serializable HTTP request representation.
      *
-     *     It is a subset and pickle-able version of the Request object.
+     *         Mimics Starlette/FastAPI Request but is pickle-able and contains only a safe
+     *         subset of data. Excludes session and auth to prevent exposing sensitive data.
+     *
+     *         Attributes:
+     *             url: Serialized URL with path, port, scheme, netloc, query, hostname.
+     *             base_url: Serialized base URL.
+     *             headers: Request headers (marimo-specific headers excluded).
+     *             query_params: Query parameters mapped to lists of values.
+     *             path_params: Path parameters from the URL route.
+     *             cookies: Request cookies.
+     *             meta: User-defined storage for custom data.
+     *             user: User info from authentication middleware (e.g., is_authenticated, username).
      */
     HTTPRequest: {
       base_url: Record<string, any>;
@@ -3792,7 +3898,18 @@ export interface components {
       /** @enum {unknown} */
       type: "import-star";
     };
-    /** InstallPackagesCommand */
+    /**
+     * InstallPackagesCommand
+     * @description Install Python packages.
+     *
+     *         Installs missing packages using the specified package manager. Triggered
+     *         automatically on import errors or manually by the user.
+     *
+     *         Attributes:
+     *             manager: Package manager to use ('pip', 'conda', 'uv', etc.).
+     *             versions: Package names mapped to version specifiers. Empty version
+     *                       means install latest.
+     */
     InstallPackagesCommand: {
       manager: string;
       /** @enum {unknown} */
@@ -3850,7 +3967,18 @@ export interface components {
       success: boolean;
       toolName: string;
     };
-    /** InvokeFunctionCommand */
+    /**
+     * InvokeFunctionCommand
+     * @description Invoke a function from a UI element.
+     *
+     *         Called when a UI element needs to invoke a Python function.
+     *
+     *         Attributes:
+     *             function_call_id: Unique identifier for this call.
+     *             namespace: Namespace where the function is registered.
+     *             function_name: Function to invoke.
+     *             args: Keyword arguments for the function.
+     */
     InvokeFunctionCommand: {
       args: Record<string, any>;
       functionCallId: string;
@@ -4027,7 +4155,12 @@ export interface components {
     };
     /**
      * ListDataSourceConnectionCommand
-     * @description Fetch a datasource connection
+     * @description List data source schemas.
+     *
+     *         Retrieves available schemas for a data source engine.
+     *
+     *         Attributes:
+     *             engine: Data source engine identifier.
      */
     ListDataSourceConnectionCommand: {
       engine: string;
@@ -4044,7 +4177,16 @@ export interface components {
     };
     /**
      * ListSQLTablesCommand
-     * @description Preview list of tables in an SQL schema
+     * @description List tables in an SQL schema.
+     *
+     *         Retrieves names of all tables and views in a schema. Used by the SQL
+     *         editor for table selection.
+     *
+     *         Attributes:
+     *             request_id: Unique identifier for this request.
+     *             engine: SQL engine ('postgresql', 'mysql', 'duckdb', etc.).
+     *             database: Database to query.
+     *             schema: Schema to list tables from.
      */
     ListSQLTablesCommand: {
       database: string;
@@ -4061,7 +4203,15 @@ export interface components {
       requestId: string;
       schema: string;
     };
-    /** ListSecretKeysCommand */
+    /**
+     * ListSecretKeysCommand
+     * @description List available secret keys.
+     *
+     *         Retrieves secret names without exposing values.
+     *
+     *         Attributes:
+     *             request_id: Unique identifier for this request.
+     */
     ListSecretKeysCommand: {
       requestId: string;
       /** @enum {unknown} */
@@ -4228,7 +4378,16 @@ export interface components {
       op: "missing-package-alert";
       packages: string[];
     };
-    /** ModelMessage */
+    /**
+     * ModelMessage
+     * @description Widget model state update message.
+     *
+     *         State changes for anywidget models, including state dict and binary buffer paths.
+     *
+     *         Attributes:
+     *             state: Model state updates.
+     *             buffer_paths: Paths within state dict pointing to binary buffers.
+     */
     ModelMessage: {
       bufferPaths: (string | number)[][];
       state: Record<string, any>;
@@ -4305,7 +4464,20 @@ export interface components {
       error?: string | null;
       success: boolean;
     };
-    /** PreviewDatasetColumnCommand */
+    /**
+     * PreviewDatasetColumnCommand
+     * @description Preview a dataset column.
+     *
+     *         Retrieves and displays data from a single column (dataframe or SQL table).
+     *         Used by the data explorer UI.
+     *
+     *         Attributes:
+     *             source_type: Data source type ('dataframe', 'sql', etc.).
+     *             source: Source identifier (connection string or variable name).
+     *             table_name: Table or dataframe variable name.
+     *             column_name: Column to preview.
+     *             fully_qualified_table_name: Full database.schema.table name for SQL.
+     */
     PreviewDatasetColumnCommand: {
       columnName: string;
       /** @default null */
@@ -4329,7 +4501,17 @@ export interface components {
     };
     /**
      * PreviewSQLTableCommand
-     * @description Preview table details in an SQL database
+     * @description Preview SQL table details.
+     *
+     *         Retrieves metadata and sample data for a table. Used by the SQL editor
+     *         and data explorer.
+     *
+     *         Attributes:
+     *             request_id: Unique identifier for this request.
+     *             engine: SQL engine ('postgresql', 'mysql', 'duckdb', etc.).
+     *             database: Database containing the table.
+     *             schema: Schema containing the table.
+     *             table_name: Table to preview.
      */
     PreviewSQLTableCommand: {
       database: string;
@@ -4405,7 +4587,12 @@ export interface components {
       /** @enum {unknown} */
       op: "reconnected";
     };
-    /** RefreshSecretsCommand */
+    /**
+     * RefreshSecretsCommand
+     * @description Refresh secrets from the secrets store.
+     *
+     *         Reloads secrets from the provider without restarting the kernel.
+     */
     RefreshSecretsCommand: {
       /** @enum {unknown} */
       type: "refresh-secrets";
@@ -4432,7 +4619,15 @@ export interface components {
       /** @enum {unknown} */
       op: "remove-ui-elements";
     };
-    /** RenameNotebookCommand */
+    /**
+     * RenameNotebookCommand
+     * @description Rename or move the notebook file.
+     *
+     *         Updates the notebook's filename in the kernel metadata.
+     *
+     *         Attributes:
+     *             filename: New filename or path for the notebook.
+     */
     RenameNotebookCommand: {
       filename: string;
       /** @enum {unknown} */
@@ -4732,7 +4927,13 @@ export interface components {
     StdinRequest: {
       text: string;
     };
-    /** StopKernelCommand */
+    /**
+     * StopKernelCommand
+     * @description Stop kernel execution.
+     *
+     *         Signals the kernel to stop processing and shut down gracefully.
+     *         Used when closing a notebook or terminating a session.
+     */
     StopKernelCommand: {
       /** @enum {unknown} */
       type: "stop-kernel";
@@ -4751,7 +4952,19 @@ export interface components {
       /** @default true */
       success?: boolean;
     };
-    /** SyncGraphCommand */
+    /**
+     * SyncGraphCommand
+     * @description Synchronize the kernel graph with file manager state.
+     *
+     *         Used when the notebook file changes externally (e.g., file reload or version control).
+     *         Updates changed cells, deletes removed cells, and optionally executes modified cells.
+     *
+     *         Attributes:
+     *             cells: All cells known to file manager, mapping cell_id to code.
+     *             run_ids: Cells to execute or update.
+     *             delete_ids: Cells to delete from the graph.
+     *             timestamp: Unix timestamp when command was created.
+     */
     SyncGraphCommand: {
       cells: {
         [key: string]: string;
@@ -4813,7 +5026,16 @@ export interface components {
       /** @enum {unknown} */
       op: "update-cell-codes";
     };
-    /** UpdateCellConfigCommand */
+    /**
+     * UpdateCellConfigCommand
+     * @description Update cell configuration.
+     *
+     *         Updates cell-level settings like disabled state, hide code, etc.
+     *
+     *         Attributes:
+     *             configs: Cell IDs mapped to their config updates. Each config dict
+     *                      can contain partial updates.
+     */
     UpdateCellConfigCommand: {
       configs: {
         [key: string]: Record<string, any>;
@@ -4843,7 +5065,19 @@ export interface components {
     UpdateCellIdsRequest: {
       cellIds: string[];
     };
-    /** UpdateUIElementCommand */
+    /**
+     * UpdateUIElementCommand
+     * @description Update UI element values.
+     *
+     *         Triggered when users interact with UI elements (sliders, inputs, dropdowns, etc.).
+     *         Updates element values and re-executes dependent cells.
+     *
+     *         Attributes:
+     *             object_ids: UI elements to update.
+     *             values: New values for the elements. Must match length of object_ids.
+     *             request: HTTP request context if available.
+     *             token: Unique request identifier for deduplication.
+     */
     UpdateUIElementCommand: {
       objectIds: string[];
       /** @default null */
@@ -4866,7 +5100,15 @@ export interface components {
       objectIds: string[];
       values: unknown[];
     };
-    /** UpdateUserConfigCommand */
+    /**
+     * UpdateUserConfigCommand
+     * @description Update user configuration.
+     *
+     *         Updates global marimo configuration (runtime settings, display options, editor preferences).
+     *
+     *         Attributes:
+     *             config: Complete user configuration.
+     */
     UpdateUserConfigCommand: {
       config: components["schemas"]["MarimoConfig"];
       /** @enum {unknown} */
@@ -4876,7 +5118,17 @@ export interface components {
     UpdateUserConfigRequest: {
       config: components["schemas"]["MarimoConfig"];
     };
-    /** UpdateWidgetModelCommand */
+    /**
+     * UpdateWidgetModelCommand
+     * @description Update anywidget model state.
+     *
+     *         Updates widget model state for bidirectional Python-JavaScript communication.
+     *
+     *         Attributes:
+     *             model_id: Widget model identifier.
+     *             message: Model message with state updates and buffer paths.
+     *             buffers: Base64-encoded binary buffers referenced by buffer_paths.
+     */
     UpdateWidgetModelCommand: {
       /** @default null */
       buffers?: string[] | null;
@@ -4894,7 +5146,17 @@ export interface components {
     };
     /**
      * ValidateSQLCommand
-     * @description Validate an SQL query against the engine
+     * @description Validate an SQL query.
+     *
+     *         Checks if an SQL query is valid by parsing against a dialect (no DB connection)
+     *         or validating against an actual database.
+     *
+     *         Attributes:
+     *             request_id: Unique identifier for this request.
+     *             query: SQL query to validate.
+     *             only_parse: If True, only parse using dialect. If False, validate against DB.
+     *             engine: SQL engine (required if only_parse is False).
+     *             dialect: SQL dialect for parsing (required if only_parse is True).
      */
     ValidateSQLCommand: {
       /** @default null */
