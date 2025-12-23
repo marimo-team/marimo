@@ -16,16 +16,16 @@ from marimo._messaging.notification import (
     InstallingPackageAlertNotification,
     MissingPackageAlertNotification,
 )
+from marimo._runtime.commands import (
+    CommandMessage,
+    InstallPackagesCommand,
+)
 from marimo._runtime.packages.package_managers import create_package_manager
 from marimo._runtime.packages.pypi_package_manager import (
     MicropipPackageManager,
     PipPackageManager,
 )
 from marimo._runtime.packages.utils import is_python_isolated
-from marimo._runtime.requests import (
-    ControlRequest,
-    InstallMissingPackagesRequest,
-)
 from marimo._runtime.runner import cell_runner
 from tests.conftest import MockedKernel
 
@@ -235,7 +235,7 @@ async def test_install_missing_packages_micropip(
 
     with patch("micropip.install", new_callable=AsyncMock) as mock_install:
         await k.packages_callbacks.install_missing_packages(
-            InstallMissingPackagesRequest(
+            InstallPackagesCommand(
                 manager="micropip",
                 versions={"barbaz": "", "foobar": ""},
             )
@@ -255,7 +255,7 @@ async def test_install_missing_packages_micropip_with_versions(
 
     with patch("micropip.install", new_callable=AsyncMock) as mock_install:
         await k.packages_callbacks.install_missing_packages(
-            InstallMissingPackagesRequest(
+            InstallPackagesCommand(
                 manager="micropip",
                 versions={"numpy": "1.22.0", "pandas": "1.5.0"},
             )
@@ -279,7 +279,7 @@ async def test_install_missing_packages_micropip_other_modules(
 
     with patch("micropip.install", new_callable=AsyncMock) as mock_install:
         await k.packages_callbacks.install_missing_packages(
-            InstallMissingPackagesRequest(
+            InstallPackagesCommand(
                 manager="micropip",
                 versions={},
             )
@@ -297,12 +297,12 @@ async def test_missing_packages_hook(
 ) -> None:
     """Test that missing_packages_hook correctly handles missing packages for micropip"""
     k = mocked_kernel.k
-    control_requests: list[ControlRequest] = []
+    control_requests: list[CommandMessage] = []
     broadcast_messages: list[
         InstallingPackageAlertNotification | MissingPackageAlertNotification
     ] = []
 
-    def mock_enqueue(request: ControlRequest) -> None:
+    def mock_enqueue(request: CommandMessage) -> None:
         control_requests.append(request)
 
     def mock_broadcast(
@@ -354,7 +354,7 @@ async def test_missing_packages_hook(
         # Should create install request
         assert len(control_requests) == 1
         request = control_requests[0]
-        assert isinstance(request, InstallMissingPackagesRequest)
+        assert isinstance(request, InstallPackagesCommand)
         assert request.manager == package_manager.name
         assert request.versions == {
             "numpy": "",
@@ -397,7 +397,7 @@ async def test_missing_packages_hook(
         # Should create install request with all missing packages
         assert len(control_requests) == 1
         request = control_requests[0]
-        assert isinstance(request, InstallMissingPackagesRequest)
+        assert isinstance(request, InstallPackagesCommand)
         assert request.manager == package_manager.name
         assert request.versions == {
             "grouped-one": "",
@@ -419,7 +419,7 @@ async def test_missing_packages_hook(
         # Should only include packages not yet attempted
         assert len(control_requests) == 1
         request = control_requests[0]
-        assert isinstance(request, InstallMissingPackagesRequest)
+        assert isinstance(request, InstallPackagesCommand)
         assert request.manager == package_manager.name
         assert request.versions == {
             "grouped-one": "",
@@ -435,12 +435,12 @@ def test_missing_packages_hook_pip(
 ) -> None:
     """Test that missing_packages_hook correctly handles missing packages for pip"""
     k = mocked_kernel.k
-    control_requests: list[ControlRequest] = []
+    control_requests: list[CommandMessage] = []
     broadcast_messages: list[
         InstallingPackageAlertNotification | MissingPackageAlertNotification
     ] = []
 
-    def mock_enqueue(request: ControlRequest) -> None:
+    def mock_enqueue(request: CommandMessage) -> None:
         control_requests.append(request)
 
     def mock_broadcast(
@@ -509,7 +509,7 @@ def test_missing_packages_hook_pip(
         # Should create install request with all missing packages
         assert len(control_requests) == 1
         request = control_requests[0]
-        assert isinstance(request, InstallMissingPackagesRequest)
+        assert isinstance(request, InstallPackagesCommand)
         assert request.manager == "pip"
         assert request.versions == {
             "ibis-framework[duckdb]": "",
@@ -560,9 +560,7 @@ async def test_install_missing_packages_with_streaming_logs(
         ),
     ):
         # Create install request
-        request = InstallMissingPackagesRequest(
-            manager="pip", versions={"numpy": ""}
-        )
+        request = InstallPackagesCommand(manager="pip", versions={"numpy": ""})
 
         await k.packages_callbacks.install_missing_packages(request)
 
@@ -634,7 +632,7 @@ async def test_install_missing_packages_streaming_logs_failure(
             "marimo._runtime.runtime.broadcast_notification", mock_broadcast
         ),
     ):
-        request = InstallMissingPackagesRequest(
+        request = InstallPackagesCommand(
             manager="pip", versions={"nonexistent-package": ""}
         )
 
@@ -697,7 +695,7 @@ async def test_install_missing_packages_streaming_logs_multiple_packages(
             "marimo._runtime.runtime.broadcast_notification", mock_broadcast
         ),
     ):
-        request = InstallMissingPackagesRequest(
+        request = InstallPackagesCommand(
             manager="pip", versions={"numpy": "", "pandas": "", "scipy": ""}
         )
 
@@ -771,7 +769,7 @@ async def test_install_missing_packages_no_logs_backward_compatibility(
             "marimo._runtime.runtime.broadcast_notification", mock_broadcast
         ),
     ):
-        request = InstallMissingPackagesRequest(
+        request = InstallPackagesCommand(
             manager="pip", versions={"requests": ""}
         )
 

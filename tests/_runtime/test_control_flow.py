@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from marimo._runtime import control_flow
-from marimo._runtime.requests import ExecutionRequest
+from marimo._runtime.commands import ExecuteCellCommand
 from marimo._runtime.runner import cell_runner
 from marimo._runtime.runtime import Kernel
 
@@ -11,11 +11,11 @@ async def test_stop_false(execution_kernel: Kernel) -> None:
     k = execution_kernel
     await k.run(
         [
-            ExecutionRequest(
+            ExecuteCellCommand(
                 cell_id="0",
                 code="import marimo as mo; x = 0; mo.stop(False); y = 1",
             ),
-            ExecutionRequest(cell_id="1", code="z = y + 1"),
+            ExecuteCellCommand(cell_id="1", code="z = y + 1"),
         ]
     )
     assert k.globals["x"] == 0
@@ -28,8 +28,8 @@ async def test_stop_true(execution_kernel: Kernel) -> None:
     # Populate the kernel and its globals
     await k.run(
         [
-            ExecutionRequest(cell_id="0", code="x = 0; y = 1"),
-            ExecutionRequest(cell_id="1", code="z = y + 1"),
+            ExecuteCellCommand(cell_id="0", code="x = 0; y = 1"),
+            ExecuteCellCommand(cell_id="1", code="z = y + 1"),
         ]
     )
     assert k.globals["x"] == 0
@@ -39,7 +39,7 @@ async def test_stop_true(execution_kernel: Kernel) -> None:
     # Force cell 0 to stop
     await k.run(
         [
-            ExecutionRequest(
+            ExecuteCellCommand(
                 cell_id="0",
                 code="import marimo as mo; x = 0; mo.stop(True); y = 1",
             ),
@@ -58,7 +58,7 @@ async def test_stop_output(execution_kernel: Kernel) -> None:
     # Run a cell through the kernel to populate graph
     await k.run(
         [
-            ExecutionRequest(
+            ExecuteCellCommand(
                 cell_id="0",
                 code="import marimo as mo; x = 0; mo.stop(True, 'stopped!'); y = 1",  # noqa: E501
             ),

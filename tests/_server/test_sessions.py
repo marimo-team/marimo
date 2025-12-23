@@ -29,12 +29,12 @@ from marimo._messaging.notification import (
 )
 from marimo._messaging.serde import deserialize_kernel_message
 from marimo._messaging.types import KernelMessage
-from marimo._runtime.requests import (
+from marimo._runtime.commands import (
     AppMetadata,
-    CreationRequest,
-    ExecutionRequest,
-    SetUIElementValueRequest,
-    SyncGraphRequest,
+    CreateNotebookCommand,
+    ExecuteCellCommand,
+    SyncGraphCommand,
+    UpdateUIElementCommand,
 )
 from marimo._server.consumer import SessionConsumer
 from marimo._server.file_router import AppFileRouter
@@ -229,9 +229,9 @@ def test_kernel_manager_interrupt(tmp_path: Path) -> None:
     Path(file).write_text("-1")
 
     queue_manager.control_queue.put(
-        CreationRequest(
+        CreateNotebookCommand(
             execution_requests=(
-                ExecutionRequest(
+                ExecuteCellCommand(
                     cell_id="1",
                     code=inspect.cleandoc(
                         f"""
@@ -245,7 +245,7 @@ def test_kernel_manager_interrupt(tmp_path: Path) -> None:
                     ),
                 ),
             ),
-            set_ui_element_value_request=SetUIElementValueRequest(
+            set_ui_element_value_request=UpdateUIElementCommand(
                 object_ids=[], values=[]
             ),
             auto_run=True,
@@ -792,7 +792,7 @@ async def test_watch_mode_with_watcher_on_save_autorun(tmp_path: Path) -> None:
         # Verify that cells were queued for execution
         assert session.session_view.add_control_request.called
         last_call = session.session_view.add_control_request.call_args[0][0]
-        assert isinstance(last_call, SyncGraphRequest)
+        assert isinstance(last_call, SyncGraphCommand)
 
     finally:
         # Cleanup

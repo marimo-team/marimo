@@ -13,13 +13,13 @@ from reload_test_utils import random_modname, update_file
 
 from marimo._config.config import DEFAULT_CONFIG
 from marimo._dependencies.dependencies import DependencyManager
+from marimo._runtime.commands import UpdateUserConfigCommand
 from marimo._runtime.reload.autoreload import ModuleReloader
 from marimo._runtime.reload.module_watcher import (
     _check_modules,
     _depends_on,
     _get_excluded_modules,
 )
-from marimo._runtime.requests import SetUserConfigRequest
 from marimo._runtime.runtime import Kernel
 from tests.conftest import ExecReqProvider
 
@@ -59,7 +59,7 @@ async def test_reload_function(
 
     config = copy.deepcopy(DEFAULT_CONFIG)
     config["runtime"]["auto_reload"] = "lazy"
-    k.set_user_config(SetUserConfigRequest(config=config))
+    k.set_user_config(UpdateUserConfigCommand(config=config))
     await k.run(
         [
             er_1 := exec_req.get(f"from {py_modname} import foo"),
@@ -112,18 +112,18 @@ async def test_disable_and_reenable_reload(
     config = copy.deepcopy(DEFAULT_CONFIG)
     # enable reloading ...
     config["runtime"]["auto_reload"] = "lazy"
-    k.set_user_config(SetUserConfigRequest(config=config))
+    k.set_user_config(UpdateUserConfigCommand(config=config))
 
     # disable it ...
     config["runtime"]["auto_reload"] = "off"
-    k.set_user_config(SetUserConfigRequest(config=config))
+    k.set_user_config(UpdateUserConfigCommand(config=config))
 
     # TODO: Invesitigate flaky on minimal CI
     await asyncio.sleep(INTERVAL / 2)
 
     # ... and reenable it
     config["runtime"]["auto_reload"] = "lazy"
-    k.set_user_config(SetUserConfigRequest(config=config))
+    k.set_user_config(UpdateUserConfigCommand(config=config))
     await k.run(
         [
             er_1 := exec_req.get(f"from {py_modname} import foo"),
@@ -184,7 +184,7 @@ async def test_reload_nested_module_function(
 
     config = copy.deepcopy(DEFAULT_CONFIG)
     config["runtime"]["auto_reload"] = "lazy"
-    k.set_user_config(SetUserConfigRequest(config=config))
+    k.set_user_config(UpdateUserConfigCommand(config=config))
     await k.run(
         [
             er_1 := exec_req.get(f"from {py_modname} import foo"),
@@ -239,7 +239,7 @@ async def test_reload_nested_module_import_module(
 
     config = copy.deepcopy(DEFAULT_CONFIG)
     config["runtime"]["auto_reload"] = "lazy"
-    k.set_user_config(SetUserConfigRequest(config=config))
+    k.set_user_config(UpdateUserConfigCommand(config=config))
     await k.run(
         [
             er_1 := exec_req.get(f"from {py_modname} import foo"),
@@ -296,7 +296,7 @@ async def test_reload_nested_module_import_module_autorun(
     k.enqueue_control_request = lambda req: queue.put(req)
     config = copy.deepcopy(DEFAULT_CONFIG)
     config["runtime"]["auto_reload"] = "autorun"
-    k.set_user_config(SetUserConfigRequest(config=config))
+    k.set_user_config(UpdateUserConfigCommand(config=config))
     await k.run(
         [
             er_1 := exec_req.get(f"from {py_modname} import foo"),
@@ -344,7 +344,7 @@ async def test_reload_package(
 
     config = copy.deepcopy(DEFAULT_CONFIG)
     config["runtime"]["auto_reload"] = "lazy"
-    k.set_user_config(SetUserConfigRequest(config=config))
+    k.set_user_config(UpdateUserConfigCommand(config=config))
     await k.run(
         [
             er_1 := exec_req.get(f"import {b_name}"),
@@ -396,7 +396,7 @@ async def test_reload_third_party(
 
     config = copy.deepcopy(DEFAULT_CONFIG)
     config["runtime"]["auto_reload"] = "lazy"
-    k.set_user_config(SetUserConfigRequest(config=config))
+    k.set_user_config(UpdateUserConfigCommand(config=config))
     await k.run(
         [
             er_1 := exec_req.get(f"from {py_modname} import foo"),
@@ -451,7 +451,7 @@ async def test_reload_with_modified_cell(
 
     config = copy.deepcopy(DEFAULT_CONFIG)
     config["runtime"]["auto_reload"] = "lazy"
-    k.set_user_config(SetUserConfigRequest(config=config))
+    k.set_user_config(UpdateUserConfigCommand(config=config))
     await k.run(
         [
             er_1 := exec_req.get(f"from {py_modname} import foo"),
@@ -509,7 +509,7 @@ async def test_reload_function_in_import_block(
 
     config = copy.deepcopy(DEFAULT_CONFIG)
     config["runtime"]["auto_reload"] = "lazy"
-    k.set_user_config(SetUserConfigRequest(config=config))
+    k.set_user_config(UpdateUserConfigCommand(config=config))
     await k.run(
         [
             # We will modify py_modname but not "random" ...
@@ -879,7 +879,7 @@ class TestModuleWatcherStop:
         k = execution_kernel
         config = copy.deepcopy(DEFAULT_CONFIG)
         config["runtime"]["auto_reload"] = "lazy"
-        k.set_user_config(SetUserConfigRequest(config=config))
+        k.set_user_config(UpdateUserConfigCommand(config=config))
 
         # Give watcher time to start
         await asyncio.sleep(INTERVAL)
@@ -901,7 +901,7 @@ class TestModuleWatcherStop:
         k = execution_kernel
         config = copy.deepcopy(DEFAULT_CONFIG)
         config["runtime"]["auto_reload"] = "lazy"
-        k.set_user_config(SetUserConfigRequest(config=config))
+        k.set_user_config(UpdateUserConfigCommand(config=config))
 
         # Give watcher time to start
         await asyncio.sleep(INTERVAL)
@@ -936,7 +936,7 @@ class TestModuleWatcherEdgeCases:
 
         config = copy.deepcopy(DEFAULT_CONFIG)
         config["runtime"]["auto_reload"] = "lazy"
-        k.set_user_config(SetUserConfigRequest(config=config))
+        k.set_user_config(UpdateUserConfigCommand(config=config))
 
         await k.run(
             [
@@ -980,7 +980,7 @@ class TestModuleWatcherEdgeCases:
 
         config = copy.deepcopy(DEFAULT_CONFIG)
         config["runtime"]["auto_reload"] = "lazy"
-        k.set_user_config(SetUserConfigRequest(config=config))
+        k.set_user_config(UpdateUserConfigCommand(config=config))
 
         # Run a cell with import
         await k.run([er_1 := exec_req.get(f"from {py_modname} import foo")])

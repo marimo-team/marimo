@@ -22,7 +22,7 @@ from marimo._plugins.ui._impl.tables.table_manager import (
     TableManager,
 )
 from marimo._plugins.ui._impl.tables.utils import get_table_manager_or_none
-from marimo._runtime.requests import PreviewDatasetColumnRequest
+from marimo._runtime.commands import PreviewDatasetColumnCommand
 from marimo._sql.utils import wrapped_sql
 from marimo._utils.narwhals_utils import downgrade_narwhals_df_to_v1
 
@@ -138,7 +138,7 @@ def get_column_preview_dataset(
 
 def get_column_preview_for_dataframe(
     item: object,
-    request: PreviewDatasetColumnRequest,
+    request: PreviewDatasetColumnCommand,
 ) -> DataColumnPreviewNotification | None:
     """
     Finds the table manager for the item and gets the column preview.

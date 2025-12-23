@@ -348,14 +348,14 @@ components:
       title: CellConfig
       type: object
     CellNotification:
-      description: "Op to transition a cell.\n\n    A CellNotification's data has some optional\
-        \ fields:\n\n    output        - a CellOutput\n    console       - a CellOutput\
-        \ (console msg to append), or a list of\n                    CellOutputs\n\
-        \    status        - execution status\n    stale_inputs  - whether the cell\
-        \ has stale inputs (variables, modules, ...)\n    run_id        - the run\
-        \ associated with this cell.\n    serialization - the serialization status\
-        \ of the cell\n\n    Omitting a field means that its value should be unchanged!\n\
-        \n    And one required field:\n\n    cell_id - the cell id"
+      description: "Op to transition a cell.\n\n    A CellNotification's data has\
+        \ some optional fields:\n\n    output        - a CellOutput\n    console \
+        \      - a CellOutput (console msg to append), or a list of\n            \
+        \        CellOutputs\n    status        - execution status\n    stale_inputs\
+        \  - whether the cell has stale inputs (variables, modules, ...)\n    run_id\
+        \        - the run associated with this cell.\n    serialization - the serialization\
+        \ status of the cell\n\n    Omitting a field means that its value should be\
+        \ unchanged!\n\n    And one required field:\n\n    cell_id - the cell id"
       properties:
         cell_id:
           type: string
@@ -558,10 +558,37 @@ components:
       - messages
       title: ChatRequest
       type: object
+    ClearCacheCommand:
+      properties:
+        type:
+          enum:
+          - clear-cache
+      required:
+      - type
+      title: ClearCacheCommand
+      type: object
     ClearCacheRequest:
       properties: {}
       required: []
       title: ClearCacheRequest
+      type: object
+    CodeCompletionCommand:
+      properties:
+        cellId:
+          type: string
+        document:
+          type: string
+        id:
+          type: string
+        type:
+          enum:
+          - code-completion
+      required:
+      - type
+      - id
+      - document
+      - cellId
+      title: CodeCompletionCommand
       type: object
     CodeCompletionRequest:
       properties:
@@ -752,6 +779,31 @@ components:
       - source
       - destination
       title: CopyNotebookRequest
+      type: object
+    CreateNotebookCommand:
+      properties:
+        autoRun:
+          type: boolean
+        executionRequests:
+          items:
+            $ref: '#/components/schemas/ExecuteCellCommand'
+          type: array
+        request:
+          anyOf:
+          - $ref: '#/components/schemas/HTTPRequest'
+          - type: 'null'
+          default: null
+        setUiElementValueRequest:
+          $ref: '#/components/schemas/UpdateUIElementCommand'
+        type:
+          enum:
+          - create-notebook
+      required:
+      - type
+      - executionRequests
+      - setUiElementValueRequest
+      - autoRun
+      title: CreateNotebookCommand
       type: object
     CreateSecretRequest:
       properties:
@@ -1070,6 +1122,48 @@ components:
       required: []
       title: DatasourcesConfig
       type: object
+    DebugCellCommand:
+      properties:
+        cellId:
+          type: string
+        request:
+          anyOf:
+          - $ref: '#/components/schemas/HTTPRequest'
+          - type: 'null'
+          default: null
+        type:
+          enum:
+          - debug-cell
+      required:
+      - type
+      - cellId
+      title: DebugCellCommand
+      type: object
+    DebugCellRequest:
+      properties:
+        cellId:
+          type: string
+        request:
+          anyOf:
+          - $ref: '#/components/schemas/HTTPRequest'
+          - type: 'null'
+          default: null
+      required:
+      - cellId
+      title: DebugCellRequest
+      type: object
+    DeleteCellCommand:
+      properties:
+        cellId:
+          type: string
+        type:
+          enum:
+          - delete-cell
+      required:
+      - type
+      - cellId
+      title: DeleteCellCommand
+      type: object
     DeleteCellRequest:
       properties:
         cellId:
@@ -1191,7 +1285,29 @@ components:
       - theme
       title: DisplayConfig
       type: object
-    ExecuteMultipleRequest:
+    ExecuteCellCommand:
+      properties:
+        cellId:
+          type: string
+        code:
+          type: string
+        request:
+          anyOf:
+          - $ref: '#/components/schemas/HTTPRequest'
+          - type: 'null'
+          default: null
+        timestamp:
+          type: number
+        type:
+          enum:
+          - execute-cell
+      required:
+      - type
+      - cellId
+      - code
+      title: ExecuteCellCommand
+      type: object
+    ExecuteCellsCommand:
       properties:
         cellIds:
           items:
@@ -1208,10 +1324,51 @@ components:
           default: null
         timestamp:
           type: number
+        type:
+          enum:
+          - execute-cells
+      required:
+      - type
+      - cellIds
+      - codes
+      title: ExecuteCellsCommand
+      type: object
+    ExecuteCellsRequest:
+      properties:
+        cellIds:
+          items:
+            type: string
+          type: array
+        codes:
+          items:
+            type: string
+          type: array
+        request:
+          anyOf:
+          - $ref: '#/components/schemas/HTTPRequest'
+          - type: 'null'
+          default: null
       required:
       - cellIds
       - codes
-      title: ExecuteMultipleRequest
+      title: ExecuteCellsRequest
+      type: object
+    ExecuteScratchpadCommand:
+      properties:
+        code:
+          type: string
+        request:
+          anyOf:
+          - $ref: '#/components/schemas/HTTPRequest'
+          - type: 'null'
+          default: null
+        type:
+          enum:
+          - execute-scratchpad
+      required:
+      - type
+      - code
+      title: ExecuteScratchpadCommand
       type: object
     ExecuteScratchpadRequest:
       properties:
@@ -1226,33 +1383,19 @@ components:
       - code
       title: ExecuteScratchpadRequest
       type: object
-    ExecuteStaleRequest:
+    ExecuteStaleCellsCommand:
       properties:
         request:
           anyOf:
           - $ref: '#/components/schemas/HTTPRequest'
           - type: 'null'
           default: null
-      required: []
-      title: ExecuteStaleRequest
-      type: object
-    ExecutionRequest:
-      properties:
-        cellId:
-          type: string
-        code:
-          type: string
-        request:
-          anyOf:
-          - $ref: '#/components/schemas/HTTPRequest'
-          - type: 'null'
-          default: null
-        timestamp:
-          type: number
+        type:
+          enum:
+          - execute-stale-cells
       required:
-      - cellId
-      - code
-      title: ExecutionRequest
+      - type
+      title: ExecuteStaleCellsCommand
       type: object
     ExportAsHTMLRequest:
       properties:
@@ -1562,7 +1705,7 @@ components:
       - cell_id
       title: FocusCellNotification
       type: object
-    FormatRequest:
+    FormatCellsRequest:
       properties:
         codes:
           additionalProperties:
@@ -1573,7 +1716,7 @@ components:
       required:
       - codes
       - lineLength
-      title: FormatRequest
+      title: FormatCellsRequest
       type: object
     FormatResponse:
       properties:
@@ -1595,23 +1738,6 @@ components:
       - line_length
       title: FormattingConfig
       type: object
-    FunctionCallRequest:
-      properties:
-        args:
-          type: object
-        functionCallId:
-          type: string
-        functionName:
-          type: string
-        namespace:
-          type: string
-      required:
-      - functionCallId
-      - namespace
-      - functionName
-      - args
-      title: FunctionCallRequest
-      type: object
     FunctionCallResultNotification:
       description: Result of calling a function.
       properties:
@@ -1629,6 +1755,15 @@ components:
       - return_value
       - status
       title: FunctionCallResultNotification
+      type: object
+    GetCacheInfoCommand:
+      properties:
+        type:
+          enum:
+          - get-cache-info
+      required:
+      - type
+      title: GetCacheInfoCommand
       type: object
     GetCacheInfoRequest:
       properties: {}
@@ -1661,9 +1796,12 @@ components:
       title: GoogleAiConfig
       type: object
     HTTPRequest:
+      description: 'A class that mimics the Request object from Starlette or FastAPI.
+
+
+        It is a subset and pickle-able version of the Request object.'
       properties:
-        baseUrl:
-          additionalProperties: {}
+        base_url:
           type: object
         cookies:
           additionalProperties:
@@ -1674,30 +1812,28 @@ components:
             type: string
           type: object
         meta:
-          additionalProperties: {}
           type: object
-        pathParams:
-          additionalProperties: {}
+        path_params:
           type: object
-        queryParams:
+        query_params:
           additionalProperties:
             items:
               type: string
             type: array
           type: object
         url:
-          additionalProperties: {}
           type: object
         user: {}
       required:
       - url
-      - baseUrl
+      - base_url
       - headers
-      - queryParams
-      - pathParams
+      - query_params
+      - path_params
       - cookies
       - meta
       - user
+      title: HTTPRequest
       type: object
     HumanReadableStatus:
       description: Human-readable status.
@@ -1737,7 +1873,24 @@ components:
       - msg
       title: ImportStarError
       type: object
-    InstallMissingPackagesRequest:
+    InstallPackagesCommand:
+      properties:
+        manager:
+          type: string
+        type:
+          enum:
+          - install-packages
+        versions:
+          additionalProperties:
+            type: string
+          type: object
+      required:
+      - type
+      - manager
+      - versions
+      title: InstallPackagesCommand
+      type: object
+    InstallPackagesRequest:
       properties:
         manager:
           type: string
@@ -1748,7 +1901,7 @@ components:
       required:
       - manager
       - versions
-      title: InstallMissingPackagesRequest
+      title: InstallPackagesRequest
       type: object
     InstallingPackageAlertNotification:
       properties:
@@ -1783,7 +1936,7 @@ components:
       - packages
       title: InstallingPackageAlertNotification
       type: object
-    InstantiateRequest:
+    InstantiateNotebookRequest:
       properties:
         autoRun:
           default: true
@@ -1797,7 +1950,7 @@ components:
       required:
       - objectIds
       - values
-      title: InstantiateRequest
+      title: InstantiateNotebookRequest
       type: object
     InterruptedNotification:
       description: Written when the kernel is interrupted by the user.
@@ -1837,6 +1990,44 @@ components:
       - toolName
       - result
       title: InvokeAiToolResponse
+      type: object
+    InvokeFunctionCommand:
+      properties:
+        args:
+          type: object
+        functionCallId:
+          type: string
+        functionName:
+          type: string
+        namespace:
+          type: string
+        type:
+          enum:
+          - invoke-function
+      required:
+      - type
+      - functionCallId
+      - namespace
+      - functionName
+      - args
+      title: InvokeFunctionCommand
+      type: object
+    InvokeFunctionRequest:
+      properties:
+        args:
+          type: object
+        functionCallId:
+          type: string
+        functionName:
+          type: string
+        namespace:
+          type: string
+      required:
+      - functionCallId
+      - namespace
+      - functionName
+      - args
+      title: InvokeFunctionRequest
       type: object
     KernelCapabilitiesNotification:
       properties:
@@ -1948,6 +2139,59 @@ components:
       type: object
     KnownUnions:
       properties:
+        command:
+          anyOf:
+          - $ref: '#/components/schemas/CreateNotebookCommand'
+          - $ref: '#/components/schemas/RenameNotebookCommand'
+          - $ref: '#/components/schemas/ExecuteCellsCommand'
+          - $ref: '#/components/schemas/ExecuteScratchpadCommand'
+          - $ref: '#/components/schemas/ExecuteStaleCellsCommand'
+          - $ref: '#/components/schemas/DebugCellCommand'
+          - $ref: '#/components/schemas/DeleteCellCommand'
+          - $ref: '#/components/schemas/SyncGraphCommand'
+          - $ref: '#/components/schemas/UpdateCellConfigCommand'
+          - $ref: '#/components/schemas/InstallPackagesCommand'
+          - $ref: '#/components/schemas/UpdateUIElementCommand'
+          - $ref: '#/components/schemas/UpdateWidgetModelCommand'
+          - $ref: '#/components/schemas/InvokeFunctionCommand'
+          - $ref: '#/components/schemas/UpdateUserConfigCommand'
+          - $ref: '#/components/schemas/PreviewDatasetColumnCommand'
+          - $ref: '#/components/schemas/PreviewSQLTableCommand'
+          - $ref: '#/components/schemas/ListSQLTablesCommand'
+          - $ref: '#/components/schemas/ValidateSQLCommand'
+          - $ref: '#/components/schemas/ListDataSourceConnectionCommand'
+          - $ref: '#/components/schemas/ListSecretKeysCommand'
+          - $ref: '#/components/schemas/RefreshSecretsCommand'
+          - $ref: '#/components/schemas/ClearCacheCommand'
+          - $ref: '#/components/schemas/GetCacheInfoCommand'
+          - $ref: '#/components/schemas/StopKernelCommand'
+          discriminator:
+            mapping:
+              clear-cache: '#/components/schemas/ClearCacheCommand'
+              create-notebook: '#/components/schemas/CreateNotebookCommand'
+              debug-cell: '#/components/schemas/DebugCellCommand'
+              delete-cell: '#/components/schemas/DeleteCellCommand'
+              execute-cells: '#/components/schemas/ExecuteCellsCommand'
+              execute-scratchpad: '#/components/schemas/ExecuteScratchpadCommand'
+              execute-stale-cells: '#/components/schemas/ExecuteStaleCellsCommand'
+              get-cache-info: '#/components/schemas/GetCacheInfoCommand'
+              install-packages: '#/components/schemas/InstallPackagesCommand'
+              invoke-function: '#/components/schemas/InvokeFunctionCommand'
+              list-data-source-connection: '#/components/schemas/ListDataSourceConnectionCommand'
+              list-secret-keys: '#/components/schemas/ListSecretKeysCommand'
+              list-sql-tables: '#/components/schemas/ListSQLTablesCommand'
+              preview-dataset-column: '#/components/schemas/PreviewDatasetColumnCommand'
+              preview-sql-table: '#/components/schemas/PreviewSQLTableCommand'
+              refresh-secrets: '#/components/schemas/RefreshSecretsCommand'
+              rename-notebook: '#/components/schemas/RenameNotebookCommand'
+              stop-kernel: '#/components/schemas/StopKernelCommand'
+              sync-graph: '#/components/schemas/SyncGraphCommand'
+              update-cell-config: '#/components/schemas/UpdateCellConfigCommand'
+              update-ui-element: '#/components/schemas/UpdateUIElementCommand'
+              update-user-config: '#/components/schemas/UpdateUserConfigCommand'
+              update-widget-model: '#/components/schemas/UpdateWidgetModelCommand'
+              validate-sql: '#/components/schemas/ValidateSQLCommand'
+            propertyName: type
         data_type:
           enum:
           - boolean
@@ -2062,6 +2306,7 @@ components:
             propertyName: op
       required:
       - notification
+      - command
       - error
       - data_type
       title: KnownUnions
@@ -2090,6 +2335,27 @@ components:
       - data
       title: LayoutConfig
       type: object
+    ListDataSourceConnectionCommand:
+      description: Fetch a datasource connection
+      properties:
+        engine:
+          type: string
+        type:
+          enum:
+          - list-data-source-connection
+      required:
+      - type
+      - engine
+      title: ListDataSourceConnectionCommand
+      type: object
+    ListDataSourceConnectionRequest:
+      properties:
+        engine:
+          type: string
+      required:
+      - engine
+      title: ListDataSourceConnectionRequest
+      type: object
     ListPackagesResponse:
       properties:
         packages:
@@ -2099,6 +2365,57 @@ components:
       required:
       - packages
       title: ListPackagesResponse
+      type: object
+    ListSQLTablesCommand:
+      description: Preview list of tables in an SQL schema
+      properties:
+        database:
+          type: string
+        engine:
+          type: string
+        requestId:
+          type: string
+        schema:
+          type: string
+        type:
+          enum:
+          - list-sql-tables
+      required:
+      - type
+      - requestId
+      - engine
+      - database
+      - schema
+      title: ListSQLTablesCommand
+      type: object
+    ListSQLTablesRequest:
+      properties:
+        database:
+          type: string
+        engine:
+          type: string
+        requestId:
+          type: string
+        schema:
+          type: string
+      required:
+      - requestId
+      - engine
+      - database
+      - schema
+      title: ListSQLTablesRequest
+      type: object
+    ListSecretKeysCommand:
+      properties:
+        requestId:
+          type: string
+        type:
+          enum:
+          - list-secret-keys
+      required:
+      - type
+      - requestId
+      title: ListSecretKeysCommand
       type: object
     ListSecretKeysRequest:
       properties:
@@ -2560,27 +2877,35 @@ components:
       - success
       title: PackageOperationResponse
       type: object
-    PdbRequest:
+    PreviewDatasetColumnCommand:
       properties:
-        cellId:
+        columnName:
           type: string
-        request:
+        fullyQualifiedTableName:
           anyOf:
-          - $ref: '#/components/schemas/HTTPRequest'
+          - type: string
           - type: 'null'
           default: null
-      required:
-      - cellId
-      title: PdbRequest
-      type: object
-    PreviewDataSourceConnectionRequest:
-      description: Fetch a datasource connection
-      properties:
-        engine:
+        source:
           type: string
+        sourceType:
+          enum:
+          - catalog
+          - connection
+          - duckdb
+          - local
+        tableName:
+          type: string
+        type:
+          enum:
+          - preview-dataset-column
       required:
-      - engine
-      title: PreviewDataSourceConnectionRequest
+      - type
+      - sourceType
+      - source
+      - tableName
+      - columnName
+      title: PreviewDatasetColumnCommand
       type: object
     PreviewDatasetColumnRequest:
       properties:
@@ -2608,8 +2933,8 @@ components:
       - columnName
       title: PreviewDatasetColumnRequest
       type: object
-    PreviewSQLTableListRequest:
-      description: Preview list of tables in an SQL schema
+    PreviewSQLTableCommand:
+      description: Preview table details in an SQL database
       properties:
         database:
           type: string
@@ -2619,15 +2944,21 @@ components:
           type: string
         schema:
           type: string
+        tableName:
+          type: string
+        type:
+          enum:
+          - preview-sql-table
       required:
+      - type
       - requestId
       - engine
       - database
       - schema
-      title: PreviewSQLTableListRequest
+      - tableName
+      title: PreviewSQLTableCommand
       type: object
     PreviewSQLTableRequest:
-      description: Preview table details in an SQL database
       properties:
         database:
           type: string
@@ -2758,6 +3089,20 @@ components:
       - op
       title: ReconnectedNotification
       type: object
+    RefreshSecretsCommand:
+      properties:
+        type:
+          enum:
+          - refresh-secrets
+      required:
+      - type
+      title: RefreshSecretsCommand
+      type: object
+    RefreshSecretsRequest:
+      properties: {}
+      required: []
+      title: RefreshSecretsRequest
+      type: object
     ReloadNotification:
       properties:
         op:
@@ -2793,41 +3138,25 @@ components:
       - cell_id
       title: RemoveUIElementsNotification
       type: object
-    RenameFileRequest:
+    RenameNotebookCommand:
+      properties:
+        filename:
+          type: string
+        type:
+          enum:
+          - rename-notebook
+      required:
+      - type
+      - filename
+      title: RenameNotebookCommand
+      type: object
+    RenameNotebookRequest:
       properties:
         filename:
           type: string
       required:
       - filename
-      title: RenameFileRequest
-      type: object
-    RenameRequest:
-      properties:
-        filename:
-          type: string
-      required:
-      - filename
-      title: RenameRequest
-      type: object
-    RunRequest:
-      properties:
-        cellIds:
-          items:
-            type: string
-          type: array
-        codes:
-          items:
-            type: string
-          type: array
-        request:
-          anyOf:
-          - $ref: '#/components/schemas/HTTPRequest'
-          - type: 'null'
-          default: null
-      required:
-      - cellIds
-      - codes
-      title: RunRequest
+      title: RenameNotebookRequest
       type: object
     RunningNotebooksResponse:
       properties:
@@ -3145,37 +3474,6 @@ components:
       - keys
       title: SecretKeysWithProvider
       type: object
-    UIElementMessageNotification:
-      description: Send a message to a UI element.
-      properties:
-        buffers:
-          anyOf:
-          - items:
-              contentEncoding: base64
-              type: string
-            type: array
-          - type: 'null'
-          default: null
-        message:
-          type: object
-        model_id:
-          anyOf:
-          - type: string
-          - type: 'null'
-        op:
-          enum:
-          - send-ui-element-message
-        ui_element:
-          anyOf:
-          - type: string
-          - type: 'null'
-      required:
-      - op
-      - ui_element
-      - model_id
-      - message
-      title: UIElementMessageNotification
-      type: object
     ServerConfig:
       description: "Configuration for the server.\n\n    **Keys.**\n\n    - `browser`:\
         \ the web browser to use. `\"default\"` or a browser registered\n        with\
@@ -3194,62 +3492,6 @@ components:
       - browser
       - follow_symlink
       title: ServerConfig
-      type: object
-    SetCellConfigRequest:
-      properties:
-        configs:
-          additionalProperties:
-            type: object
-          type: object
-      required:
-      - configs
-      title: SetCellConfigRequest
-      type: object
-    SetModelMessageRequest:
-      properties:
-        buffers:
-          anyOf:
-          - items:
-              type: string
-            type: array
-          - type: 'null'
-          default: null
-        message:
-          $ref: '#/components/schemas/ModelMessage'
-        modelId:
-          type: string
-      required:
-      - modelId
-      - message
-      title: SetModelMessageRequest
-      type: object
-    SetUIElementValueRequest:
-      properties:
-        objectIds:
-          items:
-            type: string
-          type: array
-        request:
-          anyOf:
-          - $ref: '#/components/schemas/HTTPRequest'
-          - type: 'null'
-          default: null
-        token:
-          type: string
-        values:
-          type: array
-      required:
-      - objectIds
-      - values
-      title: SetUIElementValueRequest
-      type: object
-    SetUserConfigRequest:
-      properties:
-        config:
-          $ref: '#/components/schemas/MarimoConfig'
-      required:
-      - config
-      title: SetUserConfigRequest
       type: object
     SetupRootError:
       properties:
@@ -3429,10 +3671,14 @@ components:
       - text
       title: StdinRequest
       type: object
-    StopRequest:
-      properties: {}
-      required: []
-      title: StopRequest
+    StopKernelCommand:
+      properties:
+        type:
+          enum:
+          - stop-kernel
+      required:
+      - type
+      title: StopKernelCommand
       type: object
     StoreConfig:
       description: Configuration for cache stores.
@@ -3455,6 +3701,32 @@ components:
           type: boolean
       required: []
       title: SuccessResponse
+      type: object
+    SyncGraphCommand:
+      properties:
+        cells:
+          additionalProperties:
+            type: string
+          type: object
+        deleteIds:
+          items:
+            type: string
+          type: array
+        runIds:
+          items:
+            type: string
+          type: array
+        timestamp:
+          type: number
+        type:
+          enum:
+          - sync-graph
+      required:
+      - type
+      - cells
+      - runIds
+      - deleteIds
+      title: SyncGraphCommand
       type: object
     ToolDefinition:
       description: Tool definition compatible with ai-sdk-ui format.
@@ -3498,6 +3770,37 @@ components:
       required: []
       title: TyLanguageServerConfig
       type: object
+    UIElementMessageNotification:
+      description: Send a message to a UI element.
+      properties:
+        buffers:
+          anyOf:
+          - items:
+              contentEncoding: base64
+              type: string
+            type: array
+          - type: 'null'
+          default: null
+        message:
+          type: object
+        model_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+        op:
+          enum:
+          - send-ui-element-message
+        ui_element:
+          anyOf:
+          - type: string
+          - type: 'null'
+      required:
+      - op
+      - ui_element
+      - model_id
+      - message
+      title: UIElementMessageNotification
+      type: object
     UnknownError:
       properties:
         error_type:
@@ -3537,6 +3840,30 @@ components:
       - code_is_stale
       title: UpdateCellCodesNotification
       type: object
+    UpdateCellConfigCommand:
+      properties:
+        configs:
+          additionalProperties:
+            type: object
+          type: object
+        type:
+          enum:
+          - update-cell-config
+      required:
+      - type
+      - configs
+      title: UpdateCellConfigCommand
+      type: object
+    UpdateCellConfigRequest:
+      properties:
+        configs:
+          additionalProperties:
+            type: object
+          type: object
+      required:
+      - configs
+      title: UpdateCellConfigRequest
+      type: object
     UpdateCellIdsNotification:
       description: 'Update the cell ID ordering of the cells in the notebook.
 
@@ -3567,7 +3894,51 @@ components:
       - cellIds
       title: UpdateCellIdsRequest
       type: object
-    UpdateComponentValuesRequest:
+    UpdateUIElementCommand:
+      properties:
+        objectIds:
+          items:
+            type: string
+          type: array
+        request:
+          anyOf:
+          - $ref: '#/components/schemas/HTTPRequest'
+          - type: 'null'
+          default: null
+        token:
+          type: string
+        type:
+          enum:
+          - update-ui-element
+        values:
+          type: array
+      required:
+      - type
+      - objectIds
+      - values
+      title: UpdateUIElementCommand
+      type: object
+    UpdateUIElementRequest:
+      properties:
+        objectIds:
+          items:
+            type: string
+          type: array
+        request:
+          anyOf:
+          - $ref: '#/components/schemas/HTTPRequest'
+          - type: 'null'
+          default: null
+        token:
+          type: string
+        values:
+          type: array
+      required:
+      - objectIds
+      - values
+      title: UpdateUIElementRequest
+      type: object
+    UpdateUIElementValuesRequest:
       properties:
         objectIds:
           items:
@@ -3578,10 +3949,98 @@ components:
       required:
       - objectIds
       - values
-      title: UpdateComponentValuesRequest
+      title: UpdateUIElementValuesRequest
+      type: object
+    UpdateUserConfigCommand:
+      properties:
+        config:
+          $ref: '#/components/schemas/MarimoConfig'
+        type:
+          enum:
+          - update-user-config
+      required:
+      - type
+      - config
+      title: UpdateUserConfigCommand
+      type: object
+    UpdateUserConfigRequest:
+      properties:
+        config:
+          $ref: '#/components/schemas/MarimoConfig'
+      required:
+      - config
+      title: UpdateUserConfigRequest
+      type: object
+    UpdateWidgetModelCommand:
+      properties:
+        buffers:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          default: null
+        message:
+          $ref: '#/components/schemas/ModelMessage'
+        modelId:
+          type: string
+        type:
+          enum:
+          - update-widget-model
+      required:
+      - type
+      - modelId
+      - message
+      title: UpdateWidgetModelCommand
+      type: object
+    UpdateWidgetModelRequest:
+      properties:
+        buffers:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          default: null
+        message:
+          $ref: '#/components/schemas/ModelMessage'
+        modelId:
+          type: string
+      required:
+      - modelId
+      - message
+      title: UpdateWidgetModelRequest
+      type: object
+    ValidateSQLCommand:
+      description: Validate an SQL query against the engine
+      properties:
+        dialect:
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+        engine:
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+        onlyParse:
+          type: boolean
+        query:
+          type: string
+        requestId:
+          type: string
+        type:
+          enum:
+          - validate-sql
+      required:
+      - type
+      - requestId
+      - query
+      - onlyParse
+      title: ValidateSQLCommand
       type: object
     ValidateSQLRequest:
-      description: Validate an SQL query against the engine
       properties:
         dialect:
           anyOf:
@@ -3803,13 +4262,13 @@ paths:
         schema:
           type: string
       responses:
-        '200':
+        200:
           content:
             application/octet-stream:
               schema:
                 type: string
           description: Get a virtual file
-        '404':
+        404:
           description: Invalid byte length in virtual file request
   /api/ai/chat:
     post:
@@ -3830,7 +4289,7 @@ paths:
         description: The request body for AI completion
         required: true
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -3847,7 +4306,7 @@ paths:
         description: The request body for AI inline completion
         required: true
       responses:
-        '200':
+        200:
           content:
             text/plain:
               schema:
@@ -3863,7 +4322,7 @@ paths:
         description: The request body for tool invocation
         required: true
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -3872,7 +4331,7 @@ paths:
   /api/ai/mcp/refresh:
     post:
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -3881,7 +4340,7 @@ paths:
   /api/ai/mcp/status:
     get:
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -3895,7 +4354,7 @@ paths:
             schema:
               $ref: '#/components/schemas/ClearCacheRequest'
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -3909,7 +4368,7 @@ paths:
             schema:
               $ref: '#/components/schemas/GetCacheInfoRequest'
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -3923,7 +4382,7 @@ paths:
             schema:
               $ref: '#/components/schemas/PreviewDatasetColumnRequest'
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -3935,9 +4394,9 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/PreviewDataSourceConnectionRequest'
+              $ref: '#/components/schemas/ListDataSourceConnectionRequest'
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -3951,7 +4410,7 @@ paths:
             schema:
               $ref: '#/components/schemas/PreviewSQLTableRequest'
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -3963,9 +4422,9 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/PreviewSQLTableListRequest'
+              $ref: '#/components/schemas/ListSQLTablesRequest'
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -3974,7 +4433,7 @@ paths:
   /api/documentation/snippets:
     get:
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -3988,13 +4447,13 @@ paths:
             schema:
               $ref: '#/components/schemas/ExportAsHTMLRequest'
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/SuccessResponse'
           description: Export the notebook as HTML
-        '400':
+        400:
           description: File must be saved before downloading
   /api/export/auto_export/ipynb:
     post:
@@ -4004,13 +4463,13 @@ paths:
             schema:
               $ref: '#/components/schemas/ExportAsIPYNBRequest'
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/SuccessResponse'
           description: Export the notebook as IPYNB
-        '400':
+        400:
           description: File must be saved before downloading
   /api/export/auto_export/markdown:
     post:
@@ -4020,13 +4479,13 @@ paths:
             schema:
               $ref: '#/components/schemas/ExportAsMarkdownRequest'
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/SuccessResponse'
           description: Export the notebook as a markdown
-        '400':
+        400:
           description: File must be saved before downloading
   /api/export/html:
     post:
@@ -4036,13 +4495,13 @@ paths:
             schema:
               $ref: '#/components/schemas/ExportAsHTMLRequest'
       responses:
-        '200':
+        200:
           content:
             text/html:
               schema:
                 type: string
           description: Export the notebook as HTML
-        '400':
+        400:
           description: File must be saved before downloading
   /api/export/markdown:
     post:
@@ -4052,13 +4511,13 @@ paths:
             schema:
               $ref: '#/components/schemas/ExportAsMarkdownRequest'
       responses:
-        '200':
+        200:
           content:
             text/plain:
               schema:
                 type: string
           description: Export the notebook as a markdown
-        '400':
+        400:
           description: File must be saved before downloading
   /api/export/script:
     post:
@@ -4068,13 +4527,13 @@ paths:
             schema:
               $ref: '#/components/schemas/ExportAsScriptRequest'
       responses:
-        '200':
+        200:
           content:
             text/plain:
               schema:
                 type: string
           description: Export the notebook as a script
-        '400':
+        400:
           description: File must be saved before downloading
   /api/files/create:
     post:
@@ -4084,7 +4543,7 @@ paths:
             schema:
               $ref: '#/components/schemas/FileCreateRequest'
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4098,7 +4557,7 @@ paths:
             schema:
               $ref: '#/components/schemas/FileDeleteRequest'
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4112,7 +4571,7 @@ paths:
             schema:
               $ref: '#/components/schemas/FileDetailsRequest'
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4126,7 +4585,7 @@ paths:
             schema:
               $ref: '#/components/schemas/FileListRequest'
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4140,7 +4599,7 @@ paths:
             schema:
               $ref: '#/components/schemas/FileMoveRequest'
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4154,7 +4613,7 @@ paths:
             schema:
               $ref: '#/components/schemas/FileOpenRequest'
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4168,7 +4627,7 @@ paths:
             schema:
               $ref: '#/components/schemas/FileSearchRequest'
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4182,7 +4641,7 @@ paths:
             schema:
               $ref: '#/components/schemas/FileUpdateRequest'
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4191,7 +4650,7 @@ paths:
   /api/home/recent_files:
     post:
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4200,7 +4659,7 @@ paths:
   /api/home/running_notebooks:
     post:
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4214,7 +4673,7 @@ paths:
             schema:
               $ref: '#/components/schemas/ShutdownSessionRequest'
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4228,7 +4687,7 @@ paths:
             schema:
               $ref: '#/components/schemas/OpenTutorialRequest'
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4242,7 +4701,7 @@ paths:
             schema:
               $ref: '#/components/schemas/WorkspaceFilesRequest'
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4256,7 +4715,7 @@ paths:
             schema:
               $ref: '#/components/schemas/CodeCompletionRequest'
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4270,7 +4729,7 @@ paths:
             schema:
               $ref: '#/components/schemas/CopyNotebookRequest'
       responses:
-        '200':
+        200:
           content:
             text/plain:
               schema:
@@ -4284,7 +4743,7 @@ paths:
             schema:
               $ref: '#/components/schemas/DeleteCellRequest'
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4296,9 +4755,9 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/FormatRequest'
+              $ref: '#/components/schemas/FormatCellsRequest'
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4310,9 +4769,9 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/FunctionCallRequest'
+              $ref: '#/components/schemas/InvokeFunctionRequest'
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4324,9 +4783,9 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/InstallMissingPackagesRequest'
+              $ref: '#/components/schemas/InstallPackagesRequest'
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4338,9 +4797,9 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/InstantiateRequest'
+              $ref: '#/components/schemas/InstantiateNotebookRequest'
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4349,7 +4808,7 @@ paths:
   /api/kernel/interrupt:
     post:
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4361,9 +4820,9 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/PdbRequest'
+              $ref: '#/components/schemas/DebugCellRequest'
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4372,13 +4831,13 @@ paths:
   /api/kernel/read_code:
     post:
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ReadCodeResponse'
           description: Read the code from the server
-        '400':
+        400:
           description: File must be saved before downloading
   /api/kernel/rename:
     post:
@@ -4386,9 +4845,9 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/RenameFileRequest'
+              $ref: '#/components/schemas/RenameNotebookRequest'
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4397,7 +4856,7 @@ paths:
   /api/kernel/restart_session:
     post:
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4409,9 +4868,9 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/RunRequest'
+              $ref: '#/components/schemas/ExecuteCellsRequest'
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4426,7 +4885,7 @@ paths:
             schema:
               $ref: '#/components/schemas/SaveNotebookRequest'
       responses:
-        '200':
+        200:
           content:
             text/plain:
               schema:
@@ -4440,7 +4899,7 @@ paths:
             schema:
               $ref: '#/components/schemas/SaveAppConfigurationRequest'
       responses:
-        '200':
+        200:
           content:
             text/plain:
               schema:
@@ -4454,7 +4913,7 @@ paths:
             schema:
               $ref: '#/components/schemas/SaveUserConfigurationRequest'
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4469,7 +4928,7 @@ paths:
             schema:
               $ref: '#/components/schemas/ExecuteScratchpadRequest'
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4481,9 +4940,9 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/SetCellConfigRequest'
+              $ref: '#/components/schemas/UpdateCellConfigRequest'
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4495,9 +4954,9 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/SetModelMessageRequest'
+              $ref: '#/components/schemas/UpdateWidgetModelRequest'
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4509,9 +4968,9 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/UpdateComponentValuesRequest'
+              $ref: '#/components/schemas/UpdateUIElementValuesRequest'
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4520,7 +4979,7 @@ paths:
   /api/kernel/shutdown:
     post:
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4534,7 +4993,7 @@ paths:
             schema:
               $ref: '#/components/schemas/StdinRequest'
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4548,7 +5007,7 @@ paths:
             schema:
               $ref: '#/components/schemas/UpdateCellIdsRequest'
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4557,7 +5016,7 @@ paths:
   /api/kernel/takeover:
     post:
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4574,7 +5033,7 @@ paths:
             schema:
               $ref: '#/components/schemas/AddPackageRequest'
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4583,7 +5042,7 @@ paths:
   /api/packages/list:
     get:
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4597,7 +5056,7 @@ paths:
             schema:
               $ref: '#/components/schemas/RemovePackageRequest'
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4606,7 +5065,7 @@ paths:
   /api/packages/tree:
     get:
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4621,7 +5080,7 @@ paths:
               $ref: '#/components/schemas/CreateSecretRequest'
         required: true
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4630,7 +5089,7 @@ paths:
   /api/secrets/delete:
     post:
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4645,7 +5104,7 @@ paths:
               $ref: '#/components/schemas/ListSecretKeysRequest'
         required: true
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4659,7 +5118,7 @@ paths:
             schema:
               $ref: '#/components/schemas/ValidateSQLRequest'
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4668,7 +5127,7 @@ paths:
   /api/status:
     get:
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4698,7 +5157,7 @@ paths:
   /api/status/connections:
     get:
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4710,7 +5169,7 @@ paths:
   /api/usage:
     get:
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4790,7 +5249,7 @@ paths:
   /api/version:
     get:
       responses:
-        '200':
+        200:
           content:
             text/plain:
               schema:
@@ -4808,13 +5267,13 @@ paths:
                   type: string
               type: object
       responses:
-        '200':
+        200:
           content:
             text/html:
               schema:
                 type: string
           description: Login page
-        '302':
+        302:
           description: Redirect to the next URL
           headers:
             Location:
@@ -4823,3 +5282,4 @@ paths:
       summary: Submit login form
       tags:
       - auth
+

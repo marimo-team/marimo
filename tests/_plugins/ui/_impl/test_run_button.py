@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 from marimo._plugins import ui
-from marimo._runtime.requests import SetUIElementValueRequest
+from marimo._runtime.commands import UpdateUIElementCommand
 from marimo._runtime.runtime import Kernel
 from tests.conftest import ExecReqProvider
 
@@ -31,9 +33,7 @@ async def test_run_button_set_to_true_on_click(
     run_button = k.globals["b"]
     assert not run_button.value
 
-    await k.set_ui_element_value(
-        SetUIElementValueRequest([run_button._id], [1])
-    )
+    await k.set_ui_element_value(UpdateUIElementCommand([run_button._id], [1]))
 
     if not k.lazy():
         assert k.globals["x"] == 1
@@ -80,13 +80,13 @@ async def test_run_buttons_in_array(
     assert count[0] == 0
 
     # Just one button pushed
-    await k.set_ui_element_value(SetUIElementValueRequest([arr[0]._id], [1]))
+    await k.set_ui_element_value(UpdateUIElementCommand([arr[0]._id], [1]))
     assert count[0] == 1
     assert not arr.value[0]
     assert not arr.value[1]
     # Push another button, first button's value should be false, so just an
     # increment by 1
-    await k.set_ui_element_value(SetUIElementValueRequest([arr[1]._id], [1]))
+    await k.set_ui_element_value(UpdateUIElementCommand([arr[1]._id], [1]))
     assert count[0] == 2
     assert not arr.value[0]
     assert not arr.value[1]
@@ -124,13 +124,13 @@ async def test_run_buttons_in_dict(
     assert count[0] == 0
 
     # Just one button pushed
-    await k.set_ui_element_value(SetUIElementValueRequest([hoc["0"]._id], [1]))
+    await k.set_ui_element_value(UpdateUIElementCommand([hoc["0"]._id], [1]))
     assert count[0] == 1
     assert not hoc.value["0"]
     assert not hoc.value["1"]
     # Push another button, first button's value should be false, so just an
     # increment by 1
-    await k.set_ui_element_value(SetUIElementValueRequest([hoc["1"]._id], [1]))
+    await k.set_ui_element_value(UpdateUIElementCommand([hoc["1"]._id], [1]))
     assert count[0] == 2
     assert not hoc.value["0"]
     assert not hoc.value["1"]

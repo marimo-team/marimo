@@ -18,7 +18,7 @@ if TYPE_CHECKING:
     from marimo._config.manager import MarimoConfigManager
     from marimo._messaging.notification import NotificationMessage
     from marimo._messaging.types import KernelMessage
-    from marimo._runtime import requests
+    from marimo._runtime import commands
     from marimo._server.consumer import SessionConsumer
     from marimo._server.model import (
         ConnectionState,
@@ -34,9 +34,9 @@ if TYPE_CHECKING:
 class QueueManager(Protocol):
     """Protocol for queue management."""
 
-    control_queue: QueueType[requests.ControlRequest]
-    set_ui_element_queue: QueueType[requests.SetUIElementValueRequest]
-    completion_queue: QueueType[requests.CodeCompletionRequest]
+    control_queue: QueueType[commands.CommandMessage]
+    set_ui_element_queue: QueueType[commands.UpdateUIElementCommand]
+    completion_queue: QueueType[commands.CodeCompletionCommand]
     input_queue: QueueType[str]
     stream_queue: Optional[QueueType[Union[KernelMessage, None]]]
     win32_interrupt_queue: QueueType[bool] | None
@@ -45,12 +45,12 @@ class QueueManager(Protocol):
         """Close all queues."""
         ...
 
-    def put_control_request(self, request: requests.ControlRequest) -> None:
+    def put_control_request(self, request: commands.CommandMessage) -> None:
         """Put a control request in the control queue."""
         ...
 
     def put_completion_request(
-        self, request: requests.CodeCompletionRequest
+        self, request: commands.CodeCompletionCommand
     ) -> None:
         """Put a code completion request in the completion queue."""
         ...
@@ -142,14 +142,14 @@ class Session(Protocol):
 
     def put_control_request(
         self,
-        request: requests.ControlRequest,
+        request: commands.CommandMessage,
         from_consumer_id: Optional[ConsumerId],
     ) -> None:
         """Put a control request in the control queue."""
         ...
 
     def put_completion_request(
-        self, request: requests.CodeCompletionRequest
+        self, request: commands.CodeCompletionCommand
     ) -> None:
         """Put a code completion request in the completion queue."""
         ...
@@ -188,7 +188,7 @@ class Session(Protocol):
         self,
         request: Any,
         *,
-        http_request: Optional[requests.HTTPRequest],
+        http_request: Optional[commands.HTTPRequest],
     ) -> None:
         """Instantiate the app."""
         ...

@@ -31,18 +31,18 @@ from marimo._messaging.serde import deserialize_kernel_message
 from marimo._messaging.types import NoopStream
 from marimo._plugins.ui._core.ids import IDProvider
 from marimo._plugins.ui._core.ui_element import UIElement
+from marimo._runtime.commands import (
+    AppMetadata,
+    CreateNotebookCommand,
+    DeleteCellCommand,
+    ExecuteCellCommand,
+    UpdateCellConfigCommand,
+    UpdateUIElementCommand,
+)
 from marimo._runtime.context.kernel_context import initialize_kernel_context
 from marimo._runtime.context.types import teardown_context
 from marimo._runtime.dataflow import EdgeWithVar
 from marimo._runtime.patches import create_main_module
-from marimo._runtime.requests import (
-    AppMetadata,
-    CreationRequest,
-    DeleteCellRequest,
-    ExecutionRequest,
-    SetCellConfigRequest,
-    SetUIElementValueRequest,
-)
 from marimo._runtime.runtime import Kernel, notebook_dir, notebook_location
 from marimo._runtime.scratch import SCRATCH_CELL_ID
 from marimo._server.model import SessionMode
@@ -69,7 +69,7 @@ class TestExecution:
         k = any_kernel
         await k.run(
             [
-                ExecutionRequest(
+                ExecuteCellCommand(
                     cell_id="0", code="assert __file__; success = 1"
                 )
             ]
@@ -94,9 +94,9 @@ class TestExecution:
         # x, y --> z
         await k.run(
             [
-                ExecutionRequest(cell_id="0", code="x = 1"),
-                er1 := ExecutionRequest(cell_id="1", code="y = x + 1"),
-                er2 := ExecutionRequest(cell_id="2", code="z = x + y"),
+                ExecuteCellCommand(cell_id="0", code="x = 1"),
+                er1 := ExecuteCellCommand(cell_id="1", code="y = x + 1"),
+                er2 := ExecuteCellCommand(cell_id="2", code="z = x + y"),
             ]
         )
 
@@ -105,7 +105,7 @@ class TestExecution:
         assert k.globals["y"] == 2
         assert k.globals["z"] == 3
 
-        await k.run([ExecutionRequest(cell_id="0", code="x = 2")])
+        await k.run([ExecuteCellCommand(cell_id="0", code="x = 2")])
         assert not k.graph.cells["0"].stale
         assert k.globals["x"] == 2
         if k.lazy():
@@ -125,7 +125,7 @@ class TestExecution:
         assert not k.graph.cells["1"].stale
         assert not k.graph.cells["2"].stale
 
-        await k.run([ExecutionRequest(cell_id="1", code="y = 0")])
+        await k.run([ExecuteCellCommand(cell_id="1", code="y = 0")])
         assert not k.graph.cells["0"].stale
         assert not k.graph.cells["1"].stale
         assert k.globals["x"] == 2
@@ -135,7 +135,7 @@ class TestExecution:
             await k.run([er2])
         assert k.globals["z"] == 2
 
-        await k.delete_cell(DeleteCellRequest(cell_id="1"))
+        await k.delete_cell(DeleteCellCommand(cell_id="1"))
         assert k.globals["x"] == 2
         assert "y" not in k.globals
         if k.lazy():
@@ -143,7 +143,7 @@ class TestExecution:
             await k.run([er2])
         assert "z" not in k.globals
 
-        await k.delete_cell(DeleteCellRequest(cell_id="0"))
+        await k.delete_cell(DeleteCellCommand(cell_id="0"))
         assert "x" not in k.globals
         assert "y" not in k.globals
         assert "z" not in k.globals
@@ -156,9 +156,9 @@ class TestExecution:
         # as stale
         await k.run(
             [
-                ExecutionRequest(cell_id="0", code="x = 1"),
-                er1 := ExecutionRequest(cell_id="1", code="x"),
-                er2 := ExecutionRequest(cell_id="2", code="x"),
+                ExecuteCellCommand(cell_id="0", code="x = 1"),
+                er1 := ExecuteCellCommand(cell_id="1", code="x"),
+                er2 := ExecuteCellCommand(cell_id="2", code="x"),
             ]
         )
         assert not graph.get_stale()
@@ -172,23 +172,23 @@ class TestExecution:
     async def test_set_ui_element_value(self, any_kernel: Kernel) -> None:
         k = any_kernel
         await k.run(
-            [ExecutionRequest(cell_id="0", code="import marimo as mo")]
+            [ExecuteCellCommand(cell_id="0", code="import marimo as mo")]
         )
         await k.run(
             [
-                ExecutionRequest(
+                ExecuteCellCommand(
                     cell_id="1", code="s = mo.ui.slider(0, 10, value=1); s"
                 )
             ]
         )
         await k.run(
-            [er2 := ExecutionRequest(cell_id="2", code="x = s.value + 1")]
+            [er2 := ExecuteCellCommand(cell_id="2", code="x = s.value + 1")]
         )
         assert k.globals["x"] == 2
 
         element_id = k.globals["s"]._id
         await k.set_ui_element_value(
-            SetUIElementValueRequest.from_ids_and_values([(element_id, 5)])
+            UpdateUIElementCommand.from_ids_and_values([(element_id, 5)])
         )
         assert k.globals["s"].value == 5
 
@@ -231,7 +231,7 @@ class TestExecution:
         # Set a child of the array to 5 ...
         child_id = k.globals["array"][0]._id
         await k.set_ui_element_value(
-            SetUIElementValueRequest.from_ids_and_values([(child_id, 5)])
+            UpdateUIElementCommand.from_ids_and_values([(child_id, 5)])
         )
 
         # Make sure the array and its child are updated
@@ -269,9 +269,7 @@ class TestExecution:
 
         array_id = k.globals["array"]._id
         await k.set_ui_element_value(
-            SetUIElementValueRequest.from_ids_and_values(
-                [(array_id, {"0": 5})]
-            )
+            UpdateUIElementCommand.from_ids_and_values([(array_id, {"0": 5})])
         )
         assert k.globals["array"].value == [5]
         if k.lazy():
@@ -302,7 +300,7 @@ class TestExecution:
         # called
         child_id = k.globals["array"][0]._id
         await k.set_ui_element_value(
-            SetUIElementValueRequest.from_ids_and_values([(child_id, 5)])
+            UpdateUIElementCommand.from_ids_and_values([(child_id, 5)])
         )
         if k.lazy():
             assert k.graph.cells[er.cell_id].stale
@@ -315,9 +313,9 @@ class TestExecution:
         self, any_kernel: Kernel
     ) -> None:
         k = any_kernel
-        await k.run([ExecutionRequest("0", "import marimo as mo")])
+        await k.run([ExecuteCellCommand("0", "import marimo as mo")])
         await k.run(
-            [ExecutionRequest("1", "_s = mo.ui.slider(0, 10, value=1); _s")]
+            [ExecuteCellCommand("1", "_s = mo.ui.slider(0, 10, value=1); _s")]
         )
         # _s's name is mangled to _cell_1_s because it is local
         assert k.globals["_cell_1_s"].value == 1
@@ -326,7 +324,7 @@ class TestExecution:
         # This shouldn't crash the kernel, and s's value should still be
         # updated
         await k.set_ui_element_value(
-            SetUIElementValueRequest.from_ids_and_values([(element_id, 5)])
+            UpdateUIElementCommand.from_ids_and_values([(element_id, 5)])
         )
         assert k.globals["_cell_1_s"].value == 5
 
@@ -336,14 +334,16 @@ class TestExecution:
         k = any_kernel
         id_provider = IDProvider(prefix="1")
         await k.instantiate(
-            CreationRequest(
+            CreateNotebookCommand(
                 execution_requests=(
-                    ExecutionRequest(cell_id="0", code="import marimo as mo"),
-                    ExecutionRequest(
+                    ExecuteCellCommand(
+                        cell_id="0", code="import marimo as mo"
+                    ),
+                    ExecuteCellCommand(
                         cell_id="1", code="s = mo.ui.slider(0, 10, value=1)"
                     ),
                 ),
-                set_ui_element_value_request=SetUIElementValueRequest.from_ids_and_values(
+                set_ui_element_value_request=UpdateUIElementCommand.from_ids_and_values(
                     [(id_provider.take_id(), 2)]
                 ),
                 auto_run=True,
@@ -354,13 +354,13 @@ class TestExecution:
     async def test_instantiate_autorun_false(self, any_kernel: Kernel) -> None:
         k = any_kernel
         await k.instantiate(
-            CreationRequest(
+            CreateNotebookCommand(
                 execution_requests=(
-                    ExecutionRequest(cell_id="0", code="x=0"),
-                    er1 := ExecutionRequest(cell_id="1", code="y=x+1"),
-                    er2 := ExecutionRequest(cell_id="2", code="z=x+2"),
+                    ExecuteCellCommand(cell_id="0", code="x=0"),
+                    er1 := ExecuteCellCommand(cell_id="1", code="y=x+1"),
+                    er2 := ExecuteCellCommand(cell_id="2", code="z=x+2"),
                 ),
-                set_ui_element_value_request=SetUIElementValueRequest.from_ids_and_values(
+                set_ui_element_value_request=UpdateUIElementCommand.from_ids_and_values(
                     []
                 ),
                 auto_run=False,
@@ -389,13 +389,13 @@ class TestExecution:
     ) -> None:
         k = any_kernel
         await k.instantiate(
-            CreationRequest(
+            CreateNotebookCommand(
                 execution_requests=(
-                    ExecutionRequest(cell_id="0", code="x=0"),
-                    ExecutionRequest(cell_id="1", code="y=x+1"),
-                    ExecutionRequest(cell_id="2", code="z=x+2"),
+                    ExecuteCellCommand(cell_id="0", code="x=0"),
+                    ExecuteCellCommand(cell_id="1", code="y=x+1"),
+                    ExecuteCellCommand(cell_id="2", code="z=x+2"),
                 ),
-                set_ui_element_value_request=SetUIElementValueRequest.from_ids_and_values(
+                set_ui_element_value_request=UpdateUIElementCommand.from_ids_and_values(
                     []
                 ),
                 auto_run=False,
@@ -416,13 +416,13 @@ class TestExecution:
     ) -> None:
         k = any_kernel
         await k.instantiate(
-            CreationRequest(
+            CreateNotebookCommand(
                 execution_requests=(
-                    er1 := ExecutionRequest(cell_id="0", code="x=0"),
-                    er2 := ExecutionRequest(cell_id="1", code="y=x+1"),
-                    er3 := ExecutionRequest(cell_id="2", code="z=x+2"),
+                    er1 := ExecuteCellCommand(cell_id="0", code="x=0"),
+                    er2 := ExecuteCellCommand(cell_id="1", code="y=x+1"),
+                    er3 := ExecuteCellCommand(cell_id="2", code="z=x+2"),
                 ),
-                set_ui_element_value_request=SetUIElementValueRequest.from_ids_and_values(
+                set_ui_element_value_request=UpdateUIElementCommand.from_ids_and_values(
                     []
                 ),
                 auto_run=False,
@@ -444,13 +444,13 @@ class TestExecution:
         """Tests that cells are set to not stale before they start running."""
         k = any_kernel
         await k.instantiate(
-            CreationRequest(
+            CreateNotebookCommand(
                 execution_requests=(
-                    er1 := ExecutionRequest(cell_id="0", code="x=0"),
-                    ExecutionRequest(cell_id="1", code="y=x+1"),
-                    ExecutionRequest(cell_id="2", code="z=x+2"),
+                    er1 := ExecuteCellCommand(cell_id="0", code="x=0"),
+                    ExecuteCellCommand(cell_id="1", code="y=x+1"),
+                    ExecuteCellCommand(cell_id="2", code="z=x+2"),
                 ),
-                set_ui_element_value_request=SetUIElementValueRequest.from_ids_and_values(
+                set_ui_element_value_request=UpdateUIElementCommand.from_ids_and_values(
                     []
                 ),
                 auto_run=False,
@@ -486,13 +486,13 @@ class TestExecution:
     ) -> None:
         k = any_kernel
         await k.instantiate(
-            CreationRequest(
+            CreateNotebookCommand(
                 execution_requests=(
-                    ExecutionRequest(cell_id="0", code="x=0"),
-                    ExecutionRequest(cell_id="1", code="y=x+1"),
-                    ExecutionRequest(cell_id="2", code="z=x+2"),
+                    ExecuteCellCommand(cell_id="0", code="x=0"),
+                    ExecuteCellCommand(cell_id="1", code="y=x+1"),
+                    ExecuteCellCommand(cell_id="2", code="z=x+2"),
                 ),
-                set_ui_element_value_request=SetUIElementValueRequest.from_ids_and_values(
+                set_ui_element_value_request=UpdateUIElementCommand.from_ids_and_values(
                     []
                 ),
                 auto_run=False,
@@ -500,13 +500,13 @@ class TestExecution:
         )
         assert len(k._uninstantiated_execution_requests) == 3
 
-        await k.delete_cell(DeleteCellRequest(cell_id="0"))
+        await k.delete_cell(DeleteCellCommand(cell_id="0"))
         assert len(k._uninstantiated_execution_requests) == 2
 
-        await k.delete_cell(DeleteCellRequest(cell_id="1"))
+        await k.delete_cell(DeleteCellCommand(cell_id="1"))
         assert len(k._uninstantiated_execution_requests) == 1
 
-        await k.delete_cell(DeleteCellRequest(cell_id="2"))
+        await k.delete_cell(DeleteCellCommand(cell_id="2"))
         assert not k._uninstantiated_execution_requests
 
     async def test_instantiate_autorun_false_run_different_code(
@@ -514,13 +514,13 @@ class TestExecution:
     ) -> None:
         k = any_kernel
         await k.instantiate(
-            CreationRequest(
+            CreateNotebookCommand(
                 execution_requests=(
-                    ExecutionRequest(cell_id="0", code="x=0"),
-                    er1 := ExecutionRequest(cell_id="1", code="y=x+1"),
-                    er2 := ExecutionRequest(cell_id="2", code="z=x+2"),
+                    ExecuteCellCommand(cell_id="0", code="x=0"),
+                    er1 := ExecuteCellCommand(cell_id="1", code="y=x+1"),
+                    er2 := ExecuteCellCommand(cell_id="2", code="z=x+2"),
                 ),
-                set_ui_element_value_request=SetUIElementValueRequest.from_ids_and_values(
+                set_ui_element_value_request=UpdateUIElementCommand.from_ids_and_values(
                     []
                 ),
                 auto_run=False,
@@ -530,7 +530,7 @@ class TestExecution:
 
         # modify an uninstantiated cell before running it; make sure the old
         # er gets evicted.
-        await k.run([ExecutionRequest(cell_id="0", code="x = 1")])
+        await k.run([ExecuteCellCommand(cell_id="0", code="x = 1")])
         assert len(k._uninstantiated_execution_requests) == 2
         assert k.globals["x"] == 1
 
@@ -548,14 +548,14 @@ class TestExecution:
         """Tests that empty cells are not marked as stale during instantiation."""
         k = any_kernel
         await k.instantiate(
-            CreationRequest(
+            CreateNotebookCommand(
                 execution_requests=(
-                    ExecutionRequest(cell_id="0", code="x=0"),
-                    ExecutionRequest(cell_id="1", code=""),
-                    ExecutionRequest(cell_id="2", code="  \n  "),
-                    ExecutionRequest(cell_id="3", code="y=x+1"),
+                    ExecuteCellCommand(cell_id="0", code="x=0"),
+                    ExecuteCellCommand(cell_id="1", code=""),
+                    ExecuteCellCommand(cell_id="2", code="  \n  "),
+                    ExecuteCellCommand(cell_id="3", code="y=x+1"),
                 ),
-                set_ui_element_value_request=SetUIElementValueRequest.from_ids_and_values(
+                set_ui_element_value_request=UpdateUIElementCommand.from_ids_and_values(
                     []
                 ),
                 auto_run=False,
@@ -596,8 +596,8 @@ class TestExecution:
         k = any_kernel
         await k.run(
             [
-                ExecutionRequest(cell_id="0", code="x=0"),
-                ExecutionRequest(cell_id="1", code="x=1"),
+                ExecuteCellCommand(cell_id="0", code="x=0"),
+                ExecuteCellCommand(cell_id="1", code="x=1"),
             ]
         )
 
@@ -611,18 +611,18 @@ class TestExecution:
         any_kernel: Kernel,
     ) -> None:
         k = any_kernel
-        await k.run([ExecutionRequest(cell_id="0", code="x=0")])
+        await k.run([ExecuteCellCommand(cell_id="0", code="x=0")])
         assert k.globals["x"] == 0
         assert not k.errors
 
         # cell 0 should not be invalidated by the introduction of cell 1
-        await k.run([ExecutionRequest(cell_id="1", code="x=0")])
+        await k.run([ExecuteCellCommand(cell_id="1", code="x=0")])
         assert k.globals["x"] == 0
         assert set(k.errors.keys()) == {"1"}
         assert k.errors["1"] == (MultipleDefinitionError("x", ("0",)),)
 
         # re-running cell 0 should invalidate it
-        await k.run([ExecutionRequest(cell_id="0", code="x=0")])
+        await k.run([ExecuteCellCommand(cell_id="0", code="x=0")])
         assert "x" not in k.globals
         assert set(k.errors.keys()) == {"0", "1"}
         assert k.errors["0"] == (MultipleDefinitionError("x", ("1",)),)
@@ -634,8 +634,8 @@ class TestExecution:
         k = any_kernel
         await k.run(
             [
-                er := ExecutionRequest(cell_id="0", code="x=0"),
-                ExecutionRequest(cell_id="1", code="x=1"),
+                er := ExecuteCellCommand(cell_id="0", code="x=0"),
+                ExecuteCellCommand(cell_id="1", code="x=1"),
             ]
         )
         assert "x" not in k.globals
@@ -645,7 +645,7 @@ class TestExecution:
 
         # Rename second occurrence of x to y; should eliminate error and run
         # both cells
-        await k.run([ExecutionRequest(cell_id="1", code="y=1")])
+        await k.run([ExecuteCellCommand(cell_id="1", code="y=1")])
         assert k.globals["y"] == 1
         if k.lazy():
             assert k.graph.cells["0"].stale
@@ -660,8 +660,8 @@ class TestExecution:
         k = any_kernel
         await k.run(
             [
-                er := ExecutionRequest(cell_id="0", code="x=0"),
-                ExecutionRequest(cell_id="1", code="x=1"),
+                er := ExecuteCellCommand(cell_id="0", code="x=0"),
+                ExecuteCellCommand(cell_id="1", code="x=1"),
             ]
         )
         assert "x" not in k.globals
@@ -670,7 +670,7 @@ class TestExecution:
         assert k.errors["1"] == (MultipleDefinitionError("x", ("0",)),)
 
         # issue delete request for cell 1 to clear error and run cell 0
-        await k.delete_cell(DeleteCellRequest(cell_id="1"))
+        await k.delete_cell(DeleteCellCommand(cell_id="1"))
         if k.lazy():
             assert k.graph.cells[er.cell_id].stale
             await k.run([er])
@@ -682,13 +682,13 @@ class TestExecution:
         self, any_kernel: Kernel
     ) -> None:
         k = any_kernel
-        await k.run([ExecutionRequest(cell_id="0", code="x=0")])
-        await k.run([ExecutionRequest(cell_id="1", code="x, y = 1, 2")])
+        await k.run([ExecuteCellCommand(cell_id="0", code="x=0")])
+        await k.run([ExecuteCellCommand(cell_id="1", code="x, y = 1, 2")])
         assert set(k.errors.keys()) == {"1"}
         assert k.errors["1"] == (MultipleDefinitionError("x", ("0",)),)
 
         # errors propagated back to cell 1, even though we are not running it
-        await k.run([ExecutionRequest(cell_id="2", code="x, y = 3, 4")])
+        await k.run([ExecuteCellCommand(cell_id="2", code="x, y = 3, 4")])
         assert set(k.errors.keys()) == {"1", "2"}
         assert k.errors["1"] == (
             MultipleDefinitionError("x", ("0", "2")),
@@ -705,9 +705,9 @@ class TestExecution:
         k = any_kernel
         await k.run(
             [
-                ExecutionRequest(cell_id="0", code="x=y"),
-                ExecutionRequest(cell_id="1", code="y=x"),
-                er := ExecutionRequest(cell_id="2", code="z = x + 1"),
+                ExecuteCellCommand(cell_id="0", code="x=y"),
+                ExecuteCellCommand(cell_id="1", code="y=x"),
+                er := ExecuteCellCommand(cell_id="2", code="z = x + 1"),
             ]
         )
         assert "x" not in k.globals
@@ -730,7 +730,7 @@ class TestExecution:
         )
 
         # break cycle by modifying cell
-        await k.run([ExecutionRequest(cell_id="1", code="y=1")])
+        await k.run([ExecuteCellCommand(cell_id="1", code="y=1")])
         if k.lazy():
             assert k.graph.cells["0"].stale
             assert k.graph.cells["2"].stale
@@ -749,8 +749,8 @@ class TestExecution:
         k = any_kernel
         await k.run(
             [
-                ExecutionRequest(cell_id="0", code="x=y"),
-                ExecutionRequest(cell_id="1", code="y=x"),
+                ExecuteCellCommand(cell_id="0", code="x=y"),
+                ExecuteCellCommand(cell_id="1", code="y=x"),
             ]
         )
         assert "x" not in k.globals
@@ -763,7 +763,7 @@ class TestExecution:
         )
 
         # break cycle by deleting cell
-        await k.delete_cell(DeleteCellRequest(cell_id="1"))
+        await k.delete_cell(DeleteCellCommand(cell_id="1"))
         if k.execution_type == "strict":
             # Still invalid in strict mode because y is missing.
             assert set(k.errors.keys()) == {"0"}
@@ -782,9 +782,9 @@ class TestExecution:
             )
         await k.run(
             [
-                ExecutionRequest(cell_id="0", code="x=0"),
-                ExecutionRequest(cell_id="1", code="del x; y = 1"),
-                er := ExecutionRequest(cell_id="2", code="z = y + 1"),
+                ExecuteCellCommand(cell_id="0", code="x=0"),
+                ExecuteCellCommand(cell_id="1", code="del x; y = 1"),
+                er := ExecuteCellCommand(cell_id="2", code="z = y + 1"),
             ]
         )
         assert "x" not in k.globals
@@ -795,8 +795,8 @@ class TestExecution:
     async def test_delete_nonlocal_multiple_not_ok(self, k: Kernel) -> None:
         await k.run(
             [
-                ExecutionRequest(cell_id="0", code="del x"),
-                ExecutionRequest(cell_id="1", code="del x"),
+                ExecuteCellCommand(cell_id="0", code="del x"),
+                ExecuteCellCommand(cell_id="1", code="del x"),
             ]
         )
         assert set(k.errors.keys()) == {"0", "1"}
@@ -812,8 +812,8 @@ class TestExecution:
     ) -> None:
         await k.run(
             [
-                er := ExecutionRequest(cell_id="0", code="x=0"),
-                ExecutionRequest(cell_id="1", code="del x; y = 1"),
+                er := ExecuteCellCommand(cell_id="0", code="x=0"),
+                ExecuteCellCommand(cell_id="1", code="del x; y = 1"),
             ]
         )
         assert "x" not in k.globals
@@ -822,7 +822,7 @@ class TestExecution:
 
         await k.run(
             [
-                ExecutionRequest(
+                ExecuteCellCommand(
                     cell_id="2",
                     code="""
 try:
@@ -851,7 +851,7 @@ except NameError:
         k = any_kernel
         await k.run(
             [
-                ExecutionRequest(
+                ExecuteCellCommand(
                     cell_id="0",
                     code="import sys as _sys; msize = _sys.maxsize",
                 ),
@@ -867,22 +867,22 @@ except NameError:
         k = lazy_kernel
         await k.run(
             [
-                ExecutionRequest(cell_id="0", code="x=0"),
-                ExecutionRequest(cell_id="1", code="x"),
+                ExecuteCellCommand(cell_id="0", code="x=0"),
+                ExecuteCellCommand(cell_id="1", code="x"),
             ]
         )
 
         # make cell 1 stale
         await k.run(
             [
-                ExecutionRequest(cell_id="0", code="x=1"),
+                ExecuteCellCommand(cell_id="0", code="x=1"),
             ]
         )
 
         # introduce an error to cell 1; it shouldn't be stale
         await k.run(
             [
-                ExecutionRequest(cell_id="1", code="x=0"),
+                ExecuteCellCommand(cell_id="1", code="x=0"),
             ]
         )
         assert set(k.errors.keys()) == {"1"}
@@ -894,15 +894,15 @@ except NameError:
         k = lazy_kernel
         await k.run(
             [
-                ExecutionRequest(cell_id="0", code="x=0"),
-                ExecutionRequest(cell_id="1", code="x"),
+                ExecuteCellCommand(cell_id="0", code="x=0"),
+                ExecuteCellCommand(cell_id="1", code="x"),
             ]
         )
 
         # make cell 1 stale
         await k.run(
             [
-                ExecutionRequest(cell_id="0", code="x=1"),
+                ExecuteCellCommand(cell_id="0", code="x=1"),
             ]
         )
         cell = k.graph.cells["1"]
@@ -911,7 +911,7 @@ except NameError:
         # introduce a syntax error to cell 1; it shouldn't be stale
         await k.run(
             [
-                ExecutionRequest(cell_id="1", code="x ^ !"),
+                ExecuteCellCommand(cell_id="1", code="x ^ !"),
             ]
         )
         assert set(k.errors.keys()) == {"1"}
@@ -929,7 +929,7 @@ except NameError:
         # Syntax error on line 3 of multiline code
         await k.run(
             [
-                ExecutionRequest(
+                ExecuteCellCommand(
                     cell_id="0", code="x = 1\ny = 2\nz ^ !\nw = 4"
                 ),
             ]
@@ -946,7 +946,7 @@ except NameError:
         # Single line syntax error (should be line 1)
         await k.run(
             [
-                ExecutionRequest(cell_id="0", code="!"),
+                ExecuteCellCommand(cell_id="0", code="!"),
             ]
         )
         assert set(k.errors.keys()) == {"0"}
@@ -962,7 +962,7 @@ except NameError:
         k = any_kernel
         await k.run(
             [
-                ExecutionRequest(cell_id="0", code="!pip install pandas"),
+                ExecuteCellCommand(cell_id="0", code="!pip install pandas"),
             ]
         )
         assert set(k.errors.keys()) == {"0"}
@@ -976,7 +976,7 @@ except NameError:
         k = any_kernel
         await k.run(
             [
-                ExecutionRequest(cell_id="0", code="!ls -la"),
+                ExecuteCellCommand(cell_id="0", code="!ls -la"),
             ]
         )
         assert set(k.errors.keys()) == {"0"}
@@ -990,7 +990,7 @@ except NameError:
         k = any_kernel
         await k.run(
             [
-                ExecutionRequest(cell_id="0", code="%timeit x = 1"),
+                ExecuteCellCommand(cell_id="0", code="%timeit x = 1"),
             ]
         )
         assert set(k.errors.keys()) == {"0"}
@@ -1005,14 +1005,14 @@ except NameError:
         k = any_kernel
         await k.run(
             [
-                ExecutionRequest(cell_id="0", code="x=0"),
+                ExecuteCellCommand(cell_id="0", code="x=0"),
             ]
         )
 
         # multiple definition error
         await k.run(
             [
-                ExecutionRequest(cell_id="1", code="y; x=1"),
+                ExecuteCellCommand(cell_id="1", code="y; x=1"),
             ]
         )
 
@@ -1020,7 +1020,7 @@ except NameError:
         # is errored and its error is up-to-date, so don't mark it as stale.
         await k.run(
             [
-                ExecutionRequest(cell_id="0", code="y = 0; x=1"),
+                ExecuteCellCommand(cell_id="0", code="y = 0; x=1"),
             ]
         )
 
@@ -1034,9 +1034,9 @@ except NameError:
 
         await k.run(
             [
-                ExecutionRequest(cell_id=SETUP_CELL_NAME, code="x=0"),
+                ExecuteCellCommand(cell_id=SETUP_CELL_NAME, code="x=0"),
                 # NB. no explicit tie from setup to er.
-                er := ExecutionRequest(cell_id="1", code="y=1"),
+                er := ExecuteCellCommand(cell_id="1", code="y=1"),
             ]
         )
         assert not k.graph.get_stale()
@@ -1044,7 +1044,7 @@ except NameError:
         assert k.globals["y"] == 1
         assert not k.errors
 
-        await k.run([ExecutionRequest(cell_id=SETUP_CELL_NAME, code="x=")])
+        await k.run([ExecuteCellCommand(cell_id=SETUP_CELL_NAME, code="x=")])
         assert SETUP_CELL_NAME not in k.graph.cells
         assert "1" in k.graph.cells
         assert "x" not in k.globals
@@ -1057,7 +1057,7 @@ except NameError:
         assert "y" in k.globals
 
         # fix syntax error
-        await k.run([ExecutionRequest(cell_id=SETUP_CELL_NAME, code="x=0")])
+        await k.run([ExecuteCellCommand(cell_id=SETUP_CELL_NAME, code="x=0")])
         assert k.globals["x"] == 0
         assert SETUP_CELL_NAME in k.graph.cells
         assert "1" in k.graph.cells
@@ -1079,8 +1079,8 @@ except NameError:
         k = any_kernel
         await k.run(
             [
-                ExecutionRequest(cell_id="0", code="x=0"),
-                er := ExecutionRequest(cell_id="1", code="x; y = 1"),
+                ExecuteCellCommand(cell_id="0", code="x=0"),
+                er := ExecuteCellCommand(cell_id="1", code="x; y = 1"),
             ]
         )
         assert not k.graph.get_stale()
@@ -1088,7 +1088,7 @@ except NameError:
         assert k.globals["y"] == 1
         assert not k.errors
 
-        await k.run([ExecutionRequest(cell_id="0", code="x=")])
+        await k.run([ExecuteCellCommand(cell_id="0", code="x=")])
         assert "0" not in k.graph.cells
         assert "1" in k.graph.cells
         assert "x" not in k.globals
@@ -1099,7 +1099,7 @@ except NameError:
         assert "y" not in k.globals
 
         # fix syntax error
-        await k.run([ExecutionRequest(cell_id="0", code="x=0")])
+        await k.run([ExecuteCellCommand(cell_id="0", code="x=0")])
         assert k.globals["x"] == 0
         assert "0" in k.graph.cells
         assert "1" in k.graph.cells
@@ -1127,7 +1127,7 @@ except NameError:
         # "y" should not be computed, and its global state should have been
         # invalidated
         await k.run(
-            [ExecutionRequest(er_1.cell_id, "x = 0; raise RuntimeError")]
+            [ExecuteCellCommand(er_1.cell_id, "x = 0; raise RuntimeError")]
         )
         if k.lazy():
             assert graph.get_stale() == set([er_2.cell_id])
@@ -1173,7 +1173,7 @@ except NameError:
         element_id = k.globals["defs"]["slider"]._id
 
         await k.set_ui_element_value(
-            SetUIElementValueRequest.from_ids_and_values([(element_id, 5)])
+            UpdateUIElementCommand.from_ids_and_values([(element_id, 5)])
         )
         assert k.globals["defs"]["slider"].value == 5
         if k.lazy():
@@ -1192,7 +1192,7 @@ except NameError:
         # smoke test -- this shouldn't raise an exception
         k = any_kernel
         await k.set_ui_element_value(
-            SetUIElementValueRequest.from_ids_and_values(
+            UpdateUIElementCommand.from_ids_and_values(
                 [("does not exist", None)]
             )
         )
@@ -1546,7 +1546,7 @@ except NameError:
         k = any_kernel
         er_1 = exec_req.get("x = 0")
         await k.set_cell_config(
-            SetCellConfigRequest(configs={er_1.cell_id: {"disabled": True}})
+            UpdateCellConfigCommand(configs={er_1.cell_id: {"disabled": True}})
         )
         await k.run([er_1])
         assert k.graph.cells[er_1.cell_id].config.disabled
@@ -1621,7 +1621,7 @@ except NameError:
         k = execution_kernel
         await k.run(
             [
-                ExecutionRequest(
+                ExecuteCellCommand(
                     cell_id="0",
                     code=textwrap.dedent(
                         """
@@ -1633,7 +1633,7 @@ except NameError:
                     """
                     ),
                 ),
-                ExecutionRequest(
+                ExecuteCellCommand(
                     cell_id="1",
                     code=textwrap.dedent(
                         """
@@ -1756,7 +1756,7 @@ except NameError:
     ) -> None:
         await k.run([er := exec_req.get("_x = 1")])
         assert k.globals[f"_cell_{er.cell_id}_x"] == 1
-        await k.run([ExecutionRequest(er.cell_id, "None")])
+        await k.run([ExecuteCellCommand(er.cell_id, "None")])
         assert f"_cell_{er.cell_id}_x" not in k.globals
 
     async def test_has_run_id(
@@ -1790,9 +1790,9 @@ except NameError:
         # Setup: Create initial graph state with dependencies
         await k.run(
             [
-                ExecutionRequest(cell_id="0", code="x = 1"),
-                ExecutionRequest(cell_id="1", code="y = x + 1"),
-                ExecutionRequest(cell_id="2", code="z = y + 1"),
+                ExecuteCellCommand(cell_id="0", code="x = 1"),
+                ExecuteCellCommand(cell_id="1", code="y = x + 1"),
+                ExecuteCellCommand(cell_id="2", code="z = y + 1"),
             ]
         )
         assert k.globals["x"] == 1
@@ -1818,9 +1818,9 @@ except NameError:
         # Setup: Create 3 cells
         await k.run(
             [
-                ExecutionRequest(cell_id="0", code="x = 1"),
-                ExecutionRequest(cell_id="1", code="y = x + 1"),
-                ExecutionRequest(cell_id="2", code="z = y + 1"),
+                ExecuteCellCommand(cell_id="0", code="x = 1"),
+                ExecuteCellCommand(cell_id="1", code="y = x + 1"),
+                ExecuteCellCommand(cell_id="2", code="z = y + 1"),
             ]
         )
         assert "z" in k.globals
@@ -1849,10 +1849,10 @@ except NameError:
         # Setup: Kernel has A, B, C, D
         await k.run(
             [
-                ExecutionRequest(cell_id="0", code="a = 1"),
-                ExecutionRequest(cell_id="1", code="b = 2"),
-                ExecutionRequest(cell_id="2", code="c = 3"),
-                ExecutionRequest(cell_id="3", code="d = 4"),
+                ExecuteCellCommand(cell_id="0", code="a = 1"),
+                ExecuteCellCommand(cell_id="1", code="b = 2"),
+                ExecuteCellCommand(cell_id="2", code="c = 3"),
+                ExecuteCellCommand(cell_id="3", code="d = 4"),
             ]
         )
         assert len(k.graph.cells) == 4
@@ -1883,13 +1883,13 @@ except NameError:
         k = any_kernel
         # Setup: Instantiate with autorun=False, then run some cells
         await k.instantiate(
-            CreationRequest(
+            CreateNotebookCommand(
                 execution_requests=(
-                    ExecutionRequest(cell_id="0", code="x = 0"),
-                    ExecutionRequest(cell_id="1", code="y = 1"),
-                    ExecutionRequest(cell_id="2", code="z = 2"),
+                    ExecuteCellCommand(cell_id="0", code="x = 0"),
+                    ExecuteCellCommand(cell_id="1", code="y = 1"),
+                    ExecuteCellCommand(cell_id="2", code="z = 2"),
                 ),
-                set_ui_element_value_request=SetUIElementValueRequest.from_ids_and_values(
+                set_ui_element_value_request=UpdateUIElementCommand.from_ids_and_values(
                     []
                 ),
                 auto_run=False,
@@ -1900,8 +1900,8 @@ except NameError:
         # Run cells 0 and 1 to add them to graph, keeping cell 2 uninstantiated
         await k.run(
             [
-                ExecutionRequest(cell_id="0", code="x = 0"),
-                ExecutionRequest(cell_id="1", code="y = 1"),
+                ExecuteCellCommand(cell_id="0", code="x = 0"),
+                ExecuteCellCommand(cell_id="1", code="y = 1"),
             ]
         )
         # Cell 2 is still uninstantiated, cells 0 and 1 are in graph
@@ -1932,9 +1932,9 @@ except NameError:
         # Setup: Create A→B→C dependency chain
         await k.run(
             [
-                ExecutionRequest(cell_id="0", code="x = 1"),
-                ExecutionRequest(cell_id="1", code="y = x + 1"),
-                ExecutionRequest(cell_id="2", code="z = y + 1"),
+                ExecuteCellCommand(cell_id="0", code="x = 1"),
+                ExecuteCellCommand(cell_id="1", code="y = x + 1"),
+                ExecuteCellCommand(cell_id="2", code="z = y + 1"),
             ]
         )
         assert k.globals["z"] == 3
@@ -1964,7 +1964,7 @@ except NameError:
         # Setup: Cell 0 defines x
         await k.run(
             [
-                ExecutionRequest(cell_id="0", code="x = 1"),
+                ExecuteCellCommand(cell_id="0", code="x = 1"),
             ]
         )
         assert "x" in k.globals
@@ -1990,8 +1990,8 @@ except NameError:
         # Setup: Create cells
         await k.run(
             [
-                ExecutionRequest(cell_id="0", code="x = 1"),
-                ExecutionRequest(cell_id="1", code="y = 2"),
+                ExecuteCellCommand(cell_id="0", code="x = 1"),
+                ExecuteCellCommand(cell_id="1", code="y = 2"),
             ]
         )
         assert k.globals["x"] == 1
@@ -2013,7 +2013,7 @@ except NameError:
     async def test_missing_module_detected(self, any_kernel: Kernel) -> None:
         k = any_kernel
         await k.run(
-            [er := ExecutionRequest(cell_id="0", code="import foobar")]
+            [er := ExecuteCellCommand(cell_id="0", code="import foobar")]
         )
         cell = k.graph.cells[er.cell_id]
         assert cell.exception is not None
@@ -2021,7 +2021,7 @@ except NameError:
         assert cell.exception.name == "foobar"
 
         await k.run(
-            [er := ExecutionRequest(cell_id="0", code="import marimo")]
+            [er := ExecuteCellCommand(cell_id="0", code="import marimo")]
         )
         cell = k.graph.cells[er.cell_id]
         assert cell.exception is None
@@ -2204,7 +2204,7 @@ class TestStrictExecution:
         k = execution_kernel
         await k.run(
             [
-                ExecutionRequest(
+                ExecuteCellCommand(
                     cell_id="0",
                     code=textwrap.dedent(
                         """
@@ -2237,7 +2237,7 @@ class TestStrictExecution:
         # succeed
         await k.run(
             [
-                ExecutionRequest(
+                ExecuteCellCommand(
                     cell_id="0",
                     code=textwrap.dedent(
                         """
@@ -2249,7 +2249,7 @@ class TestStrictExecution:
                     """
                     ),
                 ),
-                ExecutionRequest(
+                ExecuteCellCommand(
                     cell_id="1",
                     code=textwrap.dedent(
                         """
@@ -2271,7 +2271,7 @@ class TestStrictExecution:
         # succeed
         await k.run(
             [
-                ExecutionRequest(
+                ExecuteCellCommand(
                     cell_id="0",
                     code=textwrap.dedent(
                         """
@@ -2283,7 +2283,7 @@ class TestStrictExecution:
                     """
                     ),
                 ),
-                ExecutionRequest(
+                ExecuteCellCommand(
                     cell_id="1",
                     code=textwrap.dedent(
                         """
@@ -2331,7 +2331,7 @@ class TestImports:
         # of already imported modules
         await k.run(
             [
-                ExecutionRequest(
+                ExecuteCellCommand(
                     cell_id=er.cell_id, code="import random; import time"
                 )
             ]
@@ -2350,7 +2350,7 @@ class TestImports:
         )
         assert "x" not in k.globals
 
-        await k.delete_cell(DeleteCellRequest(cell_id=er.cell_id))
+        await k.delete_cell(DeleteCellCommand(cell_id=er.cell_id))
         assert "x" in k.globals
 
     async def test_different_import_same_def(
@@ -2364,7 +2364,7 @@ class TestImports:
         # er.cell_id is still an import block, still defines random,
         # but brings random from another place; descendant should run
         await k.run(
-            [ExecutionRequest(er.cell_id, code="from random import random")]
+            [ExecuteCellCommand(er.cell_id, code="from random import random")]
         )
         assert "random" in k.globals
         # randint is on toplevel random, not random.random
@@ -2381,7 +2381,7 @@ class TestImports:
         )
         assert "x" not in k.globals
 
-        await k.run([ExecutionRequest(er.cell_id, code="import time")])
+        await k.run([ExecuteCellCommand(er.cell_id, code="import time")])
         assert k.globals["x"] == 1
 
 
@@ -2590,14 +2590,16 @@ class TestDisable:
         # shouldn't have passed through stale status
         # disable cell 2
         await k.set_cell_config(
-            SetCellConfigRequest(configs={er_2.cell_id: {"disabled": True}})
+            UpdateCellConfigCommand(configs={er_2.cell_id: {"disabled": True}})
         )
         assert k.globals["ns"].count == 1
         assert not graph.get_stale()
 
         # re-enable cell 2
         await k.set_cell_config(
-            SetCellConfigRequest(configs={er_2.cell_id: {"disabled": False}})
+            UpdateCellConfigCommand(
+                configs={er_2.cell_id: {"disabled": False}}
+            )
         )
         # cell 2 should **not** have re-run
         assert k.globals["ns"].count == 1
@@ -2629,7 +2631,7 @@ class TestDisable:
         # disable and re-enable cell 2, making it stale in between;
         # cell 2 should re-run on enable
         await k.set_cell_config(
-            SetCellConfigRequest(configs={er_2.cell_id: {"disabled": True}})
+            UpdateCellConfigCommand(configs={er_2.cell_id: {"disabled": True}})
         )
         await k.run(
             [
@@ -2652,7 +2654,9 @@ class TestDisable:
 
         # re-enable cell 2
         await k.set_cell_config(
-            SetCellConfigRequest(configs={er_2.cell_id: {"disabled": False}})
+            UpdateCellConfigCommand(
+                configs={er_2.cell_id: {"disabled": False}}
+            )
         )
         if k.lazy():
             assert k.graph.get_stale() == set([er_2.cell_id])
@@ -2687,10 +2691,10 @@ class TestDisable:
 
         # disable cell 2
         await k.set_cell_config(
-            SetCellConfigRequest(configs={er_2.cell_id: {"disabled": True}})
+            UpdateCellConfigCommand(configs={er_2.cell_id: {"disabled": True}})
         )
 
-        await k.run([ExecutionRequest(cell_id=er_1.cell_id, code="x = 2")])
+        await k.run([ExecuteCellCommand(cell_id=er_1.cell_id, code="x = 2")])
         assert k.globals["x"] == 2
         if k.lazy():
             assert graph.get_stale() == set(
@@ -2704,7 +2708,9 @@ class TestDisable:
 
         # enable cell 2: should run stale cells as a side-effect
         await k.set_cell_config(
-            SetCellConfigRequest(configs={er_2.cell_id: {"disabled": False}})
+            UpdateCellConfigCommand(
+                configs={er_2.cell_id: {"disabled": False}}
+            )
         )
         assert k.globals["x"] == 2
         assert k.globals["zzz"] == 3
@@ -2737,10 +2743,10 @@ class TestDisable:
 
         # disable both cells
         await k.set_cell_config(
-            SetCellConfigRequest(configs={er_1.cell_id: {"disabled": True}})
+            UpdateCellConfigCommand(configs={er_1.cell_id: {"disabled": True}})
         )
         await k.set_cell_config(
-            SetCellConfigRequest(configs={er_2.cell_id: {"disabled": True}})
+            UpdateCellConfigCommand(configs={er_2.cell_id: {"disabled": True}})
         )
         # update the code of cell 1 -- both cells stale
         await k.run([er_1 := exec_req.get_with_id(er_1.cell_id, "x = 2")])
@@ -2748,7 +2754,9 @@ class TestDisable:
 
         # enable cell 1, but 2 still disabled
         await k.set_cell_config(
-            SetCellConfigRequest(configs={er_1.cell_id: {"disabled": False}})
+            UpdateCellConfigCommand(
+                configs={er_1.cell_id: {"disabled": False}}
+            )
         )
         if k.lazy():
             assert graph.get_stale() == set([er_1.cell_id, er_2.cell_id])
@@ -2759,7 +2767,9 @@ class TestDisable:
 
         # enable cell 2
         await k.set_cell_config(
-            SetCellConfigRequest(configs={er_2.cell_id: {"disabled": False}})
+            UpdateCellConfigCommand(
+                configs={er_2.cell_id: {"disabled": False}}
+            )
         )
         if k.lazy():
             assert graph.get_stale() == set([er_2.cell_id])
@@ -2783,7 +2793,7 @@ class TestDisable:
 
         # disable cell
         await k.set_cell_config(
-            SetCellConfigRequest(configs={er_1.cell_id: {"disabled": True}})
+            UpdateCellConfigCommand(configs={er_1.cell_id: {"disabled": True}})
         )
 
         # add a syntax error
@@ -2797,7 +2807,9 @@ class TestDisable:
 
         # enable: should run
         await k.set_cell_config(
-            SetCellConfigRequest(configs={er_1.cell_id: {"disabled": False}})
+            UpdateCellConfigCommand(
+                configs={er_1.cell_id: {"disabled": False}}
+            )
         )
         if k.lazy():
             assert graph.cells[er_1.cell_id].stale
@@ -2817,16 +2829,18 @@ class TestDisable:
             ]
         )
         await k.set_cell_config(
-            SetCellConfigRequest(configs={er_1.cell_id: {"disabled": True}})
+            UpdateCellConfigCommand(configs={er_1.cell_id: {"disabled": True}})
         )
         assert k.graph.cells[er_1.cell_id].config.disabled
         assert k.graph.cells[er_2.cell_id].disabled_transitively
 
         await k.set_cell_config(
-            SetCellConfigRequest(configs={er_2.cell_id: {"disabled": True}})
+            UpdateCellConfigCommand(configs={er_2.cell_id: {"disabled": True}})
         )
         await k.set_cell_config(
-            SetCellConfigRequest(configs={er_1.cell_id: {"disabled": False}})
+            UpdateCellConfigCommand(
+                configs={er_1.cell_id: {"disabled": False}}
+            )
         )
         assert k.graph.cells[er_1.cell_id].disabled_transitively
         assert k.graph.cells[er_2.cell_id].config.disabled
@@ -2837,7 +2851,7 @@ class TestDisable:
         assert k.graph.cells[er_2.cell_id].config.disabled
 
         # breaking the cycle should re-enable
-        await k.run([ExecutionRequest(cell_id=er_1.cell_id, code="a = 0")])
+        await k.run([ExecuteCellCommand(cell_id=er_1.cell_id, code="a = 0")])
 
         assert not k.graph.cells[er_1.cell_id].stale
         assert not k.graph.cells[er_1.cell_id].disabled_transitively
@@ -2852,7 +2866,7 @@ class TestDisable:
         k = any_kernel
         await k.run([er_1 := exec_req.get("a = b")])
         await k.set_cell_config(
-            SetCellConfigRequest(configs={er_1.cell_id: {"disabled": True}})
+            UpdateCellConfigCommand(configs={er_1.cell_id: {"disabled": True}})
         )
         assert k.graph.cells[er_1.cell_id].config.disabled
 
@@ -2870,13 +2884,15 @@ class TestDisable:
             ]
         )
         await k.set_cell_config(
-            SetCellConfigRequest(configs={er_1.cell_id: {"disabled": True}})
+            UpdateCellConfigCommand(configs={er_1.cell_id: {"disabled": True}})
         )
         assert k.graph.cells[er_1.cell_id].config.disabled
         assert k.graph.cells[er_2.cell_id].disabled_transitively
 
         await k.set_cell_config(
-            SetCellConfigRequest(configs={er_1.cell_id: {"disabled": False}})
+            UpdateCellConfigCommand(
+                configs={er_1.cell_id: {"disabled": False}}
+            )
         )
         assert not k.graph.cells[er_1.cell_id].config.disabled
         assert not k.graph.cells[er_2.cell_id].disabled_transitively
@@ -3112,11 +3128,11 @@ class TestSQL:
     async def test_sql_table(self, k: Kernel) -> None:
         await k.run(
             [
-                ExecutionRequest(
+                ExecuteCellCommand(
                     cell_id="0",
                     code="import marimo as mo",
                 ),
-                ExecutionRequest(
+                ExecuteCellCommand(
                     cell_id="1", code="df = mo.sql('SELECT * from t1')"
                 ),
             ]
@@ -3125,13 +3141,13 @@ class TestSQL:
 
         await k.run(
             [
-                ExecutionRequest(
+                ExecuteCellCommand(
                     cell_id="2",
                     code="import polars as pl; t1_df = pl.from_dict({'a': [42]})",  # noqa: E501
                 ),
                 # cell 1 should automatically execute due to the definition of
                 # t1
-                ExecutionRequest(
+                ExecuteCellCommand(
                     cell_id="3",
                     code="mo.sql('CREATE OR REPLACE TABLE t1 as SELECT * FROM t1_df')",  # noqa: E501
                 ),
@@ -3141,7 +3157,7 @@ class TestSQL:
         # make sure cell 1 executed, defining df
         assert k.globals["t1_df"].to_dict(as_series=False) == {"a": [42]}
 
-        await k.delete_cell(DeleteCellRequest(cell_id="3"))
+        await k.delete_cell(DeleteCellCommand(cell_id="3"))
         # t1 should be dropped since it's an in-memory table;
         # cell 1 should re-run but will fail to find t1
         assert "df" not in k.globals
@@ -3149,11 +3165,11 @@ class TestSQL:
     async def test_sql_table_with_duckdb(self, k: Kernel) -> None:
         await k.run(
             [
-                ExecutionRequest(
+                ExecuteCellCommand(
                     cell_id="0",
                     code="import marimo as mo",
                 ),
-                ExecutionRequest(
+                ExecuteCellCommand(
                     cell_id="1", code="df = duckdb.sql('SELECT * from t1')"
                 ),
             ]
@@ -3162,13 +3178,13 @@ class TestSQL:
 
         await k.run(
             [
-                ExecutionRequest(
+                ExecuteCellCommand(
                     cell_id="2",
                     code="import polars as pl; t1_df = pl.from_dict({'a': [42]})",  # noqa: E501
                 ),
                 # cell 1 should automatically execute due to the definition of
                 # t1
-                ExecutionRequest(
+                ExecuteCellCommand(
                     cell_id="3",
                     code="duckdb.sql('CREATE OR REPLACE TABLE t1 as SELECT * FROM t1_df')",  # noqa: E501
                 ),
@@ -3178,7 +3194,7 @@ class TestSQL:
         # make sure cell 1 executed, defining df
         assert k.globals["t1_df"].to_dict(as_series=False) == {"a": [42]}
 
-        await k.delete_cell(DeleteCellRequest(cell_id="3"))
+        await k.delete_cell(DeleteCellCommand(cell_id="3"))
         # t1 should be dropped since it's an in-memory table;
         # cell 1 should re-run but will fail to find t1
         assert "df" not in k.globals
@@ -3186,11 +3202,11 @@ class TestSQL:
     async def test_sql_view(self, k: Kernel) -> None:
         await k.run(
             [
-                ExecutionRequest(
+                ExecuteCellCommand(
                     cell_id="0",
                     code="import marimo as mo",
                 ),
-                ExecutionRequest(
+                ExecuteCellCommand(
                     cell_id="1", code="df = mo.sql('SELECT * from view')"
                 ),
             ]
@@ -3201,7 +3217,7 @@ class TestSQL:
             [
                 # cell 1 should automatically execute due to the definition of
                 # t1
-                ExecutionRequest(
+                ExecuteCellCommand(
                     cell_id="2",
                     code="mo.sql('CREATE OR REPLACE VIEW view as SELECT 42')",  # noqa: E501
                 ),
@@ -3212,7 +3228,7 @@ class TestSQL:
         # make sure cell 1 executed, defining df
         assert "df" in k.globals
 
-        await k.delete_cell(DeleteCellRequest(cell_id="2"))
+        await k.delete_cell(DeleteCellCommand(cell_id="2"))
         # view should be dropped since it's an in-memory table;
         # cell 1 should re-run but will fail to find t1
         assert "df" not in k.globals
@@ -3220,15 +3236,15 @@ class TestSQL:
     async def test_sql_query_as_local_df(self, k: Kernel) -> None:
         await k.run(
             [
-                ExecutionRequest(
+                ExecuteCellCommand(
                     cell_id="0",
                     code="import marimo as mo; import polars as pl",
                 ),
-                ExecutionRequest(
+                ExecuteCellCommand(
                     cell_id="1",
                     code="source_df = pl.DataFrame({'val': [42]})",
                 ),
-                ExecutionRequest(
+                ExecuteCellCommand(
                     cell_id="2",
                     code="df = mo.sql('SELECT * FROM source_df')",
                 ),
@@ -3239,13 +3255,13 @@ class TestSQL:
 
         await k.run(
             [
-                ExecutionRequest(
+                ExecuteCellCommand(
                     cell_id="3",
                     code="""
 import duckdb
 conn = duckdb.connect()""",
                 ),
-                ExecutionRequest(
+                ExecuteCellCommand(
                     cell_id="4",
                     code="df2 = mo.sql('SELECT * FROM source_df', engine=conn)",
                 ),
@@ -3505,7 +3521,7 @@ class TestStateTransitions:
 
         # Deleting a cell should broadcast Variables
         stream.messages.clear()
-        await k.delete_cell(DeleteCellRequest(cell_id=er_2.cell_id))
+        await k.delete_cell(DeleteCellCommand(cell_id=er_2.cell_id))
         assert (
             sum(
                 1
@@ -3661,19 +3677,9 @@ class TestMarkdownHandling:
         regular_cell_code = "x = 1"
 
         execution_requests = [
-            ExecutionRequest(cell_id="md_cell", code=markdown_cell_code),
-            ExecutionRequest(cell_id="regular_cell", code=regular_cell_code),
+            ExecuteCellCommand(cell_id="md_cell", code=markdown_cell_code),
+            ExecuteCellCommand(cell_id="regular_cell", code=regular_cell_code),
         ]
-
-        # Create a creation request with auto_run=False to trigger the markdown handling
-        creation_request = CreationRequest(
-            execution_requests=execution_requests,
-            auto_run=False,
-            set_ui_element_value_request=SetUIElementValueRequest(
-                object_ids=[],
-                values=[],
-            ),
-        )
 
         # Clear stream before instantiate
         stream.messages.clear()
@@ -3681,12 +3687,14 @@ class TestMarkdownHandling:
         # Add a cell that exports 'mo' to enable markdown processing
         # This simulates the scenario where marimo has been imported
         execution_requests.append(
-            ExecutionRequest(cell_id="mo_import", code="import marimo as mo")
+            ExecuteCellCommand(cell_id="mo_import", code="import marimo as mo")
         )
-        creation_request = CreationRequest(
+
+        # Create a creation request with auto_run=False to trigger the markdown handling
+        creation_request = CreateNotebookCommand(
             execution_requests=execution_requests,
             auto_run=False,
-            set_ui_element_value_request=SetUIElementValueRequest(
+            set_ui_element_value_request=UpdateUIElementCommand(
                 object_ids=[],
                 values=[],
             ),
@@ -3766,22 +3774,24 @@ class TestMarkdownHandling:
         t_markdown_cell_code_escaped = "mo.md(t'{{mo}}')"
 
         execution_requests = [
-            ExecutionRequest(cell_id="md_cell_r", code=r_markdown_cell_code),
-            ExecutionRequest(cell_id="md_cell_f", code=f_markdown_cell_code),
-            ExecutionRequest(cell_id="md_cell_t", code=t_markdown_cell_code),
-            ExecutionRequest(
+            ExecuteCellCommand(cell_id="md_cell_r", code=r_markdown_cell_code),
+            ExecuteCellCommand(cell_id="md_cell_f", code=f_markdown_cell_code),
+            ExecuteCellCommand(cell_id="md_cell_t", code=t_markdown_cell_code),
+            ExecuteCellCommand(
                 cell_id="md_cell_fe", code=f_markdown_cell_code_escaped
             ),
-            ExecutionRequest(
+            ExecuteCellCommand(
                 cell_id="md_cell_te", code=t_markdown_cell_code_escaped
             ),
-            ExecutionRequest(cell_id="mo_import", code="import marimo as mo"),
+            ExecuteCellCommand(
+                cell_id="mo_import", code="import marimo as mo"
+            ),
         ]
 
-        creation_request = CreationRequest(
+        creation_request = CreateNotebookCommand(
             execution_requests=execution_requests,
             auto_run=False,
-            set_ui_element_value_request=SetUIElementValueRequest(
+            set_ui_element_value_request=UpdateUIElementCommand(
                 object_ids=[],
                 values=[],
             ),
@@ -3811,15 +3821,17 @@ class TestMarkdownHandling:
         regular_cell_code = "x = 0"
 
         execution_requests = [
-            ExecutionRequest(cell_id="md_cell", code=markdown_cell_code),
-            ExecutionRequest(cell_id="regular_cell", code=regular_cell_code),
-            ExecutionRequest(cell_id="mo_import", code="import marimo as mo"),
+            ExecuteCellCommand(cell_id="md_cell", code=markdown_cell_code),
+            ExecuteCellCommand(cell_id="regular_cell", code=regular_cell_code),
+            ExecuteCellCommand(
+                cell_id="mo_import", code="import marimo as mo"
+            ),
         ]
 
-        creation_request = CreationRequest(
+        creation_request = CreateNotebookCommand(
             execution_requests=execution_requests,
             auto_run=False,
-            set_ui_element_value_request=SetUIElementValueRequest(
+            set_ui_element_value_request=UpdateUIElementCommand(
                 object_ids=[],
                 values=[],
             ),
@@ -3843,14 +3855,14 @@ class TestMarkdownHandling:
 
         # Create execution requests with only regular cells
         execution_requests = [
-            ExecutionRequest(cell_id="cell1", code="x = 1"),
-            ExecutionRequest(cell_id="cell2", code="y = 2"),
+            ExecuteCellCommand(cell_id="cell1", code="x = 1"),
+            ExecuteCellCommand(cell_id="cell2", code="y = 2"),
         ]
 
-        creation_request = CreationRequest(
+        creation_request = CreateNotebookCommand(
             execution_requests=execution_requests,
             auto_run=False,
-            set_ui_element_value_request=SetUIElementValueRequest(
+            set_ui_element_value_request=UpdateUIElementCommand(
                 object_ids=[],
                 values=[],
             ),
@@ -3892,32 +3904,24 @@ class TestMarkdownHandling:
 
         # Create execution requests with malformed markdown cell
         execution_requests = [
-            ExecutionRequest(
+            ExecuteCellCommand(
                 cell_id="bad_cell", code="mo.md("
             ),  # Syntax error
-            ExecutionRequest(cell_id="good_md", code='mo.md("# Good")'),
+            ExecuteCellCommand(cell_id="good_md", code='mo.md("# Good")'),
         ]
-
-        creation_request = CreationRequest(
-            execution_requests=execution_requests,
-            auto_run=False,
-            set_ui_element_value_request=SetUIElementValueRequest(
-                object_ids=[],
-                values=[],
-            ),
-        )
 
         stream.messages.clear()
 
         # Add a cell that exports 'mo' to enable markdown processing
         # This simulates the scenario where marimo has been imported
         execution_requests.append(
-            ExecutionRequest(cell_id="mo_import", code="import marimo as mo")
+            ExecuteCellCommand(cell_id="mo_import", code="import marimo as mo")
         )
-        creation_request = CreationRequest(
+
+        creation_request = CreateNotebookCommand(
             execution_requests=execution_requests,
             auto_run=False,
-            set_ui_element_value_request=SetUIElementValueRequest(
+            set_ui_element_value_request=UpdateUIElementCommand(
                 object_ids=[],
                 values=[],
             ),
@@ -3967,15 +3971,15 @@ class TestMarkdownHandling:
 
         # Create execution requests with markdown cells
         execution_requests = [
-            ExecutionRequest(cell_id="md_cell1", code='mo.md("# Hello")'),
-            ExecutionRequest(cell_id="md_cell2", code='mo.md("## World")'),
-            ExecutionRequest(cell_id="regular_cell", code="x = 1"),
+            ExecuteCellCommand(cell_id="md_cell1", code='mo.md("# Hello")'),
+            ExecuteCellCommand(cell_id="md_cell2", code='mo.md("## World")'),
+            ExecuteCellCommand(cell_id="regular_cell", code="x = 1"),
         ]
 
-        creation_request = CreationRequest(
+        creation_request = CreateNotebookCommand(
             execution_requests=execution_requests,
             auto_run=False,
-            set_ui_element_value_request=SetUIElementValueRequest(
+            set_ui_element_value_request=UpdateUIElementCommand(
                 object_ids=[],
                 values=[],
             ),

@@ -11,7 +11,7 @@ if TYPE_CHECKING:
     from marimo._plugins.ui._impl.anywidget.types import (
         TypedModelMessagePayload,
     )
-    from marimo._runtime.requests import ModelMessage
+    from marimo._runtime.commands import ModelMessage
 
 LOGGER = marimo_logger()
 

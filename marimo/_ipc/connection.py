@@ -17,10 +17,10 @@ from marimo._server.types import QueueType
 
 if typing.TYPE_CHECKING:
     from marimo._messaging.types import KernelMessage
-    from marimo._runtime.requests import (
-        CodeCompletionRequest,
-        ControlRequest,
-        SetUIElementValueRequest,
+    from marimo._runtime.commands import (
+        CodeCompletionCommand,
+        CommandMessage,
+        UpdateUIElementCommand,
     )
 
 LOGGER = _loggers.marimo_logger()
@@ -81,9 +81,9 @@ class Connection:
 
     context: zmq.Context[zmq.Socket[bytes]]
 
-    control: Channel[ControlRequest]
-    ui_element: Channel[SetUIElementValueRequest]
-    completion: Channel[CodeCompletionRequest]
+    control: Channel[CommandMessage]
+    ui_element: Channel[UpdateUIElementCommand]
+    completion: Channel[CodeCompletionCommand]
     win32_interrupt: Channel[bool] | None
 
     input: Channel[str]

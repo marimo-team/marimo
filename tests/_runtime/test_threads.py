@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import time
 
-from marimo._runtime.requests import DeleteCellRequest
+from marimo._runtime.commands import DeleteCellCommand
 from marimo._runtime.runtime import Kernel
 from tests._messaging.mocks import MockStream
 from tests.conftest import ExecReqProvider
@@ -236,5 +236,5 @@ async def test_thread_should_exit_on_deletion(
     thread = k.globals["thread"]
     assert not thread.should_exit
 
-    await k.delete_cell(DeleteCellRequest(er.cell_id))
+    await k.delete_cell(DeleteCellCommand(er.cell_id))
     assert thread.should_exit

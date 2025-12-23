@@ -28,7 +28,12 @@ import { getController } from "./getController";
 import { getPyodideVersion } from "./getPyodideVersion";
 import { MessageBuffer } from "./message-buffer";
 import { t } from "./tracer";
-import type { RawBridge, SerializedBridge, WasmController } from "./types";
+import type {
+  BridgePayload,
+  RawBridge,
+  SerializedBridge,
+  WasmController,
+} from "./types";
 
 /**
  * Web worker responsible for running the notebook.
@@ -256,10 +261,10 @@ const requestHandler = createRPCRequestHandler({
   /**
    * Call a function on the bridge
    */
-  bridge: async (opts: {
+  async bridge<T extends keyof RawBridge>(opts: {
     functionName: keyof RawBridge;
-    payload: {} | undefined | null;
-  }) => {
+    payload: BridgePayload<T>;
+  }): Promise<unknown> {
     const span = t.startSpan("bridge", {
       functionName: opts.functionName,
     });

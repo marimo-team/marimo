@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING, Optional, TypeVar
 
 from marimo import _loggers
 from marimo._config.manager import MarimoConfigManager
-from marimo._runtime.requests import (
+from marimo._runtime.commands import (
     SerializedCLIArgs,
     SerializedQueryParams,
 )
@@ -166,7 +166,7 @@ class SessionManager:
         )
 
         # Create the session
-        from marimo._runtime.requests import AppMetadata
+        from marimo._runtime.commands import AppMetadata
 
         extensions: list[SessionExtension] = [
             RecentsTrackerListener(self.recents)

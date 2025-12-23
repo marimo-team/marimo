@@ -11,7 +11,7 @@ from marimo._plugins.stateless.mpl._mpl import (
     _get_remote_url,
     _template,
 )
-from marimo._runtime.requests import DeleteCellRequest
+from marimo._runtime.commands import DeleteCellCommand
 from marimo._runtime.runtime import Kernel
 from tests.conftest import ExecReqProvider
 
@@ -50,7 +50,7 @@ async def test_mpl_interactive(k: Kernel, exec_req: ExecReqProvider) -> None:
         interactive = k.globals["interactive"]
         assert isinstance(interactive, Html)
         assert interactive.text.startswith("<iframe srcdoc=")
-        await k.delete_cell(DeleteCellRequest(cell_id=cell.cell_id))
+        await k.delete_cell(DeleteCellCommand(cell_id=cell.cell_id))
 
 
 @pytest.mark.skipif(

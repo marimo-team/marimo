@@ -406,7 +406,7 @@ export interface paths {
       };
       requestBody?: {
         content: {
-          "application/json": components["schemas"]["PreviewDataSourceConnectionRequest"];
+          "application/json": components["schemas"]["ListDataSourceConnectionRequest"];
         };
       };
       responses: {
@@ -484,7 +484,7 @@ export interface paths {
       };
       requestBody?: {
         content: {
-          "application/json": components["schemas"]["PreviewSQLTableListRequest"];
+          "application/json": components["schemas"]["ListSQLTablesRequest"];
         };
       };
       responses: {
@@ -1450,7 +1450,7 @@ export interface paths {
       };
       requestBody?: {
         content: {
-          "application/json": components["schemas"]["FormatRequest"];
+          "application/json": components["schemas"]["FormatCellsRequest"];
         };
       };
       responses: {
@@ -1489,7 +1489,7 @@ export interface paths {
       };
       requestBody?: {
         content: {
-          "application/json": components["schemas"]["FunctionCallRequest"];
+          "application/json": components["schemas"]["InvokeFunctionRequest"];
         };
       };
       responses: {
@@ -1528,7 +1528,7 @@ export interface paths {
       };
       requestBody?: {
         content: {
-          "application/json": components["schemas"]["InstallMissingPackagesRequest"];
+          "application/json": components["schemas"]["InstallPackagesRequest"];
         };
       };
       responses: {
@@ -1567,7 +1567,7 @@ export interface paths {
       };
       requestBody?: {
         content: {
-          "application/json": components["schemas"]["InstantiateRequest"];
+          "application/json": components["schemas"]["InstantiateNotebookRequest"];
         };
       };
       responses: {
@@ -1641,7 +1641,7 @@ export interface paths {
       };
       requestBody?: {
         content: {
-          "application/json": components["schemas"]["PdbRequest"];
+          "application/json": components["schemas"]["DebugCellRequest"];
         };
       };
       responses: {
@@ -1722,7 +1722,7 @@ export interface paths {
       };
       requestBody?: {
         content: {
-          "application/json": components["schemas"]["RenameFileRequest"];
+          "application/json": components["schemas"]["RenameNotebookRequest"];
         };
       };
       responses: {
@@ -1796,7 +1796,7 @@ export interface paths {
       };
       requestBody?: {
         content: {
-          "application/json": components["schemas"]["RunRequest"];
+          "application/json": components["schemas"]["ExecuteCellsRequest"];
         };
       };
       responses: {
@@ -1991,7 +1991,7 @@ export interface paths {
       };
       requestBody?: {
         content: {
-          "application/json": components["schemas"]["SetCellConfigRequest"];
+          "application/json": components["schemas"]["UpdateCellConfigRequest"];
         };
       };
       responses: {
@@ -2030,7 +2030,7 @@ export interface paths {
       };
       requestBody?: {
         content: {
-          "application/json": components["schemas"]["SetModelMessageRequest"];
+          "application/json": components["schemas"]["UpdateWidgetModelRequest"];
         };
       };
       responses: {
@@ -2069,7 +2069,7 @@ export interface paths {
       };
       requestBody?: {
         content: {
-          "application/json": components["schemas"]["UpdateComponentValuesRequest"];
+          "application/json": components["schemas"]["UpdateUIElementValuesRequest"];
         };
       };
       responses: {
@@ -3118,8 +3118,21 @@ export interface components {
       /** @default null */
       variables?: (string | components["schemas"]["VariableContext"])[] | null;
     };
+    /** ClearCacheCommand */
+    ClearCacheCommand: {
+      /** @enum {unknown} */
+      type: "clear-cache";
+    };
     /** ClearCacheRequest */
     ClearCacheRequest: Record<string, any>;
+    /** CodeCompletionCommand */
+    CodeCompletionCommand: {
+      cellId: string;
+      document: string;
+      id: string;
+      /** @enum {unknown} */
+      type: "code-completion";
+    };
     /** CodeCompletionRequest */
     CodeCompletionRequest: {
       cellId: string;
@@ -3213,6 +3226,16 @@ export interface components {
     CopyNotebookRequest: {
       destination: string;
       source: string;
+    };
+    /** CreateNotebookCommand */
+    CreateNotebookCommand: {
+      autoRun: boolean;
+      executionRequests: components["schemas"]["ExecuteCellCommand"][];
+      /** @default null */
+      request?: components["schemas"]["HTTPRequest"] | null;
+      setUiElementValueRequest: components["schemas"]["UpdateUIElementCommand"];
+      /** @enum {unknown} */
+      type: "create-notebook";
     };
     /** CreateSecretRequest */
     CreateSecretRequest: {
@@ -3384,6 +3407,26 @@ export interface components {
       auto_discover_schemas?: boolean | "auto";
       auto_discover_tables?: boolean | "auto";
     };
+    /** DebugCellCommand */
+    DebugCellCommand: {
+      cellId: string;
+      /** @default null */
+      request?: components["schemas"]["HTTPRequest"] | null;
+      /** @enum {unknown} */
+      type: "debug-cell";
+    };
+    /** DebugCellRequest */
+    DebugCellRequest: {
+      cellId: string;
+      /** @default null */
+      request?: components["schemas"]["HTTPRequest"] | null;
+    };
+    /** DeleteCellCommand */
+    DeleteCellCommand: {
+      cellId: string;
+      /** @enum {unknown} */
+      type: "delete-cell";
+    };
     /** DeleteCellRequest */
     DeleteCellRequest: {
       cellId: string;
@@ -3450,13 +3493,40 @@ export interface components {
       /** @enum {unknown} */
       theme: "dark" | "light" | "system";
     };
-    /** ExecuteMultipleRequest */
-    ExecuteMultipleRequest: {
+    /** ExecuteCellCommand */
+    ExecuteCellCommand: {
+      cellId: string;
+      code: string;
+      /** @default null */
+      request?: components["schemas"]["HTTPRequest"] | null;
+      timestamp?: number;
+      /** @enum {unknown} */
+      type: "execute-cell";
+    };
+    /** ExecuteCellsCommand */
+    ExecuteCellsCommand: {
       cellIds: string[];
       codes: string[];
       /** @default null */
       request?: components["schemas"]["HTTPRequest"] | null;
       timestamp?: number;
+      /** @enum {unknown} */
+      type: "execute-cells";
+    };
+    /** ExecuteCellsRequest */
+    ExecuteCellsRequest: {
+      cellIds: string[];
+      codes: string[];
+      /** @default null */
+      request?: components["schemas"]["HTTPRequest"] | null;
+    };
+    /** ExecuteScratchpadCommand */
+    ExecuteScratchpadCommand: {
+      code: string;
+      /** @default null */
+      request?: components["schemas"]["HTTPRequest"] | null;
+      /** @enum {unknown} */
+      type: "execute-scratchpad";
     };
     /** ExecuteScratchpadRequest */
     ExecuteScratchpadRequest: {
@@ -3464,18 +3534,12 @@ export interface components {
       /** @default null */
       request?: components["schemas"]["HTTPRequest"] | null;
     };
-    /** ExecuteStaleRequest */
-    ExecuteStaleRequest: {
+    /** ExecuteStaleCellsCommand */
+    ExecuteStaleCellsCommand: {
       /** @default null */
       request?: components["schemas"]["HTTPRequest"] | null;
-    };
-    /** ExecutionRequest */
-    ExecutionRequest: {
-      cellId: string;
-      code: string;
-      /** @default null */
-      request?: components["schemas"]["HTTPRequest"] | null;
-      timestamp?: number;
+      /** @enum {unknown} */
+      type: "execute-stale-cells";
     };
     /** ExportAsHTMLRequest */
     ExportAsHTMLRequest: {
@@ -3616,8 +3680,8 @@ export interface components {
       /** @enum {unknown} */
       op: "focus-cell";
     };
-    /** FormatRequest */
-    FormatRequest: {
+    /** FormatCellsRequest */
+    FormatCellsRequest: {
       codes: {
         [key: string]: string;
       };
@@ -3640,13 +3704,6 @@ export interface components {
     FormattingConfig: {
       line_length: number;
     };
-    /** FunctionCallRequest */
-    FunctionCallRequest: {
-      args: Record<string, any>;
-      functionCallId: string;
-      functionName: string;
-      namespace: string;
-    };
     /**
      * FunctionCallResultNotification
      * @description Result of calling a function.
@@ -3657,6 +3714,11 @@ export interface components {
       op: "function-call-result";
       return_value: unknown;
       status: components["schemas"]["HumanReadableStatus"];
+    };
+    /** GetCacheInfoCommand */
+    GetCacheInfoCommand: {
+      /** @enum {unknown} */
+      type: "get-cache-info";
     };
     /** GetCacheInfoRequest */
     GetCacheInfoRequest: Record<string, any>;
@@ -3688,28 +3750,26 @@ export interface components {
     GoogleAiConfig: {
       api_key?: string;
     };
+    /**
+     * HTTPRequest
+     * @description A class that mimics the Request object from Starlette or FastAPI.
+     *
+     *     It is a subset and pickle-able version of the Request object.
+     */
     HTTPRequest: {
-      baseUrl: {
-        [key: string]: unknown;
-      };
+      base_url: Record<string, any>;
       cookies: {
         [key: string]: string;
       };
       headers: {
         [key: string]: string;
       };
-      meta: {
-        [key: string]: unknown;
-      };
-      pathParams: {
-        [key: string]: unknown;
-      };
-      queryParams: {
+      meta: Record<string, any>;
+      path_params: Record<string, any>;
+      query_params: {
         [key: string]: string[];
       };
-      url: {
-        [key: string]: unknown;
-      };
+      url: Record<string, any>;
       user: unknown;
     };
     /**
@@ -3732,8 +3792,17 @@ export interface components {
       /** @enum {unknown} */
       type: "import-star";
     };
-    /** InstallMissingPackagesRequest */
-    InstallMissingPackagesRequest: {
+    /** InstallPackagesCommand */
+    InstallPackagesCommand: {
+      manager: string;
+      /** @enum {unknown} */
+      type: "install-packages";
+      versions: {
+        [key: string]: string;
+      };
+    };
+    /** InstallPackagesRequest */
+    InstallPackagesRequest: {
       manager: string;
       versions: {
         [key: string]: string;
@@ -3753,8 +3822,8 @@ export interface components {
         [key: string]: "failed" | "installed" | "installing" | "queued";
       };
     };
-    /** InstantiateRequest */
-    InstantiateRequest: {
+    /** InstantiateNotebookRequest */
+    InstantiateNotebookRequest: {
       /** @default true */
       autoRun?: boolean;
       objectIds: string[];
@@ -3780,6 +3849,22 @@ export interface components {
       result: unknown;
       success: boolean;
       toolName: string;
+    };
+    /** InvokeFunctionCommand */
+    InvokeFunctionCommand: {
+      args: Record<string, any>;
+      functionCallId: string;
+      functionName: string;
+      namespace: string;
+      /** @enum {unknown} */
+      type: "invoke-function";
+    };
+    /** InvokeFunctionRequest */
+    InvokeFunctionRequest: {
+      args: Record<string, any>;
+      functionCallId: string;
+      functionName: string;
+      namespace: string;
     };
     /** KernelCapabilitiesNotification */
     KernelCapabilitiesNotification: {
@@ -3838,6 +3923,31 @@ export interface components {
     };
     /** KnownUnions */
     KnownUnions: {
+      command:
+        | components["schemas"]["CreateNotebookCommand"]
+        | components["schemas"]["RenameNotebookCommand"]
+        | components["schemas"]["ExecuteCellsCommand"]
+        | components["schemas"]["ExecuteScratchpadCommand"]
+        | components["schemas"]["ExecuteStaleCellsCommand"]
+        | components["schemas"]["DebugCellCommand"]
+        | components["schemas"]["DeleteCellCommand"]
+        | components["schemas"]["SyncGraphCommand"]
+        | components["schemas"]["UpdateCellConfigCommand"]
+        | components["schemas"]["InstallPackagesCommand"]
+        | components["schemas"]["UpdateUIElementCommand"]
+        | components["schemas"]["UpdateWidgetModelCommand"]
+        | components["schemas"]["InvokeFunctionCommand"]
+        | components["schemas"]["UpdateUserConfigCommand"]
+        | components["schemas"]["PreviewDatasetColumnCommand"]
+        | components["schemas"]["PreviewSQLTableCommand"]
+        | components["schemas"]["ListSQLTablesCommand"]
+        | components["schemas"]["ValidateSQLCommand"]
+        | components["schemas"]["ListDataSourceConnectionCommand"]
+        | components["schemas"]["ListSecretKeysCommand"]
+        | components["schemas"]["RefreshSecretsCommand"]
+        | components["schemas"]["ClearCacheCommand"]
+        | components["schemas"]["GetCacheInfoCommand"]
+        | components["schemas"]["StopKernelCommand"];
       /** @enum {unknown} */
       data_type:
         | "boolean"
@@ -3915,9 +4025,47 @@ export interface components {
       data: Record<string, any>;
       type: string;
     };
+    /**
+     * ListDataSourceConnectionCommand
+     * @description Fetch a datasource connection
+     */
+    ListDataSourceConnectionCommand: {
+      engine: string;
+      /** @enum {unknown} */
+      type: "list-data-source-connection";
+    };
+    /** ListDataSourceConnectionRequest */
+    ListDataSourceConnectionRequest: {
+      engine: string;
+    };
     /** ListPackagesResponse */
     ListPackagesResponse: {
       packages: components["schemas"]["PackageDescription"][];
+    };
+    /**
+     * ListSQLTablesCommand
+     * @description Preview list of tables in an SQL schema
+     */
+    ListSQLTablesCommand: {
+      database: string;
+      engine: string;
+      requestId: string;
+      schema: string;
+      /** @enum {unknown} */
+      type: "list-sql-tables";
+    };
+    /** ListSQLTablesRequest */
+    ListSQLTablesRequest: {
+      database: string;
+      engine: string;
+      requestId: string;
+      schema: string;
+    };
+    /** ListSecretKeysCommand */
+    ListSecretKeysCommand: {
+      requestId: string;
+      /** @enum {unknown} */
+      type: "list-secret-keys";
     };
     /** ListSecretKeysRequest */
     ListSecretKeysRequest: {
@@ -4157,18 +4305,17 @@ export interface components {
       error?: string | null;
       success: boolean;
     };
-    /** PdbRequest */
-    PdbRequest: {
-      cellId: string;
+    /** PreviewDatasetColumnCommand */
+    PreviewDatasetColumnCommand: {
+      columnName: string;
       /** @default null */
-      request?: components["schemas"]["HTTPRequest"] | null;
-    };
-    /**
-     * PreviewDataSourceConnectionRequest
-     * @description Fetch a datasource connection
-     */
-    PreviewDataSourceConnectionRequest: {
-      engine: string;
+      fullyQualifiedTableName?: string | null;
+      source: string;
+      /** @enum {unknown} */
+      sourceType: "catalog" | "connection" | "duckdb" | "local";
+      tableName: string;
+      /** @enum {unknown} */
+      type: "preview-dataset-column";
     };
     /** PreviewDatasetColumnRequest */
     PreviewDatasetColumnRequest: {
@@ -4181,19 +4328,19 @@ export interface components {
       tableName: string;
     };
     /**
-     * PreviewSQLTableListRequest
-     * @description Preview list of tables in an SQL schema
+     * PreviewSQLTableCommand
+     * @description Preview table details in an SQL database
      */
-    PreviewSQLTableListRequest: {
+    PreviewSQLTableCommand: {
       database: string;
       engine: string;
       requestId: string;
       schema: string;
+      tableName: string;
+      /** @enum {unknown} */
+      type: "preview-sql-table";
     };
-    /**
-     * PreviewSQLTableRequest
-     * @description Preview table details in an SQL database
-     */
+    /** PreviewSQLTableRequest */
     PreviewSQLTableRequest: {
       database: string;
       engine: string;
@@ -4258,6 +4405,13 @@ export interface components {
       /** @enum {unknown} */
       op: "reconnected";
     };
+    /** RefreshSecretsCommand */
+    RefreshSecretsCommand: {
+      /** @enum {unknown} */
+      type: "refresh-secrets";
+    };
+    /** RefreshSecretsRequest */
+    RefreshSecretsRequest: Record<string, any>;
     /** ReloadNotification */
     ReloadNotification: {
       /** @enum {unknown} */
@@ -4278,20 +4432,15 @@ export interface components {
       /** @enum {unknown} */
       op: "remove-ui-elements";
     };
-    /** RenameFileRequest */
-    RenameFileRequest: {
+    /** RenameNotebookCommand */
+    RenameNotebookCommand: {
       filename: string;
+      /** @enum {unknown} */
+      type: "rename-notebook";
     };
-    /** RenameRequest */
-    RenameRequest: {
+    /** RenameNotebookRequest */
+    RenameNotebookRequest: {
       filename: string;
-    };
-    /** RunRequest */
-    RunRequest: {
-      cellIds: string[];
-      codes: string[];
-      /** @default null */
-      request?: components["schemas"]["HTTPRequest"] | null;
     };
     /** RunningNotebooksResponse */
     RunningNotebooksResponse: {
@@ -4468,19 +4617,6 @@ export interface components {
       provider: "dotenv" | "env";
     };
     /**
-     * UIElementMessageNotification
-     * @description Send a message to a UI element.
-     */
-    UIElementMessageNotification: {
-      /** @default null */
-      buffers?: string[] | null;
-      message: Record<string, any>;
-      model_id: string | null;
-      /** @enum {unknown} */
-      op: "send-ui-element-message";
-      ui_element: string | null;
-    };
-    /**
      * ServerConfig
      * @description Configuration for the server.
      *
@@ -4494,31 +4630,6 @@ export interface components {
     ServerConfig: {
       browser: "default" | string;
       follow_symlink: boolean;
-    };
-    /** SetCellConfigRequest */
-    SetCellConfigRequest: {
-      configs: {
-        [key: string]: Record<string, any>;
-      };
-    };
-    /** SetModelMessageRequest */
-    SetModelMessageRequest: {
-      /** @default null */
-      buffers?: string[] | null;
-      message: components["schemas"]["ModelMessage"];
-      modelId: string;
-    };
-    /** SetUIElementValueRequest */
-    SetUIElementValueRequest: {
-      objectIds: string[];
-      /** @default null */
-      request?: components["schemas"]["HTTPRequest"] | null;
-      token?: string;
-      values: unknown[];
-    };
-    /** SetUserConfigRequest */
-    SetUserConfigRequest: {
-      config: components["schemas"]["MarimoConfig"];
     };
     /** SetupRootError */
     SetupRootError: {
@@ -4621,8 +4732,11 @@ export interface components {
     StdinRequest: {
       text: string;
     };
-    /** StopRequest */
-    StopRequest: Record<string, any>;
+    /** StopKernelCommand */
+    StopKernelCommand: {
+      /** @enum {unknown} */
+      type: "stop-kernel";
+    };
     /**
      * StoreConfig
      * @description Configuration for cache stores.
@@ -4636,6 +4750,17 @@ export interface components {
     SuccessResponse: {
       /** @default true */
       success?: boolean;
+    };
+    /** SyncGraphCommand */
+    SyncGraphCommand: {
+      cells: {
+        [key: string]: string;
+      };
+      deleteIds: string[];
+      runIds: string[];
+      timestamp?: number;
+      /** @enum {unknown} */
+      type: "sync-graph";
     };
     /**
      * ToolDefinition
@@ -4659,6 +4784,19 @@ export interface components {
     TyLanguageServerConfig: {
       enabled?: boolean;
     };
+    /**
+     * UIElementMessageNotification
+     * @description Send a message to a UI element.
+     */
+    UIElementMessageNotification: {
+      /** @default null */
+      buffers?: string[] | null;
+      message: Record<string, any>;
+      model_id: string | null;
+      /** @enum {unknown} */
+      op: "send-ui-element-message";
+      ui_element: string | null;
+    };
     /** UnknownError */
     UnknownError: {
       /** @default null */
@@ -4674,6 +4812,20 @@ export interface components {
       codes: string[];
       /** @enum {unknown} */
       op: "update-cell-codes";
+    };
+    /** UpdateCellConfigCommand */
+    UpdateCellConfigCommand: {
+      configs: {
+        [key: string]: Record<string, any>;
+      };
+      /** @enum {unknown} */
+      type: "update-cell-config";
+    };
+    /** UpdateCellConfigRequest */
+    UpdateCellConfigRequest: {
+      configs: {
+        [key: string]: Record<string, any>;
+      };
     };
     /**
      * UpdateCellIdsNotification
@@ -4691,15 +4843,71 @@ export interface components {
     UpdateCellIdsRequest: {
       cellIds: string[];
     };
-    /** UpdateComponentValuesRequest */
-    UpdateComponentValuesRequest: {
+    /** UpdateUIElementCommand */
+    UpdateUIElementCommand: {
+      objectIds: string[];
+      /** @default null */
+      request?: components["schemas"]["HTTPRequest"] | null;
+      token?: string;
+      /** @enum {unknown} */
+      type: "update-ui-element";
+      values: unknown[];
+    };
+    /** UpdateUIElementRequest */
+    UpdateUIElementRequest: {
+      objectIds: string[];
+      /** @default null */
+      request?: components["schemas"]["HTTPRequest"] | null;
+      token?: string;
+      values: unknown[];
+    };
+    /** UpdateUIElementValuesRequest */
+    UpdateUIElementValuesRequest: {
       objectIds: string[];
       values: unknown[];
     };
+    /** UpdateUserConfigCommand */
+    UpdateUserConfigCommand: {
+      config: components["schemas"]["MarimoConfig"];
+      /** @enum {unknown} */
+      type: "update-user-config";
+    };
+    /** UpdateUserConfigRequest */
+    UpdateUserConfigRequest: {
+      config: components["schemas"]["MarimoConfig"];
+    };
+    /** UpdateWidgetModelCommand */
+    UpdateWidgetModelCommand: {
+      /** @default null */
+      buffers?: string[] | null;
+      message: components["schemas"]["ModelMessage"];
+      modelId: string;
+      /** @enum {unknown} */
+      type: "update-widget-model";
+    };
+    /** UpdateWidgetModelRequest */
+    UpdateWidgetModelRequest: {
+      /** @default null */
+      buffers?: string[] | null;
+      message: components["schemas"]["ModelMessage"];
+      modelId: string;
+    };
     /**
-     * ValidateSQLRequest
+     * ValidateSQLCommand
      * @description Validate an SQL query against the engine
      */
+    ValidateSQLCommand: {
+      /** @default null */
+      dialect?: string | null;
+      /** @default null */
+      engine?: string | null;
+      onlyParse: boolean;
+      query: string;
+      requestId: string;
+      /** @enum {unknown} */
+      type: "validate-sql";
+    };
+    /** ValidateSQLRequest */
     ValidateSQLRequest: {
       /** @default null */
       dialect?: string | null;

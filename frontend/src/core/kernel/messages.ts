@@ -49,6 +49,7 @@ export type Capabilities =
 export type CacheInfoFetched = NotificationMessageData<"cache-info">;
 
 export type NotificationMessage = schemas["KnownUnions"]["notification"];
+export type CommandMessage = schemas["KnownUnions"]["command"];
 
 export type NotificationMessageType = NotificationMessage["op"];
 export interface NotificationPayload {

@@ -33,11 +33,11 @@ from marimo._messaging.streams import (
 from marimo._messaging.types import KernelMessage
 from marimo._output.formatters.formatters import register_formatters
 from marimo._runtime import patches
+from marimo._runtime.commands import AppMetadata, ExecuteCellCommand
 from marimo._runtime.context import teardown_context
 from marimo._runtime.context.kernel_context import initialize_kernel_context
 from marimo._runtime.input_override import input_override
 from marimo._runtime.marimo_pdb import MarimoPdb
-from marimo._runtime.requests import AppMetadata, ExecutionRequest
 from marimo._runtime.runtime import Kernel
 from marimo._save.stubs.module_stub import ModuleStub
 from marimo._server.model import SessionMode
@@ -596,17 +596,17 @@ def temp_marimo_file_with_multiple_definitions() -> Generator[str, None, None]:
         _cleanup_tmp_dir(tmp_dir)
 
 
-# Factory to create ExecutionRequests and abstract away cell ID
+# Factory to create ExecuteCellCommands and abstract away cell ID
 class ExecReqProvider:
     def __init__(self) -> None:
         self.cell_manager = CellManager()
 
-    def get(self, code: str) -> ExecutionRequest:
+    def get(self, code: str) -> ExecuteCellCommand:
         key = self.cell_manager.create_cell_id()
-        return ExecutionRequest(cell_id=key, code=textwrap.dedent(code))
+        return ExecuteCellCommand(cell_id=key, code=textwrap.dedent(code))
 
-    def get_with_id(self, cell_id: CellId_t, code: str) -> ExecutionRequest:
-        return ExecutionRequest(cell_id=cell_id, code=textwrap.dedent(code))
+    def get_with_id(self, cell_id: CellId_t, code: str) -> ExecuteCellCommand:
+        return ExecuteCellCommand(cell_id=cell_id, code=textwrap.dedent(code))
 
 
 # fixture that provides an ExecReqProvider

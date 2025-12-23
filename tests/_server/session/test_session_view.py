@@ -32,11 +32,11 @@ from marimo._messaging.notification import (
     VariableValuesNotification,
     serialize_kernel_message,
 )
-from marimo._runtime.requests import (
-    CreationRequest,
-    ExecuteMultipleRequest,
-    ExecutionRequest,
-    SetUIElementValueRequest,
+from marimo._runtime.commands import (
+    CreateNotebookCommand,
+    ExecuteCellCommand,
+    ExecuteCellsCommand,
+    UpdateUIElementCommand,
 )
 from marimo._server.session.session_view import SessionView
 from marimo._sql.engines.duckdb import INTERNAL_DUCKDB_ENGINE
@@ -153,7 +153,7 @@ def test_session_view_variable_values(session_view: SessionView) -> None:
 
 def test_ui_values(session_view: SessionView) -> None:
     session_view.add_control_request(
-        SetUIElementValueRequest.from_ids_and_values([("test_ui", 123)])
+        UpdateUIElementCommand.from_ids_and_values([("test_ui", 123)])
     )
     assert "test_ui" in session_view.ui_values
     assert session_view.ui_values["test_ui"] == 123
@@ -161,7 +161,7 @@ def test_ui_values(session_view: SessionView) -> None:
     # Can add multiple values
     # and can overwrite values
     session_view.add_control_request(
-        SetUIElementValueRequest.from_ids_and_values(
+        UpdateUIElementCommand.from_ids_and_values(
             [("test_ui2", 456), ("test_ui", 789)]
         )
     )
@@ -172,9 +172,9 @@ def test_ui_values(session_view: SessionView) -> None:
 
     # Can add from CreationRequest
     session_view.add_control_request(
-        CreationRequest(
+        CreateNotebookCommand(
             execution_requests=(),
-            set_ui_element_value_request=SetUIElementValueRequest.from_ids_and_values(
+            set_ui_element_value_request=UpdateUIElementCommand.from_ids_and_values(
                 [("test_ui3", 101112)]
             ),
             auto_run=True,
@@ -226,7 +226,7 @@ def test_model_message_values(session_view: SessionView) -> None:
 
 def test_last_run_code(session_view: SessionView) -> None:
     session_view.add_control_request(
-        ExecuteMultipleRequest(
+        ExecuteCellsCommand(
             cell_ids=[cell_id],
             codes=["print('hello')"],
         )
@@ -235,7 +235,7 @@ def test_last_run_code(session_view: SessionView) -> None:
 
     # Can overwrite values and add multiple
     session_view.add_control_request(
-        ExecuteMultipleRequest(
+        ExecuteCellsCommand(
             cell_ids=[cell_id, "cell_2"],
             codes=["print('hello world')", "print('hello world')"],
         )
@@ -245,11 +245,11 @@ def test_last_run_code(session_view: SessionView) -> None:
 
     # Can add from CreationRequest
     session_view.add_control_request(
-        CreationRequest(
+        CreateNotebookCommand(
             execution_requests=(
-                ExecutionRequest(cell_id=cell_id, code="print('hello')"),
+                ExecuteCellCommand(cell_id=cell_id, code="print('hello')"),
             ),
-            set_ui_element_value_request=SetUIElementValueRequest.from_ids_and_values(
+            set_ui_element_value_request=UpdateUIElementCommand.from_ids_and_values(
                 []
             ),
             auto_run=True,

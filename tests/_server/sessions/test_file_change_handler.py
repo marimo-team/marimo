@@ -16,7 +16,7 @@ from marimo._messaging.notification import (
     UpdateCellCodesNotification,
     UpdateCellIdsNotification,
 )
-from marimo._runtime.requests import DeleteCellRequest, SyncGraphRequest
+from marimo._runtime.commands import DeleteCellCommand, SyncGraphCommand
 from marimo._server.models.models import SaveNotebookRequest
 from marimo._server.notebook import AppFileManager
 from marimo._server.sessions.file_change_handler import (
@@ -148,7 +148,7 @@ def test_edit_mode_reload_strategy_autorun(
     sync_calls = [
         call
         for call in mock_session.put_control_request.call_args_list
-        if isinstance(call[0][0], SyncGraphRequest)
+        if isinstance(call[0][0], SyncGraphCommand)
     ]
     assert len(sync_calls) == 1
 
@@ -183,7 +183,7 @@ def test_edit_mode_reload_strategy_with_deleted_cells(
     delete_calls = [
         call
         for call in mock_session.put_control_request.call_args_list
-        if isinstance(call[0][0], DeleteCellRequest)
+        if isinstance(call[0][0], DeleteCellCommand)
     ]
     assert len(delete_calls) == 1
     assert delete_calls[0][0][0].cell_id == CellId_t("cell2")

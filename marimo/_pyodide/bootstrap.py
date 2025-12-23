@@ -13,12 +13,12 @@ from marimo._messaging.serde import (
     deserialize_kernel_message,
     serialize_kernel_message,
 )
-from marimo._runtime.requests import (
+from marimo._runtime.commands import (
     AppMetadata,
-    CreationRequest,
-    ExecutionRequest,
+    CreateNotebookCommand,
+    ExecuteCellCommand,
     SerializedQueryParams,
-    SetUIElementValueRequest,
+    UpdateUIElementCommand,
 )
 from marimo._server.model import SessionMode
 from marimo._server.models.models import SaveNotebookRequest
@@ -42,7 +42,7 @@ def instantiate(
 
     app = session.app_manager.app
     execution_requests = tuple(
-        ExecutionRequest(
+        ExecuteCellCommand(
             cell_id=cell_data.cell_id,
             code=cell_data.code,
             request=None,
@@ -51,9 +51,9 @@ def instantiate(
     )
 
     session.put_control_request(
-        CreationRequest(
+        CreateNotebookCommand(
             execution_requests=execution_requests,
-            set_ui_element_value_request=SetUIElementValueRequest(
+            set_ui_element_value_request=UpdateUIElementCommand(
                 object_ids=[], values=[], request=None
             ),
             auto_run=auto_instantiate,

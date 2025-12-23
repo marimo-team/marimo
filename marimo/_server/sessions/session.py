@@ -19,19 +19,19 @@ from marimo._messaging.notification import (
 )
 from marimo._messaging.serde import serialize_kernel_message
 from marimo._messaging.types import KernelMessage
-from marimo._runtime import requests
-from marimo._runtime.requests import (
+from marimo._runtime import commands
+from marimo._runtime.commands import (
     AppMetadata,
-    CreationRequest,
-    ExecuteMultipleRequest,
-    ExecutionRequest,
+    CreateNotebookCommand,
+    ExecuteCellCommand,
+    ExecuteCellsCommand,
     HTTPRequest,
-    SetUIElementValueRequest,
-    SyncGraphRequest,
+    SyncGraphCommand,
+    UpdateUIElementCommand,
 )
 from marimo._server.consumer import SessionConsumer
 from marimo._server.model import ConnectionState, SessionMode
-from marimo._server.models.models import InstantiateRequest
+from marimo._server.models.models import InstantiateNotebookRequest
 from marimo._server.notebook import AppFileManager
 from marimo._server.session.session_view import SessionView
 from marimo._server.sessions.events import SessionEventBus
@@ -240,15 +240,15 @@ class SessionImpl(Session):
 
     def put_control_request(
         self,
-        request: requests.ControlRequest,
+        request: commands.CommandMessage,
         from_consumer_id: Optional[ConsumerId],
     ) -> None:
         """Put a control request in the control queue."""
         self._queue_manager.put_control_request(request)
 
         # Propagate the control request to the room
-        if isinstance(request, (ExecuteMultipleRequest, SyncGraphRequest)):
-            if isinstance(request, ExecuteMultipleRequest):
+        if isinstance(request, (ExecuteCellsCommand, SyncGraphCommand)):
+            if isinstance(request, ExecuteCellsCommand):
                 cell_ids = request.cell_ids
                 codes = request.codes
             else:
@@ -273,7 +273,7 @@ class SessionImpl(Session):
         self.session_view.add_control_request(request)
 
     def put_completion_request(
-        self, request: requests.CodeCompletionRequest
+        self, request: commands.CodeCompletionCommand
     ) -> None:
         """Put a code completion request in the completion queue."""
         self._queue_manager.completion_queue.put(request)
@@ -363,13 +363,13 @@ class SessionImpl(Session):
 
     def instantiate(
         self,
-        request: InstantiateRequest,
+        request: InstantiateNotebookRequest,
         *,
         http_request: Optional[HTTPRequest],
     ) -> None:
         """Instantiate the app."""
         execution_requests = tuple(
-            ExecutionRequest(
+            ExecuteCellCommand(
                 cell_id=cell_data.cell_id,
                 code=cell_data.code,
                 request=http_request,
@@ -378,9 +378,9 @@ class SessionImpl(Session):
         )
 
         self.put_control_request(
-            CreationRequest(
+            CreateNotebookCommand(
                 execution_requests=execution_requests,
-                set_ui_element_value_request=SetUIElementValueRequest(
+                set_ui_element_value_request=UpdateUIElementCommand(
                     object_ids=request.object_ids,
                     values=request.values,
                     token=str(uuid4()),

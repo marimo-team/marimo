@@ -9,6 +9,7 @@ import { Logger } from "@/utils/Logger";
 import { reloadSafe } from "@/utils/reload-safe";
 import { generateUUID } from "@/utils/uuid";
 import { notebookIsRunningAtom } from "../cells/cells";
+import type { CommandMessage } from "../kernel/messages";
 import { getMarimoVersion } from "../meta/globals";
 import { getInitialAppMode } from "../mode";
 import { API } from "../network/api";
@@ -247,13 +248,19 @@ export class PyodideBridge implements RunRequests, EditRequests {
   sendRun: EditRequests["sendRun"] = async (request) => {
     await this.rpc.proxy.request.loadPackages(request.codes.join("\n"));
 
-    await this.putControlRequest(request);
+    await this.putControlRequest({
+      type: "execute-cells",
+      ...request,
+    });
     return null;
   };
   sendRunScratchpad: EditRequests["sendRunScratchpad"] = async (request) => {
     await this.rpc.proxy.request.loadPackages(request.code);
 
-    await this.putControlRequest(request);
+    await this.putControlRequest({
+      type: "execute-scratchpad",
+      ...request,
+    });
     return null;
   };
   sendInterrupt: EditRequests["sendInterrupt"] = async () => {
@@ -276,13 +283,19 @@ export class PyodideBridge implements RunRequests, EditRequests {
   };
 
   sendDeleteCell: EditRequests["sendDeleteCell"] = async (request) => {
-    await this.putControlRequest(request);
+    await this.putControlRequest({
+      type: "delete-cell",
+      ...request,
+    });
     return null;
   };
 
   sendInstallMissingPackages: EditRequests["sendInstallMissingPackages"] =
     async (request) => {
-      this.putControlRequest(request);
+      this.putControlRequest({
+        type: "install-packages",
+        ...request,
+      });
       return null;
     };
   sendCodeCompletionRequest: EditRequests["sendCodeCompletionRequest"] = async (
@@ -328,7 +341,10 @@ export class PyodideBridge implements RunRequests, EditRequests {
   };
 
   saveCellConfig: EditRequests["saveCellConfig"] = async (request) => {
-    await this.putControlRequest(request);
+    await this.putControlRequest({
+      type: "update-cell-config",
+      ...request,
+    });
     return null;
   };
 
@@ -387,6 +403,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
 
   sendComponentValues: RunRequests["sendComponentValues"] = async (request) => {
     await this.putControlRequest({
+      type: "update-ui-element",
       ...request,
       token: generateUUID(),
     });
@@ -398,7 +415,10 @@ export class PyodideBridge implements RunRequests, EditRequests {
   };
 
   sendFunctionRequest: RunRequests["sendFunctionRequest"] = async (request) => {
-    await this.putControlRequest(request);
+    await this.putControlRequest({
+      type: "invoke-function",
+      ...request,
+    });
     return null;
   };
 
@@ -477,48 +497,57 @@ export class PyodideBridge implements RunRequests, EditRequests {
   previewDatasetColumn: EditRequests["previewDatasetColumn"] = async (
     request,
   ) => {
-    await this.putControlRequest(request);
+    await this.putControlRequest({
+      type: "preview-dataset-column",
+      ...request,
+    });
     return null;
   };
 
   previewSQLTable: EditRequests["previewSQLTable"] = async (request) => {
-    await this.putControlRequest(request);
+    await this.putControlRequest({
+      type: "preview-sql-table",
+      ...request,
+    });
     return null;
   };
 
   previewSQLTableList: EditRequests["previewSQLTableList"] = async (
     request,
   ) => {
-    await this.putControlRequest(request);
+    await this.putControlRequest({
+      type: "list-sql-tables",
+      ...request,
+    });
     return null;
   };
 
   previewDataSourceConnection: EditRequests["previewDataSourceConnection"] =
     async (request) => {
-      await this.putControlRequest(request);
+      await this.putControlRequest({
+        type: "list-data-source-connection",
+        ...request,
+      });
       return null;
     };
 
   validateSQL: EditRequests["validateSQL"] = async (request) => {
-    await this.putControlRequest(request);
+    await this.putControlRequest({
+      type: "validate-sql",
+      ...request,
+    });
     return null;
   };
 
   sendModelValue: RunRequests["sendModelValue"] = async (request) => {
-    await this.putControlRequest(request);
+    await this.putControlRequest({
+      type: "update-widget-model",
+      ...request,
+    });
     return null;
   };
 
   syncCellIds = () => Promise.resolve(null);
-  getUsageStats = throwNotImplemented;
-  openTutorial = throwNotImplemented;
-  getRecentFiles = throwNotImplemented;
-  getWorkspaceFiles = throwNotImplemented;
-  getRunningNotebooks = throwNotImplemented;
-  shutdownSession = throwNotImplemented;
-  autoExportAsHTML = throwNotImplemented;
-  autoExportAsMarkdown = throwNotImplemented;
-  autoExportAsIPYNB = throwNotImplemented;
 
   addPackage: EditRequests["addPackage"] = async (request) => {
     return this.rpc.proxy.request.addPackage(request);
@@ -544,20 +573,28 @@ export class PyodideBridge implements RunRequests, EditRequests {
   };
 
   listSecretKeys: EditRequests["listSecretKeys"] = async (request) => {
-    await this.putControlRequest(request);
+    await this.putControlRequest({
+      type: "list-secret-keys",
+      ...request,
+    });
     return null;
   };
 
-  writeSecret: EditRequests["writeSecret"] = async (request) => {
-    await this.putControlRequest(request);
-    return null;
-  };
-
+  getUsageStats = throwNotImplemented;
+  openTutorial = throwNotImplemented;
+  getRecentFiles = throwNotImplemented;
+  getWorkspaceFiles = throwNotImplemented;
+  getRunningNotebooks = throwNotImplemented;
+  shutdownSession = throwNotImplemented;
+  autoExportAsHTML = throwNotImplemented;
+  autoExportAsMarkdown = throwNotImplemented;
+  autoExportAsIPYNB = throwNotImplemented;
+  writeSecret = throwNotImplemented;
   invokeAiTool = throwNotImplemented;
   clearCache = throwNotImplemented;
   getCacheInfo = throwNotImplemented;
 
-  private async putControlRequest(operation: object) {
+  private async putControlRequest(operation: CommandMessage) {
     await this.rpc.proxy.request.bridge({
       functionName: "put_control_request",
       payload: operation,
