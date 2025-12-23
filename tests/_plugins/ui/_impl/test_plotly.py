@@ -351,3 +351,209 @@ def test_selection_boundary_conditions() -> None:
     initial_value = plot._args.initial_value
     assert len(initial_value["indices"]) == 1
     assert 1 in initial_value["indices"]
+
+
+def test_heatmap_basic() -> None:
+    """Test that heatmaps can be created (supported chart type)."""
+    fig = go.Figure(
+        data=go.Heatmap(
+            z=[[1, 2, 3], [4, 5, 6], [7, 8, 9]],
+            x=["A", "B", "C"],
+            y=["X", "Y", "Z"],
+        )
+    )
+    plot = plotly(fig)
+
+    assert plot is not None
+    assert plot.value == []
+
+
+def test_heatmap_selection_numeric() -> None:
+    """Test heatmap selection with numeric axes."""
+    fig = go.Figure(
+        data=go.Heatmap(
+            z=[[1, 2, 3], [4, 5, 6], [7, 8, 9]],
+            x=[10, 20, 30],
+            y=[100, 200, 300],
+        )
+    )
+    plot = plotly(fig)
+
+    # Simulate a selection from frontend
+    selection = {
+        "range": {"x": [15, 25], "y": [150, 250]},
+        "points": [],  # Frontend might send empty for heatmaps
+        "indices": [],
+    }
+
+    result = plot._convert_value(selection)
+
+    # Should extract cells at (20, 200) within the range
+    assert len(result) > 0
+    # Check that extracted cells have x, y, z values
+    for cell in result:
+        assert "x" in cell
+        assert "y" in cell
+        assert "z" in cell
+
+
+def test_heatmap_selection_categorical() -> None:
+    """Test heatmap selection with categorical axes."""
+    fig = go.Figure(
+        data=go.Heatmap(
+            z=[[1, 2, 3], [4, 5, 6], [7, 8, 9]],
+            x=["A", "B", "C"],
+            y=["X", "Y", "Z"],
+        )
+    )
+    plot = plotly(fig)
+
+    # For categorical axes, selection uses indices
+    # Select cells around index 1 (0.5 to 1.5 covers index 1)
+    selection = {
+        "range": {"x": [0.5, 1.5], "y": [0.5, 1.5]},
+        "points": [],
+        "indices": [],
+    }
+
+    result = plot._convert_value(selection)
+
+    # Should extract the cell at index (1, 1) which is ("B", "Y")
+    assert len(result) > 0
+    assert any(cell["x"] == "B" and cell["y"] == "Y" for cell in result)
+
+
+def test_heatmap_selection_mixed_axes() -> None:
+    """Test heatmap with one numeric and one categorical axis."""
+    fig = go.Figure(
+        data=go.Heatmap(
+            z=[[1, 2, 3], [4, 5, 6]],
+            x=[10, 20, 30],  # Numeric
+            y=["Row1", "Row2"],  # Categorical
+        )
+    )
+    plot = plotly(fig)
+
+    selection = {
+        "range": {"x": [15, 25], "y": [-0.5, 0.5]},  # Select first row
+        "points": [],
+        "indices": [],
+    }
+
+    result = plot._convert_value(selection)
+
+    # Should extract cell at (20, "Row1")
+    assert len(result) > 0
+    assert any(cell["x"] == 20 and cell["y"] == "Row1" for cell in result)
+
+
+def test_heatmap_selection_all_cells() -> None:
+    """Test selecting all cells in a small heatmap."""
+    fig = go.Figure(
+        data=go.Heatmap(
+            z=[[1, 2], [3, 4]],
+            x=["A", "B"],
+            y=["X", "Y"],
+        )
+    )
+    plot = plotly(fig)
+
+    # Select entire heatmap (categorical uses indices -0.5 to n-0.5)
+    selection = {
+        "range": {"x": [-0.5, 1.5], "y": [-0.5, 1.5]},
+        "points": [],
+        "indices": [],
+    }
+
+    result = plot._convert_value(selection)
+
+    # Should have all 4 cells
+    assert len(result) == 4
+    # Check we have all combinations
+    expected_combinations = {("A", "X"), ("A", "Y"), ("B", "X"), ("B", "Y")}
+    actual_combinations = {(cell["x"], cell["y"]) for cell in result}
+    assert actual_combinations == expected_combinations
+
+
+def test_heatmap_selection_no_cells() -> None:
+    """Test heatmap selection with range that includes no cells."""
+    fig = go.Figure(
+        data=go.Heatmap(
+            z=[[1, 2, 3]],
+            x=[10, 20, 30],
+            y=[100],
+        )
+    )
+    plot = plotly(fig)
+
+    # Select a range with no cells
+    selection = {
+        "range": {"x": [50, 60], "y": [200, 300]},
+        "points": [],
+        "indices": [],
+    }
+
+    result = plot._convert_value(selection)
+
+    # Should be empty
+    assert result == []
+
+
+def test_heatmap_selection_invalid_range_type() -> None:
+    """Test heatmap with selection where range is not a dict."""
+    fig = go.Figure(
+        data=go.Heatmap(
+            z=[[1, 2], [3, 4]],
+            x=["A", "B"],
+            y=["X", "Y"],
+        )
+    )
+    plot = plotly(fig)
+
+    # Selection with invalid range type (should be handled by isinstance check)
+    selection = {"range": "invalid", "points": [], "indices": []}
+
+    result = plot._convert_value(selection)
+
+    # Should handle gracefully without crashing
+    assert result == []
+
+
+def test_heatmap_selection_missing_x_or_y() -> None:
+    """Test heatmap selection with incomplete range data."""
+    fig = go.Figure(
+        data=go.Heatmap(
+            z=[[1, 2], [3, 4]],
+            x=["A", "B"],
+            y=["X", "Y"],
+        )
+    )
+    plot = plotly(fig)
+
+    # Selection with only x range
+    selection = {"range": {"x": [0, 1]}, "points": [], "indices": []}
+
+    result = plot._convert_value(selection)
+
+    # Should return empty list (checked in _extract_heatmap_cells_from_range)
+    assert result == []
+
+
+def test_heatmap_curve_number() -> None:
+    """Test that heatmap cells include curveNumber for multi-trace plots."""
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=[1, 2], y=[1, 2]))  # trace 0
+    fig.add_trace(go.Heatmap(z=[[1, 2]], x=["A", "B"], y=["X"]))  # trace 1
+
+    plot = plotly(fig)
+
+    selection = {
+        "range": {"x": [-0.5, 1.5], "y": [-0.5, 0.5]},
+        "points": [],
+        "indices": [],
+    }
+
+    result = plot._convert_value(selection)
+
+    # Heatmap cells should have curveNumber = 1
+    assert all(cell.get("curveNumber") == 1 for cell in result)
