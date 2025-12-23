@@ -172,10 +172,10 @@ class plotly(UIElement[PlotlySelection, list[dict[str, Any]]]):
                 if x_data is None or y_data is None:
                     continue
                 for point_idx, (x, y) in enumerate(zip(x_data, y_data)):
-                    if (
-                        selection.x0 <= x <= selection.x1
-                        and selection.y0 <= y <= selection.y1
-                    ):
+                    # Early exit if x is not in range
+                    if not (selection.x0 <= x <= selection.x1):
+                        continue
+                    if selection.y0 <= y <= selection.y1:
                         selected_points.append(
                             {
                                 axis.title.text: val
