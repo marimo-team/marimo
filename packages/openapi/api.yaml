@@ -1993,6 +1993,13 @@ components:
         autoRun:
           default: true
           type: boolean
+        codes:
+          anyOf:
+          - additionalProperties:
+              type: string
+            type: object
+          - type: 'null'
+          default: null
         objectIds:
           items:
             type: string
@@ -2108,6 +2115,9 @@ components:
       properties:
         app_config:
           $ref: '#/components/schemas/_AppConfig'
+        auto_instantiated:
+          default: false
+          type: boolean
         capabilities:
           $ref: '#/components/schemas/KernelCapabilitiesNotification'
         cell_ids:
@@ -4928,7 +4938,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/SuccessResponse'
-          description: Instantiate a component
+          description: Instantiate a component. Only allowed in edit mode; in run
+            mode, instantiation happens server-side automatically.
   /api/kernel/interrupt:
     post:
       responses:
