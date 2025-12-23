@@ -256,15 +256,18 @@ class plotly(UIElement[PlotlySelection, list[dict[str, Any]]]):
         # For heatmaps with a range selection, always extract all cells in range
         # (Plotly only sends corner/edge points, not all cells)
         if has_heatmap and value.get("range"):
-            heatmap_cells = self._extract_heatmap_cells_from_range(
-                value["range"]
-            )
-            if heatmap_cells:
-                self._selection_data["points"] = heatmap_cells
-                # Update indices to match the heatmap cells
-                self._selection_data["indices"] = list(
-                    range(len(heatmap_cells))
+            range_value = value["range"]
+            # Ensure range_value is a dict before processing
+            if isinstance(range_value, dict):
+                heatmap_cells = self._extract_heatmap_cells_from_range(
+                    cast(dict[str, Any], range_value)
                 )
+                if heatmap_cells:
+                    self._selection_data["points"] = heatmap_cells
+                    # Update indices to match the heatmap cells
+                    self._selection_data["indices"] = list(
+                        range(len(heatmap_cells))
+                    )
 
         result = self.points
         return result
