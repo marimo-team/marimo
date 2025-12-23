@@ -95,7 +95,7 @@ def _(mo):
 
 
 app._unparsable_cell(
-    r"""
+    """
     \"\"\"
     ```{python}
     print(\"Hello, World!\")
