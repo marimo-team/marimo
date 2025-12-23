@@ -95,6 +95,7 @@ from marimo._messaging.types import (
     Stdout,
     Stream,
 )
+from marimo._messaging.variables import create_variable_value
 from marimo._output.rich_help import mddoc
 from marimo._plugins.core.web_component import JSONType
 from marimo._plugins.ui._core.ui_element import MarimoConvertValueException
@@ -1915,7 +1916,7 @@ class Kernel:
             for name in bound_names:
                 # TODO update variable values even for namespaces? lenses? etc
                 variable_values.append(
-                    VariableValue.create(name=name, value=value)
+                    create_variable_value(name=name, value=value)
                 )
                 try:
                     # subtracting self.graph.definitions[name]: never rerun the

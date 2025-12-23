@@ -22,7 +22,6 @@ from marimo._messaging.errors import (
 from marimo._messaging.notification import (
     DatasetsNotification,
     DataSourceConnectionsNotification,
-    VariableValue,
     VariableValuesNotification,
 )
 from marimo._messaging.notification_utils import (
@@ -30,6 +29,7 @@ from marimo._messaging.notification_utils import (
     broadcast_notification,
 )
 from marimo._messaging.tracebacks import write_traceback
+from marimo._messaging.variables import create_variable_value
 from marimo._output import formatting
 from marimo._plugins.ui._core.ui_element import UIElement
 from marimo._runtime.context.kernel_context import KernelRuntimeContext
@@ -123,7 +123,7 @@ def _broadcast_variables(
 
     del run_result
     values = [
-        VariableValue.create(
+        create_variable_value(
             name=variable,
             value=(
                 runner.glbls[variable] if variable in runner.glbls else None

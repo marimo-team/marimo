@@ -9,12 +9,12 @@ from marimo._messaging.notification import (
     InstallingPackageAlertNotification,
     StartupLogsNotification,
     UIElementMessageNotification,
-    VariableValue,
 )
 from marimo._messaging.notification_utils import (
     CellNotificationUtils,
     broadcast_notification,
 )
+from marimo._messaging.variables import create_variable_value
 from marimo._output.hypertext import Html
 from marimo._plugins.ui._impl.input import slider
 from marimo._types.ids import CellId_t
@@ -23,7 +23,7 @@ from tests._messaging.mocks import MockStream
 
 
 def test_value_ui_element() -> None:
-    variable_value = VariableValue.create(
+    variable_value = create_variable_value(
         name="s", value=slider(1, 10, value=5)
     )
     assert variable_value.datatype == "slider"
@@ -32,7 +32,7 @@ def test_value_ui_element() -> None:
 
 def test_value_html() -> None:
     h = Html("<span></span>")
-    variable_value = VariableValue.create(name="h", value=h)
+    variable_value = create_variable_value(name="h", value=h)
     assert variable_value.datatype == "Html"
     assert variable_value.value == h.text
 
@@ -42,7 +42,7 @@ def test_variable_value_broken_str() -> None:
         def __str__(self) -> str:
             raise BaseException  # noqa: TRY002
 
-    variable_value = VariableValue.create(name="o", value=Broken())
+    variable_value = create_variable_value(name="o", value=Broken())
     assert variable_value.datatype == "Broken"
     assert variable_value.value is not None
     assert variable_value.value.startswith("<Broken object at")

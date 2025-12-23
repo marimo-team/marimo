@@ -1,6 +1,7 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+from types import ModuleType
 from typing import TYPE_CHECKING, Any, Union
 
 from marimo._plugins.ui._impl.tables.utils import get_table_manager_or_none
@@ -166,3 +167,94 @@ def get_variable_preview(
 
     except Exception as e:
         return f"<error previewing {type_name}: {str(e)}>"
+
+
+def _stringify_variable_value(value: object) -> str:
+    """Convert a value to its string representation.
+
+    Limits string length and handles objects that may have expensive __str__.
+
+    Args:
+        value: The value to stringify
+
+    Returns:
+        String representation, truncated if needed
+    """
+    MAX_STR_LEN = 50
+
+    if isinstance(value, str):
+        if len(value) > MAX_STR_LEN:
+            return value[:MAX_STR_LEN]
+        return value
+
+    try:
+        # str(value) can be slow for large objects
+        # or lead to large memory spikes
+        return get_variable_preview(value, max_str_len=MAX_STR_LEN)
+    except BaseException:
+        # Catch-all: some libraries like Polars have bugs and raise
+        # BaseExceptions, which shouldn't crash the kernel
+        return "<UNKNOWN>"
+
+
+def _format_variable_value(value: object) -> str:
+    """Format a variable value for display.
+
+    Handles special types like UIElement, Html, and ModuleType.
+
+    Args:
+        value: The value to format
+
+    Returns:
+        Formatted string representation
+    """
+
+    from marimo._output.hypertext import Html
+    from marimo._plugins.ui._core.ui_element import UIElement
+
+    resolved = value
+    if isinstance(value, UIElement):
+        resolved = value.value
+    elif isinstance(value, Html):
+        resolved = value.text
+    elif isinstance(value, ModuleType):
+        resolved = value.__name__
+    return _stringify_variable_value(resolved)
+
+
+def create_variable_value(
+    name: str, value: object, datatype: str | None = None
+) -> Any:
+    """Factory function to create a VariableValue from an object.
+
+    Args:
+        name: Variable name
+        value: Variable value (any Python object)
+        datatype: Optional datatype override. If None, will be inferred.
+
+    Returns:
+        VariableValue with formatted value and datatype
+    """
+    # Import here to avoid circular dependency
+    from marimo._messaging.notification import VariableValue
+
+    # Defensively try-catch attribute accesses, which could raise exceptions
+    # If datatype is already defined, don't try to infer it
+    if datatype is None:
+        try:
+            computed_datatype = (
+                type(value).__name__ if value is not None else None
+            )
+        except Exception:
+            computed_datatype = datatype
+    else:
+        computed_datatype = datatype
+
+    try:
+        formatted_value = _format_variable_value(value)
+    except Exception:
+        formatted_value = None
+
+    return VariableValue(
+        name=name, value=formatted_value, datatype=computed_datatype
+    )
