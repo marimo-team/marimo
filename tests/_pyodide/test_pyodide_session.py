@@ -17,14 +17,18 @@ from marimo._pyodide.pyodide_session import (
     AsyncQueueManager,
     PyodideBridge,
     PyodideSession,
-    parse_wasm_control_request,
+    parse_command,
 )
 from marimo._runtime.commands import (
     AppMetadata,
+    ClearCacheCommand,
     CreateNotebookCommand,
+    DebugCellCommand,
     DeleteCellCommand,
     ExecuteCellsCommand,
     ExecuteScratchpadCommand,
+    ExecuteStaleCellsCommand,
+    GetCacheInfoCommand,
     InstallPackagesCommand,
     InvokeFunctionCommand,
     ListDataSourceConnectionCommand,
@@ -32,12 +36,14 @@ from marimo._runtime.commands import (
     ListSQLTablesCommand,
     PreviewDatasetColumnCommand,
     PreviewSQLTableCommand,
+    RefreshSecretsCommand,
     RenameNotebookCommand,
     StopKernelCommand,
     SyncGraphCommand,
     UpdateCellConfigCommand,
     UpdateUIElementCommand,
     UpdateWidgetModelCommand,
+    ValidateSQLCommand,
 )
 from marimo._runtime.context.types import teardown_context
 from marimo._server.model import SessionMode
@@ -241,87 +247,116 @@ async def test_pyodide_session_put_input(
 @pytest.mark.parametrize(
     ("json_payload", "expected_type"),
     [
-        # Most specific requests with many required fields
+        # Notebook operations
         (
-            '{"ExecuteCellCommands": [{"cellId": "cell-1", "code": "print(1)"}], '
-            '"UpdateUIElementRequest": {"objectIds": [], "values": []}, '
+            '{"type": "create-notebook", "executionRequests": [{"cellId": "cell-1", "code": "print(1)", "type": "execute-cell"}], '
+            '"setUiElementValueRequest": {"objectIds": [], "values": [], "type": "update-ui-element"}, '
             '"autoRun": true}',
             CreateNotebookCommand,
         ),
         (
-            '{"cellIds": ["cell-1"], "codes": ["print(1)"]}',
+            '{"type": "rename-notebook", "filename": "test.py"}',
+            RenameNotebookCommand,
+        ),
+        # Cell execution and management
+        (
+            '{"type": "execute-cells", "cellIds": ["cell-1"], "codes": ["print(1)"]}',
             ExecuteCellsCommand,
         ),
         (
-            '{"manager": "pip", "packages": ["numpy"], "versions": {}}',
+            '{"type": "execute-cells", "cellIds": ["cell-1", "cell-2"], "codes": ["x=1", "y=2"]}',
+            ExecuteCellsCommand,
+        ),
+        (
+            '{"type": "execute-scratchpad", "code": "print(1)"}',
+            ExecuteScratchpadCommand,
+        ),
+        ('{"type": "execute-stale-cells"}', ExecuteStaleCellsCommand),
+        ('{"type": "debug-cell", "cellId": "cell-1"}', DebugCellCommand),
+        ('{"type": "delete-cell", "cellId": "cell-1"}', DeleteCellCommand),
+        (
+            '{"type": "sync-graph", "cells": {"cell-1": "x=1"}, "runIds": ["cell-1"], "deleteIds": []}',
+            SyncGraphCommand,
+        ),
+        (
+            '{"type": "update-cell-config", "configs": {"cell-1": {"hide_code": true}}}',
+            UpdateCellConfigCommand,
+        ),
+        # Package management
+        (
+            '{"type": "install-packages", "manager": "pip", "versions": {}}',
             InstallPackagesCommand,
         ),
         (
-            '{"sourceType": "duckdb", "source": "test.db", "tableName": "users", "columnName": "id"}',
+            '{"type": "install-packages", "manager": "pip", "versions": {"numpy": "1.24.0"}}',
+            InstallPackagesCommand,
+        ),
+        # UI element and widget model operations
+        (
+            '{"type": "update-ui-element", "objectIds": ["test-1"], "values": [42], "token": "test-token"}',
+            UpdateUIElementCommand,
+        ),
+        (
+            '{"type": "update-ui-element", "objectIds": ["test-1"], "values": [42]}',
+            UpdateUIElementCommand,
+        ),
+        (
+            '{"type": "update-ui-element", "objectIds": [], "values": []}',
+            UpdateUIElementCommand,
+        ),
+        (
+            '{"type": "update-widget-model", "modelId": "model-1", "message": {"state": {}, "bufferPaths": []}}',
+            UpdateWidgetModelCommand,
+        ),
+        (
+            '{"type": "invoke-function", "functionCallId": "fc-1", "namespace": "test", "functionName": "foo", "args": {}}',
+            InvokeFunctionCommand,
+        ),
+        # Data/SQL operations
+        (
+            '{"type": "preview-dataset-column", "sourceType": "duckdb", "source": "test.db", "tableName": "users", "columnName": "id"}',
             PreviewDatasetColumnCommand,
         ),
         (
-            '{"requestId": "req-1", "engine": "duckdb", "database": "test.db", '
+            '{"type": "preview-sql-table", "requestId": "req-1", "engine": "duckdb", "database": "test.db", '
             '"schema": "main", "tableName": "users"}',
             PreviewSQLTableCommand,
         ),
         (
-            '{"requestId": "req-2", "engine": "duckdb", "database": "test.db", "schema": "main"}',
+            '{"type": "list-sql-tables", "requestId": "req-2", "engine": "duckdb", "database": "test.db", "schema": "main"}',
             ListSQLTablesCommand,
         ),
-        # UpdateUIElementRequest - has specific fields
         (
-            '{"objectIds": ["test-1"], "values": [42], "token": "test-token"}',
-            UpdateUIElementCommand,
+            '{"type": "validate-sql", "requestId": "req-3", "query": "SELECT * FROM users", "onlyParse": false}',
+            ValidateSQLCommand,
         ),
         (
-            '{"objectIds": ["test-1"], "values": [42]}',  # Without token
-            UpdateUIElementCommand,
+            '{"type": "validate-sql", "requestId": "req-4", "query": "SELECT * FROM users", "onlyParse": true, "dialect": "postgres"}',
+            ValidateSQLCommand,
         ),
         (
-            '{"modelId": "model-1", "message": {"state": {}, "bufferPaths": []}}',
-            UpdateWidgetModelCommand,
+            '{"type": "list-data-source-connection", "engine": "duckdb"}',
+            ListDataSourceConnectionCommand,
         ),
+        # Secrets management
         (
-            '{"functionCallId": "fc-1", "namespace": "test", "functionName": "foo", "args": {}}',
-            InvokeFunctionCommand,
+            '{"type": "list-secret-keys", "requestId": "req-1"}',
+            ListSecretKeysCommand,
         ),
-        # Requests with single or few required fields
-        # DeleteCellRequest comes before DebugCellCommand
-        # Note: Can't test DebugCellCommand since DeleteCellRequest will always match first
-        ('{"cellId": "cell-1"}', DeleteCellCommand),
-        ('{"code": "print(1)"}', ExecuteScratchpadCommand),
-        (
-            '{"cells": {"cell-1": "x=1"}, "runIds": ["cell-1"], "deleteIds": []}',
-            SyncGraphCommand,
-        ),
-        ('{"filename": "test.py"}', RenameNotebookCommand),
-        (
-            '{"configs": {"cell-1": {"hide_code": true}}}',
-            UpdateCellConfigCommand,
-        ),
-        ('{"requestId": "req-1"}', ListSecretKeysCommand),
-        ('{"engine": "duckdb"}', ListDataSourceConnectionCommand),
-        # Note: Can't test UpdateUserConfigRequest or ValidateSQLRequest uniquely
-        # - UpdateUserConfigRequest requires a full MarimoConfig which is complex
-        # - ValidateSQLRequest has requestId which matches ListSecretKeysRequest first
-        # Empty objects - StopRequest matches first among the empty requests
-        # Note: Can't test RefreshSecretsRequest, ClearCacheRequest, GetCacheInfoRequest,
-        # or ExecuteStaleRequest since StopRequest will always match first (they all have no required fields)
-        ("{}", StopKernelCommand),
+        ('{"type": "refresh-secrets"}', RefreshSecretsCommand),
+        # Cache management
+        ('{"type": "clear-cache"}', ClearCacheCommand),
+        ('{"type": "get-cache-info"}', GetCacheInfoCommand),
+        # Kernel operations
+        ('{"type": "stop-kernel"}', StopKernelCommand),
     ],
 )
-def test_control_request_parsing_order(
+def test_command_parsing_with_discriminator(
     json_payload: str, expected_type: type
 ) -> None:
-    """Test that ControlRequest types are parsed in the correct order.
+    """Test that Command types are parsed correctly using the type discriminator."""
 
-    This is critical for WASM/Pyodide where we iterate through types until
-    one successfully parses. Types with overlapping structures must be
-    ordered correctly.
-    """
-
-    parsed = parse_wasm_control_request(json_payload)
+    parsed = parse_command(json_payload)
     assert type(parsed) is expected_type, (
         f"Expected {expected_type.__name__} but got {type(parsed).__name__} "
         f"for payload: {json_payload}"
@@ -331,7 +366,7 @@ def test_control_request_parsing_order(
 def test_control_request_parsing_invalid() -> None:
     """Test that invalid JSON raises DecodeError."""
     with pytest.raises(msgspec.DecodeError):
-        parse_wasm_control_request("invalid json")
+        parse_command("invalid json")
 
 
 async def test_async_queue_manager_close() -> None:
@@ -402,7 +437,7 @@ def test_pyodide_bridge_put_control_request(
     pyodide_bridge: PyodideBridge,
 ) -> None:
     """Test putting control requests through the bridge."""
-    request_json = '{"cellIds": ["cell-1"], "codes": ["print(1)"]}'
+    request_json = '{"type": "execute-cells", "cellIds": ["cell-1"], "codes": ["print(1)"]}'
     pyodide_bridge.put_control_request(request_json)
 
     assert not pyodide_bridge.session._queue_manager.control_queue.empty()

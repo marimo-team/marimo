@@ -6,11 +6,8 @@ import base64
 import json
 import re
 import signal
-import typing
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, TypeVar, cast
-
-import msgspec
 
 from marimo import _loggers
 from marimo._config.config import (
@@ -211,35 +208,23 @@ class PyodideSession:
 T = TypeVar("T")
 
 
-def parse_wasm_control_request(request: str) -> commands.CommandMessage:
-    """Parse a control request string for WASM/Pyodide.
-
-    This iterates through ControlRequest types in order until one successfully
-    parses. The order matters because some types have overlapping structures
-    when parsed with msgspec (e.g., types with only optional fields).
+def parse_command(request: str) -> commands.CommandMessage:
+    """Parse a command string for WASM/Pyodide.
 
     Args:
         request: JSON string containing the request
 
     Returns:
-        Parsed ControlRequest
+        Parsed CommandMessage
 
     Raises:
         msgspec.DecodeError: If no type successfully parses
     """
-    parsed: typing.Union[commands.CommandMessage, None] = None
-    for ControlRequestType in typing.get_args(commands.CommandMessage):
-        try:
-            parsed = parse_raw(request, cls=ControlRequestType)
-            break  # success
-        except msgspec.DecodeError:
-            continue
-
-    if parsed is None:
-        raise msgspec.DecodeError(
-            f"Could not decode ControlRequest as any of {typing.get_args(commands.CommandMessage)}"
-        )
-
+    parsed = parse_raw(
+        request,
+        cls=commands.CommandMessage,  # type: ignore
+        allow_unknown_keys=True,
+    )
     return parsed
 
 
@@ -252,7 +237,7 @@ class PyodideBridge:
         self.file_system = OSFileSystem()
 
     def put_control_request(self, request: str) -> None:
-        parsed = parse_wasm_control_request(request)
+        parsed = parse_command(request)
         self.session.put_control_request(parsed)
 
     def put_input(self, text: str) -> None:
