@@ -7,7 +7,13 @@ import sys
 import webbrowser
 from pathlib import Path
 from shutil import which
-from typing import TYPE_CHECKING, Optional, TypeVar
+from typing import (
+    TYPE_CHECKING,
+    Optional,
+    Protocol,
+    TypeVar,
+    runtime_checkable,
+)
 
 from marimo._runtime.commands import CommandMessage
 from marimo._server.models.models import SuccessResponse
@@ -27,6 +33,13 @@ async def parse_request(
     )
 
 
+@runtime_checkable
+class RequestAsCommand(Protocol):
+    """Protocol for requests that can be converted to commands."""
+
+    def as_command(self) -> CommandMessage: ...
+
+
 async def dispatch_control_request(
     request: Request,
     cls: type[CommandMessage] | CommandMessage,
@@ -41,8 +54,8 @@ async def dispatch_control_request(
         body = await parse_request(request, cls)
     else:
         body = cls
-    if hasattr(body, "as_command"):
-        body = body.as_command()  # type: ignore
+    if isinstance(body, RequestAsCommand):
+        body = body.as_command()
     app_state.require_current_session().put_control_request(
         body,
         from_consumer_id=ConsumerId(app_state.require_current_session_id()),
