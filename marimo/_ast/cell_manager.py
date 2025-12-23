@@ -271,7 +271,7 @@ class CellManager:
 
         self.register_cell(
             cell_id=cell_id,
-            code=fixed_dedent(code),
+            code=fixed_dedent(code).strip(),
             config=cell_config,
             name=name or DEFAULT_CELL_NAME,
             cell=None,

@@ -14,7 +14,7 @@ app._unparsable_cell(
 
 app._unparsable_cell(
     r"""
-    x = "hello \"world\"\"
+    x = "hello \"world\""
     x.
     """,
     name="_"
