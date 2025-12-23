@@ -559,6 +559,8 @@ components:
       title: ChatRequest
       type: object
     ClearCacheCommand:
+      description: "Clear all cached data.\n\n    Clears all cache contexts, freeing\
+        \ memory and disk space.\n    Affects all cells using the @cache decorator."
       properties:
         type:
           enum:
@@ -573,6 +575,11 @@ components:
       title: ClearCacheRequest
       type: object
     CodeCompletionCommand:
+      description: "Request code completion suggestions.\n\n    Sent when the user\
+        \ requests autocomplete. Provides code context up to\n    the cursor position\
+        \ for the language server.\n\n    Attributes:\n        id: Unique identifier\
+        \ for this request.\n        document: Source code up to the cursor position.\n\
+        \        cell_id: Cell where completion is requested."
       properties:
         cellId:
           type: string
@@ -781,6 +788,12 @@ components:
       title: CopyNotebookRequest
       type: object
     CreateNotebookCommand:
+      description: "Instantiate and initialize a notebook.\n\n    Sent when a notebook\
+        \ is first loaded. Contains all cells and initial UI element values.\n\n \
+        \   Attributes:\n        execution_requests: ExecuteCellCommand for each notebook\
+        \ cell.\n        set_ui_element_value_request: Initial UI element values.\n\
+        \        auto_run: Whether to automatically execute cells on instantiation.\n\
+        \        request: HTTP request context if available."
       properties:
         autoRun:
           type: boolean
@@ -1123,6 +1136,9 @@ components:
       title: DatasourcesConfig
       type: object
     DebugCellCommand:
+      description: "Enter debugger mode for a cell.\n\n    Starts the Python debugger\
+        \ (pdb) for the specified cell.\n\n    Attributes:\n        cell_id: Cell\
+        \ to debug.\n        request: HTTP request context if available."
       properties:
         cellId:
           type: string
@@ -1153,6 +1169,9 @@ components:
       title: DebugCellRequest
       type: object
     DeleteCellCommand:
+      description: "Delete a cell from the notebook.\n\n    Removes cell from the\
+        \ dependency graph and cleans up its variables.\n    Dependent cells may become\
+        \ stale.\n\n    Attributes:\n        cell_id: Cell to delete."
       properties:
         cellId:
           type: string
@@ -1286,6 +1305,11 @@ components:
       title: DisplayConfig
       type: object
     ExecuteCellCommand:
+      description: "Execute a single cell.\n\n    Executes a cell with the provided\
+        \ code. Dependent cells may be\n    re-executed based on the reactive execution\
+        \ mode.\n\n    Attributes:\n        cell_id: Cell to execute.\n        code:\
+        \ Python code to execute.\n        request: HTTP request context if available.\n\
+        \        timestamp: Unix timestamp when command was created."
       properties:
         cellId:
           type: string
@@ -1308,6 +1332,12 @@ components:
       title: ExecuteCellCommand
       type: object
     ExecuteCellsCommand:
+      description: "Execute multiple cells in a batch.\n\n    Executes multiple cells\
+        \ with their corresponding code. The kernel manages\n    dependency tracking\
+        \ and reactive execution.\n\n    Attributes:\n        cell_ids: Cells to execute.\n\
+        \        codes: Python code for each cell. Must match length of cell_ids.\n\
+        \        request: HTTP request context if available.\n        timestamp: Unix\
+        \ timestamp when command was created."
       properties:
         cellIds:
           items:
@@ -1354,6 +1384,11 @@ components:
       title: ExecuteCellsRequest
       type: object
     ExecuteScratchpadCommand:
+      description: "Execute code in the scratchpad.\n\n    The scratchpad is a temporary\
+        \ execution environment that doesn't affect\n    the notebook's cells or dependencies.\
+        \ Runs in an isolated cell with a copy\n    of the global namespace, useful\
+        \ for experimentation.\n\n    Attributes:\n        code: Python code to execute.\n\
+        \        request: HTTP request context if available."
       properties:
         code:
           type: string
@@ -1384,6 +1419,10 @@ components:
       title: ExecuteScratchpadRequest
       type: object
     ExecuteStaleCellsCommand:
+      description: "Execute all stale cells.\n\n    Cells become stale when their\
+        \ dependencies change but haven't been\n    re-executed yet. Brings the notebook\
+        \ to a consistent state.\n\n    Attributes:\n        request: HTTP request\
+        \ context if available."
       properties:
         request:
           anyOf:
@@ -1757,6 +1796,8 @@ components:
       title: FunctionCallResultNotification
       type: object
     GetCacheInfoCommand:
+      description: "Retrieve cache statistics.\n\n    Collects cache usage info across\
+        \ all contexts (hit/miss rates, time saved, disk usage)."
       properties:
         type:
           enum:
@@ -1796,10 +1837,16 @@ components:
       title: GoogleAiConfig
       type: object
     HTTPRequest:
-      description: 'A class that mimics the Request object from Starlette or FastAPI.
-
-
-        It is a subset and pickle-able version of the Request object.'
+      description: "Serializable HTTP request representation.\n\n    Mimics Starlette/FastAPI\
+        \ Request but is pickle-able and contains only a safe\n    subset of data.\
+        \ Excludes session and auth to prevent exposing sensitive data.\n\n    Attributes:\n\
+        \        url: Serialized URL with path, port, scheme, netloc, query, hostname.\n\
+        \        base_url: Serialized base URL.\n        headers: Request headers\
+        \ (marimo-specific headers excluded).\n        query_params: Query parameters\
+        \ mapped to lists of values.\n        path_params: Path parameters from the\
+        \ URL route.\n        cookies: Request cookies.\n        meta: User-defined\
+        \ storage for custom data.\n        user: User info from authentication middleware\
+        \ (e.g., is_authenticated, username)."
       properties:
         base_url:
           type: object
@@ -1874,6 +1921,11 @@ components:
       title: ImportStarError
       type: object
     InstallPackagesCommand:
+      description: "Install Python packages.\n\n    Installs missing packages using\
+        \ the specified package manager. Triggered\n    automatically on import errors\
+        \ or manually by the user.\n\n    Attributes:\n        manager: Package manager\
+        \ to use ('pip', 'conda', 'uv', etc.).\n        versions: Package names mapped\
+        \ to version specifiers. Empty version\n                  means install latest."
       properties:
         manager:
           type: string
@@ -1992,6 +2044,11 @@ components:
       title: InvokeAiToolResponse
       type: object
     InvokeFunctionCommand:
+      description: "Invoke a function from a UI element.\n\n    Called when a UI element\
+        \ needs to invoke a Python function.\n\n    Attributes:\n        function_call_id:\
+        \ Unique identifier for this call.\n        namespace: Namespace where the\
+        \ function is registered.\n        function_name: Function to invoke.\n  \
+        \      args: Keyword arguments for the function."
       properties:
         args:
           type: object
@@ -2336,7 +2393,9 @@ components:
       title: LayoutConfig
       type: object
     ListDataSourceConnectionCommand:
-      description: Fetch a datasource connection
+      description: "List data source schemas.\n\n    Retrieves available schemas for\
+        \ a data source engine.\n\n    Attributes:\n        engine: Data source engine\
+        \ identifier."
       properties:
         engine:
           type: string
@@ -2367,7 +2426,12 @@ components:
       title: ListPackagesResponse
       type: object
     ListSQLTablesCommand:
-      description: Preview list of tables in an SQL schema
+      description: "List tables in an SQL schema.\n\n    Retrieves names of all tables\
+        \ and views in a schema. Used by the SQL\n    editor for table selection.\n\
+        \n    Attributes:\n        request_id: Unique identifier for this request.\n\
+        \        engine: SQL engine ('postgresql', 'mysql', 'duckdb', etc.).\n   \
+        \     database: Database to query.\n        schema: Schema to list tables\
+        \ from."
       properties:
         database:
           type: string
@@ -2406,6 +2470,9 @@ components:
       title: ListSQLTablesRequest
       type: object
     ListSecretKeysCommand:
+      description: "List available secret keys.\n\n    Retrieves secret names without\
+        \ exposing values.\n\n    Attributes:\n        request_id: Unique identifier\
+        \ for this request."
       properties:
         requestId:
           type: string
@@ -2752,6 +2819,10 @@ components:
       title: MissingPackageAlertNotification
       type: object
     ModelMessage:
+      description: "Widget model state update message.\n\n    State changes for anywidget\
+        \ models, including state dict and binary buffer paths.\n\n    Attributes:\n\
+        \        state: Model state updates.\n        buffer_paths: Paths within state\
+        \ dict pointing to binary buffers."
       properties:
         bufferPaths:
           items:
@@ -2878,6 +2949,13 @@ components:
       title: PackageOperationResponse
       type: object
     PreviewDatasetColumnCommand:
+      description: "Preview a dataset column.\n\n    Retrieves and displays data from\
+        \ a single column (dataframe or SQL table).\n    Used by the data explorer\
+        \ UI.\n\n    Attributes:\n        source_type: Data source type ('dataframe',\
+        \ 'sql', etc.).\n        source: Source identifier (connection string or variable\
+        \ name).\n        table_name: Table or dataframe variable name.\n        column_name:\
+        \ Column to preview.\n        fully_qualified_table_name: Full database.schema.table\
+        \ name for SQL."
       properties:
         columnName:
           type: string
@@ -2934,7 +3012,12 @@ components:
       title: PreviewDatasetColumnRequest
       type: object
     PreviewSQLTableCommand:
-      description: Preview table details in an SQL database
+      description: "Preview SQL table details.\n\n    Retrieves metadata and sample\
+        \ data for a table. Used by the SQL editor\n    and data explorer.\n\n   \
+        \ Attributes:\n        request_id: Unique identifier for this request.\n \
+        \       engine: SQL engine ('postgresql', 'mysql', 'duckdb', etc.).\n    \
+        \    database: Database containing the table.\n        schema: Schema containing\
+        \ the table.\n        table_name: Table to preview."
       properties:
         database:
           type: string
@@ -3090,6 +3173,8 @@ components:
       title: ReconnectedNotification
       type: object
     RefreshSecretsCommand:
+      description: "Refresh secrets from the secrets store.\n\n    Reloads secrets\
+        \ from the provider without restarting the kernel."
       properties:
         type:
           enum:
@@ -3139,6 +3224,9 @@ components:
       title: RemoveUIElementsNotification
       type: object
     RenameNotebookCommand:
+      description: "Rename or move the notebook file.\n\n    Updates the notebook's\
+        \ filename in the kernel metadata.\n\n    Attributes:\n        filename: New\
+        \ filename or path for the notebook."
       properties:
         filename:
           type: string
@@ -3672,6 +3760,9 @@ components:
       title: StdinRequest
       type: object
     StopKernelCommand:
+      description: "Stop kernel execution.\n\n    Signals the kernel to stop processing\
+        \ and shut down gracefully.\n    Used when closing a notebook or terminating\
+        \ a session."
       properties:
         type:
           enum:
@@ -3703,6 +3794,13 @@ components:
       title: SuccessResponse
       type: object
     SyncGraphCommand:
+      description: "Synchronize the kernel graph with file manager state.\n\n    Used\
+        \ when the notebook file changes externally (e.g., file reload or version\
+        \ control).\n    Updates changed cells, deletes removed cells, and optionally\
+        \ executes modified cells.\n\n    Attributes:\n        cells: All cells known\
+        \ to file manager, mapping cell_id to code.\n        run_ids: Cells to execute\
+        \ or update.\n        delete_ids: Cells to delete from the graph.\n      \
+        \  timestamp: Unix timestamp when command was created."
       properties:
         cells:
           additionalProperties:
@@ -3841,6 +3939,10 @@ components:
       title: UpdateCellCodesNotification
       type: object
     UpdateCellConfigCommand:
+      description: "Update cell configuration.\n\n    Updates cell-level settings\
+        \ like disabled state, hide code, etc.\n\n    Attributes:\n        configs:\
+        \ Cell IDs mapped to their config updates. Each config dict\n            \
+        \     can contain partial updates."
       properties:
         configs:
           additionalProperties:
@@ -3895,6 +3997,12 @@ components:
       title: UpdateCellIdsRequest
       type: object
     UpdateUIElementCommand:
+      description: "Update UI element values.\n\n    Triggered when users interact\
+        \ with UI elements (sliders, inputs, dropdowns, etc.).\n    Updates element\
+        \ values and re-executes dependent cells.\n\n    Attributes:\n        object_ids:\
+        \ UI elements to update.\n        values: New values for the elements. Must\
+        \ match length of object_ids.\n        request: HTTP request context if available.\n\
+        \        token: Unique request identifier for deduplication."
       properties:
         objectIds:
           items:
@@ -3952,6 +4060,9 @@ components:
       title: UpdateUIElementValuesRequest
       type: object
     UpdateUserConfigCommand:
+      description: "Update user configuration.\n\n    Updates global marimo configuration\
+        \ (runtime settings, display options, editor preferences).\n\n    Attributes:\n\
+        \        config: Complete user configuration."
       properties:
         config:
           $ref: '#/components/schemas/MarimoConfig'
@@ -3972,6 +4083,11 @@ components:
       title: UpdateUserConfigRequest
       type: object
     UpdateWidgetModelCommand:
+      description: "Update anywidget model state.\n\n    Updates widget model state\
+        \ for bidirectional Python-JavaScript communication.\n\n    Attributes:\n\
+        \        model_id: Widget model identifier.\n        message: Model message\
+        \ with state updates and buffer paths.\n        buffers: Base64-encoded binary\
+        \ buffers referenced by buffer_paths."
       properties:
         buffers:
           anyOf:
@@ -4012,7 +4128,13 @@ components:
       title: UpdateWidgetModelRequest
       type: object
     ValidateSQLCommand:
-      description: Validate an SQL query against the engine
+      description: "Validate an SQL query.\n\n    Checks if an SQL query is valid\
+        \ by parsing against a dialect (no DB connection)\n    or validating against\
+        \ an actual database.\n\n    Attributes:\n        request_id: Unique identifier\
+        \ for this request.\n        query: SQL query to validate.\n        only_parse:\
+        \ If True, only parse using dialect. If False, validate against DB.\n    \
+        \    engine: SQL engine (required if only_parse is False).\n        dialect:\
+        \ SQL dialect for parsing (required if only_parse is True)."
       properties:
         dialect:
           anyOf:
