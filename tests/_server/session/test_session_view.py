@@ -30,9 +30,9 @@ from marimo._messaging.notification import (
     VariablesNotification,
     VariableValue,
     VariableValuesNotification,
-    serialize_kernel_message,
 )
-from marimo._messaging.notification_utils import create_variable_value
+from marimo._messaging.serde import serialize_kernel_message
+from marimo._messaging.variables import create_variable_value
 from marimo._runtime.commands import (
     CreateNotebookCommand,
     ExecuteCellCommand,
