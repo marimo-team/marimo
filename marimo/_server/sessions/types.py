@@ -49,12 +49,6 @@ class QueueManager(Protocol):
         """Put a control request in the control queue."""
         ...
 
-    def put_completion_request(
-        self, request: commands.CodeCompletionCommand
-    ) -> None:
-        """Put a code completion request in the completion queue."""
-        ...
-
     def put_input(self, text: str) -> None:
         """Put an input() request in the input queue."""
         ...
@@ -146,12 +140,6 @@ class Session(Protocol):
         from_consumer_id: Optional[ConsumerId],
     ) -> None:
         """Put a control request in the control queue."""
-        ...
-
-    def put_completion_request(
-        self, request: commands.CodeCompletionCommand
-    ) -> None:
-        """Put a code completion request in the completion queue."""
         ...
 
     def put_input(self, text: str) -> None:

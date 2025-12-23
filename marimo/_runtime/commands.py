@@ -742,6 +742,7 @@ CommandMessage = Union[
     # Notebook operations
     CreateNotebookCommand,
     RenameNotebookCommand,
+    CodeCompletionCommand,
     # Cell execution and management
     ExecuteCellsCommand,
     ExecuteScratchpadCommand,

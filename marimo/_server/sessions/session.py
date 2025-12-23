@@ -13,9 +13,7 @@ from uuid import uuid4
 from marimo import _loggers
 from marimo._config.manager import MarimoConfigManager, ScriptConfigManager
 from marimo._messaging.notification import (
-    FocusCellNotification,
     NotificationMessage,
-    UpdateCellCodesNotification,
 )
 from marimo._messaging.serde import serialize_kernel_message
 from marimo._messaging.types import KernelMessage
@@ -24,9 +22,7 @@ from marimo._runtime.commands import (
     AppMetadata,
     CreateNotebookCommand,
     ExecuteCellCommand,
-    ExecuteCellsCommand,
     HTTPRequest,
-    SyncGraphCommand,
     UpdateUIElementCommand,
 )
 from marimo._server.consumer import SessionConsumer
@@ -40,6 +36,9 @@ from marimo._server.sessions.extensions.extensions import (
     HeartbeatExtension,
     LoggingExtension,
     NotificationListenerExtension,
+    QueueExtension,
+    ReplayExtension,
+    SessionViewExtension,
 )
 from marimo._server.sessions.extensions.types import SessionExtension
 from marimo._server.sessions.managers import (
@@ -50,7 +49,6 @@ from marimo._server.sessions.room import Room
 from marimo._server.sessions.types import (
     KernelManager,
     KernelState,
-    QueueManager,
     Session,
 )
 from marimo._types.ids import ConsumerId
@@ -121,16 +119,13 @@ class SessionImpl(Session):
             NotificationListenerExtension(
                 kernel_manager=kernel_manager, queue_manager=queue_manager
             ),
-            # TODO: Refactor more into extensions
-            # KernelExtension()
-            # RoomBroadcastExtension()
-            # SessionView()
+            QueueExtension(queue_manager=queue_manager),
+            ReplayExtension(),
         ]
 
         return cls(
             initialization_id=initialization_id,
             session_consumer=session_consumer,
-            queue_manager=queue_manager,
             kernel_manager=kernel_manager,
             app_file_manager=app_file_manager,
             config_manager=config_manager,
@@ -142,7 +137,6 @@ class SessionImpl(Session):
         self,
         initialization_id: str,
         session_consumer: SessionConsumer,
-        queue_manager: QueueManager,
         kernel_manager: KernelManager,
         app_file_manager: AppFileManager,
         config_manager: MarimoConfigManager,
@@ -156,8 +150,7 @@ class SessionImpl(Session):
         self.initialization_id = initialization_id
         self.app_file_manager = app_file_manager
         self.room = Room()
-        self._queue_manager = queue_manager
-        self.kernel_manager = kernel_manager
+        self._kernel_manager = kernel_manager
         self.ttl_seconds = (
             ttl_seconds if ttl_seconds is not None else _DEFAULT_TTL_SECONDS
         )
@@ -165,10 +158,15 @@ class SessionImpl(Session):
         self.config_manager = config_manager
         self.extensions = extensions
 
-        self.kernel_manager.start_kernel()
+        self._kernel_manager.start_kernel()
         self._event_bus = SessionEventBus()
 
         self._closed = False
+
+        # Add extension that need to be created in the constructor
+        self.extensions.append(
+            SessionViewExtension(session_view=self.session_view),
+        )
 
         # Attach all extensions
         self._attach_extensions()
@@ -224,19 +222,19 @@ class SessionImpl(Session):
 
     def try_interrupt(self) -> None:
         """Try to interrupt the kernel."""
-        self.kernel_manager.interrupt_kernel()
+        self._kernel_manager.interrupt_kernel()
 
     def kernel_state(self) -> KernelState:
         """Get the state of the kernel."""
-        if self.kernel_manager.kernel_task is None:
+        if self._kernel_manager.kernel_task is None:
             return KernelState.NOT_STARTED
-        if self.kernel_manager.kernel_task.is_alive():
+        if self._kernel_manager.kernel_task.is_alive():
             return KernelState.RUNNING
         return KernelState.STOPPED
 
     def kernel_pid(self) -> int | None:
         """Get the PID of the kernel."""
-        return self.kernel_manager.pid
+        return self._kernel_manager.pid
 
     def put_control_request(
         self,
@@ -244,44 +242,11 @@ class SessionImpl(Session):
         from_consumer_id: Optional[ConsumerId],
     ) -> None:
         """Put a control request in the control queue."""
-        self._queue_manager.put_control_request(request)
-
-        # Propagate the control request to the room
-        if isinstance(request, (ExecuteCellsCommand, SyncGraphCommand)):
-            if isinstance(request, ExecuteCellsCommand):
-                cell_ids = request.cell_ids
-                codes = request.codes
-            else:
-                cell_ids = request.run_ids
-                codes = [request.cells[cell_id] for cell_id in cell_ids]
-            if cell_ids:
-                self.notify(
-                    UpdateCellCodesNotification(
-                        cell_ids=cell_ids,
-                        codes=codes,
-                        # Not stale because we just ran the code
-                        code_is_stale=False,
-                    ),
-                    from_consumer_id=from_consumer_id,
-                )
-            if len(cell_ids) == 1:
-                self.notify(
-                    FocusCellNotification(cell_id=cell_ids[0]),
-                    from_consumer_id=from_consumer_id,
-                )
-
-        self.session_view.add_control_request(request)
-
-    def put_completion_request(
-        self, request: commands.CodeCompletionCommand
-    ) -> None:
-        """Put a code completion request in the completion queue."""
-        self._queue_manager.completion_queue.put(request)
+        self._event_bus.emit_received_command(self, request, from_consumer_id)
 
     def put_input(self, text: str) -> None:
         """Put an input() request in the input queue."""
-        self._queue_manager.put_input(text)
-        self.session_view.add_stdin(text)
+        self._event_bus.emit_received_stdin(self, text)
 
     def disconnect_consumer(self, session_consumer: SessionConsumer) -> None:
         """
@@ -341,7 +306,6 @@ class SessionImpl(Session):
         else:
             notification = serialize_kernel_message(operation)
         self.room.broadcast(notification, except_consumer=from_consumer_id)
-        self.session_view.add_raw_notification(notification)
         self._event_bus.emit_notification_sent(self, notification)
 
     def close(self) -> None:
@@ -359,7 +323,7 @@ class SessionImpl(Session):
         self._detach_extensions()
         # Close the room
         self.room.close()
-        self.kernel_manager.close_kernel()
+        self._kernel_manager.close_kernel()
 
     def instantiate(
         self,
