@@ -3681,16 +3681,6 @@ class TestMarkdownHandling:
             ExecuteCellCommand(cell_id="regular_cell", code=regular_cell_code),
         ]
 
-        # Create a creation request with auto_run=False to trigger the markdown handling
-        creation_request = CreateNotebookCommand(
-            execution_requests=execution_requests,
-            auto_run=False,
-            set_ui_element_value_request=UpdateUIElementCommand(
-                object_ids=[],
-                values=[],
-            ),
-        )
-
         # Clear stream before instantiate
         stream.messages.clear()
 
@@ -3699,6 +3689,8 @@ class TestMarkdownHandling:
         execution_requests.append(
             ExecuteCellCommand(cell_id="mo_import", code="import marimo as mo")
         )
+
+        # Create a creation request with auto_run=False to trigger the markdown handling
         creation_request = CreateNotebookCommand(
             execution_requests=execution_requests,
             auto_run=False,
@@ -3918,15 +3910,6 @@ class TestMarkdownHandling:
             ExecuteCellCommand(cell_id="good_md", code='mo.md("# Good")'),
         ]
 
-        creation_request = CreateNotebookCommand(
-            execution_requests=execution_requests,
-            auto_run=False,
-            set_ui_element_value_request=UpdateUIElementCommand(
-                object_ids=[],
-                values=[],
-            ),
-        )
-
         stream.messages.clear()
 
         # Add a cell that exports 'mo' to enable markdown processing
@@ -3934,6 +3917,7 @@ class TestMarkdownHandling:
         execution_requests.append(
             ExecuteCellCommand(cell_id="mo_import", code="import marimo as mo")
         )
+
         creation_request = CreateNotebookCommand(
             execution_requests=execution_requests,
             auto_run=False,
