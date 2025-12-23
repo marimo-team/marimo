@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Any, Optional
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import pytest
+from starlette.requests import Request
 
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._server.ai.config import AnyProviderConfig
@@ -20,6 +21,7 @@ from marimo._server.ai.providers import (
     without_wrapping_backticks,
 )
 from marimo._server.ai.tools.types import ToolCallResult
+from marimo._server.api.endpoints.ai import mcp_status, safe_stream_wrapper
 from tests._server.conftest import get_session_config_manager
 from tests._server.mocks import token_header, with_session
 
@@ -1472,3 +1474,45 @@ class TestMCPEndpoints:
         assert data["toolName"] == "test_tool"
         assert data["result"]["message"] == "Tool executed with empty args"
         assert data["error"] is None
+
+    @staticmethod
+    @patch("marimo._server.api.endpoints.ai.get_mcp_client")
+    def test_mcp_status_states(mock_get_client: Any) -> None:
+        """Test MCP status returns correct state based on server statuses."""
+        mock_client = MagicMock()
+        mock_get_client.return_value = mock_client
+        mock_request = MagicMock(spec=Request)
+
+        # Test partial: some connected, some failed
+        mock_client.get_server_statuses.return_value = {
+            "server1": "CONNECTED",
+            "server2": "ERROR",
+        }
+        result = mcp_status(request=mock_request)
+        assert result.data.status == "partial"
+        assert "server2" in result.data.error
+
+        # Test error: all failed
+        mock_client.get_server_statuses.return_value = {
+            "server1": "ERROR",
+            "server2": "DISCONNECTED",
+        }
+        result = mcp_status(request=mock_request)
+        assert result.data.status == "error"
+
+
+async def test_safe_stream_wrapper_handles_errors() -> None:
+    """Test safe_stream_wrapper catches and formats streaming errors."""
+
+    async def failing_generator():
+        yield "chunk1"
+        raise ValueError("Stream failed")
+
+    chunks = []
+    async for chunk in safe_stream_wrapper(
+        failing_generator(), text_only=True
+    ):
+        chunks.append(chunk)
+
+    assert chunks[0] == "chunk1"
+    assert "Stream failed" in chunks[1]

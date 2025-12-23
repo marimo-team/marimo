@@ -571,3 +571,59 @@ async def test_rtc_config_with_loro_unavailable(client: TestClient) -> None:
             assert_kernel_ready_response(data)
 
     client.post("/api/kernel/shutdown", headers=HEADERS)
+
+
+# ============================================================================
+# Advanced WebSocket State Machine Tests
+# ============================================================================
+
+
+async def test_rapid_reconnection_cancels_ttl_cleanup(
+    client: TestClient,
+) -> None:
+    """Test that rapid reconnection cancels the TTL cleanup timer."""
+    with client.websocket_connect(WS_URL) as websocket:
+        data = websocket.receive_json()
+        assert_kernel_ready_response(data)
+
+    # Disconnect and immediately reconnect (before TTL expires)
+    await asyncio.sleep(0.1)
+
+    with client.websocket_connect(WS_URL) as websocket:
+        data = websocket.receive_json()
+        assert data["op"] == "reconnected"
+        data = websocket.receive_json()
+        assert data["op"] == "alert"
+
+    client.post("/api/kernel/shutdown", headers=HEADERS)
+
+
+async def test_multiple_rapid_reconnections(client: TestClient) -> None:
+    """Test multiple rapid connect/disconnect cycles don't break session."""
+    for i in range(5):
+        with client.websocket_connect(WS_URL) as websocket:
+            data = websocket.receive_json()
+            if i == 0:
+                assert_kernel_ready_response(data)
+            else:
+                assert data["op"] == "reconnected"
+
+    client.post("/api/kernel/shutdown", headers=HEADERS)
+
+
+async def test_websocket_message_queue_delivery(client: TestClient) -> None:
+    """Test that kernel messages are queued and delivered."""
+    with client.websocket_connect(WS_URL) as websocket:
+        data = websocket.receive_json()
+        assert_kernel_ready_response(data)
+
+        client.post(
+            "/api/kernel/instantiate",
+            headers=headers("123"),
+            json={"objectIds": [], "values": [], "autoRun": True},
+        )
+
+        messages = flush_messages(websocket, at_least=1)
+        assert len(messages) >= 1
+
+    client.post("/api/kernel/shutdown", headers=HEADERS)
