@@ -20,7 +20,7 @@ from marimo._server.sessions.extensions.extensions import (
     SessionViewExtension,
 )
 from marimo._server.sessions.types import KernelState
-from marimo._types.ids import SessionId
+from marimo._types.ids import CellId_t, RequestId, SessionId
 
 
 @pytest.fixture
@@ -282,7 +282,9 @@ class TestSessionViewExtension:
         extension = SessionViewExtension(session_view)
         extension.on_attach(mock_session, event_bus)
 
-        cmd = ExecuteCellsCommand(cell_ids=["cell1"], codes=["x = 1"])
+        cmd = ExecuteCellsCommand(
+            cell_ids=[CellId_t("cell1")], codes=["x = 1"]
+        )
         extension.on_received_command(mock_session, cmd, None)
 
         session_view.add_control_request.assert_called_once_with(cmd)
@@ -299,7 +301,7 @@ class TestSessionViewExtension:
         extension.on_attach(mock_session, event_bus)
 
         cmd = CodeCompletionCommand(
-            document="", cell_id="cell1", completion_id="1", offset=0
+            id=RequestId("1"), document="", cell_id=CellId_t("cell1")
         )
         extension.on_received_command(mock_session, cmd, None)
 
@@ -363,7 +365,9 @@ class TestQueueExtension:
         extension = QueueExtension(queue_manager)
         extension.on_attach(mock_session, event_bus)
 
-        cmd = ExecuteCellsCommand(cell_ids=["cell1"], codes=["x = 1"])
+        cmd = ExecuteCellsCommand(
+            cell_ids=[CellId_t("cell1")], codes=["x = 1"]
+        )
         extension.on_received_command(mock_session, cmd, None)
 
         queue_manager.put_control_request.assert_called_once_with(cmd)
@@ -407,7 +411,9 @@ class TestReplayExtension:
         extension = ReplayExtension()
         extension.on_attach(mock_session, event_bus)
 
-        cmd = ExecuteCellsCommand(cell_ids=["cell1"], codes=["x = 1"])
+        cmd = ExecuteCellsCommand(
+            cell_ids=[CellId_t("cell1")], codes=["x = 1"]
+        )
         extension.on_received_command(mock_session, cmd, None)
 
         assert mock_session.notify.call_count == 2
@@ -423,8 +429,11 @@ class TestReplayExtension:
         extension = ReplayExtension()
         extension.on_attach(mock_session, event_bus)
 
+        cell_id = CellId_t("cell1")
         cmd = SyncGraphCommand(
-            cell_ids=["cell1"], cells={"cell1": "x = 1"}, run_ids=["cell1"]
+            cells={cell_id: "x = 1"},
+            run_ids=[cell_id],
+            delete_ids=[],
         )
         extension.on_received_command(mock_session, cmd, None)
 
@@ -435,13 +444,15 @@ class TestReplayExtension:
         self, mock_session, event_bus
     ) -> None:
         """Test that other commands are not replayed."""
-        from marimo._runtime.commands import StopCommand
+        from marimo._runtime.commands import CodeCompletionCommand
 
         mock_session.notify = Mock()
         extension = ReplayExtension()
         extension.on_attach(mock_session, event_bus)
 
-        cmd = StopCommand()
+        cmd = CodeCompletionCommand(
+            id=RequestId("1"), document="", cell_id=CellId_t("cell1")
+        )
         extension.on_received_command(mock_session, cmd, None)
 
         mock_session.notify.assert_not_called()
