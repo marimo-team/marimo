@@ -32,87 +32,145 @@ from marimo._runtime.commands import (
 )
 from marimo._types.ids import CellId_t, UIElementId
 
-# Request aliases for REST endpoints
-# These have the same shape as their corresponding Commands but are used
-# in REST API endpoints to distinguish from kernel commands
-
 
 class ListSecretKeysRequest(ListSecretKeysCommand, tag=False):
-    pass
+    def as_command(self) -> ListSecretKeysCommand:
+        return ListSecretKeysCommand(request_id=self.request_id)
 
 
 class ClearCacheRequest(ClearCacheCommand, tag=False):
-    pass
+    def as_command(self) -> ClearCacheCommand:
+        return ClearCacheCommand()
 
 
 class GetCacheInfoRequest(GetCacheInfoCommand, tag=False):
-    pass
+    def as_command(self) -> GetCacheInfoCommand:
+        return GetCacheInfoCommand()
 
 
 class DebugCellRequest(DebugCellCommand, tag=False):
-    pass
+    def as_command(self) -> DebugCellCommand:
+        return DebugCellCommand(cell_id=self.cell_id, request=self.request)
 
 
 class ExecuteScratchpadRequest(ExecuteScratchpadCommand, tag=False):
-    pass
+    def as_command(self) -> ExecuteScratchpadCommand:
+        return ExecuteScratchpadCommand(code=self.code, request=self.request)
 
 
 class InvokeFunctionRequest(InvokeFunctionCommand, tag=False):
-    pass
+    def as_command(self) -> InvokeFunctionCommand:
+        return InvokeFunctionCommand(
+            function_call_id=self.function_call_id,
+            namespace=self.namespace,
+            function_name=self.function_name,
+            args=self.args,
+        )
 
 
 class UpdateUIElementRequest(UpdateUIElementCommand, tag=False):
-    pass
+    def as_command(self) -> UpdateUIElementCommand:
+        return UpdateUIElementCommand(
+            object_ids=self.object_ids,
+            values=self.values,
+            request=self.request,
+            token=self.token,
+        )
 
 
 class UpdateWidgetModelRequest(UpdateWidgetModelCommand, tag=False):
-    pass
+    def as_command(self) -> UpdateWidgetModelCommand:
+        return UpdateWidgetModelCommand(
+            model_id=self.model_id,
+            message=self.message,
+            buffers=self.buffers,
+        )
 
 
 class RefreshSecretsRequest(RefreshSecretsCommand, tag=False):
-    pass
+    def as_command(self) -> RefreshSecretsCommand:
+        return RefreshSecretsCommand()
 
 
 class ListDataSourceConnectionRequest(
     ListDataSourceConnectionCommand, tag=False
 ):
-    pass
+    def as_command(self) -> ListDataSourceConnectionCommand:
+        return ListDataSourceConnectionCommand(engine=self.engine)
 
 
 class ListSQLTablesRequest(ListSQLTablesCommand, tag=False):
-    pass
+    def as_command(self) -> ListSQLTablesCommand:
+        return ListSQLTablesCommand(
+            request_id=self.request_id,
+            engine=self.engine,
+            database=self.database,
+            schema=self.schema,
+        )
 
 
 class PreviewDatasetColumnRequest(PreviewDatasetColumnCommand, tag=False):
-    pass
+    def as_command(self) -> PreviewDatasetColumnCommand:
+        return PreviewDatasetColumnCommand(
+            source_type=self.source_type,
+            source=self.source,
+            table_name=self.table_name,
+            column_name=self.column_name,
+            fully_qualified_table_name=self.fully_qualified_table_name,
+        )
 
 
 class PreviewSQLTableRequest(PreviewSQLTableCommand, tag=False):
-    pass
+    def as_command(self) -> PreviewSQLTableCommand:
+        return PreviewSQLTableCommand(
+            request_id=self.request_id,
+            engine=self.engine,
+            database=self.database,
+            schema=self.schema,
+            table_name=self.table_name,
+        )
 
 
 class ValidateSQLRequest(ValidateSQLCommand, tag=False):
-    pass
+    def as_command(self) -> ValidateSQLCommand:
+        return ValidateSQLCommand(
+            query=self.query,
+            only_parse=self.only_parse,
+            engine=self.engine,
+            dialect=self.dialect,
+            request_id=self.request_id,
+        )
 
 
 class UpdateUserConfigRequest(UpdateUserConfigCommand, tag=False):
-    pass
+    def as_command(self) -> UpdateUserConfigCommand:
+        return UpdateUserConfigCommand(config=self.config)
 
 
 class DeleteCellRequest(DeleteCellCommand, tag=False):
-    pass
+    def as_command(self) -> DeleteCellCommand:
+        return DeleteCellCommand(cell_id=self.cell_id)
 
 
 class InstallPackagesRequest(InstallPackagesCommand, tag=False):
-    pass
+    def as_command(self) -> InstallPackagesCommand:
+        return InstallPackagesCommand(
+            manager=self.manager, versions=self.versions
+        )
 
 
 class UpdateCellConfigRequest(UpdateCellConfigCommand, tag=False):
-    pass
+    def as_command(self) -> UpdateCellConfigCommand:
+        return UpdateCellConfigCommand(configs=self.configs)
 
 
 class CodeCompletionRequest(CodeCompletionCommand, tag=False):
-    pass
+    def as_command(self) -> CodeCompletionCommand:
+        return CodeCompletionCommand(
+            id=self.id,
+            document=self.document,
+            cell_id=self.cell_id,
+        )
 
 
 class UpdateUIElementValuesRequest(msgspec.Struct, rename="camel"):

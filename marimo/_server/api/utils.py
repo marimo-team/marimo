@@ -41,6 +41,8 @@ async def dispatch_control_request(
         body = await parse_request(request, cls)
     else:
         body = cls
+    if hasattr(body, "as_command"):
+        body = body.as_command()  # type: ignore
     app_state.require_current_session().put_control_request(
         body,
         from_consumer_id=ConsumerId(app_state.require_current_session_id()),
