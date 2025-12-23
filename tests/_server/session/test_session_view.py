@@ -30,8 +30,9 @@ from marimo._messaging.notification import (
     VariablesNotification,
     VariableValue,
     VariableValuesNotification,
-    serialize_kernel_message,
 )
+from marimo._messaging.serde import serialize_kernel_message
+from marimo._messaging.variables import create_variable_value
 from marimo._runtime.commands import (
     CreateNotebookCommand,
     ExecuteCellCommand,
@@ -124,8 +125,8 @@ def test_session_view_variable_values(session_view: SessionView) -> None:
     # Create VariableValues operation
     variable_values_op = VariableValuesNotification(
         variables=[
-            VariableValue.create(name="var1", value=1),
-            VariableValue.create(name="var2", value="hello"),
+            create_variable_value(name="var1", value=1),
+            create_variable_value(name="var2", value="hello"),
         ]
     )
     session_view.add_notification(variable_values_op)
@@ -259,7 +260,7 @@ def test_last_run_code(session_view: SessionView) -> None:
 
 
 def test_serialize_parse_variable_value() -> None:
-    original = VariableValue.create(name="var1", value=1)
+    original = create_variable_value(name="var1", value=1)
     serialized = serialize(original)
     assert serialized == {"datatype": "int", "name": "var1", "value": "1"}
     parsed = parse_raw(serialized, VariableValue)
@@ -285,8 +286,8 @@ def test_add_variables(session_view: SessionView) -> None:
         serialize_kernel_message(
             VariableValuesNotification(
                 variables=[
-                    VariableValue.create(name="var1", value=1),
-                    VariableValue.create(name="var2", value="hello"),
+                    create_variable_value(name="var1", value=1),
+                    create_variable_value(name="var2", value="hello"),
                 ]
             )
         )

@@ -7,7 +7,6 @@ Messages that the kernel sends to the frontend.
 from __future__ import annotations
 
 import time
-from types import ModuleType
 from typing import (
     Any,
     ClassVar,
@@ -31,12 +30,7 @@ from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.cell_output import CellOutput
 from marimo._messaging.completion_option import CompletionOption
 from marimo._messaging.context import RUN_ID_CTX, RunId_t
-from marimo._messaging.serde import serialize_kernel_message
-from marimo._messaging.types import KernelMessage
-from marimo._messaging.variables import get_variable_preview
-from marimo._output.hypertext import Html
 from marimo._plugins.core.web_component import JSONType
-from marimo._plugins.ui._core.ui_element import UIElement
 from marimo._runtime.layout.layout import LayoutConfig
 from marimo._secrets.models import SecretKeysWithProvider
 from marimo._sql.parse import SqlCatalogCheckResult, SqlParseResult
@@ -117,27 +111,6 @@ class FunctionCallResultNotification(Notification, tag="function-call-result"):
     function_call_id: RequestId
     return_value: JSONType
     status: HumanReadableStatus
-
-    def serialize(self) -> KernelMessage:
-        try:
-            return serialize_kernel_message(self)
-        except Exception as e:
-            LOGGER.exception(
-                "Error serializing function call result %s: %s",
-                self.__class__.__name__,
-                e,
-            )
-            return serialize_kernel_message(
-                FunctionCallResultNotification(
-                    function_call_id=self.function_call_id,
-                    return_value=None,
-                    status=HumanReadableStatus(
-                        code="error",
-                        title="Error calling function",
-                        message="Failed to serialize function call result",
-                    ),
-                )
-            )
 
 
 class RemoveUIElementsNotification(Notification, tag="remove-ui-elements"):
@@ -284,62 +257,6 @@ class VariableValue(BaseStruct):
     name: str
     value: Optional[str]
     datatype: Optional[str]
-
-    @staticmethod
-    def create(
-        name: str, value: object, datatype: Optional[str] = None
-    ) -> VariableValue:
-        """Factory method to create a VariableValue from an object."""
-        # Defensively try-catch attribute accesses, which could raise
-        # exceptions
-        # If datatype is already defined, don't try to infer it
-        if datatype is None:
-            try:
-                computed_datatype = (
-                    type(value).__name__ if value is not None else None
-                )
-            except Exception:
-                computed_datatype = datatype
-        else:
-            computed_datatype = datatype
-
-        try:
-            formatted_value = VariableValue._format_value_static(value)
-        except Exception:
-            formatted_value = None
-
-        return VariableValue(
-            name=name, value=formatted_value, datatype=computed_datatype
-        )
-
-    @staticmethod
-    def _stringify_static(value: object) -> str:
-        MAX_STR_LEN = 50
-
-        if isinstance(value, str):
-            if len(value) > MAX_STR_LEN:
-                return value[:MAX_STR_LEN]
-            return value
-
-        try:
-            # str(value) can be slow for large objects
-            # or lead to large memory spikes
-            return get_variable_preview(value, max_str_len=MAX_STR_LEN)
-        except BaseException:
-            # Catch-all: some libraries like Polars have bugs and raise
-            # BaseExceptions, which shouldn't crash the kernel
-            return "<UNKNOWN>"
-
-    @staticmethod
-    def _format_value_static(value: object) -> str:
-        resolved = value
-        if isinstance(value, UIElement):
-            resolved = value.value
-        elif isinstance(value, Html):
-            resolved = value.text
-        elif isinstance(value, ModuleType):
-            resolved = value.__name__
-        return VariableValue._stringify_static(resolved)
 
 
 class VariablesNotification(Notification, tag="variables"):
