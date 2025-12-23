@@ -167,6 +167,9 @@ class plotly(UIElement[PlotlySelection, list[dict[str, Any]]]):
             [y_axis] = y_axes if len(y_axes) == 1 else [None]
 
             for trace in figure.data:
+                # Skip heatmap traces - they're handled separately below
+                if getattr(trace, "type", None) == "heatmap":
+                    continue
                 x_data = getattr(trace, "x", None)
                 y_data = getattr(trace, "y", None)
                 if x_data is None or y_data is None:
@@ -187,6 +190,23 @@ class plotly(UIElement[PlotlySelection, list[dict[str, Any]]]):
 
             initial_value["points"] = selected_points
             initial_value["indices"] = selected_indices
+
+            # For heatmaps with a range selection, extract all cells in range
+            has_heatmap = any(
+                getattr(trace, "type", None) == "heatmap"
+                for trace in figure.data
+            )
+            if has_heatmap and initial_value.get("range"):
+                range_value = initial_value["range"]
+                if isinstance(range_value, dict):
+                    heatmap_cells = plotly._extract_heatmap_cells_from_range(
+                        figure, cast(dict[str, Any], range_value)
+                    )
+                    if heatmap_cells:
+                        initial_value["points"] = heatmap_cells
+                        initial_value["indices"] = list(
+                            range(len(heatmap_cells))
+                        )
 
         figure.for_each_selection(add_selection)
 
@@ -260,7 +280,7 @@ class plotly(UIElement[PlotlySelection, list[dict[str, Any]]]):
             # Ensure range_value is a dict before processing
             if isinstance(range_value, dict):
                 heatmap_cells = self._extract_heatmap_cells_from_range(
-                    cast(dict[str, Any], range_value)
+                    self._figure, cast(dict[str, Any], range_value)
                 )
                 if heatmap_cells:
                     self._selection_data["points"] = heatmap_cells
@@ -273,8 +293,9 @@ class plotly(UIElement[PlotlySelection, list[dict[str, Any]]]):
         return result
 
     # PERF: we can use numpy to speed up the extraction process if necessary
+    @staticmethod
     def _extract_heatmap_cells_from_range(
-        self, range_data: dict[str, Any]
+        figure: go.Figure, range_data: dict[str, Any]
     ) -> list[dict[str, Any]]:
         """Extract heatmap cells that fall within a selection range."""
 
@@ -289,7 +310,7 @@ class plotly(UIElement[PlotlySelection, list[dict[str, Any]]]):
         selected_cells = []
 
         # Iterate through traces to find heatmaps
-        for trace_idx, trace in enumerate(self._figure.data):
+        for trace_idx, trace in enumerate(figure.data):
             if getattr(trace, "type", None) != "heatmap":
                 continue
 

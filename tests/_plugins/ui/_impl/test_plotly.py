@@ -557,3 +557,41 @@ def test_heatmap_curve_number() -> None:
 
     # Heatmap cells should have curveNumber = 1
     assert all(cell.get("curveNumber") == 1 for cell in result)
+
+
+def test_heatmap_initial_selection() -> None:
+    """Test that initial selection works with heatmaps."""
+    fig = go.Figure(
+        data=go.Heatmap(
+            z=[[1, 2, 3], [4, 5, 6], [7, 8, 9]],
+            x=["A", "B", "C"],
+            y=["X", "Y", "Z"],
+        )
+    )
+
+    # Add an initial selection
+    fig.add_selection(x0=0.5, x1=1.5, y0=0.5, y1=1.5, xref="x", yref="y")
+
+    plot = plotly(fig)
+
+    # Check that initial value contains the selection
+    initial_value = plot._args.initial_value
+    assert "range" in initial_value
+    assert initial_value["range"]["x"] == [0.5, 1.5]
+    assert initial_value["range"]["y"] == [0.5, 1.5]
+
+    # For heatmap, should extract cells, not scatter points
+    assert "points" in initial_value
+    assert len(initial_value["points"]) > 0
+
+    # Should have x, y, z values (heatmap cells)
+    for point in initial_value["points"]:
+        assert "x" in point
+        assert "y" in point
+        assert "z" in point
+
+    # Should extract cell at index (1, 1) which is ("B", "Y", 5)
+    assert any(
+        p["x"] == "B" and p["y"] == "Y" and p["z"] == 5
+        for p in initial_value["points"]
+    )
