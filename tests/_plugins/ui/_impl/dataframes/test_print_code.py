@@ -366,11 +366,11 @@ def test_print_code_result_matches_actual_transform_pandas(
     # Ignore groupby mean
     if transform.type == TransformType.GROUP_BY:
         assume(transform.aggregation != "mean")
+        assume("dict" not in transform.aggregation_column_ids)
 
     # Ignore pivot mean
     if transform.type == TransformType.PIVOT:
         assume(transform.aggregation != "mean")
-        assume("dict" not in transform.aggregation_column_ids)
 
     # Pandas
     pandas_code = python_print_transforms(
