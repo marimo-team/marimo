@@ -14,7 +14,29 @@ app._unparsable_cell(
 
 app._unparsable_cell(
     r"""
-    x = "hello \"world\""
+    # Single quote string
+    x = "hello \"world\"
+    x.
+    """,
+    name="_"
+)
+
+
+app._unparsable_cell(
+    r"""
+    # Triple quote string
+    x = "hello \"\"\"world\"\"\""
+    x.
+    """,
+    name="_"
+)
+
+
+app._unparsable_cell(
+    r"""
+    # Triple quote string with other slashes
+    x = "hello \"\"\"world\"\"\"
+    path = "C:\\Users\\test"
     x.
     """,
     name="_"

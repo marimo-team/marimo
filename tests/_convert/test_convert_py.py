@@ -65,11 +65,12 @@ def test_basic_marimo_example_jupytext_compatibility():
 
 def test_unparsable_cell_with_escaped_quotes():
     """Test an unparsable cell with escaped quotes."""
-    marimo_script = dedent(f'''
+    marimo_script = dedent(rf'''
         import marimo
 
         __generated_with = "{__version__}"
         app = marimo.App()
+
 
         app._unparsable_cell(
             r"""
@@ -78,25 +79,48 @@ def test_unparsable_cell_with_escaped_quotes():
             name="_"
         )
 
+
         app._unparsable_cell(
             r"""
-            x = "hello \\"world\\""
+            # Single quote string
+            x = "hello \"world\"
             x.
             """,
             name="_"
         )
 
+
+        app._unparsable_cell(
+            r"""
+            # Triple quote string
+            x = "hello \"\"\"world\"\"\""
+            x.
+            """,
+            name="_"
+        )
+
+
+        app._unparsable_cell(
+            r"""
+            # Triple quote string with other slashes
+            x = "hello \"\"\"world\"\"\"
+            path = "C:\\Users\\test"
+            x.
+            """,
+            name="_"
+        )
+
+
         if __name__ == "__main__":
             app.run()
-    ''').strip()
+    ''')[1:]
 
     def identity(x: str) -> str:
         return MarimoConvert.from_py(x).to_py()
 
-    # This is not equal since `_unparsable_cell` got written in a different way than our codegen
-    assert identity(marimo_script) != marimo_script
-    # But after being written once, it's idempotent
-    assert identity(identity(marimo_script)) == identity(marimo_script)
+    assert identity(marimo_script) == marimo_script
+    assert identity(identity(marimo_script)) == marimo_script
+    assert identity(identity(identity(marimo_script))) == marimo_script
     snapshot(
         "unparsable_cell_with_escaped_quotes.py.txt", identity(marimo_script)
     )
