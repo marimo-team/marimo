@@ -121,6 +121,7 @@ class SessionImpl(Session):
             ),
             QueueExtension(queue_manager=queue_manager),
             ReplayExtension(),
+            SessionViewExtension(),
         ]
 
         return cls(
@@ -162,11 +163,6 @@ class SessionImpl(Session):
         self._event_bus = SessionEventBus()
 
         self._closed = False
-
-        # Add extension that need to be created in the constructor
-        self.extensions.append(
-            SessionViewExtension(session_view=self.session_view),
-        )
 
         # Attach all extensions
         self._attach_extensions()

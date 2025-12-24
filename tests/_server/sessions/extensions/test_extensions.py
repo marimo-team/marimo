@@ -261,8 +261,7 @@ class TestSessionViewExtension:
 
     def test_lifecycle(self, mock_session, event_bus) -> None:
         """Test event subscription on attach/detach."""
-        session_view = Mock()
-        extension = SessionViewExtension(session_view)
+        extension = SessionViewExtension()
 
         extension.on_attach(mock_session, event_bus)
 
@@ -278,8 +277,7 @@ class TestSessionViewExtension:
         """Test that commands are added to session view."""
         from marimo._runtime.commands import ExecuteCellsCommand
 
-        session_view = Mock()
-        extension = SessionViewExtension(session_view)
+        extension = SessionViewExtension()
         extension.on_attach(mock_session, event_bus)
 
         cmd = ExecuteCellsCommand(
@@ -287,7 +285,9 @@ class TestSessionViewExtension:
         )
         extension.on_received_command(mock_session, cmd, None)
 
-        session_view.add_control_request.assert_called_once_with(cmd)
+        mock_session.session_view.add_control_request.assert_called_once_with(
+            cmd
+        )
         extension.on_detach()
 
     def test_completion_not_added_to_view(
@@ -296,8 +296,7 @@ class TestSessionViewExtension:
         """Test that code completion commands are not added to view."""
         from marimo._runtime.commands import CodeCompletionCommand
 
-        session_view = Mock()
-        extension = SessionViewExtension(session_view)
+        extension = SessionViewExtension()
         extension.on_attach(mock_session, event_bus)
 
         cmd = CodeCompletionCommand(
@@ -305,30 +304,32 @@ class TestSessionViewExtension:
         )
         extension.on_received_command(mock_session, cmd, None)
 
-        session_view.add_control_request.assert_not_called()
+        mock_session.session_view.add_control_request.assert_not_called()
         extension.on_detach()
 
     def test_stdin_added_to_view(self, mock_session, event_bus) -> None:
         """Test that stdin is added to session view."""
-        session_view = Mock()
-        extension = SessionViewExtension(session_view)
+        extension = SessionViewExtension()
         extension.on_attach(mock_session, event_bus)
 
         extension.on_received_stdin(mock_session, "test input")
 
-        session_view.add_stdin.assert_called_once_with("test input")
+        mock_session.session_view.add_stdin.assert_called_once_with(
+            "test input"
+        )
         extension.on_detach()
 
     def test_notification_added_to_view(self, mock_session, event_bus) -> None:
         """Test that notifications are added to session view."""
-        session_view = Mock()
-        extension = SessionViewExtension(session_view)
+        extension = SessionViewExtension()
         extension.on_attach(mock_session, event_bus)
 
         notification = Mock()
         extension.on_notification_sent(mock_session, notification)
 
-        session_view.add_raw_notification.assert_called_once_with(notification)
+        mock_session.session_view.add_raw_notification.assert_called_once_with(
+            notification
+        )
         extension.on_detach()
 
 

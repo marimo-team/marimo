@@ -18,7 +18,6 @@ from marimo._server.session.serialize import (
     SessionCacheKey,
     SessionCacheManager,
 )
-from marimo._server.session.session_view import SessionView
 from marimo._server.sessions.events import SessionEventListener
 from marimo._server.sessions.extensions.types import SessionExtension
 from marimo._server.sessions.types import (
@@ -270,8 +269,7 @@ class LoggingExtension(SessionExtension, SessionEventListener):
 class SessionViewExtension(SessionExtension, SessionEventListener):
     """Extension for listening to session view updates."""
 
-    def __init__(self, session_view: SessionView) -> None:
-        self.session_view = session_view
+    def __init__(self) -> None:
         self.event_bus: Optional[SessionEventBus] = None
 
     def on_attach(self, session: Session, event_bus: SessionEventBus) -> None:
@@ -295,23 +293,20 @@ class SessionViewExtension(SessionExtension, SessionEventListener):
         from_consumer_id: Optional[ConsumerId],
     ) -> None:
         """Called when a command is received."""
-        del session
         del from_consumer_id
         # Only add control requests to session view, not completion requests
         if not isinstance(request, commands.CodeCompletionCommand):
-            self.session_view.add_control_request(request)
+            session.session_view.add_control_request(request)
 
     def on_received_stdin(self, session: Session, stdin: str) -> None:
         """Called when stdin is received."""
-        del session
-        self.session_view.add_stdin(stdin)
+        session.session_view.add_stdin(stdin)
 
     def on_notification_sent(
         self, session: Session, notification: KernelMessage
     ) -> None:
         """Called when a notification is sent."""
-        del session
-        self.session_view.add_raw_notification(notification)
+        session.session_view.add_raw_notification(notification)
 
 
 class QueueExtension(SessionExtension, SessionEventListener):

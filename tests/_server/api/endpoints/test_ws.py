@@ -248,7 +248,7 @@ async def test_query_params(client: TestClient) -> None:
 
         session = get_session_manager(client).get_session("123")
         assert session
-        assert session.kernel_manager.app_metadata.query_params == {
+        assert session._kernel_manager.app_metadata.query_params == {
             "foo": "1",
             "bar": ["2", "3"],
             "baz": "4",
