@@ -2200,6 +2200,7 @@ components:
           anyOf:
           - $ref: '#/components/schemas/CreateNotebookCommand'
           - $ref: '#/components/schemas/RenameNotebookCommand'
+          - $ref: '#/components/schemas/CodeCompletionCommand'
           - $ref: '#/components/schemas/ExecuteCellsCommand'
           - $ref: '#/components/schemas/ExecuteScratchpadCommand'
           - $ref: '#/components/schemas/ExecuteStaleCellsCommand'
@@ -2225,6 +2226,7 @@ components:
           discriminator:
             mapping:
               clear-cache: '#/components/schemas/ClearCacheCommand'
+              code-completion: '#/components/schemas/CodeCompletionCommand'
               create-notebook: '#/components/schemas/CreateNotebookCommand'
               debug-cell: '#/components/schemas/DebugCellCommand'
               delete-cell: '#/components/schemas/DeleteCellCommand'
