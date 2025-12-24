@@ -17,6 +17,7 @@ import {
   PlusIcon,
   ShuffleIcon,
   SquareMousePointerIcon,
+  Table2Icon,
   Trash2Icon,
 } from "lucide-react";
 import React, {
@@ -24,6 +25,7 @@ import React, {
   useEffect,
   useImperativeHandle,
   useMemo,
+  useState,
 } from "react";
 import { useFieldArray, useForm } from "react-hook-form";
 import useEvent from "react-use-event-hook";
@@ -156,9 +158,74 @@ export const TransformPanel: React.FC<Props> = ({
     return getUnionLiteral(option).value === selectedTransformType;
   });
 
+  const [columnValueCache, setColumnValueCache] = useState<
+    Record<string, unknown[]>
+  >({});
+
+  // Get all column names from the original columns prop
+  const allColumnNames = useMemo(() => {
+    return Array.from(columns.keys()).map(String);
+  }, [columns]);
+
+  // Determine which columns need to be fetched (not yet in cache)
+  const columnsToFetch = useMemo(() => {
+    return allColumnNames.filter((col) => !(col in columnValueCache));
+  }, [allColumnNames, columnValueCache]);
+
+  // Fetch column values for all columns upfront
+  useEffect(() => {
+    let isCancelled = false;
+
+    async function fetchAllColumnValues() {
+      // Exit early if nothing to fetch
+      if (columnsToFetch.length === 0) {
+        return;
+      }
+
+      // Fetch all columns in parallel
+      const results = await Promise.allSettled(
+        columnsToFetch.map((col) => getColumnValues({ column: col })),
+      );
+
+      // Check if effect was cancelled during async operation
+      if (isCancelled) {
+        return;
+      }
+
+      // Build new cache with fetched values
+      const newCache: Record<string, unknown[]> = { ...columnValueCache };
+      let hasNewValues = false;
+
+      results.forEach((result, index) => {
+        if (result.status === "fulfilled" && !result.value.too_many_values) {
+          newCache[columnsToFetch[index]] = [...new Set(result.value.values)];
+          hasNewValues = true;
+        }
+        // If rejected or too_many_values, leave column out of cache
+        // getUpdatedColumnTypes will handle missing values gracefully
+      });
+
+      // Only update state if we actually got new values
+      if (hasNewValues) {
+        setColumnValueCache(newCache);
+      }
+    }
+
+    fetchAllColumnValues();
+
+    // Cleanup function to prevent state updates after unmount
+    return () => {
+      isCancelled = true;
+    };
+  }, [columnsToFetch, getColumnValues]);
+
   const effectiveColumns = useMemo(() => {
     const transformsBeforeSelected = transforms.slice(0, selectedTransform);
-    return getUpdatedColumnTypes(transformsBeforeSelected, columns);
+    return getUpdatedColumnTypes(
+      transformsBeforeSelected,
+      columns,
+      columnValueCache,
+    );
   }, [columns, transforms, selectedTransform]);
 
   const handleAddTransform = (transform: z.ZodType) => {
@@ -391,4 +458,5 @@ const ICONS: Record<TransformType["type"], React.FC<{ className?: string }>> = {
   explode_columns: BracketsIcon,
   expand_dict: FileJsonIcon,
   unique: CopySlashIcon,
+  pivot: Table2Icon,
 };

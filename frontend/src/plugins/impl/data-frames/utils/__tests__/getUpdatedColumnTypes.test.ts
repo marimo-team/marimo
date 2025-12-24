@@ -8,7 +8,15 @@ const INITIAL_COLUMN_TYPES = new Map<ColumnId, string>([
   ["col1" as ColumnId, "str"],
   [2 as ColumnId, "bool"],
   ["col3" as ColumnId, "int"],
+  ["col4" as ColumnId, "str"],
 ]);
+
+const INITIAL_UNIQUE_VALUES: Record<string, unknown[]> = {
+  col1: ["A", "B", "C"],
+  2: [true, false],
+  col3: [1, 2, 3],
+  col4: ["X", "Y", "Z"],
+};
 
 const Transforms = {
   COLUMN_CONVERSION: {
@@ -27,7 +35,7 @@ const Transforms = {
     column_ids: ["col1", "col3"] as ColumnId[],
     aggregation: "max",
     drop_na: true,
-    aggregation_column_ids: [],
+    aggregation_column_ids: [2] as ColumnId[],
   } satisfies TransformType,
   GROUP_BY_CHAINED: {
     type: "group_by",
@@ -63,6 +71,13 @@ const Transforms = {
     column_ids: ["col1"] as ColumnId[],
     keep: "first",
   } satisfies TransformType,
+  PIVOT: {
+    type: "pivot",
+    index_column_ids: ["col1"] as ColumnId[],
+    column_ids: ["col4"] as ColumnId[],
+    value_column_ids: ["col3"] as ColumnId[],
+    aggregation: "sum",
+  } satisfies TransformType,
 };
 
 describe("getUpdatedColumnTypes", () => {
@@ -70,12 +85,14 @@ describe("getUpdatedColumnTypes", () => {
     const result = getUpdatedColumnTypes(
       [Transforms.COLUMN_CONVERSION],
       INITIAL_COLUMN_TYPES,
+      INITIAL_UNIQUE_VALUES,
     );
     expect(result).toMatchInlineSnapshot(`
       Map {
         "col1" => "bool",
         2 => "bool",
         "col3" => "int",
+        "col4" => "str",
       }
     `);
   });
@@ -84,11 +101,13 @@ describe("getUpdatedColumnTypes", () => {
     const result = getUpdatedColumnTypes(
       [Transforms.RENAME_COLUMN],
       INITIAL_COLUMN_TYPES,
+      INITIAL_UNIQUE_VALUES,
     );
     expect(result).toMatchInlineSnapshot(`
       Map {
         "col1" => "str",
         "col3" => "int",
+        "col4" => "str",
         "newCol2" => "bool",
       }
     `);
@@ -98,6 +117,7 @@ describe("getUpdatedColumnTypes", () => {
     const result = getUpdatedColumnTypes(
       [Transforms.GROUP_BY],
       INITIAL_COLUMN_TYPES,
+      INITIAL_UNIQUE_VALUES,
     );
     expect(result).toMatchInlineSnapshot(`
       Map {
@@ -112,6 +132,7 @@ describe("getUpdatedColumnTypes", () => {
     const result = getUpdatedColumnTypes(
       [Transforms.AGGREGATE],
       INITIAL_COLUMN_TYPES,
+      INITIAL_UNIQUE_VALUES,
     );
     expect(result).toMatchInlineSnapshot(`
       Map {
@@ -124,6 +145,7 @@ describe("getUpdatedColumnTypes", () => {
     const result = getUpdatedColumnTypes(
       [Transforms.SELECT_COLUMNS],
       INITIAL_COLUMN_TYPES,
+      INITIAL_UNIQUE_VALUES,
     );
     expect(result).toMatchInlineSnapshot(`
       Map {
@@ -137,12 +159,14 @@ describe("getUpdatedColumnTypes", () => {
     const result = getUpdatedColumnTypes(
       [Transforms.EXPLODE_COLUMNS],
       INITIAL_COLUMN_TYPES,
+      INITIAL_UNIQUE_VALUES,
     );
     expect(result).toMatchInlineSnapshot(`
       Map {
         "col1" => "str",
         2 => "bool",
         "col3" => "int",
+        "col4" => "str",
       }
     `);
   });
@@ -151,12 +175,14 @@ describe("getUpdatedColumnTypes", () => {
     const result = getUpdatedColumnTypes(
       [Transforms.EXPAND_DICT],
       INITIAL_COLUMN_TYPES,
+      INITIAL_UNIQUE_VALUES,
     );
     expect(result).toMatchInlineSnapshot(`
       Map {
         "col1" => "str",
         2 => "bool",
         "col3" => "int",
+        "col4" => "str",
       }
     `);
   });
@@ -165,12 +191,30 @@ describe("getUpdatedColumnTypes", () => {
     const result = getUpdatedColumnTypes(
       [Transforms.UNIQUE],
       INITIAL_COLUMN_TYPES,
+      INITIAL_UNIQUE_VALUES,
     );
     expect(result).toMatchInlineSnapshot(`
       Map {
         "col1" => "str",
         2 => "bool",
         "col3" => "int",
+        "col4" => "str",
+      }
+    `);
+  });
+
+  it("should update column types for pivot conversion", () => {
+    const result = getUpdatedColumnTypes(
+      [Transforms.PIVOT],
+      INITIAL_COLUMN_TYPES,
+      INITIAL_UNIQUE_VALUES,
+    );
+    expect(result).toMatchInlineSnapshot(`
+      Map {
+        "col1" => "str",
+        "col3_X_sum" => "int",
+        "col3_Y_sum" => "int",
+        "col3_Z_sum" => "int",
       }
     `);
   });
@@ -184,6 +228,7 @@ describe("getUpdatedColumnTypes", () => {
         Transforms.AGGREGATE_CHAINED,
       ],
       INITIAL_COLUMN_TYPES,
+      INITIAL_UNIQUE_VALUES,
     );
     expect(result).toMatchInlineSnapshot(`
       Map {}
