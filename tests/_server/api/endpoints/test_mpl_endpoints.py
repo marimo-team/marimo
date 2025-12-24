@@ -24,7 +24,7 @@ class TestMatplotlibProxyEndpoints:
     @staticmethod
     def test_unauthorized_figure_returns_403(client: TestClient) -> None:
         """Test that accessing unregistered figure returns 403."""
-        response = client.get("/api/mpl/999/some_path")
+        response = client.get("/mpl/999/some_path")
         assert response.status_code == 403, response.text
         assert "Unauthorized" in response.text
 
@@ -37,7 +37,7 @@ class TestMatplotlibProxyEndpoints:
             from urllib.error import URLError
 
             mock_urlopen.side_effect = URLError("Connection refused")
-            response = client.get("/api/mpl/1/test_path")
+            response = client.get("/mpl/1/test_path")
             assert response.status_code == 503, response.text
             assert "Matplotlib server is not available" in response.text
 
@@ -53,7 +53,7 @@ class TestMatplotlibProxyEndpoints:
             mock_response.read.return_value = b"<html>Success</html>"
             mock_urlopen.return_value.__enter__.return_value = mock_response
 
-            response = client.get("/api/mpl/1/test")
+            response = client.get("/mpl/1/test")
             assert response.status_code == 200, response.text
             assert response.text == "<html>Success</html>"
 
@@ -69,7 +69,7 @@ class TestMatplotlibProxyEndpoints:
             mock_response.read.return_value = b""
             mock_urlopen.return_value.__enter__.return_value = mock_response
 
-            client.get("/api/mpl/1/test?param1=value1&param2=value2")
+            client.get("/mpl/1/test?param1=value1&param2=value2")
 
             request_obj = mock_urlopen.call_args[0][0]
             assert "param1=value1" in request_obj.full_url
@@ -87,7 +87,7 @@ class TestMatplotlibProxyEndpoints:
             mock_response.read.return_value = b""
             mock_urlopen.return_value.__enter__.return_value = mock_response
 
-            client.get("/api/mpl/1/test")
+            client.get("/mpl/1/test")
 
             request_obj = mock_urlopen.call_args[0][0]
             assert "Host" not in request_obj.headers
@@ -112,7 +112,7 @@ class TestMatplotlibProxyEndpoints:
             mock_ws.__aiter__ = mock_iter
 
             try:
-                with client.websocket_connect("/api/mpl/8888/ws?figure=123"):
+                with client.websocket_connect("/mpl/8888/ws?figure=123"):
                     pass
             except WebSocketDisconnect:
                 pass

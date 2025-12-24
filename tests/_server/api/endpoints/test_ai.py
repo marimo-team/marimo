@@ -7,7 +7,6 @@ from typing import TYPE_CHECKING, Any, Optional
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import pytest
-from starlette.requests import Request
 
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._server.ai.config import AnyProviderConfig
@@ -21,7 +20,7 @@ from marimo._server.ai.providers import (
     without_wrapping_backticks,
 )
 from marimo._server.ai.tools.types import ToolCallResult
-from marimo._server.api.endpoints.ai import mcp_status, safe_stream_wrapper
+from marimo._server.api.endpoints.ai import safe_stream_wrapper
 from tests._server.conftest import get_session_config_manager
 from tests._server.mocks import token_header, with_session
 
@@ -1476,29 +1475,37 @@ class TestMCPEndpoints:
         assert data["error"] is None
 
     @staticmethod
+    @with_session(SESSION_ID)
     @patch("marimo._server.api.endpoints.ai.get_mcp_client")
-    def test_mcp_status_states(mock_get_client: Any) -> None:
+    def test_mcp_status_states(
+        client: TestClient, mock_get_client: Any
+    ) -> None:
         """Test MCP status returns correct state based on server statuses."""
+        from marimo._server.ai.mcp import MCPServerStatus
+
         mock_client = MagicMock()
         mock_get_client.return_value = mock_client
-        mock_request = MagicMock(spec=Request)
 
         # Test partial: some connected, some failed
-        mock_client.get_server_statuses.return_value = {
-            "server1": "CONNECTED",
-            "server2": "ERROR",
+        mock_client.get_all_server_statuses.return_value = {
+            "server1": MCPServerStatus.CONNECTED,
+            "server2": MCPServerStatus.ERROR,
         }
-        result = mcp_status(request=mock_request)
-        assert result.data.status == "partial"
-        assert "server2" in result.data.error
+        response = client.get("/api/ai/mcp/status", headers=HEADERS)
+        assert response.status_code == 200
+        data = response.json()
+        assert data["status"] == "partial"
+        assert "server2" in data["error"]
 
         # Test error: all failed
-        mock_client.get_server_statuses.return_value = {
-            "server1": "ERROR",
-            "server2": "DISCONNECTED",
+        mock_client.get_all_server_statuses.return_value = {
+            "server1": MCPServerStatus.ERROR,
+            "server2": MCPServerStatus.DISCONNECTED,
         }
-        result = mcp_status(request=mock_request)
-        assert result.data.status == "error"
+        response = client.get("/api/ai/mcp/status", headers=HEADERS)
+        assert response.status_code == 200
+        data = response.json()
+        assert data["status"] == "error"
 
 
 async def test_safe_stream_wrapper_handles_errors() -> None:

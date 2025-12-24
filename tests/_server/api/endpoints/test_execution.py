@@ -430,7 +430,7 @@ def get_printed_object(
     return json.loads(console.data)
 
 
-async def test_takeover_sends_notification_before_disconnect(
+def test_takeover_sends_notification_before_disconnect(
     client: TestClient, temp_marimo_file: str
 ) -> None:
     """Test that takeover notifies existing session before disconnecting."""
