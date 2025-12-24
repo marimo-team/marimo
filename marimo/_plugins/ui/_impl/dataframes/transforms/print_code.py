@@ -572,10 +572,10 @@ def python_print_ibis(
             f"id_cols={_list_of_strings(index_column_ids)}, "
             f"values_from={_list_of_strings(value_column_ids)}, "
             f"names_prefix={_as_literal(value_column_ids[0]) if len(value_column_ids) == 1 else _as_literal('')}, "
-            f"values_agg={agg_func})"
+            f"values_agg={_as_literal(agg_func)})"
         )
 
-        rename_code = f"df_name = {df_name}.rename(**{f'{{col}}_{agg_func}': col for col in {df_name}.columns if col not in {_list_of_strings(index_column_ids)}})"  # noqa: E501
+        rename_code = f'{df_name} = {df_name}.rename(**{{f"{{col}}_{agg_func}": col for col in {df_name}.columns if col not in {_list_of_strings(index_column_ids)}}})'  # noqa: E501
         return f"{pivot_code}\n{rename_code}"
 
     assert_never(transform.type)

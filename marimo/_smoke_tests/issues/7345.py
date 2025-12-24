@@ -10,17 +10,19 @@ def _():
     import narwhals as nw
     import polars as pl
     import pandas as pd
+    import ibis as ib
 
     from vega_datasets import data
-    return data, mo, pd, pl
+    return data, ib, mo, pd, pl
 
 
 @app.cell
-def _(data, pd, pl):
+def _(data, ib, pd, pl):
     cars = data.cars()
     df_pandas = pd.DataFrame(cars)
     df_polars = pl.DataFrame(cars)
-    return df_pandas, df_polars
+    df_ibis = ib.memtable(cars)
+    return df_ibis, df_pandas, df_polars
 
 
 @app.cell
@@ -37,6 +39,12 @@ def _(df_pandas, mo):
 @app.cell
 def _(df_polars, mo):
     mo.ui.dataframe(df_polars)
+    return
+
+
+@app.cell
+def _(df_ibis, mo):
+    mo.ui.dataframe(df_ibis)
     return
 
 
@@ -63,10 +71,6 @@ def _(df_pandas):
         for col in df_pandas_next.columns
     ]
     df_pandas_next = df_pandas_next.reset_index()
-    df_pandas_next = df_pandas_next[
-        ["Year", "Acceleration_Europe_mean", "Acceleration_USA_mean"]
-    ]
-    df_pandas_next = df_pandas_next[df_pandas_next["Year"] > "1980-01-01T11:45"]
     df_pandas_next
     return
 
@@ -87,6 +91,27 @@ def _(df_polars):
         else col
     )
     df_polars_next
+    return
+
+
+@app.cell
+def _(df_ibis):
+    df_ibis_next = df_ibis
+    df_ibis_next = df_ibis_next.pivot_wider(
+        names_from=["Origin"],
+        id_cols=["Year"],
+        values_from=["Acceleration"],
+        names_prefix="Acceleration",
+        values_agg="mean",
+    )
+    df_ibis_next = df_ibis_next.rename(
+        **{
+            f"{col}_mean": col
+            for col in df_ibis_next.columns
+            if col not in ["Year"]
+        }
+    )
+    df_ibis_next.to_polars()
     return
 
 
