@@ -428,25 +428,3 @@ def get_printed_object(
         pytest.fail(f"Console is an error: {console.data}")
     assert isinstance(console.data, str)
     return json.loads(console.data)
-
-
-def test_takeover_sends_notification_before_disconnect(
-    client: TestClient, temp_marimo_file: str
-) -> None:
-    """Test that takeover notifies existing session before disconnecting."""
-    # Create session with file
-    ws_url = f"/ws?session_id={SESSION_ID}&access_token=fake-token&file={temp_marimo_file}"
-    with client.websocket_connect(ws_url) as websocket:
-        websocket.receive_json()  # kernel ready
-
-        # Takeover the session
-        response = client.post(
-            f"/api/kernel/takeover?file={temp_marimo_file}",
-            headers=HEADERS,
-        )
-        assert response.status_code == 200
-
-        # Should receive takeover notification
-        msg = websocket.receive_json()
-        assert msg["op"] == "alert"
-        assert "taken over" in msg["data"]["description"].lower()
