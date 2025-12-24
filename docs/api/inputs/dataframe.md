@@ -20,6 +20,8 @@ Supported transforms are:
 - Shuffle Rows
 - Explode Columns
 - Expand Dict
+- Unique
+- Pivot
 
 !!! info "Request a Transform"
 
