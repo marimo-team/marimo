@@ -117,15 +117,15 @@ class QueueManagerImpl(QueueManager):
 
     def put_control_request(self, request: commands.CommandMessage) -> None:
         """Put a control request in the control queue."""
+        # Completions are on their own queue
+        if isinstance(request, commands.CodeCompletionCommand):
+            self.completion_queue.put(request)
+            return
+
         self.control_queue.put(request)
+        # Update UI elements are on both queues so they can be batched
         if isinstance(request, commands.UpdateUIElementCommand):
             self.set_ui_element_queue.put(request)
-
-    def put_completion_request(
-        self, request: commands.CodeCompletionCommand
-    ) -> None:
-        """Put a code completion request in the completion queue."""
-        self.completion_queue.put(request)
 
     def put_input(self, text: str) -> None:
         """Put an input request in the input queue."""

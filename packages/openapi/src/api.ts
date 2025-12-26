@@ -4054,6 +4054,7 @@ export interface components {
       command:
         | components["schemas"]["CreateNotebookCommand"]
         | components["schemas"]["RenameNotebookCommand"]
+        | components["schemas"]["CodeCompletionCommand"]
         | components["schemas"]["ExecuteCellsCommand"]
         | components["schemas"]["ExecuteScratchpadCommand"]
         | components["schemas"]["ExecuteStaleCellsCommand"]

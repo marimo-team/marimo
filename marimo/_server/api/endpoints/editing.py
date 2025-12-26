@@ -48,11 +48,7 @@ async def code_complete(request: Request) -> BaseResponse:
                     schema:
                         $ref: "#/components/schemas/SuccessResponse"
     """
-    app_state = AppState(request)
-    body = await parse_request(request, cls=CodeCompletionRequest)
-    app_state.require_current_session().put_completion_request(body)
-
-    return SuccessResponse()
+    return await dispatch_control_request(request, cls=CodeCompletionRequest)
 
 
 @router.post("/delete")
