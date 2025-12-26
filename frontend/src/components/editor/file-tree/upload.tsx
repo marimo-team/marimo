@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import { type DropzoneOptions, useDropzone } from "react-dropzone";
 import { toast } from "@/components/ui/use-toast";

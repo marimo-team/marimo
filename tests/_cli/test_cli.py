@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 """
 Crude CLI tests
 
@@ -1334,6 +1334,87 @@ def test_cli_run_docker_remote_url():
             "-y",
             "edit",
             remote_url,
+        ],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+
+    # Should fail with missing docker
+    assert p.returncode != 0
+    assert p.stdout is not None
+    assert "Docker is not installed" in p.stdout.read().decode()
+
+
+def test_cli_edit_trusted(temp_marimo_file: str) -> None:
+    # --trusted should work normally with local files
+    port = _get_port()
+    p = subprocess.Popen(
+        [
+            "marimo",
+            "edit",
+            temp_marimo_file,
+            "-p",
+            str(port),
+            "--headless",
+            "--no-token",
+            "--trusted",
+        ]
+    )
+    contents = _try_fetch(port)
+    _check_contents(p, b'"mode": "edit"', contents)
+
+
+@pytest.mark.skipif(
+    HAS_DOCKER, reason="docker is required to be not installed"
+)
+def test_cli_edit_no_trusted(temp_marimo_file: str) -> None:
+    # --untrusted should try to use Docker, fail if not installed
+    p = subprocess.Popen(
+        [
+            "marimo",
+            "edit",
+            temp_marimo_file,
+            "--untrusted",
+        ],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+
+    # Should fail with missing docker
+    assert p.returncode != 0
+    assert p.stdout is not None
+    assert "Docker is not installed" in p.stdout.read().decode()
+
+
+def test_cli_run_trusted(temp_marimo_file: str) -> None:
+    # --trusted should work normally with local files
+    port = _get_port()
+    p = subprocess.Popen(
+        [
+            "marimo",
+            "run",
+            temp_marimo_file,
+            "-p",
+            str(port),
+            "--headless",
+            "--trusted",
+        ]
+    )
+    contents = _try_fetch(port)
+    _check_contents(p, b'"mode": "read"', contents)
+
+
+@pytest.mark.skipif(
+    HAS_DOCKER, reason="docker is required to be not installed"
+)
+def test_cli_run_no_trusted(temp_marimo_file: str) -> None:
+    # --untrusted should try to use Docker, fail if not installed
+    p = subprocess.Popen(
+        [
+            "marimo",
+            "run",
+            temp_marimo_file,
+            "--untrusted",
         ],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,

@@ -1,9 +1,9 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from marimo._runtime.requests import SetUIElementValueRequest
+from marimo._runtime.commands import UpdateUIElementCommand
 from marimo._server.types import QueueType
 from marimo._types.ids import UIElementId
 
@@ -15,17 +15,17 @@ class SetUIElementRequestManager:
     def __init__(
         self,
         set_ui_element_queue: (
-            QueueType[SetUIElementValueRequest]
-            | asyncio.Queue[SetUIElementValueRequest]
+            QueueType[UpdateUIElementCommand]
+            | asyncio.Queue[UpdateUIElementCommand]
         ),
     ) -> None:
         self._set_ui_element_queue = set_ui_element_queue
         self._processed_request_tokens: set[str] = set()
 
     def process_request(
-        self, request: SetUIElementValueRequest
-    ) -> SetUIElementValueRequest | None:
-        request_batch: list[SetUIElementValueRequest] = []
+        self, request: UpdateUIElementCommand
+    ) -> UpdateUIElementCommand | None:
+        request_batch: list[UpdateUIElementCommand] = []
         if request.token not in self._processed_request_tokens:
             request_batch.append(request)
             self._processed_request_tokens.add(request.token)
@@ -44,8 +44,8 @@ class SetUIElementRequestManager:
 
     def _merge_set_ui_element_requests(
         self,
-        requests: list[SetUIElementValueRequest],
-    ) -> SetUIElementValueRequest | None:
+        requests: list[UpdateUIElementCommand],
+    ) -> UpdateUIElementCommand | None:
         if not requests:
             return None
 
@@ -54,7 +54,7 @@ class SetUIElementRequestManager:
             for ui_id, value in request.ids_and_values:
                 merged[ui_id] = value
         last_request = requests[-1]
-        return SetUIElementValueRequest(
+        return UpdateUIElementCommand(
             object_ids=list(merged.keys()),
             values=list(merged.values()),
             token=last_request.token,

@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 import { BoxIcon, XIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useEvent } from "react-use-event-hook";

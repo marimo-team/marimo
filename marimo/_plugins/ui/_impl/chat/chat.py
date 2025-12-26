@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
 import inspect
@@ -16,9 +16,9 @@ from marimo._output.rich_help import mddoc
 from marimo._plugins.core.web_component import JSONType
 from marimo._plugins.ui._core.ui_element import UIElement
 from marimo._plugins.ui._impl.chat.utils import from_chat_message_dict
+from marimo._runtime.commands import UpdateUIElementCommand
 from marimo._runtime.context.types import ContextNotInitializedError
 from marimo._runtime.functions import EmptyArgs, Function
-from marimo._runtime.requests import SetUIElementValueRequest
 
 DEFAULT_CONFIG = ChatModelConfigDict(
     max_tokens=4096,
@@ -313,7 +313,7 @@ class chat(UIElement[dict[str, Any], list[ChatMessage]]):
 
             if isinstance(ctx, KernelRuntimeContext):
                 ctx._kernel.enqueue_control_request(
-                    SetUIElementValueRequest(
+                    UpdateUIElementCommand(
                         object_ids=[self._id],
                         values=[{"messages": self._chat_history}],
                         request=None,

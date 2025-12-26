@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import type { ReactNode } from "react";
 import { Banner } from "@/plugins/impl/common/error-banner";

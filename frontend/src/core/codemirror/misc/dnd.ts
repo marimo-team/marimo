@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 import type { Extension } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { insertImage, insertTextFile } from "../markdown/commands";

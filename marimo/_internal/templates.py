@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 """Internal API for rendering marimo notebooks as HTML."""
 
 from marimo._server.templates.api import (

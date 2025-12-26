@@ -1,13 +1,12 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
 from starlette.authentication import requires
 
-from marimo._runtime.requests import ValidateSQLRequest
 from marimo._server.api.utils import dispatch_control_request
-from marimo._server.models.models import BaseResponse
+from marimo._server.models.models import BaseResponse, ValidateSQLRequest
 from marimo._server.router import APIRouter
 
 if TYPE_CHECKING:

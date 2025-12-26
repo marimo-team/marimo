@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import { SearchQuery } from "@codemirror/search";
 import { EditorSelection } from "@codemirror/state";

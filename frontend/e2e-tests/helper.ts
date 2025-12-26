@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import path from "node:path";
 import { expect, type Locator, type Page } from "@playwright/test";

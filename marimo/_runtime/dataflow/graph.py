@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 """Graph coordinator that orchestrates all dataflow components."""
 
 from __future__ import annotations

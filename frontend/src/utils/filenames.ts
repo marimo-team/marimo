@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 export const Filenames = {
   toMarkdown: (filename: string): string => {
     return Filenames.replace(filename, "md");

@@ -169,6 +169,9 @@ def test_compiled_ast() -> None:
             )
         ),
     ]
+    # Fix missing lineno/col_offset required for compiling AST nodes
+    for stmt in statements:
+        ast.fix_missing_locations(stmt)
 
     result = compiled_ast(statements)
     assert isinstance(result, ast.Module)
@@ -210,6 +213,10 @@ def test_clean_to_modules() -> None:
             value=ast.Constant(value=1),
         )
     ]
+    # Fix missing lineno/col_offset required for compiling AST nodes
+    ast.fix_missing_locations(with_block)
+    for stmt in pre_block:
+        ast.fix_missing_locations(stmt)
 
     pre_module, with_module = clean_to_modules(pre_block, with_block)
 
@@ -234,6 +241,8 @@ def test_clean_to_modules_no_optional_vars() -> None:
         ],
         body=[ast.Expr(value=ast.Constant(value="hello"))],
     )
+    # Fix missing lineno/col_offset required for compiling AST nodes
+    ast.fix_missing_locations(with_block)
 
     pre_block = []
     pre_module, with_module = clean_to_modules(pre_block, with_block)

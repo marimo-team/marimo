@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 
 import marimo
 
@@ -12,8 +12,8 @@ def _(mo):
         r"""
         # Polars: Dynamic Time Windows and Aggregations
 
-        This snippet shows time series operations in Polars using `dt` expressions for 
-        parsing and formatting, dynamic time windows with `group_by_dynamic()`, 
+        This snippet shows time series operations in Polars using `dt` expressions for
+        parsing and formatting, dynamic time windows with `group_by_dynamic()`,
         and timezone-aware calculations.
         """
     )

@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import { useEffect } from "react";
 import { useReactFlow, useStore } from "reactflow";

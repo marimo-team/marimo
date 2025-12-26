@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 import { describe, expect, it, vi } from "vitest";
 import { EDGE_CASE_FILENAMES } from "../../../__tests__/mocks";
 import { Filenames } from "../../../utils/filenames";

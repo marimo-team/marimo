@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 """Formatting protocol
 
 This module defines a protocol for implementing objects that can be displayed

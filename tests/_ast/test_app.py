@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 
 from __future__ import annotations
 import os
@@ -31,7 +31,7 @@ from marimo._convert.converters import MarimoConvert
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins.stateless.flex import vstack
 from marimo._runtime.context.types import get_context
-from marimo._runtime.requests import SetUIElementValueRequest
+from marimo._runtime.commands import UpdateUIElementCommand
 from marimo._schemas.serialization import (
     AppInstantiation,
     CellDef,
@@ -1307,7 +1307,7 @@ class TestAppComposition:
         assert token[0] == 1
 
         assert await k.set_ui_element_value(
-            SetUIElementValueRequest.from_ids_and_values(
+            UpdateUIElementCommand.from_ids_and_values(
                 [(dropdown_element._id, ["second"])]
             )
         )
@@ -1361,7 +1361,7 @@ class TestAppComposition:
         # testing that only descendants of the updated UI elements run,
         # and that the other UI element is not reset
         assert await k.set_ui_element_value(
-            SetUIElementValueRequest.from_ids_and_values([(x._id, 2)])
+            UpdateUIElementCommand.from_ids_and_values([(x._id, 2)])
         )
 
         assert app_kernel_runner == app._get_kernel_runner()
@@ -1370,7 +1370,7 @@ class TestAppComposition:
         assert y.value == 1
 
         assert await k.set_ui_element_value(
-            SetUIElementValueRequest.from_ids_and_values([(y._id, 3)])
+            UpdateUIElementCommand.from_ids_and_values([(y._id, 3)])
         )
 
         assert x.value == 2

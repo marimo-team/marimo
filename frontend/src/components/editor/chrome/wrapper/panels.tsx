@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 import type { PropsWithChildren } from "react";
 
 export const PanelsWrapper: React.FC<PropsWithChildren> = ({ children }) => {

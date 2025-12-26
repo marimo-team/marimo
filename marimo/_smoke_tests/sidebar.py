@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 
 import marimo
 
@@ -31,7 +31,7 @@ def _(mo):
         ### Footer
 
         - [Twitter](https://twitter.com/marimo_io)
-        - [GitHub](https://github.com/marimo-team/marimo)    
+        - [GitHub](https://github.com/marimo-team/marimo)
         """
             )
         ],

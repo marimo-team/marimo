@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import { useAtomValue, useSetAtom, useStore } from "jotai";
 import { ChevronDownIcon, SparklesIcon, WrenchIcon } from "lucide-react";

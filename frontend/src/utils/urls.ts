@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 import { generateSessionId } from "@/core/kernel/session";
 import { asURL } from "./url";
 

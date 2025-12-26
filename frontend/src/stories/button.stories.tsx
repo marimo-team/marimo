@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import { Loader2, Mail, Trash2Icon } from "lucide-react";
 import { Button } from "@/components/ui/button";

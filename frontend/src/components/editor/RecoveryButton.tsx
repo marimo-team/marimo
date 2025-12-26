@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import type { Notebook } from "@marimo-team/marimo-api";
 import { SaveIcon } from "lucide-react";

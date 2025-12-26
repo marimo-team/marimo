@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 
 import marimo
 
@@ -12,7 +12,7 @@ def _(mo):
         r"""
         # Matplotlib: Data Point Labels and Explanatory Notes
 
-        Add annotations using `annotate()` and text using `text()`. 
+        Add annotations using `annotate()` and text using `text()`.
         Common for highlighting specific data points and adding explanations.
         """
     )
@@ -38,13 +38,13 @@ def _(np, plt):
         ax.plot(x, y, 'b-')
 
         # Add arrow annotation
-        ax.annotate('Maximum', 
+        ax.annotate('Maximum',
                     xy=(4.7, 1.0),        # Point to annotate
                     xytext=(5.5, 0.5),    # Text position
                     arrowprops=dict(facecolor='black', shrink=0.05))
 
         # Add text box
-        ax.text(2, -0.5, 'Sine Wave', 
+        ax.text(2, -0.5, 'Sine Wave',
                 bbox=dict(facecolor='white', alpha=0.7))
 
         return ax

@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import { useControllableState } from "@radix-ui/react-use-controllable-state";
 import { SearchIcon, XIcon } from "lucide-react";

@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 import { expect, test } from "@playwright/test";
 import { getAppUrl, resetFile } from "../playwright.config";
 import { openCellActions } from "./helper";

@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import type { EditorView, Panel } from "@codemirror/view";
 import { Provider } from "jotai";

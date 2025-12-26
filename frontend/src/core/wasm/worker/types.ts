@@ -1,12 +1,16 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 import type { PyodideInterface } from "pyodide";
 import type { UserConfig } from "@/core/config/config-schema";
-import type { OperationMessage } from "@/core/kernel/messages";
+import type {
+  CommandMessage,
+  NotificationPayload,
+} from "@/core/kernel/messages";
 import type { JsonString } from "@/utils/json/base64";
 import type {
   CodeCompletionRequest,
   CopyNotebookRequest,
   ExportAsHTMLRequest,
+  ExportAsMarkdownRequest,
   FileCreateRequest,
   FileCreateResponse,
   FileDeleteRequest,
@@ -20,7 +24,7 @@ import type {
   FileSearchResponse,
   FileUpdateRequest,
   FileUpdateResponse,
-  FormatRequest,
+  FormatCellsRequest,
   FormatResponse,
   SaveAppConfigurationRequest,
   SaveNotebookRequest,
@@ -57,17 +61,17 @@ export interface WasmController {
     code: string;
     filename: string | null;
     userConfig: UserConfig;
-    onMessage: (message: JsonString<OperationMessage>) => void;
+    onMessage: (message: JsonString<NotificationPayload>) => void;
   }): Promise<SerializedBridge>;
 }
 
 export interface RawBridge {
-  put_control_request(operation: object): Promise<string>;
+  put_control_request(operation: CommandMessage): Promise<string>;
   put_input(input: string): Promise<string>;
   code_complete(request: CodeCompletionRequest): Promise<string>;
   read_code(): Promise<{ contents: string }>;
   read_snippets(): Promise<Snippets>;
-  format(request: FormatRequest): Promise<FormatResponse>;
+  format(request: FormatCellsRequest): Promise<FormatResponse>;
   save(request: SaveNotebookRequest): Promise<string>;
   copy(request: CopyNotebookRequest): Promise<string>;
   save_app_config(request: SaveAppConfigurationRequest): Promise<string>;
@@ -88,8 +92,12 @@ export interface RawBridge {
   read_file(request: string): Promise<string>;
   set_interrupt_buffer(request: Uint8Array): Promise<string>;
   export_html(request: ExportAsHTMLRequest): Promise<string>;
-  export_markdown(request: ExportAsHTMLRequest): Promise<string>;
+  export_markdown(request: ExportAsMarkdownRequest): Promise<string>;
 }
+
+export type BridgePayload<T extends keyof RawBridge> = T extends keyof RawBridge
+  ? Parameters<RawBridge[T]>[0]
+  : undefined;
 
 export type SerializedBridge = {
   [P in keyof RawBridge]: RawBridge[P] extends (

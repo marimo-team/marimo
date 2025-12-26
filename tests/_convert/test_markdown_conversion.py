@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
 import os
@@ -422,11 +422,9 @@ def test_md_to_python_code_injection() -> None:
     maybe_unsafe_py = sanitized_version(md_to_py(script).strip())
     maybe_unsafe_md = convert_from_py_to_md(maybe_unsafe_py)
 
-    # Idempotent even under strange conditions.
-    # TODO: parsing an unparsable cell from python to markdown adds extra `\` in the tripled quotes.
-    # assert maybe_unsafe_py == sanitized_version(
-    #     md_to_py(maybe_unsafe_md).strip()
-    # )
+    assert maybe_unsafe_py == sanitized_version(
+        md_to_py(maybe_unsafe_md).strip()
+    )
 
     snapshot("unsafe-doc.py.txt", maybe_unsafe_py)
     snapshot("unsafe-doc.md.txt", maybe_unsafe_md)

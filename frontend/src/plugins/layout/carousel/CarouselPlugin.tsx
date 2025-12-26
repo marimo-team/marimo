@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import React, { type JSX } from "react";
 import swiperCssNavigation from "swiper/css/navigation?inline";
