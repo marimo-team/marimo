@@ -25,10 +25,17 @@ type KernelReadyData = NotificationMessageData<"kernel-ready">;
  * Build cells from kernel-ready data.
  */
 export function buildCellData(data: KernelReadyData): CellData[] {
-  const { codes, names, configs, cell_ids, last_executed_code = {} } = data;
+  const {
+    codes,
+    names,
+    configs,
+    cell_ids,
+    last_executed_code,
+    last_execution_time,
+  } = data;
 
   const lastExecutedCode = last_executed_code || {};
-  const lastExecutionTime = data.last_execution_time || {};
+  const lastExecutionTime = last_execution_time || {};
 
   return codes.map((code, i) => {
     const cellId = cell_ids[i];

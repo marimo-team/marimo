@@ -8,7 +8,7 @@ Extensions provide a way to add cross-cutting concerns to sessions
 from __future__ import annotations
 
 import asyncio
-from typing import TYPE_CHECKING, Optional, Union
+from typing import TYPE_CHECKING, Optional
 
 from marimo import _loggers
 from marimo._cli.print import red
@@ -287,9 +287,7 @@ class SessionViewExtension(SessionExtension, SessionEventListener):
     def on_received_command(
         self,
         session: Session,
-        request: Union[
-            commands.CommandMessage, commands.CodeCompletionCommand
-        ],
+        request: commands.CommandMessage,
         from_consumer_id: Optional[ConsumerId],
     ) -> None:
         """Called when a command is received."""
@@ -331,9 +329,7 @@ class QueueExtension(SessionExtension, SessionEventListener):
     def on_received_command(
         self,
         session: Session,
-        request: Union[
-            commands.CommandMessage, commands.CodeCompletionCommand
-        ],
+        request: commands.CommandMessage,
         from_consumer_id: Optional[ConsumerId],
     ) -> None:
         """Called when a command is received."""
@@ -368,9 +364,7 @@ class ReplayExtension(SessionExtension, SessionEventListener):
     def on_received_command(
         self,
         session: Session,
-        request: Union[
-            commands.CommandMessage, commands.CodeCompletionCommand
-        ],
+        request: commands.CommandMessage,
         from_consumer_id: Optional[ConsumerId],
     ) -> None:
         """Called when a command is received."""
