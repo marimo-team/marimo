@@ -12,7 +12,8 @@ from marimo._dependencies.dependencies import DependencyManager
 from marimo._server.api.deps import AppState
 from marimo._server.router import APIRouter
 from marimo._utils.health import (
-    get_container_resources,
+    get_cgroup_cpu_percent,
+    get_cgroup_mem_stats,
     get_node_version,
     get_python_version,
     get_required_modules_list,
@@ -131,7 +132,7 @@ async def usage(request: Request) -> JSONResponse:
                                         type: integer
                                     free:
                                         type: integer
-                                    is_container:
+                                    has_cgroup_mem_limit:
                                         type: boolean
                                 required:
                                     - total
@@ -139,6 +140,7 @@ async def usage(request: Request) -> JSONResponse:
                                     - percent
                                     - used
                                     - free
+                                    - has_cgroup_mem_limit
                             server:
                                 type: object
                                 properties:
@@ -196,19 +198,10 @@ async def usage(request: Request) -> JSONResponse:
 
     import psutil
 
-    # Check if running in a container with resource limits
-    container_resources = get_container_resources()
-
-    if container_resources and "memory" in container_resources:
-        # Use container memory stats
-        container_mem = container_resources["memory"]
+    if cgroup_mem_stats := get_cgroup_mem_stats():
         memory_stats = {
-            "total": container_mem["total"],
-            "available": container_mem["available"],
-            "percent": container_mem["percent"],
-            "used": container_mem["used"],
-            "free": container_mem["available"],  # Use available as free
-            "is_container": True,
+            "has_cgroup_mem_limit": True,
+            **cgroup_mem_stats,
         }
     else:
         # Use host memory stats
@@ -219,12 +212,14 @@ async def usage(request: Request) -> JSONResponse:
             "percent": memory.percent,
             "used": memory.used,
             "free": memory.free,
-            "is_container": False,
+            "has_cgroup_mem_limit": False,
         }
 
-    # interval=None is nonblocking; first value is meaningless but after
-    # that it's useful.
-    cpu = psutil.cpu_percent(interval=None)
+    cpu_percent = get_cgroup_cpu_percent()
+    if cpu_percent is None:
+        # interval=None is nonblocking; first call returns meaningless value
+        # subsequent calls return delta since last call
+        cpu_percent = psutil.cpu_percent(interval=None)
 
     # Server memory (and children)
     main_process = psutil.Process()
@@ -306,7 +301,7 @@ async def usage(request: Request) -> JSONResponse:
                 "memory": kernel_memory,
             },
             "cpu": {
-                "percent": cpu,
+                "percent": cpu_percent,
             },
             "gpu": gpu_stats,
         }

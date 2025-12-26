@@ -5,13 +5,38 @@ import importlib.metadata
 import os
 import subprocess
 import sys
-from typing import Any, Optional
+import time
+from typing import Any, Optional, TypedDict
 
 from marimo import _loggers
 
 LOGGER = _loggers.marimo_logger()
 
 TIMEOUT = 10  # seconds
+
+# Module-level state for cgroup CPU percent calculation (like psutil does)
+_last_cgroup_cpu_sample: Optional[tuple[int, float]] = (
+    None  # (usage_usec, timestamp)
+)
+
+
+class MemoryStats(TypedDict):
+    total: int
+    used: int
+    available: int
+    percent: float
+    free: int
+
+
+CGROUP_V2_MEMORY_MAX_FILE = "/sys/fs/cgroup/memory.max"
+CGROUP_V2_MEMORY_CURRENT_FILE = "/sys/fs/cgroup/memory.current"
+CGROUP_V1_MEMORY_LIMIT_FILE = "/sys/fs/cgroup/memory/memory.limit_in_bytes"
+CGROUP_V1_MEMORY_USAGE_FILE = "/sys/fs/cgroup/memory/memory.usage_in_bytes"
+CGROUP_V2_CPU_STAT_FILE = "/sys/fs/cgroup/cpu.stat"
+CGROUP_V1_CPU_USAGE_FILE = "/sys/fs/cgroup/cpuacct/cpuacct.usage"
+CGROUP_V2_CPU_MAX_FILE = "/sys/fs/cgroup/cpu.max"
+CGROUP_V1_CPU_CFS_QUOTA_US_FILE = "/sys/fs/cgroup/cpu/cpu.cfs_quota_us"
+CGROUP_V1_CPU_CFS_PERIOD_US_FILE = "/sys/fs/cgroup/cpu/cpu.cfs_period_us"
 
 
 def get_node_version() -> Optional[str]:
@@ -186,186 +211,184 @@ def communicate_with_timeout(
         return "", "Error: Process timed out"
 
 
-def has_cgroup_limits() -> tuple[bool, bool]:
+def _has_cgroup_cpu_limit() -> bool:
     """
-    Check if cgroup resource limits are explicitly set.
+    Returns True/False whether the container has a CPU limit set.
+    This function checks for both cgroups v1 and v2.
+    """
+    # TODO Constants
+    # cgroups v2
+    if os.path.exists(CGROUP_V2_CPU_MAX_FILE):
+        with open(CGROUP_V2_CPU_MAX_FILE, encoding="utf-8") as f:
+            cpu_max = f.read().strip()
+        return cpu_max != "max"
+    # Fallback to cgroup v1 (legacy)
+    if os.path.exists(CGROUP_V1_CPU_CFS_QUOTA_US_FILE):
+        with open(CGROUP_V1_CPU_CFS_QUOTA_US_FILE, encoding="utf-8") as f:
+            quota = int(f.read().strip())
+            return quota > 0
+    return False
 
-    This is the standard way to detect container resource limits on Linux.
-    These cgroup paths are part of the kernel ABI and are stable across versions.
-    See: https://www.kernel.org/doc/Documentation/cgroup-v2.txt
-         https://www.kernel.org/doc/Documentation/cgroup-v1/
+
+def get_cgroup_mem_stats() -> Optional[MemoryStats]:
+    """
+    Get container memory stats from cgroup.
 
     Returns:
-        (has_memory_limit, has_cpu_limit): Tuple of booleans indicating
-        whether memory and CPU limits are set.
-    """
-    has_memory = False
-    has_cpu = False
-
-    try:
-        # Check cgroup v2 (modern containers)
-        if os.path.exists("/sys/fs/cgroup/memory.max"):
-            with open("/sys/fs/cgroup/memory.max", encoding="utf-8") as f:
-                memory_max = f.read().strip()
-            # 'max' means unlimited, any number means limited
-            has_memory = memory_max != "max"
-
-        if os.path.exists("/sys/fs/cgroup/cpu.max"):
-            with open("/sys/fs/cgroup/cpu.max", encoding="utf-8") as f:
-                cpu_max = f.read().strip()
-            # 'max' means unlimited
-            has_cpu = cpu_max != "max"
-
-        # Fallback to cgroup v1 (legacy)
-        if not has_memory and os.path.exists(
-            "/sys/fs/cgroup/memory/memory.limit_in_bytes"
-        ):
-            with open(
-                "/sys/fs/cgroup/memory/memory.limit_in_bytes", encoding="utf-8"
-            ) as f:
-                limit = int(f.read().strip())
-            # Very large number (typically > 2^62) indicates unlimited
-            # This is the default "unlimited" value in cgroup v1
-            has_memory = limit < (1 << 62)
-
-        if not has_cpu and os.path.exists(
-            "/sys/fs/cgroup/cpu/cpu.cfs_quota_us"
-        ):
-            with open(
-                "/sys/fs/cgroup/cpu/cpu.cfs_quota_us", encoding="utf-8"
-            ) as f:
-                quota = int(f.read().strip())
-            # In cgroup v1, -1 means unlimited
-            has_cpu = quota > 0
-
-    except (FileNotFoundError, PermissionError, ValueError) as e:
-        LOGGER.debug(f"Error checking cgroup limits: {e}")
-
-    return has_memory, has_cpu
-
-
-def get_container_resources() -> Optional[dict[str, Any]]:
-    """
-    Get container resource limits if running in a resource-restricted container.
-
-    Returns:
-        Dictionary with 'memory' and/or 'cpu' keys if limits are set,
-        None if not in a container or no limits are configured.
+        Dictionary with memory stats if cgroup limits are configured,
+        None if cgroup limits are not configured or unable to read.
 
     Example return value:
         {
-            'memory': {
-                'total': 2147483648,      # bytes
-                'used': 1073741824,       # bytes
-                'available': 1073741824,  # bytes
-                'percent': 50.0           # percentage
-            },
-            'cpu': {
-                'quota': 200000,   # microseconds
-                'period': 100000,  # microseconds
-                'cores': 2.0       # effective number of cores
-            }
+            'total': 2147483648,      # bytes
+            'used': 1073741824,      # bytes
+            'available': 1073741824, # bytes
+            'free': 1073741824,      # bytes
+            'percent': 50.0,         # percentage
         }
     """
-    has_memory_limit, has_cpu_limit = has_cgroup_limits()
 
-    if not (has_memory_limit or has_cpu_limit):
-        return None
+    try:
+        # Try cgroup v2 first
+        if os.path.exists(CGROUP_V2_MEMORY_MAX_FILE):
+            with open(CGROUP_V2_MEMORY_MAX_FILE, encoding="utf-8") as f:
+                memory_max = f.read().strip()
+                f.close()
+            with open(CGROUP_V2_MEMORY_CURRENT_FILE, encoding="utf-8") as f:
+                memory_current = f.read().strip()
+                f.close()
 
-    resources: dict[str, Any] = {}
-
-    # Get memory stats if limited
-    if has_memory_limit:
-        try:
-            # Try cgroup v2 first
-            if os.path.exists("/sys/fs/cgroup/memory.max"):
-                with open("/sys/fs/cgroup/memory.max", encoding="utf-8") as f:
-                    memory_max = f.read().strip()
-                    f.close()
-                with open(
-                    "/sys/fs/cgroup/memory.current", encoding="utf-8"
-                ) as f:
-                    memory_current = f.read().strip()
-                    f.close()
-
-                if memory_max != "max":
-                    total = int(memory_max)
-                    used = int(memory_current)
-                    available = total - used
-                    percent = (used / total) * 100 if total > 0 else 0
-
-                    resources["memory"] = {
-                        "total": total,
-                        "used": used,
-                        "available": available,
-                        "percent": percent,
-                    }
-            # Fallback to cgroup v1
-            elif os.path.exists("/sys/fs/cgroup/memory/memory.limit_in_bytes"):
-                with open(
-                    "/sys/fs/cgroup/memory/memory.limit_in_bytes",
-                    encoding="utf-8",
-                ) as f:
-                    total = int(f.read().strip())
-                    f.close()
-                with open(
-                    "/sys/fs/cgroup/memory/memory.usage_in_bytes",
-                    encoding="utf-8",
-                ) as f:
-                    used = int(f.read().strip())
-                    f.close()
+            if memory_max != "max":
+                total = int(memory_max)
+                used = int(memory_current)
                 available = total - used
                 percent = (used / total) * 100 if total > 0 else 0
+                free = total - used
+                return MemoryStats(
+                    total=total,
+                    used=used,
+                    available=available,
+                    percent=percent,
+                    free=free,
+                )
+        # Fallback to cgroup v1
+        elif os.path.exists(CGROUP_V1_MEMORY_LIMIT_FILE):
+            with open(
+                CGROUP_V1_MEMORY_LIMIT_FILE,
+                encoding="utf-8",
+            ) as f:
+                total = int(f.read().strip())
+                f.close()
+            with open(
+                CGROUP_V1_MEMORY_USAGE_FILE,
+                encoding="utf-8",
+            ) as f:
+                used = int(f.read().strip())
+                f.close()
+            available = total - used
+            percent = (used / total) * 100 if total > 0 else 0
+            free = total - used
 
-                resources["memory"] = {
-                    "total": total,
-                    "used": used,
-                    "available": available,
-                    "percent": percent,
-                }
-        except (FileNotFoundError, PermissionError, ValueError) as e:
-            LOGGER.debug(f"Error reading container memory stats: {e}")
+            return MemoryStats(
+                total=total,
+                used=used,
+                available=available,
+                percent=percent,
+                free=free,
+            )
+    except (FileNotFoundError, PermissionError, ValueError) as e:
+        LOGGER.debug(f"Error reading container memory stats: {e}")
 
-    # Get CPU stats if limited
-    if has_cpu_limit:
-        try:
-            # cgroup v2
-            if os.path.exists("/sys/fs/cgroup/cpu.max"):
-                with open("/sys/fs/cgroup/cpu.max", encoding="utf-8") as f:
-                    cpu_max_line = f.read().strip()
-                    f.close()
-                if cpu_max_line != "max":
-                    parts = cpu_max_line.split()
-                    if len(parts) == 2:
-                        quota = int(parts[0])
-                        period = int(parts[1])
-                        cores = quota / period
+    return None
 
-                        resources["cpu"] = {
-                            "quota": quota,
-                            "period": period,
-                            "cores": cores,
-                        }
-            # cgroup v1
-            elif os.path.exists("/sys/fs/cgroup/cpu/cpu.cfs_quota_us"):
-                with open(
-                    "/sys/fs/cgroup/cpu/cpu.cfs_quota_us", encoding="utf-8"
-                ) as f:
-                    quota = int(f.read().strip())
-                    f.close()
-                with open(
-                    "/sys/fs/cgroup/cpu/cpu.cfs_period_us", encoding="utf-8"
-                ) as f:
-                    period = int(f.read().strip())
-                    f.close()
-                if quota > 0:  # -1 means unlimited
-                    cores = quota / period
-                    resources["cpu"] = {
-                        "quota": quota,
-                        "period": period,
-                        "cores": cores,
-                    }
-        except (FileNotFoundError, PermissionError, ValueError) as e:
-            LOGGER.debug(f"Error reading container CPU stats: {e}")
 
-    return resources if resources else None
+def _get_cgroup_allocated_cores() -> Optional[float]:
+    """Get the number of CPU cores allocated to this cgroup (quota / period)."""
+    try:
+        if os.path.exists(CGROUP_V2_CPU_MAX_FILE):
+            # cgroups v2
+            with open(CGROUP_V2_CPU_MAX_FILE, encoding="utf-8") as f:
+                parts = f.read().strip().split()
+            if len(parts) == 2 and parts[0] != "max":
+                return int(parts[0]) / int(parts[1])
+        elif os.path.exists(CGROUP_V1_CPU_CFS_QUOTA_US_FILE):
+            # cgroups v1
+            with open(CGROUP_V1_CPU_CFS_QUOTA_US_FILE, encoding="utf-8") as f:
+                quota = int(f.read().strip())
+            with open(CGROUP_V1_CPU_CFS_PERIOD_US_FILE, encoding="utf-8") as f:
+                period = int(f.read().strip())
+            if quota > 0:
+                return quota / period
+    except (FileNotFoundError, PermissionError, ValueError):
+        pass
+    return None
+
+
+def get_cgroup_cpu_percent() -> Optional[float]:
+    """
+    Get CPU usage percentage for a cgroup-limited container.
+
+    Works like psutil.cpu_percent(interval=None):
+    - First call stores the current reading and returns None
+    - Subsequent calls return the CPU percent since the last call
+
+    Returns:
+        CPU usage as a percentage (0-100).
+        0.0 if cgroup limits are configured but unable to read current usage (ie on the first call)
+        None if cgroup limits are not configured or unable to read.
+    """
+    global _last_cgroup_cpu_sample
+
+    try:
+        # Read current usage (microseconds)
+        current_usage: Optional[int] = None
+
+        if os.path.exists(CGROUP_V2_CPU_STAT_FILE):
+            # cgroups v2
+            with open(CGROUP_V2_CPU_STAT_FILE, encoding="utf-8") as f:
+                for line in f:
+                    if line.startswith("usage_usec"):
+                        current_usage = int(line.split()[1])
+                        break
+
+        elif os.path.exists(CGROUP_V1_CPU_USAGE_FILE):
+            # cgroups v1
+            with open(CGROUP_V1_CPU_USAGE_FILE, encoding="utf-8") as f:
+                current_usage = int(f.read().strip()) // 1_000_000  # ns -> μs
+
+        else:
+            # No cgroup files exist
+            return None
+
+        if current_usage is None:
+            return 0.0
+
+        allocated_cores = _get_cgroup_allocated_cores()
+        if allocated_cores is None or allocated_cores <= 0:
+            return 0.0
+
+        current_time = time.time()
+
+        if _last_cgroup_cpu_sample is None:
+            # First call - store reading, return None (like psutil's first call)
+            _last_cgroup_cpu_sample = (current_usage, current_time)
+            return 0.0
+
+        last_usage, last_time = _last_cgroup_cpu_sample
+        _last_cgroup_cpu_sample = (current_usage, current_time)
+
+        delta_time = current_time - last_time
+        if delta_time <= 0:
+            return 0.0
+
+        delta_usage_usec = current_usage - last_usage
+        # percent = (usage_usec / (time_sec * 1_000_000 * cores)) * 100
+        percent = (
+            delta_usage_usec / (delta_time * 1_000_000 * allocated_cores)
+        ) * 100
+
+        return min(100.0, max(0.0, percent))
+
+    except (FileNotFoundError, PermissionError, ValueError, IndexError):
+        # Error reading cgroup CPU stats — fall back to psutil
+        return None
