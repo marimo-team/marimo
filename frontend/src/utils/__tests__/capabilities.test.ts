@@ -359,7 +359,7 @@ describe("capabilities", () => {
       expect(capabilities).toMatchObject({
         isEmbedded: true,
         hasLocalStorage: false,
-        hasSessionStorage: false,
+        hasSessionStorage: true,
         hasClipboard: false,
         hasDownloads: false,
         hasFullscreen: false,

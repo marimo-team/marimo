@@ -25,14 +25,7 @@ describe("MarkdownLanguageAdapter", () => {
       expect(innerCode).toBe("");
       expect(offset).toBe(0);
       const out = adapter.transformOut(innerCode, metadata);
-      expect(out).toMatchInlineSnapshot(`
-        [
-          "mo.md(r"""
-
-        """)",
-          12,
-        ]
-      `);
+      expect(out).toEqual([`mo.md(r"""\n \n""")`, 12]);
     });
 
     it("should extract inner Markdown from triple double-quoted strings", () => {
@@ -229,9 +222,8 @@ describe("MarkdownLanguageAdapter", () => {
     it("empty string", () => {
       const code = "";
       const [wrappedCode, offset] = adapter.transformOut(code, metadata);
-      expect(wrappedCode).toBe(`mo.md("""
-
-""")`);
+      // Empty strings get a space to avoid 6 consecutive quotes
+      expect(wrappedCode).toBe(`mo.md("""\n \n""")`);
       expect(offset).toBe(11);
     });
 
