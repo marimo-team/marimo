@@ -239,8 +239,220 @@ class TestGeneration:
 
         # Verify the config is included in the output
         assert "hide_code=True" in raw
-        # Verify the code is properly escaped and included
-        assert 'mo.md(\\"markdown in marimo\\")' in raw
+        # Verify the code is properly included (raw string for code without triple quotes)
+        assert 'mo.md("markdown in marimo")' in raw
+
+    @staticmethod
+    def test_generate_unparsable_cell_snapshots() -> None:
+        def generate(
+            code: str,
+            name: str | None = None,
+            config: CellConfig | None = None,
+        ) -> str:
+            result = codegen.generate_unparsable_cell(
+                code, name, config or CellConfig()
+            )
+            # Make sure it's valid Python
+            ast.parse(result)
+            return result
+
+        # Simple code without special characters
+        assert generate("x = 1") == snapshot(
+            '''\
+app._unparsable_cell(
+    r"""
+    x = 1
+    """
+)\
+'''
+        )
+
+        # Code with a name
+        assert generate("x = 1", "my_cell", CellConfig()) == snapshot(
+            '''\
+app._unparsable_cell(
+    r"""
+    x = 1
+    """,
+    name="my_cell"
+)\
+'''
+        )
+
+        # Code with escaped quotes (no triple quotes)
+        assert generate('x = "hello \\"world\\""') == snapshot(
+            '''\
+app._unparsable_cell(
+    r"""
+    x = "hello \\"world\\""
+    """
+)\
+'''
+        )
+
+        # Code with triple quotes - should use escaped string format
+        assert generate('x = """hello"""') == snapshot(
+            '''\
+app._unparsable_cell(
+    """
+    x = \\"\\"\\"hello\\"\\"\\"
+    """
+)\
+'''
+        )
+
+        # Code with backslashes (no triple quotes) - raw string preserves them
+        assert generate("path = 'C:\\\\Users\\\\test'") == snapshot(
+            '''\
+app._unparsable_cell(
+    r"""
+    path = 'C:\\\\Users\\\\test'
+    """
+)\
+'''
+        )
+
+        # Code with backslashes AND triple quotes - escaped string format
+        assert generate('path = """C:\\Users\\test"""') == snapshot(
+            '''\
+app._unparsable_cell(
+    """
+    path = \\"\\"\\"C:\\\\Users\\\\test\\"\\"\\"
+    """
+)\
+'''
+        )
+
+        # Code with all config options
+        assert generate(
+            "x = 1",
+            "named_cell",
+            CellConfig(disabled=True, hide_code=True, column=1),
+        ) == snapshot(
+            '''\
+app._unparsable_cell(
+    r"""
+    x = 1
+    """,
+    column=1, disabled=True, hide_code=True, name="named_cell"
+)\
+'''
+        )
+
+        # Multiline code
+        assert generate("x = 1\ny = 2\nz = x + y") == snapshot(
+            '''\
+app._unparsable_cell(
+    r"""
+    x = 1
+    y = 2
+    z = x + y
+    """
+)\
+'''
+        )
+
+        # Code with newlines and indentation
+        assert generate("def foo():\n    return 1\n") == snapshot(
+            '''\
+app._unparsable_cell(
+    r"""
+    def foo():
+        return 1
+
+    """
+)\
+'''
+        )
+
+        # Empty code
+        assert generate("") == snapshot(
+            '''\
+app._unparsable_cell(
+    r"""
+
+    """
+)\
+'''
+        )
+
+        # Code with only whitespace
+        assert generate("    ") == snapshot(
+            '''\
+app._unparsable_cell(
+    r"""
+    \n\
+    """
+)\
+'''
+        )
+
+        # Code with tabs
+        assert generate("x = 1\n\ty = 2") == snapshot(
+            '''\
+app._unparsable_cell(
+    r"""
+    x = 1
+    	y = 2
+    """
+)\
+'''  # noqa: E101
+        )
+
+        # Code with syntax error (common use case)
+        assert generate("return\nx.") == snapshot(
+            '''\
+app._unparsable_cell(
+    r"""
+    return
+    x.
+    """
+)\
+'''
+        )
+
+        # Code with unicode characters
+        assert generate('x = "héllo wörld 🎉"') == snapshot(
+            '''\
+app._unparsable_cell(
+    r"""
+    x = "héllo wörld 🎉"
+    """
+)\
+'''
+        )
+
+        # Edge cases that may produce invalid Python
+        assert generate('x = 1\n"""') == snapshot(
+            '''\
+app._unparsable_cell(
+    """
+    x = 1
+    \\"\\"\\"
+    """
+)\
+'''
+        )
+
+        assert generate('""")') == snapshot(
+            '''\
+app._unparsable_cell(
+    """
+    \\"\\"\\")
+    """
+)\
+'''
+        )
+
+        assert generate('app._unparsable_cell(r"""code""")') == snapshot(
+            '''\
+app._unparsable_cell(
+    """
+    app._unparsable_cell(r\\"\\"\\"code\\"\\"\\")
+    """
+)\
+'''
+        )
 
     @staticmethod
     def test_long_line_in_main() -> None:
@@ -609,6 +821,21 @@ class TestGeneration:
             "test_app_with_annotation_typing"
         )
         assert "import marimo" in source
+
+    @staticmethod
+    async def test_unparsable_cell_with_triple_quotes_roundtrip() -> None:
+        """Test that unparsable cells with triple quotes round-trip correctly.
+
+        This tests the idempotency of the codegen for unparsable cells that
+        contain triple quotes, which require escaped strings instead of raw
+        strings.
+        """
+        source = await get_idempotent_marimo_source(
+            "test_unparsable_cell_with_triple_quotes"
+        )
+        assert "import marimo" in source
+        # Verify the escaped triple quotes pattern is preserved
+        assert '"""' in source or '\\"\\"\\"' in source
 
 
 @pytest.fixture
