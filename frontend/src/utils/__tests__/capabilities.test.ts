@@ -325,17 +325,19 @@ describe("capabilities", () => {
 
   describe("complete capability detection scenarios", () => {
     it("should handle fully sandboxed iframe", async () => {
-      const mockWindow = {
-        ...window,
-        parent: {} as Window,
-      };
-
       const mockStorage: Partial<Storage> = {
         setItem: vi.fn(() => {
           throw new Error("blocked");
         }),
         getItem: vi.fn(),
         removeItem: vi.fn(),
+      };
+
+      const mockWindow = {
+        ...window,
+        parent: {} as Window,
+        localStorage: mockStorage,
+        sessionStorage: mockStorage,
       };
 
       vi.stubGlobal("window", mockWindow);
@@ -359,7 +361,7 @@ describe("capabilities", () => {
       expect(capabilities).toMatchObject({
         isEmbedded: true,
         hasLocalStorage: false,
-        hasSessionStorage: true,
+        hasSessionStorage: false,
         hasClipboard: false,
         hasDownloads: false,
         hasFullscreen: false,
