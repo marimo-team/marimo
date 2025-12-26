@@ -272,6 +272,7 @@ class Exporter:
     def export_as_ipynb(
         self,
         app: InternalApp,
+        *,
         sort_mode: Literal["top-down", "topological"],
         session_view: Optional[SessionView] = None,
     ) -> str:

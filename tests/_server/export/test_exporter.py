@@ -40,10 +40,7 @@ def test_export_ipynb_empty():
     internal_app = InternalApp(app)
     exporter = Exporter()
 
-    content, filename = exporter.export_as_ipynb(
-        internal_app, None, sort_mode="top-down"
-    )
-    assert filename == "notebook.ipynb"
+    content = exporter.export_as_ipynb(internal_app, sort_mode="top-down")
     snapshot("empty_notebook.ipynb.txt", content)
 
 
@@ -58,10 +55,7 @@ def test_export_ipynb_with_cells():
     internal_app = InternalApp(app)
     exporter = Exporter()
 
-    content, filename = exporter.export_as_ipynb(
-        internal_app, None, sort_mode="top-down"
-    )
-    assert filename == "notebook.ipynb"
+    content = exporter.export_as_ipynb(internal_app, sort_mode="top-down")
     snapshot("notebook_with_cells.ipynb.txt", content)
 
 
@@ -88,15 +82,11 @@ def test_export_ipynb_sort_modes():
     exporter = Exporter()
 
     # Test top-down mode preserves document order
-    content, _ = exporter.export_as_ipynb(
-        internal_app, None, sort_mode="top-down"
-    )
+    content = exporter.export_as_ipynb(internal_app, sort_mode="top-down")
     snapshot("notebook_top_down.ipynb.txt", content)
 
     # Test topological mode respects dependencies
-    content, _ = exporter.export_as_ipynb(
-        internal_app, None, sort_mode="topological"
-    )
+    content = exporter.export_as_ipynb(internal_app, sort_mode="topological")
     snapshot("notebook_topological.ipynb.txt", content)
 
 
@@ -225,10 +215,9 @@ async def test_export_ipynb_with_outputs(tmp_path: Path):
     internal_app = InternalApp(app)
     exporter = Exporter()
 
-    content, filename = exporter.export_as_ipynb(
-        internal_app, None, sort_mode="top-down", session_view=None
+    content = exporter.export_as_ipynb(
+        internal_app, sort_mode="top-down", session_view=None
     )
-    assert filename == "notebook.ipynb"
     assert content is not None
 
     test_file = tmp_path / "notebook.py"

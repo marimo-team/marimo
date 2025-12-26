@@ -174,7 +174,11 @@ class AppFileManager:
 
         # Get the header in case it was modified by the user (e.g. package installation)
         handler = get_format_handler(path)
-        header = handler.extract_header(previous_path or path)
+        header: Optional[str] = None
+        if previous_path and previous_path.exists():
+            header = handler.extract_header(previous_path)
+        elif path.exists():
+            header = handler.extract_header(path)
 
         if header:
             notebook = NotebookSerializationV1(
@@ -266,6 +270,7 @@ class AppFileManager:
 
         previous_filename = self._filename
         self._filename = new_path
+        self.app._app._filename = str(new_path)
 
         self._save_file(
             new_path,

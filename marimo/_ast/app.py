@@ -1031,6 +1031,7 @@ class InternalApp:
             app=AppInstantiation(
                 options=self._app._config.asdict(),
             ),
+            filename=self._app._filename,
         )
 
     def to_py(self) -> str:
