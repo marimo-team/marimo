@@ -5300,13 +5300,10 @@ paths:
                 properties:
                   cpu:
                     properties:
-                      has_cgroup_cpu_limit:
-                        type: boolean
                       percent:
                         type: number
                     required:
                     - percent
-                    - has_cgroup_cpu_limit
                     type: object
                   gpu:
                     items:
