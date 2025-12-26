@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import type { Theme } from "@glideapps/glide-data-grid";
 import type { ResolvedTheme } from "@/theme/useTheme";

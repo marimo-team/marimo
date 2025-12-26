@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 """Notification utilities for kernel messages.
 
 CellNotificationUtils for cell-related broadcasts.

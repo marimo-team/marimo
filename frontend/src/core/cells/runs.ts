@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 import { createReducerAndAtoms } from "@/utils/createReducer";
 import type { TypedString } from "@/utils/typed";
 import type { CellMessage } from "../kernel/messages";

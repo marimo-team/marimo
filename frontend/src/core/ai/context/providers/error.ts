@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import type { Completion } from "@codemirror/autocomplete";
 import { cellErrorsAtom } from "@/core/cells/cells";

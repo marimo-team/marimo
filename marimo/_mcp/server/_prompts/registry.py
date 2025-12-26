@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 """Registry of all supported MCP prompts."""
 
 from marimo._mcp.server._prompts.base import PromptBase

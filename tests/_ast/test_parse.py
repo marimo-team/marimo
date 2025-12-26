@@ -1,10 +1,17 @@
-# Copyright 2025 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
 import ast
 from pathlib import Path
 
-from marimo._ast.parse import Parser, _eval_kwargs, parse_notebook
+from inline_snapshot import snapshot
+
+from marimo._ast.parse import (
+    Parser,
+    _eval_kwargs,
+    fixed_dedent,
+    parse_notebook,
+)
 
 DIR_PATH = Path(__file__).parent
 
@@ -209,3 +216,158 @@ class TestParser:
         assert "@my_decorator" in function_cell.code, (
             f"Expected @my_decorator in extracted code, but got: {function_cell.code!r}"
         )
+
+    @staticmethod
+    def test_unparsable_cell_with_non_string_creates_violation() -> None:
+        """Test that unparsable cells with non-string args create violations."""
+        code = """
+import marimo
+__generated_with = "0.0.0"
+app = marimo.App()
+
+app._unparsable_cell(123, name="_")
+
+if __name__ == "__main__":
+    app.run()
+"""
+        notebook = parse_notebook(code)
+        assert notebook is not None
+        assert len(notebook.violations) == 1
+        assert "Expected string constant" in notebook.violations[0].description
+
+
+def test_fixed_dedent() -> None:
+    # Basic dedent
+    assert fixed_dedent("    x = 1\n    y = 2") == snapshot("""\
+x = 1
+y = 2\
+""")
+
+    # No indentation
+    assert fixed_dedent("x = 1\ny = 2") == snapshot("""\
+x = 1
+y = 2\
+""")
+
+    # Mixed indentation levels
+    assert fixed_dedent("    def foo():\n        return 1") == snapshot("""\
+def foo():
+    return 1\
+""")
+
+    # Inconsistent indentation (main difference from textwrap.dedent)
+    assert fixed_dedent("    x = 1\ny = 2") == snapshot("""\
+x = 1
+y = 2\
+""")
+
+    # Empty string
+    assert fixed_dedent("") == snapshot("")
+
+    # Only whitespace
+    assert fixed_dedent("    ") == snapshot("")
+
+    # Blank lines in middle
+    assert fixed_dedent("    x = 1\n\n    y = 2") == snapshot("""\
+x = 1
+
+y = 2\
+""")
+
+    # Leading blank lines
+    assert fixed_dedent("\n\n    x = 1") == snapshot("""\
+
+
+x = 1\
+""")
+
+    # Trailing blank lines
+    assert fixed_dedent("    x = 1\n\n") == snapshot("x = 1\n")
+
+    # Tabs as indentation
+    assert fixed_dedent("\tx = 1\n\ty = 2") == snapshot("""\
+x = 1
+y = 2\
+""")
+
+    # Mixed tabs and spaces
+    assert fixed_dedent("\t    x = 1\n\t    y = 2") == snapshot("""\
+x = 1
+y = 2\
+""")
+
+    # Deeply nested code
+    assert fixed_dedent(
+        "        def foo():\n            if True:\n                return 1"
+    ) == snapshot("""\
+def foo():
+    if True:
+        return 1\
+""")
+
+    # Multiline string preserved
+    assert fixed_dedent('    x = """hello\n    world"""') == snapshot('''\
+x = """hello
+world"""\
+''')
+
+    # Code with comments
+    assert fixed_dedent("    # comment\n    x = 1") == snapshot("""\
+# comment
+x = 1\
+""")
+
+    # Comment line without expected indent
+    assert fixed_dedent(
+        "    x = 1\n# comment with no indent\n    y = 2"
+    ) == snapshot("""\
+x = 1
+# comment with no indent
+y = 2\
+""")
+
+    # Escaped characters preserved
+    assert fixed_dedent('    x = "hello\\nworld"') == snapshot(
+        'x = "hello\\nworld"'
+    )
+
+    # Unicode content
+    assert fixed_dedent('    x = "héllo wörld 🎉"') == snapshot(
+        'x = "héllo wörld 🎉"'
+    )
+
+    # Docstring style content
+    assert fixed_dedent(
+        '    """This is a docstring.\n\n    Args:\n        x: something\n    """'
+    ) == snapshot('''\
+"""This is a docstring.
+
+Args:
+    x: something
+"""\
+''')
+
+    # Single line with indentation
+    assert fixed_dedent("        single_line_code()") == snapshot(
+        "single_line_code()"
+    )
+
+    # Only blank lines
+    assert fixed_dedent("\n\n\n") == snapshot("\n\n\n")
+
+    # AI-generated code pattern with inconsistent indentation
+    assert fixed_dedent("    x = 1\n    if True:\nreturn x") == snapshot(
+        "x = 1\nif True:\nreturn x"
+    )
+
+    # Class definition
+    assert fixed_dedent(
+        "    class MyClass:\n        def method(self):\n            return 1"
+    ) == snapshot("""\
+class MyClass:
+    def method(self):
+        return 1\
+""")
+
+    # Two-space indentation
+    assert fixed_dedent("  x = 1\n  y = 2") == snapshot("x = 1\ny = 2")

@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 """Session extensions for composable session features.
 
 Extensions provide a way to add cross-cutting concerns to sessions
@@ -8,11 +8,12 @@ Extensions provide a way to add cross-cutting concerns to sessions
 from __future__ import annotations
 
 import asyncio
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, Union
 
 from marimo import _loggers
 from marimo._cli.print import red
 from marimo._messaging.types import KernelMessage
+from marimo._runtime import commands
 from marimo._server.session.serialize import (
     SessionCacheKey,
     SessionCacheManager,
@@ -38,7 +39,7 @@ if TYPE_CHECKING:
         SessionEventBus,
     )
     from marimo._server.sessions.types import Session
-    from marimo._types.ids import SessionId
+    from marimo._types.ids import ConsumerId, SessionId
 
 LOGGER = _loggers.marimo_logger()
 
@@ -263,3 +264,152 @@ class LoggingExtension(SessionExtension, SessionEventListener):
             session.initialization_id,
             old_path,
         )
+
+
+class SessionViewExtension(SessionExtension, SessionEventListener):
+    """Extension for listening to session view updates."""
+
+    def __init__(self) -> None:
+        self.event_bus: Optional[SessionEventBus] = None
+
+    def on_attach(self, session: Session, event_bus: SessionEventBus) -> None:
+        """Attach the session view extension to a session."""
+        del session
+        self.event_bus = event_bus
+        self.event_bus.subscribe(self)
+
+    def on_detach(self) -> None:
+        """Detach the session view extension from a session."""
+        if self.event_bus:
+            self.event_bus.unsubscribe(self)
+            self.event_bus = None
+
+    def on_received_command(
+        self,
+        session: Session,
+        request: Union[
+            commands.CommandMessage, commands.CodeCompletionCommand
+        ],
+        from_consumer_id: Optional[ConsumerId],
+    ) -> None:
+        """Called when a command is received."""
+        del from_consumer_id
+        # Only add control requests to session view, not completion requests
+        if not isinstance(request, commands.CodeCompletionCommand):
+            session.session_view.add_control_request(request)
+
+    def on_received_stdin(self, session: Session, stdin: str) -> None:
+        """Called when stdin is received."""
+        session.session_view.add_stdin(stdin)
+
+    def on_notification_sent(
+        self, session: Session, notification: KernelMessage
+    ) -> None:
+        """Called when a notification is sent."""
+        session.session_view.add_raw_notification(notification)
+
+
+class QueueExtension(SessionExtension, SessionEventListener):
+    """Extension for handling queue operations."""
+
+    def __init__(self, queue_manager: QueueManager) -> None:
+        self.queue_manager = queue_manager
+        self.event_bus: Optional[SessionEventBus] = None
+
+    def on_attach(self, session: Session, event_bus: SessionEventBus) -> None:
+        """Attach the queue extension to a session."""
+        del session
+        self.event_bus = event_bus
+        self.event_bus.subscribe(self)
+
+    def on_detach(self) -> None:
+        """Detach the queue extension from a session."""
+        if self.event_bus:
+            self.event_bus.unsubscribe(self)
+            self.event_bus = None
+
+    def on_received_command(
+        self,
+        session: Session,
+        request: Union[
+            commands.CommandMessage, commands.CodeCompletionCommand
+        ],
+        from_consumer_id: Optional[ConsumerId],
+    ) -> None:
+        """Called when a command is received."""
+        del session
+        del from_consumer_id
+        self.queue_manager.put_control_request(request)
+
+    def on_received_stdin(self, session: Session, stdin: str) -> None:
+        """Called when stdin is received."""
+        del session
+        self.queue_manager.put_input(stdin)
+
+
+class ReplayExtension(SessionExtension, SessionEventListener):
+    """Extension for replaying commands from one session to another."""
+
+    def __init__(self) -> None:
+        self.event_bus: Optional[SessionEventBus] = None
+
+    def on_attach(self, session: Session, event_bus: SessionEventBus) -> None:
+        """Attach the replay extension to a session."""
+        del session
+        self.event_bus = event_bus
+        self.event_bus.subscribe(self)
+
+    def on_detach(self) -> None:
+        """Detach the replay extension from a session."""
+        if self.event_bus:
+            self.event_bus.unsubscribe(self)
+            self.event_bus = None
+
+    def on_received_command(
+        self,
+        session: Session,
+        request: Union[
+            commands.CommandMessage, commands.CodeCompletionCommand
+        ],
+        from_consumer_id: Optional[ConsumerId],
+    ) -> None:
+        """Called when a command is received."""
+        from marimo._messaging.notification import (
+            FocusCellNotification,
+            UpdateCellCodesNotification,
+        )
+        from marimo._runtime.commands import (
+            ExecuteCellsCommand,
+            SyncGraphCommand,
+        )
+
+        # Only propagate execute cells and sync graph commands to the room
+        if not isinstance(request, (ExecuteCellsCommand, SyncGraphCommand)):
+            return
+
+        # Collect cell ids and codes
+        if isinstance(request, ExecuteCellsCommand):
+            cell_ids = request.cell_ids
+            codes = request.codes
+        else:
+            cell_ids = request.run_ids
+            codes = [request.cells[cell_id] for cell_id in cell_ids]
+
+        # Send update cell codes notification
+        if cell_ids:
+            session.notify(
+                UpdateCellCodesNotification(
+                    cell_ids=cell_ids,
+                    codes=codes,
+                    # Not stale because we just ran the code
+                    code_is_stale=False,
+                ),
+                from_consumer_id=from_consumer_id,
+            )
+
+        # Send focus cell notification
+        if len(cell_ids) == 1:
+            session.notify(
+                FocusCellNotification(cell_id=cell_ids[0]),
+                from_consumer_id=from_consumer_id,
+            )

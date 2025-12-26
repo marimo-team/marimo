@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import type { Table } from "@tanstack/react-table";
 import { SELECT_COLUMN_ID } from "../types";

@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import { useAtom, useAtomValue } from "jotai";
 import { capitalize } from "lodash-es";

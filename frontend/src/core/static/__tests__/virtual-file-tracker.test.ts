@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 import { describe, expect, it } from "vitest";
 import type { CellId } from "@/core/cells/ids";
 import type { OutputMessage } from "@/core/kernel/messages";

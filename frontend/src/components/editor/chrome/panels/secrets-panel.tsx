@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import { CheckIcon, CopyIcon, KeyIcon, PlusIcon } from "lucide-react";
 import React from "react";

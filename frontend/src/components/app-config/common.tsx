@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import type { HTMLProps, PropsWithChildren } from "react";
 import type { SqlOutputType } from "@/core/config/config-schema";

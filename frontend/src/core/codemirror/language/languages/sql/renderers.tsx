@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import { HashIcon, InfoIcon } from "lucide-react";
 import type React from "react";

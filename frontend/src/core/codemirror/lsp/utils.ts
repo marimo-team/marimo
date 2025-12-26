@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 import { getFilenameFromDOM } from "@/core/dom/htmlUtils";
 import { Paths } from "@/utils/paths";
 

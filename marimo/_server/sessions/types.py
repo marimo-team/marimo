@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 """Protocol definitions for session management components.
 
 These protocols define the public interfaces for all major session management
@@ -47,12 +47,6 @@ class QueueManager(Protocol):
 
     def put_control_request(self, request: commands.CommandMessage) -> None:
         """Put a control request in the control queue."""
-        ...
-
-    def put_completion_request(
-        self, request: commands.CodeCompletionCommand
-    ) -> None:
-        """Put a code completion request in the completion queue."""
         ...
 
     def put_input(self, text: str) -> None:
@@ -146,12 +140,6 @@ class Session(Protocol):
         from_consumer_id: Optional[ConsumerId],
     ) -> None:
         """Put a control request in the control queue."""
-        ...
-
-    def put_completion_request(
-        self, request: commands.CodeCompletionCommand
-    ) -> None:
-        """Put a code completion request in the completion queue."""
         ...
 
     def put_input(self, text: str) -> None:

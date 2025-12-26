@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 import { memo } from "react";
 import { renderHTML } from "../../../plugins/core/RenderHTML";
 import { cn } from "../../../utils/cn";

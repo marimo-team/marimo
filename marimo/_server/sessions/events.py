@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 """Event system for session lifecycle events.
 
 Provides an event bus and listeners for session creation, closure, and resumption.
@@ -6,13 +6,14 @@ Provides an event bus and listeners for session creation, closure, and resumptio
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 from marimo import _loggers
 from marimo._messaging.types import KernelMessage
-from marimo._types.ids import SessionId
+from marimo._types.ids import ConsumerId, SessionId
 
 if TYPE_CHECKING:
+    from marimo._runtime import commands
     from marimo._server.sessions.session import Session
 
 LOGGER = _loggers.marimo_logger()
@@ -56,6 +57,24 @@ class SessionEventListener:
         """Called when a notification is emitted by a session."""
         del session
         del notification
+        return None
+
+    def on_received_command(
+        self,
+        session: Session,
+        request: commands.CommandMessage,
+        from_consumer_id: Optional[ConsumerId],
+    ) -> None:
+        """Called when a command is received."""
+        del session
+        del request
+        del from_consumer_id
+        return None
+
+    def on_received_stdin(self, session: Session, stdin: str) -> None:
+        """Called when stdin is received."""
+        del session
+        del stdin
         return None
 
 
@@ -143,6 +162,39 @@ class SessionEventBus:
             except Exception as e:
                 LOGGER.error(
                     "Error handling notification sent event for listener %s: %s",
+                    listener,
+                    e,
+                )
+                continue
+
+    def emit_received_command(
+        self,
+        session: Session,
+        request: commands.CommandMessage,
+        from_consumer_id: Optional[ConsumerId],
+    ) -> None:
+        """Emit a received command event."""
+        for listener in self._listeners:
+            try:
+                listener.on_received_command(
+                    session, request, from_consumer_id
+                )
+            except Exception as e:
+                LOGGER.error(
+                    "Error handling received command event for listener %s: %s",
+                    listener,
+                    e,
+                )
+                continue
+
+    def emit_received_stdin(self, session: Session, stdin: str) -> None:
+        """Emit a received stdin event."""
+        for listener in self._listeners:
+            try:
+                listener.on_received_stdin(session, stdin)
+            except Exception as e:
+                LOGGER.error(
+                    "Error handling received stdin event for listener %s: %s",
                     listener,
                     e,
                 )

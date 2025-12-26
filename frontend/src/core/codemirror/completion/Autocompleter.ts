@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 import type { CompletionResult } from "@codemirror/autocomplete";
 import type { Tooltip } from "@codemirror/view";
 import { DeferredRequestRegistry } from "@/core/network/DeferredRequestRegistry";

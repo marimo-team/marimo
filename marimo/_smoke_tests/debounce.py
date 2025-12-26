@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 
 import marimo
 
@@ -41,7 +41,7 @@ def _(debounced_number, debounced_slider, mo, number, slider):
 @app.cell
 def _(debounced_number, debounced_slider, mo, number, slider):
     # Values
-    mo.md(f"""    
+    mo.md(f"""
         slider: {slider.value}
 
         debounced slider: {debounced_slider.value}

@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import { debounce, isEqual } from "lodash-es";
 import type { MultiColumn } from "@/utils/id-tree";

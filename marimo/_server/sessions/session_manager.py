@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 """Session manager for coordinating multiple sessions.
 
 The SessionManager maintains a mapping from client session IDs to sessions

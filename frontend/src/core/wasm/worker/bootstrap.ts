@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 import { loadPyodide, type PyodideInterface } from "pyodide";
 import type { UserConfig } from "@/core/config/config-schema";
 import type { NotificationPayload } from "@/core/kernel/messages";

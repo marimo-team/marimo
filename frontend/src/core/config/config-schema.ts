@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 import { z } from "zod";
 import { invariant } from "@/utils/invariant";
 import { Logger } from "@/utils/Logger";

@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 import { toPng } from "html-to-image";
 import { toast } from "@/components/ui/use-toast";
 import { Filenames } from "@/utils/filenames";

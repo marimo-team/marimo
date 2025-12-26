@@ -1,4 +1,4 @@
-# Copyright 2025 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 """Snapshot tests for empty cells lint rule."""
 
 from marimo._ast.parse import parse_notebook

@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 
 import marimo
 
@@ -12,8 +12,8 @@ def _(mo):
         r"""
         # Polars: Parquet Operations
 
-        Demonstrates Polars' Parquet capabilities using `scan_parquet()` for 
-        streaming large Parquet datasets. Shows memory-efficient filtering 
+        Demonstrates Polars' Parquet capabilities using `scan_parquet()` for
+        streaming large Parquet datasets. Shows memory-efficient filtering
         and aggregation with lazy evaluation.
 
         Example: `pl.scan_parquet("data.parquet").filter(pl.col("value") > 500).collect()`

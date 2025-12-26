@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 
 import marimo
 
@@ -10,8 +10,8 @@ app = marimo.App(width="medium")
 def _(happiness_index, mo, pd):
     df = pd.read_csv(happiness_index)
     mo.ui.table(
-        df, 
-        freeze_columns_left=["Country name", "Ladder score"], 
+        df,
+        freeze_columns_left=["Country name", "Ladder score"],
         freeze_columns_right=["Standard error of ladder score"]
     )
     return (df,)

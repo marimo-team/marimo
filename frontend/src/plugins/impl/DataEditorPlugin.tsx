@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import glideCss from "@glideapps/glide-data-grid/dist/index.css?inline";
 import { TooltipProvider } from "@radix-ui/react-tooltip";

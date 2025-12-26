@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 
 import marimo
 
@@ -12,7 +12,7 @@ def _(mo):
         r"""
         # Matplotlib: Advanced Subplot Layouts
 
-        Different subplot arrangements using `GridSpec` and `subplot2grid`. 
+        Different subplot arrangements using `GridSpec` and `subplot2grid`.
         Shows uneven layouts and spanning multiple grid cells.
         """
     )

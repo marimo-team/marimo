@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 import { useRef, useState } from "react";
 import useEvent from "react-use-event-hook";
 import { Logger } from "@/utils/Logger";

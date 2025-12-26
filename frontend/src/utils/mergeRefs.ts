@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 export function mergeRefs<T>(
   ...refs: React.Ref<T>[]
 ): (value: T | null) => void {

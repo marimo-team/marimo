@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 /*
  * Simplified version of useResizeObserver from https://usehooks-ts.com/react-hook/use-resize-observer
  * Use this when you want to attach a resize observer conditionally using the `skip` option.

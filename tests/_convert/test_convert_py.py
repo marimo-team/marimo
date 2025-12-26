@@ -1,8 +1,9 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
 from textwrap import dedent
 
+from marimo import __version__
 from marimo._convert.converters import MarimoConvert
 from tests.mocks import snapshotter
 
@@ -60,3 +61,66 @@ def test_basic_marimo_example_jupytext_compatibility():
     # Test conversion back from markdown to marimo
     converted_back = MarimoConvert.from_md(converted_to_md).to_py()
     snapshot("basic_marimo_example_roundtrip.py.txt", converted_back)
+
+
+def test_unparsable_cell_with_escaped_quotes():
+    """Test an unparsable cell with escaped quotes."""
+    marimo_script = dedent(rf'''
+        import marimo
+
+        __generated_with = "{__version__}"
+        app = marimo.App()
+
+
+        app._unparsable_cell(
+            r"""
+            return
+            """,
+            name="_"
+        )
+
+
+        app._unparsable_cell(
+            r"""
+            # Single quote string
+            x = "hello \"world\"
+            x.
+            """,
+            name="_"
+        )
+
+
+        app._unparsable_cell(
+            r"""
+            # Triple quote string
+            x = "hello \"\"\"world\"\"\""
+            x.
+            """,
+            name="_"
+        )
+
+
+        app._unparsable_cell(
+            r"""
+            # Triple quote string with other slashes
+            x = "hello \"\"\"world\"\"\"
+            path = "C:\\Users\\test"
+            x.
+            """,
+            name="_"
+        )
+
+
+        if __name__ == "__main__":
+            app.run()
+    ''')[1:]
+
+    def identity(x: str) -> str:
+        return MarimoConvert.from_py(x).to_py()
+
+    assert identity(marimo_script) == marimo_script
+    assert identity(identity(marimo_script)) == marimo_script
+    assert identity(identity(identity(marimo_script))) == marimo_script
+    snapshot(
+        "unparsable_cell_with_escaped_quotes.py.txt", identity(marimo_script)
+    )

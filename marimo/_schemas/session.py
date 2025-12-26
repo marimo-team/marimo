@@ -1,4 +1,4 @@
-# Copyright 2025 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 """This file contains the schema for the notebook session.
 
 It may be externally used and must be kept backwards compatible.

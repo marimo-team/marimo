@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 import { startCase } from "lodash-es";
 import { Logger } from "./Logger";
 

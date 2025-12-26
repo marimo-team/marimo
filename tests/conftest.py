@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
 import dataclasses
@@ -309,7 +309,7 @@ def temp_sandboxed_marimo_file() -> Generator[str, None, None]:
     tmp_file = os.path.join(tmp_dir.name, "notebook.py")
     content = inspect.cleandoc(
         """
-        # Copyright 2024 Marimo. All rights reserved.
+        # Copyright 2026 Marimo. All rights reserved.
         # /// script
         # requires-python = ">=3.11"
         # dependencies = [

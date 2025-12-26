@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 """Tests for session extensions."""
 
 from __future__ import annotations
@@ -15,9 +15,12 @@ from marimo._server.sessions.extensions.extensions import (
     HeartbeatExtension,
     LoggingExtension,
     NotificationListenerExtension,
+    QueueExtension,
+    ReplayExtension,
+    SessionViewExtension,
 )
 from marimo._server.sessions.types import KernelState
-from marimo._types.ids import SessionId
+from marimo._types.ids import CellId_t, RequestId, SessionId
 
 
 @pytest.fixture
@@ -250,4 +253,208 @@ class TestLoggingExtension:
             "/old/path.py",
         )
 
+        extension.on_detach()
+
+
+class TestSessionViewExtension:
+    """Tests for SessionViewExtension."""
+
+    def test_lifecycle(self, mock_session, event_bus) -> None:
+        """Test event subscription on attach/detach."""
+        extension = SessionViewExtension()
+
+        extension.on_attach(mock_session, event_bus)
+
+        assert extension in event_bus._listeners
+        assert extension.event_bus is not None
+
+        extension.on_detach()
+
+        assert extension not in event_bus._listeners
+        assert extension.event_bus is None
+
+    def test_command_added_to_view(self, mock_session, event_bus) -> None:
+        """Test that commands are added to session view."""
+        from marimo._runtime.commands import ExecuteCellsCommand
+
+        extension = SessionViewExtension()
+        extension.on_attach(mock_session, event_bus)
+
+        cmd = ExecuteCellsCommand(
+            cell_ids=[CellId_t("cell1")], codes=["x = 1"]
+        )
+        extension.on_received_command(mock_session, cmd, None)
+
+        mock_session.session_view.add_control_request.assert_called_once_with(
+            cmd
+        )
+        extension.on_detach()
+
+    def test_completion_not_added_to_view(
+        self, mock_session, event_bus
+    ) -> None:
+        """Test that code completion commands are not added to view."""
+        from marimo._runtime.commands import CodeCompletionCommand
+
+        extension = SessionViewExtension()
+        extension.on_attach(mock_session, event_bus)
+
+        cmd = CodeCompletionCommand(
+            id=RequestId("1"), document="", cell_id=CellId_t("cell1")
+        )
+        extension.on_received_command(mock_session, cmd, None)
+
+        mock_session.session_view.add_control_request.assert_not_called()
+        extension.on_detach()
+
+    def test_stdin_added_to_view(self, mock_session, event_bus) -> None:
+        """Test that stdin is added to session view."""
+        extension = SessionViewExtension()
+        extension.on_attach(mock_session, event_bus)
+
+        extension.on_received_stdin(mock_session, "test input")
+
+        mock_session.session_view.add_stdin.assert_called_once_with(
+            "test input"
+        )
+        extension.on_detach()
+
+    def test_notification_added_to_view(self, mock_session, event_bus) -> None:
+        """Test that notifications are added to session view."""
+        extension = SessionViewExtension()
+        extension.on_attach(mock_session, event_bus)
+
+        notification = Mock()
+        extension.on_notification_sent(mock_session, notification)
+
+        mock_session.session_view.add_raw_notification.assert_called_once_with(
+            notification
+        )
+        extension.on_detach()
+
+
+class TestQueueExtension:
+    """Tests for QueueExtension."""
+
+    @pytest.fixture
+    def queue_manager(self):
+        manager = Mock()
+        manager.put_control_request = Mock()
+        manager.put_input = Mock()
+        return manager
+
+    def test_lifecycle(self, mock_session, event_bus, queue_manager) -> None:
+        """Test event subscription on attach/detach."""
+        extension = QueueExtension(queue_manager)
+
+        extension.on_attach(mock_session, event_bus)
+
+        assert extension in event_bus._listeners
+        assert extension.event_bus is not None
+
+        extension.on_detach()
+
+        assert extension not in event_bus._listeners
+        assert extension.event_bus is None
+
+    def test_command_added_to_queue(
+        self, mock_session, event_bus, queue_manager
+    ) -> None:
+        """Test that commands are added to queue."""
+        from marimo._runtime.commands import ExecuteCellsCommand
+
+        extension = QueueExtension(queue_manager)
+        extension.on_attach(mock_session, event_bus)
+
+        cmd = ExecuteCellsCommand(
+            cell_ids=[CellId_t("cell1")], codes=["x = 1"]
+        )
+        extension.on_received_command(mock_session, cmd, None)
+
+        queue_manager.put_control_request.assert_called_once_with(cmd)
+        extension.on_detach()
+
+    def test_stdin_added_to_queue(
+        self, mock_session, event_bus, queue_manager
+    ) -> None:
+        """Test that stdin is added to queue."""
+        extension = QueueExtension(queue_manager)
+        extension.on_attach(mock_session, event_bus)
+
+        extension.on_received_stdin(mock_session, "test input")
+
+        queue_manager.put_input.assert_called_once_with("test input")
+        extension.on_detach()
+
+
+class TestReplayExtension:
+    """Tests for ReplayExtension."""
+
+    def test_lifecycle(self, mock_session, event_bus) -> None:
+        """Test event subscription on attach/detach."""
+        extension = ReplayExtension()
+
+        extension.on_attach(mock_session, event_bus)
+
+        assert extension in event_bus._listeners
+        assert extension.event_bus is not None
+
+        extension.on_detach()
+
+        assert extension not in event_bus._listeners
+        assert extension.event_bus is None
+
+    def test_execute_command_replayed(self, mock_session, event_bus) -> None:
+        """Test that ExecuteCellsCommand is replayed with notifications."""
+        from marimo._runtime.commands import ExecuteCellsCommand
+
+        mock_session.notify = Mock()
+        extension = ReplayExtension()
+        extension.on_attach(mock_session, event_bus)
+
+        cmd = ExecuteCellsCommand(
+            cell_ids=[CellId_t("cell1")], codes=["x = 1"]
+        )
+        extension.on_received_command(mock_session, cmd, None)
+
+        assert mock_session.notify.call_count == 2
+        extension.on_detach()
+
+    def test_sync_graph_command_replayed(
+        self, mock_session, event_bus
+    ) -> None:
+        """Test that SyncGraphCommand is replayed with notifications."""
+        from marimo._runtime.commands import SyncGraphCommand
+
+        mock_session.notify = Mock()
+        extension = ReplayExtension()
+        extension.on_attach(mock_session, event_bus)
+
+        cell_id = CellId_t("cell1")
+        cmd = SyncGraphCommand(
+            cells={cell_id: "x = 1"},
+            run_ids=[cell_id],
+            delete_ids=[],
+        )
+        extension.on_received_command(mock_session, cmd, None)
+
+        assert mock_session.notify.call_count == 2
+        extension.on_detach()
+
+    def test_other_commands_not_replayed(
+        self, mock_session, event_bus
+    ) -> None:
+        """Test that other commands are not replayed."""
+        from marimo._runtime.commands import CodeCompletionCommand
+
+        mock_session.notify = Mock()
+        extension = ReplayExtension()
+        extension.on_attach(mock_session, event_bus)
+
+        cmd = CodeCompletionCommand(
+            id=RequestId("1"), document="", cell_id=CellId_t("cell1")
+        )
+        extension.on_received_command(mock_session, cmd, None)
+
+        mock_session.notify.assert_not_called()
         extension.on_detach()

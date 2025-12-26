@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 import { type Platform, resolvePlatform } from "@/core/hotkeys/shortcuts";
 import { Objects } from "@/utils/objects";
 

@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import { PopoverAnchor } from "@radix-ui/react-popover";
 import { FilePenIcon } from "lucide-react";

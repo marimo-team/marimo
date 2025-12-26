@@ -1,4 +1,4 @@
-# Copyright 2025 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 """Shared fixtures and mocks for AI tools tests."""
 
 from __future__ import annotations

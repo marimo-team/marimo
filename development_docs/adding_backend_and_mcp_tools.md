@@ -64,7 +64,7 @@ Implement your tool class in the same file:
 
 ---
 ```python
-# Copyright 2025 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
 from dataclasses import dataclass, field

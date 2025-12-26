@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import { ChartPieIcon, Loader2 } from "lucide-react";
 import { ErrorBanner } from "@/plugins/impl/common/error-banner";

@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import { TZDate } from "@date-fns/tz";
 import { formatDate, isMatch } from "date-fns";

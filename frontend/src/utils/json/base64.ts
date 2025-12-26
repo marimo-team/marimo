@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import type { NotificationMessageData } from "@/core/kernel/messages";
 import type { TypedString } from "../typed";

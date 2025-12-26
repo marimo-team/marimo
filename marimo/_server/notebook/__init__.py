@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 """Notebook file management and storage abstractions."""
 
 from marimo._server.notebook.file_manager import (

@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 
 import marimo
 
@@ -12,8 +12,8 @@ def _(mo):
         r"""
         # Visualization: Heat Map in Altair
 
-        This snippet demonstrates creating a heat map visualization using Altair's 
-        `rect` mark type with color encoding. Heat maps are excellent for showing 
+        This snippet demonstrates creating a heat map visualization using Altair's
+        `rect` mark type with color encoding. Heat maps are excellent for showing
         patterns in matrix-structured data.
         """
     )
@@ -31,7 +31,7 @@ def _():
 @app.cell
 def _(alt, data):
     def create_heatmap():
-        
+
         # Load and prepare data
         source = data.seattle_weather()
         # Create heatmap

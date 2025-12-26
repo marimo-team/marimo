@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import { useEffect, useRef, useState } from "react";
 import { useNumberFormatter } from "react-aria";

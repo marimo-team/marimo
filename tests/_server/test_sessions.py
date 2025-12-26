@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
 import asyncio
@@ -316,20 +316,18 @@ async def test_session() -> None:
 
     # Instantiate a Session
     session = SessionImpl(
-        session_id,
-        session_consumer,
-        queue_manager,
-        kernel_manager,
-        AppFileManager.from_app(InternalApp(App())),
-        get_default_config_manager(current_path=None),
+        initialization_id=session_id,
+        session_consumer=session_consumer,
+        kernel_manager=kernel_manager,
+        app_file_manager=AppFileManager.from_app(InternalApp(App())),
+        config_manager=get_default_config_manager(current_path=None),
         ttl_seconds=None,
         extensions=[],
     )
 
     # Assert startup
     assert session.room.main_consumer == session_consumer
-    assert session._queue_manager == queue_manager
-    assert session.kernel_manager == kernel_manager
+    assert session._kernel_manager == kernel_manager
     session_consumer.on_attach.assert_called_once()
     assert session_consumer.on_detach.call_count == 0
     assert session.connection_state() == ConnectionState.OPEN
@@ -366,7 +364,6 @@ def test_session_disconnect_reconnect() -> None:
     session = SessionImpl(
         initialization_id=session_id,
         session_consumer=session_consumer,
-        queue_manager=queue_manager,
         kernel_manager=kernel_manager,
         app_file_manager=AppFileManager.from_app(InternalApp(App())),
         config_manager=get_default_config_manager(current_path=None),
@@ -425,7 +422,6 @@ def test_session_with_kiosk_consumers() -> None:
     session = SessionImpl(
         initialization_id=session_id,
         session_consumer=session_consumer,
-        queue_manager=queue_manager,
         kernel_manager=kernel_manager,
         app_file_manager=AppFileManager.from_app(InternalApp(App())),
         config_manager=get_default_config_manager(current_path=None),
@@ -435,8 +431,7 @@ def test_session_with_kiosk_consumers() -> None:
 
     # Assert startup
     assert session.room.main_consumer == session_consumer
-    assert session._queue_manager == queue_manager
-    assert session.kernel_manager == kernel_manager
+    assert session._kernel_manager == kernel_manager
     session_consumer.on_attach.assert_called_once()
     assert session_consumer.on_detach.call_count == 0
     assert session.connection_state() == ConnectionState.OPEN
@@ -746,7 +741,8 @@ async def test_watch_mode_with_watcher_on_save_autorun(tmp_path: Path) -> None:
             file_key=str(tmp_file),
             auto_instantiate=False,
         )
-        session.session_view = MagicMock(SessionView)
+        mock_session_view = MagicMock(spec=SessionView)
+        session.session_view = mock_session_view
 
         # Wait for file watcher to be initialized by checking it exists
         for _ in range(20):  # noqa: B007
@@ -1062,7 +1058,7 @@ def test_session_with_script_config_overrides(
         session.config_manager.get_config()["formatting"]["line_length"] == 999
     )
     assert (
-        session.kernel_manager.config_manager.get_config()["formatting"][
+        session._kernel_manager.config_manager.get_config()["formatting"][
             "line_length"
         ]
         == 999

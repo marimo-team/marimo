@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 import { type JSX, useId, useMemo, useState } from "react";
 import { Virtuoso } from "react-virtuoso";
 import { z } from "zod";

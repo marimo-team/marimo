@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import { init } from "@paralleldrive/cuid2";
 import { sidebarAtom } from "@/components/editor/renderers/vertical-layout/sidebar/state";
