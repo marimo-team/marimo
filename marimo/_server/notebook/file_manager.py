@@ -175,14 +175,15 @@ class AppFileManager:
         # Get the header in case it was modified by the user (e.g. package installation)
         handler = get_format_handler(path)
         header = handler.extract_header(previous_path or path)
+
         if header:
             notebook = NotebookSerializationV1(
                 app=notebook.app,
-                header=Header(value=header),
+                header=Header(value=header) if header else notebook.header,
                 cells=notebook.cells,
                 violations=notebook.violations,
                 valid=notebook.valid,
-                filename=notebook.filename,
+                filename=str(path),
             )
         contents = handler.serialize(notebook)
 
@@ -257,11 +258,7 @@ class AppFileManager:
 
         self._assert_path_does_not_exist(new_path)
 
-        needs_save = False
-
-        if self.is_notebook_named and self._filename is not None:
-            # Force a save after rename if filetype changed
-            needs_save = self._filename.suffix != new_path.suffix
+        if self._filename is not None:
             self.storage.rename(self._filename, new_path)
         else:
             # Create new file for unnamed notebooks
@@ -270,13 +267,12 @@ class AppFileManager:
         previous_filename = self._filename
         self._filename = new_path
 
-        if needs_save:
-            self._save_file(
-                new_path,
-                notebook=self.app.to_ir(),
-                persist=True,
-                previous_path=previous_filename,
-            )
+        self._save_file(
+            new_path,
+            notebook=self.app.to_ir(),
+            persist=True,
+            previous_path=previous_filename,
+        )
 
         return new_path.name
 
