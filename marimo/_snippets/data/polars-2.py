@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 
 import marimo
 
@@ -12,8 +12,8 @@ def _(mo):
         r"""
         # Polars: Memory Optimization with Data Types
 
-        This snippet demonstrates memory optimization in Polars using `Categorical` types for strings, 
-        smaller numeric types like `Float32`, and lazy evaluation. 
+        This snippet demonstrates memory optimization in Polars using `Categorical` types for strings,
+        smaller numeric types like `Float32`, and lazy evaluation.
         Converting string columns to categorical can reduce memory usage.
         """
     )

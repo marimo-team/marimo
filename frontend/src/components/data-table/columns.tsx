@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 "use no memo";
 
 import { PopoverClose } from "@radix-ui/react-popover";

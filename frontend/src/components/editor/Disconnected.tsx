@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import { ArrowRightSquareIcon } from "lucide-react";
 import { API } from "@/core/network/api";

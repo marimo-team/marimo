@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import type { GridCellKind, GridColumn } from "@glideapps/glide-data-grid";
 import type { FieldTypesWithExternalType } from "@/components/data-table/types";

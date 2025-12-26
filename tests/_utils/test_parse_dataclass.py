@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
 import datetime as dt
@@ -22,7 +22,7 @@ import pytest
 
 from marimo._config.config import ExperimentalConfigType
 from marimo._messaging.msgspec_encoder import asdict
-from marimo._runtime.requests import SetCellConfigRequest
+from marimo._runtime.commands import UpdateCellConfigCommand
 from marimo._types.ids import CellId_t
 from marimo._utils.parse_dataclass import parse_raw
 
@@ -173,13 +173,13 @@ class TestParseRaw:
         assert parsed == nested
 
     def test_set_cell_config(self) -> None:
-        config = SetCellConfigRequest(
+        config = UpdateCellConfigCommand(
             {
                 CellId_t("0"): {"disabled": True},
                 CellId_t("1"): {"disabled": False},
             }
         )
-        parsed = parse_raw(serialize(config), SetCellConfigRequest)
+        parsed = parse_raw(serialize(config), UpdateCellConfigCommand)
         assert parsed == config
 
     def test_unions(self) -> None:

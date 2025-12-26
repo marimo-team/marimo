@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
 import sys
@@ -99,5 +99,5 @@ def session_view() -> Generator[SessionView, None, None]:
     yield sv
 
     # Test all operations can be serialized/deserialized
-    for operation in sv.operations:
+    for operation in sv.notifications:
         assert_serialize_roundtrip(operation)

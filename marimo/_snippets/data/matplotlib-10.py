@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 
 import marimo
 
@@ -12,7 +12,7 @@ def _(mo):
         r"""
         # Matplotlib: Dual Y-Axis Visualization
 
-        Create plots with two different y-scales using `twinx()`. 
+        Create plots with two different y-scales using `twinx()`.
         Common for comparing different metrics on same x-axis.
         """
     )

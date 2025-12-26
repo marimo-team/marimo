@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import { mint, orange, slate } from "@radix-ui/colors";
 import type { TopLevelSpec } from "vega-lite";

@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import { python } from "@codemirror/lang-python";
 import { EditorState } from "@codemirror/state";
@@ -311,7 +311,7 @@ def outer():
               return a + b + z  # highlight: b
                          ^
           return inner()
-        
+
       "
     `);
   });

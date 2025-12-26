@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { VariableTable } from "@/components/variables/variables-table";
 import type { CellId } from "@/core/cells/ids";

@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 import React from "react";
 import { useDateFormatter, useLocale } from "react-aria";
 import { Tooltip } from "@/components/ui/tooltip";

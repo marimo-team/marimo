@@ -1,4 +1,4 @@
-# Copyright 2025 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -7,7 +7,7 @@ from typing import Optional
 from marimo._ai._tools.base import ToolBase
 from marimo._ai._tools.types import SuccessResult, ToolGuidelines
 from marimo._data.models import DataTableColumn
-from marimo._messaging.ops import VariableValue
+from marimo._messaging.notification import VariableValue
 from marimo._server.sessions import Session
 from marimo._types.ids import SessionId
 

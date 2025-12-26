@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import { acceptCompletion } from "@codemirror/autocomplete";
 import type { Language } from "@codemirror/language";

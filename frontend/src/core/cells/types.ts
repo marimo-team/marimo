@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import type { Milliseconds, Seconds } from "@/utils/time";
 import type { SerializedEditorState } from "../codemirror/types";

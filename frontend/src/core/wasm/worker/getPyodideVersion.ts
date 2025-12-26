@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 import { version as pyodideVersion } from "pyodide";
 
 const ALLOW_DEV_VERSIONS = false;

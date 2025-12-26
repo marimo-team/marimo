@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 """Public API for rendering marimo notebooks as HTML.
 
 This module provides a clean, public API for rendering marimo notebooks

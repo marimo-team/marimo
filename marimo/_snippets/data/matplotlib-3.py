@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 
 import marimo
 
@@ -12,7 +12,7 @@ def _(mo):
         r"""
         # Matplotlib: Time Series with Custom Formatting
 
-        Create time series visualizations with `plot_date()` and custom date formatting. 
+        Create time series visualizations with `plot_date()` and custom date formatting.
         Shows rolling averages and confidence intervals using `fill_between()`.
         """
     )
@@ -48,7 +48,7 @@ def _(np, pd, plt):
         ax.plot(dates, rolling_mean, 'b-', label=f'{window}-Day Mean')
 
         # Add confidence interval
-        ax.fill_between(dates, 
+        ax.fill_between(dates,
                        rolling_mean - 2*rolling_std,
                        rolling_mean + 2*rolling_std,
                        color='b', alpha=0.1, label='95% Confidence')

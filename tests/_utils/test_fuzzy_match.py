@@ -1,4 +1,4 @@
-# Copyright 2025 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 
 
 from marimo._utils.fuzzy_match import compile_regex, is_fuzzy_match

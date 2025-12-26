@@ -1,4 +1,4 @@
-# Copyright 2025 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 import asyncio
 from pathlib import Path
 

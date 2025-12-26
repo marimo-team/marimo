@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
 import json
@@ -412,10 +412,12 @@ def get_printed_object(
     start = time.time()
     console = None
     while time.time() - start < timeout:
-        if cell_id not in session.session_view.cell_operations:
+        if cell_id not in session.session_view.cell_notifications:
             time.sleep(0.1)
             continue
-        console = first(session.session_view.cell_operations[cell_id].console)
+        console = first(
+            session.session_view.cell_notifications[cell_id].console
+        )
         if console:
             break
     assert console

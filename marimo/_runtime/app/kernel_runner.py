@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
 import weakref
@@ -7,21 +7,21 @@ from typing import TYPE_CHECKING, Any
 from marimo._ast.cell import CellImpl
 from marimo._config.config import DEFAULT_CONFIG
 from marimo._runtime.app.common import RunOutput
+from marimo._runtime.commands import (
+    AppMetadata,
+    ExecuteCellCommand,
+    InvokeFunctionCommand,
+    UpdateUIElementCommand,
+)
 from marimo._runtime.context.types import get_context
 from marimo._runtime.patches import create_main_module
-from marimo._runtime.requests import (
-    AppMetadata,
-    ExecutionRequest,
-    FunctionCallRequest,
-    SetUIElementValueRequest,
-)
 from marimo._runtime.runner import cell_runner
 from marimo._server.model import SessionMode
 from marimo._types.ids import CellId_t
 
 if TYPE_CHECKING:
     from marimo._ast.app import InternalApp
-    from marimo._messaging.ops import HumanReadableStatus
+    from marimo._messaging.notification import HumanReadableStatus
     from marimo._plugins.core.web_component import JSONType
 
 
@@ -127,7 +127,7 @@ class AppKernelRunner:
 
     async def run(self, cells_to_run: set[CellId_t]) -> RunOutput:
         execution_requests = [
-            ExecutionRequest(cell_id=cid, code=cell._cell.code, request=None)
+            ExecuteCellCommand(cell_id=cid, code=cell._cell.code, request=None)
             for cid in cells_to_run
             if (cell := self.app.cell_manager.cell_data_at(cid).cell)
             is not None
@@ -151,13 +151,13 @@ class AppKernelRunner:
         return self.outputs, self._kernel.globals
 
     async def set_ui_element_value(
-        self, request: SetUIElementValueRequest
+        self, request: UpdateUIElementCommand
     ) -> bool:
         with self._runtime_context.install():
             return await self._kernel.set_ui_element_value(request)
 
     async def function_call(
-        self, request: FunctionCallRequest
+        self, request: InvokeFunctionCommand
     ) -> tuple[HumanReadableStatus, JSONType, bool]:
         with self._runtime_context.install():
             return await self._kernel.function_call_request(request)

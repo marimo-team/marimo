@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
 import ast
@@ -15,7 +15,8 @@ import msgspec.json
 from marimo._cli.print import orange
 from marimo._data.models import DataType
 from marimo._messaging.errors import Error as MarimoError
-from marimo._messaging.ops import MessageOperation
+from marimo._messaging.notification import NotificationMessage
+from marimo._runtime.commands import CommandMessage
 from marimo._server.session.serialize import (
     serialize_notebook,
     serialize_session_view,
@@ -32,8 +33,8 @@ def _generate_server_api_schema() -> dict[str, Any]:
     import marimo._config.config as config
     import marimo._data.models as data
     import marimo._messaging.errors as errors
-    import marimo._messaging.ops as ops
-    import marimo._runtime.requests as requests
+    import marimo._messaging.notification as notification
+    import marimo._runtime.commands as commands
     import marimo._secrets.models as secrets_models
     import marimo._server.models.completion as completion
     import marimo._server.models.export as export
@@ -47,18 +48,12 @@ def _generate_server_api_schema() -> dict[str, Any]:
     from marimo._ast.cell import CellConfig, RuntimeStateType
     from marimo._messaging.cell_output import CellChannel, CellOutput
     from marimo._messaging.mimetypes import KnownMimeType
-    from marimo._plugins.core.web_component import JSONType
     from marimo._runtime.packages.package_manager import PackageDescription
     from marimo._server.ai.tools.types import ToolDefinition
     from marimo._server.api.router import build_routes
-    from marimo._utils.dataclass_to_openapi import (
-        PythonTypeToOpenAPI,
-    )
     from marimo._version import __version__
 
-    # dataclass components used in websocket messages
-    # these are always snake_case
-    MESSAGES = [
+    MODELS = [
         # Base
         RuntimeStateType,
         KnownMimeType,
@@ -102,56 +97,52 @@ def _generate_server_api_schema() -> dict[str, Any]:
         secrets_models.SecretKeysWithProvider,
         secrets.CreateSecretRequest,
         # Operations
-        ops.CellOp,
-        ops.HumanReadableStatus,
-        ops.FunctionCallResult,
-        ops.SendUIElementMessage,
-        ops.RemoveUIElements,
-        ops.Interrupted,
-        ops.CompletedRun,
-        ops.KernelReady,
-        ops.CompletionResult,
-        ops.Alert,
-        ops.MissingPackageAlert,
-        ops.InstallingPackageAlert,
-        ops.Reconnected,
-        ops.Banner,
-        ops.Reload,
-        ops.VariableDeclaration,
-        ops.VariableValue,
-        ops.Variables,
-        ops.VariableValues,
-        ops.Datasets,
-        ops.DataColumnPreview,
-        ops.SQLTablePreview,
-        ops.SQLTableListPreview,
-        ops.DataSourceConnections,
-        ops.SecretKeysResult,
-        ops.CacheCleared,
-        ops.CacheInfoFetched,
-        ops.QueryParamsSet,
-        ops.QueryParamsAppend,
-        ops.QueryParamsDelete,
-        ops.QueryParamsClear,
-        ops.UpdateCellCodes,
-        ops.UpdateCellIdsRequest,
-        ops.FocusCell,
-        ops.MessageOperation,
+        notification.CellNotification,
+        notification.HumanReadableStatus,
+        notification.FunctionCallResultNotification,
+        notification.UIElementMessageNotification,
+        notification.RemoveUIElementsNotification,
+        notification.InterruptedNotification,
+        notification.CompletedRunNotification,
+        notification.KernelReadyNotification,
+        notification.CompletionResultNotification,
+        notification.AlertNotification,
+        notification.MissingPackageAlertNotification,
+        notification.InstallingPackageAlertNotification,
+        notification.ReconnectedNotification,
+        notification.BannerNotification,
+        notification.ReloadNotification,
+        notification.VariableDeclarationNotification,
+        notification.VariableValue,
+        notification.VariablesNotification,
+        notification.VariableValuesNotification,
+        notification.DatasetsNotification,
+        notification.DataColumnPreviewNotification,
+        notification.SQLTablePreviewNotification,
+        notification.SQLTableListPreviewNotification,
+        notification.DataSourceConnectionsNotification,
+        notification.SecretKeysResultNotification,
+        notification.CacheClearedNotification,
+        notification.CacheInfoNotification,
+        notification.QueryParamsSetNotification,
+        notification.QueryParamsAppendNotification,
+        notification.QueryParamsDeleteNotification,
+        notification.QueryParamsClearNotification,
+        notification.UpdateCellCodesNotification,
+        notification.UpdateCellIdsNotification,
+        notification.FocusCellNotification,
+        notification.NotificationMessage,
         # ai
         ChatMessage,
         ToolDefinition,
-    ]
-
-    # dataclass components used in requests/responses
-    REQUEST_RESPONSES = [
         # Sub components
         home.MarimoFile,
         files.FileInfo,
-        requests.ExecutionRequest,
+        commands.ExecuteCellCommand,
         snippets.SnippetSection,
         snippets.Snippet,
         snippets.Snippets,
-        requests.SetUIElementValueRequest,
+        commands.UpdateUIElementCommand,
         # Requests/responses
         completion.VariableContext,
         completion.SchemaColumn,
@@ -194,133 +185,94 @@ def _generate_server_api_schema() -> dict[str, Any]:
         home.ShutdownSessionRequest,
         home.WorkspaceFilesRequest,
         home.WorkspaceFilesResponse,
+        commands.ClearCacheCommand,
+        commands.CodeCompletionCommand,
+        commands.DebugCellCommand,
+        commands.DeleteCellCommand,
+        commands.ExecuteCellsCommand,
+        commands.ExecuteScratchpadCommand,
+        commands.ExecuteStaleCellsCommand,
+        commands.ExecuteCellCommand,
+        commands.GetCacheInfoCommand,
+        commands.HTTPRequest,
+        commands.InstallPackagesCommand,
+        commands.InvokeFunctionCommand,
+        commands.ListDataSourceConnectionCommand,
+        commands.ListSecretKeysCommand,
+        commands.ListSQLTablesCommand,
+        commands.ModelMessage,
+        commands.PreviewDatasetColumnCommand,
+        commands.PreviewSQLTableCommand,
+        commands.RenameNotebookCommand,
+        commands.StopKernelCommand,
+        commands.UpdateCellConfigCommand,
+        commands.UpdateUserConfigCommand,
+        commands.UpdateWidgetModelCommand,
+        commands.ValidateSQLCommand,
         models.BaseResponse,
-        models.FormatRequest,
+        models.ClearCacheRequest,
+        models.CodeCompletionRequest,
+        models.CopyNotebookRequest,
+        models.DebugCellRequest,
+        models.DeleteCellRequest,
+        models.ExecuteScratchpadRequest,
+        models.FormatCellsRequest,
         models.FormatResponse,
-        models.InstantiateRequest,
+        models.GetCacheInfoRequest,
+        models.InstallPackagesRequest,
+        models.InstantiateNotebookRequest,
+        models.InvokeAiToolRequest,
+        models.InvokeAiToolResponse,
+        models.InvokeFunctionRequest,
+        models.ListDataSourceConnectionRequest,
+        models.ListSecretKeysRequest,
+        models.ListSQLTablesRequest,
+        models.MCPRefreshResponse,
+        models.MCPStatusResponse,
+        models.PreviewDatasetColumnRequest,
+        models.PreviewSQLTableRequest,
         models.ReadCodeResponse,
-        models.RenameFileRequest,
-        models.RunRequest,
+        models.RefreshSecretsRequest,
+        models.RenameNotebookRequest,
+        models.ExecuteCellsRequest,
         models.SaveAppConfigurationRequest,
         models.SaveNotebookRequest,
-        models.CopyNotebookRequest,
         models.SaveUserConfigurationRequest,
         models.StdinRequest,
         models.SuccessResponse,
         models.SuccessResponse,
-        models.UpdateComponentValuesRequest,
-        models.InvokeAiToolRequest,
-        models.InvokeAiToolResponse,
-        models.MCPStatusResponse,
-        models.MCPRefreshResponse,
-        requests.CodeCompletionRequest,
-        requests.DeleteCellRequest,
-        requests.HTTPRequest,
-        requests.ExecuteMultipleRequest,
-        requests.ExecuteScratchpadRequest,
-        requests.ExecuteStaleRequest,
-        requests.ExecutionRequest,
-        requests.FunctionCallRequest,
-        requests.InstallMissingPackagesRequest,
-        requests.ListSecretKeysRequest,
-        requests.ClearCacheRequest,
-        requests.GetCacheInfoRequest,
-        requests.PdbRequest,
-        requests.PreviewDatasetColumnRequest,
-        requests.PreviewSQLTableListRequest,
-        requests.PreviewDataSourceConnectionRequest,
-        requests.PreviewSQLTableRequest,
-        requests.ValidateSQLRequest,
-        requests.RenameRequest,
-        requests.SetCellConfigRequest,
-        requests.ModelMessage,
-        requests.SetModelMessageRequest,
-        requests.SetUserConfigRequest,
-        requests.StopRequest,
+        models.UpdateCellConfigRequest,
+        models.UpdateCellIdsRequest,
+        models.UpdateUIElementValuesRequest,
+        models.UpdateUIElementRequest,
+        models.UpdateUserConfigRequest,
+        models.UpdateWidgetModelRequest,
+        models.ValidateSQLRequest,
     ]
-
-    processed_classes: dict[Any, str] = {
-        JSONType: "JSONType",
-    }
-    component_schemas: dict[str, Any] = {
-        # Hand-written schema to avoid circular dependencies
-        "JSONType": {
-            "oneOf": [
-                {"type": "string"},
-                {"type": "number"},
-                {"type": "object"},
-                {"type": "array"},
-                {"type": "boolean"},
-                {"type": "null"},
-            ]
-        },
-        "HTTPRequest": {"type": "null"},
-    }
-    # We must override the names of some Union Types,
-    # otherwise, their __name__ is "Union"
-    name_overrides: dict[Any, str] = {
-        JSONType: "JSONType",
-        errors.Error: "Error",
-        KnownMimeType: "MimeType",
-        data.DataType: "DataType",
-        data.NonNestedLiteral: "NonNestedLiteral",
-        RuntimeStateType: "RuntimeState",
-        CellChannel: "CellChannel",
-        ops.MessageOperation: "MessageOperation",
-    }
 
     # Hack to get the unions to be included in the schema
     class KnownUnions(msgspec.Struct):
-        operation: MessageOperation
+        notification: NotificationMessage
+        command: CommandMessage
         error: MarimoError
         data_type: DataType
 
-    specs = msgspec.json.schema_components(
-        MESSAGES + [KnownUnions],
+    _defs, component_schemas = msgspec.json.schema_components(
+        MODELS + [KnownUnions],
         ref_template="#/components/schemas/{name}",
     )
-    component_schemas = {
-        **specs[1],
-    }
-    processed_classes = {
-        **processed_classes,
-        **{name: name for name in specs[1].keys()},
-    }
-
-    converter = PythonTypeToOpenAPI(
-        camel_case=True, name_overrides=name_overrides
-    )
-    for cls in REQUEST_RESPONSES:
-        # Remove self from the list
-        # since it may not have been processed yet
-        if cls in processed_classes:
-            del processed_classes[cls]
-        name = name_overrides.get(cls, cls.__name__)  # type: ignore[attr-defined]
-        component_schemas[name] = converter.convert(cls, processed_classes)
-        processed_classes[cls] = name
 
     schemas_generator = SchemaGenerator(
         {
             "openapi": "3.1.0",
             "info": {"title": "marimo API", "version": __version__},
             "components": {
-                "schemas": {
-                    **component_schemas,
-                }
+                "schemas": component_schemas,
             },
         }
     )
 
-    schemas = schemas_generator.get_schema(routes=build_routes())
-
-    # Find/replace #/$defs with #/components/schemas
-    import json
-
-    schemas_str = json.dumps(schemas)
-    schemas_str = schemas_str.replace("#/$defs", "#/components/schemas")
-    schemas = json.loads(schemas_str)
-
-    return schemas
+    return schemas_generator.get_schema(routes=build_routes())
 
 
 @click.group(

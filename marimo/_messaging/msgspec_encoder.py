@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 """Msgspec encoder with custom type support for marimo."""
 
 from __future__ import annotations

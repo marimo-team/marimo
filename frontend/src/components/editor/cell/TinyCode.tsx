@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import { python } from "@codemirror/lang-python";
 import CodeMirror, { minimalSetup } from "@uiw/react-codemirror";

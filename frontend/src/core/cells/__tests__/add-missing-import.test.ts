@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import { createStore } from "jotai";
 import { beforeEach, describe, expect, it, vi } from "vitest";

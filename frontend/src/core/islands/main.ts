@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 import "./islands.css";
 import "../../css/common.css";
 import "../../css/globals.css";
@@ -30,7 +30,7 @@ import { MarimoValueInputEvent } from "../dom/events";
 import { UI_ELEMENT_REGISTRY } from "../dom/uiregistry";
 import { FUNCTIONS_REGISTRY } from "../functions/FunctionRegistry";
 import {
-  handleCellOperation,
+  handleCellNotificationeration,
   handleKernelReady,
   handleRemoveUIElements,
 } from "../kernel/handlers";
@@ -161,7 +161,7 @@ export async function initialize() {
         );
         return;
       case "cell-op":
-        handleCellOperation(msg.data, actions.handleCellMessage);
+        handleCellNotificationeration(msg.data, actions.handleCellMessage);
         return;
       case "alert":
         // TODO: support toast with islands
@@ -189,7 +189,7 @@ export async function initialize() {
         return;
       case "cache-cleared":
         return;
-      case "cache-info-fetched":
+      case "cache-info":
         return;
       default:
         logNever(msg.data);

@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 
 import marimo
 
@@ -12,7 +12,7 @@ def _(mo):
         r"""
         # Matplotlib: 3D Surface Plots
 
-        Create 3D surface plots using `ax.plot_surface()`. 
+        Create 3D surface plots using `ax.plot_surface()`.
         Common for visualizing mathematical functions and terrain data.
         """
     )

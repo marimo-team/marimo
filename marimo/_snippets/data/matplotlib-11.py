@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 
 import marimo
 
@@ -12,7 +12,7 @@ def _(mo):
         r"""
         # Matplotlib: Legend Customization and Styling
 
-        Customize legend placement, styling, and handles. 
+        Customize legend placement, styling, and handles.
         Shows common legend patterns in data visualization.
         """
     )

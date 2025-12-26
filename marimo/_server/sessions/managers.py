@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 """Queue and Kernel managers for session management.
 
 This module contains the infrastructure components for managing
@@ -24,8 +24,8 @@ from marimo._config.manager import MarimoConfigReader
 from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._messaging.types import KernelMessage
 from marimo._output.formatters.formatters import register_formatters
-from marimo._runtime import requests, runtime
-from marimo._runtime.requests import AppMetadata
+from marimo._runtime import commands, runtime
+from marimo._runtime.commands import AppMetadata
 from marimo._server.model import SessionMode
 from marimo._server.sessions.types import KernelManager, QueueManager
 from marimo._server.types import ProcessLike
@@ -45,22 +45,22 @@ class QueueManagerImpl(QueueManager):
         # Control messages for the kernel (run, set UI element, set config, etc
         # ) are sent through the control queue
         self.control_queue: Union[
-            MPQueue[requests.ControlRequest],
-            queue.Queue[requests.ControlRequest],
+            MPQueue[commands.CommandMessage],
+            queue.Queue[commands.CommandMessage],
         ] = context.Queue() if context is not None else queue.Queue()
 
         # Set UI element queues are stored in both the control queue and
         # this queue, so that the backend can merge/batch set-ui-element
         # requests.
         self.set_ui_element_queue: Union[
-            MPQueue[requests.SetUIElementValueRequest],
-            queue.Queue[requests.SetUIElementValueRequest],
+            MPQueue[commands.UpdateUIElementCommand],
+            queue.Queue[commands.UpdateUIElementCommand],
         ] = context.Queue() if context is not None else queue.Queue()
 
         # Code completion requests are sent through a separate queue
         self.completion_queue: Union[
-            MPQueue[requests.CodeCompletionRequest],
-            queue.Queue[requests.CodeCompletionRequest],
+            MPQueue[commands.CodeCompletionCommand],
+            queue.Queue[commands.CodeCompletionCommand],
         ] = context.Queue() if context is not None else queue.Queue()
 
         self.win32_interrupt_queue: (
@@ -96,7 +96,7 @@ class QueueManagerImpl(QueueManager):
         else:
             # kernel thread cleans up read/write conn and IOloop handler on
             # exit; we don't join the thread because we don't want to block
-            self.control_queue.put(requests.StopRequest())
+            self.control_queue.put(commands.StopKernelCommand())
 
         if isinstance(self.set_ui_element_queue, MPQueue):
             self.set_ui_element_queue.cancel_join_thread()
@@ -115,17 +115,17 @@ class QueueManagerImpl(QueueManager):
             self.win32_interrupt_queue.cancel_join_thread()
             self.win32_interrupt_queue.close()
 
-    def put_control_request(self, request: requests.ControlRequest) -> None:
+    def put_control_request(self, request: commands.CommandMessage) -> None:
         """Put a control request in the control queue."""
-        self.control_queue.put(request)
-        if isinstance(request, requests.SetUIElementValueRequest):
-            self.set_ui_element_queue.put(request)
+        # Completions are on their own queue
+        if isinstance(request, commands.CodeCompletionCommand):
+            self.completion_queue.put(request)
+            return
 
-    def put_completion_request(
-        self, request: requests.CodeCompletionRequest
-    ) -> None:
-        """Put a code completion request in the completion queue."""
-        self.completion_queue.put(request)
+        self.control_queue.put(request)
+        # Update UI elements are on both queues so they can be batched
+        if isinstance(request, commands.UpdateUIElementCommand):
+            self.set_ui_element_queue.put(request)
 
     def put_input(self, text: str) -> None:
         """Put an input request in the input queue."""
@@ -302,11 +302,15 @@ class KernelManagerImpl(KernelManager):
             if self.kernel_task.is_alive():
                 # We don't join the kernel thread because we don't want to server
                 # to block on it finishing
-                self.queue_manager.put_control_request(requests.StopRequest())
+                self.queue_manager.put_control_request(
+                    commands.StopKernelCommand()
+                )
         else:
             # otherwise we have something that is `ProcessLike`
             if self.profile_path is not None and self.kernel_task.is_alive():
-                self.queue_manager.put_control_request(requests.StopRequest())
+                self.queue_manager.put_control_request(
+                    commands.StopKernelCommand()
+                )
                 # Hack: Wait for kernel to exit and write out profile;
                 # joining the process hangs, but not sure why.
                 print_(

@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 /**
  * @type {import('eslint').Linter.Config}
  */
@@ -44,7 +44,7 @@ module.exports = {
     "header/header": [
       "error",
       "block",
-      " Copyright 2024 Marimo. All rights reserved. ",
+      " Copyright 2026 Marimo. All rights reserved. ",
     ],
 
     // Rules disabled because they have Biome equivalents

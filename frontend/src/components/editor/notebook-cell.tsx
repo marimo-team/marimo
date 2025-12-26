@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 import { closeCompletion, completionStatus } from "@codemirror/autocomplete";
 import type { EditorView } from "@codemirror/view";
 import clsx from "clsx";

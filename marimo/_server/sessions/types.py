@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 """Protocol definitions for session management components.
 
 These protocols define the public interfaces for all major session management
@@ -11,29 +11,32 @@ from __future__ import annotations
 from enum import Enum
 from typing import TYPE_CHECKING, Any, Optional, Protocol, Union
 
-from marimo._messaging.ops import MessageOperation
-from marimo._messaging.types import KernelMessage
-from marimo._runtime import requests
-from marimo._server.model import ConnectionState, SessionConsumer, SessionMode
-from marimo._server.notebook.file_manager import AppFileManager
-from marimo._server.session.session_view import SessionView
-from marimo._server.types import ProcessLike, QueueType
-from marimo._types.ids import ConsumerId
-from marimo._utils.typed_connection import TypedConnection
-
 if TYPE_CHECKING:
     import threading
     from collections.abc import Mapping
 
     from marimo._config.manager import MarimoConfigManager
+    from marimo._messaging.notification import NotificationMessage
+    from marimo._messaging.types import KernelMessage
+    from marimo._runtime import commands
+    from marimo._server.consumer import SessionConsumer
+    from marimo._server.model import (
+        ConnectionState,
+        SessionMode,
+    )
+    from marimo._server.notebook.file_manager import AppFileManager
+    from marimo._server.session.session_view import SessionView
+    from marimo._server.types import ProcessLike, QueueType
+    from marimo._types.ids import ConsumerId
+    from marimo._utils.typed_connection import TypedConnection
 
 
 class QueueManager(Protocol):
     """Protocol for queue management."""
 
-    control_queue: QueueType[requests.ControlRequest]
-    set_ui_element_queue: QueueType[requests.SetUIElementValueRequest]
-    completion_queue: QueueType[requests.CodeCompletionRequest]
+    control_queue: QueueType[commands.CommandMessage]
+    set_ui_element_queue: QueueType[commands.UpdateUIElementCommand]
+    completion_queue: QueueType[commands.CodeCompletionCommand]
     input_queue: QueueType[str]
     stream_queue: Optional[QueueType[Union[KernelMessage, None]]]
     win32_interrupt_queue: QueueType[bool] | None
@@ -42,14 +45,8 @@ class QueueManager(Protocol):
         """Close all queues."""
         ...
 
-    def put_control_request(self, request: requests.ControlRequest) -> None:
+    def put_control_request(self, request: commands.CommandMessage) -> None:
         """Put a control request in the control queue."""
-        ...
-
-    def put_completion_request(
-        self, request: requests.CodeCompletionRequest
-    ) -> None:
-        """Put a code completion request in the completion queue."""
         ...
 
     def put_input(self, text: str) -> None:
@@ -139,16 +136,10 @@ class Session(Protocol):
 
     def put_control_request(
         self,
-        request: requests.ControlRequest,
+        request: commands.CommandMessage,
         from_consumer_id: Optional[ConsumerId],
     ) -> None:
         """Put a control request in the control queue."""
-        ...
-
-    def put_completion_request(
-        self, request: requests.CodeCompletionRequest
-    ) -> None:
-        """Put a code completion request in the completion queue."""
         ...
 
     def put_input(self, text: str) -> None:
@@ -173,9 +164,9 @@ class Session(Protocol):
         """Return the connection state of the session."""
         ...
 
-    def write_operation(
+    def notify(
         self,
-        operation: MessageOperation,
+        operation: NotificationMessage | KernelMessage,
         from_consumer_id: Optional[ConsumerId],
     ) -> None:
         """Write an operation to the session consumer and the session view."""
@@ -185,7 +176,7 @@ class Session(Protocol):
         self,
         request: Any,
         *,
-        http_request: Optional[requests.HTTPRequest],
+        http_request: Optional[commands.HTTPRequest],
     ) -> None:
         """Instantiate the app."""
         ...

@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
 import contextlib
@@ -122,15 +122,15 @@ class ThreadSafeStream(Stream):
             try:
                 self.pipe.send(data)
             except OSError as e:
-                from marimo._messaging.ops import (
-                    deserialize_kernel_operation_name,
+                from marimo._messaging.serde import (
+                    deserialize_kernel_notification_name,
                 )
 
                 # Most likely a BrokenPipeError, caused by the
                 # server process shutting down
                 LOGGER.debug(
                     "Error when writing (op: %s) to pipe: %s",
-                    deserialize_kernel_operation_name(data),
+                    deserialize_kernel_notification_name(data),
                     e,
                 )
 

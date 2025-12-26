@@ -1,9 +1,10 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
 import os
 import random
 import tempfile
+from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 from unittest.mock import Mock, patch
@@ -134,8 +135,10 @@ def test_save_with_header(client: TestClient) -> None:
     path = Path(filename)
     assert path.exists()
 
+    copyright_year = datetime.now().year
     header = (
-        '"""This is a docstring"""\n\n' + "# Copyright 2024\n# Linter ignore\n"
+        '"""This is a docstring"""\n\n'
+        + f"# Copyright {copyright_year}\n# Linter ignore\n"
     )
     # Prepend a header to the file
     contents = path.read_text()

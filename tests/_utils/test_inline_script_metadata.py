@@ -13,7 +13,7 @@ from marimo._utils.scripts import read_pyproject_from_script
 
 def test_get_dependencies():
     SCRIPT = """
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 # /// script
 # requires-python = ">=3.11"
 # dependencies = [

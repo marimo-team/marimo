@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
 import time
@@ -9,7 +9,11 @@ import pytest
 
 from marimo._config.manager import UserConfigManager
 from marimo._messaging.msgspec_encoder import asdict
-from marimo._messaging.ops import CellOp, KernelCapabilities, KernelReady
+from marimo._messaging.notification import (
+    CellNotification,
+    KernelCapabilitiesNotification,
+    KernelReadyNotification,
+)
 from marimo._server.sessions import Session
 from marimo._types.ids import SessionId
 from marimo._utils.parse_dataclass import parse_raw
@@ -35,7 +39,7 @@ def create_response(
         "kiosk": False,
         "configs": [{"disabled": False, "hide_code": False}],
         "app_config": {"width": "full"},
-        "capabilities": asdict(KernelCapabilities()),
+        "capabilities": asdict(KernelCapabilitiesNotification()),
     }
     response.update(partial_response)
     return response
@@ -56,9 +60,9 @@ HEADERS = {
 def assert_kernel_ready_response(
     raw_data: dict[str, Any], response: dict[str, Any]
 ) -> None:
-    data = parse_raw(raw_data["data"], KernelReady)
+    data = parse_raw(raw_data["data"], KernelReadyNotification)
     print(response)
-    expected = parse_raw(response, KernelReady)
+    expected = parse_raw(response, KernelReadyNotification)
     assert data.cell_ids == expected.cell_ids
     assert data.codes == expected.codes
     assert data.names == expected.names
@@ -93,10 +97,10 @@ def test_refresh_session(client: TestClient) -> None:
     session_view = session.session_view
 
     # Mimic cell execution time save
-    cell_op = CellOp("Hbol")
-    session_view.save_execution_time(cell_op, "start")
+    cell_notification = CellNotification("Hbol")
+    session_view.save_execution_time(cell_notification, "start")
     time.sleep(0.123)
-    session_view.save_execution_time(cell_op, "end")
+    session_view.save_execution_time(cell_notification, "end")
     last_exec_time = session_view.last_execution_time["Hbol"]
 
     # New session with new ID (simulates refresh)
@@ -303,7 +307,6 @@ def test_restart_session(client: TestClient) -> None:
 def test_resume_session_with_watch(client: TestClient) -> None:
     session_manager = get_session_manager(client)
     session_manager.watch = True
-    session_manager._setup_file_watching()
 
     with client.websocket_connect(_create_ws_url("123")) as websocket:
         data = websocket.receive_json()
@@ -347,7 +350,7 @@ def test_resume_session_with_watch(client: TestClient) -> None:
 
         # Check for KernelReady message
         data = websocket.receive_json()
-        assert parse_raw(data["data"], KernelReady)
+        assert parse_raw(data["data"], KernelReadyNotification)
         messages: list[dict[str, Any]] = []
 
         # Wait for update-cell-codes message
@@ -373,7 +376,7 @@ def test_resume_session_with_watch(client: TestClient) -> None:
     assert session_view.last_executed_code == {"MJUe": "x=10; x"}
 
     session_manager.watch = False
-    session_manager.watcher_manager.stop_all()
+    session_manager._watcher_manager.stop_all()
     client.post("/api/kernel/shutdown", headers=HEADERS)
 
 

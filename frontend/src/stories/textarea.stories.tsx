@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";

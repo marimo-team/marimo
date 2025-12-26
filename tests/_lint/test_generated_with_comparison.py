@@ -1,4 +1,4 @@
-# Copyright 2025 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 
 from marimo._lint.linter import contents_differ_excluding_generated_with
 

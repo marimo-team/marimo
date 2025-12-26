@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 import { logNever } from "@/utils/assertNever";
 import { invariant } from "@/utils/invariant";
 import { type Seconds, Time } from "@/utils/time";

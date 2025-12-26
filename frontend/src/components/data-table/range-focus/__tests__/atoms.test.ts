@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import type { Cell, Row, Table } from "@tanstack/react-table";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";

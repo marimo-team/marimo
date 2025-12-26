@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import type * as PopoverPrimitive from "@radix-ui/react-popover";
 import { GripHorizontalIcon } from "lucide-react";

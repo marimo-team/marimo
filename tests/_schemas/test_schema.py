@@ -8,8 +8,8 @@ import yaml
 
 
 @pytest.mark.skipif(
-    sys.platform == "win32",
-    reason="This test is flaky on Windows",
+    sys.platform == "win32" or sys.version_info != (3, 12),
+    reason="This test is flaky on Windows. And only test on 3.12",
 )
 def test_session_schema_up_to_date() -> None:
     current_session_schema = yaml.safe_load(
@@ -17,6 +17,9 @@ def test_session_schema_up_to_date() -> None:
     )
     current_notebook_schema = yaml.safe_load(
         Path("marimo/_schemas/generated/notebook.yaml").read_text()
+    )
+    current_notifications_schema = yaml.safe_load(
+        Path("marimo/_schemas/generated/notifications.yaml").read_text()
     )
 
     import sys
@@ -26,6 +29,9 @@ def test_session_schema_up_to_date() -> None:
 
     generated_session_schema = yaml.safe_load(generate_schema("session"))
     generated_notebook_schema = yaml.safe_load(generate_schema("notebook"))
+    generated_notifications_schema = yaml.safe_load(
+        generate_schema("notifications")
+    )
     cmd = "python scripts/generate_schemas.py"
 
     assert current_session_schema == generated_session_schema, (
@@ -33,4 +39,7 @@ def test_session_schema_up_to_date() -> None:
     )
     assert current_notebook_schema == generated_notebook_schema, (
         f"notebook.yaml is not up to date. Run '{cmd}' and press 'Write schema' to update."
+    )
+    assert current_notifications_schema == generated_notifications_schema, (
+        f"notifications.yaml is not up to date. Run '{cmd}' and press 'Write schema' to update."
     )

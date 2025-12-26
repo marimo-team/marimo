@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -28,7 +28,7 @@ from marimo._server.api.endpoints.packages import router as packages_router
 from marimo._server.api.endpoints.secrets import router as secrets_router
 from marimo._server.api.endpoints.sql import router as sql_router
 from marimo._server.api.endpoints.terminal import router as terminal_router
-from marimo._server.api.endpoints.ws import router as ws_router
+from marimo._server.api.endpoints.ws_endpoint import router as ws_router
 from marimo._server.router import APIRouter
 
 if TYPE_CHECKING:

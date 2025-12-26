@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
 import uuid
@@ -11,7 +11,7 @@ from marimo._messaging.context import (
     http_request_context,
     run_id_context,
 )
-from marimo._runtime.requests import HTTPRequest
+from marimo._runtime.commands import HTTPRequest
 
 
 class TestRunIDContext:

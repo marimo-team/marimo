@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 import type { Query } from "compassql/build/src/query/query";
 import { SHORT_WILDCARD } from "compassql/build/src/wildcard";
 import type { QueryCreator } from "./types";

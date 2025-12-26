@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 """Edge computation logic for cell dependencies."""
 
 from __future__ import annotations
