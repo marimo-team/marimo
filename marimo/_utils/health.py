@@ -6,7 +6,7 @@ import os
 import subprocess
 import sys
 import time
-from typing import Any, Optional, TypedDict
+from typing import Optional, TypedDict
 
 from marimo import _loggers
 
