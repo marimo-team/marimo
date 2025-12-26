@@ -28,6 +28,7 @@ class MemoryStats(TypedDict):
     free: int
 
 
+# Constants for cgroup file locations
 CGROUP_V2_MEMORY_MAX_FILE = "/sys/fs/cgroup/memory.max"
 CGROUP_V2_MEMORY_CURRENT_FILE = "/sys/fs/cgroup/memory.current"
 CGROUP_V1_MEMORY_LIMIT_FILE = "/sys/fs/cgroup/memory/memory.limit_in_bytes"
@@ -246,54 +247,41 @@ def get_cgroup_mem_stats() -> Optional[MemoryStats]:
             'percent': 50.0,         # percentage
         }
     """
-
     try:
         # Try cgroup v2 first
         if os.path.exists(CGROUP_V2_MEMORY_MAX_FILE):
             with open(CGROUP_V2_MEMORY_MAX_FILE, encoding="utf-8") as f:
                 memory_max = f.read().strip()
-                f.close()
             with open(CGROUP_V2_MEMORY_CURRENT_FILE, encoding="utf-8") as f:
                 memory_current = f.read().strip()
-                f.close()
 
             if memory_max != "max":
                 total = int(memory_max)
                 used = int(memory_current)
                 available = total - used
                 percent = (used / total) * 100 if total > 0 else 0
-                free = total - used
                 return MemoryStats(
                     total=total,
                     used=used,
                     available=available,
                     percent=percent,
-                    free=free,
+                    free=available,  # free == available for cgroup memory
                 )
         # Fallback to cgroup v1
         elif os.path.exists(CGROUP_V1_MEMORY_LIMIT_FILE):
-            with open(
-                CGROUP_V1_MEMORY_LIMIT_FILE,
-                encoding="utf-8",
-            ) as f:
+            with open(CGROUP_V1_MEMORY_LIMIT_FILE, encoding="utf-8") as f:
                 total = int(f.read().strip())
-                f.close()
-            with open(
-                CGROUP_V1_MEMORY_USAGE_FILE,
-                encoding="utf-8",
-            ) as f:
+            with open(CGROUP_V1_MEMORY_USAGE_FILE, encoding="utf-8") as f:
                 used = int(f.read().strip())
-                f.close()
             available = total - used
             percent = (used / total) * 100 if total > 0 else 0
-            free = total - used
 
             return MemoryStats(
                 total=total,
                 used=used,
                 available=available,
                 percent=percent,
-                free=free,
+                free=available,  # free == available for cgroup memory
             )
     except (FileNotFoundError, PermissionError, ValueError) as e:
         LOGGER.debug(f"Error reading container memory stats: {e}")
@@ -328,15 +316,20 @@ def get_cgroup_cpu_percent() -> Optional[float]:
     Get CPU usage percentage for a cgroup-limited container.
 
     Works like psutil.cpu_percent(interval=None):
-    - First call stores the current reading and returns None
+    - First call stores the current reading and returns 0.0
     - Subsequent calls return the CPU percent since the last call
 
     Returns:
         CPU usage as a percentage (0-100).
-        0.0 if cgroup limits are configured but unable to read current usage (ie on the first call)
+        0.0 if cgroup limits are configured but unable to read current usage
+            (e.g., on the first call)
         None if cgroup limits are not configured or unable to read.
     """
     global _last_cgroup_cpu_sample
+
+    # Early return if no CPU limit is configured
+    if not _has_cgroup_cpu_limit():
+        return None
 
     try:
         # Read current usage (microseconds)
@@ -355,10 +348,6 @@ def get_cgroup_cpu_percent() -> Optional[float]:
             with open(CGROUP_V1_CPU_USAGE_FILE, encoding="utf-8") as f:
                 current_usage = int(f.read().strip()) // 1_000_000  # ns -> μs
 
-        else:
-            # No cgroup files exist
-            return None
-
         if current_usage is None:
             return 0.0
 
@@ -369,7 +358,7 @@ def get_cgroup_cpu_percent() -> Optional[float]:
         current_time = time.time()
 
         if _last_cgroup_cpu_sample is None:
-            # First call - store reading, return None (like psutil's first call)
+            # First call - store reading, return 0.0 (like psutil's first call)
             _last_cgroup_cpu_sample = (current_usage, current_time)
             return 0.0
 
