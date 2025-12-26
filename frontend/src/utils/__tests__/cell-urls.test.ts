@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { EDGE_CASE_CELL_NAMES } from "../../__tests__/mocks";
 import {

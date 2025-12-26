@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import type { TopLevelSpec } from "vega-lite";
 import type { NonNormalizedSpec } from "vega-lite/types_unstable/spec/index.js";

@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import { Panel, PanelGroup } from "react-resizable-panels";
 import type { AppConfig } from "@/core/config/config-schema";

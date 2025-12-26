@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import { execSync } from "node:child_process";
 import { codecovVitePlugin } from "@codecov/vite-plugin";

@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 """Event system for session lifecycle events.
 
 Provides an event bus and listeners for session creation, closure, and resumption.

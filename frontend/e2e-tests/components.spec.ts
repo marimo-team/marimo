@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import { fileURLToPath } from "node:url";
 import { expect, type Page, test } from "@playwright/test";

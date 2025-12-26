@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import type { SQLConfig, SQLDialect } from "@codemirror/lang-sql";
 import { atom } from "jotai";

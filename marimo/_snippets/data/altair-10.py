@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 
 import marimo
 
@@ -12,7 +12,7 @@ def _(mo):
         r"""
         # Visualization: Box Plot with Violin Layer in Altair
 
-        Create layered box and violin plots with Altair. Box plots display quartiles via `mark_boxplot()` 
+        Create layered box and violin plots with Altair. Box plots display quartiles via `mark_boxplot()`
         while violin plots show density distributions using `transform_density()`.
         Combining them reveals both summary statistics and full data distributions in a single visualization.
         """
@@ -36,7 +36,7 @@ def _(alt, data):
         # Create the base chart for the box plot
         box_plot = alt.Chart(source).mark_boxplot(size=50).encode(  # Increased box size
             x=alt.X('Origin:N', axis=alt.Axis(labelFontSize=12, titleFontSize=14)),  # Larger font
-            y=alt.Y('Horsepower:Q', 
+            y=alt.Y('Horsepower:Q',
                     title='Horsepower',
                     scale=alt.Scale(zero=False),
                     axis=alt.Axis(labelFontSize=12, titleFontSize=14)),  # Larger font
@@ -69,7 +69,7 @@ def _(alt, data):
             labelFontSize=12,
             titleFontSize=14
         ).interactive()
-        
+
         return chart
 
     create_box_violin_plot()

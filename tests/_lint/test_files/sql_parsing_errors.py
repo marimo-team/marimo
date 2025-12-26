@@ -1,4 +1,4 @@
-# Copyright 2025 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 """Test file with SQL parsing errors to test log rules positioning."""
 
 import marimo

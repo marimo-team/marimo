@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 // @ts-expect-error - vega-parser is not typed
 import { parse } from "vega-parser";

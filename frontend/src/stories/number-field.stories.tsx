@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import { Label } from "@/components/ui/label";
 import { NumberField } from "@/components/ui/number-field";

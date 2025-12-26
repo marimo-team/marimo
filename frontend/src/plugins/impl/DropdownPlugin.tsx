@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 import { type JSX, useId } from "react";
 import { z } from "zod";
 import { NativeSelect } from "../../components/ui/native-select";

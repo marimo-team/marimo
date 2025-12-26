@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 export function getMarimoWheel(version: string) {
   if (import.meta.env.DEV && import.meta.env.VITE_WASM_MARIMO_PREBUILT_WHEEL) {

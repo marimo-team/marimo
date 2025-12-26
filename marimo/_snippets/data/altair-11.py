@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 
 import marimo
 
@@ -12,7 +12,7 @@ def _(mo):
         r"""
         # Visualization: Faceted Charts in Altair
 
-        Faceted charts split your data into multiple views based on categories, making it easy to spot patterns and compare groups. 
+        Faceted charts split your data into multiple views based on categories, making it easy to spot patterns and compare groups.
         Built with Altair's `facet()` method and includes interactive zoom/pan controls via `.interactive()`.
         """
     )
@@ -53,7 +53,7 @@ def _(alt, data):
         ).configure_title(
             fontSize=16
         )
-        
+
         return chart
 
     create_faceted_chart()

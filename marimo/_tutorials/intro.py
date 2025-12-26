@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 
 import marimo
 
@@ -393,7 +393,7 @@ def _():
                 the plus button to the left of the cell, which appears on
                 mouse hover.
 
-            2. _Move_ a cell up or down by dragging on the handle to the 
+            2. _Move_ a cell up or down by dragging on the handle to the
                 right of the cell, which appears on mouse hover.
 
             3. _Delete_ a cell by clicking the trash bin icon. Bring it
@@ -454,9 +454,9 @@ def _():
             """
            You can leave Marimo & shut down the server by clicking the
            circled X at the top right of the screen and responding
-           to the prompt. 
+           to the prompt.
 
-           :floppy_disk: _Be sure to save your work first!_ 
+           :floppy_disk: _Be sure to save your work first!_
            """
         ),
     }

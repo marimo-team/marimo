@@ -3,7 +3,7 @@ title: Sql
 marimo-version: 0.0.0
 width: medium
 header: |-
-  # Copyright 2025 Marimo. All rights reserved.
+  # Copyright 2026 Marimo. All rights reserved.
   # /// script
   # requires-python = ">=3.12"
   # dependencies = [

@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import { Slot } from "@marimo-team/react-slotz";
 import React, { memo } from "react";

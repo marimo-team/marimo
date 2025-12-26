@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import { partition } from "lodash-es";
 import { KeyIcon, PlusCircleIcon } from "lucide-react";

@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 """Session extensions for composable session features.
 
 Extensions provide a way to add cross-cutting concerns to sessions

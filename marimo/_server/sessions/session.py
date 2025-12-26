@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 """Core Session class for managing client sessions.
 
 Each session represents a single client connection with its own Python kernel

@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 import { DatabaseIcon, DiamondPlusIcon, PlusIcon } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/editor/inputs/Inputs";

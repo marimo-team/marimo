@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 /**
  * Converts a Blob or File to either a base64-encoded string or a data URL.

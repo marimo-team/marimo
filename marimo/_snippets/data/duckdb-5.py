@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 
 import marimo
 
@@ -12,7 +12,7 @@ def _(mo):
         r"""
         # DuckDB: Join Operations & Multi-Table Queries
 
-        This snippet demonstrates how to perform JOIN operations between 
+        This snippet demonstrates how to perform JOIN operations between
         two DataFrames using DuckDB's SQL engine within marimo.
         """
     )

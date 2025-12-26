@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 import type { components, paths } from "@marimo-team/marimo-api";
 import type { CellId } from "../cells/ids";
 

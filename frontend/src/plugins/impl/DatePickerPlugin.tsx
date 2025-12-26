@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import { type CalendarDate, parseDate } from "@internationalized/date";
 import type { JSX } from "react";

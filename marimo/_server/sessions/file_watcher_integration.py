@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 """File watcher integration for sessions.
 
 Provides clean abstraction for attaching/detaching file watchers to sessions

@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import type { Schema } from "compassql/build/src/schema";
 import { SHORT_WILDCARD } from "compassql/build/src/wildcard";

@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import { renderHook, waitFor } from "@testing-library/react";
 import * as msw from "msw";

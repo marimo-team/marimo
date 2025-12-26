@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 import { ChevronDown, ChevronUp } from "lucide-react";
 import React from "react";
 import {

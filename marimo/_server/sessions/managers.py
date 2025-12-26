@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 """Queue and Kernel managers for session management.
 
 This module contains the infrastructure components for managing

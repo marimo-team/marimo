@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 
 import marimo
 
@@ -12,7 +12,7 @@ def _(mo):
         r"""
         # Polars: Missing Data and Data Quality
 
-        This snippet demonstrates efficient handling of missing values, data validation, 
+        This snippet demonstrates efficient handling of missing values, data validation,
         and type coercion in Polars.
 
         Example: `df.with_columns(pl.col('value').fill_null(pl.col('value').mean()))`

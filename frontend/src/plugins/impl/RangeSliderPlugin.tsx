@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import { isEqual } from "lodash-es";
 import { type JSX, useEffect, useId, useState } from "react";

@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 
 import marimo
 
@@ -12,7 +12,7 @@ def _(mo):
         r"""
         # Matplotlib: Distribution Plots with Histograms and Box Plots
 
-        Create statistical plots using `hist()`, `boxplot()`, and `violinplot()`. 
+        Create statistical plots using `hist()`, `boxplot()`, and `violinplot()`.
         Common for data distribution analysis with customizable bins and orientations.
         """
     )

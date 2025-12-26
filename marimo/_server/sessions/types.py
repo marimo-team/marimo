@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 """Protocol definitions for session management components.
 
 These protocols define the public interfaces for all major session management

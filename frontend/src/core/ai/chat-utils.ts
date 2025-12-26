@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import type { UIMessage } from "@ai-sdk/react";
 import { Logger } from "@/utils/Logger";

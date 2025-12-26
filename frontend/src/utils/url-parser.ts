@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 const urlRegex = /(https?:\/\/\S+)/;
 const imageRegex = /\.(png|jpe?g|gif|webp|svg|ico)(\?.*)?$/i;

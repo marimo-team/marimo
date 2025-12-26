@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 """Common session event listeners.
 
 Provides reusable listeners for common session lifecycle concerns like

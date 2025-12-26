@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 """The marimo library.
 
 The marimo library brings marimo notebooks to life with powerful

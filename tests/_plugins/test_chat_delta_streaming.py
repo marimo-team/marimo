@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 """Tests for delta-based streaming in chat UI."""
 
 from __future__ import annotations

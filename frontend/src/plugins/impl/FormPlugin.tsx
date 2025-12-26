@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import { Loader2Icon } from "lucide-react";
 import { type JSX, useEffect, useRef, useState } from "react";

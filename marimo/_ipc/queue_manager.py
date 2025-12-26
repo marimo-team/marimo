@@ -1,4 +1,4 @@
-# Copyright 2025 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 """Queue manager for generic inter-process communication."""
 
 from __future__ import annotations
