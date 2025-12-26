@@ -7,6 +7,7 @@ import { createTracebackInfoAtom } from "@/core/cells/cells";
 import { type CellId, HTMLCellId, SCRATCH_CELL_ID } from "@/core/cells/ids";
 import type { KeymapConfig } from "@/core/config/config-schema";
 import type { HotkeyProvider } from "@/core/hotkeys/hotkeys";
+import { withCtrlEquivalents } from "@/core/hotkeys/shortcuts";
 import { store } from "@/core/state/jotai";
 import { createObservable } from "@/core/state/observable";
 import { formatKeymapExtension } from "../extensions";
@@ -299,7 +300,8 @@ function cellKeymaps({
   }
 
   // Highest priority so that we can override the default keymap
-  return [Prec.high(keymap.of(keybindings))];
+  // withCtrlEquivalents adds Ctrl variants for Cmd shortcuts on macOS
+  return [Prec.high(keymap.of(withCtrlEquivalents(keybindings)))];
 }
 
 /**
