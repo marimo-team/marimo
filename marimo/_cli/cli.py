@@ -339,6 +339,14 @@ such as incorrectly overwriting package requirements or failing to write out
 requirements. These and other issues are described in
 https://github.com/marimo-team/marimo/issues/5219.""",
 )
+@click.option(
+    "--trusted/--untrusted",
+    is_flag=True,
+    default=None,
+    show_default=False,
+    type=bool,
+    help="Run notebooks hosted remotely on the host machine; if --untrusted, runs marimo in a Docker container.",
+)
 @click.option("--profile-dir", default=None, type=str, hidden=True)
 @click.option(
     "--watch",
@@ -421,6 +429,7 @@ def edit(
     skip_update_check: bool,
     sandbox: Optional[bool],
     dangerous_sandbox: Optional[bool],
+    trusted: Optional[bool],
     profile_dir: Optional[str],
     watch: bool,
     skew_protection: bool,
@@ -448,10 +457,7 @@ def edit(
         )
         name = path.absolute_name
 
-    # If file is a url, we prompt to run in docker
-    # We only do this for remote files,
-    # but later we can make this a CLI flag
-    if name is not None and prompt_run_in_docker_container(name):
+    if prompt_run_in_docker_container(name, trusted=trusted):
         from marimo._cli.run_docker import run_in_docker
 
         run_in_docker(
@@ -885,6 +891,14 @@ Example:
     help=check_message,
 )
 @click.option(
+    "--trusted/--untrusted",
+    is_flag=True,
+    default=None,
+    show_default=False,
+    type=bool,
+    help="Run notebooks hosted remotely on the host machine; if --untrusted, runs marimo in a Docker container.",
+)
+@click.option(
     "--server-startup-command",
     default=None,
     type=str,
@@ -921,6 +935,7 @@ def run(
     redirect_console_to_browser: bool,
     sandbox: Optional[bool],
     check: bool,
+    trusted: Optional[bool],
     server_startup_command: Optional[str],
     asset_url: Optional[str],
     name: str,
@@ -928,10 +943,7 @@ def run(
 ) -> None:
     from marimo._cli.sandbox import run_in_sandbox, should_run_in_sandbox
 
-    # If file is a url, we prompt to run in docker
-    # We only do this for remote files,
-    # but later we can make this a CLI flag
-    if prompt_run_in_docker_container(name):
+    if prompt_run_in_docker_container(name, trusted=trusted):
         from marimo._cli.run_docker import run_in_docker
 
         run_in_docker(

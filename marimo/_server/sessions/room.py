@@ -8,15 +8,17 @@ session) and can have multiple kiosk consumers.
 
 from __future__ import annotations
 
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 from marimo import _loggers
-from marimo._messaging.ops import MessageOperation
-from marimo._server.model import ConnectionState, SessionConsumer
+from marimo._messaging.types import KernelMessage
+from marimo._server.model import ConnectionState
 from marimo._types.ids import ConsumerId
-from marimo._utils.disposable import Disposable
 
 LOGGER = _loggers.marimo_logger()
+
+if TYPE_CHECKING:
+    from marimo._server.consumer import SessionConsumer
 
 
 class Room:
@@ -29,7 +31,6 @@ class Room:
     def __init__(self) -> None:
         self.main_consumer: Optional[SessionConsumer] = None
         self.consumers: dict[SessionConsumer, ConsumerId] = {}
-        self.disposables: dict[SessionConsumer, Disposable] = {}
 
     @property
     def size(self) -> int:
@@ -38,14 +39,13 @@ class Room:
     def add_consumer(
         self,
         consumer: SessionConsumer,
-        dispose: Disposable,
+        *,
         consumer_id: ConsumerId,
         # Whether the consumer is the main session consumer
         # We only allow one main consumer, the rest are kiosk consumers
         main: bool,
     ) -> None:
         self.consumers[consumer] = consumer_id
-        self.disposables[consumer] = dispose
         if main:
             assert self.main_consumer is None, (
                 "Main session consumer already exists"
@@ -62,27 +62,23 @@ class Room:
         if consumer == self.main_consumer:
             self.main_consumer = None
         self.consumers.pop(consumer)
-        disposable = self.disposables.pop(consumer)
-        try:
-            consumer.on_stop()
-        finally:
-            disposable.dispose()
+        consumer.on_detach()
 
     def broadcast(
         self,
-        operation: MessageOperation,
+        notification: KernelMessage,
+        *,
         except_consumer: Optional[ConsumerId],
     ) -> None:
+        """Broadcast a notification to all consumers except the one specified."""
         for consumer in self.consumers:
             if consumer.consumer_id == except_consumer:
                 continue
             if consumer.connection_state() == ConnectionState.OPEN:
-                consumer.write_operation(operation)
+                consumer.notify(notification)
 
     def close(self) -> None:
-        for consumer in self.consumers:
-            disposable = self.disposables.pop(consumer)
-            consumer.on_stop()
-            disposable.dispose()
+        # We don't need to detach consumers here because
+        # they will be detached when the session is closed.
         self.consumers = {}
         self.main_consumer = None

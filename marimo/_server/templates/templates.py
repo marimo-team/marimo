@@ -54,7 +54,7 @@ def _get_mount_config(
     show_app_code: bool = True,
     session_snapshot: Optional[NotebookSessionV1] = None,
     notebook_snapshot: Optional[NotebookV1] = None,
-    remote_url: Optional[str] = None,
+    runtime_config: Optional[list[dict[str, Any]]] = None,
 ) -> str:
     """
     Return a JSON string with custom indentation and sorting.
@@ -75,7 +75,7 @@ def _get_mount_config(
         },
         "notebook": notebook_snapshot,
         "session": session_snapshot,
-        "runtime_config": [{"url": remote_url}] if remote_url else None,
+        "runtime_config": runtime_config,
     }
 
     return """{{
@@ -124,7 +124,6 @@ def home_page_template(
             user_config=user_config,
             config_overrides=config_overrides,
             app_config=None,
-            remote_url=None,
         ),
     )
 
@@ -135,6 +134,7 @@ def home_page_template(
 
 
 def notebook_page_template(
+    *,
     html: str,
     base_url: str,
     user_config: MarimoConfig,
@@ -143,15 +143,16 @@ def notebook_page_template(
     app_config: _AppConfig,
     filename: Optional[str],
     mode: SessionMode,
-    remote_url: Optional[str] = None,
+    session_snapshot: Optional[NotebookSessionV1] = None,
+    notebook_snapshot: Optional[NotebookV1] = None,
+    runtime_config: Optional[list[dict[str, Any]]] = None,
     asset_url: Optional[str] = None,
 ) -> str:
     html = html.replace("{{ base_url }}", base_url)
 
     # When we have a remote URL, let's pre-populate the index.html page
     # with a view of the notebook.
-    notebook_snapshot = None
-    if remote_url and filename:
+    if runtime_config and filename and notebook_snapshot is None:
         filepath = Path(filename)
         if filepath.exists():
             notebook_snapshot = MarimoConvert.from_py(
@@ -178,8 +179,9 @@ def notebook_page_template(
             user_config=user_config,
             config_overrides=config_overrides,
             app_config=app_config,
-            remote_url=remote_url,
+            runtime_config=runtime_config,
             notebook_snapshot=notebook_snapshot,
+            session_snapshot=session_snapshot,
         ),
     )
 
@@ -252,7 +254,7 @@ def static_notebook_template(
             app_config=app_config,
             session_snapshot=session_snapshot,
             notebook_snapshot=notebook_snapshot,
-            remote_url=None,
+            runtime_config=None,
         ),
     )
 
@@ -372,7 +374,7 @@ def wasm_notebook_template(
             app_config=app_config,
             version=version,
             show_app_code=show_code,
-            remote_url=None,
+            runtime_config=None,
         ),
     )
 

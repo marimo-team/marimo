@@ -348,7 +348,7 @@ class CellImpl:
             status (RuntimeStateType): New runtime state to set
             stream (Stream | None, optional): Stream to broadcast on. Defaults to None.
         """
-        from marimo._messaging.ops import CellOp
+        from marimo._messaging.notification_utils import CellNotificationUtils
         from marimo._runtime.context import (
             ContextNotInitializedError,
             get_context,
@@ -361,7 +361,7 @@ class CellImpl:
             return
 
         assert self.cell_id is not None
-        CellOp.broadcast_status(
+        CellNotificationUtils.broadcast_status(
             cell_id=self.cell_id, status=status, stream=stream
         )
 
@@ -376,11 +376,11 @@ class CellImpl:
     def set_stale(
         self, stale: bool, stream: Stream | None = None, broadcast: bool = True
     ) -> None:
-        from marimo._messaging.ops import CellOp
+        from marimo._messaging.notification_utils import CellNotificationUtils
 
         self._stale.state = stale
         if broadcast:
-            CellOp.broadcast_stale(
+            CellNotificationUtils.broadcast_stale(
                 cell_id=self.cell_id, stale=stale, stream=stream
             )
 

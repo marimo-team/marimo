@@ -137,7 +137,7 @@ export class SQLLanguageAdapter
     _completionConfig: CompletionConfig,
     _hotkeys: HotkeyProvider,
     _placeholderType: PlaceholderType,
-    _lspConfig: LSPConfig & { diagnostics: DiagnosticsConfig },
+    lspConfig: LSPConfig & { diagnostics: DiagnosticsConfig },
   ): Extension[] {
     const extensions = [
       // This can be updated with a dispatch effect
@@ -168,8 +168,7 @@ export class SQLLanguageAdapter
       }),
     ];
 
-    // TODO: Issue with frontend being stuck
-    const sqlLinterEnabled = false;
+    const sqlLinterEnabled = lspConfig?.diagnostics?.sql_linter ?? false;
 
     if (sqlLinterEnabled) {
       const theme = store.get(resolvedThemeAtom);

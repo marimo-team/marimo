@@ -9,6 +9,7 @@ import { Logger } from "@/utils/Logger";
 import { reloadSafe } from "@/utils/reload-safe";
 import { generateUUID } from "@/utils/uuid";
 import { notebookIsRunningAtom } from "../cells/cells";
+import type { CommandMessage } from "../kernel/messages";
 import { getMarimoVersion } from "../meta/globals";
 import { getInitialAppMode } from "../mode";
 import { API } from "../network/api";
@@ -29,7 +30,8 @@ import type {
   Snippets,
 } from "../network/types";
 import { store } from "../state/jotai";
-import type { IReconnectingWebSocket } from "../websocket/types";
+import { BasicTransport } from "../websocket/transports/basic";
+import type { IConnectionTransport } from "../websocket/transports/transport";
 import { PyodideRouter } from "./router";
 import { getWorkerRPC } from "./rpc";
 import { createShareableLink } from "./share";
@@ -55,7 +57,9 @@ export class PyodideBridge implements RunRequests, EditRequests {
   private rpc!: ReturnType<typeof getWorkerRPC<WorkerSchema>>;
   private saveRpc: SaveWorker | undefined;
   private interruptBuffer?: Uint8Array;
-  private messageConsumer: ((message: string) => void) | undefined;
+  private messageConsumer:
+    | ((message: MessageEvent<string>) => void)
+    | undefined;
 
   public initialized = new Deferred<void>();
 
@@ -131,7 +135,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
       this.initialized.reject(new Error(error));
     });
     this.rpc.addMessageListener("kernelMessage", ({ message }) => {
-      this.messageConsumer?.(message);
+      this.messageConsumer?.(new MessageEvent("message", { data: message }));
     });
   }
 
@@ -184,7 +188,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
     }
   }
 
-  consumeMessages(consumer: (message: string) => void) {
+  attachMessageConsumer(consumer: (message: MessageEvent<string>) => void) {
     this.messageConsumer = consumer;
     this.rpc.proxy.send.consumerReady({});
   }
@@ -244,13 +248,19 @@ export class PyodideBridge implements RunRequests, EditRequests {
   sendRun: EditRequests["sendRun"] = async (request) => {
     await this.rpc.proxy.request.loadPackages(request.codes.join("\n"));
 
-    await this.putControlRequest(request);
+    await this.putControlRequest({
+      type: "execute-cells",
+      ...request,
+    });
     return null;
   };
   sendRunScratchpad: EditRequests["sendRunScratchpad"] = async (request) => {
     await this.rpc.proxy.request.loadPackages(request.code);
 
-    await this.putControlRequest(request);
+    await this.putControlRequest({
+      type: "execute-scratchpad",
+      ...request,
+    });
     return null;
   };
   sendInterrupt: EditRequests["sendInterrupt"] = async () => {
@@ -273,13 +283,19 @@ export class PyodideBridge implements RunRequests, EditRequests {
   };
 
   sendDeleteCell: EditRequests["sendDeleteCell"] = async (request) => {
-    await this.putControlRequest(request);
+    await this.putControlRequest({
+      type: "delete-cell",
+      ...request,
+    });
     return null;
   };
 
   sendInstallMissingPackages: EditRequests["sendInstallMissingPackages"] =
     async (request) => {
-      this.putControlRequest(request);
+      this.putControlRequest({
+        type: "install-packages",
+        ...request,
+      });
       return null;
     };
   sendCodeCompletionRequest: EditRequests["sendCodeCompletionRequest"] = async (
@@ -325,7 +341,10 @@ export class PyodideBridge implements RunRequests, EditRequests {
   };
 
   saveCellConfig: EditRequests["saveCellConfig"] = async (request) => {
-    await this.putControlRequest(request);
+    await this.putControlRequest({
+      type: "update-cell-config",
+      ...request,
+    });
     return null;
   };
 
@@ -384,6 +403,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
 
   sendComponentValues: RunRequests["sendComponentValues"] = async (request) => {
     await this.putControlRequest({
+      type: "update-ui-element",
       ...request,
       token: generateUUID(),
     });
@@ -395,7 +415,10 @@ export class PyodideBridge implements RunRequests, EditRequests {
   };
 
   sendFunctionRequest: RunRequests["sendFunctionRequest"] = async (request) => {
-    await this.putControlRequest(request);
+    await this.putControlRequest({
+      type: "invoke-function",
+      ...request,
+    });
     return null;
   };
 
@@ -474,48 +497,57 @@ export class PyodideBridge implements RunRequests, EditRequests {
   previewDatasetColumn: EditRequests["previewDatasetColumn"] = async (
     request,
   ) => {
-    await this.putControlRequest(request);
+    await this.putControlRequest({
+      type: "preview-dataset-column",
+      ...request,
+    });
     return null;
   };
 
   previewSQLTable: EditRequests["previewSQLTable"] = async (request) => {
-    await this.putControlRequest(request);
+    await this.putControlRequest({
+      type: "preview-sql-table",
+      ...request,
+    });
     return null;
   };
 
   previewSQLTableList: EditRequests["previewSQLTableList"] = async (
     request,
   ) => {
-    await this.putControlRequest(request);
+    await this.putControlRequest({
+      type: "list-sql-tables",
+      ...request,
+    });
     return null;
   };
 
   previewDataSourceConnection: EditRequests["previewDataSourceConnection"] =
     async (request) => {
-      await this.putControlRequest(request);
+      await this.putControlRequest({
+        type: "list-data-source-connection",
+        ...request,
+      });
       return null;
     };
 
   validateSQL: EditRequests["validateSQL"] = async (request) => {
-    await this.putControlRequest(request);
+    await this.putControlRequest({
+      type: "validate-sql",
+      ...request,
+    });
     return null;
   };
 
   sendModelValue: RunRequests["sendModelValue"] = async (request) => {
-    await this.putControlRequest(request);
+    await this.putControlRequest({
+      type: "update-widget-model",
+      ...request,
+    });
     return null;
   };
 
   syncCellIds = () => Promise.resolve(null);
-  getUsageStats = throwNotImplemented;
-  openTutorial = throwNotImplemented;
-  getRecentFiles = throwNotImplemented;
-  getWorkspaceFiles = throwNotImplemented;
-  getRunningNotebooks = throwNotImplemented;
-  shutdownSession = throwNotImplemented;
-  autoExportAsHTML = throwNotImplemented;
-  autoExportAsMarkdown = throwNotImplemented;
-  autoExportAsIPYNB = throwNotImplemented;
 
   addPackage: EditRequests["addPackage"] = async (request) => {
     return this.rpc.proxy.request.addPackage(request);
@@ -541,20 +573,28 @@ export class PyodideBridge implements RunRequests, EditRequests {
   };
 
   listSecretKeys: EditRequests["listSecretKeys"] = async (request) => {
-    await this.putControlRequest(request);
+    await this.putControlRequest({
+      type: "list-secret-keys",
+      ...request,
+    });
     return null;
   };
 
-  writeSecret: EditRequests["writeSecret"] = async (request) => {
-    await this.putControlRequest(request);
-    return null;
-  };
-
+  getUsageStats = throwNotImplemented;
+  openTutorial = throwNotImplemented;
+  getRecentFiles = throwNotImplemented;
+  getWorkspaceFiles = throwNotImplemented;
+  getRunningNotebooks = throwNotImplemented;
+  shutdownSession = throwNotImplemented;
+  autoExportAsHTML = throwNotImplemented;
+  autoExportAsMarkdown = throwNotImplemented;
+  autoExportAsIPYNB = throwNotImplemented;
+  writeSecret = throwNotImplemented;
   invokeAiTool = throwNotImplemented;
   clearCache = throwNotImplemented;
   getCacheInfo = throwNotImplemented;
 
-  private async putControlRequest(operation: object) {
+  private async putControlRequest(operation: CommandMessage) {
     await this.rpc.proxy.request.bridge({
       functionName: "put_control_request",
       payload: operation,
@@ -562,88 +602,8 @@ export class PyodideBridge implements RunRequests, EditRequests {
   }
 }
 
-export class PyodideWebsocket implements IReconnectingWebSocket {
-  CONNECTING = WebSocket.CONNECTING;
-  OPEN = WebSocket.OPEN;
-  CLOSING = WebSocket.CLOSING;
-  CLOSED = WebSocket.CLOSED;
-  binaryType = "blob" as BinaryType;
-  bufferedAmount = 0;
-  extensions = "";
-  protocol = "";
-  url = "";
-
-  onclose = null;
-  onerror = null;
-  onmessage = null;
-  onopen = null;
-
-  openSubscriptions = new Set<() => void>();
-  closeSubscriptions = new Set<() => void>();
-  messageSubscriptions = new Set<(event: MessageEvent) => void>();
-  errorSubscriptions = new Set<(event: Event) => void>();
-
-  private bridge: Pick<PyodideBridge, "consumeMessages">;
-
-  constructor(bridge: Pick<PyodideBridge, "consumeMessages">) {
-    this.bridge = bridge;
-  }
-
-  private consumeMessages() {
-    this.bridge.consumeMessages((message) => {
-      this.messageSubscriptions.forEach((callback) => {
-        callback({ data: message } as MessageEvent);
-      });
-    });
-  }
-
-  addEventListener(type: unknown, callback: any, options?: unknown): void {
-    switch (type) {
-      case "open":
-        this.openSubscriptions.add(callback);
-        // Call open right away
-        callback();
-        break;
-      case "close":
-        this.closeSubscriptions.add(callback);
-        break;
-      case "message":
-        this.messageSubscriptions.add(callback);
-        // Don't start consuming messages until we have a message listener
-        this.consumeMessages();
-        break;
-      case "error":
-        this.errorSubscriptions.add(callback);
-        break;
-    }
-  }
-
-  removeEventListener(type: unknown, callback: any, options?: unknown): void {
-    switch (type) {
-      case "open":
-        this.openSubscriptions.delete(callback);
-        break;
-      case "close":
-        this.closeSubscriptions.delete(callback);
-        break;
-      case "message":
-        this.messageSubscriptions.delete(callback);
-        break;
-      case "error":
-        this.errorSubscriptions.delete(callback);
-        break;
-    }
-  }
-
-  dispatchEvent = throwNotImplemented;
-  reconnect = throwNotImplemented;
-  send = throwNotImplemented;
-
-  readyState = WebSocket.OPEN;
-  retryCount = 0;
-  shouldReconnect = false;
-
-  close() {
-    return;
-  }
+export function createPyodideConnection(): IConnectionTransport {
+  return BasicTransport.withProducerCallback((callback) => {
+    PyodideBridge.INSTANCE.attachMessageConsumer(callback);
+  });
 }

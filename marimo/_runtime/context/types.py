@@ -30,9 +30,9 @@ if TYPE_CHECKING:
     from marimo._plugins.ui._core.registry import UIElementRegistry
     from marimo._runtime import dataflow
     from marimo._runtime.cell_lifecycle_registry import CellLifecycleRegistry
+    from marimo._runtime.commands import HTTPRequest
     from marimo._runtime.functions import FunctionRegistry
     from marimo._runtime.params import CLIArgs, QueryParams
-    from marimo._runtime.requests import HTTPRequest
     from marimo._runtime.state import State, StateRegistry
     from marimo._runtime.virtual_file import VirtualFileRegistry
     from marimo._save.stores import Store

@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import { loadPyodide, type PyodideInterface } from "pyodide";
 import type { UserConfig } from "@/core/config/config-schema";
-import type { OperationMessage } from "@/core/kernel/messages";
+import type { NotificationPayload } from "@/core/kernel/messages";
 import type { JsonString } from "@/utils/json/base64";
 import { invariant } from "../../../utils/invariant";
 import { Logger } from "../../../utils/Logger";
@@ -99,7 +99,7 @@ export class DefaultWasmController implements WasmController {
     queryParameters: Record<string, string | string[]>;
     code: string;
     filename: string | null;
-    onMessage: (message: JsonString<OperationMessage>) => void;
+    onMessage: (message: JsonString<NotificationPayload>) => void;
     userConfig: UserConfig;
   }): Promise<SerializedBridge> {
     const { code, filename, onMessage, queryParameters, userConfig } = opts;

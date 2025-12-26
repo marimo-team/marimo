@@ -24,10 +24,12 @@ class AddPackageRequest(msgspec.Struct, rename="camel"):
 
     package: str
     upgrade: Optional[bool] = False
+    dev: Optional[bool] = False
 
 
 class RemovePackageRequest(msgspec.Struct, rename="camel"):
     package: str
+    dev: Optional[bool] = False
 
 
 class ListPackagesResponse(msgspec.Struct, rename="camel"):

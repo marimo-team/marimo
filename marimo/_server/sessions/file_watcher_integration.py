@@ -11,11 +11,12 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Callable
 
 from marimo import _loggers
-from marimo._server.sessions.events import SessionEventListener
+from marimo._server.sessions.events import (
+    SessionEventBus,
+    SessionEventListener,
+)
+from marimo._server.sessions.extensions.types import SessionExtension
 from marimo._server.sessions.session import Session
-from marimo._server.sessions.session_repository import SessionRepository
-from marimo._types.ids import SessionId
-from marimo._utils import async_path
 from marimo._utils.file_watcher import FileWatcherManager
 
 LOGGER = _loggers.marimo_logger()
@@ -24,159 +25,101 @@ if TYPE_CHECKING:
     from collections.abc import Awaitable
 
 
-class SessionFileWatcherLifecycle:
+class SessionFileWatcherExtension(SessionExtension, SessionEventListener):
     """Manages file watcher lifecycle for sessions."""
 
     def __init__(
         self,
         watcher_manager: FileWatcherManager,
-        file_change_callback: Callable[[Path, Session], Awaitable[None]],
-        repository: SessionRepository,
+        on_change_callback: Callable[[Path, Session], Awaitable[None]],
     ) -> None:
-        """Initialize the file watcher lifecycle manager.
+        """Initialize the file watcher extension.
 
         Args:
             watcher_manager: The underlying file watcher manager
-            file_change_callback: Callback to invoke when files change
-            repository: Session repository for ID lookups
+            on_change_callback: The callback to invoke when a file changes
         """
         self._watcher_manager = watcher_manager
-        self._file_change_callback = file_change_callback
-        self._repository = repository
-        # Store callbacks by session object instead of ID
-        # since ID may change
-        self._session_callbacks: dict[
-            Session, Callable[[Path], Awaitable[None]]
-        ] = {}
+        self._event_bus: SessionEventBus | None = None
+        self._session: Session | None = None
+        self._on_change_callback = on_change_callback
 
-    def attach(self, session: Session) -> None:
-        """Attach a file watcher to a session.
+    def on_attach(self, session: Session, event_bus: SessionEventBus) -> None:
+        """Attach the file watcher extension to a session."""
+        self._event_bus = event_bus
+        self._event_bus.subscribe(self)
+        self._session = session
 
-        Args:
-            session: The session to attach a file watcher to
-        """
-        session_id = self._repository.get_session_id(session)
         if not session.app_file_manager.path:
-            LOGGER.debug(
-                "Session %s has no file path, skipping file watcher",
-                session_id,
-            )
             return
-
-        # Create callback for this specific session
-        async def on_file_changed(path: Path) -> None:
-            # Skip if the session does not relate to the file
-            if session.app_file_manager.path != await async_path.abspath(path):
-                return
-
-            # Use the centralized file change handler
-            await self._file_change_callback(path, session)
-
-        # Store the callback
-        self._session_callbacks[session] = on_file_changed
 
         # Register with the watcher manager
         self._watcher_manager.add_callback(
-            Path(session.app_file_manager.path), on_file_changed
+            Path(session.app_file_manager.path), self._handle_file_change
         )
 
-        LOGGER.debug(
+        LOGGER.info(
             "Attached file watcher for session %s at path %s",
-            session_id,
+            session.initialization_id,
             session.app_file_manager.path,
         )
 
-    def detach(self, session: Session) -> None:
-        """Detach a file watcher from a session.
-
-        Args:
-            session: The session to detach the file watcher from
-        """
-        session_id = self._repository.get_session_id(session)
-        if not session.app_file_manager.path:
+    async def _handle_file_change(self, path: Path) -> None:
+        """Handle a file change."""
+        if not self._session:
             return
 
-        callback = self._session_callbacks.get(session)
-        if callback is None:
-            LOGGER.debug(
-                "No file watcher callback found for session %s",
-                session_id,
-            )
+        await self._on_change_callback(path, self._session)
+
+    def on_detach(self) -> None:
+        """Detach the file watcher extension from a session."""
+        if not self._session:
+            return
+
+        if not self._session.app_file_manager.path:
             return
 
         # Remove from watcher manager
         self._watcher_manager.remove_callback(
-            Path(session.app_file_manager.path), callback
+            self._canonicalize_path(self._session.app_file_manager.path),
+            self._handle_file_change,
         )
 
-        # Remove from our registry
-        del self._session_callbacks[session]
-
-        LOGGER.debug(
+        LOGGER.info(
             "Detached file watcher for session %s from path %s",
-            session_id,
-            session.app_file_manager.path,
+            self._session.initialization_id,
+            self._session.app_file_manager.path,
         )
 
-    def update(self, session: Session, old_path: Path, new_path: Path) -> None:
-        """Update file watcher when a session's file path changes.
+    def _canonicalize_path(self, path: str) -> Path:
+        """Canonicalize a path."""
+        return Path(path).absolute()
 
-        Args:
-            session: The session whose path changed
-            old_path: The old file path
-            new_path: The new file path
-        """
-        session_id = self._repository.get_session_id(session)
-        callback = self._session_callbacks.get(session)
-        if callback:
+    async def on_session_notebook_renamed(
+        self, session: Session, old_path: str | None
+    ) -> None:
+        """Update file watcher when a session's file path changes."""
+        if not self._session:
+            return
+
+        if old_path:
             # Remove old watcher
-            self._watcher_manager.remove_callback(old_path, callback)
+            self._watcher_manager.remove_callback(
+                self._canonicalize_path(old_path), self._handle_file_change
+            )
+
+        if not session.app_file_manager.path:
+            return
 
         # Attach new watcher
-        self.attach(session)
-
-        LOGGER.debug(
-            "Updated file watcher for session %s from %s to %s",
-            session_id,
-            old_path,
-            new_path,
+        self._watcher_manager.add_callback(
+            self._canonicalize_path(session.app_file_manager.path),
+            self._handle_file_change,
         )
 
-    def stop_all(self) -> None:
-        """Stop all file watchers."""
-        self._watcher_manager.stop_all()
-        self._session_callbacks.clear()
-
-
-class FileWatcherAttachmentListener(SessionEventListener):
-    """Event listener that attaches/detaches file watchers on session lifecycle events."""
-
-    def __init__(
-        self,
-        file_watcher_lifecycle: SessionFileWatcherLifecycle,
-        enabled: bool,
-    ) -> None:
-        """Initialize the file watcher attachment listener.
-
-        Args:
-            file_watcher_lifecycle: The file watcher lifecycle manager
-            enabled: Whether file watching is enabled
-        """
-        self._lifecycle = file_watcher_lifecycle
-        self._enabled = enabled
-
-    async def on_session_created(self, session: Session) -> None:
-        """Attach file watcher when a session is created."""
-        if self._enabled:
-            self._lifecycle.attach(session)
-
-    async def on_session_closed(self, session: Session) -> None:
-        """Detach file watcher when a session is closed."""
-        if self._enabled:
-            self._lifecycle.detach(session)
-
-    async def on_session_resumed(
-        self, session: Session, old_id: SessionId
-    ) -> None:
-        """No action needed on resume - watcher remains attached."""
-        pass
+        LOGGER.info(
+            "Updated file watcher for session %s from %s to %s",
+            session.initialization_id,
+            old_path,
+            session.app_file_manager.path,
+        )

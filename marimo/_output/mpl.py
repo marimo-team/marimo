@@ -28,7 +28,7 @@ from matplotlib.backends.backend_agg import FigureCanvasAgg
 
 from marimo._messaging.cell_output import CellChannel
 from marimo._messaging.mimetypes import KnownMimeType
-from marimo._messaging.ops import CellOp
+from marimo._messaging.notification_utils import CellNotificationUtils
 from marimo._utils.data_uri import build_data_url
 
 FigureCanvas = FigureCanvasAgg
@@ -107,7 +107,7 @@ def _render_figure_mimebundle(
 def _internal_show(canvas: FigureCanvasBase) -> None:
     mimetype, data = _render_figure_mimebundle(canvas)
     plt.close(canvas.figure)
-    CellOp.broadcast_console_output(
+    CellNotificationUtils.broadcast_console_output(
         channel=CellChannel.MEDIA,
         mimetype=mimetype,
         data=data,

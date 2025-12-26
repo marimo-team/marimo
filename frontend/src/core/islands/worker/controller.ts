@@ -1,7 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 import type { PyodideInterface } from "pyodide";
 import { defaultUserConfig } from "@/core/config/config-schema";
-import type { OperationMessage } from "@/core/kernel/messages";
+import type { NotificationPayload } from "@/core/kernel/messages";
 import { DefaultWasmController } from "@/core/wasm/worker/bootstrap";
 import { WasmFileSystem } from "@/core/wasm/worker/fs";
 import type { SerializedBridge } from "@/core/wasm/worker/types";
@@ -37,7 +37,7 @@ export class ReadonlyWasmController extends DefaultWasmController {
   override async startSession(opts: {
     code: string;
     filename: string | null;
-    onMessage: (message: JsonString<OperationMessage>) => void;
+    onMessage: (message: JsonString<NotificationPayload>) => void;
   }): Promise<SerializedBridge> {
     const bridge = super.startSession({
       queryParameters: {},

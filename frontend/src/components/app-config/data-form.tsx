@@ -13,6 +13,7 @@ import {
 import { NativeSelect } from "@/components/ui/native-select";
 import { NumberField } from "@/components/ui/number-field";
 import type { UserConfig } from "@/core/config/config-schema";
+import { Checkbox } from "../ui/checkbox";
 import {
   formItemClasses,
   SettingGroup,
@@ -212,8 +213,7 @@ export const DataForm = ({
           {renderDiscoveryForm("datasources.auto_discover_columns", "Columns")}
         </div>
 
-        {/* TODO: Issue with frontend being stuck */}
-        {/* <FormField
+        <FormField
           control={form.control}
           name="diagnostics.sql_linter"
           render={({ field }) => (
@@ -238,7 +238,7 @@ export const DataForm = ({
               </FormDescription>
             </div>
           )}
-        /> */}
+        />
 
         <FormField
           control={form.control}

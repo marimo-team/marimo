@@ -3,19 +3,21 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 from marimo import _loggers
 from marimo._ai._tools.base import ToolBase
 from marimo._ai._tools.types import SuccessResult, ToolGuidelines
 from marimo._ai._tools.utils.exceptions import ToolExecutionError
 from marimo._data.models import DataTable
-from marimo._server.sessions import Session
 from marimo._sql.engines.duckdb import INTERNAL_DUCKDB_ENGINE
 from marimo._types.ids import SessionId
 from marimo._utils.fuzzy_match import compile_regex, is_fuzzy_match
 
 LOGGER = _loggers.marimo_logger()
+
+if TYPE_CHECKING:
+    from marimo._server.sessions import Session
 
 
 @dataclass

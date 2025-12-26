@@ -15,8 +15,9 @@ from marimo._ai._tools.tools.datasource import (
 )
 from marimo._ai._tools.utils.exceptions import ToolExecutionError
 from marimo._data.models import Database, DataTable, DataTableColumn, Schema
-from marimo._messaging.ops import DataSourceConnections
+from marimo._messaging.notification import DataSourceConnectionsNotification
 from marimo._sql.engines.duckdb import INTERNAL_DUCKDB_ENGINE
+from tests._ai.tools.test_utils import MockSession, MockSessionView
 
 
 @dataclass
@@ -26,16 +27,6 @@ class MockDataSourceConnection:
     databases: list[Database]
     default_database: Optional[str] = None
     default_schema: Optional[str] = None
-
-
-@dataclass
-class MockSessionView:
-    data_connectors: DataSourceConnections
-
-
-@dataclass
-class MockSession:
-    session_view: MockSessionView
 
 
 @pytest.fixture
@@ -97,8 +88,8 @@ def sample_connection(sample_database: Database) -> MockDataSourceConnection:
 def sample_session(sample_connection: MockDataSourceConnection) -> MockSession:
     """Sample session with data connectors."""
     return MockSession(
-        session_view=MockSessionView(
-            data_connectors=DataSourceConnections(
+        _session_view=MockSessionView(
+            data_connectors=DataSourceConnectionsNotification(
                 connections=[sample_connection]
             )
         )
@@ -154,8 +145,10 @@ def multi_table_session() -> MockSession:
     )
 
     return MockSession(
-        session_view=MockSessionView(
-            data_connectors=DataSourceConnections(connections=[connection])
+        _session_view=MockSessionView(
+            data_connectors=DataSourceConnectionsNotification(
+                connections=[connection]
+            )
         )
     )
 
@@ -271,8 +264,8 @@ def test_get_tables_with_schema_match(
 def test_get_tables_empty_connections(tool: GetDatabaseTables):
     """Test getting tables when no connections exist."""
     empty_session = MockSession(
-        session_view=MockSessionView(
-            data_connectors=DataSourceConnections(connections=[])
+        _session_view=MockSessionView(
+            data_connectors=DataSourceConnectionsNotification(connections=[])
         )
     )
 
@@ -378,8 +371,10 @@ def test_multiple_connections(tool: GetDatabaseTables):
     )
 
     multi_conn_session = MockSession(
-        session_view=MockSessionView(
-            data_connectors=DataSourceConnections(connections=[conn1, conn2])
+        _session_view=MockSessionView(
+            data_connectors=DataSourceConnectionsNotification(
+                connections=[conn1, conn2]
+            )
         )
     )
 
@@ -444,8 +439,10 @@ def test_query_matches_multiple_levels(tool: GetDatabaseTables):
     )
 
     session = MockSession(
-        session_view=MockSessionView(
-            data_connectors=DataSourceConnections(connections=[connection])
+        _session_view=MockSessionView(
+            data_connectors=DataSourceConnectionsNotification(
+                connections=[connection]
+            )
         )
     )
 
@@ -528,8 +525,10 @@ def test_query_no_duplicates(tool: GetDatabaseTables):
     )
 
     session = MockSession(
-        session_view=MockSessionView(
-            data_connectors=DataSourceConnections(connections=[connection])
+        _session_view=MockSessionView(
+            data_connectors=DataSourceConnectionsNotification(
+                connections=[connection]
+            )
         )
     )
 

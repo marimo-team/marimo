@@ -176,7 +176,9 @@ class FileWatcherManager:
 
             async def shared_callback(changed_path: Path) -> None:
                 callbacks = self._callbacks.get(str(changed_path), set())
-                for cb in callbacks:
+                # Iterate over a copy to avoid "Set changed size during iteration"
+                # if a callback modifies the callbacks set
+                for cb in list(callbacks):
                     await cb(changed_path)
 
             watcher = FileWatcher.create(path, shared_callback)
@@ -188,7 +190,7 @@ class FileWatcherManager:
         """Remove a callback for a file path. Removes watcher if no more callbacks."""
         path_str = str(path)
         if path_str not in self._callbacks:
-            LOGGER.warning(f"Callback for {path_str} not found")
+            # May already be removed from stop_all()
             return
 
         self._callbacks[path_str].discard(callback)

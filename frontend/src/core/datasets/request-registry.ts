@@ -8,7 +8,7 @@ import { CachingRequestRegistry } from "../network/CachingRequestRegistry";
 import { DeferredRequestRegistry } from "../network/DeferredRequestRegistry";
 import { getRequestClient } from "../network/requests";
 import type {
-  PreviewSQLTableListRequest,
+  ListSQLTablesRequest,
   PreviewSQLTableRequest,
   ValidateSQLRequest,
 } from "../network/types";
@@ -29,7 +29,7 @@ export const PreviewSQLTable = new DeferredRequestRegistry<
 });
 
 export const PreviewSQLTableList = new DeferredRequestRegistry<
-  Omit<PreviewSQLTableListRequest, "requestId">,
+  Omit<ListSQLTablesRequest, "requestId">,
   SQLTableListPreview
 >("sql-table-list-preview", async (requestId, req) => {
   const client = getRequestClient();

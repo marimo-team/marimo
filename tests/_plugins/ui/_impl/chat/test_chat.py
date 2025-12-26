@@ -17,8 +17,8 @@ from marimo._plugins.ui._impl.chat.chat import (
     DeleteChatMessageRequest,
     SendMessageRequest,
 )
+from marimo._runtime.commands import UpdateUIElementCommand
 from marimo._runtime.functions import EmptyArgs
-from marimo._runtime.requests import SetUIElementValueRequest
 from marimo._runtime.runtime import Kernel
 from tests.conftest import ExecReqProvider
 
@@ -421,7 +421,7 @@ async def test_chat_send_message_enqueues_ui_element_request(
     k: Kernel, exec_req: ExecReqProvider
 ) -> None:
     # assert that the RPC which updates the chatbot history triggers
-    # a SetUIElementValueRequest
+    # a UpdateUIElementRequest
 
     control_requests = []
     # the RPC uses enqueue_control_request() to trigger the UI Element update
@@ -448,4 +448,4 @@ async def test_chat_send_message_enqueues_ui_element_request(
     )
     await chatbot._send_prompt(request)
     assert len(control_requests) == 1
-    assert isinstance(control_requests[0], SetUIElementValueRequest)
+    assert isinstance(control_requests[0], UpdateUIElementCommand)

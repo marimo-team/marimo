@@ -17,7 +17,7 @@ from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins.ui._impl.charts.altair_transformer import (
     register_transformers,
 )
-from marimo._runtime.requests import PreviewDatasetColumnRequest
+from marimo._runtime.commands import PreviewDatasetColumnCommand
 from marimo._utils.platform import is_windows
 from tests._data.mocks import create_dataframes
 from tests.mocks import snapshotter
@@ -73,7 +73,7 @@ def test_get_column_preview_for_dataframe(df: Any) -> None:
     for column_name in ["A", "B"]:
         result = get_column_preview_for_dataframe(
             df,
-            request=PreviewDatasetColumnRequest(
+            request=PreviewDatasetColumnCommand(
                 source="source",
                 table_name="table",
                 column_name=column_name,

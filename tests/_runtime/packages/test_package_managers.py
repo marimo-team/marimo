@@ -320,7 +320,7 @@ async def test_uv_pip_install() -> None:
         mock_popen.side_effect = capture_command
 
         pm = UvPackageManager()
-        await pm._install("foo", upgrade=False)
+        await pm._install("foo", upgrade=False, dev=False)
 
         assert runs_calls == [
             ["uv", "pip", "install", "--compile", "foo", "-p", PY_EXE],
@@ -444,7 +444,7 @@ async def test_pip_install_with_log_callback() -> None:
 
     pm = MockPipPackageManager()
     result = await pm._install(
-        "numpy", upgrade=False, log_callback=log_callback
+        "numpy", upgrade=False, dev=False, log_callback=log_callback
     )
 
     assert result is True
@@ -477,7 +477,7 @@ async def test_uv_install_with_log_callback() -> None:
 
         pm = UvPackageManager()
         result = await pm._install(
-            "pandas", upgrade=False, log_callback=log_callback
+            "pandas", upgrade=False, dev=False, log_callback=log_callback
         )
 
         assert result is True
@@ -508,7 +508,7 @@ async def test_micropip_install_with_log_callback() -> None:
         patch.dict(sys.modules, {"micropip": mock_micropip}),
     ):
         result = await pm._install(
-            "requests", upgrade=False, log_callback=log_callback
+            "requests", upgrade=False, dev=False, log_callback=log_callback
         )
 
         assert result is True
@@ -530,8 +530,10 @@ async def test_package_manager_install_method_with_callback() -> None:
             package: str,
             *,
             upgrade: bool,
+            dev: bool,
             log_callback: Optional[LogCallback] = None,
         ) -> bool:
+            del dev
             del upgrade
             if log_callback:
                 log_callback(f"Installing {package}...\n")

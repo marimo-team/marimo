@@ -1,3 +1,4 @@
+
 # Adding Backend and MCP Tools to marimo
 
 This guide explains how to create tools that are accessible via both the backend (chat panel) and MCP (Model Context Protocol) server endpoints.
@@ -23,6 +24,7 @@ Create dataclasses for your tool's arguments and output. Place these at the top 
 
 **Template:**
 
+---
 ```python
 from dataclasses import dataclass, field
 from marimo._ai._tools.types import SuccessResult
@@ -44,6 +46,7 @@ class YourToolOutput(SuccessResult):
     data: dict = field(default_factory=dict)
     count: int = 0
 ```
+---
 
 **Important Type Patterns:**
 
@@ -59,6 +62,7 @@ Implement your tool class in the same file:
 
 **Template:**
 
+---
 ```python
 # Copyright 2025 Marimo. All rights reserved.
 from __future__ import annotations
@@ -108,7 +112,7 @@ class YourTool(ToolBase[YourToolArgs, YourToolOutput]):
             "When [describe primary use case]",
         ],
         prerequisites=[
-            "You must [describe args that need additional explanation]",  
+            "You must [describe args that need additional explanation]",
         ],
         avoid_if=[
             "When [describe when not to use]",
@@ -143,6 +147,7 @@ class YourTool(ToolBase[YourToolArgs, YourToolOutput]):
         # Implementation details
         return {}
 ```
+---
 
 ### 4. Understanding ToolContext
 
@@ -152,15 +157,17 @@ class YourTool(ToolBase[YourToolArgs, YourToolOutput]):
 
 Access via `self.context` in your `handle()` method:
 
+---
 ```python
 def handle(self, args: YourToolArgs) -> YourToolOutput:
     # Access ToolContext
     context = self.context
-    
+
     # Use context methods
     session = context.get_session(args.session_id)
     errors = context.get_notebook_errors(args.session_id)
 ```
+---
 
 #### When to add to ToolContext vs a helper method
 
@@ -176,22 +183,24 @@ def handle(self, args: YourToolArgs) -> YourToolOutput:
 
 **Example:**
 
+---
 ```python
 class YourTool(ToolBase[YourToolArgs, YourToolOutput]):
     def handle(self, args: YourToolArgs) -> YourToolOutput:
         # Use ToolContext for common operations
         session = self.context.get_session(args.session_id)
         errors = self.context.get_notebook_errors(args.session_id)
-        
+
         # Use helper methods for tool-specific logic
         filtered_data = self._filter_by_criteria(errors, args.criteria)
-        
+
         return YourToolOutput(data=filtered_data)
-    
+
     def _filter_by_criteria(self, errors: list, criteria: str) -> list:
         """Tool-specific logic as a helper method."""
         return [e for e in errors if criteria in e.message]
 ```
+---
 
 #### Available ToolContext Methods
 
@@ -228,7 +237,7 @@ For the current and complete list of available methods, see `marimo/_ai/_tools/b
 
 #### When to Use Try/Except
 
-**Only use try/except when you need to catch a specific error and provide tailored guidance to the AI agent.** 
+**Only use try/except when you need to catch a specific error and provide tailored guidance to the AI agent.**
 
 - ✅ **Use try/except**: For expected errors where you want to guide the agent (e.g., "Use get_lightweight_cell_map to find valid cell IDs")
 - ❌ **Don't use try/except**: For unexpected errors—they're automatically wrapped in `ToolExecutionError` and surfaced to the agent
@@ -237,6 +246,7 @@ For the current and complete list of available methods, see `marimo/_ai/_tools/b
 
 Use `ToolExecutionError` for expected failures:
 
+---
 ```python
 from marimo._ai._tools.utils.exceptions import ToolExecutionError
 
@@ -249,6 +259,7 @@ raise ToolExecutionError(
     meta={"session_id": session_id},  # Additional context
 )
 ```
+---
 
 **Common Error Codes:**
 
@@ -260,11 +271,12 @@ raise ToolExecutionError(
 
 **Error Handling Best Practices:**
 
+---
 ```python
 def handle(self, args: YourToolArgs) -> YourToolOutput:
     # ToolContext methods automatically raise ToolExecutionError if session not found
     session = self.context.get_session(args.session_id)
-    
+
     # Validate inputs - raise ToolExecutionError directly for validation errors
     if args.count < 0:
         raise ToolExecutionError(
@@ -273,7 +285,7 @@ def handle(self, args: YourToolArgs) -> YourToolOutput:
             is_retryable=False,
             suggested_fix="Provide a count >= 0",
         )
-    
+
     # Only use try/except for specific expected errors where you want to guide the agent
     try:
         result = self._operation_that_might_fail()
@@ -285,15 +297,17 @@ def handle(self, args: YourToolArgs) -> YourToolOutput:
             is_retryable=False,
             suggested_fix="Use get_lightweight_cell_map to find valid cell IDs",
         )
-    
+
     # Don't wrap everything in try/except - unexpected errors are handled automatically
     return YourToolOutput(data=result)
 ```
+---
 
 ### 7. Register the Tool
 
 Add your tool to the registry in `marimo/_ai/_tools/tools_registry.py`:
 
+---
 ```python
 from marimo._ai._tools.tools.your_tool import YourTool
 
@@ -304,6 +318,7 @@ SUPPORTED_BACKEND_AND_MCP_TOOLS: list[type[ToolBase[Any, Any]]] = [
     YourTool,  # Add your tool here
 ]
 ```
+---
 
 **That's it!** Your tool is now automatically registered in both backend and MCP contexts.
 
@@ -311,6 +326,7 @@ SUPPORTED_BACKEND_AND_MCP_TOOLS: list[type[ToolBase[Any, Any]]] = [
 
 Add your tool's Args and Output classes to the `TOOL_IO_CLASSES` list in `tests/_utils/test_msgspec_basestruct.py`. This ensures type compatibility between our serialization system and pydantic (used by the python mcp sdk).
 
+---
 ```python
 from marimo._ai._tools.tools.your_tool import (
     YourToolArgs,
@@ -323,6 +339,7 @@ TOOL_IO_CLASSES = [
     YourToolOutput,
 ]
 ```
+---
 
 ### 9. Create Tests
 
@@ -330,6 +347,7 @@ TOOL_IO_CLASSES = [
 
 Create `tests/_ai/tools/tools/test_your_tool.py`:
 
+---
 ```python
 from __future__ import annotations
 
@@ -363,13 +381,13 @@ def test_your_tool_basic_case(mock_context: Mock) -> None:
     # Setup mock
     mock_session = Mock()
     mock_context.get_session.return_value = mock_session
-    
+
     tool = YourTool(ToolContext())
     tool.context = mock_context
-    
+
     # Execute tool
     result = tool.handle(YourToolArgs(session_id=SessionId("test")))
-    
+
     # Assertions
     assert result.status == "success"
     assert result.data is not None
@@ -382,14 +400,14 @@ def test_your_tool_error_handling(mock_context: Mock) -> None:
         "Session not found",
         code="SESSION_NOT_FOUND",
     )
-    
+
     tool = YourTool(ToolContext())
     tool.context = mock_context
-    
+
     # Should raise ToolExecutionError
     with pytest.raises(ToolExecutionError) as exc_info:
         tool.handle(YourToolArgs(session_id=SessionId("invalid")))
-    
+
     assert exc_info.value.code == "SESSION_NOT_FOUND"
 
 # if necessary
@@ -398,11 +416,13 @@ def test_your_tool_with_edge_cases(mock_context: Mock) -> None:
     # Test your tool with edge cases
     pass
 ```
+---
 
 ### 10. Run Tests
 
 Run tests:
 
+---
 ```bash
 # Run all tool tests
 hatch run +py=3.12 test:test tests/_ai/tools
@@ -413,11 +433,13 @@ hatch run +py=3.12 test:test tests/_ai/tools/tools/test_your_tool.py
 # Run with verbose output
 hatch run +py=3.12 test:test tests/_ai/tools/tools/test_your_tool.py -v
 ```
+---
 
 ### 11. Update Documentation
 
 Add your tool to the user-facing documentation in `docs/guides/editor_features/tools.md`. Add a row to the appropriate category table:
 
+---
 ```markdown
 ## Available tools
 
@@ -427,6 +449,7 @@ Add your tool to the user-facing documentation in `docs/guides/editor_features/t
 |------|-------------|
 | **your_tool_name** | Brief description of what the tool does. Takes `param1` and `param2` parameters. Returns description of output. |
 ```
+---
 
 Choose the appropriate category:
 - **Inspection**: Tools for exploring notebook structure and runtime
@@ -456,6 +479,7 @@ Choose the appropriate category:
 
 Design helpful outputs:
 
+---
 ```python
 return YourToolOutput(
     data=result,
@@ -470,6 +494,7 @@ return YourToolOutput(
     meta={"query_time": 0.5},
 )
 ```
+---
 
 ### Helper Methods
 
@@ -483,38 +508,45 @@ return YourToolOutput(
 
 ### ❌ Don't: Duplicate ToolContext Logic
 
+---
 ```python
 # Bad: Reimplementing context logic
 def handle(self, args: Args) -> Output:
     session = self.context.get_session(args.session_id)
-    cell_ops = session.session_view.cell_operations
+    cell_notifications = session.session_view.cell_notifications
     errors = []
-    for cell_id, op in cell_ops.items():
+    for cell_id, op in cell_notifications.items():
         if op.output and op.output.channel == CellChannel.MARIMO_ERROR:
             errors.append(...)  # Duplicating error extraction
 ```
+---
 
 ### ✅ Do: Use ToolContext Methods
 
+---
 ```python
 # Good: Using context methods
 def handle(self, args: Args) -> Output:
     errors = self.context.get_notebook_errors(
-        args.session_id, 
+        args.session_id,
         include_stderr=True
     )
 ```
+---
 
 ### ❌ Don't: Raise Generic Exceptions
 
+---
 ```python
 # Bad: Using generic exceptions
 if not found:
     raise ValueError("Not found")
 ```
+---
 
 ### ✅ Do: Raise ToolExecutionError
 
+---
 ```python
 # Good: Structured error with metadata
 if not found:
@@ -525,17 +557,21 @@ if not found:
         suggested_fix="Use get_lightweight_cell_map to find valid cell IDs",
     )
 ```
+---
 
 ### ❌ Don't: Return Unstructured Data
 
+---
 ```python
 # Bad: Returning raw data
 def handle(self, args: Args) -> Output:
     return {"data": [...], "count": 5}  # type: ignore
 ```
+---
 
 ### ✅ Do: Use Typed Dataclass Output
 
+---
 ```python
 # Good: Structured output with SuccessResult
 def handle(self, args: Args) -> Output:
@@ -545,9 +581,11 @@ def handle(self, args: Args) -> Output:
         next_steps=["Review the results"],
     )
 ```
+---
 
 ### ❌ Don't: Use TypedDict or Other Type Annotations
 
+---
 ```python
 # Bad: Using TypedDict for tool input/output
 from typing import TypedDict
@@ -556,9 +594,11 @@ class YourToolArgs(TypedDict):
     session_id: str
     count: int
 ```
+---
 
 ### ✅ Do: Use Dataclasses
 
+---
 ```python
 # Good: Using dataclasses as required
 from dataclasses import dataclass
@@ -568,6 +608,7 @@ class YourToolArgs:
     session_id: SessionId
     count: int = 0
 ```
+---
 
 **Why?** The tool system requires dataclasses for proper serialization, validation, and compatibility with both backend and MCP contexts.
 
@@ -577,21 +618,24 @@ class YourToolArgs:
 
 For operations that need async/await:
 
+---
 ```python
 class AsyncTool(ToolBase[Args, Output]):
     """Tool with async operations."""
-    
+
     async def handle(self, args: Args) -> Output:  # type: ignore[override]
         """Note: Add type: ignore[override] for async handle."""
         session = self.context.get_session(args.session_id)
         result = await self._async_work(session)
         return Output(result=result)
 ```
+---
 
 ### Tools with Side Effects
 
 Generally it's better to avoid side effects in your tool. If it can't be avoided make sure to document side effects in guidelines:
 
+---
 ```python
 guidelines = ToolGuidelines(
     side_effects=[
@@ -600,11 +644,13 @@ guidelines = ToolGuidelines(
     ],
 )
 ```
+---
 
 ### Complex Return Types
 
 Use nested dataclasses for complex outputs:
 
+---
 ```python
 @dataclass
 class CellInfo:
@@ -617,6 +663,7 @@ class ComplexOutput(SuccessResult):
     cells: list[CellInfo] = field(default_factory=list)
     summary: dict[str, Any] = field(default_factory=dict)
 ```
+---
 
 ## Review Checklist
 

@@ -16,11 +16,11 @@ import { VirtualFileTracker } from "../static/virtual-file-tracker";
 import type {
   Capabilities,
   CellMessage,
-  OperationMessageData,
+  NotificationMessageData,
 } from "./messages";
 
 export function handleKernelReady(
-  data: OperationMessageData<"kernel-ready">,
+  data: NotificationMessageData<"kernel-ready">,
   opts: {
     autoInstantiate: boolean;
     setCells: (cells: CellData[], layout: LayoutState) => void;
@@ -133,7 +133,7 @@ export function handleKernelReady(
 }
 
 export function handleRemoveUIElements(
-  data: OperationMessageData<"remove-ui-elements">,
+  data: NotificationMessageData<"remove-ui-elements">,
 ) {
   // This removes the element from the registry to (1) clean-up
   // memory and (2) make sure that the old value doesn't get re-used
@@ -143,8 +143,8 @@ export function handleRemoveUIElements(
   VirtualFileTracker.INSTANCE.removeForCellId(cellId);
 }
 
-export function handleCellOperation(
-  data: OperationMessageData<"cell-op">,
+export function handleCellNotificationeration(
+  data: NotificationMessageData<"cell-op">,
   handleCellMessage: (message: CellMessage) => void,
 ) {
   /* Register a state transition for a cell.

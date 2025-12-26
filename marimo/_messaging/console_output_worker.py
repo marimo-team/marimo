@@ -37,16 +37,20 @@ def _write_console_output(
     data: str,
     mimetype: ConsoleMimeType,
 ) -> None:
-    from marimo._messaging.ops import CellOp
+    from marimo._messaging.notification import CellNotification
+    from marimo._messaging.notification_utils import broadcast_notification
 
-    CellOp(
-        cell_id=cell_id,
-        console=CellOutput(
-            channel=stream_type,
-            mimetype=mimetype,
-            data=data,
+    broadcast_notification(
+        CellNotification(
+            cell_id=cell_id,
+            console=CellOutput(
+                channel=stream_type,
+                mimetype=mimetype,
+                data=data,
+            ),
         ),
-    ).broadcast(stream)
+        stream,
+    )
 
 
 def _can_merge_outputs(first: ConsoleMsg, second: ConsoleMsg) -> bool:

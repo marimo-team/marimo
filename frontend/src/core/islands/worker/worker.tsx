@@ -7,7 +7,7 @@ import {
   createWorkerParentTransport,
   type RPCSchema,
 } from "rpc-anywhere";
-import type { OperationMessage } from "@/core/kernel/messages";
+import type { NotificationPayload } from "@/core/kernel/messages";
 import type { ParentSchema } from "@/core/wasm/rpc";
 import { TRANSPORT_ID } from "@/core/wasm/worker/constants";
 import { getPyodideVersion } from "@/core/wasm/worker/getPyodideVersion";
@@ -45,7 +45,7 @@ async function loadPyodideAndPackages() {
 
 const pyodideReadyPromise = loadPyodideAndPackages();
 const messageBuffer = new MessageBuffer(
-  (message: JsonString<OperationMessage>) => {
+  (message: JsonString<NotificationPayload>) => {
     rpc.send.kernelMessage({ message });
   },
 );
@@ -147,7 +147,7 @@ export type WorkerSchema = RPCSchema<
       // Emitted when the worker is ready
       ready: {};
       // Emitted when the kernel sends a message
-      kernelMessage: { message: JsonString<OperationMessage> };
+      kernelMessage: { message: JsonString<NotificationPayload> };
       // Emitted when the Pyodide is initialized
       initialized: {};
       // Emitted when the Pyodide fails to initialize

@@ -12,10 +12,13 @@ from typing import TYPE_CHECKING, Optional, Protocol
 
 from marimo import _loggers
 from marimo._config.manager import MarimoConfigManager
-from marimo._messaging.ops import Reload, UpdateCellCodes, UpdateCellIdsRequest
-from marimo._runtime.requests import DeleteCellRequest, SyncGraphRequest
+from marimo._messaging.notification import (
+    ReloadNotification,
+    UpdateCellCodesNotification,
+    UpdateCellIdsNotification,
+)
+from marimo._runtime.commands import DeleteCellCommand, SyncGraphCommand
 from marimo._server.model import SessionMode
-from marimo._server.sessions.session import Session
 from marimo._types.ids import CellId_t
 from marimo._utils import async_path
 
@@ -23,6 +26,8 @@ LOGGER = _loggers.marimo_logger()
 
 if TYPE_CHECKING:
     from pathlib import Path
+
+    from marimo._server.sessions.types import Session
 
 
 @dataclass
@@ -74,8 +79,8 @@ class EditModeReloadStrategy(ReloadStrategy):
         )
 
         # Send the updated cell IDs to the frontend
-        session.write_operation(
-            UpdateCellIdsRequest(cell_ids=cell_ids),
+        session.notify(
+            UpdateCellIdsNotification(cell_ids=cell_ids),
             from_consumer_id=None,
         )
 
@@ -96,7 +101,7 @@ class EditModeReloadStrategy(ReloadStrategy):
             cells = dict(zip(cell_ids, codes))
 
             session.put_control_request(
-                SyncGraphRequest(
+                SyncGraphCommand(
                     cells=cells,
                     run_ids=changed_cell_ids_list,
                     delete_ids=list(deleted),
@@ -107,12 +112,12 @@ class EditModeReloadStrategy(ReloadStrategy):
             # Just send deletes and code updates
             for to_delete in deleted:
                 session.put_control_request(
-                    DeleteCellRequest(cell_id=to_delete),
+                    DeleteCellCommand(cell_id=to_delete),
                     from_consumer_id=None,
                 )
             if cell_ids:
-                session.write_operation(
-                    UpdateCellCodes(
+                session.notify(
+                    UpdateCellCodesNotification(
                         cell_ids=cell_ids,
                         codes=codes,
                         code_is_stale=True,
@@ -132,7 +137,7 @@ class RunModeReloadStrategy:
     ) -> None:
         """Handle reload in run mode by sending Reload operation."""
         del changed_cell_ids
-        session.write_operation(Reload(), from_consumer_id=None)
+        session.notify(ReloadNotification(), from_consumer_id=None)
 
 
 class FileChangeCoordinator:
@@ -221,7 +226,6 @@ class FileChangeCoordinator:
         self._reload_strategy.handle_reload(
             session, changed_cell_ids=changed_cell_ids
         )
-
         return FileChangeResult(
             handled=True, changed_cell_ids=changed_cell_ids
         )

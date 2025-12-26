@@ -373,7 +373,7 @@ class UIElement(Html, Generic[S, T]):
             Combine with `HTML.batch` to create a form made out of multiple `UIElements`:
                 ```python
                 form = (
-                    mo.ui.md(
+                    mo.md(
                         '''
                     **Enter your prompt.**
 
@@ -433,14 +433,19 @@ class UIElement(Html, Generic[S, T]):
         from the backend.
         """
 
-        from marimo._messaging.ops import SendUIElementMessage
+        from marimo._messaging.notification import (
+            UIElementMessageNotification,
+        )
+        from marimo._messaging.notification_utils import broadcast_notification
 
-        SendUIElementMessage(
-            ui_element=self._id,
-            model_id=None,
-            message=message,
-            buffers=list(buffers or []),
-        ).broadcast()
+        broadcast_notification(
+            UIElementMessageNotification(
+                ui_element=self._id,
+                model_id=None,
+                message=message,
+                buffers=list(buffers or []),
+            ),
+        )
 
     def _update(self, value: S) -> None:
         """Update value, given a value from the frontend

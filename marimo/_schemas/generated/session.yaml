@@ -185,5 +185,5 @@ components:
       - duration
       type: object
 info:
-  title: marimo_session
+  title: marimo
 openapi: 3.0.0

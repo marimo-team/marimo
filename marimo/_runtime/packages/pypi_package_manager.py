@@ -58,7 +58,11 @@ class PipPackageManager(PypiPackageManager):
     name = "pip"
     docs_url = "https://pip.pypa.io/"
 
-    def install_command(self, package: str, *, upgrade: bool) -> list[str]:
+    def install_command(
+        self, package: str, *, upgrade: bool, dev: bool
+    ) -> list[str]:
+        # The `dev` parameter is accepted for interface compatibility, but is ignored.
+        del dev
         return [
             "pip",
             "--python",
@@ -68,7 +72,9 @@ class PipPackageManager(PypiPackageManager):
             *split_packages(package),
         ]
 
-    async def uninstall(self, package: str) -> bool:
+    async def uninstall(self, package: str, dev: bool) -> bool:
+        # The `dev` parameter is accepted for interface compatibility, but is ignored.
+        del dev
         LOGGER.info(f"Uninstalling {package} with pip")
         return await self.run(
             [
@@ -102,8 +108,11 @@ class MicropipPackageManager(PypiPackageManager):
         package: str,
         *,
         upgrade: bool,
+        dev: bool,
         log_callback: Optional[LogCallback] = None,
     ) -> bool:
+        # The `dev` parameter is accepted for interface compatibility, but is ignored.
+        del dev
         assert is_pyodide()
         import micropip  # type: ignore
 
@@ -127,7 +136,9 @@ class MicropipPackageManager(PypiPackageManager):
                 log_callback(f"Failed to install {package}: {e}\n")
             return False
 
-    async def uninstall(self, package: str) -> bool:
+    async def uninstall(self, package: str, dev: bool) -> bool:
+        # The `dev` parameter is accepted for interface compatibility, but is ignored.
+        del dev
         assert is_pyodide()
         import micropip  # type: ignore
 
@@ -177,10 +188,14 @@ class UvPackageManager(PypiPackageManager):
     def is_manager_installed(self) -> bool:
         return self._uv_bin != "uv" or super().is_manager_installed()
 
-    def install_command(self, package: str, *, upgrade: bool) -> list[str]:
+    def install_command(
+        self, package: str, *, upgrade: bool, dev: bool = False
+    ) -> list[str]:
         install_cmd: list[str]
         if self.is_in_uv_project:
             install_cmd = [self._uv_bin, "add"]
+            if dev:
+                install_cmd.append("--dev")
         else:
             install_cmd = [self._uv_bin, "pip", "install"]
 
@@ -205,6 +220,7 @@ class UvPackageManager(PypiPackageManager):
         package: str,
         *,
         upgrade: bool,
+        dev: bool,
         log_callback: Optional[LogCallback] = None,
     ) -> bool:
         """Installation logic with fallback to --no-cache on cache write errors."""
@@ -217,11 +233,12 @@ class UvPackageManager(PypiPackageManager):
             return await super()._install(
                 package,
                 upgrade=upgrade,
+                dev=dev,
                 log_callback=log_callback,
             )
 
         # For uv pip install, try with output capture to enable fallback
-        cmd = self.install_command(package, upgrade=upgrade)
+        cmd = self.install_command(package, upgrade=upgrade, dev=dev)
 
         # Run the command and capture output
         proc = subprocess.Popen(  # noqa: ASYNC220
@@ -492,11 +509,13 @@ class UvPackageManager(PypiPackageManager):
         pyproject_path = Path(venv_path).parent / "pyproject.toml"
         return uv_lock_path.exists() and pyproject_path.exists()
 
-    async def uninstall(self, package: str) -> bool:
+    async def uninstall(self, package: str, dev: bool = False) -> bool:
         uninstall_cmd: list[str]
         if self.is_in_uv_project:
             LOGGER.info(f"Uninstalling {package} with 'uv remove'")
             uninstall_cmd = [self._uv_bin, "remove"]
+            if dev:
+                uninstall_cmd.append("--dev")
         else:
             LOGGER.info(f"Uninstalling {package} with 'uv pip uninstall'")
             uninstall_cmd = [self._uv_bin, "pip", "uninstall"]
@@ -582,14 +601,20 @@ class RyePackageManager(PypiPackageManager):
     name = "rye"
     docs_url = "https://rye.astral.sh/"
 
-    def install_command(self, package: str, *, upgrade: bool) -> list[str]:
+    def install_command(
+        self, package: str, *, upgrade: bool, dev: bool
+    ) -> list[str]:
+        # The `dev` parameter is accepted for interface compatibility, but is ignored.
+        del dev
         return [
             "rye",
             *(["sync", "--update"] if upgrade else ["add"]),
             *split_packages(package),
         ]
 
-    async def uninstall(self, package: str) -> bool:
+    async def uninstall(self, package: str, dev: bool) -> bool:
+        # The `dev` parameter is accepted for interface compatibility, but is ignored.
+        del dev
         return await self.run(
             ["rye", "remove", *split_packages(package)], log_callback=None
         )
@@ -613,7 +638,11 @@ class PoetryPackageManager(PypiPackageManager):
         major, *_ = map(int, version_str.split("."))
         return major
 
-    def install_command(self, package: str, *, upgrade: bool) -> list[str]:
+    def install_command(
+        self, package: str, *, upgrade: bool, dev: bool
+    ) -> list[str]:
+        # The `dev` parameter is accepted for interface compatibility, but is ignored.
+        del dev
         return [
             "poetry",
             "update" if upgrade else "add",
@@ -621,7 +650,9 @@ class PoetryPackageManager(PypiPackageManager):
             *split_packages(package),
         ]
 
-    async def uninstall(self, package: str) -> bool:
+    async def uninstall(self, package: str, dev: bool) -> bool:
+        # The `dev` parameter is accepted for interface compatibility, but is ignored.
+        del dev
         return await self.run(
             ["poetry", "remove", "--no-interaction", *split_packages(package)],
             log_callback=None,

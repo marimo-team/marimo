@@ -8,7 +8,7 @@
   providers: [anthropic]
   roles: [chat, edit]
   thinking: true
-  
+
 - name: Claude 4.5 Sonnet
   model: claude-sonnet-4-5
   description: Latest Sonnet model with enhanced capabilities and performance improvements
@@ -232,7 +232,6 @@
   roles: [chat, edit]
   thinking: false
 
-
 # Bedrock
 
 - name: Claude 4.5 Sonnet (Bedrock)
@@ -293,145 +292,26 @@
 
 # Ollama Models
 
-- name: Llama 3.1 8B
-  model: llama3.1:8b
-  description: Meta's efficient 8B parameter model with excellent chat and coding capabilities
-  providers: [ollama]
-  roles: [chat, edit]
-  thinking: false
-
-- name: Llama 3.1 70B
-  model: llama3.1:70b
-  description: Large-scale Meta model with superior reasoning and complex task performance
-  providers: [ollama]
-  roles: [chat, edit]
-  thinking: false
-
-- name: Llama 3.3 70B
-  model: llama3.3:70b
-  description: Latest Llama model with enhanced capabilities and performance improvements
-  providers: [ollama]
-  roles: [chat, edit]
-  thinking: false
-
-- name: Mistral 7B
-  model: mistral:7b
-  description: Efficient 7B parameter model with strong performance for general tasks
-  providers: [ollama]
-  roles: [chat, edit]
-  thinking: false
-
-- name: Mixtral 8x7B
-  model: mixtral:8x7b
-  description: Mixture of experts model with 8x7B parameters for enhanced performance
-  providers: [ollama]
-  roles: [chat, edit]
-  thinking: false
-
-- name: Mixtral 8x22B
-  model: mixtral:8x22b
-  description: Large mixture of experts model with superior reasoning capabilities
-  providers: [ollama]
-  roles: [chat, edit]
-  thinking: false
-
-- name: Gemma 2 9B
-  model: gemma2:9b
-  description: Google's efficient 9B parameter model optimized for performance and safety
-  providers: [ollama]
-  roles: [chat, edit]
-  thinking: false
-
-- name: Gemma 2 27B
-  model: gemma2:27b
-  description: Larger Gemma model with enhanced capabilities for complex tasks
-  providers: [ollama]
-  roles: [chat, edit]
-  thinking: false
-
-- name: Qwen 2.5 7B
-  model: qwen2.5:7b
-  description: Alibaba's multilingual model with strong performance across diverse tasks
-  providers: [ollama]
-  roles: [chat, edit]
-  thinking: false
-
-- name: Qwen 2.5 14B
-  model: qwen2.5:14b
-  description: Mid-size Qwen model balancing performance and efficiency
-  providers: [ollama]
-  roles: [chat, edit]
-  thinking: false
-
-- name: Qwen 2.5 32B
-  model: qwen2.5:32b
-  description: Large Qwen model with excellent reasoning and multilingual capabilities
-  providers: [ollama]
-  roles: [chat, edit]
-  thinking: false
-
-- name: Qwen 2.5 72B
-  model: qwen2.5:72b
-  description: Flagship Qwen model with top-tier performance for complex reasoning tasks
-  providers: [ollama]
-  roles: [chat, edit]
-  thinking: false
-
-- name: DeepSeek R1 8B
-  model: deepseek-r1:8b
-  description: Efficient reasoning model with strong analytical capabilities
+- name: gpt-oss 20b
+  model: gpt-oss:20b
+  description: OpenAI’s open-weight models designed for powerful reasoning, agentic tasks, and versatile developer use cases.
   providers: [ollama]
   roles: [chat, edit]
   thinking: true
 
-- name: DeepSeek R1 32B
-  model: deepseek-r1:32b
-  description: Advanced reasoning model with enhanced problem-solving abilities
+- name: Qwen3 8b
+  model: qwen3:8b
+  description: Qwen3 is the latest generation of large language models in Qwen series.
   providers: [ollama]
   roles: [chat, edit]
   thinking: true
 
-- name: DeepSeek R1 70B
-  model: deepseek-r1:70b
-  description: Flagship reasoning model with superior analytical and thinking capabilities
+- name: Gemma3 12b
+  model: gemma3:12b
+  description: Lightweight gemma models trained by Google, trained to run on a single GPU.
   providers: [ollama]
   roles: [chat, edit]
   thinking: true
-
-- name: CodeLlama 34B
-  model: codellama:34b
-  description: Meta's specialized code generation model with strong programming capabilities
-  providers: [ollama]
-  roles: [chat, edit]
-  thinking: false
-
-- name: DeepSeek Coder 33B
-  model: deepseek-coder:33b
-  description: Specialized coding model with excellent programming and software development skills
-  providers: [ollama]
-  roles: [chat, edit]
-  thinking: false
-
-- name: Qwen 2.5 Coder 7B
-  model: qwen2.5-coder:7b
-  description: Code-optimized version of Qwen 2.5 for programming tasks
-  providers: [ollama]
-  roles: [chat, edit]
-  thinking: false
-
-- name: Phi-4 14B
-  model: phi4:14b
-  description: Microsoft's compact yet capable model optimized for reasoning tasks
-  providers: [ollama]
-  roles: [chat, edit]
-  thinking: false
-
-- name: TinyLlama 1.1B
-  model: tinyllama:1.1b
-  description: Ultra-lightweight model for resource-constrained environments
-  providers: [ollama]
-  roles: [chat]
-  thinking: false
 
 # Weights & Biases Models
 
@@ -490,4 +370,3 @@
   providers: [wandb]
   roles: [chat, edit]
   thinking: true
-
