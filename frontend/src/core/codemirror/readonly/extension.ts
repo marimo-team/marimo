@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 import { Compartment, EditorState, StateEffect } from "@codemirror/state";
 import { ViewPlugin } from "@codemirror/view";
 import type { createStore } from "jotai";

@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 export const TailwindIndicator = () => {
   if (process.env.NODE_ENV === "production") {
     return null;

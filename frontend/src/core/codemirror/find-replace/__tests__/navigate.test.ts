@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import { EditorState, Text } from "@codemirror/state";
 import type { EditorView } from "@codemirror/view";

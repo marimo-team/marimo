@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 import type { FieldQuery } from "compassql/build/src/query/encoding";
 import type { ExpandedType } from "compassql/build/src/query/expandedtype";
 import {

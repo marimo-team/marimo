@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import { Fill, Slot, useSlot } from "@marimo-team/react-slotz";
 import { useAtom } from "jotai";

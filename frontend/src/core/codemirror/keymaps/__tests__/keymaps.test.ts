@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import { defaultKeymap as originalDefaultKeymap } from "@codemirror/commands";
 import { describe, expect, it } from "vitest";

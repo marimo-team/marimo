@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 /* eslint-disable react-hooks/rules-of-hooks */
 
 import { dequal } from "dequal";

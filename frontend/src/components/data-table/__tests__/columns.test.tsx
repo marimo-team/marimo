@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import type { Column } from "@tanstack/react-table";
 import { render } from "@testing-library/react";

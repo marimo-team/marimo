@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 import { deserializeLayout } from "@/components/editor/renderers/plugins";
 import type { LayoutType } from "@/components/editor/renderers/types";
 import { Objects } from "@/utils/objects";

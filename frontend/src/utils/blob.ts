@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 import type { DataURLString } from "./json/base64";
 
 export function serializeBlob<T>(blob: Blob): Promise<DataURLString> {

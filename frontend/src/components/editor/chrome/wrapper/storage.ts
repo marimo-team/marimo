@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 import type { PanelGroupStorage } from "react-resizable-panels";
 import { z } from "zod";
 import { Objects } from "@/utils/objects";

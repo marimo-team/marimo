@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";

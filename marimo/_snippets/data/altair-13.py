@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 
 import marimo
 
@@ -12,7 +12,7 @@ def _(mo):
         r"""
         # Visualization: Distribution Plots in Altair
 
-        Create distribution visualizations using `mark_area()` and `transform_density()`. 
+        Create distribution visualizations using `mark_area()` and `transform_density()`.
         Common for comparing distributions across categories with interactive tooltips.
         """
     )
@@ -49,7 +49,7 @@ def _(alt, data):
             height=300,
             title='MPG Distribution by Origin'
         ).interactive()
-        
+
         return chart
 
     create_distribution_plot()

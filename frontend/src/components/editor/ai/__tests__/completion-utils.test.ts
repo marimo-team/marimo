@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 import { beforeEach, describe, expect, it, type Mock, vi } from "vitest";
 import { getCodes } from "@/core/codemirror/copilot/getCodes";
 import { dataSourceConnectionsAtom } from "@/core/datasets/data-source-connections";

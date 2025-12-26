@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import { Provider as SlotzProvider } from "@marimo-team/react-slotz";
 import { TooltipProvider } from "@radix-ui/react-tooltip";

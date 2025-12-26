@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 import type { PyodideInterface } from "pyodide";
 import { decodeUtf8 } from "@/utils/strings";
 import { getFS } from "./getFS";

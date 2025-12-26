@@ -1,4 +1,4 @@
-# Copyright 2025 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 """Standalone kernel server entry point for IPC (using ZeroMQ)."""
 
 from __future__ import annotations

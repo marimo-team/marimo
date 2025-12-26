@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import React, { type PropsWithChildren } from "react";
 import { type ConnectionStatus, WebSocketState } from "@/core/websocket/types";

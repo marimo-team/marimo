@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 import { DEFAULT_CELL_NAME } from "@/core/cells/names";
 
 export function createCellLink(cellName: string): string {

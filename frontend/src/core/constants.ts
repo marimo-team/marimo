@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 export const Constants = {
   githubPage: "https://github.com/marimo-team/marimo",
   releasesPage: "https://github.com/marimo-team/marimo/releases",

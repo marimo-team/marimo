@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 /* eslint-disable react/jsx-no-comment-textnodes */
 /* eslint-disable react/jsx-no-target-blank */
 

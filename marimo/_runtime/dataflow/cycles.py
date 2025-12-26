@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 """Cycle detection and tracking for cell dependencies."""
 
 from __future__ import annotations

@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import { InfoIcon, type LucideProps } from "lucide-react";
 import { ReadonlyCode } from "@/components/editor/code/readonly-python-code";

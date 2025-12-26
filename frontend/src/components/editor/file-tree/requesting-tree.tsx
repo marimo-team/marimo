@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import { SimpleTree } from "react-arborist";
 import { toast } from "@/components/ui/use-toast";

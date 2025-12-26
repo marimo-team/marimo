@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 
 import marimo
 
@@ -12,7 +12,7 @@ def _(mo):
         r"""
         # Polars: Data Standardization and Group Comparisons
 
-        This snippet demonstrates statistical operations in Polars including summary statistics, 
+        This snippet demonstrates statistical operations in Polars including summary statistics,
         correlations, standardization, and group comparisons.
 
         Example: `df.select([pl.all()]).describe()` for summary statistics

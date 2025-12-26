@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 """File change handling for marimo notebooks.
 
 Provides strategies for handling file changes in different session modes.

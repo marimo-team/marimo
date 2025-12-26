@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import { EditorView, keymap } from "@codemirror/view";
 import { useAtomValue } from "jotai";

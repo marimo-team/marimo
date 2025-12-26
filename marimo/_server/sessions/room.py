@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 """Room management for broadcasting messages to multiple consumers.
 
 A Room is a collection of SessionConsumers that can be used to broadcast

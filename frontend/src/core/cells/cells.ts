@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import { historyField } from "@codemirror/commands";
 import { type Atom, atom, useAtom, useAtomValue } from "jotai";

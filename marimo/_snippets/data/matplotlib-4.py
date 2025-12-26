@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 
 import marimo
 
@@ -12,7 +12,7 @@ def _(mo):
         r"""
         # Matplotlib: Styling and Themes
 
-        Apply custom styles using `plt.style.use()` and customize plots with 
+        Apply custom styles using `plt.style.use()` and customize plots with
         `rcParams`. Common for creating publication-quality figures.
         """
     )

@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 import { isStaticNotebook } from "../static/static-state";
 import { PyodideBridge } from "../wasm/bridge";
 import { isWasm } from "../wasm/utils";

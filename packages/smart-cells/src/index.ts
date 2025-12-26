@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 export type { MarkdownMetadata } from "./parsers/markdown-parser.js";
 export { MarkdownParser } from "./parsers/markdown-parser.js";

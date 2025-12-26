@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 
 import marimo
 
@@ -12,7 +12,7 @@ def _(mo):
         r"""
         # Visualization: Multi-View Dashboard in Altair
 
-        Create interactive dashboards using `alt.vconcat()` and `alt.hconcat()`. 
+        Create interactive dashboards using `alt.vconcat()` and `alt.hconcat()`.
         Demonstrates linked views with `alt.selection()` for cross-filtering data.
         """
     )

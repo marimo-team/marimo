@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 import { beforeEach, expect, it, vi } from "vitest";
 import { initialModeAtom } from "@/core/mode";
 import { store } from "@/core/state/jotai";

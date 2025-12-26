@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import { Facet } from "@codemirror/state";
 import type { CellActions } from "@/core/cells/cells";

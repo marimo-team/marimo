@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 export class Deferred<T> {
   promise: Promise<T>;
   resolve!: (value: T | PromiseLike<T>) => void;

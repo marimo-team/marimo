@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 import { atom } from "jotai";
 import type { Capabilities } from "../kernel/messages";
 import { store } from "../state/jotai";

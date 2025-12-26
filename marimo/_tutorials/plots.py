@@ -1,4 +1,4 @@
-# Copyright 2025 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 # /// script
 # requires-python = ">=3.12"
 # dependencies = [
@@ -234,7 +234,7 @@ def _(missing_packages, mo):
         """
         ## Oops!
 
-        It looks like you're missing a package that this tutorial 
+        It looks like you're missing a package that this tutorial
         requires.
 
         Use the package manager panel on the left to install **numpy** and **matplotlib**,

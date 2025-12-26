@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 /**
  * Hook that enables Ctrl/Cmd-A to select all text content within a specific element

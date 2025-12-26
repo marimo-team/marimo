@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import { ChevronRightIcon, LoaderCircle, XIcon } from "lucide-react";
 import type { DataType } from "@/core/kernel/messages";

@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect, useId } from "react";
 import { useForm } from "react-hook-form";

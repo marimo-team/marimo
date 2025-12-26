@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 """Token management for authentication and skew protection.
 
 Manages creation and validation of auth tokens and skew protection tokens

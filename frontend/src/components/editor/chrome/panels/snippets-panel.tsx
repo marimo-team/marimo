@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import { CommandList } from "cmdk";
 import { BetweenHorizontalStartIcon, PlusIcon, XIcon } from "lucide-react";

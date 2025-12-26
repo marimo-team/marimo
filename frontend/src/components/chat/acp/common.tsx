@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import type { RequestPermissionResponse } from "@zed-industries/agent-client-protocol";
 import {

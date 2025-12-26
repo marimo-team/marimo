@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 // This file has been adapted from https://github.com/jupyterlab/jupyterlab/blob/0dbe74708be66cb9ac423c0fb47c66418c037a8f/packages/codemirror/src/extensions/ipython-md.ts
 // Copyright (c) 2015-2025 Project Jupyter Contributors

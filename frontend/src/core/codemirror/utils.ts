@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 import type { EditorState, Transaction } from "@codemirror/state";
 import type { EditorView, ViewUpdate } from "@codemirror/view";
 import { getCM } from "@replit/codemirror-vim";

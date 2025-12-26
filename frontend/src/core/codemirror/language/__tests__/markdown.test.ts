@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 import { beforeEach, describe, expect, it } from "vitest";
 import {
   MarkdownLanguageAdapter,
@@ -28,7 +28,7 @@ describe("MarkdownLanguageAdapter", () => {
       expect(out).toMatchInlineSnapshot(`
         [
           "mo.md(r"""
-         
+
         """)",
           12,
         ]
@@ -230,7 +230,7 @@ describe("MarkdownLanguageAdapter", () => {
       const code = "";
       const [wrappedCode, offset] = adapter.transformOut(code, metadata);
       expect(wrappedCode).toBe(`mo.md("""
- 
+
 """)`);
       expect(offset).toBe(11);
     });

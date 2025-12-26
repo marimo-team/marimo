@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 import { useAtomValue } from "jotai";
 import { appConfigAtom } from "@/core/config/config";
 import { useInterval } from "@/hooks/useInterval";

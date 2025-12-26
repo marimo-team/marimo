@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { vegaLoader } from "../loader";
 import { resolveVegaSpecData } from "../resolve-data";
