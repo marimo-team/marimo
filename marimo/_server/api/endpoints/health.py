@@ -215,11 +215,11 @@ async def usage(request: Request) -> JSONResponse:
             "has_cgroup_mem_limit": False,
         }
 
-    cpu_percent = get_cgroup_cpu_percent()
-    if cpu_percent is None:
+    cpu = get_cgroup_cpu_percent()
+    if cpu is None:
         # interval=None is nonblocking; first call returns meaningless value
         # subsequent calls return delta since last call
-        cpu_percent = psutil.cpu_percent(interval=None)
+        cpu = psutil.cpu_percent(interval=None)
 
     # Server memory (and children)
     main_process = psutil.Process()
@@ -301,7 +301,7 @@ async def usage(request: Request) -> JSONResponse:
                 "memory": kernel_memory,
             },
             "cpu": {
-                "percent": cpu_percent,
+                "percent": cpu,
             },
             "gpu": gpu_stats,
         }

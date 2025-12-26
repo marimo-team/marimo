@@ -216,7 +216,6 @@ def _has_cgroup_cpu_limit() -> bool:
     Returns True/False whether the container has a CPU limit set.
     This function checks for both cgroups v1 and v2.
     """
-    # TODO Constants
     # cgroups v2
     if os.path.exists(CGROUP_V2_CPU_MAX_FILE):
         with open(CGROUP_V2_CPU_MAX_FILE, encoding="utf-8") as f:
