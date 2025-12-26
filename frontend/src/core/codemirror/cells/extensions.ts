@@ -7,7 +7,7 @@ import { createTracebackInfoAtom } from "@/core/cells/cells";
 import { type CellId, HTMLCellId, SCRATCH_CELL_ID } from "@/core/cells/ids";
 import type { KeymapConfig } from "@/core/config/config-schema";
 import type { HotkeyProvider } from "@/core/hotkeys/hotkeys";
-import { withCtrlEquivalents } from "@/core/hotkeys/shortcuts";
+import { withCtrlEquivalent } from "@/core/hotkeys/shortcuts";
 import { store } from "@/core/state/jotai";
 import { createObservable } from "@/core/state/observable";
 import { formatKeymapExtension } from "../extensions";
@@ -34,8 +34,9 @@ function cellKeymaps({
 }): Extension[] {
   const keybindings: KeyBinding[] = [];
 
+  // Run-related keybindings get Ctrl equivalents on macOS for Jupyter/Colab users
   keybindings.push(
-    {
+    ...withCtrlEquivalent({
       key: hotkeys.getHotkey("cell.run").key,
       preventDefault: true,
       stopPropagation: true,
@@ -44,8 +45,9 @@ function cellKeymaps({
         actions.onRun();
         return true;
       },
-    },
+    }),
     {
+      // Shift-Enter has no Cmd, so no Ctrl equivalent needed
       key: hotkeys.getHotkey("cell.runAndNewBelow").key,
       preventDefault: true,
       stopPropagation: true,
@@ -60,7 +62,7 @@ function cellKeymaps({
         return true;
       },
     },
-    {
+    ...withCtrlEquivalent({
       key: hotkeys.getHotkey("cell.runAndNewAbove").key,
       preventDefault: true,
       stopPropagation: true,
@@ -74,7 +76,7 @@ function cellKeymaps({
         actions.moveToNextCell({ cellId, before: true });
         return true;
       },
-    },
+    }),
     {
       key: hotkeys.getHotkey("cell.aiCompletion").key,
       preventDefault: true,
@@ -300,8 +302,7 @@ function cellKeymaps({
   }
 
   // Highest priority so that we can override the default keymap
-  // withCtrlEquivalents adds Ctrl variants for Cmd shortcuts on macOS
-  return [Prec.high(keymap.of(withCtrlEquivalents(keybindings)))];
+  return [Prec.high(keymap.of(keybindings))];
 }
 
 /**

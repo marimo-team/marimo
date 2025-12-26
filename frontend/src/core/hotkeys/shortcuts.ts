@@ -146,24 +146,17 @@ export function resolvePlatform(): Platform {
 }
 
 /**
- * On macOS, duplicate any Cmd-based keybindings to also work with Ctrl.
+ * On macOS, duplicate a Cmd-based keybinding to also work with Ctrl.
  * This allows users to use either Cmd or Ctrl as the modifier key.
  *
- * For use with CodeMirror keymap.of() calls.
+ * Returns an array with the original binding, plus a Ctrl variant on macOS.
+ * For use with CodeMirror keymap bindings.
  */
-export function withCtrlEquivalents<T extends { key?: string }>(
-  bindings: T[],
+export function withCtrlEquivalent<T extends { key?: string }>(
+  binding: T,
 ): T[] {
-  if (!isPlatformMac()) {
-    return bindings;
-  }
-  return bindings.flatMap((binding) => {
-    if (binding.key?.includes("Cmd")) {
-      return [
-        binding,
-        { ...binding, key: binding.key.replace(/Cmd/g, "Ctrl") },
-      ];
-    }
+  if (!isPlatformMac() || !binding.key?.includes("Cmd")) {
     return [binding];
-  });
+  }
+  return [binding, { ...binding, key: binding.key.replaceAll("Cmd", "Ctrl") }];
 }
