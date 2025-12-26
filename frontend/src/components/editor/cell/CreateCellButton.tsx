@@ -80,11 +80,23 @@ export const CreateCellButton = ({
     return <div className="mr-3 text-muted-foreground">{icon}</div>;
   };
 
+  const openDropdown = () => {
+    setOpen(true);
+    setJustOpened(true);
+    // Allow interactions after a brief delay to prevent the dropdown items immediately being clicked
+    setTimeout(() => setJustOpened(false), 200);
+  };
+
   // We use onPointerDownCapture (not onPointerDown) to intercept events in
   // capture phase before Radix's DropdownMenuTrigger sees them. Radix ignores
   // Ctrl+Click (likely to avoid interfering with browser), so we bypass its
   // trigger entirely and manage the dropdown's open state ourselves.
   const handlePointerDownCapture = (e: React.MouseEvent) => {
+    // Ignore right-clicks, handled by onContextMenuCapture
+    if (e.button === 2) {
+      return;
+    }
+
     // Don't propagate event to Radix
     e.preventDefault();
     e.stopPropagation();
@@ -93,13 +105,16 @@ export const CreateCellButton = ({
       oneClickShortcut === "shift" ? e.shiftKey : e.metaKey || e.ctrlKey;
 
     if (hasModifier) {
-      setOpen(true);
-      setJustOpened(true);
-      // Allow interactions after a brief delay
-      setTimeout(() => setJustOpened(false), 200);
+      openDropdown();
     } else {
       addPythonCell();
     }
+  };
+
+  const handleContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    openDropdown();
   };
 
   const handleOpenChange = (isOpen: boolean) => {
@@ -130,6 +145,7 @@ export const CreateCellButton = ({
             isAppInteractionDisabled(connectionState) && " inactive-button",
           )}
           onPointerDownCapture={handlePointerDownCapture}
+          onContextMenuCapture={handleContextMenu}
           size="small"
           data-testid="create-cell-button"
         >
