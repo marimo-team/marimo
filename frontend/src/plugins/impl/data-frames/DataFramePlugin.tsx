@@ -60,6 +60,7 @@ type PluginFunctions = {
     total_rows: number;
     row_headers: FieldTypesWithExternalType;
     field_types: FieldTypesWithExternalType | null;
+    column_types_per_step: FieldTypesWithExternalType[];
     python_code?: string | null;
     sql_code?: string | null;
   }>;
@@ -112,6 +113,7 @@ export const DataFramePlugin = createPlugin<S>("marimo-dataframe")
         total_rows: z.number(),
         row_headers: columnToFieldTypesSchema,
         field_types: columnToFieldTypesSchema,
+        column_types_per_step: z.array(columnToFieldTypesSchema),
         python_code: z.string().nullish(),
         sql_code: z.string().nullish(),
       }),
@@ -190,8 +192,15 @@ export const DataFrameComponent = memo(
       [value?.transforms],
     );
 
-    const { url, total_rows, row_headers, field_types, python_code, sql_code } =
-      data || {};
+    const {
+      url,
+      total_rows,
+      row_headers,
+      field_types,
+      column_types_per_step,
+      python_code,
+      sql_code,
+    } = data || {};
 
     const [internalValue, setInternalValue] = useState<Transformations>(
       value || EMPTY,
@@ -270,6 +279,7 @@ export const DataFrameComponent = memo(
               }}
               onInvalidChange={setInternalValue}
               getColumnValues={get_column_values}
+              columnTypesPerStep={column_types_per_step}
               lazy={lazy}
             />
           </TabsContent>

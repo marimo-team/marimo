@@ -1222,7 +1222,15 @@ class TestTransformHandler:
         )
 
         # Apply the transformations
-        result = container.apply(transformations)
+        result, field_types = container.apply(transformations)
+
+        # Verify field_types: original + 2 transforms = 3 entries
+        assert len(field_types) == 3
+        # All steps should have columns A and B
+        for ft in field_types:
+            col_names = [name for name, _ in ft]
+            assert "A" in col_names
+            assert "B" in col_names
 
         # Get the transformed dataframe
         # Check that the transformations were applied correctly
@@ -1242,9 +1250,12 @@ class TestTransformHandler:
         assert container._get_next_transformations(
             transformations
         ) == Transformations([filter_again_transform])
-        result = container.apply(
+        result, field_types = container.apply(
             transformations,
         )
+        # Verify field_types: original + 3 transforms = 4 entries
+        assert len(field_types) == 4
+
         # Check that the transformations were applied correctly
         assert_frame_equal(undo(result), expected2)
 
@@ -1256,11 +1267,81 @@ class TestTransformHandler:
             == transformations
         )
         # Reapply by removing the last transform
-        result = container.apply(
+        result, field_types = container.apply(
             transformations,
         )
+        # Verify field_types: original + 2 transforms = 3 entries
+        assert len(field_types) == 3
+
         # Check that the transformations were applied correctly
         assert_frame_equal(undo(result), expected)
+
+    @staticmethod
+    @pytest.mark.parametrize(
+        "df",
+        create_test_dataframes({"A": [1, 2, 3], "B": ["x", "y", "z"]}),
+    )
+    def test_apply_field_types_with_rename(df: DataFrameType) -> None:
+        """Test that field types correctly reflect column renames."""
+        nw_df, _ = make_lazy(df)
+        container = TransformsContainer(nw_df, NarwhalsTransformHandler())
+
+        rename_transform = RenameColumnTransform(
+            type=TransformType.RENAME_COLUMN,
+            column_id="A",
+            new_column_id="C",
+        )
+        transformations = Transformations([rename_transform])
+        _, field_types = container.apply(transformations)
+
+        # Should have 2 entries: original and after rename
+        assert len(field_types) == 2
+
+        # Original should have A and B
+        original_cols = [name for name, _ in field_types[0]]
+        assert "A" in original_cols
+        assert "B" in original_cols
+        assert "C" not in original_cols
+
+        # After rename should have C and B (no A)
+        renamed_cols = [name for name, _ in field_types[1]]
+        assert "A" not in renamed_cols
+        assert "B" in renamed_cols
+        assert "C" in renamed_cols
+
+    @staticmethod
+    @pytest.mark.parametrize(
+        "df",
+        create_test_dataframes(
+            {"group": ["a", "a", "b"], "value": [1, 2, 3]},
+        ),
+    )
+    def test_apply_field_types_with_groupby(df: DataFrameType) -> None:
+        """Test that field types correctly reflect group by aggregation."""
+        nw_df, _ = make_lazy(df)
+        container = TransformsContainer(nw_df, NarwhalsTransformHandler())
+
+        groupby_transform = GroupByTransform(
+            type=TransformType.GROUP_BY,
+            column_ids=["group"],
+            drop_na=False,
+            aggregation="sum",
+            aggregation_column_ids=[],
+        )
+        transformations = Transformations([groupby_transform])
+        _, field_types_at_steps = container.apply(transformations)
+
+        # Should have 2 entries: original and after group by
+        assert len(field_types_at_steps) == 2
+        assert field_types_at_steps == [
+            # Original should have group and value
+            [("group", ("string", "String")), ("value", ("integer", "Int64"))],
+            # After group by should have group and value_sum
+            [
+                ("group", ("string", "String")),
+                ("value_sum", ("integer", "Int64")),
+            ],
+        ]
 
     @staticmethod
     @pytest.mark.parametrize(
