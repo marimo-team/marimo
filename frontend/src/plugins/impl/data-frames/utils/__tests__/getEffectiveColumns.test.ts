@@ -14,7 +14,7 @@ describe("getEffectiveColumns", () => {
 
   // Helper to create field types in the backend format
   const createFieldTypes = (
-    cols: Array<[string, string]>,
+    cols: [string, string][],
   ): FieldTypesWithExternalType => {
     return cols.map(([name, dataType]) => [
       name,

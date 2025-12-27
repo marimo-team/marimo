@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import type { FieldTypesWithExternalType } from "@/components/data-table/types";
 import type { ColumnDataTypes, ColumnId } from "../types";
@@ -16,7 +16,7 @@ import type { ColumnDataTypes, ColumnId } from "../types";
 export function getEffectiveColumns(
   columns: ColumnDataTypes,
   columnTypesPerStep: FieldTypesWithExternalType[] | undefined,
-  selectedTransform: number | undefined,
+  stepIndex = 0,
 ): ColumnDataTypes {
   // If no columnTypesPerStep, fall back to original columns
   if (!columnTypesPerStep || columnTypesPerStep.length === 0) {
@@ -26,7 +26,6 @@ export function getEffectiveColumns(
   // columnTypesPerStep[0] = original columns
   // columnTypesPerStep[N] = columns after transform N-1
   // For the selected transform, we want columns BEFORE it, so index = selectedTransform
-  const stepIndex = selectedTransform ?? 0;
   const safeIndex = Math.min(stepIndex, columnTypesPerStep.length - 1);
   const fieldTypes = columnTypesPerStep[safeIndex];
 
