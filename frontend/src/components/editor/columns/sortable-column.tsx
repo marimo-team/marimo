@@ -50,11 +50,11 @@ const SortableColumnInternal = React.forwardRef(
     const style: React.CSSProperties = {
       transform: transform
         ? CSS.Transform.toString({
-          x: transform.x,
-          y: 0,
-          scaleX: 1,
-          scaleY: 1,
-        })
+            x: transform.x,
+            y: 0,
+            scaleX: 1,
+            scaleY: 1,
+          })
         : undefined,
       transition,
       zIndex: isDragging ? 2 : undefined,
