@@ -12,6 +12,8 @@ from marimo._dependencies.dependencies import DependencyManager
 from marimo._server.api.deps import AppState
 from marimo._server.router import APIRouter
 from marimo._utils.health import (
+    get_cgroup_cpu_percent,
+    get_cgroup_mem_stats,
     get_node_version,
     get_python_version,
     get_required_modules_list,
@@ -130,12 +132,15 @@ async def usage(request: Request) -> JSONResponse:
                                         type: integer
                                     free:
                                         type: integer
+                                    has_cgroup_mem_limit:
+                                        type: boolean
                                 required:
                                     - total
                                     - available
                                     - percent
                                     - used
                                     - free
+                                    - has_cgroup_mem_limit
                             server:
                                 type: object
                                 properties:
@@ -193,10 +198,28 @@ async def usage(request: Request) -> JSONResponse:
 
     import psutil
 
-    memory = psutil.virtual_memory()
-    # interval=None is nonblocking; first value is meaningless but after
-    # that it's useful.
-    cpu = psutil.cpu_percent(interval=None)
+    if cgroup_mem_stats := get_cgroup_mem_stats():
+        memory_stats = {
+            "has_cgroup_mem_limit": True,
+            **cgroup_mem_stats,
+        }
+    else:
+        # Use host memory stats
+        memory = psutil.virtual_memory()
+        memory_stats = {
+            "total": memory.total,
+            "available": memory.available,
+            "percent": memory.percent,
+            "used": memory.used,
+            "free": memory.free,
+            "has_cgroup_mem_limit": False,
+        }
+
+    cpu = get_cgroup_cpu_percent()
+    if cpu is None:
+        # interval=None is nonblocking; first call returns meaningless value
+        # subsequent calls return delta since last call
+        cpu = psutil.cpu_percent(interval=None)
 
     # Server memory (and children)
     main_process = psutil.Process()
@@ -267,14 +290,8 @@ async def usage(request: Request) -> JSONResponse:
 
     return JSONResponse(
         {
-            # computer memory
-            "memory": {
-                "total": memory.total,
-                "available": memory.available,
-                "percent": memory.percent,
-                "used": memory.used,
-                "free": memory.free,
-            },
+            # computer memory or container memory
+            "memory": memory_stats,
             # marimo server
             "server": {
                 "memory": server_memory,

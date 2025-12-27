@@ -5345,6 +5345,8 @@ paths:
                         type: integer
                       free:
                         type: integer
+                      has_cgroup_mem_limit:
+                        type: boolean
                       percent:
                         type: number
                       total:
@@ -5357,6 +5359,7 @@ paths:
                     - percent
                     - used
                     - free
+                    - has_cgroup_mem_limit
                     type: object
                   server:
                     properties:
