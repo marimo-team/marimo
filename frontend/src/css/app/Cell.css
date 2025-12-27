@@ -110,10 +110,6 @@
       border-bottom-right-radius: 9px;
     }
 
-    &:hover {
-      @apply shadow-md-solid shadow-shade;
-    }
-
     &:focus-within {
       border: 1px solid var(--gray-5);
 
@@ -208,10 +204,6 @@
     outline: none;
     @apply divide-stale shadow-md-solid shadow-stale;
 
-    &:hover {
-      @apply shadow-lg-solid shadow-stale;
-    }
-
     &:focus-within:hover,
     &:focus-within {
       @apply shadow-xl-solid shadow-stale;
@@ -283,10 +275,8 @@
     }
 
     /* Apply the original styles */
-
     &:hover {
       border: 1px solid var(--gray-4);
-      @apply shadow-sm-solid shadow-shade;
     }
   }
 
@@ -324,10 +314,8 @@
     }
 
     /* Apply the original styles */
-
     &:hover {
       border: 1px solid var(--gray-4);
-      @apply shadow-sm-solid shadow-shade;
     }
   }
 }
