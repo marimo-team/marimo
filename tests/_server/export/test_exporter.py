@@ -4,7 +4,7 @@ import asyncio
 import json
 import sys
 from typing import TYPE_CHECKING, Any
-from unittest.mock import MagicMock, patch
+from unittest.mock import ANY, MagicMock, patch
 
 import pytest
 
@@ -484,8 +484,10 @@ async def test_run_until_completion_with_console_output(mock_echo: MagicMock):
     assert did_error is False
 
     def _assert_contents():
-        mock_echo.assert_any_call("hello stdout", file=sys.stderr, nl=False)
-        mock_echo.assert_any_call("hello stderr", file=sys.stderr, nl=False)
+        # File should be sys.stderr, but it can change during CI execution
+        # So, we use ANY for the file parameter.
+        mock_echo.assert_any_call("hello stdout", file=ANY, nl=False)
+        mock_echo.assert_any_call("hello stderr", file=ANY, nl=False)
 
     n_tries = 0
     limit = 10
