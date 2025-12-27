@@ -50,11 +50,11 @@ const SortableColumnInternal = React.forwardRef(
     const style: React.CSSProperties = {
       transform: transform
         ? CSS.Transform.toString({
-            x: transform.x,
-            y: 0,
-            scaleX: 1,
-            scaleY: 1,
-          })
+          x: transform.x,
+          y: 0,
+          scaleX: 1,
+          scaleY: 1,
+        })
         : undefined,
       transition,
       zIndex: isDragging ? 2 : undefined,
@@ -78,7 +78,7 @@ const SortableColumnInternal = React.forwardRef(
     };
 
     const dragHandle = (
-      <div className="px-2 pt-3 pb-0 group flex items-center rounded-t-lg overflow-hidden">
+      <div className="px-2 pb-0 group flex items-center overflow-hidden border-b border-[var(--slate-7)]">
         <Tooltip content="Move column left" side="top" delayDuration={300}>
           <Button
             variant="text"
@@ -161,7 +161,7 @@ const SortableColumnInternal = React.forwardRef(
           isOver && "bg-accent/20", // Add a background color when dragging over
         )}
       >
-        <div className="bg-(--slate-1) rounded-lg">
+        <div className="border border-[var(--slate-7)]">
           {dragHandle}
           {props.children}
         </div>
