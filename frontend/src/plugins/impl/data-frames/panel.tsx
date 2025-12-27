@@ -28,6 +28,7 @@ import React, {
 import { useFieldArray, useForm } from "react-hook-form";
 import useEvent from "react-use-event-hook";
 import type { z } from "zod";
+import type { FieldTypesWithExternalType } from "@/components/data-table/types";
 import {
   ColumnFetchValuesContext,
   ColumnInfoContext,
@@ -58,7 +59,7 @@ import {
   TransformTypeSchema,
 } from "./schema";
 import type { ColumnDataTypes } from "./types";
-import { getUpdatedColumnTypes } from "./utils/getUpdatedColumnTypes";
+import { getEffectiveColumns } from "./utils/getEffectiveColumns";
 
 export interface TransformPanelHandle {
   submit: () => void;
@@ -73,6 +74,8 @@ interface Props {
     values: unknown[];
     too_many_values: boolean;
   }>;
+  // Column types at each transform step (index 0 = original, index N = after N transforms)
+  columnTypesPerStep?: FieldTypesWithExternalType[];
   lazy: boolean;
   ref?: React.Ref<TransformPanelHandle>;
 }
@@ -83,6 +86,7 @@ export const TransformPanel: React.FC<Props> = ({
   onChange,
   onInvalidChange,
   getColumnValues,
+  columnTypesPerStep,
   lazy,
   ref,
 }) => {
@@ -157,8 +161,7 @@ export const TransformPanel: React.FC<Props> = ({
   });
 
   const effectiveColumns = useMemo(() => {
-    const transformsBeforeSelected = transforms.slice(0, selectedTransform);
-    return getUpdatedColumnTypes(transformsBeforeSelected, columns);
+    return getEffectiveColumns(columns, columnTypesPerStep, selectedTransform);
   }, [columns, transforms, selectedTransform]);
 
   const handleAddTransform = (transform: z.ZodType) => {
