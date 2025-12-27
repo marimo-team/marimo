@@ -18,8 +18,8 @@
 
   &:focus-visible {
     /* focus-visible outlines the entire cell body in black, but the cell's
-         * body is an irregular shape because of pseudo-elements that extend
-         * its hit-box / hover area. */
+     * body is an irregular shape because of pseudo-elements that extend
+     * its hit-box / hover area. */
     outline: none;
   }
 
@@ -110,25 +110,6 @@
       border-bottom-right-radius: 9px;
     }
 
-    &:focus-within {
-      border: 1px solid var(--gray-5);
-
-      /* a sharp box shadow with a slight blur to outline the element */
-      @apply shadow-lg-solid shadow-shade;
-
-      /* a little bit of motion
-            *
-            * Note: we use left/top instead of transform because transform creates a new
-            * stacking context and makes completion tooltip appear below surrounding
-            * cells/outputs. See
-            *
-            * https://stackoverflow.com/questions/20851452/z-index-is-canceled-by-setting-transformrotate,
-            * https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_Positioning/Understanding_z_index/The_stacking_context
-            * */
-      left: -1px;
-      top: -1px;
-    }
-
     .cm {
       border-radius: 8px;
     }
@@ -160,12 +141,6 @@
   &.disabled.has-error,
   &.disabled:hover,
   &.disabled.has-error:hover {
-    @apply shadow-sm-solid shadow-shade;
-
-    &:focus-within {
-      @apply shadow-lg-solid shadow-shade;
-    }
-
     .output-area,
     .cm-gutters,
     .cm {
@@ -175,20 +150,9 @@
   }
 
   /* Error styles for Cell, less precedence than needs run */
-
-  &.has-error,
+  &.has-error:not(.needs-run),
   &.error-outline {
-    outline: 1px solid var(--red-4);
-    @apply shadow-md-solid shadow-[var(--red-8)];
-  }
-
-  &.has-error:hover {
-    @apply shadow-lg-solid shadow-[var(--red-8)];
-  }
-
-  &.has-error:focus-within,
-  &.has-error:focus-within:hover {
-    @apply shadow-xl-solid shadow-[var(--red-8)];
+    border: 1px solid var(--red-4);
   }
 
   &.error-outline,
@@ -203,11 +167,6 @@
     /* TODO(akshayka): Can give this an outline to make more visible. */
     outline: none;
     @apply divide-stale shadow-md-solid shadow-stale;
-
-    &:focus-within:hover,
-    &:focus-within {
-      @apply shadow-xl-solid shadow-stale;
-    }
 
     &:focus-within .cm-editor {
       box-shadow: none;
