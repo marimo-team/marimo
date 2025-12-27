@@ -527,10 +527,26 @@ async def test_session_cache_writer(session_view: SessionView):
         console=[],
         timestamp=0,
     )
+    view.cell_notifications["cell2"] = CellNotification(
+        cell_id="cell2",
+        status="idle",
+        output=CellOutput(
+            channel=CellChannel.OUTPUT,
+            mimetype="text/plain",
+            data="more data",
+        ),
+        console=[],
+        timestamp=0,
+    )
 
     with tempfile.TemporaryDirectory() as tmpdir:
         path = Path(tmpdir) / "session.json"
-        writer = SessionCacheWriter(view, path, interval=0.1)
+        writer = SessionCacheWriter(
+            view,
+            path,
+            interval=0.1,
+            cell_ids_provider=lambda: ("cell2", "cell1"),
+        )
 
         # Start writer and wait for first write
         writer.start()
@@ -539,8 +555,8 @@ async def test_session_cache_writer(session_view: SessionView):
         # Verify data was written
         assert path.exists()
         data = json.loads(path.read_text())
-        assert len(data["cells"]) == 1
-        assert data["cells"][0]["id"] == "cell1"
+        assert len(data["cells"]) == 2
+        assert [cell["id"] for cell in data["cells"]] == ["cell2", "cell1"]
 
         # Stop writer and verify cleanup
         await writer.stop()
