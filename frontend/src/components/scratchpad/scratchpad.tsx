@@ -4,12 +4,14 @@ import type { EditorView } from "@codemirror/view";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import {
   BetweenHorizontalStartIcon,
+  CircleHelpIcon,
   EraserIcon,
   HistoryIcon,
   PlayIcon,
 } from "lucide-react";
 import type React from "react";
 import { Suspense, useRef, useState } from "react";
+import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import useEvent from "react-use-event-hook";
 import { useCellActions, useNotebook } from "@/core/cells/cells";
 import { useLastFocusedCellId } from "@/core/cells/focus";
@@ -120,57 +122,6 @@ export const ScratchPad: React.FC = () => {
 
   const [languageAdapter, setLanguageAdapter] = useState<LanguageAdapterType>();
 
-  const renderBody = () => {
-    // We overlay the history on top of the body, instead of removing it,
-    // so we don't have to re-render the entire editor and outputs.
-    return (
-      <>
-        <div className="overflow-auto shrink-0 max-h-[40%]">
-          <CellEditor
-            theme={theme}
-            showPlaceholder={false}
-            id={cellId}
-            code={code}
-            config={scratchpadCellConfig}
-            status="idle"
-            serializedEditorState={null}
-            runCell={handleRun}
-            userConfig={userConfig}
-            editorViewRef={ref}
-            setEditorView={(ev) => {
-              ref.current = ev;
-            }}
-            hidden={false}
-            showHiddenCode={Functions.NOOP}
-            languageAdapter={languageAdapter}
-            setLanguageAdapter={setLanguageAdapter}
-          />
-        </div>
-        <div className="flex-1 overflow-auto shrink-0">
-          <OutputArea
-            allowExpand={false}
-            output={output}
-            className={CSSClasses.outputArea}
-            cellId={cellId}
-            stale={false}
-            loading={false}
-          />
-        </div>
-        <div className="overflow-auto shrink-0 max-h-[35%]">
-          <ConsoleOutput
-            consoleOutputs={consoleOutputs}
-            className="overflow-auto"
-            stale={false}
-            cellName={DEFAULT_CELL_NAME}
-            onSubmitDebugger={Functions.NOOP}
-            cellId={cellId}
-            debuggerActive={false}
-          />
-        </div>
-      </>
-    );
-  };
-
   const renderHistory = () => {
     if (!historyVisible) {
       return null;
@@ -204,74 +155,136 @@ export const ScratchPad: React.FC = () => {
     );
   };
 
+  const renderToolbar = () => (
+    <div className="flex items-center shrink-0 border-b">
+      <Tooltip content={renderShortcut("cell.run")}>
+        <Button
+          data-testid="scratchpad-run-button"
+          onClick={handleRun}
+          disabled={historyVisible}
+          variant="text"
+          size="xs"
+        >
+          <PlayIcon color="var(--grass-11)" size={16} />
+        </Button>
+      </Tooltip>
+      <Tooltip content="Clear code and outputs">
+        <Button
+          disabled={historyVisible}
+          size="xs"
+          variant="text"
+          onClick={handleClearCode}
+        >
+          <EraserIcon size={16} />
+        </Button>
+      </Tooltip>
+      <HideInKioskMode>
+        <Tooltip content="Insert code">
+          <Button
+            disabled={historyVisible}
+            size="xs"
+            variant="text"
+            onClick={handleInsertCode}
+          >
+            <BetweenHorizontalStartIcon size={16} />
+          </Button>
+        </Tooltip>
+      </HideInKioskMode>
+
+      {(status === "running" || status === "queued") && (
+        <Spinner className="inline" size="small" />
+      )}
+      <div className="flex-1" />
+
+      <Tooltip content="Toggle history">
+        <Button
+          size="xs"
+          variant="text"
+          className={cn(historyVisible && "bg-(--sky-3) rounded-none")}
+          onClick={() => setHistoryVisible(!historyVisible)}
+          disabled={history.length === 0}
+        >
+          <HistoryIcon size={16} />
+        </Button>
+      </Tooltip>
+      <Tooltip
+        content={
+          <span className="block max-w-prose">
+            Use this scratchpad to experiment with code without restrictions on
+            variable names. Variables defined here aren't saved to notebook
+            memory, and the code is not saved in the notebook file.
+          </span>
+        }
+      >
+        <Button size="xs" variant="text">
+          <CircleHelpIcon size={16} />
+        </Button>
+      </Tooltip>
+    </div>
+  );
+
   return (
     <div
-      className="flex flex-col h-full overflow-hidden divide-y"
+      className="flex flex-col h-full overflow-hidden"
       id={HTMLCellId.create(cellId)}
     >
-      <p className="p-2 text-muted-foreground text-sm">
-        Use this scratchpad cell to experiment with code without restrictions on
-        variable names. Scratchpad code is ephemeral: variables defined in the
-        scratchpad aren't saved to notebook memory, and the code is not saved in
-        the notebook file.
-      </p>
-      <div className="flex items-center shrink-0">
-        <Tooltip content={renderShortcut("cell.run")}>
-          <Button
-            data-testid="scratchpad-run-button"
-            onClick={handleRun}
-            disabled={historyVisible}
-            variant="text"
-            // className="bg-(--grass-3) hover:bg-(--grass-4) rounded-none"
-            size="xs"
-          >
-            <PlayIcon color="var(--grass-11)" size={16} />
-          </Button>
-        </Tooltip>
-        <Tooltip content="Clear code and outputs">
-          <Button
-            disabled={historyVisible}
-            size="xs"
-            variant="text"
-            onClick={handleClearCode}
-          >
-            <EraserIcon size={16} />
-          </Button>
-        </Tooltip>
-        <HideInKioskMode>
-          <Tooltip content="Insert code">
-            <Button
-              disabled={historyVisible}
-              size="xs"
-              variant="text"
-              onClick={handleInsertCode}
-            >
-              <BetweenHorizontalStartIcon size={16} />
-            </Button>
-          </Tooltip>
-        </HideInKioskMode>
-
-        {(status === "running" || status === "queued") && (
-          <Spinner className="inline" size="small" />
-        )}
-        <div className="flex-1" />
-
-        <Tooltip content="Toggle history">
-          <Button
-            size="xs"
-            variant="text"
-            className={cn(historyVisible && "bg-(--sky-3) rounded-none")}
-            onClick={() => setHistoryVisible(!historyVisible)}
-            disabled={history.length === 0}
-          >
-            <HistoryIcon size={16} />
-          </Button>
-        </Tooltip>
-      </div>
-      <div className="flex-1 divide-y relative overflow-hidden flex flex-col">
-        {renderBody()}
-        {renderHistory()}
-      </div>
+      <PanelGroup direction="horizontal" className="h-full">
+        {/* Left side: toolbar + editor */}
+        <Panel defaultSize={40} minSize={20} maxSize={70}>
+          <div className="h-full flex flex-col overflow-hidden relative">
+            {renderToolbar()}
+            <div className="flex-1 overflow-auto">
+              <CellEditor
+                theme={theme}
+                showPlaceholder={false}
+                id={cellId}
+                code={code}
+                config={scratchpadCellConfig}
+                status="idle"
+                serializedEditorState={null}
+                runCell={handleRun}
+                userConfig={userConfig}
+                editorViewRef={ref}
+                setEditorView={(ev) => {
+                  ref.current = ev;
+                }}
+                hidden={false}
+                showHiddenCode={Functions.NOOP}
+                languageAdapter={languageAdapter}
+                setLanguageAdapter={setLanguageAdapter}
+              />
+            </div>
+            {renderHistory()}
+          </div>
+        </Panel>
+        <PanelResizeHandle className="w-1 bg-border hover:bg-primary/50 transition-colors" />
+        {/* Right side: outputs */}
+        <Panel defaultSize={60} minSize={20}>
+          <div className="h-full flex flex-col divide-y overflow-hidden">
+            <div className="flex-1 overflow-auto">
+              <OutputArea
+                allowExpand={false}
+                output={output}
+                className={CSSClasses.outputArea}
+                cellId={cellId}
+                stale={false}
+                loading={false}
+              />
+            </div>
+            <div className="overflow-auto shrink-0 max-h-[50%]">
+              <ConsoleOutput
+                consoleOutputs={consoleOutputs}
+                className="overflow-auto"
+                stale={false}
+                cellName={DEFAULT_CELL_NAME}
+                onSubmitDebugger={Functions.NOOP}
+                cellId={cellId}
+                debuggerActive={false}
+              />
+            </div>
+          </div>
+        </Panel>
+      </PanelGroup>
     </div>
   );
 };
