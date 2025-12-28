@@ -19,7 +19,6 @@ import { Button } from "../ui/button";
 import { Tooltip } from "../ui/tooltip";
 import "./debugger-code.css";
 import { useKeydownOnElement } from "@/hooks/useHotkey";
-import { Functions } from "@/utils/functions";
 
 interface Props {
   code: string;
@@ -79,10 +78,52 @@ const DebuggerInput: React.FC<{
   const [value, setValue] = React.useState("");
   const ref = React.useRef<HTMLDivElement>(null);
 
-  // Capture some events to prevent default behavior
+  // Command history state
+  const historyRef = React.useRef<string[]>([]);
+  const historyIndexRef = React.useRef<number>(-1);
+  // Store the current input when navigating history
+  const pendingInputRef = React.useRef<string>("");
+
+  const navigateHistory = React.useCallback(
+    (direction: "up" | "down") => {
+      const history = historyRef.current;
+      if (history.length === 0) {
+        return;
+      }
+
+      const currentIndex = historyIndexRef.current;
+
+      if (direction === "up") {
+        // Save current input if we're starting to navigate
+        if (currentIndex === -1) {
+          pendingInputRef.current = value;
+        }
+        // Navigate to previous command
+        const newIndex = Math.min(currentIndex + 1, history.length - 1);
+        if (newIndex !== currentIndex) {
+          historyIndexRef.current = newIndex;
+          setValue(history[history.length - 1 - newIndex]);
+        }
+      } else {
+        // Navigate to next command
+        if (currentIndex > 0) {
+          const newIndex = currentIndex - 1;
+          historyIndexRef.current = newIndex;
+          setValue(history[history.length - 1 - newIndex]);
+        } else if (currentIndex === 0) {
+          // Return to pending input
+          historyIndexRef.current = -1;
+          setValue(pendingInputRef.current);
+        }
+      }
+    },
+    [value],
+  );
+
+  // Capture some events for command history navigation
   useKeydownOnElement(ref, {
-    ArrowUp: Functions.NOOP,
-    ArrowDown: Functions.NOOP,
+    ArrowUp: () => navigateHistory("up"),
+    ArrowDown: () => navigateHistory("down"),
   });
 
   return (
@@ -111,6 +152,17 @@ const DebuggerInput: React.FC<{
                   if (!v) {
                     return true;
                   }
+                  // Add to history if it's not a duplicate of the last command
+                  const history = historyRef.current;
+                  if (
+                    history.length === 0 ||
+                    history[history.length - 1] !== v
+                  ) {
+                    historyRef.current = [...history, v];
+                  }
+                  // Reset history navigation state
+                  historyIndexRef.current = -1;
+                  pendingInputRef.current = "";
                   onSubmit(v);
                   setValue("");
                   return true;
