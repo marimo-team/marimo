@@ -8,6 +8,7 @@ import pytest
 from marimo._schemas.serialization import (
     AppInstantiation,
     CellDef,
+    Header,
     NotebookSerializationV1,
 )
 from marimo._server.notebook.serializer import (
@@ -19,7 +20,7 @@ from marimo._server.notebook.serializer import (
 
 
 class TestPythonNotebookSerializer:
-    def test_serialize_basic(self, tmp_path: Path) -> None:
+    def test_serialize_basic(self) -> None:
         serializer = PythonNotebookSerializer()
         notebook = NotebookSerializationV1(
             app=AppInstantiation(),
@@ -30,26 +31,19 @@ class TestPythonNotebookSerializer:
                 )
             ],
         )
-        path = tmp_path / "notebook.py"
 
-        result = serializer.serialize(notebook, path)
+        result = serializer.serialize(notebook)
 
         assert "import marimo" in result
         assert "x = 1" in result
 
-    def test_serialize_with_existing_header(self, tmp_path: Path) -> None:
-        """Test that headers are preserved from existing file."""
+    def test_serialize_with_header(self) -> None:
+        """Test that headers are included in output when provided in notebook."""
         serializer = PythonNotebookSerializer()
-
-        # Create existing file with header
-        path = tmp_path / "notebook.py"
-        path.write_text(
-            "# Header comment\n# Another line\nimport marimo\n",
-            encoding="utf-8",
-        )
 
         notebook = NotebookSerializationV1(
             app=AppInstantiation(),
+            header=Header(value="# Header comment\n# Another line"),
             cells=[
                 CellDef(
                     name="cell1",
@@ -58,7 +52,7 @@ class TestPythonNotebookSerializer:
             ],
         )
 
-        result = serializer.serialize(notebook, path)
+        result = serializer.serialize(notebook)
 
         assert "# Header comment" in result
         assert "import marimo" in result
@@ -86,16 +80,9 @@ class TestPythonNotebookSerializer:
         # No header comments should return None or empty
         assert header is None or header == ""
 
-    def test_serialize_format_conversion(self, tmp_path: Path) -> None:
-        """Test serializing when converting from one format to another."""
+    def test_serialize_without_header(self) -> None:
+        """Test serializing without a header."""
         serializer = PythonNotebookSerializer()
-
-        # Create a markdown file with header
-        md_file = tmp_path / "notebook.md"
-        md_file.write_text(
-            "---\nmarimo-version: 0.1.0\n---\n# Content\n",
-            encoding="utf-8",
-        )
 
         notebook = NotebookSerializationV1(
             app=AppInstantiation(),
@@ -107,15 +94,15 @@ class TestPythonNotebookSerializer:
             ],
         )
 
-        py_file = tmp_path / "notebook.py"
-        result = serializer.serialize(notebook, py_file, previous_path=md_file)
+        result = serializer.serialize(notebook)
 
-        # Should extract header from markdown file
+        # Should have import but no custom header
         assert "import marimo" in result
+        assert "x = 1" in result
 
 
 class TestMarkdownNotebookSerializer:
-    def test_serialize_basic(self, tmp_path: Path) -> None:
+    def test_serialize_basic(self) -> None:
         serializer = MarkdownNotebookSerializer()
         notebook = NotebookSerializationV1(
             app=AppInstantiation(),
@@ -126,9 +113,8 @@ class TestMarkdownNotebookSerializer:
                 )
             ],
         )
-        path = tmp_path / "notebook.md"
 
-        result = serializer.serialize(notebook, path)
+        result = serializer.serialize(notebook)
 
         assert "```python" in result
         assert "print('hello')" in result

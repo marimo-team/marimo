@@ -123,6 +123,7 @@ def find_cell(filename: str, lineno: int) -> CellDef | None:
 def load_notebook_ir(
     notebook: NotebookSerialization, filepath: Optional[str] = None
 ) -> App:
+    """Load a notebook IR into an App."""
     # Use filepath from notebook if not explicitly provided
     if filepath is None:
         filepath = notebook.filename
@@ -132,42 +133,9 @@ def load_notebook_ir(
             app._unparsable_cell(cell.code, **cell.options)
             continue
         app._cell_manager.register_ir_cell(cell, InternalApp(app))
+    if notebook.header and notebook.header.value:
+        app._header = notebook.header.value
     return app
-
-
-def load_notebook(filename: str) -> Optional[NotebookSerialization]:
-    """Load and return notebook serialization from a marimo notebook file.
-
-    Args:
-        filename: Path to a marimo notebook file (.py or .md)
-
-    Returns:
-        NotebookSerialization if the file exists and contains valid code,
-        None if the file is empty or contains only comments.
-
-    Raises:
-        MarimoFileError: If the file exists but doesn't define a valid marimo app
-        RuntimeError: If there are issues loading the module
-        SyntaxError: If the file contains a syntax error
-        FileNotFoundError: If the file doesn't exist
-    """
-    path = Path(filename)
-
-    contents = _maybe_contents(filename)
-    if not contents:
-        return None
-
-    if path.suffix in (".md", ".qmd"):
-        from marimo._convert.markdown.markdown import (
-            convert_from_md_to_marimo_ir,
-        )
-
-        return convert_from_md_to_marimo_ir(contents)
-
-    if path.suffix == ".py":
-        return parse_notebook(contents)
-
-    raise MarimoFileError("File must end with .py, .md, or .qmd.")
 
 
 def get_notebook_status(filename: str) -> LoadResult:
