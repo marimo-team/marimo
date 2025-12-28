@@ -45,7 +45,7 @@ class plotly(UIElement[PlotlySelection, list[dict[str, Any]]]):
     cursor on the frontend, get them as a list of dicts in Python!
 
     This function currently only supports scatter plots, treemaps charts,
-    and sunbursts charts.
+    sunbursts charts and heatmaps.
 
     Examples:
         ```python
@@ -98,6 +98,8 @@ class plotly(UIElement[PlotlySelection, list[dict[str, Any]]]):
     """
 
     name: Final[str] = "marimo-plotly"
+    _figure: go.Figure
+    _selection_data: PlotlySelection
 
     def __init__(
         self,
@@ -111,6 +113,11 @@ class plotly(UIElement[PlotlySelection, list[dict[str, Any]]]):
         DependencyManager.plotly.require("for `mo.ui.plotly`")
 
         import plotly.io as pio  # type:ignore
+
+        # Store figure for later use in _convert_value
+        self._figure = figure
+        # Initialize selection data storage
+        self._selection_data = {}
 
         json_str = pio.to_json(figure)
 
@@ -160,15 +167,18 @@ class plotly(UIElement[PlotlySelection, list[dict[str, Any]]]):
             [y_axis] = y_axes if len(y_axes) == 1 else [None]
 
             for trace in figure.data:
+                # Skip heatmap traces - they're handled separately below
+                if getattr(trace, "type", None) == "heatmap":
+                    continue
                 x_data = getattr(trace, "x", None)
                 y_data = getattr(trace, "y", None)
                 if x_data is None or y_data is None:
                     continue
                 for point_idx, (x, y) in enumerate(zip(x_data, y_data)):
-                    if (
-                        selection.x0 <= x <= selection.x1
-                        and selection.y0 <= y <= selection.y1
-                    ):
+                    # Early exit if x is not in range
+                    if not (selection.x0 <= x <= selection.x1):
+                        continue
+                    if selection.y0 <= y <= selection.y1:
                         selected_points.append(
                             {
                                 axis.title.text: val
@@ -180,6 +190,23 @@ class plotly(UIElement[PlotlySelection, list[dict[str, Any]]]):
 
             initial_value["points"] = selected_points
             initial_value["indices"] = selected_indices
+
+            # For heatmaps with a range selection, extract all cells in range
+            has_heatmap = any(
+                getattr(trace, "type", None) == "heatmap"
+                for trace in figure.data
+            )
+            if has_heatmap and initial_value.get("range"):
+                range_value = initial_value["range"]
+                if isinstance(range_value, dict):
+                    heatmap_cells = plotly._extract_heatmap_cells_from_range(
+                        figure, cast(dict[str, Any], range_value)
+                    )
+                    if heatmap_cells:
+                        initial_value["points"] = heatmap_cells
+                        initial_value["indices"] = list(
+                            range(len(heatmap_cells))
+                        )
 
         figure.for_each_selection(add_selection)
 
@@ -240,5 +267,98 @@ class plotly(UIElement[PlotlySelection, list[dict[str, Any]]]):
     def _convert_value(self, value: PlotlySelection) -> Any:
         # Store the selection data
         self._selection_data = value
-        # Default to returning the points
-        return self.points
+
+        has_heatmap = any(
+            getattr(trace, "type", None) == "heatmap"
+            for trace in self._figure.data
+        )
+
+        # For heatmaps with a range selection, always extract all cells in range
+        # (Plotly only sends corner/edge points, not all cells)
+        if has_heatmap and value.get("range"):
+            range_value = value["range"]
+            # Ensure range_value is a dict before processing
+            if isinstance(range_value, dict):
+                heatmap_cells = self._extract_heatmap_cells_from_range(
+                    self._figure, cast(dict[str, Any], range_value)
+                )
+                if heatmap_cells:
+                    self._selection_data["points"] = heatmap_cells
+                    # Update indices to match the heatmap cells
+                    self._selection_data["indices"] = list(
+                        range(len(heatmap_cells))
+                    )
+
+        result = self.points
+        return result
+
+    # PERF: we can use numpy to speed up the extraction process if necessary
+    @staticmethod
+    def _extract_heatmap_cells_from_range(
+        figure: go.Figure, range_data: dict[str, Any]
+    ) -> list[dict[str, Any]]:
+        """Extract heatmap cells that fall within a selection range."""
+
+        if not range_data.get("x") or not range_data.get("y"):
+            return []
+
+        x_range = range_data["x"]
+        y_range = range_data["y"]
+        x_min, x_max = min(x_range), max(x_range)
+        y_min, y_max = min(y_range), max(y_range)
+
+        selected_cells = []
+
+        # Iterate through traces to find heatmaps
+        for trace_idx, trace in enumerate(figure.data):
+            if getattr(trace, "type", None) != "heatmap":
+                continue
+
+            x_data = getattr(trace, "x", None)
+            y_data = getattr(trace, "y", None)
+            z_data = getattr(trace, "z", None)
+
+            if x_data is None or y_data is None or z_data is None:
+                continue
+
+            # Iterate through the heatmap cells
+            for i, y_val in enumerate(y_data):
+                for j, x_val in enumerate(x_data):
+                    # Check if cell is within selection range
+                    # Handle both numeric and categorical data
+                    x_in_range = False
+                    y_in_range = False
+
+                    if isinstance(x_val, (int, float)):
+                        x_in_range = x_min <= x_val <= x_max
+                    else:
+                        # Categorical - each cell spans from (index - 0.5) to (index + 0.5)
+                        # Include cell if selection range overlaps with cell bounds
+                        cell_x_min = j - 0.5
+                        cell_x_max = j + 0.5
+                        x_in_range = not (
+                            x_max < cell_x_min or x_min > cell_x_max
+                        )
+
+                    if isinstance(y_val, (int, float)):
+                        y_in_range = y_min <= y_val <= y_max
+                    else:
+                        # Categorical - each cell spans from (index - 0.5) to (index + 0.5)
+                        # Include cell if selection range overlaps with cell bounds
+                        cell_y_min = i - 0.5
+                        cell_y_max = i + 0.5
+                        y_in_range = not (
+                            y_max < cell_y_min or y_min > cell_y_max
+                        )
+
+                    if x_in_range and y_in_range:
+                        selected_cells.append(
+                            {
+                                "x": x_val,
+                                "y": y_val,
+                                "z": z_data[i][j],
+                                "curveNumber": trace_idx,
+                            }
+                        )
+
+        return selected_cells
