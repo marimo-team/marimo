@@ -134,7 +134,7 @@ mo.ui.chat(
 
 ## Streaming Responses
 
-Chatbots can stream responses in real-time, creating a more interactive experience 
+Chatbots can stream responses in real-time, creating a more interactive experience
 similar to ChatGPT where you see the response appear word-by-word as it's generated.
 
 Responses from built-in models (OpenAI, Anthropic, Google, Groq, Bedrock) are streamed by default.
@@ -157,7 +157,7 @@ def streaming_model(messages, config):
     """Stream responses word by word."""
     response = "This response will appear word by word!"
     words = response.split()
-    
+
     for word in words:
         yield word + " "  # Yield delta chunks
         time.sleep(0.1)  # Simulate processing delay
@@ -176,7 +176,7 @@ async def async_streaming_model(messages, config):
     """Stream responses word by word asynchronously."""
     response = "This response will appear word by word!"
     words = response.split()
-    
+
     for word in words:
         yield word + " "  # Yield delta chunks
         await asyncio.sleep(0.1)  # Async processing delay
@@ -190,7 +190,7 @@ the progressively building response in real-time.
 
 !!! tip "Delta vs Accumulated"
     **Yield deltas, not accumulated text.** Each yield should be **new content only**:
-    
+
     ✅ **Correct (delta mode):**
     ```python
     yield "Hello"
@@ -198,7 +198,7 @@ the progressively building response in real-time.
     yield "world"
     # Result: "Hello world"
     ```
-    
+
     ❌ **Incorrect (accumulated mode, deprecated):**
     ```python
     yield "Hello"
@@ -206,14 +206,16 @@ the progressively building response in real-time.
     yield "Hello world"
     # Inefficient: sends duplicate content
     ```
-    
+
     Delta mode is more efficient (reduces bandwidth by ~99% for long responses) and aligns with standard streaming APIs.
 
 !!! tip "See streaming examples"
     For complete working examples, check out:
-    
+
     - [`openai_example.py`](https://github.com/marimo-team/marimo/blob/main/examples/ai/chat/openai_example.py) - OpenAI chatbot with streaming (default)
     - [`streaming_custom.py`](https://github.com/marimo-team/marimo/blob/main/examples/ai/chat/streaming_custom.py) - Custom streaming chatbot
+    - [`pydantic_ai_with_thinking_and_tools.py`](https://github.com/marimo-team/marimo/blob/main/examples/ai/chat/pydantic_ai_with_thinking_and_tools.py) - Chatbot with thinking and tools
+    - [`wandb_inference_example.py`](https://github.com/marimo-team/marimo/blob/main/examples/ai/chat/wandb_inference_example.py) - W&B Inference with reasoning models
 
 ## Built-in Models
 
@@ -288,6 +290,126 @@ mo.ui.chat(
 ```
 
 ::: marimo.ai.llm.groq
+
+### Pydantic AI (with Tools and Thinking)
+
+The `pydantic_ai` model provides advanced features like **tool calling** and
+**thinking/reasoning** support using [pydantic-ai](https://ai.pydantic.dev/).
+
+Create a [Pydantic AI Agent](https://ai.pydantic.dev/agents/) with your desired
+configuration (model, tools, instructions, etc.) and pass it to `mo.ai.llm.pydantic_ai()`.
+
+#### Basic Usage with Tools
+
+```python
+import marimo as mo
+from pydantic_ai import Agent
+
+def get_weather(location: str) -> dict:
+    """Get weather for a location."""
+    return {"temperature": 72, "conditions": "sunny"}
+
+def calculate(expression: str) -> float:
+    """Evaluate a math expression."""
+    return eval(expression)
+
+# Create a Pydantic AI Agent
+agent = Agent(
+    "anthropic:claude-sonnet-4-5",  # or "openai:gpt-4.1", etc.
+    tools=[get_weather, calculate],
+    instructions="You are a helpful assistant.",
+)
+
+chat = mo.ui.chat(mo.ai.llm.pydantic_ai(agent))
+chat
+```
+
+Tool calls are displayed as collapsible accordions in the chat UI, showing
+the tool name, inputs, and outputs.
+
+#### With Thinking/Reasoning
+
+Enable thinking to see the LLM's step-by-step reasoning process:
+
+```python
+from pydantic_ai import Agent
+from pydantic_ai.models.anthropic import AnthropicModelSettings
+
+agent = Agent(
+    "anthropic:claude-sonnet-4-5",
+    tools=[get_weather],
+    instructions="Think step-by-step.",
+    model_settings=AnthropicModelSettings(
+        max_tokens=8000,
+        anthropic_thinking={"type": "enabled", "budget_tokens": 4000},
+    ),
+)
+
+chat = mo.ui.chat(mo.ai.llm.pydantic_ai(agent))
+```
+
+When enabled, a "Thinking" accordion appears before the response,
+showing the LLM's reasoning process in real-time.
+
+#### Full Agent Configuration
+
+The Agent API gives you full control over Pydantic AI features:
+
+```python
+from pydantic_ai import Agent
+
+agent = Agent(
+    "anthropic:claude-sonnet-4-5",
+    tools=[get_weather],
+    deps_type=MyDeps,      # Dependency injection for tools
+    output_type=MyOutput,  # Structured output schema
+    retries=3,             # Retry configuration
+    # ... any other Agent options
+)
+
+chat = mo.ui.chat(mo.ai.llm.pydantic_ai(agent))
+```
+
+#### OpenAI-Compatible Providers (W&B Inference, DeepSeek, etc.)
+
+For custom endpoints, configure a Model object with provider and profile:
+
+```python
+import marimo as mo
+from pydantic_ai import Agent
+from pydantic_ai.models.openai import OpenAIChatModel
+from pydantic_ai.providers.openai import OpenAIProvider
+from pydantic_ai.profiles.openai import OpenAIModelProfile
+
+# Configure model with W&B Inference endpoint
+model = OpenAIChatModel(
+    model_name="deepseek-ai/DeepSeek-R1-0528",
+    provider=OpenAIProvider(
+        api_key="your-wandb-key",
+        base_url="https://api.inference.wandb.ai/v1",
+    ),
+    profile=OpenAIModelProfile(
+        openai_chat_thinking_field="reasoning_content",
+    ),
+)
+
+# Create an Agent with the custom model
+agent = Agent(model, instructions="Think step-by-step.")
+
+chat = mo.ui.chat(mo.ai.llm.pydantic_ai(agent))
+```
+
+This works with any OpenAI-compatible endpoint:
+
+- [W&B Inference](https://docs.wandb.ai/inference/) - Access open-source models with reasoning support
+- [DeepSeek](https://platform.deepseek.com/) - DeepSeek models
+- [Together AI](https://www.together.ai/) - Various open-source models
+- Any other OpenAI-compatible API
+
+See the [pydantic-ai documentation](https://ai.pydantic.dev/) for full
+Agent and Model configuration options.
+
+::: marimo.ai.llm.pydantic_ai
 
 ## Types
 
