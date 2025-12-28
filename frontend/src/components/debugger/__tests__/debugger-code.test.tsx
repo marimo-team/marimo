@@ -2,8 +2,8 @@
 
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { Debugger } from "../debugger-code";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { Debugger } from "../debugger-code";
 
 // Mock CodeMirror language extensions
 vi.mock("@uiw/codemirror-extensions-langs", () => ({

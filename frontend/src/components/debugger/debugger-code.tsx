@@ -154,7 +154,10 @@ const DebuggerInput: React.FC<{
                   }
                   // Add to history if it's not a duplicate of the last command
                   const history = historyRef.current;
-                  if (history.length === 0 || history[history.length - 1] !== v) {
+                  if (
+                    history.length === 0 ||
+                    history[history.length - 1] !== v
+                  ) {
                     historyRef.current = [...history, v];
                   }
                   // Reset history navigation state
