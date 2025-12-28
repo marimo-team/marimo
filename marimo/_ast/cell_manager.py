@@ -411,6 +411,14 @@ class CellManager:
         """
         return self._cell_data.values()
 
+    def code_map(self) -> dict[CellId_t, str]:
+        """Get a mapping of cell IDs to their codes.
+
+        Returns:
+            dict[CellId_t, str]: Dictionary mapping cell IDs to their codes
+        """
+        return {cid: cd.code for cid, cd in self._cell_data.items()}
+
     def cell_data_at(self, cell_id: CellId_t) -> CellData:
         """Get the cell data for a specific cell ID.
 

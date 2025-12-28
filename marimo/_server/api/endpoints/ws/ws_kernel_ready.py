@@ -38,6 +38,7 @@ def build_kernel_ready(
     file_key: MarimoFileKey,
     mode: SessionMode,
     doc_manager: LoroDocManager,
+    auto_instantiated: bool = False,
 ) -> KernelReadyNotification:
     """Build a KernelReady message.
 
@@ -53,6 +54,9 @@ def build_kernel_ready(
         file_key: File key for the session
         mode: Session mode (edit/run)
         doc_manager: LoroDoc manager for RTC
+        auto_instantiated: Whether the kernel has already been instantiated
+            server-side (run mode). If True, the frontend does not need
+            to instantiate the app.
 
     Returns:
         KernelReady message operation.
@@ -76,6 +80,7 @@ def build_kernel_ready(
         app_config=session.app_file_manager.app.config,
         kiosk=kiosk,
         capabilities=KernelCapabilitiesNotification(),
+        auto_instantiated=auto_instantiated,
     )
 
 

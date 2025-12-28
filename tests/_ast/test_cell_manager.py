@@ -564,3 +564,23 @@ class TestSortCellIdsBySimilarity:
         assert list(curr_manager.cell_ids()) == [CELL_A]
         assert curr_manager.seen_ids == {CELL_A}
         assert curr_manager.cell_data_at(CELL_A).code == "y = 2 + 1"
+
+    def test_code_map(self) -> None:
+        """Test that code_map returns a dictionary of cell IDs to codes."""
+        manager = CellManager()
+        manager.register_cell(CELL_A, "x = 1", CellConfig())
+        manager.register_cell(CELL_B, "y = 2", CellConfig())
+        manager.register_cell(CELL_C, "z = 3", CellConfig())
+
+        code_map = manager.code_map()
+        assert code_map == {
+            CELL_A: "x = 1",
+            CELL_B: "y = 2",
+            CELL_C: "z = 3",
+        }
+
+    def test_code_map_empty(self) -> None:
+        """Test that code_map returns an empty dict for empty manager."""
+        manager = CellManager()
+        code_map = manager.code_map()
+        assert code_map == {}

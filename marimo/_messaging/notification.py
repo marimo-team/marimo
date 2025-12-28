@@ -181,6 +181,9 @@ class KernelReadyNotification(Notification, tag="kernel-ready"):
     kiosk: bool
     # Kernel capabilities
     capabilities: KernelCapabilitiesNotification
+    # Whether the kernel has already been instantiated server-side (e.g. run mode)
+    # If True, the frontend does not need to instantiate the app.
+    auto_instantiated: bool = False
 
 
 class CompletionResultNotification(Notification, tag="completion-result"):

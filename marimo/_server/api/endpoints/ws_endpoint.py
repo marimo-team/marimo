@@ -183,6 +183,7 @@ class WebSocketHandler(SessionConsumer):
             last_executed_code=session.session_view.last_executed_code,
             last_execution_time=session.session_view.last_execution_time,
             kiosk=kiosk,
+            auto_instantiated=False,
         )
 
     def _write_kernel_ready(
@@ -193,10 +194,22 @@ class WebSocketHandler(SessionConsumer):
         last_executed_code: dict[CellId_t, str],
         last_execution_time: dict[CellId_t, float],
         kiosk: bool,
+        auto_instantiated: bool,
     ) -> None:
         """Communicates to the client that the kernel is ready.
 
         Sends cell code and other metadata to client.
+
+        Args:
+            session: Current session
+            resumed: Whether this is a resumed session
+            ui_values: UI element values
+            last_executed_code: Last executed code for each cell
+            last_execution_time: Last execution time for each cell
+            kiosk: Whether this is kiosk mode
+            auto_instantiated: Whether the kernel has already been instantiated
+                server-side (run mode). If True, the frontend does not need
+                to instantiate the app.
         """
         # Only send execution data if sending code to frontend
         should_send = self.manager.should_send_code_to_frontend()
@@ -217,6 +230,7 @@ class WebSocketHandler(SessionConsumer):
             file_key=self.params.file_key,
             mode=self.mode,
             doc_manager=DOC_MANAGER,
+            auto_instantiated=auto_instantiated,
         )
         self._serialize_and_notify(kernel_ready_msg)
 

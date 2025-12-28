@@ -186,6 +186,11 @@ class UpdateUIElementValuesRequest(msgspec.Struct, rename="camel"):
 
 class InstantiateNotebookRequest(UpdateUIElementValuesRequest):
     auto_run: bool = True
+    # Optional: cell codes to use instead of the codes from the file.
+    # This is used when the frontend has local edits that should be
+    # used instead of the file codes (e.g., pre-connect editing).
+    # Maps cell_id -> code.
+    codes: Optional[dict[CellId_t, str]] = None
 
 
 class BaseResponse(msgspec.Struct, rename="camel"):

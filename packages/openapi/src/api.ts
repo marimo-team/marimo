@@ -1571,7 +1571,7 @@ export interface paths {
         };
       };
       responses: {
-        /** @description Instantiate a component */
+        /** @description Instantiate a component. Only allowed in edit mode; in run mode, instantiation happens server-side automatically. */
         200: {
           headers: {
             [name: string]: unknown;
@@ -3943,6 +3943,10 @@ export interface components {
     InstantiateNotebookRequest: {
       /** @default true */
       autoRun?: boolean;
+      /** @default null */
+      codes?: {
+        [key: string]: string;
+      } | null;
       objectIds: string[];
       values: unknown[];
     };
@@ -4011,6 +4015,8 @@ export interface components {
      */
     KernelReadyNotification: {
       app_config: components["schemas"]["_AppConfig"];
+      /** @default false */
+      auto_instantiated?: boolean;
       capabilities: components["schemas"]["KernelCapabilitiesNotification"];
       cell_ids: string[];
       codes: string[];
