@@ -62,7 +62,7 @@ class MarkdownNotebookSerializer(NotebookSerializer):
 
     def serialize(self, notebook: NotebookSerializationV1) -> str:
         """Serialize notebook to Markdown format."""
-        return convert_from_ir_to_markdown(notebook)
+        return convert_from_ir_to_markdown(notebook, notebook.filename)
 
     def extract_header(self, path: Path) -> Optional[str]:
         """Extract YAML frontmatter from Markdown file."""
