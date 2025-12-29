@@ -181,7 +181,7 @@ export const UserConfigForm: React.FC = () => {
       return; // Nothing changed
     }
     await saveUserConfig({ config: dirtyValues }).then(() => {
-      // Merge dirty values into current config for local state
+      // Update local state with form values
       setConfig({ ...config, ...values });
     });
   };

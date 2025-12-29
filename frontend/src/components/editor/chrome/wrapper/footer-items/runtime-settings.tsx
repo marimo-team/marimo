@@ -19,7 +19,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Switch } from "@/components/ui/switch";
 import { useResolvedMarimoConfig, useUserConfig } from "@/core/config/config";
-import type { UserConfig } from "@/core/config/config-schema";
 import { useRequestClient } from "@/core/network/requests";
 import { isWasm } from "@/core/wasm/utils";
 import { cn } from "@/utils/cn";
@@ -53,43 +52,44 @@ export const RuntimeSettings: React.FC<RuntimeSettingsProps> = ({
   }, []);
 
   const handleStartupToggle = async (checked: boolean) => {
-    const newConfig = {
-      ...config,
-      runtime: {
-        ...config.runtime,
-        auto_instantiate: checked,
-      },
-    };
-    await saveUserConfig({ config: newConfig }).then(() =>
-      setUserConfig(newConfig),
+    // Send only the changed portion to avoid overwriting other config values
+    await saveUserConfig({
+      config: { runtime: { auto_instantiate: checked } },
+    }).then(() =>
+      // Update local state with merged config
+      setUserConfig({
+        ...userConfig,
+        runtime: { ...userConfig.runtime, auto_instantiate: checked },
+      }),
     );
   };
 
   const handleCellChangeToggle = async (checked: boolean) => {
-    const newUserConfig: UserConfig = {
-      ...userConfig,
-      runtime: {
-        ...userConfig.runtime,
-        on_cell_change: checked ? "autorun" : "lazy",
-      },
-    };
-    await saveUserConfig({ config: newUserConfig }).then(() =>
-      setUserConfig(newUserConfig),
+    const onCellChange = checked ? "autorun" : "lazy";
+    // Send only the changed portion to avoid overwriting other config values
+    await saveUserConfig({
+      config: { runtime: { on_cell_change: onCellChange } },
+    }).then(() =>
+      // Update local state with merged config
+      setUserConfig({
+        ...userConfig,
+        runtime: { ...userConfig.runtime, on_cell_change: onCellChange },
+      }),
     );
   };
 
   const handleModuleReloadChange = async (
     option: "off" | "lazy" | "autorun",
   ) => {
-    const newUserConfig: UserConfig = {
-      ...userConfig,
-      runtime: {
-        ...userConfig.runtime,
-        auto_reload: option,
-      },
-    };
-    await saveUserConfig({ config: newUserConfig }).then(() =>
-      setUserConfig(newUserConfig),
+    // Send only the changed portion to avoid overwriting other config values
+    await saveUserConfig({
+      config: { runtime: { auto_reload: option } },
+    }).then(() =>
+      // Update local state with merged config
+      setUserConfig({
+        ...userConfig,
+        runtime: { ...userConfig.runtime, auto_reload: option },
+      }),
     );
   };
 
