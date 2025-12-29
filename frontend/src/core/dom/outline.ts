@@ -8,6 +8,10 @@ import type { OutputMessage } from "../kernel/messages";
 // Tags that we don't want to include in the outline
 const excludedTags = ["marimo-carousel", "marimo-tabs", "marimo-accordion"];
 
+// We go up to h6. Previously we did h3 to match Google Docs and Notion, but users have requested more levels.
+// This could be made configurable in the future.
+const HEADER_TAGS = "h1, h2, h3, h4, h5, h6";
+
 /**
  * Extracts a table of contents {@link Outline} from an HTML string.
  *
@@ -28,7 +32,7 @@ function getOutline(html: string): Outline | null {
   const parser = new DOMParser();
   const document = parser.parseFromString(html, "text/html");
 
-  const headings = document.querySelectorAll("h1, h2, h3");
+  const headings = document.querySelectorAll(HEADER_TAGS);
   // eslint-disable-next-line unicorn/prefer-spread
   for (const heading of Array.from(headings)) {
     const name = heading.textContent;

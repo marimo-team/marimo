@@ -5,6 +5,7 @@ from textwrap import dedent
 
 from marimo._ast import codegen
 from marimo._ast.cell import CellConfig
+from marimo._ast.compiler import compile_cell
 from marimo._convert import utils
 
 
@@ -136,3 +137,28 @@ def test_markdown_with_quotes_and_cell_configs():
         r"mo.md(\"Marimo is the best\")" in result
         or "Marimo is the best" in result
     )
+
+
+def test_get_markdown_from_cell_base():
+    empty_markdown_str = "mo.md('hello')"
+    markdown = utils.get_markdown_from_cell(
+        compile_cell(empty_markdown_str, "id"), empty_markdown_str
+    )
+    assert markdown == "hello"
+
+
+def test_get_markdown_from_cell_empty():
+    empty_markdown_str = "mo.md()"
+    markdown = utils.get_markdown_from_cell(
+        compile_cell(empty_markdown_str, "id"), empty_markdown_str
+    )
+    assert markdown is None
+
+
+def test_get_markdown_from_cell_broken():
+    empty_markdown_str = "mo.md()"
+    # This can occur because the cell isn't recompiled at this point.
+    markdown = utils.get_markdown_from_cell(
+        compile_cell(empty_markdown_str, "id"), "mo.md(f'{broken(}')"
+    )
+    assert markdown is None

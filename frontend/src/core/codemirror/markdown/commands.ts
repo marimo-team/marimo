@@ -321,7 +321,17 @@ export async function insertImage(view: EditorView, file: File) {
       const extension = file.type.split("/")[1];
 
       // A cancelled prompt returns null
-      if (inputFilename !== null) {
+      if (inputFilename === null) {
+        // Large strings do not make sense to write/save to the document
+        const base64SizeKB = Math.round(dataUrl.length / 1024);
+        if (base64SizeKB > MAX_BASE64_SIZE_KB) {
+          toast({
+            title: "Content too large",
+            description: `The content size is ${base64SizeKB} KB, which is too large to paste directly into the document.`,
+          });
+          return;
+        }
+      } else {
         if (inputFilename.trim() === "") {
           inputFilename = file.name;
         } else if (!inputFilename.endsWith(`.${extension}`)) {
@@ -361,16 +371,6 @@ export async function insertImage(view: EditorView, file: File) {
           toast({
             title: "Failed to upload image. Using raw base64 string.",
           });
-        }
-      } else {
-        // Large strings do not make sense to write/save to the document
-        const base64SizeKB = Math.round(dataUrl.length / 1024);
-        if (base64SizeKB > MAX_BASE64_SIZE_KB) {
-          toast({
-            title: "Content too large",
-            description: `The content size is ${base64SizeKB} KB, which is too large to paste directly into the document.`,
-          });
-          return;
         }
       }
     }

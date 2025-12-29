@@ -16,7 +16,7 @@ from marimo._runtime.layout.layout import (
     read_layout_config,
     save_layout_config,
 )
-from marimo._schemas.serialization import NotebookSerializationV1
+from marimo._schemas.serialization import Header, NotebookSerializationV1
 from marimo._server.api.status import HTTPException, HTTPStatus
 from marimo._server.models.models import (
     CopyNotebookRequest,
@@ -172,9 +172,24 @@ class AppFileManager:
         """
         LOGGER.debug("Saving app to %s", path)
 
-        # Get the appropriate format handler and serialize
+        # Get the header in case it was modified by the user (e.g. package installation)
         handler = get_format_handler(path)
-        contents = handler.serialize(notebook, path, previous_path)
+        header: Optional[str] = None
+        if previous_path and previous_path.exists():
+            header = handler.extract_header(previous_path)
+        elif path.exists():
+            header = handler.extract_header(path)
+
+        if header:
+            notebook = NotebookSerializationV1(
+                app=notebook.app,
+                header=Header(value=header) if header else notebook.header,
+                cells=notebook.cells,
+                violations=notebook.violations,
+                valid=notebook.valid,
+                filename=str(path),
+            )
+        contents = handler.serialize(notebook)
 
         if persist:
             self.storage.write(path, contents)
@@ -247,11 +262,7 @@ class AppFileManager:
 
         self._assert_path_does_not_exist(new_path)
 
-        needs_save = False
-
-        if self.is_notebook_named and self._filename is not None:
-            # Force a save after rename if filetype changed
-            needs_save = self._filename.suffix != new_path.suffix
+        if self._filename is not None:
             self.storage.rename(self._filename, new_path)
         else:
             # Create new file for unnamed notebooks
@@ -259,14 +270,14 @@ class AppFileManager:
 
         previous_filename = self._filename
         self._filename = new_path
+        self.app._app._filename = str(new_path)
 
-        if needs_save:
-            self._save_file(
-                new_path,
-                notebook=self.app.to_ir(),
-                persist=True,
-                previous_path=previous_filename,
-            )
+        self._save_file(
+            new_path,
+            notebook=self.app.to_ir(),
+            persist=True,
+            previous_path=previous_filename,
+        )
 
         return new_path.name
 

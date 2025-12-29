@@ -242,6 +242,74 @@ describe("parseOutline", () => {
       }
     `);
   });
+
+  it("can parse h4, h5, and h6 headings", () => {
+    const html = `
+    <div>
+      <h1 id="chapter">Chapter</h1>
+      <h2 id="section">Section</h2>
+      <h3 id="subsection">Subsection</h3>
+      <h4 id="paragraph">Paragraph</h4>
+      <h5 id="subparagraph">Subparagraph</h5>
+      <h6 id="detail">Detail</h6>
+    </div>
+    `;
+    const outline = parseOutline({
+      mimetype: "text/html",
+      timestamp: 0,
+      channel: "output",
+      data: html,
+    });
+    expect(outline).toMatchInlineSnapshot(`
+      {
+        "items": [
+          {
+            "by": {
+              "id": "chapter",
+            },
+            "level": 1,
+            "name": "Chapter",
+          },
+          {
+            "by": {
+              "id": "section",
+            },
+            "level": 2,
+            "name": "Section",
+          },
+          {
+            "by": {
+              "id": "subsection",
+            },
+            "level": 3,
+            "name": "Subsection",
+          },
+          {
+            "by": {
+              "id": "paragraph",
+            },
+            "level": 4,
+            "name": "Paragraph",
+          },
+          {
+            "by": {
+              "id": "subparagraph",
+            },
+            "level": 5,
+            "name": "Subparagraph",
+          },
+          {
+            "by": {
+              "id": "detail",
+            },
+            "level": 6,
+            "name": "Detail",
+          },
+        ],
+      }
+    `);
+  });
+
   it("excludes headings within excluded tags", () => {
     const html = `
     <div>
