@@ -940,6 +940,7 @@ class AnthropicProvider(PydanticProvider["PydanticAnthropic"]):
     EXTENDED_THINKING_MODEL_PREFIXES = [
         "claude-opus-4",
         "claude-sonnet-4",
+        "claude-haiku-4-5",
         "claude-3-7-sonnet",
     ]
     # 1024 tokens is the minimum budget for extended thinking
@@ -1032,7 +1033,7 @@ class AnthropicProvider(PydanticProvider["PydanticAnthropic"]):
         from ThinkingPart to ReasoningEndChunk, which breaks Anthropic's extended thinking
         on follow-up messages (Anthropic requires signatures on thinking blocks).
 
-        See: https://docs.anthropic.com/en/docs/build-with-claude/extended-thinking
+        TODO: Remove this once https://github.com/pydantic/pydantic-ai/pull/3754 is released
         """
         from pydantic_ai import DeferredToolRequests
         from pydantic_ai.ui.vercel_ai import VercelAIAdapter
