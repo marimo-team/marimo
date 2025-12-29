@@ -139,6 +139,7 @@ class CachingExtension(SessionExtension, SessionEventListener):
             session_view=session.session_view,
             path=session.app_file_manager.path,
             interval=self.interval,
+            cell_ids_provider=lambda: session.app_file_manager.app.cell_manager.cell_ids(),
         )
 
         # Serialize the session view based on the current app

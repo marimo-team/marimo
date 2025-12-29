@@ -6,7 +6,7 @@ import json
 import os
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Optional, Union, cast
+from typing import TYPE_CHECKING, Any, Callable, Optional, Union, cast
 
 from marimo import _loggers
 from marimo._ast.cell_manager import CellManager
@@ -372,6 +372,7 @@ class SessionCacheWriter(AsyncBackgroundTask):
         session_view: SessionView,
         path: Path,
         interval: float,
+        cell_ids_provider: Callable[[], Iterable[CellId_t]] | None = None,
     ) -> None:
         super().__init__()
         self.session_view = session_view
@@ -380,6 +381,7 @@ class SessionCacheWriter(AsyncBackgroundTask):
         if os.name != "nt":
             self.path = AsyncPath(path)
         self.interval = interval
+        self.cell_ids_provider = cell_ids_provider
 
     async def startup(self) -> None:
         # Create parent directories if they don't exist
@@ -398,7 +400,10 @@ class SessionCacheWriter(AsyncBackgroundTask):
                 if self.session_view.needs_export("session"):
                     self.session_view.mark_auto_export_session()
                     LOGGER.debug(f"Writing session view to cache {self.path}")
-                    data = serialize_session_view(self.session_view)
+                    data = serialize_session_view(
+                        self.session_view,
+                        cell_ids=self._get_cell_ids_for_write(),
+                    )
                     if isinstance(self.path, AsyncPath):
                         await self.path.write_text(json.dumps(data, indent=2))
                     else:
@@ -410,6 +415,15 @@ class SessionCacheWriter(AsyncBackgroundTask):
                 LOGGER.error(f"Write error: {e}")
                 # If we fail to write, we should stop the writer
                 break
+
+    def _get_cell_ids_for_write(self) -> Iterable[CellId_t] | None:
+        if self.cell_ids_provider is None:
+            return None
+        try:
+            return tuple(self.cell_ids_provider())
+        except Exception as e:
+            LOGGER.error(f"Failed to get cell IDs for session cache: {e}")
+            return None
 
 
 @dataclass
@@ -430,10 +444,12 @@ class SessionCacheManager:
         session_view: SessionView,
         path: Optional[str | Path],
         interval: float,
+        cell_ids_provider: Callable[[], Iterable[CellId_t]] | None = None,
     ):
         self.session_view = session_view
         self.path = path
         self.interval = interval
+        self.cell_ids_provider = cell_ids_provider
         self.session_cache_writer: SessionCacheWriter | None = None
 
     def start(self) -> None:
@@ -447,6 +463,7 @@ class SessionCacheManager:
             session_view=self.session_view,
             path=cache_file,
             interval=self.interval,
+            cell_ids_provider=self.cell_ids_provider,
         )
         self.session_cache_writer.start()
 
