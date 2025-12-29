@@ -39,7 +39,10 @@ def should_use_external_env(name: str | None) -> str | None:
     Returns:
         Absolute path to Python interpreter, or None if no external env configured.
     """
-    from marimo._cli.external_env import is_external_env_active, resolve_python_path
+    from marimo._cli.external_env import (
+        is_external_env_active,
+        resolve_python_path,
+    )
     from marimo._config.manager import get_default_config_manager
 
     # Prevent recursion - already running with external env

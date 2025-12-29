@@ -219,7 +219,9 @@ def run_with_external_python(
         current_pythonpath = os.pathsep.join(sys.path)
         existing = proc_env.get("PYTHONPATH", "")
         if existing:
-            proc_env["PYTHONPATH"] = f"{existing}{os.pathsep}{current_pythonpath}"
+            proc_env["PYTHONPATH"] = (
+                f"{existing}{os.pathsep}{current_pythonpath}"
+            )
         else:
             proc_env["PYTHONPATH"] = current_pythonpath
 
