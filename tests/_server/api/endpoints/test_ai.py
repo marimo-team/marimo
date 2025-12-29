@@ -447,22 +447,20 @@ class TestAnthropicAiEndpoints:
 
     @staticmethod
     @with_session(SESSION_ID)
-    @patch("anthropic.AsyncClient")
+    @patch(
+        "marimo._server.ai.providers.AnthropicProvider.stream_text",
+        return_value=AsyncMock(),
+    )
     def test_anthropic_completion_with_code(
-        client: TestClient, anthropic_mock: Any
+        client: TestClient, stream_text_mock: Any
     ) -> None:
         user_config_manager = get_session_config_manager(client)
 
-        anthropic_client = MagicMock()
-        anthropic_mock.return_value = anthropic_client
-
-        # Mock async stream
+        # Mock async generator for stream_text
         async def mock_stream():
-            yield RawContentBlockDeltaEvent(TextDelta("import pandas as pd"))
+            yield "import pandas as pd"
 
-        anthropic_client.messages.create = AsyncMock(
-            side_effect=lambda **kwargs: mock_stream()  # noqa: ARG005
-        )
+        stream_text_mock.return_value = mock_stream()
 
         with patch.object(
             user_config_manager, "get_config", return_value=_anthropic_config()
@@ -477,33 +475,25 @@ class TestAnthropicAiEndpoints:
                 },
             )
             assert response.status_code == 200, response.text
-            # Assert the prompt it was called with
-            prompt: str = anthropic_client.messages.create.call_args.kwargs[
-                "messages"
-            ][0]["content"][0]["text"]
-            assert prompt == "Help me create a dataframe"
-            # Assert the model it was called with
-            model = anthropic_client.messages.create.call_args.kwargs["model"]
-            assert model == "claude-3.5"
+            # Verify that stream_text was called
+            stream_text_mock.assert_called_once()
+            # Check the user_prompt parameter
+            call_kwargs = stream_text_mock.call_args.kwargs
+            assert call_kwargs["user_prompt"] == "Help me create a dataframe"
 
     @staticmethod
     @with_session(SESSION_ID)
-    @patch("anthropic.AsyncClient")
+    @patch(
+        "marimo._server.ai.providers.AnthropicProvider.completion",
+        return_value=AsyncMock(),
+    )
     def test_anthropic_inline_completion(
-        client: TestClient, anthropic_mock: Any
+        client: TestClient, completion_mock: Any
     ) -> None:
         user_config_manager = get_session_config_manager(client)
 
-        anthropic_client = MagicMock()
-        anthropic_mock.return_value = anthropic_client
-
-        # Mock async stream
-        async def mock_stream():
-            yield RawContentBlockDeltaEvent(TextDelta("df = pd.DataFrame()"))
-
-        anthropic_client.messages.create = AsyncMock(
-            side_effect=lambda **kwargs: mock_stream()  # noqa: ARG005
-        )
+        # Mock completion to return a string
+        completion_mock.return_value = "df = pd.DataFrame()"
 
         with patch.object(
             user_config_manager, "get_config", return_value=_anthropic_config()
@@ -518,17 +508,15 @@ class TestAnthropicAiEndpoints:
                 },
             )
             assert response.status_code == 200, response.text
-            # Assert the prompt it was called with
-            prompt: str = anthropic_client.messages.create.call_args.kwargs[
-                "messages"
-            ][0]["content"][0]["text"]
-            assert (
-                prompt
-                == f"{FIM_PREFIX_TAG}import pandas as pd\n{FIM_SUFFIX_TAG}\ndf.head(){FIM_MIDDLE_TAG}"
+            completion_mock.assert_called_once()
+            call_kwargs = completion_mock.call_args.kwargs
+            messages = call_kwargs["messages"]
+            assert len(messages) == 1
+            assert messages[0].parts[0].text == (
+                f"{FIM_PREFIX_TAG}import pandas as pd\n"
+                f"{FIM_SUFFIX_TAG}\ndf.head()"
+                f"{FIM_MIDDLE_TAG}"
             )
-            # Assert the model it was called with
-            model = anthropic_client.messages.create.call_args.kwargs["model"]
-            assert model == "claude-3.5-for-inline-completion"
 
 
 @pytest.mark.skipif(
@@ -537,25 +525,20 @@ class TestAnthropicAiEndpoints:
 class TestGoogleAiEndpoints:
     @staticmethod
     @with_session(SESSION_ID)
-    @patch("google.genai.client.AsyncClient")
+    @patch(
+        "marimo._server.ai.providers.GoogleProvider.stream_text",
+        return_value=AsyncMock(),
+    )
     def test_google_ai_completion_with_code(
-        client: TestClient, google_ai_mock: Any
+        client: TestClient, stream_text_mock: Any
     ) -> None:
         user_config_manager = get_session_config_manager(client)
 
-        google_client = MagicMock()
-        google_ai_mock.return_value = google_client
-
-        # Mock async stream
+        # Mock async generator for stream_text
         async def mock_stream():
-            yield MagicMock(
-                text="import pandas as pd",
-                thought=None,
-            )
+            yield "import pandas as pd"
 
-        google_client.models.generate_content_stream = AsyncMock(
-            side_effect=lambda **kwargs: mock_stream()  # noqa: ARG005
-        )
+        stream_text_mock.return_value = mock_stream()
 
         config = {
             "ai": {
@@ -580,40 +563,27 @@ class TestGoogleAiEndpoints:
                 },
             )
             assert response.status_code == 200, response.text
-            # Assert the prompt it was called with
-            prompt = (
-                google_client.models.generate_content_stream.call_args.kwargs[
-                    "contents"
-                ]
-            )
-            assert (
-                prompt[0]["parts"][0]["text"] == "Help me create a dataframe"
-            )
+            # Verify that stream_text was called
+            stream_text_mock.assert_called_once()
+            # Check the user_prompt parameter
+            call_kwargs = stream_text_mock.call_args.kwargs
+            assert call_kwargs["user_prompt"] == "Help me create a dataframe"
 
     @staticmethod
     @with_session(SESSION_ID)
-    @patch("google.genai.Client")
     def test_google_ai_completion_without_token(
-        client: TestClient, google_ai_mock: Any
+        client: TestClient,
     ) -> None:
+        from marimo._server.ai.providers import PydanticProvider
+
         user_config_manager = get_session_config_manager(client)
 
-        # Mock the google client and its aio attribute
-        google_client_mock = MagicMock()
-        google_aio_mock = MagicMock()
-        google_client_mock.aio = google_aio_mock
-        google_ai_mock.return_value = google_client_mock
-
-        # Mock async stream
+        # Mock async generator for stream_text
         async def mock_stream():
-            yield MagicMock(
-                text="import pandas as pd",
-                thought=None,
-            )
+            yield "import pandas as pd"
 
-        google_aio_mock.models.generate_content_stream = AsyncMock(
-            side_effect=lambda **kwargs: mock_stream()  # noqa: ARG005
-        )
+        mock_provider = MagicMock(spec=PydanticProvider)
+        mock_provider.stream_text.return_value = mock_stream()
 
         config = {
             "ai": {
@@ -622,8 +592,14 @@ class TestGoogleAiEndpoints:
             },
         }
 
-        with patch.object(
-            user_config_manager, "get_config", return_value=config
+        with (
+            patch.object(
+                user_config_manager, "get_config", return_value=config
+            ),
+            patch(
+                "marimo._server.api.endpoints.ai.get_completion_provider",
+                return_value=mock_provider,
+            ),
         ):
             response = client.post(
                 "/api/ai/completion",
@@ -636,34 +612,21 @@ class TestGoogleAiEndpoints:
             )
 
         assert response.status_code == 200, response.text
-        prompt = (
-            google_aio_mock.models.generate_content_stream.call_args.kwargs[
-                "contents"
-            ]
-        )
-        assert prompt[0]["parts"][0]["text"] == "Help me create a dataframe"
+        # Verify that stream_text was called
+        mock_provider.stream_text.assert_called_once()
+        call_kwargs = mock_provider.stream_text.call_args.kwargs
+        assert call_kwargs["user_prompt"] == "Help me create a dataframe"
 
     @staticmethod
     @with_session(SESSION_ID)
-    @patch("google.genai.client.AsyncClient")
+    @patch("marimo._server.ai.providers.GoogleProvider.completion")
     def test_google_ai_inline_completion(
-        client: TestClient, google_ai_mock: Any
+        client: TestClient, completion_mock: Any
     ) -> None:
         user_config_manager = get_session_config_manager(client)
 
-        google_client = MagicMock()
-        google_ai_mock.return_value = google_client
-
-        # Mock async stream
-        async def mock_stream():
-            yield MagicMock(
-                text="df = pd.DataFrame()",
-                thought=None,
-            )
-
-        google_client.models.generate_content_stream = AsyncMock(
-            side_effect=lambda **kwargs: mock_stream()  # noqa: ARG005
-        )
+        # Mock completion to return a string
+        completion_mock.return_value = "df = pd.DataFrame()"
 
         with patch.object(
             user_config_manager, "get_config", return_value=_google_ai_config()
@@ -679,14 +642,14 @@ class TestGoogleAiEndpoints:
             )
             assert response.status_code == 200, response.text
             # Assert the prompt it was called with
-            prompt = (
-                google_client.models.generate_content_stream.call_args.kwargs[
-                    "contents"
-                ]
-            )
-            assert (
-                prompt[0]["parts"][0]["text"]
-                == f"{FIM_PREFIX_TAG}import pandas as pd\n{FIM_SUFFIX_TAG}\ndf.head(){FIM_MIDDLE_TAG}"
+            completion_mock.assert_called_once()
+            call_kwargs = completion_mock.call_args.kwargs
+            messages = call_kwargs["messages"]
+            assert len(messages) == 1
+            assert messages[0].parts[0].text == (
+                f"{FIM_PREFIX_TAG}import pandas as pd\n"
+                f"{FIM_SUFFIX_TAG}\ndf.head()"
+                f"{FIM_MIDDLE_TAG}"
             )
 
 
@@ -808,6 +771,7 @@ def test_chat_without_code(client: TestClient) -> None:
                 headers=HEADERS,
                 json={
                     "messages": _create_messages("Hello"),
+                    "uiMessages": [],
                     "model": "gpt-4-turbo",
                     "variables": [],
                     "includeOtherCode": "",
@@ -849,6 +813,7 @@ def test_chat_with_code(client: TestClient) -> None:
                 headers=HEADERS,
                 json={
                     "messages": _create_messages("Help me create a dataframe"),
+                    "uiMessages": [],
                     "model": "gpt-4-turbo",
                     "variables": [],
                     "includeOtherCode": "import pandas as pd",
