@@ -18,7 +18,7 @@ from marimo._runtime.context.types import (
 from marimo._runtime.dataflow import DirectedGraph
 from marimo._runtime.functions import FunctionRegistry
 from marimo._runtime.params import CLIArgs, QueryParams
-from marimo._server.model import SessionMode
+from marimo._session.model import SessionMode
 
 if TYPE_CHECKING:
     from collections.abc import Iterator

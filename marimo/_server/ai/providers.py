@@ -36,7 +36,7 @@ from marimo._dependencies.dependencies import DependencyManager
 from marimo._server.ai.config import AnyProviderConfig
 from marimo._server.ai.ids import AiModelId
 from marimo._server.ai.tools.types import ToolDefinition
-from marimo._server.api.status import HTTPStatus
+from marimo._utils.http import HTTPStatus
 
 TIMEOUT = 30
 # Long-thinking models can take a long time to complete, so we set a longer timeout

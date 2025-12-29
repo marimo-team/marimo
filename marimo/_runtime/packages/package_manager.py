@@ -15,7 +15,7 @@ from marimo._messaging.notification_utils import broadcast_notification
 from marimo._runtime.packages.utils import append_version
 
 if TYPE_CHECKING:
-    from marimo._server.models.packages import DependencyTreeNode
+    from marimo._utils.uv_tree import DependencyTreeNode
 
 LOGGER = _loggers.marimo_logger()
 

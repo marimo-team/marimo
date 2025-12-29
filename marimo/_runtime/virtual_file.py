@@ -14,8 +14,8 @@ from marimo import _loggers
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._runtime.cell_lifecycle_item import CellLifecycleItem
 from marimo._runtime.context import ContextNotInitializedError
-from marimo._server.api.status import HTTPException, HTTPStatus
 from marimo._utils.data_uri import build_data_url
+from marimo._utils.http import HTTPException, HTTPStatus
 from marimo._utils.platform import is_pyodide
 
 if TYPE_CHECKING:

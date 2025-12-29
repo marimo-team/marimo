@@ -8,8 +8,8 @@ from pathlib import Path
 
 import pytest
 
-from marimo._server.api.status import HTTPException, HTTPStatus
 from marimo._server.file_router import AppFileRouter
+from marimo._utils.http import HTTPException, HTTPStatus
 
 
 class TestAbsoluteDirectoryPath:

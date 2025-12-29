@@ -22,7 +22,7 @@ from marimo._messaging.types import Stream
 from marimo._output.md import _md
 from marimo._runtime import dataflow
 from marimo._runtime.commands import CodeCompletionCommand
-from marimo._server.types import QueueType
+from marimo._session.queue import QueueType
 from marimo._utils.docs import MarimoConverter
 from marimo._utils.format_signature import format_signature
 from marimo._utils.rst_to_html import convert_rst_to_html

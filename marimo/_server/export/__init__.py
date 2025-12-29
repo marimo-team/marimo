@@ -30,18 +30,18 @@ from marimo._schemas.serialization import NotebookSerialization
 from marimo._server.export.exporter import Exporter
 from marimo._server.export.utils import get_download_filename
 from marimo._server.file_router import AppFileRouter
-from marimo._server.model import ConnectionState, SessionMode
 from marimo._server.models.export import ExportAsHTMLRequest
 from marimo._server.models.models import InstantiateNotebookRequest
-from marimo._server.notebook import AppFileManager
+from marimo._session.model import ConnectionState, SessionMode
+from marimo._session.notebook import AppFileManager
 from marimo._types.ids import ConsumerId
 from marimo._utils.marimo_path import MarimoPath
 
 LOGGER = _loggers.marimo_logger()
 
 if TYPE_CHECKING:
-    from marimo._server.session.session_view import SessionView
-    from marimo._server.sessions.types import Session
+    from marimo._session.state.session_view import SessionView
+    from marimo._session.types import Session
 
 
 @dataclass
@@ -236,9 +236,9 @@ async def run_app_until_completion(
     cli_args: SerializedCLIArgs,
     argv: list[str] | None,
 ) -> tuple[SessionView, bool]:
-    from marimo._server.consumer import SessionConsumer
-    from marimo._server.sessions.events import SessionEventBus
-    from marimo._server.sessions.session import SessionImpl
+    from marimo._session.consumer import SessionConsumer
+    from marimo._session.events import SessionEventBus
+    from marimo._session.session import SessionImpl
 
     instantiated_event = asyncio.Event()
 

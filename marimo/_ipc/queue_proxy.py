@@ -10,7 +10,7 @@ import typing
 import zmq
 
 from marimo import _loggers
-from marimo._server.types import QueueType
+from marimo._session.queue import QueueType
 
 LOGGER = _loggers.marimo_logger()
 

@@ -24,7 +24,7 @@ from marimo._server.ai.config import (
 )
 from marimo._server.ai.constants import DEFAULT_MAX_TOKENS, DEFAULT_MODEL
 from marimo._server.ai.tools.types import ToolDefinition
-from marimo._server.api.status import HTTPStatus
+from marimo._utils.http import HTTPStatus
 
 
 class TestAnyProviderConfig:

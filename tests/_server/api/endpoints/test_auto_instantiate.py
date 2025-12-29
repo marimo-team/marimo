@@ -6,7 +6,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from marimo._messaging.notification import KernelReadyNotification
-from marimo._server.model import SessionMode
+from marimo._session.model import SessionMode
 from marimo._utils.parse_dataclass import parse_raw
 from tests._server.mocks import token_header
 

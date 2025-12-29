@@ -15,8 +15,8 @@ from starlette.websockets import WebSocket, WebSocketDisconnect, WebSocketState
 
 from marimo import _loggers
 from marimo._server.api.deps import AppState
-from marimo._server.model import SessionMode
 from marimo._server.router import APIRouter
+from marimo._session.model import SessionMode
 
 if TYPE_CHECKING:
     from collections.abc import Iterable

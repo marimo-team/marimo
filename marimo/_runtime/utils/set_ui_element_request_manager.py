@@ -4,7 +4,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from marimo._runtime.commands import UpdateUIElementCommand
-from marimo._server.types import QueueType
+from marimo._session.queue import QueueType
 from marimo._types.ids import UIElementId
 
 if TYPE_CHECKING:

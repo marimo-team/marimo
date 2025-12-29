@@ -37,7 +37,7 @@ from marimo._runtime.context.types import get_context, get_global_context
 from marimo._runtime.control_flow import MarimoInterrupt, MarimoStopError
 from marimo._runtime.runner import cell_runner
 from marimo._runtime.side_effect import SideEffect
-from marimo._server.model import SessionMode
+from marimo._session.model import SessionMode
 from marimo._sql.engines.duckdb import (
     INTERNAL_DUCKDB_ENGINE,
     DuckDBEngine,

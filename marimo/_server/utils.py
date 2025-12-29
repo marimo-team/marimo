@@ -9,29 +9,13 @@ import sys
 from typing import TYPE_CHECKING, Any, TypeVar
 
 from marimo import _loggers
-from marimo._utils.marimo_path import MarimoPath
 
 if TYPE_CHECKING:
     from collections.abc import Coroutine
     from typing import Optional
 
-# use spaces instead of a tab to play well with carriage returns;
-# \r\t doesn't appear to overwrite characters at the start of a line,
-# but \r{TAB} does ...
-TAB = "        "
 
 LOGGER = _loggers.marimo_logger()
-
-
-def print_tabbed(string: str, n_tabs: int = 1) -> None:
-    print_(f"{TAB * n_tabs}{string}")
-
-
-def canonicalize_filename(filename: str) -> str:
-    # If its not a valid Python or Markdown file, then add .py
-    if not MarimoPath.is_valid_path(filename):
-        filename += ".py"
-    return os.path.expanduser(filename)
 
 
 _DEFAULT_BACKLOG = 128
@@ -279,12 +263,3 @@ def asyncio_run(coro: Coroutine[Any, Any, T], **kwargs: dict[Any, Any]) -> T:
     """
     initialize_asyncio()
     return asyncio.run(coro, **kwargs)  # type: ignore[arg-type]
-
-
-def print_(*args: Any, **kwargs: Any) -> None:
-    try:
-        import click
-
-        click.echo(*args, **kwargs)
-    except ImportError:
-        print(*args, **kwargs)  # noqa: T201

@@ -7,7 +7,7 @@ import time
 from typing import Any, Callable, Generic, Protocol, TypeVar, Union
 
 from marimo import _loggers
-from marimo._server.types import QueueType
+from marimo._session.queue import QueueType
 from marimo._utils.disposable import Disposable
 from marimo._utils.typed_connection import TypedConnection
 

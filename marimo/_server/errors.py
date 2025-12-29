@@ -11,13 +11,13 @@ from marimo import _loggers
 from marimo._messaging.notification import MissingPackageAlertNotification
 from marimo._runtime.packages.utils import is_python_isolated
 from marimo._server.api.deps import AppState
-from marimo._server.api.status import (
+from marimo._session import send_message_to_consumer
+from marimo._session.model import SessionMode
+from marimo._types.ids import ConsumerId
+from marimo._utils.http import (
     HTTPException as MarimoHTTPException,
     is_client_error,
 )
-from marimo._server.model import SessionMode
-from marimo._server.sessions import send_message_to_consumer
-from marimo._types.ids import ConsumerId
 
 if TYPE_CHECKING:
     from starlette.requests import Request

@@ -20,9 +20,9 @@ from marimo._runtime.commands import (
     SerializedQueryParams,
     UpdateUIElementCommand,
 )
-from marimo._server.model import SessionMode
 from marimo._server.models.models import SaveNotebookRequest
-from marimo._server.notebook import AppFileManager
+from marimo._session.model import SessionMode
+from marimo._session.notebook import AppFileManager
 from marimo._utils.parse_dataclass import parse_raw
 
 if TYPE_CHECKING:

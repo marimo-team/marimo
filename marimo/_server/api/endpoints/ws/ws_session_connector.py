@@ -11,7 +11,8 @@ if TYPE_CHECKING:
         ConnectionParams,
     )
     from marimo._server.api.endpoints.ws_endpoint import WebSocketHandler
-    from marimo._server.sessions import Session, SessionManager
+    from marimo._server.session_manager import SessionManager
+    from marimo._session import Session
 
 from starlette.websockets import WebSocketDisconnect
 
@@ -19,8 +20,8 @@ from marimo import _loggers
 from marimo._messaging.types import NoopStream
 from marimo._runtime.params import QueryParams
 from marimo._server.codes import WebSocketCodes
-from marimo._server.model import ConnectionState, SessionMode
 from marimo._server.models.models import InstantiateNotebookRequest
+from marimo._session.model import ConnectionState, SessionMode
 
 LOGGER = _loggers.marimo_logger()
 

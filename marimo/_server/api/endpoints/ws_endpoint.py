@@ -38,15 +38,16 @@ from marimo._server.api.endpoints.ws.ws_session_connector import (
     SessionConnector,
 )
 from marimo._server.codes import WebSocketCodes
-from marimo._server.consumer import SessionConsumer
-from marimo._server.model import (
+from marimo._server.router import APIRouter
+from marimo._server.rtc.doc import LoroDocManager
+from marimo._server.session_manager import SessionManager
+from marimo._session import Session
+from marimo._session.consumer import SessionConsumer
+from marimo._session.events import SessionEventBus
+from marimo._session.model import (
     ConnectionState,
     SessionMode,
 )
-from marimo._server.router import APIRouter
-from marimo._server.rtc.doc import LoroDocManager
-from marimo._server.sessions import Session, SessionManager
-from marimo._server.sessions.events import SessionEventBus
 from marimo._types.ids import CellId_t, ConsumerId
 
 LOGGER = _loggers.marimo_logger()

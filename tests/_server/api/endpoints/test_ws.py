@@ -17,8 +17,8 @@ from marimo._messaging.notification import (
     KernelReadyNotification,
 )
 from marimo._server.codes import WebSocketCodes
-from marimo._server.model import SessionMode
-from marimo._server.sessions import SessionManager
+from marimo._server.session_manager import SessionManager
+from marimo._session.model import SessionMode
 from marimo._utils.parse_dataclass import parse_raw
 from tests._server.conftest import get_session_manager, get_user_config_manager
 from tests._server.mocks import token_header

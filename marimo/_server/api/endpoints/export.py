@@ -14,11 +14,9 @@ from marimo._convert.script import convert_from_ir_to_script
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.msgspec_encoder import asdict
 from marimo._server.api.deps import AppState
-from marimo._server.api.status import HTTPStatus
 from marimo._server.api.utils import parse_request
 from marimo._server.export.exporter import AutoExporter, Exporter
 from marimo._server.export.utils import get_download_filename
-from marimo._server.model import SessionMode
 from marimo._server.models.export import (
     ExportAsHTMLRequest,
     ExportAsMarkdownRequest,
@@ -26,6 +24,8 @@ from marimo._server.models.export import (
 )
 from marimo._server.models.models import SuccessResponse
 from marimo._server.router import APIRouter
+from marimo._session.model import SessionMode
+from marimo._utils.http import HTTPStatus
 
 if TYPE_CHECKING:
     from starlette.requests import Request
