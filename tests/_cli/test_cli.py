@@ -819,40 +819,14 @@ def test_cli_sandbox_edit_none_not_supported() -> None:
 
 
 @pytest.mark.skipif(not HAS_UV, reason="uv is required for sandbox tests")
-def test_cli_sandbox_edit_directory_not_supported() -> None:
+def test_cli_edit_sandbox_multi_notebook() -> None:
+    # With IPC-based kernel, sandbox now works with multi-notebook servers
     port = _get_port()
     p = subprocess.Popen(
         [
             "marimo",
             "edit",
-            "../",
-            "-p",
-            str(port),
-            "--headless",
-            "--no-token",
             "--sandbox",
-        ],
-        stderr=subprocess.PIPE,
-    )
-
-    def _assert():
-        assert p.returncode != 0
-
-    try_assert_n_times(5, _assert)
-    assert p.stderr is not None
-    assert "not supported" in p.stderr.read().decode()
-
-
-@pytest.mark.skipif(not HAS_UV, reason="uv is required for sandbox tests")
-def test_cli_edit_none_dangerous_sandbox_allowed() -> None:
-    # sandbox is disallowed in a multi-notebook edit server,
-    # but can be overridden with --dangerous-sandbox.
-    port = _get_port()
-    p = subprocess.Popen(
-        [
-            "marimo",
-            "edit",
-            "--dangerous-sandbox",
             "-p",
             str(port),
             "--headless",
@@ -871,16 +845,15 @@ def test_cli_edit_none_dangerous_sandbox_allowed() -> None:
 
 
 @pytest.mark.skipif(not HAS_UV, reason="uv is required for sandbox tests")
-def test_cli_edit_directory_dangerous_sandbox_allowed() -> None:
-    # sandbox is disallowed in a multi-notebook edit server,
-    # but can be overridden with --dangerous-sandbox.
+def test_cli_edit_directory_sandbox() -> None:
+    # With IPC-based kernel, sandbox now works with directories
     port = _get_port()
     p = subprocess.Popen(
         [
             "marimo",
             "edit",
             "../",
-            "--dangerous-sandbox",
+            "--sandbox",
             "-p",
             str(port),
             "--headless",
@@ -1237,14 +1210,13 @@ def test_cli_with_custom_pyproject_config_no_file(tmp_path: Path) -> None:
         # TODO: fix this, it does not get overridden in tests (maybe it is using a different marimo version that the one in CI)
         # assert b'"manager": "uv"' in contents
 
-    # marimo edit --dangerous-sandbox, in the directory with pyproject.toml,
-    # for vscode extension compatibility
+    # marimo edit --sandbox, in the directory with pyproject.toml
     port = _get_port()
     p = subprocess.Popen(
         [
             "marimo",
             "edit",
-            "--dangerous-sandbox",
+            "--sandbox",
             "-p",
             str(port),
             "--headless",

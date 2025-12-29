@@ -146,9 +146,7 @@ class TestNotificationListenerExtension:
         manager.stream_queue = asyncio.Queue()
         return manager
 
-    @patch(
-        "marimo._server.sessions.extensions.extensions.ConnectionDistributor"
-    )
+    @patch("marimo._server.sessions.extensions.extensions.QueueDistributor")
     def test_lifecycle(
         self, mock_dist, mock_session, event_bus, kernel_manager, queue_manager
     ) -> None:
@@ -169,32 +167,33 @@ class TestNotificationListenerExtension:
         mock_distributor.stop.assert_called_once()
         assert extension.distributor is None
 
-    def test_uses_correct_distributor_type(
+    def test_uses_queue_distributor(
         self, kernel_manager, queue_manager
     ) -> None:
-        """Test that correct distributor type is used based on mode."""
-        from marimo._utils.distributor import (
-            ConnectionDistributor,
-            QueueDistributor,
-        )
+        """Test that QueueDistributor is always used (IPC-based kernels)."""
+        from marimo._utils.distributor import QueueDistributor
 
         extension = NotificationListenerExtension(
             kernel_manager, queue_manager
         )
 
-        # EDIT mode uses ConnectionDistributor
-        kernel_manager.mode = SessionMode.EDIT
-        distributor = extension._create_distributor(
-            kernel_manager, queue_manager
-        )
-        assert isinstance(distributor, ConnectionDistributor)
-
-        # RUN mode uses QueueDistributor
-        kernel_manager.mode = SessionMode.RUN
+        # All modes now use QueueDistributor (IPC-based)
         distributor = extension._create_distributor(
             kernel_manager, queue_manager
         )
         assert isinstance(distributor, QueueDistributor)
+
+    def test_raises_without_stream_queue(
+        self, kernel_manager, queue_manager
+    ) -> None:
+        """Test that RuntimeError is raised if stream_queue is None."""
+        extension = NotificationListenerExtension(
+            kernel_manager, queue_manager
+        )
+
+        queue_manager.stream_queue = None
+        with pytest.raises(RuntimeError, match="stream_queue not available"):
+            extension._create_distributor(kernel_manager, queue_manager)
 
 
 class TestLoggingExtension:

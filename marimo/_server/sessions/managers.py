@@ -27,6 +27,7 @@ if TYPE_CHECKING:
     from marimo._runtime.commands import AppMetadata
     from marimo._server.model import SessionMode
     from marimo._types.ids import CellId_t
+    from marimo._utils.inline_script_metadata import PyProjectReader
 
 LOGGER = _loggers.marimo_logger()
 
@@ -106,6 +107,9 @@ class KernelManagerImpl(KernelManager):
         app_metadata: AppMetadata,
         config_manager: MarimoConfigReader,
         python_executable: str | None = None,
+        virtual_files_supported: bool = True,
+        redirect_console_to_browser: bool = True,
+        sandbox_mode: bool = False,
     ) -> None:
         # Use current Python if not specified
         self.python_executable = python_executable or sys.executable
@@ -114,10 +118,14 @@ class KernelManagerImpl(KernelManager):
         self.configs = configs
         self.app_metadata = app_metadata
         self.config_manager = config_manager
+        self.virtual_files_supported = virtual_files_supported
+        self.redirect_console_to_browser = redirect_console_to_browser
+        self.sandbox_mode = sandbox_mode
 
         self._process: subprocess.Popen[bytes] | None = None
         self._ipc_queue_manager: Any = None  # marimo._ipc.QueueManager
         self.kernel_task: ProcessLike | None = None
+        self._sandbox_dir: str | None = None
 
     def start_kernel(self) -> None:
         from marimo._cli.external_env import (
@@ -143,48 +151,66 @@ class KernelManagerImpl(KernelManager):
             log_level=GLOBAL_SETTINGS.LOG_LEVEL,
             profile_path=None,
             connection_info=connection_info,
+            virtual_files_supported=self.virtual_files_supported,
+            redirect_console_to_browser=self.redirect_console_to_browser,
         )
 
         # Build environment
         env = os.environ.copy()
-        env.update(get_conda_env_vars(self.python_executable))
 
-        # Inject marimo and dependencies if not in same env or not installed
-        is_external = not is_same_python(self.python_executable)
-        needs_injection = is_external and not _check_marimo_installed(
-            self.python_executable
-        )
-
-        if needs_injection:
-            from marimo._cli.external_env import get_required_dependency_paths
-            from marimo._cli.print import echo, muted
-
-            # Collect all paths to inject
-            inject_paths = [get_marimo_path()]
-            inject_paths.extend(get_required_dependency_paths())
-
-            existing = env.get("PYTHONPATH", "")
-            new_paths = os.pathsep.join(inject_paths)
-            if existing:
-                env["PYTHONPATH"] = f"{new_paths}{os.pathsep}{existing}"
-            else:
-                env["PYTHONPATH"] = new_paths
-
-            echo(
-                f"Using external Python: {muted(self.python_executable)} "
-                "(injecting marimo via PYTHONPATH)",
-                err=True,
-            )
-        elif is_external:
+        # Build command based on sandbox mode
+        if self.sandbox_mode:
+            cmd = self._build_sandbox_command()
             from marimo._cli.print import echo, muted
 
             echo(
-                f"Using external Python: {muted(self.python_executable)}",
+                f"Running kernel in sandbox: {muted(' '.join(cmd))}",
                 err=True,
             )
+            # Set MARIMO_MANAGE_SCRIPT_METADATA for sandbox
+            env["MARIMO_MANAGE_SCRIPT_METADATA"] = "true"
+        else:
+            env.update(get_conda_env_vars(self.python_executable))
 
-        # Launch kernel subprocess
-        cmd = [self.python_executable, "-m", "marimo._ipc.launch_kernel"]
+            # Inject marimo and dependencies if not in same env or not installed
+            is_external = not is_same_python(self.python_executable)
+            needs_injection = is_external and not _check_marimo_installed(
+                self.python_executable
+            )
+
+            if needs_injection:
+                from marimo._cli.external_env import (
+                    get_required_dependency_paths,
+                )
+                from marimo._cli.print import echo, muted
+
+                # Collect all paths to inject
+                inject_paths = [get_marimo_path()]
+                inject_paths.extend(get_required_dependency_paths())
+
+                existing = env.get("PYTHONPATH", "")
+                new_paths = os.pathsep.join(inject_paths)
+                if existing:
+                    env["PYTHONPATH"] = f"{new_paths}{os.pathsep}{existing}"
+                else:
+                    env["PYTHONPATH"] = new_paths
+
+                echo(
+                    f"Using external Python: {muted(self.python_executable)} "
+                    "(injecting marimo via PYTHONPATH)",
+                    err=True,
+                )
+            elif is_external:
+                from marimo._cli.print import echo, muted
+
+                echo(
+                    f"Using external Python: {muted(self.python_executable)}",
+                    err=True,
+                )
+
+            # Launch kernel subprocess
+            cmd = [self.python_executable, "-m", "marimo._ipc.launch_kernel"]
+
         LOGGER.debug(f"Launching kernel: {' '.join(cmd)}")
 
         self._process = subprocess.Popen(
@@ -267,12 +293,125 @@ class KernelManagerImpl(KernelManager):
             except subprocess.TimeoutExpired:
                 self._process.kill()
 
+        # Clean up sandbox directory if in sandbox mode
+        if self.sandbox_mode:
+            self._cleanup_sandbox()
+
     @property
     def kernel_connection(self) -> TypedConnection[KernelMessage]:
         # IPC kernel uses stream_queue instead of kernel_connection
         raise NotImplementedError(
             "IPC kernel uses stream_queue, not kernel_connection"
         )
+
+    def _build_sandbox_command(self) -> list[str]:
+        """Build sandbox environment and return kernel launch command.
+
+        Two-phase approach:
+        1. Create ephemeral venv with dependencies using uv
+        2. Return command to launch kernel with venv's Python
+
+        This separates package installation output from kernel communication,
+        ensuring "KERNEL_READY" signal is not mixed with uv's install logs.
+        """
+        import tempfile
+
+        from marimo._cli.print import echo, muted
+        from marimo._utils.inline_script_metadata import PyProjectReader
+        from marimo._utils.uv import find_uv_bin
+
+        uv_bin = find_uv_bin()
+        filename = self.app_metadata.filename
+
+        # Read dependencies from notebook
+        pyproject = (
+            PyProjectReader.from_filename(filename)
+            if filename is not None
+            else PyProjectReader({}, config_path=None)
+        )
+
+        # Create temp directory for sandbox venv
+        self._sandbox_dir = tempfile.mkdtemp(prefix="marimo-sandbox-")
+        venv_path = os.path.join(self._sandbox_dir, "venv")
+
+        # Phase 1: Create venv
+        echo(f"Creating sandbox environment: {muted(venv_path)}", err=True)
+        subprocess.run(
+            [uv_bin, "venv", "--seed", venv_path],
+            check=True,
+            capture_output=True,
+        )
+
+        # Get venv Python path
+        if sys.platform == "win32":
+            venv_python = os.path.join(venv_path, "Scripts", "python.exe")
+        else:
+            venv_python = os.path.join(venv_path, "bin", "python")
+
+        # Phase 1b: Install dependencies
+        requirements = self._get_sandbox_requirements(pyproject)
+        if requirements:
+            echo("Installing sandbox dependencies...", err=True)
+
+            # Separate editable installs from regular requirements
+            # Editable installs look like "-e /path/to/package"
+            editable_reqs = [r for r in requirements if r.startswith("-e ")]
+            regular_reqs = [r for r in requirements if not r.startswith("-e ")]
+
+            # Install editable packages directly (not via requirements file)
+            for editable in editable_reqs:
+                # Extract path from "-e /path/to/package"
+                editable_path = editable[3:].strip()
+                result = subprocess.run(
+                    [uv_bin, "pip", "install", "--python", venv_python, "-e", editable_path],
+                    capture_output=True,
+                    text=True,
+                )
+                if result.returncode != 0:
+                    echo(f"Warning: Editable install failed: {result.stderr}", err=True)
+
+            # Install regular packages via requirements file
+            if regular_reqs:
+                req_file = os.path.join(self._sandbox_dir, "requirements.txt")
+                with open(req_file, "w", encoding="utf-8") as f:
+                    f.write("\n".join(regular_reqs))
+
+                result = subprocess.run(
+                    [uv_bin, "pip", "install", "--python", venv_python, "-r", req_file],
+                    capture_output=True,
+                    text=True,
+                )
+                if result.returncode != 0:
+                    echo(f"Warning: Package install failed: {result.stderr}", err=True)
+
+        # Phase 2: Return direct python command
+        return [venv_python, "-m", "marimo._ipc.launch_kernel"]
+
+    def _get_sandbox_requirements(
+        self, pyproject: PyProjectReader
+    ) -> list[str]:
+        """Get normalized requirements for sandbox."""
+        from marimo import __version__
+        from marimo._cli.sandbox import (
+            _normalize_sandbox_dependencies,
+            _resolve_requirements_txt_lines,
+        )
+
+        dependencies = _resolve_requirements_txt_lines(pyproject)
+        return _normalize_sandbox_dependencies(
+            dependencies, __version__, additional_features=[]
+        )
+
+    def _cleanup_sandbox(self) -> None:
+        """Clean up sandbox directory."""
+        import shutil
+
+        if hasattr(self, "_sandbox_dir") and self._sandbox_dir:
+            try:
+                shutil.rmtree(self._sandbox_dir)
+            except OSError:
+                pass
+            self._sandbox_dir = None
 
 
 class _SubprocessWrapper:

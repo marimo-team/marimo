@@ -50,6 +50,7 @@ dependencies = [
     "packaging",
     "msgspec>=0.20.0",
     "pyzmq>=27.1.0",
+    "sqlglot>=27.29.0",
 ]
 readme = "README.md"
 license = { file = "LICENSE" }

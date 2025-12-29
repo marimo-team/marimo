@@ -436,7 +436,6 @@ import marimo
             ):
                 result = should_run_in_sandbox(
                     sandbox=None,
-                    dangerous_sandbox=None,
                     name=str(script_path),
                 )
                 assert result
@@ -446,7 +445,6 @@ def test_should_run_in_sandbox_explicit_flag() -> None:
     """Test that should_run_in_sandbox returns True when sandbox=True."""
     result = should_run_in_sandbox(
         sandbox=True,
-        dangerous_sandbox=None,
         name="test.py",
     )
     assert result
@@ -456,33 +454,35 @@ def test_should_run_in_sandbox_explicit_false() -> None:
     """Test that should_run_in_sandbox returns False when sandbox=False."""
     result = should_run_in_sandbox(
         sandbox=False,
-        dangerous_sandbox=None,
         name="test.py",
     )
     assert not result
 
 
-def test_should_run_in_sandbox_dangerous_sandbox(tmp_path: Path) -> None:
-    """Test that dangerous_sandbox allows sandbox for directories."""
+def test_should_run_in_sandbox_directory(tmp_path: Path) -> None:
+    """Test that sandbox works with directories (IPC-based kernel)."""
     dir_path = tmp_path / "notebooks"
     dir_path.mkdir()
 
-    # Without dangerous_sandbox, should raise an error
-    with pytest.raises(click.UsageError):
-        should_run_in_sandbox(
-            sandbox=True,
-            dangerous_sandbox=False,
-            name=str(dir_path),
-        )
+    # With IPC-based kernel, sandbox now works with directories
+    result = should_run_in_sandbox(
+        sandbox=True,
+        name=str(dir_path),
+    )
+    assert result
 
-    # With dangerous_sandbox, should work
-    with patch("click.echo"):
-        result = should_run_in_sandbox(
-            sandbox=True,
-            dangerous_sandbox=True,
-            name=str(dir_path),
-        )
-        assert result
+
+def test_should_run_in_sandbox_directory_no_prompt(tmp_path: Path) -> None:
+    """Test that directories don't prompt when sandbox=None."""
+    dir_path = tmp_path / "notebooks"
+    dir_path.mkdir()
+
+    # For directories, sandbox=None should not prompt and return False
+    result = should_run_in_sandbox(
+        sandbox=None,
+        name=str(dir_path),
+    )
+    assert not result
 
 
 def test_construct_uv_cmd_without_python_version(tmp_path: Path) -> None:

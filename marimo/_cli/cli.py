@@ -327,19 +327,6 @@ edit_help_msg = "\n".join(
     help=sandbox_message,
 )
 @click.option(
-    "--dangerous-sandbox/--no-dangerous-sandbox",
-    is_flag=True,
-    default=None,
-    show_default=False,
-    type=bool,
-    hidden=True,
-    help="""Enables the usage of package sandboxing when running a multi-edit
-notebook server. This behavior can lead to surprising and unintended consequences,
-such as incorrectly overwriting package requirements or failing to write out
-requirements. These and other issues are described in
-https://github.com/marimo-team/marimo/issues/5219.""",
-)
-@click.option(
     "--trusted/--untrusted",
     is_flag=True,
     default=None,
@@ -428,7 +415,6 @@ def edit(
     allow_origins: Optional[tuple[str, ...]],
     skip_update_check: bool,
     sandbox: Optional[bool],
-    dangerous_sandbox: Optional[bool],
     trusted: Optional[bool],
     profile_dir: Optional[str],
     watch: bool,
@@ -444,7 +430,6 @@ def edit(
 ) -> None:
     from marimo._cli.sandbox import (
         check_external_env_sandbox_conflict,
-        run_in_sandbox,
         should_run_in_sandbox,
         should_use_external_env,
     )
@@ -520,12 +505,8 @@ def edit(
     # Check for external environment configuration
     external_python = should_use_external_env(name)
 
-    if should_run_in_sandbox(
-        sandbox=sandbox, dangerous_sandbox=dangerous_sandbox, name=name
-    ):
-        # TODO: consider adding recommended as well
-        run_in_sandbox(sys.argv[1:], name=name, additional_features=["lsp"])
-        return
+    # Determine if sandbox mode should be enabled
+    sandbox_mode = should_run_in_sandbox(sandbox=sandbox, name=name)
 
     start(
         file_router=AppFileRouter.infer(name),
@@ -556,6 +537,7 @@ def edit(
         asset_url=asset_url,
         timeout=timeout,
         external_python=external_python,
+        sandbox_mode=sandbox_mode,
     )
 
 
@@ -954,7 +936,6 @@ def run(
 ) -> None:
     from marimo._cli.sandbox import (
         check_external_env_sandbox_conflict,
-        run_in_sandbox,
         should_run_in_sandbox,
         should_use_external_env,
     )
@@ -999,11 +980,8 @@ def run(
     # Check for external environment configuration
     external_python = should_use_external_env(name)
 
-    if should_run_in_sandbox(
-        sandbox=sandbox, dangerous_sandbox=None, name=name
-    ):
-        run_in_sandbox(sys.argv[1:], name=name)
-        return
+    # Determine if sandbox mode should be enabled
+    sandbox_mode = should_run_in_sandbox(sandbox=sandbox, name=name)
 
     start(
         file_router=AppFileRouter.from_filename(file),
@@ -1031,6 +1009,7 @@ def run(
         server_startup_command=server_startup_command,
         asset_url=asset_url,
         external_python=external_python,
+        sandbox_mode=sandbox_mode,
     )
 
 

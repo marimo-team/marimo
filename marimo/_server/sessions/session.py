@@ -87,6 +87,7 @@ class SessionImpl(Session):
         ttl_seconds: Optional[int],
         extensions: list[SessionExtension] | None = None,
         external_python: Optional[str] = None,
+        sandbox_mode: bool = False,
     ) -> Session:
         """
         Create a new session.
@@ -108,6 +109,9 @@ class SessionImpl(Session):
             app_metadata=app_metadata,
             config_manager=config_manager,
             python_executable=external_python,
+            virtual_files_supported=virtual_files_supported,
+            redirect_console_to_browser=redirect_console_to_browser,
+            sandbox_mode=sandbox_mode,
         )
 
         extensions = [

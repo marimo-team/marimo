@@ -177,6 +177,7 @@ def start(
     asset_url: Optional[str] = None,
     timeout: Optional[float] = None,
     external_python: Optional[str] = None,
+    sandbox_mode: bool = False,
 ) -> None:
     """
     Start the server.
@@ -244,6 +245,7 @@ def start(
         redirect_console_to_browser=redirect_console_to_browser,
         watch=watch,
         external_python=external_python,
+        sandbox_mode=sandbox_mode,
     )
 
     log_level = "info" if development_mode else "error"
