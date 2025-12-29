@@ -48,7 +48,8 @@ def should_use_external_env(name: str | None) -> str | None:
             pyproject = PyProjectReader.from_filename(name)
             env_config = pyproject.env_config
             if env_config:
-                python_path = resolve_python_path(env_config)
+                # Pass notebook path to resolve relative Python paths
+                python_path = resolve_python_path(env_config, base_path=name)
                 if python_path and not is_same_python(python_path):
                     return python_path
         except Exception as e:
@@ -59,7 +60,8 @@ def should_use_external_env(name: str | None) -> str | None:
         config = get_default_config_manager(current_path=name).get_config()
         env_config = config.get("env", {})
         if env_config:
-            python_path = resolve_python_path(env_config)
+            # Pass name to resolve relative Python paths
+            python_path = resolve_python_path(env_config, base_path=name)
             if python_path and not is_same_python(python_path):
                 return python_path
     except Exception as e:

@@ -518,11 +518,7 @@ def edit(
     check_external_env_sandbox_conflict(name=name, sandbox=sandbox)
 
     # Check for external environment configuration
-    if external_python := should_use_external_env(name):
-        from marimo._cli.external_env import run_with_external_python
-
-        run_with_external_python(external_python, sys.argv[1:])
-        return
+    external_python = should_use_external_env(name)
 
     if should_run_in_sandbox(
         sandbox=sandbox, dangerous_sandbox=dangerous_sandbox, name=name
@@ -559,6 +555,7 @@ def edit(
         server_startup_command=server_startup_command,
         asset_url=asset_url,
         timeout=timeout,
+        external_python=external_python,
     )
 
 
@@ -1000,11 +997,7 @@ def run(
     check_external_env_sandbox_conflict(name=name, sandbox=sandbox)
 
     # Check for external environment configuration
-    if external_python := should_use_external_env(name):
-        from marimo._cli.external_env import run_with_external_python
-
-        run_with_external_python(external_python, sys.argv[1:])
-        return
+    external_python = should_use_external_env(name)
 
     if should_run_in_sandbox(
         sandbox=sandbox, dangerous_sandbox=None, name=name
@@ -1037,6 +1030,7 @@ def run(
         redirect_console_to_browser=redirect_console_to_browser,
         server_startup_command=server_startup_command,
         asset_url=asset_url,
+        external_python=external_python,
     )
 
 
