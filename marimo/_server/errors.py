@@ -25,6 +25,21 @@ if TYPE_CHECKING:
 LOGGER = _loggers.marimo_logger()
 
 
+def _is_api_request(request: Request) -> bool:
+    """Check if the request is an API request (not a page navigation)."""
+    # Check path
+    path = request.scope.get("path", "")
+    if path.startswith("/api/"):
+        return True
+
+    # Check Accept header for application/json
+    accept = request.headers.get("accept", "")
+    if "application/json" in accept:
+        return True
+
+    return False
+
+
 # Convert exceptions to JSON responses
 # In the case of a ModuleNotFoundError, we try to send a MissingPackageAlert to the client
 # to install the missing package
@@ -32,10 +47,18 @@ async def handle_error(request: Request, response: Any) -> Any:
     if isinstance(response, HTTPException):
         # Turn 403s into 401s to collect auth
         if response.status_code == 403:
+            # Only include WWW-Authenticate header for page requests,
+            # not API requests. The WWW-Authenticate header triggers
+            # browser Basic Auth popup, which is undesirable for API calls.
+            headers = (
+                None
+                if _is_api_request(request)
+                else {"WWW-Authenticate": "Basic"}
+            )
             return JSONResponse(
                 status_code=401,
                 content={"detail": "Authorization header required"},
-                headers={"WWW-Authenticate": "Basic"},
+                headers=headers,
             )
         return JSONResponse(
             {"detail": response.detail},
