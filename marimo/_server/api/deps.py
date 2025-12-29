@@ -62,7 +62,7 @@ class AppStateBase:
 
     @property
     def maybe_port(self) -> Optional[int]:
-        return self.state._state.get("port")
+        return getattr(self.state, "port", None)
 
     @property
     def base_url(self) -> str:

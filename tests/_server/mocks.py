@@ -26,15 +26,19 @@ def get_session_manager(client: TestClient) -> SessionManager:
     return client.app.state.session_manager  # type: ignore
 
 
-def get_starlette_server_state_init() -> StarletteServerStateInit:
+def get_starlette_server_state_init(
+    *,
+    session_manager: Optional[SessionManager] = None,
+    base_url: str = "",
+) -> StarletteServerStateInit:
     return StarletteServerStateInit(
         port=1234,
         host="localhost",
-        base_url="",
+        base_url=base_url,
         asset_url=None,
         headless=False,
         quiet=False,
-        session_manager=get_mock_session_manager(),
+        session_manager=session_manager or get_mock_session_manager(),
         config_manager=MarimoConfigManager(UserConfigManager()),
         remote_url=None,
         mcp_server_enabled=False,

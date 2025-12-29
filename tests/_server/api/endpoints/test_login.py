@@ -40,9 +40,8 @@ def create_app(base_url: str = "") -> Starlette:
             ),
         ],
     )
-    get_starlette_server_state_init().apply(app.state)
+    get_starlette_server_state_init(base_url=base_url).apply(app.state)
     app.state.session_manager._token_manager.auth_token = AUTH_TOKEN
-    app.state.base_url = base_url
     return app
 
 

@@ -21,6 +21,7 @@ from marimo._runtime.commands import (
 from marimo._server.file_router import AppFileRouter, MarimoFileKey
 from marimo._server.lsp import LspServer
 from marimo._server.recents import RecentFilesManager
+from marimo._server.resume_strategies import create_resume_strategy
 from marimo._server.session.listeners import RecentsTrackerListener
 from marimo._server.token_manager import TokenManager
 from marimo._server.tokens import AuthToken, SkewProtectionToken
@@ -35,7 +36,6 @@ from marimo._session.file_watcher_integration import (
     SessionFileWatcherExtension,
 )
 from marimo._session.model import ConnectionState, SessionMode
-from marimo._session.resume_strategies import create_resume_strategy
 from marimo._session.session import Session, SessionImpl
 from marimo._session.session_repository import SessionRepository
 from marimo._session.types import KernelState

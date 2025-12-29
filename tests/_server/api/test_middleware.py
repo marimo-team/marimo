@@ -159,9 +159,9 @@ def test_skew_protection_disabled() -> None:
 @pytest.fixture
 def edit_app() -> Starlette:
     app = create_starlette_app(base_url="")
-    mrg = get_mock_session_manager()
+    session_manager = get_mock_session_manager()
     with_server(app)
-    init_state(session_manager=mrg).apply(app.state)
+    init_state(session_manager=session_manager).apply(app.state)
     return app
 
 
@@ -184,22 +184,26 @@ def app(request: Any) -> Starlette:
 @pytest.fixture
 def no_auth_edit_app() -> Starlette:
     app = create_starlette_app(base_url="", enable_auth=False)
-    mrg = get_mock_session_manager()
-    mrg.mode = SessionMode.EDIT
-    mrg._token_manager.auth_token = AuthToken("")
+    session_manager = get_mock_session_manager()
+    session_manager.mode = SessionMode.EDIT
+    session_manager._token_manager.auth_token = AuthToken("")
     with_server(app)
-    init_state(session_manager=mrg, enable_auth=False).apply(app.state)
+    init_state(session_manager=session_manager, enable_auth=False).apply(
+        app.state
+    )
     return app
 
 
 @pytest.fixture
 def no_auth_read_app() -> Starlette:
     app = create_starlette_app(base_url="", enable_auth=False)
-    mrg = get_mock_session_manager(mode=SessionMode.RUN)
+    session_manager = get_mock_session_manager(mode=SessionMode.RUN)
     # no auth
-    mrg._token_manager.auth_token = AuthToken("")
+    session_manager._token_manager.auth_token = AuthToken("")
     with_server(app)
-    init_state(session_manager=mrg, enable_auth=False).apply(app.state)
+    init_state(session_manager=session_manager, enable_auth=False).apply(
+        app.state
+    )
     return app
 
 

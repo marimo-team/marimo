@@ -9,11 +9,11 @@ from unittest.mock import MagicMock
 import pytest
 
 from marimo._server.exceptions import InvalidSessionException
-from marimo._session.model import ConnectionState
-from marimo._session.resume_strategies import (
+from marimo._server.resume_strategies import (
     EditModeResumeStrategy,
     RunModeResumeStrategy,
 )
+from marimo._session.model import ConnectionState
 from marimo._session.session_repository import SessionRepository
 from marimo._types.ids import SessionId
 

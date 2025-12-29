@@ -1,14 +1,14 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from starlette.datastructures import State
     from uvicorn import Server
 
     from marimo._config.manager import MarimoConfigManager
-    from marimo._server.sessions.session_manager import SessionManager
+    from marimo._server.session_manager import SessionManager
 
 
 @dataclass(frozen=True)
@@ -39,6 +39,4 @@ class StarletteServerStateInit:
 class StarletteServerState(StarletteServerStateInit):
     """Typed state for the Starlette server."""
 
-    # Starlette state
-    _state: dict[str, Any]
     server: Server
