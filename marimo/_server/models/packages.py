@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
 from typing import Optional
@@ -24,10 +24,12 @@ class AddPackageRequest(msgspec.Struct, rename="camel"):
 
     package: str
     upgrade: Optional[bool] = False
+    dev: Optional[bool] = False
 
 
 class RemovePackageRequest(msgspec.Struct, rename="camel"):
     package: str
+    dev: Optional[bool] = False
 
 
 class ListPackagesResponse(msgspec.Struct, rename="camel"):

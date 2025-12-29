@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 import {
   DatabaseIcon,
   FileAudioIcon,
@@ -13,7 +13,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 export type FileType =
   | "directory"
   | "python"

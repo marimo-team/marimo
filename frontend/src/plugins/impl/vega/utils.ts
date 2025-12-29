@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import { Objects } from "@/utils/objects";
 import type { DataType, FieldTypes, VegaDataType } from "./vega-loader";

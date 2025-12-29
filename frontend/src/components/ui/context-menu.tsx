@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import * as ContextMenuPrimitive from "@radix-ui/react-context-menu";
 import {
@@ -19,6 +19,7 @@ import {
   MenuShortcut,
   menuContentCommon,
   menuControlCheckVariants,
+  menuControlVariants,
   menuItemVariants,
   menuLabelVariants,
   menuSeparatorVariants,
@@ -122,7 +123,7 @@ const ContextMenuCheckboxItem = React.forwardRef<
 >(({ className, children, checked, ...props }, ref) => (
   <ContextMenuPrimitive.CheckboxItem
     ref={ref}
-    className={menuControlCheckVariants({ className })}
+    className={menuControlVariants({ className })}
     checked={checked}
     {...props}
   >

@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 import { ScopeProvider } from "jotai-scope";
 import { cellSelectionStateAtom } from "./atoms";
 

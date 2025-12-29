@@ -1,9 +1,9 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import { z } from "zod";
 import type { CreateNewCellAction } from "@/core/cells/cells";
 import type { CellId } from "@/core/cells/ids";
-import type { RunRequest } from "@/core/network/types";
+import type { ExecuteCellsRequest } from "@/core/network/types";
 import type { JotaiStore } from "@/core/state/jotai";
 import type { Edit } from "../staged-cells";
 import type { CopilotMode } from "./registry";
@@ -106,7 +106,7 @@ export interface ToolNotebookContext {
   addStagedCell: (payload: { cellId: CellId; edit: Edit }) => void;
   createNewCell: (payload: CreateNewCellAction) => void;
   prepareForRun: (payload: { cellId: CellId }) => void;
-  sendRun: (request: RunRequest) => Promise<null>;
+  sendRun: (request: ExecuteCellsRequest) => Promise<null>;
 }
 
 export interface AiTool<TIn, TOut> {

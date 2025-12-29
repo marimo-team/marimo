@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 import { atom, useAtom, useAtomValue, useSetAtom } from "jotai";
 import { merge } from "lodash-es";
 import { OverridingHotkeyProvider } from "../hotkeys/hotkeys";

@@ -1,4 +1,4 @@
-# Copyright 2025 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 """Unit tests for the async context-based lint system."""
 
 from marimo._ast.parse import parse_notebook

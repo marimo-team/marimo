@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 import { useImperativeModal } from "@/components/modal/ImperativeModal";
 import { toast } from "@/components/ui/use-toast";
 import { useRequestClient } from "@/core/network/requests";

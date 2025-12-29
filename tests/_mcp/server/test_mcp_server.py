@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 import pytest
 
 from marimo._mcp.server.lifespan import mcp_server_lifespan

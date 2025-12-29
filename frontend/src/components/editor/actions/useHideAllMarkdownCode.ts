@@ -1,6 +1,6 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
-import { useCallback } from "react"; /* Copyright 2024 Marimo. All rights reserved. */
+import { useCallback } from "react"; /* Copyright 2026 Marimo. All rights reserved. */
 import { getNotebook, useCellActions } from "@/core/cells/cells";
 import type { CellId } from "@/core/cells/ids";
 import { MarkdownLanguageAdapter } from "@/core/codemirror/language/languages/markdown";

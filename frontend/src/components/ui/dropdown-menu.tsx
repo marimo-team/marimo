@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 import * as DropdownMenuPrimitive from "@radix-ui/react-dropdown-menu";
 import type { VariantProps } from "class-variance-authority";
 import { Check, ChevronRight, Circle } from "lucide-react";

@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
 import asyncio
@@ -8,7 +8,8 @@ from typing import TYPE_CHECKING, Callable, Optional
 from marimo import _loggers
 from marimo._messaging.cell_output import CellOutput
 from marimo._messaging.mimetypes import ConsoleMimeType
-from marimo._messaging.ops import CellOp
+from marimo._messaging.notification import CellNotification
+from marimo._messaging.notification_utils import broadcast_notification
 from marimo._messaging.streams import std_stream_max_bytes
 from marimo._messaging.types import (
     KernelMessage,
@@ -73,10 +74,13 @@ class PyodideStdout(Stdout):
                 "Warning: marimo truncated a very large console output.\n"
             )
             data = data[: int(max_bytes)] + " ... "
-        CellOp(
-            cell_id=self.stream.cell_id,
-            console=CellOutput.stdout(data, mimetype),
-        ).broadcast(self.stream)
+        broadcast_notification(
+            CellNotification(
+                cell_id=self.stream.cell_id,
+                console=CellOutput.stdout(data, mimetype),
+            ),
+            self.stream,
+        )
         return len(data)
 
     # Buffer type not available python < 3.12, hence type ignore
@@ -118,10 +122,13 @@ class PyodideStderr(Stderr):
                 + " ... "
             )
 
-        CellOp(
-            cell_id=self.stream.cell_id,
-            console=CellOutput.stderr(data, mimetype),
-        ).broadcast(self.stream)
+        broadcast_notification(
+            CellNotification(
+                cell_id=self.stream.cell_id,
+                console=CellOutput.stderr(data, mimetype),
+            ),
+            self.stream,
+        )
         return len(data)
 
     def writelines(self, sequence: Iterable[str]) -> None:  # type: ignore[override] # noqa: E501
@@ -157,10 +164,13 @@ class PyodideStdin(Stdin):
                 + " ... "
             )
 
-        CellOp(
-            cell_id=self.stream.cell_id,
-            console=CellOutput.stdin(prompt),
-        ).broadcast(self.stream)
+        broadcast_notification(
+            CellNotification(
+                cell_id=self.stream.cell_id,
+                console=CellOutput.stdin(prompt),
+            ),
+            self.stream,
+        )
 
         return self._get_response()
 

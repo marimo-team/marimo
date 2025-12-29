@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 
 import marimo
 
@@ -12,7 +12,7 @@ def _(mo):
         r"""
         # DuckDB: Advanced SQL with Aggregations & Window Functions
 
-        This snippet demonstrates advanced SQL queries including group-by aggregations 
+        This snippet demonstrates advanced SQL queries including group-by aggregations
         and window functions (e.g., cumulative sums) using DuckDB.
         """
     )
@@ -35,10 +35,10 @@ def _():
 def _(df, mo):
     agg_df = mo.sql(
         f"""
-        SELECT 
-            "group", 
-            CAST(AVG(value) AS FLOAT) as avg_value 
-        FROM df 
+        SELECT
+            "group",
+            CAST(AVG(value) AS FLOAT) as avg_value
+        FROM df
         GROUP BY "group"
         """
     )
@@ -49,7 +49,7 @@ def _(df, mo):
 def _(df, mo):
     window_df = mo.sql(
         f"""
-        SELECT 
+        SELECT
             *,
             CAST(SUM(value) OVER (PARTITION BY "group" ORDER BY value) AS FLOAT) as cumulative_sum
         FROM df

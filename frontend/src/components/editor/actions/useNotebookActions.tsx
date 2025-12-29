@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { startCase } from "lodash-es";
@@ -269,15 +269,15 @@ export function useNotebookActions() {
       label: "Helper panel",
       redundant: true,
       handle: NOOP_HANDLER,
-      dropdown: PANELS.flatMap(({ type, Icon, hidden }) => {
+      dropdown: PANELS.flatMap(({ id, Icon, hidden }) => {
         if (hidden) {
           return [];
         }
         return {
-          label: startCase(type),
-          rightElement: renderCheckboxElement(selectedPanel === type),
+          label: startCase(id),
+          rightElement: renderCheckboxElement(selectedPanel === id),
           icon: <Icon size={14} strokeWidth={1.5} />,
-          handle: () => toggleApplication(type),
+          handle: () => toggleApplication(id),
         };
       }),
     },

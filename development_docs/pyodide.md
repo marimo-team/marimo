@@ -4,7 +4,7 @@
 
 ```bash
 cd frontend
-PYODIDE=true pnpm dev
+PYODIDE=true VITE_WASM_MARIMO_PREBUILT_WHEEL=true pnpm dev
 ```
 
 ## Running the frontend against a local backend
@@ -16,5 +16,5 @@ hatch build
 uv run pyodide/build_and_serve.py
 # in another terminal
 cd frontend
-PYODIDE=true VITE_MARIMO_VERSION=$(marimo --version) pnpm dev
+PYODIDE=true pnpm dev
 ```

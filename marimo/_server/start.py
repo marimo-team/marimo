@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
 import os
@@ -14,8 +14,8 @@ from marimo._cli.print import echo
 from marimo._config.manager import get_default_config_manager
 from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._mcp.server.main import setup_mcp_server
-from marimo._messaging.ops import StartupLogs
-from marimo._runtime.requests import SerializedCLIArgs
+from marimo._messaging.notification import StartupLogsNotification
+from marimo._runtime.commands import SerializedCLIArgs
 from marimo._server.file_router import AppFileRouter
 from marimo._server.lsp import CompositeLspServer, NoopLspServer
 from marimo._server.main import create_starlette_app
@@ -43,26 +43,29 @@ def _execute_startup_command(
     """Execute a server startup command in a background thread and stream logs."""
 
     def run_command() -> None:
-        buffer = StartupLogs(content="", status="start")
+        buffer = StartupLogsNotification(content="", status="start")
 
         try:
 
             def write_to_all_sessions(
-                content: StartupLogs, buffer: StartupLogs
+                content: StartupLogsNotification,
+                buffer: StartupLogsNotification,
             ) -> None:
                 for session in session_manager.sessions.values():
                     # Clear buffer if it has content
                     if buffer.content != "":
-                        session.write_operation(buffer, from_consumer_id=None)
-                        buffer = StartupLogs(content="", status="start")
-                    session.write_operation(content, from_consumer_id=None)
+                        session.notify(buffer, from_consumer_id=None)
+                        buffer = StartupLogsNotification(
+                            content="", status="start"
+                        )
+                    session.notify(content, from_consumer_id=None)
                 else:
                     buffer.content += content.content
                     buffer.status = content.status
 
             # Broadcast start message to all sessions
             write_to_all_sessions(
-                StartupLogs(content="", status="start"), buffer
+                StartupLogsNotification(content="", status="start"), buffer
             )
 
             # Execute the command
@@ -79,7 +82,8 @@ def _execute_startup_command(
             if process.stdout:
                 for line in process.stdout:
                     write_to_all_sessions(
-                        StartupLogs(content=line, status="append"), buffer
+                        StartupLogsNotification(content=line, status="append"),
+                        buffer,
                     )
                     echo(line, nl=False)
 
@@ -91,7 +95,8 @@ def _execute_startup_command(
                 f"\nProcess completed with exit code: {return_code}\n"
             )
             write_to_all_sessions(
-                StartupLogs(content=final_message, status="done"), buffer
+                StartupLogsNotification(content=final_message, status="done"),
+                buffer,
             )
             echo(final_message)
 
@@ -99,7 +104,8 @@ def _execute_startup_command(
             # Broadcast error message
             error_message = f"\nError executing startup command: {str(e)}\n"
             write_to_all_sessions(
-                StartupLogs(content=error_message, status="done"), buffer
+                StartupLogsNotification(content=error_message, status="done"),
+                buffer,
             )
             echo(error_message)
 

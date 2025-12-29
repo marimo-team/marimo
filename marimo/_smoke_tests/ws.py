@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 
 import marimo
 
@@ -160,7 +160,7 @@ def _(
         not api_key_input.value or not api_secret_input.value,
         mo.md(
             f"""
-            API key and secret required. 
+            API key and secret required.
 
             You can create one from Coinbase following [these instructions](https://help.coinbase.com/en/exchange/managing-my-account/how-to-create-an-api-key).
             """

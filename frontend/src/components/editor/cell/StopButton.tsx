@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 import { SquareIcon } from "lucide-react";
 import type { JSX } from "react";
 import { useRequestClient } from "@/core/network/requests";

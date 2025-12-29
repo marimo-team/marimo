@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import * as SelectPrimitive from "@radix-ui/react-select";
 import type { VariantProps } from "class-variance-authority";

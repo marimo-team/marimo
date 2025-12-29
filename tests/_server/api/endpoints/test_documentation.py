@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 from starlette.testclient import TestClient
 
 from tests._server.mocks import token_header, with_session

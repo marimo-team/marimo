@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import { getIndentUnit } from "@codemirror/language";
 import { StateEffect } from "@codemirror/state";

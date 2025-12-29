@@ -1,9 +1,9 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 import { useEventListener } from "@/hooks/useEventListener";
 import { MinimalHotkeys } from "../shortcuts/renderShortcut";
 import { Button, type ButtonProps } from "../ui/button";
 
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 interface UndoButtonProps extends Omit<ButtonProps, "onClick"> {
   onClick?: (event: Pick<Event, "preventDefault" | "stopPropagation">) => void;
 }

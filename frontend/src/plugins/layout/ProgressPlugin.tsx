@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import humanizeDuration from "humanize-duration";
 import { Loader2Icon } from "lucide-react";

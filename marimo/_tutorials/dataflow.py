@@ -1,4 +1,4 @@
-# Copyright 2025 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 # /// script
 # requires-python = ">=3.12"
 # dependencies = [
@@ -415,8 +415,8 @@ def _(mo):
     mo.accordion(
         {
             "Why not track attributes?": """
-            marimo can't reliably trace attributes 
-            to cells that define them. For example, attributes are routinely 
+            marimo can't reliably trace attributes
+            to cells that define them. For example, attributes are routinely
             created or modified by library code.
             """
         }
@@ -442,7 +442,7 @@ def _(mo):
         {
             "Tip (advanced): mutable state": (
                 """
-            You can use the fact that marimo does not track attributes or 
+            You can use the fact that marimo does not track attributes or
             mutations to implement mutable state in marimo. An example of
             this is shown in the `ui` tutorial.
             """
@@ -503,9 +503,9 @@ def _():
         "Use global variables sparingly": (
             """
             Keep the number of global variables in your program small to avoid
-            name collisions across cells. Keep the number of global variables 
+            name collisions across cells. Keep the number of global variables
             defined by any one cell small to make sure that the units of
-            reactive execution are small. 
+            reactive execution are small.
             """
         ),
         "Use descriptive names": (
@@ -561,7 +561,7 @@ def _():
             """
         ),
         "Write idempotent cells": (
-            """  
+            """
             Write cells whose outputs and behavior are the same when given
             the same inputs (refs); such cells are called _idempotent_. This will
             help you avoid bugs, and let you cache expensive intermediate
@@ -587,7 +587,7 @@ def _():
             Whenever `compute_predictions` is called with a value of
             `problem_parameters` it has not seen, it will compute the predictions
             and store them in a cache. The next time it is called with the same
-            parameters, instead of recomputing the predictions, it will just 
+            parameters, instead of recomputing the predictions, it will just
             fetch the previously computed ones from the cache.
 
             If you are familiar with `functools.cache`, `mo.cache` is

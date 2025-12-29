@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { SessionId } from "@/core/kernel/session";

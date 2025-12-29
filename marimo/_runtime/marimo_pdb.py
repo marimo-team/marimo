@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
 import inspect
@@ -18,6 +18,7 @@ LOGGER = _loggers.marimo_logger()
 
 
 def try_restart() -> bool:
+    from marimo._runtime.commands import ExecuteCellsCommand
     from marimo._runtime.context import (
         ContextNotInitializedError,
         get_context,
@@ -25,7 +26,6 @@ def try_restart() -> bool:
     from marimo._runtime.context.kernel_context import (
         KernelRuntimeContext,
     )
-    from marimo._runtime.requests import ExecuteMultipleRequest
 
     try:
         ctx = get_context()
@@ -38,7 +38,7 @@ def try_restart() -> bool:
 
         # This runs the request and also runs UpdateCellCodes
         ctx._kernel.enqueue_control_request(
-            ExecuteMultipleRequest(
+            ExecuteCellsCommand(
                 cell_ids=[ctx.cell_id],
                 codes=[graph.cells[ctx.cell_id].code],
             )

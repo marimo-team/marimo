@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import { usePrevious } from "@dnd-kit/utilities";
 import { TooltipProvider } from "@radix-ui/react-tooltip";
@@ -35,7 +35,7 @@ import { useRequestClient } from "./network/requests";
 import { useFilename } from "./saving/filename";
 import { lastSavedNotebookAtom } from "./saving/state";
 import { useJotaiEffect } from "./state/jotai";
-import { useMarimoWebSocket } from "./websocket/useMarimoWebSocket";
+import { useMarimoKernelConnection } from "./websocket/useMarimoKernelConnection";
 
 interface AppProps {
   /**
@@ -80,7 +80,7 @@ export const EditApp: React.FC<AppProps> = ({
     };
   }, []);
 
-  const { connection } = useMarimoWebSocket({
+  const { connection } = useMarimoKernelConnection({
     autoInstantiate: userConfig.runtime.auto_instantiate,
     setCells: (cells, layout) => {
       setCells(cells);

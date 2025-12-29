@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 import { Provider, useAtomValue } from "jotai";
 import type { JSX } from "react";
 import { z } from "zod";

@@ -1,4 +1,4 @@
-# Copyright 2025 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
 import typing
@@ -9,7 +9,7 @@ import msgspec.json
 from marimo._ast.cell import CellConfig
 from marimo._config.config import MarimoConfig
 from marimo._messaging.msgspec_encoder import encode_json_bytes
-from marimo._runtime.requests import AppMetadata
+from marimo._runtime.commands import AppMetadata
 from marimo._types.ids import CellId_t
 
 

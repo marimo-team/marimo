@@ -1,4 +1,4 @@
-# Copyright 2025 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
 import ast
@@ -380,9 +380,25 @@ class Extractor:
             # but mypy is struggling.
             kwargs, _violations = _eval_kwargs(node.value.keywords)  # type: ignore
             violations.extend(_violations)
+            raw_string_node = node.value.args[0]  # type: ignore
+            if not isinstance(raw_string_node, ast.Constant) or not isinstance(
+                raw_string_node.value, str
+            ):
+                violations.append(
+                    Violation(
+                        f"Expected string constant in unparsable cell, got {type(raw_string_node).__name__}",
+                        lineno=node.lineno,
+                        col_offset=node.col_offset,
+                    )
+                )
+                unparsable_code = ""
+            else:
+                unparsable = raw_string_node.value
+                unparsable_code = fixed_dedent(unparsable).strip()
+
             return ParseResult(
                 UnparsableCell(
-                    code=node.value.args[0].value,  # type: ignore
+                    code=unparsable_code,
                     options=kwargs,
                     _ast=node,
                 ),

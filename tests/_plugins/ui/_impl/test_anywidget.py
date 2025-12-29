@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
 import gc
@@ -16,7 +16,7 @@ from marimo._plugins.ui._impl.from_anywidget import (
     encode_to_wire,
     from_anywidget,
 )
-from marimo._runtime.requests import SetUIElementValueRequest
+from marimo._runtime.commands import UpdateUIElementCommand
 from marimo._runtime.runtime import Kernel
 from tests.conftest import ExecReqProvider
 
@@ -134,7 +134,7 @@ x = as_marimo_element.count
         assert ui_element.value == {"count": 10}
 
         await k.set_ui_element_value(
-            SetUIElementValueRequest.from_ids_and_values(
+            UpdateUIElementCommand.from_ids_and_values(
                 [(ui_element._id, {"count": 5})]
             )
         )
@@ -297,7 +297,7 @@ x = as_marimo_element.count
 
         # Simulate a change from the frontend
         await k.set_ui_element_value(
-            SetUIElementValueRequest.from_ids_and_values(
+            UpdateUIElementCommand.from_ids_and_values(
                 [(ui_element._id, {"value": 42})]
             )
         )

@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 import { isCustomMarimoElement } from "@/plugins/core/registerReactComponent";
 import { Functions } from "../../utils/functions";
 import { Logger } from "../../utils/Logger";

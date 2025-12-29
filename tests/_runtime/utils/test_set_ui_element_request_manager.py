@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
 import asyncio
@@ -6,7 +6,7 @@ import queue
 import threading
 import time
 
-from marimo._runtime.requests import SetUIElementValueRequest
+from marimo._runtime.commands import UpdateUIElementCommand
 from marimo._runtime.utils.set_ui_element_request_manager import (
     SetUIElementRequestManager,
 )
@@ -14,14 +14,14 @@ from marimo._runtime.utils.set_ui_element_request_manager import (
 
 def test_process_request_dedupes_by_token() -> None:
     """Test that duplicate tokens are properly deduplicated."""
-    q: queue.Queue[SetUIElementValueRequest] = queue.Queue()
+    q: queue.Queue[UpdateUIElementCommand] = queue.Queue()
     manager = SetUIElementRequestManager(q)
 
     # Create two requests with the same token
-    request1 = SetUIElementValueRequest(
+    request1 = UpdateUIElementCommand(
         object_ids=["obj1"], values=[1], token="token1"
     )
-    request2 = SetUIElementValueRequest(
+    request2 = UpdateUIElementCommand(
         object_ids=["obj2"], values=[2], token="token1"
     )
 
@@ -39,13 +39,13 @@ def test_process_request_dedupes_by_token() -> None:
 
 def test_process_request_merges_different_tokens() -> None:
     """Test that requests with different tokens are merged."""
-    q: queue.Queue[SetUIElementValueRequest] = queue.Queue()
+    q: queue.Queue[UpdateUIElementCommand] = queue.Queue()
     manager = SetUIElementRequestManager(q)
 
-    request1 = SetUIElementValueRequest(
+    request1 = UpdateUIElementCommand(
         object_ids=["obj1"], values=[1], token="token1"
     )
-    request2 = SetUIElementValueRequest(
+    request2 = UpdateUIElementCommand(
         object_ids=["obj2"], values=[2], token="token2"
     )
 
@@ -63,13 +63,13 @@ def test_process_request_merges_different_tokens() -> None:
 
 def test_process_request_keeps_latest_value_per_id() -> None:
     """Test that when multiple requests update the same UI element, the latest value wins."""
-    q: queue.Queue[SetUIElementValueRequest] = queue.Queue()
+    q: queue.Queue[UpdateUIElementCommand] = queue.Queue()
     manager = SetUIElementRequestManager(q)
 
-    request1 = SetUIElementValueRequest(
+    request1 = UpdateUIElementCommand(
         object_ids=["obj1"], values=[1], token="token1"
     )
-    request2 = SetUIElementValueRequest(
+    request2 = UpdateUIElementCommand(
         object_ids=["obj1"], values=[2], token="token2"
     )
 
@@ -92,7 +92,7 @@ def test_process_request_handles_concurrent_queue_updates() -> None:
     This simulates the race condition that occurs with ZeroMQ IPC where a
     receiver thread continuously adds messages to the queue.
     """
-    q: queue.Queue[SetUIElementValueRequest] = queue.Queue()
+    q: queue.Queue[UpdateUIElementCommand] = queue.Queue()
     manager = SetUIElementRequestManager(q)
 
     # Track how many requests were added
@@ -103,7 +103,7 @@ def test_process_request_handles_concurrent_queue_updates() -> None:
         """Simulate a ZeroMQ receiver thread adding messages to the queue."""
         counter = 0
         while not stop_event.is_set():
-            request = SetUIElementValueRequest(
+            request = UpdateUIElementCommand(
                 object_ids=[f"obj{counter}"],
                 values=[counter],
                 token=f"token{counter}",
@@ -121,7 +121,7 @@ def test_process_request_handles_concurrent_queue_updates() -> None:
     time.sleep(0.05)
 
     # Process a request while the producer is still running
-    initial_request = SetUIElementValueRequest(
+    initial_request = UpdateUIElementCommand(
         object_ids=["obj_initial"], values=[999], token="token_initial"
     )
 
@@ -153,13 +153,13 @@ def test_process_request_handles_concurrent_queue_updates() -> None:
 
 async def test_process_request_with_asyncio_queue() -> None:
     """Test that the manager works with asyncio.Queue."""
-    q: asyncio.Queue[SetUIElementValueRequest] = asyncio.Queue()
+    q: asyncio.Queue[UpdateUIElementCommand] = asyncio.Queue()
     manager = SetUIElementRequestManager(q)
 
-    request1 = SetUIElementValueRequest(
+    request1 = UpdateUIElementCommand(
         object_ids=["obj1"], values=[1], token="token1"
     )
-    request2 = SetUIElementValueRequest(
+    request2 = UpdateUIElementCommand(
         object_ids=["obj2"], values=[2], token="token2"
     )
 
@@ -177,11 +177,11 @@ async def test_process_request_with_asyncio_queue() -> None:
 
 def test_process_request_returns_none_for_empty_batch() -> None:
     """Test that None is returned when all requests are duplicates."""
-    q: queue.Queue[SetUIElementValueRequest] = queue.Queue()
+    q: queue.Queue[UpdateUIElementCommand] = queue.Queue()
     manager = SetUIElementRequestManager(q)
 
     # Create a request and process it
-    request = SetUIElementValueRequest(
+    request = UpdateUIElementCommand(
         object_ids=["obj1"], values=[1], token="token1"
     )
     result1 = manager.process_request(request)

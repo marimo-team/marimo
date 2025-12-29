@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 """Tests for file_change_handler module."""
 
 from __future__ import annotations
@@ -11,8 +11,12 @@ import pytest
 
 from marimo._ast.cell import CellConfig
 from marimo._config.manager import get_default_config_manager
-from marimo._messaging.ops import Reload, UpdateCellCodes, UpdateCellIdsRequest
-from marimo._runtime.requests import DeleteCellRequest, SyncGraphRequest
+from marimo._messaging.notification import (
+    ReloadNotification,
+    UpdateCellCodesNotification,
+    UpdateCellIdsNotification,
+)
+from marimo._runtime.commands import DeleteCellCommand, SyncGraphCommand
 from marimo._server.models.models import SaveNotebookRequest
 from marimo._server.notebook import AppFileManager
 from marimo._server.sessions.file_change_handler import (
@@ -39,7 +43,7 @@ def create_test_app_file_manager(
 def mock_session():
     """Create a mock session for testing."""
     session = MagicMock()
-    session.write_operation = MagicMock()
+    session.notify = MagicMock()
     session.put_control_request = MagicMock()
     return session
 
@@ -86,19 +90,19 @@ def test_edit_mode_reload_strategy_lazy(
     strategy.handle_reload(mock_session, changed_cell_ids=changed_cell_ids)
 
     # Should send UpdateCellIdsRequest
-    assert mock_session.write_operation.call_count >= 1
+    assert mock_session.notify.call_count >= 1
     update_ids_calls = [
         call
-        for call in mock_session.write_operation.call_args_list
-        if isinstance(call[0][0], UpdateCellIdsRequest)
+        for call in mock_session.notify.call_args_list
+        if isinstance(call[0][0], UpdateCellIdsNotification)
     ]
     assert len(update_ids_calls) == 1
 
     # Should send UpdateCellCodes with code_is_stale=True
     update_codes_calls = [
         call
-        for call in mock_session.write_operation.call_args_list
-        if isinstance(call[0][0], UpdateCellCodes)
+        for call in mock_session.notify.call_args_list
+        if isinstance(call[0][0], UpdateCellCodesNotification)
     ]
     assert len(update_codes_calls) == 1
     assert update_codes_calls[0][0][0].code_is_stale is True
@@ -131,11 +135,11 @@ def test_edit_mode_reload_strategy_autorun(
     strategy.handle_reload(mock_session, changed_cell_ids=changed_cell_ids)
 
     # Should send UpdateCellIdsRequest
-    assert mock_session.write_operation.call_count >= 1
+    assert mock_session.notify.call_count >= 1
     update_ids_calls = [
         call
-        for call in mock_session.write_operation.call_args_list
-        if isinstance(call[0][0], UpdateCellIdsRequest)
+        for call in mock_session.notify.call_args_list
+        if isinstance(call[0][0], UpdateCellIdsNotification)
     ]
     assert len(update_ids_calls) == 1
 
@@ -144,7 +148,7 @@ def test_edit_mode_reload_strategy_autorun(
     sync_calls = [
         call
         for call in mock_session.put_control_request.call_args_list
-        if isinstance(call[0][0], SyncGraphRequest)
+        if isinstance(call[0][0], SyncGraphCommand)
     ]
     assert len(sync_calls) == 1
 
@@ -179,7 +183,7 @@ def test_edit_mode_reload_strategy_with_deleted_cells(
     delete_calls = [
         call
         for call in mock_session.put_control_request.call_args_list
-        if isinstance(call[0][0], DeleteCellRequest)
+        if isinstance(call[0][0], DeleteCellCommand)
     ]
     assert len(delete_calls) == 1
     assert delete_calls[0][0][0].cell_id == CellId_t("cell2")
@@ -193,9 +197,9 @@ def test_run_mode_reload_strategy(mock_session: MagicMock) -> None:
     strategy.handle_reload(mock_session, changed_cell_ids=changed_cell_ids)
 
     # Should send Reload operation
-    mock_session.write_operation.assert_called_once()
-    operation = mock_session.write_operation.call_args[0][0]
-    assert isinstance(operation, Reload)
+    mock_session.notify.assert_called_once()
+    operation = mock_session.notify.call_args[0][0]
+    assert isinstance(operation, ReloadNotification)
 
 
 async def test_file_change_coordinator_handles_change(

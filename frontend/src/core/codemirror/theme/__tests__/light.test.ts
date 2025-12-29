@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import { type Tag, tags as t } from "@lezer/highlight";
 import { describe, expect, it } from "vitest";

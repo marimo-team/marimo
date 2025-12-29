@@ -13,13 +13,13 @@ from marimo._ai._tools.tools.cells import (
     GetCellRuntimeData,
     GetLightweightCellMap,
 )
-from marimo._messaging.ops import VariableValue
-from marimo._server.sessions import Session
+from marimo._messaging.notification import VariableValue
 from marimo._types.ids import CellId_t, SessionId
+from tests._ai.tools.test_utils import MockSession, MockSessionView
 
 
 @dataclass
-class MockCellOp:
+class MockCellNotification:
     output: object | None = None
     console: object | None = None
     status: object | None = None
@@ -48,26 +48,6 @@ class MockError:
         return self._message
 
 
-@dataclass
-class MockSessionView:
-    cell_operations: dict | None = None
-    last_execution_time: dict | None = None
-    variable_values: dict | None = None
-
-    def __post_init__(self) -> None:
-        if self.cell_operations is None:
-            self.cell_operations = {}
-        if self.last_execution_time is None:
-            self.last_execution_time = {}
-        if self.variable_values is None:
-            self.variable_values = {}
-
-
-@dataclass
-class MockSession(Session):
-    session_view: MockSessionView
-
-
 def test_is_markdown_cell():
     tool = GetLightweightCellMap(ToolContext())
     assert tool._is_markdown_cell('mo.md("hi")') is True
@@ -76,10 +56,11 @@ def test_is_markdown_cell():
 
 def test_get_cell_metadata_basic():
     tool = GetCellRuntimeData(ToolContext())
-    cell_op = MockCellOp(status="idle")
+    cell_notification = MockCellNotification(status="idle")
     session = MockSession(
-        MockSessionView(
-            cell_operations={"c1": cell_op}, last_execution_time={"c1": 42.5}
+        _session_view=MockSessionView(
+            cell_notifications={"c1": cell_notification},
+            last_execution_time={"c1": 42.5},
         )
     )
 
@@ -89,9 +70,9 @@ def test_get_cell_metadata_basic():
     )
 
 
-def test_get_cell_metadata_no_cell_op():
+def test_get_cell_metadata_no_cell_notification():
     tool = GetCellRuntimeData(ToolContext())
-    session = MockSession(MockSessionView())
+    session = MockSession(_session_view=MockSessionView())
 
     result = tool._get_cell_metadata(session, CellId_t("missing"))
     assert result == CellRuntimeMetadata(
@@ -112,7 +93,9 @@ def test_get_cell_variables():
     var_z = VariableValue("z", "[1]", "list")
 
     session = MockSession(
-        MockSessionView(variable_values={"x": var_x, "y": var_y, "z": var_z})
+        _session_view=MockSessionView(
+            variable_values={"x": var_x, "y": var_y, "z": var_z}
+        )
     )
 
     result = tool._get_cell_variables(session, cell_data)
@@ -175,17 +158,17 @@ def test_get_cell_runtime_data_invalid_cell():
 def test_get_visual_output_with_html():
     tool = GetCellOutputs(ToolContext())
     output = MockOutput(data="<div>test</div>", mimetype="text/html")
-    cell_op = MockCellOp(output=output)
+    cell_notification = MockCellNotification(output=output)
 
-    visual_output, mimetype = tool._get_visual_output(cell_op)  # type: ignore[arg-type]
+    visual_output, mimetype = tool._get_visual_output(cell_notification)  # type: ignore[arg-type]
     assert visual_output == "<div>test</div>"
     assert mimetype == "text/html"
 
 
 def test_get_visual_output_no_output():
     tool = GetCellOutputs(ToolContext())
-    cell_op = MockCellOp(output=None)
+    cell_notification = MockCellNotification(output=None)
 
-    visual_output, mimetype = tool._get_visual_output(cell_op)  # type: ignore[arg-type]
+    visual_output, mimetype = tool._get_visual_output(cell_notification)  # type: ignore[arg-type]
     assert visual_output is None
     assert mimetype is None

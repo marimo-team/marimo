@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 
 import marimo
 
@@ -12,7 +12,7 @@ def _(mo):
         r"""
         # Matplotlib: Error Bars
 
-        Add error bars using `errorbar()`. Common in scientific visualization 
+        Add error bars using `errorbar()`. Common in scientific visualization
         to show measurement uncertainty or variation in data.
         """
     )

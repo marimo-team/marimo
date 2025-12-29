@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 import { useAtom } from "jotai";
 import { CheckIcon, CopyIcon, Loader2Icon, XIcon } from "lucide-react";
 import { memo, useState } from "react";

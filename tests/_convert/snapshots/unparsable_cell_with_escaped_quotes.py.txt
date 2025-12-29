@@ -1,0 +1,47 @@
+import marimo
+
+__generated_with = "0.0.0"
+app = marimo.App()
+
+
+app._unparsable_cell(
+    r"""
+    return
+    """,
+    name="_"
+)
+
+
+app._unparsable_cell(
+    r"""
+    # Single quote string
+    x = "hello \"world\"
+    x.
+    """,
+    name="_"
+)
+
+
+app._unparsable_cell(
+    r"""
+    # Triple quote string
+    x = "hello \"\"\"world\"\"\""
+    x.
+    """,
+    name="_"
+)
+
+
+app._unparsable_cell(
+    r"""
+    # Triple quote string with other slashes
+    x = "hello \"\"\"world\"\"\"
+    path = "C:\\Users\\test"
+    x.
+    """,
+    name="_"
+)
+
+
+if __name__ == "__main__":
+    app.run()

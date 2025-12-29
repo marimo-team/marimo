@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 import type { Query } from "compassql/build/src/query";
 import type { NONPOSITION_SCALE_CHANNELS as NONPOSITION_SCALE_CHANNELS_VEGA } from "vega-lite/types_unstable/channel.js";
 import type { NamedData } from "vega-lite/types_unstable/data.js";

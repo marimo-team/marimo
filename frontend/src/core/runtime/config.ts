@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 import { atom, useAtomValue } from "jotai";
 import { isStaticNotebook } from "@/core/static/static-state";
 import { store } from "../state/jotai";

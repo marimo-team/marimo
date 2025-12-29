@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 import { toast } from "@/components/ui/use-toast";
 import { Logger } from "./Logger";
 

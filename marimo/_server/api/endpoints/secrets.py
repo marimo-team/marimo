@@ -1,19 +1,21 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
 from starlette.authentication import requires
+from starlette.responses import JSONResponse
 
 from marimo import _loggers
-from marimo._runtime.requests import (
-    ListSecretKeysRequest,
-    RefreshSecretsRequest,
-)
 from marimo._secrets.secrets import write_secret
 from marimo._server.api.deps import AppState
 from marimo._server.api.utils import dispatch_control_request, parse_request
-from marimo._server.models.models import BaseResponse, SuccessResponse
+from marimo._server.models.models import (
+    BaseResponse,
+    ListSecretKeysRequest,
+    RefreshSecretsRequest,
+    SuccessResponse,
+)
 from marimo._server.models.secrets import CreateSecretRequest
 from marimo._server.router import APIRouter
 from marimo._types.ids import ConsumerId
@@ -83,7 +85,7 @@ async def create_secret(request: Request) -> BaseResponse:
 
 @router.post("/delete")
 @requires("edit")
-async def delete_secret(request: Request) -> BaseResponse:
+async def delete_secret(request: Request) -> JSONResponse:
     """
     responses:
         200:
@@ -94,4 +96,7 @@ async def delete_secret(request: Request) -> BaseResponse:
                         $ref: "#/components/schemas/BaseResponse"
     """
     del request
-    raise NotImplementedError("Not implemented")
+    return JSONResponse(
+        content={"success": False, "message": "Not implemented"},
+        status_code=501,
+    )

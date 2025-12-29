@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 import type { EditorView } from "@codemirror/view";
 import type { QuotePrefixKind } from "@marimo-team/smart-cells";
 import { InfoIcon, PaintRollerIcon } from "lucide-react";

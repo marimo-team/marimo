@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import type { StandardType } from "vega-lite/types_unstable/type.js";
 import type { DataType } from "@/core/kernel/messages";

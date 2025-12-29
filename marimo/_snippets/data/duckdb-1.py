@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 
 import marimo
 
@@ -28,7 +28,7 @@ def _():
 def _(csv_path, mo):
     query = mo.sql(
         f"""
-        SELECT * FROM read_csv('{csv_path}', AUTO_DETECT=TRUE) 
+        SELECT * FROM read_csv('{csv_path}', AUTO_DETECT=TRUE)
         LIMIT 10
         """
     )

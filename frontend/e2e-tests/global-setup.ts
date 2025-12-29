@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import { chromium, type FullConfig } from "@playwright/test";
 import { type ApplicationNames, getAppUrl } from "../playwright.config";

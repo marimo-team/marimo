@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
 import mimetypes
@@ -153,7 +153,9 @@ async def index(request: Request) -> HTMLResponse:
             app_config=app_config,
             filename=app_manager.filename,
             mode=app_state.mode,
-            remote_url=app_state.remote_url,
+            runtime_config=[{"url": app_state.remote_url}]
+            if app_state.remote_url
+            else None,
             asset_url=app_state.asset_url,
         )
 
