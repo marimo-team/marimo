@@ -46,8 +46,8 @@ from marimo._runtime.commands import (
     ValidateSQLCommand,
 )
 from marimo._runtime.context.types import teardown_context
-from marimo._server.model import SessionMode
-from marimo._server.notebook import AppFileManager
+from marimo._session.model import SessionMode
+from marimo._session.notebook import AppFileManager
 from marimo._types.ids import CellId_t, UIElementId
 
 if TYPE_CHECKING:

@@ -16,7 +16,7 @@ if typing.TYPE_CHECKING:
         CommandMessage,
         UpdateUIElementCommand,
     )
-    from marimo._server.types import QueueType
+    from marimo._session.queue import QueueType
 
 
 @dataclasses.dataclass

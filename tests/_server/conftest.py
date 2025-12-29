@@ -14,9 +14,9 @@ from marimo._config.manager import MarimoConfigManager, UserConfigManager
 from marimo._config.utils import CONFIG_FILENAME
 from marimo._server.api.deps import AppState
 from marimo._server.main import create_starlette_app
-from marimo._server.session.session_view import SessionView
-from marimo._server.sessions import SessionManager
+from marimo._server.session_manager import SessionManager
 from marimo._server.utils import initialize_asyncio
+from marimo._session.state.session_view import SessionView
 from tests._server.mocks import get_mock_session_manager
 from tests.utils import assert_serialize_roundtrip
 

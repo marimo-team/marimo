@@ -8,7 +8,6 @@ from pathlib import Path
 
 import pytest
 
-from marimo._server.api.status import HTTPException, HTTPStatus
 from marimo._server.file_router import (
     AppFileRouter,
     LazyListOfFilesAppFileRouter,
@@ -19,6 +18,7 @@ from marimo._server.file_router import (
     validate_inside_directory,
 )
 from marimo._server.models.home import MarimoFile
+from marimo._utils.http import HTTPException, HTTPStatus
 
 file_contents = """
 import marimo

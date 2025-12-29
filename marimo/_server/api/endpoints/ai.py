@@ -40,7 +40,6 @@ from marimo._server.ai.providers import (
 )
 from marimo._server.ai.tools.tool_manager import get_tool_manager
 from marimo._server.api.deps import AppState
-from marimo._server.api.status import HTTPStatus
 from marimo._server.api.utils import parse_request
 from marimo._server.models.completion import (
     AiCompletionRequest,
@@ -55,6 +54,7 @@ from marimo._server.models.models import (
 )
 from marimo._server.responses import StructResponse
 from marimo._server.router import APIRouter
+from marimo._utils.http import HTTPStatus
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator

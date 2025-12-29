@@ -19,9 +19,8 @@ from marimo._runtime.commands import SerializedCLIArgs
 from marimo._server.file_router import AppFileRouter
 from marimo._server.lsp import CompositeLspServer, NoopLspServer
 from marimo._server.main import create_starlette_app
-from marimo._server.model import SessionMode
 from marimo._server.registry import LIFESPAN_REGISTRY
-from marimo._server.sessions import SessionManager
+from marimo._server.session_manager import SessionManager
 from marimo._server.tokens import AuthToken
 from marimo._server.utils import (
     find_free_port,
@@ -29,6 +28,7 @@ from marimo._server.utils import (
     initialize_fd_limit,
 )
 from marimo._server.uvicorn_utils import initialize_signals
+from marimo._session.model import SessionMode
 from marimo._tracer import LOGGER
 from marimo._utils.lifespans import Lifespans
 from marimo._utils.paths import marimo_package_path

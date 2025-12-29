@@ -26,9 +26,9 @@ from marimo._server.api.middleware import (
 from marimo._server.main import (
     create_starlette_app,
 )
-from marimo._server.model import SessionMode
 from marimo._server.tokens import AuthToken
 from marimo._server.utils import find_free_port
+from marimo._session.model import SessionMode
 from tests._server.mocks import get_mock_session_manager, token_header
 
 if TYPE_CHECKING:

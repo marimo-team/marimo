@@ -20,8 +20,8 @@ from marimo._server.api.endpoints.terminal import (
     _setup_child_process,
     _should_close_on_command,
 )
-from marimo._server.model import SessionMode
-from marimo._server.sessions import SessionManager
+from marimo._server.session_manager import SessionManager
+from marimo._session.model import SessionMode
 from tests._server.conftest import get_session_manager
 
 if TYPE_CHECKING:

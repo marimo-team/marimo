@@ -35,7 +35,7 @@ from marimo._server.ai.tools.types import (
     ValidationFunction,
 )
 from marimo._server.api.deps import AppStateBase
-from marimo._server.model import ConnectionState
+from marimo._session.model import ConnectionState
 from marimo._types.ids import CellId_t, SessionId
 from marimo._utils.case import to_snake_case
 from marimo._utils.dataclass_to_openapi import PythonTypeToOpenAPI
@@ -54,7 +54,8 @@ if TYPE_CHECKING:
 
     from starlette.applications import Starlette
 
-    from marimo._server.sessions import Session, SessionManager
+    from marimo._server.session_manager import SessionManager
+    from marimo._session import Session
 
 
 @dataclass

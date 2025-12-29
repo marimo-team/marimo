@@ -21,8 +21,8 @@ from marimo._server.export import (
 )
 from marimo._server.export.exporter import Exporter
 from marimo._server.models.export import ExportAsHTMLRequest
-from marimo._server.notebook import AppFileManager
-from marimo._server.session.session_view import SessionView
+from marimo._session.notebook import AppFileManager
+from marimo._session.state.session_view import SessionView
 from marimo._utils.marimo_path import MarimoPath
 from tests.mocks import snapshotter
 

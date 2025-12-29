@@ -8,7 +8,7 @@ import time
 from typing import Callable
 
 from marimo._config.settings import GLOBAL_SETTINGS
-from marimo._server.utils import (
+from marimo._utils.print import (
     TAB,
     print_,
 )

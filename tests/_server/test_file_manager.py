@@ -9,11 +9,11 @@ import pytest
 from marimo import __version__
 from marimo._ast.app import App, InternalApp
 from marimo._ast.cell import CellConfig
-from marimo._server.api.status import HTTPException, HTTPStatus
 from marimo._server.models.models import SaveNotebookRequest
-from marimo._server.notebook import AppFileManager
+from marimo._session.notebook import AppFileManager
 from marimo._types.ids import CellId_t
 from marimo._utils.cell_matching import similarity_score
+from marimo._utils.http import HTTPException, HTTPStatus
 
 if TYPE_CHECKING:
     from collections.abc import Generator

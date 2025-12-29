@@ -15,13 +15,13 @@ from marimo._config.config import MarimoConfig, PartialMarimoConfig
 from marimo._convert.converters import MarimoConvert
 from marimo._schemas.notebook import NotebookV1
 from marimo._schemas.session import NotebookSessionV1
-from marimo._server.model import SessionMode
 from marimo._server.templates.templates import (
     _custom_css_block,
     notebook_page_template,
     static_notebook_template,
 )
 from marimo._server.tokens import SkewProtectionToken
+from marimo._session.model import SessionMode
 from marimo._utils.code import hash_code
 
 

@@ -6,9 +6,9 @@ import msgspec
 from starlette.exceptions import HTTPException
 from starlette.requests import Request
 
-from marimo._server.api.status import HTTPException as MarimoHTTPException
 from marimo._server.errors import handle_error
-from marimo._server.model import SessionMode
+from marimo._session.model import SessionMode
+from marimo._utils.http import HTTPException as MarimoHTTPException
 
 
 async def test_http_exception():

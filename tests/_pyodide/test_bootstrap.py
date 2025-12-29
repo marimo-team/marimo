@@ -10,8 +10,8 @@ from marimo._config.config import DEFAULT_CONFIG
 from marimo._messaging.msgspec_encoder import encode_json_str
 from marimo._pyodide.bootstrap import create_session, save_file
 from marimo._pyodide.pyodide_session import PyodideSession
-from marimo._server.model import SessionMode
 from marimo._server.models.models import SaveNotebookRequest
+from marimo._session.model import SessionMode
 from marimo._types.ids import CellId_t
 
 if TYPE_CHECKING:

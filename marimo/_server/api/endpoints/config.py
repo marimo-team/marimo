@@ -22,7 +22,7 @@ from marimo._server.models.models import (
     UpdateUserConfigRequest,
 )
 from marimo._server.router import APIRouter
-from marimo._server.sessions import send_message_to_consumer
+from marimo._session import send_message_to_consumer
 from marimo._types.ids import ConsumerId
 
 if TYPE_CHECKING:

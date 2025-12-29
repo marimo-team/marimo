@@ -23,7 +23,7 @@ from marimo._types.ids import CellId_t, SessionId
 
 if TYPE_CHECKING:
     from marimo._ast.models import CellData
-    from marimo._server.sessions import Session
+    from marimo._session import Session
 
 
 class SupportedCellType(str, Enum):

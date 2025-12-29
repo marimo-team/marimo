@@ -17,7 +17,7 @@ from marimo._data.models import DataType
 from marimo._messaging.errors import Error as MarimoError
 from marimo._messaging.notification import NotificationMessage
 from marimo._runtime.commands import CommandMessage
-from marimo._server.session.serialize import (
+from marimo._session.state.serialize import (
     serialize_notebook,
     serialize_session_view,
 )
@@ -177,7 +177,6 @@ def _generate_server_api_schema() -> dict[str, Any]:
         packages.ListPackagesResponse,
         packages.PackageOperationResponse,
         packages.RemovePackageRequest,
-        packages.DependencyTreeNode,
         packages.DependencyTreeResponse,
         home.OpenTutorialRequest,
         home.RecentFilesResponse,

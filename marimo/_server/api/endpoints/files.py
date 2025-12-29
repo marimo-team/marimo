@@ -10,7 +10,6 @@ from starlette.responses import PlainTextResponse
 from marimo import _loggers
 from marimo._runtime.commands import RenameNotebookCommand
 from marimo._server.api.deps import AppState
-from marimo._server.api.status import HTTPStatus
 from marimo._server.api.utils import parse_request
 from marimo._server.models.models import (
     BaseResponse,
@@ -24,6 +23,7 @@ from marimo._server.models.models import (
 from marimo._server.router import APIRouter
 from marimo._types.ids import ConsumerId
 from marimo._utils.async_path import abspath
+from marimo._utils.http import HTTPStatus
 
 if TYPE_CHECKING:
     from starlette.requests import Request
