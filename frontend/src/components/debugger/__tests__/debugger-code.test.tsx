@@ -1,10 +1,10 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi, beforeEach, type Mock } from "vitest";
+import { beforeEach, describe, expect, it, type Mock, vi } from "vitest";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { Debugger } from "../debugger-code";
 import { useInputHistory } from "@/hooks/useInputHistory";
+import { Debugger } from "../debugger-code";
 
 // Mock CodeMirror language extensions
 vi.mock("@uiw/codemirror-extensions-langs", () => ({
@@ -104,8 +104,8 @@ describe("Debugger command history integration", () => {
     );
 
     // Find the debugger input wrapper div (parent of CodeMirror)
-    const inputWrapper = container.querySelector(".debugger-input")
-      ?.parentElement;
+    const inputWrapper =
+      container.querySelector(".debugger-input")?.parentElement;
     expect(inputWrapper).toBeTruthy();
 
     fireEvent.keyDown(inputWrapper!, { key: "ArrowUp" });
@@ -120,8 +120,8 @@ describe("Debugger command history integration", () => {
     );
 
     // Find the debugger input wrapper div (parent of CodeMirror)
-    const inputWrapper = container.querySelector(".debugger-input")
-      ?.parentElement;
+    const inputWrapper =
+      container.querySelector(".debugger-input")?.parentElement;
     expect(inputWrapper).toBeTruthy();
 
     fireEvent.keyDown(inputWrapper!, { key: "ArrowDown" });
@@ -135,8 +135,8 @@ describe("Debugger command history integration", () => {
       <Debugger code="" onSubmit={onSubmit} />,
     );
 
-    const inputWrapper = container.querySelector(".debugger-input")
-      ?.parentElement;
+    const inputWrapper =
+      container.querySelector(".debugger-input")?.parentElement;
     expect(inputWrapper).toBeTruthy();
 
     fireEvent.keyDown(inputWrapper!, { key: "ArrowLeft" });
