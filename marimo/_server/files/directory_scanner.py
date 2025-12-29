@@ -120,6 +120,8 @@ class DirectoryScanner:
             if max_execution_time is not None
             else self.MAX_EXECUTION_TIME
         )
+        # Stores partial results in case of timeout
+        self.partial_results: list[FileInfo] = []
 
     @property
     def allowed_extensions(self) -> tuple[str, ...]:
@@ -135,13 +137,12 @@ class DirectoryScanner:
             List of FileInfo with nested children
 
         Raises:
-            HTTPException: On timeout with REQUEST_TIMEOUT status
+            HTTPException: On timeout with REQUEST_TIMEOUT status.
+                On timeout, partial_results will contain files found so far.
         """
         start_time = time.time()
         file_count = [0]  # Use list for closure mutability
-        accumulated_results: list[
-            FileInfo
-        ] = []  # For partial results on timeout
+        self.partial_results = []  # Reset partial results
 
         def recurse(
             directory: str, depth: int = 0
@@ -204,8 +205,8 @@ class DirectoryScanner:
                             last_modified=entry.stat().st_mtime,
                         )
                         files.append(file_info)
-                        # Also add to accumulated results for partial loading
-                        accumulated_results.append(file_info)
+                        # Also add to partial results for timeout recovery
+                        self.partial_results.append(file_info)
                         # Check if we've reached the limit
                         if file_count[0] >= self.max_files:
                             break

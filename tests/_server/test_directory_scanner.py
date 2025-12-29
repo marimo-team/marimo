@@ -133,3 +133,16 @@ class TestDirectoryScanner(unittest.TestCase):
         files = scanner.scan()
         file_names = [f.name for f in files if not f.is_directory]
         assert ".hidden_app.py" not in file_names
+
+    def test_partial_results_populated_during_scan(self):
+        """Test that partial_results is populated during scanning."""
+        scanner = DirectoryScanner(self.test_dir)
+        # partial_results starts empty
+        assert scanner.partial_results == []
+        files = scanner.scan()
+        # After scan, partial_results contains all found files (flat list)
+        assert len(scanner.partial_results) >= 2
+        # All items in partial_results should be non-directory files
+        for f in scanner.partial_results:
+            assert not f.is_directory
+            assert f.is_marimo_file

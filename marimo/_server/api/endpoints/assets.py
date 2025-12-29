@@ -314,7 +314,7 @@ async def serve_public_file(request: Request) -> Response:
         # Security check: ensure file is inside public directory
         try:
             validator = PathValidator(public_dir)
-            validator.validate_inside_directory(public_dir, file_path)
+            validator.validate_file_access(file_path)
         except HTTPException:
             return Response(status_code=403, content="Access denied")
 

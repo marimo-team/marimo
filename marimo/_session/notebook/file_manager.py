@@ -17,10 +17,6 @@ from marimo._runtime.layout.layout import (
 )
 from marimo._schemas.serialization import Header, NotebookSerializationV1
 from marimo._server.app_defaults import AppDefaults
-from marimo._server.models.models import (
-    CopyNotebookRequest,
-    SaveNotebookRequest,
-)
 from marimo._session.notebook.serializer import get_format_handler
 from marimo._session.notebook.storage import (
     FilesystemStorage,

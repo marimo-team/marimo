@@ -270,9 +270,7 @@ class LazyListOfFilesAppFileRouter(AppFileRouter):
                     LOGGER.warning(
                         "Timeout during file scan, returning partial results"
                     )
-                    # Fall back to empty list if scan failed
-                    if self._lazy_files is None:
-                        self._lazy_files = []
+                    self._lazy_files = self._scanner.partial_results
                 else:
                     raise
         return self._lazy_files
