@@ -17,14 +17,6 @@ from typing import (
 # Native to python
 from xml.etree.ElementTree import Element, SubElement
 
-# Markdown is a dependency of marimo, as such we utilize it as much as possible
-# to parse markdown.
-from markdown import Markdown
-from markdown.blockparser import BlockParser
-from markdown.blockprocessors import BlockProcessor
-from markdown.preprocessors import Preprocessor
-from markdown.util import HTML_PLACEHOLDER_RE, Registry
-
 # As are extensions
 from pymdownx.superfences import (  # type: ignore
     RE_NESTED_FENCE_START,
@@ -44,6 +36,14 @@ from marimo._schemas.serialization import (
     Header,
     NotebookSerializationV1,
 )
+
+# Markdown is a dependency of marimo, as such we utilize it as much as possible
+# to parse markdown.
+from markdown import Markdown
+from markdown.blockparser import BlockParser
+from markdown.blockprocessors import BlockProcessor
+from markdown.preprocessors import Preprocessor
+from markdown.util import HTML_PLACEHOLDER_RE, Registry
 
 LOGGER = _loggers.marimo_logger()
 
