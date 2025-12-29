@@ -27,6 +27,69 @@ from marimo._version import __version__
 
 LOGGER = _loggers.marimo_logger()
 
+
+def should_use_external_env(name: str | None) -> str | None:
+    """Check if external environment is configured, return Python path.
+
+    Checks both per-notebook [tool.marimo.env] and project-level config.
+
+    Args:
+        name: Path to the notebook file, or None.
+
+    Returns:
+        Absolute path to Python interpreter, or None if no external env configured.
+    """
+    from marimo._cli.external_env import is_external_env_active, resolve_python_path
+    from marimo._config.manager import get_default_config_manager
+
+    # Prevent recursion - already running with external env
+    if is_external_env_active():
+        return None
+
+    # Check per-notebook config first
+    if name is not None and not Path(name).is_dir():
+        try:
+            pyproject = PyProjectReader.from_filename(name)
+            env_config = pyproject.env_config
+            if env_config:
+                python_path = resolve_python_path(env_config)
+                if python_path:
+                    return python_path
+        except Exception as e:
+            LOGGER.debug(f"Failed to read env config from notebook: {e}")
+
+    # Check project-level config ([tool.marimo.env] in pyproject.toml)
+    try:
+        config = get_default_config_manager(current_path=name).get_config()
+        env_config = config.get("env", {})
+        if env_config:
+            python_path = resolve_python_path(env_config)
+            if python_path:
+                return python_path
+    except Exception as e:
+        LOGGER.debug(f"Failed to read env config from project: {e}")
+
+    return None
+
+
+def check_external_env_sandbox_conflict(
+    name: str | None, sandbox: bool | None
+) -> None:
+    """Check for conflict between external env config and --sandbox flag.
+
+    Raises click.UsageError if both are specified.
+    """
+    if sandbox is not True:
+        return
+
+    # Check if external env is configured
+    if should_use_external_env(name):
+        raise click.UsageError(
+            "Cannot use --sandbox with [tool.marimo.env] configuration.\n"
+            "Remove --sandbox flag or remove [tool.marimo.env] from the notebook."
+        )
+
+
 DepFeatures = Literal["lsp", "recommended"]
 
 
