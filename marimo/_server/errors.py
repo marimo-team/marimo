@@ -32,9 +32,9 @@ def _is_api_request(request: Request) -> bool:
     if path.startswith("/api/"):
         return True
 
-    # Check Accept header for application/json
+    # Check Accept header for application/json (case-insensitive)
     accept = request.headers.get("accept", "")
-    if "application/json" in accept:
+    if "application/json" in accept.lower():
         return True
 
     return False
