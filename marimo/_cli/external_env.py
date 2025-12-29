@@ -169,13 +169,14 @@ def _check_marimo_installed(python_path: str) -> bool:
         return False
 
 
-# Internal env var to prevent recursion when re-invoking with external Python
-_EXTERNAL_ENV_ACTIVE = "_MARIMO_EXTERNAL_ENV_ACTIVE"
-
-
-def is_external_env_active() -> bool:
-    """Check if we're already running with an external environment."""
-    return os.environ.get(_EXTERNAL_ENV_ACTIVE) == "1"
+def is_same_python(python_path: str) -> bool:
+    """Check if the given Python path matches the current interpreter."""
+    try:
+        current = Path(sys.executable).resolve()
+        target = Path(python_path).resolve()
+        return current == target
+    except (OSError, ValueError):
+        return False
 
 
 def run_with_external_python(
@@ -203,9 +204,6 @@ def run_with_external_python(
     proc_env = os.environ.copy()
     if env:
         proc_env.update(env)
-
-    # Prevent recursion
-    proc_env[_EXTERNAL_ENV_ACTIVE] = "1"
 
     # Check if marimo is installed in the external environment
     if _check_marimo_installed(python_path):

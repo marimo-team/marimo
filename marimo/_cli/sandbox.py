@@ -39,15 +39,8 @@ def should_use_external_env(name: str | None) -> str | None:
     Returns:
         Absolute path to Python interpreter, or None if no external env configured.
     """
-    from marimo._cli.external_env import (
-        is_external_env_active,
-        resolve_python_path,
-    )
+    from marimo._cli.external_env import is_same_python, resolve_python_path
     from marimo._config.manager import get_default_config_manager
-
-    # Prevent recursion - already running with external env
-    if is_external_env_active():
-        return None
 
     # Check per-notebook config first
     if name is not None and not Path(name).is_dir():
@@ -56,7 +49,7 @@ def should_use_external_env(name: str | None) -> str | None:
             env_config = pyproject.env_config
             if env_config:
                 python_path = resolve_python_path(env_config)
-                if python_path:
+                if python_path and not is_same_python(python_path):
                     return python_path
         except Exception as e:
             LOGGER.debug(f"Failed to read env config from notebook: {e}")
@@ -67,7 +60,7 @@ def should_use_external_env(name: str | None) -> str | None:
         env_config = config.get("env", {})
         if env_config:
             python_path = resolve_python_path(env_config)
-            if python_path:
+            if python_path and not is_same_python(python_path):
                 return python_path
     except Exception as e:
         LOGGER.debug(f"Failed to read env config from project: {e}")
