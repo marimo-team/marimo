@@ -5,8 +5,6 @@ environments:
     - url: https://conda.anaconda.org/conda-forge/
     indexes:
     - https://pypi.org/simple
-    options:
-      pypi-prerelease-mode: if-necessary-or-explicit
     packages:
       linux-64:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/_libgcc_mutex-0.1-conda_forge.tar.bz2
@@ -1133,7 +1131,7 @@ packages:
 - pypi: ./
   name: marimo
   version: 0.18.4
-  sha256: ce333609b9b918f5f9c265eb66b70f0fe7dab0c3c6d9c7260625cb9758157ebc
+  sha256: 865acc3dac726f310c66508223ff1e89c63e76d562bc803e883f2b9c7c763115
   requires_dist:
   - click>=8.0,<9
   - jedi>=0.18.0
@@ -1143,7 +1141,7 @@ packages:
   - tomlkit>=0.12.0
   - pyyaml>=6.0
   - uvicorn>=0.22.0
-  - starlette>=0.35.0,!=0.36.0
+  - starlette>=0.37.0
   - websockets>=14.2.0
   - loro>=1.5.0 ; python_full_version >= '3.11' and python_full_version < '3.14'
   - typing-extensions>=4.4.0 ; python_full_version < '3.11'
