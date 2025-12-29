@@ -42,8 +42,6 @@ from marimo._server.sessions.extensions.extensions import (
 )
 from marimo._server.sessions.extensions.types import SessionExtension
 from marimo._server.sessions.managers import (
-    ExternalKernelManager,
-    ExternalQueueManagerAdapter,
     KernelManagerImpl,
     QueueManagerImpl,
 )
@@ -101,36 +99,16 @@ class SessionImpl(Session):
 
         configs = app_file_manager.app.cell_manager.config_map()
 
-        # Create kernel manager - use external if specified
-        queue_manager: QueueManagerImpl | ExternalQueueManagerAdapter
-        kernel_manager: KernelManagerImpl | ExternalKernelManager
-
-        if external_python:
-            # External kernel using ZeroMQ IPC
-            queue_manager = ExternalQueueManagerAdapter()
-            kernel_manager = ExternalKernelManager(
-                python_executable=external_python,
-                queue_manager=queue_manager,
-                mode=mode,
-                configs=configs,
-                app_metadata=app_metadata,
-                config_manager=config_manager,
-            )
-        else:
-            # Standard kernel (process for edit, thread for run)
-            use_multiprocessing = mode == SessionMode.EDIT
-            queue_manager = QueueManagerImpl(
-                use_multiprocessing=use_multiprocessing
-            )
-            kernel_manager = KernelManagerImpl(
-                queue_manager=queue_manager,
-                mode=mode,
-                configs=configs,
-                app_metadata=app_metadata,
-                config_manager=config_manager,
-                virtual_files_supported=virtual_files_supported,
-                redirect_console_to_browser=redirect_console_to_browser,
-            )
+        # Create kernel manager (unified IPC-based implementation)
+        queue_manager = QueueManagerImpl()
+        kernel_manager = KernelManagerImpl(
+            queue_manager=queue_manager,
+            mode=mode,
+            configs=configs,
+            app_metadata=app_metadata,
+            config_manager=config_manager,
+            python_executable=external_python,
+        )
 
         extensions = [
             *(extensions or []),

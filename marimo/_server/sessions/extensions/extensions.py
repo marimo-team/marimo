@@ -27,7 +27,6 @@ from marimo._server.sessions.types import (
 )
 from marimo._server.utils import print_, print_tabbed
 from marimo._utils.distributor import (
-    ConnectionDistributor,
     Distributor,
     QueueDistributor,
 )
@@ -196,20 +195,11 @@ class NotificationListenerExtension(SessionExtension):
         kernel_manager: KernelManager,
         queue_manager: QueueManager,
     ) -> Distributor[KernelMessage]:
-        from marimo._server.model import SessionMode
-
-        # Use QueueDistributor if stream_queue is available (run mode or external kernel)
-        # External kernels use ZeroMQ IPC which provides a stream_queue
-        if queue_manager.stream_queue is not None:
-            return QueueDistributor(queue=queue_manager.stream_queue)
-        # Fall back to ConnectionDistributor for traditional edit mode
-        elif kernel_manager.mode == SessionMode.EDIT:
-            return ConnectionDistributor(kernel_manager.kernel_connection)
-        else:
-            # This shouldn't happen - run mode should have stream_queue
-            raise RuntimeError(
-                "No stream_queue available and not in edit mode"
-            )
+        del kernel_manager  # unused - IPC always provides stream_queue
+        # All kernels now use ZeroMQ IPC which provides a stream_queue
+        if queue_manager.stream_queue is None:
+            raise RuntimeError("stream_queue not available")
+        return QueueDistributor(queue=queue_manager.stream_queue)
 
     def on_attach(self, session: Session, event_bus: SessionEventBus) -> None:
         del event_bus
