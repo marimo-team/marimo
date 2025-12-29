@@ -18,6 +18,7 @@ from marimo._runtime.commands import (
     SerializedCLIArgs,
     SerializedQueryParams,
 )
+from marimo._server.app_defaults import AppDefaults
 from marimo._server.file_router import AppFileRouter, MarimoFileKey
 from marimo._server.lsp import LspServer
 from marimo._server.recents import RecentFilesManager
@@ -91,11 +92,8 @@ class SessionManager:
         self._repository = SessionRepository()
 
         def _get_code() -> str:
-            app = file_router.get_single_app_file_manager(
-                default_width=config_manager.default_width,
-                default_auto_download=config_manager.default_auto_download,
-                default_sql_output=config_manager.default_sql_output,
-            ).app
+            defaults = AppDefaults.from_config_manager(config_manager)
+            app = file_router.get_single_app_file_manager(defaults).app
             return "".join(code for code in app.cell_manager.codes())
 
         source_code = None if mode == SessionMode.EDIT else _get_code()
@@ -134,12 +132,8 @@ class SessionManager:
 
     def app_manager(self, key: MarimoFileKey) -> AppFileManager:
         """Get the app manager for the given key."""
-        return self.file_router.get_file_manager(
-            key,
-            default_width=self._config_manager.default_width,
-            default_auto_download=self._config_manager.default_auto_download,
-            default_sql_output=self._config_manager.default_sql_output,
-        )
+        defaults = AppDefaults.from_config_manager(self._config_manager)
+        return self.file_router.get_file_manager(key, defaults)
 
     def create_session(
         self,
@@ -158,11 +152,9 @@ class SessionManager:
             return existing
 
         # Get app file manager
+        defaults = AppDefaults.from_config_manager(self._config_manager)
         app_file_manager = self.file_router.get_file_manager(
-            file_key,
-            default_width=self._config_manager.default_width,
-            default_auto_download=self._config_manager.default_auto_download,
-            default_sql_output=self._config_manager.default_sql_output,
+            file_key, defaults
         )
 
         # Create the session

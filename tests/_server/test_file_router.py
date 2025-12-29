@@ -14,9 +14,9 @@ from marimo._server.file_router import (
     ListOfFilesAppFileRouter,
     NewFileAppFileRouter,
     count_files,
-    is_marimo_app,
-    validate_inside_directory,
 )
+from marimo._server.files.directory_scanner import is_marimo_app
+from marimo._server.files.path_validator import PathValidator
 from marimo._server.models.home import MarimoFile
 from marimo._utils.http import HTTPException, HTTPStatus
 
@@ -192,14 +192,14 @@ class TestValidateInsideDirectory(unittest.TestCase):
         directory = Path(self.test_dir).resolve()
         filepath = Path(self.test_file).resolve()
         # Should not raise
-        validate_inside_directory(directory, filepath)
+        PathValidator().validate_inside_directory(directory, filepath)
 
     def test_absolute_directory_absolute_filepath_outside(self):
         """Test: absolute directory, absolute filepath, file outside directory"""
         directory = Path(self.test_dir).resolve()
         filepath = Path(self.outside_file).resolve()
         with pytest.raises(HTTPException) as exc_info:
-            validate_inside_directory(directory, filepath)
+            PathValidator().validate_inside_directory(directory, filepath)
         assert exc_info.value.status_code == HTTPStatus.FORBIDDEN
 
     def test_absolute_directory_relative_filepath_inside(self):
@@ -209,7 +209,7 @@ class TestValidateInsideDirectory(unittest.TestCase):
         # Change to test_dir so relative path resolves correctly
         os.chdir(self.test_dir)
         # Should not raise
-        validate_inside_directory(directory, filepath)
+        PathValidator().validate_inside_directory(directory, filepath)
 
     def test_absolute_directory_relative_filepath_outside(self):
         """Test: absolute directory, relative filepath, file outside directory"""
@@ -220,7 +220,7 @@ class TestValidateInsideDirectory(unittest.TestCase):
         # to use a path that goes outside even when resolved relative to directory.
         filepath = Path("..") / ".." / "etc" / "passwd"
         with pytest.raises(HTTPException) as exc_info:
-            validate_inside_directory(directory, filepath)
+            PathValidator().validate_inside_directory(directory, filepath)
         assert exc_info.value.status_code == HTTPStatus.FORBIDDEN
 
     def test_relative_directory_absolute_filepath_inside(self):
@@ -229,7 +229,7 @@ class TestValidateInsideDirectory(unittest.TestCase):
         directory = Path(".")
         filepath = Path(self.test_file).resolve()
         # Should not raise
-        validate_inside_directory(directory, filepath)
+        PathValidator().validate_inside_directory(directory, filepath)
 
     def test_relative_directory_absolute_filepath_outside(self):
         """Test: relative directory, absolute filepath, file outside directory"""
@@ -237,7 +237,7 @@ class TestValidateInsideDirectory(unittest.TestCase):
         directory = Path(".")
         filepath = Path(self.outside_file).resolve()
         with pytest.raises(HTTPException) as exc_info:
-            validate_inside_directory(directory, filepath)
+            PathValidator().validate_inside_directory(directory, filepath)
         assert exc_info.value.status_code == HTTPStatus.FORBIDDEN
 
     def test_relative_directory_relative_filepath_inside(self):
@@ -246,7 +246,7 @@ class TestValidateInsideDirectory(unittest.TestCase):
         directory = Path(".")
         filepath = Path("test.py")
         # Should not raise
-        validate_inside_directory(directory, filepath)
+        PathValidator().validate_inside_directory(directory, filepath)
 
     def test_relative_directory_relative_filepath_outside(self):
         """Test: relative directory, relative filepath, file outside directory"""
@@ -256,7 +256,7 @@ class TestValidateInsideDirectory(unittest.TestCase):
         relative_path = os.path.relpath(self.test_file, self.outside_dir)
         filepath = Path(relative_path)
         with pytest.raises(HTTPException) as exc_info:
-            validate_inside_directory(directory, filepath)
+            PathValidator().validate_inside_directory(directory, filepath)
         assert exc_info.value.status_code == HTTPStatus.FORBIDDEN
 
     def test_path_traversal_dotdot(self):
@@ -265,7 +265,7 @@ class TestValidateInsideDirectory(unittest.TestCase):
         # Try to escape using ../
         filepath = Path(self.test_dir) / ".." / ".." / "etc" / "passwd"
         with pytest.raises(HTTPException) as exc_info:
-            validate_inside_directory(directory, filepath)
+            PathValidator().validate_inside_directory(directory, filepath)
         assert exc_info.value.status_code == HTTPStatus.FORBIDDEN
 
     def test_path_traversal_nested_dotdot(self):
@@ -276,7 +276,7 @@ class TestValidateInsideDirectory(unittest.TestCase):
             Path(self.nested_dir) / ".." / ".." / ".." / "etc" / "passwd"
         )
         with pytest.raises(HTTPException) as exc_info:
-            validate_inside_directory(directory, filepath)
+            PathValidator().validate_inside_directory(directory, filepath)
         assert exc_info.value.status_code == HTTPStatus.FORBIDDEN
 
     def test_symlink_inside_directory(self):
@@ -286,7 +286,7 @@ class TestValidateInsideDirectory(unittest.TestCase):
         symlink_path = Path(self.test_dir) / "symlink.py"
         symlink_path.symlink_to(self.test_file)
         # Should not raise
-        validate_inside_directory(directory, symlink_path)
+        PathValidator().validate_inside_directory(directory, symlink_path)
         symlink_path.unlink()
 
     def test_symlink_outside_directory(self):
@@ -297,7 +297,7 @@ class TestValidateInsideDirectory(unittest.TestCase):
         symlink_path.symlink_to(self.outside_file)
         # Should raise - symlink resolves to outside file
         with pytest.raises(HTTPException) as exc_info:
-            validate_inside_directory(directory, symlink_path)
+            PathValidator().validate_inside_directory(directory, symlink_path)
         assert exc_info.value.status_code == HTTPStatus.FORBIDDEN
         symlink_path.unlink()
 
@@ -312,7 +312,7 @@ class TestValidateInsideDirectory(unittest.TestCase):
         # First test: broken symlink inside directory (should work if resolved path is inside)
         # The symlink itself is inside, so it should pass validation
         # (the actual file doesn't need to exist for validation)
-        validate_inside_directory(directory, broken_symlink)
+        PathValidator().validate_inside_directory(directory, broken_symlink)
 
         # Test: broken symlink that resolves outside
         broken_symlink.unlink()
@@ -321,7 +321,9 @@ class TestValidateInsideDirectory(unittest.TestCase):
         broken_symlink.symlink_to("../../etc/passwd")
         # Should fail because resolved path is outside
         with pytest.raises(HTTPException) as exc_info:
-            validate_inside_directory(directory, broken_symlink)
+            PathValidator().validate_inside_directory(
+                directory, broken_symlink
+            )
         assert exc_info.value.status_code == HTTPStatus.FORBIDDEN
         broken_symlink.unlink()
 
@@ -332,7 +334,7 @@ class TestValidateInsideDirectory(unittest.TestCase):
         symlink_path = Path(self.test_dir) / "nested_link"
         symlink_path.symlink_to(self.nested_dir)
         # Should not raise - symlink resolves to directory inside
-        validate_inside_directory(directory, symlink_path)
+        PathValidator().validate_inside_directory(directory, symlink_path)
         symlink_path.unlink()
 
     def test_nested_file(self):
@@ -340,14 +342,14 @@ class TestValidateInsideDirectory(unittest.TestCase):
         directory = Path(self.test_dir).resolve()
         filepath = Path(self.nested_file).resolve()
         # Should not raise
-        validate_inside_directory(directory, filepath)
+        PathValidator().validate_inside_directory(directory, filepath)
 
     def test_nonexistent_directory(self):
         """Test: directory doesn't exist"""
         directory = Path(self.test_dir) / "nonexistent"
         filepath = Path(self.test_file).resolve()
         with pytest.raises(HTTPException) as exc_info:
-            validate_inside_directory(directory, filepath)
+            PathValidator().validate_inside_directory(directory, filepath)
         assert exc_info.value.status_code == HTTPStatus.BAD_REQUEST
 
     def test_file_as_directory(self):
@@ -355,7 +357,7 @@ class TestValidateInsideDirectory(unittest.TestCase):
         directory = Path(self.test_file).resolve()
         filepath = Path(self.test_file).resolve()
         with pytest.raises(HTTPException) as exc_info:
-            validate_inside_directory(directory, filepath)
+            PathValidator().validate_inside_directory(directory, filepath)
         assert exc_info.value.status_code == HTTPStatus.BAD_REQUEST
 
     def test_same_path(self):
@@ -364,7 +366,7 @@ class TestValidateInsideDirectory(unittest.TestCase):
         filepath = Path(self.test_dir).resolve()
         # Directory is not inside itself
         with pytest.raises(HTTPException) as exc_info:
-            validate_inside_directory(directory, filepath)
+            PathValidator().validate_inside_directory(directory, filepath)
         assert exc_info.value.status_code == HTTPStatus.FORBIDDEN
 
     def test_empty_paths(self):
@@ -373,7 +375,7 @@ class TestValidateInsideDirectory(unittest.TestCase):
         directory = Path("")
         filepath = Path("")
         with pytest.raises(HTTPException) as exc_info:
-            validate_inside_directory(directory, filepath)
+            PathValidator().validate_inside_directory(directory, filepath)
         assert exc_info.value.status_code == HTTPStatus.BAD_REQUEST
 
     def test_absolute_path_with_dotdot_resolved(self):
@@ -382,7 +384,9 @@ class TestValidateInsideDirectory(unittest.TestCase):
         # Create path with .. that still resolves inside
         filepath = Path(self.nested_file).resolve() / ".." / "test.py"
         # Should not raise - resolves to test.py inside directory
-        validate_inside_directory(directory, filepath.resolve())
+        PathValidator().validate_inside_directory(
+            directory, filepath.resolve()
+        )
 
     def test_relative_path_with_dotdot(self):
         """Test: relative path with .. that resolves inside"""
@@ -394,7 +398,7 @@ class TestValidateInsideDirectory(unittest.TestCase):
         nested_rel_path = Path("nested") / ".." / "test.py"
         filepath = nested_rel_path
         # Should not raise - resolves to test.py inside directory
-        validate_inside_directory(directory, filepath)
+        PathValidator().validate_inside_directory(directory, filepath)
 
     def test_relative_path_with_dotdot_outside(self):
         """Test: relative path with .. that goes outside"""
@@ -402,7 +406,7 @@ class TestValidateInsideDirectory(unittest.TestCase):
         directory = Path(self.nested_dir).resolve()
         filepath = Path("..") / ".." / ".." / "etc" / "passwd"
         with pytest.raises(HTTPException) as exc_info:
-            validate_inside_directory(directory, filepath)
+            PathValidator().validate_inside_directory(directory, filepath)
         assert exc_info.value.status_code == HTTPStatus.FORBIDDEN
 
 
@@ -453,12 +457,12 @@ def test_lazy_router_respects_max_files(tmp_path: Path):
     # Create a directory with more files than MAX_FILES
     # To make this test fast, we'll use a monkey-patch approach
     # by temporarily reducing MAX_FILES
-    import marimo._server.file_router as file_router_module
+    from marimo._server.files.directory_scanner import DirectoryScanner
 
-    original_max_files = file_router_module.MAX_FILES
+    original_max_files = DirectoryScanner.MAX_FILES
     try:
         # Set a small limit for testing
-        file_router_module.MAX_FILES = 5
+        DirectoryScanner.MAX_FILES = 5
 
         # Create 10 marimo files
         for i in range(10):
@@ -477,7 +481,7 @@ def test_lazy_router_respects_max_files(tmp_path: Path):
 
     finally:
         # Restore original value
-        file_router_module.MAX_FILES = original_max_files
+        DirectoryScanner.MAX_FILES = original_max_files
 
 
 def test_lazy_router_skips_common_dirs(tmp_path: Path):
