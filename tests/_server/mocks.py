@@ -5,7 +5,12 @@ import base64
 import tempfile
 from typing import TYPE_CHECKING, Any, Callable, Optional, cast
 
-from marimo._config.manager import get_default_config_manager
+from marimo._config.manager import (
+    MarimoConfigManager,
+    UserConfigManager,
+    get_default_config_manager,
+)
+from marimo._server.config import StarletteServerStateInit
 from marimo._server.file_router import AppFileRouter
 from marimo._server.lsp import NoopLspServer
 from marimo._server.session_manager import SessionManager
@@ -21,7 +26,26 @@ def get_session_manager(client: TestClient) -> SessionManager:
     return client.app.state.session_manager  # type: ignore
 
 
-def get_mock_session_manager() -> SessionManager:
+def get_starlette_server_state_init() -> StarletteServerStateInit:
+    return StarletteServerStateInit(
+        port=1234,
+        host="localhost",
+        base_url="",
+        asset_url=None,
+        headless=False,
+        quiet=False,
+        session_manager=get_mock_session_manager(),
+        config_manager=MarimoConfigManager(UserConfigManager()),
+        remote_url=None,
+        mcp_server_enabled=False,
+        skew_protection=False,
+        enable_auth=True,
+    )
+
+
+def get_mock_session_manager(
+    mode: SessionMode = SessionMode.EDIT,
+) -> SessionManager:
     temp_file = tempfile.NamedTemporaryFile(suffix=".py", delete=False)
 
     temp_file.write(
@@ -49,7 +73,7 @@ if __name__ == "__main__":
 
     sm = SessionManager(
         file_router=AppFileRouter.from_filename(MarimoPath(temp_file.name)),
-        mode=SessionMode.EDIT,
+        mode=mode,
         quiet=False,
         include_code=True,
         lsp_server=lsp_server,

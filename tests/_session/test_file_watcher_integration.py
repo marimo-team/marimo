@@ -71,7 +71,6 @@ def test_attach_session_without_path(
 ) -> None:
     """Test attaching a file watcher to a session without a file path."""
     session = create_mock_session(None)
-    session_id = SessionId("test-session")
     event_bus = SessionEventBus()
     lifecycle.on_attach(session, event_bus)
 
