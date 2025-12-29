@@ -67,7 +67,7 @@ export interface ReorderableListProps<T extends { id: string | number }> {
  * />
  * ```
  */
-export function ReorderableList<T extends { id: string | number }>({
+export const ReorderableList = <T extends { id: string | number }>({
   value,
   setValue,
   renderItem,
@@ -76,7 +76,7 @@ export function ReorderableList<T extends { id: string | number }>({
   minItems = 1,
   ariaLabel = "Reorderable list",
   className,
-}: ReorderableListProps<T>) {
+}: ReorderableListProps<T>) => {
   const { dragAndDropHooks } = useDragAndDrop<T>({
     getItems: (keys) => [...keys].map((key) => ({ "text/plain": String(key) })),
     onReorder(e) {
@@ -157,4 +157,4 @@ export function ReorderableList<T extends { id: string | number }>({
       </ContextMenuContent>
     </ContextMenu>
   );
-}
+};
