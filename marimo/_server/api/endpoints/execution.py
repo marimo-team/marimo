@@ -100,6 +100,7 @@ async def set_model_values(
 
 
 @router.post("/instantiate")
+@requires("edit")
 async def instantiate(
     *,
     request: Request,
@@ -112,7 +113,8 @@ async def instantiate(
                     $ref: "#/components/schemas/InstantiateNotebookRequest"
     responses:
         200:
-            description: Instantiate a component
+            description: Instantiate a component. Only allowed in edit mode;
+                in run mode, instantiation happens server-side automatically.
             content:
                 application/json:
                     schema:

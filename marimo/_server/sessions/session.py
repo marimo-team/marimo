@@ -328,13 +328,21 @@ class SessionImpl(Session):
         http_request: Optional[HTTPRequest],
     ) -> None:
         """Instantiate the app."""
+
+        # If codes are provided, use them instead of the file codes
+        # This is used when the frontend has local edits that should be
+        # used instead of the stored file (e.g. local editing before connecting).
+        codes = (
+            request.codes or self.app_file_manager.app.cell_manager.code_map()
+        )
+
         execution_requests = tuple(
             ExecuteCellCommand(
-                cell_id=cell_data.cell_id,
-                code=cell_data.code,
+                cell_id=cell_id,
+                code=code,
                 request=http_request,
             )
-            for cell_data in self.app_file_manager.app.cell_manager.cell_data()
+            for cell_id, code in codes.items()
         )
 
         self.put_control_request(
