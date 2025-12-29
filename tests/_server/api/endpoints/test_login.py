@@ -18,7 +18,7 @@ from marimo._server.api.endpoints.login import router as auth_router
 from marimo._server.api.middleware import AuthBackend
 from marimo._server.router import APIRouter
 from marimo._server.tokens import AuthToken
-from tests._server.mocks import get_mock_session_manager
+from tests._server.mocks import get_starlette_server_state_init
 
 AUTH_TOKEN = AuthToken("test_password")
 
@@ -40,9 +40,8 @@ def create_app(base_url: str = "") -> Starlette:
             ),
         ],
     )
-    app.state.session_manager = get_mock_session_manager()
+    get_starlette_server_state_init(base_url=base_url).apply(app.state)
     app.state.session_manager._token_manager.auth_token = AUTH_TOKEN
-    app.state.base_url = base_url
     return app
 
 

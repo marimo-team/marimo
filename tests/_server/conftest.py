@@ -13,6 +13,7 @@ from starlette.testclient import TestClient
 from marimo._config.manager import MarimoConfigManager, UserConfigManager
 from marimo._config.utils import CONFIG_FILENAME
 from marimo._server.api.deps import AppState
+from marimo._server.config import StarletteServerStateInit
 from marimo._server.main import create_starlette_app
 from marimo._server.session_manager import SessionManager
 from marimo._server.utils import initialize_asyncio
@@ -59,18 +60,27 @@ def user_config_manager() -> Iterator[UserConfigManager]:
 @pytest.fixture
 def client(user_config_manager: UserConfigManager) -> Iterator[TestClient]:
     main = sys.modules["__main__"]
-    app.state.session_manager = get_mock_session_manager()
-    app.state.config_manager = MarimoConfigManager(user_config_manager)
     client = TestClient(app)
+    StarletteServerStateInit(
+        port=1234,
+        host="localhost",
+        base_url="",
+        asset_url=None,
+        headless=False,
+        quiet=False,
+        session_manager=get_mock_session_manager(),
+        config_manager=MarimoConfigManager(user_config_manager),
+        remote_url=None,
+        mcp_server_enabled=False,
+        skew_protection=False,
+        enable_auth=True,
+    ).apply(app.state)
 
     # Mock out the server
     uvicorn_server = uvicorn.Server(uvicorn.Config(app))
     uvicorn_server.servers = []
-
     app.state.server = uvicorn_server
-    app.state.host = "localhost"
-    app.state.port = 1234
-    app.state.base_url = ""
+
     yield client
     sys.modules["__main__"] = main
 
