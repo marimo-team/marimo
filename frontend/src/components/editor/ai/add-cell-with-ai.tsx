@@ -98,7 +98,7 @@ export const AddCellWithAI: React.FC<{
     sendRun,
   };
 
-  const { sendMessage, stop, status, addToolResult } = useChat({
+  const { sendMessage, stop, status, addToolOutput } = useChat({
     // Throttle the messages and data updates to 100ms
     experimental_throttle: 100,
     transport: new StreamingChunkTransport(
@@ -129,7 +129,7 @@ export const AddCellWithAI: React.FC<{
     onToolCall: async ({ toolCall }) => {
       await handleToolCall({
         invokeAiTool,
-        addToolResult,
+        addToolOutput,
         toolCall: {
           toolName: toolCall.toolName,
           toolCallId: toolCall.toolCallId,

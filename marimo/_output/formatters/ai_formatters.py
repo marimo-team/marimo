@@ -28,6 +28,11 @@ class GoogleAiFormatter(FormatterFactory):
             )
         except (ImportError, ModuleNotFoundError):
             return
+        except AttributeError:
+            # google.genai or its dependencies may use collections.MutableMapping
+            # which was removed in Python 3.10+ (moved to collections.abc)
+            LOGGER.exception("Error importing google.genai")
+            return
 
         from marimo._output import formatting
 
