@@ -231,7 +231,6 @@ def _generate_server_api_schema() -> dict[str, Any]:
         models.PreviewDatasetColumnRequest,
         models.PreviewSQLTableRequest,
         models.ReadCodeResponse,
-        models.RefreshSecretsRequest,
         models.RenameNotebookRequest,
         models.ExecuteCellsRequest,
         models.SaveAppConfigurationRequest,

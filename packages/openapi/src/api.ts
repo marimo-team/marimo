@@ -4615,8 +4615,6 @@ export interface components {
       /** @enum {unknown} */
       type: "refresh-secrets";
     };
-    /** RefreshSecretsRequest */
-    RefreshSecretsRequest: Record<string, any>;
     /** ReloadNotification */
     ReloadNotification: {
       /** @enum {unknown} */
