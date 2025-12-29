@@ -9,6 +9,7 @@ import pytest
 from marimo import __version__
 from marimo._ast.app import App, InternalApp
 from marimo._ast.cell import CellConfig
+from marimo._server.app_defaults import AppDefaults
 from marimo._server.models.models import SaveNotebookRequest
 from marimo._session.notebook import AppFileManager
 from marimo._types.ids import CellId_t
@@ -628,8 +629,10 @@ def test_default_app_settings(tmp_path: Path) -> None:
     # Test with custom defaults
     manager = AppFileManager(
         filename=None,
-        default_width="full",
-        default_sql_output="polars",
+        defaults=AppDefaults(
+            width="full",
+            sql_output="polars",
+        ),
     )
     assert manager.app.config.width == "full"
     assert manager.app.config.sql_output == "polars"
@@ -650,8 +653,10 @@ app = marimo.App(sql_output="lazy-polars", width="columns")
     )
     manager = AppFileManager(
         filename=tmp_file,
-        default_width="full",
-        default_sql_output="polars",
+        defaults=AppDefaults(
+            width="full",
+            sql_output="polars",
+        ),
     )
     assert manager.app.config.width == "columns"
     assert manager.app.config.sql_output == "lazy-polars"
