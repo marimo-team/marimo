@@ -31,7 +31,8 @@ dependencies = [
     # web framework
     # - 0.29.0 introduced Middleware kwargs, which we use
     # - starlette 0.36.0 introduced a bug
-    "starlette>=0.35.0,!=0.36.0",
+    # - starlette 0.37.0 needed for httpx compatibility
+    "starlette>=0.37.0",
     # websockets for use with starlette, and for lsp
     "websockets >= 14.2.0",
     # loro for collaborative editing
