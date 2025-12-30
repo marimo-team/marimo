@@ -1131,7 +1131,7 @@ packages:
 - pypi: ./
   name: marimo
   version: 0.18.4
-  sha256: 3cbc5ba4875a886f027507e45394b1124f77223220a79e48087e9907777370cc
+  sha256: ef76de97391681b5dbc679e49734538ea5e6159c6efa1e92f6464347d11f5fc8
   requires_dist:
   - click>=8.0,<9
   - jedi>=0.18.0
@@ -1139,7 +1139,7 @@ packages:
   - pymdown-extensions>=10.15,<11
   - pygments>=2.19,<3
   - tomlkit>=0.12.0
-  - pyyaml>=6.0
+  - pyyaml>=6.0.1
   - uvicorn>=0.22.0
   - starlette>=0.37.2
   - websockets>=14.2.0
@@ -1161,14 +1161,6 @@ packages:
   - openai>=1.55.3 ; extra == 'recommended'
   - ruff ; extra == 'recommended'
   - nbformat>=5.7.0 ; extra == 'recommended'
-  - click>=8.0,<9 ; extra == 'dev'
-  - black~=23.12.1 ; extra == 'dev'
-  - opentelemetry-api~=1.28.0 ; extra == 'dev'
-  - opentelemetry-sdk~=1.28.0 ; extra == 'dev'
-  - duckdb>=1.0.0 ; extra == 'dev'
-  - sqlglot[rs]>=26.2.0 ; extra == 'dev'
-  - ruff>=0.13.2 ; extra == 'dev'
-  - openai>=1.55.3 ; extra == 'dev'
   - python-lsp-server>=1.13.0 ; extra == 'lsp'
   - python-lsp-ruff>=2.0.0 ; extra == 'lsp'
   - mcp>=1.0.0 ; python_full_version >= '3.10' and extra == 'mcp'
