@@ -32,16 +32,16 @@ def _(mo, os):
     os_key = os.environ.get("GOOGLE_AI_API_KEY")
     input_key = mo.ui.text(label="Google AI API key", kind="password")
     input_key if not os_key else None
-    return
+    return input_key, os_key
 
 
 @app.cell
-def _(os):
+def _(input_key, os_key):
     from pydantic_ai import Agent
     from pydantic_ai.models.google import GoogleModel, GoogleModelSettings
     from pydantic_ai.providers.google import GoogleProvider
 
-    provider = GoogleProvider(api_key=os.getenv("GOOGLE_AI_API_KEY"))
+    provider = GoogleProvider(api_key=input_key.value or os_key)
     model = GoogleModel("gemini-2.5-flash", provider=provider)
     settings = GoogleModelSettings(
         google_thinking_config={"include_thoughts": True}
