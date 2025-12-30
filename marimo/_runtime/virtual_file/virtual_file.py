@@ -19,7 +19,6 @@ from marimo._runtime.virtual_file.storage import (
 )
 from marimo._utils.data_uri import build_data_url
 from marimo._utils.http import HTTPException, HTTPStatus
-from marimo._utils.platform import is_pyodide
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -255,9 +254,6 @@ def _without_leading_dot(ext: str) -> str:
 
 
 def read_virtual_file(filename: str, byte_length: int) -> bytes:
-    if is_pyodide():
-        raise RuntimeError("Shared memory is not supported on this platform")
-
     try:
         return VirtualFileStorageManager().read(filename, byte_length)
     except KeyError as err:

@@ -88,6 +88,10 @@ class SharedMemoryStorage(VirtualFileStorage):
         self._storage[key] = shm
 
     def read(self, key: str, byte_length: int) -> bytes:
+        if is_pyodide():
+            raise RuntimeError(
+                "Shared memory is not supported on this platform"
+            )
         # Read from shared memory by name (works cross-process)
         shm = None
         try:
@@ -176,6 +180,7 @@ class VirtualFileStorageManager:
 
         Raises:
             KeyError: If file not found
+            RuntimeError: If pyodide invokes SharedMemoryStorage.
         """
         storage = self.storage
         if storage is None:
