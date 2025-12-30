@@ -1131,7 +1131,7 @@ packages:
 - pypi: ./
   name: marimo
   version: 0.18.4
-  sha256: 1b43f18d5ae5bee6080a2240f5f8bc4c02328149713175773a9b6666702ae9a1
+  sha256: f8785b4e624fbe08274aac0338c760ac0cb7c42cc88d60c598d92825f4d644bb
   requires_dist:
   - click>=8.0,<9
   - jedi>=0.18.0
