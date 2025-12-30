@@ -24,7 +24,7 @@ dependencies = [
     # for reading, writing configs
     "tomlkit>= 0.12.0",
     # for managing frontmatter headers in markdown
-    "pyyaml>=6.0",
+    "pyyaml>=6.0.1",
     # web server
     # - 0.22.0 introduced timeout-graceful-shutdown, which we use
     "uvicorn>=0.22.0",
@@ -100,7 +100,19 @@ recommended = [
     "nbformat>=5.7.0",          # Export as IPYNB
 ]
 
+lsp = [
+    "python-lsp-server>=1.13.0",
+    "python-lsp-ruff>=2.0.0",
+]
+
+mcp = [
+    "mcp>=1.0.0; python_version >= '3.10'",
+    "pydantic>2; python_version >= '3.10'",
+]
+
+[dependency-groups]
 dev = [
+    "hatch>=1.15.1",
     "click>=8.0,<9",
     "black~=23.12.1",
     # For tracing debugging
@@ -115,14 +127,25 @@ dev = [
     "openai>=1.55.3",
 ]
 
-lsp = [
-    "python-lsp-server>=1.13.0",
-    "python-lsp-ruff>=2.0.0",
-]
-
-mcp = [
-    "mcp>=1.0.0; python_version >= '3.10'",
-    "pydantic>2; python_version >= '3.10'",
+test = [
+    # For server testing
+    "httpx~=0.28.0",
+    "urllib3~=2.5.0",
+    # Pytest and plugins
+    "pytest~=8.3.4",
+    "pytest-timeout~=2.3.1",
+    "pytest-codecov~=0.7.0",
+    "pytest-rerunfailures~=15.1",
+    "pytest-asyncio~=0.26.0",
+    "pytest-picked>=0.5.1",
+    # Comparison testing
+    "inline-snapshot~=0.29.0",
+    "hypothesis~=6.102.1",
+    "dirty-equals~=0.9.0",
+    # Forced for modern matplotlib.
+    "matplotlib~=3.10.7",
+    "pillow>=9",
+    "zstandard>=0.21.0",
 ]
 
 [tool.hatch]
@@ -130,14 +153,14 @@ installer = "uv"
 
 # Override the default uv version to use the latest version
 [tool.hatch.envs.hatch-uv]
-dependencies = ["uv>=0.4.17"]
+dependencies = ["uv>=0.9.21"]
 
 [tool.hatch.envs.default]
-features = ["dev"]
+dependency-groups = ["dev"]
 python = "3.12"
 installer = "uv"
 dependencies = [
-    "uv>=0.4.17", # so we can bump the version used by hatch
+    "uv>=0.9.21", # so we can bump the version used by hatch
     # Typo checking
     "typos~=1.23.6",
 ]
@@ -150,6 +173,7 @@ format = "ruff format"
 [tool.hatch.envs.typecheck]
 python = "3.12"
 installer = "uv"
+dependency-groups = ["dev"]
 dependencies = [
     "mypy~=1.15.0",
     # Types for mypy
@@ -189,23 +213,7 @@ check = "mypy marimo --exclude=marimo/_tutorials/"
 tutorials = "mypy marimo/_tutorials"
 
 [tool.hatch.envs.test]
-extra-dependencies = [
-    "dirty-equals~=0.9.0",
-    "hypothesis~=6.102.1",
-    # For server testing
-    "httpx~=0.28.0",
-    "urllib3~=2.5.0",
-    "matplotlib~=3.10.7",
-    # Forced for modern matplotlib.
-    "pillow>=9",
-    "pytest~=8.3.4",
-    "pytest-timeout~=2.3.1",
-    "pytest-codecov~=0.7.0",
-    "pytest-rerunfailures~=15.1",
-    "pytest-asyncio~=0.26.0",
-    "pytest-picked>=0.5.1",
-    "inline-snapshot~=0.29.0",
-]
+dependency-groups = ["dev", "test"]
 
 [[tool.hatch.envs.test.matrix]]
 python = ["3.10", "3.11", "3.12", "3.13", "3.14"]
@@ -225,18 +233,8 @@ test-narwhals = """
 
 [tool.hatch.envs.test-optional]
 template = "test"
+dependency-groups = ["dev", "test"]
 extra-dependencies = [
-    "dirty-equals~=0.9.0",
-    "hypothesis~=6.102.1",
-    "httpx~=0.28.0",
-    "matplotlib~=3.9.2",
-    "pytest~=8.3.4",
-    "pytest-timeout~=2.3.1",
-    "pytest-codecov~=0.6.1",
-    "pytest-rerunfailures~=15.1",
-    "pytest-asyncio~=0.26.0",
-    "pytest-picked>=0.5.1",
-    "inline-snapshot~=0.29.0",
     "python-lsp-server>=1.10.0",
     # For testing mo.ui.chart, table, ...
     "vl-convert-python",
