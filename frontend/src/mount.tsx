@@ -305,11 +305,14 @@ function initStore(options: unknown) {
     Logger.debug("⚡ Runtime URL", firstRuntimeConfig.url);
     store.set(runtimeConfigAtom, {
       ...firstRuntimeConfig,
+      lazy: true,
       serverToken: parsedOptions.data.serverToken,
     });
   } else {
     store.set(runtimeConfigAtom, {
       ...DEFAULT_RUNTIME_CONFIG,
+      // TODO: change to false when ready
+      lazy: true,
       serverToken: parsedOptions.data.serverToken,
     });
   }

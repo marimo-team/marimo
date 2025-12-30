@@ -31,7 +31,7 @@ import { connectionAtom } from "@/core/network/connection";
 import { useRequestClient } from "@/core/network/requests";
 import { isRtcEnabled } from "@/core/rtc/state";
 import { useSaveNotebook } from "@/core/saving/save-component";
-import { WebSocketState } from "@/core/websocket/types";
+import { isAppConnecting } from "@/core/websocket/connection-utils";
 import type { Theme } from "@/theme/useTheme";
 import { cn } from "@/utils/cn";
 import { invariant } from "@/utils/invariant";
@@ -525,10 +525,7 @@ function WithWaitUntilConnected<T extends {}>(
     const connection = useAtomValue(connectionAtom);
     const [rtcDoc, setRtcDoc] = useAtom(connectedDocAtom);
 
-    if (
-      connection.state === WebSocketState.CONNECTING ||
-      rtcDoc === undefined
-    ) {
+    if (isAppConnecting(connection.state) || rtcDoc === undefined) {
       return (
         <div className="flex h-full w-full items-baseline p-4">
           <DelayMount milliseconds={1000} fallback={null}>
