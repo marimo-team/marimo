@@ -286,3 +286,32 @@ def test_convert_from_ir_to_markdown_unparsable_cell():
     # Should mark as unparsable
     assert 'unparsable="true"' in markdown or "unparsable=true" in markdown
     assert "this is { not valid python" in markdown
+
+
+def test_convert_from_ir_to_markdown_qmd_format():
+    """Test that .qmd files use Quarto-compatible fence format."""
+    app = App()
+
+    @app.cell()
+    def test_cell():
+        x = 1
+        return (x,)
+
+    internal_app = InternalApp(app)
+    notebook = internal_app.to_ir()
+
+    # Test .qmd filename produces Quarto format
+    markdown_qmd = convert_from_ir_to_markdown(
+        notebook, filename="notebook.qmd"
+    )
+    assert "```{marimo .python" in markdown_qmd
+    assert "filters:" in markdown_qmd  # qmd should have marimo filter
+
+    # Test .md filename produces standard format
+    markdown_md = convert_from_ir_to_markdown(notebook, filename="notebook.md")
+    assert "```{marimo .python" not in markdown_md
+    # Should use either superfences or fallback format
+    assert (
+        "```python {.marimo" in markdown_md
+        or "```{.python.marimo" in markdown_md
+    )

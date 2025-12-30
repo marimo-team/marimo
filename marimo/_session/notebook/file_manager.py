@@ -186,15 +186,15 @@ class AppFileManager:
         elif path.exists():
             header = handler.extract_header(path)
 
-        if header:
-            notebook = NotebookSerializationV1(
-                app=notebook.app,
-                header=Header(value=header) if header else notebook.header,
-                cells=notebook.cells,
-                violations=notebook.violations,
-                valid=notebook.valid,
-                filename=str(path),
-            )
+        # Rewrap with header if relevant and set filename.
+        notebook = NotebookSerializationV1(
+            app=notebook.app,
+            header=Header(value=header) if header else notebook.header,
+            cells=notebook.cells,
+            violations=notebook.violations,
+            valid=notebook.valid,
+            filename=str(path),
+        )
         contents = handler.serialize(notebook)
 
         if persist:
