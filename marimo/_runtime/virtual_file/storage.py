@@ -180,7 +180,7 @@ class VirtualFileStorageManager:
 
         Raises:
             KeyError: If file not found
-            RuntimeError: If pyodide invokes SharedMemoryStorage.
+            RuntimeError: When ``SharedMemoryStorage`` is used on the Pyodide platform.
         """
         storage = self.storage
         if storage is None:
