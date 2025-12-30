@@ -533,6 +533,7 @@ def module_name_to_pypi_name() -> dict[str, str]:
         "markdown": "Markdown",
         "marks": "pytest-marks",
         "markupsafe": "MarkupSafe",
+        "matplotlib-pyplot": "matplotlib",
         "mavnative": "pymavlink",
         "memcache": "python-memcached",
         "metacomm": "AllPairs",
