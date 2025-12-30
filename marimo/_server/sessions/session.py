@@ -86,6 +86,8 @@ class SessionImpl(Session):
         auto_instantiate: bool,
         ttl_seconds: Optional[int],
         extensions: list[SessionExtension] | None = None,
+        external_python: Optional[str] = None,
+        sandbox_mode: bool = False,
     ) -> Session:
         """
         Create a new session.
@@ -97,18 +99,19 @@ class SessionImpl(Session):
         )
 
         configs = app_file_manager.app.cell_manager.config_map()
-        use_multiprocessing = mode == SessionMode.EDIT
-        queue_manager = QueueManagerImpl(
-            use_multiprocessing=use_multiprocessing
-        )
+
+        # Create kernel manager (unified IPC-based implementation)
+        queue_manager = QueueManagerImpl()
         kernel_manager = KernelManagerImpl(
             queue_manager=queue_manager,
             mode=mode,
             configs=configs,
             app_metadata=app_metadata,
             config_manager=config_manager,
+            python_executable=external_python,
             virtual_files_supported=virtual_files_supported,
             redirect_console_to_browser=redirect_console_to_browser,
+            sandbox_mode=sandbox_mode,
         )
 
         extensions = [

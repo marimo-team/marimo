@@ -75,6 +75,8 @@ class SessionManager:
         redirect_console_to_browser: bool,
         ttl_seconds: Optional[int],
         watch: bool = False,
+        external_python: Optional[str] = None,
+        sandbox_mode: bool = False,
     ) -> None:
         # Core configuration
         self.file_router = file_router
@@ -87,6 +89,8 @@ class SessionManager:
         self.argv = argv
         self.redirect_console_to_browser = redirect_console_to_browser
         self._config_manager = config_manager
+        self.external_python = external_python
+        self.sandbox_mode = sandbox_mode
 
         self._repository = SessionRepository()
 
@@ -197,6 +201,8 @@ class SessionManager:
             ttl_seconds=self.ttl_seconds,
             auto_instantiate=auto_instantiate,
             extensions=extensions,
+            external_python=self.external_python,
+            sandbox_mode=self.sandbox_mode,
         )
 
         # Add to repository

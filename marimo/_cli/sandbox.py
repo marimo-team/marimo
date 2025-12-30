@@ -48,7 +48,8 @@ def should_use_external_env(name: str | None) -> str | None:
             pyproject = PyProjectReader.from_filename(name)
             env_config = pyproject.env_config
             if env_config:
-                python_path = resolve_python_path(env_config)
+                # Pass notebook path to resolve relative Python paths
+                python_path = resolve_python_path(env_config, base_path=name)
                 if python_path and not is_same_python(python_path):
                     return python_path
         except Exception as e:
@@ -59,7 +60,8 @@ def should_use_external_env(name: str | None) -> str | None:
         config = get_default_config_manager(current_path=name).get_config()
         env_config = config.get("env", {})
         if env_config:
-            python_path = resolve_python_path(env_config)
+            # Pass name to resolve relative Python paths
+            python_path = resolve_python_path(env_config, base_path=name)
             if python_path and not is_same_python(python_path):
                 return python_path
     except Exception as e:
@@ -68,22 +70,167 @@ def should_use_external_env(name: str | None) -> str | None:
     return None
 
 
-def check_external_env_sandbox_conflict(
-    name: str | None, sandbox: bool | None
-) -> None:
-    """Check for conflict between external env config and --sandbox flag.
-
-    Raises click.UsageError if both are specified.
-    """
-    if sandbox is not True:
+def _sync_deps_to_external_env(name: str | None, external_python: str) -> None:
+    """Sync notebook dependencies to external environment using uv."""
+    if name is None:
         return
 
-    # Check if external env is configured
-    if should_use_external_env(name):
-        raise click.UsageError(
-            "Cannot use --sandbox with [tool.marimo.env] configuration.\n"
-            "Remove --sandbox flag or remove [tool.marimo.env] from the notebook."
+    pyproject = PyProjectReader.from_filename(name)
+    dependencies = pyproject.dependencies
+    if not dependencies:
+        echo("No dependencies to sync.", err=True)
+        return
+
+    uv_bin = find_uv_bin()
+
+    # Normalize dependencies (adds marimo if needed)
+    from marimo._version import __version__
+
+    requirements = _normalize_sandbox_dependencies(
+        dependencies, __version__, additional_features=[]
+    )
+
+    # Write to temp file
+    import tempfile
+
+    with tempfile.NamedTemporaryFile(
+        mode="w", delete=False, suffix=".txt", encoding="utf-8"
+    ) as f:
+        f.write("\n".join(requirements))
+        req_file = f.name
+
+    try:
+        echo(f"Syncing dependencies to: {muted(external_python)}", err=True)
+
+        # Separate editable installs from regular requirements
+        editable_reqs = [r for r in requirements if r.startswith("-e ")]
+        regular_reqs = [r for r in requirements if not r.startswith("-e ")]
+
+        # Install editable packages directly
+        for editable in editable_reqs:
+            editable_path = editable[3:].strip()
+            result = subprocess.run(
+                [
+                    uv_bin,
+                    "pip",
+                    "install",
+                    "--python",
+                    external_python,
+                    "-e",
+                    editable_path,
+                ],
+                capture_output=True,
+                text=True,
+            )
+            if result.returncode != 0:
+                echo(
+                    f"Warning: Editable install failed: {result.stderr}",
+                    err=True,
+                )
+
+        # Install regular packages
+        if regular_reqs:
+            with tempfile.NamedTemporaryFile(
+                mode="w", delete=False, suffix=".txt", encoding="utf-8"
+            ) as f:
+                f.write("\n".join(regular_reqs))
+                regular_req_file = f.name
+
+            result = subprocess.run(
+                [
+                    uv_bin,
+                    "pip",
+                    "install",
+                    "--python",
+                    external_python,
+                    "-r",
+                    regular_req_file,
+                ],
+                capture_output=True,
+                text=True,
+            )
+            if result.returncode != 0:
+                echo(
+                    f"Warning: Package sync failed: {result.stderr}", err=True
+                )
+            else:
+                echo(green("Dependencies synced successfully."), err=True)
+
+            os.unlink(regular_req_file)
+    finally:
+        os.unlink(req_file)
+
+
+def resolve_sandbox_mode(
+    sandbox: bool | None, name: str | None
+) -> tuple[bool, str | None]:
+    """Resolve sandbox mode and external python, handling conflicts.
+
+    Priority/Fallback Chain:
+    1. --sandbox + external env → prompt to sync deps, use external env
+    2. --sandbox + uv available → sandbox mode
+    3. --sandbox + no uv + external env → external env (warn)
+    4. --sandbox + no uv + no external env → error
+    5. [tool.marimo.env] only → external env
+    6. sandbox=None auto-detect → may prompt, prefer external env if configured
+
+    Returns:
+        (sandbox_mode: bool, external_python: str | None)
+    """
+    external_python = should_use_external_env(name)
+    has_uv = DependencyManager.which("uv") is not None
+
+    # Case 1: sandbox=True explicit + external env configured → offer sync
+    if sandbox is True and external_python:
+        if has_uv and sys.stdin.isatty() and not GLOBAL_SETTINGS.YES:
+            sync_deps = click.confirm(
+                "Both --sandbox and [tool.marimo.env] specified.\n"
+                + green(
+                    "Sync notebook dependencies to external environment?",
+                    bold=True,
+                ),
+                default=True,
+                err=True,
+            )
+            if sync_deps:
+                _sync_deps_to_external_env(name, external_python)
+        else:
+            echo(
+                "Warning: --sandbox and [tool.marimo.env] both specified. "
+                "Using external environment.",
+                err=True,
+            )
+        return False, external_python
+
+    # Case 2: sandbox=True explicit + no uv
+    if sandbox is True and not has_uv:
+        if external_python:
+            echo(
+                "Warning: --sandbox requested but uv not installed. "
+                "Falling back to external environment.",
+                err=True,
+            )
+            return False, external_python
+        else:
+            raise click.UsageError(
+                "uv must be installed to use --sandbox.\n"
+                "Install it from: https://github.com/astral-sh/uv\n"
+                "Or configure [tool.marimo.env] for external Python."
+            )
+
+    # Case 3: sandbox=None (auto-detect)
+    if sandbox is None:
+        sandbox_enabled = should_run_in_sandbox(sandbox=None, name=name)
+        # If auto-detected sandbox but external env configured, prefer external
+        if sandbox_enabled and external_python:
+            return False, external_python
+        return (
+            sandbox_enabled,
+            external_python if not sandbox_enabled else None,
         )
+
+    # Case 4: sandbox=True with uv available, or sandbox=False
+    return sandbox, external_python if not sandbox else None
 
 
 DepFeatures = Literal["lsp", "recommended"]
@@ -135,56 +282,24 @@ def maybe_prompt_run_in_sandbox(name: str | None) -> bool:
     return False
 
 
-def should_run_in_sandbox(
-    sandbox: bool | None, dangerous_sandbox: bool | None, name: str | None
-) -> bool:
+def should_run_in_sandbox(sandbox: bool | None, name: str | None) -> bool:
     """Return whether the named notebook should be run in a sandbox.
 
-    Prompts the user if sandbox is None and the notebook has sandbox metadata.
+    Prompts the user if sandbox is None and the notebook has sandbox metadata
+    (only for single notebook, not directories).
 
-    The `sandbox` arg is whether the user requested sandbox. Even
-    if running in sandbox was requested, it may not be allowed
-    if the target is a directory (unless overridden by `dangerous_sandbox`).
+    With IPC-based kernel architecture, each notebook gets its own sandboxed
+    kernel, so multi-notebook servers are now supported with --sandbox.
     """
-
-    # Dangerous sandbox can be forced on by setting an environment variable;
-    # this allows our VS Code extension to force sandbox regardless of the
-    # marimo version.
-    if sandbox and os.getenv("MARIMO_DANGEROUS_SANDBOX"):
-        dangerous_sandbox = True
-
-    if dangerous_sandbox and (name is None or os.path.isdir(name)):
-        sandbox = True
-        click.echo(
-            click.style(
-                "Warning: Using sandbox with multi-notebook edit servers is dangerous.\n",
-                fg="yellow",
-            )
-            + "Notebook dependencies may not be respected, may not be written, and may be overwritten.\n"
-            + "Learn more: https://github.com/marimo-team/marimo/issues/5219l.\n",
-            err=True,
-        )
-
     # When the sandbox flag is omitted we infer whether to
-    # to start in sandbox mode by examining the notebook file and
-    # prompting the user.
+    # start in sandbox mode by examining the notebook file and
+    # prompting the user. Only prompt for single notebooks, not directories.
     if sandbox is None:
-        sandbox = maybe_prompt_run_in_sandbox(name)
-
-    # Validation: we don't yet support multi-notebook sandboxed servers.
-    if (
-        sandbox
-        and not dangerous_sandbox
-        and (name is None or os.path.isdir(name))
-    ):
-        raise click.UsageError(
-            """marimo's package sandbox requires a notebook name:
-
-    * marimo edit --sandbox my_notebook.py
-
-  Multi-notebook sandboxed servers (marimo edit --sandbox) are not supported.
-  Follow this issue at: https://github.com/marimo-team/marimo/issues/2598."""
-        )
+        # Don't prompt for directories - user must explicitly pass --sandbox
+        if name is not None and not os.path.isdir(name):
+            sandbox = maybe_prompt_run_in_sandbox(name)
+        else:
+            sandbox = False
 
     return sandbox
 

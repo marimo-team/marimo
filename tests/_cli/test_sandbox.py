@@ -9,6 +9,7 @@ import pytest
 from marimo._cli.sandbox import (
     _normalize_sandbox_dependencies,
     construct_uv_command,
+    resolve_sandbox_mode,
     should_run_in_sandbox,
 )
 from marimo._utils.inline_script_metadata import PyProjectReader
@@ -436,7 +437,6 @@ import marimo
             ):
                 result = should_run_in_sandbox(
                     sandbox=None,
-                    dangerous_sandbox=None,
                     name=str(script_path),
                 )
                 assert result
@@ -446,7 +446,6 @@ def test_should_run_in_sandbox_explicit_flag() -> None:
     """Test that should_run_in_sandbox returns True when sandbox=True."""
     result = should_run_in_sandbox(
         sandbox=True,
-        dangerous_sandbox=None,
         name="test.py",
     )
     assert result
@@ -456,33 +455,35 @@ def test_should_run_in_sandbox_explicit_false() -> None:
     """Test that should_run_in_sandbox returns False when sandbox=False."""
     result = should_run_in_sandbox(
         sandbox=False,
-        dangerous_sandbox=None,
         name="test.py",
     )
     assert not result
 
 
-def test_should_run_in_sandbox_dangerous_sandbox(tmp_path: Path) -> None:
-    """Test that dangerous_sandbox allows sandbox for directories."""
+def test_should_run_in_sandbox_directory(tmp_path: Path) -> None:
+    """Test that sandbox works with directories (IPC-based kernel)."""
     dir_path = tmp_path / "notebooks"
     dir_path.mkdir()
 
-    # Without dangerous_sandbox, should raise an error
-    with pytest.raises(click.UsageError):
-        should_run_in_sandbox(
-            sandbox=True,
-            dangerous_sandbox=False,
-            name=str(dir_path),
-        )
+    # With IPC-based kernel, sandbox now works with directories
+    result = should_run_in_sandbox(
+        sandbox=True,
+        name=str(dir_path),
+    )
+    assert result
 
-    # With dangerous_sandbox, should work
-    with patch("click.echo"):
-        result = should_run_in_sandbox(
-            sandbox=True,
-            dangerous_sandbox=True,
-            name=str(dir_path),
-        )
-        assert result
+
+def test_should_run_in_sandbox_directory_no_prompt(tmp_path: Path) -> None:
+    """Test that directories don't prompt when sandbox=None."""
+    dir_path = tmp_path / "notebooks"
+    dir_path.mkdir()
+
+    # For directories, sandbox=None should not prompt and return False
+    result = should_run_in_sandbox(
+        sandbox=None,
+        name=str(dir_path),
+    )
+    assert not result
 
 
 def test_construct_uv_cmd_without_python_version(tmp_path: Path) -> None:
@@ -508,3 +509,160 @@ import marimo
     assert "--python" in uv_cmd
     python_idx = uv_cmd.index("--python")
     assert uv_cmd[python_idx + 1] == platform.python_version()
+
+
+# Tests for resolve_sandbox_mode()
+
+
+def test_resolve_sandbox_mode_sandbox_true_with_uv() -> None:
+    """sandbox=True + uv available → sandbox mode."""
+    with patch(
+        "marimo._cli.sandbox.should_use_external_env", return_value=None
+    ):
+        with patch(
+            "marimo._cli.sandbox.DependencyManager.which",
+            return_value="/usr/bin/uv",
+        ):
+            sandbox_mode, external_python = resolve_sandbox_mode(
+                sandbox=True, name="test.py"
+            )
+            assert sandbox_mode is True
+            assert external_python is None
+
+
+def test_resolve_sandbox_mode_sandbox_true_with_external_env_sync_yes(
+    tmp_path: Path,
+) -> None:
+    """sandbox=True + external env + user confirms sync → sync and use external env."""
+    script_path = tmp_path / "test.py"
+    script_path.write_text(
+        """
+# /// script
+# dependencies = ["numpy"]
+# ///
+import marimo
+    """
+    )
+    with patch(
+        "marimo._cli.sandbox.should_use_external_env",
+        return_value="/path/to/python",
+    ):
+        with patch(
+            "marimo._cli.sandbox.DependencyManager.which",
+            return_value="/usr/bin/uv",
+        ):
+            with patch("marimo._cli.sandbox.click.confirm", return_value=True):
+                with patch(
+                    "marimo._cli.sandbox.sys.stdin.isatty", return_value=True
+                ):
+                    with patch(
+                        "marimo._cli.sandbox._sync_deps_to_external_env"
+                    ) as mock_sync:
+                        sandbox_mode, external_python = resolve_sandbox_mode(
+                            sandbox=True, name=str(script_path)
+                        )
+                        assert sandbox_mode is False
+                        assert external_python == "/path/to/python"
+                        mock_sync.assert_called_once()
+
+
+def test_resolve_sandbox_mode_sandbox_true_with_external_env_sync_no() -> None:
+    """sandbox=True + external env + user declines sync → use external env without sync."""
+    with patch(
+        "marimo._cli.sandbox.should_use_external_env",
+        return_value="/path/to/python",
+    ):
+        with patch(
+            "marimo._cli.sandbox.DependencyManager.which",
+            return_value="/usr/bin/uv",
+        ):
+            with patch(
+                "marimo._cli.sandbox.click.confirm", return_value=False
+            ):
+                with patch(
+                    "marimo._cli.sandbox.sys.stdin.isatty", return_value=True
+                ):
+                    with patch(
+                        "marimo._cli.sandbox._sync_deps_to_external_env"
+                    ) as mock_sync:
+                        sandbox_mode, external_python = resolve_sandbox_mode(
+                            sandbox=True, name="test.py"
+                        )
+                        assert sandbox_mode is False
+                        assert external_python == "/path/to/python"
+                        mock_sync.assert_not_called()
+
+
+def test_resolve_sandbox_mode_sandbox_true_no_uv_with_external_env() -> None:
+    """sandbox=True + no uv + external env → warn, use external env."""
+    with patch(
+        "marimo._cli.sandbox.should_use_external_env",
+        return_value="/path/to/python",
+    ):
+        with patch(
+            "marimo._cli.sandbox.DependencyManager.which", return_value=None
+        ):
+            sandbox_mode, external_python = resolve_sandbox_mode(
+                sandbox=True, name="test.py"
+            )
+            assert sandbox_mode is False
+            assert external_python == "/path/to/python"
+
+
+def test_resolve_sandbox_mode_sandbox_true_no_uv_no_external_env() -> None:
+    """sandbox=True + no uv + no external env → error."""
+    with patch(
+        "marimo._cli.sandbox.should_use_external_env", return_value=None
+    ):
+        with patch(
+            "marimo._cli.sandbox.DependencyManager.which", return_value=None
+        ):
+            with pytest.raises(click.UsageError) as exc_info:
+                resolve_sandbox_mode(sandbox=True, name="test.py")
+            assert "uv must be installed" in str(exc_info.value)
+
+
+def test_resolve_sandbox_mode_sandbox_false() -> None:
+    """sandbox=False → no sandbox, return external python if configured."""
+    with patch(
+        "marimo._cli.sandbox.should_use_external_env",
+        return_value="/path/to/python",
+    ):
+        sandbox_mode, external_python = resolve_sandbox_mode(
+            sandbox=False, name="test.py"
+        )
+        assert sandbox_mode is False
+        assert external_python == "/path/to/python"
+
+
+def test_resolve_sandbox_mode_sandbox_none_with_external_env(
+    tmp_path: Path,
+) -> None:
+    """sandbox=None + auto-detect prompts yes + external env → external env."""
+    script_path = tmp_path / "test.py"
+    script_path.write_text(
+        """
+# /// script
+# dependencies = ["numpy"]
+# ///
+import marimo
+    """
+    )
+    with patch(
+        "marimo._cli.sandbox.should_use_external_env",
+        return_value="/path/to/python",
+    ):
+        with patch(
+            "marimo._cli.sandbox.DependencyManager.which",
+            return_value="/usr/bin/uv",
+        ):
+            with patch("marimo._cli.sandbox.click.confirm", return_value=True):
+                with patch(
+                    "marimo._cli.sandbox.sys.stdin.isatty", return_value=True
+                ):
+                    sandbox_mode, external_python = resolve_sandbox_mode(
+                        sandbox=None, name=str(script_path)
+                    )
+                    # External env takes precedence over auto-detected sandbox
+                    assert sandbox_mode is False
+                    assert external_python == "/path/to/python"

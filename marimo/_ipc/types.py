@@ -34,6 +34,9 @@ class KernelArgs(msgspec.Struct):
     log_level: int
     profile_path: typing.Union[str, None]
     connection_info: ConnectionInfo
+    # Runtime behavior flags
+    virtual_files_supported: bool = True
+    redirect_console_to_browser: bool = True
 
     def encode_json(self) -> bytes:
         return encode_json_bytes(self)

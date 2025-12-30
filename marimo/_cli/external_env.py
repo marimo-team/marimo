@@ -7,25 +7,29 @@ import shutil
 import subprocess
 import sys
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from marimo import _loggers
 
 LOGGER = _loggers.marimo_logger()
 
 
-def resolve_python_path(env_config: dict[str, Any]) -> str | None:
+def resolve_python_path(
+    env_config: dict[str, Any],
+    base_path: str | None = None,
+) -> str | None:
     """Resolve environment config to an absolute Python path.
 
     Args:
         env_config: Dict with optional keys: python, conda, use_active
+        base_path: Base path for resolving relative Python paths (e.g., notebook directory)
 
     Returns:
         Absolute path to Python interpreter, or None if no config specified.
     """
     # Direct Python path takes priority
     if python_path := env_config.get("python"):
-        return _validate_python_path(python_path)
+        return _validate_python_path(python_path, base_path)
 
     # Conda environment by name
     if conda_env := env_config.get("conda"):
@@ -38,11 +42,34 @@ def resolve_python_path(env_config: dict[str, Any]) -> str | None:
     return None
 
 
-def _validate_python_path(python_path: str) -> str | None:
-    """Validate that a Python path exists and is executable."""
+def _validate_python_path(
+    python_path: str,
+    base_path: str | None = None,
+) -> str | None:
+    """Validate that a Python path exists and is executable.
+
+    Args:
+        python_path: Path to Python interpreter (absolute or relative)
+        base_path: Base path for resolving relative paths (e.g., notebook directory)
+
+    Returns:
+        Absolute path to Python interpreter, or None if not found.
+        Note: Does NOT resolve symlinks, so venv Pythons remain as venv paths.
+    """
     path = Path(python_path)
+
+    # If relative path and base_path provided, resolve relative to base
+    if not path.is_absolute() and base_path:
+        base_dir = Path(base_path)
+        if base_dir.is_file():
+            base_dir = base_dir.parent
+        path = base_dir / python_path
+
     if path.exists() and path.is_file():
-        return str(path.resolve())
+        # Use absolute() instead of resolve() to preserve symlinks
+        # This is important for venvs where we want to use the venv's
+        # Python path to get its site-packages, not the underlying binary
+        return str(path.absolute())
     LOGGER.warning(f"Python path does not exist: {python_path}")
     return None
 
@@ -170,64 +197,89 @@ def _check_marimo_installed(python_path: str) -> bool:
 
 
 def is_same_python(python_path: str) -> bool:
-    """Check if the given Python path matches the current interpreter."""
+    """Check if the given Python is in the same virtual environment.
+
+    We compare virtual environment prefixes rather than resolved binaries,
+    because tools like uv use symlinks to a shared Python installation.
+    Two different venvs may have the same underlying Python binary but
+    different packages.
+    """
     try:
-        current = Path(sys.executable).resolve()
-        target = Path(python_path).resolve()
-        return current == target
+        # Get the venv prefix for current Python
+        current_prefix = Path(sys.prefix).resolve()
+
+        # Get the venv prefix for target Python
+        # The prefix is typically 2 levels up from bin/python
+        target_path = Path(python_path).resolve()
+        target_prefix = target_path.parent.parent.resolve()
+
+        return current_prefix == target_prefix
     except (OSError, ValueError):
         return False
 
 
-def run_with_external_python(
-    python_path: str,
-    args: list[str],
-    env: Optional[dict[str, str]] = None,
-) -> int:
-    """Run marimo using the specified Python interpreter.
+def get_conda_env_vars(python_path: str) -> dict[str, str]:
+    """Get environment variables needed for conda environments.
 
-    If marimo is not installed in the external environment, it will be
-    injected via PYTHONPATH so that the external env's packages
-    still take precedence (PYTHONPATH is appended, not prepended).
+    For conda, we need to set LD_LIBRARY_PATH to include the conda lib dir
+    so that compiled extensions (numpy, etc.) find their dependencies.
 
     Args:
-        python_path: Absolute path to Python interpreter.
-        args: Command line arguments to pass to marimo.
-        env: Optional environment variables to set.
+        python_path: Path to the Python interpreter.
 
     Returns:
-        Exit code from the subprocess.
+        Dictionary of environment variables to set.
     """
-    from marimo._cli.print import echo, muted
+    env: dict[str, str] = {}
 
-    # Set up environment
-    proc_env = os.environ.copy()
-    if env:
-        proc_env.update(env)
+    # Check if this looks like a conda environment
+    path = Path(python_path)
+    # /path/to/env/bin/python -> /path/to/env
+    conda_prefix = path.parent.parent
+    lib_path = conda_prefix / "lib"
 
-    # Check if marimo is installed in the external environment
-    if _check_marimo_installed(python_path):
-        # Marimo is installed - use standard invocation
-        cmd = [python_path, "-m", "marimo"] + args
-        echo(f"Using external Python: {muted(python_path)}", err=True)
-    else:
-        # Marimo not installed - inject via PYTHONPATH
-        # PYTHONPATH entries are added after the external env's site-packages,
-        # so external env's packages take precedence
-        current_pythonpath = os.pathsep.join(sys.path)
-        existing = proc_env.get("PYTHONPATH", "")
+    if lib_path.exists() and (conda_prefix / "conda-meta").exists():
+        # This is a conda environment - set LD_LIBRARY_PATH
+        existing = os.environ.get("LD_LIBRARY_PATH", "")
         if existing:
-            proc_env["PYTHONPATH"] = (
-                f"{existing}{os.pathsep}{current_pythonpath}"
-            )
+            env["LD_LIBRARY_PATH"] = f"{lib_path}{os.pathsep}{existing}"
         else:
-            proc_env["PYTHONPATH"] = current_pythonpath
+            env["LD_LIBRARY_PATH"] = str(lib_path)
 
-        cmd = [python_path, "-m", "marimo"] + args
-        echo(
-            f"Using external Python: {muted(python_path)} "
-            "(injecting marimo via PYTHONPATH)",
-            err=True,
-        )
+    return env
 
-    return subprocess.call(cmd, env=proc_env)
+
+def get_marimo_path() -> str:
+    """Get the path to the marimo package for PYTHONPATH injection."""
+    # marimo/_cli/external_env.py -> marimo/
+    return str(Path(__file__).parent.parent)
+
+
+def get_required_dependency_paths() -> list[str]:
+    """Get paths to critical dependencies needed for IPC kernel.
+
+    When marimo is injected via PYTHONPATH, we also need to inject
+    its IPC dependencies (msgspec, pyzmq) since the external env
+    may not have them.
+    """
+    paths = []
+
+    # Critical dependencies for IPC
+    dependencies = ["msgspec", "zmq"]  # zmq is the package name for pyzmq
+
+    for dep in dependencies:
+        try:
+            import importlib.util
+
+            spec = importlib.util.find_spec(dep)
+            if spec and spec.origin:
+                # Get the parent directory (site-packages or similar)
+                dep_path = Path(spec.origin).parent
+                # For packages like zmq, we want the parent of zmq/
+                if dep_path.name == dep:
+                    dep_path = dep_path.parent
+                paths.append(str(dep_path))
+        except (ImportError, AttributeError):
+            LOGGER.debug(f"Could not find path for dependency: {dep}")
+
+    return list(set(paths))  # Remove duplicates

@@ -327,19 +327,6 @@ edit_help_msg = "\n".join(
     help=sandbox_message,
 )
 @click.option(
-    "--dangerous-sandbox/--no-dangerous-sandbox",
-    is_flag=True,
-    default=None,
-    show_default=False,
-    type=bool,
-    hidden=True,
-    help="""Enables the usage of package sandboxing when running a multi-edit
-notebook server. This behavior can lead to surprising and unintended consequences,
-such as incorrectly overwriting package requirements or failing to write out
-requirements. These and other issues are described in
-https://github.com/marimo-team/marimo/issues/5219.""",
-)
-@click.option(
     "--trusted/--untrusted",
     is_flag=True,
     default=None,
@@ -428,7 +415,6 @@ def edit(
     allow_origins: Optional[tuple[str, ...]],
     skip_update_check: bool,
     sandbox: Optional[bool],
-    dangerous_sandbox: Optional[bool],
     trusted: Optional[bool],
     profile_dir: Optional[str],
     watch: bool,
@@ -442,12 +428,7 @@ def edit(
     name: Optional[str],
     args: tuple[str, ...],
 ) -> None:
-    from marimo._cli.sandbox import (
-        check_external_env_sandbox_conflict,
-        run_in_sandbox,
-        should_run_in_sandbox,
-        should_use_external_env,
-    )
+    from marimo._cli.sandbox import resolve_sandbox_mode
 
     pass_on_stdin = token_password_file == "-"
     # We support unix-style piping, e.g. cat notebook.py | marimo edit
@@ -514,22 +495,10 @@ def edit(
     # We check this after name validation, because this will convert
     # URLs into local file paths
 
-    # Check for conflict between external env config and --sandbox flag
-    check_external_env_sandbox_conflict(name=name, sandbox=sandbox)
-
-    # Check for external environment configuration
-    if external_python := should_use_external_env(name):
-        from marimo._cli.external_env import run_with_external_python
-
-        run_with_external_python(external_python, sys.argv[1:])
-        return
-
-    if should_run_in_sandbox(
-        sandbox=sandbox, dangerous_sandbox=dangerous_sandbox, name=name
-    ):
-        # TODO: consider adding recommended as well
-        run_in_sandbox(sys.argv[1:], name=name, additional_features=["lsp"])
-        return
+    # Resolve sandbox mode and external python (handles conflicts and fallbacks)
+    sandbox_mode, external_python = resolve_sandbox_mode(
+        sandbox=sandbox, name=name
+    )
 
     start(
         file_router=AppFileRouter.infer(name),
@@ -559,6 +528,8 @@ def edit(
         server_startup_command=server_startup_command,
         asset_url=asset_url,
         timeout=timeout,
+        external_python=external_python,
+        sandbox_mode=sandbox_mode,
     )
 
 
@@ -955,12 +926,7 @@ def run(
     name: str,
     args: tuple[str, ...],
 ) -> None:
-    from marimo._cli.sandbox import (
-        check_external_env_sandbox_conflict,
-        run_in_sandbox,
-        should_run_in_sandbox,
-        should_use_external_env,
-    )
+    from marimo._cli.sandbox import resolve_sandbox_mode
 
     if prompt_run_in_docker_container(name, trusted=trusted):
         from marimo._cli.run_docker import run_in_docker
@@ -996,21 +962,10 @@ def run(
     # We check this after name validation, because this will convert
     # URLs into local file paths
 
-    # Check for conflict between external env config and --sandbox flag
-    check_external_env_sandbox_conflict(name=name, sandbox=sandbox)
-
-    # Check for external environment configuration
-    if external_python := should_use_external_env(name):
-        from marimo._cli.external_env import run_with_external_python
-
-        run_with_external_python(external_python, sys.argv[1:])
-        return
-
-    if should_run_in_sandbox(
-        sandbox=sandbox, dangerous_sandbox=None, name=name
-    ):
-        run_in_sandbox(sys.argv[1:], name=name)
-        return
+    # Resolve sandbox mode and external python (handles conflicts and fallbacks)
+    sandbox_mode, external_python = resolve_sandbox_mode(
+        sandbox=sandbox, name=name
+    )
 
     start(
         file_router=AppFileRouter.from_filename(file),
@@ -1037,6 +992,8 @@ def run(
         redirect_console_to_browser=redirect_console_to_browser,
         server_startup_command=server_startup_command,
         asset_url=asset_url,
+        external_python=external_python,
+        sandbox_mode=sandbox_mode,
     )
 
 
