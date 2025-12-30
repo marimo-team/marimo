@@ -29,7 +29,6 @@ from marimo._dependencies.dependencies import DependencyManager
 from marimo._server.templates.templates import get_version
 from marimo._utils.platform import is_windows
 from marimo._utils.toml import read_toml
-from tests.utils import try_assert_n_times
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -792,30 +791,6 @@ def test_cli_sandbox_edit_new_file() -> None:
     )
     contents = _try_fetch(port)
     _check_contents(p, b"edit", contents)
-
-
-@pytest.mark.skipif(not HAS_UV, reason="uv is required for sandbox tests")
-def test_cli_sandbox_edit_none_not_supported() -> None:
-    port = _get_port()
-    p = subprocess.Popen(
-        [
-            "marimo",
-            "edit",
-            "-p",
-            str(port),
-            "--headless",
-            "--no-token",
-            "--sandbox",
-        ],
-        stderr=subprocess.PIPE,
-    )
-
-    def _assert():
-        assert p.returncode != 0
-
-    try_assert_n_times(5, _assert)
-    assert p.stderr is not None
-    assert "not supported" in p.stderr.read().decode()
 
 
 @pytest.mark.skipif(not HAS_UV, reason="uv is required for sandbox tests")

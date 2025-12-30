@@ -243,11 +243,9 @@ import marimo as mo
 
 
 class TestSandboxConflict:
-    def test_conflict_raises_error(self, tmp_path: Path) -> None:
-        """Test that sandbox + env config raises error."""
-        from click import UsageError
-
-        from marimo._cli.sandbox import check_external_env_sandbox_conflict
+    def test_conflict_uses_external_env(self, tmp_path: Path) -> None:
+        """Test that sandbox + env config prefers external env (not error)."""
+        from marimo._cli.sandbox import resolve_sandbox_mode
 
         notebook = tmp_path / "test.py"
         notebook.write_text("""# /// script
@@ -272,14 +270,18 @@ import marimo as mo
         with patch.dict(
             os.environ, {"VIRTUAL_ENV": str(tmp_path / "venv")}, clear=False
         ):
-            with pytest.raises(UsageError, match="Cannot use --sandbox"):
-                check_external_env_sandbox_conflict(
+            # Mock to avoid interactive prompt
+            with patch("marimo._cli.sandbox.sys.stdin.isatty", return_value=False):
+                sandbox_mode, external_python = resolve_sandbox_mode(
                     name=str(notebook), sandbox=True
                 )
+                # Should use external env, not sandbox
+                assert sandbox_mode is False
+                assert external_python is not None
 
     def test_no_conflict_without_sandbox(self, tmp_path: Path) -> None:
         """Test no error when sandbox is False/None."""
-        from marimo._cli.sandbox import check_external_env_sandbox_conflict
+        from marimo._cli.sandbox import resolve_sandbox_mode
 
         notebook = tmp_path / "test.py"
         notebook.write_text("""# /// script
@@ -290,6 +292,29 @@ import marimo as mo
 import marimo as mo
 """)
 
-        # Should not raise
-        check_external_env_sandbox_conflict(name=str(notebook), sandbox=False)
-        check_external_env_sandbox_conflict(name=str(notebook), sandbox=None)
+        # Create a venv so use_active resolves
+        if sys.platform == "win32":
+            bin_dir = tmp_path / "venv" / "Scripts"
+            python = bin_dir / "python.exe"
+        else:
+            bin_dir = tmp_path / "venv" / "bin"
+            python = bin_dir / "python"
+        bin_dir.mkdir(parents=True)
+        python.touch()
+        python.chmod(0o755)
+
+        with patch.dict(
+            os.environ, {"VIRTUAL_ENV": str(tmp_path / "venv")}, clear=False
+        ):
+            # Should not raise, and should use external env
+            sandbox_mode, external_python = resolve_sandbox_mode(
+                name=str(notebook), sandbox=False
+            )
+            assert sandbox_mode is False
+            assert external_python is not None
+
+            sandbox_mode, external_python = resolve_sandbox_mode(
+                name=str(notebook), sandbox=None
+            )
+            assert sandbox_mode is False
+            assert external_python is not None

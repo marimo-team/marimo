@@ -428,11 +428,7 @@ def edit(
     name: Optional[str],
     args: tuple[str, ...],
 ) -> None:
-    from marimo._cli.sandbox import (
-        check_external_env_sandbox_conflict,
-        should_run_in_sandbox,
-        should_use_external_env,
-    )
+    from marimo._cli.sandbox import resolve_sandbox_mode
 
     pass_on_stdin = token_password_file == "-"
     # We support unix-style piping, e.g. cat notebook.py | marimo edit
@@ -499,14 +495,10 @@ def edit(
     # We check this after name validation, because this will convert
     # URLs into local file paths
 
-    # Check for conflict between external env config and --sandbox flag
-    check_external_env_sandbox_conflict(name=name, sandbox=sandbox)
-
-    # Check for external environment configuration
-    external_python = should_use_external_env(name)
-
-    # Determine if sandbox mode should be enabled
-    sandbox_mode = should_run_in_sandbox(sandbox=sandbox, name=name)
+    # Resolve sandbox mode and external python (handles conflicts and fallbacks)
+    sandbox_mode, external_python = resolve_sandbox_mode(
+        sandbox=sandbox, name=name
+    )
 
     start(
         file_router=AppFileRouter.infer(name),
@@ -934,11 +926,7 @@ def run(
     name: str,
     args: tuple[str, ...],
 ) -> None:
-    from marimo._cli.sandbox import (
-        check_external_env_sandbox_conflict,
-        should_run_in_sandbox,
-        should_use_external_env,
-    )
+    from marimo._cli.sandbox import resolve_sandbox_mode
 
     if prompt_run_in_docker_container(name, trusted=trusted):
         from marimo._cli.run_docker import run_in_docker
@@ -974,14 +962,10 @@ def run(
     # We check this after name validation, because this will convert
     # URLs into local file paths
 
-    # Check for conflict between external env config and --sandbox flag
-    check_external_env_sandbox_conflict(name=name, sandbox=sandbox)
-
-    # Check for external environment configuration
-    external_python = should_use_external_env(name)
-
-    # Determine if sandbox mode should be enabled
-    sandbox_mode = should_run_in_sandbox(sandbox=sandbox, name=name)
+    # Resolve sandbox mode and external python (handles conflicts and fallbacks)
+    sandbox_mode, external_python = resolve_sandbox_mode(
+        sandbox=sandbox, name=name
+    )
 
     start(
         file_router=AppFileRouter.from_filename(file),
