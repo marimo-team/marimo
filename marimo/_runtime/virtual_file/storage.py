@@ -39,7 +39,7 @@ class VirtualFileStorage(Protocol):
         ...
 
 
-class SharedMemoryStorage:
+class SharedMemoryStorage(VirtualFileStorage):
     """Storage backend using multiprocessing shared memory.
 
     Used in `edit` mode when kernel runs in a separate process.
@@ -124,7 +124,7 @@ class SharedMemoryStorage:
         return key in self._storage
 
 
-class InMemoryStorage:
+class InMemoryStorage(VirtualFileStorage):
     """Storage backend using simple in-memory dictionary.
 
     Used in `run` mode when kernel runs in the same process as the server.
