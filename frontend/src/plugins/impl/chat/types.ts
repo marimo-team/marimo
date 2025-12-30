@@ -4,10 +4,8 @@ import type { UIMessage } from "ai";
 
 export type ChatRole = "system" | "user" | "assistant";
 
-export interface ChatMessage {
-  role: ChatRole;
-  content: string; // TODO: Deprecate content
-  parts: UIMessage["parts"] | null;
+export interface ChatMessage extends UIMessage {
+  content: string | null; // Content is only added for backwards compatibility
 }
 
 export interface SendMessageRequest {

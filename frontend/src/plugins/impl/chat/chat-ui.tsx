@@ -4,7 +4,12 @@ import { type UIMessage, useChat } from "@ai-sdk/react";
 import { ChatBubbleIcon } from "@radix-ui/react-icons";
 import { PopoverAnchor } from "@radix-ui/react-popover";
 import type { ReactCodeMirrorRef } from "@uiw/react-codemirror";
-import { DefaultChatTransport, type FileUIPart } from "ai";
+import {
+  createUIMessageStreamResponse,
+  DefaultChatTransport,
+  type FileUIPart,
+  type UIMessageChunk,
+} from "ai";
 import { startCase } from "lodash-es";
 import {
   BotMessageSquareIcon,
@@ -55,7 +60,7 @@ import { Logger } from "@/utils/Logger";
 import { Objects } from "@/utils/objects";
 import { ErrorBanner } from "../common/error-banner";
 import type { PluginFunctions } from "./ChatPlugin";
-import type { ChatConfig, ChatMessage } from "./types";
+import type { ChatConfig } from "./types";
 
 const LazyStreamdown = lazy(() =>
   import("streamdown").then((module) => ({ default: module.Streamdown })),
@@ -67,8 +72,9 @@ interface Props extends PluginFunctions {
   showConfigurationControls: boolean;
   maxHeight: number | undefined;
   allowAttachments: boolean | string[];
-  value: ChatMessage[];
-  setValue: (messages: ChatMessage[]) => void;
+  isPydanticAI: boolean;
+  value: UIMessage[];
+  setValue: (messages: UIMessage[]) => void;
   host: HTMLElement;
 }
 
@@ -87,14 +93,12 @@ export const Chatbot: React.FC<Props> = (props) => {
     frontendMessageIndex: number | null;
   }>({ backendMessageId: null, frontendMessageIndex: null });
 
+  const pydanticStreamControllerRef =
+    useRef<ReadableStreamDefaultController<UIMessageChunk> | null>(null);
+
   const { data: initialMessages } = useAsyncData(async () => {
-    const chatMessages = await props.get_chat_history({});
-    const messages: UIMessage[] = chatMessages.messages.map((message, idx) => ({
-      id: idx.toString(),
-      role: message.role,
-      parts: message.parts ?? [],
-    }));
-    return messages;
+    const response = await props.get_chat_history({});
+    return response.messages;
   }, []);
 
   const {
@@ -119,15 +123,48 @@ export const Chatbot: React.FC<Props> = (props) => {
           messages: UIMessage[];
         };
         try {
-          const messages = body.messages.map((m) => ({
-            role: m.role,
-            content: m.parts
-              ?.map((p) => ("text" in p ? p.text : ""))
-              .join("\n"),
-            parts: m.parts,
-          }));
+          // Content is added for backwards compatibility
+          const messages = body.messages.map((m) => {
+            return {
+              ...m,
+              content: m.parts
+                ?.map((p) => ("text" in p ? p.text : ""))
+                .join("\n"),
+            };
+          });
 
-          // Create a placeholder message for streaming
+          if (props.isPydanticAI) {
+            const stream = new ReadableStream<UIMessageChunk>({
+              start(controller) {
+                pydanticStreamControllerRef.current = controller;
+              },
+              cancel() {
+                pydanticStreamControllerRef.current = null;
+              },
+            });
+
+            // Start the prompt (don't await - chunks come via events)
+            props
+              .send_prompt({
+                messages: messages,
+                config: {
+                  max_tokens: config.max_tokens,
+                  temperature: config.temperature,
+                  top_p: config.top_p,
+                  top_k: config.top_k,
+                  frequency_penalty: config.frequency_penalty,
+                  presence_penalty: config.presence_penalty,
+                },
+              })
+              .catch((error: Error) => {
+                pydanticStreamControllerRef.current?.error(error);
+                pydanticStreamControllerRef.current = null;
+              });
+
+            return createUIMessageStreamResponse({ stream });
+          }
+
+          // Create a placeholder message for streaming (non-pydantic-ai)
           const messageId = Date.now().toString();
 
           setMessages((prev) => [
@@ -150,6 +187,22 @@ export const Chatbot: React.FC<Props> = (props) => {
               presence_penalty: config.presence_penalty,
             },
           });
+
+          // Only pydantic-ai response is an array, which is handled above
+          // So this should not happen
+          if (Array.isArray(response)) {
+            Logger.warn("Non-pydantic-ai response is an array", { response });
+            const stream = new ReadableStream<UIMessageChunk>({
+              start(controller) {
+                for (const chunk of response as UIMessageChunk[]) {
+                  controller.enqueue(chunk);
+                }
+                controller.close();
+              },
+            });
+
+            return createUIMessageStreamResponse({ stream });
+          }
 
           // If streaming didn't happen (non-generator response), update the message
           // Check if streaming state is still set (meaning no chunks were received)
@@ -201,6 +254,12 @@ export const Chatbot: React.FC<Props> = (props) => {
         backendMessageId: null,
         frontendMessageIndex: null,
       };
+
+      // For pydantic-ai, useChat will form the data structure,
+      // so we set the value directly from the frontend.
+      if (props.isPydanticAI) {
+        props.setValue(message.messages);
+      }
     },
     onError: (error) => {
       Logger.error("An error occurred:", error);
@@ -219,11 +278,42 @@ export const Chatbot: React.FC<Props> = (props) => {
     (e) => {
       const message = e.detail.message;
       if (
-        typeof message === "object" &&
-        message !== null &&
-        "type" in message &&
-        message.type === "stream_chunk"
+        typeof message !== "object" ||
+        message === null ||
+        !("type" in message)
       ) {
+        return;
+      }
+
+      if (props.isPydanticAI) {
+        if (message.type !== "stream_chunk") {
+          Logger.warn("Expected stream_chunk, got %s", message.type);
+        }
+
+        // Push to the stream for useChat to process
+        const controller = pydanticStreamControllerRef.current;
+        if (!controller) {
+          return;
+        }
+
+        const pydanticMessage = message as {
+          type: string;
+          message_id: string;
+          content?: UIMessageChunk;
+          is_final?: boolean;
+        };
+
+        if (pydanticMessage.is_final) {
+          controller.close();
+          pydanticStreamControllerRef.current = null;
+        } else if (pydanticMessage.content) {
+          controller.enqueue(pydanticMessage.content);
+        }
+        return;
+      }
+
+      // Handle regular text streaming chunks
+      if (message.type === "stream_chunk") {
         const chunkMessage = message as {
           type: string;
           message_id: string;

@@ -18,6 +18,7 @@ from typing import (
 import msgspec
 
 from marimo import _loggers
+from marimo._dependencies.dependencies import DependencyManager
 from marimo._utils.parse_dataclass import parse_raw
 
 LOGGER = _loggers.marimo_logger()
@@ -196,6 +197,9 @@ class ChatMessage(msgspec.Struct):
     # The content of the message.
     content: Any
 
+    # The id of the message.
+    id: str | None = None
+
     # Optional attachments to the message.
     # TODO: Deprecate in favour of parts
     attachments: Optional[list[ChatAttachment]] = None
@@ -203,6 +207,8 @@ class ChatMessage(msgspec.Struct):
     # Parts from AI SDK. (see types above)
     # TODO: Make this required
     parts: Optional[list[ChatPart]] = None
+
+    metadata: Any | None = None
 
     def __post_init__(self) -> None:
         # Hack: msgspec only supports discriminated unions. This is a hack to just
@@ -224,7 +230,14 @@ class ChatMessage(msgspec.Struct):
             except Exception:
                 continue
 
-        LOGGER.error(f"Could not decode part as {PartType}, for part {part}")
+        # For pydantic-ai, we want the part as-is
+        if DependencyManager.pydantic_ai.has():
+            from pydantic_ai.ui.vercel_ai.request_types import UIMessagePart
+
+            if isinstance(part, UIMessagePart):
+                return cast(ChatPart, part)
+
+        LOGGER.debug(f"Could not decode part as {PartType}, for part {part}")
         return None
 
 
