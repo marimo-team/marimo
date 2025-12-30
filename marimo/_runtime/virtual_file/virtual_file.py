@@ -6,7 +6,6 @@ import dataclasses
 import mimetypes
 import random
 import string
-import sys
 import threading
 from typing import TYPE_CHECKING, Optional, cast
 
@@ -14,6 +13,11 @@ from marimo import _loggers
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._runtime.cell_lifecycle_item import CellLifecycleItem
 from marimo._runtime.context import ContextNotInitializedError
+from marimo._runtime.virtual_file.storage import (
+    SharedMemoryStorage,
+    VirtualFileStorage,
+    VirtualFileStorageManager,
+)
 from marimo._utils.data_uri import build_data_url
 from marimo._utils.http import HTTPException, HTTPStatus
 from marimo._utils.platform import is_pyodide
@@ -24,11 +28,6 @@ if TYPE_CHECKING:
     from marimo._runtime.context.types import RuntimeContext
 
 LOGGER = _loggers.marimo_logger()
-
-if not is_pyodide():
-    # the shared_memory module is not supported in the Pyodide distribution
-    from multiprocessing import shared_memory
-
 
 _ALPHABET = string.ascii_letters + string.digits
 
@@ -161,8 +160,6 @@ class VirtualFileLifecycleItem(CellLifecycleItem):
 
 @dataclasses.dataclass
 class VirtualFileRegistryItem:
-    # contents of the file
-    shm: shared_memory.SharedMemory
     # number of HTML objects that are referencing this virtual file
     refcount: int
 
@@ -179,10 +176,15 @@ class VirtualFileRegistry:
     exposes methods for incrementing, decrementing, and getting the counts.
     """
 
+    storage: VirtualFileStorage
     registry: dict[str, VirtualFileRegistryItem] = dataclasses.field(
         default_factory=dict
     )
-    shutting_down = False
+    shutting_down: bool = False
+
+    def __post_init__(self) -> None:
+        # Set singleton reference for read_virtual_file()
+        VirtualFileStorageManager().storage = self.storage
 
     def __del__(self) -> None:
         self.shutdown()
@@ -224,43 +226,14 @@ class VirtualFileRegistry:
         # Skip adding if buffer is empty
         if len(buffer) == 0:
             return
-        # Immediately writes the contents of the file to an in-memory
-        # buffer; not lazy.
-        #
-        # To retrieve the buffer from another process, use:
-        #
-        # ```
-        # try:
-        #   shm = shared_memory.SharedMemory(name=key)
-        #   buffer_contents = bytes(shm.buf)
-        # except FileNotFoundError:
-        #   # virtual file was removed
-        # ```
-        shm = shared_memory.SharedMemory(
-            name=key,
-            create=True,
-            size=len(buffer),
-        )
-        shm.buf[: len(buffer)] = buffer
-        # we can safely close this shm, since we don't need to access its
-        # buffer; we do need to keep it around so we can unlink it later
-        if sys.platform != "win32":
-            # don't call close() on Windows, due to a bug in the Windows
-            # Python implementation. On Windows, close() actually unlinks
-            # (destroys) the shared_memory:
-            # https://stackoverflow.com/questions/63713241/segmentation-fault-using-python-shared-memory/63717188#63717188
-            shm.close()
-        # We have to keep a reference to the shared memory to prevent it from
-        # being destroyed on Windows
-        self.registry[key] = VirtualFileRegistryItem(shm=shm, refcount=0)
+
+        self.storage.store(key, buffer)
+        self.registry[key] = VirtualFileRegistryItem(refcount=0)
 
     def remove(self, virtual_file: VirtualFile) -> None:
         key = virtual_file.filename
         if key in self.registry:
-            if sys.platform == "win32":
-                self.registry[key].shm.close()
-            # destroy the shared memory
-            self.registry[key].shm.unlink()
+            self.storage.remove(key)
             del self.registry[key]
 
     def shutdown(self) -> None:
@@ -272,10 +245,7 @@ class VirtualFileRegistry:
             return
         try:
             self.shutting_down = True
-            for item in self.registry.values():
-                if sys.platform == "win32":
-                    item.shm.close()
-                item.shm.unlink()
+            self.storage.shutdown()
             self.registry.clear()
         finally:
             self.shutting_down = False
@@ -286,27 +256,13 @@ def _without_leading_dot(ext: str) -> str:
 
 
 def read_virtual_file(filename: str, byte_length: int) -> bytes:
-    if not shared_memory:
+    if is_pyodide():
         raise RuntimeError("Shared memory is not supported on this platform")
 
-    key = filename
-    shm = None
     try:
-        # NB: this can't be collapsed into a one-liner!
-        # doing it in one line yields a 'released memoryview ...'
-        # because shared_memory has built in ref-tracking + GC
-        shm = shared_memory.SharedMemory(name=key)
-        buffer_contents = bytes(shm.buf)[: int(byte_length)]
-    except FileNotFoundError as err:
-        LOGGER.debug(
-            "Error retrieving shared memory for virtual file: %s", err
-        )
+        return VirtualFileStorageManager().read(filename, byte_length)
+    except KeyError as err:
         raise HTTPException(
             HTTPStatus.NOT_FOUND,
             detail="File not found",
         ) from err
-    finally:
-        if shm is not None:
-            shm.close()
-
-    return buffer_contents
