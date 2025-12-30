@@ -176,8 +176,17 @@ jobs:
         shell: bash
         run: |
           echo "Checking tutorials..."
+          # Exclude dataflow.py and for_jupyter_users.py because they contain
+          # intentional errors (multiple definitions, cycles) for educational purposes
           uv run marimo check --ignore-scripts --fix \
-            marimo/_tutorials/**.py >> /dev/null \
+            marimo/_tutorials/intro.py \
+            marimo/_tutorials/fileformat.py \
+            marimo/_tutorials/sql.py \
+            marimo/_tutorials/markdown.py \
+            marimo/_tutorials/plots.py \
+            marimo/_tutorials/layout.py \
+            marimo/_tutorials/ui.py \
+            >> /dev/null \
             || echo "Errors expected"
           # Fail if there's a git diff
           if [[ -n "$(git status --porcelain marimo/_tutorials)" ]]; then
