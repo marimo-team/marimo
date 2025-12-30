@@ -576,7 +576,9 @@ def test_resolve_sandbox_mode_sandbox_true_with_external_env_sync_no() -> None:
             "marimo._cli.sandbox.DependencyManager.which",
             return_value="/usr/bin/uv",
         ):
-            with patch("marimo._cli.sandbox.click.confirm", return_value=False):
+            with patch(
+                "marimo._cli.sandbox.click.confirm", return_value=False
+            ):
                 with patch(
                     "marimo._cli.sandbox.sys.stdin.isatty", return_value=True
                 ):

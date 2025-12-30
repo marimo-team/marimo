@@ -70,9 +70,7 @@ def should_use_external_env(name: str | None) -> str | None:
     return None
 
 
-def _sync_deps_to_external_env(
-    name: str | None, external_python: str
-) -> None:
+def _sync_deps_to_external_env(name: str | None, external_python: str) -> None:
     """Sync notebook dependencies to external environment using uv."""
     if name is None:
         return
@@ -112,12 +110,23 @@ def _sync_deps_to_external_env(
         for editable in editable_reqs:
             editable_path = editable[3:].strip()
             result = subprocess.run(
-                [uv_bin, "pip", "install", "--python", external_python, "-e", editable_path],
+                [
+                    uv_bin,
+                    "pip",
+                    "install",
+                    "--python",
+                    external_python,
+                    "-e",
+                    editable_path,
+                ],
                 capture_output=True,
                 text=True,
             )
             if result.returncode != 0:
-                echo(f"Warning: Editable install failed: {result.stderr}", err=True)
+                echo(
+                    f"Warning: Editable install failed: {result.stderr}",
+                    err=True,
+                )
 
         # Install regular packages
         if regular_reqs:
@@ -128,12 +137,22 @@ def _sync_deps_to_external_env(
                 regular_req_file = f.name
 
             result = subprocess.run(
-                [uv_bin, "pip", "install", "--python", external_python, "-r", regular_req_file],
+                [
+                    uv_bin,
+                    "pip",
+                    "install",
+                    "--python",
+                    external_python,
+                    "-r",
+                    regular_req_file,
+                ],
                 capture_output=True,
                 text=True,
             )
             if result.returncode != 0:
-                echo(f"Warning: Package sync failed: {result.stderr}", err=True)
+                echo(
+                    f"Warning: Package sync failed: {result.stderr}", err=True
+                )
             else:
                 echo(green("Dependencies synced successfully."), err=True)
 
@@ -205,7 +224,10 @@ def resolve_sandbox_mode(
         # If auto-detected sandbox but external env configured, prefer external
         if sandbox_enabled and external_python:
             return False, external_python
-        return sandbox_enabled, external_python if not sandbox_enabled else None
+        return (
+            sandbox_enabled,
+            external_python if not sandbox_enabled else None,
+        )
 
     # Case 4: sandbox=True with uv available, or sandbox=False
     return sandbox, external_python if not sandbox else None

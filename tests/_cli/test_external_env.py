@@ -271,7 +271,9 @@ import marimo as mo
             os.environ, {"VIRTUAL_ENV": str(tmp_path / "venv")}, clear=False
         ):
             # Mock to avoid interactive prompt
-            with patch("marimo._cli.sandbox.sys.stdin.isatty", return_value=False):
+            with patch(
+                "marimo._cli.sandbox.sys.stdin.isatty", return_value=False
+            ):
                 sandbox_mode, external_python = resolve_sandbox_mode(
                     name=str(notebook), sandbox=True
                 )

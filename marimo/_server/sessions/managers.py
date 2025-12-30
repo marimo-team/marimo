@@ -363,12 +363,23 @@ class KernelManagerImpl(KernelManager):
                 # Extract path from "-e /path/to/package"
                 editable_path = editable[3:].strip()
                 result = subprocess.run(
-                    [uv_bin, "pip", "install", "--python", venv_python, "-e", editable_path],
+                    [
+                        uv_bin,
+                        "pip",
+                        "install",
+                        "--python",
+                        venv_python,
+                        "-e",
+                        editable_path,
+                    ],
                     capture_output=True,
                     text=True,
                 )
                 if result.returncode != 0:
-                    echo(f"Warning: Editable install failed: {result.stderr}", err=True)
+                    echo(
+                        f"Warning: Editable install failed: {result.stderr}",
+                        err=True,
+                    )
 
             # Install regular packages via requirements file
             if regular_reqs:
@@ -377,12 +388,23 @@ class KernelManagerImpl(KernelManager):
                     f.write("\n".join(regular_reqs))
 
                 result = subprocess.run(
-                    [uv_bin, "pip", "install", "--python", venv_python, "-r", req_file],
+                    [
+                        uv_bin,
+                        "pip",
+                        "install",
+                        "--python",
+                        venv_python,
+                        "-r",
+                        req_file,
+                    ],
                     capture_output=True,
                     text=True,
                 )
                 if result.returncode != 0:
-                    echo(f"Warning: Package install failed: {result.stderr}", err=True)
+                    echo(
+                        f"Warning: Package install failed: {result.stderr}",
+                        err=True,
+                    )
 
         # Phase 2: Return direct python command
         return [venv_python, "-m", "marimo._ipc.launch_kernel"]
