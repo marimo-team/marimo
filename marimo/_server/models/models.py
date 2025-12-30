@@ -23,7 +23,6 @@ from marimo._runtime.commands import (
     ListSQLTablesCommand,
     PreviewDatasetColumnCommand,
     PreviewSQLTableCommand,
-    RefreshSecretsCommand,
     UpdateCellConfigCommand,
     UpdateUIElementCommand,
     UpdateUserConfigCommand,
@@ -85,11 +84,6 @@ class UpdateWidgetModelRequest(UpdateWidgetModelCommand, tag=False):
             message=self.message,
             buffers=self.buffers,
         )
-
-
-class RefreshSecretsRequest(RefreshSecretsCommand, tag=False):
-    def as_command(self) -> RefreshSecretsCommand:
-        return RefreshSecretsCommand()
 
 
 class ListDataSourceConnectionRequest(

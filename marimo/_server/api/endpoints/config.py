@@ -12,6 +12,7 @@ from marimo._config.config import PartialMarimoConfig
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.msgspec_encoder import asdict
 from marimo._messaging.notification import MissingPackageAlertNotification
+from marimo._runtime.commands import UpdateUserConfigCommand
 from marimo._runtime.packages.utils import is_python_isolated
 from marimo._server.ai.mcp.config import is_mcp_config_empty
 from marimo._server.api.deps import AppState
@@ -19,7 +20,6 @@ from marimo._server.api.utils import parse_request
 from marimo._server.models.models import (
     SaveUserConfigurationRequest,
     SuccessResponse,
-    UpdateUserConfigRequest,
 )
 from marimo._server.router import APIRouter
 from marimo._session import send_message_to_consumer
@@ -111,7 +111,7 @@ async def save_user_config(
     # Session could be None if the user is on the home page
     if session is not None:
         session.put_control_request(
-            UpdateUserConfigRequest(config),
+            UpdateUserConfigCommand(config),
             from_consumer_id=ConsumerId(
                 app_state.require_current_session_id()
             ),

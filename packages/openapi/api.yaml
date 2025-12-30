@@ -3211,11 +3211,6 @@ components:
       - type
       title: RefreshSecretsCommand
       type: object
-    RefreshSecretsRequest:
-      properties: {}
-      required: []
-      title: RefreshSecretsRequest
-      type: object
     ReloadNotification:
       properties:
         op:

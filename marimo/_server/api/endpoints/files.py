@@ -87,11 +87,11 @@ async def rename_file(
     """
     body = await parse_request(request, cls=RenameNotebookRequest)
     app_state = AppState(request)
+    filename = await abspath(body.filename)
 
     # Convert to absolute path
-    command = RenameNotebookCommand(filename=await abspath(body.filename))
     app_state.require_current_session().put_control_request(
-        command,
+        RenameNotebookCommand(filename=filename),
         from_consumer_id=ConsumerId(app_state.require_current_session_id()),
     )
 
