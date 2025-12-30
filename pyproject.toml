@@ -146,7 +146,7 @@ test = [
     "matplotlib~=3.10.7",
     "pillow>=9",
     "zstandard>=0.21.0",
-    "cffi>=1.14.0",
+    "cffi>=1.16.0",
 ]
 
 [tool.hatch]
