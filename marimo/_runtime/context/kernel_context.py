@@ -18,7 +18,7 @@ from marimo._runtime.context.types import (
 from marimo._runtime.dataflow import DirectedGraph
 from marimo._runtime.functions import FunctionRegistry
 from marimo._runtime.params import CLIArgs, QueryParams
-from marimo._server.model import SessionMode
+from marimo._session.model import SessionMode
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -150,8 +150,20 @@ def create_kernel_context(
 ) -> KernelRuntimeContext:
     from marimo._plugins.ui._core.registry import UIElementRegistry
     from marimo._runtime.state import StateRegistry
-    from marimo._runtime.virtual_file import VirtualFileRegistry
+    from marimo._runtime.virtual_file import (
+        InMemoryStorage,
+        SharedMemoryStorage,
+        VirtualFileRegistry,
+    )
     from marimo._save.stores import get_store
+
+    # Use shared memory in edit mode,
+    # in-memory storage in run mode (same process)
+    storage = (
+        SharedMemoryStorage()
+        if mode == SessionMode.EDIT
+        else InMemoryStorage()
+    )
 
     return KernelRuntimeContext(
         _kernel=kernel,
@@ -163,7 +175,7 @@ def create_kernel_context(
         cache_store=get_store(kernel.app_metadata.filename),
         cell_lifecycle_registry=CellLifecycleRegistry(),
         app_kernel_runner_registry=AppKernelRunnerRegistry(),
-        virtual_file_registry=VirtualFileRegistry(),
+        virtual_file_registry=VirtualFileRegistry(storage=storage),
         virtual_files_supported=virtual_files_supported,
         stream=stream,
         stdout=stdout,

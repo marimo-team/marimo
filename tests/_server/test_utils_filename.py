@@ -5,7 +5,7 @@ import os
 
 import pytest
 
-from marimo._server.utils import canonicalize_filename
+from marimo._session.notebook.file_manager import canonicalize_filename
 
 
 class TestCanonicalizeFilename:

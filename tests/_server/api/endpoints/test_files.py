@@ -380,7 +380,7 @@ def test_rename_propagates(
 @with_session(SESSION_ID)
 def test_read_code_without_saved_file(client: TestClient) -> None:
     """Test read_code when file hasn't been saved yet."""
-    from marimo._server.api.status import HTTPStatus
+    from marimo._utils.http import HTTPStatus
 
     # Mock the session to have no file path
     with patch("marimo._server.api.endpoints.files.AppState") as mock_state:

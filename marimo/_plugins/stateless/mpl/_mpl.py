@@ -29,7 +29,6 @@ from marimo._runtime.context import (
 )
 from marimo._runtime.context.kernel_context import KernelRuntimeContext
 from marimo._runtime.runtime import app_meta
-from marimo._server.utils import find_free_port
 from marimo._utils.platform import is_pyodide
 
 LOGGER = _loggers.marimo_logger()
@@ -95,6 +94,8 @@ class MplServerManager:
 
         # Find a free port, with some randomization to avoid conflicts
         import random
+
+        from marimo._utils.net import find_free_port
 
         base_port = 10_000 + random.randint(0, 1000)  # Add some randomization
         port = (

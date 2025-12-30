@@ -15,6 +15,7 @@ from marimo._config.config import (
     PartialMarimoConfig,
     merge_default_config,
 )
+from marimo._convert.markdown import convert_from_ir_to_markdown
 from marimo._messaging.msgspec_encoder import encode_json_str
 from marimo._pyodide.restartable_task import RestartableTask
 from marimo._pyodide.streams import (
@@ -43,7 +44,6 @@ from marimo._runtime.utils.set_ui_element_request_manager import (
 )
 from marimo._server.export.exporter import Exporter
 from marimo._server.files.os_file_system import OSFileSystem
-from marimo._server.model import SessionMode
 from marimo._server.models.export import ExportAsHTMLRequest
 from marimo._server.models.files import (
     FileCreateRequest,
@@ -68,7 +68,8 @@ from marimo._server.models.models import (
     SaveNotebookRequest,
     SaveUserConfigurationRequest,
 )
-from marimo._server.session.session_view import SessionView
+from marimo._session.model import SessionMode
+from marimo._session.state.session_view import SessionView
 from marimo._snippets.snippets import read_snippets
 from marimo._utils.formatter import DefaultFormatter
 from marimo._utils.inline_script_metadata import PyProjectReader
@@ -77,7 +78,7 @@ from marimo._utils.parse_dataclass import parse_raw
 if TYPE_CHECKING:
     from marimo._ast.cell import CellConfig
     from marimo._messaging.types import KernelMessage
-    from marimo._server.notebook.file_manager import AppFileManager
+    from marimo._session.notebook.file_manager import AppFileManager
     from marimo._types.ids import CellId_t
 
 LOGGER = _loggers.marimo_logger()
@@ -387,10 +388,7 @@ class PyodideBridge:
 
     def export_markdown(self, request: str) -> str:
         del request
-        md, _filename = Exporter().export_as_md(
-            notebook=self.session.app_manager.app.to_ir(),
-            filename=self.session.app_manager.filename,
-        )
+        md = convert_from_ir_to_markdown(self.session.app_manager.app.to_ir())
         return json.dumps(md)
 
     def _parse(self, request: str, cls: type[T]) -> T:

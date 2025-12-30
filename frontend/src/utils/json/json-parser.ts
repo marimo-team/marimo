@@ -144,13 +144,13 @@ function formatValueForMarkdown(value: unknown): string {
   let stringValue = String(value);
 
   // Regex to match existing markdown links: [text](url)
-  const markdownLinkRegex = /\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g;
+  const markdownLinkRegex = /\[([^\]]+)]\((https?:\/\/[^)]+)\)/g;
 
   // Temporarily replace existing markdown links with placeholders
   const placeholders = new Map<string, string>();
   let placeholderIndex = 0;
 
-  stringValue = stringValue.replace(markdownLinkRegex, (match) => {
+  stringValue = stringValue.replaceAll(markdownLinkRegex, (match) => {
     const placeholder = `__MDLINK_${placeholderIndex++}__`;
     placeholders.set(placeholder, match);
     return placeholder;
@@ -158,7 +158,7 @@ function formatValueForMarkdown(value: unknown): string {
 
   // Convert plain URLs to markdown links
   const urlRegex = /(https?:\/\/\S+)/g;
-  stringValue = stringValue.replace(urlRegex, "[$1]($1)");
+  stringValue = stringValue.replaceAll(urlRegex, "[$1]($1)");
 
   // Restore markdown links from placeholders
   for (const [placeholder, original] of placeholders) {

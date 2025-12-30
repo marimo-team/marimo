@@ -1,3 +1,4 @@
+/* Copyright 2026 Marimo. All rights reserved. */
 export type ConnectionEvent = "open" | "close" | "message" | "error";
 
 export interface IConnectionTransportMap {
@@ -46,9 +47,7 @@ export class ConnectionSubscriptions {
     event: ConnectionEvent,
     callback: ConnectionTransportCallback<ConnectionEvent>,
   ): void {
-    this.subscriptions
-      .get(event)
-      ?.delete(callback as ConnectionTransportCallback<ConnectionEvent>);
+    this.subscriptions.get(event)?.delete(callback);
   }
 
   notify(

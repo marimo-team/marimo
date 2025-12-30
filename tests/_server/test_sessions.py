@@ -36,22 +36,22 @@ from marimo._runtime.commands import (
     SyncGraphCommand,
     UpdateUIElementCommand,
 )
-from marimo._server.consumer import SessionConsumer
 from marimo._server.file_router import AppFileRouter
-from marimo._server.model import ConnectionState, SessionMode
-from marimo._server.notebook import AppFileManager
-from marimo._server.session.session_view import SessionView
-from marimo._server.sessions import Session
-from marimo._server.sessions.events import SessionEventBus
-from marimo._server.sessions.managers import (
+from marimo._server.session_manager import SessionManager
+from marimo._server.utils import initialize_asyncio
+from marimo._session import Session
+from marimo._session.consumer import SessionConsumer
+from marimo._session.events import SessionEventBus
+from marimo._session.managers import (
     KernelManagerImpl,
     QueueManagerImpl,
 )
-from marimo._server.sessions.session import (
+from marimo._session.model import ConnectionState, SessionMode
+from marimo._session.notebook import AppFileManager
+from marimo._session.session import (
     SessionImpl,
 )
-from marimo._server.sessions.session_manager import SessionManager
-from marimo._server.utils import initialize_asyncio
+from marimo._session.state.session_view import SessionView
 from marimo._types.ids import ConsumerId, SessionId
 from marimo._utils.marimo_path import MarimoPath
 

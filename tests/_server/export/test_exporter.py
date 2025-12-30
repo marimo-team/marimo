@@ -4,7 +4,7 @@ import asyncio
 import json
 import sys
 from typing import TYPE_CHECKING, Any
-from unittest.mock import MagicMock, patch
+from unittest.mock import ANY, MagicMock, patch
 
 import pytest
 
@@ -21,8 +21,8 @@ from marimo._server.export import (
 )
 from marimo._server.export.exporter import Exporter
 from marimo._server.models.export import ExportAsHTMLRequest
-from marimo._server.notebook import AppFileManager
-from marimo._server.session.session_view import SessionView
+from marimo._session.notebook import AppFileManager
+from marimo._session.state.session_view import SessionView
 from marimo._utils.marimo_path import MarimoPath
 from tests.mocks import snapshotter
 
@@ -40,10 +40,7 @@ def test_export_ipynb_empty():
     internal_app = InternalApp(app)
     exporter = Exporter()
 
-    content, filename = exporter.export_as_ipynb(
-        internal_app, None, sort_mode="top-down"
-    )
-    assert filename == "notebook.ipynb"
+    content = exporter.export_as_ipynb(internal_app, sort_mode="top-down")
     snapshot("empty_notebook.ipynb.txt", content)
 
 
@@ -58,10 +55,7 @@ def test_export_ipynb_with_cells():
     internal_app = InternalApp(app)
     exporter = Exporter()
 
-    content, filename = exporter.export_as_ipynb(
-        internal_app, None, sort_mode="top-down"
-    )
-    assert filename == "notebook.ipynb"
+    content = exporter.export_as_ipynb(internal_app, sort_mode="top-down")
     snapshot("notebook_with_cells.ipynb.txt", content)
 
 
@@ -88,15 +82,11 @@ def test_export_ipynb_sort_modes():
     exporter = Exporter()
 
     # Test top-down mode preserves document order
-    content, _ = exporter.export_as_ipynb(
-        internal_app, None, sort_mode="top-down"
-    )
+    content = exporter.export_as_ipynb(internal_app, sort_mode="top-down")
     snapshot("notebook_top_down.ipynb.txt", content)
 
     # Test topological mode respects dependencies
-    content, _ = exporter.export_as_ipynb(
-        internal_app, None, sort_mode="topological"
-    )
+    content = exporter.export_as_ipynb(internal_app, sort_mode="topological")
     snapshot("notebook_topological.ipynb.txt", content)
 
 
@@ -225,10 +215,9 @@ async def test_export_ipynb_with_outputs(tmp_path: Path):
     internal_app = InternalApp(app)
     exporter = Exporter()
 
-    content, filename = exporter.export_as_ipynb(
-        internal_app, None, sort_mode="top-down", session_view=None
+    content = exporter.export_as_ipynb(
+        internal_app, sort_mode="top-down", session_view=None
     )
-    assert filename == "notebook.ipynb"
     assert content is not None
 
     test_file = tmp_path / "notebook.py"
@@ -484,8 +473,10 @@ async def test_run_until_completion_with_console_output(mock_echo: MagicMock):
     assert did_error is False
 
     def _assert_contents():
-        mock_echo.assert_any_call("hello stdout", file=sys.stderr, nl=False)
-        mock_echo.assert_any_call("hello stderr", file=sys.stderr, nl=False)
+        # File should be sys.stderr, but it can change during CI execution
+        # So, we use ANY for the file parameter.
+        mock_echo.assert_any_call("hello stdout", file=ANY, nl=False)
+        mock_echo.assert_any_call("hello stderr", file=ANY, nl=False)
 
     n_tries = 0
     limit = 10

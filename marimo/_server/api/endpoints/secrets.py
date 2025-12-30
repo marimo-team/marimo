@@ -7,13 +7,13 @@ from starlette.authentication import requires
 from starlette.responses import JSONResponse
 
 from marimo import _loggers
+from marimo._runtime.commands import RefreshSecretsCommand
 from marimo._secrets.secrets import write_secret
 from marimo._server.api.deps import AppState
 from marimo._server.api.utils import dispatch_control_request, parse_request
 from marimo._server.models.models import (
     BaseResponse,
     ListSecretKeysRequest,
-    RefreshSecretsRequest,
     SuccessResponse,
 )
 from marimo._server.models.secrets import CreateSecretRequest
@@ -77,7 +77,7 @@ async def create_secret(request: Request) -> BaseResponse:
 
     # Refresh the secrets
     app_state.require_current_session().put_control_request(
-        RefreshSecretsRequest(),
+        RefreshSecretsCommand(),
         from_consumer_id=ConsumerId(session_id),
     )
     return SuccessResponse(success=True)

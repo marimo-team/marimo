@@ -58,6 +58,8 @@ class GetDataFrameResponse:
     # This really only applies to Pandas, that has special index columns
     row_headers: FieldTypes
     field_types: FieldTypes
+    # Column types at each transform step (index 0 = original, index N = after N transforms)
+    column_types_per_step: list[FieldTypes]
     python_code: Optional[str] = None
     sql_code: Optional[str] = None
 
@@ -164,6 +166,9 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
         self._transform_container = TransformsContainer(nw_df, handler)
         self._error: Optional[str] = None
         self._last_transforms = Transformations([])
+        self._column_types_per_step: list[FieldTypes] = [
+            self._manager.get_field_types()
+        ]
         self._page_size = page_size or 5  # Default to 5 rows (.head())
         self._show_download = show_download
         rows = self._manager.get_num_rows(force=False)
@@ -234,6 +239,7 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
             total_rows=response.total_rows,
             row_headers=manager.get_row_headers(),
             field_types=manager.get_field_types(),
+            column_types_per_step=self._column_types_per_step,
             python_code=self._handler.as_python_code(
                 self._transform_container._snapshot_df,
                 self._dataframe_name,
@@ -277,7 +283,10 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
 
         try:
             transformations = parse_raw(value, Transformations)
-            result = self._transform_container.apply(transformations)
+            result, self._column_types_per_step = (
+                self._transform_container.apply(transformations)
+            )
+
             self._error = None
             self._last_transforms = transformations
             return self._undo(result)

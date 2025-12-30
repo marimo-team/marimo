@@ -56,6 +56,9 @@ components:
       title: AiCompletionContext
       type: object
     AiCompletionRequest:
+      description: 'UIMessages are expected to be AI SDK messages.
+
+        See pydantic_ai.ui.vercel_ai.request_types.UIMessage or Vercel AI SDK documentation.'
       properties:
         code:
           type: string
@@ -84,6 +87,11 @@ components:
           - type: string
           - type: 'null'
           default: null
+        uiMessages:
+          default: []
+          items:
+            type: object
+          type: array
       required:
       - prompt
       - includeOtherCode
@@ -522,6 +530,9 @@ components:
       title: ChatMessage
       type: object
     ChatRequest:
+      description: 'UIMessages are expected to be AI SDK messages.
+
+        See pydantic_ai.ui.vercel_ai.request_types.UIMessage or Vercel AI SDK documentation.'
       properties:
         context:
           $ref: '#/components/schemas/AiCompletionContext'
@@ -543,6 +554,10 @@ components:
             type: array
           - type: 'null'
           default: null
+        uiMessages:
+          items:
+            type: object
+          type: array
         variables:
           anyOf:
           - items:
@@ -556,6 +571,7 @@ components:
       - context
       - includeOtherCode
       - messages
+      - uiMessages
       title: ChatRequest
       type: object
     ClearCacheCommand:
@@ -1993,6 +2009,13 @@ components:
         autoRun:
           default: true
           type: boolean
+        codes:
+          anyOf:
+          - additionalProperties:
+              type: string
+            type: object
+          - type: 'null'
+          default: null
         objectIds:
           items:
             type: string
@@ -2108,6 +2131,9 @@ components:
       properties:
         app_config:
           $ref: '#/components/schemas/_AppConfig'
+        auto_instantiated:
+          default: false
+          type: boolean
         capabilities:
           $ref: '#/components/schemas/KernelCapabilitiesNotification'
         cell_ids:
@@ -3184,11 +3210,6 @@ components:
       required:
       - type
       title: RefreshSecretsCommand
-      type: object
-    RefreshSecretsRequest:
-      properties: {}
-      required: []
-      title: RefreshSecretsRequest
       type: object
     ReloadNotification:
       properties:
@@ -4928,7 +4949,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/SuccessResponse'
-          description: Instantiate a component
+          description: Instantiate a component. Only allowed in edit mode; in run
+            mode, instantiation happens server-side automatically.
   /api/kernel/interrupt:
     post:
       responses:

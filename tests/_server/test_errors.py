@@ -6,19 +6,63 @@ import msgspec
 from starlette.exceptions import HTTPException
 from starlette.requests import Request
 
-from marimo._server.api.status import HTTPException as MarimoHTTPException
 from marimo._server.errors import handle_error
-from marimo._server.model import SessionMode
+from marimo._session.model import SessionMode
+from marimo._utils.http import HTTPException as MarimoHTTPException
 
 
-async def test_http_exception():
-    # Test 403 to 401 conversion
+async def test_http_exception_403_page_request():
+    """Page requests should get 401 with WWW-Authenticate header to trigger browser auth"""
     exc = HTTPException(status_code=403)
-    response = await handle_error(Request({"type": "http"}), exc)
+    # Non-API request (page load)
+    request = Request(
+        {
+            "type": "http",
+            "path": "/",
+            "headers": [(b"accept", b"text/html")],
+        }
+    )
+    response = await handle_error(request, exc)
     assert response.status_code == 401
     assert response.body == b'{"detail":"Authorization header required"}'
     assert response.headers["WWW-Authenticate"] == "Basic"
 
+
+async def test_http_exception_403_api_request_by_path():
+    """API requests should get 401 without WWW-Authenticate header"""
+    exc = HTTPException(status_code=403)
+    # API request detected by path
+    request = Request(
+        {
+            "type": "http",
+            "path": "/api/kernel/code_autocomplete",
+            "headers": [],
+        }
+    )
+    response = await handle_error(request, exc)
+    assert response.status_code == 401
+    assert response.body == b'{"detail":"Authorization header required"}'
+    assert "WWW-Authenticate" not in response.headers
+
+
+async def test_http_exception_403_api_request_by_accept_header():
+    """API requests with Accept: application/json should get 401 without WWW-Authenticate"""
+    exc = HTTPException(status_code=403)
+    # API request detected by Accept header
+    request = Request(
+        {
+            "type": "http",
+            "path": "/some/path",
+            "headers": [(b"accept", b"application/json")],
+        }
+    )
+    response = await handle_error(request, exc)
+    assert response.status_code == 401
+    assert response.body == b'{"detail":"Authorization header required"}'
+    assert "WWW-Authenticate" not in response.headers
+
+
+async def test_http_exception_other():
     # Test other HTTP exceptions
     exc = HTTPException(status_code=404, detail="Not found")
     response = await handle_error(Request({"type": "http"}), exc)

@@ -13,8 +13,8 @@ from marimo._config.manager import MarimoConfigReader
 from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.notification import AlertNotification
-from marimo._server.utils import find_free_port
 from marimo._tracer import server_tracer
+from marimo._utils.net import find_free_port
 from marimo._utils.paths import marimo_package_path
 from marimo._utils.platform import is_windows
 

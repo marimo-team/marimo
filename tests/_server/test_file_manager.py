@@ -9,11 +9,12 @@ import pytest
 from marimo import __version__
 from marimo._ast.app import App, InternalApp
 from marimo._ast.cell import CellConfig
-from marimo._server.api.status import HTTPException, HTTPStatus
+from marimo._server.app_defaults import AppDefaults
 from marimo._server.models.models import SaveNotebookRequest
-from marimo._server.notebook import AppFileManager
+from marimo._session.notebook import AppFileManager
 from marimo._types.ids import CellId_t
 from marimo._utils.cell_matching import similarity_score
+from marimo._utils.http import HTTPException, HTTPStatus
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -130,16 +131,16 @@ def test_rename_create_new_directory_file(
 def test_rename_different_filetype(app_file_manager: AppFileManager) -> None:
     initial_filename = app_file_manager.filename
     assert initial_filename
-    assert str(initial_filename).endswith(".py")
-    with open(str(initial_filename)) as f:
+    assert initial_filename.endswith(".py")
+    with open(initial_filename) as f:
         contents = f.read()
         assert "app = marimo.App()" in contents
         assert "marimo-version" not in contents
     app_file_manager.rename(str(initial_filename)[:-3] + ".md")
     next_filename = app_file_manager.filename
     assert next_filename
-    assert str(next_filename).endswith(".md")
-    with open(str(next_filename)) as f:
+    assert next_filename.endswith(".md")
+    with open(next_filename) as f:
         contents = f.read()
         assert "marimo-version" in contents
         assert "app = marimo.App()" not in contents
@@ -148,8 +149,8 @@ def test_rename_different_filetype(app_file_manager: AppFileManager) -> None:
 def test_rename_to_qmd(app_file_manager: AppFileManager) -> None:
     initial_filename = app_file_manager.filename
     assert initial_filename
-    assert str(initial_filename).endswith(".py")
-    with open(str(initial_filename)) as f:
+    assert initial_filename.endswith(".py")
+    with open(initial_filename) as f:
         contents = f.read()
         assert "app = marimo.App()" in contents
         assert "marimo-team/marimo" not in contents
@@ -157,8 +158,8 @@ def test_rename_to_qmd(app_file_manager: AppFileManager) -> None:
     app_file_manager.rename(str(initial_filename)[:-3] + ".qmd")
     next_filename = app_file_manager.filename
     assert next_filename
-    assert str(next_filename).endswith(".qmd")
-    with open(str(next_filename)) as f:
+    assert next_filename.endswith(".qmd")
+    with open(next_filename) as f:
         contents = f.read()
         assert "marimo-version" in contents
         assert "filters:" in contents
@@ -628,8 +629,10 @@ def test_default_app_settings(tmp_path: Path) -> None:
     # Test with custom defaults
     manager = AppFileManager(
         filename=None,
-        default_width="full",
-        default_sql_output="polars",
+        defaults=AppDefaults(
+            width="full",
+            sql_output="polars",
+        ),
     )
     assert manager.app.config.width == "full"
     assert manager.app.config.sql_output == "polars"
@@ -650,8 +653,10 @@ app = marimo.App(sql_output="lazy-polars", width="columns")
     )
     manager = AppFileManager(
         filename=tmp_file,
-        default_width="full",
-        default_sql_output="polars",
+        defaults=AppDefaults(
+            width="full",
+            sql_output="polars",
+        ),
     )
     assert manager.app.config.width == "columns"
     assert manager.app.config.sql_output == "lazy-polars"

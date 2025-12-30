@@ -10,10 +10,12 @@ import { Footer } from "./footer";
 import { Sidebar } from "./sidebar";
 import "./app-chrome.css";
 import { TooltipProvider } from "@radix-ui/react-tooltip";
+import { useAtomValue } from "jotai";
 import { XIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LazyMount } from "@/components/utils/lazy-mount";
+import { cellErrorCount } from "@/core/cells/cells";
 import { getFeatureFlag } from "@/core/config/feature-flag";
 import { IfCapability } from "@/core/config/if-capability";
 import { cn } from "@/utils/cn";
@@ -21,6 +23,7 @@ import { ErrorBoundary } from "../../boundary/ErrorBoundary";
 import { ContextAwarePanel } from "../panels/context-aware-panel/context-aware-panel";
 import { useChromeActions, useChromeState } from "../state";
 import { DEVELOPER_PANEL_TABS } from "../types";
+import { BackendConnectionStatus } from "./footer-items/backend-status";
 import { Minimap } from "./minimap";
 import { PanelsWrapper } from "./panels";
 import { PendingAICells } from "./pending-ai-cells";
@@ -35,9 +38,7 @@ const LazyAgentPanel = React.lazy(
 const LazyDependencyGraphPanel = React.lazy(
   () => import("@/components/editor/chrome/panels/dependency-graph-panel"),
 );
-const LazyDataSourcesPanel = React.lazy(
-  () => import("../panels/datasources-panel"),
-);
+const LazySessionPanel = React.lazy(() => import("../panels/session-panel"));
 const LazyDocumentationPanel = React.lazy(
   () => import("../panels/documentation-panel"),
 );
@@ -54,7 +55,6 @@ const LazyScratchpadPanel = React.lazy(
 const LazySecretsPanel = React.lazy(() => import("../panels/secrets-panel"));
 const LazySnippetsPanel = React.lazy(() => import("../panels/snippets-panel"));
 const LazyTracingPanel = React.lazy(() => import("../panels/tracing-panel"));
-const LazyVariablePanel = React.lazy(() => import("../panels/variable-panel"));
 const LazyCachePanel = React.lazy(() => import("../panels/cache-panel"));
 
 export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
@@ -72,6 +72,7 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
   const sidebarRef = React.useRef<ImperativePanelHandle>(null);
   const terminalRef = React.useRef<ImperativePanelHandle>(null);
   const { aiPanelTab, setAiPanelTab } = useAiPanelTab();
+  const errorCount = useAtomValue(cellErrorCount);
 
   // sync sidebar
   useEffect(() => {
@@ -204,11 +205,10 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
         <Suspense>
           <TooltipProvider>
             {selectedPanel === "files" && <LazyFileExplorerPanel />}
-            {selectedPanel === "variables" && <LazyVariablePanel />}
+            {selectedPanel === "variables" && <LazySessionPanel />}
             {selectedPanel === "dependencies" && <LazyDependencyGraphPanel />}
             {selectedPanel === "packages" && <LazyPackagesPanel />}
             {selectedPanel === "outline" && <LazyOutlinePanel />}
-            {selectedPanel === "datasources" && <LazyDataSourcesPanel />}
             {selectedPanel === "documentation" && <LazyDocumentationPanel />}
             {selectedPanel === "snippets" && <LazySnippetsPanel />}
             {selectedPanel === "ai" && renderAiPanel()}
@@ -281,7 +281,7 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
       {panelResizeHandle}
       <div className="flex flex-col h-full">
         {/* Panel header with tabs */}
-        <div className="flex items-center justify-between border-b px-2 py-1 bg-background shrink-0">
+        <div className="flex items-center justify-between border-b px-2 h-8 bg-background shrink-0">
           <Tabs
             value={selectedDeveloperPanelTab}
             onValueChange={(v) =>
@@ -290,19 +290,31 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
               )
             }
           >
-            <TabsList className="h-7 bg-transparent p-0">
+            <TabsList className="bg-transparent p-0 gap-1">
               {DEVELOPER_PANEL_TABS.filter((tab) => !tab.hidden).map((tab) => (
                 <TabsTrigger
                   key={tab.type}
                   value={tab.type}
-                  className="text-xs gap-1.5 px-2 py-1 data-[state=active]:bg-muted"
+                  className="text-sm gap-2 px-2 pt-1 pb-0.5 items-center leading-none data-[state=active]:bg-muted"
                 >
-                  <tab.Icon className="w-3.5 h-3.5" />
+                  {/* Color the Errors icon red when there are errors,
+                      so users see it when they open the developer panel */}
+                  <tab.Icon
+                    className={cn(
+                      "w-4 h-4",
+                      tab.type === "errors" &&
+                        errorCount > 0 &&
+                        "text-destructive",
+                    )}
+                  />
                   {tab.label}
                 </TabsTrigger>
               ))}
             </TabsList>
           </Tabs>
+          <div className="border-l border-border h-4 mx-1" />
+          <BackendConnectionStatus />
+          <div className="flex-1" />
           <Button
             size="xs"
             variant="text"
@@ -377,7 +389,10 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
           <Sidebar />
         </TooltipProvider>
         {helperPanel}
-        <Panel id="app-chrome-body">
+        <Panel
+          id="app-chrome-body"
+          className={cn(isDeveloperPanelOpen && !isSidebarOpen && "border-l")}
+        >
           <PanelGroup autoSaveId="marimo:chrome:v1:l1" direction="vertical">
             {appBodyPanel}
             <IfCapability capability="terminal">{bottomPanel}</IfCapability>

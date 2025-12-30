@@ -9,7 +9,7 @@ from marimo._runtime.context import (
 from marimo._runtime.context.kernel_context import KernelRuntimeContext
 from marimo._runtime.context.script_context import ScriptRuntimeContext
 from marimo._runtime.context.utils import get_mode
-from marimo._server.model import SessionMode
+from marimo._session.model import SessionMode
 
 
 def test_get_mode_kernel_run():

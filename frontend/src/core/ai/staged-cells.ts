@@ -8,6 +8,7 @@ import {
 } from "@/components/editor/ai/completion-utils";
 import { useDeleteCellCallback } from "@/components/editor/cell/useDeleteCell";
 import { CellId } from "@/core/cells/ids";
+import { logNever } from "@/utils/assertNever";
 import { createReducerAndAtoms } from "@/utils/createReducer";
 import { Logger } from "@/utils/Logger";
 import { maybeAddMarimoImport } from "../cells/add-missing-import";
@@ -154,8 +155,37 @@ export function useStagedCells(store: JotaiStore) {
         }
         cellCreationStream.current.stop();
         break;
+      case "abort":
+      case "error":
+      case "tool-input-error":
+      case "tool-output-error":
+        Logger.error("Error", chunk.type, { chunk });
+        break;
+      // These logs are not useful for debugging
+      case "start":
+      case "start-step":
+      case "finish-step":
+      case "data-reasoning-signature":
+        break;
+      case "message-metadata":
+      case "tool-input-available":
+      case "tool-output-available":
+      case "reasoning-start":
+      case "reasoning-delta":
+      case "reasoning-end":
+      case "file":
+      case "source-document":
+      case "source-url":
+      case "tool-input-start":
+      case "tool-input-delta":
+        Logger.debug(chunk.type, { chunk });
+        break;
       default:
-        Logger.error("Unknown chunk type", { chunk });
+        if (isDataChunk(chunk)) {
+          Logger.debug("Data chunk", { chunk });
+          break;
+        }
+        logNever(chunk);
     }
   };
 
@@ -255,4 +285,10 @@ class CellCreationStream {
     // Clear all state
     this.buffer = "";
   }
+}
+
+type DataChunk = Extract<UIMessageChunk, { type: `data-${string}` }>;
+
+function isDataChunk(chunk: UIMessageChunk): chunk is DataChunk {
+  return chunk.type.startsWith("data-");
 }

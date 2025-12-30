@@ -7,7 +7,7 @@ name = "marimo"
 version = "0.18.4"
 description = "A library for making reactive notebooks and apps"
 # We try to keep dependencies to a minimum, to avoid conflicts with
-# user environments;we need a very compelling reason for each dependency added.
+# user environments; we need a very compelling reason for each dependency added.
 # Dependencies should have lower bounds, which should be as loose as possible.
 dependencies = [
     # For maintainable cli
@@ -22,16 +22,17 @@ dependencies = [
     # syntax highlighting of code in markdown
     "pygments>=2.19,<3",
     # for reading, writing configs
-    "tomlkit>= 0.12.0",
+    "tomlkit>=0.12.0",
     # for managing frontmatter headers in markdown
-    "pyyaml>=6.0",
+    "pyyaml>=6.0.1",
     # web server
     # - 0.22.0 introduced timeout-graceful-shutdown, which we use
     "uvicorn>=0.22.0",
     # web framework
     # - 0.29.0 introduced Middleware kwargs, which we use
     # - starlette 0.36.0 introduced a bug
-    "starlette>=0.35.0,!=0.36.0",
+    # - starlette 0.37.2 fixed httpx 0.28 compatibility
+    "starlette>=0.37.2",
     # websockets for use with starlette, and for lsp
     "websockets >= 14.2.0",
     # loro for collaborative editing
@@ -81,31 +82,38 @@ marimo_converter = "marimo._utils.docs:MarimoConverter"
 
 [project.optional-dependencies]
 sql = [
-    "duckdb>=1.0.0",
-    "polars[pyarrow]>=1.9.0",
-    "sqlglot[rs]>=26.2.0"
+    "duckdb>=1.0.0",           # SQL cells
+    "polars[pyarrow]>=1.9.0",  # SQL output back in Python
+    "sqlglot[rs]>=26.2.0"      # SQL cells parsing
 ]
 
 # List of deps that are recommended for most users
 # in order to unlock all features in marimo
-# This includes the `sql` deps
 recommended = [
-    "duckdb>=1.0.0",            # SQL cells
+    "marimo[sql]",
     "altair>=5.4.0",            # Plotting in datasource viewer
-    "polars[pyarrow]>=1.9.0",   # SQL output back in Python
-    "sqlglot[rs]>=26.2.0",      # SQL cells parsing
     "openai>=1.55.3",           # AI features
-    "google-genai>=1.20.0",      # Google AI features
     "ruff",                     # Formatting
     "nbformat>=5.7.0",          # Export as IPYNB
 ]
 
+lsp = [
+    "python-lsp-server>=1.13.0",
+    "python-lsp-ruff>=2.0.0",
+]
+
+mcp = [
+    "mcp>=1.0.0",
+    "pydantic>2",
+]
+
+[dependency-groups]
 dev = [
-    "click>=8.0,<9",
+    "hatch>=1.15.1",
     "black~=23.12.1",
     # For tracing debugging
-    "opentelemetry-api~=1.26.0",
-    "opentelemetry-sdk~=1.26.0",
+    "opentelemetry-api~=1.28.0",
+    "opentelemetry-sdk~=1.28.0",
     # For SQL
     "duckdb>=1.0.0",
     "sqlglot[rs]>=26.2.0",
@@ -115,14 +123,26 @@ dev = [
     "openai>=1.55.3",
 ]
 
-lsp = [
-    "python-lsp-server>=1.13.0",
-    "python-lsp-ruff>=2.0.0",
-]
-
-mcp = [
-    "mcp>=1.0.0; python_version >= '3.10'",
-    "pydantic>2; python_version >= '3.10'",
+test = [
+    # For server testing
+    "httpx~=0.28.0",
+    "urllib3~=2.5.0",
+    # Pytest and plugins
+    "pytest~=8.3.4",
+    "pytest-timeout~=2.3.1",
+    "pytest-codecov~=0.7.0",
+    "pytest-rerunfailures~=15.1",
+    "pytest-asyncio~=0.26.0",
+    "pytest-picked>=0.5.1",
+    # Comparison testing
+    "inline-snapshot~=0.29.0",
+    "hypothesis~=6.102.1",
+    "dirty-equals~=0.9.0",
+    # Forced for modern matplotlib.
+    "matplotlib~=3.10.7",
+    "pillow>=9",
+    "zstandard>=0.21.0",
+    "cffi>=1.16.0",
 ]
 
 [tool.hatch]
@@ -130,14 +150,14 @@ installer = "uv"
 
 # Override the default uv version to use the latest version
 [tool.hatch.envs.hatch-uv]
-dependencies = ["uv>=0.4.17"]
+dependencies = ["uv>=0.9.21"]
 
 [tool.hatch.envs.default]
-features = ["dev"]
+dependency-groups = ["dev"]
 python = "3.12"
 installer = "uv"
 dependencies = [
-    "uv>=0.4.17", # so we can bump the version used by hatch
+    "uv>=0.9.21", # so we can bump the version used by hatch
     # Typo checking
     "typos~=1.23.6",
 ]
@@ -150,6 +170,7 @@ format = "ruff format"
 [tool.hatch.envs.typecheck]
 python = "3.12"
 installer = "uv"
+dependency-groups = ["dev"]
 dependencies = [
     "mypy~=1.15.0",
     # Types for mypy
@@ -162,9 +183,8 @@ dependencies = [
     "matplotlib>=3.8.0",
     "sqlglot[rs]>=26.2.0",
     "sqlalchemy>=2.0.40",
-    "google-genai>=1.0.0",
+    "pydantic-ai-slim[google,anthropic]>=1.39.0",
     "openai>=1.55.3",
-    "anthropic>=0.52.2",
     "loro>=1.5.0",
     "pandas-stubs>=1.5.3.230321",
     "pyiceberg>=0.9.0",
@@ -177,7 +197,7 @@ dependencies = [
     "types-redis~=4.6.0.20241004",
     "types-Markdown~=3.6.0.20240316",
     "types-PyYAML~=6.0.12.20240808",
-    "mcp>=1.0.0; python_version >= '3.10'",
+    "mcp>=1.0.0",
     # zeromq
     "pyzmq>=27.1.0",
 ]
@@ -190,23 +210,7 @@ check = "mypy marimo --exclude=marimo/_tutorials/"
 tutorials = "mypy marimo/_tutorials"
 
 [tool.hatch.envs.test]
-extra-dependencies = [
-    "dirty-equals~=0.9.0",
-    "hypothesis~=6.102.1",
-    # For server testing
-    "httpx~=0.27.0",
-    "urllib3~=2.5.0",
-    "matplotlib~=3.10.7",
-    # Forced for modern matplotlib.
-    "pillow>=9",
-    "pytest~=8.3.4",
-    "pytest-timeout~=2.3.1",
-    "pytest-codecov~=0.7.0",
-    "pytest-rerunfailures~=15.1",
-    "pytest-asyncio~=0.26.0",
-    "pytest-picked>=0.5.1",
-    "inline-snapshot~=0.29.0",
-]
+dependency-groups = ["dev", "test"]
 
 [[tool.hatch.envs.test.matrix]]
 python = ["3.10", "3.11", "3.12", "3.13", "3.14"]
@@ -226,18 +230,8 @@ test-narwhals = """
 
 [tool.hatch.envs.test-optional]
 template = "test"
+dependency-groups = ["dev", "test"]
 extra-dependencies = [
-    "dirty-equals~=0.9.0",
-    "hypothesis~=6.102.1",
-    "httpx~=0.27.0",
-    "matplotlib~=3.9.2",
-    "pytest~=8.3.4",
-    "pytest-timeout~=2.3.1",
-    "pytest-codecov~=0.6.1",
-    "pytest-rerunfailures~=15.1",
-    "pytest-asyncio~=0.26.0",
-    "pytest-picked>=0.5.1",
-    "inline-snapshot~=0.29.0",
     "python-lsp-server>=1.10.0",
     # For testing mo.ui.chart, table, ...
     "vl-convert-python",
@@ -250,8 +244,6 @@ extra-dependencies = [
     "sqlglot[rs]>=26.2.0",
     "sqlalchemy>=2.0.40",
     "pyiceberg>=0.9.0",
-    # TODO: Remove pydantic or upgrade pyiceberg once upstream is fixed https://github.com/apache/iceberg-python/issues/2590
-    "pydantic<2.12.0",
     # For testing clickhouse
     "chdb>=3; platform_system != 'Windows'", # there is no suitable wheel for windows
     "clickhouse-connect>=0.8.18",
@@ -269,8 +261,9 @@ extra-dependencies = [
     "ipython~=8.12.3",
     # testing gen ai
     "openai>=1.55.3",
-    "anthropic==0.52.2",
-    "google-genai>=0.2.0",
+    "pydantic-ai-slim[google,anthropic]>=1.39.0",
+    # - google-auth uses cachetools, and cachetools<5.0.0 uses collections.MutableMapping (removed in Python 3.10)
+    "cachetools>=5.0.0",
     "boto3>=1.38.46",
     "litellm>=1.70.0",
     # exporting as ipynb
@@ -281,7 +274,7 @@ extra-dependencies = [
     "jax>=0.4.0; python_version == '3.12'",
     "torch>=2.4.0; python_version == '3.12'",
     "scikit-bio>=0.6.3; python_version == '3.12'",
-    "mcp>=1.0.0; python_version >= '3.10'",
+    "mcp>=1.0.0",
     # zeromq
     "pyzmq>=27.1.0",
 ]
@@ -482,6 +475,7 @@ banned-module-level-imports = [
     "typing_extensions",
     "pyiceberg",
     "redshift_connector",
+    "pydantic_ai"
 ]
 
 [tool.ruff.lint.flake8-pytest-style]

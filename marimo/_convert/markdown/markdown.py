@@ -17,14 +17,6 @@ from typing import (
 # Native to python
 from xml.etree.ElementTree import Element, SubElement
 
-# Markdown is a dependency of marimo, as such we utilize it as much as possible
-# to parse markdown.
-from markdown import Markdown
-from markdown.blockparser import BlockParser
-from markdown.blockprocessors import BlockProcessor
-from markdown.preprocessors import Preprocessor
-from markdown.util import HTML_PLACEHOLDER_RE, Registry
-
 # As are extensions
 from pymdownx.superfences import (  # type: ignore
     RE_NESTED_FENCE_START,
@@ -44,6 +36,14 @@ from marimo._schemas.serialization import (
     Header,
     NotebookSerializationV1,
 )
+
+# Markdown is a dependency of marimo, as such we utilize it as much as possible
+# to parse markdown.
+from markdown import Markdown
+from markdown.blockparser import BlockParser
+from markdown.blockprocessors import BlockProcessor
+from markdown.preprocessors import Preprocessor
+from markdown.util import HTML_PLACEHOLDER_RE, Registry
 
 LOGGER = _loggers.marimo_logger()
 
@@ -94,7 +94,9 @@ def _get_language(text: str) -> str:
 
 
 def formatted_code_block(
-    code: str, attributes: Optional[dict[str, str]] = None
+    code: str,
+    attributes: Optional[dict[str, str]] = None,
+    is_qmd: bool = False,
 ) -> str:
     """Wraps code in a fenced code block with marimo attributes."""
     if attributes is None:
@@ -106,18 +108,19 @@ def formatted_code_block(
     guard = "```"
     while guard in code:
         guard += "`"
-    if DependencyManager.new_superfences.has_required_version(quiet=True):
-        return "\n".join(
-            [
-                f"""{guard}{language} {{.marimo{attribute_str}}}""",
-                code,
-                guard,
-                "",
-            ]
-        )
-    return "\n".join(
-        [f"""{guard}{{.{language}.marimo{attribute_str}}}""", code, guard, ""]
-    )
+
+    # Quarto executable syntax with claimsLanguage() support
+    # ```{marimo .python attr=...}
+    if is_qmd:
+        head = f"""{guard}{{marimo .{language}{attribute_str}}}"""
+    # Compatible with GitHub syntax highlighting
+    # ```python {.marimo attr=...}
+    elif DependencyManager.new_superfences.has_required_version(quiet=True):
+        head = f"""{guard}{language} {{.marimo{attribute_str}}}"""
+    # ```{.python.marimo attr=...}
+    else:
+        head = f"""{guard}{{.{language}.marimo{attribute_str}}}"""
+    return "\n".join([head, code, guard, ""])
 
 
 def app_config_from_root(root: Element) -> dict[str, Any]:

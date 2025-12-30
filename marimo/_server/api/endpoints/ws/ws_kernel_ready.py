@@ -13,13 +13,14 @@ from marimo._messaging.notification import (
     KernelReadyNotification,
 )
 from marimo._plugins.core.web_component import JSONType
-from marimo._server.model import SessionMode
+from marimo._session.model import SessionMode
 from marimo._types.ids import CellId_t
 
 if TYPE_CHECKING:
     from marimo._server.file_router import MarimoFileKey
     from marimo._server.rtc.doc import LoroDocManager
-    from marimo._server.sessions import Session, SessionManager
+    from marimo._server.session_manager import SessionManager
+    from marimo._session import Session
 
 LOGGER = _loggers.marimo_logger()
 
@@ -38,6 +39,7 @@ def build_kernel_ready(
     file_key: MarimoFileKey,
     mode: SessionMode,
     doc_manager: LoroDocManager,
+    auto_instantiated: bool = False,
 ) -> KernelReadyNotification:
     """Build a KernelReady message.
 
@@ -53,6 +55,9 @@ def build_kernel_ready(
         file_key: File key for the session
         mode: Session mode (edit/run)
         doc_manager: LoroDoc manager for RTC
+        auto_instantiated: Whether the kernel has already been instantiated
+            server-side (run mode). If True, the frontend does not need
+            to instantiate the app.
 
     Returns:
         KernelReady message operation.
@@ -76,6 +81,7 @@ def build_kernel_ready(
         app_config=session.app_file_manager.app.config,
         kiosk=kiosk,
         capabilities=KernelCapabilitiesNotification(),
+        auto_instantiated=auto_instantiated,
     )
 
 

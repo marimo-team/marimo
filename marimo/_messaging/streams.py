@@ -24,7 +24,7 @@ from marimo._messaging.types import (
     Stdout,
     Stream,
 )
-from marimo._server.types import QueueType
+from marimo._session.queue import QueueType
 from marimo._types.ids import CellId_t
 
 if TYPE_CHECKING:

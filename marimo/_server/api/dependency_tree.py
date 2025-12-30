@@ -1,7 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from marimo._server.models.packages import DependencyTreeNode
+from marimo._utils.uv_tree import DependencyTreeNode
 
 
 def parse_name_version(content: str) -> tuple[str, str | None]:

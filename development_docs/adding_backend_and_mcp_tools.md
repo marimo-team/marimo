@@ -76,7 +76,7 @@ from marimo._ai._tools.utils.exceptions import ToolExecutionError
 from marimo._types.ids import SessionId
 
 if TYPE_CHECKING:
-    from marimo._server.sessions import Session
+    from marimo._session import Session
 
 
 @dataclass

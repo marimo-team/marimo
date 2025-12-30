@@ -115,3 +115,13 @@ export function getAppConfig() {
 }
 
 export const appWidthAtom = atom((get) => get(appConfigAtom).width);
+
+/**
+ * Snippets panel is available when user has custom paths or default snippets enabled.
+ */
+export const snippetsEnabledAtom = atom<boolean>((get) => {
+  const config = get(resolvedMarimoConfigAtom);
+  const customPaths = config.snippets?.custom_paths ?? [];
+  const includeDefaultSnippets = config.snippets?.include_default_snippets;
+  return customPaths.length > 0 || includeDefaultSnippets === true;
+});
