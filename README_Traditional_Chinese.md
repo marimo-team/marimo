@@ -7,11 +7,11 @@
 </p>
 
 <p align="center">
-  <a href="https://docs.marimo.io" target="_blank"><strong>文件</strong></a> · 
-  <a href="https://marimo.io/discord?ref=readme" target="_blank"><strong>Discord</strong></a> · 
-  <a href="https://docs.marimo.io/examples/" target="_blank"><strong>範例</strong></a> · 
-  <a href="https://marimo.io/gallery/" target="_blank"><strong>展示廊</strong></a> · 
-  <a href="https://www.youtube.com/@marimo-team/" target="_blank"><strong>YouTube</strong></a> 
+  <a href="https://docs.marimo.io" target="_blank"><strong>文件</strong></a> ·
+  <a href="https://marimo.io/discord?ref=readme" target="_blank"><strong>Discord</strong></a> ·
+  <a href="https://docs.marimo.io/examples/" target="_blank"><strong>範例</strong></a> ·
+  <a href="https://marimo.io/gallery/" target="_blank"><strong>展示廊</strong></a> ·
+  <a href="https://www.youtube.com/@marimo-team/" target="_blank"><strong>YouTube</strong></a>
 </p>
 
 <p align="center">
@@ -37,7 +37,7 @@
 
 **marimo** 是一個響應式的 Python 筆記本：執行單元格或與 UI 元素互動時，marimo 會自動執行相依的單元格（或<a href="#expensive-notebooks">將其標記為過時</a>），保持程式碼和輸出的一致性。marimo 筆記本以純 Python 格式儲存（具有一流的 SQL 支援），可作為腳本執行，並可部署為應用程式。
 
-**亮點**。
+**亮點**
 
 - 🚀 **功能齊全：** 可取代 `jupyter`、`streamlit`、`jupytext`、`ipywidgets`、`papermill` 等工具
 - ⚡️ **響應式：** 執行一個單元格，marimo 會響應式地[執行所有相依單元格](https://docs.marimo.io/guides/reactivity.html)或<a href="#expensive-notebooks">將其標記為過時</a>
@@ -57,7 +57,7 @@
 pip install marimo && marimo tutorial intro
 ```
 
-_在我們的[線上體驗平台](https://marimo.app/l/c7h6pz)用試用 marimo，完全在瀏覽器中執行！_
+_在我們的[線上體驗平台](https://marimo.app/l/c7h6pz)來試用 marimo，完全在瀏覽器中執行！_
 
 _跳到[快速開始](#快速開始)了解我們的 CLI 工具。_
 
@@ -66,7 +66,7 @@ _跳到[快速開始](#快速開始)了解我們的 CLI 工具。_
 marimo 保證您的筆記本程式碼、輸出和程式狀態保持一致。這[解決了許多問題](https://docs.marimo.io/faq.html#faq-problems)，這些問題與傳統筆記本（如 Jupyter）相關。
 
 **響應式程式設計環境。**
-執行一個單元格，marimo 會_響應式地_自動執行所有引用其變數的單元格，消除了手動重新執行單元格的容易出錯的任務。刪除一個單元格，marimo 會從程式記憶體中清除其變數，消除隱藏狀態。
+執行一個單元格，marimo 會_響應式地_自動執行所有引用其變數的單元格，省去手動重新執行單元格這種容易出錯的步驟。刪除一個單元格，marimo 會從程式記憶體中清除其變數，消除隱藏狀態。
 
 <img src="https://raw.githubusercontent.com/marimo-team/marimo/main/docs/_static/reactive.gif" width="700px" />
 
@@ -100,13 +100,13 @@ marimo 保證您的筆記本程式碼、輸出和程式狀態保持一致。這[
 
 **高效能執行環境。** marimo 透過靜態分析您的程式碼，只執行需要執行的單元格。
 
-**功能齊全。** marimo 附帶 GitHub Copilot、AI 助手、Ruff 程式碼格式化、HTML 匯出、快速程式碼自動完成、[VS Code 擴充套件](https://marketplace.visualstudio.com/items?itemName=marimo-team.vscode-marimo)、互動式資料框檢視器，以及[更多](https://docs.marimo.io/guides/editor_features/index.html)提升生活品質的功能。
+**功能齊全。** marimo 附帶 GitHub Copilot、AI 助手、Ruff 程式碼格式化、HTML 匯出、快速程式碼自動完成、[VS Code 擴充套件](https://marketplace.visualstudio.com/items?itemName=marimo-team.vscode-marimo)、互動式資料框檢視器，以及[更多](https://docs.marimo.io/guides/editor_features/index.html)便利功能。
 
 ## 快速開始
 
 _我們 [YouTube 頻道](https://www.youtube.com/@marimo-team)上的 [marimo 概念播放清單](https://www.youtube.com/watch?v=3N6lInzq5MI&list=PLNJXGo8e1XT9jP7gPbRdm1XwloZVFvLEq)提供了許多功能的概覽。_
 
-**安裝。**
+**安裝**
 
 在終端機中執行
 
@@ -131,7 +131,7 @@ marimo edit
 
 **作為應用程式執行**
 
-運行應用程式。將您的筆記本作為網頁應用程式運行，Python 程式碼將被隱藏且不可編輯：
+將您的筆記本作為網頁應用程式運行，Python 程式碼將被隱藏且不可編輯：
 
 ```bash
 marimo run your_notebook.py
@@ -141,15 +141,15 @@ marimo run your_notebook.py
 
 **作為腳本執行**
 
-作為腳本執行。 在命令列中將筆記本作為腳本執行
+在命令列中將筆記本作為腳本執行
 
 ```bash
 python your_notebook.py
 ```
 
-**自動轉換現有的 Jupyter 筆記本**
+**自動轉換 Jupyter 筆記本**
 
-自動轉換 Jupyter 筆記本。 使用 CLI 自動將 Jupyter 筆記本轉換為 marimo 筆記本
+使用 CLI 自動將 Jupyter 筆記本轉換為 marimo 筆記本
 
 ```bash
 marimo convert your_notebook.ipynb > your_notebook.py
