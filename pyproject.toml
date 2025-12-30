@@ -7,7 +7,7 @@ name = "marimo"
 version = "0.18.4"
 description = "A library for making reactive notebooks and apps"
 # We try to keep dependencies to a minimum, to avoid conflicts with
-# user environments;we need a very compelling reason for each dependency added.
+# user environments; we need a very compelling reason for each dependency added.
 # Dependencies should have lower bounds, which should be as loose as possible.
 dependencies = [
     # For maintainable cli
@@ -22,7 +22,7 @@ dependencies = [
     # syntax highlighting of code in markdown
     "pygments>=2.19,<3",
     # for reading, writing configs
-    "tomlkit>= 0.12.0",
+    "tomlkit>=0.12.0",
     # for managing frontmatter headers in markdown
     "pyyaml>=6.0.1",
     # web server
@@ -82,19 +82,16 @@ marimo_converter = "marimo._utils.docs:MarimoConverter"
 
 [project.optional-dependencies]
 sql = [
-    "duckdb>=1.0.0",
-    "polars[pyarrow]>=1.9.0",
-    "sqlglot[rs]>=26.2.0"
+    "duckdb>=1.0.0",           # SQL cells
+    "polars[pyarrow]>=1.9.0",  # SQL output back in Python
+    "sqlglot[rs]>=26.2.0"      # SQL cells parsing
 ]
 
 # List of deps that are recommended for most users
 # in order to unlock all features in marimo
-# This includes the `sql` deps
 recommended = [
-    "duckdb>=1.0.0",            # SQL cells
+    "marimo[sql]",
     "altair>=5.4.0",            # Plotting in datasource viewer
-    "polars[pyarrow]>=1.9.0",   # SQL output back in Python
-    "sqlglot[rs]>=26.2.0",      # SQL cells parsing
     "openai>=1.55.3",           # AI features
     "ruff",                     # Formatting
     "nbformat>=5.7.0",          # Export as IPYNB
@@ -106,14 +103,13 @@ lsp = [
 ]
 
 mcp = [
-    "mcp>=1.0.0; python_version >= '3.10'",
-    "pydantic>2; python_version >= '3.10'",
+    "mcp>=1.0.0",
+    "pydantic>2",
 ]
 
 [dependency-groups]
 dev = [
     "hatch>=1.15.1",
-    "click>=8.0,<9",
     "black~=23.12.1",
     # For tracing debugging
     "opentelemetry-api~=1.28.0",
@@ -201,7 +197,7 @@ dependencies = [
     "types-redis~=4.6.0.20241004",
     "types-Markdown~=3.6.0.20240316",
     "types-PyYAML~=6.0.12.20240808",
-    "mcp>=1.0.0; python_version >= '3.10'",
+    "mcp>=1.0.0",
     # zeromq
     "pyzmq>=27.1.0",
 ]
@@ -278,7 +274,7 @@ extra-dependencies = [
     "jax>=0.4.0; python_version == '3.12'",
     "torch>=2.4.0; python_version == '3.12'",
     "scikit-bio>=0.6.3; python_version == '3.12'",
-    "mcp>=1.0.0; python_version >= '3.10'",
+    "mcp>=1.0.0",
     # zeromq
     "pyzmq>=27.1.0",
 ]

@@ -1131,7 +1131,7 @@ packages:
 - pypi: ./
   name: marimo
   version: 0.18.4
-  sha256: ef76de97391681b5dbc679e49734538ea5e6159c6efa1e92f6464347d11f5fc8
+  sha256: d0bc9e89edf22435d914a6a9e5eaf079d0610028a0e5c8f35c270cf54d3ae5e1
   requires_dist:
   - click>=8.0,<9
   - jedi>=0.18.0
@@ -1154,17 +1154,15 @@ packages:
   - duckdb>=1.0.0 ; extra == 'sql'
   - polars[pyarrow]>=1.9.0 ; extra == 'sql'
   - sqlglot[rs]>=26.2.0 ; extra == 'sql'
-  - duckdb>=1.0.0 ; extra == 'recommended'
+  - marimo[sql] ; extra == 'recommended'
   - altair>=5.4.0 ; extra == 'recommended'
-  - polars[pyarrow]>=1.9.0 ; extra == 'recommended'
-  - sqlglot[rs]>=26.2.0 ; extra == 'recommended'
   - openai>=1.55.3 ; extra == 'recommended'
   - ruff ; extra == 'recommended'
   - nbformat>=5.7.0 ; extra == 'recommended'
   - python-lsp-server>=1.13.0 ; extra == 'lsp'
   - python-lsp-ruff>=2.0.0 ; extra == 'lsp'
-  - mcp>=1.0.0 ; python_full_version >= '3.10' and extra == 'mcp'
-  - pydantic>2 ; python_full_version >= '3.10' and extra == 'mcp'
+  - mcp>=1.0.0 ; extra == 'mcp'
+  - pydantic>2 ; extra == 'mcp'
   requires_python: '>=3.10'
   editable: true
 - pypi: https://files.pythonhosted.org/packages/70/81/54e3ce63502cd085a0c556652a4e1b919c45a446bd1e5300e10c44c8c521/markdown-3.10-py3-none-any.whl
