@@ -42,16 +42,16 @@ from marimo._server.export.utils import (
     get_filename,
 )
 from marimo._server.models.export import ExportAsHTMLRequest
-from marimo._server.session.serialize import (
-    serialize_notebook,
-    serialize_session_view,
-)
-from marimo._server.session.session_view import SessionView
 from marimo._server.templates.templates import (
     static_notebook_template,
     wasm_notebook_template,
 )
 from marimo._server.tokens import SkewProtectionToken
+from marimo._session.state.serialize import (
+    serialize_notebook,
+    serialize_session_view,
+)
+from marimo._session.state.session_view import SessionView
 from marimo._utils import async_path
 from marimo._utils.code import hash_code
 from marimo._utils.data_uri import build_data_url

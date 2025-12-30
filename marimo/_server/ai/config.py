@@ -21,7 +21,7 @@ from marimo._server.ai.constants import DEFAULT_MAX_TOKENS, DEFAULT_MODEL
 from marimo._server.ai.ids import AiModelId
 from marimo._server.ai.tools.tool_manager import get_tool_manager
 from marimo._server.ai.tools.types import ToolDefinition
-from marimo._server.api.status import HTTPStatus
+from marimo._utils.http import HTTPStatus
 
 
 @dataclass

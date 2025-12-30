@@ -25,7 +25,7 @@ import { Logger } from "@/utils/Logger";
 import { reloadSafe } from "@/utils/reload-safe";
 import { useAlertActions } from "../alerts/state";
 import { cacheInfoAtom } from "../cache/requests";
-import type { CellId, UIElementId } from "../cells/ids";
+import { type CellId, SCRATCH_CELL_ID, type UIElementId } from "../cells/ids";
 import { useRunsActions } from "../cells/runs";
 import { focusAndScrollCellOutputIntoView } from "../cells/scrollCellIntoView";
 import type { CellData } from "../cells/types";
@@ -60,6 +60,19 @@ import { useVariablesActions } from "../variables/state";
 import type { VariableName } from "../variables/types";
 import { isWasm } from "../wasm/utils";
 import { WebSocketClosedReason, WebSocketState } from "./types";
+
+const SUPPORTS_LAZY_KERNELS = false;
+
+function getExistingCells(): CellData[] | undefined {
+  if (!SUPPORTS_LAZY_KERNELS) {
+    return undefined;
+  }
+
+  // Remove scratch pad
+  return Object.values(getNotebook().cellData).filter(
+    (cell) => cell.id !== SCRATCH_CELL_ID,
+  );
+}
 
 /**
  * Creates a connection to the Marimo kernel and handles incoming messages.
@@ -97,7 +110,11 @@ export function useMarimoKernelConnection(opts: {
       case "reload":
         reloadSafe();
         return;
-      case "kernel-ready":
+      case "kernel-ready": {
+        // TODO(mscolnick): For lazy kernels, we should grab existing cells from the page
+        // in case they have been edited locally.
+        const existingCells = getExistingCells();
+
         handleKernelReady(msg.data, {
           autoInstantiate,
           setCells,
@@ -105,9 +122,11 @@ export function useMarimoKernelConnection(opts: {
           setAppConfig,
           setCapabilities,
           onError: showBoundary,
+          existingCells,
         });
         setKioskMode(msg.data.kiosk);
         return;
+      }
 
       case "completed-run":
         return;

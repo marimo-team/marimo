@@ -40,10 +40,10 @@ from marimo._dependencies.dependencies import DependencyManager
 from marimo._server.api.auth import validate_auth
 from marimo._server.api.deps import AppState, AppStateBase
 from marimo._server.codes import WebSocketCodes
-from marimo._server.model import SessionMode
-from marimo._server.utils import print_tabbed
 from marimo._server.uvicorn_utils import close_uvicorn
+from marimo._session.model import SessionMode
 from marimo._tracer import server_tracer
+from marimo._utils.print import print_tabbed
 
 if TYPE_CHECKING:
     from starlette.datastructures import State

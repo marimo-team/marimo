@@ -5,20 +5,20 @@ from typing import TYPE_CHECKING, Any, Optional, Union, cast
 
 from marimo import _loggers as loggers
 from marimo._config.manager import MarimoConfigManager, ScriptConfigManager
-from marimo._server.model import SessionMode
-from marimo._server.sessions import SessionManager
+from marimo._server.config import StarletteServerState
+from marimo._server.session_manager import SessionManager
 from marimo._server.tokens import SkewProtectionToken
+from marimo._session.model import SessionMode
 from marimo._types.ids import SessionId
 
 if TYPE_CHECKING:
     from starlette.applications import Starlette
     from starlette.datastructures import State
     from starlette.requests import Request
-    from starlette.types import ASGIApp
     from starlette.websockets import WebSocket
     from uvicorn import Server
 
-    from marimo._server.sessions import Session
+    from marimo._session import Session
 
 LOGGER = loggers.marimo_logger()
 
@@ -38,11 +38,11 @@ class AppStateBase:
 
     def __init__(self, state: State) -> None:
         """Initialize the app state."""
-        self.state = state
+        self.state = cast(StarletteServerState, state)
 
     @property
     def session_manager(self) -> SessionManager:
-        return cast(SessionManager, self.state.session_manager)
+        return self.state.session_manager
 
     @property
     def mode(self) -> SessionMode:
@@ -50,52 +50,39 @@ class AppStateBase:
 
     @property
     def quiet(self) -> bool:
-        return self.session_manager.quiet
+        return self.state.quiet
 
     @property
     def host(self) -> str:
-        host: str = self.state.host
-        return host
+        return self.state.host
 
     @property
     def port(self) -> int:
-        post: int = self.state.port
-        return post
+        return self.state.port
 
     @property
     def maybe_port(self) -> Optional[int]:
-        return self.state._state.get("port")
+        return getattr(self.state, "port", None)
 
     @property
     def base_url(self) -> str:
-        base_url: str = self.state.base_url
-        return base_url
+        return self.state.base_url
 
     @property
     def server(self) -> Server:
-        server: Server = self.state.server
-        return server
+        return self.state.server
 
     @property
     def config_manager(self) -> MarimoConfigManager:
-        cm = self.state.config_manager
-        assert isinstance(cm, MarimoConfigManager)
-        return cm
-
-    @property
-    def watch(self) -> bool:
-        watch: bool = self.state.watch
-        return watch
+        return self.state.config_manager
 
     @property
     def headless(self) -> bool:
-        headless: bool = self.state.headless
-        return headless
+        return self.state.headless
 
     @property
     def skew_protection(self) -> bool:
-        skew_protection: bool = self.state.skew_protection
-        return skew_protection
+        return self.state.skew_protection
 
     @property
     def skew_protection_token(self) -> SkewProtectionToken:
@@ -103,24 +90,25 @@ class AppStateBase:
 
     @property
     def remote_url(self) -> Optional[str]:
-        return getattr(self.state, "remote_url", None)
+        if hasattr(self.state, "remote_url"):
+            return self.state.remote_url
+        return None
 
     @property
     def mcp_server_enabled(self) -> bool:
-        mcp_server_enabled: bool = self.state.mcp_server_enabled
-        return mcp_server_enabled
-
-    @property
-    def mcp_handler(self) -> Optional[ASGIApp]:
-        return getattr(self.state, "mcp_handler", None)
+        return self.state.mcp_server_enabled
 
     @property
     def asset_url(self) -> Optional[str]:
-        return getattr(self.state, "asset_url", None)
+        if hasattr(self.state, "asset_url"):
+            return self.state.asset_url
+        return None
 
     @property
     def enable_auth(self) -> bool:
-        return getattr(self.state, "enable_auth", True)
+        if hasattr(self.state, "enable_auth"):
+            return self.state.enable_auth
+        return True
 
 
 class AppState(AppStateBase):

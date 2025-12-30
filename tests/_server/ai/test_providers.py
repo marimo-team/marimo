@@ -6,6 +6,7 @@ import pytest
 
 from marimo._ai._types import ChatMessage
 from marimo._config.config import AiConfig
+from marimo._dependencies.dependencies import Dependency, DependencyManager
 from marimo._server.ai.config import AnyProviderConfig
 from marimo._server.ai.providers import (
     AnthropicProvider,
@@ -60,23 +61,40 @@ def test_anyprovider_for_model(model_name: str, provider_name: str) -> None:
 
 
 @pytest.mark.parametrize(
-    ("model_name", "provider_type"),
+    ("model_name", "provider_type", "dependency"),
     [
-        pytest.param("gpt-4", OpenAIProvider, id="openai"),
+        pytest.param("gpt-4", OpenAIProvider, None, id="openai"),
         pytest.param(
-            "claude-3-opus-20240229", AnthropicProvider, id="anthropic"
+            "claude-3-opus-20240229",
+            AnthropicProvider,
+            DependencyManager.anthropic,
+            id="anthropic",
         ),
-        pytest.param("gemini-1.5-flash", GoogleProvider, id="google"),
+        pytest.param(
+            "gemini-1.5-flash",
+            GoogleProvider,
+            DependencyManager.google_ai,
+            id="google",
+        ),
         pytest.param(
             "bedrock/anthropic.claude-3-sonnet-20240229",
             BedrockProvider,
+            None,
             id="bedrock",
         ),
-        pytest.param("openrouter/gpt-4", OpenAIProvider, id="openrouter"),
+        pytest.param(
+            "openrouter/gpt-4", OpenAIProvider, None, id="openrouter"
+        ),
     ],
 )
-def test_get_completion_provider(model_name: str, provider_type: type) -> None:
+def test_get_completion_provider(
+    model_name: str, provider_type: type, dependency: Dependency | None
+) -> None:
     """Test that the correct provider is returned for a given model."""
+
+    if dependency and not dependency.has():
+        pytest.skip(f"{dependency.pkg} is not installed")
+
     config = AnyProviderConfig(api_key="test-key", base_url="http://test-url")
     provider = get_completion_provider(config, model_name)
     assert isinstance(provider, provider_type)
@@ -199,26 +217,6 @@ def test_extract_content_with_none_tool_call_ids(
     assert result == [("Hello", "text")]
 
 
-def test_google_extract_content_with_none_tool_call_ids() -> None:
-    """Test Google extract_content handles None tool_call_ids without errors."""
-    config = AnyProviderConfig(api_key="test-key", base_url="http://test")
-    provider = GoogleProvider("gemini-1.5-flash", config)
-
-    mock_response = MagicMock()
-    mock_candidate = MagicMock()
-    mock_content = MagicMock()
-    mock_part = MagicMock()
-    mock_part.text = "Hello"
-    mock_part.thought = False
-    mock_part.function_call = None
-    mock_content.parts = [mock_part]
-    mock_candidate.content = mock_content
-    mock_response.candidates = [mock_candidate]
-
-    result = provider.extract_content(mock_response, None)
-    assert result == [("Hello", "text")]
-
-
 def test_openai_extract_content_multiple_tool_calls() -> None:
     """Test OpenAI extracts multiple tool calls correctly."""
     config = AnyProviderConfig(api_key="test-key", base_url="http://test")
@@ -258,68 +256,39 @@ def test_openai_extract_content_multiple_tool_calls() -> None:
     assert tool_data_1["toolName"] == "get_time"
 
 
-def test_google_extract_content_id_rectification() -> None:
-    """Test Google uses provided tool_call_ids for ID rectification."""
-    config = AnyProviderConfig(api_key="test-key", base_url="http://test")
-    provider = GoogleProvider("gemini-1.5-flash", config)
-
-    mock_response = MagicMock()
-    mock_candidate = MagicMock()
-    mock_content = MagicMock()
-    mock_func_call = MagicMock()
-    mock_func_call.name = "get_weather"
-    mock_func_call.args = {"location": "SF"}
-    mock_func_call.id = None
-    mock_part = MagicMock()
-    mock_part.text = None
-    mock_part.function_call = mock_func_call
-    mock_content.parts = [mock_part]
-    mock_candidate.content = mock_content
-    mock_response.candidates = [mock_candidate]
-
-    result = provider.extract_content(mock_response, ["stable_id"])
-    assert result is not None
-    tool_data, _ = result[0]
-    assert isinstance(tool_data, dict)
-    assert tool_data["toolCallId"] == "stable_id"
-
-
-def test_anthropic_extract_content_tool_call_id_mapping() -> None:
-    """Test Anthropic maps tool call IDs via block index."""
-    try:
-        from anthropic.types import (
-            InputJSONDelta,
-            RawContentBlockDeltaEvent,
-            RawContentBlockStartEvent,
-            ToolUseBlock,
-        )
-    except ImportError:
-        pytest.skip("Anthropic not installed")
+@pytest.mark.skipif(
+    not DependencyManager.anthropic.has()
+    or not DependencyManager.pydantic_ai.has(),
+    reason="anthropic or pydantic_ai not installed",
+)
+def test_anthropic_process_part_text_file() -> None:
+    """Test Anthropic converts text file parts to text parts."""
+    from pydantic_ai.ui.vercel_ai.request_types import FileUIPart, TextUIPart
 
     config = AnyProviderConfig(api_key="test-key", base_url="http://test")
     provider = AnthropicProvider("claude-3-opus-20240229", config)
 
-    start_event = RawContentBlockStartEvent(
-        type="content_block_start",
-        index=0,
-        content_block=ToolUseBlock(
-            type="tool_use", id="toolu_123", name="get_weather", input={}
-        ),
+    # Test text file conversion - base64 encoded "Hello, World!"
+    text_file_part = FileUIPart(
+        type="file",
+        media_type="text/plain",
+        url="data:text/plain;base64,SGVsbG8sIFdvcmxkIQ==",
+        filename="test.txt",
     )
-    provider.extract_content(start_event, None)
+    result = provider.process_part(text_file_part)
+    assert isinstance(result, TextUIPart)
+    assert result.text == "Hello, World!"
 
-    delta_event = RawContentBlockDeltaEvent(
-        type="content_block_delta",
-        index=0,
-        delta=InputJSONDelta(
-            type="input_json_delta", partial_json='{"location": "SF"}'
-        ),
+    # Test image file is not converted
+    image_file_part = FileUIPart(
+        type="file",
+        media_type="image/png",
+        url="data:image/png;base64,iVBORw0KGgo=",
+        filename="test.png",
     )
-    result = provider.extract_content(delta_event, None)
-    assert result is not None
-    tool_data, _ = result[0]
-    assert isinstance(tool_data, dict)
-    assert tool_data["toolCallId"] == "toolu_123"
+    result = provider.process_part(image_file_part)
+    assert isinstance(result, FileUIPart)
+    assert result.media_type == "image/png"
 
 
 @pytest.mark.parametrize(

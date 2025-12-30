@@ -40,7 +40,7 @@ from marimo._runtime.input_override import input_override
 from marimo._runtime.marimo_pdb import MarimoPdb
 from marimo._runtime.runtime import Kernel
 from marimo._save.stubs.module_stub import ModuleStub
-from marimo._server.model import SessionMode
+from marimo._session.model import SessionMode
 from marimo._types.ids import CellId_t
 
 if TYPE_CHECKING:

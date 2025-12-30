@@ -1571,7 +1571,7 @@ export interface paths {
         };
       };
       responses: {
-        /** @description Instantiate a component */
+        /** @description Instantiate a component. Only allowed in edit mode; in run mode, instantiation happens server-side automatically. */
         200: {
           headers: {
             [name: string]: unknown;
@@ -2802,7 +2802,11 @@ export interface components {
       /** @default [] */
       variables?: (string | components["schemas"]["VariableContext"])[];
     };
-    /** AiCompletionRequest */
+    /**
+     * AiCompletionRequest
+     * @description UIMessages are expected to be AI SDK messages.
+     *     See pydantic_ai.ui.vercel_ai.request_types.UIMessage or Vercel AI SDK documentation.
+     */
     AiCompletionRequest: {
       code: string;
       /** @default null */
@@ -2818,6 +2822,8 @@ export interface components {
       prompt: string;
       /** @default null */
       selectedText?: string | null;
+      /** @default [] */
+      uiMessages?: Record<string, any>[];
     };
     /**
      * AiConfig
@@ -3106,7 +3112,11 @@ export interface components {
       /** @enum {unknown} */
       role: "assistant" | "system" | "user";
     };
-    /** ChatRequest */
+    /**
+     * ChatRequest
+     * @description UIMessages are expected to be AI SDK messages.
+     *     See pydantic_ai.ui.vercel_ai.request_types.UIMessage or Vercel AI SDK documentation.
+     */
     ChatRequest: {
       context: components["schemas"]["AiCompletionContext"];
       includeOtherCode: string;
@@ -3115,6 +3125,7 @@ export interface components {
       model?: string | null;
       /** @default null */
       tools?: components["schemas"]["ToolDefinition"][] | null;
+      uiMessages: Record<string, any>[];
       /** @default null */
       variables?: (string | components["schemas"]["VariableContext"])[] | null;
     };
@@ -3943,6 +3954,10 @@ export interface components {
     InstantiateNotebookRequest: {
       /** @default true */
       autoRun?: boolean;
+      /** @default null */
+      codes?: {
+        [key: string]: string;
+      } | null;
       objectIds: string[];
       values: unknown[];
     };
@@ -4011,6 +4026,8 @@ export interface components {
      */
     KernelReadyNotification: {
       app_config: components["schemas"]["_AppConfig"];
+      /** @default false */
+      auto_instantiated?: boolean;
       capabilities: components["schemas"]["KernelCapabilitiesNotification"];
       cell_ids: string[];
       codes: string[];
@@ -4598,8 +4615,6 @@ export interface components {
       /** @enum {unknown} */
       type: "refresh-secrets";
     };
-    /** RefreshSecretsRequest */
-    RefreshSecretsRequest: Record<string, any>;
     /** ReloadNotification */
     ReloadNotification: {
       /** @enum {unknown} */

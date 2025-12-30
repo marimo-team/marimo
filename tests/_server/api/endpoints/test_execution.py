@@ -259,9 +259,7 @@ class TestExecutionRoutes_RunMode:
                 "autoRun": True,
             },
         )
-        assert response.status_code == 200, response.text
-        assert response.headers["content-type"] == "application/json"
-        assert "success" in response.json()
+        assert response.status_code == 401, response.text
 
     @staticmethod
     @with_read_session(SESSION_ID)
@@ -275,9 +273,7 @@ class TestExecutionRoutes_RunMode:
                 "autoRun": False,
             },
         )
-        assert response.status_code == 200, response.text
-        assert response.headers["content-type"] == "application/json"
-        assert "success" in response.json()
+        assert response.status_code == 401, response.text
 
     @staticmethod
     @with_read_session(SESSION_ID)

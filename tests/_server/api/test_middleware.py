@@ -23,12 +23,14 @@ from marimo._server.api.middleware import (
     _AsyncHTTPClient,
     _URLRequest,
 )
+from marimo._server.config import StarletteServerStateInit
 from marimo._server.main import (
     create_starlette_app,
 )
-from marimo._server.model import SessionMode
+from marimo._server.session_manager import SessionManager
 from marimo._server.tokens import AuthToken
 from marimo._server.utils import find_free_port
+from marimo._session.model import SessionMode
 from tests._server.mocks import get_mock_session_manager, token_header
 
 if TYPE_CHECKING:
@@ -38,20 +40,36 @@ if TYPE_CHECKING:
     from starlette.types import ASGIApp, Receive, Scope, Send
 
 
+def init_state(
+    *,
+    session_manager: SessionManager,
+    enable_auth: bool = True,
+    skew_protection: bool = False,
+    base_url: str = "",
+) -> StarletteServerStateInit:
+    return StarletteServerStateInit(
+        port=1234,
+        host="localhost",
+        base_url=base_url,
+        asset_url=None,
+        headless=False,
+        quiet=False,
+        session_manager=session_manager,
+        config_manager=MarimoConfigManager(UserConfigManager()),
+        remote_url=None,
+        mcp_server_enabled=False,
+        skew_protection=skew_protection,
+        enable_auth=enable_auth,
+    )
+
+
 def test_base_url() -> None:
     app = create_starlette_app(base_url="/foo")
-    app.state.session_manager = get_mock_session_manager()
-    app.state.config_manager = MarimoConfigManager(UserConfigManager())
-    client = TestClient(app)
-
-    # Mock out the server
-    uvicorn_server = uvicorn.Server(uvicorn.Config(app))
-    uvicorn_server.servers = []
-
-    app.state.server = uvicorn_server
-    app.state.host = "localhost"
-    app.state.port = 1234
-    app.state.base_url = "/foo"
+    init_state(
+        session_manager=get_mock_session_manager(mode=SessionMode.EDIT),
+        base_url="/foo",
+    ).apply(app.state)
+    with_server(app)
 
     client = TestClient(app)
 
@@ -111,19 +129,22 @@ def test_skew_protection(edit_app: Starlette) -> None:
     assert response.status_code == 401, response.text
 
 
-def test_skew_protection_disabled() -> None:
-    """Test that skew protection can be disabled via CLI flag"""
-    app = create_starlette_app(base_url="", skew_protection=False)
-    app.state.session_manager = get_mock_session_manager()
-    app.state.session_manager.mode = SessionMode.EDIT
-    app.state.config_manager = MarimoConfigManager(UserConfigManager())
-    # Mock out the server
+def with_server(app: Starlette) -> Starlette:
     uvicorn_server = uvicorn.Server(uvicorn.Config(app))
     uvicorn_server.servers = []
     app.state.server = uvicorn_server
-    app.state.host = "localhost"
-    app.state.port = 1234
-    app.state.base_url = ""
+    return app
+
+
+def test_skew_protection_disabled() -> None:
+    """Test that skew protection can be disabled via CLI flag"""
+    app = create_starlette_app(base_url="", skew_protection=False)
+    init_state(
+        session_manager=get_mock_session_manager(mode=SessionMode.EDIT),
+        skew_protection=False,
+    ).apply(app.state)
+    # Mock out the server
+    with_server(app)
 
     client = TestClient(app)
 
@@ -138,32 +159,20 @@ def test_skew_protection_disabled() -> None:
 @pytest.fixture
 def edit_app() -> Starlette:
     app = create_starlette_app(base_url="")
-    app.state.session_manager = get_mock_session_manager()
-    app.state.session_manager.mode = SessionMode.EDIT
-    app.state.config_manager = MarimoConfigManager(UserConfigManager())
-    # Mock out the server
-    uvicorn_server = uvicorn.Server(uvicorn.Config(app))
-    uvicorn_server.servers = []
-    app.state.server = uvicorn_server
-    app.state.host = "localhost"
-    app.state.port = 1234
-    app.state.base_url = ""
+    session_manager = get_mock_session_manager()
+    with_server(app)
+    init_state(session_manager=session_manager).apply(app.state)
     return app
 
 
 @pytest.fixture
 def read_app() -> Starlette:
     app = create_starlette_app(base_url="")
-    app.state.session_manager = get_mock_session_manager()
-    app.state.session_manager.mode = SessionMode.RUN
-    app.state.config_manager = MarimoConfigManager(UserConfigManager())
     # Mock out the server
-    uvicorn_server = uvicorn.Server(uvicorn.Config(app))
-    uvicorn_server.servers = []
-    app.state.server = uvicorn_server
-    app.state.host = "localhost"
-    app.state.port = 1234
-    app.state.base_url = ""
+    with_server(app)
+    init_state(
+        session_manager=get_mock_session_manager(mode=SessionMode.RUN),
+    ).apply(app.state)
     return app
 
 
@@ -175,36 +184,26 @@ def app(request: Any) -> Starlette:
 @pytest.fixture
 def no_auth_edit_app() -> Starlette:
     app = create_starlette_app(base_url="", enable_auth=False)
-    app.state.session_manager = get_mock_session_manager()
-    app.state.session_manager.mode = SessionMode.EDIT
-    # no auth
-    app.state.session_manager._token_manager.auth_token = AuthToken("")
-    app.state.config_manager = MarimoConfigManager(UserConfigManager())
-    # Mock out the server
-    uvicorn_server = uvicorn.Server(uvicorn.Config(app))
-    uvicorn_server.servers = []
-    app.state.server = uvicorn_server
-    app.state.host = "localhost"
-    app.state.port = 1234
-    app.state.base_url = ""
+    session_manager = get_mock_session_manager()
+    session_manager.mode = SessionMode.EDIT
+    session_manager._token_manager.auth_token = AuthToken("")
+    with_server(app)
+    init_state(session_manager=session_manager, enable_auth=False).apply(
+        app.state
+    )
     return app
 
 
 @pytest.fixture
 def no_auth_read_app() -> Starlette:
     app = create_starlette_app(base_url="", enable_auth=False)
-    app.state.session_manager = get_mock_session_manager()
-    app.state.session_manager.mode = SessionMode.RUN
+    session_manager = get_mock_session_manager(mode=SessionMode.RUN)
     # no auth
-    app.state.session_manager._token_manager.auth_token = AuthToken("")
-    app.state.config_manager = MarimoConfigManager(UserConfigManager())
-    # Mock out the server
-    uvicorn_server = uvicorn.Server(uvicorn.Config(app))
-    uvicorn_server.servers = []
-    app.state.server = uvicorn_server
-    app.state.host = "localhost"
-    app.state.port = 1234
-    app.state.base_url = ""
+    session_manager._token_manager.auth_token = AuthToken("")
+    with_server(app)
+    init_state(session_manager=session_manager, enable_auth=False).apply(
+        app.state
+    )
     return app
 
 

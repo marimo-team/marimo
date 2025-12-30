@@ -7,7 +7,7 @@ from typing import Optional
 
 from marimo._cli.print import bold, green, muted
 from marimo._config.config import MarimoConfig, MCPConfig
-from marimo._server.utils import print_, print_tabbed
+from marimo._utils.print import print_, print_tabbed
 
 UTF8_SUPPORTED = False
 

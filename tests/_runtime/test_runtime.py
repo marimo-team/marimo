@@ -45,7 +45,7 @@ from marimo._runtime.dataflow import EdgeWithVar
 from marimo._runtime.patches import create_main_module
 from marimo._runtime.runtime import Kernel, notebook_dir, notebook_location
 from marimo._runtime.scratch import SCRATCH_CELL_ID
-from marimo._server.model import SessionMode
+from marimo._session.model import SessionMode
 from marimo._utils.parse_dataclass import parse_raw
 from tests._messaging.mocks import MockStderr, MockStream
 from tests.conftest import ExecReqProvider, MockedKernel

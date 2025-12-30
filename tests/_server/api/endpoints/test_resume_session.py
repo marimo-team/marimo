@@ -14,7 +14,7 @@ from marimo._messaging.notification import (
     KernelCapabilitiesNotification,
     KernelReadyNotification,
 )
-from marimo._server.sessions import Session
+from marimo._session import Session
 from marimo._types.ids import SessionId
 from marimo._utils.parse_dataclass import parse_raw
 from tests._server.conftest import get_session_manager

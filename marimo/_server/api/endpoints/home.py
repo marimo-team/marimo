@@ -17,7 +17,6 @@ from marimo._server.file_router import (
     LazyListOfFilesAppFileRouter,
     count_files,
 )
-from marimo._server.model import ConnectionState
 from marimo._server.models.home import (
     MarimoFile,
     OpenTutorialRequest,
@@ -28,6 +27,7 @@ from marimo._server.models.home import (
     WorkspaceFilesResponse,
 )
 from marimo._server.router import APIRouter
+from marimo._session.model import ConnectionState
 from marimo._tutorials import create_temp_tutorial_file  # type: ignore
 from marimo._utils.paths import pretty_path
 

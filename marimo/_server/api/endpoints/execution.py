@@ -10,7 +10,7 @@ from starlette.responses import JSONResponse
 
 from marimo import _loggers
 from marimo._messaging.notification import AlertNotification
-from marimo._runtime.commands import HTTPRequest
+from marimo._runtime.commands import HTTPRequest, UpdateUIElementCommand
 from marimo._server.api.deps import AppState
 from marimo._server.api.endpoints.ws.ws_connection_validator import (
     FILE_QUERY_PARAM_KEY,
@@ -26,7 +26,6 @@ from marimo._server.models.models import (
     InstantiateNotebookRequest,
     InvokeFunctionRequest,
     SuccessResponse,
-    UpdateUIElementRequest,
     UpdateUIElementValuesRequest,
     UpdateWidgetModelRequest,
 )
@@ -65,7 +64,7 @@ async def set_ui_element_values(
     app_state = AppState(request)
     body = await parse_request(request, cls=UpdateUIElementValuesRequest)
     app_state.require_current_session().put_control_request(
-        UpdateUIElementRequest(
+        UpdateUIElementCommand(
             object_ids=body.object_ids,
             values=body.values,
             token=str(uuid4()),
@@ -100,6 +99,7 @@ async def set_model_values(
 
 
 @router.post("/instantiate")
+@requires("edit")
 async def instantiate(
     *,
     request: Request,
@@ -112,7 +112,8 @@ async def instantiate(
                     $ref: "#/components/schemas/InstantiateNotebookRequest"
     responses:
         200:
-            description: Instantiate a component
+            description: Instantiate a component. Only allowed in edit mode;
+                in run mode, instantiation happens server-side automatically.
             content:
                 application/json:
                     schema:

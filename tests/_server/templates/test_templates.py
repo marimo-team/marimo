@@ -27,9 +27,9 @@ from marimo._schemas.session import (
     NotebookSessionV1,
     StreamOutput,
 )
-from marimo._server.model import SessionMode
 from marimo._server.templates import templates
 from marimo._server.tokens import SkewProtectionToken
+from marimo._session.model import SessionMode
 from marimo._utils.code import hash_code
 from tests._server.templates.utils import normalize_index_html
 from tests.mocks import snapshotter

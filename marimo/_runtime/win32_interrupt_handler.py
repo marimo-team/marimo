@@ -8,7 +8,7 @@ from _thread import interrupt_main
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from marimo._server.types import QueueType
+    from marimo._session.queue import QueueType
 
 
 class Win32InterruptHandler(threading.Thread):

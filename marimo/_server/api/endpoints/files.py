@@ -10,7 +10,6 @@ from starlette.responses import PlainTextResponse
 from marimo import _loggers
 from marimo._runtime.commands import RenameNotebookCommand
 from marimo._server.api.deps import AppState
-from marimo._server.api.status import HTTPStatus
 from marimo._server.api.utils import parse_request
 from marimo._server.models.models import (
     BaseResponse,
@@ -24,6 +23,7 @@ from marimo._server.models.models import (
 from marimo._server.router import APIRouter
 from marimo._types.ids import ConsumerId
 from marimo._utils.async_path import abspath
+from marimo._utils.http import HTTPStatus
 
 if TYPE_CHECKING:
     from starlette.requests import Request
@@ -87,11 +87,11 @@ async def rename_file(
     """
     body = await parse_request(request, cls=RenameNotebookRequest)
     app_state = AppState(request)
+    filename = await abspath(body.filename)
 
     # Convert to absolute path
-    command = RenameNotebookCommand(filename=await abspath(body.filename))
     app_state.require_current_session().put_control_request(
-        command,
+        RenameNotebookCommand(filename=filename),
         from_consumer_id=ConsumerId(app_state.require_current_session_id()),
     )
 

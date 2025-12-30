@@ -16,12 +16,14 @@ from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._mcp.server.main import setup_mcp_server
 from marimo._messaging.notification import StartupLogsNotification
 from marimo._runtime.commands import SerializedCLIArgs
+from marimo._server.config import (
+    StarletteServerStateInit,
+)
 from marimo._server.file_router import AppFileRouter
 from marimo._server.lsp import CompositeLspServer, NoopLspServer
 from marimo._server.main import create_starlette_app
-from marimo._server.model import SessionMode
 from marimo._server.registry import LIFESPAN_REGISTRY
-from marimo._server.sessions import SessionManager
+from marimo._server.session_manager import SessionManager
 from marimo._server.tokens import AuthToken
 from marimo._server.utils import (
     find_free_port,
@@ -29,6 +31,7 @@ from marimo._server.utils import (
     initialize_fd_limit,
 )
 from marimo._server.uvicorn_utils import initialize_signals
+from marimo._session.model import SessionMode
 from marimo._tracer import LOGGER
 from marimo._utils.lifespans import Lifespans
 from marimo._utils.paths import marimo_package_path
@@ -282,19 +285,21 @@ def start(
     if mcp_enabled:
         setup_mcp_server(app)
 
-    app.state.port = external_port
-    app.state.host = external_host
-
-    app.state.headless = headless
-    app.state.watch = watch
-    app.state.session_manager = session_manager
-    app.state.base_url = base_url
-    app.state.asset_url = asset_url
-    app.state.config_manager = config_reader
-    app.state.remote_url = remote_url
-    app.state.mcp_server_enabled = mcp
-    app.state.skew_protection = skew_protection
-    app.state.enable_auth = enable_auth
+    init_state = StarletteServerStateInit(
+        port=external_port,
+        host=external_host,
+        base_url=base_url,
+        asset_url=asset_url,
+        headless=headless,
+        quiet=quiet,
+        session_manager=session_manager,
+        config_manager=config_reader,
+        remote_url=remote_url,
+        mcp_server_enabled=mcp,
+        skew_protection=skew_protection,
+        enable_auth=enable_auth,
+    )
+    init_state.apply(app.state)
 
     # Resource initialization
     # Increase the limit on open file descriptors to prevent resource

@@ -186,8 +186,8 @@ from marimo._secrets.load_dotenv import (
     load_dotenv_with_fallback,
 )
 from marimo._secrets.secrets import get_secret_keys
-from marimo._server.model import SessionMode
-from marimo._server.types import QueueType
+from marimo._session.model import SessionMode
+from marimo._session.queue import QueueType
 from marimo._sql.engines.duckdb import INTERNAL_DUCKDB_ENGINE, DuckDBEngine
 from marimo._sql.engines.types import (
     EngineCatalog,

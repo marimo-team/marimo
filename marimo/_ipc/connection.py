@@ -13,7 +13,7 @@ import zmq
 from marimo import _loggers
 from marimo._ipc.queue_proxy import PushQueue, start_receiver_thread
 from marimo._ipc.types import ConnectionInfo
-from marimo._server.types import QueueType
+from marimo._session.queue import QueueType
 
 if typing.TYPE_CHECKING:
     from marimo._messaging.types import KernelMessage

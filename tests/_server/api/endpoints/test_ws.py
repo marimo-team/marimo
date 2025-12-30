@@ -17,8 +17,8 @@ from marimo._messaging.notification import (
     KernelReadyNotification,
 )
 from marimo._server.codes import WebSocketCodes
-from marimo._server.model import SessionMode
-from marimo._server.sessions import SessionManager
+from marimo._server.session_manager import SessionManager
+from marimo._session.model import SessionMode
 from marimo._utils.parse_dataclass import parse_raw
 from tests._server.conftest import get_session_manager, get_user_config_manager
 from tests._server.mocks import token_header
@@ -212,7 +212,6 @@ def test_fails_on_multiple_connections_with_same_file(
     client.post("/api/kernel/shutdown", headers=HEADERS)
 
 
-@pytest.mark.flaky(reruns=3)
 async def test_file_watcher_calls_reload(client: TestClient) -> None:
     session_manager: SessionManager = get_session_manager(client)
     session_manager.mode = SessionMode.RUN
@@ -232,8 +231,15 @@ async def test_file_watcher_calls_reload(client: TestClient) -> None:
         assert session_manager._watcher_manager._watchers
         watcher = list(session_manager._watcher_manager._watchers.values())[0]
         await watcher.callback(Path(filename))
-        data = websocket.receive_json()
-        assert data == {"op": "reload", "data": {"op": "reload"}}
+        # Drain messages until we get the reload message
+        # (other messages like 'variables' may arrive first)
+        expected = {"op": "reload", "data": {"op": "reload"}}
+        for _ in range(10):
+            data = websocket.receive_json()
+            if data == expected:
+                break
+        else:
+            raise AssertionError(f"Expected {expected}, but never received it")
         session_manager.mode = SessionMode.EDIT
         session_manager.watch = False
     client.post("/api/kernel/shutdown", headers=HEADERS)
