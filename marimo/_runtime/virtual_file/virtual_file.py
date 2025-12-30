@@ -14,7 +14,6 @@ from marimo._messaging.mimetypes import KnownMimeType
 from marimo._runtime.cell_lifecycle_item import CellLifecycleItem
 from marimo._runtime.context import ContextNotInitializedError
 from marimo._runtime.virtual_file.storage import (
-    SharedMemoryStorage,
     VirtualFileStorage,
     VirtualFileStorageManager,
 )

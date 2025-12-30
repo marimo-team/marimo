@@ -4,6 +4,7 @@
 This module provides storage backends and file management for virtual files
 created during notebook execution.
 """
+
 from __future__ import annotations
 
 from marimo._runtime.virtual_file.storage import (

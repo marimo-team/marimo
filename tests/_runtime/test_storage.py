@@ -1,8 +1,6 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-import sys
-
 import pytest
 
 from marimo._runtime.virtual_file.storage import (
@@ -10,7 +8,6 @@ from marimo._runtime.virtual_file.storage import (
     SharedMemoryStorage,
     VirtualFileStorageManager,
 )
-from marimo._utils.platform import is_pyodide
 
 
 class TestInMemoryStorage:
@@ -66,7 +63,6 @@ class TestInMemoryStorage:
         assert not storage.has("key2")
 
 
-@pytest.mark.skipif(is_pyodide(), reason="SharedMemory not supported on Pyodide")
 class TestSharedMemoryStorage:
     def test_store_and_read(self) -> None:
         storage = SharedMemoryStorage()
@@ -189,9 +185,6 @@ class TestVirtualFileStorageManager:
         finally:
             manager.storage = original_storage
 
-    @pytest.mark.skipif(
-        is_pyodide(), reason="SharedMemory not supported on Pyodide"
-    )
     def test_read_without_storage_falls_back_to_shared_memory(self) -> None:
         manager = VirtualFileStorageManager()
         original_storage = manager.storage

@@ -157,8 +157,8 @@ def create_kernel_context(
     )
     from marimo._save.stores import get_store
 
-    # Use shared memory in EDIT mode (cross-process IPC),
-    # in-memory storage in RUN mode (same process)
+    # Use shared memory in edit mode,
+    # in-memory storage in run mode (same process)
     storage = (
         SharedMemoryStorage()
         if mode == SessionMode.EDIT
