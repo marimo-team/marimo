@@ -16,7 +16,7 @@ from marimo._config.manager import get_default_config_manager
 from marimo._output.utils import uri_decode_component, uri_encode_component
 from marimo._runtime.virtual_file import EMPTY_VIRTUAL_FILE, read_virtual_file
 from marimo._server.api.deps import AppState
-from marimo._server.file_router import validate_inside_directory
+from marimo._server.files.path_validator import PathValidator
 from marimo._server.router import APIRouter
 from marimo._server.templates.templates import (
     home_page_template,
@@ -313,7 +313,8 @@ async def serve_public_file(request: Request) -> Response:
 
         # Security check: ensure file is inside public directory
         try:
-            validate_inside_directory(public_dir, file_path)
+            validator = PathValidator(public_dir)
+            validator.validate_file_access(file_path)
         except HTTPException:
             return Response(status_code=403, content="Access denied")
 

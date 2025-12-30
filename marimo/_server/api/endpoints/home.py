@@ -13,10 +13,10 @@ from marimo import _loggers
 from marimo._server.api.deps import AppState
 from marimo._server.api.utils import parse_request
 from marimo._server.file_router import (
-    MAX_FILES,
     LazyListOfFilesAppFileRouter,
     count_files,
 )
+from marimo._server.files.directory_scanner import DirectoryScanner
 from marimo._server.models.home import (
     MarimoFile,
     OpenTutorialRequest,
@@ -33,6 +33,8 @@ from marimo._utils.paths import pretty_path
 
 if TYPE_CHECKING:
     from starlette.requests import Request
+
+MAX_FILES = DirectoryScanner.MAX_FILES
 
 LOGGER = _loggers.marimo_logger()
 

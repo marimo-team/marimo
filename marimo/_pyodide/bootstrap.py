@@ -20,6 +20,7 @@ from marimo._runtime.commands import (
     SerializedQueryParams,
     UpdateUIElementCommand,
 )
+from marimo._server.app_defaults import AppDefaults
 from marimo._server.models.models import SaveNotebookRequest
 from marimo._session.model import SessionMode
 from marimo._session.notebook import AppFileManager
@@ -103,8 +104,10 @@ def create_session(
 
     app_file_manager = AppFileManager(
         filename=filename,
-        default_width=user_config["display"]["default_width"],
-        default_sql_output=user_config["runtime"]["default_sql_output"],
+        defaults=AppDefaults(
+            width=user_config["display"]["default_width"],
+            sql_output=user_config["runtime"]["default_sql_output"],
+        ),
     )
     app = app_file_manager.app
 
