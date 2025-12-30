@@ -18,7 +18,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Switch } from "@/components/ui/switch";
-import { useResolvedMarimoConfig, useUserConfig } from "@/core/config/config";
+import { useResolvedMarimoConfig } from "@/core/config/config";
 import { useRequestClient } from "@/core/network/requests";
 import { isWasm } from "@/core/wasm/utils";
 import { cn } from "@/utils/cn";
@@ -32,8 +32,7 @@ export const RuntimeSettings: React.FC<RuntimeSettingsProps> = ({
   className,
 }) => {
   const { saveUserConfig } = useRequestClient();
-  const [userConfig, setUserConfig] = useUserConfig();
-  const config = useResolvedMarimoConfig()[0];
+  const [config, setUserConfig] = useResolvedMarimoConfig();
   const [dropdownOpen, setDropdownOpen] = useState(false);
 
   // Close dropdown when screen size crosses the md breakpoint
@@ -55,13 +54,13 @@ export const RuntimeSettings: React.FC<RuntimeSettingsProps> = ({
     // Send only the changed portion to avoid overwriting other config values
     await saveUserConfig({
       config: { runtime: { auto_instantiate: checked } },
-    }).then(() =>
+    }).then(() => {
       // Update local state with merged config
-      setUserConfig({
-        ...userConfig,
-        runtime: { ...userConfig.runtime, auto_instantiate: checked },
-      }),
-    );
+      setUserConfig((prev) => ({
+        ...prev,
+        runtime: { ...prev.runtime, auto_instantiate: checked },
+      }));
+    });
   };
 
   const handleCellChangeToggle = async (checked: boolean) => {
@@ -69,13 +68,13 @@ export const RuntimeSettings: React.FC<RuntimeSettingsProps> = ({
     // Send only the changed portion to avoid overwriting other config values
     await saveUserConfig({
       config: { runtime: { on_cell_change: onCellChange } },
-    }).then(() =>
+    }).then(() => {
       // Update local state with merged config
-      setUserConfig({
-        ...userConfig,
-        runtime: { ...userConfig.runtime, on_cell_change: onCellChange },
-      }),
-    );
+      setUserConfig((prev) => ({
+        ...prev,
+        runtime: { ...prev.runtime, on_cell_change: onCellChange },
+      }));
+    });
   };
 
   const handleModuleReloadChange = async (
@@ -84,13 +83,13 @@ export const RuntimeSettings: React.FC<RuntimeSettingsProps> = ({
     // Send only the changed portion to avoid overwriting other config values
     await saveUserConfig({
       config: { runtime: { auto_reload: option } },
-    }).then(() =>
+    }).then(() => {
       // Update local state with merged config
-      setUserConfig({
-        ...userConfig,
-        runtime: { ...userConfig.runtime, auto_reload: option },
-      }),
-    );
+      setUserConfig((prev) => ({
+        ...prev,
+        runtime: { ...prev.runtime, auto_reload: option },
+      }));
+    });
   };
 
   // Check if all reactivity is disabled

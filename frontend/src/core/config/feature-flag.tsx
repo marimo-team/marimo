@@ -38,7 +38,7 @@ export function getFeatureFlag<T extends keyof ExperimentalFeatures>(
 
 function setFeatureFlag(feature: keyof ExperimentalFeatures, value: boolean) {
   // Send only the changed portion to avoid overwriting other config values
-  getRequestClient().saveUserConfig({
+  void getRequestClient().saveUserConfig({
     config: { experimental: { [feature]: value } },
   });
 }

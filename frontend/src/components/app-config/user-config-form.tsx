@@ -182,7 +182,7 @@ export const UserConfigForm: React.FC = () => {
     }
     await saveUserConfig({ config: dirtyValues }).then(() => {
       // Update local state with form values
-      setConfig({ ...config, ...values });
+      setConfig((prev) => ({ ...prev, ...values }));
     });
   };
   const onSubmit = useDebouncedCallback(onSubmitNotDebounced, FORM_DEBOUNCE);
