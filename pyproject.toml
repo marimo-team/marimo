@@ -32,7 +32,8 @@ dependencies = [
     # - 0.29.0 introduced Middleware kwargs, which we use
     # - starlette 0.36.0 introduced a bug
     # - starlette 0.37.0 needed for httpx compatibility
-    "starlette>=0.37.0",
+    # - starlette 0.37.2 fixed httpx 0.28 compatibility (removed `app` arg)
+    "starlette>=0.37.2",
     # websockets for use with starlette, and for lsp
     "websockets >= 14.2.0",
     # loro for collaborative editing
@@ -113,7 +114,12 @@ dev = [
     "ruff>=0.13.2",
     # For AI
     "openai>=1.55.3",
-    "pydantic-ai-slim[google,anthropic]>=1.39.0"
+    "pydantic-ai-slim[google,anthropic]>=1.39.0",
+    # Constraints for pydantic-ai-slim transitive deps (for UV_RESOLUTION=lowest)
+    # - pydantic-ai 1.39.0 uses pydantic._internal._decorators._function_like (added in 2.11.0)
+    "pydantic>=2.11.0",
+    # - google-auth uses cachetools, and cachetools<5.0.0 uses collections.MutableMapping (removed in Python 3.10)
+    "cachetools>=5.0.0",
 ]
 
 lsp = [
@@ -251,7 +257,9 @@ extra-dependencies = [
     "sqlalchemy>=2.0.40",
     "pyiceberg>=0.9.0",
     # TODO: Remove pydantic or upgrade pyiceberg once upstream is fixed https://github.com/apache/iceberg-python/issues/2590
-    "pydantic<2.12.0",
+    # - pydantic-ai 1.39.0 needs pydantic >= 2.11.0 (uses _function_like)
+    # - pyiceberg has issues with pydantic >= 2.12.0
+    "pydantic>=2.11.0,<2.12.0",
     # For testing clickhouse
     "chdb>=3; platform_system != 'Windows'", # there is no suitable wheel for windows
     "clickhouse-connect>=0.8.18",
@@ -270,6 +278,8 @@ extra-dependencies = [
     # testing gen ai
     "openai>=1.55.3",
     "pydantic-ai-slim[google,anthropic]>=1.39.0",
+    # - google-auth uses cachetools, and cachetools<5.0.0 uses collections.MutableMapping (removed in Python 3.10)
+    "cachetools>=5.0.0",
     "boto3>=1.38.46",
     "litellm>=1.70.0",
     # exporting as ipynb

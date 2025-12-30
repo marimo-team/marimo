@@ -48,24 +48,23 @@ def _execute_startup_command(
     def run_command() -> None:
         buffer = StartupLogsNotification(content="", status="start")
 
+        def write_to_all_sessions(
+            content: StartupLogsNotification,
+            buffer: StartupLogsNotification,
+        ) -> None:
+            for session in session_manager.sessions.values():
+                # Clear buffer if it has content
+                if buffer.content != "":
+                    session.notify(buffer, from_consumer_id=None)
+                    buffer = StartupLogsNotification(
+                        content="", status="start"
+                    )
+                session.notify(content, from_consumer_id=None)
+            else:
+                buffer.content += content.content
+                buffer.status = content.status
+
         try:
-
-            def write_to_all_sessions(
-                content: StartupLogsNotification,
-                buffer: StartupLogsNotification,
-            ) -> None:
-                for session in session_manager.sessions.values():
-                    # Clear buffer if it has content
-                    if buffer.content != "":
-                        session.notify(buffer, from_consumer_id=None)
-                        buffer = StartupLogsNotification(
-                            content="", status="start"
-                        )
-                    session.notify(content, from_consumer_id=None)
-                else:
-                    buffer.content += content.content
-                    buffer.status = content.status
-
             # Broadcast start message to all sessions
             write_to_all_sessions(
                 StartupLogsNotification(content="", status="start"), buffer
