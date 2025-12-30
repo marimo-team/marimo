@@ -177,8 +177,9 @@ class VirtualFileStorageManager:
         Raises:
             KeyError: If file not found
         """
-        if self.storage is None:
+        storage = self.storage
+        if storage is None:
             # Never initialized so in a separate thread from the kernel.
             # Use SharedMemoryStorage to read by name across processes
             return SharedMemoryStorage().read(filename, byte_length)
-        return self._storage.read(filename, byte_length)
+        return storage.read(filename, byte_length)
