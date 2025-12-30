@@ -691,7 +691,9 @@ class pydantic_ai(ChatModel):
         )
         self.agent = agent
 
-    def __call__(self, messages: list[ChatMessage], config: ChatModelConfig):
+    def __call__(
+        self, messages: list[ChatMessage], config: ChatModelConfig
+    ) -> AsyncGenerator[BaseChunk, None]:
         return self._stream_response(messages, config)
 
     def _get_model_settings(self, config: ChatModelConfig) -> ModelSettings:

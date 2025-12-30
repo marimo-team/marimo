@@ -354,12 +354,12 @@ class chat(UIElement[dict[str, Any], list[ChatMessage]]):
 
     async def _send_prompt(
         self, args: SendMessageRequest
-    ) -> str | list[BaseChunk]:
+    ) -> str | list[dict[str, Any]]:
         messages = args.messages
 
         # If the model is a callable that takes a single argument,
         # call it with just the messages.
-        response: object | list[BaseChunk]
+        response: object | list[dict[str, Any]]
         if (
             callable(self._model)
             and not isinstance(self._model, type)
