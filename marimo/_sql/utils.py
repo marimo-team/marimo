@@ -82,7 +82,7 @@ def try_convert_to_polars(
         pl.exceptions.PanicException,
         pl.exceptions.ComputeError,
     ) as e:
-        return None, e
+        return None, str(e)
 
 
 def convert_to_output(
