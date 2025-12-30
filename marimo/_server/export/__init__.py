@@ -77,7 +77,7 @@ def export_as_script(path: MarimoPath) -> ExportResult:
 def export_as_md(path: MarimoPath) -> ExportResult:
     ir = _as_ir(path)
     return ExportResult(
-        contents=MarimoConvert.from_ir(ir).to_markdown(path.short_name),
+        contents=MarimoConvert.from_ir(ir).to_markdown(),
         download_filename=get_download_filename(path.short_name, "md"),
         did_error=False,
     )
