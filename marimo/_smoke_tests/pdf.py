@@ -2,7 +2,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.18.4"
 app = marimo.App(width="full")
 
 
@@ -16,7 +16,9 @@ def _():
 
 @app.cell
 def _(mo):
-    mo.md("# PDFs")
+    mo.md("""
+    # PDFs
+    """)
     return
 
 
