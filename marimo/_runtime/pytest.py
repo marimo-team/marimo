@@ -102,11 +102,15 @@ def _sub_function(
 
         # Filter out parametrized args from fixtureinfo since they're baked in
         fixtureinfo = FuncFixtureInfo(
-            argnames=tuple(a for a in fixtureinfo.argnames if a not in param_names),
+            argnames=tuple(
+                a for a in fixtureinfo.argnames if a not in param_names
+            ),
             initialnames=tuple(
                 a for a in fixtureinfo.initialnames if a not in param_names
             ),
-            names_closure=[a for a in fixtureinfo.names_closure if a not in param_names],
+            names_closure=[
+                a for a in fixtureinfo.names_closure if a not in param_names
+            ],
             name2fixturedefs={
                 k: v
                 for k, v in fixtureinfo.name2fixturedefs.items()
@@ -195,6 +199,18 @@ class ReplaceStubPlugin:
             while isinstance(head.parent.parent, _pytest.python.Class):
                 path.append(head.name)
                 head = head.parent
+
+            # Handle @app.class_definition classes (not wrapped in stub class)
+            # Check if head is a Function directly inside a Class whose name is in defs
+            if isinstance(head, _pytest.python.Function) and isinstance(
+                head.parent, _pytest.python.Class
+            ):
+                parent_name = getattr(
+                    head.parent, "originalname", head.parent.name
+                )
+                if parent_name in self.defs:
+                    path.append(head.name)
+                    head = head.parent
 
             # For test name, helps keep names relative to the root.
             parent: Any = item.parent

@@ -27,11 +27,19 @@ def test_smoke_test():
         "test_using_var_in_toplevel": (3, 0, 0),
         # Fixtures - these now work with fixture preservation
         "test_uses_scoped_fixture": (1, 0, 0),
-        "test_parametrize_with_scoped_fixture": (2, 0, 0),  # parametrize + fixture
+        "test_parametrize_with_scoped_fixture": (
+            2,
+            0,
+            0,
+        ),  # parametrize + fixture
         "TestWithClassFixture": (1, 0, 0),
-        "TestClassDefinitionWithFixtures": (0, 0, 0),  # @app.class_definition - not yet supported
+        "TestClassDefinitionWithFixtures": (3, 0, 0),
         "test_uses_top_level_fixture": (1, 0, 0),
-        "test_parametrize_with_toplevel_fixture": (2, 0, 0),  # parametrize + fixture
+        "test_parametrize_with_toplevel_fixture": (
+            2,
+            0,
+            0,
+        ),  # parametrize + fixture
         "test_uses_function_fixture": (1, 0, 0),
     }
 
@@ -62,5 +70,5 @@ def test_smoke_test():
     # put it back on
 
     # Assert all cases captured, and nothing missed.
-    # Total: 0+0+2+1+3+2+1+1+3+3+1+2+1+0+1+2+1 = 24
-    assert total == sum(map(sum, def_count.values())) == 24
+    # Total: 0+0+2+1+3+2+1+1+3+3+1+2+1+3+1+2+1 = 27
+    assert total == sum(map(sum, def_count.values())) == 27
