@@ -165,7 +165,7 @@ class CellManager:
     ) -> Cell:
         """Registers cells when called through a context block."""
         cell = context_cell_factory(
-            cell_id=CellId_t(SETUP_CELL_NAME),
+            cell_id=CellId_t(self.prefix + SETUP_CELL_NAME),
             # NB. carry along the frame from the initial call.
             frame=frame,
         )
@@ -221,7 +221,7 @@ class CellManager:
         self, cell_def: CellDef, app: InternalApp | None = None
     ) -> None:
         if isinstance(cell_def, SetupCell):
-            cell_id = CellId_t(SETUP_CELL_NAME)
+            cell_id = CellId_t(self.prefix + SETUP_CELL_NAME)
         else:
             cell_id = self.create_cell_id()
         filename = app.filename if app is not None else None
@@ -265,7 +265,7 @@ class CellManager:
         # If this is the first cell, and its name is setup, assume that it's
         # the setup cell.
         if len(self._cell_data) == 0 and name == SETUP_CELL_NAME:
-            cell_id = CellId_t(SETUP_CELL_NAME)
+            cell_id = CellId_t(self.prefix + SETUP_CELL_NAME)
         else:
             cell_id = self.create_cell_id()
 
