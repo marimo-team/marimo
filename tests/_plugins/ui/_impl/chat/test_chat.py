@@ -11,6 +11,7 @@ from marimo._ai._types import (
     ChatModelConfig,
     ChatModelConfigDict,
 )
+from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins import ui
 from marimo._plugins.ui._impl.chat.chat import (
     DEFAULT_CONFIG,
@@ -80,7 +81,7 @@ async def test_chat_send_prompt():
         messages=[ChatMessage(role="user", content="Hello")],
         config=ChatModelConfig(),
     )
-    response: str = await chat._send_prompt(request)
+    response = await chat._send_prompt(request)
 
     assert response == "Response to: Hello"
     assert len(chat._chat_history) == 2
@@ -103,7 +104,7 @@ async def test_chat_send_prompt_async_function():
         messages=[ChatMessage(role="user", content="Hello")],
         config=ChatModelConfig(),
     )
-    response: str = await chat._send_prompt(request)
+    response = await chat._send_prompt(request)
 
     assert response == "Response to: Hello"
     assert len(chat._chat_history) == 2
@@ -129,7 +130,7 @@ async def test_chat_send_prompt_async_generator():
         messages=[ChatMessage(role="user", content="Hello")],
         config=ChatModelConfig(),
     )
-    response: str = await chat._send_prompt(request)
+    response = await chat._send_prompt(request)
 
     # All deltas are accumulated: "0" + "1" + "2" = "012"
     assert response == "012"
@@ -168,7 +169,7 @@ async def test_chat_streaming_sends_messages():
         config=ChatModelConfig(),
     )
 
-    response: str = await chat._send_prompt(request)
+    response = await chat._send_prompt(request)
 
     # Verify final response (deltas accumulated)
     assert response == "Hello world !"
@@ -213,7 +214,7 @@ async def test_chat_sync_generator_streaming():
         config=ChatModelConfig(),
     )
 
-    response: str = await chat._send_prompt(request)
+    response = await chat._send_prompt(request)
 
     # Verify final response (deltas accumulated)
     assert response == "Hello world !"
@@ -254,7 +255,7 @@ async def test_chat_streaming_complete_response():
         config=ChatModelConfig(),
     )
 
-    response: str = await chat._send_prompt(request)
+    response = await chat._send_prompt(request)
 
     # Verify we got the complete final response (all deltas accumulated)
     assert response == "Hello world!"
@@ -470,7 +471,9 @@ def test_send_chat_message_helper():
     chat._send_message = capture_send_message
 
     # Send a non-final message
-    chat._send_chat_message("msg-123", "Hello", is_final=False)
+    chat._send_chat_message(
+        message_id="msg-123", content="Hello", is_final=False
+    )
 
     assert sent_messages == [
         {
@@ -482,7 +485,9 @@ def test_send_chat_message_helper():
     ]
 
     # Send a final message
-    chat._send_chat_message("msg-123", "Hello world", is_final=True)
+    chat._send_chat_message(
+        message_id="msg-123", content="Hello world", is_final=True
+    )
     assert sent_messages == [
         {
             "type": "stream_chunk",
@@ -519,7 +524,9 @@ def test_send_chat_message_with_dict_content():
 
     # Send dict content (like pydantic-ai serialized chunks)
     chunk_content = {"type": "text-delta", "textDelta": "Hello"}
-    chat._send_chat_message("msg-456", chunk_content, is_final=False)
+    chat._send_chat_message(
+        message_id="msg-456", content=chunk_content, is_final=False
+    )
 
     assert len(sent_messages) == 1
     assert sent_messages[0]["content"] == chunk_content
@@ -544,7 +551,7 @@ def test_send_chat_message_with_none_content():
     chat._send_message = capture_send_message
 
     # Send None content (final message indicator for pydantic-ai)
-    chat._send_chat_message("msg-789", None, is_final=True)
+    chat._send_chat_message(message_id="msg-789", content=None, is_final=True)
     assert sent_messages == [
         {
             "type": "stream_chunk",
@@ -553,90 +560,6 @@ def test_send_chat_message_with_none_content():
             "is_final": True,
         }
     ]
-
-
-class MockBaseChunk:
-    """Mock BaseChunk for testing pydantic-ai serialization."""
-
-    def __init__(self, data: dict):
-        self._data = data
-
-    def model_dump(self, mode: str, by_alias: bool, exclude_none: bool):
-        del mode, by_alias, exclude_none
-        return self._data
-
-
-class MockBaseChunkWithError:
-    """Mock BaseChunk that raises on serialization."""
-
-    def model_dump(self, mode: str, by_alias: bool, exclude_none: bool):
-        del mode, by_alias, exclude_none
-        raise ValueError("Serialization error")
-
-
-def test_serialize_pydantic_ai_chunk():
-    """Test _serialize_pydantic_ai_chunk with valid chunks."""
-    from typing import Any, cast
-
-    def mock_model(
-        messages: list[ChatMessage], config: ChatModelConfig
-    ) -> str:
-        del messages, config
-        return "Mock response"
-
-    chat = ui.chat(mock_model)
-
-    # Test text-delta chunk
-    text_chunk = MockBaseChunk({"type": "text-delta", "textDelta": "Hello"})
-    result = chat._serialize_pydantic_ai_chunk(cast(Any, text_chunk))
-    assert result == {"type": "text-delta", "textDelta": "Hello"}
-
-    # Test tool-call chunk
-    tool_chunk = MockBaseChunk(
-        {"type": "tool-call", "toolName": "search", "args": {"query": "test"}}
-    )
-    result = chat._serialize_pydantic_ai_chunk(cast(Any, tool_chunk))
-    assert result == {
-        "type": "tool-call",
-        "toolName": "search",
-        "args": {"query": "test"},
-    }
-
-
-def test_serialize_pydantic_ai_chunk_done_type():
-    """Test that 'done' type chunks are skipped."""
-    from typing import Any, cast
-
-    def mock_model(
-        messages: list[ChatMessage], config: ChatModelConfig
-    ) -> str:
-        del messages, config
-        return "Mock response"
-
-    chat = ui.chat(mock_model)
-
-    # Test done chunk - should return None
-    done_chunk = MockBaseChunk({"type": "done"})
-    result = chat._serialize_pydantic_ai_chunk(cast(Any, done_chunk))
-    assert result is None
-
-
-def test_serialize_pydantic_ai_chunk_error_handling():
-    """Test error handling in _serialize_pydantic_ai_chunk."""
-    from typing import Any, cast
-
-    def mock_model(
-        messages: list[ChatMessage], config: ChatModelConfig
-    ) -> str:
-        del messages, config
-        return "Mock response"
-
-    chat = ui.chat(mock_model)
-
-    # Test chunk that raises error - should return None
-    error_chunk = MockBaseChunkWithError()
-    result = chat._serialize_pydantic_ai_chunk(cast(Any, error_chunk))
-    assert result is None
 
 
 def test_convert_value_with_list_input():
@@ -656,9 +579,13 @@ def test_convert_value_with_list_input():
         chat._convert_value(cast(Any, [{"role": "user", "content": "Hello"}]))
 
 
+@pytest.mark.skipif(
+    not DependencyManager.pydantic_ai.has(),
+    reason="Pydantic AI is not installed",
+)
 def test_convert_value_pydantic_ai_mode():
     """Test _convert_value in pydantic-ai mode."""
-    from marimo._ai._types import TextPart
+    from pydantic_ai.ui.vercel_ai.request_types import TextUIPart
 
     def mock_model(
         messages: list[ChatMessage], config: ChatModelConfig
@@ -668,7 +595,7 @@ def test_convert_value_pydantic_ai_mode():
 
     chat = ui.chat(mock_model)
     # Force pydantic-ai mode
-    chat._pydantic_ai = True
+    chat._frontend_managed = True
 
     value = {
         "messages": [
@@ -690,13 +617,13 @@ def test_convert_value_pydantic_ai_mode():
         ChatMessage(
             role="user",
             id="msg-1",
-            parts=[TextPart(type="text", text="Hello")],
+            parts=[TextUIPart(type="text", text="Hello")],  # type: ignore
             content=None,
         ),
         ChatMessage(
             role="assistant",
             id="msg-2",
-            parts=[TextPart(type="text", text="Hi there!")],
+            parts=[TextUIPart(type="text", text="Hi there!")],  # type: ignore
             content=None,
         ),
     ]
@@ -712,7 +639,7 @@ def test_convert_value_pydantic_ai_mode_missing_fields():
         return "Mock response"
 
     chat = ui.chat(mock_model)
-    chat._pydantic_ai = True
+    chat._frontend_managed = True
 
     # Message without id or parts
     value = {
@@ -723,33 +650,27 @@ def test_convert_value_pydantic_ai_mode_missing_fields():
 
     converted = chat._convert_value(value)
     assert converted == [
-        ChatMessage(role="user", id=None, parts=None, content=None)
+        ChatMessage(role="user", id=None, parts=[], content=None)
     ]
 
 
 async def test_pydantic_ai_streaming_sends_serialized_chunks():
-    """Test that pydantic-ai streaming sends serialized chunks correctly.
+    """Test that pydantic-ai streaming sends already-serialized chunks correctly.
 
-    This test uses mock objects and patches the isinstance check to avoid
-    coupling to pydantic-ai's internal type structure.
+    In frontend-managed mode, the pydantic_ai model yields pre-serialized dicts,
+    which are sent directly to the frontend.
     """
-    from unittest.mock import patch
+    pytest.importorskip("pydantic_ai.ui.vercel_ai")
 
-    pydantic_ai_types = pytest.importorskip("pydantic_ai.ui.vercel_ai")
-    BaseChunk = pydantic_ai_types.response_types.BaseChunk
-
-    # Create mock chunks that mimic BaseChunk behavior
-    chunk1 = MockBaseChunk({"type": "text-delta", "textDelta": "Hello"})
-    chunk2 = MockBaseChunk({"type": "text-delta", "textDelta": " world"})
-    chunk3 = MockBaseChunk(
-        {"type": "done"}
-    )  # Should be skipped in serialization
+    # Chunks are already serialized dicts (from pydantic_ai._serialize_vercel_ai_chunk)
+    chunk1 = {"type": "text-delta", "textDelta": "Hello"}
+    chunk2 = {"type": "text-delta", "textDelta": " world"}
+    # "done" chunks are filtered out by pydantic_ai._serialize_vercel_ai_chunk
 
     async def mock_pydantic_ai_generator():
-        """Mock async generator yielding mock BaseChunk objects."""
+        """Mock async generator yielding pre-serialized dict chunks."""
         yield chunk1
         yield chunk2
-        yield chunk3
 
     def mock_model(
         messages: list[ChatMessage], config: ChatModelConfig
@@ -758,7 +679,7 @@ async def test_pydantic_ai_streaming_sends_serialized_chunks():
         return "Mock response"
 
     chat = ui.chat(mock_model)
-    chat._pydantic_ai = True
+    chat._frontend_managed = True
 
     sent_messages: list[dict] = []
 
@@ -767,18 +688,30 @@ async def test_pydantic_ai_streaming_sends_serialized_chunks():
 
     chat._send_message = capture_send_message
 
-    # Patch isinstance to treat our MockBaseChunk as BaseChunk
-    original_isinstance = isinstance
+    result = await chat._handle_streaming_response(
+        mock_pydantic_ai_generator()
+    )
 
-    def patched_isinstance(obj, classinfo):
-        if classinfo is BaseChunk and type(obj).__name__ == "MockBaseChunk":
-            return True
-        return original_isinstance(obj, classinfo)
+    # Result should be None for frontend-managed mode
+    assert result is None
 
-    with patch("builtins.isinstance", patched_isinstance):
-        result = await chat._handle_streaming_response(
-            mock_pydantic_ai_generator()
-        )
-
-    # Result should be list of chunks
-    assert result == [chunk1, chunk2, chunk3]
+    assert sent_messages == [
+        {
+            "type": "stream_chunk",
+            "message_id": sent_messages[0]["message_id"],
+            "content": chunk1,
+            "is_final": False,
+        },
+        {
+            "type": "stream_chunk",
+            "content": chunk2,
+            "is_final": False,
+            "message_id": sent_messages[1]["message_id"],
+        },
+        {
+            "type": "stream_chunk",
+            "message_id": sent_messages[2]["message_id"],
+            "content": None,
+            "is_final": True,
+        },
+    ]

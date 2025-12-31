@@ -17,7 +17,7 @@ class Dependency:
     max_version: str | None = None
 
     def has(self, quiet: bool = False) -> bool:
-        """Return True if the dependency is installed."""
+        """Return True if the dependency is installed. For a more performant check, use imported()."""
         try:
             has_dep = importlib.util.find_spec(self.pkg) is not None
             if not has_dep:

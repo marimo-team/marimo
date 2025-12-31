@@ -15,8 +15,27 @@ export type PluginFunctions = {
   get_chat_history: (req: {}) => Promise<{ messages: UIMessage[] }>;
   delete_chat_history: (req: {}) => Promise<null>;
   delete_chat_message: (req: { index: number }) => Promise<null>;
-  send_prompt: (req: SendMessageRequest) => Promise<string | object[]>;
+  send_prompt: (req: SendMessageRequest) => Promise<string | null>;
 };
+
+const messageSchema = z.array(
+  z.object({
+    id: z.string(),
+    role: z.enum(["system", "user", "assistant"]),
+    content: z.string(),
+    parts: z.array(z.any()),
+    metadata: z.any().nullable(),
+  }),
+);
+
+const configSchema = z.object({
+  max_tokens: z.number(),
+  temperature: z.number(),
+  top_p: z.number(),
+  top_k: z.number(),
+  frequency_penalty: z.number(),
+  presence_penalty: z.number(),
+});
 
 export const ChatPlugin = createPlugin<{ messages: UIMessage[] }>(
   "marimo-chatbot",
@@ -26,30 +45,15 @@ export const ChatPlugin = createPlugin<{ messages: UIMessage[] }>(
       prompts: z.array(z.string()).default(Arrays.EMPTY),
       showConfigurationControls: z.boolean(),
       maxHeight: z.number().optional(),
-      config: z.object({
-        max_tokens: z.number(),
-        temperature: z.number(),
-        top_p: z.number(),
-        top_k: z.number(),
-        frequency_penalty: z.number(),
-        presence_penalty: z.number(),
-      }),
+      config: configSchema,
       allowAttachments: z.union([z.boolean(), z.string().array()]),
-      pydanticAi: z.boolean(),
+      frontendManaged: z.boolean(),
     }),
   )
   .withFunctions<PluginFunctions>({
     get_chat_history: rpc.input(z.object({})).output(
       z.object({
-        messages: z.array(
-          z.object({
-            id: z.string(),
-            role: z.enum(["system", "user", "assistant"]),
-            content: z.string(),
-            parts: z.array(z.any()),
-            metadata: z.any().nullable(),
-          }),
-        ),
+        messages: messageSchema,
       }),
     ),
     delete_chat_history: rpc.input(z.object({})).output(z.null()),
@@ -59,26 +63,11 @@ export const ChatPlugin = createPlugin<{ messages: UIMessage[] }>(
     send_prompt: rpc
       .input(
         z.object({
-          messages: z.array(
-            z.object({
-              id: z.string(),
-              role: z.enum(["system", "user", "assistant"]),
-              content: z.string(),
-              parts: z.array(z.any()),
-              metadata: z.any().nullable(),
-            }),
-          ),
-          config: z.object({
-            max_tokens: z.number(),
-            temperature: z.number(),
-            top_p: z.number(),
-            top_k: z.number(),
-            frequency_penalty: z.number(),
-            presence_penalty: z.number(),
-          }),
+          messages: messageSchema,
+          config: configSchema,
         }),
       )
-      .output(z.union([z.string(), z.array(z.any())])),
+      .output(z.union([z.string(), z.null()])),
   })
   .renderer((props) => (
     <TooltipProvider>
@@ -88,7 +77,7 @@ export const ChatPlugin = createPlugin<{ messages: UIMessage[] }>(
           showConfigurationControls={props.data.showConfigurationControls}
           maxHeight={props.data.maxHeight}
           allowAttachments={props.data.allowAttachments}
-          isPydanticAI={props.data.pydanticAi}
+          frontendManaged={props.data.frontendManaged}
           config={props.data.config}
           get_chat_history={props.functions.get_chat_history}
           delete_chat_history={props.functions.delete_chat_history}

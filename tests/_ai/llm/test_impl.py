@@ -1312,6 +1312,34 @@ class TestPydanticAI:
             ),
         ]
 
+    def test_build_ui_messages_with_unknown_dicts(self):
+        """Test _build_ui_messages handles unknown dicts which are actually UIMessageParts."""
+        from pydantic_ai.ui.vercel_ai.request_types import (
+            TextUIPart,
+            UIMessage,
+        )
+
+        mock_agent = MagicMock()
+        model = pydantic_ai(mock_agent)
+
+        messages = [
+            ChatMessage(
+                role="user",
+                content="Hello",
+                id="msg-1",
+                parts=[{"type": "text", "text": "Hello"}],  # type: ignore
+            ),
+        ]
+
+        ui_messages = model._build_ui_messages(messages)
+        assert ui_messages == [
+            UIMessage(
+                id="msg-1",
+                role="user",
+                parts=[TextUIPart(type="text", text="Hello")],
+            ),
+        ]
+
     def test_build_ui_messages_generates_id_when_missing(self):
         """Test _build_ui_messages generates ID when message has no id."""
         mock_agent = MagicMock()
@@ -1366,6 +1394,8 @@ class TestPydanticAI:
 
     async def test_stream_response(self):
         """Test _stream_response streams Vercel AI events."""
+        from pydantic_ai.ui.vercel_ai.response_types import TextDeltaChunk
+
         mock_agent = MagicMock()
         model = pydantic_ai(mock_agent)
 
@@ -1384,9 +1414,10 @@ class TestPydanticAI:
             mock_instance = MagicMock()
             mock_adapter.return_value = mock_instance
 
+            # Use actual pydantic-ai chunk types that have model_dump
             async def mock_run_stream(**_kwargs: Any):
-                yield {"type": "text-delta", "textDelta": "Hello"}
-                yield {"type": "text-delta", "textDelta": " World"}
+                yield TextDeltaChunk(id="1", type="text-delta", delta="Hello")
+                yield TextDeltaChunk(id="2", type="text-delta", delta=" World")
 
             mock_instance.run_stream = mock_run_stream
 
@@ -1394,9 +1425,10 @@ class TestPydanticAI:
             async for chunk in model._stream_response(messages, config):
                 chunks.append(chunk)
 
-            assert len(chunks) == 2
-            assert chunks[0]["textDelta"] == "Hello"
-            assert chunks[1]["textDelta"] == " World"
+            assert chunks == [
+                {"id": "1", "type": "text-delta", "delta": "Hello"},
+                {"id": "2", "type": "text-delta", "delta": " World"},
+            ]
 
     async def test_stream_text(self):
         """Test _stream_text streams text from the model."""
@@ -1529,6 +1561,71 @@ class TestPydanticAI:
                 metadata=None,
             ),
         ]
+
+    def test_pydantic_ai_serialize_vercel_ai_chunk(self) -> None:
+        """Test _serialize_vercel_ai_chunk with valid chunks."""
+        from pydantic_ai.ui.vercel_ai.response_types import (
+            TextDeltaChunk,
+            ToolInputAvailableChunk,
+        )
+
+        mock_agent = MagicMock()
+        model = pydantic_ai(mock_agent)
+
+        # Test text-delta chunk
+        text_chunk = TextDeltaChunk(id="1", type="text-delta", delta="Hello")
+        result = model._serialize_vercel_ai_chunk(text_chunk)
+        assert result == {"id": "1", "type": "text-delta", "delta": "Hello"}
+
+        # Test tool-call chunk
+        tool_chunk = ToolInputAvailableChunk(
+            tool_name="search",
+            tool_call_id="call-1",
+            input={"query": "test"},
+        )
+        result = model._serialize_vercel_ai_chunk(tool_chunk)
+        assert result == {
+            "type": "tool-input-available",
+            "toolCallId": "call-1",
+            "toolName": "search",
+            "input": {"query": "test"},
+        }
+
+    def test_pydantic_ai_serialize_vercel_ai_chunk_done_type(self) -> None:
+        """Test that 'done' type chunks are skipped."""
+        from pydantic_ai.ui.vercel_ai.response_types import DoneChunk
+
+        mock_agent = MagicMock()
+        model = pydantic_ai(mock_agent)
+
+        # Test done chunk - should return None
+        done_chunk = DoneChunk(type="done")
+        result = model._serialize_vercel_ai_chunk(done_chunk)
+        assert result is None
+
+    def test_pydantic_ai_serialize_vercel_ai_chunk_error_handling(
+        self,
+    ) -> None:
+        """Test error handling in _serialize_vercel_ai_chunk."""
+        from typing import cast
+
+        mock_agent = MagicMock()
+        model = pydantic_ai(mock_agent)
+
+        # Test chunk that raises error - should return None
+        error_chunk = MockBaseChunkWithError()
+        result = model._serialize_vercel_ai_chunk(cast(Any, error_chunk))
+        assert result is None
+
+
+class MockBaseChunkWithError:
+    """Mock BaseChunk that raises on serialization."""
+
+    def model_dump(
+        self, mode: str, by_alias: bool, exclude_none: bool
+    ) -> dict[str, Any]:
+        del mode, by_alias, exclude_none
+        raise ValueError("Serialization error")
 
 
 @pytest.mark.skipif(

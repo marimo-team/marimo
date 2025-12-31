@@ -693,7 +693,7 @@ class pydantic_ai(ChatModel):
 
     def __call__(
         self, messages: list[ChatMessage], config: ChatModelConfig
-    ) -> AsyncGenerator[BaseChunk, None]:
+    ) -> AsyncGenerator[dict[str, Any], None]:
         return self._stream_response(messages, config)
 
     def _get_model_settings(self, config: ChatModelConfig) -> ModelSettings:
@@ -752,9 +752,30 @@ class pydantic_ai(ChatModel):
             )
         return ui_messages
 
+    def _serialize_vercel_ai_chunk(
+        self, chunk: BaseChunk
+    ) -> dict[str, Any] | None:
+        """
+        Serialize vercel ai chunk to a dictionary. Skip "done" chunks - not part of Vercel AI SDK schema.
+
+        by_alias=True: Use camelCase keys expected by Vercel AI SDK.
+        exclude_none=True: Remove null values which cause validation errors.
+        """
+        try:
+            serialized = chunk.model_dump(
+                mode="json", by_alias=True, exclude_none=True
+            )
+        except Exception as e:
+            LOGGER.error("Error serializing vercel ai chunk: %s", e)
+            return None
+        else:
+            if serialized.get("type") == "done":
+                return None
+            return serialized
+
     async def _stream_response(
         self, messages: list[ChatMessage], config: ChatModelConfig
-    ) -> AsyncGenerator[BaseChunk, None]:
+    ) -> AsyncGenerator[dict[str, Any], None]:
         """Streams back Vercel AI events.
 
         Args:
@@ -762,7 +783,7 @@ class pydantic_ai(ChatModel):
             config: The model configuration.
 
         Returns:
-            An asynchronous generator of Vercel AI events.
+            An asynchronous generator of serialized Vercel AI events.
         """
         from pydantic_ai.ui.vercel_ai import VercelAIAdapter
         from pydantic_ai.ui.vercel_ai.request_types import SubmitMessage
@@ -778,7 +799,8 @@ class pydantic_ai(ChatModel):
         adapter = VercelAIAdapter(agent=self.agent, run_input=run_input)
         event_stream = adapter.run_stream(model_settings=model_settings)
         async for event in event_stream:
-            yield event
+            if serialized := self._serialize_vercel_ai_chunk(event):
+                yield serialized
 
     async def _stream_text(
         self, messages: list[ChatMessage], config: ChatModelConfig

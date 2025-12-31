@@ -221,6 +221,13 @@ class ChatMessage(msgspec.Struct):
             self.parts = parts
 
     def _convert_part(self, part: Any) -> Optional[ChatPart]:
+        # If we receive a Vercel AI SDK par (through pydantic-ai), return it as is.
+        if DependencyManager.pydantic_ai.imported():
+            from pydantic_ai.ui.vercel_ai.request_types import UIMessagePart
+
+            if isinstance(part, UIMessagePart):
+                return cast(ChatPart, part)
+
         PartType = None
         for PartType in PART_TYPES:
             try:
@@ -230,15 +237,45 @@ class ChatMessage(msgspec.Struct):
             except Exception:
                 continue
 
-        # For pydantic-ai, we want the part as-is
-        if DependencyManager.pydantic_ai.has():
-            from pydantic_ai.ui.vercel_ai.request_types import UIMessagePart
-
-            if isinstance(part, UIMessagePart):
-                return cast(ChatPart, part)
-
-        LOGGER.debug(f"Could not decode part as {PartType}, for part {part}")
+        LOGGER.error(f"Could not decode part {part}")
         return None
+
+    @classmethod
+    def create(
+        cls,
+        *,
+        role: Literal["user", "assistant", "system"],
+        message_id: Optional[str],
+        content: Optional[str],
+        parts: list[ChatPart],
+        part_validator_class: Any | None = None,
+    ) -> ChatMessage:
+        """
+        Helper method to create a ChatMessage object.
+        If part_validator_class is provided, the parts will be converted to the given class.
+        """
+
+        if part_validator_class:
+            validated_parts = []
+            for part in parts:
+                if isinstance(part, part_validator_class):
+                    validated_parts.append(part)
+                elif isinstance(part, dict):
+                    # Try pydantic validation for dict -> class conversion
+                    try:
+                        from pydantic import TypeAdapter
+
+                        adapter = TypeAdapter(part_validator_class)
+                        validated_parts.append(adapter.validate_python(part))
+                    except ImportError:
+                        LOGGER.debug(
+                            "Pydantic not installed, skipping dict validation"
+                        )
+                    except Exception:
+                        LOGGER.debug("Part %r could not be validated", part)
+            parts = validated_parts
+
+        return cls(role=role, id=message_id, content=content, parts=parts)
 
 
 @dataclass

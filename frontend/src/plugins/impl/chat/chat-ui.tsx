@@ -8,6 +8,7 @@ import {
   createUIMessageStreamResponse,
   DefaultChatTransport,
   type FileUIPart,
+  type TextUIPart,
   type UIMessageChunk,
 } from "ai";
 import { startCase } from "lodash-es";
@@ -72,7 +73,7 @@ interface Props extends PluginFunctions {
   showConfigurationControls: boolean;
   maxHeight: number | undefined;
   allowAttachments: boolean | string[];
-  isPydanticAI: boolean;
+  frontendManaged: boolean;
   value: UIMessage[];
   setValue: (messages: UIMessage[]) => void;
   host: HTMLElement;
@@ -93,7 +94,8 @@ export const Chatbot: React.FC<Props> = (props) => {
     frontendMessageIndex: number | null;
   }>({ backendMessageId: null, frontendMessageIndex: null });
 
-  const pydanticStreamControllerRef =
+  // For frontend-managed streaming, create a controller to enqueue chunks to.
+  const frontendStreamControllerRef =
     useRef<ReadableStreamDefaultController<UIMessageChunk> | null>(null);
 
   const { data: initialMessages } = useAsyncData(async () => {
@@ -122,6 +124,16 @@ export const Chatbot: React.FC<Props> = (props) => {
         const body = JSON.parse(init.body as unknown as string) as {
           messages: UIMessage[];
         };
+
+        const chatConfig: ChatConfig = {
+          max_tokens: config.max_tokens,
+          temperature: config.temperature,
+          top_p: config.top_p,
+          top_k: config.top_k,
+          frequency_penalty: config.frequency_penalty,
+          presence_penalty: config.presence_penalty,
+        };
+
         try {
           // Content is added for backwards compatibility
           const messages = body.messages.map((m) => {
@@ -133,38 +145,31 @@ export const Chatbot: React.FC<Props> = (props) => {
             };
           });
 
-          if (props.isPydanticAI) {
+          if (props.frontendManaged) {
             const stream = new ReadableStream<UIMessageChunk>({
               start(controller) {
-                pydanticStreamControllerRef.current = controller;
+                frontendStreamControllerRef.current = controller;
               },
               cancel() {
-                pydanticStreamControllerRef.current = null;
+                frontendStreamControllerRef.current = null;
               },
             });
 
-            // Start the prompt (don't await - chunks come via events)
+            // Start the prompt, chunks will be sent via events
             props
               .send_prompt({
                 messages: messages,
-                config: {
-                  max_tokens: config.max_tokens,
-                  temperature: config.temperature,
-                  top_p: config.top_p,
-                  top_k: config.top_k,
-                  frequency_penalty: config.frequency_penalty,
-                  presence_penalty: config.presence_penalty,
-                },
+                config: chatConfig,
               })
               .catch((error: Error) => {
-                pydanticStreamControllerRef.current?.error(error);
-                pydanticStreamControllerRef.current = null;
+                frontendStreamControllerRef.current?.error(error);
+                frontendStreamControllerRef.current = null;
               });
 
             return createUIMessageStreamResponse({ stream });
           }
 
-          // Create a placeholder message for streaming (non-pydantic-ai)
+          // Create a placeholder message for streaming (backend-managed)
           const messageId = Date.now().toString();
 
           setMessages((prev) => [
@@ -178,30 +183,14 @@ export const Chatbot: React.FC<Props> = (props) => {
 
           const response = await props.send_prompt({
             messages: messages,
-            config: {
-              max_tokens: config.max_tokens,
-              temperature: config.temperature,
-              top_p: config.top_p,
-              top_k: config.top_k,
-              frequency_penalty: config.frequency_penalty,
-              presence_penalty: config.presence_penalty,
-            },
+            config: chatConfig,
           });
 
-          // Only pydantic-ai response is an array, which is handled above
-          // So this should not happen
-          if (Array.isArray(response)) {
-            Logger.warn("Non-pydantic-ai response is an array", { response });
-            const stream = new ReadableStream<UIMessageChunk>({
-              start(controller) {
-                for (const chunk of response as UIMessageChunk[]) {
-                  controller.enqueue(chunk);
-                }
-                controller.close();
-              },
+          if (response === null) {
+            Logger.error("Non-frontend-managed response is null", {
+              response,
             });
-
-            return createUIMessageStreamResponse({ stream });
+            return new Response("Internal server error", { status: 500 });
           }
 
           // If streaming didn't happen (non-generator response), update the message
@@ -255,9 +244,9 @@ export const Chatbot: React.FC<Props> = (props) => {
         frontendMessageIndex: null,
       };
 
-      // For pydantic-ai, useChat will form the data structure,
-      // so we set the value directly from the frontend.
-      if (props.isPydanticAI) {
+      // For frontend-managed streaming, we set the value directly from the frontend.
+      // Because useChat creates the proper message structure for us.
+      if (props.frontendManaged) {
         props.setValue(message.messages);
       }
     },
@@ -280,98 +269,93 @@ export const Chatbot: React.FC<Props> = (props) => {
       if (
         typeof message !== "object" ||
         message === null ||
-        !("type" in message)
+        !("type" in message) ||
+        message.type !== "stream_chunk"
       ) {
         return;
       }
 
-      if (props.isPydanticAI) {
-        if (message.type !== "stream_chunk") {
-          Logger.warn("Expected stream_chunk, got %s", message.type);
-        }
-
+      if (props.frontendManaged) {
         // Push to the stream for useChat to process
-        const controller = pydanticStreamControllerRef.current;
+        const controller = frontendStreamControllerRef.current;
         if (!controller) {
           return;
         }
 
-        const pydanticMessage = message as {
+        const frontendMessage = message as {
           type: string;
           message_id: string;
           content?: UIMessageChunk;
           is_final?: boolean;
         };
 
-        if (pydanticMessage.is_final) {
+        if (frontendMessage.is_final) {
           controller.close();
-          pydanticStreamControllerRef.current = null;
-        } else if (pydanticMessage.content) {
-          controller.enqueue(pydanticMessage.content);
+          frontendStreamControllerRef.current = null;
+        } else if (frontendMessage.content) {
+          controller.enqueue(frontendMessage.content);
         }
         return;
       }
 
       // Handle regular text streaming chunks
-      if (message.type === "stream_chunk") {
-        const chunkMessage = message as {
-          type: string;
-          message_id: string;
-          content: string;
-          is_final: boolean;
-        };
+      const chunkMessage = message as {
+        type: string;
+        message_id: string;
+        content: string;
+        is_final: boolean;
+      };
 
-        // Initialize streaming state on first chunk if not already set
-        if (streamingStateRef.current.backendMessageId === null) {
-          // Find the last assistant message (which should be the placeholder we created)
-          setMessages((prev) => {
-            const updated = [...prev];
-            // Find the last assistant message
-            for (let i = updated.length - 1; i >= 0; i--) {
-              if (updated[i].role === "assistant") {
-                streamingStateRef.current = {
-                  backendMessageId: chunkMessage.message_id,
-                  frontendMessageIndex: i,
-                };
-                break;
-              }
+      // Initialize streaming state on first chunk if not already set
+      if (streamingStateRef.current.backendMessageId === null) {
+        // Find the last assistant message (which should be the placeholder we created)
+        setMessages((prev) => {
+          const updated = [...prev];
+          // Find the last assistant message
+          for (let i = updated.length - 1; i >= 0; i--) {
+            if (updated[i].role === "assistant") {
+              streamingStateRef.current = {
+                backendMessageId: chunkMessage.message_id,
+                frontendMessageIndex: i,
+              };
+              break;
             }
-            return updated;
-          });
-        }
-
-        // Only process chunks for the current streaming message
-        const frontendIndex = streamingStateRef.current.frontendMessageIndex;
-        if (
-          streamingStateRef.current.backendMessageId ===
-            chunkMessage.message_id &&
-          frontendIndex !== null
-        ) {
-          setMessages((prev) => {
-            const updated = [...prev];
-            const index = frontendIndex;
-
-            // Update the message at the tracked index
-            if (index < updated.length) {
-              const messageToUpdate = updated[index];
-              if (messageToUpdate.role === "assistant") {
-                updated[index] = {
-                  ...messageToUpdate,
-                  parts: [{ type: "text", text: chunkMessage.content }],
-                };
-              }
-            }
-
-            return updated;
-          });
-
-          // Clear streaming state when final chunk arrives
-          if (chunkMessage.is_final) {
-            streamingStateRef.current = {
-              backendMessageId: null,
-              frontendMessageIndex: null,
-            };
           }
+          return updated;
+        });
+      }
+
+      // Only process chunks for the current streaming message
+      const frontendIndex = streamingStateRef.current.frontendMessageIndex;
+      if (
+        streamingStateRef.current.backendMessageId ===
+          chunkMessage.message_id &&
+        frontendIndex !== null
+      ) {
+        setMessages((prev) => {
+          const updated = [...prev];
+          const index = frontendIndex;
+
+          // Update the message at the tracked index
+          if (index < updated.length) {
+            const messageToUpdate = updated[index];
+            if (messageToUpdate.role === "assistant") {
+              updated[index] = {
+                ...messageToUpdate,
+                parts: [{ type: "text", text: chunkMessage.content }],
+              };
+            }
+          }
+
+          return updated;
+        });
+
+        // Clear streaming state when final chunk arrives
+        if (chunkMessage.is_final) {
+          streamingStateRef.current = {
+            backendMessageId: null,
+            frontendMessageIndex: null,
+          };
         }
       }
     },
@@ -413,7 +397,9 @@ export const Chatbot: React.FC<Props> = (props) => {
   };
 
   const renderMessage = (message: UIMessage) => {
-    const textParts = message.parts?.filter((p) => p.type === "text");
+    const textParts = message.parts?.filter(
+      (p): p is TextUIPart => p.type === "text",
+    );
     const textContent = textParts?.map((p) => p.text).join("\n");
     const content =
       message.role === "assistant" ? (
@@ -424,7 +410,9 @@ export const Chatbot: React.FC<Props> = (props) => {
         textContent
       );
 
-    const attachments = message.parts?.filter((p) => p.type === "file");
+    const attachments = message.parts?.filter(
+      (p): p is FileUIPart => p.type === "file",
+    );
 
     return (
       <>
@@ -527,7 +515,7 @@ export const Chatbot: React.FC<Props> = (props) => {
         )}
         {messages.map((message) => {
           const textContent = message.parts
-            ?.filter((p) => p.type === "text")
+            ?.filter((p): p is TextUIPart => p.type === "text")
             .map((p) => p.text)
             .join("\n");
 
