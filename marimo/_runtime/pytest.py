@@ -296,7 +296,10 @@ class ReplaceStubPlugin:
                     report.longrepr.reprtraceback.reprentries[1:]
                 )
             for entry in report.longrepr.reprtraceback.reprentries:
-                entry.reprfileloc.path = _to_marimo_uri(entry.reprfileloc.path)
+                if entry.reprfileloc is not None:
+                    entry.reprfileloc.path = _to_marimo_uri(
+                        entry.reprfileloc.path
+                    )
 
 
 def run_pytest(

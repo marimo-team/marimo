@@ -159,5 +159,28 @@ def _():
     return (TestWithClassFixture,)
 
 
+# Null case: fixture defined in one cell, used in another (should error)
+@app.cell
+def _():
+    @pytest.fixture()
+    def isolated_fixture():
+        return "isolated"
+
+
+@app.cell
+def _():
+    def test_cross_cell_fixture_fails(isolated_fixture):
+        """Test uses fixture from different cell - should fail with fixture not found."""
+        assert isolated_fixture == "isolated"
+
+
+# Null case: fixture doesn't exist (should error)
+@app.cell
+def _():
+    def test_missing_fixture(this_fixture_does_not_exist):
+        """Test uses non-existent fixture - should fail with fixture not found."""
+        pass
+
+
 if __name__ == "__main__":
     app.run()

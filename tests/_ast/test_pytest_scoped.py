@@ -76,6 +76,10 @@ class TestClassDefinitionWithFixtures:
     def test_uses_instance_fixture(self, instance_fixture):
         assert instance_fixture == "instance"
 
+    @staticmethod
+    def test_static_uses_class_fixture(class_scoped_fixture):
+        assert class_scoped_fixture == "class_scoped"
+
 
 if __name__ == "__main__":
     app.run()

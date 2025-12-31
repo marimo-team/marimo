@@ -12,35 +12,32 @@ def test_smoke_test():
     _, lcls = app.run()
     lcls = dict(lcls)
 
+    # Format: (passed, skipped, failed, errors)
     def_count = {
         # fixtures, not tests
-        "function_fixture": (0, 0, 0),
-        "scoped_fixture": (0, 0, 0),
+        "function_fixture": (0, 0, 0, 0),
+        "scoped_fixture": (0, 0, 0, 0),
+        "isolated_fixture": (0, 0, 0, 0),
         # tests
-        "TestParent": (2, 0, 0),
-        "test_failure": (0, 0, 1),
-        "test_parameterized": (3, 0, 0),
-        "test_parameterized_collected": (2, 0, 0),
-        "test_sanity": (1, 0, 0),
-        "test_skip": (0, 1, 0),
-        "test_using_var_in_scope": (3, 0, 0),
-        "test_using_var_in_toplevel": (3, 0, 0),
+        "TestParent": (2, 0, 0, 0),
+        "test_failure": (0, 0, 1, 0),
+        "test_parameterized": (3, 0, 0, 0),
+        "test_parameterized_collected": (2, 0, 0, 0),
+        "test_sanity": (1, 0, 0, 0),
+        "test_skip": (0, 1, 0, 0),
+        "test_using_var_in_scope": (3, 0, 0, 0),
+        "test_using_var_in_toplevel": (3, 0, 0, 0),
         # Fixtures - these now work with fixture preservation
-        "test_uses_scoped_fixture": (1, 0, 0),
-        "test_parametrize_with_scoped_fixture": (
-            2,
-            0,
-            0,
-        ),  # parametrize + fixture
-        "TestWithClassFixture": (1, 0, 0),
-        "TestClassDefinitionWithFixtures": (3, 0, 0),
-        "test_uses_top_level_fixture": (1, 0, 0),
-        "test_parametrize_with_toplevel_fixture": (
-            2,
-            0,
-            0,
-        ),  # parametrize + fixture
-        "test_uses_function_fixture": (1, 0, 0),
+        "test_uses_scoped_fixture": (1, 0, 0, 0),
+        "test_parametrize_with_scoped_fixture": (2, 0, 0, 0),
+        "TestWithClassFixture": (1, 0, 0, 0),
+        "TestClassDefinitionWithFixtures": (3, 0, 0, 0),
+        "test_uses_top_level_fixture": (1, 0, 0, 0),
+        "test_parametrize_with_toplevel_fixture": (2, 0, 0, 0),
+        "test_uses_function_fixture": (1, 0, 0, 0),
+        # Null cases - fixture not in scope / doesn't exist (errors)
+        "test_cross_cell_fixture_fails": (0, 0, 0, 1),
+        "test_missing_fixture": (0, 0, 0, 1),
     }
 
     path = Path(__file__).parent / "script_data/contains_tests.py"
@@ -61,6 +58,7 @@ def test_smoke_test():
                 response.passed,
                 response.skipped,
                 response.failed,
+                response.errors,
             ) == tuple(map(sum, zip(*[def_count[d] for d in cell.defs]))), (
                 response.output
             )
@@ -70,5 +68,5 @@ def test_smoke_test():
     # put it back on
 
     # Assert all cases captured, and nothing missed.
-    # Total: 0+0+2+1+3+2+1+1+3+3+1+2+1+3+1+2+1 = 27
-    assert total == sum(map(sum, def_count.values())) == 27
+    # Total: 0+0+0+2+1+3+2+1+1+3+3+1+2+1+3+1+2+1+1+1 = 29
+    assert total == sum(map(sum, def_count.values())) == 29
