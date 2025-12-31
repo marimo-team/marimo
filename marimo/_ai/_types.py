@@ -67,10 +67,12 @@ ChatPartDict = Union[
 
 
 class ChatMessageDict(TypedDict):
+    id: str
     role: Literal["user", "assistant", "system"]
-    content: str
+    content: Optional[str]
     attachments: Optional[list[ChatAttachmentDict]]
-    parts: Optional[list[ChatPartDict]]
+    parts: list[ChatPartDict]
+    metadata: Optional[Any]
 
 
 class ChatModelConfigDict(TypedDict, total=False):

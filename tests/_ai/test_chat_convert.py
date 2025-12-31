@@ -938,6 +938,7 @@ def test_from_chat_message_dict():
 
     result = from_chat_message_dict(message_dict)
     assert result == ChatMessage(
+        id="",
         role="user",
         content="Hello, this is a test message.",
         attachments=None,
