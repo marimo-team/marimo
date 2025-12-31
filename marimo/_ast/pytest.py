@@ -117,6 +117,141 @@ def wrap_fn_for_pytest(func: Fn, cell: Cell) -> Callable[..., Any]:
     )
 
 
+def is_pytest_decorator(decorator: ast.AST) -> tuple[bool, str | None]:
+    """Check if decorator is a pytest.* call and return attr name."""
+    # @pytest.fixture() or @pytest.mark.parametrize()
+    if isinstance(decorator, ast.Call) and isinstance(
+        decorator.func, ast.Attribute
+    ):
+        if (
+            isinstance(decorator.func.value, ast.Name)
+            and decorator.func.value.id == "pytest"
+        ):
+            return True, decorator.func.attr
+        # @pytest.mark.parametrize() etc
+        if (
+            isinstance(decorator.func.value, ast.Attribute)
+            and isinstance(decorator.func.value.value, ast.Name)
+            and decorator.func.value.value.id == "pytest"
+        ):
+            return True, None  # Nested attr, use eval
+    # @pytest.fixture (no call)
+    if isinstance(decorator, ast.Attribute):
+        if (
+            isinstance(decorator.value, ast.Name)
+            and decorator.value.id == "pytest"
+        ):
+            return True, decorator.attr
+    return False, None
+
+
+def has_fixture_decorator(node: ast.AST) -> bool:
+    """Check if function has @pytest.fixture decorator."""
+    if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+        return False
+    for decorator in node.decorator_list:
+        is_pytest, attr = is_pytest_decorator(decorator)
+        if is_pytest and attr == "fixture":
+            return True
+    return False
+
+
+def _eval_fixture_decorator(
+    decorator: ast.AST,
+    local: dict[str, Any],
+    file: str,
+) -> Callable[..., Any]:
+    """Evaluate @pytest.fixture decorator, return decorator fn."""
+    import pytest  # type: ignore
+
+    if isinstance(decorator, ast.Call):
+        fixture_args = [
+            eval(compile(ast.Expression(arg), file, "eval"), local)
+            for arg in decorator.args
+        ]
+        fixture_kwargs = {
+            kw.arg: eval(
+                compile(ast.Expression(kw.value), file, "eval"), local
+            )
+            for kw in decorator.keywords
+        }
+        return pytest.fixture(*fixture_args, **fixture_kwargs)
+    else:
+        return pytest.fixture
+
+
+def _make_fails(var: str, e: Exception) -> Callable[..., NoReturn]:
+    """Create a hook that raises an error explaining the failure."""
+    err = copy.copy(e)
+
+    def fails(*args: Any, **kwargs: Any) -> NoReturn:
+        del args, kwargs
+        raise ValueError(
+            f"Failed to evaluate decorator for '{var}'. "
+            "Consider exposing relevant variables in app.setup."
+        ) from err
+
+    return fails
+
+
+def _make_hook(
+    var: str,
+    run: Callable[
+        [],
+        tuple[Any, Mapping[str, Any]]
+        | Awaitable[tuple[Any, Mapping[str, Any]]],
+    ],
+    use_wrapped: bool = False,
+) -> Callable[..., Any]:
+    """Single hook factory - handles both fixtures and tests."""
+
+    def _hook(*args: Any, **kwargs: Any) -> Any:
+        res = run()
+        if isinstance(res, Awaitable):
+            import asyncio
+
+            loop = asyncio.new_event_loop()
+            _, cell_defs = loop.run_until_complete(res)
+        else:
+            _, cell_defs = res
+
+        target = cell_defs[var].__wrapped__ if use_wrapped else cell_defs[var]
+        return target(*args, **kwargs)
+
+    return _hook
+
+
+def _build_hook(
+    test: ast.FunctionDef | ast.AsyncFunctionDef,
+    var: str,
+    run: Callable[..., Any],
+    file: str,
+    local: dict[str, Any],
+    is_fixture: bool = False,
+) -> Callable[..., Any]:
+    """Build hook for test or fixture function."""
+    hook = _make_hook(var, run, use_wrapped=is_fixture)
+
+    stub_fn = build_stub_fn(test, file)
+    functools.wraps(stub_fn)(hook)
+
+    try:
+        if is_fixture:
+            # Only apply the outer fixture decorator
+            decorator = test.decorator_list[0]
+            fixture_decorator = _eval_fixture_decorator(decorator, local, file)
+            return fixture_decorator(hook)
+        else:
+            # Apply all decorators in reverse order
+            for decorator in test.decorator_list[::-1]:
+                expr = ast.Expression(decorator)
+                hook = eval(compile(expr, file, "eval"), local)(hook)
+    except Exception as e:
+        return _make_fails(var, e)
+
+    return hook
+
+
 def build_test_class(
     body: list[ast.stmt],
     run: Callable[
@@ -157,28 +292,21 @@ def build_test_class(
     """
     tests = {}
     for node in body:
-        if isinstance(node, ast.Return):
+        if isinstance(node, (ast.Return, ast.Expr)):
             continue
-        assert isinstance(
+        if not isinstance(
             node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)
-        ), (
-            "Invalid test compilation. "
-            " Please report to marimo-team/marimo/issues."
-        )
+        ):
+            if inner:
+                return
+            # Unexpected, should be guarded to this point.
+            raise RuntimeError(
+                "Invalid test compilation. "
+                " Please report to marimo-team/marimo/issues."
+            )
         tests[node.name] = node
 
     def hook(var: str) -> Callable[..., Any] | type[MarimoTest]:
-        def _hook(*args: Any, **kwargs: Any) -> Any:
-            res = run()
-            if isinstance(res, Awaitable):
-                import asyncio
-
-                loop = asyncio.new_event_loop()
-                _, defs = loop.run_until_complete(res)
-            else:
-                _, defs = res
-            return defs[var](*args, **kwargs)
-
         test = tests.get(var, None)
         if test is None:
 
@@ -192,12 +320,10 @@ def build_test_class(
             return fails
 
         if isinstance(test, (ast.FunctionDef, ast.AsyncFunctionDef)):
-            stub_fn = build_stub_fn(test, file)
-            functools.wraps(stub_fn)(_hook)
             # Evaluate and run decorators.
-            local = {}
-            # Always expose pytest. Low hanging fruit, that should mitigate some
-            # user issues.
+            local: dict[str, Any] = {}
+            # Always expose pytest. Low hanging fruit, that should mitigate
+            # some user issues.
             try:
                 import pytest  # type: ignore
 
@@ -218,46 +344,29 @@ def build_test_class(
                         local.update(frame.frame.f_locals)
                         break
 
-            try:
-                for decorator in test.decorator_list[::-1]:
-                    expr = ast.Expression(decorator)
-                    _hook = eval(compile(expr, file, "eval"), local)(_hook)
-                if not inner:
-                    _hook = staticmethod(_hook)
-            except Exception as _e:
-                # Python restricts scope of exceptions artificially.
-                e = copy.copy(_e)
+            is_fixture = has_fixture_decorator(test)
+            _hook = _build_hook(test, var, run, file, local, is_fixture)
 
-                def fails(*args: Any, **kwargs: Any) -> NoReturn:
-                    del args, kwargs
-                    raise ValueError(
-                        f"Failed to evaluate signature/decorator for {var} "
-                        "during test collection. Consider exposing relevant "
-                        "variables in the setup block, or rewriting your "
-                        "tests to avoid runtime dependencies."
-                    ) from e
-
-                return fails
+            if not inner:
+                _hook = staticmethod(_hook)
 
             return _hook
+
         elif isinstance(test, ast.ClassDef):
-            defs = {
-                node.name
-                for node in test.body
-                if isinstance(
-                    node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)
-                )
-                and node.name.lower().startswith("test")
+            class_defs = {
+                node.name for node in test.body if hasattr(node, "name")
             }
 
             def _run() -> tuple[Any, Any]:
                 old_output, old_defs = run()  # type: ignore
                 old_defs = dict(old_defs)
-                for d in defs:
+                for d in class_defs:
                     old_defs[d] = getattr(old_defs[var], d)
                 return old_output, old_defs
 
-            return build_test_class(test.body, _run, file, var, defs, True)
+            return build_test_class(
+                test.body, _run, file, var, class_defs, True
+            )
         raise ValueError(
             "Improperly compiled as a test. Please report to"
             "marimo-team/marimo/issues."
@@ -293,6 +402,7 @@ def process_for_pytest(func: Fn, cell: Cell) -> None:
     cls = build_test_class(
         scope.body, run, inspect.getfile(func), name, cell.defs
     )
+
     # Get first frame not in library to insert the class.
     # May be multiple levels if called from pytest or something.
     frames = inspect.stack()
