@@ -31,14 +31,15 @@ from marimo._convert.converters import MarimoConvert
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins.stateless.flex import vstack
 from marimo._runtime.context.types import get_context
-from marimo._runtime.commands import UpdateUIElementCommand
+from marimo._runtime.commands import UpdateUIElementCommand, ExecuteCellCommand
 from marimo._schemas.serialization import (
     AppInstantiation,
     CellDef,
     NotebookSerializationV1,
 )
 from marimo._types.ids import CellId_t
-from tests.conftest import ExecReqProvider
+from tests.conftest import ExecReqProvider, MockedKernel
+from tests._messaging.mocks import MockStream
 
 if TYPE_CHECKING:
     from marimo._runtime.runtime import Kernel
@@ -1537,6 +1538,138 @@ class TestAppComposition:
             ]
         )
         assert "App.embed() cannot be called" in k.stderr.messages[0]
+
+    async def test_setup_cell_does_not_rerun_on_embed_with_setup(
+        self, mocked_kernel: MockedKernel, exec_req: ExecReqProvider
+    ) -> None:
+        """Test that parent setup cell doesn't get cell-op message when embedding app with setup."""
+        from marimo._ast.names import SETUP_CELL_NAME
+
+        k = mocked_kernel.k
+
+        # Run setup cell
+        await k.run([
+            ExecuteCellCommand(
+                cell_id=SETUP_CELL_NAME,
+                code="""
+setup_tracker = {'count': 0}
+setup_tracker["count"] += 1
+from tests._ast.app_data import notebook_filename
+"""
+            ),
+        ])
+        assert not k.errors
+
+        # Record message count BEFORE embed
+        messages_before = len(mocked_kernel.stream.messages)
+
+        # Embed the inner app (which has a setup cell)
+        await k.run([
+            exec_req.get(
+                """
+result = await notebook_filename.app.embed()
+"""
+            ),
+        ])
+        assert not k.errors
+
+        # Check messages sent AFTER the setup cell ran
+        stream = MockStream(mocked_kernel.stream)
+        setup_cell_ops = [
+            op for op in stream.operations[messages_before:]
+            if op.get("op") == "cell-op" and op.get("cell_id") == SETUP_CELL_NAME
+        ]
+
+        assert len(setup_cell_ops) == 0, (
+            f"Expected no cell-op for setup cell after embed, but got {len(setup_cell_ops)}: {setup_cell_ops}"
+        )
+
+    async def test_setup_cell_embed_non_setup_app(
+        self, mocked_kernel: MockedKernel, exec_req: ExecReqProvider
+    ) -> None:
+        """Test that setup cell app can embed an app without setup cell."""
+        from marimo._ast.names import SETUP_CELL_NAME
+
+        k = mocked_kernel.k
+
+        # Run setup cell (calculator.py has NO setup cell)
+        await k.run([
+            ExecuteCellCommand(
+                cell_id=SETUP_CELL_NAME,
+                code="""
+setup_tracker = {'count': 0}
+setup_tracker["count"] += 1
+from tests._ast.app_data import calculator
+"""
+            ),
+        ])
+        assert not k.errors
+
+        # Record message count BEFORE embed
+        messages_before = len(mocked_kernel.stream.messages)
+
+        # Embed the inner app (which does NOT have a setup cell)
+        await k.run([
+            exec_req.get(
+                """
+result = await calculator.app.embed()
+"""
+            ),
+        ])
+        assert not k.errors
+
+        # Check messages sent AFTER the setup cell ran
+        stream = MockStream(mocked_kernel.stream)
+        setup_cell_ops = [
+            op for op in stream.operations[messages_before:]
+            if op.get("op") == "cell-op" and op.get("cell_id") == SETUP_CELL_NAME
+        ]
+
+        assert len(setup_cell_ops) == 0, (
+            f"Expected no cell-op for setup cell after embed, but got {len(setup_cell_ops)}: {setup_cell_ops}"
+        )
+
+    async def test_non_setup_cell_embed_setup_app(
+        self, mocked_kernel: MockedKernel, exec_req: ExecReqProvider
+    ) -> None:
+        """Test that app without setup cell can embed an app with setup cell."""
+        from marimo._ast.names import SETUP_CELL_NAME
+
+        k = mocked_kernel.k
+
+        # Run a regular cell (no setup cell in parent)
+        await k.run([
+            exec_req.get(
+                """
+from tests._ast.app_data import notebook_filename
+"""
+            ),
+        ])
+        assert not k.errors
+
+        # Record message count BEFORE embed
+        messages_before = len(mocked_kernel.stream.messages)
+
+        # Embed the inner app (which HAS a setup cell)
+        await k.run([
+            exec_req.get(
+                """
+result = await notebook_filename.app.embed()
+"""
+            ),
+        ])
+        assert not k.errors
+
+        # Check that NO setup cell-op was sent (parent has no setup cell)
+        stream = MockStream(mocked_kernel.stream)
+        setup_cell_ops = [
+            op for op in stream.operations[messages_before:]
+            if op.get("op") == "cell-op" and op.get("cell_id") == SETUP_CELL_NAME
+        ]
+
+        assert len(setup_cell_ops) == 0, (
+            f"Expected no cell-op for setup cell after embed, but got {len(setup_cell_ops)}: {setup_cell_ops}"
+        )
 
 
 class TestAppKernelRunnerRegistry:
