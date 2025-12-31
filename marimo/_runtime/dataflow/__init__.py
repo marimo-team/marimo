@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from collections import deque
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any, Callable, Optional
 
 from marimo import _loggers
 from marimo._ast.cell import CellImpl
@@ -136,6 +136,7 @@ def prune_cells_for_overrides(
     graph: DirectedGraph,
     execution_order: Collection[CellId_t],
     overrides: dict[str, Any],
+    excluded: Optional[CellId_t] = None,
 ) -> list[CellId_t]:
     """Prune cells from execution when their definitions are overridden.
 
@@ -148,6 +149,7 @@ def prune_cells_for_overrides(
         graph: The dataflow graph containing cell dependencies
         execution_order: Ordered collection of cells to execute
         overrides: Dictionary mapping variable names to their override values
+        excluded: CellId to ignore for closure determination.
 
     Returns:
         Filtered execution order excluding cells whose definitions are overridden
@@ -178,6 +180,8 @@ def prune_cells_for_overrides(
     # Validate that all definitions from pruned cells are provided
     missing_defs: set[str] = set()
     for cell_id in cells_to_prune:
+        if cell_id == excluded:
+            continue
         cell = graph.cells[cell_id]
         # Check all definitions this cell would have provided
         for missing in cell.defs - refs:

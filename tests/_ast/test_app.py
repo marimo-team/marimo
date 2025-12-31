@@ -196,6 +196,29 @@ class TestApp:
         assert "setup_var" in defs  # setup still ran
 
     @staticmethod
+    def test_run_with_undefined_refs_in_setup_cell() -> None:
+        """Test that overriding setup cell definitions raises IncompleteRefsError."""
+        app = App()
+
+        with app.setup:
+            import os
+            a = 1
+            if a > 2:
+                setup_var = "from_setup"
+
+        @app.cell
+        def use_setup(setup_var: str) -> tuple[str]:
+            result = f"Used {setup_var}"
+            return (result,)
+
+        # Test: Trying to override setup cell variables should fail
+        # Ensure this doesn't incorrectly raise a IncompleteRefsError
+        with pytest.raises(NameError) as exc_info:
+            app.run()
+        assert "setup_var" in str(exc_info.value)
+
+
+    @staticmethod
     def test_setup() -> None:
         app = App()
 
