@@ -583,8 +583,8 @@ def test_convert_value_with_list_input():
     not DependencyManager.pydantic_ai.has(),
     reason="Pydantic AI is not installed",
 )
-def test_convert_value_pydantic_ai_mode():
-    """Test _convert_value in pydantic-ai mode."""
+def test_convert_value_frontend_managed():
+    """Test _convert_value in frontend-managed mode."""
     from pydantic_ai.ui.vercel_ai.request_types import TextUIPart
 
     def mock_model(
@@ -594,7 +594,7 @@ def test_convert_value_pydantic_ai_mode():
         return "Mock response"
 
     chat = ui.chat(mock_model)
-    # Force pydantic-ai mode
+    # Force frontend-managed mode
     chat._frontend_managed = True
 
     value = {
@@ -629,8 +629,12 @@ def test_convert_value_pydantic_ai_mode():
     ]
 
 
-def test_convert_value_pydantic_ai_mode_missing_fields():
-    """Test _convert_value in pydantic-ai mode with missing fields."""
+@pytest.mark.skipif(
+    not DependencyManager.pydantic_ai.has(),
+    reason="We use Pydantic to check for vercel parts",
+)
+def test_convert_value_frontend_managed_missing_fields():
+    """Test _convert_value in frontend-managed mode with missing fields."""
 
     def mock_model(
         messages: list[ChatMessage], config: ChatModelConfig
@@ -650,13 +654,8 @@ def test_convert_value_pydantic_ai_mode_missing_fields():
     ]
 
 
-async def test_pydantic_ai_streaming_sends_serialized_chunks():
-    """Test that pydantic-ai streaming sends already-serialized chunks correctly.
-
-    In frontend-managed mode, the pydantic_ai model yields pre-serialized dicts,
-    which are sent directly to the frontend.
-    """
-    pytest.importorskip("pydantic_ai.ui.vercel_ai")
+async def test_frontend_managed_streaming_sends_serialized_chunks():
+    """Test that frontend-managed streaming sends already-serialized chunks correctly."""
 
     # Chunks are already serialized dicts (from pydantic_ai._serialize_vercel_ai_chunk)
     chunk1 = {"type": "text-delta", "textDelta": "Hello"}
