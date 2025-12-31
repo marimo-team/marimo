@@ -343,7 +343,9 @@ def get_cgroup_cpu_percent() -> Optional[float]:
 
         elif os.path.exists(CGROUP_V1_CPU_USAGE_FILE):
             with open(CGROUP_V1_CPU_USAGE_FILE, encoding="utf-8") as f:
-                current_usage_microseconds = int(f.read().strip()) // 1_000_000  # ns -> μs
+                current_usage_microseconds = (
+                    int(f.read().strip()) // 1_000_000
+                )  # ns -> μs
 
         if current_usage_microseconds is None:
             return 0.0
@@ -356,7 +358,10 @@ def get_cgroup_cpu_percent() -> Optional[float]:
 
         if _last_cgroup_cpu_sample is None:
             # First call - store reading, return 0.0 (like psutil's first call)
-            _last_cgroup_cpu_sample = (current_usage_microseconds, current_time)
+            _last_cgroup_cpu_sample = (
+                current_usage_microseconds,
+                current_time,
+            )
             return 0.0
 
         last_usage, last_time = _last_cgroup_cpu_sample
@@ -369,7 +374,8 @@ def get_cgroup_cpu_percent() -> Optional[float]:
         delta_usage_microseconds = current_usage_microseconds - last_usage
         delta_time_microseconds = delta_time * 1_000_000
         percent = (
-            delta_usage_microseconds / (delta_time_microseconds * 1_000_000 * allocated_cores)
+            delta_usage_microseconds
+            / (delta_time_microseconds * 1_000_000 * allocated_cores)
         ) * 100
 
         return min(100.0, max(0.0, percent))
