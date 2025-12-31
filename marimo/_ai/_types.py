@@ -221,7 +221,7 @@ class ChatMessage(msgspec.Struct):
             self.parts = parts
 
     def _convert_part(self, part: Any) -> Optional[ChatPart]:
-        # If we receive a Vercel AI SDK par (through pydantic-ai), return it as is.
+        # If we receive a Vercel AI SDK part (through pydantic-ai), return it as is.
         if DependencyManager.pydantic_ai.imported():
             from pydantic_ai.ui.vercel_ai.request_types import UIMessagePart
 
@@ -273,6 +273,13 @@ class ChatMessage(msgspec.Struct):
                         )
                     except Exception:
                         LOGGER.debug("Part %r could not be validated", part)
+                else:
+                    LOGGER.debug(
+                        "Part %r (type=%s) is not an instance of %s and not a dict, dropping",
+                        part,
+                        type(part).__name__,
+                        part_validator_class.__name__,
+                    )
             parts = validated_parts
 
         return cls(role=role, id=message_id, content=content, parts=parts)

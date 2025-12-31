@@ -22,7 +22,7 @@ const messageSchema = z.array(
   z.object({
     id: z.string(),
     role: z.enum(["system", "user", "assistant"]),
-    content: z.string(),
+    content: z.string().nullable(),
     parts: z.array(z.any()),
     metadata: z.any().nullable(),
   }),

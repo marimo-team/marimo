@@ -736,11 +736,18 @@ class pydantic_ai(ChatModel):
                     for part in message.parts
                 ]
             if not parts:
-                LOGGER.warning(
-                    "Message %s has no valid parts, using content instead",
-                    message,
-                )
-                parts = [TextUIPart(text=str(message.content))]
+                if message.content is not None:
+                    LOGGER.warning(
+                        "Message %s has no valid parts, using content instead",
+                        message,
+                    )
+                    parts = [TextUIPart(text=str(message.content))]
+                else:
+                    LOGGER.error(
+                        "Message %s has no parts and no content, skipping",
+                        message,
+                    )
+                    continue
 
             ui_messages.append(
                 UIMessage(

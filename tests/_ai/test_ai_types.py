@@ -168,6 +168,38 @@ class TestChatMessageCreate:
         assert len(message.parts) == 1
         assert message.parts[0] is valid_part
 
+    def test_non_dict_non_validator_part_is_dropped_with_logging(self):
+        """Test that parts that are neither validator instances nor dicts are dropped."""
+
+        @dataclass
+        class ExpectedPart:
+            type: Literal["expected"]
+            value: str
+
+        @dataclass
+        class UnexpectedPart:
+            type: Literal["unexpected"]
+            data: int
+
+        valid_part = ExpectedPart(type="expected", value="valid")
+        unexpected_part = UnexpectedPart(type="unexpected", data=42)
+
+        message = ChatMessage.create(
+            role="user",
+            message_id="msg-123",
+            content=None,
+            parts=[
+                cast(ChatPart, valid_part),
+                cast(ChatPart, unexpected_part),
+            ],
+            part_validator_class=ExpectedPart,
+        )
+
+        # Unexpected part (different dataclass) should be dropped, only valid part remains
+        assert message.parts is not None
+        assert len(message.parts) == 1
+        assert message.parts[0] is valid_part
+
     def test_all_roles(self):
         """Test create with all valid roles."""
         for role in ["user", "assistant", "system"]:
