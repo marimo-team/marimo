@@ -49,7 +49,6 @@ def collection_of_tests():
 
         def test_uses_fixture(self, example):
             assert example == "value"
-
     return
 
 

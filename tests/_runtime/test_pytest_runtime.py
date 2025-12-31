@@ -13,6 +13,10 @@ def test_smoke_test():
     lcls = dict(lcls)
 
     def_count = {
+        # fixtures, not tests
+        "function_fixture": (0, 0, 0),
+        "scoped_fixture": (0, 0, 0),
+        # tests
         "TestParent": (2, 0, 0),
         "test_failure": (0, 0, 1),
         "test_parameterized": (3, 0, 0),
@@ -21,9 +25,14 @@ def test_smoke_test():
         "test_skip": (0, 1, 0),
         "test_using_var_in_scope": (3, 0, 0),
         "test_using_var_in_toplevel": (3, 0, 0),
-        "test_uses_top_level_fixture": (1, 0, 0),
+        # Fixtures - these now work with fixture preservation
         "test_uses_scoped_fixture": (1, 0, 0),
+        "test_parametrize_with_scoped_fixture": (2, 0, 0),  # parametrize + fixture
         "TestWithClassFixture": (1, 0, 0),
+        "TestClassDefinitionWithFixtures": (0, 0, 0),  # @app.class_definition - not yet supported
+        "test_uses_top_level_fixture": (1, 0, 0),
+        "test_parametrize_with_toplevel_fixture": (2, 0, 0),  # parametrize + fixture
+        "test_uses_function_fixture": (1, 0, 0),
     }
 
     path = Path(__file__).parent / "script_data/contains_tests.py"
@@ -53,4 +62,5 @@ def test_smoke_test():
     # put it back on
 
     # Assert all cases captured, and nothing missed.
-    assert total == sum(map(sum, def_count.values())) == 19
+    # Total: 0+0+2+1+3+2+1+1+3+3+1+2+1+0+1+2+1 = 24
+    assert total == sum(map(sum, def_count.values())) == 24

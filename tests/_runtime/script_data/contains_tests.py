@@ -23,6 +23,13 @@ with app.setup:
         return "top"
 
 
+# Fixture defined as @app.function
+@app.function
+@pytest.fixture
+def function_fixture():
+    return "function"
+
+
 @app.function
 def inc(x):
     return x + 1
@@ -85,6 +92,44 @@ def test_uses_top_level_fixture(top_level_fixture):
     assert top_level_fixture == "top"
 
 
+# Test parametrize + top-level fixture combination
+@app.function
+@pytest.mark.parametrize(("a", "b"), [(1, 2), (2, 3)])
+def test_parametrize_with_toplevel_fixture(a, b, top_level_fixture):
+    assert a < b
+    assert top_level_fixture == "top"
+
+
+# Test using @app.function fixture
+@app.function
+def test_uses_function_fixture(function_fixture):
+    assert function_fixture == "function"
+
+
+# Test class defined with @app.class_definition that has fixtures
+@app.class_definition
+class TestClassDefinitionWithFixtures:
+    """Class with fixtures defined via @app.class_definition"""
+
+    @pytest.fixture(scope="class")
+    def class_scoped_fixture(self):
+        return "class_scoped"
+
+    @pytest.fixture()
+    def instance_fixture(self):
+        return "instance"
+
+    def test_uses_class_fixture(self, class_scoped_fixture):
+        assert class_scoped_fixture == "class_scoped"
+
+    def test_uses_instance_fixture(self, instance_fixture):
+        assert instance_fixture == "instance"
+
+    @staticmethod
+    def test_static_uses_class_fixture(class_scoped_fixture):
+        assert class_scoped_fixture == "class_scoped"
+
+
 @app.cell
 def _():
     @pytest.fixture()
@@ -92,6 +137,12 @@ def _():
         return "scoped"
 
     def test_uses_scoped_fixture(scoped_fixture):
+        assert scoped_fixture == "scoped"
+
+    # Test parametrize + scoped fixture combination
+    @pytest.mark.parametrize(("x", "y"), [(3, 4), (4, 5)])
+    def test_parametrize_with_scoped_fixture(x, y, scoped_fixture):
+        assert x < y
         assert scoped_fixture == "scoped"
 
 
