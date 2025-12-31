@@ -18,6 +18,10 @@ with app.setup:
 
     test_cases = [(1, 2), (1, 3), (1, 5)]
 
+    @pytest.fixture()
+    def top_level_fixture():
+        return "top"
+
 
 @app.function
 def inc(x):
@@ -74,6 +78,34 @@ def _():
 @pytest.mark.parametrize(("a", "b"), test_cases)
 def test_using_var_in_toplevel(a, b):
     assert a < b
+
+
+@app.function
+def test_uses_top_level_fixture(top_level_fixture):
+    assert top_level_fixture == "top"
+
+
+@app.cell
+def _():
+    @pytest.fixture()
+    def scoped_fixture():
+        return "scoped"
+
+    def test_uses_scoped_fixture(scoped_fixture):
+        assert scoped_fixture == "scoped"
+
+
+@app.cell
+def _():
+    class TestWithClassFixture:
+        @pytest.fixture(scope="class")
+        def class_fixture(self):
+            return "class"
+
+        def test_uses_class_fixture(self, class_fixture):
+            assert class_fixture == "class"
+
+    return (TestWithClassFixture,)
 
 
 if __name__ == "__main__":

@@ -21,6 +21,9 @@ def test_smoke_test():
         "test_skip": (0, 1, 0),
         "test_using_var_in_scope": (3, 0, 0),
         "test_using_var_in_toplevel": (3, 0, 0),
+        "test_uses_top_level_fixture": (1, 0, 0),
+        "test_uses_scoped_fixture": (1, 0, 0),
+        "TestWithClassFixture": (1, 0, 0),
     }
 
     path = Path(__file__).parent / "script_data/contains_tests.py"
@@ -50,4 +53,4 @@ def test_smoke_test():
     # put it back on
 
     # Assert all cases captured, and nothing missed.
-    assert total == sum(map(sum, def_count.values())) == 16
+    assert total == sum(map(sum, def_count.values())) == 19
