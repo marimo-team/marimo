@@ -15,7 +15,7 @@ LOGGER = _loggers.marimo_logger()
 TIMEOUT = 10  # seconds
 
 # Module-level state for cgroup CPU percent calculation (like psutil does)
-_last_cgroup_cpu_sample: Optional[tuple[int, float]] = (
+_LAST_CGROUP_CPU_SAMPLE: Optional[tuple[int, float]] = (
     None  # (usage_usec, timestamp)
 )
 
@@ -28,16 +28,20 @@ class MemoryStats(TypedDict):
     free: int
 
 
-# Constants for cgroup file locations
+# Constants for cgroup v2 file locations
+# Reference: https://www.kernel.org/doc/Documentation/cgroup-v2.txt
 CGROUP_V2_MEMORY_MAX_FILE = "/sys/fs/cgroup/memory.max"
 CGROUP_V2_MEMORY_CURRENT_FILE = "/sys/fs/cgroup/memory.current"
-CGROUP_V1_MEMORY_LIMIT_FILE = "/sys/fs/cgroup/memory/memory.limit_in_bytes"
-CGROUP_V1_MEMORY_USAGE_FILE = "/sys/fs/cgroup/memory/memory.usage_in_bytes"
 CGROUP_V2_CPU_STAT_FILE = "/sys/fs/cgroup/cpu.stat"
-CGROUP_V1_CPU_USAGE_FILE = "/sys/fs/cgroup/cpuacct/cpuacct.usage"
 CGROUP_V2_CPU_MAX_FILE = "/sys/fs/cgroup/cpu.max"
+
+# cgroup v1 file locations (legacy hierarchy)
+# Reference: https://www.kernel.org/doc/Documentation/cgroup-v1/
+CGROUP_V1_CPU_USAGE_FILE = "/sys/fs/cgroup/cpuacct/cpuacct.usage"
 CGROUP_V1_CPU_CFS_QUOTA_US_FILE = "/sys/fs/cgroup/cpu/cpu.cfs_quota_us"
 CGROUP_V1_CPU_CFS_PERIOD_US_FILE = "/sys/fs/cgroup/cpu/cpu.cfs_period_us"
+CGROUP_V1_MEMORY_LIMIT_FILE = "/sys/fs/cgroup/memory/memory.limit_in_bytes"
+CGROUP_V1_MEMORY_USAGE_FILE = "/sys/fs/cgroup/memory/memory.usage_in_bytes"
 
 
 def get_node_version() -> Optional[str]:
@@ -217,7 +221,6 @@ def _has_cgroup_cpu_limit() -> bool:
     Returns True/False whether the container has a CPU limit set.
     This function checks for both cgroups v1 and v2.
     """
-    # cgroups v2
     if os.path.exists(CGROUP_V2_CPU_MAX_FILE):
         with open(CGROUP_V2_CPU_MAX_FILE, encoding="utf-8") as f:
             cpu_max = f.read().strip()
@@ -248,7 +251,6 @@ def get_cgroup_mem_stats() -> Optional[MemoryStats]:
         }
     """
     try:
-        # Try cgroup v2 first
         if os.path.exists(CGROUP_V2_MEMORY_MAX_FILE):
             with open(CGROUP_V2_MEMORY_MAX_FILE, encoding="utf-8") as f:
                 memory_max = f.read().strip()
@@ -267,7 +269,6 @@ def get_cgroup_mem_stats() -> Optional[MemoryStats]:
                     percent=percent,
                     free=available,  # free == available for cgroup memory
                 )
-        # Fallback to cgroup v1
         elif os.path.exists(CGROUP_V1_MEMORY_LIMIT_FILE):
             with open(CGROUP_V1_MEMORY_LIMIT_FILE, encoding="utf-8") as f:
                 total = int(f.read().strip())
@@ -293,13 +294,11 @@ def _get_cgroup_allocated_cores() -> Optional[float]:
     """Get the number of CPU cores allocated to this cgroup (quota / period)."""
     try:
         if os.path.exists(CGROUP_V2_CPU_MAX_FILE):
-            # cgroups v2
             with open(CGROUP_V2_CPU_MAX_FILE, encoding="utf-8") as f:
                 parts = f.read().strip().split()
             if len(parts) == 2 and parts[0] != "max":
                 return int(parts[0]) / int(parts[1])
         elif os.path.exists(CGROUP_V1_CPU_CFS_QUOTA_US_FILE):
-            # cgroups v1
             with open(CGROUP_V1_CPU_CFS_QUOTA_US_FILE, encoding="utf-8") as f:
                 quota = int(f.read().strip())
             with open(CGROUP_V1_CPU_CFS_PERIOD_US_FILE, encoding="utf-8") as f:
@@ -333,22 +332,20 @@ def get_cgroup_cpu_percent() -> Optional[float]:
 
     try:
         # Read current usage (microseconds)
-        current_usage: Optional[int] = None
+        current_usage_microseconds: Optional[int] = None
 
         if os.path.exists(CGROUP_V2_CPU_STAT_FILE):
-            # cgroups v2
             with open(CGROUP_V2_CPU_STAT_FILE, encoding="utf-8") as f:
                 for line in f:
                     if line.startswith("usage_usec"):
-                        current_usage = int(line.split()[1])
+                        current_usage_microseconds = int(line.split()[1])
                         break
 
         elif os.path.exists(CGROUP_V1_CPU_USAGE_FILE):
-            # cgroups v1
             with open(CGROUP_V1_CPU_USAGE_FILE, encoding="utf-8") as f:
-                current_usage = int(f.read().strip()) // 1_000_000  # ns -> μs
+                current_usage_microseconds = int(f.read().strip()) // 1_000_000  # ns -> μs
 
-        if current_usage is None:
+        if current_usage_microseconds is None:
             return 0.0
 
         allocated_cores = _get_cgroup_allocated_cores()
@@ -359,20 +356,20 @@ def get_cgroup_cpu_percent() -> Optional[float]:
 
         if _last_cgroup_cpu_sample is None:
             # First call - store reading, return 0.0 (like psutil's first call)
-            _last_cgroup_cpu_sample = (current_usage, current_time)
+            _last_cgroup_cpu_sample = (current_usage_microseconds, current_time)
             return 0.0
 
         last_usage, last_time = _last_cgroup_cpu_sample
-        _last_cgroup_cpu_sample = (current_usage, current_time)
+        _last_cgroup_cpu_sample = (current_usage_microseconds, current_time)
 
         delta_time = current_time - last_time
         if delta_time <= 0:
             return 0.0
 
-        delta_usage_usec = current_usage - last_usage
-        # percent = (usage_usec / (time_sec * 1_000_000 * cores)) * 100
+        delta_usage_microseconds = current_usage_microseconds - last_usage
+        delta_time_microseconds = delta_time * 1_000_000
         percent = (
-            delta_usage_usec / (delta_time * 1_000_000 * allocated_cores)
+            delta_usage_microseconds / (delta_time_microseconds * 1_000_000 * allocated_cores)
         ) * 100
 
         return min(100.0, max(0.0, percent))
