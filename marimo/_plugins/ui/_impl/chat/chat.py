@@ -6,7 +6,6 @@ import uuid
 from dataclasses import dataclass
 from typing import Any, Callable, Final, Optional, Union, cast
 
-from marimo import _loggers
 from marimo._ai._types import (
     ChatMessage,
     ChatModelConfig,
@@ -23,9 +22,6 @@ from marimo._runtime.commands import UpdateUIElementCommand
 from marimo._runtime.context import get_context
 from marimo._runtime.context.types import ContextNotInitializedError
 from marimo._runtime.functions import EmptyArgs, Function
-
-LOGGER = _loggers.marimo_logger()
-
 
 DEFAULT_CONFIG = ChatModelConfigDict(
     max_tokens=4096,
@@ -370,8 +366,8 @@ class chat(UIElement[dict[str, Any], list[ChatMessage]]):
         if self._frontend_managed:
             from pydantic_ai.ui.vercel_ai.request_types import UIMessagePart
 
-            # If we are using the AI SDK protocol, messages come from the frontend as UIMessage dicts
-            # So we convert them to Vercel messages
+            # The frontend sends messages as UIMessage dicts so we use pydantic-ai to cast them
+            # as Vercel messages
             return [
                 ChatMessage.create(
                     role=msg.get("role", "user"),
