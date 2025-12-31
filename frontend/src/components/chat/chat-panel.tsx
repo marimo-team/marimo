@@ -23,7 +23,6 @@ import {
 } from "lucide-react";
 import { memo, useEffect, useRef, useState } from "react";
 import useEvent from "react-use-event-hook";
-import { MarkdownRenderer } from "@/components/markdown/markdown-renderer";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -71,6 +70,7 @@ import { Input } from "../ui/input";
 import { Tooltip, TooltipProvider } from "../ui/tooltip";
 import { toast } from "../ui/use-toast";
 import { AttachmentRenderer, FileAttachmentPill } from "./chat-components";
+import { renderUIMessage } from "./chat-display";
 import { ChatHistoryPopover } from "./chat-history-popover";
 import {
   buildCompletionRequestBody,
@@ -80,8 +80,6 @@ import {
   hasPendingToolCalls,
   isLastMessageReasoning,
 } from "./chat-utils";
-import { ReasoningAccordion } from "./reasoning-accordion";
-import { ToolCallAccordion } from "./tool-call-accordion";
 
 // Default mode for the AI
 const DEFAULT_MODE = "manual";
@@ -197,84 +195,7 @@ const ChatMessageDisplay: React.FC<ChatMessageProps> = memo(
           <div className="absolute right-1 top-1 opacity-0 group-hover:opacity-100 transition-opacity">
             <CopyClipboardIcon className="h-3 w-3" value={content || ""} />
           </div>
-          {message.parts.map((part, i) => {
-            if (isToolPart(part)) {
-              return (
-                <ToolCallAccordion
-                  key={i}
-                  index={i}
-                  toolName={part.type}
-                  result={part.output}
-                  className="my-2"
-                  state={part.state}
-                  input={part.input}
-                />
-              );
-            }
-
-            switch (part.type) {
-              case "text":
-                return <MarkdownRenderer key={i} content={part.text} />;
-
-              case "reasoning":
-                return (
-                  <ReasoningAccordion
-                    reasoning={part.text}
-                    key={i}
-                    index={i}
-                    isStreaming={
-                      isLast &&
-                      isStreamingReasoning &&
-                      // If there are multiple reasoning parts, only show the last one
-                      i === (message.parts.length || 0) - 1
-                    }
-                  />
-                );
-
-              case "dynamic-tool":
-                return (
-                  <ToolCallAccordion
-                    key={i}
-                    index={i}
-                    toolName={part.type}
-                    result={part.output}
-                    state={part.state}
-                    input={part.input}
-                    className="my-2"
-                  />
-                );
-
-              // These are cryptographic signatures, so we don't need to render them
-              case "data-reasoning-signature":
-                return null;
-
-              // TODO: We could render lines, for now don't render them. They do not have information.
-              case "step-start":
-                Logger.debug("Found step-start part", part);
-                return null;
-
-              /* handle other part types … */
-              default:
-                if (part.type.startsWith("data-")) {
-                  Logger.log("Found data part", part);
-                  return null;
-                }
-
-                Logger.error("Unhandled part type:", part.type);
-                try {
-                  return (
-                    <div className="text-xs text-muted-foreground" key={i}>
-                      <MarkdownRenderer
-                        content={JSON.stringify(part, null, 2)}
-                      />
-                    </div>
-                  );
-                } catch (error) {
-                  Logger.error("Error rendering part:", part.type, error);
-                  return null;
-                }
-            }
-          })}
+          {renderUIMessage({ message, isStreamingReasoning, isLast })}
         </div>
       );
     };
