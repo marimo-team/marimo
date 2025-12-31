@@ -53,7 +53,7 @@ class AppScriptRunner:
             self.app.graph,
             self.app.execution_order,
             self._glbls,
-            excluded=SETUP_CELL_NAME,
+            excluded=CellId_t(SETUP_CELL_NAME),
         )
 
         self.cells_to_run = [
