@@ -512,6 +512,16 @@ components:
           - type: 'null'
           default: null
         content: {}
+        id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+        metadata:
+          anyOf:
+          - {}
+          - type: 'null'
+          default: null
         parts:
           anyOf:
           - items:
@@ -5428,4 +5438,3 @@ paths:
       summary: Submit login form
       tags:
       - auth
-
