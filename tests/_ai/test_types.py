@@ -462,3 +462,15 @@ class TestChatMessagePostInit:
         message = ChatMessage(role="user", content="Hello", parts=[])
 
         assert message == ChatMessage(role="user", content="Hello", parts=[])
+
+    def test_id_defaults_to_empty_string(self):
+        """Test that id defaults to empty string when not provided."""
+        message = ChatMessage(role="user", content="Hello")
+
+        assert message.id == ""
+
+    def test_id_can_be_set_explicitly(self):
+        """Test that id can be set explicitly."""
+        message = ChatMessage(role="user", content="Hello", id="custom-id")
+
+        assert message.id == "custom-id"
