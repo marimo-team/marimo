@@ -324,7 +324,7 @@ def get_cgroup_cpu_percent() -> Optional[float]:
             (e.g., on the first call)
         None if cgroup limits are not configured or unable to read.
     """
-    global _last_cgroup_cpu_sample
+    global _LAST_CGROUP_CPU_SAMPLE
 
     # Early return if no CPU limit is configured
     if not _has_cgroup_cpu_limit():
@@ -356,16 +356,16 @@ def get_cgroup_cpu_percent() -> Optional[float]:
 
         current_time = time.time()
 
-        if _last_cgroup_cpu_sample is None:
+        if _LAST_CGROUP_CPU_SAMPLE is None:
             # First call - store reading, return 0.0 (like psutil's first call)
-            _last_cgroup_cpu_sample = (
+            _LAST_CGROUP_CPU_SAMPLE = (
                 current_usage_microseconds,
                 current_time,
             )
             return 0.0
 
-        last_usage, last_time = _last_cgroup_cpu_sample
-        _last_cgroup_cpu_sample = (current_usage_microseconds, current_time)
+        last_usage, last_time = _LAST_CGROUP_CPU_SAMPLE
+        _LAST_CGROUP_CPU_SAMPLE = (current_usage_microseconds, current_time)
 
         delta_time = current_time - last_time
         if delta_time <= 0:
