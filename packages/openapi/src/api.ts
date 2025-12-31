@@ -3107,12 +3107,12 @@ export interface components {
       /** @default null */
       attachments?: components["schemas"]["ChatAttachment"][] | null;
       content: unknown;
-      /** @default null */
-      id?: string | null;
+      /** @default  */
+      id?: string;
       /** @default null */
       metadata?: unknown | null;
-      /** @default null */
-      parts?: Record<string, any>[] | null;
+      /** @default [] */
+      parts?: Record<string, any>[];
       /** @enum {unknown} */
       role: "assistant" | "system" | "user";
     };

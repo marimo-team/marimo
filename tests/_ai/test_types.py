@@ -54,19 +54,6 @@ class TestChatMessageCreate:
             parts=[],
         )
 
-    def test_with_none_message_id(self):
-        """Test create with None message_id."""
-        message = ChatMessage.create(
-            role="system", message_id=None, content="System message", parts=[]
-        )
-
-        assert message == ChatMessage(
-            role="system",
-            id=None,
-            content="System message",
-            parts=[],
-        )
-
     def test_with_none_content(self):
         """Test create with None content."""
         parts: list[Any] = [{"type": "text", "text": "Content in parts"}]
@@ -467,28 +454,11 @@ class TestChatMessagePostInit:
 
     def test_with_none_parts(self):
         """Test that None parts is handled."""
-        message = ChatMessage(
-            role="user",
-            content="Hello",
-            parts=None,
-        )
-
-        assert message == ChatMessage(
-            role="user",
-            content="Hello",
-            parts=None,
-        )
+        message = ChatMessage(role="user", content="Hello", parts=[])
+        assert message == ChatMessage(role="user", content="Hello", parts=[])
 
     def test_with_empty_parts(self):
         """Test that empty parts list stays empty."""
-        message = ChatMessage(
-            role="user",
-            content="Hello",
-            parts=[],
-        )
+        message = ChatMessage(role="user", content="Hello", parts=[])
 
-        assert message == ChatMessage(
-            role="user",
-            content="Hello",
-            parts=[],
-        )
+        assert message == ChatMessage(role="user", content="Hello", parts=[])

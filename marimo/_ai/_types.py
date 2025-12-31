@@ -2,9 +2,8 @@
 from __future__ import annotations
 
 import abc
-import dataclasses
 import mimetypes
-from dataclasses import dataclass
+from dataclasses import dataclass, is_dataclass
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -198,15 +197,14 @@ class ChatMessage(msgspec.Struct):
     content: Any
 
     # The id of the message.
-    id: str | None = None
+    id: str = ""
+
+    # Parts from AI SDK
+    parts: list[ChatPart] = []
 
     # Optional attachments to the message.
     # TODO: Deprecate in favour of parts
     attachments: Optional[list[ChatAttachment]] = None
-
-    # Parts from AI SDK. (see types above)
-    # TODO: Make this required
-    parts: Optional[list[ChatPart]] = None
 
     metadata: Any | None = None
 
@@ -231,7 +229,7 @@ class ChatMessage(msgspec.Struct):
         PartType = None
         for PartType in PART_TYPES:
             try:
-                if dataclasses.is_dataclass(part):
+                if is_dataclass(part):
                     return cast(ChatPart, part)
                 return parse_raw(part, cls=PartType, allow_unknown_keys=True)
             except Exception:
@@ -245,7 +243,7 @@ class ChatMessage(msgspec.Struct):
         cls,
         *,
         role: Literal["user", "assistant", "system"],
-        message_id: Optional[str],
+        message_id: str,
         content: Optional[str],
         parts: list[ChatPart],
         part_validator_class: Any | None = None,

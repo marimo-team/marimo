@@ -513,22 +513,18 @@ components:
           default: null
         content: {}
         id:
-          anyOf:
-          - type: string
-          - type: 'null'
-          default: null
+          default: ''
+          type: string
         metadata:
           anyOf:
           - {}
           - type: 'null'
           default: null
         parts:
-          anyOf:
-          - items:
-              type: object
-            type: array
-          - type: 'null'
-          default: null
+          default: []
+          items:
+            type: object
+          type: array
         role:
           enum:
           - assistant
@@ -5438,3 +5434,4 @@ paths:
       summary: Submit login form
       tags:
       - auth
+

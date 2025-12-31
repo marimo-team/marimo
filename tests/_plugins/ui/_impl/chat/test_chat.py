@@ -641,16 +641,12 @@ def test_convert_value_pydantic_ai_mode_missing_fields():
     chat = ui.chat(mock_model)
     chat._frontend_managed = True
 
-    # Message without id or parts
-    value = {
-        "messages": [
-            {"role": "user"},
-        ]
-    }
+    # Message without parts
+    value = {"messages": [{"role": "user", "id": ""}]}
 
     converted = chat._convert_value(value)
     assert converted == [
-        ChatMessage(role="user", id=None, parts=[], content=None)
+        ChatMessage(id="", role="user", parts=[], content=None)
     ]
 
 

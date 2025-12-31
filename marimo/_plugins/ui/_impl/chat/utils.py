@@ -93,4 +93,4 @@ def from_chat_message_dict(d: ChatMessageDict) -> ChatMessage:
                     )
                 )
 
-    return ChatMessage(role=d["role"], content=d["content"], parts=parts)
+    return ChatMessage(role=d["role"], content=d["content"], parts=parts or [])

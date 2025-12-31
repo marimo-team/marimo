@@ -670,7 +670,7 @@ class TestAnthropic:
             ChatMessage(
                 role="user",
                 content="Hello",
-                parts=None,
+                parts=[],
             ),
             ChatMessage(
                 role="assistant",
@@ -700,12 +700,12 @@ class TestAnthropic:
             ChatMessage(
                 role="user",
                 content="",
-                parts=None,
+                parts=[],
             ),
             ChatMessage(
                 role="assistant",
                 content="Hi there!",
-                parts=None,
+                parts=[],
             ),
         ]
 
