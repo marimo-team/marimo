@@ -29,8 +29,8 @@ from marimo._server.main import (
 )
 from marimo._server.session_manager import SessionManager
 from marimo._server.tokens import AuthToken
-from marimo._server.utils import find_free_port
 from marimo._session.model import SessionMode
+from marimo._utils.net import find_free_port
 from tests._server.mocks import get_mock_session_manager, token_header
 
 if TYPE_CHECKING:

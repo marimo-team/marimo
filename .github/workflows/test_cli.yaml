@@ -139,8 +139,7 @@ jobs:
           uv run --no-project pytest -v tests/_cli/test_cli* --maxfail=2
 
   test_examples:
-    needs: [changes, build_wheel]
-    if: ${{ needs.changes.outputs.cli == 'true' }}
+    needs: [changes]
     name: Tests examples and smoke_tests
     runs-on: ubuntu-latest
     timeout-minutes: 3 # 2024-01-18 avg: 0.3m max: 0.5m
@@ -155,16 +154,6 @@ jobs:
         with:
           enable-cache: true
           python-version: 3.12
-
-      - name: Download wheel
-        uses: actions/download-artifact@v4
-        with:
-          name: testwheel
-
-      - name: Install Python deps
-        run: |
-          uv add pytest pytest-asyncio
-          uv pip install marimo*whl
 
       - name: Check example quality with marimo check
         shell: bash

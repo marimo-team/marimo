@@ -10,13 +10,13 @@ from marimo._ast import load
 from marimo._ast.app import App, InternalApp
 from marimo._ast.app_config import overloads_from_env
 from marimo._ast.cell import CellConfig
-from marimo._config.config import ExportType, SqlOutputType, WidthType
 from marimo._runtime.layout.layout import (
     LayoutConfig,
     read_layout_config,
     save_layout_config,
 )
 from marimo._schemas.serialization import Header, NotebookSerializationV1
+from marimo._server.app_defaults import AppDefaults
 from marimo._session.notebook.serializer import get_format_handler
 from marimo._session.notebook.storage import (
     FilesystemStorage,
@@ -56,20 +56,14 @@ class AppFileManager:
         filename: Optional[str | Path],
         *,
         storage: Optional[StorageInterface] = None,
-        default_width: WidthType | None = None,
-        default_auto_download: list[ExportType] | None = None,
-        default_sql_output: SqlOutputType | None = None,
+        defaults: Optional[AppDefaults] = None,
     ) -> None:
         self._filename = _maybe_path(filename)
 
         self.storage: StorageInterface = storage or FilesystemStorage()
 
         # Configuration defaults
-        self._default_width: WidthType | None = default_width
-        self._default_auto_download: list[ExportType] | None = (
-            default_auto_download
-        )
-        self._default_sql_output: SqlOutputType | None = default_sql_output
+        self._defaults = defaults or AppDefaults()
 
         # Load the app
         self.app = self._load_app(self.path)
@@ -192,15 +186,15 @@ class AppFileManager:
         elif path.exists():
             header = handler.extract_header(path)
 
-        if header:
-            notebook = NotebookSerializationV1(
-                app=notebook.app,
-                header=Header(value=header) if header else notebook.header,
-                cells=notebook.cells,
-                violations=notebook.violations,
-                valid=notebook.valid,
-                filename=str(path),
-            )
+        # Rewrap with header if relevant and set filename.
+        notebook = NotebookSerializationV1(
+            app=notebook.app,
+            header=Header(value=header) if header else notebook.header,
+            cells=notebook.cells,
+            violations=notebook.violations,
+            valid=notebook.valid,
+            filename=str(path),
+        )
         contents = handler.serialize(notebook)
 
         if persist:
@@ -232,12 +226,12 @@ class AppFileManager:
             kwargs: dict[str, Any] = default.asdict()
 
             # Add custom defaults if provided
-            if self._default_width is not None:
-                kwargs["width"] = self._default_width
-            if self._default_auto_download is not None:
-                kwargs["auto_download"] = self._default_auto_download
-            if self._default_sql_output is not None:
-                kwargs["sql_output"] = self._default_sql_output
+            if self._defaults.width is not None:
+                kwargs["width"] = self._defaults.width
+            if self._defaults.auto_download is not None:
+                kwargs["auto_download"] = self._defaults.auto_download
+            if self._defaults.sql_output is not None:
+                kwargs["sql_output"] = self._defaults.sql_output
 
             empty_app = InternalApp(App(**kwargs))
             empty_app.cell_manager.register_cell(

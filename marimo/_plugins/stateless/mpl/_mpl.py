@@ -95,7 +95,7 @@ class MplServerManager:
         # Find a free port, with some randomization to avoid conflicts
         import random
 
-        from marimo._server.utils import find_free_port
+        from marimo._utils.net import find_free_port
 
         base_port = 10_000 + random.randint(0, 1000)  # Add some randomization
         port = (

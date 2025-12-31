@@ -94,7 +94,9 @@ def _get_language(text: str) -> str:
 
 
 def formatted_code_block(
-    code: str, attributes: Optional[dict[str, str]] = None
+    code: str,
+    attributes: Optional[dict[str, str]] = None,
+    is_qmd: bool = False,
 ) -> str:
     """Wraps code in a fenced code block with marimo attributes."""
     if attributes is None:
@@ -106,18 +108,19 @@ def formatted_code_block(
     guard = "```"
     while guard in code:
         guard += "`"
-    if DependencyManager.new_superfences.has_required_version(quiet=True):
-        return "\n".join(
-            [
-                f"""{guard}{language} {{.marimo{attribute_str}}}""",
-                code,
-                guard,
-                "",
-            ]
-        )
-    return "\n".join(
-        [f"""{guard}{{.{language}.marimo{attribute_str}}}""", code, guard, ""]
-    )
+
+    # Quarto executable syntax with claimsLanguage() support
+    # ```{marimo .python attr=...}
+    if is_qmd:
+        head = f"""{guard}{{marimo .{language}{attribute_str}}}"""
+    # Compatible with GitHub syntax highlighting
+    # ```python {.marimo attr=...}
+    elif DependencyManager.new_superfences.has_required_version(quiet=True):
+        head = f"""{guard}{language} {{.marimo{attribute_str}}}"""
+    # ```{.python.marimo attr=...}
+    else:
+        head = f"""{guard}{{.{language}.marimo{attribute_str}}}"""
+    return "\n".join([head, code, guard, ""])
 
 
 def app_config_from_root(root: Element) -> dict[str, Any]:

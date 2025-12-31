@@ -32,9 +32,9 @@ export const useModelChange = () => {
   const [userConfig, setUserConfig] = useAtom(userConfigAtom);
   const { saveUserConfig } = useRequestClient();
 
-  const saveConfig = async (newConfig: UserConfig) => {
+  const saveConfig = async (newConfig: Partial<UserConfig>) => {
     await saveUserConfig({ config: newConfig }).then(() => {
-      setUserConfig(newConfig);
+      setUserConfig((prev) => ({ ...prev, ...newConfig }));
     });
   };
 
@@ -48,8 +48,7 @@ export const useModelChange = () => {
       return;
     }
 
-    const newConfig: UserConfig = {
-      ...userConfig,
+    const newConfig: Partial<UserConfig> = {
       ai: {
         ...userConfig.ai,
         models: {
@@ -65,8 +64,7 @@ export const useModelChange = () => {
   };
 
   const saveModeChange = async (newMode: CopilotMode) => {
-    const newConfig: UserConfig = {
-      ...userConfig,
+    const newConfig: Partial<UserConfig> = {
       ai: {
         ...userConfig.ai,
         mode: newMode,

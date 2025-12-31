@@ -193,11 +193,13 @@ export function useSaveNotebook() {
   };
 }
 
-function isNamedPersistentFile(filename: string | null): filename is string {
+export function isNamedPersistentFile(
+  filename: string | null,
+): filename is string {
   return (
     filename !== null &&
     // Linux
-    !filename.startsWith("/tmp") &&
+    !filename.startsWith("/tmp/") &&
     // macOS
     !filename.startsWith("/var/folders") &&
     // Windows

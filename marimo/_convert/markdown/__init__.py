@@ -1,3 +1,4 @@
+# Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
 import ast
@@ -66,7 +67,8 @@ def convert_from_ir_to_markdown(
         metadata["header"] = notebook.header.value.strip()
 
     # Add the expected qmd filter to the metadata.
-    if filename.endswith(".qmd"):
+    is_qmd = filename.endswith(".qmd")
+    if is_qmd:
         if "filters" not in metadata:
             metadata["filters"] = []
         if "marimo" not in str(metadata["filters"]):
@@ -165,7 +167,7 @@ def convert_from_ir_to_markdown(
         if previous_was_markdown:
             document.append("")
         previous_was_markdown = False
-        document.append(formatted_code_block(code, attributes))
+        document.append(formatted_code_block(code, attributes, is_qmd=is_qmd))
 
     return "\n".join(document).strip()
 

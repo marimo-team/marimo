@@ -1131,7 +1131,7 @@ packages:
 - pypi: ./
   name: marimo
   version: 0.18.4
-  sha256: 865acc3dac726f310c66508223ff1e89c63e76d562bc803e883f2b9c7c763115
+  sha256: 75d33a687eaea5b9293810fe11e6cb3d633b7b0ac04ebbe063855dd3f7fc9437
   requires_dist:
   - click>=8.0,<9
   - jedi>=0.18.0
@@ -1139,9 +1139,9 @@ packages:
   - pymdown-extensions>=10.15,<11
   - pygments>=2.19,<3
   - tomlkit>=0.12.0
-  - pyyaml>=6.0
+  - pyyaml>=6.0.1
   - uvicorn>=0.22.0
-  - starlette>=0.37.0
+  - starlette>=0.37.2
   - websockets>=14.2.0
   - loro>=1.5.0 ; python_full_version >= '3.11' and python_full_version < '3.14'
   - typing-extensions>=4.4.0 ; python_full_version < '3.11'
@@ -1154,26 +1154,15 @@ packages:
   - duckdb>=1.0.0 ; extra == 'sql'
   - polars[pyarrow]>=1.9.0 ; extra == 'sql'
   - sqlglot[rs]>=26.2.0 ; extra == 'sql'
-  - duckdb>=1.0.0 ; extra == 'recommended'
+  - marimo[sql] ; extra == 'recommended'
   - altair>=5.4.0 ; extra == 'recommended'
-  - polars[pyarrow]>=1.9.0 ; extra == 'recommended'
-  - sqlglot[rs]>=26.2.0 ; extra == 'recommended'
   - openai>=1.55.3 ; extra == 'recommended'
   - ruff ; extra == 'recommended'
   - nbformat>=5.7.0 ; extra == 'recommended'
-  - click>=8.0,<9 ; extra == 'dev'
-  - black~=23.12.1 ; extra == 'dev'
-  - opentelemetry-api~=1.28.0 ; extra == 'dev'
-  - opentelemetry-sdk~=1.28.0 ; extra == 'dev'
-  - duckdb>=1.0.0 ; extra == 'dev'
-  - sqlglot[rs]>=26.2.0 ; extra == 'dev'
-  - ruff>=0.13.2 ; extra == 'dev'
-  - openai>=1.55.3 ; extra == 'dev'
-  - pydantic-ai-slim[google,anthropic]>=1.39.0 ; extra == 'dev'
   - python-lsp-server>=1.13.0 ; extra == 'lsp'
   - python-lsp-ruff>=2.0.0 ; extra == 'lsp'
-  - mcp>=1.0.0 ; python_full_version >= '3.10' and extra == 'mcp'
-  - pydantic>2 ; python_full_version >= '3.10' and extra == 'mcp'
+  - mcp>=1.0.0 ; extra == 'mcp'
+  - pydantic>2 ; extra == 'mcp'
   requires_python: '>=3.10'
   editable: true
 - pypi: https://files.pythonhosted.org/packages/70/81/54e3ce63502cd085a0c556652a4e1b919c45a446bd1e5300e10c44c8c521/markdown-3.10-py3-none-any.whl

@@ -7,18 +7,16 @@ import {
   ZapOffIcon,
 } from "lucide-react";
 import type React from "react";
-import { useEffect, useState } from "react";
 import { DisableIfOverridden } from "@/components/app-config/is-overridden";
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Switch } from "@/components/ui/switch";
-import { useResolvedMarimoConfig, useUserConfig } from "@/core/config/config";
+import { useResolvedMarimoConfig } from "@/core/config/config";
 import { useRequestClient } from "@/core/network/requests";
 import { isWasm } from "@/core/wasm/utils";
 import { cn } from "@/utils/cn";
@@ -32,36 +30,19 @@ export const RuntimeSettings: React.FC<RuntimeSettingsProps> = ({
   className,
 }) => {
   const { saveUserConfig } = useRequestClient();
-  const [userConfig, setUserConfig] = useUserConfig();
-  const config = useResolvedMarimoConfig()[0];
-  const [dropdownOpen, setDropdownOpen] = useState(false);
-
-  // Close dropdown when screen size crosses the md breakpoint
-  useEffect(() => {
-    // 768px matches Tailwind's 'md' breakpoint used in hidden md:flex
-    // TODO: When upgrading to Tailwind v4, use var(--breakpoint-md)
-    const mediaQuery = window.matchMedia("(min-width: 768px)");
-    const handleChange = () => {
-      if (mediaQuery.matches) {
-        setDropdownOpen(false);
-      }
-    };
-
-    mediaQuery.addEventListener("change", handleChange);
-    return () => mediaQuery.removeEventListener("change", handleChange);
-  }, []);
+  const [config, setUserConfig] = useResolvedMarimoConfig();
 
   const handleStartupToggle = async (checked: boolean) => {
     // Send only the changed portion to avoid overwriting other config values
     await saveUserConfig({
       config: { runtime: { auto_instantiate: checked } },
-    }).then(() =>
+    }).then(() => {
       // Update local state with merged config
-      setUserConfig({
-        ...userConfig,
-        runtime: { ...userConfig.runtime, auto_instantiate: checked },
-      }),
-    );
+      setUserConfig((prev) => ({
+        ...prev,
+        runtime: { ...prev.runtime, auto_instantiate: checked },
+      }));
+    });
   };
 
   const handleCellChangeToggle = async (checked: boolean) => {
@@ -69,13 +50,13 @@ export const RuntimeSettings: React.FC<RuntimeSettingsProps> = ({
     // Send only the changed portion to avoid overwriting other config values
     await saveUserConfig({
       config: { runtime: { on_cell_change: onCellChange } },
-    }).then(() =>
+    }).then(() => {
       // Update local state with merged config
-      setUserConfig({
-        ...userConfig,
-        runtime: { ...userConfig.runtime, on_cell_change: onCellChange },
-      }),
-    );
+      setUserConfig((prev) => ({
+        ...prev,
+        runtime: { ...prev.runtime, on_cell_change: onCellChange },
+      }));
+    });
   };
 
   const handleModuleReloadChange = async (
@@ -84,13 +65,13 @@ export const RuntimeSettings: React.FC<RuntimeSettingsProps> = ({
     // Send only the changed portion to avoid overwriting other config values
     await saveUserConfig({
       config: { runtime: { auto_reload: option } },
-    }).then(() =>
+    }).then(() => {
       // Update local state with merged config
-      setUserConfig({
-        ...userConfig,
-        runtime: { ...userConfig.runtime, auto_reload: option },
-      }),
-    );
+      setUserConfig((prev) => ({
+        ...prev,
+        runtime: { ...prev.runtime, auto_reload: option },
+      }));
+    });
   };
 
   // Check if all reactivity is disabled
@@ -101,130 +82,8 @@ export const RuntimeSettings: React.FC<RuntimeSettingsProps> = ({
 
   return (
     <div className={cn("flex items-center", className)}>
-      {/* Shown on larger screens */}
-      <div className="hidden md:flex md:items-center">
-        <DisableIfOverridden name="runtime.auto_instantiate">
-          <FooterItem
-            tooltip={
-              config.runtime.auto_instantiate
-                ? "Disable autorun on startup"
-                : "Enable autorun on startup"
-            }
-            selected={false}
-            onClick={() =>
-              handleStartupToggle(!config.runtime.auto_instantiate)
-            }
-            data-testid="footer-autorun-startup"
-          >
-            <div className="font-prose text-sm flex items-center gap-1 whitespace-nowrap">
-              <span>on startup: </span>
-              {config.runtime.auto_instantiate ? (
-                <ZapIcon size={14} />
-              ) : (
-                <ZapOffIcon size={14} />
-              )}
-              <span>
-                {config.runtime.auto_instantiate ? "autorun" : "lazy"}
-              </span>
-            </div>
-          </FooterItem>
-        </DisableIfOverridden>
-
-        <div className="border-r border-border h-6 mx-1" />
-
-        <DisableIfOverridden name="runtime.on_cell_change">
-          <FooterItem
-            tooltip={
-              config.runtime.on_cell_change === "autorun"
-                ? "Disable autorun"
-                : "Enable autorun"
-            }
-            selected={false}
-            onClick={() =>
-              handleCellChangeToggle(
-                config.runtime.on_cell_change !== "autorun",
-              )
-            }
-            data-testid="footer-autorun-cell-change"
-          >
-            <div className="font-prose text-sm flex items-center gap-1 whitespace-nowrap">
-              <span>on cell change: </span>
-              {config.runtime.on_cell_change === "autorun" ? (
-                <ZapIcon size={14} />
-              ) : (
-                <ZapOffIcon size={14} />
-              )}
-              <span>{config.runtime.on_cell_change}</span>
-            </div>
-          </FooterItem>
-        </DisableIfOverridden>
-
-        {!isWasm() && (
-          <>
-            <div className="border-r border-border h-6 mx-1" />
-            <DisableIfOverridden name="runtime.auto_reload">
-              <FooterItem
-                tooltip={null}
-                selected={false}
-                data-testid="footer-module-reload"
-              >
-                <DropdownMenu>
-                  <DropdownMenuTrigger className="font-prose text-sm flex items-center gap-1 whitespace-nowrap">
-                    <span>on module change: </span>
-                    {config.runtime.auto_reload === "off" && (
-                      <PowerOffIcon size={14} />
-                    )}
-                    {config.runtime.auto_reload === "lazy" && (
-                      <ZapOffIcon size={14} />
-                    )}
-                    {config.runtime.auto_reload === "autorun" && (
-                      <ZapIcon size={14} />
-                    )}
-                    <span>{config.runtime.auto_reload}</span>
-                    <ChevronDownIcon size={14} />
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent>
-                    {["off", "lazy", "autorun"].map((option) => (
-                      <DropdownMenuItem
-                        key={option}
-                        onClick={() =>
-                          handleModuleReloadChange(
-                            option as "off" | "lazy" | "autorun",
-                          )
-                        }
-                      >
-                        {option === "off" && (
-                          <PowerOffIcon
-                            size={14}
-                            className="mr-2 text-muted-foreground"
-                          />
-                        )}
-                        {option === "lazy" && (
-                          <ZapOffIcon
-                            size={14}
-                            className="mr-2 text-muted-foreground"
-                          />
-                        )}
-                        {option === "autorun" && (
-                          <ZapIcon
-                            size={14}
-                            className="mr-2 text-muted-foreground"
-                          />
-                        )}
-                        {option}
-                      </DropdownMenuItem>
-                    ))}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </FooterItem>
-            </DisableIfOverridden>
-          </>
-        )}
-      </div>
-
-      {/* Shown on small screens */}
-      <div className="flex md:hidden">
-        <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
+      <div className="flex">
+        <DropdownMenu>
           <DropdownMenuTrigger asChild={true}>
             <FooterItem
               tooltip="Runtime reactivity"
