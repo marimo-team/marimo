@@ -99,6 +99,7 @@ def _(agent, mo):
             "Write the fibonacci function in Python",
             "Who is Ada Lovelace?",
             "What is marimo?",
+            "I need dogs",
         ],
         allow_attachments=True,
     )
