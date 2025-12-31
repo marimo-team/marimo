@@ -215,7 +215,7 @@ class TestApp:
         # Ensure this doesn't incorrectly raise a IncompleteRefsError
         with pytest.raises(NameError) as exc_info:
             app.run()
-        assert "from_setup" in str(exc_info.value)
+        assert "setup_var" in str(exc_info.value)
 
 
     @staticmethod

@@ -47,9 +47,13 @@ class AppScriptRunner:
         self.cells_cancelled: set[CellId_t] = set()
         self._glbls = glbls if glbls else {}
 
-        # Prune cells that define provided refs
+        # Setup cell cannot be overrided, and it's possible that some
+        # variables are not defined, so ignore it.
         pruned_execution_order = dataflow.prune_cells_for_overrides(
-            self.app.graph, self.app.execution_order, self._glbls
+            self.app.graph,
+            self.app.execution_order,
+            self._glbls,
+            excluded=SETUP_CELL_NAME,
         )
 
         self.cells_to_run = [
