@@ -66,7 +66,7 @@ def try_convert_to_polars(
     query: str,
     connection: ConnectionOrCursor,
     lazy: bool,
-) -> tuple[Optional[pl.DataFrame | pl.LazyFrame], Optional[str]]:
+) -> tuple[Optional[pl.DataFrame | pl.LazyFrame], Optional[Exception]]:
     """Try to convert the query to a polars dataframe.
 
     Returns:
@@ -82,7 +82,7 @@ def try_convert_to_polars(
         pl.exceptions.PanicException,
         pl.exceptions.ComputeError,
     ) as e:
-        return None, str(e)
+        return None, e
 
 
 def convert_to_output(
