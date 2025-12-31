@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from marimo._utils.health import (
-    MemoryStats,
     _get_versions,
     _has_cgroup_cpu_limit,
     get_cgroup_cpu_percent,
@@ -40,19 +39,19 @@ def test_get_python_version():
 
 def test_has_cgroup_cpu_limits():
     """Test that has_cgroup_limits returns a tuple of bools and doesn't crash"""
-    memory_limit, cpu_limit = _has_cgroup_cpu_limit()
-    assert isinstance(cpu_limit, bool)
+    has_cgroup_cpu_limit = _has_cgroup_cpu_limit()
+    assert isinstance(has_cgroup_cpu_limit, bool)
 
 
 def test_get_container_resources():
     """Test that get_container_resources returns None or a dict and doesn't crash"""
     cpu_result = get_cgroup_cpu_percent()
     memory_result = get_cgroup_mem_stats()
-    assert memory_result is None or isinstance(memory_result, MemoryStats)
     assert cpu_result is None or isinstance(cpu_result, float)
-    if isinstance(memory_result, MemoryStats):
+    assert memory_result is None or isinstance(memory_result, dict)
+    if isinstance(memory_result, dict):
         # If we happen to be in a container, verify structure
-        assert "total" in memory_result["memory"]
-        assert "used" in memory_result["memory"]
-        assert "free" in memory_result["memory"]
-        assert "percent" in memory_result["memory"]
+        assert "total" in memory_result
+        assert "used" in memory_result
+        assert "free" in memory_result
+        assert "percent" in memory_result
