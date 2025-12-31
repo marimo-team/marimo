@@ -23,6 +23,7 @@ async def _(x, y, Z):
         assert x + y == Z
 
     class TestClass:
+        """Has doc string"""
         @pytest.mark.xfail(
             reason=("To ensure this doesn't just eval."),
             raises=AssertionError,

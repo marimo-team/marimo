@@ -34,6 +34,8 @@ def test_add_bad(a, b, c):
 
 @app.class_definition
 class TestClassWorks:
+    """Has doc string"""
+
     def test_sanity(self):
         assert True
 
