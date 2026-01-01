@@ -35,6 +35,10 @@ def test_smoke_test():
         "test_uses_top_level_fixture": (1, 0, 0, 0),
         "test_parametrize_with_toplevel_fixture": (2, 0, 0, 0),
         "test_uses_function_fixture": (1, 0, 0, 0),
+        # Fixture dependency chain test
+        "base_fixture": (0, 0, 0, 0),  # fixture, not a test
+        "dependent_fixture": (0, 0, 0, 0),  # fixture, not a test
+        "test_fixture_dependency_chain": (1, 0, 0, 0),
         # Null cases - fixture not in scope / doesn't exist (errors)
         "test_cross_cell_fixture_fails": (0, 0, 0, 1),
         "test_missing_fixture": (0, 0, 0, 1),
@@ -68,5 +72,5 @@ def test_smoke_test():
     # put it back on
 
     # Assert all cases captured, and nothing missed.
-    # Total: 0+0+0+2+1+3+2+1+1+3+3+1+2+1+3+1+2+1+1+1 = 29
-    assert total == sum(map(sum, def_count.values())) == 29
+    # Total: 0+0+0+2+1+3+2+1+1+3+3+1+2+1+3+1+2+1+0+0+1+1+1 = 30
+    assert total == sum(map(sum, def_count.values())) == 30

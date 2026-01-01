@@ -166,11 +166,13 @@ class ReplaceStubPlugin:
             return callable(obj) and hasattr(obj, "_pytestfixturefunction")
 
         # Register cell-scoped fixtures before processing items
+        # Use names_closure (transitive deps) instead of just argnames
+        # to handle fixture dependency chains
         fm = session._fixturemanager
         registered_fixtures: set[str] = set()
         for item in items:
             if hasattr(item, "_fixtureinfo"):
-                for argname in item._fixtureinfo.argnames:
+                for argname in item._fixtureinfo.names_closure:
                     if (
                         argname not in registered_fixtures
                         and argname in self.lcls

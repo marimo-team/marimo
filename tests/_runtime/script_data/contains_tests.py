@@ -159,6 +159,23 @@ def _():
     return (TestWithClassFixture,)
 
 
+# Test fixture dependency chains
+@app.cell
+def _():
+    @pytest.fixture
+    def base_fixture():
+        return "base"
+
+    @pytest.fixture
+    def dependent_fixture(base_fixture):
+        """Fixture that depends on another cell-scoped fixture."""
+        return base_fixture + "_extended"
+
+    def test_fixture_dependency_chain(dependent_fixture):
+        """Test only requests dependent_fixture, but base_fixture must also work."""
+        assert dependent_fixture == "base_extended"
+
+
 # Null case: fixture defined in one cell, used in another (should error)
 @app.cell
 def _():
