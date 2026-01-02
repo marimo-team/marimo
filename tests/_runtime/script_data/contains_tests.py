@@ -126,7 +126,7 @@ class TestClassDefinitionWithFixtures:
         assert instance_fixture == "instance"
 
     @staticmethod
-    def test_static_uses_class_fixture(class_scoped_fixture):
+    def test_static_uses_class_fixture(class_scoped_fixture) -> None:
         assert class_scoped_fixture == "class_scoped"
 
 
