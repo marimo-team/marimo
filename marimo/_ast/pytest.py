@@ -358,7 +358,7 @@ def build_test_class(
                 # If not in runtime, we are running directly as a script. As
                 # such, we need the values from the module frame.
                 # Traverse frame upwards until we match the file.
-                frames = inspect.stack()
+                frames = inspect.stack(context=0)
                 for frame in frames:
                     if Path(frame.filename).resolve() == Path(file).resolve():
                         local.update(frame.frame.f_locals)
@@ -429,7 +429,7 @@ def process_for_pytest(func: Fn, cell: Cell) -> None:
 
     # Get first frame not in library to insert the class.
     # May be multiple levels if called from pytest or something.
-    frames = inspect.stack()
+    frames = inspect.stack(context=0)
 
     # ensure marimo/_ not in frame path, using this file as a reference.
     library = Path(__file__).parent.parent
