@@ -413,8 +413,8 @@ import marimo
         assert "numpy" in requirements
 
 
-def test_should_run_in_sandbox_user_confirms(tmp_path: Path) -> None:
-    """Test that should_run_in_sandbox returns True when user types 'y'."""
+def test_should_run_in_sandbox_auto_enabled(tmp_path: Path) -> None:
+    """Test that should_run_in_sandbox returns True automatically when file has dependencies."""
     # Create a file with dependencies
     script_path = tmp_path / "test.py"
     script_path.write_text(
@@ -426,21 +426,30 @@ import marimo
     """
     )
 
-    # Mock the prompt to return True (simulating user typing 'y')
-    with patch("marimo._cli.sandbox.click.confirm", return_value=True):
+    # When sandbox is None and file has dependencies, should automatically return True
+    with patch(
+        "marimo._cli.sandbox.DependencyManager.which",
+        return_value="/usr/bin/uv",
+    ):
         with patch(
-            "marimo._cli.sandbox.DependencyManager.which",
-            return_value="/usr/bin/uv",
+            "marimo._cli.sandbox.sys.stdin.isatty", return_value=True
         ):
-            with patch(
-                "marimo._cli.sandbox.sys.stdin.isatty", return_value=True
-            ):
+            with patch("marimo._cli.sandbox.echo") as mock_echo:
                 result = should_run_in_sandbox(
                     sandbox=None,
                     dangerous_sandbox=None,
                     name=str(script_path),
                 )
                 assert result
+                # Verify that a hint message was printed with correct content
+                assert mock_echo.called
+                call_args = str(mock_echo.call_args)
+                assert (
+                    "This notebook has inlined package dependencies, and "
+                    "marimo is running it in an isolated virtual environment. "
+                    "Pass --no-sandbox to run in the calling interpreter's "
+                    "environment instead."
+                ) in call_args
 
 
 def test_should_run_in_sandbox_explicit_flag() -> None:
