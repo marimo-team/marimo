@@ -203,11 +203,11 @@ const PivotTransformSchema = z
     index_column_ids: z
       .array(column_id.describe(FieldOptions.of({ special: "column_id" })))
       .default([])
-      .describe(FieldOptions.of({ label: "Index on columns", minLength: 1 })),
+      .describe(FieldOptions.of({ label: "Rows", minLength: 1 })),
     value_column_ids: z
       .array(column_id.describe(FieldOptions.of({ special: "column_id" })))
       .default([])
-      .describe(FieldOptions.of({ label: "Aggregate on columns" })),
+      .describe(FieldOptions.of({ label: "Values" })),
     aggregation: z
       .enum(AGGREGATION_FNS)
       .default("sum")
