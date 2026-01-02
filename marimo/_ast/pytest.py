@@ -326,6 +326,29 @@ def build_test_class(
             )
         tests[node.name] = node
 
+    # Pre-compute base locals once to avoid repeated inspect.stack() calls
+    # which are expensive on Windows.
+    base_local: dict[str, Any] = {}
+    try:
+        import pytest  # type: ignore
+
+        base_local["pytest"] = pytest
+    except ImportError:
+        pass
+
+    # Try to get context globals, or fall back to frame locals
+    try:
+        base_local.update(get_context().globals)
+    except ContextNotInitializedError:
+        # If not in runtime, we are running directly as a script. As
+        # such, we need the values from the module frame.
+        # Traverse frame upwards until we match the file.
+        frames = inspect.stack(context=0)
+        for frame in frames:
+            if Path(frame.filename).resolve() == Path(file).resolve():
+                base_local.update(frame.frame.f_locals)
+                break
+
     def hook(var: str) -> Callable[..., Any] | type[MarimoTest]:
         test = tests.get(var, None)
         if test is None:
@@ -340,29 +363,8 @@ def build_test_class(
             return fails
 
         if isinstance(test, (ast.FunctionDef, ast.AsyncFunctionDef)):
-            # Evaluate and run decorators.
-            local: dict[str, Any] = {}
-            # Always expose pytest. Low hanging fruit, that should mitigate
-            # some user issues.
-            try:
-                import pytest  # type: ignore
-
-                local["pytest"] = pytest
-            except ImportError:
-                pass
-
-            # If called from the runtime, we can populate the locals
-            try:
-                local.update(get_context().globals)
-            except ContextNotInitializedError:
-                # If not in runtime, we are running directly as a script. As
-                # such, we need the values from the module frame.
-                # Traverse frame upwards until we match the file.
-                frames = inspect.stack(context=0)
-                for frame in frames:
-                    if Path(frame.filename).resolve() == Path(file).resolve():
-                        local.update(frame.frame.f_locals)
-                        break
+            # Use pre-computed locals
+            local = base_local.copy()
 
             is_fixture = has_fixture_decorator(test)
             _hook = _build_hook(test, var, run, file, local, is_fixture)
