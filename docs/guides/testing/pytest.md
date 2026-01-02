@@ -163,7 +163,7 @@ tests statically.
 
 ### Supported Patterns
 
-**Fixtures defined in `app.setup`**:
+**Fixtures defined in the setup cell**:
 
 ```python
 # test_notebook.py
@@ -240,7 +240,7 @@ def _(pytest):
 
 ### Recommended Patterns
 
-1. **Define fixtures in a separate file** and import them in `app.setup`:
+1. **Define fixtures in a separate file** and import them in the setup cell**:
    ```python
    with app.setup:
        from my_fixtures import db_fixture, api_client
