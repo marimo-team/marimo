@@ -378,6 +378,21 @@ class NarwhalsTransformHandler(TransformHandler[DataFrame]):
         # we implement it manually
         # pivot results are also highly inconsistent across backends, so we standardize the output here
 
+        if not transform.index_column_ids and not transform.value_column_ids:
+            raise ValueError("Pivot transform requires at least one index column and or value column.")
+
+        if not transform.index_column_ids:
+            columns = df.columns
+            index_columns = list(filter(lambda col: col not in transform.column_ids and col not in transform.value_column_ids, columns))
+        else:
+            index_columns = transform.index_column_ids
+
+        if not transform.value_column_ids:
+            columns = [col for col, col_type in df.collect_schema().items() if col_type.is_numeric()]
+            value_columns = list(filter(lambda col: col not in transform.column_ids and col not in transform.index_column_ids, columns))
+        else:
+            value_columns = transform.value_column_ids
+
         raw_pivot_columns = (
             df.select(*transform.column_ids)
             .unique()
@@ -398,7 +413,7 @@ class NarwhalsTransformHandler(TransformHandler[DataFrame]):
                     )
                 ],
             )
-            for value_column in transform.value_column_ids:
+            for value_column in value_columns:
                 expr = nw.col(value_column).alias(
                     f"{value_column}_{'_'.join(map(str, raw_pivot_column))}_{transform.aggregation}"
                 )
@@ -420,16 +435,16 @@ class NarwhalsTransformHandler(TransformHandler[DataFrame]):
                     )
             dfs.append(
                 df.filter(mask)
-                .group_by(*transform.index_column_ids)
+                .group_by(*index_columns)
                 .agg(*aggs)
             )
 
-        result = df.select(*transform.index_column_ids).unique()
+        result = df.select(*index_columns).unique()
         for df_ in dfs:
             result = result.join(
-                df_, on=transform.index_column_ids, how="left"
+                df_, on=index_columns, how="left"
             )
-        return result.sort(by=transform.index_column_ids)
+        return result.sort(by=index_columns)
 
     @staticmethod
     def as_python_code(
