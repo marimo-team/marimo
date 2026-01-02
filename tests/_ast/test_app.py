@@ -19,6 +19,7 @@ from marimo._ast.app import (
     InternalApp,
 )
 from marimo._ast.app_config import _AppConfig
+from marimo._ast.cell_id import is_external_cell_id
 from marimo._ast.errors import (
     CycleError,
     IncompleteRefsError,
@@ -27,18 +28,20 @@ from marimo._ast.errors import (
     UnparsableError,
 )
 from marimo._ast.load import load_app
+from marimo._ast.names import SETUP_CELL_NAME
 from marimo._convert.converters import MarimoConvert
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins.stateless.flex import vstack
 from marimo._runtime.context.types import get_context
-from marimo._runtime.commands import UpdateUIElementCommand
+from marimo._runtime.commands import UpdateUIElementCommand, ExecuteCellCommand
 from marimo._schemas.serialization import (
     AppInstantiation,
     CellDef,
     NotebookSerializationV1,
 )
 from marimo._types.ids import CellId_t
-from tests.conftest import ExecReqProvider
+from tests.conftest import ExecReqProvider, MockedKernel
+from tests._messaging.mocks import MockStream
 
 if TYPE_CHECKING:
     from marimo._runtime.runtime import Kernel
@@ -1560,6 +1563,27 @@ class TestAppComposition:
             ]
         )
         assert "App.embed() cannot be called" in k.stderr.messages[0]
+
+    async def test_imported_app_has_prefixed_setup_cell(
+        self, k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        """Verify app imported in kernel context has UUID-prefixed setup cell.
+
+        This tests the fix where setup cells get the prefix like other cells.
+        """
+        await k.run([
+            exec_req.get("""
+            # Import in kernel context
+            from tests._ast.app_data.notebook_filename import app
+            """)
+        ])
+        assert not k.errors
+        nb_app = k.globals["app"]
+        cell_ids = list(InternalApp(nb_app).cell_manager.cell_ids())
+        all_prefixed = all(is_external_cell_id(cid) for cid in cell_ids)
+        setup_cell_ids = [cid for cid in cell_ids if cid.endswith(SETUP_CELL_NAME)]
+        assert len(setup_cell_ids) == 1
+        assert is_external_cell_id(setup_cell_ids[0])
 
 
 class TestAppKernelRunnerRegistry:
