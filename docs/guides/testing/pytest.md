@@ -158,12 +158,13 @@ FAILED test_notebook.py::test_fails - AssertionError: This test fails
 
 ## Using Pytest Fixtures
 
-marimo supports pytest fixtures with some limitations due to how pytest collects
-tests statically.
 
-### Supported Patterns
+marimo supports pytest fixtures, with one limitation: fixtures defined in one cell cannot be used in another cell, unless the fixtures were defined in the setup cell.
+For this reason, we recommend defining (or importing) fixtures in your notebook's setup cell, or defining fixtures in a pytest `conftest.py` file.
 
-**Fixtures defined in `app.setup`**:
+### Examples
+
+**Fixtures defined in the setup cell**:
 
 ```python
 # test_notebook.py
@@ -237,15 +238,3 @@ def _(pytest):
     expensive, and static analysis cannot determine which fixtures will be
     available after cell execution since cell order is determined at runtime by
     marimo's dependency graph.
-
-### Recommended Patterns
-
-1. **Define fixtures in a separate file** and import them in `app.setup`:
-   ```python
-   with app.setup:
-       from my_fixtures import db_fixture, api_client
-   ```
-
-2. **Define fixtures in the same cell** as the tests that use them
-
-3. **Use `conftest.py`** for fixtures shared across multiple notebooks
