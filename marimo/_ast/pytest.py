@@ -54,14 +54,17 @@ def build_stub_fn(
         allowed = [arg for arg in args.keys()]
     name = func_body.name
 
-    # Typing checks for mypy
+    # Typing checks for mypy - template structure is known
     fn = copy.deepcopy(PYTEST_BASE)
     body = fn.body[0]
-    assert isinstance(body, ast.FunctionDef)
+    if not isinstance(body, ast.FunctionDef):
+        raise ValueError("Invalid pytest scaffold template structure")
     returned = body.body[-1]
-    assert isinstance(returned, ast.Return)
+    if not isinstance(returned, ast.Return):
+        raise ValueError("Invalid pytest scaffold template structure")
     call = returned.value
-    assert isinstance(call, ast.Call)
+    if not isinstance(call, ast.Call):
+        raise ValueError("Invalid pytest scaffold template structure")
 
     # Using _pytest_scaffold as a template, the resultant function will look
     # like:
@@ -95,15 +98,21 @@ def build_stub_fn(
     local = {"stub": basis, "Any": Any}
     eval(compile(fn, file, "exec"), local)
 
-    response = cast(Callable[..., Any], local[name])
-    assert callable(response)
+    response = local[name]
+    if not callable(response):
+        raise ValueError(
+            f"Expected callable for '{name}', got {type(response)}"
+        )
     return response
 
 
 def wrap_fn_for_pytest(func: Fn, cell: Cell) -> Callable[..., Any]:
     func_ast = ast_parse(inspect.getsource(func))
     func_body = func_ast.body[0]
-    assert isinstance(func_body, (ast.FunctionDef, ast.AsyncFunctionDef))
+    if not isinstance(func_body, (ast.FunctionDef, ast.AsyncFunctionDef)):
+        raise ValueError(
+            f"Expected function definition, got {type(func_body).__name__}"
+        )
 
     args = {arg.arg: arg for arg in func_body.args.args}
     fixtures = [arg for arg in args.keys() if arg.endswith("_fixture")]
@@ -408,9 +417,12 @@ def process_for_pytest(func: Fn, cell: Cell) -> None:
     name = f"{MARIMO_TEST_STUB_NAME}_{next(block_incrementer)}"
 
     scope = tree.body[0]
-    assert isinstance(
+    if not isinstance(
         scope, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)
-    )
+    ):
+        raise ValueError(
+            f"Expected function or class definition, got {type(scope).__name__}"
+        )
     cls = build_test_class(
         scope.body, run, inspect.getfile(func), name, cell.defs
     )
