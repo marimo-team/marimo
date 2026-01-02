@@ -442,7 +442,12 @@ def edit(
     name: Optional[str],
     args: tuple[str, ...],
 ) -> None:
-    from marimo._cli.sandbox import run_in_sandbox, should_run_in_sandbox
+    from marimo._cli.sandbox import (
+        check_external_env_sandbox_conflict,
+        run_in_sandbox,
+        should_run_in_sandbox,
+        should_use_external_env,
+    )
 
     pass_on_stdin = token_password_file == "-"
     # We support unix-style piping, e.g. cat notebook.py | marimo edit
@@ -508,11 +513,20 @@ def edit(
 
     # We check this after name validation, because this will convert
     # URLs into local file paths
+
+    # Check for conflict between external env config and --sandbox flag
+    check_external_env_sandbox_conflict(name=name, sandbox=sandbox)
+
+    # Check for external environment configuration
+    if external_python := should_use_external_env(name):
+        from marimo._cli.external_env import run_with_external_python
+
+        run_with_external_python(external_python, sys.argv[1:])
+        return
+
     if should_run_in_sandbox(
         sandbox=sandbox, dangerous_sandbox=dangerous_sandbox, name=name
     ):
-        from marimo._cli.sandbox import run_in_sandbox
-
         # TODO: consider adding recommended as well
         run_in_sandbox(sys.argv[1:], name=name, additional_features=["lsp"])
         return
@@ -941,7 +955,12 @@ def run(
     name: str,
     args: tuple[str, ...],
 ) -> None:
-    from marimo._cli.sandbox import run_in_sandbox, should_run_in_sandbox
+    from marimo._cli.sandbox import (
+        check_external_env_sandbox_conflict,
+        run_in_sandbox,
+        should_run_in_sandbox,
+        should_use_external_env,
+    )
 
     if prompt_run_in_docker_container(name, trusted=trusted):
         from marimo._cli.run_docker import run_in_docker
@@ -976,6 +995,17 @@ def run(
 
     # We check this after name validation, because this will convert
     # URLs into local file paths
+
+    # Check for conflict between external env config and --sandbox flag
+    check_external_env_sandbox_conflict(name=name, sandbox=sandbox)
+
+    # Check for external environment configuration
+    if external_python := should_use_external_env(name):
+        from marimo._cli.external_env import run_with_external_python
+
+        run_with_external_python(external_python, sys.argv[1:])
+        return
+
     if should_run_in_sandbox(
         sandbox=sandbox, dangerous_sandbox=None, name=name
     ):
