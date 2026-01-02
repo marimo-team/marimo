@@ -147,13 +147,21 @@ def is_pytest_decorator(decorator: ast.AST) -> tuple[bool, str | None]:
 
 def has_fixture_decorator(node: ast.AST) -> bool:
     """Check if function has @pytest.fixture decorator."""
-    if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+    if not hasattr(node, "decorator_list"):
         return False
-    for decorator in node.decorator_list:
-        is_pytest, attr = is_pytest_decorator(decorator)
-        if is_pytest and attr == "fixture":
+    if len(node.decorator_list) != 1:
+        return False
+    decorator = node.decorator_list[0]
+    # @fixture or @fixture()
+    if isinstance(decorator, ast.Name) and decorator.id == "fixture":
+        return True
+    if isinstance(decorator, ast.Call):
+        func = decorator.func
+        if isinstance(func, ast.Name) and func.id == "fixture":
             return True
-    return False
+    # @pytest.fixture or @pytest.fixture()
+    is_pytest, attr = is_pytest_decorator(decorator)
+    return is_pytest and attr == "fixture"
 
 
 def _eval_fixture_decorator(

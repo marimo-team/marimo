@@ -17,7 +17,7 @@ from typing import Any, Callable, Optional, TypeAlias, cast
 
 from marimo import _loggers
 from marimo._ast import parse
-from marimo._ast.pytest import is_pytest_decorator
+from marimo._ast.pytest import has_fixture_decorator
 from marimo._ast.cell import (
     Cell,
     CellImpl,
@@ -101,25 +101,6 @@ def ends_with_semicolon(code: str) -> bool:
     return False
 
 
-def is_fixture(node: ast.AST) -> bool:
-    """Check if node has a single @pytest.fixture or @fixture decorator."""
-    if not hasattr(node, "decorator_list"):
-        return False
-    if len(node.decorator_list) != 1:
-        return False
-    decorator = node.decorator_list[0]
-    # @fixture or @fixture()
-    if isinstance(decorator, ast.Name) and decorator.id == "fixture":
-        return True
-    if isinstance(decorator, ast.Call):
-        func = decorator.func
-        if isinstance(func, ast.Name) and func.id == "fixture":
-            return True
-    # @pytest.fixture or @pytest.fixture()
-    is_pytest, attr = is_pytest_decorator(decorator)
-    return is_pytest and attr == "fixture"
-
-
 def contains_only_tests(tree: ast.Module) -> bool:
     """Returns True if the module contains only test functions or fixtures."""
     scope = tree.body
@@ -130,7 +111,9 @@ def contains_only_tests(tree: ast.Module) -> bool:
             node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)
         ):
             return False
-        if not node.name.lower().startswith("test") and not is_fixture(node):
+        if not node.name.lower().startswith(
+            "test"
+        ) and not has_fixture_decorator(node):
             return False
     return bool(scope)
 
