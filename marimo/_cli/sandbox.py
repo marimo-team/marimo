@@ -332,7 +332,9 @@ def _ensure_marimo_in_script_metadata(name: str | None) -> None:
     If the file has PEP 723 script metadata but marimo is not listed
     as a dependency, add it using uv.
     """
-    if name is None:
+
+    # Only applicable to `.py` files.
+    if name is None or not name.endswith(".py"):
         return
 
     # Check if script metadata exists and whether marimo is present

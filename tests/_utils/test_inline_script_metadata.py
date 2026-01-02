@@ -342,12 +342,16 @@ def test_has_marimo_in_script_metadata(tmp_path):
     """Test has_marimo_in_script_metadata returns correct values."""
     # True: marimo present
     with_marimo = tmp_path / "with_marimo.py"
-    with_marimo.write_text("# /// script\n# dependencies = ['marimo']\n# ///\n")
+    with_marimo.write_text(
+        "# /// script\n# dependencies = ['marimo']\n# ///\n"
+    )
     assert has_marimo_in_script_metadata(str(with_marimo)) is True
 
     # False: metadata exists but no marimo
     without_marimo = tmp_path / "without_marimo.py"
-    without_marimo.write_text("# /// script\n# dependencies = ['numpy']\n# ///\n")
+    without_marimo.write_text(
+        "# /// script\n# dependencies = ['numpy']\n# ///\n"
+    )
     assert has_marimo_in_script_metadata(str(without_marimo)) is False
 
     # None: no metadata
