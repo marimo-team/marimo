@@ -182,10 +182,13 @@ def _eval_fixture_decorator(
                 compile(ast.Expression(kw.value), file, "eval"), local
             )
             for kw in decorator.keywords
+            if kw.arg is not None
         }
-        return pytest.fixture(*fixture_args, **fixture_kwargs)
+        return cast(
+            Callable[..., Any], pytest.fixture(*fixture_args, **fixture_kwargs)
+        )
     else:
-        return pytest.fixture
+        return cast(Callable[..., Any], pytest.fixture)
 
 
 def _make_fails(var: str, e: Exception) -> Callable[..., NoReturn]:
@@ -248,7 +251,7 @@ def _build_hook(
             # Only apply the outer fixture decorator
             decorator = test.decorator_list[0]
             fixture_decorator = _eval_fixture_decorator(decorator, local, file)
-            return fixture_decorator(hook)
+            return cast(Callable[..., Any], fixture_decorator(hook))
         else:
             # Apply all decorators in reverse order
             for decorator in test.decorator_list[::-1]:
@@ -306,7 +309,7 @@ def build_test_class(
             node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)
         ):
             if inner:
-                return
+                continue
             # Unexpected, should be guarded to this point.
             raise RuntimeError(
                 "Invalid test compilation. "
@@ -380,7 +383,8 @@ def build_test_class(
             "marimo-team/marimo/issues."
         )
 
-    return type(name, (MarimoTest,), {var: hook(var) for var in defs})
+    attrs = {var: h for var in defs if (h := hook(var)) is not None}
+    return type(name, (MarimoTest,), attrs)
 
 
 def process_for_pytest(func: Fn, cell: Cell) -> None:
