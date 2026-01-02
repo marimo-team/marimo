@@ -8,7 +8,7 @@ with app.setup:
 
     test_cases = [(1, 2), (1, 3), (1, 5)]
 
-    @pytest.fixture()
+    @pytest.fixture
     def top_level_fixture():
         return 0
 
@@ -26,7 +26,7 @@ def inc(x):
 
 @app.cell
 def collection_of_tests():
-    @pytest.fixture()
+    @pytest.fixture
     def scoped_fixture():
         return 0
 
@@ -66,7 +66,7 @@ class TestClassDefinitionWithFixtures:
     def class_scoped_fixture(self):
         return "class_scoped"
 
-    @pytest.fixture()
+    @pytest.fixture
     def instance_fixture(self):
         return "instance"
 

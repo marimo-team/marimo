@@ -18,7 +18,7 @@ with app.setup:
 
     test_cases = [(1, 2), (1, 3), (1, 5)]
 
-    @pytest.fixture()
+    @pytest.fixture
     def top_level_fixture():
         return "top"
 
@@ -115,7 +115,7 @@ class TestClassDefinitionWithFixtures:
     def class_scoped_fixture(self):
         return "class_scoped"
 
-    @pytest.fixture()
+    @pytest.fixture
     def instance_fixture(self):
         return "instance"
 
@@ -132,7 +132,7 @@ class TestClassDefinitionWithFixtures:
 
 @app.cell
 def _():
-    @pytest.fixture()
+    @pytest.fixture
     def scoped_fixture():
         return "scoped"
 
@@ -179,7 +179,7 @@ def _():
 # Null case: fixture defined in one cell, used in another (should error)
 @app.cell
 def _():
-    @pytest.fixture()
+    @pytest.fixture
     def isolated_fixture():
         return "isolated"
 

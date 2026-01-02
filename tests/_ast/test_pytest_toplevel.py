@@ -66,9 +66,9 @@ class TestClassWithFixtures:
 
     @pytest.fixture(scope="class")
     def yields_value(self):
-        yield "value"
+        return "value"
 
-    @pytest.fixture()
+    @pytest.fixture
     def return_value(self):
         return "value"
 

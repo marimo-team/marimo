@@ -90,7 +90,7 @@ def _sub_function(
             # removal.
             # Also no functools.wraps(func) because we need the empty
             # call signature
-            def test_wrapper(*args, **kwargs) -> Any:
+            def test_wrapper(*args: Any, **kwargs: Any) -> Any:
                 return func_JYWB(*args, **kwargs, **param_dict)
 
             # but copy attributes from the original function
@@ -221,12 +221,12 @@ class ReplaceStubPlugin:
 
             name: str = getattr(head, "originalname", head.name)
             if name in self.defs:
-                obj: Any = self.lcls[name]
+                value: Any = self.lcls[name]
                 for attr in reversed(path):
-                    if isinstance(obj, type):
-                        obj = obj()
-                    obj = getattr(obj, attr)
-                to_collect.append(_sub_function(item, parent, obj))
+                    if isinstance(value, type):
+                        value = value()
+                    value = getattr(value, attr)
+                to_collect.append(_sub_function(item, parent, value))
         items[:] = to_collect
 
     def pytest_terminal_summary(self, terminalreporter: Any) -> None:

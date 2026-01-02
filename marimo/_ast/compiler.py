@@ -17,7 +17,6 @@ from typing import Any, Callable, Optional, TypeAlias, cast
 
 from marimo import _loggers
 from marimo._ast import parse
-from marimo._ast.pytest import has_fixture_decorator
 from marimo._ast.cell import (
     Cell,
     CellImpl,
@@ -25,6 +24,7 @@ from marimo._ast.cell import (
     SourcePosition,
 )
 from marimo._ast.names import SETUP_CELL_NAME, TOPLEVEL_CELL_PREFIX
+from marimo._ast.pytest import has_fixture_decorator
 from marimo._ast.transformers import ContainedExtractWithBlock
 from marimo._ast.variables import is_local
 from marimo._ast.visitor import ImportData, Name, ScopedVisitor
