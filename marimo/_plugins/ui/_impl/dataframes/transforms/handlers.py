@@ -379,17 +379,35 @@ class NarwhalsTransformHandler(TransformHandler[DataFrame]):
         # pivot results are also highly inconsistent across backends, so we standardize the output here
 
         if not transform.index_column_ids and not transform.value_column_ids:
-            raise ValueError("Pivot transform requires at least one index column and or value column.")
+            raise ValueError(
+                "Pivot transform requires at least one index column and or value column."
+            )
 
         if not transform.index_column_ids:
             columns = df.columns
-            index_columns = list(filter(lambda col: col not in transform.column_ids and col not in transform.value_column_ids, columns))
+            index_columns = list(
+                filter(
+                    lambda col: col not in transform.column_ids
+                    and col not in transform.value_column_ids,
+                    columns,
+                )
+            )
         else:
             index_columns = transform.index_column_ids
 
         if not transform.value_column_ids:
-            columns = [col for col, col_type in df.collect_schema().items() if col_type.is_numeric()]
-            value_columns = list(filter(lambda col: col not in transform.column_ids and col not in transform.index_column_ids, columns))
+            columns = [
+                col
+                for col, col_type in df.collect_schema().items()
+                if col_type.is_numeric()
+            ]
+            value_columns = list(
+                filter(
+                    lambda col: col not in transform.column_ids
+                    and col not in transform.index_column_ids,
+                    columns,
+                )
+            )
         else:
             value_columns = transform.value_column_ids
 
@@ -433,17 +451,11 @@ class NarwhalsTransformHandler(TransformHandler[DataFrame]):
                     raise ValueError(
                         f"Unsupported aggregation function: {transform.aggregation}"
                     )
-            dfs.append(
-                df.filter(mask)
-                .group_by(*index_columns)
-                .agg(*aggs)
-            )
+            dfs.append(df.filter(mask).group_by(*index_columns).agg(*aggs))
 
         result = df.select(*index_columns).unique()
         for df_ in dfs:
-            result = result.join(
-                df_, on=index_columns, how="left"
-            )
+            result = result.join(df_, on=index_columns, how="left")
         return result.sort(by=index_columns)
 
     @staticmethod
