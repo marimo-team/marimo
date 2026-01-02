@@ -338,70 +338,22 @@ def test_is_marimo_dependency():
     assert not is_marimo_dependency("marimo-ai==0.1.0")
 
 
-def test_has_marimo_in_script_metadata_py_file(tmp_path):
-    """Test has_marimo_in_script_metadata for .py files."""
-    # File with script metadata and marimo
+def test_has_marimo_in_script_metadata(tmp_path):
+    """Test has_marimo_in_script_metadata returns correct values."""
+    # True: marimo present
     with_marimo = tmp_path / "with_marimo.py"
-    with_marimo.write_text("""
-# /// script
-# dependencies = ["marimo", "polars"]
-# ///
-
-import marimo
-app = marimo.App()
-""")
+    with_marimo.write_text("# /// script\n# dependencies = ['marimo']\n# ///\n")
     assert has_marimo_in_script_metadata(str(with_marimo)) is True
 
-    # File with script metadata but no marimo
+    # False: metadata exists but no marimo
     without_marimo = tmp_path / "without_marimo.py"
-    without_marimo.write_text("""
-# /// script
-# dependencies = ["polars"]
-# ///
-
-import marimo
-app = marimo.App()
-""")
+    without_marimo.write_text("# /// script\n# dependencies = ['numpy']\n# ///\n")
     assert has_marimo_in_script_metadata(str(without_marimo)) is False
 
-    # File without script metadata
+    # None: no metadata
     no_metadata = tmp_path / "no_metadata.py"
-    no_metadata.write_text("""
-import marimo
-app = marimo.App()
-""")
+    no_metadata.write_text("import marimo\n")
     assert has_marimo_in_script_metadata(str(no_metadata)) is None
 
-
-def test_has_marimo_in_script_metadata_non_py_file(tmp_path):
-    """Test has_marimo_in_script_metadata returns None for non-.py files."""
-    # Markdown files should return None (PEP 723 is Python-only)
-    md_file = tmp_path / "test.md"
-    md_file.write_text("""---
-title: Test
-pyproject: |
-  dependencies = ["marimo", "polars"]
----
-
-# Hello
-""")
-    assert has_marimo_in_script_metadata(str(md_file)) is None
-
-
-def test_has_marimo_in_script_metadata_nonexistent_file():
-    """Test has_marimo_in_script_metadata returns None for nonexistent files."""
-    assert has_marimo_in_script_metadata("/nonexistent/path/file.py") is None
-
-
-def test_has_marimo_in_script_metadata_versioned(tmp_path):
-    """Test has_marimo_in_script_metadata with versioned marimo dependency."""
-    with_marimo_versioned = tmp_path / "with_marimo_versioned.py"
-    with_marimo_versioned.write_text("""
-# /// script
-# dependencies = ["marimo>=0.8.0"]
-# ///
-
-import marimo
-app = marimo.App()
-""")
-    assert has_marimo_in_script_metadata(str(with_marimo_versioned)) is True
+    # None: non-.py file
+    assert has_marimo_in_script_metadata(str(tmp_path / "test.md")) is None

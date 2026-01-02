@@ -7,6 +7,7 @@ import click
 import pytest
 
 from marimo._cli.sandbox import (
+    _ensure_marimo_in_script_metadata,
     _normalize_sandbox_dependencies,
     construct_uv_command,
     should_run_in_sandbox,
@@ -508,3 +509,53 @@ import marimo
     assert "--python" in uv_cmd
     python_idx = uv_cmd.index("--python")
     assert uv_cmd[python_idx + 1] == platform.python_version()
+
+
+def test_ensure_marimo_in_script_metadata_adds_marimo(tmp_path: Path) -> None:
+    """Test that marimo is added to script metadata when missing."""
+    script_path = tmp_path / "test.py"
+    script_path.write_text(
+        """# /// script
+# dependencies = ["numpy"]
+# ///
+import marimo
+"""
+    )
+
+    _ensure_marimo_in_script_metadata(str(script_path))
+
+    content = script_path.read_text()
+    assert "marimo" in content
+    assert "numpy" in content
+
+
+def test_ensure_marimo_in_script_metadata_noop_when_present(
+    tmp_path: Path,
+) -> None:
+    """Test that file is unchanged when marimo already present."""
+    original = """# /// script
+# dependencies = ["marimo", "numpy"]
+# ///
+import marimo
+"""
+    script_path = tmp_path / "test.py"
+    script_path.write_text(original)
+
+    _ensure_marimo_in_script_metadata(str(script_path))
+
+    assert script_path.read_text() == original
+
+
+def test_ensure_marimo_in_script_metadata_noop_no_metadata(
+    tmp_path: Path,
+) -> None:
+    """Test that file is unchanged when no script metadata exists."""
+    original = """import marimo
+app = marimo.App()
+"""
+    script_path = tmp_path / "test.py"
+    script_path.write_text(original)
+
+    _ensure_marimo_in_script_metadata(str(script_path))
+
+    assert script_path.read_text() == original
