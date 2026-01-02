@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 // Vendored from https://github.com/loro-dev/loro-codemirror/blob/main/src/index.ts
 // and adapted to support:

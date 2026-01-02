@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 """Convert non-marimo Python scripts to marimo notebooks."""
 
 from __future__ import annotations

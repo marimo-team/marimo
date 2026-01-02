@@ -13,9 +13,10 @@ import pytest
 
 import marimo
 from marimo._dependencies.dependencies import DependencyManager
-from marimo._messaging.ops import CompletionResult
+from marimo._messaging.notification import CompletionResultNotification
 from marimo._messaging.serde import deserialize_kernel_message
 from marimo._messaging.types import KernelMessage, Stream
+from marimo._runtime.commands import CodeCompletionCommand
 from marimo._runtime.complete import (
     _build_docstring_cached,
     _maybe_get_key_options,
@@ -23,7 +24,6 @@ from marimo._runtime.complete import (
     complete,
 )
 from marimo._runtime.patches import patch_jedi_parameter_completion
-from marimo._runtime.requests import CodeCompletionRequest
 from marimo._types.ids import CellId_t
 from tests.mocks import snapshotter
 
@@ -469,7 +469,7 @@ mixed_keys = {"static_key": "foo", str(random.randint(0, 10)): "bar"}
     lock = threading.RLock()
     local_stream = CaptureStream()
 
-    completion_request = CodeCompletionRequest(
+    completion_request = CodeCompletionCommand(
         id="request_id",
         document=document,
         cell_id=current_cell_id,
@@ -490,7 +490,7 @@ mixed_keys = {"static_key": "foo", str(random.randint(0, 10)): "bar"}
     options_values = [option["name"] for option in options]
 
     assert len(local_stream.messages) == 1
-    assert message_name == CompletionResult.name
+    assert message_name == CompletionResultNotification.name
     # TODO if `expects_completions=False`, something else than `_maybe_get_key_options()`
     # could be returning values
     if expects_key_completion is False:

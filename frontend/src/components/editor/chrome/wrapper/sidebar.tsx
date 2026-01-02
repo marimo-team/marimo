@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import { useAtom, useAtomValue } from "jotai";
 import { MessageCircleQuestionIcon } from "lucide-react";
@@ -8,6 +8,7 @@ import { useMemo } from "react";
 import { ReorderableList } from "@/components/ui/reorderable-list";
 import { Tooltip } from "@/components/ui/tooltip";
 import { notebookQueuedOrRunningCountAtom } from "@/core/cells/cells";
+import { snippetsEnabledAtom } from "@/core/config/config";
 import { cn } from "@/utils/cn";
 import { FeedbackButton } from "../components/feedback-button";
 import { sidebarOrderAtom, useChromeActions, useChromeState } from "../state";
@@ -17,15 +18,27 @@ export const Sidebar: React.FC = () => {
   const { selectedPanel } = useChromeState();
   const { toggleApplication } = useChromeActions();
   const [sidebarOrder, setSidebarOrder] = useAtom(sidebarOrderAtom);
+  const snippetsEnabled = useAtomValue(snippetsEnabledAtom);
 
   const renderIcon = ({ Icon }: PanelDescriptor, className?: string) => {
     return <Icon className={cn("h-5 w-5", className)} />;
   };
 
   // Get all available sidebar panels
+  // Panels with defaultHidden are only available if explicitly enabled (e.g., snippets)
   const availableSidebarPanels = useMemo(
-    () => PANELS.filter((p) => !p.hidden && p.position === "sidebar"),
-    [],
+    () =>
+      PANELS.filter((p) => {
+        if (p.hidden || p.position !== "sidebar") {
+          return false;
+        }
+        // Show defaultHidden panels only if enabled via config
+        if (p.defaultHidden && p.id === "snippets" && !snippetsEnabled) {
+          return false;
+        }
+        return true;
+      }),
+    [snippetsEnabled],
   );
 
   const currentItems = sidebarOrder

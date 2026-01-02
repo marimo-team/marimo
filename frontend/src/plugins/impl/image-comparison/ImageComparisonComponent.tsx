@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import { ImgComparisonSlider } from "@img-comparison-slider/react";
 import React from "react";

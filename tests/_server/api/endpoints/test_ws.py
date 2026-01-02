@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
 import asyncio
@@ -12,10 +12,13 @@ from starlette.websockets import WebSocketDisconnect
 from marimo._config.config import ExperimentalConfig
 from marimo._config.manager import UserConfigManager
 from marimo._messaging.msgspec_encoder import asdict
-from marimo._messaging.ops import KernelCapabilities, KernelReady
+from marimo._messaging.notification import (
+    KernelCapabilitiesNotification,
+    KernelReadyNotification,
+)
 from marimo._server.codes import WebSocketCodes
-from marimo._server.model import SessionMode
-from marimo._server.sessions import SessionManager
+from marimo._server.session_manager import SessionManager
+from marimo._session.model import SessionMode
 from marimo._utils.parse_dataclass import parse_raw
 from tests._server.conftest import get_session_manager, get_user_config_manager
 from tests._server.mocks import token_header
@@ -39,7 +42,7 @@ def create_response(
         "kiosk": False,
         "configs": [{"disabled": False, "hide_code": False}],
         "app_config": {"width": "full"},
-        "capabilities": asdict(KernelCapabilities()),
+        "capabilities": asdict(KernelCapabilitiesNotification()),
     }
     response.update(partial_response)
     return response
@@ -70,8 +73,8 @@ def assert_kernel_ready_response(
 ) -> None:
     if response is None:
         response = create_response({})
-    data = parse_raw(raw_data["data"], KernelReady)
-    expected = parse_raw(response, KernelReady)
+    data = parse_raw(raw_data["data"], KernelReadyNotification)
+    expected = parse_raw(response, KernelReadyNotification)
     assert data.cell_ids == expected.cell_ids
     assert data.codes == expected.codes
     assert data.names == expected.names
@@ -85,7 +88,7 @@ def assert_kernel_ready_response(
 
 
 def assert_parse_ready_response(raw_data: dict[str, Any]) -> None:
-    data = parse_raw(raw_data["data"], KernelReady)
+    data = parse_raw(raw_data["data"], KernelReadyNotification)
     assert data is not None
 
 
@@ -209,7 +212,6 @@ def test_fails_on_multiple_connections_with_same_file(
     client.post("/api/kernel/shutdown", headers=HEADERS)
 
 
-@pytest.mark.flaky(reruns=3)
 async def test_file_watcher_calls_reload(client: TestClient) -> None:
     session_manager: SessionManager = get_session_manager(client)
     session_manager.mode = SessionMode.RUN
@@ -229,8 +231,15 @@ async def test_file_watcher_calls_reload(client: TestClient) -> None:
         assert session_manager._watcher_manager._watchers
         watcher = list(session_manager._watcher_manager._watchers.values())[0]
         await watcher.callback(Path(filename))
-        data = websocket.receive_json()
-        assert data == {"op": "reload", "data": {"op": "reload"}}
+        # Drain messages until we get the reload message
+        # (other messages like 'variables' may arrive first)
+        expected = {"op": "reload", "data": {"op": "reload"}}
+        for _ in range(10):
+            data = websocket.receive_json()
+            if data == expected:
+                break
+        else:
+            raise AssertionError(f"Expected {expected}, but never received it")
         session_manager.mode = SessionMode.EDIT
         session_manager.watch = False
     client.post("/api/kernel/shutdown", headers=HEADERS)
@@ -245,7 +254,7 @@ async def test_query_params(client: TestClient) -> None:
 
         session = get_session_manager(client).get_session("123")
         assert session
-        assert session.kernel_manager.app_metadata.query_params == {
+        assert session._kernel_manager.app_metadata.query_params == {
             "foo": "1",
             "bar": ["2", "3"],
             "baz": "4",
@@ -447,7 +456,7 @@ async def test_session_resumption(client: TestClient) -> None:
         assert kernel_ready_msg["op"] == "kernel-ready"
 
         # Verify resumed flag is True
-        data = parse_raw(kernel_ready_msg["data"], KernelReady)
+        data = parse_raw(kernel_ready_msg["data"], KernelReadyNotification)
         assert data.resumed is True
 
         # Should replay operations - collect some messages
@@ -566,5 +575,61 @@ async def test_rtc_config_with_loro_unavailable(client: TestClient) -> None:
         with client.websocket_connect(WS_URL) as websocket:
             data = websocket.receive_json()
             assert_kernel_ready_response(data)
+
+    client.post("/api/kernel/shutdown", headers=HEADERS)
+
+
+# ============================================================================
+# Advanced WebSocket State Machine Tests
+# ============================================================================
+
+
+async def test_rapid_reconnection_cancels_ttl_cleanup(
+    client: TestClient,
+) -> None:
+    """Test that rapid reconnection cancels the TTL cleanup timer."""
+    with client.websocket_connect(WS_URL) as websocket:
+        data = websocket.receive_json()
+        assert_kernel_ready_response(data)
+
+    # Disconnect and immediately reconnect (before TTL expires)
+    await asyncio.sleep(0.1)
+
+    with client.websocket_connect(WS_URL) as websocket:
+        data = websocket.receive_json()
+        assert data["op"] == "reconnected"
+        data = websocket.receive_json()
+        assert data["op"] == "alert"
+
+    client.post("/api/kernel/shutdown", headers=HEADERS)
+
+
+async def test_multiple_rapid_reconnections(client: TestClient) -> None:
+    """Test multiple rapid connect/disconnect cycles don't break session."""
+    for i in range(5):
+        with client.websocket_connect(WS_URL) as websocket:
+            data = websocket.receive_json()
+            if i == 0:
+                assert_kernel_ready_response(data)
+            else:
+                assert data["op"] == "reconnected"
+
+    client.post("/api/kernel/shutdown", headers=HEADERS)
+
+
+async def test_websocket_message_queue_delivery(client: TestClient) -> None:
+    """Test that kernel messages are queued and delivered."""
+    with client.websocket_connect(WS_URL) as websocket:
+        data = websocket.receive_json()
+        assert_kernel_ready_response(data)
+
+        client.post(
+            "/api/kernel/instantiate",
+            headers=headers("123"),
+            json={"objectIds": [], "values": [], "autoRun": True},
+        )
+
+        messages = flush_messages(websocket, at_least=1)
+        assert len(messages) >= 1
 
     client.post("/api/kernel/shutdown", headers=HEADERS)

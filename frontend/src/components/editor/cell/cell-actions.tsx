@@ -1,8 +1,8 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import { CommandList } from "cmdk";
 import { useAtomValue } from "jotai";
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 import React, {
   Fragment,
   type PropsWithChildren,

@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 import React, { memo } from "react";
 import { outputIsLoading } from "@/core/cells/cell";
 import type { CellId } from "@/core/cells/ids";

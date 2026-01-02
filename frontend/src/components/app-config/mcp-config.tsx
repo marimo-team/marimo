@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import { CheckSquareIcon, Loader2, RefreshCwIcon } from "lucide-react";
 import React from "react";

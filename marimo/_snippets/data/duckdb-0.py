@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 
 import marimo
 
@@ -12,8 +12,8 @@ def _(mo):
         r"""
         # DuckDB: Basic SQL Querying and DataFrame Integration
 
-        This snippet demonstrates how to use `marimo`'s SQL cells to execute 
-        queries against a local Pandas DataFrame. We leverage parameterized 
+        This snippet demonstrates how to use `marimo`'s SQL cells to execute
+        queries against a local Pandas DataFrame. We leverage parameterized
         queries through f-string interpolation.
         """
     )

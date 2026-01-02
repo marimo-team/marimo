@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import { PartyPopperIcon } from "lucide-react";
 import React from "react";
@@ -15,7 +15,7 @@ const ErrorsPanel: React.FC = () => {
   }
 
   return (
-    <div className="flex flex-col overflow-auto">
+    <div className="flex flex-col h-full overflow-auto">
       {errors.map((error) => (
         <div key={error.cellId}>
           <div className="text-xs font-mono font-semibold bg-muted border-y px-2 py-1">

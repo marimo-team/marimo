@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ import pytest
 
 from marimo._ast.app import App
 from marimo._dependencies.dependencies import DependencyManager
-from marimo._runtime.requests import ExecuteStaleRequest
+from marimo._runtime.commands import ExecuteStaleCellsCommand
 from marimo._runtime.runtime import Kernel
 from tests.conftest import ExecReqProvider
 
@@ -1438,7 +1438,7 @@ class TestSideEffects:
         (tmp_path / "test.txt").touch()
         await asyncio.sleep(0.25)
         assert len(control_requests) == 1
-        assert isinstance(control_requests[0], ExecuteStaleRequest)
+        assert isinstance(control_requests[0], ExecuteStaleCellsCommand)
         assert k.graph.cells[r.cell_id].stale
         await k.run_stale_cells()
 
@@ -1503,7 +1503,7 @@ class TestSideEffects:
         (tmp_path / "test_dir" / "test.txt").write_text("test")
         await asyncio.sleep(0.25)
         assert len(control_requests) == 1
-        assert isinstance(control_requests[0], ExecuteStaleRequest)
+        assert isinstance(control_requests[0], ExecuteStaleCellsCommand)
         assert k.graph.cells[r.cell_id].stale
         await k.run_stale_cells()
 

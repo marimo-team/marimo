@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 import React, { type JSX } from "react";
 import { z } from "zod";
 import type { ImageComparisonData } from "../impl/image-comparison/ImageComparisonComponent";

@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
 import os
@@ -14,23 +14,26 @@ from marimo._cli.print import echo
 from marimo._config.manager import get_default_config_manager
 from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._mcp.server.main import setup_mcp_server
-from marimo._messaging.ops import StartupLogs
-from marimo._runtime.requests import SerializedCLIArgs
+from marimo._messaging.notification import StartupLogsNotification
+from marimo._runtime.commands import SerializedCLIArgs
+from marimo._server.config import (
+    StarletteServerStateInit,
+)
 from marimo._server.file_router import AppFileRouter
 from marimo._server.lsp import CompositeLspServer, NoopLspServer
 from marimo._server.main import create_starlette_app
-from marimo._server.model import SessionMode
 from marimo._server.registry import LIFESPAN_REGISTRY
-from marimo._server.sessions import SessionManager
+from marimo._server.session_manager import SessionManager
 from marimo._server.tokens import AuthToken
 from marimo._server.utils import (
-    find_free_port,
     initialize_asyncio,
     initialize_fd_limit,
 )
 from marimo._server.uvicorn_utils import initialize_signals
+from marimo._session.model import SessionMode
 from marimo._tracer import LOGGER
 from marimo._utils.lifespans import Lifespans
+from marimo._utils.net import find_free_port
 from marimo._utils.paths import marimo_package_path
 
 DEFAULT_PORT = 2718
@@ -43,26 +46,28 @@ def _execute_startup_command(
     """Execute a server startup command in a background thread and stream logs."""
 
     def run_command() -> None:
-        buffer = StartupLogs(content="", status="start")
+        buffer = StartupLogsNotification(content="", status="start")
+
+        def write_to_all_sessions(
+            content: StartupLogsNotification,
+            buffer: StartupLogsNotification,
+        ) -> None:
+            for session in session_manager.sessions.values():
+                # Clear buffer if it has content
+                if buffer.content != "":
+                    session.notify(buffer, from_consumer_id=None)
+                    buffer = StartupLogsNotification(
+                        content="", status="start"
+                    )
+                session.notify(content, from_consumer_id=None)
+            else:
+                buffer.content += content.content
+                buffer.status = content.status
 
         try:
-
-            def write_to_all_sessions(
-                content: StartupLogs, buffer: StartupLogs
-            ) -> None:
-                for session in session_manager.sessions.values():
-                    # Clear buffer if it has content
-                    if buffer.content != "":
-                        session.notify(buffer, from_consumer_id=None)
-                        buffer = StartupLogs(content="", status="start")
-                    session.notify(content, from_consumer_id=None)
-                else:
-                    buffer.content += content.content
-                    buffer.status = content.status
-
             # Broadcast start message to all sessions
             write_to_all_sessions(
-                StartupLogs(content="", status="start"), buffer
+                StartupLogsNotification(content="", status="start"), buffer
             )
 
             # Execute the command
@@ -79,7 +84,8 @@ def _execute_startup_command(
             if process.stdout:
                 for line in process.stdout:
                     write_to_all_sessions(
-                        StartupLogs(content=line, status="append"), buffer
+                        StartupLogsNotification(content=line, status="append"),
+                        buffer,
                     )
                     echo(line, nl=False)
 
@@ -91,7 +97,8 @@ def _execute_startup_command(
                 f"\nProcess completed with exit code: {return_code}\n"
             )
             write_to_all_sessions(
-                StartupLogs(content=final_message, status="done"), buffer
+                StartupLogsNotification(content=final_message, status="done"),
+                buffer,
             )
             echo(final_message)
 
@@ -99,7 +106,8 @@ def _execute_startup_command(
             # Broadcast error message
             error_message = f"\nError executing startup command: {str(e)}\n"
             write_to_all_sessions(
-                StartupLogs(content=error_message, status="done"), buffer
+                StartupLogsNotification(content=error_message, status="done"),
+                buffer,
             )
             echo(error_message)
 
@@ -276,19 +284,21 @@ def start(
     if mcp_enabled:
         setup_mcp_server(app)
 
-    app.state.port = external_port
-    app.state.host = external_host
-
-    app.state.headless = headless
-    app.state.watch = watch
-    app.state.session_manager = session_manager
-    app.state.base_url = base_url
-    app.state.asset_url = asset_url
-    app.state.config_manager = config_reader
-    app.state.remote_url = remote_url
-    app.state.mcp_server_enabled = mcp
-    app.state.skew_protection = skew_protection
-    app.state.enable_auth = enable_auth
+    init_state = StarletteServerStateInit(
+        port=external_port,
+        host=external_host,
+        base_url=base_url,
+        asset_url=asset_url,
+        headless=headless,
+        quiet=quiet,
+        session_manager=session_manager,
+        config_manager=config_reader,
+        remote_url=remote_url,
+        mcp_server_enabled=mcp,
+        skew_protection=skew_protection,
+        enable_auth=enable_auth,
+    )
+    init_state.apply(app.state)
 
     # Resource initialization
     # Increase the limit on open file descriptors to prevent resource

@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import * as TabsPrimitive from "@radix-ui/react-tabs";
 import * as React from "react";

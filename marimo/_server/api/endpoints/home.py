@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
 import asyncio
@@ -13,11 +13,10 @@ from marimo import _loggers
 from marimo._server.api.deps import AppState
 from marimo._server.api.utils import parse_request
 from marimo._server.file_router import (
-    MAX_FILES,
     LazyListOfFilesAppFileRouter,
     count_files,
 )
-from marimo._server.model import ConnectionState
+from marimo._server.files.directory_scanner import DirectoryScanner
 from marimo._server.models.home import (
     MarimoFile,
     OpenTutorialRequest,
@@ -28,11 +27,14 @@ from marimo._server.models.home import (
     WorkspaceFilesResponse,
 )
 from marimo._server.router import APIRouter
+from marimo._session.model import ConnectionState
 from marimo._tutorials import create_temp_tutorial_file  # type: ignore
 from marimo._utils.paths import pretty_path
 
 if TYPE_CHECKING:
     from starlette.requests import Request
+
+MAX_FILES = DirectoryScanner.MAX_FILES
 
 LOGGER = _loggers.marimo_logger()
 

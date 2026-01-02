@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
 import atexit
@@ -34,8 +34,8 @@ from marimo._cli.utils import (
 from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._lint import run_check
 from marimo._server.file_router import AppFileRouter
-from marimo._server.model import SessionMode
 from marimo._server.start import start
+from marimo._session.model import SessionMode
 from marimo._tutorials import (
     Tutorial,
     create_temp_tutorial_file,

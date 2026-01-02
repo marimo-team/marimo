@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 """Copied from `validators`: https://github.com/python-validators/validators
 
 Don't want to include the entire package as a dependency.

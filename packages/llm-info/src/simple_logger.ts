@@ -1,4 +1,4 @@
-/* Copyright 2025 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 /** biome-ignore-all lint/suspicious/noConsole: For logging */
 

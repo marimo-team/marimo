@@ -1,4 +1,4 @@
-# Copyright 2025 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
 import asyncio
@@ -262,7 +262,7 @@ class Linter:
 
         with capture_output():
             if filename.endswith((".md", ".qmd")):
-                return converter.to_markdown(filename)
+                return converter.to_markdown()
             else:
                 return converter.to_py()
 

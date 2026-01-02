@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -6,14 +6,14 @@ from typing import TYPE_CHECKING
 from starlette.authentication import requires
 
 from marimo import _loggers
-from marimo._runtime.requests import (
+from marimo._server.api.utils import dispatch_control_request
+from marimo._server.models.models import (
+    BaseResponse,
+    ListDataSourceConnectionRequest,
+    ListSQLTablesRequest,
     PreviewDatasetColumnRequest,
-    PreviewDataSourceConnectionRequest,
-    PreviewSQLTableListRequest,
     PreviewSQLTableRequest,
 )
-from marimo._server.api.utils import dispatch_control_request
-from marimo._server.models.models import BaseResponse
 from marimo._server.router import APIRouter
 
 if TYPE_CHECKING:
@@ -75,7 +75,7 @@ async def preview_sql_table_list(request: Request) -> BaseResponse:
         content:
             application/json:
                 schema:
-                    $ref: "#/components/schemas/PreviewSQLTableListRequest"
+                    $ref: "#/components/schemas/ListSQLTablesRequest"
     responses:
         200:
             description: Preview a list of tables in an SQL schema
@@ -84,7 +84,7 @@ async def preview_sql_table_list(request: Request) -> BaseResponse:
                     schema:
                         $ref: "#/components/schemas/SuccessResponse"
     """
-    return await dispatch_control_request(request, PreviewSQLTableListRequest)
+    return await dispatch_control_request(request, ListSQLTablesRequest)
 
 
 @router.post("/preview_datasource_connection")
@@ -95,7 +95,7 @@ async def preview_datasource_connection(request: Request) -> BaseResponse:
         content:
             application/json:
                 schema:
-                    $ref: "#/components/schemas/PreviewDataSourceConnectionRequest"
+                    $ref: "#/components/schemas/ListDataSourceConnectionRequest"
     responses:
         200:
             description: Broadcasts a datasource connection
@@ -105,5 +105,5 @@ async def preview_datasource_connection(request: Request) -> BaseResponse:
                         $ref: "#/components/schemas/SuccessResponse"
     """
     return await dispatch_control_request(
-        request, PreviewDataSourceConnectionRequest
+        request, ListDataSourceConnectionRequest
     )

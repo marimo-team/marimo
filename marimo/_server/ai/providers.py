@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
 import json
@@ -24,41 +24,31 @@ from starlette.exceptions import HTTPException
 from marimo import _loggers
 from marimo._ai._convert import (
     convert_to_ai_sdk_messages,
-    convert_to_anthropic_messages,
-    convert_to_anthropic_tools,
-    convert_to_google_messages,
-    convert_to_google_tools,
     convert_to_openai_messages,
     convert_to_openai_tools,
+    extract_text,
+)
+from marimo._ai._pydantic_ai_utils import (
+    convert_to_pydantic_messages,
+    form_toolsets,
+    generate_id,
 )
 from marimo._ai._types import ChatMessage
-from marimo._dependencies.dependencies import DependencyManager
+from marimo._dependencies.dependencies import Dependency, DependencyManager
 from marimo._server.ai.config import AnyProviderConfig
 from marimo._server.ai.ids import AiModelId
+from marimo._server.ai.tools.tool_manager import get_tool_manager
 from marimo._server.ai.tools.types import ToolDefinition
-from marimo._server.api.status import HTTPStatus
+from marimo._server.models.completion import UIMessage as ServerUIMessage
+from marimo._utils.http import HTTPStatus
 
 TIMEOUT = 30
 # Long-thinking models can take a long time to complete, so we set a longer timeout
 LONG_THINKING_TIMEOUT = 120
 
 if TYPE_CHECKING:
-    from anthropic import (  # type: ignore[import-not-found]
-        AsyncClient,
-        AsyncStream as AnthropicStream,
-    )
-    from anthropic.types import (  # type: ignore[import-not-found]
-        RawMessageStreamEvent,
-    )
-    from google.genai.client import (  # type: ignore[import-not-found]
-        AsyncClient as GoogleClient,
-    )
-    from google.genai.types import (  # type: ignore[import-not-found]
-        GenerateContentConfig,
-        GenerateContentResponse,
-    )
-
     # Used for Bedrock, unified interface for all models
+    from anthropic.types.beta import BetaThinkingConfigParam
     from litellm import (  # type: ignore[attr-defined]
         CustomStreamWrapper as LitellmStream,
     )
@@ -72,6 +62,17 @@ if TYPE_CHECKING:
     from openai.types.chat import (  # type: ignore[import-not-found]
         ChatCompletionChunk,
     )
+    from pydantic_ai import Agent, DeferredToolRequests, FunctionToolset
+    from pydantic_ai.messages import ThinkingPart
+    from pydantic_ai.providers import Provider
+    from pydantic_ai.providers.anthropic import (
+        AnthropicProvider as PydanticAnthropic,
+    )
+    from pydantic_ai.providers.google import GoogleProvider as PydanticGoogle
+    from pydantic_ai.ui.vercel_ai import VercelAIAdapter
+    from pydantic_ai.ui.vercel_ai.request_types import UIMessage, UIMessagePart
+    from pydantic_ai.ui.vercel_ai.response_types import BaseChunk
+    from starlette.responses import StreamingResponse
 
 
 ResponseT = TypeVar("ResponseT")
@@ -114,6 +115,7 @@ LOGGER = _loggers.marimo_logger()
 class StreamOptions:
     text_only: bool = False
     format_stream: bool = False
+    accept: str | None = None
 
 
 @dataclass
@@ -121,6 +123,195 @@ class ActiveToolCall:
     tool_call_id: str
     tool_call_name: str
     tool_call_args: str
+
+
+ProviderT = TypeVar("ProviderT", bound="Provider[Any]")
+
+
+class PydanticProvider(ABC, Generic[ProviderT]):
+    def __init__(
+        self,
+        model: str,
+        config: AnyProviderConfig,
+        deps: list[Dependency] | None = None,
+    ):
+        DependencyManager.require_many(
+            "for AI assistance", DependencyManager.pydantic_ai, *(deps or [])
+        )
+
+        self.model = model
+        self.config = config
+        self.provider = self.create_provider(config)
+
+    @abstractmethod
+    def create_provider(self, config: AnyProviderConfig) -> ProviderT:
+        """Create a provider for the given config."""
+
+    @abstractmethod
+    def create_agent(
+        self, max_tokens: int, tools: list[ToolDefinition], system_prompt: str
+    ) -> Agent[None, DeferredToolRequests | str]:
+        """Create a Pydantic AI agent"""
+
+    def get_vercel_adapter(self) -> type[VercelAIAdapter[Any, Any]]:
+        """Return the Vercel AI adapter for the given provider."""
+        from pydantic_ai.ui.vercel_ai import VercelAIAdapter
+
+        return VercelAIAdapter
+
+    def convert_messages(
+        self, messages: list[ServerUIMessage]
+    ) -> list[UIMessage]:
+        """Convert server messages to Pydantic AI messages. We expect AI SDK messages"""
+        return convert_to_pydantic_messages(messages)
+
+    async def stream_completion(
+        self,
+        messages: list[ServerUIMessage],
+        system_prompt: str,
+        max_tokens: int,
+        additional_tools: list[ToolDefinition],
+        stream_options: Optional[StreamOptions] = None,
+    ) -> StreamingResponse:
+        """Return a streaming response from the given messages. The response are AI SDK events."""
+        from pydantic_ai.ui.vercel_ai.request_types import SubmitMessage
+
+        tools = (self.config.tools or []) + additional_tools
+        agent = self.create_agent(
+            max_tokens=max_tokens, tools=tools, system_prompt=system_prompt
+        )
+
+        run_input = SubmitMessage(
+            id=generate_id("submit-message"),
+            trigger="submit-message",
+            messages=self.convert_messages(messages),
+        )
+
+        # TODO: Text only and format stream are not supported yet
+        stream_options = stream_options or StreamOptions()
+
+        vercel_adapter = self.get_vercel_adapter()
+        adapter = vercel_adapter(
+            agent=agent, run_input=run_input, accept=stream_options.accept
+        )
+        event_stream = adapter.run_stream()
+        return adapter.streaming_response(event_stream)
+
+    async def stream_text(
+        self,
+        user_prompt: str,
+        messages: list[ServerUIMessage],
+        system_prompt: str,
+        max_tokens: int,
+        additional_tools: list[ToolDefinition],
+    ) -> AsyncGenerator[str]:
+        """Return a stream of text from the given messages."""
+
+        tools = (self.config.tools or []) + additional_tools
+        agent = self.create_agent(
+            max_tokens=max_tokens, tools=tools, system_prompt=system_prompt
+        )
+        vercel_adapter = self.get_vercel_adapter()
+
+        async with agent.run_stream(
+            user_prompt=user_prompt,
+            message_history=vercel_adapter.load_messages(
+                self.convert_messages(messages)
+            ),
+            instructions=system_prompt,
+        ) as result:
+            async for message in result.stream_text(delta=True):
+                yield message
+
+    async def completion(
+        self,
+        messages: list[UIMessage],
+        system_prompt: str,
+        max_tokens: int,
+        additional_tools: list[ToolDefinition],
+    ) -> str:
+        """Return a string response from the given messages."""
+
+        from pydantic_ai.ui.vercel_ai import VercelAIAdapter
+
+        tools = (self.config.tools or []) + additional_tools
+        agent = self.create_agent(
+            max_tokens=max_tokens, tools=tools, system_prompt=system_prompt
+        )
+        result = await agent.run(
+            user_prompt=None,
+            message_history=VercelAIAdapter.load_messages(messages),
+            instructions=system_prompt,
+        )
+
+        return str(result.output)
+
+    def _get_toolsets_and_output_type(
+        self, tools: list[ToolDefinition]
+    ) -> tuple[FunctionToolset, list[Any] | type[str]]:
+        from pydantic_ai import DeferredToolRequests
+
+        tool_manager = get_tool_manager()
+        toolset, deferred_tool_requests = form_toolsets(
+            tools, tool_manager.invoke_tool
+        )
+        output_type = (
+            [str, DeferredToolRequests] if deferred_tool_requests else str
+        )
+        return toolset, output_type
+
+
+class GoogleProvider(PydanticProvider["PydanticGoogle"]):
+    def create_provider(self, config: AnyProviderConfig) -> PydanticGoogle:
+        from pydantic_ai.providers.google import (
+            GoogleProvider as PydanticGoogle,
+        )
+
+        if config.api_key:
+            return PydanticGoogle(api_key=config.api_key)
+
+        # Try to use environment variables and ADC
+        # This supports Google Vertex AI usage without explicit API keys
+        use_vertex = (
+            os.getenv("GOOGLE_GENAI_USE_VERTEXAI", "").lower() == "true"
+        )
+        if use_vertex:
+            project = os.getenv("GOOGLE_CLOUD_PROJECT")
+            location = os.getenv("GOOGLE_CLOUD_LOCATION", "us-central1")
+            # The type stubs don't have an overload that combines vertexai
+            # with project/location, but the runtime supports it
+            provider: PydanticGoogle = PydanticGoogle(  # type: ignore[call-overload]
+                vertexai=True,
+                project=project,
+                location=location,
+            )
+        else:
+            # Try default initialization which may work with environment variables
+            provider = PydanticGoogle()
+        return provider
+
+    def create_agent(
+        self, max_tokens: int, tools: list[ToolDefinition], system_prompt: str
+    ) -> Agent[None, DeferredToolRequests | str]:
+        from pydantic_ai import Agent
+        from pydantic_ai.models.google import GoogleModel, GoogleModelSettings
+
+        toolset, output_type = self._get_toolsets_and_output_type(tools)
+
+        return Agent(
+            GoogleModel(
+                model_name=self.model,
+                provider=self.provider,
+                settings=GoogleModelSettings(
+                    max_tokens=max_tokens,
+                    # Works on non-thinking models too
+                    google_thinking_config={"include_thoughts": True},
+                ),
+            ),
+            toolsets=[toolset] if tools else None,
+            instructions=system_prompt,
+            output_type=output_type,
+        )
 
 
 class CompletionProvider(Generic[ResponseT, StreamT], ABC):
@@ -359,15 +550,8 @@ class CompletionProvider(Generic[ResponseT, StreamT], ABC):
                     if not tool_call:
                         continue
 
-                    if isinstance(self, GoogleProvider):
-                        # For GoogleProvider, each chunk contains the full (possibly updated) args dict as a JSON string.
-                        # Example: first chunk: {"location": "San Francisco"}
-                        #          second chunk: {"location": "San Francisco", "zip": "94107"}
-                        # We overwrite tool_call_args with the latest chunk.
-                        tool_call.tool_call_args = tool_call_delta
-                    else:
-                        # For other providers, tool_call_args is built up incrementally from deltas.
-                        tool_call.tool_call_args += tool_call_delta
+                    # tool_call_args is built up incrementally from deltas.
+                    tool_call.tool_call_args += tool_call_delta
                     # update tool_call_delta to ai-sdk-ui structure
                     # based on https://ai-sdk.dev/docs/ai-sdk-ui/stream-protocol#tool-call-delta-part
                     content_data = {
@@ -743,11 +927,7 @@ class AzureOpenAIProvider(OpenAIProvider):
         )
 
 
-class AnthropicProvider(
-    CompletionProvider[
-        "RawMessageStreamEvent", "AnthropicStream[RawMessageStreamEvent]"
-    ]
-):
+class AnthropicProvider(PydanticProvider["PydanticAnthropic"]):
     # Temperature of 0.2 was recommended for coding and data science in these links:
     # https://community.openai.com/t/cheat-sheet-mastering-temperature-and-top-p-in-chatgpt-api/172683
     # https://docs.anthropic.com/en/docs/test-and-evaluate/strengthen-guardrails/reduce-latency?utm_source=chatgpt.com
@@ -760,13 +940,51 @@ class AnthropicProvider(
     EXTENDED_THINKING_MODEL_PREFIXES = [
         "claude-opus-4",
         "claude-sonnet-4",
+        "claude-haiku-4-5",
         "claude-3-7-sonnet",
     ]
     # 1024 tokens is the minimum budget for extended thinking
     DEFAULT_EXTENDED_THINKING_BUDGET_TOKENS = 1024
 
-    # Map of block index to tool call id for tool call delta chunks
-    block_index_to_tool_call_id_map: dict[int, str] = {}
+    def create_provider(self, config: AnyProviderConfig) -> PydanticAnthropic:
+        from pydantic_ai.providers.anthropic import (
+            AnthropicProvider as PydanticAnthropic,
+        )
+
+        return PydanticAnthropic(api_key=config.api_key)
+
+    def create_agent(
+        self, max_tokens: int, tools: list[ToolDefinition], system_prompt: str
+    ) -> Agent[None, DeferredToolRequests | str]:
+        from pydantic_ai import Agent
+        from pydantic_ai.models.anthropic import (
+            AnthropicModel,
+            AnthropicModelSettings,
+        )
+
+        toolset, output_type = self._get_toolsets_and_output_type(tools)
+        is_thinking_model = self.is_extended_thinking_model(self.model)
+        thinking_config: BetaThinkingConfigParam = {"type": "disabled"}
+        if is_thinking_model:
+            thinking_config = {
+                "type": "enabled",
+                "budget_tokens": self.DEFAULT_EXTENDED_THINKING_BUDGET_TOKENS,
+            }
+
+        return Agent(
+            AnthropicModel(
+                model_name=self.model,
+                provider=self.provider,
+                settings=AnthropicModelSettings(
+                    max_tokens=max_tokens,
+                    temperature=self.get_temperature(),
+                    anthropic_thinking=thinking_config,
+                ),
+            ),
+            toolsets=[toolset] if tools else None,
+            instructions=system_prompt,
+            output_type=output_type,
+        )
 
     def is_extended_thinking_model(self, model: str) -> bool:
         return any(
@@ -781,317 +999,93 @@ class AnthropicProvider(
             else self.DEFAULT_TEMPERATURE
         )
 
-    def get_client(self, config: AnyProviderConfig) -> AsyncClient:
-        DependencyManager.anthropic.require(
-            why="for AI assistance with Anthropic"
-        )
-        from anthropic import AsyncClient
+    def convert_messages(
+        self, messages: list[ServerUIMessage]
+    ) -> list[UIMessage]:
+        return convert_to_pydantic_messages(messages, self.process_part)
 
-        return AsyncClient(api_key=config.api_key)
-
-    def maybe_get_tool_call_id(self, block_index: int) -> Optional[str]:
-        return self.block_index_to_tool_call_id_map.get(block_index, None)
-
-    async def stream_completion(
-        self,
-        messages: list[ChatMessage],
-        system_prompt: str,
-        max_tokens: int,
-        additional_tools: list[ToolDefinition],
-    ) -> AnthropicStream[RawMessageStreamEvent]:
-        client = self.get_client(self.config)
-        tools = self.config.tools
-        create_params = {
-            "model": self.model,
-            "max_tokens": max_tokens,
-            "messages": cast(
-                Any,
-                convert_to_anthropic_messages(messages),
-            ),
-            "system": system_prompt,
-            "stream": True,
-            "temperature": self.get_temperature(),
-        }
-        if tools:
-            all_tools = tools + additional_tools
-            create_params["tools"] = convert_to_anthropic_tools(all_tools)
-        if self.is_extended_thinking_model(self.model):
-            create_params["thinking"] = {
-                "type": "enabled",
-                "budget_tokens": self.DEFAULT_EXTENDED_THINKING_BUDGET_TOKENS,
-            }
-        return cast(
-            "AnthropicStream[RawMessageStreamEvent]",
-            await client.messages.create(**create_params),
+    def process_part(self, part: UIMessagePart) -> UIMessagePart:
+        """
+        Anthropic does not support binary content for text files, so we convert to text parts.
+        Ideally, we would use DocumentUrl parts with a url, but we only have the binary data from the frontend
+        Refer to: https://ai.pydantic.dev/input/#user-side-download-vs-direct-file-url
+        """
+        from pydantic_ai.ui.vercel_ai.request_types import (
+            FileUIPart,
+            TextUIPart,
         )
 
-    def block_index_to_tool_call_id(self, block_index: int) -> str:
-        return f"tool_call_{block_index}"
-
-    def extract_content(
-        self,
-        response: RawMessageStreamEvent,
-        tool_call_ids: Optional[list[str]] = None,
-    ) -> Optional[ExtractedContentList]:
-        del tool_call_ids
-        from anthropic.types import (
-            InputJSONDelta,
-            RawContentBlockDeltaEvent,
-            RawContentBlockStartEvent,
-            SignatureDelta,
-            TextDelta,
-            ThinkingDelta,
-            ToolUseBlock,
-        )
-
-        # For streaming content
-        if isinstance(response, RawContentBlockDeltaEvent):
-            if isinstance(response.delta, TextDelta):
-                return [(response.delta.text, "text")]
-            if isinstance(response.delta, ThinkingDelta):
-                return [(response.delta.thinking, "reasoning")]
-            if isinstance(response.delta, InputJSONDelta):
-                block_index = response.index
-                tool_call_id = self.maybe_get_tool_call_id(block_index)
-                if not tool_call_id:
-                    LOGGER.error(
-                        f"Tool call id not found for block index: {response.index}"
-                    )
-                    return None
-                delta_json = response.delta.partial_json
-                tool_delta = {
-                    "toolCallId": tool_call_id,
-                    "inputTextDelta": delta_json,
-                }
-                return [(tool_delta, "tool_call_delta")]
-            if isinstance(response.delta, SignatureDelta):
-                return [
-                    (
-                        {"signature": response.delta.signature},
-                        "reasoning_signature",
-                    )
-                ]
-
-        # For the beginning of a tool use block
-        if isinstance(response, RawContentBlockStartEvent):
-            if isinstance(response.content_block, ToolUseBlock):
-                tool_call_id = response.content_block.id
-                tool_call_name = response.content_block.name
-                block_index = response.index
-                # Store the tool call id for the block index
-                self.block_index_to_tool_call_id_map[block_index] = (
-                    tool_call_id
-                )
-                tool_info = {
-                    "toolCallId": tool_call_id,
-                    "toolName": tool_call_name,
-                }
-                return [(tool_info, "tool_call_start")]
-
-        return None
-
-    def get_finish_reason(
-        self, response: RawMessageStreamEvent
-    ) -> Optional[FinishReason]:
-        from anthropic.types import RawMessageDeltaEvent
-
-        # Check for message_delta events which contain the stop_reason
-        if isinstance(response, RawMessageDeltaEvent):
-            if (
-                hasattr(response, "delta")
-                and hasattr(response.delta, "stop_reason")
-                and response.delta.stop_reason
-            ):
-                stop_reason = response.delta.stop_reason
-                # Anthropic uses "end_turn" for normal completion, "tool_use" for tool calls
-                return "tool_calls" if stop_reason == "tool_use" else "stop"
-
-        return None
-
-
-class GoogleProvider(
-    CompletionProvider[
-        "GenerateContentResponse", "AsyncIterator[GenerateContentResponse]"
-    ]
-):
-    # Based on the docs:
-    # https://cloud.google.com/vertex-ai/generative-ai/docs/thinking
-    THINKING_MODEL_PREFIXES = [
-        "gemini-2.5-pro",
-        "gemini-2.5-flash",
-    ]
-
-    # Keep a persistent async client to avoid closing during stream iteration
-    _client: Optional[GoogleClient] = None
-
-    def is_thinking_model(self, model: str) -> bool:
-        return any(
-            model.startswith(prefix) for prefix in self.THINKING_MODEL_PREFIXES
-        )
-
-    def get_config(
-        self,
-        system_prompt: str,
-        max_tokens: int,
-        additional_tools: list[ToolDefinition],
-    ) -> GenerateContentConfig:
-        tools = self.config.tools
-        config = {
-            "system_instruction": system_prompt,
-            "temperature": 0,
-            "max_output_tokens": max_tokens,
-        }
-        if tools:
-            all_tools = tools + additional_tools
-            config["tools"] = convert_to_google_tools(all_tools)
-        if self.is_thinking_model(self.model):
-            config["thinking_config"] = {
-                "include_thoughts": True,
-            }
-        return cast("GenerateContentConfig", config)
-
-    def get_client(self, config: AnyProviderConfig) -> GoogleClient:
-        try:
-            from google import genai
-        except ImportError:
-            DependencyManager.google_ai.require(
-                why="for AI assistance with Google AI"
+        if isinstance(part, FileUIPart) and part.media_type.startswith("text"):
+            return TextUIPart(
+                type="text",
+                text=extract_text(part.url),
+                provider_metadata=part.provider_metadata,
             )
-            from google import genai  # type: ignore
+        return part
 
-        # Reuse a stored async client if already created
-        if self._client is not None:
-            return self._client
-
-        # If no API key is provided, try to use environment variables and ADC
-        # This supports Google Vertex AI usage without explicit API keys
-        if not config.api_key:
-            # Check if GOOGLE_GENAI_USE_VERTEXAI is set to enable Vertex AI mode
-            use_vertex = (
-                os.getenv("GOOGLE_GENAI_USE_VERTEXAI", "").lower() == "true"
-            )
-            if use_vertex:
-                project = os.getenv("GOOGLE_CLOUD_PROJECT")
-                location = os.getenv("GOOGLE_CLOUD_LOCATION", "us-central1")
-                self._client = genai.Client(
-                    vertexai=True, project=project, location=location
-                ).aio
-            else:
-                # Try default initialization which may work with environment variables
-                self._client = genai.Client().aio
-
-            # Return vertex or default client
-            return self._client
-
-        self._client = genai.Client(api_key=config.api_key).aio
-        return self._client
-
-    async def stream_completion(
+    def get_vercel_adapter(
         self,
-        messages: list[ChatMessage],
-        system_prompt: str,
-        max_tokens: int,
-        additional_tools: list[ToolDefinition],
-    ) -> AsyncIterator[GenerateContentResponse]:
-        client = self.get_client(self.config)
-        return await client.models.generate_content_stream(  # type: ignore[reportReturnType]
-            model=self.model,
-            contents=convert_to_google_messages(messages),
-            config=self.get_config(
-                system_prompt=system_prompt,
-                max_tokens=max_tokens,
-                additional_tools=additional_tools,
-            ),
-        )
+    ) -> type[VercelAIAdapter[None, DeferredToolRequests | str]]:
+        """
+        Return a custom adapter that includes thinking signatures in ReasoningEndChunk.
 
-    def _get_tool_call_id(self, tool_call_id: Optional[str]) -> str:
-        # Custom tools don't have an id, so we have to generate a random uuid
-        # https://ai.google.dev/gemini-api/docs/function-calling?example=meeting
-        if not tool_call_id:
-            # generate a random uuid
-            return str(uuid.uuid4())
-        return tool_call_id
+        pydantic_ai's VercelAIEventStream.handle_thinking_end doesn't pass the signature
+        from ThinkingPart to ReasoningEndChunk, which breaks Anthropic's extended thinking
+        on follow-up messages (Anthropic requires signatures on thinking blocks).
 
-    def extract_content(
-        self,
-        response: GenerateContentResponse,
-        tool_call_ids: Optional[list[str]] = None,
-    ) -> Optional[ExtractedContentList]:
-        tool_call_ids = tool_call_ids or []
-        if not response.candidates:
-            return None
+        TODO: Remove this once https://github.com/pydantic/pydantic-ai/pull/3754 is released
+        """
+        from pydantic_ai import DeferredToolRequests
+        from pydantic_ai.ui.vercel_ai import VercelAIAdapter
+        from pydantic_ai.ui.vercel_ai._event_stream import VercelAIEventStream
+        from pydantic_ai.ui.vercel_ai.response_types import ReasoningEndChunk
 
-        candidate = response.candidates[0]
-        if not candidate or not candidate.content:
-            return None
+        AnthropicOutputType = DeferredToolRequests | str
 
-        if not candidate.content.parts:
-            return None
-
-        # Build events by first scanning parts and rectifying tool calls by position
-        content: ExtractedContentList = []
-        function_call_index = -1
-        seen_in_frame: set[int] = set()
-
-        for part in candidate.content.parts:
-            # Handle function calls (may appear multiple times per chunk)
-            if part.function_call:
-                function_call_index += 1
-                # Resolve a stable id by position if provided from the caller; else synthesize
-                stable_id = (
-                    tool_call_ids[function_call_index]
-                    if function_call_index < len(tool_call_ids)
-                    and tool_call_ids[function_call_index]
-                    else self._get_tool_call_id(part.function_call.id)
-                )
-
-                # First sight of this call index in this frame => emit start
-                if function_call_index not in seen_in_frame:
-                    tool_info = {
-                        "toolCallId": stable_id,
-                        "toolName": part.function_call.name,
-                        "args": json.dumps(part.function_call.args),
-                    }
-                    content.append((tool_info, "tool_call_start"))
-                    seen_in_frame.add(function_call_index)
-                else:
-                    # Subsequent occurrences for the same index => treat as delta (snapshot semantics)
-                    if part.function_call.args is not None:
-                        tool_delta = {
-                            "toolCallId": stable_id,
-                            "inputTextDelta": json.dumps(
-                                part.function_call.args
-                            ),
+        # Custom event stream that includes signature in ReasoningEndChunk
+        class AnthropicVercelAIEventStream(
+            VercelAIEventStream[None, AnthropicOutputType]
+        ):
+            async def handle_thinking_end(
+                self, part: ThinkingPart, followed_by_thinking: bool = False
+            ) -> AsyncIterator[BaseChunk]:
+                """Override to include signature in provider_metadata."""
+                try:
+                    provider_metadata = None
+                    if part.signature:
+                        pydantic_ai_meta: dict[str, Any] = {
+                            "signature": part.signature
                         }
-                        content.append((tool_delta, "tool_call_delta"))
-                continue
+                        if part.provider_name:
+                            pydantic_ai_meta["provider_name"] = (
+                                part.provider_name
+                            )
+                        if part.id:
+                            pydantic_ai_meta["id"] = part.id
+                        provider_metadata = {"pydantic_ai": pydantic_ai_meta}
 
-            # Text/Reasoning handling
-            if part.text:
-                if part.thought:
-                    content.append((part.text, "reasoning"))
-                else:
-                    content.append((part.text, "text"))
-                continue
+                    yield ReasoningEndChunk(
+                        id=self.message_id, provider_metadata=provider_metadata
+                    )
+                except Exception as e:
+                    LOGGER.warning(
+                        f"Error in AnthropicVercelAIEventStream.handle_thinking_end: {e}"
+                    )
+                    async for chunk in super().handle_thinking_end(
+                        part, followed_by_thinking
+                    ):
+                        yield chunk
 
-            # Ignore other non-text parts (e.g., images) at this layer
-            continue
+        # Custom adapter that uses the custom event stream
+        class AnthropicVercelAIAdapter(
+            VercelAIAdapter[None, AnthropicOutputType]
+        ):
+            def build_event_stream(self) -> AnthropicVercelAIEventStream:
+                return AnthropicVercelAIEventStream(
+                    self.run_input, accept=self.accept
+                )
 
-        return content
-
-    def get_finish_reason(
-        self, response: GenerateContentResponse
-    ) -> Optional[FinishReason]:
-        if not response.candidates:
-            return None
-        first_candidate = response.candidates[0]
-        if first_candidate.content and first_candidate.content.parts:
-            for part in first_candidate.content.parts:
-                if part.function_call:
-                    return "tool_calls"
-        if response.candidates and response.candidates[0].finish_reason:
-            return "stop"
-        return None
+        return AnthropicVercelAIAdapter
 
 
 class BedrockProvider(
@@ -1226,13 +1220,17 @@ class BedrockProvider(
 
 def get_completion_provider(
     config: AnyProviderConfig, model: str
-) -> CompletionProvider[Any, Any]:
+) -> CompletionProvider[Any, Any] | PydanticProvider[Any]:
     model_id = AiModelId.from_model(model)
 
     if model_id.provider == "anthropic":
-        return AnthropicProvider(model_id.model, config)
+        return AnthropicProvider(
+            model_id.model, config, [DependencyManager.anthropic]
+        )
     elif model_id.provider == "google":
-        return GoogleProvider(model_id.model, config)
+        return GoogleProvider(
+            model_id.model, config, [DependencyManager.google_ai]
+        )
     elif model_id.provider == "bedrock":
         return BedrockProvider(model_id.model, config)
     elif model_id.provider == "azure":

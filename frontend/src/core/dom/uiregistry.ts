@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import { Logger } from "@/utils/Logger";
 import type { CellId, UIElementId } from "../cells/ids";
@@ -28,7 +28,7 @@ interface UIElementEntry {
  */
 export class UIElementRegistry {
   // maps UIElement objectIds to entries.
-  entries: Map<string, UIElementEntry>;
+  entries: Map<UIElementId, UIElementEntry>;
 
   /**
    * Shared instance of UIElementRegistry since this must be a singleton.
@@ -125,7 +125,7 @@ export class UIElementRegistry {
    * @param objectId - id of the UIElement
    * @returns the value for `objectId`, or `undefined` if the object was not found.
    */
-  lookupValue(objectId: string): ValueType {
+  lookupValue(objectId: UIElementId): ValueType {
     const entry = this.entries.get(objectId);
     return entry === undefined ? undefined : entry.value;
   }

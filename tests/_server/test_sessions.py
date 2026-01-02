@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
 import asyncio
@@ -23,35 +23,35 @@ from marimo._ast.app_config import _AppConfig
 from marimo._config.manager import (
     get_default_config_manager,
 )
-from marimo._messaging.ops import (
-    MessageOperation,
-    UpdateCellCodes,
+from marimo._messaging.notification import (
+    NotificationMessage,
+    UpdateCellCodesNotification,
 )
 from marimo._messaging.serde import deserialize_kernel_message
 from marimo._messaging.types import KernelMessage
-from marimo._runtime.requests import (
+from marimo._runtime.commands import (
     AppMetadata,
-    CreationRequest,
-    ExecutionRequest,
-    SetUIElementValueRequest,
-    SyncGraphRequest,
+    CreateNotebookCommand,
+    ExecuteCellCommand,
+    SyncGraphCommand,
+    UpdateUIElementCommand,
 )
-from marimo._server.consumer import SessionConsumer
 from marimo._server.file_router import AppFileRouter
-from marimo._server.model import ConnectionState, SessionMode
-from marimo._server.notebook import AppFileManager
-from marimo._server.session.session_view import SessionView
-from marimo._server.sessions import Session
-from marimo._server.sessions.events import SessionEventBus
-from marimo._server.sessions.managers import (
+from marimo._server.session_manager import SessionManager
+from marimo._server.utils import initialize_asyncio
+from marimo._session import Session
+from marimo._session.consumer import SessionConsumer
+from marimo._session.events import SessionEventBus
+from marimo._session.managers import (
     KernelManagerImpl,
     QueueManagerImpl,
 )
-from marimo._server.sessions.session import (
+from marimo._session.model import ConnectionState, SessionMode
+from marimo._session.notebook import AppFileManager
+from marimo._session.session import (
     SessionImpl,
 )
-from marimo._server.sessions.session_manager import SessionManager
-from marimo._server.utils import initialize_asyncio
+from marimo._session.state.session_view import SessionView
 from marimo._types.ids import ConsumerId, SessionId
 from marimo._utils.marimo_path import MarimoPath
 
@@ -70,7 +70,7 @@ app_metadata = AppMetadata(
 
 class MockSessionConsumer(SessionConsumer):
     def __init__(self) -> None:
-        self.notify_calls: list[MessageOperation] = []
+        self.notify_calls: list[NotificationMessage] = []
 
     def on_attach(self, session: Session, event_bus: SessionEventBus) -> None:
         pass
@@ -229,9 +229,9 @@ def test_kernel_manager_interrupt(tmp_path: Path) -> None:
     Path(file).write_text("-1")
 
     queue_manager.control_queue.put(
-        CreationRequest(
+        CreateNotebookCommand(
             execution_requests=(
-                ExecutionRequest(
+                ExecuteCellCommand(
                     cell_id="1",
                     code=inspect.cleandoc(
                         f"""
@@ -245,7 +245,7 @@ def test_kernel_manager_interrupt(tmp_path: Path) -> None:
                     ),
                 ),
             ),
-            set_ui_element_value_request=SetUIElementValueRequest(
+            set_ui_element_value_request=UpdateUIElementCommand(
                 object_ids=[], values=[]
             ),
             auto_run=True,
@@ -316,20 +316,18 @@ async def test_session() -> None:
 
     # Instantiate a Session
     session = SessionImpl(
-        session_id,
-        session_consumer,
-        queue_manager,
-        kernel_manager,
-        AppFileManager.from_app(InternalApp(App())),
-        get_default_config_manager(current_path=None),
+        initialization_id=session_id,
+        session_consumer=session_consumer,
+        kernel_manager=kernel_manager,
+        app_file_manager=AppFileManager.from_app(InternalApp(App())),
+        config_manager=get_default_config_manager(current_path=None),
         ttl_seconds=None,
         extensions=[],
     )
 
     # Assert startup
     assert session.room.main_consumer == session_consumer
-    assert session._queue_manager == queue_manager
-    assert session.kernel_manager == kernel_manager
+    assert session._kernel_manager == kernel_manager
     session_consumer.on_attach.assert_called_once()
     assert session_consumer.on_detach.call_count == 0
     assert session.connection_state() == ConnectionState.OPEN
@@ -366,7 +364,6 @@ def test_session_disconnect_reconnect() -> None:
     session = SessionImpl(
         initialization_id=session_id,
         session_consumer=session_consumer,
-        queue_manager=queue_manager,
         kernel_manager=kernel_manager,
         app_file_manager=AppFileManager.from_app(InternalApp(App())),
         config_manager=get_default_config_manager(current_path=None),
@@ -425,7 +422,6 @@ def test_session_with_kiosk_consumers() -> None:
     session = SessionImpl(
         initialization_id=session_id,
         session_consumer=session_consumer,
-        queue_manager=queue_manager,
         kernel_manager=kernel_manager,
         app_file_manager=AppFileManager.from_app(InternalApp(App())),
         config_manager=get_default_config_manager(current_path=None),
@@ -435,8 +431,7 @@ def test_session_with_kiosk_consumers() -> None:
 
     # Assert startup
     assert session.room.main_consumer == session_consumer
-    assert session._queue_manager == queue_manager
-    assert session.kernel_manager == kernel_manager
+    assert session._kernel_manager == kernel_manager
     session_consumer.on_attach.assert_called_once()
     assert session_consumer.on_detach.call_count == 0
     assert session.connection_state() == ConnectionState.OPEN
@@ -549,7 +544,7 @@ def __():
         update_ops = [
             op
             for op in session_consumer.notify_calls
-            if isinstance(op, UpdateCellCodes)
+            if isinstance(op, UpdateCellCodesNotification)
         ]
         assert len(update_ops) == 1
         assert "2" == update_ops[0].codes[0]
@@ -588,12 +583,12 @@ def __():
         update_ops = [
             op
             for op in session_consumer.notify_calls
-            if isinstance(op, UpdateCellCodes)
+            if isinstance(op, UpdateCellCodesNotification)
         ]
         update_ops2 = [
             op
             for op in session_consumer2.notify_calls
-            if isinstance(op, UpdateCellCodes)
+            if isinstance(op, UpdateCellCodesNotification)
         ]
         assert len(update_ops) == 1
         assert len(update_ops2) == 1
@@ -625,7 +620,7 @@ def __():
         update_ops2 = [
             op
             for op in session_consumer2.notify_calls
-            if isinstance(op, UpdateCellCodes)
+            if isinstance(op, UpdateCellCodesNotification)
         ]
         assert len(update_ops2) == 1
         assert "4" == update_ops2[0].codes[0]
@@ -746,7 +741,8 @@ async def test_watch_mode_with_watcher_on_save_autorun(tmp_path: Path) -> None:
             file_key=str(tmp_file),
             auto_instantiate=False,
         )
-        session.session_view = MagicMock(SessionView)
+        mock_session_view = MagicMock(spec=SessionView)
+        session.session_view = mock_session_view
 
         # Wait for file watcher to be initialized by checking it exists
         for _ in range(20):  # noqa: B007
@@ -773,13 +769,13 @@ async def test_watch_mode_with_watcher_on_save_autorun(tmp_path: Path) -> None:
         )
 
         # Wait for the watcher to detect the change and send UpdateCellCodes
-        update_ops: list[UpdateCellCodes] = []
+        update_ops: list[UpdateCellCodesNotification] = []
         for _ in range(20):  # noqa: B007
             await asyncio.sleep(0.1)
             update_ops = [
                 op
                 for op in session_consumer.notify_calls
-                if isinstance(op, UpdateCellCodes)
+                if isinstance(op, UpdateCellCodesNotification)
             ]
             if update_ops:
                 break
@@ -792,7 +788,7 @@ async def test_watch_mode_with_watcher_on_save_autorun(tmp_path: Path) -> None:
         # Verify that cells were queued for execution
         assert session.session_view.add_control_request.called
         last_call = session.session_view.add_control_request.call_args[0][0]
-        assert isinstance(last_call, SyncGraphRequest)
+        assert isinstance(last_call, SyncGraphCommand)
 
     finally:
         # Cleanup
@@ -889,7 +885,7 @@ async def test_watch_mode_with_watcher_on_save_lazy(tmp_path: Path) -> None:
         update_ops = [
             op
             for op in session_consumer.notify_calls
-            if isinstance(op, UpdateCellCodes)
+            if isinstance(op, UpdateCellCodesNotification)
         ]
         assert len(update_ops) == 1
         assert "2" in update_ops[0].codes[0]
@@ -1004,7 +1000,9 @@ def __():
 
         # Check that UpdateCellCodes was sent with the new code
         update_ops = [
-            op for op in operations if isinstance(op, UpdateCellCodes)
+            op
+            for op in operations
+            if isinstance(op, UpdateCellCodesNotification)
         ]
         assert len(update_ops) == 1
         assert "2" == update_ops[0].codes[0]
@@ -1060,7 +1058,7 @@ def test_session_with_script_config_overrides(
         session.config_manager.get_config()["formatting"]["line_length"] == 999
     )
     assert (
-        session.kernel_manager.config_manager.get_config()["formatting"][
+        session._kernel_manager.config_manager.get_config()["formatting"][
             "line_length"
         ]
         == 999

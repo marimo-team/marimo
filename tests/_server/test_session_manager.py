@@ -7,17 +7,17 @@ from unittest.mock import MagicMock, Mock
 import pytest
 
 from marimo._config.manager import get_default_config_manager
-from marimo._server.consumer import SessionConsumer
 from marimo._server.file_router import AppFileRouter
 from marimo._server.lsp import LspServer
-from marimo._server.model import ConnectionState, SessionMode
-from marimo._server.notebook import AppFileManager
-from marimo._server.sessions import (
+from marimo._server.session_manager import SessionManager
+from marimo._server.tokens import AuthToken, SkewProtectionToken
+from marimo._session import (
     KernelManager,
     Session,
-    SessionManager,
 )
-from marimo._server.tokens import AuthToken, SkewProtectionToken
+from marimo._session.consumer import SessionConsumer
+from marimo._session.model import ConnectionState, SessionMode
+from marimo._session.notebook import AppFileManager
 from marimo._types.ids import SessionId
 
 if TYPE_CHECKING:

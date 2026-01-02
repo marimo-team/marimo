@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 
 import marimo
 
@@ -33,7 +33,7 @@ def _():
     ).reset_index()
 
     # Flatten column names for better display
-    pivot_df.columns = [f"{col[0]}_{col[1]}" if isinstance(col, tuple) else col 
+    pivot_df.columns = [f"{col[0]}_{col[1]}" if isinstance(col, tuple) else col
                        for col in pivot_df.columns]
 
     pivot_df

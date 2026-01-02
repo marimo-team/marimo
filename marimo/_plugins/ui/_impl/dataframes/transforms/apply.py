@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, TypeVar
@@ -13,6 +13,8 @@ from marimo._plugins.ui._impl.dataframes.transforms.types import (
     TransformHandler,
     TransformType,
 )
+from marimo._plugins.ui._impl.tables.table_manager import FieldTypes
+from marimo._plugins.ui._impl.tables.utils import get_table_manager
 from marimo._utils.assert_never import assert_never
 from marimo._utils.narwhals_utils import can_narwhalify, make_lazy
 
@@ -116,29 +118,45 @@ class TransformsContainer:
         self._snapshot_df = df
         self._handler = handler
         self._transforms: list[Transform] = []
+        self._field_types_cache: list[FieldTypes] = []
 
-    def apply(self, transform: Transformations) -> nw.LazyFrame[IntoLazyFrame]:
+    def apply(
+        self, transform: Transformations
+    ) -> tuple[nw.LazyFrame[IntoLazyFrame], list[FieldTypes]]:
         """
         Applies the given transformations to the dataframe.
+
+        Returns:
+            Tuple of (final_dataframe, field_types_per_step).
+            field_types_per_step[0] = original, field_types_per_step[N] = after N transforms.
         """
         # If the new transformations are a superset of the existing ones,
         # then we can just apply the new ones to the snapshot dataframe.
         if self._is_superset(transform):
             transforms_to_apply = self._get_next_transformations(transform)
-            self._snapshot_df = _apply_transforms(
-                self._snapshot_df, self._handler, transforms_to_apply
-            )
-            self._transforms = transform.transforms
-            return self._snapshot_df
+            df = self._snapshot_df
+            field_types = list(self._field_types_cache)
 
-        # If the new transformations are not a superset of the existing ones,
-        # then we need to start from the original dataframe.
+            for t in transforms_to_apply.transforms:
+                df = _handle(df, self._handler, t)
+                field_types.append(get_table_manager(df).get_field_types())
+
+            self._snapshot_df = df
         else:
-            self._snapshot_df = _apply_transforms(
-                self._original_df, self._handler, transform
-            )
-            self._transforms = transform.transforms
-            return self._snapshot_df
+            field_types = [
+                get_table_manager(self._original_df).get_field_types()
+            ]
+            df = self._original_df
+
+            for t in transform.transforms:
+                df = _handle(df, self._handler, t)
+                field_types.append(get_table_manager(df).get_field_types())
+
+            self._snapshot_df = df
+
+        self._transforms = transform.transforms
+        self._field_types_cache = field_types
+        return df, field_types
 
     def _is_superset(self, transforms: Transformations) -> bool:
         """

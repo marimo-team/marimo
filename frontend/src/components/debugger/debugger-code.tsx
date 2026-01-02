@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 import { langs } from "@uiw/codemirror-extensions-langs";
 import ReactCodeMirror, {
   EditorView,
@@ -19,7 +19,7 @@ import { Button } from "../ui/button";
 import { Tooltip } from "../ui/tooltip";
 import "./debugger-code.css";
 import { useKeydownOnElement } from "@/hooks/useHotkey";
-import { Functions } from "@/utils/functions";
+import { useInputHistory } from "@/hooks/useInputHistory";
 
 interface Props {
   code: string;
@@ -79,10 +79,15 @@ const DebuggerInput: React.FC<{
   const [value, setValue] = React.useState("");
   const ref = React.useRef<HTMLDivElement>(null);
 
-  // Capture some events to prevent default behavior
+  const { navigateUp, navigateDown, addToHistory } = useInputHistory({
+    value,
+    setValue,
+  });
+
+  // Capture some events for command history navigation
   useKeydownOnElement(ref, {
-    ArrowUp: Functions.NOOP,
-    ArrowDown: Functions.NOOP,
+    ArrowUp: navigateUp,
+    ArrowDown: navigateDown,
   });
 
   return (
@@ -111,6 +116,7 @@ const DebuggerInput: React.FC<{
                   if (!v) {
                     return true;
                   }
+                  addToHistory(v);
                   onSubmit(v);
                   setValue("");
                   return true;

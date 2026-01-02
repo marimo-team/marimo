@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
 import abc
@@ -10,12 +10,12 @@ import msgspec
 
 from marimo import _loggers
 from marimo._dependencies.dependencies import DependencyManager
-from marimo._messaging.notification_utils import broadcast_op
-from marimo._messaging.ops import Alert
+from marimo._messaging.notification import AlertNotification
+from marimo._messaging.notification_utils import broadcast_notification
 from marimo._runtime.packages.utils import append_version
 
 if TYPE_CHECKING:
-    from marimo._server.models.packages import DependencyTreeNode
+    from marimo._utils.uv_tree import DependencyTreeNode
 
 LOGGER = _loggers.marimo_logger()
 
@@ -221,8 +221,8 @@ class PackageManager(abc.ABC):
 
     def alert_not_installed(self) -> None:
         """Alert the user that the package manager is not installed."""
-        broadcast_op(
-            Alert(
+        broadcast_notification(
+            AlertNotification(
                 title="Package manager not installed",
                 description=(f"{self.name} is not available on your machine."),
                 variant="danger",

@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -24,12 +24,12 @@ from marimo._server.api.middleware import (
     TimeoutMiddleware,
 )
 from marimo._server.api.router import build_routes
-from marimo._server.api.status import (
-    HTTPException as MarimoHTTPException,
-)
 from marimo._server.errors import handle_error
 from marimo._server.lsp import LspServer
 from marimo._server.registry import MIDDLEWARE_REGISTRY
+from marimo._utils.http import (
+    HTTPException as MarimoHTTPException,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Iterator

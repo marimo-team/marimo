@@ -1,9 +1,10 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import { Loader2Icon } from "lucide-react";
 import { type JSX, useEffect, useRef, useState } from "react";
 import { z } from "zod";
 import { Tooltip, TooltipProvider } from "@/components/ui/tooltip";
+import type { UIElementId } from "@/core/cells/ids";
 import {
   MarimoValueInputEvent,
   type MarimoValueInputEventType,
@@ -22,7 +23,7 @@ type T = unknown;
 
 interface Data {
   label: string | null;
-  elementId: string;
+  elementId: UIElementId;
   bordered: boolean;
   loading: boolean;
   submitButtonLabel: string;
@@ -52,7 +53,7 @@ export const FormPlugin = createPlugin("marimo-form")
   .withData<Data>(
     z.object({
       label: z.string().nullable(),
-      elementId: z.string(),
+      elementId: z.string().transform((v) => v as UIElementId),
       bordered: z.boolean().default(true),
       loading: z.boolean().default(false),
       submitButtonLabel: z.string().default("Submit"),

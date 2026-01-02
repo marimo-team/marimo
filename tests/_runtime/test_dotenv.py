@@ -6,9 +6,9 @@ import tempfile
 import pytest
 
 from marimo._config.config import merge_default_config
-from marimo._runtime.requests import (
-    CreationRequest,
-    SetUIElementValueRequest,
+from marimo._runtime.commands import (
+    CreateNotebookCommand,
+    UpdateUIElementCommand,
 )
 from marimo._utils.platform import is_windows
 from tests.conftest import MockedKernel
@@ -82,9 +82,9 @@ async def test_load_dotenv_on_instantiate(mocked_kernel: MockedKernel):
         mocked_kernel.k.user_config = custom_config
 
         # Create a CreationRequest
-        request = CreationRequest(
+        request = CreateNotebookCommand(
             execution_requests=(),
-            set_ui_element_value_request=SetUIElementValueRequest(
+            set_ui_element_value_request=UpdateUIElementCommand(
                 object_ids=[],
                 values=[],
             ),

@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
@@ -44,6 +44,7 @@ import {
   type UserConfig,
   UserConfigSchema,
 } from "../../core/config/config-schema";
+import { getDirtyValues } from "../app-config/user-config-form";
 import { Button } from "../ui/button";
 import {
   DropdownMenu,
@@ -370,8 +371,15 @@ const PackageManagerForm: React.FC = () => {
   });
 
   const onSubmit = async (values: UserConfig) => {
-    await saveUserConfig({ config: values }).then(() => {
-      setConfig(values);
+    // Only send values that were actually changed to avoid
+    // overwriting backend values the form doesn't manage
+    const dirtyValues = getDirtyValues(values, form.formState.dirtyFields);
+    if (Object.keys(dirtyValues).length === 0) {
+      return; // Nothing changed
+    }
+    await saveUserConfig({ config: dirtyValues }).then(() => {
+      // Update local state with form values
+      setConfig((prev) => ({ ...prev, ...values }));
     });
   };
 

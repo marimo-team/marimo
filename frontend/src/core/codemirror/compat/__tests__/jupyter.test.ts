@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
@@ -91,10 +91,9 @@ describe("jupyterHelpExtension", () => {
       selection: { anchor: "%autoreload 2".length },
     });
 
+    // Verify only the partial config is sent, not the full config
     expect(mockRequestClient.saveUserConfig).toHaveBeenCalledWith({
-      config: expect.objectContaining({
-        runtime: { auto_reload: "autorun" },
-      }),
+      config: { runtime: { auto_reload: "autorun" } },
     });
 
     // Test lazy mode
@@ -103,10 +102,9 @@ describe("jupyterHelpExtension", () => {
       selection: { anchor: "%autoreload 1".length },
     });
 
+    // Verify only the partial config is sent
     expect(mockRequestClient.saveUserConfig).toHaveBeenCalledWith({
-      config: expect.objectContaining({
-        runtime: { auto_reload: "lazy" },
-      }),
+      config: { runtime: { auto_reload: "lazy" } },
     });
 
     // Test off mode
@@ -115,10 +113,9 @@ describe("jupyterHelpExtension", () => {
       selection: { anchor: "%autoreload 0".length },
     });
 
+    // Verify only the partial config is sent
     expect(mockRequestClient.saveUserConfig).toHaveBeenCalledWith({
-      config: expect.objectContaining({
-        runtime: { auto_reload: "off" },
-      }),
+      config: { runtime: { auto_reload: "off" } },
     });
   });
 

@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 import type { components, paths } from "@marimo-team/marimo-api";
 import type { CellId } from "../cells/ids";
 
@@ -14,11 +14,9 @@ export type CellConfig = schemas["CellConfig"];
  * idle: not running.
  * disabled-transitively: disabled because an ancestor was disabled.
  */
-export type RuntimeState = schemas["CellOp"]["status"];
+export type RuntimeState = schemas["CellNotification"]["status"];
 export type CodeCompletionRequest = schemas["CodeCompletionRequest"];
 export type DeleteCellRequest = schemas["DeleteCellRequest"];
-export type ExecuteMultipleRequest = schemas["ExecuteMultipleRequest"];
-export type ExecutionRequest = schemas["ExecutionRequest"];
 export type ExportAsHTMLRequest = schemas["ExportAsHTMLRequest"];
 export type ExportAsMarkdownRequest = schemas["ExportAsMarkdownRequest"];
 export type ExportAsIPYNBRequest = schemas["ExportAsIPYNBRequest"];
@@ -38,12 +36,11 @@ export type FileMoveRequest = schemas["FileMoveRequest"];
 export type FileMoveResponse = schemas["FileMoveResponse"];
 export type FileUpdateRequest = schemas["FileUpdateRequest"];
 export type FileUpdateResponse = schemas["FileUpdateResponse"];
-export type FormatRequest = schemas["FormatRequest"];
+export type FormatCellsRequest = schemas["FormatCellsRequest"];
 export type FormatResponse = schemas["FormatResponse"];
-export type FunctionCallRequest = schemas["FunctionCallRequest"];
+export type InvokeFunctionRequest = schemas["InvokeFunctionRequest"];
 export type ListSecretKeysResponse = schemas["ListSecretKeysResponse"];
-export type InstallMissingPackagesRequest =
-  schemas["InstallMissingPackagesRequest"];
+export type InstallPackagesRequest = schemas["InstallPackagesRequest"];
 export type AddPackageRequest = schemas["AddPackageRequest"];
 export type RemovePackageRequest = schemas["RemovePackageRequest"];
 export type ListPackagesResponse = schemas["ListPackagesResponse"];
@@ -51,7 +48,7 @@ export type DependencyTreeResponse = schemas["DependencyTreeResponse"];
 export type DependencyTreeNode = schemas["DependencyTreeNode"];
 
 export type PackageOperationResponse = schemas["PackageOperationResponse"];
-export type InstantiateRequest = schemas["InstantiateRequest"];
+export type InstantiateNotebookRequest = schemas["InstantiateNotebookRequest"];
 export type MarimoConfig = schemas["MarimoConfig"];
 export type MarimoFile = schemas["MarimoFile"];
 export type ListSecretKeysRequest = schemas["ListSecretKeysRequest"];
@@ -59,15 +56,15 @@ export type CreateSecretRequest = schemas["CreateSecretRequest"];
 export type PreviewDatasetColumnRequest =
   schemas["PreviewDatasetColumnRequest"];
 export type PreviewSQLTableRequest = schemas["PreviewSQLTableRequest"];
-export type PreviewSQLTableListRequest = schemas["PreviewSQLTableListRequest"];
-export type PreviewDataSourceConnectionRequest =
-  schemas["PreviewDataSourceConnectionRequest"];
+export type ListSQLTablesRequest = schemas["ListSQLTablesRequest"];
+export type ListDataSourceConnectionRequest =
+  schemas["ListDataSourceConnectionRequest"];
 export type ValidateSQLRequest = schemas["ValidateSQLRequest"];
-export type PdbRequest = schemas["PdbRequest"];
+export type DebugCellRequest = schemas["DebugCellRequest"];
 export type ReadCodeResponse = schemas["ReadCodeResponse"];
 export type RecentFilesResponse = schemas["RecentFilesResponse"];
-export type RenameFileRequest = schemas["RenameFileRequest"];
-export type RunRequest = schemas["RunRequest"];
+export type RenameNotebookRequest = schemas["RenameNotebookRequest"];
+export type ExecuteCellsRequest = schemas["ExecuteCellsRequest"];
 export type ExecuteScratchpadRequest = schemas["ExecuteScratchpadRequest"];
 export type SaveAppConfigurationRequest =
   schemas["SaveAppConfigurationRequest"];
@@ -78,18 +75,18 @@ export type SaveUserConfigurationRequest =
 export interface SetCellConfigRequest {
   configs: Record<CellId, Partial<CellConfig>>;
 }
-export type SetUIElementValueRequest = schemas["SetUIElementValueRequest"];
-export type SetModelMessageRequest = schemas["SetModelMessageRequest"];
+export type UpdateUIElementRequest = schemas["UpdateUIElementRequest"];
+export type UpdateWidgetModelRequest = schemas["UpdateWidgetModelRequest"];
 export type UpdateCellIdsRequest = schemas["UpdateCellIdsRequest"];
-export type SetUserConfigRequest = schemas["SetUserConfigRequest"];
+export type UpdateUserConfigRequest = schemas["UpdateUserConfigRequest"];
 export type ShutdownSessionRequest = schemas["ShutdownSessionRequest"];
 export type Snippet = schemas["Snippet"];
 export type SnippetSection = schemas["SnippetSection"];
 export type Snippets = schemas["Snippets"];
 export type StdinRequest = schemas["StdinRequest"];
 export type SuccessResponse = schemas["SuccessResponse"];
-export type UpdateComponentValuesRequest =
-  schemas["UpdateComponentValuesRequest"];
+export type UpdateUIElementValuesRequest =
+  schemas["UpdateUIElementValuesRequest"];
 export type UsageResponse =
   paths["/api/usage"]["get"]["responses"]["200"]["content"]["application/json"];
 export type WorkspaceFilesRequest = schemas["WorkspaceFilesRequest"];
@@ -106,25 +103,25 @@ export type GetCacheInfoRequest = schemas["GetCacheInfoRequest"];
  * Requests sent to the BE during run/edit mode.
  */
 export interface RunRequests {
-  sendComponentValues: (request: UpdateComponentValuesRequest) => Promise<null>;
-  sendModelValue: (request: SetModelMessageRequest) => Promise<null>;
-  sendInstantiate: (request: InstantiateRequest) => Promise<null>;
-  sendFunctionRequest: (request: FunctionCallRequest) => Promise<null>;
+  sendComponentValues: (request: UpdateUIElementValuesRequest) => Promise<null>;
+  sendModelValue: (request: UpdateWidgetModelRequest) => Promise<null>;
+  sendInstantiate: (request: InstantiateNotebookRequest) => Promise<null>;
+  sendFunctionRequest: (request: InvokeFunctionRequest) => Promise<null>;
 }
 
 /**
  * Requests sent to the BE during edit mode.
  */
 export interface EditRequests {
-  sendRename: (request: RenameFileRequest) => Promise<null>;
+  sendRename: (request: RenameNotebookRequest) => Promise<null>;
   sendSave: (request: SaveNotebookRequest) => Promise<null>;
   sendCopy: (request: CopyNotebookRequest) => Promise<null>;
   sendStdin: (request: StdinRequest) => Promise<null>;
-  sendRun: (request: RunRequest) => Promise<null>;
+  sendRun: (request: ExecuteCellsRequest) => Promise<null>;
   sendRunScratchpad: (request: ExecuteScratchpadRequest) => Promise<null>;
   sendInterrupt: () => Promise<null>;
   sendShutdown: () => Promise<null>;
-  sendFormat: (request: FormatRequest) => Promise<FormatResponse>;
+  sendFormat: (request: FormatCellsRequest) => Promise<FormatResponse>;
   sendDeleteCell: (request: DeleteCellRequest) => Promise<null>;
   sendCodeCompletionRequest: (request: CodeCompletionRequest) => Promise<null>;
   saveUserConfig: (request: SaveUserConfigurationRequest) => Promise<null>;
@@ -133,21 +130,21 @@ export interface EditRequests {
   sendRestart: () => Promise<null>;
   syncCellIds: (request: UpdateCellIdsRequest) => Promise<null>;
   sendInstallMissingPackages: (
-    request: InstallMissingPackagesRequest,
+    request: InstallPackagesRequest,
   ) => Promise<null>;
   readCode: () => Promise<{ contents: string }>;
   readSnippets: () => Promise<Snippets>;
   previewDatasetColumn: (request: PreviewDatasetColumnRequest) => Promise<null>;
   previewSQLTable: (request: PreviewSQLTableRequest) => Promise<null>;
-  previewSQLTableList: (request: PreviewSQLTableListRequest) => Promise<null>;
+  previewSQLTableList: (request: ListSQLTablesRequest) => Promise<null>;
   previewDataSourceConnection: (
-    request: PreviewDataSourceConnectionRequest,
+    request: ListDataSourceConnectionRequest,
   ) => Promise<null>;
   validateSQL: (request: ValidateSQLRequest) => Promise<null>;
   openFile: (request: { path: string; lineNumber?: number }) => Promise<null>;
   getUsageStats: () => Promise<UsageResponse>;
   // Debugger
-  sendPdb: (request: PdbRequest) => Promise<null>;
+  sendPdb: (request: DebugCellRequest) => Promise<null>;
   // File explorer requests
   sendListFiles: (request: FileListRequest) => Promise<FileListResponse>;
   sendSearchFiles: (request: FileSearchRequest) => Promise<FileSearchResponse>;

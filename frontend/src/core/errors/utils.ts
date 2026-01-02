@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import type { SyntaxNode, Tree } from "@lezer/common";
 import { parser } from "@lezer/python";

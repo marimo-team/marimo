@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import { FileTextIcon } from "lucide-react";
 import React from "react";
@@ -36,7 +36,7 @@ const LogsPanel: React.FC = () => {
 
   return (
     <>
-      <div className="flex flex-row justify-end px-2 py-1">
+      <div className="flex flex-row justify-start px-2 py-1">
         <ClearButton dataTestId="clear-logs-button" onClick={clearLogs} />
       </div>
       <div className="overflow-auto flex-1">

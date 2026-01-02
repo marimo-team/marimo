@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
 import asyncio
@@ -12,11 +12,11 @@ from marimo._cli.upgrade import check_for_updates
 from marimo._config.cli_state import MarimoCLIState
 from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._dependencies.dependencies import DependencyManager
-from marimo._messaging.ops import (
-    Alert,
-    Banner,
-    MessageOperation,
-    Reconnected,
+from marimo._messaging.notification import (
+    AlertNotification,
+    BannerNotification,
+    NotificationMessage,
+    ReconnectedNotification,
 )
 from marimo._messaging.serde import serialize_kernel_message
 from marimo._messaging.types import KernelMessage
@@ -38,15 +38,16 @@ from marimo._server.api.endpoints.ws.ws_session_connector import (
     SessionConnector,
 )
 from marimo._server.codes import WebSocketCodes
-from marimo._server.consumer import SessionConsumer
-from marimo._server.model import (
+from marimo._server.router import APIRouter
+from marimo._server.rtc.doc import LoroDocManager
+from marimo._server.session_manager import SessionManager
+from marimo._session import Session
+from marimo._session.consumer import SessionConsumer
+from marimo._session.events import SessionEventBus
+from marimo._session.model import (
     ConnectionState,
     SessionMode,
 )
-from marimo._server.router import APIRouter
-from marimo._server.rtc.doc import LoroDocManager
-from marimo._server.sessions import Session, SessionManager
-from marimo._server.sessions.events import SessionEventBus
 from marimo._types.ids import CellId_t, ConsumerId
 
 LOGGER = _loggers.marimo_logger()
@@ -169,7 +170,7 @@ class WebSocketHandler(SessionConsumer):
     def notify(self, notification: KernelMessage) -> None:
         self.message_queue.put_nowait(notification)
 
-    def _serialize_and_notify(self, notification: MessageOperation) -> None:
+    def _serialize_and_notify(self, notification: NotificationMessage) -> None:
         self.notify(serialize_kernel_message(notification))
 
     def _write_kernel_ready_from_session_view(
@@ -183,6 +184,7 @@ class WebSocketHandler(SessionConsumer):
             last_executed_code=session.session_view.last_executed_code,
             last_execution_time=session.session_view.last_execution_time,
             kiosk=kiosk,
+            auto_instantiated=False,
         )
 
     def _write_kernel_ready(
@@ -193,10 +195,22 @@ class WebSocketHandler(SessionConsumer):
         last_executed_code: dict[CellId_t, str],
         last_execution_time: dict[CellId_t, float],
         kiosk: bool,
+        auto_instantiated: bool,
     ) -> None:
         """Communicates to the client that the kernel is ready.
 
         Sends cell code and other metadata to client.
+
+        Args:
+            session: Current session
+            resumed: Whether this is a resumed session
+            ui_values: UI element values
+            last_executed_code: Last executed code for each cell
+            last_execution_time: Last execution time for each cell
+            kiosk: Whether this is kiosk mode
+            auto_instantiated: Whether the kernel has already been instantiated
+                server-side (run mode). If True, the frontend does not need
+                to instantiate the app.
         """
         # Only send execution data if sending code to frontend
         should_send = self.manager.should_send_code_to_frontend()
@@ -217,6 +231,7 @@ class WebSocketHandler(SessionConsumer):
             file_key=self.params.file_key,
             mode=self.mode,
             doc_manager=DOC_MANAGER,
+            auto_instantiated=auto_instantiated,
         )
         self._serialize_and_notify(kernel_ready_msg)
 
@@ -234,12 +249,12 @@ class WebSocketHandler(SessionConsumer):
         session.connect_consumer(self, main=True)
 
         # Write reconnected message
-        self._serialize_and_notify(Reconnected())
+        self._serialize_and_notify(ReconnectedNotification())
 
         # If not replaying, just send a toast
         if not replay:
             self._serialize_and_notify(
-                Alert(
+                AlertNotification(
                     title="Reconnected",
                     description="You have reconnected to an existing session.",
                 )
@@ -248,7 +263,7 @@ class WebSocketHandler(SessionConsumer):
 
         self._write_kernel_ready_from_session_view(session, self.params.kiosk)
         self._serialize_and_notify(
-            Banner(
+            BannerNotification(
                 title="Reconnected",
                 description="You have reconnected to an existing session.",
                 action="restart",
@@ -279,14 +294,14 @@ class WebSocketHandler(SessionConsumer):
 
     def _replay_previous_session(self, session: Session) -> None:
         """Replay the previous session view."""
-        operations = session.session_view.operations
-        if len(operations) == 0:
-            LOGGER.debug("No operations to replay")
+        notifications = session.session_view.notifications
+        if len(notifications) == 0:
+            LOGGER.debug("No notifications to replay")
             return
-        LOGGER.debug(f"Replaying {len(operations)} operations")
-        for op in operations:
-            LOGGER.debug("Replaying operation %s", op)
-            self._serialize_and_notify(op)
+        LOGGER.debug(f"Replaying {len(notifications)} notifications")
+        for notif in notifications:
+            LOGGER.debug("Replaying notification %s", notif)
+            self._serialize_and_notify(notif)
 
     def _on_disconnect(
         self,
@@ -469,7 +484,7 @@ class WebSocketHandler(SessionConsumer):
                 description += notices_text
 
             self._serialize_and_notify(
-                Alert(title=title, description=description)
+                AlertNotification(title=title, description=description)
             )
 
         check_for_updates(on_update)

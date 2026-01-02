@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import { debounce, isEqual } from "lodash-es";
 import type { MultiColumn } from "@/utils/id-tree";
@@ -35,8 +35,8 @@ export const CellEffects = {
     if (!isEqual(cellIds.inOrderIds, prevCellIds.inOrderIds)) {
       // "name" property is not actually required
       void debounceSyncCellIds({
-        cell_ids: cellIds.inOrderIds,
-      } as unknown as UpdateCellIdsRequest);
+        cellIds: cellIds.inOrderIds,
+      });
     }
   },
 };

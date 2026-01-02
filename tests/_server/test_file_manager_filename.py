@@ -1,12 +1,12 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
 from pathlib import Path
 
 import pytest
 
-from marimo._server.api.status import HTTPException
-from marimo._server.notebook import AppFileManager
+from marimo._session.notebook import AppFileManager
+from marimo._utils.http import HTTPException
 from tests.mocks import EDGE_CASE_FILENAMES
 
 

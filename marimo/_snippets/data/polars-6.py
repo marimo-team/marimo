@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 
 import marimo
 
@@ -13,7 +13,7 @@ def _(mo):
         # Polars: String Operations and Pattern Matching
 
         This snippet demonstrates efficient string operations in Polars using pattern matching,
-        transformations, and regular expressions. Shows string cleaning with `str.replace()`, 
+        transformations, and regular expressions. Shows string cleaning with `str.replace()`,
         pattern extraction with `str.extract()`, and memory optimization using `Categorical` types.
 
         Example: `df.with_columns(pl.col("text").str.extract(r"pattern_(\d+)", 1))`
@@ -57,7 +57,7 @@ def _():
 
             # Advanced replacements
             pl.col('mixed_text').str.replace(
-                r'\d{3}-\d{3}-\d{4}', 
+                r'\d{3}-\d{3}-\d{4}',
                 'XXX-XXX-XXXX'
             ).alias('masked_phone'),
 

@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import { useAtom, useAtomValue, useSetAtom, useStore } from "jotai";
 import { SaveIcon } from "lucide-react";
@@ -193,11 +193,13 @@ export function useSaveNotebook() {
   };
 }
 
-function isNamedPersistentFile(filename: string | null): filename is string {
+export function isNamedPersistentFile(
+  filename: string | null,
+): filename is string {
   return (
     filename !== null &&
     // Linux
-    !filename.startsWith("/tmp") &&
+    !filename.startsWith("/tmp/") &&
     // macOS
     !filename.startsWith("/var/folders") &&
     // Windows

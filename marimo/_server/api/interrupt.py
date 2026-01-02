@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
 import asyncio
@@ -8,7 +8,7 @@ import time
 from typing import Callable
 
 from marimo._config.settings import GLOBAL_SETTINGS
-from marimo._server.utils import (
+from marimo._utils.print import (
     TAB,
     print_,
 )

@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
 import asyncio
@@ -9,15 +9,8 @@ from starlette.authentication import requires
 from starlette.responses import JSONResponse
 
 from marimo import _loggers
-from marimo._messaging.ops import Alert
-from marimo._runtime.requests import (
-    ExecuteScratchpadRequest,
-    FunctionCallRequest,
-    HTTPRequest,
-    PdbRequest,
-    SetModelMessageRequest,
-    SetUIElementValueRequest,
-)
+from marimo._messaging.notification import AlertNotification
+from marimo._runtime.commands import HTTPRequest, UpdateUIElementCommand
 from marimo._server.api.deps import AppState
 from marimo._server.api.endpoints.ws.ws_connection_validator import (
     FILE_QUERY_PARAM_KEY,
@@ -27,10 +20,14 @@ from marimo._server.api.utils import dispatch_control_request, parse_request
 from marimo._server.file_router import MarimoFileKey
 from marimo._server.models.models import (
     BaseResponse,
-    InstantiateRequest,
-    RunRequest,
+    DebugCellRequest,
+    ExecuteCellsRequest,
+    ExecuteScratchpadRequest,
+    InstantiateNotebookRequest,
+    InvokeFunctionRequest,
     SuccessResponse,
-    UpdateComponentValuesRequest,
+    UpdateUIElementValuesRequest,
+    UpdateWidgetModelRequest,
 )
 from marimo._server.router import APIRouter
 from marimo._server.uvicorn_utils import close_uvicorn
@@ -55,7 +52,7 @@ async def set_ui_element_values(
         content:
             application/json:
                 schema:
-                    $ref: "#/components/schemas/UpdateComponentValuesRequest"
+                    $ref: "#/components/schemas/UpdateUIElementValuesRequest"
     responses:
         200:
             description: Set UI element values
@@ -65,9 +62,9 @@ async def set_ui_element_values(
                         $ref: "#/components/schemas/SuccessResponse"
     """
     app_state = AppState(request)
-    body = await parse_request(request, cls=UpdateComponentValuesRequest)
+    body = await parse_request(request, cls=UpdateUIElementValuesRequest)
     app_state.require_current_session().put_control_request(
-        SetUIElementValueRequest(
+        UpdateUIElementCommand(
             object_ids=body.object_ids,
             values=body.values,
             token=str(uuid4()),
@@ -89,7 +86,7 @@ async def set_model_values(
         content:
             application/json:
                 schema:
-                    $ref: "#/components/schemas/SetModelMessageRequest"
+                    $ref: "#/components/schemas/UpdateWidgetModelRequest"
     responses:
         200:
             description: Set model value
@@ -98,10 +95,11 @@ async def set_model_values(
                     schema:
                         $ref: "#/components/schemas/SuccessResponse"
     """
-    return await dispatch_control_request(request, SetModelMessageRequest)
+    return await dispatch_control_request(request, UpdateWidgetModelRequest)
 
 
 @router.post("/instantiate")
+@requires("edit")
 async def instantiate(
     *,
     request: Request,
@@ -111,17 +109,18 @@ async def instantiate(
         content:
             application/json:
                 schema:
-                    $ref: "#/components/schemas/InstantiateRequest"
+                    $ref: "#/components/schemas/InstantiateNotebookRequest"
     responses:
         200:
-            description: Instantiate a component
+            description: Instantiate a component. Only allowed in edit mode;
+                in run mode, instantiation happens server-side automatically.
             content:
                 application/json:
                     schema:
                         $ref: "#/components/schemas/SuccessResponse"
     """
     app_state = AppState(request)
-    body = await parse_request(request, cls=InstantiateRequest)
+    body = await parse_request(request, cls=InstantiateNotebookRequest)
     app_state.require_current_session().instantiate(
         body,
         http_request=HTTPRequest.from_request(request),
@@ -140,7 +139,7 @@ async def function_call(
         content:
             application/json:
                 schema:
-                    $ref: "#/components/schemas/FunctionCallRequest"
+                    $ref: "#/components/schemas/InvokeFunctionRequest"
     responses:
         200:
             description: Invoke an RPC
@@ -149,7 +148,7 @@ async def function_call(
                     schema:
                         $ref: "#/components/schemas/SuccessResponse"
     """
-    return await dispatch_control_request(request, FunctionCallRequest)
+    return await dispatch_control_request(request, InvokeFunctionRequest)
 
 
 @router.post("/interrupt")
@@ -184,7 +183,7 @@ async def run_cell(
         content:
             application/json:
                 schema:
-                    $ref: "#/components/schemas/RunRequest"
+                    $ref: "#/components/schemas/ExecuteCellsRequest"
     responses:
         200:
             description: Run a cell. Updates cell code in the kernel if needed; registers new cells for unseen cell IDs. Only allowed in edit mode.
@@ -194,10 +193,10 @@ async def run_cell(
                         $ref: "#/components/schemas/SuccessResponse"
     """  # noqa: E501
     app_state = AppState(request)
-    body = await parse_request(request, cls=RunRequest)
+    body = await parse_request(request, cls=ExecuteCellsRequest)
     body.request = HTTPRequest.from_request(request)
     app_state.require_current_session().put_control_request(
-        body.as_execution_request(),
+        body.as_command(),
         from_consumer_id=ConsumerId(app_state.require_current_session_id()),
     )
 
@@ -238,7 +237,7 @@ async def run_post_mortem(
         content:
             application/json:
                 schema:
-                    $ref: "#/components/schemas/PdbRequest"
+                    $ref: "#/components/schemas/DebugCellRequest"
     responses:
         200:
             description: Run a post mortem on the most recent failed cell.
@@ -247,7 +246,7 @@ async def run_post_mortem(
                     schema:
                         $ref: "#/components/schemas/SuccessResponse"
     """  # noqa: E501
-    return await dispatch_control_request(request, PdbRequest)
+    return await dispatch_control_request(request, DebugCellRequest)
 
 
 @router.post("/restart_session")
@@ -371,7 +370,7 @@ async def takeover_endpoint(
     if existing_session is not None:
         # Send a disconnect message to the client
         existing_session.notify(
-            Alert(
+            AlertNotification(
                 title="Session taken over",
                 description="Another user has taken over this session.",
                 variant="danger",

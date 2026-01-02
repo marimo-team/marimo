@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
 import asyncio
@@ -14,8 +14,7 @@ from marimo._ast.cell import Cell, CellConfig
 from marimo._ast.compiler import compile_cell
 from marimo._messaging.cell_output import CellOutput
 from marimo._output.utils import uri_encode_component
-from marimo._server.file_router import AppFileRouter
-from marimo._server.notebook import AppFileManager
+from marimo._session.notebook import AppFileManager
 from marimo._types.ids import CellId_t
 from marimo._utils.marimo_path import MarimoPath
 from marimo._version import __version__
@@ -24,7 +23,7 @@ if sys.platform == "win32":  # handling for windows
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 if TYPE_CHECKING:
-    from marimo._server.session.session_view import SessionView
+    from marimo._session.state.session_view import SessionView
 
 LOGGER = _loggers.marimo_logger()
 
@@ -267,6 +266,8 @@ class MarimoIslandGenerator:
         - filename (str): Marimo .py filename to convert to reactive HTML.
         - display_code (bool): Whether to display the code in HTML snippets.
         """
+        from marimo._server.file_router import AppFileRouter
+
         path = MarimoPath(filename)
         file_router = AppFileRouter.from_filename(path)
         file_key = file_router.get_unique_file_key()

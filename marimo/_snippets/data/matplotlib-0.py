@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 
 import marimo
 
@@ -12,7 +12,7 @@ def _(mo):
         r"""
         # Matplotlib: Basic Line and Scatter Plots
 
-        Create basic plots using `plt.plot()` and `plt.scatter()`. Shows line styles, 
+        Create basic plots using `plt.plot()` and `plt.scatter()`. Shows line styles,
         markers, and colors with `plt.legend()` for multiple series.
         """
     )

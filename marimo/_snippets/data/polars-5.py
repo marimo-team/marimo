@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 
 import marimo
 
@@ -12,8 +12,8 @@ def _(mo):
         r"""
         # Polars: CSV Operations
 
-        Demonstrates Polars' CSV capabilities using `scan_csv()` for 
-        streaming large CSV datasets. Shows memory-efficient filtering 
+        Demonstrates Polars' CSV capabilities using `scan_csv()` for
+        streaming large CSV datasets. Shows memory-efficient filtering
         and aggregation with lazy evaluation.
 
         Example: `pl.scan_csv("data.csv").filter(pl.col("value") > 500).collect()`

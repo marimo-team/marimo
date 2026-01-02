@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 import { atom } from "jotai";
 import type { PanelType } from "../types";
 
@@ -16,9 +16,9 @@ export const focusPackagesInput = () => {
   });
 };
 
-type ChromeActions = {
+interface ChromeActions {
   openApplication: (panel: PanelType) => void;
-};
+}
 
 export const openPackageManager = (chromeActions: ChromeActions) => {
   chromeActions.openApplication("packages");

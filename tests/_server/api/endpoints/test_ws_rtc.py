@@ -9,7 +9,10 @@ from starlette.websockets import WebSocketDisconnect
 
 from marimo._config.manager import UserConfigManager
 from marimo._messaging.msgspec_encoder import asdict
-from marimo._messaging.ops import KernelCapabilities, KernelReady
+from marimo._messaging.notification import (
+    KernelCapabilitiesNotification,
+    KernelReadyNotification,
+)
 from marimo._server.api.endpoints.ws_endpoint import DOC_MANAGER
 from marimo._utils.parse_dataclass import parse_raw
 from tests._server.conftest import get_session_manager, get_user_config_manager
@@ -36,7 +39,7 @@ def create_response(
         "kiosk": False,
         "configs": [{"disabled": False, "hide_code": False}],
         "app_config": {"width": "full"},
-        "capabilities": asdict(KernelCapabilities()),
+        "capabilities": asdict(KernelCapabilitiesNotification()),
     }
     response.update(partial_response)
     return response
@@ -59,8 +62,8 @@ def assert_kernel_ready_response(
 ) -> None:
     if response is None:
         response = create_response({})
-    data = parse_raw(raw_data["data"], KernelReady)
-    expected = parse_raw(response, KernelReady)
+    data = parse_raw(raw_data["data"], KernelReadyNotification)
+    expected = parse_raw(response, KernelReadyNotification)
     assert data.cell_ids == expected.cell_ids
     assert data.codes == expected.codes
     assert data.names == expected.names
@@ -74,7 +77,7 @@ def assert_kernel_ready_response(
 
 
 def assert_parse_ready_response(raw_data: dict[str, Any]) -> None:
-    data = parse_raw(raw_data["data"], KernelReady)
+    data = parse_raw(raw_data["data"], KernelReadyNotification)
     assert data is not None
 
 

@@ -1,4 +1,4 @@
-# Copyright 2025 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 
 from __future__ import annotations
 
@@ -17,7 +17,7 @@ from marimo._utils.fuzzy_match import compile_regex, is_fuzzy_match
 LOGGER = _loggers.marimo_logger()
 
 if TYPE_CHECKING:
-    from marimo._server.sessions import Session
+    from marimo._session import Session
 
 
 @dataclass

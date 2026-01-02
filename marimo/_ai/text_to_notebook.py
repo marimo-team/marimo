@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
 import datetime
@@ -11,7 +11,7 @@ from marimo._config.cli_state import (
     get_cli_state,
     write_cli_state,
 )
-from marimo._server.utils import print_
+from marimo._utils.print import print_
 
 TERMS = """
 Before using marimo's Text-To-Notebook AI feature, you should know:

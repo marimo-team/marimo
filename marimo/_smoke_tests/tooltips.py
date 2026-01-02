@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 
 import marimo
 
@@ -16,7 +16,7 @@ def _():
 def _(mo):
     mo.md(
         """
-        # Tooltips 
+        # Tooltips
 
         <span data-tooltip="Hello world!">Hover me</span>
         """

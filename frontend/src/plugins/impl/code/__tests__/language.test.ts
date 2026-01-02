@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import { langs } from "@uiw/codemirror-extensions-langs";
 import { describe, expect, it } from "vitest";

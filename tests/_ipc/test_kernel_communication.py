@@ -16,9 +16,9 @@ from marimo._ast.cell import CellConfig
 from marimo._config.config import DEFAULT_CONFIG
 from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._dependencies.dependencies import DependencyManager
-from marimo._runtime.requests import (
+from marimo._runtime.commands import (
     AppMetadata,
-    ExecuteMultipleRequest,
+    ExecuteCellsCommand,
 )
 from marimo._types.ids import CellId_t
 
@@ -31,7 +31,7 @@ def test_kernel_launch_and_execute_cells():
     """Test launching a kernel and executing cells with stdout/stderr."""
     from marimo._ipc import KernelArgs, QueueManager
 
-    execute_request = ExecuteMultipleRequest(
+    execute_request = ExecuteCellsCommand(
         cell_ids=[CellId_t("cell1")],
         codes=[
             """\
@@ -252,7 +252,7 @@ def test_queue_manager_connection():
     host_manager, connection_info = QueueManager.create()
     client_manager = QueueManager.connect(connection_info)
 
-    test_request = ExecuteMultipleRequest(
+    test_request = ExecuteCellsCommand(
         cell_ids=[CellId_t("cell1")],
         codes=["print('test')"],
     )

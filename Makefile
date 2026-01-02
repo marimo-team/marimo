@@ -35,7 +35,7 @@ check-prereqs:
 # 🐍 Install Python dependencies in editable mode
 py:
 	@command -v uv >/dev/null 2>&1 || { echo "uv is required. See https://docs.astral.sh/uv/getting-started/installation/"; exit 1; }
-	uv pip install -e ".[dev]"
+	uv pip install --group=dev -e .
 
 ######################
 # Development Tasks #

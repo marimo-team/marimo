@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
 import base64
@@ -49,18 +49,19 @@ from marimo._output.rich_help import mddoc
 from marimo._runtime import dataflow
 from marimo._runtime.app.kernel_runner import AppKernelRunner
 from marimo._runtime.app.script_runner import AppScriptRunner
+from marimo._runtime.commands import (
+    InvokeFunctionCommand,
+    UpdateUIElementCommand,
+)
 from marimo._runtime.context.types import (
     ContextNotInitializedError,
     get_context,
     runtime_context_installed,
 )
-from marimo._runtime.requests import (
-    FunctionCallRequest,
-    SetUIElementValueRequest,
-)
 from marimo._schemas.serialization import (
     AppInstantiation,
     CellDef,
+    Header,
     NotebookSerializationV1,
 )
 from marimo._types.ids import CellId_t
@@ -69,7 +70,7 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
     from types import FrameType, TracebackType
 
-    from marimo._messaging.ops import HumanReadableStatus
+    from marimo._messaging.notification import HumanReadableStatus
     from marimo._plugins.core.web_component import JSONType
     from marimo._runtime.context.types import ExecutionContext
 
@@ -243,6 +244,7 @@ class App:
         self._graph = dataflow.DirectedGraph()
         self._execution_context: ExecutionContext | None = None
         self._runner = dataflow.Runner(self._graph)
+        self._header: str | None = None
 
         self._unparsable_code: list[str] = []
         self._unparsable = False
@@ -744,13 +746,13 @@ class App:
         return output, _Namespace(defs, owner=self)
 
     async def _set_ui_element_value(
-        self, request: SetUIElementValueRequest
+        self, request: UpdateUIElementCommand
     ) -> bool:
         app_kernel_runner = self._get_kernel_runner()
         return await app_kernel_runner.set_ui_element_value(request)
 
     async def _function_call(
-        self, request: FunctionCallRequest
+        self, request: InvokeFunctionCommand
     ) -> tuple[HumanReadableStatus, JSONType, bool]:
         app_kernel_runner = self._get_kernel_runner()
         return await app_kernel_runner.function_call(request)
@@ -1004,17 +1006,20 @@ class InternalApp:
         return self._app._run_cell_sync(cell, kwargs)
 
     async def set_ui_element_value(
-        self, request: SetUIElementValueRequest
+        self, request: UpdateUIElementCommand
     ) -> bool:
         return await self._app._set_ui_element_value(request)
 
     async def function_call(
-        self, request: FunctionCallRequest
+        self, request: InvokeFunctionCommand
     ) -> tuple[HumanReadableStatus, JSONType, bool]:
         return await self._app._function_call(request)
 
     def to_ir(self) -> NotebookSerializationV1:
         return NotebookSerializationV1(
+            header=Header(value=self._app._header)
+            if self._app._header
+            else None,
             cells=[
                 CellDef(
                     code=cell_data.code,
@@ -1026,6 +1031,7 @@ class InternalApp:
             app=AppInstantiation(
                 options=self._app._config.asdict(),
             ),
+            filename=self._app._filename,
         )
 
     def to_py(self) -> str:

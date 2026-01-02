@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
 import html
@@ -15,9 +15,9 @@ from marimo._output.utils import uri_encode_component
 from marimo._schemas.notebook import NotebookV1
 from marimo._schemas.session import NotebookSessionV1
 from marimo._server.api.utils import parse_title
-from marimo._server.model import SessionMode
-from marimo._server.notebook import read_css_file, read_html_head_file
 from marimo._server.tokens import SkewProtectionToken
+from marimo._session.model import SessionMode
+from marimo._session.notebook import read_css_file, read_html_head_file
 from marimo._utils.versions import is_editable
 from marimo._version import __version__
 

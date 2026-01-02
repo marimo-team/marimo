@@ -4,17 +4,15 @@ import pytest
 from starlette.applications import Starlette
 
 from marimo._ai._tools.tools_registry import SUPPORTED_BACKEND_AND_MCP_TOOLS
-from marimo._config.manager import get_default_config_manager
 from marimo._server.ai.tools.tool_manager import ToolManager
 from marimo._server.ai.tools.types import ToolCallResult
-from tests._server.mocks import get_mock_session_manager
+from tests._server.mocks import get_starlette_server_state_init
 
 
 @pytest.fixture
 def manager():
     app = Starlette()
-    app.state.config_manager = get_default_config_manager(current_path=None)
-    app.state.session_manager = get_mock_session_manager()
+    get_starlette_server_state_init().apply(app.state)
     manager = ToolManager(app)
     assert len(manager._tools) == 0  # lazy init
     return manager

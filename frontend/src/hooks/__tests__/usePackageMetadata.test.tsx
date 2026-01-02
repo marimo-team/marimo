@@ -1,4 +1,30 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
+
+import { vi } from "vitest";
+
+// MSW 2.x requires localStorage for cookie persistence.
+// vi.hoisted runs before all imports, so localStorage is available when MSW loads.
+vi.hoisted(() => {
+  const store: Record<string, string> = {};
+  globalThis.localStorage = {
+    getItem: (key: string) => store[key] ?? null,
+    setItem: (key: string, value: string) => {
+      store[key] = value;
+    },
+    removeItem: (key: string) => {
+      Reflect.deleteProperty(store, key);
+    },
+    clear: () => {
+      for (const key of Object.keys(store)) {
+        Reflect.deleteProperty(store, key);
+      }
+    },
+    key: (index: number) => Object.keys(store)[index] ?? null,
+    get length() {
+      return Object.keys(store).length;
+    },
+  };
+});
 
 import { renderHook, waitFor } from "@testing-library/react";
 import * as msw from "msw";
@@ -33,6 +59,8 @@ describe("usePackageMetadata", () => {
   afterEach(() => {
     // Remove any handlers you may have added in individual tests (runtime handlers).
     server.resetHandlers();
+    // Clear localStorage to prevent state leakage between tests.
+    localStorage.clear();
   });
 
   afterAll(() => {

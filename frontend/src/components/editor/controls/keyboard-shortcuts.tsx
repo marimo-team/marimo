@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import { atom, useAtom, useAtomValue } from "jotai";
 import { AlertTriangleIcon, EditIcon, XIcon } from "lucide-react";
@@ -46,9 +46,9 @@ export const KeyboardShortcuts: React.FC = () => {
 
   useHotkey("global.showHelp", () => setIsOpen((v) => !v));
 
-  const saveConfigOptimistic = async (newConfig: UserConfig) => {
+  const saveConfigOptimistic = async (newConfig: Partial<UserConfig>) => {
     const prevConfig = { ...config };
-    setConfig(newConfig);
+    setConfig((prev) => ({ ...prev, ...newConfig }));
     await saveUserConfig({ config: newConfig }).catch((error) => {
       setConfig(prevConfig);
       throw error;
@@ -62,7 +62,6 @@ export const KeyboardShortcuts: React.FC = () => {
 
     const shortcutString = shortcut.join("-");
     const newConfig = {
-      ...config,
       keymap: {
         ...config.keymap,
         overrides: {
@@ -83,7 +82,6 @@ export const KeyboardShortcuts: React.FC = () => {
     }
 
     const newConfig = {
-      ...config,
       keymap: {
         ...config.keymap,
         overrides: {
@@ -109,8 +107,7 @@ export const KeyboardShortcuts: React.FC = () => {
       return;
     }
 
-    const newConfig = {
-      ...config,
+    const newConfig: Partial<UserConfig> = {
       keymap: {
         ...config.keymap,
         overrides: {},

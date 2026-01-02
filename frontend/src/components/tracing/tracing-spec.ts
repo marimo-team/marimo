@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import type { TopLevelSpec } from "vega-lite";
 import type { TimeUnit } from "vega-typings";

@@ -498,7 +498,10 @@ class TestDataframes:
             aggregation_column_ids=["age"],
         )
         transformations = Transformations([transform])
-        transformed_df = transform_container.apply(transformations)
+        transformed_df, field_types_at_steps = transform_container.apply(
+            transformations
+        )
+        assert len(field_types_at_steps) == 2  # original + 1 transform
 
         # Verify the transformed DataFrame
         df = transformed_df.collect().to_native()
@@ -585,7 +588,10 @@ class TestDataframes:
         )
 
         transformations = Transformations([transform_grp, transform_sort])
-        transformed_df = transform_container.apply(transformations)
+        transformed_df, field_types_at_steps = transform_container.apply(
+            transformations
+        )
+        assert len(field_types_at_steps) == 3  # original + 2 transforms
 
         # from Ibis to Polars
         transformed_df = transformed_df.collect().to_polars()

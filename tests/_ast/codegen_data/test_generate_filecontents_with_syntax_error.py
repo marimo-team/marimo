@@ -25,11 +25,11 @@ def _():
 
 
 app._unparsable_cell(
-    r"""
+    """
     _ another_error
     _ and \"\"\"another\"\"\"
 
-        \t
+        \\t
     """,
     name="_"
 )

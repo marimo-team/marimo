@@ -1,7 +1,8 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
 import os
+import re
 import shutil
 import time
 from pathlib import Path
@@ -12,7 +13,7 @@ import pytest
 from marimo import __version__
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.cell_output import CellChannel, CellOutput
-from marimo._messaging.ops import CellOp
+from marimo._messaging.notification import CellNotification
 from marimo._output.utils import uri_encode_component
 from marimo._types.ids import CellId_t, SessionId
 from marimo._utils.platform import is_windows
@@ -177,6 +178,12 @@ def test_export_markdown(client: TestClient) -> None:
     assert response.status_code == 200
     assert f"marimo-version: {__version__}" in response.text
     assert "```python {.marimo}" in response.text
+    # Check that the Content-Disposition header has the correct .md extension
+    assert "Content-Disposition" in response.headers
+    # The temp file has .py extension, should be converted to .md
+    assert re.match(
+        r"filename=.*\.md", response.headers["Content-Disposition"]
+    )
 
 
 @with_read_session(SESSION_ID)
@@ -205,8 +212,8 @@ def test_auto_export_html(client: TestClient, temp_marimo_file: str) -> None:
     assert session
     assert temp_marimo_file is not None
     session.app_file_manager.filename = temp_marimo_file
-    session.session_view.add_operation(
-        CellOp(
+    session.session_view.add_notification(
+        CellNotification(
             cell_id=CellId_t("new_cell"),
             output=CellOutput(
                 data="hello",
@@ -253,8 +260,8 @@ def test_auto_export_html_no_code(
     session = get_session_manager(client).get_session(SESSION_ID)
     assert session
     session.app_file_manager.filename = temp_marimo_file
-    session.session_view.add_operation(
-        CellOp(
+    session.session_view.add_notification(
+        CellNotification(
             cell_id=CellId_t("new_cell"),
             output=None,
             console=[CellOutput.stdout("hello")],
@@ -445,17 +452,20 @@ def test_auto_export_ipynb_with_new_cell(
     # Wait for the cell operation to be created
     timeout = 2
     start = time.time()
-    cell_op = None
+    cell_notification = None
     while time.time() - start < timeout:
-        if "new_cell" not in session.session_view.cell_operations:
+        if "new_cell" not in session.session_view.cell_notifications:
             time.sleep(0.1)
             continue
-        cell_op = session.session_view.cell_operations["new_cell"]
-        if cell_op.output is not None and cell_op.output.data:
+        cell_notification = session.session_view.cell_notifications["new_cell"]
+        if (
+            cell_notification.output is not None
+            and cell_notification.output.data
+        ):
             break
-    assert cell_op
-    assert cell_op.output is not None
-    assert "3.14" in cell_op.output.data
+    assert cell_notification
+    assert cell_notification.output is not None
+    assert "3.14" in cell_notification.output.data
 
     # Now attempt to auto-export as ipynb
     export_response = client.post(

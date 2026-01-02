@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import AnthropicIcon from "@marimo-team/llm-info/icons/anthropic.svg?inline";
 import BedrockIcon from "@marimo-team/llm-info/icons/aws.svg?inline";

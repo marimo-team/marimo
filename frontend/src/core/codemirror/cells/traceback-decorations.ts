@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import { foldedRanges, unfoldEffect } from "@codemirror/language";
 import type { EditorState, Extension, StateEffect } from "@codemirror/state";

@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
 import importlib.metadata
@@ -238,6 +238,7 @@ class DependencyManager:
     litellm = Dependency("litellm")
     redshift_connector = Dependency("redshift_connector")
     mcp = Dependency("mcp")
+    pydantic_ai = Dependency("pydantic_ai")
 
     # Version requirements to properly support the new superfences introduced in
     # pymdown#2470

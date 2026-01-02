@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 
 import marimo
 
@@ -12,8 +12,8 @@ def _(mo):
         r"""
         # Visualization: Area Charts with Gradient Fill
 
-        Create stacked area charts using `alt.Chart().mark_area()`. Demonstrates 
-        gradient fills and opacity settings with `fillOpacity`. Common for 
+        Create stacked area charts using `alt.Chart().mark_area()`. Demonstrates
+        gradient fills and opacity settings with `fillOpacity`. Common for
         visualizing time series data or part-to-whole relationships.
         """
     )
@@ -49,7 +49,7 @@ def _(alt, data):
             height=300,
             title='Stock Prices Over Time'
         ).interactive()
-        
+
         return chart
 
     create_area_chart()

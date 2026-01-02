@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import { useAtomValue } from "jotai";
 import { atomWithStorage } from "jotai/utils";
@@ -123,7 +123,9 @@ export const exportedForTesting = {
 // TODO: probably merge this with the chrome state
 export const sidebarOrderAtom = atomWithStorage<PanelType[]>(
   "marimo:sidebar-order",
-  PANELS.filter((p) => !p.hidden && p.position === "sidebar").map((p) => p.id),
+  PANELS.filter(
+    (p) => !p.hidden && !p.defaultHidden && p.position === "sidebar",
+  ).map((p) => p.id),
   jotaiJsonStorage,
   { getOnInit: true },
 );

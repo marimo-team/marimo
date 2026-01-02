@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import { closeCompletion } from "@codemirror/autocomplete";
 import { atom, useSetAtom } from "jotai";
@@ -13,7 +13,7 @@ import { enabledCellIds, staleCellIds } from "@/core/cells/utils";
 import { getCurrentLanguageAdapter } from "@/core/codemirror/language/commands";
 import { getEditorCodeAsPython } from "@/core/codemirror/language/utils";
 import { useRequestClient } from "@/core/network/requests";
-import type { RunRequest } from "@/core/network/types";
+import type { ExecuteCellsRequest } from "@/core/network/types";
 import { Logger } from "@/utils/Logger";
 
 export const hasRunAnyCellAtom = atom<boolean>(false);
@@ -78,7 +78,7 @@ export async function runCells({
   notebook,
 }: {
   cellIds: CellId[];
-  sendRun: (request: RunRequest) => Promise<null>;
+  sendRun: (request: ExecuteCellsRequest) => Promise<null>;
   prepareForRun: (action: { cellId: CellId }) => void;
   notebook: NotebookState;
 }) {

@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import { repl } from "@/utils/repl";
 import { getRequestClient } from "../network/requests";
@@ -37,10 +37,10 @@ export function getFeatureFlag<T extends keyof ExperimentalFeatures>(
 }
 
 function setFeatureFlag(feature: keyof ExperimentalFeatures, value: boolean) {
-  const userConfig = getResolvedMarimoConfig();
-  userConfig.experimental = userConfig.experimental ?? {};
-  userConfig.experimental[feature] = value;
-  getRequestClient().saveUserConfig({ config: userConfig });
+  // Send only the changed portion to avoid overwriting other config values
+  void getRequestClient().saveUserConfig({
+    config: { experimental: { [feature]: value } },
+  });
 }
 
 export const FeatureFlagged: React.FC<{

@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ import pytest
 import marimo
 from marimo._ast.app import App
 from marimo._plugins.ui._impl.input import dropdown
-from marimo._runtime.requests import ExecutionRequest
+from marimo._runtime.commands import ExecuteCellCommand
 from marimo._runtime.runtime import Kernel
 from marimo._save.cache import Cache
 from marimo._save.stubs.module_stub import ModuleStub
@@ -524,7 +524,7 @@ class TestAppCache:
         k = any_kernel
         await k.run(
             [
-                ExecutionRequest(
+                ExecuteCellCommand(
                     cell_id="0",
                     code=textwrap.dedent(
                         """
@@ -550,7 +550,7 @@ class TestAppCache:
         k = any_kernel
         await k.run(
             [
-                ExecutionRequest(
+                ExecuteCellCommand(
                     cell_id="0",
                     code=textwrap.dedent(
                         """
@@ -577,7 +577,7 @@ class TestAppCache:
         k = any_kernel
         await k.run(
             [
-                ExecutionRequest(
+                ExecuteCellCommand(
                     cell_id="0",
                     code=textwrap.dedent(
                         """
@@ -606,7 +606,7 @@ class TestAppCache:
         k = any_kernel
         await k.run(
             [
-                ExecutionRequest(
+                ExecuteCellCommand(
                     cell_id="0",
                     code=textwrap.dedent(
                         """
@@ -632,7 +632,7 @@ class TestAppCache:
         k = any_kernel
         await k.run(
             [
-                ExecutionRequest(
+                ExecuteCellCommand(
                     cell_id="0",
                     code=textwrap.dedent(
                         """
@@ -660,7 +660,7 @@ class TestAppCache:
         k = any_kernel
         await k.run(
             [
-                ExecutionRequest(
+                ExecuteCellCommand(
                     cell_id="0",
                     code=textwrap.dedent(
                         """
@@ -686,7 +686,7 @@ class TestAppCache:
         k = any_kernel
         await k.run(
             [
-                ExecutionRequest(
+                ExecuteCellCommand(
                     cell_id="0",
                     code=textwrap.dedent(
                         """
@@ -714,7 +714,7 @@ class TestAppCache:
         k = any_kernel
         await k.run(
             [
-                ExecutionRequest(
+                ExecuteCellCommand(
                     cell_id="0",
                     code=textwrap.dedent(
                         """
@@ -740,7 +740,7 @@ class TestAppCache:
         k = any_kernel
         await k.run(
             [
-                ExecutionRequest(
+                ExecuteCellCommand(
                     cell_id="0",
                     code=textwrap.dedent(
                         """
@@ -763,7 +763,7 @@ class TestAppCache:
         k = any_kernel
         await k.run(
             [
-                ExecutionRequest(
+                ExecuteCellCommand(
                     cell_id="0",
                     code=textwrap.dedent(
                         """

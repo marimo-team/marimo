@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import { ChevronRightIcon, WrapTextIcon } from "lucide-react";
 import React, { useLayoutEffect } from "react";
@@ -11,6 +11,7 @@ import type { CellId } from "@/core/cells/ids";
 import { isInternalCellName } from "@/core/cells/names";
 import type { WithResponse } from "@/core/cells/types";
 import type { OutputMessage } from "@/core/kernel/messages";
+import { useInputHistory } from "@/hooks/useInputHistory";
 import { useSelectAllContent } from "@/hooks/useSelectAllContent";
 import { cn } from "@/utils/cn";
 import { invariant } from "@/utils/invariant";
@@ -216,6 +217,13 @@ const StdInput = (props: {
   response?: string;
   isPdb: boolean;
 }) => {
+  const [value, setValue] = React.useState("");
+
+  const { navigateUp, navigateDown, addToHistory } = useInputHistory({
+    value,
+    setValue,
+  });
+
   return (
     <div className="flex gap-2 items-center pt-2">
       {renderText(props.output)}
@@ -226,13 +234,31 @@ const StdInput = (props: {
         type="text"
         autoComplete="off"
         autoFocus={true}
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
         icon={<ChevronRightIcon className="w-5 h-5" />}
         className="m-0 h-8 focus-visible:shadow-xs-solid"
         placeholder="stdin"
-        // Capture the keydown event to prevent default behavior
+        // Capture the keydown event for history navigation and submission
         onKeyDownCapture={(e) => {
+          if (e.key === "ArrowUp") {
+            navigateUp();
+            e.preventDefault();
+            return;
+          }
+
+          if (e.key === "ArrowDown") {
+            navigateDown();
+            e.preventDefault();
+            return;
+          }
+
           if (e.key === "Enter" && !e.shiftKey) {
-            props.onSubmit(e.currentTarget.value);
+            if (value) {
+              addToHistory(value);
+              props.onSubmit(value);
+              setValue("");
+            }
             e.preventDefault();
             e.stopPropagation();
           }

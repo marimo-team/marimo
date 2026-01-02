@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
 import asyncio
@@ -8,15 +8,19 @@ from typing import TYPE_CHECKING
 from marimo import _loggers
 from marimo._ast.cell import CellConfig
 from marimo._dependencies.dependencies import DependencyManager
-from marimo._messaging.ops import KernelCapabilities, KernelReady
+from marimo._messaging.notification import (
+    KernelCapabilitiesNotification,
+    KernelReadyNotification,
+)
 from marimo._plugins.core.web_component import JSONType
-from marimo._server.model import SessionMode
+from marimo._session.model import SessionMode
 from marimo._types.ids import CellId_t
 
 if TYPE_CHECKING:
     from marimo._server.file_router import MarimoFileKey
     from marimo._server.rtc.doc import LoroDocManager
-    from marimo._server.sessions import Session, SessionManager
+    from marimo._server.session_manager import SessionManager
+    from marimo._session import Session
 
 LOGGER = _loggers.marimo_logger()
 
@@ -35,7 +39,8 @@ def build_kernel_ready(
     file_key: MarimoFileKey,
     mode: SessionMode,
     doc_manager: LoroDocManager,
-) -> KernelReady:
+    auto_instantiated: bool = False,
+) -> KernelReadyNotification:
     """Build a KernelReady message.
 
     Args:
@@ -50,6 +55,9 @@ def build_kernel_ready(
         file_key: File key for the session
         mode: Session mode (edit/run)
         doc_manager: LoroDoc manager for RTC
+        auto_instantiated: Whether the kernel has already been instantiated
+            server-side (run mode). If True, the frontend does not need
+            to instantiate the app.
 
     Returns:
         KernelReady message operation.
@@ -60,7 +68,7 @@ def build_kernel_ready(
     if _should_init_rtc(rtc_enabled, mode):
         _try_init_rtc_doc(cell_ids, codes, file_key, doc_manager)
 
-    return KernelReady(
+    return KernelReadyNotification(
         codes=codes,
         names=names,
         configs=configs,
@@ -72,7 +80,8 @@ def build_kernel_ready(
         last_execution_time=last_execution_time,
         app_config=session.app_file_manager.app.config,
         kiosk=kiosk,
-        capabilities=KernelCapabilities(),
+        capabilities=KernelCapabilitiesNotification(),
+        auto_instantiated=auto_instantiated,
     )
 
 

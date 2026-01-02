@@ -1,4 +1,4 @@
-# Copyright 2025 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 """Queue proxy for ZeroMQ sockets."""
 
 from __future__ import annotations
@@ -10,7 +10,7 @@ import typing
 import zmq
 
 from marimo import _loggers
-from marimo._server.types import QueueType
+from marimo._session.queue import QueueType
 
 LOGGER = _loggers.marimo_logger()
 

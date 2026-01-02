@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import { describe, expect, it, vi } from "vitest";
 import { ConnectionSubscriptions } from "../transport";
@@ -12,7 +12,7 @@ describe("ConnectionSubscriptions", () => {
       subscriptions.addSubscription("open", callback);
 
       // Verify by notifying
-      subscriptions.notify("open", new Event("open") as Event);
+      subscriptions.notify("open", new Event("open"));
       expect(callback).toHaveBeenCalledTimes(1);
     });
 
@@ -44,7 +44,7 @@ describe("ConnectionSubscriptions", () => {
       subscriptions.addSubscription("close", closeCallback);
       subscriptions.addSubscription("message", messageCallback);
 
-      subscriptions.notify("open", new Event("open") as Event);
+      subscriptions.notify("open", new Event("open"));
       expect(openCallback).toHaveBeenCalledTimes(1);
       expect(closeCallback).not.toHaveBeenCalled();
       expect(messageCallback).not.toHaveBeenCalled();
@@ -58,7 +58,7 @@ describe("ConnectionSubscriptions", () => {
       subscriptions.addSubscription("close", callback);
       subscriptions.addSubscription("close", callback);
 
-      subscriptions.notify("close", new Event("close") as Event);
+      subscriptions.notify("close", new Event("close"));
 
       // Set only stores unique callbacks, so should be called once
       expect(callback).toHaveBeenCalledTimes(1);
@@ -91,7 +91,7 @@ describe("ConnectionSubscriptions", () => {
 
       subscriptions.removeSubscription("close", callback2);
 
-      subscriptions.notify("close", new Event("close") as Event);
+      subscriptions.notify("close", new Event("close"));
 
       expect(callback1).toHaveBeenCalledTimes(1);
       expect(callback2).not.toHaveBeenCalled();
@@ -108,7 +108,7 @@ describe("ConnectionSubscriptions", () => {
         subscriptions.removeSubscription("close", callback),
       ).not.toThrow();
 
-      subscriptions.notify("open", new Event("open") as Event);
+      subscriptions.notify("open", new Event("open"));
       expect(callback).toHaveBeenCalledTimes(1);
     });
   });
@@ -123,7 +123,7 @@ describe("ConnectionSubscriptions", () => {
       subscriptions.addSubscription("open", callback2);
 
       const openEvent = new Event("open");
-      subscriptions.notify("open", openEvent as Event);
+      subscriptions.notify("open", openEvent);
 
       expect(callback1).toHaveBeenCalledWith(openEvent);
       expect(callback2).toHaveBeenCalledWith(openEvent);
@@ -152,7 +152,7 @@ describe("ConnectionSubscriptions", () => {
       subscriptions.addSubscription("open", openCallback);
       subscriptions.addSubscription("close", closeCallback);
 
-      subscriptions.notify("open", new Event("open") as Event);
+      subscriptions.notify("open", new Event("open"));
 
       expect(openCallback).toHaveBeenCalledTimes(1);
       expect(closeCallback).not.toHaveBeenCalled();
@@ -186,12 +186,12 @@ describe("ConnectionSubscriptions", () => {
 
       subscriptions.addSubscription("open", callback);
 
-      subscriptions.notify("open", new Event("open") as Event);
+      subscriptions.notify("open", new Event("open"));
       expect(callback).toHaveBeenCalledTimes(1);
 
       subscriptions.removeSubscription("open", callback);
 
-      subscriptions.notify("open", new Event("open") as Event);
+      subscriptions.notify("open", new Event("open"));
       expect(callback).toHaveBeenCalledTimes(1);
     });
 
@@ -208,7 +208,7 @@ describe("ConnectionSubscriptions", () => {
       subscriptions.addSubscription("close", closeCallback1);
       subscriptions.addSubscription("message", messageCallback);
 
-      subscriptions.notify("open", new Event("open") as Event);
+      subscriptions.notify("open", new Event("open"));
       expect(openCallback1).toHaveBeenCalledTimes(1);
       expect(openCallback2).toHaveBeenCalledTimes(1);
       expect(closeCallback1).not.toHaveBeenCalled();
@@ -222,7 +222,7 @@ describe("ConnectionSubscriptions", () => {
       expect(messageCallback).toHaveBeenCalledTimes(1);
       expect(messageCallback).toHaveBeenCalledWith(messageEvent);
 
-      subscriptions.notify("close", new Event("close") as Event);
+      subscriptions.notify("close", new Event("close"));
       expect(openCallback1).toHaveBeenCalledTimes(1);
       expect(openCallback2).toHaveBeenCalledTimes(1);
       expect(closeCallback1).toHaveBeenCalledTimes(1);
@@ -266,7 +266,7 @@ describe("ConnectionSubscriptions", () => {
 
       subscriptions.removeSubscription("close", callback);
 
-      subscriptions.notify("open", new Event("open") as Event);
+      subscriptions.notify("open", new Event("open"));
       expect(callback).toHaveBeenCalledTimes(1);
 
       subscriptions.notify(
@@ -275,7 +275,7 @@ describe("ConnectionSubscriptions", () => {
       );
       expect(callback).toHaveBeenCalledTimes(2);
 
-      subscriptions.notify("close", new Event("close") as Event);
+      subscriptions.notify("close", new Event("close"));
       expect(callback).toHaveBeenCalledTimes(2);
     });
   });

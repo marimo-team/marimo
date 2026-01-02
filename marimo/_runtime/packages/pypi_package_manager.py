@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
 import json
@@ -20,10 +20,9 @@ from marimo._runtime.packages.package_manager import (
     PackageDescription,
 )
 from marimo._runtime.packages.utils import split_packages
-from marimo._server.models.packages import DependencyTreeNode
 from marimo._utils.platform import is_pyodide
 from marimo._utils.uv import find_uv_bin
-from marimo._utils.uv_tree import parse_uv_tree
+from marimo._utils.uv_tree import DependencyTreeNode, parse_uv_tree
 
 PY_EXE = sys.executable
 

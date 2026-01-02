@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import { useAppConfig, useResolvedMarimoConfig } from "@/core/config/config";
 import type { AppConfig, UserConfig } from "@/core/config/config-schema";
@@ -11,9 +11,9 @@ export function useConfigActions() {
   const [appConfig, setAppConfig] = useAppConfig();
   const { saveAppConfig, saveUserConfig } = useRequestClient();
 
-  const handleUserConfig = async (values: UserConfig) => {
+  const handleUserConfig = async (values: Partial<UserConfig>) => {
     await saveUserConfig({ config: values }).then(() => {
-      setConfig(values);
+      setConfig((prev) => ({ ...prev, ...values }));
     });
   };
 
@@ -39,7 +39,6 @@ export function useConfigActions() {
       label: "Config > Set theme: dark",
       handle: () => {
         handleUserConfig({
-          ...config,
           display: {
             ...config.display,
             theme: "dark",
@@ -51,7 +50,6 @@ export function useConfigActions() {
       label: "Config > Set theme: light",
       handle: () => {
         handleUserConfig({
-          ...config,
           display: {
             ...config.display,
             theme: "light",
@@ -63,7 +61,6 @@ export function useConfigActions() {
       label: "Config > Set theme: system",
       handle: () => {
         handleUserConfig({
-          ...config,
           display: {
             ...config.display,
             theme: "system",
@@ -76,7 +73,6 @@ export function useConfigActions() {
       hidden: config.keymap.preset === "vim",
       handle: () => {
         handleUserConfig({
-          ...config,
           keymap: {
             ...config.keymap,
             preset: "vim",
@@ -90,7 +86,6 @@ export function useConfigActions() {
       hidden: config.keymap.preset === "default",
       handle: () => {
         handleUserConfig({
-          ...config,
           keymap: {
             ...config.keymap,
             preset: "default",
@@ -102,7 +97,6 @@ export function useConfigActions() {
       label: "Config > Disable GitHub Copilot",
       handle: () => {
         handleUserConfig({
-          ...config,
           completion: {
             ...config.completion,
             copilot: false,
@@ -115,7 +109,6 @@ export function useConfigActions() {
       label: "Config > Enable GitHub Copilot",
       handle: () => {
         handleUserConfig({
-          ...config,
           completion: {
             ...config.completion,
             copilot: "github",
@@ -129,7 +122,6 @@ export function useConfigActions() {
       hidden: !config.display.reference_highlighting,
       handle: () => {
         handleUserConfig({
-          ...config,
           display: {
             ...config.display,
             reference_highlighting: false,
@@ -142,7 +134,6 @@ export function useConfigActions() {
       hidden: config.display.reference_highlighting,
       handle: () => {
         handleUserConfig({
-          ...config,
           display: {
             ...config.display,
             reference_highlighting: true,
@@ -155,7 +146,6 @@ export function useConfigActions() {
       hidden: config.display.cell_output === "above",
       handle: () => {
         handleUserConfig({
-          ...config,
           display: {
             ...config.display,
             cell_output: "above",
@@ -168,7 +158,6 @@ export function useConfigActions() {
       hidden: config.display.cell_output === "below",
       handle: () => {
         handleUserConfig({
-          ...config,
           display: {
             ...config.display,
             cell_output: "below",

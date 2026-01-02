@@ -1,7 +1,17 @@
-# Copyright 2025 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from marimo._server.models.packages import DependencyTreeNode
+from typing import Optional
+
+import msgspec
+
+
+class DependencyTreeNode(msgspec.Struct, rename="camel"):
+    name: str
+    version: Optional[str]
+    # List of {"kind": "extra"|"group", "value": str}
+    tags: list[dict[str, str]]
+    dependencies: list[DependencyTreeNode]
 
 
 def parse_name_version(content: str) -> tuple[str, str | None]:

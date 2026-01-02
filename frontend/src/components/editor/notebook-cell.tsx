@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 import { closeCompletion, completionStatus } from "@codemirror/autocomplete";
 import type { EditorView } from "@codemirror/view";
 import clsx from "clsx";
@@ -588,7 +588,7 @@ const EditableCellComponent = ({
             className={cn(
               className,
               navigationProps.className,
-              "focus:ring-1 focus:ring-(--blue-7) focus:ring-offset-0",
+              "focus:ring-1 focus:ring-(--slate-7) focus:ring-offset-2",
             )}
             ref={cellContainerRef}
             {...cellDomProps(cellId, cellData.name)}

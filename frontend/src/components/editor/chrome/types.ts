@@ -1,14 +1,12 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import {
   ActivityIcon,
   BotIcon,
   BoxIcon,
-  DatabaseIcon,
   DatabaseZapIcon,
   FileTextIcon,
   FolderTreeIcon,
-  FunctionSquareIcon,
   KeyRoundIcon,
   type LucideIcon,
   NetworkIcon,
@@ -17,6 +15,7 @@ import {
   SquareDashedBottomCodeIcon,
   TerminalSquareIcon,
   TextSearchIcon,
+  VariableIcon,
   XCircleIcon,
 } from "lucide-react";
 import { getFeatureFlag } from "@/core/config/feature-flag";
@@ -30,14 +29,16 @@ export type PanelType =
   | "packages"
   | "documentation"
   | "snippets"
-  | "datasources"
   | "ai"
   | "cache";
 
 export interface PanelDescriptor {
   id: PanelType;
   Icon: LucideIcon;
+  /** If true, the panel is completely unavailable */
   hidden?: boolean;
+  /** If true, the panel is available but not shown by default */
+  defaultHidden?: boolean;
   tooltip: string;
   position: "sidebar" | "footer";
 }
@@ -67,14 +68,8 @@ export const PANELS: PanelDescriptor[] = [
   // what that data is.
   {
     id: "variables",
-    Icon: FunctionSquareIcon,
-    tooltip: "Explore variables",
-    position: "sidebar",
-  },
-  {
-    id: "datasources",
-    Icon: DatabaseIcon,
-    tooltip: "Explore data sources",
+    Icon: VariableIcon,
+    tooltip: "Explore variables and data sources",
     position: "sidebar",
   },
   // Every notebook has a package environment that must
@@ -95,12 +90,11 @@ export const PANELS: PanelDescriptor[] = [
     position: "sidebar",
   },
   {
-    // TODO(akshayka): Consider making snippets default
-    // off, user configuration to enable.
     id: "snippets",
     Icon: SquareDashedBottomCodeIcon,
     tooltip: "Snippets",
     position: "sidebar",
+    defaultHidden: true,
   },
   // 3. Nice-to-have observability panels.
   //
