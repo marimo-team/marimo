@@ -19,6 +19,7 @@ from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._utils.inline_script_metadata import (
     PyProjectReader,
+    has_marimo_in_script_metadata,
     is_marimo_dependency,
 )
 from marimo._utils.uv import find_uv_bin
@@ -325,6 +326,37 @@ def construct_uv_command(
     return uv_cmd + cmd
 
 
+def _ensure_marimo_in_script_metadata(name: str | None) -> None:
+    """Ensure marimo is in the script metadata if metadata exists.
+
+    If the file has PEP 723 script metadata but marimo is not listed
+    as a dependency, add it using uv.
+    """
+    if name is None:
+        return
+
+    # Check if script metadata exists and whether marimo is present
+    # Returns: True (has marimo), False (no marimo), None (no metadata)
+    has_marimo = has_marimo_in_script_metadata(name)
+    if has_marimo is not False:
+        # Either marimo is present (True) or no metadata exists (None)
+        return
+
+    # Add marimo to script metadata using uv
+    try:
+        result = subprocess.run(
+            [find_uv_bin(), "add", "--script", name, "marimo"],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        LOGGER.info(f"Added marimo to script metadata: {result.stdout}")
+    except subprocess.CalledProcessError as e:
+        LOGGER.warning(f"Failed to add marimo to script metadata: {e.stderr}")
+    except Exception as e:
+        LOGGER.warning(f"Failed to add marimo to script metadata: {e}")
+
+
 def run_in_sandbox(
     args: list[str],
     *,
@@ -335,6 +367,9 @@ def run_in_sandbox(
     # If we fall back to the plain "uv" path, ensure it's actually on the system
     if find_uv_bin() == "uv" and not DependencyManager.which("uv"):
         raise click.UsageError("uv must be installed to use --sandbox")
+
+    # Ensure marimo is in the script metadata before running
+    _ensure_marimo_in_script_metadata(name)
 
     uv_cmd = construct_uv_command(
         args, name, additional_features or [], additional_deps or []

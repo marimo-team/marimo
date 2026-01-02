@@ -229,3 +229,24 @@ def get_headers_from_frontmatter(
         headers["pyproject"] = pyproject
     headers["header"] = frontmatter.get("header", "")
     return headers
+
+
+def has_marimo_in_script_metadata(filepath: str) -> bool | None:
+    """Check if marimo is in the file's PEP 723 script metadata dependencies.
+
+    Only applies to .py files (PEP 723 standard).
+
+    Returns:
+        True if marimo is in dependencies
+        False if script metadata exists but marimo is not in dependencies
+        None if file has no script metadata or is not a .py file
+    """
+    if not filepath.endswith(".py"):
+        return None
+
+    project = _get_pyproject_from_filename(filepath)
+    if project is None:
+        return None
+
+    dependencies = project.get("dependencies", [])
+    return any(is_marimo_dependency(dep) for dep in dependencies)
