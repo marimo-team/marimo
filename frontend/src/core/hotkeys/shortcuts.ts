@@ -106,8 +106,8 @@ function areKeysPressed(keys: string[], e: IKeyboardEvent): boolean {
 function normalizeKey(key: string): string {
   const specialKeys: { [key: string]: string } = {
     control: "ctrl",
-    command: "meta",
-    cmd: "meta",
+    command: "mod",
+    cmd: "mod",
     option: "alt",
     return: "enter",
   };
@@ -143,4 +143,20 @@ export function resolvePlatform(): Platform {
     return "windows";
   }
   return "linux";
+}
+
+/**
+ * On macOS, duplicate a Cmd-based keybinding to also work with Ctrl.
+ * This allows users to use either Cmd or Ctrl as the modifier key.
+ *
+ * Returns an array with the original binding, plus a Ctrl variant on macOS.
+ * For use with CodeMirror keymap bindings.
+ */
+export function withCtrlEquivalent<T extends { key?: string }>(
+  binding: T,
+): T[] {
+  if (!isPlatformMac() || !binding.key?.includes("Cmd")) {
+    return [binding];
+  }
+  return [binding, { ...binding, key: binding.key.replaceAll("Cmd", "Ctrl") }];
 }

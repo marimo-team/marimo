@@ -21,10 +21,14 @@ describe("parseShortcut", () => {
     expect(shortcut(event)).toBe(true);
   });
 
-  it("should recognize combined Cmd key shortcuts", () => {
+  it("should recognize combined Cmd key shortcuts with meta or ctrl", () => {
     const shortcut = parseShortcut("Cmd-a");
-    const event = new KeyboardEvent("keydown", { key: "a", metaKey: true });
-    expect(shortcut(event)).toBe(true);
+    // Cmd should accept both metaKey and ctrlKey (like Mod)
+    const metaEvent = new KeyboardEvent("keydown", { key: "a", metaKey: true });
+    expect(shortcut(metaEvent)).toBe(true);
+
+    const ctrlEvent = new KeyboardEvent("keydown", { key: "a", ctrlKey: true });
+    expect(shortcut(ctrlEvent)).toBe(true);
   });
 
   it("should recognize Arrow key shortcuts", () => {
