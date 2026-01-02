@@ -4,6 +4,7 @@ import { useAtomValue } from "jotai";
 import {
   Check,
   Code2Icon,
+  CodeIcon,
   FolderDownIcon,
   ImageIcon,
   MoreHorizontalIcon,
@@ -34,12 +35,14 @@ import type { OutputMessage } from "@/core/kernel/messages";
 import { showCodeInRunModeAtom } from "@/core/meta/state";
 import { isErrorMime } from "@/core/mime";
 import { type AppMode, kioskModeAtom } from "@/core/mode";
+import { useRequestClient } from "@/core/network/requests";
 import type { CellConfig } from "@/core/network/types";
 import { downloadAsHTML } from "@/core/static/download-html";
 import { isStaticNotebook } from "@/core/static/static-state";
 import { isWasm } from "@/core/wasm/utils";
 import { cn } from "@/utils/cn";
-import { downloadHTMLAsImage } from "@/utils/download";
+import { downloadBlob, downloadHTMLAsImage } from "@/utils/download";
+import { Filenames } from "@/utils/filenames";
 import { FloatingOutline } from "../../chrome/panels/outline/floating-outline";
 import { cellDomProps } from "../../common";
 import type { ICellRendererPlugin, ICellRendererProps } from "../types";
@@ -175,6 +178,8 @@ const ActionButtons: React.FC<{
   showCode: boolean;
   onToggleShowCode: () => void;
 }> = ({ canShowCode, showCode, onToggleShowCode }) => {
+  const { readCode } = useRequestClient();
+
   const handleDownloadAsPNG = async () => {
     const app = document.getElementById("App");
     if (!app) {
@@ -189,6 +194,14 @@ const ActionButtons: React.FC<{
       return;
     }
     await downloadAsHTML({ filename: document.title, includeCode: true });
+  };
+
+  const handleDownloadAsPython = async () => {
+    const code = await readCode();
+    downloadBlob(
+      new Blob([code.contents], { type: "text/plain" }),
+      Filenames.toPY(document.title),
+    );
   };
 
   const isStatic = isStaticNotebook();
@@ -219,7 +232,24 @@ const ActionButtons: React.FC<{
         <FolderDownIcon className="mr-2" size={14} strokeWidth={1.5} />
         Download as HTML
       </DropdownMenuItem>,
-      <DropdownMenuSeparator key="download-html-separator" />,
+    );
+
+    // Only show download as Python if code is available
+    if (canShowCode) {
+      actions.push(
+        <DropdownMenuItem
+          onSelect={handleDownloadAsPython}
+          data-testid="notebook-action-download-python"
+          key="download-python"
+        >
+          <CodeIcon className="mr-2" size={14} strokeWidth={1.5} />
+          Download as .py
+        </DropdownMenuItem>,
+      );
+    }
+
+    actions.push(
+      <DropdownMenuSeparator key="download-separator" />,
       <DropdownMenuItem
         onSelect={handleDownloadAsPNG}
         data-testid="notebook-action-download-png"

@@ -16,6 +16,7 @@ from marimo._utils.platform import is_windows
 from tests._server.conftest import get_session_manager
 from tests._server.mocks import (
     token_header,
+    with_read_session,
     with_session,
     with_websocket_session,
 )
@@ -71,6 +72,32 @@ def test_read_code(client: TestClient) -> None:
     )
     assert response.status_code == 200, response.text
     assert "import marimo" in response.json()["contents"]
+
+
+@with_read_session(SESSION_ID, include_code=True)
+def test_read_code_in_run_mode_with_include_code(client: TestClient) -> None:
+    """Test read_code works in run mode when include_code=True."""
+    response = client.post(
+        "/api/kernel/read_code",
+        headers=HEADERS,
+        json={},
+    )
+    assert response.status_code == 200, response.text
+    assert "import marimo" in response.json()["contents"]
+
+
+@with_read_session(SESSION_ID, include_code=False)
+def test_read_code_in_run_mode_without_include_code(
+    client: TestClient,
+) -> None:
+    """Test read_code is not accessible in run mode when include_code=False."""
+    response = client.post(
+        "/api/kernel/read_code",
+        headers=HEADERS,
+        json={},
+    )
+    # Should be denied 403 (forbidden)
+    assert response.status_code == 403
 
 
 @pytest.mark.flaky(reruns=5)

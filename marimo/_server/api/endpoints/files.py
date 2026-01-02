@@ -35,7 +35,7 @@ router = APIRouter()
 
 
 @router.post("/read_code")
-@requires("edit")
+@requires("read")
 async def read_code(
     *,
     request: Request,
@@ -50,8 +50,18 @@ async def read_code(
                         $ref: "#/components/schemas/ReadCodeResponse"
         400:
             description: File must be saved before downloading
+        403:
+            description: Code is not available in run mode
     """
     app_state = AppState(request)
+
+    # Check if code should be visible (edit mode or include_code=True)
+    if not app_state.session_manager.should_send_code_to_frontend():
+        raise HTTPException(
+            status_code=HTTPStatus.FORBIDDEN,
+            detail="Code is not available",
+        )
+
     session = app_state.require_current_session()
 
     if not session.app_file_manager.path:

@@ -1696,6 +1696,13 @@ export interface paths {
           };
           content?: never;
         };
+        /** @description Code is not available in run mode */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
       };
     };
     delete?: never;

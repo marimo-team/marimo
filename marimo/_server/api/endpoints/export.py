@@ -24,7 +24,6 @@ from marimo._server.models.export import (
 )
 from marimo._server.models.models import SuccessResponse
 from marimo._server.router import APIRouter
-from marimo._session.model import SessionMode
 from marimo._utils.http import HTTPStatus
 
 if TYPE_CHECKING:
@@ -71,8 +70,8 @@ async def export_as_html(
             detail="File must have a name before exporting",
         )
 
-    # Only include the code and console if we are in edit mode
-    if app_state.mode != SessionMode.EDIT:
+    # Only include the code if allowed (edit mode or include_code=True)
+    if not app_state.session_manager.should_send_code_to_frontend():
         body.include_code = False
 
     html, filename = Exporter().export_as_html(
