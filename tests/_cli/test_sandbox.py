@@ -431,9 +431,7 @@ import marimo
         "marimo._cli.sandbox.DependencyManager.which",
         return_value="/usr/bin/uv",
     ):
-        with patch(
-            "marimo._cli.sandbox.sys.stdin.isatty", return_value=True
-        ):
+        with patch("marimo._cli.sandbox.sys.stdin.isatty", return_value=True):
             with patch("marimo._cli.sandbox.echo") as mock_echo:
                 result = should_run_in_sandbox(
                     sandbox=None,
