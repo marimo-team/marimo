@@ -16,6 +16,7 @@ ai
     google
     groq
     openai
+    pydantic_ai
 app_meta
 as_html
 audio

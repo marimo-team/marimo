@@ -1,7 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Optional, cast
+from typing import cast
 
 from marimo._ai._types import (
     ChatMessage,
@@ -25,7 +25,7 @@ def from_chat_message_dict(d: ChatMessageDict) -> ChatMessage:
 
     # Handle parts
     parts_dict = d.get("parts", None)
-    parts: Optional[list[ChatPart]] = None
+    parts: list[ChatPart] = []
     if parts_dict is not None:
         parts = []
         for part_dict in parts_dict:
@@ -93,4 +93,10 @@ def from_chat_message_dict(d: ChatMessageDict) -> ChatMessage:
                     )
                 )
 
-    return ChatMessage(role=d["role"], content=d["content"], parts=parts)
+    return ChatMessage(
+        id=d.get("id", ""),
+        role=d["role"],
+        content=d["content"],
+        parts=parts,
+        metadata=d.get("metadata"),
+    )

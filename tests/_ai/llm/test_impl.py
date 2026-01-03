@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+from typing import TYPE_CHECKING, Any
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -15,9 +16,13 @@ from marimo._ai.llm._impl import (
     google,
     groq,
     openai,
+    pydantic_ai,
     simple,
 )
 from marimo._dependencies.dependencies import DependencyManager
+
+if TYPE_CHECKING:
+    from pydantic_ai.settings import ModelSettings
 
 
 @pytest.fixture
@@ -1101,3 +1106,533 @@ class TestBedrock:
         assert call_args["top_p"] == pytest.approx(0.9)
         assert call_args["frequency_penalty"] == pytest.approx(0.5)
         assert call_args["presence_penalty"] == pytest.approx(0.5)
+
+
+@pytest.mark.skipif(
+    not DependencyManager.pydantic_ai.has(),
+    reason="Pydantic AI is not installed",
+)
+class TestPydanticAI:
+    """Tests for the pydantic_ai ChatModel class."""
+
+    def test_init(self):
+        """Test initialization of the pydantic_ai class."""
+        mock_agent = MagicMock()
+        model = pydantic_ai(mock_agent)
+        assert model.agent is mock_agent
+
+    def test_get_model_settings_full_config(self):
+        """Test _get_model_settings with all config options."""
+
+        mock_agent = MagicMock()
+        model = pydantic_ai(mock_agent)
+
+        config = ChatModelConfig(
+            max_tokens=100,
+            temperature=0.7,
+            top_p=0.9,
+            frequency_penalty=0.5,
+            presence_penalty=0.3,
+        )
+
+        settings: ModelSettings = model._get_model_settings(config)
+
+        assert settings.get("max_tokens") == 100
+        assert settings.get("temperature") == pytest.approx(0.7)
+        assert settings.get("top_p") == pytest.approx(0.9)
+        assert settings.get("frequency_penalty") == pytest.approx(0.5)
+        assert settings.get("presence_penalty") == pytest.approx(0.3)
+
+    def test_get_model_settings_partial_config(self):
+        """Test _get_model_settings with partial config."""
+        mock_agent = MagicMock()
+        model = pydantic_ai(mock_agent)
+
+        config = ChatModelConfig(
+            max_tokens=200,
+            temperature=0.5,
+        )
+
+        settings: ModelSettings = model._get_model_settings(config)
+
+        assert settings.get("max_tokens") == 200
+        assert settings.get("temperature") == pytest.approx(0.5)
+        assert settings.get("top_p") is None
+        assert settings.get("frequency_penalty") is None
+        assert settings.get("presence_penalty") is None
+
+    def test_get_model_settings_empty_config(self):
+        """Test _get_model_settings with empty config."""
+        mock_agent = MagicMock()
+        model = pydantic_ai(mock_agent)
+
+        config = ChatModelConfig()
+
+        settings: ModelSettings = model._get_model_settings(config)
+
+        assert settings == {}
+
+    def test_build_ui_messages_with_parts(self):
+        """Test _build_ui_messages with messages that have parts."""
+        from pydantic_ai.ui.vercel_ai.request_types import (
+            TextUIPart,
+            UIMessage,
+        )
+
+        mock_agent = MagicMock()
+        model = pydantic_ai(mock_agent)
+
+        messages = [
+            ChatMessage(
+                role="user",
+                content="Hello",
+                id="msg-1",
+                parts=[TextPart(type="text", text="Hello")],
+            ),
+            ChatMessage(
+                role="assistant",
+                content="Hi there",
+                id="msg-2",
+                parts=[TextPart(type="text", text="Hi there")],
+            ),
+        ]
+
+        ui_messages = model._build_ui_messages(messages)
+
+        assert ui_messages == [
+            UIMessage(
+                id="msg-1",
+                role="user",
+                parts=[TextUIPart(type="text", text="Hello")],
+                metadata=None,
+            ),
+            UIMessage(
+                id="msg-2",
+                role="assistant",
+                parts=[TextUIPart(type="text", text="Hi there")],
+                metadata=None,
+            ),
+        ]
+
+    def test_build_ui_messages_without_parts(self):
+        """Test _build_ui_messages falls back to content when no parts."""
+        from pydantic_ai.ui.vercel_ai.request_types import (
+            TextUIPart,
+            UIMessage,
+        )
+
+        mock_agent = MagicMock()
+        model = pydantic_ai(mock_agent)
+
+        messages = [
+            ChatMessage(
+                role="user",
+                content="Hello from content",
+                id="msg-1",
+                parts=None,
+            ),
+        ]
+
+        ui_messages = model._build_ui_messages(messages)
+
+        assert ui_messages == [
+            UIMessage(
+                id="msg-1",
+                role="user",
+                parts=[TextUIPart(type="text", text="Hello from content")],
+                metadata=None,
+            ),
+        ]
+
+    def test_build_ui_messages_with_empty_parts(self):
+        """Test _build_ui_messages falls back to content when parts list is empty."""
+        from pydantic_ai.ui.vercel_ai.request_types import (
+            TextUIPart,
+            UIMessage,
+        )
+
+        mock_agent = MagicMock()
+        model = pydantic_ai(mock_agent)
+
+        messages = [
+            ChatMessage(
+                role="user",
+                content="Hello from content",
+                id="msg-1",
+                parts=[],
+            ),
+        ]
+
+        ui_messages = model._build_ui_messages(messages)
+
+        assert ui_messages == [
+            UIMessage(
+                id="msg-1",
+                role="user",
+                parts=[TextUIPart(type="text", text="Hello from content")],
+                metadata=None,
+            ),
+        ]
+
+    def test_build_ui_messages_with_unknown_parts(self) -> None:
+        """Test _build_ui_messages handles unknown pydantic parts."""
+        from pydantic_ai.ui.vercel_ai.request_types import (
+            DynamicToolInputAvailablePart,
+            UIMessage,
+        )
+
+        mock_agent = MagicMock()
+        model = pydantic_ai(mock_agent)
+
+        dynamic_tool_part = DynamicToolInputAvailablePart(
+            tool_name="tool-name",
+            type="dynamic-tool",
+            tool_call_id="tool-call-id",
+            state="input-available",
+            input={"input": "input"},
+            call_provider_metadata={"provider": {"name": "provider"}},
+        )
+
+        messages = [
+            ChatMessage(
+                role="user",
+                content="Hello",
+                id="msg-1",
+                parts=[dynamic_tool_part],  # type: ignore
+            ),
+        ]
+
+        ui_messages = model._build_ui_messages(messages)
+        assert ui_messages == [
+            UIMessage(
+                id="msg-1",
+                role="user",
+                parts=[dynamic_tool_part],
+                metadata=None,
+            ),
+        ]
+
+    def test_build_ui_messages_with_unknown_dicts(self):
+        """Test _build_ui_messages handles unknown dicts which are actually UIMessageParts."""
+        from pydantic_ai.ui.vercel_ai.request_types import (
+            TextUIPart,
+            UIMessage,
+        )
+
+        mock_agent = MagicMock()
+        model = pydantic_ai(mock_agent)
+
+        messages = [
+            ChatMessage(
+                role="user",
+                content="Hello",
+                id="msg-1",
+                parts=[{"type": "text", "text": "Hello"}],  # type: ignore
+            ),
+        ]
+
+        ui_messages = model._build_ui_messages(messages)
+        assert ui_messages == [
+            UIMessage(
+                id="msg-1",
+                role="user",
+                parts=[TextUIPart(type="text", text="Hello")],
+            ),
+        ]
+
+    def test_build_ui_messages_generates_id_when_missing(self):
+        """Test _build_ui_messages generates ID when message has no id."""
+        mock_agent = MagicMock()
+        model = pydantic_ai(mock_agent)
+
+        messages = [
+            ChatMessage(
+                role="user",
+                content="Hello",
+                id=None,
+                parts=[TextPart(type="text", text="Hello")],
+            ),
+        ]
+
+        ui_messages = model._build_ui_messages(messages)
+
+        assert len(ui_messages) == 1
+        # ID is generated, so just check it starts with "message"
+        assert ui_messages[0].id.startswith("message")
+        assert ui_messages[0].role == "user"
+
+    def test_build_ui_messages_preserves_metadata(self):
+        """Test _build_ui_messages preserves message metadata."""
+        from pydantic_ai.ui.vercel_ai.request_types import (
+            TextUIPart,
+            UIMessage,
+        )
+
+        mock_agent = MagicMock()
+        model = pydantic_ai(mock_agent)
+
+        messages = [
+            ChatMessage(
+                role="user",
+                content="Hello",
+                id="msg-1",
+                parts=[TextPart(type="text", text="Hello")],
+                metadata={"custom_key": "custom_value"},
+            ),
+        ]
+
+        ui_messages = model._build_ui_messages(messages)
+
+        assert ui_messages == [
+            UIMessage(
+                id="msg-1",
+                role="user",
+                parts=[TextUIPart(type="text", text="Hello")],
+                metadata={"custom_key": "custom_value"},
+            ),
+        ]
+
+    async def test_stream_response(self):
+        """Test _stream_response streams Vercel AI events."""
+        from pydantic_ai.ui.vercel_ai.response_types import TextDeltaChunk
+
+        mock_agent = MagicMock()
+        model = pydantic_ai(mock_agent)
+
+        messages = [
+            ChatMessage(
+                role="user",
+                content="Hello",
+                id="msg-1",
+                parts=[TextPart(type="text", text="Hello")],
+            ),
+        ]
+        config = ChatModelConfig(max_tokens=100)
+
+        # Mock the VercelAIAdapter
+        with patch("pydantic_ai.ui.vercel_ai.VercelAIAdapter") as mock_adapter:
+            mock_instance = MagicMock()
+            mock_adapter.return_value = mock_instance
+
+            # Use actual pydantic-ai chunk types that have model_dump
+            async def mock_run_stream(**_kwargs: Any):
+                yield TextDeltaChunk(id="1", type="text-delta", delta="Hello")
+                yield TextDeltaChunk(id="2", type="text-delta", delta=" World")
+
+            mock_instance.run_stream = mock_run_stream
+
+            chunks = []
+            async for chunk in model._stream_response(messages, config):
+                chunks.append(chunk)
+
+            assert chunks == [
+                {"id": "1", "type": "text-delta", "delta": "Hello"},
+                {"id": "2", "type": "text-delta", "delta": " World"},
+            ]
+
+    async def test_stream_text(self):
+        """Test _stream_text streams text from the model."""
+        mock_agent = MagicMock()
+        model = pydantic_ai(mock_agent)
+
+        messages = [
+            ChatMessage(
+                role="user",
+                content="Hello",
+                id="msg-1",
+                parts=[TextPart(type="text", text="Hello")],
+            ),
+        ]
+        config = ChatModelConfig(max_tokens=100)
+
+        # Mock VercelAIAdapter.load_messages
+        with patch("pydantic_ai.ui.vercel_ai.VercelAIAdapter") as mock_adapter:
+            mock_adapter.load_messages.return_value = []
+
+            # Mock the agent's run_stream as an async context manager
+            async def mock_stream_text(delta=True):  # noqa: ARG001
+                yield "Hello"
+                yield " World"
+
+            mock_result = MagicMock()
+            mock_result.stream_text = mock_stream_text
+
+            async def mock_aenter(self: Any):  # noqa: ARG001
+                return mock_result
+
+            async def mock_aexit(self: Any, *args: Any):
+                pass
+
+            mock_context = MagicMock()
+            mock_context.__aenter__ = mock_aenter
+            mock_context.__aexit__ = mock_aexit
+
+            mock_agent.run_stream.return_value = mock_context
+
+            chunks = []
+            async for chunk in model._stream_text(messages, config):
+                chunks.append(chunk)
+
+            assert chunks == ["Hello", " World"]
+
+    def test_call_returns_stream_response(self):
+        """Test that __call__ returns _stream_response result."""
+        mock_agent = MagicMock()
+        model = pydantic_ai(mock_agent)
+
+        messages = [
+            ChatMessage(
+                role="user",
+                content="Hello",
+                id="msg-1",
+                parts=[TextPart(type="text", text="Hello")],
+            ),
+        ]
+        config = ChatModelConfig()
+
+        result = model(messages, config)
+        # Should return an async generator
+        import inspect
+
+        assert inspect.isasyncgen(result)
+
+    @patch(
+        "marimo._dependencies.dependencies.DependencyManager.pydantic_ai.require"
+    )
+    def test_dependency_check(self, mock_require):
+        """Test that the dependency check is performed on init."""
+        mock_agent = MagicMock()
+        pydantic_ai(mock_agent)
+
+        mock_require.assert_called_once_with(
+            "pydantic-ai chat model requires pydantic-ai. `pip install pydantic-ai`"
+        )
+
+    def test_build_ui_messages_with_multiple_roles(self):
+        """Test _build_ui_messages with system, user, and assistant roles."""
+        from pydantic_ai.ui.vercel_ai.request_types import (
+            TextUIPart,
+            UIMessage,
+        )
+
+        mock_agent = MagicMock()
+        model = pydantic_ai(mock_agent)
+
+        messages = [
+            ChatMessage(
+                role="system",
+                content="You are helpful",
+                id="msg-1",
+                parts=[TextPart(type="text", text="You are helpful")],
+            ),
+            ChatMessage(
+                role="user",
+                content="Hello",
+                id="msg-2",
+                parts=[TextPart(type="text", text="Hello")],
+            ),
+            ChatMessage(
+                role="assistant",
+                content="Hi there",
+                id="msg-3",
+                parts=[TextPart(type="text", text="Hi there")],
+            ),
+        ]
+
+        ui_messages = model._build_ui_messages(messages)
+
+        assert ui_messages == [
+            UIMessage(
+                id="msg-1",
+                role="system",
+                parts=[TextUIPart(type="text", text="You are helpful")],
+                metadata=None,
+            ),
+            UIMessage(
+                id="msg-2",
+                role="user",
+                parts=[TextUIPart(type="text", text="Hello")],
+                metadata=None,
+            ),
+            UIMessage(
+                id="msg-3",
+                role="assistant",
+                parts=[TextUIPart(type="text", text="Hi there")],
+                metadata=None,
+            ),
+        ]
+
+    def test_pydantic_ai_serialize_vercel_ai_chunk(self) -> None:
+        """Test _serialize_vercel_ai_chunk with valid chunks."""
+        from pydantic_ai.ui.vercel_ai.response_types import (
+            TextDeltaChunk,
+            ToolInputAvailableChunk,
+        )
+
+        mock_agent = MagicMock()
+        model = pydantic_ai(mock_agent)
+
+        # Test text-delta chunk
+        text_chunk = TextDeltaChunk(id="1", type="text-delta", delta="Hello")
+        result = model._serialize_vercel_ai_chunk(text_chunk)
+        assert result == {"id": "1", "type": "text-delta", "delta": "Hello"}
+
+        # Test tool-call chunk
+        tool_chunk = ToolInputAvailableChunk(
+            tool_name="search",
+            tool_call_id="call-1",
+            input={"query": "test"},
+        )
+        result = model._serialize_vercel_ai_chunk(tool_chunk)
+        assert result == {
+            "type": "tool-input-available",
+            "toolCallId": "call-1",
+            "toolName": "search",
+            "input": {"query": "test"},
+        }
+
+    def test_pydantic_ai_serialize_vercel_ai_chunk_done_type(self) -> None:
+        """Test that 'done' type chunks are skipped."""
+        from pydantic_ai.ui.vercel_ai.response_types import DoneChunk
+
+        mock_agent = MagicMock()
+        model = pydantic_ai(mock_agent)
+
+        # Test done chunk - should return None
+        done_chunk = DoneChunk(type="done")
+        result = model._serialize_vercel_ai_chunk(done_chunk)
+        assert result is None
+
+    def test_pydantic_ai_serialize_vercel_ai_chunk_error_handling(
+        self,
+    ) -> None:
+        """Test error handling in _serialize_vercel_ai_chunk."""
+        from typing import cast
+
+        mock_agent = MagicMock()
+        model = pydantic_ai(mock_agent)
+
+        # Test chunk that raises error - should return None
+        error_chunk = MockBaseChunkWithError()
+        result = model._serialize_vercel_ai_chunk(cast(Any, error_chunk))
+        assert result is None
+
+
+class MockBaseChunkWithError:
+    """Mock BaseChunk that raises on serialization."""
+
+    def model_dump(
+        self, mode: str, by_alias: bool, exclude_none: bool
+    ) -> dict[str, Any]:
+        del mode, by_alias, exclude_none
+        raise ValueError("Serialization error")
+
+
+@pytest.mark.skipif(
+    DependencyManager.pydantic_ai.has(), reason="Pydantic AI is installed"
+)
+def test_pydantic_ai_require() -> None:
+    """Test that pydantic_ai.require raises ModuleNotFoundError."""
+    mock_agent = MagicMock()
+    with pytest.raises(ModuleNotFoundError):
+        pydantic_ai(mock_agent)
