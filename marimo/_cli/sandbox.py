@@ -31,7 +31,7 @@ LOGGER = _loggers.marimo_logger()
 DepFeatures = Literal["lsp", "recommended"]
 
 
-def maybe_prompt_run_in_sandbox(name: str | None) -> bool:
+def maybe_hint_run_in_sandbox(name: str | None) -> bool:
     if GLOBAL_SETTINGS.MANAGE_SCRIPT_METADATA:
         return False
 
@@ -54,17 +54,16 @@ def maybe_prompt_run_in_sandbox(name: str | None) -> bool:
         # default to False
         if not sys.stdin.isatty():
             return False
-
-        return click.confirm(
-            "This notebook has inlined package dependencies.\n"
-            + green(
-                "Run in a sandboxed venv containing this notebook's "
-                "dependencies?",
-                bold=True,
-            ),
-            default=True,
-            err=True,
+        echo(
+            bold(
+                "This notebook has inlined package dependencies, and "
+                "marimo is running it in an isolated virtual environment. "
+                "Pass --no-sandbox to run in the calling interpreter's "
+                "environment instead.",
+            )
         )
+
+        return True
     else:
         echo(
             bold(
@@ -108,10 +107,9 @@ def should_run_in_sandbox(
         )
 
     # When the sandbox flag is omitted we infer whether to
-    # to start in sandbox mode by examining the notebook file and
-    # prompting the user.
+    # to start in sandbox mode by examining the notebook file
     if sandbox is None:
-        sandbox = maybe_prompt_run_in_sandbox(name)
+        sandbox = maybe_hint_run_in_sandbox(name)
 
     # Validation: we don't yet support multi-notebook sandboxed servers.
     if (

@@ -177,9 +177,9 @@ def html(
 
     # Set default, if not provided
     if sandbox is None:
-        from marimo._cli.sandbox import maybe_prompt_run_in_sandbox
+        from marimo._cli.sandbox import maybe_hint_run_in_sandbox
 
-        sandbox = maybe_prompt_run_in_sandbox(name)
+        sandbox = maybe_hint_run_in_sandbox(name)
 
     if sandbox:
         from marimo._cli.sandbox import run_in_sandbox
@@ -264,9 +264,9 @@ def script(
 
     # Set default, if not provided
     if sandbox is None:
-        from marimo._cli.sandbox import maybe_prompt_run_in_sandbox
+        from marimo._cli.sandbox import maybe_hint_run_in_sandbox
 
-        sandbox = maybe_prompt_run_in_sandbox(name)
+        sandbox = maybe_hint_run_in_sandbox(name)
 
     if sandbox:
         from marimo._cli.sandbox import run_in_sandbox
@@ -342,9 +342,9 @@ def md(
 
     # Set default, if not provided
     if sandbox is None:
-        from marimo._cli.sandbox import maybe_prompt_run_in_sandbox
+        from marimo._cli.sandbox import maybe_hint_run_in_sandbox
 
-        sandbox = maybe_prompt_run_in_sandbox(name)
+        sandbox = maybe_hint_run_in_sandbox(name)
 
     if sandbox:
         from marimo._cli.sandbox import run_in_sandbox
@@ -442,10 +442,10 @@ def ipynb(
 
     if include_outputs:
         # Set default, if not provided
-        from marimo._cli.sandbox import maybe_prompt_run_in_sandbox
+        from marimo._cli.sandbox import maybe_hint_run_in_sandbox
 
         if sandbox is None:
-            sandbox = maybe_prompt_run_in_sandbox(name)
+            sandbox = maybe_hint_run_in_sandbox(name)
 
         if sandbox:
             from marimo._cli.sandbox import run_in_sandbox
@@ -572,9 +572,9 @@ def html_wasm(
 
     # Set default, if not provided
     if sandbox is None:
-        from marimo._cli.sandbox import maybe_prompt_run_in_sandbox
+        from marimo._cli.sandbox import maybe_hint_run_in_sandbox
 
-        sandbox = maybe_prompt_run_in_sandbox(name)
+        sandbox = maybe_hint_run_in_sandbox(name)
 
     if sandbox:
         from marimo._cli.sandbox import run_in_sandbox
