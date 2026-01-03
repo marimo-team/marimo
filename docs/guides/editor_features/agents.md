@@ -61,6 +61,35 @@ See login and authentication instructions in the [Gemini CLI documentation](http
     npx stdio-to-ws "cmd /c npx @google/gemini-cli --experimental-acp" --port 3019
     ```
 
+### Codex Agent
+
+OpenAI's Codex agent uses [Codex CLI](https://github.com/openai/codex) via the [`@zed-industries/codex-acp`](https://github.com/zed-industries/codex-acp) adapter.
+
+**Installation and login:**
+
+```bash
+# Install Codex CLI
+npm install -g @openai/codex
+# or: brew install --cask codex
+
+# Login (or set OPENAI_API_KEY / CODEX_API_KEY)
+codex
+```
+
+**Connection command:**
+
+=== "macOS/Linux"
+
+    ```bash
+    npx stdio-to-ws "npx @zed-industries/codex-acp" --port 3021
+    ```
+
+=== "Windows"
+
+    ```bash
+    npx stdio-to-ws "cmd /c npx @zed-industries/codex-acp" --port 3021
+    ```
+
 ## Connecting to an agent
 
 1. **Start the agent server**: Run the connection command for your chosen agent in a terminal
