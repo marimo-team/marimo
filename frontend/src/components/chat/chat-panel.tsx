@@ -4,12 +4,7 @@ import type { UIMessage } from "@ai-sdk/react";
 import { useChat } from "@ai-sdk/react";
 import { storePrompt } from "@marimo-team/codemirror-ai";
 import type { ReactCodeMirrorRef } from "@uiw/react-codemirror";
-import {
-  DefaultChatTransport,
-  type FileUIPart,
-  type TextUIPart,
-  type ToolUIPart,
-} from "ai";
+import { DefaultChatTransport, type FileUIPart, type TextUIPart } from "ai";
 import { useAtom, useAtomValue, useSetAtom, useStore } from "jotai";
 import {
   AtSignIcon,
@@ -141,10 +136,6 @@ interface ChatMessageProps {
   onEdit: (index: number, newValue: string) => void;
   isStreamingReasoning: boolean;
   isLast: boolean;
-}
-
-function isToolPart(part: UIMessage["parts"][number]): part is ToolUIPart {
-  return part.type.startsWith("tool-");
 }
 
 const ChatMessageDisplay: React.FC<ChatMessageProps> = memo(

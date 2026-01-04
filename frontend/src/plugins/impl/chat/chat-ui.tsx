@@ -81,6 +81,10 @@ export const Chatbot: React.FC<Props> = (props) => {
   const codeMirrorInputRef = useRef<ReactCodeMirrorRef>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
+  // Use a ref to avoid stale closure in the fetch callback
+  const configRef = useRef<ChatConfig>(config);
+  configRef.current = config;
+
   // Track streaming state - maps backend message_id to frontend message index
   const streamingStateRef = useRef<{
     backendMessageId: string | null;
@@ -125,12 +129,12 @@ export const Chatbot: React.FC<Props> = (props) => {
         };
 
         const chatConfig: ChatConfig = {
-          max_tokens: config.max_tokens,
-          temperature: config.temperature,
-          top_p: config.top_p,
-          top_k: config.top_k,
-          frequency_penalty: config.frequency_penalty,
-          presence_penalty: config.presence_penalty,
+          max_tokens: configRef.current.max_tokens,
+          temperature: configRef.current.temperature,
+          top_p: configRef.current.top_p,
+          top_k: configRef.current.top_k,
+          frequency_penalty: configRef.current.frequency_penalty,
+          presence_penalty: configRef.current.presence_penalty,
         };
 
         try {
@@ -688,10 +692,19 @@ const ConfigPopup: React.FC<{
   const [localConfig, setLocalConfig] = useState<ChatConfig>(config);
   const [open, setOpen] = useState(false);
 
-  const handleChange = (key: keyof ChatConfig, value: number) => {
-    const { min, max } = configDescriptions[key];
-    const clampedValue = Math.max(min, Math.min(max, value));
-    const newConfig = { ...localConfig, [key]: clampedValue };
+  const handleChange = (key: keyof ChatConfig, value: number | null) => {
+    // NaN represents an empty field, treat as null
+    const normalizedValue =
+      value === null || Number.isNaN(value) ? null : value;
+    let finalValue: number | null = normalizedValue;
+
+    if (finalValue !== null) {
+      const { min, max } = configDescriptions[key];
+      const clampedValue = Math.max(min, Math.min(max, finalValue));
+      finalValue = clampedValue;
+    }
+
+    const newConfig = { ...localConfig, [key]: finalValue };
     setLocalConfig(newConfig);
     onChange(newConfig);
   };
@@ -710,7 +723,7 @@ const ConfigPopup: React.FC<{
           <Button
             variant="outline"
             size="sm"
-            className="border-none shadow-initial"
+            className="border-none shadow-none hover:bg-transparent"
           >
             <SettingsIcon className="h-3 w-3" />
           </Button>
@@ -744,7 +757,9 @@ const ConfigPopup: React.FC<{
               </Label>
               <NumberField
                 id={key}
-                value={value}
+                aria-label={key}
+                value={value ?? Number.NaN}
+                placeholder={"null"}
                 minValue={configDescriptions[key].min}
                 maxValue={configDescriptions[key].max}
                 step={configDescriptions[key].step ?? 1}
@@ -788,9 +803,9 @@ const PromptsPopover: React.FC<{
               <Button
                 variant="outline"
                 size="sm"
-                className="border-none shadow-initial"
+                className="border-none shadow-none hover:bg-transparent"
               >
-                <ChatBubbleIcon className="h-3 w-3 mx-1" />
+                <ChatBubbleIcon className="h-3 w-3" />
               </Button>
             </DropdownMenuTrigger>
           </Tooltip>
