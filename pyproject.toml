@@ -578,6 +578,9 @@ pre_commit = ">=4.2.0,<5"
 uv = ">=0.6.12,<0.7"
 python = "3.12.*"
 pip = ">=25.0.1,<26"
+polars = ">=1.36.1,<2"
+pandas = ">=2.3.3,<3"
+ibis-framework = ">=11.0.0,<12"
 
 [tool.pixi.pypi-dependencies]
 marimo = {path = ".", editable = true}

@@ -17,6 +17,7 @@ import {
   PlusIcon,
   ShuffleIcon,
   SquareMousePointerIcon,
+  Table2Icon,
   Trash2Icon,
 } from "lucide-react";
 import React, {
@@ -394,4 +395,5 @@ const ICONS: Record<TransformType["type"], React.FC<{ className?: string }>> = {
   explode_columns: BracketsIcon,
   expand_dict: FileJsonIcon,
   unique: CopySlashIcon,
+  pivot: Table2Icon,
 };
