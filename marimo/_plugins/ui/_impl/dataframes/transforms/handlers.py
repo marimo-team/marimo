@@ -379,12 +379,12 @@ class NarwhalsTransformHandler(TransformHandler[DataFrame]):
         # pivot results are also highly inconsistent across backends, so we standardize the output here
 
         if not transform.index_column_ids and not transform.value_column_ids:
-            raise ValueError(
+            raise nw.exceptions.InvalidOperationError(
                 "Pivot transform requires at least one index column and or value column."
             )
 
+        columns = df.collect_schema().names()
         if not transform.index_column_ids:
-            columns = df.columns
             index_columns = list(
                 filter(
                     lambda col: col not in transform.column_ids
@@ -396,11 +396,6 @@ class NarwhalsTransformHandler(TransformHandler[DataFrame]):
             index_columns = transform.index_column_ids
 
         if not transform.value_column_ids:
-            columns = [
-                col
-                for col, col_type in df.collect_schema().items()
-                if col_type.is_numeric()
-            ]
             value_columns = list(
                 filter(
                     lambda col: col not in transform.column_ids
@@ -456,6 +451,8 @@ class NarwhalsTransformHandler(TransformHandler[DataFrame]):
         result = df.select(*index_columns).unique()
         for df_ in dfs:
             result = result.join(df_, on=index_columns, how="left")
+        # if transform.aggregation in {'count', 'sum'}:
+        #     result = result.select(nw.all().fill_null(0))
         return result.sort(by=index_columns)
 
     @staticmethod

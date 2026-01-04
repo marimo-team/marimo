@@ -30,6 +30,7 @@ from marimo._plugins.ui._impl.dataframes.transforms.types import (
     ExplodeColumnsTransform,
     FilterRowsTransform,
     GroupByTransform,
+    PivotTransform,
     RenameColumnTransform,
     SampleRowsTransform,
     SelectColumnsTransform,
@@ -75,10 +76,14 @@ def create_transform_strategy(
     list_column_id: Optional[st.SearchStrategy[str | int] | None] = None,
     df_size: int = 3,
 ) -> st.SearchStrategy[Transform]:
-    column_ids = st.lists(column_id, min_size=1)
+    column_ids = st.lists(column_id, min_size=1, unique=True)
     aggregation_column_ids = st.one_of(
         st.just([]),
-        st.lists(column_id, min_size=1),
+        st.lists(column_id, min_size=1, unique=True),
+    )
+    index_column_ids = st.one_of(
+        st.just([]),
+        st.lists(column_id, min_size=1, unique=True),
     )
 
     if string_column_id is None:
@@ -220,6 +225,15 @@ def create_transform_strategy(
         column_id=column_id,
     )
 
+    pivot_transform_strategy = st.builds(
+        PivotTransform,
+        type=st.just(TransformType.PIVOT),
+        column_ids=column_ids,
+        index_column_ids=index_column_ids,
+        aggregation=aggregation,
+        value_column_ids=aggregation_column_ids,
+    )
+
     # Combine all transform strategies
     transform_strategy = st.one_of(
         column_conversion_transform_strategy,
@@ -233,6 +247,7 @@ def create_transform_strategy(
         sample_rows_transform_strategy,
         explode_columns_transform_strategy,
         expand_dict_transform_strategy,
+        pivot_transform_strategy,
     )
 
     return transform_strategy
@@ -368,9 +383,40 @@ def test_print_code_result_matches_actual_transform_pandas(
         assume(transform.aggregation != "mean")
         assume("dict" not in transform.aggregation_column_ids)
 
-    # Ignore pivot mean
     if transform.type == TransformType.PIVOT:
-        assume(transform.aggregation != "mean")
+        assume(
+            (
+                set(transform.column_ids) & set(transform.index_column_ids)
+                == set()
+            )
+            and (
+                set(transform.column_ids) & set(transform.value_column_ids)
+                == set()
+            )
+            and (
+                set(transform.index_column_ids)
+                & set(transform.value_column_ids)
+                == set()
+            )
+        )
+        assume(
+            not any(
+                column_id in {"lists", "dicts", "datetimes"}
+                for column_id in transform.column_ids
+            )
+        )
+        assume(
+            not any(
+                column_id in {"lists", "dicts", "datetimes"}
+                for column_id in transform.index_column_ids
+            )
+        )
+        assume(
+            not any(
+                column_id in {"lists", "dicts", "datetimes"}
+                for column_id in transform.value_column_ids
+            )
+        )
 
     # Pandas
     pandas_code = python_print_transforms(
@@ -427,6 +473,11 @@ def test_print_code_result_matches_actual_transform_pandas(
             code_result = code_result.to_frame()
         if isinstance(real_result, pd.Series):
             real_result = real_result.to_frame()
+
+        # For pivot transform the column order can be different, enforce column order by sorting.
+        if transform.type == TransformType.PIVOT:
+            code_result = code_result.loc[:, list(sorted(code_result.columns))]
+            real_result = real_result.loc[:, list(sorted(real_result.columns))]
 
         code_result = cast(pd.DataFrame, code_result).reset_index(drop=True)
         real_result = real_result.reset_index(drop=True)
@@ -521,6 +572,40 @@ def test_print_code_result_matches_actual_transform_polars(
     # TODO: unimplemented
     if transform.type == TransformType.AGGREGATE:
         assume(False)
+    if transform.type == TransformType.PIVOT:
+        assume(
+            (
+                set(transform.column_ids) & set(transform.index_column_ids)
+                == set()
+            )
+            and (
+                set(transform.column_ids) & set(transform.value_column_ids)
+                == set()
+            )
+            and (
+                set(transform.index_column_ids)
+                & set(transform.value_column_ids)
+                == set()
+            )
+        )
+        assume(
+            not any(
+                column_id in {"lists", "dicts", "datetimes"}
+                for column_id in transform.column_ids
+            )
+        )
+        assume(
+            not any(
+                column_id in {"lists", "dicts", "datetimes"}
+                for column_id in transform.index_column_ids
+            )
+        )
+        assume(
+            not any(
+                column_id in {"lists", "dicts", "datetimes"}
+                for column_id in transform.value_column_ids
+            )
+        )
 
     # Polars
     polars_code = python_print_transforms(
@@ -580,6 +665,16 @@ def test_print_code_result_matches_actual_transform_polars(
             code_result = code_result.to_frame()
         if isinstance(real_result, pl.Series):
             real_result = real_result.to_frame()
+
+        # For pivot transform the column order can be different, enforce column order by sorting.
+        if transform.type == TransformType.PIVOT:
+            code_result = code_result.select(
+                *sorted(code_result.collect_schema().names())
+            )
+            real_result = real_result.select(
+                *sorted(real_result.collect_schema().names())
+            )
+
         code_result = cast(pl.DataFrame, code_result)
         # Compare column names
         assert code_result.columns == real_result.columns

@@ -1359,12 +1359,6 @@ class TestTransformHandler:
                             "one",
                             "two",
                         ],
-                        "C": [
-                            "small",
-                            "large",
-                            "large",
-                            "small",
-                        ],
                         "D": [1, 2, 3, 4],
                     }
                 ),
