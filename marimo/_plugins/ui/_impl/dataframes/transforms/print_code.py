@@ -426,7 +426,7 @@ def python_print_polars(
 
     elif transform.type == TransformType.PIVOT:
         if not transform.index_column_ids:
-            index_columns = _list_of_strings(
+            index_column_ids = _list_of_strings(
                 list(
                     filter(
                         lambda col: col not in transform.column_ids
@@ -436,10 +436,10 @@ def python_print_polars(
                 )
             )
         else:
-            index_columns = _list_of_strings(transform.index_column_ids)
+            index_column_ids = _list_of_strings(transform.index_column_ids)
 
         if not transform.value_column_ids:
-            value_columns = _list_of_strings(
+            value_column_ids = _list_of_strings(
                 list(
                     filter(
                         lambda col: col not in transform.column_ids
@@ -449,12 +449,12 @@ def python_print_polars(
                 )
             )
         else:
-            value_columns = _list_of_strings(transform.value_column_ids)
+            value_column_ids = _list_of_strings(transform.value_column_ids)
 
         args = _args_list(
             f"on={_list_of_strings(transform.column_ids)}",
-            f"index={index_columns}",
-            f"values={value_columns}",
+            f"index={index_column_ids}",
+            f"values={value_column_ids}",
             f"aggregate_function={_as_literal(transform.aggregation) if transform.aggregation != 'count' else _as_literal('len')}",
         )
         fill_null_code = (
@@ -463,13 +463,13 @@ def python_print_polars(
             else ""
         )  # noqa: E501
         pivot_code = (
-            f"{df_name}{fill_null_code}.pivot({args}).sort(by={index_columns})"  # noqa: E501
+            f"{df_name}{fill_null_code}.pivot({args}).sort(by={index_column_ids})"  # noqa: E501
         )
         lambda_code = (
             f'lambda col,replacements=replacements: f"{transform.value_column_ids[0]}_{{col.translate(replacements)}}_{transform.aggregation}"'  # noqa: E501
             if len(transform.value_column_ids) == 1
             else f"lambda col, replacements=replacements: f'{{col.translate(replacements)}}_{transform.aggregation}'"
-        ) + f" if col not in {index_columns} else col"
+        ) + f" if col not in {index_column_ids} else col"
         rename_code = (
             'replacements = str.maketrans({"{": "", "}": "", \'"\': "", ",": "_"})\n'
             f"{df_name} = {df_name}.rename({lambda_code})"
@@ -607,9 +607,33 @@ def python_print_ibis(
         return f"{df_name}.distinct(on={_list_of_strings(column_ids)}, keep={_as_literal(transform.keep)})"  # noqa: E501
 
     elif transform.type == TransformType.PIVOT:
+        if not transform.index_column_ids:
+            index_column_ids = _list_of_strings(
+                list(
+                    filter(
+                        lambda col: col not in transform.column_ids
+                        and col not in transform.value_column_ids,
+                        all_columns,
+                    )
+                )
+            )
+        else:
+            index_column_ids = _list_of_strings(transform.index_column_ids)
+
+        if not transform.value_column_ids:
+            value_column_ids = _list_of_strings(
+                list(
+                    filter(
+                        lambda col: col not in transform.column_ids
+                        and col not in transform.index_column_ids,
+                        all_columns,
+                    )
+                )
+            )
+        else:
+            value_column_ids = _list_of_strings(transform.value_column_ids)
+
         column_ids = transform.column_ids
-        index_column_ids = transform.index_column_ids
-        value_column_ids = transform.value_column_ids
         agg_func = transform.aggregation
 
         pivot_code = (
