@@ -176,9 +176,9 @@ dependencies = [
     # Types for mypy
     "altair>=5.4.0",
     "leafmap~=0.39.2",
-    "panel~=1.5.3",
-    "polars~=1.9.0",
-    "duckdb<=1.3.0", # 1.4.0 does not typecheck
+    "panel>=1.5.3",
+    "polars>=1.9.0",
+    "duckdb>=1.0.0",
     "narwhals>=2.0.0",
     "matplotlib>=3.8.0",
     "sqlglot[rs]>=26.2.0",
@@ -191,12 +191,12 @@ dependencies = [
     "litellm>=1.70.0",
     "python-dotenv>=1.0.1",
     "jupytext>=1.17.2",
-    "types-Pillow~=10.2.0.20240520",
-    "types-Pygments~=2.18.0.20240506",
-    "types-psutil~=5.9.5.20240516",
-    "types-redis~=4.6.0.20241004",
-    "types-Markdown~=3.6.0.20240316",
-    "types-PyYAML~=6.0.12.20240808",
+    "types-Pillow>=10.2.0.20240520",
+    "types-Pygments>=2.18.0.20240506",
+    "types-psutil>=5.9.5.20240516",
+    "types-redis>=4.6.0.20241004",
+    "types-Markdown>=3.6.0.20240316",
+    "types-PyYAML>=6.0.12.20240808",
     "mcp>=1.0.0",
     # zeromq
     "pyzmq>=27.1.0",
@@ -252,8 +252,7 @@ extra-dependencies = [
     "hvplot~=0.11.3",
     # Causes issues installing `shapely` (v2.0.7)
     # "geopandas~=1.0.1",
-    # FOr testing sql
-    "duckdb<=1.3.0", # 1.4.0 does pass
+    "duckdb>=1.0.0",
     "ibis-framework[duckdb]>=10.3.0",
     # For testing mo.image
     "pillow~=10.4.0",

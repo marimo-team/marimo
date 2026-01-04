@@ -24,6 +24,7 @@ from marimo._ast.cell import (
     SourcePosition,
 )
 from marimo._ast.names import SETUP_CELL_NAME, TOPLEVEL_CELL_PREFIX
+from marimo._ast.pytest import has_fixture_decorator
 from marimo._ast.transformers import ContainedExtractWithBlock
 from marimo._ast.variables import is_local
 from marimo._ast.visitor import ImportData, Name, ScopedVisitor
@@ -101,7 +102,7 @@ def ends_with_semicolon(code: str) -> bool:
 
 
 def contains_only_tests(tree: ast.Module) -> bool:
-    """Returns True if the module contains only test functions."""
+    """Returns True if the module contains only test functions or fixtures."""
     scope = tree.body
     for node in scope:
         if isinstance(node, ast.Return):
@@ -110,7 +111,9 @@ def contains_only_tests(tree: ast.Module) -> bool:
             node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)
         ):
             return False
-        if not node.name.lower().startswith("test"):
+        if not node.name.lower().startswith(
+            "test"
+        ) and not has_fixture_decorator(node):
             return False
     return bool(scope)
 

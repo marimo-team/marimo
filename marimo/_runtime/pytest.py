@@ -74,9 +74,14 @@ def _sub_function(
         return old_item
 
     import pytest  # type: ignore
+    from _pytest.fixtures import FuncFixtureInfo  # type: ignore
+
+    fixtureinfo = old_item._fixtureinfo
+    param_names: set[str] = set()
 
     if hasattr(old_item, "callspec") and old_item.callspec:
         params: dict[str, Any] = old_item.callspec.params
+        param_names = set(params.keys())
 
         def make_test_func(
             func_JYWB: Callable[..., Any], param_dict: dict[str, Any]
@@ -85,8 +90,8 @@ def _sub_function(
             # removal.
             # Also no functools.wraps(func) because we need the empty
             # call signature
-            def test_wrapper() -> Any:
-                return func_JYWB(**param_dict)
+            def test_wrapper(*args: Any, **kwargs: Any) -> Any:
+                return func_JYWB(*args, **kwargs, **param_dict)
 
             # but copy attributes from the original function
             test_wrapper.__name__ = func_JYWB.__name__
@@ -94,7 +99,31 @@ def _sub_function(
             return test_wrapper
 
         fn = make_test_func(fn, params)
-    pyfn = pytest.Function.from_parent(parent, name=old_item.name, callobj=fn)
+
+        # Filter out parametrized args from fixtureinfo since they're baked in
+        fixtureinfo = FuncFixtureInfo(
+            argnames=tuple(
+                a for a in fixtureinfo.argnames if a not in param_names
+            ),
+            initialnames=tuple(
+                a for a in fixtureinfo.initialnames if a not in param_names
+            ),
+            names_closure=[
+                a for a in fixtureinfo.names_closure if a not in param_names
+            ],
+            name2fixturedefs={
+                k: v
+                for k, v in fixtureinfo.name2fixturedefs.items()
+                if k not in param_names
+            },
+        )
+
+    pyfn = pytest.Function.from_parent(
+        parent,
+        name=old_item.name,
+        callobj=fn,
+        fixtureinfo=fixtureinfo,  # Preserve fixture metadata (minus params)
+    )
     # Attributes that need to be carried over.
     for attr in ["keywords", "own_markers"]:
         if hasattr(old_item, attr):
@@ -120,7 +149,9 @@ class ReplaceStubPlugin:
         self.defs = defs
         self._result = MarimoPytestResult()
 
-    def pytest_collection_modifyitems(self, items: list[Any]) -> None:
+    def pytest_collection_modifyitems(
+        self, items: list[Any], session: Any
+    ) -> None:
         """Provided pytest has statically collected all the relevant tests:
         - Filter based on the expected defs of the cell context.
         - Sub in the function references in scope opposed to the pytest
@@ -130,16 +161,58 @@ class ReplaceStubPlugin:
         # So don't import at the top level.
         import _pytest  # type: ignore
 
+        def is_fixture(obj: Any) -> bool:
+            """Check if object is a pytest fixture."""
+            return callable(obj) and hasattr(obj, "_pytestfixturefunction")
+
+        # Register cell-scoped fixtures before processing items
+        # Use names_closure (transitive deps) instead of just argnames
+        # to handle fixture dependency chains
+        fm = session._fixturemanager
+        registered_fixtures: set[str] = set()
+        for item in items:
+            if hasattr(item, "_fixtureinfo"):
+                for argname in item._fixtureinfo.names_closure:
+                    if (
+                        argname not in registered_fixtures
+                        and argname in self.lcls
+                        and is_fixture(self.lcls[argname])
+                    ):
+                        obj = self.lcls[argname]
+                        marker = obj._pytestfixturefunction
+                        fm._register_fixture(
+                            name=argname,
+                            func=obj,
+                            nodeid="",  # Global visibility
+                            scope=marker.scope,
+                            params=marker.params,
+                            ids=marker.ids,
+                            autouse=marker.autouse,
+                        )
+                        registered_fixtures.add(argname)
+
         to_collect = []
         # Filter tests, and create new "Functions" with the relevant references
         # where needed.
-        for i, item in enumerate(items):
+        for item in items:
             head: Any = item
             path: list[str] = []
 
             while isinstance(head.parent.parent, _pytest.python.Class):
                 path.append(head.name)
                 head = head.parent
+
+            # Handle @app.class_definition classes (not wrapped in stub class)
+            # Check if head is a Function directly inside a Class whose name is in defs
+            if isinstance(head, _pytest.python.Function) and isinstance(
+                head.parent, _pytest.python.Class
+            ):
+                parent_name = getattr(
+                    head.parent, "originalname", head.parent.name
+                )
+                if parent_name in self.defs:
+                    path.append(head.name)
+                    head = head.parent
 
             # For test name, helps keep names relative to the root.
             parent: Any = item.parent
@@ -148,12 +221,12 @@ class ReplaceStubPlugin:
 
             name: str = getattr(head, "originalname", head.name)
             if name in self.defs:
-                obj: Any = self.lcls[name]
+                value: Any = self.lcls[name]
                 for attr in reversed(path):
-                    if isinstance(obj, type):
-                        obj = obj()
-                    obj = getattr(obj, attr)
-                to_collect.append(_sub_function(items[i], parent, obj))
+                    if isinstance(value, type):
+                        value = value()
+                    value = getattr(value, attr)
+                to_collect.append(_sub_function(item, parent, value))
         items[:] = to_collect
 
     def pytest_terminal_summary(self, terminalreporter: Any) -> None:
@@ -225,7 +298,10 @@ class ReplaceStubPlugin:
                     report.longrepr.reprtraceback.reprentries[1:]
                 )
             for entry in report.longrepr.reprtraceback.reprentries:
-                entry.reprfileloc.path = _to_marimo_uri(entry.reprfileloc.path)
+                if entry.reprfileloc is not None:
+                    entry.reprfileloc.path = _to_marimo_uri(
+                        entry.reprfileloc.path
+                    )
 
 
 def run_pytest(
