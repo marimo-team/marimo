@@ -14,7 +14,7 @@ export const AttachmentRenderer = ({
     return (
       <img
         src={attachment.url}
-        alt={attachment.filename}
+        alt={attachment.filename || "Attachment"}
         className="max-h-[100px] max-w-[100px] object-contain mb-1.5"
       />
     );
@@ -23,7 +23,7 @@ export const AttachmentRenderer = ({
   return (
     <div className="flex flex-row gap-1 items-center text-xs">
       <FileIcon className="h-3 w-3 mt-0.5" />
-      {attachment.filename}
+      {attachment.filename || "Attachment"}
     </div>
   );
 };

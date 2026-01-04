@@ -29,12 +29,12 @@ const messageSchema = z.array(
 );
 
 const configSchema = z.object({
-  max_tokens: z.number(),
-  temperature: z.number(),
-  top_p: z.number(),
-  top_k: z.number(),
-  frequency_penalty: z.number(),
-  presence_penalty: z.number(),
+  max_tokens: z.number().nullable(),
+  temperature: z.number().nullable(),
+  top_p: z.number().nullable(),
+  top_k: z.number().nullable(),
+  frequency_penalty: z.number().nullable(),
+  presence_penalty: z.number().nullable(),
 });
 
 export const ChatPlugin = createPlugin<{ messages: UIMessage[] }>(
