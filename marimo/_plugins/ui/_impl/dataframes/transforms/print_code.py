@@ -462,9 +462,7 @@ def python_print_polars(
             if transform.aggregation in ["count", "sum"]
             else ""
         )  # noqa: E501
-        pivot_code = (
-            f"{df_name}{fill_null_code}.pivot({args}).sort(by={index_column_ids})"  # noqa: E501
-        )
+        pivot_code = f"{df_name}{fill_null_code}.pivot({args}).sort(by={index_column_ids})"  # noqa: E501
         lambda_code = (
             f'lambda col,replacements=replacements: f"{transform.value_column_ids[0]}_{{col.translate(replacements)}}_{transform.aggregation}"'  # noqa: E501
             if len(transform.value_column_ids) == 1

@@ -207,7 +207,7 @@ const PivotTransformSchema = z
     value_column_ids: z
       .array(column_id.describe(FieldOptions.of({ special: "column_id" })))
       .default([])
-      .describe(FieldOptions.of({ label: "Values" , minLength: 1 })),
+      .describe(FieldOptions.of({ label: "Values", minLength: 1 })),
     aggregation: z
       .enum(AGGREGATION_FNS)
       .default("sum")
