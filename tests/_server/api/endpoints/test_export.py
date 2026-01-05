@@ -116,12 +116,38 @@ def test_export_html_file_not_found(client: TestClient) -> None:
     assert "<marimo-code hidden=" in response.text
 
 
-# Read session forces empty code
-@with_read_session(SESSION_ID)
-def test_export_html_no_code_in_read(client: TestClient) -> None:
+# Read session with include_code=True allows code to be included
+@with_read_session(SESSION_ID, include_code=True)
+def test_export_html_with_code_in_read_with_include_code(
+    client: TestClient,
+) -> None:
+    """Test that HTML export includes code in run mode when include_code=True."""
     session = get_session_manager(client).get_session(SESSION_ID)
     assert session
     session.app_file_manager.filename = "test.py"
+    response = client.post(
+        "/api/export/html",
+        headers=HEADERS,
+        json={
+            "download": False,
+            "files": [],
+            "includeCode": True,
+        },
+    )
+    body = response.text
+    # Code should be included when include_code=True
+    assert '<marimo-code hidden=""></marimo-code>' not in body
+    assert CODE in body
+
+
+# Read session without include_code forces empty code
+@with_read_session(SESSION_ID, include_code=False)
+def test_export_html_no_code_in_read(client: TestClient) -> None:
+    """Test that HTML export excludes code in run mode when include_code=False."""
+    session = get_session_manager(client).get_session(SESSION_ID)
+    assert session
+    session.app_file_manager.filename = "test.py"
+    # Even if request asks for code, it should be denied
     response = client.post(
         "/api/export/html",
         headers=HEADERS,

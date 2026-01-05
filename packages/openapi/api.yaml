@@ -4985,6 +4985,8 @@ paths:
           description: Read the code from the server
         400:
           description: File must be saved before downloading
+        403:
+          description: Code is not available in run mode
   /api/kernel/rename:
     post:
       requestBody:

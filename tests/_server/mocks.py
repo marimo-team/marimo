@@ -188,8 +188,14 @@ def with_websocket_session(
 
 def with_read_session(
     session_id: str,
+    include_code: bool = True,
 ) -> Callable[[Callable[..., None]], Callable[..., None]]:
-    """Decorator to create a session and close it after the test"""
+    """Decorator to create a read session and close it after the test.
+
+    Args:
+        session_id: The session ID to use
+        include_code: Whether code should be visible in run mode (default True)
+    """
 
     def decorator(func: Callable[..., None]) -> Callable[..., None]:
         def wrapper(client: TestClient) -> None:
@@ -204,9 +210,13 @@ def with_read_session(
                     assert data
                     # Just change the mode here, otherwise our tests will run,
                     # in threads
+                    original_mode = session_manager.mode
+                    original_include_code = session_manager.include_code
                     session_manager.mode = SessionMode.RUN
+                    session_manager.include_code = include_code
                     func(client)
-                    session_manager.mode = SessionMode.EDIT
+                    session_manager.mode = original_mode
+                    session_manager.include_code = original_include_code
             finally:
                 # Always shutdown, even if there's an error
                 client.post(
