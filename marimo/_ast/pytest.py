@@ -7,6 +7,7 @@ import functools
 import inspect
 import itertools
 import os
+import sys
 from collections.abc import Awaitable
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, NoReturn, TypeVar, cast
@@ -17,11 +18,36 @@ from marimo._runtime.context import ContextNotInitializedError, get_context
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
+    from types import FrameType
 
 Fn = TypeVar("Fn", bound=Callable[..., Any])
 
 
 MARIMO_TEST_STUB_NAME = "MarimoTestBlock"
+
+
+def _iter_frames() -> list[tuple[str, FrameType]]:
+    """
+    Iterate over stack frames without using inspect.stack().
+
+    inspect.stack() is slow because it calls getsourcefile() and
+    getframeinfo() for each frame. In contexts with deep call stacks
+    (e.g., nested pytest) and frequent calls (e.g., during module import
+    with many cells), this can cause test timeouts on Windows CI.
+
+    Using sys._getframe() and manual traversal is significantly faster
+    since it only accesses frame.f_code.co_filename directly.
+
+    Returns a list of (filename, frame) tuples.
+    """
+    result: list[tuple[str, FrameType]] = []
+    frame: FrameType | None = sys._getframe()
+    while frame is not None:
+        # f_code.co_filename is the raw filename without filesystem checks
+        result.append((frame.f_code.co_filename, frame))
+        frame = frame.f_back
+    return result
+
 
 block_incrementer = itertools.count()
 
@@ -327,8 +353,8 @@ def build_test_class(
             )
         tests[node.name] = node
 
-    # Pre-compute base locals once to avoid repeated inspect.stack() calls
-    # which are expensive on Windows.
+    # Pre-compute base locals once to avoid repeated frame iteration
+    # which can be expensive on Windows.
     base_local: dict[str, Any] = {}
     try:
         import pytest  # type: ignore
@@ -344,17 +370,15 @@ def build_test_class(
         # If not in runtime, we are running directly as a script. As
         # such, we need the values from the module frame.
         # Traverse frame upwards until we match the file.
-        frames = inspect.stack(context=0)
-        # Use os.path functions instead of Path.resolve() because
-        # resolve() can hang on Windows due to network lookups.
-        # normcase() ensures case-insensitive comparison on Windows.
+        # Use _iter_frames() instead of inspect.stack() for performance
+        # in deep call stacks (e.g., nested pytest with many cells).
+        # Use os.path functions instead of Path.resolve() to avoid slow
+        # path resolution on Windows.
         file_normalized = os.path.normcase(os.path.abspath(file))
-        for frame in frames:
-            frame_normalized = os.path.normcase(
-                os.path.abspath(frame.filename)
-            )
+        for filename, frame in _iter_frames():
+            frame_normalized = os.path.normcase(os.path.abspath(filename))
             if frame_normalized == file_normalized:
-                base_local.update(frame.frame.f_locals)
+                base_local.update(frame.f_locals)
                 break
 
     def hook(var: str) -> Callable[..., Any] | type[MarimoTest]:
@@ -439,12 +463,13 @@ def process_for_pytest(func: Fn, cell: Cell) -> None:
 
     # Get first frame not in library to insert the class.
     # May be multiple levels if called from pytest or something.
-    frames = inspect.stack(context=0)
+    # Use _iter_frames() instead of inspect.stack() for performance
+    # in deep call stacks (e.g., nested pytest with many cells).
 
     # ensure marimo/_ not in frame path, using this file as a reference.
     library = Path(__file__).parent.parent
-    for frame in frames:
-        if library not in Path(frame.filename).parents:
+    for filename, frame in _iter_frames():
+        if library not in Path(filename).parents:
             # Insert the class into the frame.
-            frame.frame.f_locals[cls.__name__] = cls
+            frame.f_locals[cls.__name__] = cls
             break
