@@ -169,7 +169,6 @@
     @apply divide-stale shadow-md-solid shadow-stale;
 
     &:focus-within .cm-editor {
-      box-shadow: none;
       border: 1px solid transparent;
     }
 
