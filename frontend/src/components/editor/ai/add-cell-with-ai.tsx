@@ -19,9 +19,11 @@ import ReactCodeMirror, {
 import { useAtom, useAtomValue, useStore } from "jotai";
 import { atomWithStorage } from "jotai/utils";
 import {
+  AtSignIcon,
   ChevronsUpDown,
   DatabaseIcon,
   Loader2Icon,
+  PaperclipIcon,
   SendHorizontal,
   SparklesIcon,
   XIcon,
@@ -32,8 +34,10 @@ import { z } from "zod";
 import { AIModelDropdown } from "@/components/ai/ai-model-dropdown";
 import {
   buildCompletionRequestBody,
+  convertToFileUIPart,
   handleToolCall,
 } from "@/components/chat/chat-utils";
+import { FileAttachmentPill } from "@/components/chat/chat-components";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -42,10 +46,15 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
+import { Tooltip } from "@/components/ui/tooltip";
 import { toast } from "@/components/ui/use-toast";
+import { AiModelId } from "@/core/ai/ids/ids";
 import { stagedAICellsAtom, useStagedCells } from "@/core/ai/staged-cells";
 import type { ToolNotebookContext } from "@/core/ai/tools/base";
 import { useCellActions } from "@/core/cells/cells";
+import { aiAtom } from "@/core/config/config";
+import { DEFAULT_AI_MODEL } from "@/core/config/config-schema";
 import { resourceExtension } from "@/core/codemirror/ai/resources";
 import { useRequestClient } from "@/core/network/requests";
 import type { AiCompletionRequest } from "@/core/network/types";
@@ -57,8 +66,21 @@ import { jotaiJsonStorage } from "@/utils/storage/jotai";
 import { ZodLocalStorage } from "@/utils/storage/typed";
 import { PythonIcon } from "../cell/code/icons";
 import { createAiCompletionOnKeydown } from "./completion-handlers";
-import { CONTEXT_TRIGGER, mentionsCompletionSource } from "./completion-utils";
+import {
+  addContextCompletion,
+  CONTEXT_TRIGGER,
+  mentionsCompletionSource,
+} from "./completion-utils";
 import { StreamingChunkTransport } from "./transport/chat-transport";
+
+// File attachment support
+const PROVIDERS_THAT_SUPPORT_ATTACHMENTS = new Set([
+  "openai",
+  "google",
+  "anthropic",
+] as const);
+const SUPPORTED_ATTACHMENT_TYPES = ["image/*", "text/*"];
+const MAX_ATTACHMENT_SIZE = 1024 * 1024 * 50; // 50MB
 
 // Persist across sessions
 const languageAtom = atomWithStorage<"python" | "sql">(
@@ -88,6 +110,11 @@ export const AddCellWithAI: React.FC<{
 
   const stagedAICells = useAtomValue(stagedAICellsAtom);
   const inputRef = useRef<ReactCodeMirrorRef>(null);
+
+  // File attachment state
+  const [files, setFiles] = useState<File[]>();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const ai = useAtomValue(aiAtom);
 
   const { createNewCell, prepareForRun } = useCellActions();
   const toolContext: ToolNotebookContext = {
@@ -149,14 +176,21 @@ export const AddCellWithAI: React.FC<{
   const isLoading = status === "streaming" || status === "submitted";
   const hasCompletion = stagedAICells.size > 0;
 
-  const submit = () => {
+  const submit = async () => {
     if (!isLoading) {
       if (inputRef.current?.view) {
         storePrompt(inputRef.current.view);
       }
       // TODO: When we have conversations, don't delete existing cells
       deleteAllStagedCells();
-      sendMessage({ text: input });
+
+      // Convert files to FileUIPart format if present
+      const fileParts = files ? await convertToFileUIPart(files) : undefined;
+
+      sendMessage({ text: input, files: fileParts });
+
+      // Clear files after sending
+      setFiles(undefined);
     }
   };
 
@@ -176,19 +210,15 @@ export const AddCellWithAI: React.FC<{
 
   const languageDropdown = (
     <DropdownMenu modal={false}>
-      <DropdownMenuTrigger asChild={true}>
-        <Button
-          variant="text"
-          className="ml-2"
-          size="xs"
-          data-testid="language-button"
-        >
-          {language === "python" ? pythonIcon : sqlIcon}
-          <ChevronsUpDown className="ml-1 h-3.5 w-3.5 text-muted-foreground/70" />
-        </Button>
+      <DropdownMenuTrigger
+        className="flex items-center justify-between h-7 text-xs px-2 py-0.5 border rounded-md hover:text-accent-foreground"
+        data-testid="language-button"
+      >
+        {language === "python" ? pythonIcon : sqlIcon}
+        <ChevronsUpDown className="ml-1 h-3.5 w-3.5 text-muted-foreground/70" />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="center">
-        <div className="px-2 py-1 font-semibold">Select language</div>
+        <div className="px-2 py-1 font-semibold">Generate</div>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={() => setLanguage("python")}>
           {pythonIcon}
@@ -200,6 +230,42 @@ export const AddCellWithAI: React.FC<{
     </DropdownMenu>
   );
 
+  // Determine if provider supports attachments
+  const currentModel = ai?.models?.chat_model || DEFAULT_AI_MODEL;
+  const currentProvider = AiModelId.parse(currentModel).providerId;
+  const isAttachmentSupported = PROVIDERS_THAT_SUPPORT_ATTACHMENTS.has(
+    currentProvider as "openai" | "google" | "anthropic",
+  );
+
+  const handleAddContext = () => {
+    addContextCompletion(inputRef);
+  };
+
+  const onAddFiles = useEvent((newFiles: File[]) => {
+    if (newFiles.length === 0) {
+      return;
+    }
+
+    let fileSize = 0;
+    for (const file of newFiles) {
+      fileSize += file.size;
+    }
+
+    if (fileSize > MAX_ATTACHMENT_SIZE) {
+      toast({
+        title: "File size exceeds 50MB limit",
+        variant: "danger",
+      });
+      return;
+    }
+
+    setFiles((prev) => [...(prev ?? []), ...newFiles]);
+  });
+
+  const removeFile = (fileToRemove: File) => {
+    setFiles((prev) => prev?.filter((f) => f !== fileToRemove));
+  };
+
   const handleAcceptCompletion = () => {
     clearStagedCells();
     onClose();
@@ -210,8 +276,8 @@ export const AddCellWithAI: React.FC<{
   };
 
   const inputComponent = (
-    <div className="flex items-center px-3">
-      <SparklesIcon className="size-4 text-(--blue-11) mr-2" />
+    <div className="flex items-start px-3">
+      <SparklesIcon className="size-4 text-(--blue-11) mt-3 mr-2" />
       <PromptInput
         inputRef={inputRef}
         onClose={() => {
@@ -223,6 +289,7 @@ export const AddCellWithAI: React.FC<{
           setInput(newValue);
         }}
         onSubmit={submit}
+        onAddFiles={onAddFiles}
         onKeyDown={createAiCompletionOnKeydown({
           handleAcceptCompletion,
           handleDeclineCompletion,
@@ -230,51 +297,96 @@ export const AddCellWithAI: React.FC<{
           hasCompletion,
         })}
       />
-      {isLoading && (
-        <Button
-          data-testid="stop-completion-button"
-          variant="text"
-          size="sm"
-          className="mb-0"
-          onClick={stop}
-        >
-          <Loader2Icon className="animate-spin mr-1" size={14} />
-          Stop
-        </Button>
-      )}
-      <Button variant="text" size="sm" onClick={submit} title="Submit">
-        <SendHorizontal className="size-4" />
-      </Button>
       <Button variant="text" size="sm" className="mb-0 px-1" onClick={onClose}>
         <XIcon className="size-4" />
       </Button>
     </div>
   );
 
+  const filesPills =
+    files && files.length > 0 ? (
+      <div className="flex flex-row gap-1 flex-wrap pl-10 pr-3 pt-1 pb-2">
+        {files?.map((file, index) => (
+          <FileAttachmentPill
+            file={file}
+            key={`${file.name}-${index}`}
+            onRemove={() => removeFile(file)}
+          />
+        ))}
+      </div>
+    ) : null;
+
+  const footerComponent = (
+    <div className="px-3 pt-2 border-t border-border/20 flex flex-row items-center justify-between">
+      <div className="flex items-center gap-2">
+        <AIModelDropdown
+          triggerClassName="h-7 text-xs max-w-64"
+          iconSize="small"
+          forRole="edit"
+        />
+        {languageDropdown}
+      </div>
+      <div className="flex flex-row items-center">
+        <Tooltip content="Add context">
+          <Button
+            variant="text"
+            size="icon"
+            onClick={handleAddContext}
+            disabled={isLoading}
+          >
+            <AtSignIcon className="h-3.5 w-3.5" />
+          </Button>
+        </Tooltip>
+        {isAttachmentSupported && (
+          <>
+            <Tooltip content="Attach a file">
+              <Button
+                variant="text"
+                size="icon"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isLoading}
+              >
+                <PaperclipIcon className="h-3.5 w-3.5" />
+              </Button>
+            </Tooltip>
+            <Input
+              ref={fileInputRef}
+              type="file"
+              multiple={true}
+              hidden={true}
+              onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
+                if (event.target.files) {
+                  onAddFiles([...event.target.files]);
+                }
+              }}
+              accept={SUPPORTED_ATTACHMENT_TYPES.join(",")}
+            />
+          </>
+        )}
+        <Tooltip content={isLoading ? "Stop" : "Submit"}>
+          <Button
+            variant="text"
+            size="sm"
+            className="h-6 w-6 p-0 hover:bg-muted/30 cursor-pointer"
+            onClick={isLoading ? stop : submit}
+            disabled={isLoading ? false : !input.trim()}
+          >
+            {isLoading ? (
+              <Loader2Icon className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <SendHorizontal className="h-3.5 w-3.5" />
+            )}
+          </Button>
+        </Tooltip>
+      </div>
+    </div>
+  );
+
   return (
     <div className={cn("flex flex-col w-full py-2")}>
       {inputComponent}
-      <div className="flex flex-row justify-between -mt-1 ml-1 mr-3">
-        {!hasCompletion && (
-          <span className="text-xs text-muted-foreground px-3 flex flex-col gap-1 mt-2">
-            <span>
-              You can mention{" "}
-              <span className="text-(--cyan-11)">@dataframe</span> or{" "}
-              <span className="text-(--cyan-11)">@sql_table</span> to pull
-              additional context such as column names. Code from other cells is
-              automatically included.
-            </span>
-          </span>
-        )}
-        <div className="ml-auto flex items-center gap-1">
-          {languageDropdown}
-          <AIModelDropdown
-            triggerClassName="h-7 text-xs max-w-64"
-            iconSize="small"
-            forRole="edit"
-          />
-        </div>
-      </div>
+      {filesPills}
+      {footerComponent}
     </div>
   );
 };
@@ -424,6 +536,7 @@ export const PromptInput = ({
       ref={inputRef}
       className={cn("flex-1 font-sans overflow-auto my-1", className)}
       width="100%"
+      minHeight="3.5em"
       maxHeight={maxHeight}
       value={value}
       basicSetup={false}
@@ -432,7 +545,7 @@ export const PromptInput = ({
       onKeyDown={onKeyDown}
       theme={theme === "dark" ? "dark" : "light"}
       placeholder={
-        placeholder || `Generate with AI, ${CONTEXT_TRIGGER} to include context`
+        placeholder || `Generate with AI, ${CONTEXT_TRIGGER} to include context about tables or dataframes.\nCode from other cells is automatically included. `
       }
     />
   );
