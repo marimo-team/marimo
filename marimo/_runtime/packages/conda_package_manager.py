@@ -1,5 +1,6 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
+from typing import Optional
 
 from marimo._runtime.packages.module_name_to_conda_name import (
     module_name_to_conda_name,
@@ -23,19 +24,19 @@ class PixiPackageManager(CondaPackageManager):
     name = "pixi"
 
     def install_command(
-        self, package: str, *, upgrade: bool, dev: bool
+            self, package: str, *, upgrade: bool, group: Optional[str] = None
     ) -> list[str]:
-        # The `dev` parameter is accepted for interface compatibility, but is ignored.
-        del dev
+        # The `group` parameter is accepted for interface compatibility, but is ignored.
+        del group 
         return [
             "pixi",
             "upgrade" if upgrade else "add",
             *split_packages(package),
         ]
 
-    async def uninstall(self, package: str, dev: bool = False) -> bool:
-        # The `dev` parameter is accepted for interface compatibility, but is ignored.
-        del dev
+    async def uninstall(self, package: str, group: Optional[str] = None) -> bool:
+        # The `group` parameter is accepted for interface compatibility, but is ignored.
+        del group 
         return await self.run(
             ["pixi", "remove", *split_packages(package)], log_callback=None
         )

@@ -52,7 +52,7 @@ def test_add_package(client: TestClient, mock_package_manager: Mock) -> None:
     assert response.status_code == 200
     assert response.json() == {"success": True, "error": None}
     mock_package_manager.install.assert_called_once_with(
-        "test-package", version=None, upgrade=False, dev=False
+        "test-package", version=None, upgrade=False, group=None
     )
 
 
@@ -79,7 +79,7 @@ def test_remove_package(
     assert response.status_code == 200
     assert response.json() == {"success": True, "error": None}
     mock_package_manager.uninstall.assert_called_once_with(
-        "test-package", dev=False
+        "test-package", group=None
     )
 
 
@@ -151,7 +151,7 @@ def test_add_package_with_upgrade(
     assert response.status_code == 200
     assert response.json() == {"success": True, "error": None}
     mock_package_manager.install.assert_called_once_with(
-        "test-package", version=None, upgrade=True, dev=False
+        "test-package", version=None, upgrade=True, group=None
     )
 
 
@@ -167,7 +167,7 @@ def test_add_package_without_upgrade(
     assert response.status_code == 200
     assert response.json() == {"success": True, "error": None}
     mock_package_manager.install.assert_called_once_with(
-        "test-package", version=None, upgrade=False, dev=False
+        "test-package", version=None, upgrade=False, group=False
     )
 
 
@@ -207,7 +207,7 @@ def test_remove_package_with_empty_string(
         json={"package": ""},
     )
     assert response.status_code in [200, 400, 422]
-    mock_package_manager.uninstall.assert_called_once_with("", dev=False)
+    mock_package_manager.uninstall.assert_called_once_with("", group=None)
 
 
 @pytest.fixture
@@ -583,12 +583,12 @@ def test_add_package_with_dev_dependency(
     response = client.post(
         "/api/packages/add",
         headers=HEADERS,
-        json={"package": "test-package", "upgrade": True, "dev": True},
+        json={"package": "test-package", "upgrade": True, "group": "dev"},
     )
     assert response.status_code == 200
     assert response.json() == {"success": True, "error": None}
     mock_package_manager.install.assert_called_once_with(
-        "test-package", version=None, upgrade=True, dev=True
+        "test-package", version=None, upgrade=True, group="dev"
     )
 
 
@@ -600,12 +600,12 @@ def test_remove_package_with_dev_dependency(
     response = client.post(
         "/api/packages/remove",
         headers=HEADERS,
-        json={"package": "test-package", "dev": True},
+        json={"package": "test-package", "group": "dev"},
     )
     assert response.status_code == 200
     assert response.json() == {"success": True, "error": None}
     mock_package_manager.uninstall.assert_called_once_with(
-        "test-package", dev=True
+        "test-package", group="dev"
     )
 
 

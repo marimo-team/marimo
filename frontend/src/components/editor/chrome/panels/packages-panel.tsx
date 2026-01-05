@@ -395,12 +395,10 @@ const RemoveButton: React.FC<{
   const handleRemovePackage = async () => {
     try {
       setLoading(true);
-      const isDev = tags?.some(
-        (tag) => tag.kind === "group" && tag.value === "dev",
-      );
+      const group = tags?.find((tag) => tag.kind === "group")?.value;
       const response = await removePackage({
         package: packageName,
-        dev: isDev,
+        group,
       });
       if (response.success) {
         onSuccess();
