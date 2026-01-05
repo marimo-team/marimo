@@ -1,17 +1,17 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { RuntimeManager } from "../runtime/runtime";
-import { createLazyRequests } from "./requests-lazy";
-import type { EditRequests, RunRequests } from "./types";
+import type { RuntimeManager } from "../../runtime/runtime";
+import { createLazyRequests } from "../requests-lazy";
+import type { EditRequests, RunRequests } from "../types";
 
 // Mock the connection module
-vi.mock("./connection", () => ({
+vi.mock("../connection", () => ({
   waitForConnectionOpen: vi.fn().mockResolvedValue(undefined),
 }));
 
 // Mock the kernel state module
-vi.mock("../kernel/state", () => ({
+vi.mock("../../kernel/state", () => ({
   waitForKernelToBeInstantiated: vi.fn().mockResolvedValue(undefined),
 }));
 
@@ -78,7 +78,7 @@ describe("createLazyRequests", () => {
   });
 
   it("should wait for connection before calling delegate method", async () => {
-    const { waitForConnectionOpen } = await import("./connection");
+    const { waitForConnectionOpen } = await import("../connection");
     const lazyRequests = createLazyRequests(
       mockDelegate,
       mockGetRuntimeManager,
@@ -173,7 +173,7 @@ describe("createLazyRequests", () => {
     });
 
     it("should call sendRestart immediately without waiting", async () => {
-      const { waitForConnectionOpen } = await import("./connection");
+      const { waitForConnectionOpen } = await import("../connection");
       const lazyRequests = createLazyRequests(
         mockDelegate,
         mockGetRuntimeManager,
@@ -187,7 +187,9 @@ describe("createLazyRequests", () => {
 
   describe("WAIT_FOR_INSTANTIATE_REQUESTS", () => {
     it("should wait for kernel instantiation for sendRun", async () => {
-      const { waitForKernelToBeInstantiated } = await import("../kernel/state");
+      const { waitForKernelToBeInstantiated } = await import(
+        "../../kernel/state"
+      );
       const lazyRequests = createLazyRequests(
         mockDelegate,
         mockGetRuntimeManager,
@@ -199,7 +201,9 @@ describe("createLazyRequests", () => {
     });
 
     it("should wait for kernel instantiation for sendDeleteCell", async () => {
-      const { waitForKernelToBeInstantiated } = await import("../kernel/state");
+      const { waitForKernelToBeInstantiated } = await import(
+        "../../kernel/state"
+      );
       const lazyRequests = createLazyRequests(
         mockDelegate,
         mockGetRuntimeManager,
@@ -211,7 +215,9 @@ describe("createLazyRequests", () => {
     });
 
     it("should wait for kernel instantiation for sendInterrupt", async () => {
-      const { waitForKernelToBeInstantiated } = await import("../kernel/state");
+      const { waitForKernelToBeInstantiated } = await import(
+        "../../kernel/state"
+      );
       const lazyRequests = createLazyRequests(
         mockDelegate,
         mockGetRuntimeManager,
@@ -223,7 +229,9 @@ describe("createLazyRequests", () => {
     });
 
     it("should wait for kernel instantiation for sendPdb", async () => {
-      const { waitForKernelToBeInstantiated } = await import("../kernel/state");
+      const { waitForKernelToBeInstantiated } = await import(
+        "../../kernel/state"
+      );
       const lazyRequests = createLazyRequests(
         mockDelegate,
         mockGetRuntimeManager,
@@ -235,7 +243,9 @@ describe("createLazyRequests", () => {
     });
 
     it("should wait for kernel instantiation for sendRunScratchpad", async () => {
-      const { waitForKernelToBeInstantiated } = await import("../kernel/state");
+      const { waitForKernelToBeInstantiated } = await import(
+        "../../kernel/state"
+      );
       const lazyRequests = createLazyRequests(
         mockDelegate,
         mockGetRuntimeManager,
@@ -247,7 +257,9 @@ describe("createLazyRequests", () => {
     });
 
     it("should not wait for kernel instantiation for other requests", async () => {
-      const { waitForKernelToBeInstantiated } = await import("../kernel/state");
+      const { waitForKernelToBeInstantiated } = await import(
+        "../../kernel/state"
+      );
       const lazyRequests = createLazyRequests(
         mockDelegate,
         mockGetRuntimeManager,
