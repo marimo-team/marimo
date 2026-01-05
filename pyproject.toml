@@ -503,6 +503,7 @@ testpaths = ["tests"]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
 timeout = 30 # seconds, per test
+faulthandler_timeout = 5 # seconds, during collection
 
 [tool.coverage.run]
 omit = ["marimo/_tutorials/*"]
