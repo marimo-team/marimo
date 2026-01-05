@@ -133,6 +133,7 @@ export async function initialize() {
           setLayoutData: Functions.NOOP,
           setAppConfig: Functions.NOOP,
           setCapabilities: Functions.NOOP,
+          setKernelState: Functions.NOOP,
           onError: Logger.error,
         });
         // Define the custom element for the marimo-island tag.

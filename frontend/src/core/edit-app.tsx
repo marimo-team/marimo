@@ -4,6 +4,7 @@ import { usePrevious } from "@dnd-kit/utilities";
 import { TooltipProvider } from "@radix-ui/react-tooltip";
 import { useAtomValue, useSetAtom } from "jotai";
 import { useEffect } from "react";
+import { NotStartedConnectionAlert } from "@/components/editor/alerts/connecting-alert";
 import { Controls } from "@/components/editor/controls/Controls";
 import { AppHeader } from "@/components/editor/header/app-header";
 import { FilenameForm } from "@/components/editor/header/filename-form";
@@ -169,6 +170,7 @@ export const EditApp: React.FC<AppProps> = ({
             {editableCellsArray}
           </CellsRenderer>
         )}
+        {!hasCells && <NotStartedConnectionAlert />}
       </AppContainer>
       <MultiCellActionToolbar />
       {!hideControls && (

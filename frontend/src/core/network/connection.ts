@@ -5,10 +5,10 @@ import { type ConnectionStatus, WebSocketState } from "../websocket/types";
 
 /**
  * Atom for storing the connection status.
- * Initialized to CONNECTING for normal mode, OPEN for static mode.
+ * Initialized to NOT_STARTED.
  */
 export const connectionAtom = atom<ConnectionStatus>({
-  state: WebSocketState.CONNECTING,
+  state: WebSocketState.NOT_STARTED,
 });
 
 export function waitForConnectionOpen() {
@@ -27,7 +27,20 @@ export const isConnectedAtom = atom((get) => {
   return connection.state === WebSocketState.OPEN;
 });
 
+export const canInteractWithAppAtom = atom((get) => {
+  const connection = get(connectionAtom);
+  return (
+    connection.state === WebSocketState.OPEN ||
+    connection.state === WebSocketState.NOT_STARTED
+  );
+});
+
 export const isClosedAtom = atom((get) => {
   const connection = get(connectionAtom);
   return connection.state === WebSocketState.CLOSED;
+});
+
+export const isNotStartedAtom = atom((get) => {
+  const connection = get(connectionAtom);
+  return connection.state === WebSocketState.NOT_STARTED;
 });

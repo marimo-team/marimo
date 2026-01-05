@@ -50,10 +50,7 @@ import {
 import { type CellId, SETUP_CELL_ID } from "../../core/cells/ids";
 import { isUninstantiated } from "../../core/cells/utils";
 import type { UserConfig } from "../../core/config/config-schema";
-import {
-  isAppConnected,
-  isAppInteractionDisabled,
-} from "../../core/websocket/connection-utils";
+import { isAppInteractionDisabled } from "../../core/websocket/connection-utils";
 import { useCellRenderCount } from "../../hooks/useCellRenderCount";
 import type { Theme } from "../../theme/useTheme";
 import { derefNotNull } from "../../utils/dereference";
@@ -842,7 +839,6 @@ const CellLeftSideActions = memo(
         actions.createNewCell({ cellId, before: true, ...opts }),
     );
 
-    const isConnected = isAppConnected(connection.state);
     const oneClickShortcut = "mod";
 
     return (
@@ -856,7 +852,7 @@ const CellLeftSideActions = memo(
           <CreateCellButton
             tooltipContent={renderShortcut("cell.createAbove")}
             connectionState={connection.state}
-            onClick={isConnected ? createAbove : undefined}
+            onClick={createAbove}
             oneClickShortcut={oneClickShortcut}
           />
         </div>
@@ -866,7 +862,7 @@ const CellLeftSideActions = memo(
           <CreateCellButton
             tooltipContent={renderShortcut("cell.createBelow")}
             connectionState={connection.state}
-            onClick={isConnected ? createBelow : undefined}
+            onClick={createBelow}
             oneClickShortcut={oneClickShortcut}
           />
         </div>
@@ -908,7 +904,6 @@ const CellToolbar = memo(
     includeCellActions = true,
   }: CellToolbarProps) => {
     const connection = useAtomValue(connectionAtom);
-    const isConnected = isAppConnected(connection.state);
 
     return (
       <Toolbar
@@ -919,7 +914,7 @@ const CellToolbar = memo(
       >
         <RunButton
           edited={edited}
-          onClick={isConnected ? onRun : Functions.NOOP}
+          onClick={onRun}
           connectionState={connection.state}
           status={status}
           config={cellConfig}

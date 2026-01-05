@@ -1,6 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import { deserializeLayout } from "@/components/editor/renderers/plugins";
 import type { LayoutType } from "@/components/editor/renderers/types";
+import { Logger } from "@/utils/Logger";
 import { Objects } from "@/utils/objects";
 import type { CellId, UIElementId } from "../cells/ids";
 import { type CellData, createCell } from "../cells/types";
@@ -18,6 +19,7 @@ import type {
   CellMessage,
   NotificationMessageData,
 } from "./messages";
+import type { KernelState } from "./state";
 
 type KernelReadyData = NotificationMessageData<"kernel-ready">;
 
@@ -108,6 +110,7 @@ export function handleKernelReady(
       data: LayoutData;
     }) => void;
     setCapabilities: (capabilities: Capabilities) => void;
+    setKernelState: (state: KernelState) => void;
     setAppConfig: (config: AppConfig) => void;
     onError: (error: Error) => void;
     /**
@@ -124,14 +127,17 @@ export function handleKernelReady(
     setLayoutData,
     setAppConfig,
     setCapabilities,
+    setKernelState,
     onError,
   } = opts;
   const { resumed, ui_values, app_config, capabilities, auto_instantiated } =
     data;
 
   // Use existing cells if provided (local pre-connect edits), otherwise build from kernel-ready
+  // If the kernel was resumed, we don't want to use the existing cells because they may be stale.
   const hasExistingCells = existingCells && existingCells.length > 0;
-  const cells = hasExistingCells ? existingCells : buildCellData(data);
+  const cells =
+    hasExistingCells && !resumed ? existingCells : buildCellData(data);
 
   // Set up layout and cells
   const layoutState = buildLayoutState(data, cells, setLayoutData);
@@ -141,6 +147,8 @@ export function handleKernelReady(
   const parsedAppConfig = AppConfigSchema.safeParse(app_config);
   if (parsedAppConfig.success) {
     setAppConfig(parsedAppConfig.data);
+  } else {
+    Logger.error("Failed to parse app config", parsedAppConfig.error);
   }
   setCapabilities(capabilities);
 
@@ -157,8 +165,6 @@ export function handleKernelReady(
     return;
   }
 
-  // Send instantiate request to kernel
-
   // If we already have values for some objects, we should
   // send them to the kernel. This may happen after re-connecting
   // to the kernel after the computer wakes from sleep.
@@ -167,6 +173,7 @@ export function handleKernelReady(
     ? Object.fromEntries(existingCells.map((c) => [c.id, c.code]))
     : undefined;
 
+  // Send instantiate request to kernel
   void getRequestClient()
     .sendInstantiate({
       objectIds,
@@ -174,7 +181,11 @@ export function handleKernelReady(
       autoRun: autoInstantiate,
       codes: codesToSend,
     })
+    .then(() => {
+      setKernelState({ isInstantiated: true, error: null });
+    })
     .catch((error) => {
+      setKernelState({ isInstantiated: false, error: error });
       onError(new Error("Failed to instantiate", { cause: error }));
     });
 }

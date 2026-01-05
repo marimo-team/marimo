@@ -47,7 +47,6 @@ import type {
   LSPConfig,
 } from "../config/config-schema";
 import type { HotkeyProvider } from "../hotkeys/hotkeys";
-import { store } from "../state/jotai";
 import { requestEditCompletion } from "./ai/request";
 import { cellBundle } from "./cells/extensions";
 import type { CodemirrorCellActions } from "./cells/state";
@@ -66,7 +65,6 @@ import { adaptiveLanguageConfiguration } from "./language/extension";
 import { dndBundle } from "./misc/dnd";
 import { pasteBundle } from "./misc/paste";
 import { reactiveReferencesBundle } from "./reactive-references/extension";
-import { dynamicReadonly } from "./readonly/extension";
 import { darkTheme } from "./theme/dark";
 import { lightTheme } from "./theme/light";
 
@@ -147,8 +145,6 @@ export const setupCodeMirror = (opts: CodeMirrorSetupOpts): Extension[] => {
           }),
         ]
       : [],
-    // Readonly extension
-    dynamicReadonly(store),
     // Reactive references highlighting
     reactiveReferencesBundle(
       cellId,
