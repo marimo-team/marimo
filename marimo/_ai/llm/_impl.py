@@ -729,12 +729,15 @@ class pydantic_ai(ChatModel):
 
             parts: list[UIMessagePart] = []
             if message.parts:
-                parts = [
-                    cast(UIMessagePart, dataclasses.asdict(part))
-                    if dataclasses.is_dataclass(part)
-                    else part
-                    for part in message.parts
-                ]
+                parts = cast(
+                    list[UIMessagePart],
+                    [
+                        dataclasses.asdict(part)
+                        if dataclasses.is_dataclass(part)
+                        else part
+                        for part in message.parts
+                    ],
+                )
             if not parts:
                 if message.content is not None:
                     LOGGER.warning(
