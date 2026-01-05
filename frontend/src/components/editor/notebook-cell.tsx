@@ -498,7 +498,7 @@ const EditableCellComponent = ({
         }}
         tabIndex={0}
       >
-        <span className="text-[var(--slate-8)] text-sm">
+        <span className="text-(--slate-8) text-sm">
           Double-click (or enter) to edit
         </span>
       </div>
@@ -1074,140 +1074,147 @@ const SetupCellComponent = ({
   return (
     <TooltipProvider>
       <CellActionsContextMenu cellId={cellId} getEditorView={getEditorView}>
-        <div
-          data-status={cellRuntime.status}
-          ref={cellRef}
-          {...mergeProps(navigationProps, {
-            className: cn(
-              className,
-              "focus:ring-1 focus:ring-(--blue-7) focus:ring-offset-0",
-            ),
-            onBlur: closeCompletionHandler,
-            onKeyDown: resumeCompletionHandler,
-          })}
-          {...cellDomProps(cellId, cellData.name)}
-          title={renderCellTitle()}
-          tabIndex={-1}
-          data-setup-cell={true}
-        >
-          <div className={cn("tray")} data-hidden={!isCellCodeShown}>
-            <div className="absolute right-2 -top-4 z-10">
-              <CellToolbar
+        <div>
+          <div
+            data-status={cellRuntime.status}
+            ref={cellRef}
+            {...mergeProps(navigationProps, {
+              className: cn(
+                className,
+                "focus:ring-1 focus:ring-(--blue-7) focus:ring-offset-0",
+              ),
+              onBlur: closeCompletionHandler,
+              onKeyDown: resumeCompletionHandler,
+            })}
+            {...cellDomProps(cellId, cellData.name)}
+            title={renderCellTitle()}
+            tabIndex={-1}
+            data-setup-cell={true}
+          >
+            <div className={cn("tray")} data-hidden={!isCellCodeShown}>
+              <StagedAICellBackground
+                cellId={cellId}
+                className="mo-ai-setup-cell"
+              />
+              <div className="absolute right-2 -top-4 z-10">
+                <CellToolbar
+                  edited={cellData.edited}
+                  status={cellRuntime.status}
+                  cellConfig={cellData.config}
+                  needsRun={needsRun}
+                  hasOutput={hasOutput}
+                  hasConsoleOutput={hasConsoleOutput}
+                  cellActionDropdownRef={cellActionDropdownRef}
+                  cellId={cellId}
+                  name={cellData.name}
+                  getEditorView={getEditorView}
+                  onRun={runCell}
+                  includeCellActions={true}
+                />
+              </div>
+              <CellEditor
+                theme={theme}
+                showPlaceholder={showPlaceholder}
+                id={cellId}
+                code={cellData.code}
+                config={cellData.config}
+                status={cellRuntime.status}
+                serializedEditorState={cellData.serializedEditorState}
+                runCell={runCell}
+                setEditorView={setEditorView}
+                userConfig={userConfig}
+                editorViewRef={editorView}
+                editorViewParentRef={editorViewParentRef}
+                hidden={!isCellCodeShown}
+                hasOutput={hasOutput}
+                showHiddenCode={showHiddenCode}
+                languageAdapter={"python"}
+                setLanguageAdapter={Functions.NOOP}
+                showLanguageToggles={false}
+              />
+              <CellRightSideActions
                 edited={cellData.edited}
                 status={cellRuntime.status}
-                cellConfig={cellData.config}
-                needsRun={needsRun}
-                hasOutput={hasOutput}
-                hasConsoleOutput={hasConsoleOutput}
-                cellActionDropdownRef={cellActionDropdownRef}
-                cellId={cellId}
-                name={cellData.name}
-                getEditorView={getEditorView}
-                onRun={runCell}
-                includeCellActions={true}
+                isCellStatusInline={false}
+                uninstantiated={uninstantiated}
+                disabled={cellData.config.disabled}
+                runElapsedTimeMs={cellRuntime.runElapsedTimeMs}
+                runStartTimestamp={cellRuntime.runStartTimestamp}
+                lastRunStartTimestamp={cellRuntime.lastRunStartTimestamp}
+                staleInputs={cellRuntime.staleInputs}
+                interrupted={cellRuntime.interrupted}
               />
+              <div className="shoulder-bottom hover-action">
+                {canDelete && (
+                  <DeleteButton
+                    connectionState={connection.state}
+                    status={cellRuntime.status}
+                    onClick={() => {
+                      if (
+                        !loading &&
+                        !isAppInteractionDisabled(connection.state)
+                      ) {
+                        deleteCell({ cellId });
+                      }
+                    }}
+                  />
+                )}
+              </div>
             </div>
-            <CellEditor
-              theme={theme}
-              showPlaceholder={showPlaceholder}
-              id={cellId}
-              code={cellData.code}
-              config={cellData.config}
-              status={cellRuntime.status}
-              serializedEditorState={cellData.serializedEditorState}
-              runCell={runCell}
-              setEditorView={setEditorView}
-              userConfig={userConfig}
-              editorViewRef={editorView}
-              editorViewParentRef={editorViewParentRef}
-              hidden={!isCellCodeShown}
-              hasOutput={hasOutput}
-              showHiddenCode={showHiddenCode}
-              languageAdapter={"python"}
-              setLanguageAdapter={Functions.NOOP}
-              showLanguageToggles={false}
-            />
-            <CellRightSideActions
-              edited={cellData.edited}
-              status={cellRuntime.status}
-              isCellStatusInline={false}
-              uninstantiated={uninstantiated}
-              disabled={cellData.config.disabled}
-              runElapsedTimeMs={cellRuntime.runElapsedTimeMs}
-              runStartTimestamp={cellRuntime.runStartTimestamp}
-              lastRunStartTimestamp={cellRuntime.lastRunStartTimestamp}
-              staleInputs={cellRuntime.staleInputs}
-              interrupted={cellRuntime.interrupted}
-            />
-            <div className="shoulder-bottom hover-action">
-              {canDelete && (
-                <DeleteButton
-                  connectionState={connection.state}
-                  status={cellRuntime.status}
-                  onClick={() => {
-                    if (
-                      !loading &&
-                      !isAppInteractionDisabled(connection.state)
-                    ) {
-                      deleteCell({ cellId });
-                    }
-                  }}
+            <div className="py-1 px-2 flex justify-end gap-2 last:rounded-b">
+              <span className="text-muted-foreground text-xs font-bold">
+                setup cell
+              </span>
+              <Tooltip
+                content={
+                  <span className="max-w-16">
+                    This <b>setup cell</b> is guaranteed to run before all other
+                    cells. Include <br />
+                    initialization or imports and constants required by
+                    top-level functions.
+                  </span>
+                }
+              >
+                <HelpCircleIcon
+                  size={16}
+                  strokeWidth={1.5}
+                  className="rounded-lg text-muted-foreground"
                 />
-              )}
+              </Tooltip>
             </div>
-          </div>
-          <div className="py-1 px-2 flex justify-end gap-2 last:rounded-b">
-            <span className="text-muted-foreground text-xs font-bold">
-              setup cell
-            </span>
-            <Tooltip
-              content={
-                <span className="max-w-16">
-                  This <b>setup cell</b> is guaranteed to run before all other
-                  cells. Include <br />
-                  initialization or imports and constants required by top-level
-                  functions.
-                </span>
-              }
-            >
-              <HelpCircleIcon
-                size={16}
-                strokeWidth={1.5}
-                className="rounded-lg text-muted-foreground"
+            {isErrorOutput && (
+              <OutputArea
+                allowExpand={true}
+                forceExpand={true}
+                className={CSSClasses.outputArea}
+                cellId={cellId}
+                output={cellRuntime.output}
+                stale={false}
+                loading={loading}
               />
-            </Tooltip>
-          </div>
-          {isErrorOutput && (
-            <OutputArea
-              allowExpand={true}
-              forceExpand={true}
-              className={CSSClasses.outputArea}
+            )}
+            <ConsoleOutput
+              consoleOutputs={cellRuntime.consoleOutputs}
+              stale={consoleOutputStale}
+              // Don't show name
+              cellName={"_"}
+              onRefactorWithAI={handleRefactorWithAI}
+              onClear={() => {
+                actions.clearCellConsoleOutput({ cellId });
+              }}
+              onSubmitDebugger={(text, index) => {
+                actions.setStdinResponse({
+                  cellId,
+                  response: text,
+                  outputIndex: index,
+                });
+                requestClient.sendStdin({ text });
+              }}
               cellId={cellId}
-              output={cellRuntime.output}
-              stale={false}
-              loading={loading}
+              debuggerActive={cellRuntime.debuggerActive}
             />
-          )}
-          <ConsoleOutput
-            consoleOutputs={cellRuntime.consoleOutputs}
-            stale={consoleOutputStale}
-            // Don't show name
-            cellName={"_"}
-            onRefactorWithAI={handleRefactorWithAI}
-            onClear={() => {
-              actions.clearCellConsoleOutput({ cellId });
-            }}
-            onSubmitDebugger={(text, index) => {
-              actions.setStdinResponse({
-                cellId,
-                response: text,
-                outputIndex: index,
-              });
-              requestClient.sendStdin({ text });
-            }}
-            cellId={cellId}
-            debuggerActive={cellRuntime.debuggerActive}
-          />
+          </div>
+          <StagedAICellFooter cellId={cellId} />
         </div>
       </CellActionsContextMenu>
     </TooltipProvider>
