@@ -472,23 +472,21 @@ async def test_run_until_completion_with_console_output(mock_echo: MagicMock):
     )
     assert did_error is False
 
-    def _assert_contents():
-        # File should be sys.stderr, but it can change during CI execution
-        # So, we use ANY for the file parameter.
-        mock_echo.assert_any_call("hello stdout", file=ANY, nl=False)
-        mock_echo.assert_any_call("hello stderr", file=ANY, nl=False)
+    # Wait for at least 2 echo calls (one for stdout, one for stderr)
+    # The echo calls happen asynchronously in the notify() callback,
+    # so we need to wait for them to complete.
+    timeout_seconds = 5.0
+    poll_interval = 0.05
+    elapsed = 0.0
+    while mock_echo.call_count < 2 and elapsed < timeout_seconds:
+        await asyncio.sleep(poll_interval)
+        elapsed += poll_interval
 
-    n_tries = 0
-    limit = 10
-    while n_tries <= limit:
-        try:
-            _assert_contents()
-            break
-        except Exception:
-            n_tries += 1
-            await asyncio.sleep(0.1)
-    if n_tries > limit:
-        _assert_contents()
+    # Now assert the specific call contents
+    # File should be sys.stderr, but it can change during CI execution
+    # So, we use ANY for the file parameter.
+    mock_echo.assert_any_call("hello stdout", file=ANY, nl=False)
+    mock_echo.assert_any_call("hello stderr", file=ANY, nl=False)
 
     cell_notifications = [
         op

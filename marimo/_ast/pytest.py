@@ -6,6 +6,7 @@ import copy
 import functools
 import inspect
 import itertools
+import os
 from collections.abc import Awaitable
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, NoReturn, TypeVar, cast
@@ -344,8 +345,15 @@ def build_test_class(
         # such, we need the values from the module frame.
         # Traverse frame upwards until we match the file.
         frames = inspect.stack(context=0)
+        # Use os.path functions instead of Path.resolve() because
+        # resolve() can hang on Windows due to network lookups.
+        # normcase() ensures case-insensitive comparison on Windows.
+        file_normalized = os.path.normcase(os.path.abspath(file))
         for frame in frames:
-            if Path(frame.filename).resolve() == Path(file).resolve():
+            frame_normalized = os.path.normcase(
+                os.path.abspath(frame.filename)
+            )
+            if frame_normalized == file_normalized:
                 base_local.update(frame.frame.f_locals)
                 break
 
