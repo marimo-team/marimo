@@ -36,7 +36,9 @@ class PathValidator:
             temp_dir: The absolute path to the temp directory to allow.
         """
         # Normalize the path to ensure consistency
-        normalized_path = Path(temp_dir).resolve()
+        normalized_path = self._normalize_path_without_resolving_symlinks(
+            Path(temp_dir), Path.cwd()
+        )
         self._allowed_temp_dirs.add(normalized_path)
         LOGGER.debug("Registered allowed temp directory: %s", normalized_path)
 
@@ -53,10 +55,12 @@ class PathValidator:
             return False
 
         try:
-            file_resolved = Path(filepath).resolve(strict=False)
+            file_normalized = self._normalize_path_without_resolving_symlinks(
+                Path(filepath), Path.cwd()
+            )
             for temp_dir in list(self._allowed_temp_dirs):
                 try:
-                    file_resolved.relative_to(temp_dir)
+                    file_normalized.relative_to(temp_dir)
                     return True
                 except ValueError:
                     # Not a child of this temp directory, try next
@@ -93,7 +97,23 @@ class PathValidator:
 
         # Use os.path.normpath to normalize .. and . without resolving symlinks
         # Then convert back to Path
-        return Path(os.path.normpath(str(path)))
+        normalized = Path(os.path.normpath(str(path)))
+
+        # Ensure the normalized path is still absolute. While normpath generally
+        # preserves absoluteness, we enforce this invariant explicitly for safety.
+        if not normalized.is_absolute():
+            LOGGER.error(
+                "Normalized path is not absolute: %s (original: %s, base: %s)",
+                normalized,
+                path,
+                base,
+            )
+            raise HTTPException(
+                status_code=HTTPStatus.BAD_REQUEST,
+                detail="Invalid path: normalized path is not absolute",
+            )
+
+        return normalized
 
     def _check_containment(
         self,
@@ -124,7 +144,7 @@ class PathValidator:
         Validate that a filepath is inside a directory.
 
         Handles all combinations of absolute/relative paths for both directory
-        and filepath. By default, resolves symlinks are preserved.
+        and filepath. By default, symlinks are preserved.
 
         Args:
             directory: The directory path (can be absolute or relative)
