@@ -299,6 +299,18 @@ async def test_strip_version_resilience(
             'dependencies = ["package @ https://github.com/user/repo.git"]',
             ["package @ https://github.com/user/repo.git"],
         ),
+        (
+            'dependencies = ["package @ git+https://github.com/user/repo.git"]',
+            ["package @ git+https://github.com/user/repo.git"],
+        ),
+        (
+            'dependencies = ["package @ git+ssh://git@github.com/user/repo.git"]',
+            ["package @ git+ssh://git@github.com/user/repo.git"],
+        ),
+        (
+            'dependencies = ["package @ file:///path/to/local/package"]',
+            ["package @ file:///path/to/local/package"],
+        ),
         # Multiple packages with various specifiers
         (
             'dependencies = ["foo==1.0", "bar>=2.0", "baz~=3.0", "qux[extra]>=4.0"]',

@@ -190,9 +190,14 @@ class PyodideSession:
                 if not dep:
                     return dep
 
-                # Handle URL dependencies (package @ https://...) - leave as-is
-                if "@" in dep and ("http://" in dep or "https://" in dep):
-                    return dep
+                # Handle URL dependencies (package @ <url>) - leave as-is
+                # PEP 508 allows various URL schemes: http, https, git+https, git+ssh, file, ftp, etc.
+                if "@" in dep:
+                    _, rhs = dep.split("@", 1)
+                    rhs = rhs.strip()
+                    # Check for URL scheme pattern (e.g., https://, git+https://, file://)
+                    if re.match(r"^[a-zA-Z][a-zA-Z0-9+.\-]*://", rhs):
+                        return dep
 
                 # Handle environment markers (package>=1.0; python_version>='3.8')
                 if ";" in dep:
@@ -216,13 +221,13 @@ class PyodideSession:
             import pyodide.code  # type: ignore
 
             # Get imports from code
-            module_names: set[str] = set(pyodide.code.find_imports(code))  # type: ignore
-            if not isinstance(module_names, set):
+            imports = pyodide.code.find_imports(code)  # type: ignore
+            if not isinstance(imports, list):
                 return []
 
             # Pyodide find_imports is aggressive and grabs nested imports
             # so we filter them out
-            module_names = set(mod.split(".")[0] for mod in module_names)
+            module_names: set[str] = {mod.split(".")[0] for mod in imports}
             # Convert module names to package names
             package_manager = MicropipPackageManager()
             return [
