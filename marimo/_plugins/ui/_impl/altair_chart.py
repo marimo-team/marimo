@@ -40,6 +40,7 @@ LOGGER = _loggers.marimo_logger()
 if TYPE_CHECKING:
     import altair
     import altair.vegalite
+    from narwhals import Schema
 
 # Selection is a dictionary of the form:
 # {
@@ -116,6 +117,102 @@ def _using_vegafusion() -> bool:
     return altair.data_transformers.active.startswith("vegafusion")  # type: ignore
 
 
+def _combine_conditions_with_and(
+    conditions: list[nw.Expr],
+) -> Optional[nw.Expr]:
+    """Combine multiple narwhals expressions with AND logic."""
+    if not conditions:
+        return None
+    if len(conditions) == 1:
+        return conditions[0]
+
+    combined = conditions[0]
+    for cond in conditions[1:]:
+        combined = combined & cond
+    return combined
+
+
+def _combine_conditions_with_or(
+    conditions: list[nw.Expr],
+) -> Optional[nw.Expr]:
+    """Combine multiple narwhals expressions with OR logic."""
+    if not conditions:
+        return None
+    if len(conditions) == 1:
+        return conditions[0]
+
+    combined = conditions[0]
+    for cond in conditions[1:]:
+        combined = combined | cond
+    return combined
+
+
+def _build_point_filter(
+    point: dict[str, Any], schema: Schema
+) -> Optional[nw.Expr]:
+    """Build a filter expression for a single point selection."""
+    field_conditions: list[nw.Expr] = []
+    names = schema.names()
+
+    for field, value in point.items():
+        if field not in names:
+            continue
+
+        dtype = schema[field]
+        field_conditions.append(nw.col(field) == _coerce_value(value, dtype))
+
+    return _combine_conditions_with_and(field_conditions)
+
+
+def _try_apply_multipoint_filter(
+    df: nw.LazyFrame[Any],
+    fields: ChartSelectionField,
+    schema: Schema,
+) -> Optional[nw.LazyFrame[Any]]:
+    """Try to apply multi-point selection filter using vlPoint.or structure.
+
+    This handles the case where multiple points are selected, avoiding
+    a Cartesian product by using the exact point combinations from vlPoint.or.
+    """
+    vl_point: dict[str, Any] = cast(dict[str, Any], fields.get("vlPoint", {}))
+    if not isinstance(vl_point, dict) or "or" not in vl_point:
+        return None
+
+    point_combinations = vl_point["or"]
+    if (
+        not isinstance(point_combinations, list)
+        or len(point_combinations) == 0
+    ):
+        return None
+
+    # Build a filter for each exact point combination
+    point_filters: list[nw.Expr] = []
+
+    for point in point_combinations:
+        if not isinstance(point, dict):
+            continue
+
+        point_filter = _build_point_filter(point, schema)
+        if point_filter is not None:
+            point_filters.append(point_filter)
+
+    # Apply the combined filter (OR of all point combinations)
+    if not point_filters:
+        return None
+
+    try:
+        combined_filter = _combine_conditions_with_or(point_filters)
+        if combined_filter is None:
+            return None
+        return df.filter(combined_filter)
+    except (TypeError, ValueError, Exception) as e:
+        LOGGER.error(
+            f"Error applying multi-point filter: {e}. "
+            "Falling back to field-by-field filtering."
+        )
+        return None
+
+
 def _filter_dataframe(
     native_df: Union[IntoDataFrame, IntoLazyFrame],
     *,
@@ -163,6 +260,16 @@ def _filter_dataframe(
         # then the selection is a point selection
         # otherwise, it is an interval selection
         is_point_selection = "vlPoint" in fields
+        schema = df.collect_schema()
+
+        # Handle multi-point selections properly using vlPoint.or structure
+        # to avoid Cartesian product when selecting multiple points
+        if is_point_selection:
+            filtered_df = _try_apply_multipoint_filter(df, fields, schema)
+            if filtered_df is not None:
+                df = filtered_df
+                continue
+
         for field, values in fields.items():
             # values may come back as strings if using the CSV transformer;
             # convert back to original datatype
@@ -173,7 +280,6 @@ def _filter_dataframe(
             is_binned = field in binned_fields
 
             # Need to collect schema to check columns and dtypes
-            schema = df.collect_schema()
             if field not in schema.names():
                 raise ValueError(f"Field '{field}' not found in DataFrame")
 
@@ -262,57 +368,58 @@ def _filter_dataframe(
     return undo_df(df)
 
 
-def _resolve_values(values: Any, dtype: Any) -> list[Any]:
-    def _coerce_value(value: Any, dtype: Any) -> Any:
-        import zoneinfo
+def _coerce_value(value: Any, dtype: Any) -> Any:
+    import zoneinfo
 
-        try:
-            if nw.Date == dtype:
-                if isinstance(value, str):
-                    return datetime.date.fromisoformat(value)
-                # Value is milliseconds since epoch
-                # so we convert to seconds since epoch
-                if isinstance(value, (int, float)):
-                    return datetime.date.fromtimestamp(value / 1000)
-                # If value is already a date or datetime, return as-is
-                if isinstance(value, datetime.date):
-                    return value
-                # Otherwise, try to convert to string then parse
-                return datetime.date.fromisoformat(str(value))
-            if nw.Datetime == dtype and isinstance(dtype, nw.Datetime):
-                if isinstance(value, str):
-                    res = datetime.datetime.fromisoformat(value)
-                    # If dtype has no timezone, but value has timezone, remove timezone without shifting
-                    if dtype.time_zone is None and res.tzinfo is not None:
-                        return res.replace(tzinfo=None)
-                    return res
+    try:
+        if nw.Date == dtype:
+            if isinstance(value, str):
+                return datetime.date.fromisoformat(value)
+            # Value is milliseconds since epoch
+            # so we convert to seconds since epoch
+            if isinstance(value, (int, float)):
+                return datetime.date.fromtimestamp(value / 1000)
+            # If value is already a date or datetime, return as-is
+            if isinstance(value, datetime.date):
+                return value
+            # Otherwise, try to convert to string then parse
+            return datetime.date.fromisoformat(str(value))
+        if nw.Datetime == dtype and isinstance(dtype, nw.Datetime):
+            if isinstance(value, str):
+                res = datetime.datetime.fromisoformat(value)
+                # If dtype has no timezone, but value has timezone, remove timezone without shifting
+                if dtype.time_zone is None and res.tzinfo is not None:
+                    return res.replace(tzinfo=None)
+                return res
 
-                # Value is milliseconds since epoch
-                # so we convert to seconds since epoch
-                if isinstance(value, (int, float)):
-                    return datetime.datetime.fromtimestamp(
-                        value / 1000,
-                        tz=(
-                            zoneinfo.ZoneInfo(dtype.time_zone)
-                            if dtype.time_zone
-                            else None
-                        ),
-                    )
-                # If value is already a datetime, return as-is
-                if isinstance(value, datetime.datetime):
-                    return value
-                # Otherwise, try to convert to string then parse
-                return datetime.datetime.fromisoformat(str(value))
-        except (ValueError, TypeError, OSError) as e:
-            # Log the error but return the original value
-            # to avoid breaking the filter entirely
-            LOGGER.warning(
-                f"Failed to coerce value {value!r} to {dtype}: {e}. "
-                "Using original value."
-            )
-            return value
+            # Value is milliseconds since epoch
+            # so we convert to seconds since epoch
+            if isinstance(value, (int, float)):
+                return datetime.datetime.fromtimestamp(
+                    value / 1000,
+                    tz=(
+                        zoneinfo.ZoneInfo(dtype.time_zone)
+                        if dtype.time_zone
+                        else None
+                    ),
+                )
+            # If value is already a datetime, return as-is
+            if isinstance(value, datetime.datetime):
+                return value
+            # Otherwise, try to convert to string then parse
+            return datetime.datetime.fromisoformat(str(value))
+    except (ValueError, TypeError, OSError) as e:
+        # Log the error but return the original value
+        # to avoid breaking the filter entirely
+        LOGGER.warning(
+            f"Failed to coerce value {value!r} to {dtype}: {e}. "
+            "Using original value."
+        )
         return value
+    return value
 
+
+def _resolve_values(values: Any, dtype: Any) -> list[Any]:
     if isinstance(values, list):
         return [_coerce_value(v, dtype) for v in values]
     return [_coerce_value(values, dtype)]

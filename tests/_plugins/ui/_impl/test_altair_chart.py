@@ -136,6 +136,78 @@ class TestAltairChart:
         "df",
         create_dataframes(
             {
+                "X": ["X1", "X2", "X3", "X4", "X5"],
+                "Y": ["Y1", "Y2", "Y3", "Y4", "Y5"],
+                "Value": [10, 20, 30, 40, 50],
+            },
+        ),
+    )
+    def test_multi_point_selection_with_vlpoint_or(df: ChartDataType) -> None:
+        """Test multi-point selection with vlPoint.or structure.
+
+        This tests the fix for the issue where selecting multiple points
+        with different X and Y values caused a Cartesian product instead
+        of selecting only the exact points.
+        """
+        # Simulate selecting two specific points: (X2, Y2) and (X4, Y4)
+        # This mimics what Altair sends when shift-clicking multiple points
+        multi_point_selection: ChartSelection = {
+            "select_point": {
+                "X": ["X2", "X4"],
+                "Y": ["Y2", "Y4"],
+                "vlPoint": {
+                    "or": [
+                        {"X": "X2", "Y": "Y2"},
+                        {"X": "X4", "Y": "Y4"},
+                    ]
+                },
+            }
+        }
+
+        # Filter the DataFrame with the multi-point selection
+        filtered_df = _filter_dataframe(df, selection=multi_point_selection)
+
+        # Should get exactly 2 rows (the two selected points)
+        # NOT 4 rows (which would be the Cartesian product)
+        assert get_len(filtered_df) == 2
+
+        # Verify the exact points are selected
+        collected = maybe_collect(filtered_df)
+        x_values = sorted(collected["X"].to_list())
+        y_values = sorted(collected["Y"].to_list())
+        assert x_values == ["X2", "X4"]
+        assert y_values == ["Y2", "Y4"]
+
+        # Test with three points to ensure it works with more selections
+        three_point_selection: ChartSelection = {
+            "select_point": {
+                "X": ["X1", "X3", "X5"],
+                "Y": ["Y1", "Y3", "Y5"],
+                "vlPoint": {
+                    "or": [
+                        {"X": "X1", "Y": "Y1"},
+                        {"X": "X3", "Y": "Y3"},
+                        {"X": "X5", "Y": "Y5"},
+                    ]
+                },
+            }
+        }
+
+        filtered_df = _filter_dataframe(df, selection=three_point_selection)
+        # Should get exactly 3 rows, not 9 (which would be 3x3 Cartesian product)
+        assert get_len(filtered_df) == 3
+
+        collected = maybe_collect(filtered_df)
+        x_values = sorted(collected["X"].to_list())
+        y_values = sorted(collected["Y"].to_list())
+        assert x_values == ["X1", "X3", "X5"]
+        assert y_values == ["Y1", "Y3", "Y5"]
+
+    @staticmethod
+    @pytest.mark.parametrize(
+        "df",
+        create_dataframes(
+            {
                 "field": ["value1", "value2", "value3", "value4"],
                 "date_column": [
                     datetime.date(2019, 12, 29),
@@ -171,7 +243,7 @@ class TestAltairChart:
     ) -> None:
         assert (
             nw.Datetime
-            == nw.from_native(df, pass_through=False).schema["datetime_column"]
+            == nw.from_native(df).collect_schema()["datetime_column"]
         )
 
         # Define an interval selection
