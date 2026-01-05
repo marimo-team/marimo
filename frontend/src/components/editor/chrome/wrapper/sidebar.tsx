@@ -63,12 +63,12 @@ export const Sidebar: React.FC = () => {
         )}
         ariaLabel="Reorderable sidebar panels"
         className="flex flex-col gap-0"
+        onAction={(panel) => toggleApplication(panel.id)}
         renderItem={(panel) => {
           return (
             <SidebarItem
               tooltip={panel.tooltip}
               selected={selectedPanel === panel.id}
-              onClick={() => toggleApplication(panel.id)}
             >
               {renderIcon(panel)}
             </SidebarItem>
@@ -115,26 +115,33 @@ const QueuedOrRunningStack = () => {
 };
 
 const SidebarItem: React.FC<
-  PropsWithChildren<
-    {
-      selected: boolean;
-      tooltip: React.ReactNode;
-    } & React.HTMLAttributes<HTMLButtonElement>
-  >
-> = ({ children, tooltip, selected, className, ...rest }) => {
+  PropsWithChildren<{
+    selected: boolean;
+    tooltip: React.ReactNode;
+    className?: string;
+    onClick?: () => void;
+  }>
+> = ({ children, tooltip, selected, className, onClick }) => {
+  const itemClassName = cn(
+    "flex items-center p-2 text-sm mx-px shadow-inset font-mono rounded",
+    !selected && "hover:bg-(--sage-3)",
+    selected && "bg-(--sage-4)",
+    className,
+  );
+
+  // Render as div when not clickable (e.g., inside ReorderableList)
+  // This avoids nested interactive elements which break react-aria's drag behavior
+  const content = onClick ? (
+    <button className={itemClassName} onClick={onClick}>
+      {children}
+    </button>
+  ) : (
+    <div className={itemClassName}>{children}</div>
+  );
+
   return (
     <Tooltip content={tooltip} side="right" delayDuration={200}>
-      <button
-        className={cn(
-          "flex items-center p-2 text-sm mx-px shadow-inset font-mono rounded",
-          !selected && "hover:bg-(--sage-3)",
-          selected && "bg-(--sage-4)",
-          className,
-        )}
-        {...rest}
-      >
-        {children}
-      </button>
+      {content}
     </Tooltip>
   );
 };
