@@ -846,7 +846,7 @@ exports[`renderZodSchema > should render a form pivot 1`] = `
           class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
           for="_r_3c_-form-item"
         >
-          Index on columns
+          Rows
         </label>
         <div
           aria-describedby="_r_3c_-form-item-description"
@@ -865,7 +865,7 @@ exports[`renderZodSchema > should render a form pivot 1`] = `
             <span
               class="truncate flex-1 min-w-0"
             >
-              Select index on columns
+              Select rows
             </span>
             <svg
               aria-hidden="true"
@@ -901,7 +901,7 @@ exports[`renderZodSchema > should render a form pivot 1`] = `
           class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
           for="_r_3e_-form-item"
         >
-          Aggregate on columns
+          Values
         </label>
         <div
           aria-describedby="_r_3e_-form-item-description"
@@ -920,7 +920,7 @@ exports[`renderZodSchema > should render a form pivot 1`] = `
             <span
               class="truncate flex-1 min-w-0"
             >
-              Select aggregate on columns
+              Select values
             </span>
             <svg
               aria-hidden="true"
