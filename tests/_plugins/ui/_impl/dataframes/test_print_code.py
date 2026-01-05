@@ -752,6 +752,41 @@ def test_print_code_result_matches_actual_transform_ibis(
     if transform.type == TransformType.COLUMN_CONVERSION:
         assume(transform.errors != "ignore")
 
+    if transform.type == TransformType.PIVOT:
+        assume(
+            (
+                set(transform.column_ids) & set(transform.index_column_ids)
+                == set()
+            )
+            and (
+                set(transform.column_ids) & set(transform.value_column_ids)
+                == set()
+            )
+            and (
+                set(transform.index_column_ids)
+                & set(transform.value_column_ids)
+                == set()
+            )
+        )
+        assume(
+            not any(
+                column_id in {"lists", "dicts", "datetimes"}
+                for column_id in transform.column_ids
+            )
+        )
+        assume(
+            not any(
+                column_id in {"lists", "dicts", "datetimes"}
+                for column_id in transform.index_column_ids
+            )
+        )
+        assume(
+            not any(
+                column_id in {"lists", "dicts", "datetimes"}
+                for column_id in transform.value_column_ids
+            )
+        )
+
     try:
         nw_df = nw.from_native(my_df).lazy()
         result_nw = _apply_transforms(
@@ -780,6 +815,11 @@ def test_print_code_result_matches_actual_transform_ibis(
     loc = {"ibis": ibis, "my_df": my_df}
     exec(ibis_code, {}, loc)
     code_result = loc.get("my_df_next")
+
+    # For pivot transform the column order can be different, enforce column order by sorting.
+    if transform.type == TransformType.PIVOT:
+        code_result = code_result.select(*sorted(code_result.columns))
+        real_result = real_result.select(*sorted(real_result.columns))
 
     print("code_result", code_result)
     print("real_result", real_result)
