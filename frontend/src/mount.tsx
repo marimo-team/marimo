@@ -311,8 +311,7 @@ function initStore(options: unknown) {
   } else {
     store.set(runtimeConfigAtom, {
       ...DEFAULT_RUNTIME_CONFIG,
-      // TODO: change to false when ready
-      lazy: true,
+      lazy: false,
       serverToken: parsedOptions.data.serverToken,
     });
   }

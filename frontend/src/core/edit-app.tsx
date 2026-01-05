@@ -86,7 +86,7 @@ export const EditApp: React.FC<AppProps> = ({
     autoInstantiate: userConfig.runtime.auto_instantiate,
     setCells: (cells, layout) => {
       // If data was already set, then lets skip this update
-      const hasNotebookData = Object.keys(getNotebook().cellData).length > 0;
+      const hasNotebookData = getNotebook().cellIds.idLength > 0;
       if (hasNotebookData) {
         return;
       }
