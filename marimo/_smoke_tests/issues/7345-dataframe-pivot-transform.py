@@ -7,7 +7,6 @@ app = marimo.App(width="columns")
 @app.cell(column=0)
 def _():
     import marimo as mo
-    import narwhals as nw
     import polars as pl
     import pandas as pd
     import ibis as ib
@@ -25,11 +24,6 @@ def _(data, ib, pd, pl):
     return df_ibis, df_pandas, df_polars
 
 
-@app.cell
-def _():
-    return
-
-
 @app.cell(column=1)
 def _(df_pandas, mo):
     mo.ui.dataframe(df_pandas)
@@ -45,11 +39,6 @@ def _(df_polars, mo):
 @app.cell
 def _(df_ibis, mo):
     mo.ui.dataframe(df_ibis)
-    return
-
-
-@app.cell
-def _():
     return
 
 
@@ -112,11 +101,6 @@ def _(df_ibis):
         }
     )
     df_ibis_next.to_polars()
-    return
-
-
-@app.cell
-def _():
     return
 
 
