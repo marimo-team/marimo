@@ -156,7 +156,7 @@ See the [llm_providers](../configuration/llm_providers.md) guide for detailed in
 
 !!! example "Experimental: Agents"
 
-    marimo also supports external AI agents like Claude Code and Gemini CLI that can interact with your notebooks.
+    marimo also supports external AI agents like Claude Code, Codex, and Gemini CLI that can interact with your notebooks.
     Learn more in the [agents](agents.md) guide.
 
 ## Copilots

@@ -2670,6 +2670,7 @@ export interface paths {
               memory: {
                 available: number;
                 free: number;
+                has_cgroup_mem_limit: boolean;
                 percent: number;
                 total: number;
                 used: number;

@@ -69,7 +69,7 @@ def _get_data_table(
 
 
 def has_updates_to_datasource(query: str) -> bool:
-    import duckdb  # type: ignore[import-not-found,import-untyped,unused-ignore] # noqa: E501
+    import duckdb
 
     try:
         statements = duckdb.extract_statements(query.strip())
@@ -77,14 +77,23 @@ def has_updates_to_datasource(query: str) -> bool:
         # May not be valid SQL
         return False
 
-    return any(
-        statement.type == duckdb.StatementType.ATTACH
-        or statement.type == duckdb.StatementType.DETACH
-        or statement.type == duckdb.StatementType.ALTER
+    # duckdb > 1.4.0 added _STATEMENT suffix to the statement types
+    STATEMENT_TYPES = {
+        "ATTACH_STATEMENT",
+        "ATTACH",
+        "DETACH_STATEMENT",
+        "DETACH",
+        "ALTER_STATEMENT",
+        "ALTER",
         # This may catch some false positives for other CREATE statements
-        or statement.type == duckdb.StatementType.CREATE
-        for statement in statements
-    )
+        "CREATE_STATEMENT",
+        "CREATE",
+    }
+
+    for statement in statements:
+        if statement.type.name in STATEMENT_TYPES:
+            return True
+    return False
 
 
 def execute_duckdb_query(
