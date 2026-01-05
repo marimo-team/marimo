@@ -1194,4 +1194,78 @@ describe("makeSelectable", () => {
     expect(newSpec).toMatchSnapshot();
     expect(parse(newSpec)).toBeDefined();
   });
+
+  it("should preserve vconcat with existing selection params unchanged (issue #7668)", () => {
+    // This test reproduces the issue from #7668:
+    // Altair charts with cross-view interactions (e.g., brush selection)
+    // should not be modified by makeSelectable to preserve the interaction.
+    const spec = {
+      vconcat: [
+        {
+          mark: "area",
+          encoding: {
+            x: {
+              field: "x",
+              type: "quantitative",
+              scale: { domain: { param: "brush", encoding: "x" } },
+            },
+            y: { field: "y", type: "quantitative" },
+          },
+        },
+        {
+          mark: "area",
+          encoding: {
+            x: { field: "x", type: "quantitative" },
+            y: { field: "y", type: "quantitative" },
+          },
+        },
+      ],
+      params: [
+        {
+          name: "brush",
+          select: { type: "interval", encodings: ["x"] },
+          views: ["view_1"],
+        },
+      ],
+    } as VegaLiteSpec;
+
+    const newSpec = makeSelectable(spec, {});
+
+    // The spec should be returned unchanged to preserve cross-view interactions
+    expect(newSpec).toEqual(spec);
+    expect(getSelectionParamNames(newSpec)).toEqual(["brush"]);
+  });
+
+  it("should preserve hconcat with existing selection params unchanged (issue #7668)", () => {
+    const spec = {
+      hconcat: [
+        {
+          mark: "point",
+          encoding: {
+            x: { field: "x", type: "quantitative" },
+            y: { field: "y", type: "quantitative" },
+          },
+        },
+        {
+          mark: "point",
+          encoding: {
+            x: { field: "x", type: "quantitative" },
+            y: { field: "y", type: "quantitative" },
+          },
+        },
+      ],
+      params: [
+        {
+          name: "my_selection",
+          select: { type: "point", encodings: ["x", "y"] },
+        },
+      ],
+    } as VegaLiteSpec;
+
+    const newSpec = makeSelectable(spec, {});
+
+    // The spec should be returned unchanged
+    expect(newSpec).toEqual(spec);
+    expect(getSelectionParamNames(newSpec)).toEqual(["my_selection"]);
+  });
 });
