@@ -7,15 +7,12 @@ import type { ReactCodeMirrorRef } from "@uiw/react-codemirror";
 import {
   createUIMessageStreamResponse,
   DefaultChatTransport,
-  type FileUIPart,
   type TextUIPart,
   type UIMessageChunk,
 } from "ai";
 import { startCase } from "lodash-es";
 import {
   BotMessageSquareIcon,
-  ClipboardIcon,
-  DownloadIcon,
   HelpCircleIcon,
   PaperclipIcon,
   RotateCwIcon,
@@ -24,14 +21,16 @@ import {
   Trash2Icon,
   X,
 } from "lucide-react";
-import React, { lazy, useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
+import { renderUIMessage } from "@/components/chat/chat-display";
 import { convertToFileUIPart } from "@/components/chat/chat-utils";
 import {
   type AdditionalCompletions,
   PromptInput,
 } from "@/components/editor/ai/add-cell-with-ai";
+import { CopyClipboardIcon } from "@/components/icons/copy-icon";
 import { Spinner } from "@/components/icons/spinner";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -47,7 +46,6 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Tooltip } from "@/components/ui/tooltip";
-import { toast } from "@/components/ui/use-toast";
 import { moveToEndOfEditor } from "@/core/codemirror/utils";
 import { MarimoIncomingMessageEvent } from "@/core/dom/events";
 import { useAsyncData } from "@/hooks/useAsyncData";
@@ -56,16 +54,11 @@ import {
   useEventListener,
 } from "@/hooks/useEventListener";
 import { cn } from "@/utils/cn";
-import { copyToClipboard } from "@/utils/copy";
 import { Logger } from "@/utils/Logger";
 import { Objects } from "@/utils/objects";
 import { ErrorBanner } from "../common/error-banner";
 import type { PluginFunctions } from "./ChatPlugin";
 import type { ChatConfig } from "./types";
-
-const LazyStreamdown = lazy(() =>
-  import("streamdown").then((module) => ({ default: module.Streamdown })),
-);
 
 interface Props extends PluginFunctions {
   prompts: string[];
@@ -88,6 +81,10 @@ export const Chatbot: React.FC<Props> = (props) => {
   const codeMirrorInputRef = useRef<ReactCodeMirrorRef>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
+  // Use a ref to avoid stale closure in the fetch callback
+  const configRef = useRef<ChatConfig>(config);
+  configRef.current = config;
+
   // Track streaming state - maps backend message_id to frontend message index
   const streamingStateRef = useRef<{
     backendMessageId: string | null;
@@ -98,10 +95,16 @@ export const Chatbot: React.FC<Props> = (props) => {
   const frontendStreamControllerRef =
     useRef<ReadableStreamDefaultController<UIMessageChunk> | null>(null);
 
-  const { data: initialMessages } = useAsyncData(async () => {
+  const { data: backendMessages } = useAsyncData(async () => {
     const response = await props.get_chat_history({});
     return response.messages;
   }, []);
+
+  // Use props.value (persisted plugin state) if available,
+  // otherwise fall back to backend messages.
+  // This ensures messages persist when switching between edit/app views.
+  const initialMessages =
+    props.value.length > 0 ? props.value : backendMessages;
 
   const {
     messages,
@@ -126,12 +129,12 @@ export const Chatbot: React.FC<Props> = (props) => {
         };
 
         const chatConfig: ChatConfig = {
-          max_tokens: config.max_tokens,
-          temperature: config.temperature,
-          top_p: config.top_p,
-          top_k: config.top_k,
-          frequency_penalty: config.frequency_penalty,
-          presence_penalty: config.presence_penalty,
+          max_tokens: configRef.current.max_tokens,
+          temperature: configRef.current.temperature,
+          top_p: configRef.current.top_p,
+          top_k: configRef.current.top_k,
+          frequency_penalty: configRef.current.frequency_penalty,
+          presence_penalty: configRef.current.presence_penalty,
         };
 
         try {
@@ -366,78 +369,15 @@ export const Chatbot: React.FC<Props> = (props) => {
   const handleDelete = (id: string) => {
     const index = messages.findIndex((message) => message.id === id);
     if (index !== -1) {
+      const newMessages = messages.filter((message) => message.id !== id);
       props.delete_chat_message({ index });
-      setMessages((prev) => prev.filter((message) => message.id !== id));
+      setMessages(newMessages);
+
+      // Since we manage the state in the frontend, we need to update the value.
+      if (props.frontendManaged) {
+        props.setValue(newMessages);
+      }
     }
-  };
-
-  const renderAttachment = (attachment: FileUIPart) => {
-    if (attachment.mediaType?.startsWith("image")) {
-      return (
-        <img
-          src={attachment.url}
-          alt={attachment.filename || "Attachment"}
-          className="object-contain rounded-sm"
-          width={100}
-          height={100}
-        />
-      );
-    }
-
-    return (
-      <a
-        href={attachment.url}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="text-background hover:underline"
-      >
-        {attachment.filename || "Attachment"}
-      </a>
-    );
-  };
-
-  const renderMessage = (message: UIMessage) => {
-    const textParts = message.parts?.filter(
-      (p): p is TextUIPart => p.type === "text",
-    );
-    const textContent = textParts?.map((p) => p.text).join("\n");
-    const content =
-      message.role === "assistant" ? (
-        <LazyStreamdown className="mo-markdown-renderer">
-          {textContent}
-        </LazyStreamdown>
-      ) : (
-        textContent
-      );
-
-    const attachments = message.parts?.filter(
-      (p): p is FileUIPart => p.type === "file",
-    );
-
-    return (
-      <>
-        {content}
-        {attachments && attachments.length > 0 && (
-          <div className="mt-2">
-            {attachments.map((attachment, index) => (
-              <div key={index} className="flex items-baseline gap-2 ">
-                {renderAttachment(attachment)}
-                <a
-                  className={buttonVariants({
-                    variant: "text",
-                    size: "icon",
-                  })}
-                  href={attachment.url}
-                  download={attachment.filename}
-                >
-                  <DownloadIcon className="size-3" />
-                </a>
-              </div>
-            ))}
-          </div>
-        )}
-      </>
-    );
   };
 
   const shouldShowAttachments =
@@ -513,11 +453,12 @@ export const Chatbot: React.FC<Props> = (props) => {
             </p>
           </div>
         )}
-        {messages.map((message) => {
+        {messages.map((message, index) => {
           const textContent = message.parts
             ?.filter((p): p is TextUIPart => p.type === "text")
             .map((p) => p.text)
             .join("\n");
+          const isLast = index === messages.length - 1;
 
           return (
             <div
@@ -534,21 +475,18 @@ export const Chatbot: React.FC<Props> = (props) => {
                     : "bg-(--slate-4) text-(--slate-12)"
                 }`}
               >
-                {renderMessage(message)}
+                {renderUIMessage({
+                  message,
+                  isStreamingReasoning: status === "streaming",
+                  isLast,
+                })}
               </div>
               <div className="flex justify-end text-xs gap-2 invisible group-hover:visible">
-                <button
-                  type="button"
-                  onClick={async () => {
-                    await copyToClipboard(textContent);
-                    toast({
-                      title: "Copied to clipboard",
-                    });
-                  }}
-                  className="text-xs text-(--slate-9) hover:text-(--slate-11)"
-                >
-                  <ClipboardIcon className="h-3 w-3" />
-                </button>
+                <CopyClipboardIcon
+                  value={textContent}
+                  className="h-3 w-3"
+                  buttonClassName="text-xs text-(--slate-9) hover:text-(--slate-11)"
+                />
                 <button
                   type="button"
                   onClick={() => handleDelete(message.id)}
@@ -754,10 +692,19 @@ const ConfigPopup: React.FC<{
   const [localConfig, setLocalConfig] = useState<ChatConfig>(config);
   const [open, setOpen] = useState(false);
 
-  const handleChange = (key: keyof ChatConfig, value: number) => {
-    const { min, max } = configDescriptions[key];
-    const clampedValue = Math.max(min, Math.min(max, value));
-    const newConfig = { ...localConfig, [key]: clampedValue };
+  const handleChange = (key: keyof ChatConfig, value: number | null) => {
+    // NaN represents an empty field, treat as null
+    const normalizedValue =
+      value === null || Number.isNaN(value) ? null : value;
+    let finalValue: number | null = normalizedValue;
+
+    if (finalValue !== null) {
+      const { min, max } = configDescriptions[key];
+      const clampedValue = Math.max(min, Math.min(max, finalValue));
+      finalValue = clampedValue;
+    }
+
+    const newConfig = { ...localConfig, [key]: finalValue };
     setLocalConfig(newConfig);
     onChange(newConfig);
   };
@@ -776,7 +723,7 @@ const ConfigPopup: React.FC<{
           <Button
             variant="outline"
             size="sm"
-            className="border-none shadow-initial"
+            className="border-none shadow-none hover:bg-transparent"
           >
             <SettingsIcon className="h-3 w-3" />
           </Button>
@@ -810,7 +757,9 @@ const ConfigPopup: React.FC<{
               </Label>
               <NumberField
                 id={key}
-                value={value}
+                aria-label={key}
+                value={value ?? Number.NaN}
+                placeholder={"null"}
                 minValue={configDescriptions[key].min}
                 maxValue={configDescriptions[key].max}
                 step={configDescriptions[key].step ?? 1}
@@ -854,9 +803,9 @@ const PromptsPopover: React.FC<{
               <Button
                 variant="outline"
                 size="sm"
-                className="border-none shadow-initial"
+                className="border-none shadow-none hover:bg-transparent"
               >
-                <ChatBubbleIcon className="h-3 w-3 mx-1" />
+                <ChatBubbleIcon className="h-3 w-3" />
               </Button>
             </DropdownMenuTrigger>
           </Tooltip>
