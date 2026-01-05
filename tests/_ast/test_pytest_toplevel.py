@@ -11,6 +11,12 @@ with app.setup:
 
 
 @app.function
+@pytest.fixture
+def example_fixture():
+    return "example"
+
+
+@app.function
 def add(a, b):
     return a + b
 
@@ -32,8 +38,15 @@ def test_add_bad(a, b, c):
     assert add(a, b) == c
 
 
+@app.function
+def test_example_fixture(example_fixture):
+    assert example_fixture == "example"
+
+
 @app.class_definition
 class TestClassWorks:
+    """Has doc string"""
+
     def test_sanity(self):
         assert True
 
@@ -45,6 +58,33 @@ class TestClassWorks:
     @pytest.mark.parametrize(("a", "b", "c"), [(1, 1, 2), (1, 2, 3)])
     def test_decorated_static(a, b, c) -> None:
         assert add(a, b) == c
+
+
+@app.class_definition
+class TestClassWithFixtures:
+    """Has doc string"""
+
+    @pytest.fixture(scope="class")
+    def yields_value(self):
+        return "value"
+
+    @pytest.fixture
+    def return_value(self):
+        return "value"
+
+    def test_yield(self, yields_value) -> None:
+        assert yields_value == "value"
+
+    @staticmethod
+    def test_yield_static(yields_value) -> None:
+        assert yields_value == "value"
+
+    def test_return(self, return_value) -> None:
+        assert return_value == "value"
+
+    @staticmethod
+    def test_return_static(return_value) -> None:
+        assert return_value == "value"
 
 
 if __name__ == "__main__":

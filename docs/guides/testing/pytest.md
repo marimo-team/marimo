@@ -4,10 +4,10 @@
 
 By default, marimo discovers and executes tests inside your notebook.
 When the optional `pytest` dependency is present, marimo runs `pytest` on cells that
-consist exclusively of test code - i.e. functions whose names start with `test_` or
-classes whose names start with `Test`. If a cell mixes in anything else (helper
-functions, constants, variables, imports, etc.), that cell is skipped by the test
-runner (we recommend you move helpers to another cell).
+consist exclusively of test code - i.e. functions whose names start with `test_`,
+classes whose names start with `Test`, or functions decorated with `@pytest.fixture`.
+If a cell mixes in anything else (helper functions, constants, variables, imports, etc.),
+that cell is skipped by the test runner (we recommend you move helpers to another cell).
 
 For example,
 
@@ -155,3 +155,86 @@ test_notebook.py:17: AssertionError
 FAILED test_notebook.py::test_fails - AssertionError: This test fails
 ========================= 1 failed, 3 passed in 0.82s ==========================
 ```
+
+## Using Pytest Fixtures
+
+
+marimo supports pytest fixtures, with one limitation: fixtures defined in one cell cannot be used in another cell, unless the fixtures were defined in the setup cell.
+For this reason, we recommend defining (or importing) fixtures in your notebook's setup cell, or defining fixtures in a pytest `conftest.py` file.
+
+### Examples
+
+**Fixtures defined in the setup cell**:
+
+```python
+# test_notebook.py
+import marimo
+app = marimo.App()
+
+with app.setup:
+    from fixtures import db_connection, sample_data
+
+@app.cell
+def _(sample_data):
+    def test_data_loaded(sample_data):
+        assert len(sample_data) > 0
+```
+
+**Fixtures in the same cell as tests**:
+
+```python
+@app.cell
+def _():
+    import pytest
+    return pytest
+
+
+@app.cell
+def _(pytest):
+    @pytest.fixture
+    def temp_file():
+        import tempfile
+        with tempfile.NamedTemporaryFile() as f:
+            yield f
+
+    def test_writes_to_file(temp_file):
+        temp_file.write(b"hello")
+        temp_file.seek(0)
+        assert temp_file.read() == b"hello"
+```
+
+**Class fixtures**:
+
+```python
+@app.cell
+def _():
+    import pytest
+    return pytest
+
+
+@app.cell
+def _(pytest):
+    class TestDatabase:
+        @pytest.fixture(scope="class")
+        def connection(self):
+            return create_connection()
+
+        def test_query(self, connection):
+            result = connection.query("SELECT 1")
+            assert result == 1
+```
+
+**`conftest.py` fixtures** work as expected - pytest discovers them automatically.
+
+!!! info "Fixture Limitations"
+
+    Fixtures defined in one cell **cannot** be used by tests in a different cell.
+    This is because pytest collects tests **statically** by parsing the notebook
+    file without executing it. During collection, pytest can see module-level
+    fixtures (from `conftest.py` or imported modules) and fixtures defined in the
+    same scope as the test, but it cannot see fixtures defined in other cells.
+
+    **Why?** Running the entire notebook just for fixture discovery would be
+    expensive, and static analysis cannot determine which fixtures will be
+    available after cell execution since cell order is determined at runtime by
+    marimo's dependency graph.

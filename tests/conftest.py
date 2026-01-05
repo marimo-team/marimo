@@ -697,7 +697,13 @@ def pytest_make_collect_report(collector):
                 return report
         for cls in classes:
             if not (
-                cls.startswith("MarimoTestBlock") or cls == "TestClassWorks"
+                cls.startswith("MarimoTestBlock")
+                or cls
+                in (
+                    "TestClassWorks",
+                    "TestClassWithFixtures",
+                    "TestClassDefinitionWithFixtures",
+                )
             ):
                 report.outcome = "failed"
                 report.longrepr = (
