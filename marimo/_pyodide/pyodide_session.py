@@ -178,10 +178,39 @@ class PyodideSession:
             script_deps = reader.dependencies
 
             def strip_version(dep: str) -> str:
-                try:
-                    return re.split(r"==|>=|<=|~=", dep)[0]
-                except Exception:
+                """
+                Strip version specifiers from a dependency string.
+                Handles PEP 440 version specifiers, extras, and URLs.
+                """
+                if not dep or not isinstance(dep, str):
+                    return dep if isinstance(dep, str) else ""
+
+                # Strip whitespace
+                dep = dep.strip()
+                if not dep:
                     return dep
+
+                # Handle URL dependencies (package @ <url>) - leave as-is
+                # PEP 508 allows various URL schemes: http, https, git+https, git+ssh, file, ftp, etc.
+                if "@" in dep:
+                    _, rhs = dep.split("@", 1)
+                    rhs = rhs.strip()
+                    # Check for URL scheme pattern (e.g., https://, git+https://, file://)
+                    if re.match(r"^[a-zA-Z][a-zA-Z0-9+.\-]*://", rhs):
+                        return dep
+
+                # Handle environment markers (package>=1.0; python_version>='3.8')
+                if ";" in dep:
+                    dep = dep.split(";")[0].strip()
+
+                # Split on PEP 440 version specifiers: ==, !=, <=, >=, <, >, ~=, ===
+                # Must check multi-char operators first to avoid partial matches
+                parts = re.split(
+                    r"\s*(?:===|==|!=|<=|>=|~=|<|>)\s*", dep, maxsplit=1
+                )
+
+                # Return the package name (first part), preserving extras like 'package[extra]'
+                return parts[0].strip() if parts else dep
 
             if len(script_deps) > 0:
                 return [strip_version(dep) for dep in script_deps]
@@ -192,10 +221,13 @@ class PyodideSession:
             import pyodide.code  # type: ignore
 
             # Get imports from code
-            module_names: list[str] = pyodide.code.find_imports(code)  # type: ignore
-            if not isinstance(module_names, list):
+            imports = pyodide.code.find_imports(code)  # type: ignore
+            if not isinstance(imports, list):
                 return []
 
+            # Pyodide find_imports is aggressive and grabs nested imports
+            # so we filter them out
+            module_names: set[str] = {mod.split(".")[0] for mod in imports}
             # Convert module names to package names
             package_manager = MicropipPackageManager()
             return [
