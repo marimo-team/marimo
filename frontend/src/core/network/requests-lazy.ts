@@ -36,6 +36,7 @@ export function createLazyRequests(
     return runtimeManager.init();
   });
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   function connectAndThen<T extends (...args: any[]) => Promise<any>>(
     request: T,
     key: keyof AllRequests,
