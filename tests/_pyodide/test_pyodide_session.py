@@ -93,7 +93,7 @@ def mock_pyodide() -> Generator[MagicMock, None, None]:
     mock = MagicMock(spec=ModuleType)
     mock.code = MagicMock(spec=ModuleType)
     mock.code.find_imports = MagicMock(
-        return_value=["numpy", "pandas", "sklearn"]
+        return_value=["numpy", "pandas", "sklearn", "matplotlib.pyplot"]
     )
 
     # Save original module if it exists
@@ -198,13 +198,16 @@ async def test_pyodide_session_find_packages(
         """
         import numpy as np
         import pandas as pd
+        import matplotlib.pyplot as plt
         from sklearn.linear_model import LinearRegression
         """
     )
 
     packages = pyodide_session.find_packages(code)
     # sklearn gets converted to scikit-learn
-    assert sorted(packages) == sorted(["numpy", "pandas", "scikit-learn"])
+    assert sorted(packages) == sorted(
+        ["numpy", "pandas", "scikit-learn", "matplotlib"]
+    )
     mock_pyodide.code.find_imports.assert_called_once_with(code)
 
 
@@ -231,6 +234,94 @@ async def test_pyodide_session_find_packages_with_script_metadata(
     packages = pyodide_session.find_packages(code)
     assert sorted(packages) == sorted(["foo", "bar", "baz"])
     mock_pyodide.code.find_imports.assert_not_called()
+
+
+async def test_complex_find_packages(pyodide_session: PyodideSession) -> None:
+    code = dedent(
+        """
+        # /// script
+        # requires-python = ">=3.12"
+        # dependencies = [
+        #     "plotly[express]==6.5.0",
+        #     "polars==1.36.1",
+        # ]
+        # ///
+
+        import marimo
+
+        app = marimo.App()
+
+
+        @app.cell
+        def _():
+            import marimo as mo
+            return (mo,)
+        """
+    )
+    packages = pyodide_session.find_packages(code)
+    assert sorted(packages) == sorted(["plotly[express]", "polars"])
+
+
+async def test_strip_version_resilience(
+    pyodide_session: PyodideSession,
+) -> None:
+    """Test strip_version function handles various PEP 440 version specifiers and edge cases."""
+    code_templates = [
+        # Basic version specifiers
+        ('dependencies = ["package==1.0.0"]', ["package"]),
+        ('dependencies = ["package>=1.0.0"]', ["package"]),
+        ('dependencies = ["package<=2.0.0"]', ["package"]),
+        ('dependencies = ["package~=1.4"]', ["package"]),
+        ('dependencies = ["package!=1.5.0"]', ["package"]),
+        ('dependencies = ["package>1.0"]', ["package"]),
+        ('dependencies = ["package<2.0"]', ["package"]),
+        ('dependencies = ["package===1.0.0"]', ["package"]),
+        # With extras
+        ('dependencies = ["package[extra]==1.0.0"]', ["package[extra]"]),
+        (
+            'dependencies = ["package[extra1,extra2]>=1.0.0"]',
+            ["package[extra1,extra2]"],
+        ),
+        # With whitespace
+        ('dependencies = ["package >= 1.0.0"]', ["package"]),
+        ('dependencies = ["  package==1.0.0  "]', ["package"]),
+        # With environment markers
+        (
+            'dependencies = ["package>=1.0.0; python_version>=\\"3.8\\""]',
+            ["package"],
+        ),
+        (
+            'dependencies = ["package[extra]>=1.0; sys_platform==\\"linux\\""]',
+            ["package[extra]"],
+        ),
+        # URL dependencies - left as-is
+        (
+            'dependencies = ["package @ https://github.com/user/repo.git"]',
+            ["package @ https://github.com/user/repo.git"],
+        ),
+        # Multiple packages with various specifiers
+        (
+            'dependencies = ["foo==1.0", "bar>=2.0", "baz~=3.0", "qux[extra]>=4.0"]',
+            ["foo", "bar", "baz", "qux[extra]"],
+        ),
+        # No version specifier
+        ('dependencies = ["package"]', ["package"]),
+    ]
+
+    for deps_str, expected in code_templates:
+        code = dedent(
+            f"""
+            # /// script
+            # {deps_str}
+            # ///
+
+            import marimo
+            """
+        )
+        packages = pyodide_session.find_packages(code)
+        assert sorted(packages) == sorted(expected), (
+            f"Failed for {deps_str}: expected {expected}, got {packages}"
+        )
 
 
 async def test_pyodide_session_put_input(
