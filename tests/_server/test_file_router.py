@@ -281,59 +281,54 @@ class TestValidateInsideDirectory(unittest.TestCase):
 
     def test_symlink_inside_directory(self):
         """Test: symlink pointing to file inside directory"""
-        directory = Path(self.test_dir).resolve()
+        directory = Path(self.test_dir)
         # Create symlink inside directory pointing to file inside directory
         symlink_path = Path(self.test_dir) / "symlink.py"
         symlink_path.symlink_to(self.test_file)
-        # Should not raise
+        # Should not raise - symlink path is inside directory
         PathValidator().validate_inside_directory(directory, symlink_path)
         symlink_path.unlink()
 
     def test_symlink_outside_directory(self):
         """Test: symlink pointing to file outside directory"""
-        directory = Path(self.test_dir).resolve()
+        directory = Path(self.test_dir)
         # Create symlink inside directory pointing to file outside directory
         symlink_path = Path(self.test_dir) / "symlink.py"
         symlink_path.symlink_to(self.outside_file)
-        # Should raise - symlink resolves to outside file
-        with pytest.raises(HTTPException) as exc_info:
-            PathValidator().validate_inside_directory(directory, symlink_path)
-        assert exc_info.value.status_code == HTTPStatus.FORBIDDEN
+        # Symlink path itself is inside directory, so this should pass
+        # (we preserve symlinks, not resolve them)
+        PathValidator().validate_inside_directory(directory, symlink_path)
         symlink_path.unlink()
 
     def test_broken_symlink(self):
         """Test: broken symlink"""
-        directory = Path(self.test_dir).resolve()
+        directory = Path(self.test_dir)
         # Create broken symlink
         broken_symlink = Path(self.test_dir) / "broken.py"
         broken_symlink.symlink_to("nonexistent_file")
-        # Broken symlinks can be resolved with resolve(strict=False), but if they
-        # point outside the directory, should still fail
-        # First test: broken symlink inside directory (should work if resolved path is inside)
-        # The symlink itself is inside, so it should pass validation
-        # (the actual file doesn't need to exist for validation)
+        # The symlink path itself is inside the directory, so validation passes
+        # (symlinks are preserved, target is not checked)
         PathValidator().validate_inside_directory(directory, broken_symlink)
-
-        # Test: broken symlink that resolves outside
         broken_symlink.unlink()
+
+    def test_broken_symlink_path_traversal(self):
+        """Test: broken symlink with path traversal"""
+        directory = Path(self.test_dir)
         broken_symlink = Path(self.test_dir) / "broken.py"
-        # Create symlink that would resolve outside
+        # Create symlink that would resolve outside via path traversal
         broken_symlink.symlink_to("../../etc/passwd")
-        # Should fail because resolved path is outside
-        with pytest.raises(HTTPException) as exc_info:
-            PathValidator().validate_inside_directory(
-                directory, broken_symlink
-            )
-        assert exc_info.value.status_code == HTTPStatus.FORBIDDEN
+        # Symlink path itself is inside directory, so this passes
+        # (we preserve symlinks, path traversal in target is not checked)
+        PathValidator().validate_inside_directory(directory, broken_symlink)
         broken_symlink.unlink()
 
     def test_symlink_to_directory(self):
         """Test: symlink pointing to directory inside"""
-        directory = Path(self.test_dir).resolve()
+        directory = Path(self.test_dir)
         # Create symlink to nested directory
         symlink_path = Path(self.test_dir) / "nested_link"
         symlink_path.symlink_to(self.nested_dir)
-        # Should not raise - symlink resolves to directory inside
+        # Should not raise - symlink path is inside directory
         PathValidator().validate_inside_directory(directory, symlink_path)
         symlink_path.unlink()
 
@@ -615,3 +610,37 @@ def test_lazy_router_temp_dir_doesnt_affect_normal_files(
     with pytest.raises(HTTPException) as exc_info:
         router.get_file_manager(str(outside_file))
     assert exc_info.value.status_code == HTTPStatus.FORBIDDEN
+
+
+def test_lazy_router_symlink_directory_outside_allowed(tmp_path: Path):
+    """Test that files through symlinked directories are allowed.
+
+    Since symlinks are preserved (not resolved), the path through the
+    symlink is inside the base directory.
+    """
+    # Create base directory with a notebook
+    base_dir = tmp_path / "base"
+    base_dir.mkdir()
+    base_file = base_dir / "base.py"
+    base_file.write_text("import marimo\napp = marimo.App()\n")
+
+    # Create outside directory with a notebook
+    outside_dir = tmp_path / "outside"
+    outside_dir.mkdir()
+    outside_file = outside_dir / "outside.py"
+    outside_file.write_text("import marimo\napp = marimo.App()\n")
+
+    # Create symlink inside base_dir pointing to outside_dir
+    symlink_path = base_dir / "shared"
+    symlink_path.symlink_to(outside_dir)
+
+    # File path through the symlink
+    file_through_symlink = symlink_path / "outside.py"
+
+    # Symlinks are preserved (not resolved), so the path
+    # base_dir/shared/outside.py is inside base_dir
+    router = LazyListOfFilesAppFileRouter(
+        str(base_dir), include_markdown=False
+    )
+    manager = router.get_file_manager(str(file_through_symlink))
+    assert manager is not None
