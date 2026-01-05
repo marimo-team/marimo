@@ -1092,11 +1092,11 @@ const SetupCellComponent = ({
             data-setup-cell={true}
           >
             <div className={cn("tray")} data-hidden={!isCellCodeShown}>
+              <StagedAICellBackground
+                cellId={cellId}
+                className="mo-ai-setup-cell"
+              />
               <div className="absolute right-2 -top-4 z-10">
-                <StagedAICellBackground
-                  cellId={cellId}
-                  className="mo-ai-setup-cell"
-                />
                 <CellToolbar
                   edited={cellData.edited}
                   status={cellRuntime.status}
