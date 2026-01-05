@@ -113,6 +113,7 @@
     &:focus-within {
       /* Similar to var(--blue-8) */
       border: 1px solid rgba(40, 112, 189, 0.7);
+      border-radius: 8px;
     }
 
     .cm {
@@ -170,6 +171,10 @@
 
   &.has-error:hover {
     @apply shadow-md-solid shadow-[var(--red-8)];
+  }
+
+  &.has-error:focus-within {
+    border: 1px solid var(--red-8);
   }
 
   /* Needs Run */
