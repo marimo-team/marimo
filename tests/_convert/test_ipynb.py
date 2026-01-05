@@ -899,14 +899,14 @@ def test_transform_duplicate_definition_kwarg():
         ]
     )
     result = transform_duplicate_definitions(sources)
-    mod_x = _rename_comment("x", RenameType.MODIFIED)
+    redef_x = _rename_comment("x", RenameType.REDEFINED)
     assert_sources_equal(
         result,
         [
             "x = 0",
             "x",
             f"""
-            x_1 = 1{mod_x}
+            x_1 = 1{redef_x}
             def f(x=x_1):
                 return x
             """,
