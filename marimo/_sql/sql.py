@@ -40,14 +40,17 @@ def sql(
     By default, this uses duckdb to execute the query. Any dataframes in the global
     namespace can be used inside the query.
 
-    You can also pass a custom engine to execute queries against other databases. The custom engine must be a DBAPI 2.0 compatible engine.
+    You can also pass a custom engine to execute queries against other databases.
+    The custom engine can be a DB-API 2.0 compatible connection (PEP 249), including
+    DB-API wrappers provided by ADBC drivers.
 
     The result of the query is displayed in the UI if output is True.
 
     Args:
         query: The SQL query to execute.
         output: Whether to display the result in the UI. Defaults to True.
-        engine: Optional SQL engine to use. Can be a SQLAlchemy, DuckDB, Clickhouse, Redshift, Ibis, or DBAPI 2.0 compatible engine.
+        engine: Optional SQL engine to use. Can be a SQLAlchemy, DuckDB, Clickhouse,
+            Redshift, Ibis, or DB-API 2.0 compatible connection (including ADBC DB-API wrappers).
                If None, uses DuckDB.
 
     Returns:
