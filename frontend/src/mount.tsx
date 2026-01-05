@@ -104,8 +104,7 @@ export function mount(options: unknown, el: Element): Error | undefined {
 }
 
 const passthroughObject = z
-  .object({})
-  .passthrough() // Allow any extra fields
+  .looseObject({})
   .nullish()
   .default({}) // Default to empty object
   .transform((val) => {
@@ -201,13 +200,12 @@ const mountOptionsSchema = z.object({
   session: z.union([
     z.null().optional(),
     z
-      .object({
+      .looseObject({
         // Rough shape, we don't need to validate the full schema
         version: z.literal("1"),
         metadata: z.any(),
         cells: z.array(z.any()),
       })
-      .passthrough()
       .transform((val) => val as api.Session["NotebookSessionV1"]),
   ]),
 
@@ -217,13 +215,12 @@ const mountOptionsSchema = z.object({
   notebook: z.union([
     z.null().optional(),
     z
-      .object({
+      .looseObject({
         // Rough shape, we don't need to validate the full schema
         version: z.literal("1"),
         metadata: z.any(),
         cells: z.array(z.any()),
       })
-      .passthrough()
       .transform((val) => val as api.Notebook["NotebookV1"]),
   ]),
 
@@ -232,12 +229,10 @@ const mountOptionsSchema = z.object({
    */
   runtimeConfig: z
     .array(
-      z
-        .object({
-          url: z.string(),
-          authToken: z.string().nullish(),
-        })
-        .passthrough(),
+      z.looseObject({
+        url: z.string(),
+        authToken: z.string().nullish(),
+      }),
     )
     .nullish()
     .transform((val) => val ?? []),

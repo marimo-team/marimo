@@ -21,7 +21,6 @@ import { CellsRenderer } from "../components/editor/renderers/cells-renderer";
 import { useHotkey } from "../hooks/useHotkey";
 import {
   cellIdsAtom,
-  getNotebook,
   hasCellsAtom,
   notebookIsRunningAtom,
   numColumnsAtom,
@@ -85,12 +84,6 @@ export const EditApp: React.FC<AppProps> = ({
   const { connection } = useMarimoKernelConnection({
     autoInstantiate: userConfig.runtime.auto_instantiate,
     setCells: (cells, layout) => {
-      // If data was already set, then lets skip this update
-      const hasNotebookData = getNotebook().cellIds.idLength > 0;
-      if (hasNotebookData) {
-        return;
-      }
-
       setCells(cells);
       const names = cells.map((cell) => cell.name);
       const codes = cells.map((cell) => cell.code);

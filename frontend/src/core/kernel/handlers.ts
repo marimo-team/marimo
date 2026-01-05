@@ -134,8 +134,10 @@ export function handleKernelReady(
     data;
 
   // Use existing cells if provided (local pre-connect edits), otherwise build from kernel-ready
+  // If the kernel was resumed, we don't want to use the existing cells because they may be stale.
   const hasExistingCells = existingCells && existingCells.length > 0;
-  const cells = hasExistingCells ? existingCells : buildCellData(data);
+  const cells =
+    hasExistingCells && !resumed ? existingCells : buildCellData(data);
 
   // Set up layout and cells
   const layoutState = buildLayoutState(data, cells, setLayoutData);
@@ -163,8 +165,6 @@ export function handleKernelReady(
     return;
   }
 
-  // Send instantiate request to kernel
-
   // If we already have values for some objects, we should
   // send them to the kernel. This may happen after re-connecting
   // to the kernel after the computer wakes from sleep.
@@ -173,6 +173,7 @@ export function handleKernelReady(
     ? Object.fromEntries(existingCells.map((c) => [c.id, c.code]))
     : undefined;
 
+  // Send instantiate request to kernel
   void getRequestClient()
     .sendInstantiate({
       objectIds,

@@ -9,7 +9,10 @@ import type { EditRequests, RunRequests } from "./types";
 
 type AllRequests = EditRequests & RunRequests;
 
-const SKIP_REQUESTS = new Set<keyof AllRequests>(["sendRestart"]);
+const SKIP_REQUESTS = new Set<keyof AllRequests>([
+  "sendRestart",
+  "sendCodeCompletionRequest",
+]);
 
 const WAIT_FOR_INSTANTIATE_REQUESTS = new Set<keyof AllRequests>([
   "sendDeleteCell",

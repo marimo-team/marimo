@@ -113,8 +113,6 @@ export function useMarimoKernelConnection(opts: {
         reloadSafe();
         return;
       case "kernel-ready": {
-        // TODO(mscolnick): For lazy kernels, we should grab existing cells from the page
-        // in case they have been edited locally.
         const existingCells = getExistingCells();
 
         handleKernelReady(msg.data, {
