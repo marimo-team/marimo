@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import re
-from typing import Any, Literal, Optional, Union
+from typing import Any, Callable, Literal, Optional, Union
 
 import msgspec
 
@@ -220,7 +220,11 @@ def replace_brackets_with_quotes(sql: str) -> tuple[str, dict[int, int]]:
     return replaced_sql, offset_record
 
 
-def format_query_with_globals(query: str, globals_dict: dict[str, Any]) -> str:
+def format_query_with_globals(
+    query: str,
+    globals_dict: dict[str, Any],
+    missing_key_handler: Callable[[str], str] = lambda key: f"'{key}'",
+) -> str:
     """
     Format a query by substituting brace expressions with values from globals_dict.
     Braces inside single-quoted strings (SQL literals) are left untouched.
@@ -229,6 +233,7 @@ def format_query_with_globals(query: str, globals_dict: dict[str, Any]) -> str:
     Args:
         query: The SQL query with brace expressions like {var}
         globals_dict: Dictionary mapping variable names to their values
+        missing_key_handler: Function to handle missing keys. Defaults to quoting the key.
 
     Returns:
         The formatted query with substitutions applied
@@ -236,6 +241,9 @@ def format_query_with_globals(query: str, globals_dict: dict[str, Any]) -> str:
     Example:
         format_query_with_globals("SELECT {col} FROM '{table}'", {"col": "id"})
         # => "SELECT id FROM '{table}'"
+
+        format_query_with_globals("SELECT * FROM '{table}'", {}, lambda key: key.upper())
+        # => "SELECT id FROM TABLE"
     """
     # Quick check - if no braces, return as-is
     if "{" not in query or "}" not in query:
@@ -258,8 +266,7 @@ def format_query_with_globals(query: str, globals_dict: dict[str, Any]) -> str:
             key = match.group(3)  # The content inside the braces
             if key in globals_dict:
                 return str(globals_dict[key])
-            # Key not found - return quoted key to convert it to a literal
-            return f"'{key}'"
+            return missing_key_handler(key)
 
         return raw_query
 

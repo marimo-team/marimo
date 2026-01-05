@@ -143,9 +143,12 @@ class QueryEngine(BaseEngine[CONN], ABC):
         return "auto"
 
     def execute_in_explain_mode(
-        self, query: str, globals_dict: dict[str, Any]
+        self, query: str, globals_dict: dict[str, Any] | None = None
     ) -> tuple[Any, Optional[str]]:
         """Execute a query in explain mode. Returns a tuple of the result and an error if there is one."""
+
+        if globals_dict is None:
+            globals_dict = {}
 
         explain_query = wrap_query_with_explain(query)
         if self.dialect == "duckdb":

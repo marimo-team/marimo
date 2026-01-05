@@ -888,3 +888,16 @@ class TestFormatQueryWithGlobals:
             WHERE id = 1
         """)
         assert result == expected
+
+    def test_missing_key_handler(self):
+        """Test missing key handler."""
+        query = "SELECT {col} FROM {table}"
+        result_double_quote = format_query_with_globals(
+            query, {"col": "id"}, lambda key: f'"{key}"'
+        )
+        assert result_double_quote == 'SELECT id FROM "table"'
+
+        result_with_uppercase = format_query_with_globals(
+            query, {"col": "id"}, lambda key: key.upper()
+        )
+        assert result_with_uppercase == "SELECT id FROM TABLE"
