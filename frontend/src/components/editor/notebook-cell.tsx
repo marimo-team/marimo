@@ -1074,9 +1074,10 @@ const SetupCellComponent = ({
   return (
     <TooltipProvider>
       <CellActionsContextMenu cellId={cellId} getEditorView={getEditorView}>
-        <div ref={cellRef}>
+        <div>
           <div
             data-status={cellRuntime.status}
+            ref={cellRef}
             {...mergeProps(navigationProps, {
               className: cn(
                 className,
