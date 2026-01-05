@@ -64,21 +64,24 @@ class TestPathValidator(unittest.TestCase):
     def test_symlink_inside_directory(self):
         """Test that symlinks pointing inside directory are allowed."""
         validator = PathValidator()
-        directory = Path(self.test_dir).resolve()
+        directory = Path(self.test_dir)
         symlink_path = Path(self.test_dir) / "symlink.py"
         symlink_path.symlink_to(self.test_file)
         validator.validate_inside_directory(directory, symlink_path)
         symlink_path.unlink()
 
-    def test_symlink_escape_prevented(self):
-        """Test that symlinks pointing outside directory are blocked."""
+    def test_symlink_to_outside_allowed(self):
+        """Test that symlinks pointing outside directory are allowed.
+
+        Since symlinks are preserved (not resolved), the symlink path itself
+        is inside the directory, so access is allowed.
+        """
         validator = PathValidator()
-        directory = Path(self.test_dir).resolve()
+        directory = Path(self.test_dir)
         symlink_path = Path(self.test_dir) / "symlink.py"
         symlink_path.symlink_to(self.outside_file)
-        with pytest.raises(HTTPException) as exc_info:
-            validator.validate_inside_directory(directory, symlink_path)
-        assert exc_info.value.status_code == HTTPStatus.FORBIDDEN
+        # Should not raise - symlink path is inside directory
+        validator.validate_inside_directory(directory, symlink_path)
         symlink_path.unlink()
 
     def test_temp_directory_registration(self):
@@ -104,3 +107,25 @@ class TestPathValidator(unittest.TestCase):
         with pytest.raises(HTTPException) as exc_info:
             validator.validate_file_access(filepath)
         assert exc_info.value.status_code == HTTPStatus.FORBIDDEN
+
+    def test_symlink_directory_outside_allowed(self):
+        """Test that files through symlinked directories are allowed.
+
+        Since symlinks are preserved (not resolved), the path through the
+        symlink is inside the base directory.
+        """
+        # Create a symlink to the outside directory inside the test directory
+        symlink_path = Path(self.test_dir) / "shared"
+        symlink_path.symlink_to(self.outside_dir)
+
+        # Create a file reference through the symlink
+        file_through_symlink = symlink_path / "outside.py"
+
+        # Symlinks are preserved (not resolved), so the path
+        # /test_dir/shared/outside.py is inside /test_dir/
+        validator = PathValidator()
+        validator.validate_inside_directory(
+            Path(self.test_dir), file_through_symlink
+        )  # Should not raise
+
+        symlink_path.unlink()

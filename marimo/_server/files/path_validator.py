@@ -70,6 +70,53 @@ class PathValidator:
             )
             return False
 
+    def _normalize_path_without_resolving_symlinks(
+        self, path: Path, base: Path
+    ) -> Path:
+        """Normalize a path without resolving symlinks.
+
+        Makes the path absolute relative to base and normalizes .. components,
+        but does NOT resolve symlinks.
+
+        Args:
+            path: The path to normalize
+            base: The base directory for relative paths
+
+        Returns:
+            Normalized absolute path without symlink resolution
+        """
+        import os
+
+        # Make absolute relative to base if needed
+        if not path.is_absolute():
+            path = base / path
+
+        # Use os.path.normpath to normalize .. and . without resolving symlinks
+        # Then convert back to Path
+        return Path(os.path.normpath(str(path)))
+
+    def _check_containment(
+        self,
+        directory_abs: Path,
+        filepath_abs: Path,
+        directory: Path,
+        filepath: Path,
+    ) -> None:
+        """Check that filepath is inside directory."""
+        if filepath_abs == directory_abs:
+            raise HTTPException(
+                status_code=HTTPStatus.FORBIDDEN,
+                detail=f"Access denied: File {filepath} is the same as directory {directory}",
+            )
+
+        try:
+            filepath_abs.relative_to(directory_abs)
+        except ValueError:
+            raise HTTPException(
+                status_code=HTTPStatus.FORBIDDEN,
+                detail=f"Access denied: File {filepath} is outside the allowed directory {directory}",
+            ) from None
+
     def validate_inside_directory(
         self, directory: Path, filepath: Path
     ) -> None:
@@ -77,7 +124,7 @@ class PathValidator:
         Validate that a filepath is inside a directory.
 
         Handles all combinations of absolute/relative paths for both directory
-        and filepath. Resolves symlinks and prevents path traversal attacks.
+        and filepath. By default, resolves symlinks are preserved.
 
         Args:
             directory: The directory path (can be absolute or relative)
@@ -113,50 +160,27 @@ class PathValidator:
                     detail=f"Path {directory} is not a directory",
                 )
 
-            # Resolve filepath to absolute path
-            # If directory is absolute and filepath is relative, resolve relative to directory
-            # (matches behavior in get_file_manager)
-            # Otherwise, resolve relative to current working directory
-            if not filepath.is_absolute() and directory_resolved.is_absolute():
-                # Resolve relative filepath relative to the directory
-                filepath_resolved = (directory_resolved / filepath).resolve(
-                    strict=False
-                )
-            elif filepath.is_absolute():
-                # Absolute filepath - resolve it directly (resolves symlinks)
-                filepath_resolved = filepath.resolve(strict=False)
-            else:
-                # Both are relative - resolve relative to current working directory
-                filepath_resolved = filepath.resolve(strict=False)
-
-            # Check if filepath is inside directory
-            # Use resolve() to handle symlinks and normalize paths
             try:
-                # Ensure both paths are fully resolved (handles symlinks)
-                # resolve(strict=False) resolves symlinks even if final path doesn't exist
-                filepath_absolute = filepath_resolved.resolve(strict=False)
-                directory_absolute = directory_resolved.resolve(strict=False)
-
-                # A directory is not inside itself
-                if filepath_absolute == directory_absolute:
-                    raise HTTPException(
-                        status_code=HTTPStatus.FORBIDDEN,
-                        detail=f"Access denied: File {filepath} is the same as directory {directory}",
+                # Normalize without resolving symlinks
+                directory_normalized = (
+                    self._normalize_path_without_resolving_symlinks(
+                        directory, Path.cwd()
                     )
-
-                # Check if filepath is inside directory using relative_to
-                # This prevents path traversal attacks
-                try:
-                    filepath_absolute.relative_to(directory_absolute)
-                except ValueError:
-                    # filepath is not inside directory
-                    raise HTTPException(
-                        status_code=HTTPStatus.FORBIDDEN,
-                        detail=f"Access denied: File {filepath} is outside the allowed directory {directory}",
-                    ) from None
+                )
+                filepath_normalized = (
+                    self._normalize_path_without_resolving_symlinks(
+                        filepath, directory_normalized
+                    )
+                )
+                self._check_containment(
+                    directory_normalized,
+                    filepath_normalized,
+                    directory,
+                    filepath,
+                )
 
             except OSError as e:
-                # Handle errors like broken symlinks, permission errors, etc.
+                # Handle errors like permission errors, etc.
                 raise HTTPException(
                     status_code=HTTPStatus.BAD_REQUEST,
                     detail=f"Error resolving path {filepath}: {str(e)}",
