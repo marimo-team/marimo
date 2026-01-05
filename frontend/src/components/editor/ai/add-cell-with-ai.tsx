@@ -32,12 +32,12 @@ import { useMemo, useRef, useState } from "react";
 import useEvent from "react-use-event-hook";
 import { z } from "zod";
 import { AIModelDropdown } from "@/components/ai/ai-model-dropdown";
+import { FileAttachmentPill } from "@/components/chat/chat-components";
 import {
   buildCompletionRequestBody,
   convertToFileUIPart,
   handleToolCall,
 } from "@/components/chat/chat-utils";
-import { FileAttachmentPill } from "@/components/chat/chat-components";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -53,9 +53,9 @@ import { AiModelId } from "@/core/ai/ids/ids";
 import { stagedAICellsAtom, useStagedCells } from "@/core/ai/staged-cells";
 import type { ToolNotebookContext } from "@/core/ai/tools/base";
 import { useCellActions } from "@/core/cells/cells";
+import { resourceExtension } from "@/core/codemirror/ai/resources";
 import { aiAtom } from "@/core/config/config";
 import { DEFAULT_AI_MODEL } from "@/core/config/config-schema";
-import { resourceExtension } from "@/core/codemirror/ai/resources";
 import { useRequestClient } from "@/core/network/requests";
 import type { AiCompletionRequest } from "@/core/network/types";
 import { useRuntimeManager } from "@/core/runtime/config";
@@ -545,7 +545,8 @@ export const PromptInput = ({
       onKeyDown={onKeyDown}
       theme={theme === "dark" ? "dark" : "light"}
       placeholder={
-        placeholder || `Generate with AI, ${CONTEXT_TRIGGER} to include context about tables or dataframes.\nCode from other cells is automatically included. `
+        placeholder ||
+        `Generate with AI, ${CONTEXT_TRIGGER} to include context about tables or dataframes.\nCode from other cells is automatically included. `
       }
     />
   );
