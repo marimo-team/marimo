@@ -11,7 +11,11 @@ pytest.importorskip("plotly.graph_objects")
 import plotly.express as px
 import plotly.graph_objects as go
 
-from marimo._plugins.ui._impl.plotly import plotly
+from marimo._plugins.ui._impl.plotly import (
+    _extract_heatmap_cells_fallback,
+    _extract_heatmap_cells_numpy,
+    plotly,
+)
 
 
 def test_basic_scatter_plot() -> None:
@@ -713,10 +717,10 @@ def test_heatmap_numpy_and_fallback_produce_same_results() -> None:
     y_min, y_max = 0.5, 2.5
 
     # Get results from both implementations
-    numpy_result = plotly._extract_heatmap_cells_numpy(
+    numpy_result = _extract_heatmap_cells_numpy(
         fig, x_min, x_max, y_min, y_max
     )
-    fallback_result = plotly._extract_heatmap_cells_fallback(
+    fallback_result = _extract_heatmap_cells_fallback(
         fig, x_min, x_max, y_min, y_max
     )
 
@@ -751,10 +755,10 @@ def test_heatmap_numpy_and_fallback_numeric_axes() -> None:
     x_min, x_max = 15, 25
     y_min, y_max = 150, 250
 
-    numpy_result = plotly._extract_heatmap_cells_numpy(
+    numpy_result = _extract_heatmap_cells_numpy(
         fig, x_min, x_max, y_min, y_max
     )
-    fallback_result = plotly._extract_heatmap_cells_fallback(
+    fallback_result = _extract_heatmap_cells_fallback(
         fig, x_min, x_max, y_min, y_max
     )
 
