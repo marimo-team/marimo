@@ -303,6 +303,14 @@ export function makeSelectable<T extends VegaLiteSpec>(
     chartSelection = false;
   }
 
+  // For vconcat/hconcat with existing chart params, return unchanged.
+  // This preserves cross-view interactions (e.g., brush selections in
+  // concatenated charts). See issue #7668.
+  const isCompoundSpec = "vconcat" in spec || "hconcat" in spec;
+  if (hasChartParam && isCompoundSpec) {
+    return spec;
+  }
+
   if ("vconcat" in spec) {
     const subSpecs = spec.vconcat.map((subSpec) =>
       "mark" in subSpec

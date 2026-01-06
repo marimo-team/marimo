@@ -1480,6 +1480,28 @@ def test_has_selection_param() -> None:
     layered = alt.layer(chart, rule)
     assert _has_selection_param(layered) is True
 
+    # VConcatChart with selection in nested chart (issue #7668)
+    chart_with_selection = (
+        alt.Chart()
+        .mark_point()
+        .add_params(alt.selection_interval(name="brush", encodings=["x"]))
+    )
+    chart_without_selection = alt.Chart().mark_point()
+    vconcat = chart_with_selection & chart_without_selection
+    assert _has_selection_param(vconcat) is True
+
+    # HConcatChart with selection in nested chart
+    hconcat = chart_with_selection | chart_without_selection
+    assert _has_selection_param(hconcat) is True
+
+    # Nested VConcatChart
+    nested_vconcat = alt.vconcat(vconcat, chart_without_selection)
+    assert _has_selection_param(nested_vconcat) is True
+
+    # VConcatChart without any selection
+    vconcat_no_selection = chart_without_selection & chart_without_selection
+    assert _has_selection_param(vconcat_no_selection) is False
+
     # Invalid chart
     chart = None
     assert _has_selection_param(chart) is False
@@ -1512,6 +1534,24 @@ def test_has_legend_param() -> None:
 
     layered = alt.layer(chart, rule)
     assert _has_legend_param(layered) is False
+
+    # VConcatChart with legend param in nested chart
+    chart_with_legend = (
+        alt.Chart()
+        .mark_point()
+        .add_params(alt.selection_point(fields=["color"], bind="legend"))
+    )
+    chart_without_legend = alt.Chart().mark_point()
+    vconcat = chart_with_legend & chart_without_legend
+    assert _has_legend_param(vconcat) is True
+
+    # HConcatChart with legend param in nested chart
+    hconcat = chart_with_legend | chart_without_legend
+    assert _has_legend_param(hconcat) is True
+
+    # VConcatChart without any legend param
+    vconcat_no_legend = chart_without_legend & chart_without_legend
+    assert _has_legend_param(vconcat_no_legend) is False
 
     # Invalid chart
     chart = None
