@@ -159,11 +159,15 @@
   /* Error styles for Cell, less precedence than needs run */
   &.has-error:not(.needs-run),
   &.error-outline {
-    border: 1px solid var(--red-4);
+    @apply border-error/20 border-2 divide-error/20;
+  }
+
+  &.has-error:not(.needs-run):hover {
+    @apply border-error/30;
   }
 
   &.has-error:not(.needs-run):focus-within {
-    @apply shadow-md-solid shadow-error/10;
+    @apply border-1 shadow-md-solid divide-error/20 shadow-error/20;
   }
 
   &.error-outline,
@@ -176,11 +180,14 @@
 
   &.needs-run {
     /* TODO(akshayka): Can give this an outline to make more visible. */
-    border-color: var(--stale);
-    @apply divide-stale shadow-sm-solid shadow-stale;
+    @apply border-stale border-2 divide-stale;
+
+    &:hover {
+      @apply border-action-foreground/30;
+    }
 
     &:focus-within {
-      @apply divide-stale shadow-md-solid shadow-stale;
+      @apply border-1 divide-stale shadow-md-solid shadow-stale;
     }
 
     &:focus-within .cm-editor {
