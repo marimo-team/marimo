@@ -1,6 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import asyncio
 import mimetypes
 import re
 from pathlib import Path
@@ -145,15 +146,22 @@ async def index(request: Request) -> HTMLResponse:
         app_config = app_manager.app.config
 
         # Pre-compute notebook snapshot for faster initial render
+        # Only in home sandbox mode where each notebook gets its own IPC kernel
         notebook_snapshot = None
-        if app_manager.filename:
+        if (
+            app_state.session_manager.home_sandbox_mode
+            and app_manager.filename
+        ):
             from marimo._convert.converters import MarimoConvert
 
             filepath = Path(app_manager.filename)
-            if filepath.exists():  # noqa: ASYNC240
+            if await asyncio.to_thread(filepath.exists):
                 try:
+                    content = await asyncio.to_thread(
+                        filepath.read_text, encoding="utf-8"
+                    )
                     notebook_snapshot = MarimoConvert.from_py(
-                        filepath.read_text(encoding="utf-8")  # noqa: ASYNC240
+                        content
                     ).to_notebook_v1()
                 except Exception:
                     LOGGER.debug("Failed to pre-compute notebook snapshot")

@@ -9,7 +9,7 @@ import sys
 import threading
 import time
 from multiprocessing import Process, connection
-from typing import TYPE_CHECKING, Optional, Union
+from typing import TYPE_CHECKING, Any, Optional, Union
 
 from marimo import _loggers
 from marimo._config.settings import GLOBAL_SETTINGS
@@ -103,7 +103,7 @@ class KernelManagerImpl(KernelManager):
             # We can't terminate threads, so we have to wait until they
             # naturally exit before cleaning up resources
             def launch_kernel_with_cleanup(
-                *args: object,
+                *args: Any,
             ) -> None:
                 runtime.launch_kernel(*args)
 

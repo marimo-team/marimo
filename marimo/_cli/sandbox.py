@@ -4,6 +4,7 @@ from __future__ import annotations
 import atexit
 import os
 import platform
+import shutil
 import signal
 import subprocess
 import sys
@@ -392,3 +393,165 @@ def run_in_sandbox(
     signal.signal(signal.SIGINT, handler)
 
     return process.wait()
+
+
+# Dependencies required for IPC kernel communication (ZeroMQ-based)
+IPC_KERNEL_DEPS: list[str] = ["pyzmq", "msgspec"]
+
+
+def get_sandbox_requirements(
+    filename: str | None,
+    additional_deps: list[str] | None = None,
+) -> list[str]:
+    """Get normalized requirements for sandbox venv.
+
+    Reads dependencies from the notebook's PEP 723 script metadata,
+    normalizes marimo dependency, and adds any additional deps
+    (e.g., IPC_KERNEL_DEPS for kernel communication).
+
+    Args:
+        filename: Path to notebook file, or None for empty deps.
+        additional_deps: Extra dependencies to add if not already present.
+
+    Returns:
+        List of normalized requirement strings.
+    """
+    pyproject = (
+        PyProjectReader.from_filename(filename)
+        if filename is not None
+        else PyProjectReader({}, config_path=None)
+    )
+
+    dependencies = _resolve_requirements_txt_lines(pyproject)
+    normalized = _normalize_sandbox_dependencies(
+        dependencies, __version__, additional_features=[]
+    )
+
+    # Add additional deps if not already present
+    if additional_deps:
+        existing_lower = {
+            d.lower().split("[")[0].split(">=")[0].split("==")[0]
+            for d in normalized
+        }
+        for dep in additional_deps:
+            if dep.lower() not in existing_lower:
+                normalized.append(dep)
+
+    return normalized
+
+
+def build_sandbox_venv(
+    filename: str | None,
+    additional_deps: list[str] | None = None,
+) -> tuple[str, str]:
+    """Build sandbox venv and install dependencies.
+
+    Creates an ephemeral virtual environment using uv with the notebook's
+    dependencies installed. Used for IPC kernel mode where each notebook
+    gets its own sandboxed environment.
+
+    Args:
+        filename: Path to notebook file for reading dependencies.
+        additional_deps: Extra dependencies to add (e.g., IPC_KERNEL_DEPS).
+
+    Returns:
+        Tuple of (sandbox_dir, venv_python_path).
+
+    Raises:
+        RuntimeError: If dependency installation fails.
+    """
+    uv_bin = find_uv_bin()
+
+    # Create temp directory for sandbox venv
+    sandbox_dir = tempfile.mkdtemp(prefix="marimo-sandbox-")
+    venv_path = os.path.join(sandbox_dir, "venv")
+
+    # Phase 1: Create venv
+    echo(f"Creating sandbox environment: {muted(venv_path)}", err=True)
+    subprocess.run(
+        [uv_bin, "venv", "--seed", venv_path],
+        check=True,
+        capture_output=True,
+    )
+
+    # Get venv Python path
+    if sys.platform == "win32":
+        venv_python = os.path.join(venv_path, "Scripts", "python.exe")
+    else:
+        venv_python = os.path.join(venv_path, "bin", "python")
+
+    # Phase 2: Install dependencies
+    requirements = get_sandbox_requirements(filename, additional_deps)
+    echo("Installing sandbox dependencies...", err=True)
+
+    # Separate editable installs from regular requirements
+    # Editable installs look like "-e /path/to/package"
+    editable_reqs = [r for r in requirements if r.startswith("-e ")]
+    regular_reqs = [r for r in requirements if not r.startswith("-e ")]
+
+    # Install editable packages directly (not via requirements file)
+    for editable in editable_reqs:
+        # Extract path from "-e /path/to/package"
+        editable_path = editable[3:].strip()
+        result = subprocess.run(
+            [
+                uv_bin,
+                "pip",
+                "install",
+                "--python",
+                venv_python,
+                "-e",
+                editable_path,
+            ],
+            capture_output=True,
+            text=True,
+        )
+        if result.returncode != 0:
+            echo(
+                f"Warning: Editable install failed: {result.stderr}",
+                err=True,
+            )
+
+    # Install regular packages via requirements file
+    if regular_reqs:
+        req_file = os.path.join(sandbox_dir, "requirements.txt")
+        with open(req_file, "w", encoding="utf-8") as f:
+            f.write("\n".join(regular_reqs))
+
+        result = subprocess.run(
+            [
+                uv_bin,
+                "pip",
+                "install",
+                "--python",
+                venv_python,
+                "-r",
+                req_file,
+            ],
+            capture_output=True,
+            text=True,
+        )
+        if result.returncode != 0:
+            # Clean up on failure
+            cleanup_sandbox_dir(sandbox_dir)
+            raise RuntimeError(
+                f"Failed to install sandbox dependencies: {result.stderr}"
+            )
+
+    return sandbox_dir, venv_python
+
+
+def cleanup_sandbox_dir(sandbox_dir: str | None) -> None:
+    """Clean up sandbox directory.
+
+    Safely removes the sandbox directory and all its contents.
+    Silently ignores errors (e.g., if directory doesn't exist).
+
+    Args:
+        sandbox_dir: Path to sandbox directory, or None (no-op).
+    """
+    if sandbox_dir:
+        try:
+            shutil.rmtree(sandbox_dir)
+        except OSError:
+            pass

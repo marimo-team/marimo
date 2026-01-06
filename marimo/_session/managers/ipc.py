@@ -11,26 +11,28 @@ import os
 import signal
 import subprocess
 import sys
-from typing import TYPE_CHECKING, Optional, Union
+from typing import TYPE_CHECKING, Optional, Union, cast
 
 from marimo import _loggers
+from marimo._cli.sandbox import (
+    IPC_KERNEL_DEPS,
+    build_sandbox_venv,
+    cleanup_sandbox_dir,
+)
 from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._messaging.types import KernelMessage
 from marimo._runtime import commands
 from marimo._session.model import SessionMode
-from marimo._session.queue import ProcessLike
+from marimo._session.queue import ProcessLike, QueueType
 from marimo._session.types import KernelManager, QueueManager
 from marimo._utils.typed_connection import TypedConnection
 
 if TYPE_CHECKING:
-    from queue import Queue
-
     from marimo._ast.cell import CellConfig
     from marimo._config.manager import MarimoConfigReader
     from marimo._ipc.queue_manager import QueueManager as IPCQueueManagerType
     from marimo._runtime.commands import AppMetadata
     from marimo._types.ids import CellId_t
-    from marimo._utils.inline_script_metadata import PyProjectReader
 
 LOGGER = _loggers.marimo_logger()
 
@@ -58,27 +60,32 @@ class IPCQueueManagerImpl(QueueManager):
         return self._ipc
 
     @property
-    def control_queue(self) -> Queue[commands.CommandMessage]:
+    def control_queue(self) -> QueueType[commands.CommandMessage]:
         return self._ensure_ipc().control_queue
 
     @property
-    def set_ui_element_queue(self) -> Queue[commands.UpdateUIElementCommand]:
+    def set_ui_element_queue(
+        self,
+    ) -> QueueType[commands.UpdateUIElementCommand]:
         return self._ensure_ipc().set_ui_element_queue
 
     @property
-    def completion_queue(self) -> Queue[commands.CodeCompletionCommand]:
+    def completion_queue(self) -> QueueType[commands.CodeCompletionCommand]:
         return self._ensure_ipc().completion_queue
 
     @property
-    def input_queue(self) -> Queue[str]:
+    def input_queue(self) -> QueueType[str]:
         return self._ensure_ipc().input_queue
 
     @property
-    def stream_queue(self) -> Queue[Union[KernelMessage, None]]:
-        return self._ensure_ipc().stream_queue
+    def stream_queue(self) -> QueueType[Union[KernelMessage, None]]:
+        return cast(
+            QueueType[Union[KernelMessage, None]],
+            self._ensure_ipc().stream_queue,
+        )
 
     @property
-    def win32_interrupt_queue(self) -> Optional[Queue[bool]]:
+    def win32_interrupt_queue(self) -> Optional[QueueType[bool]]:
         return self._ensure_ipc().win32_interrupt_queue
 
     def close_queues(self) -> None:
@@ -132,6 +139,7 @@ class IPCKernelManagerImpl(KernelManager):
         self._sandbox_dir: str | None = None
 
     def start_kernel(self) -> None:
+        from marimo._cli.print import echo, muted
         from marimo._ipc import QueueManager as IPCQueueManager
         from marimo._ipc.types import KernelArgs
 
@@ -156,14 +164,16 @@ class IPCKernelManagerImpl(KernelManager):
         # Build environment
         env = os.environ.copy()
 
-        # Build sandbox command (may raise on dependency install failure)
+        # Build sandbox venv with IPC dependencies
         try:
-            cmd = self._build_sandbox_command()
+            self._sandbox_dir, venv_python = build_sandbox_venv(
+                self.app_metadata.filename,
+                additional_deps=IPC_KERNEL_DEPS,
+            )
+            cmd = [venv_python, "-m", "marimo._ipc.launch_kernel"]
         except Exception:
-            self._cleanup_sandbox()
+            cleanup_sandbox_dir(self._sandbox_dir)
             raise
-
-        from marimo._cli.print import echo, muted
 
         echo(
             f"Running kernel in sandbox: {muted(' '.join(cmd))}",
@@ -207,7 +217,7 @@ class IPCKernelManagerImpl(KernelManager):
             self.kernel_task = _SubprocessWrapper(self._process)
         except Exception:
             # Cleanup sandbox on any failure
-            self._cleanup_sandbox()
+            cleanup_sandbox_dir(self._sandbox_dir)
             raise
 
     @property
@@ -258,7 +268,8 @@ class IPCKernelManagerImpl(KernelManager):
                 self._process.kill()
 
         # Clean up sandbox directory
-        self._cleanup_sandbox()
+        cleanup_sandbox_dir(self._sandbox_dir)
+        self._sandbox_dir = None
 
     @property
     def kernel_connection(self) -> TypedConnection[KernelMessage]:
@@ -266,155 +277,6 @@ class IPCKernelManagerImpl(KernelManager):
         raise NotImplementedError(
             "IPC kernel uses stream_queue, not kernel_connection"
         )
-
-    def _build_sandbox_command(self) -> list[str]:
-        """Build sandbox environment and return kernel launch command.
-
-        Two-phase approach:
-        1. Create ephemeral venv with dependencies using uv
-        2. Return command to launch kernel with venv's Python
-
-        This separates package installation output from kernel communication,
-        ensuring "KERNEL_READY" signal is not mixed with uv's install logs.
-        """
-        import tempfile
-
-        from marimo._cli.print import echo, muted
-        from marimo._utils.inline_script_metadata import PyProjectReader
-        from marimo._utils.uv import find_uv_bin
-
-        uv_bin = find_uv_bin()
-        filename = self.app_metadata.filename
-
-        # Read dependencies from notebook
-        pyproject = (
-            PyProjectReader.from_filename(filename)
-            if filename is not None
-            else PyProjectReader({}, config_path=None)
-        )
-
-        # Create temp directory for sandbox venv
-        self._sandbox_dir = tempfile.mkdtemp(prefix="marimo-sandbox-")
-        venv_path = os.path.join(self._sandbox_dir, "venv")
-
-        # Phase 1: Create venv
-        echo(f"Creating sandbox environment: {muted(venv_path)}", err=True)
-        subprocess.run(
-            [uv_bin, "venv", "--seed", venv_path],
-            check=True,
-            capture_output=True,
-        )
-
-        # Get venv Python path
-        if sys.platform == "win32":
-            venv_python = os.path.join(venv_path, "Scripts", "python.exe")
-        else:
-            venv_python = os.path.join(venv_path, "bin", "python")
-
-        # Phase 1b: Install dependencies
-        # ALWAYS install - IPC mode requires pyzmq/msgspec for kernel communication
-        requirements = self._get_sandbox_requirements(pyproject)
-        echo("Installing sandbox dependencies...", err=True)
-
-        # Separate editable installs from regular requirements
-        # Editable installs look like "-e /path/to/package"
-        editable_reqs = [r for r in requirements if r.startswith("-e ")]
-        regular_reqs = [r for r in requirements if not r.startswith("-e ")]
-
-        # Install editable packages directly (not via requirements file)
-        for editable in editable_reqs:
-            # Extract path from "-e /path/to/package"
-            editable_path = editable[3:].strip()
-            result = subprocess.run(
-                [
-                    uv_bin,
-                    "pip",
-                    "install",
-                    "--python",
-                    venv_python,
-                    "-e",
-                    editable_path,
-                ],
-                capture_output=True,
-                text=True,
-            )
-            if result.returncode != 0:
-                echo(
-                    f"Warning: Editable install failed: {result.stderr}",
-                    err=True,
-                )
-
-        # Install regular packages via requirements file
-        if regular_reqs:
-            req_file = os.path.join(self._sandbox_dir, "requirements.txt")
-            with open(req_file, "w", encoding="utf-8") as f:
-                f.write("\n".join(regular_reqs))
-
-            result = subprocess.run(
-                [
-                    uv_bin,
-                    "pip",
-                    "install",
-                    "--python",
-                    venv_python,
-                    "-r",
-                    req_file,
-                ],
-                capture_output=True,
-                text=True,
-            )
-            if result.returncode != 0:
-                raise RuntimeError(
-                    f"Failed to install sandbox dependencies: {result.stderr}"
-                )
-
-        # Phase 2: Return direct python command
-        return [venv_python, "-m", "marimo._ipc.launch_kernel"]
-
-    def _get_sandbox_requirements(
-        self, pyproject: PyProjectReader
-    ) -> list[str]:
-        """Get normalized requirements for sandbox.
-
-        In addition to notebook dependencies, we inject pyzmq and msgspec
-        for IPC kernel communication.
-        """
-        from marimo import __version__
-        from marimo._cli.sandbox import (
-            _normalize_sandbox_dependencies,
-            _resolve_requirements_txt_lines,
-        )
-
-        dependencies = _resolve_requirements_txt_lines(pyproject)
-        normalized = _normalize_sandbox_dependencies(
-            dependencies, __version__, additional_features=[]
-        )
-
-        # Add IPC dependencies (pyzmq, msgspec) if not already present
-        # These are required for kernel <-> host communication
-        # No version pins - let uv resolve compatible versions
-        ipc_deps = ["pyzmq", "msgspec"]
-        existing_lower = {
-            d.lower().split("[")[0].split(">=")[0].split("==")[0]
-            for d in normalized
-        }
-
-        for ipc_dep in ipc_deps:
-            if ipc_dep.lower() not in existing_lower:
-                normalized.append(ipc_dep)
-
-        return normalized
-
-    def _cleanup_sandbox(self) -> None:
-        """Clean up sandbox directory."""
-        import shutil
-
-        if hasattr(self, "_sandbox_dir") and self._sandbox_dir:
-            try:
-                shutil.rmtree(self._sandbox_dir)
-            except OSError:
-                pass
-            self._sandbox_dir = None
 
 
 class _SubprocessWrapper(ProcessLike):
@@ -435,3 +297,6 @@ class _SubprocessWrapper(ProcessLike):
 
     def kill(self) -> None:
         self._process.kill()
+
+    def join(self, timeout: Optional[float] = None) -> None:
+        self._process.wait(timeout=timeout)

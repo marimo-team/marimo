@@ -937,7 +937,7 @@ def run(
     name: str,
     args: tuple[str, ...],
 ) -> None:
-    from marimo._cli.sandbox import resolve_sandbox_mode
+    from marimo._cli.sandbox import run_in_sandbox, should_run_in_sandbox
 
     if prompt_run_in_docker_container(name, trusted=trusted):
         from marimo._cli.run_docker import run_in_docker
@@ -972,11 +972,9 @@ def run(
 
     # We check this after name validation, because this will convert
     # URLs into local file paths
-
-    # Resolve sandbox mode and external python (handles conflicts and fallbacks)
-    sandbox_mode, external_python = resolve_sandbox_mode(
-        sandbox=sandbox, name=name
-    )
+    if should_run_in_sandbox(sandbox=sandbox, name=name):
+        run_in_sandbox(sys.argv[1:], name=name)
+        return
 
     start(
         file_router=AppFileRouter.from_filename(file),
@@ -1003,8 +1001,6 @@ def run(
         redirect_console_to_browser=redirect_console_to_browser,
         server_startup_command=server_startup_command,
         asset_url=asset_url,
-        external_python=external_python,
-        sandbox_mode=sandbox_mode,
     )
 
 

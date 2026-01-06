@@ -34,12 +34,29 @@ if TYPE_CHECKING:
 class QueueManager(Protocol):
     """Protocol for queue management."""
 
-    control_queue: QueueType[commands.CommandMessage]
-    set_ui_element_queue: QueueType[commands.UpdateUIElementCommand]
-    completion_queue: QueueType[commands.CodeCompletionCommand]
-    input_queue: QueueType[str]
-    stream_queue: Optional[QueueType[Union[KernelMessage, None]]]
-    win32_interrupt_queue: QueueType[bool] | None
+    @property
+    def control_queue(self) -> QueueType[commands.CommandMessage]: ...
+
+    @property
+    def set_ui_element_queue(
+        self,
+    ) -> QueueType[commands.UpdateUIElementCommand]: ...
+
+    @property
+    def completion_queue(
+        self,
+    ) -> QueueType[commands.CodeCompletionCommand]: ...
+
+    @property
+    def input_queue(self) -> QueueType[str]: ...
+
+    @property
+    def stream_queue(
+        self,
+    ) -> Optional[QueueType[Union[KernelMessage, None]]]: ...
+
+    @property
+    def win32_interrupt_queue(self) -> QueueType[bool] | None: ...
 
     def close_queues(self) -> None:
         """Close all queues."""
