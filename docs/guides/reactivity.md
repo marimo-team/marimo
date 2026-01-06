@@ -42,7 +42,7 @@ former. When a cell is run, its descendants are marked for execution.
 
 !!! tip "Visualizing the DAG"
     marimo provides several tools to help you visualize and navigate this dependency graph,
-    including a [dependency explorer](editor_features/dataflow.md#dependency-explorer), 
+    including a [dependency graph](editor_features/dataflow.md#graph-view),
     [minimap](editor_features/dataflow.md#minimap),
     and [reactive reference highlighting](editor_features/dataflow.md#reactive-reference-highlighting).
     
