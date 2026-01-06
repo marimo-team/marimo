@@ -193,7 +193,6 @@ class SessionManager:
             ttl_seconds=self.ttl_seconds,
             auto_instantiate=auto_instantiate,
             extensions=extensions,
-            sandbox_mode=self.sandbox_mode,
             home_sandbox_mode=self.home_sandbox_mode,
         )
 
