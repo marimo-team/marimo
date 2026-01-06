@@ -17,7 +17,6 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LazyMount } from "@/components/utils/lazy-mount";
 import { cellErrorCount } from "@/core/cells/cells";
 import { getFeatureFlag } from "@/core/config/feature-flag";
-import { IfCapability } from "@/core/config/if-capability";
 import { cn } from "@/utils/cn";
 import { ErrorBoundary } from "../../boundary/ErrorBoundary";
 import { ContextAwarePanel } from "../panels/context-aware-panel/context-aware-panel";
@@ -70,7 +69,7 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
     setSelectedDeveloperPanelTab,
   } = useChromeActions();
   const sidebarRef = React.useRef<ImperativePanelHandle>(null);
-  const terminalRef = React.useRef<ImperativePanelHandle>(null);
+  const developerPanelRef = React.useRef<ImperativePanelHandle>(null);
   const { aiPanelTab, setAiPanelTab } = useAiPanelTab();
   const errorCount = useAtomValue(cellErrorCount);
 
@@ -100,16 +99,16 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
 
   // sync panel
   useEffect(() => {
-    if (!terminalRef.current) {
+    if (!developerPanelRef.current) {
       return;
     }
 
-    const isCurrentlyCollapsed = terminalRef.current.isCollapsed();
+    const isCurrentlyCollapsed = developerPanelRef.current.isCollapsed();
     if (isDeveloperPanelOpen && isCurrentlyCollapsed) {
-      terminalRef.current.expand();
+      developerPanelRef.current.expand();
     }
     if (!isDeveloperPanelOpen && !isCurrentlyCollapsed) {
-      terminalRef.current.collapse();
+      developerPanelRef.current.collapse();
     }
 
     // Dispatch a resize event so widgets know to resize
@@ -253,7 +252,7 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
 
   const bottomPanel = (
     <Panel
-      ref={terminalRef}
+      ref={developerPanelRef}
       // This cannot by dynamic and must be constant
       // so that the size is preserved between page loads
       id="app-chrome-panel"
@@ -272,7 +271,7 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
       onResize={(size, prevSize) => {
         // This means it started closed and is opening for the first time
         if (prevSize === 0 && size === 10) {
-          terminalRef.current?.resize(30);
+          developerPanelRef.current?.resize(30);
         }
       }}
       onCollapse={() => setIsDeveloperPanelOpen(false)}
@@ -395,7 +394,7 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
         >
           <PanelGroup autoSaveId="marimo:chrome:v1:l1" direction="vertical">
             {appBodyPanel}
-            <IfCapability capability="terminal">{bottomPanel}</IfCapability>
+            {bottomPanel}
           </PanelGroup>
         </Panel>
         <ContextAwarePanel />

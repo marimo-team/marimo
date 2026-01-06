@@ -31,6 +31,12 @@ async def preview_column(
     request: Request,
 ) -> BaseResponse:
     """
+    parameters:
+        - in: header
+          name: Marimo-Session-Id
+          schema:
+            type: string
+          required: true
     requestBody:
         content:
             application/json:
@@ -51,6 +57,12 @@ async def preview_column(
 @requires("edit")
 async def preview_sql_table(request: Request) -> BaseResponse:
     """
+    parameters:
+        - in: header
+          name: Marimo-Session-Id
+          schema:
+            type: string
+          required: true
     requestBody:
         content:
             application/json:
@@ -71,6 +83,12 @@ async def preview_sql_table(request: Request) -> BaseResponse:
 @requires("edit")
 async def preview_sql_table_list(request: Request) -> BaseResponse:
     """
+    parameters:
+        - in: header
+          name: Marimo-Session-Id
+          schema:
+            type: string
+          required: true
     requestBody:
         content:
             application/json:
@@ -91,6 +109,12 @@ async def preview_sql_table_list(request: Request) -> BaseResponse:
 @requires("edit")
 async def preview_datasource_connection(request: Request) -> BaseResponse:
     """
+    parameters:
+        - in: header
+          name: Marimo-Session-Id
+          schema:
+            type: string
+          required: true
     requestBody:
         content:
             application/json:

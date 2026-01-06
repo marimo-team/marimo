@@ -1,8 +1,15 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 /* eslint-disable @typescript-eslint/no-explicit-any */
+
+import { useAtomValue } from "jotai";
+import { Spinner } from "@/components/icons/spinner";
+import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/use-toast";
-import { prettyError } from "@/utils/errors";
+import { NoKernelConnectedError, prettyError } from "@/utils/errors";
 import { Logger } from "@/utils/Logger";
+import { useConnectToRuntime } from "../runtime/config";
+import { store } from "../state/jotai";
+import { isConnectingAtom } from "./connection";
 import type { EditRequests, RequestKey, RunRequests } from "./types";
 
 export function createErrorToastingRequests(
@@ -75,6 +82,26 @@ export function createErrorToastingRequests(
       try {
         return await handler(...args);
       } catch (error) {
+        // Special handling for NoKernelConnectedError error
+        if (error instanceof NoKernelConnectedError) {
+          // If we are connecting to a kernel, don't show the toast
+          const isConnecting = store.get(isConnectingAtom);
+          if (isConnecting) {
+            return;
+          }
+
+          const toastId = toast({
+            title: "Kernel Not Connected",
+            description:
+              "You need to connect to a kernel to perform this action.",
+            variant: "default",
+            action: <ConnectButton onConnect={() => toastId.dismiss()} />,
+          });
+          Logger.error(`Failed to handle request: ${key}`, error);
+          // Rethrow the error so that the caller can handle it
+          throw error;
+        }
+
         const title = MESSAGES[keyString];
         const message = prettyError(error);
         if (title) {
@@ -93,3 +120,25 @@ export function createErrorToastingRequests(
 
   return handlers;
 }
+
+export const ConnectButton: React.FC<{ onConnect: () => void }> = ({
+  onConnect,
+}) => {
+  const connectToRuntime = useConnectToRuntime();
+  const isConnecting = useAtomValue(isConnectingAtom);
+  return (
+    <Button
+      size="xs"
+      onClick={() => {
+        connectToRuntime();
+        setTimeout(() => {
+          onConnect();
+        }, 800);
+      }}
+      disabled={isConnecting}
+    >
+      {isConnecting && <Spinner size="small" className="mr-1" />}
+      Connect
+    </Button>
+  );
+};

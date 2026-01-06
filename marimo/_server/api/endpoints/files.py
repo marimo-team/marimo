@@ -41,6 +41,12 @@ async def read_code(
     request: Request,
 ) -> ReadCodeResponse:
     """
+    parameters:
+        - in: header
+          name: Marimo-Session-Id
+          schema:
+            type: string
+          required: true
     responses:
         200:
             description: Read the code from the server
@@ -82,6 +88,12 @@ async def rename_file(
     request: Request,
 ) -> BaseResponse:
     """
+    parameters:
+        - in: header
+          name: Marimo-Session-Id
+          schema:
+            type: string
+          required: true
     requestBody:
         content:
             application/json:
@@ -119,6 +131,12 @@ async def save(
     request: Request,
 ) -> PlainTextResponse:
     """
+    parameters:
+        - in: header
+          name: Marimo-Session-Id
+          schema:
+            type: string
+          required: true
     requestBody:
         content:
             application/json:
@@ -147,6 +165,12 @@ async def copy(
     request: Request,
 ) -> PlainTextResponse:
     """
+    parameters:
+        - in: header
+          name: Marimo-Session-Id
+          schema:
+            type: string
+          required: true
     requestBody:
         content:
             application/json:
@@ -175,6 +199,12 @@ async def save_app_config(
     request: Request,
 ) -> PlainTextResponse:
     """
+    parameters:
+        - in: header
+          name: Marimo-Session-Id
+          schema:
+            type: string
+          required: true
     requestBody:
         content:
             application/json:

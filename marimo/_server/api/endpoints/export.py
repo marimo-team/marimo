@@ -44,6 +44,12 @@ async def export_as_html(
     request: Request,
 ) -> HTMLResponse:
     """
+    parameters:
+        - in: header
+          name: Marimo-Session-Id
+          schema:
+            type: string
+          required: true
     requestBody:
         content:
             application/json:
@@ -101,6 +107,12 @@ async def auto_export_as_html(
     request: Request,
 ) -> JSONResponse | PlainTextResponse:
     """
+    parameters:
+        - in: header
+          name: Marimo-Session-Id
+          schema:
+            type: string
+          required: true
     requestBody:
         content:
             application/json:
@@ -169,6 +181,12 @@ async def export_as_script(
     request: Request,
 ) -> PlainTextResponse:
     """
+    parameters:
+        - in: header
+          name: Marimo-Session-Id
+          schema:
+            type: string
+          required: true
     requestBody:
         content:
             application/json:
@@ -212,6 +230,12 @@ async def export_as_markdown(
     request: Request,
 ) -> PlainTextResponse:
     """
+    parameters:
+        - in: header
+          name: Marimo-Session-Id
+          schema:
+            type: string
+          required: true
     requestBody:
         content:
             application/json:
@@ -265,6 +289,12 @@ async def auto_export_as_markdown(
     request: Request,
 ) -> JSONResponse | PlainTextResponse:
     """
+    parameters:
+        - in: header
+          name: Marimo-Session-Id
+          schema:
+            type: string
+          required: true
     requestBody:
         content:
             application/json:
@@ -323,6 +353,12 @@ async def auto_export_as_ipynb(
     request: Request,
 ) -> JSONResponse | PlainTextResponse:
     """
+    parameters:
+        - in: header
+          name: Marimo-Session-Id
+          schema:
+            type: string
+          required: true
     requestBody:
         content:
             application/json:
