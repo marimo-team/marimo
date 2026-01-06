@@ -577,6 +577,7 @@ def _convert_marimo_output_to_ipynb(
 
     # Handle rich output
     data: dict[str, Any] = {}
+    metadata: dict[str, Any] = {}
 
     if output.mimetype == "application/vnd.marimo+error":
         # Captured by stdout/stderr
@@ -585,6 +586,9 @@ def _convert_marimo_output_to_ipynb(
         for mime, content in cast(
             dict[str, Any], json.loads(cast(str, output.data))
         ).items():
+            if mime == "__metadata__" and isinstance(content, dict):
+                metadata = content
+
             if mime not in get_args(KnownMimeType):
                 # our mimebundle can contain nonstandard mimetypes, such
                 # as metadata for a matplotlib plot
@@ -600,7 +604,7 @@ def _convert_marimo_output_to_ipynb(
                 nbformat.v4.new_output(  # type: ignore[no-untyped-call]
                     "display_data",
                     data=data,
-                    metadata={},
+                    metadata=metadata,
                 ),
             )
         )
