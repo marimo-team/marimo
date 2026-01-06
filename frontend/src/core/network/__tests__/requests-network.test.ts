@@ -1,5 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as apiModule from "../api";
 import { visibleForTesting } from "../requests-lazy";
@@ -11,6 +13,7 @@ const { ACTIONS } = visibleForTesting;
 vi.mock("../../runtime/config", () => ({
   getRuntimeManager: vi.fn(() => ({
     sessionHeaders: vi.fn(() => ({ "X-Test-Header": "test" })),
+    isLazy: true,
   })),
 }));
 
@@ -38,7 +41,7 @@ vi.mock("../../state/jotai", () => ({
 }));
 
 describe("createNetworkRequests", () => {
-  let mockClient: any; // eslint-disable-line @typescript-eslint/no-explicit-any
+  let mockClient: any;
   let capturedCalls: Map<string, { hasParams: boolean; endpoint: string }>;
 
   beforeEach(() => {
@@ -47,7 +50,6 @@ describe("createNetworkRequests", () => {
 
     // Create mock client that captures all calls
     const createMockMethod = (endpoint: string) => {
-      // eslint-disable-line @typescript-eslint/no-explicit-any
       return vi.fn((_route: string, options?: any) => {
         const hasParams = options?.params !== undefined;
         capturedCalls.set(endpoint, { hasParams, endpoint });
@@ -71,10 +73,9 @@ describe("createNetworkRequests", () => {
     const methodNames = Object.keys(requests);
 
     for (const methodName of methodNames) {
-      expect(
-        ACTIONS[methodName as keyof typeof ACTIONS],
-        `${methodName} should have an action defined in ACTIONS`,
-      ).toBeDefined();
+      if (!ACTIONS[methodName as keyof typeof ACTIONS]) {
+        expect.fail(`Method ${methodName} has no action defined`);
+      }
     }
   });
 
@@ -85,7 +86,7 @@ describe("createNetworkRequests", () => {
       vi.mocked(store.get).mockReturnValue(false);
 
       const requests = createNetworkRequests();
-      const result = await requests.sendRun({} as any); // eslint-disable-line @typescript-eslint/no-explicit-any
+      const result = await requests.sendRun({} as any);
 
       expect(result).toBe(null);
       expect(mockClient.POST).not.toHaveBeenCalled();
@@ -96,7 +97,7 @@ describe("createNetworkRequests", () => {
       process.env.NODE_ENV = "development";
 
       const requests = createNetworkRequests();
-      await requests.exportAsHTML({} as any); // eslint-disable-line @typescript-eslint/no-explicit-any
+      await requests.exportAsHTML({} as any);
 
       expect(mockClient.POST).toHaveBeenCalledWith(
         "/api/export/html",

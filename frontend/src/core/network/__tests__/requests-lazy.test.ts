@@ -34,6 +34,7 @@ describe("createLazyRequests", () => {
     // Mock runtime manager
     mockRuntimeManager = {
       init: mockInit,
+      isLazy: true,
     } as unknown as RuntimeManager;
 
     // Mock getter function
@@ -175,6 +176,7 @@ describe("createLazyRequests", () => {
       const mockInit2 = vi.fn().mockResolvedValue(undefined);
       const mockRuntimeManager2 = {
         init: mockInit2,
+        isLazy: true,
       } as unknown as RuntimeManager;
       mockGetRuntimeManager = vi.fn(() => mockRuntimeManager2);
 

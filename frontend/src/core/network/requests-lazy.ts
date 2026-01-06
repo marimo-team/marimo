@@ -150,7 +150,7 @@ export function createLazyRequests(
 
         case "startConnection":
           // Start connection and wait for it to be open
-          await initOnce(getRuntimeManager());
+          await initOnce(runtimeManager);
           await waitForConnectionOpen();
           if (key !== "sendInstantiate") {
             await waitForKernelToBeInstantiated();
