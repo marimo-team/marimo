@@ -697,3 +697,77 @@ def test_heatmap_single_cell_outside_selection() -> None:
 
     # Should return empty list since selection doesn't cover the cell
     assert result == []
+
+
+def test_heatmap_numpy_and_fallback_produce_same_results() -> None:
+    """Test that numpy and fallback implementations produce identical results."""
+    fig = go.Figure(
+        data=go.Heatmap(
+            z=[[1, 2, 3], [4, 5, 6], [7, 8, 9]],
+            x=["A", "B", "C"],
+            y=["X", "Y", "Z"],
+        )
+    )
+
+    x_min, x_max = 0.5, 2.5
+    y_min, y_max = 0.5, 2.5
+
+    # Get results from both implementations
+    numpy_result = plotly._extract_heatmap_cells_numpy(
+        fig, x_min, x_max, y_min, y_max
+    )
+    fallback_result = plotly._extract_heatmap_cells_fallback(
+        fig, x_min, x_max, y_min, y_max
+    )
+
+    # Both should return the same number of cells
+    assert len(numpy_result) == len(fallback_result)
+
+    # Sort results for comparison (order might differ)
+    def sort_key(cell: dict[str, Any]) -> tuple[Any, ...]:
+        return (cell["x"], cell["y"], cell["z"])
+
+    numpy_sorted = sorted(numpy_result, key=sort_key)
+    fallback_sorted = sorted(fallback_result, key=sort_key)
+
+    # Compare each cell
+    for np_cell, fb_cell in zip(numpy_sorted, fallback_sorted):
+        assert np_cell["x"] == fb_cell["x"]
+        assert np_cell["y"] == fb_cell["y"]
+        assert np_cell["z"] == fb_cell["z"]
+        assert np_cell["curveNumber"] == fb_cell["curveNumber"]
+
+
+def test_heatmap_numpy_and_fallback_numeric_axes() -> None:
+    """Test numpy and fallback with numeric axes produce identical results."""
+    fig = go.Figure(
+        data=go.Heatmap(
+            z=[[1, 2, 3], [4, 5, 6], [7, 8, 9]],
+            x=[10, 20, 30],
+            y=[100, 200, 300],
+        )
+    )
+
+    x_min, x_max = 15, 25
+    y_min, y_max = 150, 250
+
+    numpy_result = plotly._extract_heatmap_cells_numpy(
+        fig, x_min, x_max, y_min, y_max
+    )
+    fallback_result = plotly._extract_heatmap_cells_fallback(
+        fig, x_min, x_max, y_min, y_max
+    )
+
+    assert len(numpy_result) == len(fallback_result)
+
+    def sort_key(cell: dict[str, Any]) -> tuple[Any, ...]:
+        return (cell["x"], cell["y"], cell["z"])
+
+    numpy_sorted = sorted(numpy_result, key=sort_key)
+    fallback_sorted = sorted(fallback_result, key=sort_key)
+
+    for np_cell, fb_cell in zip(numpy_sorted, fallback_sorted):
+        assert np_cell["x"] == fb_cell["x"]
+        assert np_cell["y"] == fb_cell["y"]
+        assert np_cell["z"] == fb_cell["z"]
+        assert np_cell["curveNumber"] == fb_cell["curveNumber"]
