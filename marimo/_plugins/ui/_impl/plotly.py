@@ -98,8 +98,6 @@ class plotly(UIElement[PlotlySelection, list[dict[str, Any]]]):
     """
 
     name: Final[str] = "marimo-plotly"
-    _figure: go.Figure
-    _selection_data: PlotlySelection
 
     def __init__(
         self,
@@ -115,9 +113,9 @@ class plotly(UIElement[PlotlySelection, list[dict[str, Any]]]):
         import plotly.io as pio  # type:ignore
 
         # Store figure for later use in _convert_value
-        self._figure = figure
+        self._figure: go.Figure = figure
         # Initialize selection data storage
-        self._selection_data = {}
+        self._selection_data: PlotlySelection = {}
 
         json_str = pio.to_json(figure)
 
