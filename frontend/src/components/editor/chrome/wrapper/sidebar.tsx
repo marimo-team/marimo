@@ -11,69 +11,107 @@ import { notebookQueuedOrRunningCountAtom } from "@/core/cells/cells";
 import { snippetsEnabledAtom } from "@/core/config/config";
 import { cn } from "@/utils/cn";
 import { FeedbackButton } from "../components/feedback-button";
-import { sidebarOrderAtom, useChromeActions, useChromeState } from "../state";
-import { PANEL_MAP, PANELS, type PanelDescriptor } from "../types";
+import { panelLayoutAtom, useChromeActions, useChromeState } from "../state";
+import { PANELS, type PanelDescriptor } from "../types";
 
 export const Sidebar: React.FC = () => {
-  const { selectedPanel } = useChromeState();
-  const { toggleApplication } = useChromeActions();
-  const [sidebarOrder, setSidebarOrder] = useAtom(sidebarOrderAtom);
+  const { selectedPanel, selectedDeveloperPanelTab } = useChromeState();
+  const { toggleApplication, setSelectedDeveloperPanelTab } =
+    useChromeActions();
+  const [panelLayout, setPanelLayout] = useAtom(panelLayoutAtom);
   const snippetsEnabled = useAtomValue(snippetsEnabledAtom);
 
   const renderIcon = ({ Icon }: PanelDescriptor, className?: string) => {
     return <Icon className={cn("h-5 w-5", className)} />;
   };
 
-  // Get all available sidebar panels
-  // Panels with defaultHidden are only available if explicitly enabled (e.g., snippets)
-  const availableSidebarPanels = useMemo(
-    () =>
-      PANELS.filter((p) => {
-        if (p.hidden || p.position !== "sidebar") {
-          return false;
-        }
-        // Show defaultHidden panels only if enabled via config
-        if (p.defaultHidden && p.id === "snippets" && !snippetsEnabled) {
-          return false;
-        }
-        return true;
-      }),
-    [snippetsEnabled],
-  );
+  // Get panels available for sidebar context menu
+  // Only show panels that are NOT in the developer panel
+  const availableSidebarPanels = useMemo(() => {
+    const devPanelIds = new Set(panelLayout.developerPanel);
+    return PANELS.filter((p) => {
+      if (p.hidden) {
+        return false;
+      }
+      // Exclude panels that are in the developer panel
+      if (devPanelIds.has(p.type)) {
+        return false;
+      }
+      // Show defaultHidden panels only if enabled via config
+      if (p.defaultHidden && p.type === "snippets" && !snippetsEnabled) {
+        return false;
+      }
+      return true;
+    });
+  }, [panelLayout.developerPanel, snippetsEnabled]);
 
-  const currentItems = sidebarOrder
-    .map((id) => PANEL_MAP.get(id))
-    .filter(Boolean);
+  // Convert current sidebar items to PanelDescriptors
+  const sidebarItems = useMemo(() => {
+    return panelLayout.sidebar
+      .map((id) => PANELS.find((p) => p.type === id))
+      .filter((p): p is PanelDescriptor => p !== undefined);
+  }, [panelLayout.sidebar]);
 
-  const handleSetValue = (panels: PanelDescriptor[]) => {
-    setSidebarOrder(panels.map((p) => p.id));
+  const handleSetSidebarItems = (items: PanelDescriptor[]) => {
+    setPanelLayout((prev) => ({
+      ...prev,
+      sidebar: items.map((item) => item.type),
+    }));
+  };
+
+  const handleReceive = (item: PanelDescriptor, fromListId: string) => {
+    // Remove from the source list
+    if (fromListId === "developer-panel") {
+      setPanelLayout((prev) => ({
+        ...prev,
+        developerPanel: prev.developerPanel.filter((id) => id !== item.type),
+      }));
+
+      // If the moved item was selected in dev panel, select the first remaining item
+      if (selectedDeveloperPanelTab === item.type) {
+        const remainingDevPanels = panelLayout.developerPanel.filter(
+          (id) => id !== item.type,
+        );
+        if (remainingDevPanels.length > 0) {
+          setSelectedDeveloperPanelTab(remainingDevPanels[0]);
+        }
+      }
+    }
+
+    // Select the dropped item in sidebar
+    toggleApplication(item.type);
   };
 
   return (
     <div className="h-full pt-4 pb-1 px-1 flex flex-col items-start text-muted-foreground text-md select-none no-print text-sm z-50 dark:bg-background print:hidden hide-on-fullscreen">
       <ReorderableList<PanelDescriptor>
-        value={currentItems}
-        setValue={handleSetValue}
+        value={sidebarItems}
+        setValue={handleSetSidebarItems}
+        getKey={(p) => p.type}
         availableItems={availableSidebarPanels}
+        crossListDrag={{
+          dragType: "panels",
+          listId: "sidebar",
+          onReceive: handleReceive,
+        }}
         getItemLabel={(panel) => (
-          <span className="flex items-center gap-2 [">
+          <span className="flex items-center gap-2">
             {renderIcon(panel, "h-4 w-4 text-muted-foreground")}
-            {panel.tooltip}
+            {panel.label}
           </span>
         )}
-        ariaLabel="Reorderable sidebar panels"
+        ariaLabel="Sidebar panels"
         className="flex flex-col gap-0"
-        onAction={(panel) => toggleApplication(panel.id)}
-        renderItem={(panel) => {
-          return (
-            <SidebarItem
-              tooltip={panel.tooltip}
-              selected={selectedPanel === panel.id}
-            >
-              {renderIcon(panel)}
-            </SidebarItem>
-          );
-        }}
+        minItems={0}
+        onAction={(panel) => toggleApplication(panel.type)}
+        renderItem={(panel) => (
+          <SidebarItem
+            tooltip={panel.label}
+            selected={selectedPanel === panel.type}
+          >
+            {renderIcon(panel)}
+          </SidebarItem>
+        )}
       />
       <FeedbackButton>
         <SidebarItem tooltip="Send feedback!" selected={false}>

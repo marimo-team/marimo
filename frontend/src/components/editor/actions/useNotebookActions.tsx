@@ -269,7 +269,7 @@ export function useNotebookActions() {
       label: "Helper panel",
       redundant: true,
       handle: NOOP_HANDLER,
-      dropdown: PANELS.flatMap(({ id, Icon, hidden }) => {
+      dropdown: PANELS.flatMap(({ type: id, Icon, hidden }) => {
         if (hidden) {
           return [];
         }

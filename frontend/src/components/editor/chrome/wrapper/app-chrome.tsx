@@ -1,5 +1,10 @@
 /* Copyright 2026 Marimo. All rights reserved. */
-import React, { type PropsWithChildren, Suspense, useEffect } from "react";
+import React, {
+  type PropsWithChildren,
+  Suspense,
+  useEffect,
+  useMemo,
+} from "react";
 import {
   type ImperativePanelHandle,
   Panel,
@@ -10,18 +15,20 @@ import { Footer } from "./footer";
 import { Sidebar } from "./sidebar";
 import "./app-chrome.css";
 import { TooltipProvider } from "@radix-ui/react-tooltip";
-import { useAtomValue } from "jotai";
+import { useAtom, useAtomValue } from "jotai";
 import { XIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ReorderableList } from "@/components/ui/reorderable-list";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LazyMount } from "@/components/utils/lazy-mount";
 import { cellErrorCount } from "@/core/cells/cells";
+import { snippetsEnabledAtom } from "@/core/config/config";
 import { getFeatureFlag } from "@/core/config/feature-flag";
 import { cn } from "@/utils/cn";
 import { ErrorBoundary } from "../../boundary/ErrorBoundary";
 import { ContextAwarePanel } from "../panels/context-aware-panel/context-aware-panel";
-import { useChromeActions, useChromeState } from "../state";
-import { DEVELOPER_PANEL_TABS } from "../types";
+import { panelLayoutAtom, useChromeActions, useChromeState } from "../state";
+import { PANELS, type PanelDescriptor } from "../types";
 import { BackendConnectionStatus } from "./footer-items/backend-status";
 import { Minimap } from "./minimap";
 import { PanelsWrapper } from "./panels";
@@ -67,11 +74,71 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
     setIsSidebarOpen,
     setIsDeveloperPanelOpen,
     setSelectedDeveloperPanelTab,
+    openApplication,
   } = useChromeActions();
   const sidebarRef = React.useRef<ImperativePanelHandle>(null);
   const developerPanelRef = React.useRef<ImperativePanelHandle>(null);
   const { aiPanelTab, setAiPanelTab } = useAiPanelTab();
   const errorCount = useAtomValue(cellErrorCount);
+  const [panelLayout, setPanelLayout] = useAtom(panelLayoutAtom);
+  const snippetsEnabled = useAtomValue(snippetsEnabledAtom);
+
+  // Convert current developer panel items to PanelDescriptors
+  const devPanelItems = useMemo(() => {
+    return panelLayout.developerPanel
+      .map((id) => PANELS.find((p) => p.type === id))
+      .filter((p): p is PanelDescriptor => p !== undefined);
+  }, [panelLayout.developerPanel]);
+
+  const handleSetDevPanelItems = (items: PanelDescriptor[]) => {
+    setPanelLayout((prev) => ({
+      ...prev,
+      developerPanel: items.map((item) => item.type),
+    }));
+  };
+
+  const handleDevPanelReceive = (item: PanelDescriptor, fromListId: string) => {
+    // Remove from the source list
+    if (fromListId === "sidebar") {
+      setPanelLayout((prev) => ({
+        ...prev,
+        sidebar: prev.sidebar.filter((id) => id !== item.type),
+      }));
+
+      // If the moved item was selected in sidebar, select the first remaining item
+      if (selectedPanel === item.type) {
+        const remainingSidebar = panelLayout.sidebar.filter(
+          (id) => id !== item.type,
+        );
+        if (remainingSidebar.length > 0) {
+          openApplication(remainingSidebar[0]);
+        }
+      }
+    }
+
+    // Select the dropped item in developer panel
+    setSelectedDeveloperPanelTab(item.type);
+  };
+
+  // Get panels available for developer panel context menu
+  // Only show panels that are NOT in the sidebar
+  const availableDevPanels = useMemo(() => {
+    const sidebarIds = new Set(panelLayout.sidebar);
+    return PANELS.filter((p) => {
+      if (p.hidden) {
+        return false;
+      }
+      // Exclude panels that are in the sidebar
+      if (sidebarIds.has(p.type)) {
+        return false;
+      }
+      // Show defaultHidden panels only if enabled via config
+      if (p.defaultHidden && p.type === "snippets" && !snippetsEnabled) {
+        return false;
+      }
+      return true;
+    });
+  }, [panelLayout.sidebar, snippetsEnabled]);
 
   // sync sidebar
   useEffect(() => {
@@ -211,6 +278,18 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
             {selectedPanel === "documentation" && <LazyDocumentationPanel />}
             {selectedPanel === "snippets" && <LazySnippetsPanel />}
             {selectedPanel === "ai" && renderAiPanel()}
+            {selectedPanel === "errors" && <LazyErrorsPanel />}
+            {selectedPanel === "scratchpad" && <LazyScratchpadPanel />}
+            {selectedPanel === "tracing" && <LazyTracingPanel />}
+            {selectedPanel === "secrets" && <LazySecretsPanel />}
+            {selectedPanel === "logs" && <LazyLogsPanel />}
+            {selectedPanel === "terminal" && (
+              <LazyTerminal
+                visible={isSidebarOpen}
+                onClose={() => setIsSidebarOpen(false)}
+              />
+            )}
+            {selectedPanel === "cache" && <LazyCachePanel />}
           </TooltipProvider>
         </Suspense>
       </div>
@@ -281,36 +360,47 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
       <div className="flex flex-col h-full">
         {/* Panel header with tabs */}
         <div className="flex items-center justify-between border-b px-2 h-8 bg-background shrink-0">
-          <Tabs
-            value={selectedDeveloperPanelTab}
-            onValueChange={(v) =>
-              setSelectedDeveloperPanelTab(
-                v as typeof selectedDeveloperPanelTab,
-              )
-            }
-          >
-            <TabsList className="bg-transparent p-0 gap-1">
-              {DEVELOPER_PANEL_TABS.filter((tab) => !tab.hidden).map((tab) => (
-                <TabsTrigger
-                  key={tab.type}
-                  value={tab.type}
-                  className="text-sm gap-2 px-2 pt-1 pb-0.5 items-center leading-none data-[state=active]:bg-muted"
-                >
-                  {/* Color the Errors icon red when there are errors,
-                      so users see it when they open the developer panel */}
-                  <tab.Icon
-                    className={cn(
-                      "w-4 h-4",
-                      tab.type === "errors" &&
-                        errorCount > 0 &&
-                        "text-destructive",
-                    )}
-                  />
-                  {tab.label}
-                </TabsTrigger>
-              ))}
-            </TabsList>
-          </Tabs>
+          <ReorderableList<PanelDescriptor>
+            value={devPanelItems}
+            setValue={handleSetDevPanelItems}
+            getKey={(p) => p.type}
+            availableItems={availableDevPanels}
+            crossListDrag={{
+              dragType: "panels",
+              listId: "developer-panel",
+              onReceive: handleDevPanelReceive,
+            }}
+            getItemLabel={(panel) => (
+              <span className="flex items-center gap-2">
+                <panel.Icon className="w-4 h-4 text-muted-foreground" />
+                {panel.label}
+              </span>
+            )}
+            ariaLabel="Developer panel tabs"
+            className="flex flex-row gap-1"
+            minItems={0}
+            onAction={(panel) => setSelectedDeveloperPanelTab(panel.type)}
+            renderItem={(panel) => (
+              <div
+                className={cn(
+                  "text-sm flex gap-2 px-2 pt-1 pb-0.5 items-center leading-none rounded-sm cursor-pointer",
+                  selectedDeveloperPanelTab === panel.type
+                    ? "bg-muted"
+                    : "hover:bg-muted/50",
+                )}
+              >
+                <panel.Icon
+                  className={cn(
+                    "w-4 h-4",
+                    panel.type === "errors" &&
+                      errorCount > 0 &&
+                      "text-destructive",
+                  )}
+                />
+                {panel.label}
+              </div>
+            )}
+          />
           <div className="border-l border-border h-4 mx-1" />
           <BackendConnectionStatus />
           <div className="flex-1" />
@@ -324,6 +414,60 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
         </div>
         {/* Panel content */}
         <div className="flex-1 overflow-hidden">
+          {selectedDeveloperPanelTab === "files" && (
+            <LazyMount isOpen={isDeveloperPanelOpen}>
+              <Suspense fallback={<div />}>
+                <LazyFileExplorerPanel />
+              </Suspense>
+            </LazyMount>
+          )}
+          {selectedDeveloperPanelTab === "variables" && (
+            <LazyMount isOpen={isDeveloperPanelOpen}>
+              <Suspense fallback={<div />}>
+                <LazySessionPanel />
+              </Suspense>
+            </LazyMount>
+          )}
+          {selectedDeveloperPanelTab === "dependencies" && (
+            <LazyMount isOpen={isDeveloperPanelOpen}>
+              <Suspense fallback={<div />}>
+                <LazyDependencyGraphPanel />
+              </Suspense>
+            </LazyMount>
+          )}
+          {selectedDeveloperPanelTab === "packages" && (
+            <LazyMount isOpen={isDeveloperPanelOpen}>
+              <Suspense fallback={<div />}>
+                <LazyPackagesPanel />
+              </Suspense>
+            </LazyMount>
+          )}
+          {selectedDeveloperPanelTab === "outline" && (
+            <LazyMount isOpen={isDeveloperPanelOpen}>
+              <Suspense fallback={<div />}>
+                <LazyOutlinePanel />
+              </Suspense>
+            </LazyMount>
+          )}
+          {selectedDeveloperPanelTab === "documentation" && (
+            <LazyMount isOpen={isDeveloperPanelOpen}>
+              <Suspense fallback={<div />}>
+                <LazyDocumentationPanel />
+              </Suspense>
+            </LazyMount>
+          )}
+          {selectedDeveloperPanelTab === "snippets" && (
+            <LazyMount isOpen={isDeveloperPanelOpen}>
+              <Suspense fallback={<div />}>
+                <LazySnippetsPanel />
+              </Suspense>
+            </LazyMount>
+          )}
+          {selectedDeveloperPanelTab === "ai" && (
+            <LazyMount isOpen={isDeveloperPanelOpen}>
+              <Suspense fallback={<div />}>{renderAiPanel()}</Suspense>
+            </LazyMount>
+          )}
           {selectedDeveloperPanelTab === "errors" && (
             <LazyMount isOpen={isDeveloperPanelOpen}>
               <Suspense fallback={<div />}>
