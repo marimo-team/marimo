@@ -91,6 +91,8 @@ class PathValidator:
         """
         import os
 
+        from marimo._utils.tmpdir import _convert_to_long_pathname
+
         # Make absolute relative to base if needed
         if not path.is_absolute():
             path = base / path
@@ -98,6 +100,13 @@ class PathValidator:
         # Use os.path.normpath to normalize .. and . without resolving symlinks
         # Then convert back to Path
         normalized = Path(os.path.normpath(str(path)))
+
+        # On Windows, convert short (8.3) path names to long path names.
+        # This handles cases where Path.cwd() returns short names like
+        # "C:\Users\RUNNER~1\..." but Path.resolve() returns long names
+        # like "C:\Users\runneradmin\...". Without this normalization,
+        # two paths referring to the same location may fail containment checks.
+        normalized = Path(_convert_to_long_pathname(str(normalized)))
 
         # Ensure the normalized path is still absolute. While normpath generally
         # preserves absoluteness, we enforce this invariant explicitly for safety.

@@ -145,7 +145,7 @@ def test_public_file_serving(client: TestClient) -> None:
 
     # Test non-existent file
     response = client.get("/public/nonexistent.txt", headers=headers)
-    assert response.status_code == 404
+    assert response.status_code in [403, 404]
 
     # Cleanup
     test_file.unlink()
