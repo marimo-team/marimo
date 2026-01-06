@@ -380,7 +380,9 @@ async def test_uv_install_dev_dependency_in_project(mock_run: MagicMock):
     mock_run.return_value = MagicMock(returncode=0)
     mgr = UvPackageManager()
 
-    result = await mgr._install("package1 package2", upgrade=False, group="dev")
+    result = await mgr._install(
+        "package1 package2", upgrade=False, group="dev"
+    )
 
     mock_run.assert_called_once_with(
         [

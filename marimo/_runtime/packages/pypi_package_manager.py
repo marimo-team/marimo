@@ -134,7 +134,9 @@ class PipPackageManager(PypiPackageManager):
             *split_packages(package),
         ]
 
-    async def uninstall(self, package: str, group: Optional[str] = None) -> bool:
+    async def uninstall(
+        self, package: str, group: Optional[str] = None
+    ) -> bool:
         # The `group` parameter is accepted for interface compatibility, but is ignored.
         del group
         LOGGER.info(f"Uninstalling {package} with pip")
@@ -206,7 +208,9 @@ class MicropipPackageManager(PypiPackageManager):
                 log_callback(f"Failed to install {package}: {e}\n")
             return False
 
-    async def uninstall(self, package: str, group: Optional[str] = None) -> bool:
+    async def uninstall(
+        self, package: str, group: Optional[str] = None
+    ) -> bool:
         # The `group` parameter is accepted for interface compatibility, but is ignored.
         del group
         assert is_pyodide()
@@ -578,7 +582,9 @@ class UvPackageManager(PypiPackageManager):
         pyproject_path = Path(venv_path).parent / "pyproject.toml"
         return uv_lock_path.exists() and pyproject_path.exists()
 
-    async def uninstall(self, package: str, group: Optional[str] = None) -> bool:
+    async def uninstall(
+        self, package: str, group: Optional[str] = None
+    ) -> bool:
         uninstall_cmd: list[str]
         if self.is_in_uv_project:
             LOGGER.info(f"Uninstalling {package} with 'uv remove'")
@@ -688,7 +694,9 @@ class RyePackageManager(PypiPackageManager):
             *split_packages(package),
         ]
 
-    async def uninstall(self, package: str, group: Optional[str] = None) -> bool:
+    async def uninstall(
+        self, package: str, group: Optional[str] = None
+    ) -> bool:
         # The `group` parameter is accepted for interface compatibility, but is ignored.
         del group
         return await self.run(
@@ -726,7 +734,9 @@ class PoetryPackageManager(PypiPackageManager):
             *split_packages(package),
         ]
 
-    async def uninstall(self, package: str, group: Optional[str] = None) -> bool:
+    async def uninstall(
+        self, package: str, group: Optional[str] = None
+    ) -> bool:
         # The `group` parameter is accepted for interface compatibility, but is ignored.
         del group
         return await self.run(

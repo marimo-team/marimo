@@ -114,7 +114,9 @@ class PackageManager(abc.ABC):
         )
 
     @abc.abstractmethod
-    async def uninstall(self, package: str, group: Optional[str] = None) -> bool:
+    async def uninstall(
+        self, package: str, group: Optional[str] = None
+    ) -> bool:
         """Attempt to uninstall a package
 
         Args:
