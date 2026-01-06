@@ -42,14 +42,18 @@ def main() -> None:
         user_config=args.user_config,
         configs=args.configs,
         profile_path=args.profile_path,
-        virtual_files_supported=args.virtual_files_supported,
-        redirect_console_to_browser=args.redirect_console_to_browser,
+        # Virtual files require a web server to serve file URLs. Since we're
+        # not running one, content must be embedded as data URLs instead.
+        virtual_files_supported=False,
         # NB: Unique parameter combination required for ZeroMQ. The `stream_queue`
-        # and `socket_addr` are mutually exclusive. We use stream_queue for IPC
-        # with edit mode behavior for interrupts.
+        # and `socket_addr` are mutually exclusive. Normally RUN mode doesn't
+        # redirect console, while EDIT mode does. Our ZeroMQ proxy needs both
+        # `stream_queue` AND console redirection, but also other behavior of
+        # EDIT, so we require this combination.
         stream_queue=queue_manager.stream_queue,
         socket_addr=None,
         is_edit_mode=True,
+        redirect_console_to_browser=True,
     )
 
 

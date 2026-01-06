@@ -97,28 +97,6 @@ OnCellChangeType = Literal["lazy", "autorun"]
 ExecutionType = Literal["relaxed", "strict"]
 
 
-@mddoc
-@dataclass
-class EnvConfig(TypedDict, total=False):
-    """Configuration for external Python environments.
-
-    Allows specifying an existing Python environment to use instead of
-    marimo's sandbox mode. This is useful for JupyterHub, conda environments,
-    or corporate managed Python installations.
-
-    **Keys.**
-
-    - `use_active`: if `True`, use the currently active environment
-      (from VIRTUAL_ENV or CONDA_PREFIX environment variables)
-    - `python`: absolute path to a Python interpreter
-    - `conda`: name of a conda environment to use (requires conda CLI)
-    """
-
-    use_active: bool
-    python: str
-    conda: str
-
-
 # TODO(akshayka): remove normal, migrate to compact
 # normal == compact
 WidthType = Literal["normal", "compact", "medium", "full", "columns"]
@@ -577,7 +555,6 @@ class MarimoConfig(TypedDict):
     datasources: NotRequired[DatasourcesConfig]
     sharing: NotRequired[SharingConfig]
     mcp: NotRequired[MCPConfig]
-    env: NotRequired[EnvConfig]
 
 
 @mddoc

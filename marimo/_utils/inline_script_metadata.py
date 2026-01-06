@@ -88,14 +88,6 @@ class PyProjectReader:
             LOGGER.warning(f"Failed to parse dependencies: {e}")
             return []
 
-    @property
-    def env_config(self) -> dict[str, Any]:
-        """Get external environment configuration from [tool.marimo.env].
-
-        Returns a dict with optional keys: use_active, python, conda.
-        """
-        return self.project.get("tool", {}).get("marimo", {}).get("env", {})
-
 
 def _get_pyproject_from_filename(name: str) -> dict[str, Any] | None:
     try:
