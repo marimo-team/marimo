@@ -56,7 +56,7 @@ async def add_package(request: Request) -> PackageOperationResponse:
         )
 
     upgrade = body.upgrade or False
-    group = body.group or None 
+    group = body.group or None
     success = await package_manager.install(
         body.package, version=None, upgrade=upgrade, group=group
     )
@@ -107,7 +107,7 @@ async def remove_package(request: Request) -> PackageOperationResponse:
             f"Check out the docs for installation instructions: {package_manager.docs_url}"  # noqa: E501
         )
 
-    group = body.group or None 
+    group = body.group or None
     success = await package_manager.uninstall(body.package, group=group)
 
     # Update the script metadata

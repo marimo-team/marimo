@@ -121,10 +121,10 @@ class PipPackageManager(PypiPackageManager):
     docs_url = "https://pip.pypa.io/"
 
     def install_command(
-        self, package: str, *, upgrade: bool, group: Optional[str] = None 
+        self, package: str, *, upgrade: bool, group: Optional[str] = None
     ) -> list[str]:
         # The `group` parameter is accepted for interface compatibility, but is ignored.
-        del group 
+        del group
         return [
             "pip",
             "--python",
@@ -136,7 +136,7 @@ class PipPackageManager(PypiPackageManager):
 
     async def uninstall(self, package: str, group: Optional[str] = None) -> bool:
         # The `group` parameter is accepted for interface compatibility, but is ignored.
-        del group 
+        del group
         LOGGER.info(f"Uninstalling {package} with pip")
         return await self.run(
             [
@@ -182,7 +182,7 @@ class MicropipPackageManager(PypiPackageManager):
         log_callback: Optional[LogCallback] = None,
     ) -> bool:
         # The `group` parameter is accepted for interface compatibility, but is ignored.
-        del group 
+        del group
         assert is_pyodide()
         import micropip  # type: ignore
 
@@ -206,9 +206,9 @@ class MicropipPackageManager(PypiPackageManager):
                 log_callback(f"Failed to install {package}: {e}\n")
             return False
 
-    async def uninstall(self, package: str, group: Optional[str]=None) -> bool:
+    async def uninstall(self, package: str, group: Optional[str] = None) -> bool:
         # The `group` parameter is accepted for interface compatibility, but is ignored.
-        del group 
+        del group
         assert is_pyodide()
         import micropip  # type: ignore
 
@@ -678,10 +678,10 @@ class RyePackageManager(PypiPackageManager):
     docs_url = "https://rye.astral.sh/"
 
     def install_command(
-        self, package: str, *, upgrade: bool, group: Optional[str] = None 
+        self, package: str, *, upgrade: bool, group: Optional[str] = None
     ) -> list[str]:
         # The `group` parameter is accepted for interface compatibility, but is ignored.
-        del group 
+        del group
         return [
             "rye",
             *(["sync", "--update"] if upgrade else ["add"]),
@@ -690,7 +690,7 @@ class RyePackageManager(PypiPackageManager):
 
     async def uninstall(self, package: str, group: Optional[str] = None) -> bool:
         # The `group` parameter is accepted for interface compatibility, but is ignored.
-        del group 
+        del group
         return await self.run(
             ["rye", "remove", *split_packages(package)], log_callback=None
         )
@@ -718,7 +718,7 @@ class PoetryPackageManager(PypiPackageManager):
         self, package: str, *, upgrade: bool, group: Optional[str] = None
     ) -> list[str]:
         # The `group` parameter is accepted for interface compatibility, but is ignored.
-        del group 
+        del group
         return [
             "poetry",
             "update" if upgrade else "add",
@@ -728,7 +728,7 @@ class PoetryPackageManager(PypiPackageManager):
 
     async def uninstall(self, package: str, group: Optional[str] = None) -> bool:
         # The `group` parameter is accepted for interface compatibility, but is ignored.
-        del group 
+        del group
         return await self.run(
             ["poetry", "remove", "--no-interaction", *split_packages(package)],
             log_callback=None,
