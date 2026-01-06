@@ -15,6 +15,9 @@
   border: 1px solid var(--gray-4);
 
   @apply divide-y divide-(--gray-5);
+  &:hover {
+    border-color: var(--gray-6);
+  }
 
   &:focus-visible {
     /* focus-visible outlines the entire cell body in black, but the cell's
