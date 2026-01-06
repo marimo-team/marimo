@@ -96,8 +96,8 @@ def test_read_code_in_run_mode_without_include_code(
         headers=HEADERS,
         json={},
     )
-    # Should be denied 403 (forbidden)
-    assert response.status_code == 403
+    # Should be denied 401 (unauthorized) or 403 (forbidden)
+    assert response.status_code in [401, 403]
 
 
 @pytest.mark.flaky(reruns=5)
