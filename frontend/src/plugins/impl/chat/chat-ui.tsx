@@ -114,6 +114,7 @@ export const Chatbot: React.FC<Props> = (props) => {
     stop,
     error,
     regenerate,
+    clearError,
   } = useChat({
     transport: new DefaultChatTransport({
       fetch: async (
@@ -127,6 +128,9 @@ export const Chatbot: React.FC<Props> = (props) => {
         const body = JSON.parse(init.body as unknown as string) as {
           messages: UIMessage[];
         };
+
+        // Catch signals like abort to stop the stream (when stop function is called from useChat)
+        const signal = init.signal;
 
         const chatConfig: ChatConfig = {
           max_tokens: configRef.current.max_tokens,
@@ -152,6 +156,21 @@ export const Chatbot: React.FC<Props> = (props) => {
             const stream = new ReadableStream<UIMessageChunk>({
               start(controller) {
                 frontendStreamControllerRef.current = controller;
+
+                signal?.addEventListener("abort", () => {
+                  try {
+                    controller.close();
+                  } catch (error) {
+                    Logger.debug("Controller may already be closed", { error });
+                  }
+                  frontendStreamControllerRef.current = null;
+                });
+
+                return () => {
+                  signal?.removeEventListener("abort", () => {
+                    frontendStreamControllerRef.current = null;
+                  });
+                };
               },
               cancel() {
                 frontendStreamControllerRef.current = null;
@@ -172,6 +191,10 @@ export const Chatbot: React.FC<Props> = (props) => {
             return createUIMessageStreamResponse({ stream });
           }
 
+          if (signal?.aborted) {
+            return new Response("Aborted", { status: 499 });
+          }
+
           // Create a placeholder message for streaming (backend-managed)
           const messageId = Date.now().toString();
 
@@ -184,10 +207,29 @@ export const Chatbot: React.FC<Props> = (props) => {
             },
           ]);
 
-          const response = await props.send_prompt({
+          // Create an abort-aware promise for the send_prompt call
+          const sendPromptPromise = props.send_prompt({
             messages: messages,
             config: chatConfig,
           });
+
+          // Race the send_prompt with an abort signal
+          const response = await new Promise<string | null>(
+            (resolve, reject) => {
+              // Listen for abort
+              const abortHandler = () => {
+                reject(new DOMException("Aborted", "AbortError"));
+              };
+              signal?.addEventListener("abort", abortHandler);
+
+              sendPromptPromise
+                .then(resolve)
+                .catch(reject)
+                .finally(() => {
+                  signal?.removeEventListener("abort", abortHandler);
+                });
+            },
+          );
 
           if (response === null) {
             Logger.error("Non-frontend-managed response is null", {
@@ -223,6 +265,11 @@ export const Chatbot: React.FC<Props> = (props) => {
             backendMessageId: null,
             frontendMessageIndex: null,
           };
+
+          // Handle abort gracefully without showing an error
+          if (error.name === "AbortError") {
+            return new Response("Aborted", { status: 499 });
+          }
 
           // HACK: strip the error message to clean up the response
           const strippedError = error.message
@@ -421,6 +468,13 @@ export const Chatbot: React.FC<Props> = (props) => {
     setInput("");
   };
 
+  const resetChatbot = () => {
+    setMessages([]);
+    props.setValue([]);
+    props.delete_chat_history({});
+    clearError();
+  };
+
   return (
     <div
       className="flex flex-col h-full bg-(--slate-1) rounded-lg shadow border border-(--slate-6) overflow-hidden relative"
@@ -431,11 +485,7 @@ export const Chatbot: React.FC<Props> = (props) => {
           variant="text"
           size="icon"
           disabled={messages.length === 0}
-          onClick={() => {
-            setMessages([]);
-            props.setValue([]);
-            props.delete_chat_history({});
-          }}
+          onClick={resetChatbot}
         >
           <RotateCwIcon className="h-3 w-3" />
         </Button>

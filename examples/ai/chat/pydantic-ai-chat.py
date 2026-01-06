@@ -8,7 +8,7 @@ with app.setup(hide_code=True):
     import os
     import httpx
 
-    from pydantic_ai import Agent, RunContext
+    from pydantic_ai import Agent, RunContext, BinaryImage
     from pydantic_ai.models.google import GoogleModel, GoogleModelSettings
     from pydantic_ai.providers.google import GoogleProvider
     from pydantic_ai.models.anthropic import AnthropicModel, AnthropicModelSettings
@@ -50,6 +50,7 @@ def _():
             "Gemini 2.5 Flash": "gemini-2.5-flash",
             "Claude Haiku 4.5": "claude-haiku-4-5",
             "GPT 5 Nano": "gpt-5-nano",
+            "GPT 5 (multimodal)": "gpt-5",
         },
         value="Gemini 2.5 Flash",
         label="Choose a model",
@@ -74,7 +75,7 @@ def _(models):
     os_key = os.environ.get(env_key)
     input_key = mo.ui.text(label="API key", kind="password")
     input_key if not os_key else None
-    return input_key, os_key
+    return input_key, model_name, os_key
 
 
 @app.function(hide_code=True)
@@ -119,7 +120,15 @@ def get_model(
 
 
 @app.cell(hide_code=True)
-def _(fetch_dog_tool, input_key, models, os_key, structured, thinking):
+def _(
+    fetch_dog_tool,
+    input_key,
+    model_name,
+    models,
+    os_key,
+    structured,
+    thinking,
+):
     class CodeOutput(BaseModel):
         code: str
         time_complexity: str
@@ -129,9 +138,16 @@ def _(fetch_dog_tool, input_key, models, os_key, structured, thinking):
 
     api_key = input_key.value or os_key
     model, settings = get_model(models.value, thinking.value, api_key)
+
+    output_type = str
+    if "image" in model_name or model_name == "gpt-5":
+        output_type = BinaryImage | str
+    elif structured.value:
+        output_type = [CodeOutput, str]
+
     agent = Agent(
         model,
-        output_type=[CodeOutput, str] if structured.value else str,
+        output_type=output_type,
         instructions="You are a senior software engineer experienced in Python, React and Typescript.",
         model_settings=settings,
     )
