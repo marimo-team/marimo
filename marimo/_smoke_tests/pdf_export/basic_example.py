@@ -46,6 +46,13 @@ def _():
 
 
 @app.cell
+def _():
+    print("This is console output") 
+    return
+
+
+
+@app.cell
 def _(px):
     df = px.data.iris()
     fig = px.scatter(
