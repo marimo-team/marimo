@@ -349,8 +349,9 @@ const PackagesList: React.FC<{
 
 const UpgradeButton: React.FC<{
   packageName: string;
+  tags?: { kind: string; value: string }[];
   onSuccess: () => void;
-}> = ({ packageName, onSuccess }) => {
+}> = ({ packageName, tags, onSuccess }) => {
   const [loading, setLoading] = React.useState(false);
   const { addPackage } = useRequestClient();
 
@@ -362,9 +363,11 @@ const UpgradeButton: React.FC<{
   const handleUpgradePackage = async () => {
     try {
       setLoading(true);
+      const group = tags?.find((tag) => tag.kind === "group")?.value;
       const response = await addPackage({
         package: packageName,
         upgrade: true,
+        group,
       });
       if (response.success) {
         onSuccess();
@@ -602,7 +605,14 @@ const DependencyTreeNode: React.FC<{
         {/* Actions for top-level packages */}
         {isTopLevel && (
           <div className="flex gap-1 invisible group-hover:visible">
-            <UpgradeButton packageName={node.name} onSuccess={onSuccess} />
+            <UpgradeButton
+              packageName={node.name}
+              // COMMENT this may not be required anymore ..
+              // @ts-expect-error — backend tag types do not match frontend expectations yet
+              tags={node.tags}
+              onSuccess={onSuccess}
+            />
+
             <RemoveButton
               packageName={node.name}
               // FIXME: Backend types are wrong/outdated.
