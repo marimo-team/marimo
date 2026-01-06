@@ -44,7 +44,7 @@ export const Footer: React.FC = () => {
   });
 
   return (
-    <footer className="h-10 py-2 bg-background flex items-center text-muted-foreground text-md pl-2 pr-1 border-t border-border select-none no-print text-sm shadow-[0_0_4px_1px_rgba(0,0,0,0.1)] z-50 print:hidden hide-on-fullscreen overflow-x-auto overflow-y-hidden scrollbar-thin">
+    <footer className="h-10 py-2 bg-background flex items-center text-muted-foreground text-md pl-2 pr-1 border-t border-border select-none no-print text-sm z-50 print:hidden hide-on-fullscreen overflow-x-auto overflow-y-hidden scrollbar-thin">
       <IfCapability capability="terminal">
         <div className="flex items-center">
           <div className="flex">

@@ -256,7 +256,7 @@ const AddCellButtons: React.FC<{
 
   const buttonClass = cn(
     "mb-0 rounded-none sm:px-4 md:px-5 lg:px-8 tracking-wide no-wrap whitespace-nowrap",
-    "hover:bg-accent hover:text-accent-foreground font-semibold uppercase text-xs",
+    "font-semibold opacity-70 hover:opacity-90 uppercase text-xs",
   );
 
   const renderBody = () => {
@@ -344,10 +344,10 @@ const AddCellButtons: React.FC<{
     <div className="flex justify-center mt-4 pt-6 pb-32 group gap-4 w-full print:hidden">
       <div
         className={cn(
-          "shadow-sm border border-border rounded transition-all duration-200 overflow-hidden divide-x divide-border flex",
-          !isAiButtonOpen && "w-fit",
+          "border border-border rounded transition-all duration-200 overflow-hidden divide-x divide-border flex",
+          !isAiButtonOpen && "w-fit shadow-sm-solid-shade",
           isAiButtonOpen &&
-            "w-full max-w-4xl shadow-lg shadow-(color:--blue-3)",
+            "w-full max-w-4xl shadow-md-solid-shade shadow-(color:--blue-3)",
           className,
           // Always show the AI input when it's open
           isAiButtonOpen && "opacity-100",
