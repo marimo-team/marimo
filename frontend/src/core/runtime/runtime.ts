@@ -30,6 +30,10 @@ export class RuntimeManager {
     }
   }
 
+  get isLazy(): boolean {
+    return this.lazy;
+  }
+
   get httpURL(): URL {
     return new URL(this.config.url);
   }

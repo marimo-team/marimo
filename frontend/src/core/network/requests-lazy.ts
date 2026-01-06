@@ -81,12 +81,12 @@ const ACTIONS: Record<keyof AllRequests, Action> = {
   openFile: "throwError",
 
   // Home operations throw errors
-  getRecentFiles: "throwError",
-  getWorkspaceFiles: "throwError",
-  getRunningNotebooks: "throwError",
-  shutdownSession: "throwError",
-  openTutorial: "throwError",
-  getUsageStats: "throwError",
+  getRecentFiles: "startConnection",
+  getWorkspaceFiles: "startConnection",
+  getRunningNotebooks: "startConnection",
+  shutdownSession: "startConnection",
+  openTutorial: "startConnection",
+  getUsageStats: "waitForConnectionOpen",
 
   // These wait for connection
   sendStdin: "waitForConnectionOpen",
@@ -128,6 +128,12 @@ export function createLazyRequests(
     const action = ACTIONS[key];
 
     const wrapped = (async (...args) => {
+      const runtimeManager = getRuntimeManager();
+
+      if (!runtimeManager.isLazy) {
+        return request(...args);
+      }
+
       switch (action) {
         case "dropRequest":
           // Silently drop the request
