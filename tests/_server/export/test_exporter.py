@@ -1215,34 +1215,6 @@ def test_convert_marimo_mimebundle_to_ipynb_with_known_mimetypes():
 
 
 @pytest.mark.skipif(not HAS_NBFORMAT, reason="nbformat is not installed")
-def test_convert_marimo_mimebundle_filters_nonstandard_mimetypes():
-    """Test that marimo mimebundle filters out non-standard mimetypes."""
-    mimebundle_data = json.dumps({
-        "text/plain": "Hello",
-        "application/custom+metadata": {"foo": "bar"},  # Non-standard
-        "x-custom-mime": "custom data",  # Non-standard
-        "image/png": "PNG_DATA",
-    })
-
-    output = CellOutput(
-        channel=CellChannel.OUTPUT,
-        mimetype="application/vnd.marimo+mimebundle",
-        data=mimebundle_data,
-    )
-
-    result = _convert_marimo_output_to_ipynb(output, [])
-
-    assert len(result) == 1
-    assert result[0]["output_type"] == "display_data"
-    # Only known mimetypes should be present
-    assert "text/plain" in result[0]["data"]
-    assert "image/png" in result[0]["data"]
-    # Non-standard mimetypes should be filtered out
-    assert "application/custom+metadata" not in result[0]["data"]
-    assert "x-custom-mime" not in result[0]["data"]
-
-
-@pytest.mark.skipif(not HAS_NBFORMAT, reason="nbformat is not installed")
 def test_convert_marimo_mimebundle_with_multiple_formats():
     """Test marimo mimebundle with multiple output formats."""
     mimebundle_data = json.dumps({

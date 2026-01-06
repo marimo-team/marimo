@@ -588,12 +588,8 @@ def _convert_marimo_output_to_ipynb(
         ).items():
             if mime == METADATA_KEY and isinstance(content, dict):
                 metadata = content
-
-            if mime not in get_args(KnownMimeType):
-                # our mimebundle can contain nonstandard mimetypes, such
-                # as metadata for a matplotlib plot
-                continue
-            data[mime] = _maybe_extract_dataurl(content)
+            else:
+                data[mime] = _maybe_extract_dataurl(content)
     else:
         data[output.mimetype] = _maybe_extract_dataurl(output.data)
 
