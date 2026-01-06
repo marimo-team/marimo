@@ -1,17 +1,32 @@
 name: 🏷️ Pull Request Labeler
 
 # Label pull requests based on config in .github/labeler.yml
+# And enforces that at least one label is selected
 
-on: [pull_request_target]
+on:
+  pull_request_target:
+    types: [labeled, unlabeled, opened, reopened, edited, synchronize]
+  pull_request:
+    types: [labeled, unlabeled, opened, reopened, edited, synchronize]
 
 permissions:
   contents: read
   pull-requests: write
 
 jobs:
-  label:
+  auto-label:
+    if: github.event_name == 'pull_request_target'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/labeler@v5
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+  enforce-label:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: yogevbd/enforce-label-action@2.2.2
+        with:
+          REQUIRED_LABELS_ANY: "enhancement,bug,documentation,internal,preview,other"
+          REQUIRED_LABELS_ANY_DESCRIPTION: "🏷️ Select at least one label: ['enhancement','bug','documentation','internal','preview','other']"
