@@ -1189,11 +1189,13 @@ def test_maybe_extract_dataurl_with_data_prefix_but_no_base64():
 @pytest.mark.skipif(not HAS_NBFORMAT, reason="nbformat is not installed")
 def test_convert_marimo_mimebundle_to_ipynb_with_known_mimetypes():
     """Test that marimo mimebundle with known mimetypes are converted correctly."""
-    mimebundle_data = json.dumps({
-        "text/plain": "Hello",
-        "text/html": "<p>Hello</p>",
-        "image/png": "data:image/png;base64,iVBORw0KGgo=",
-    })
+    mimebundle_data = json.dumps(
+        {
+            "text/plain": "Hello",
+            "text/html": "<p>Hello</p>",
+            "image/png": "data:image/png;base64,iVBORw0KGgo=",
+        }
+    )
 
     output = CellOutput(
         channel=CellChannel.OUTPUT,
@@ -1217,13 +1219,15 @@ def test_convert_marimo_mimebundle_to_ipynb_with_known_mimetypes():
 @pytest.mark.skipif(not HAS_NBFORMAT, reason="nbformat is not installed")
 def test_convert_marimo_mimebundle_with_multiple_formats():
     """Test marimo mimebundle with multiple output formats."""
-    mimebundle_data = json.dumps({
-        "text/plain": "Figure(640x480)",
-        "text/html": "<div>Chart</div>",
-        "image/png": "data:image/png;base64,PNG_BASE64_DATA",
-        "image/svg+xml": "<svg>...</svg>",
-        "application/json": {"data": [1, 2, 3]},
-    })
+    mimebundle_data = json.dumps(
+        {
+            "text/plain": "Figure(640x480)",
+            "text/html": "<div>Chart</div>",
+            "image/png": "data:image/png;base64,PNG_BASE64_DATA",
+            "image/svg+xml": "<svg>...</svg>",
+            "application/json": {"data": [1, 2, 3]},
+        }
+    )
 
     output = CellOutput(
         channel=CellChannel.OUTPUT,
@@ -1323,10 +1327,12 @@ def test_convert_marimo_mimebundle_with_console_output():
 @pytest.mark.skipif(not HAS_NBFORMAT, reason="nbformat is not installed")
 def test_convert_marimo_mimebundle_with_both_output_and_console():
     """Test marimo mimebundle with both cell output and console outputs."""
-    mimebundle_data = json.dumps({
-        "text/plain": "Result",
-        "image/png": "PNG_DATA",
-    })
+    mimebundle_data = json.dumps(
+        {
+            "text/plain": "Result",
+            "image/png": "PNG_DATA",
+        }
+    )
 
     main_output = CellOutput(
         channel=CellChannel.OUTPUT,
@@ -1365,15 +1371,17 @@ def test_convert_marimo_mimebundle_with_both_output_and_console():
 @pytest.mark.skipif(not HAS_NBFORMAT, reason="nbformat is not installed")
 def test_convert_marimo_mimebundle_with_metadata():
     """Test that metadata from __metadata__ key is included in ipynb output."""
-    mimebundle_data = json.dumps({
-        "text/plain": "Figure",
-        "image/png": "PNG_DATA",
-        "__metadata__": {
-            "width": 640,
-            "height": 480,
-            "dpi": 100,
-        },
-    })
+    mimebundle_data = json.dumps(
+        {
+            "text/plain": "Figure",
+            "image/png": "PNG_DATA",
+            "__metadata__": {
+                "width": 640,
+                "height": 480,
+                "dpi": 100,
+            },
+        }
+    )
 
     output = CellOutput(
         channel=CellChannel.OUTPUT,
@@ -1399,10 +1407,12 @@ def test_convert_marimo_mimebundle_with_metadata():
 @pytest.mark.skipif(not HAS_NBFORMAT, reason="nbformat is not installed")
 def test_convert_marimo_mimebundle_without_metadata():
     """Test that outputs without metadata have empty metadata dict."""
-    mimebundle_data = json.dumps({
-        "text/plain": "Figure",
-        "image/png": "PNG_DATA",
-    })
+    mimebundle_data = json.dumps(
+        {
+            "text/plain": "Figure",
+            "image/png": "PNG_DATA",
+        }
+    )
 
     output = CellOutput(
         channel=CellChannel.OUTPUT,
@@ -1424,11 +1434,13 @@ def test_convert_marimo_mimebundle_without_metadata():
 @pytest.mark.skipif(not HAS_NBFORMAT, reason="nbformat is not installed")
 def test_convert_marimo_mimebundle_with_non_dict_metadata():
     """Test that non-dict metadata is ignored."""
-    mimebundle_data = json.dumps({
-        "text/plain": "Figure",
-        "image/png": "PNG_DATA",
-        "__metadata__": "not a dict",  # This should be ignored
-    })
+    mimebundle_data = json.dumps(
+        {
+            "text/plain": "Figure",
+            "image/png": "PNG_DATA",
+            "__metadata__": "not a dict",  # This should be ignored
+        }
+    )
 
     output = CellOutput(
         channel=CellChannel.OUTPUT,
@@ -1448,21 +1460,23 @@ def test_convert_marimo_mimebundle_with_non_dict_metadata():
 @pytest.mark.skipif(not HAS_NBFORMAT, reason="nbformat is not installed")
 def test_convert_marimo_mimebundle_with_nested_metadata():
     """Test that nested metadata structures are preserved."""
-    mimebundle_data = json.dumps({
-        "text/plain": "Figure",
-        "image/png": "PNG_DATA",
-        "__metadata__": {
-            "figure": {
-                "width": 640,
-                "height": 480,
+    mimebundle_data = json.dumps(
+        {
+            "text/plain": "Figure",
+            "image/png": "PNG_DATA",
+            "__metadata__": {
+                "figure": {
+                    "width": 640,
+                    "height": 480,
+                },
+                "plot": {
+                    "type": "line",
+                    "color": "blue",
+                },
+                "tags": ["important", "experiment-1"],
             },
-            "plot": {
-                "type": "line",
-                "color": "blue",
-            },
-            "tags": ["important", "experiment-1"],
-        },
-    })
+        }
+    )
 
     output = CellOutput(
         channel=CellChannel.OUTPUT,
@@ -1491,14 +1505,16 @@ def test_convert_marimo_mimebundle_with_nested_metadata():
 @pytest.mark.skipif(not HAS_NBFORMAT, reason="nbformat is not installed")
 def test_convert_marimo_mimebundle_metadata_not_in_data():
     """Test that __metadata__ key is not included in output data."""
-    mimebundle_data = json.dumps({
-        "text/plain": "Figure",
-        "image/png": "PNG_DATA",
-        "__metadata__": {
-            "width": 640,
-            "height": 480,
-        },
-    })
+    mimebundle_data = json.dumps(
+        {
+            "text/plain": "Figure",
+            "image/png": "PNG_DATA",
+            "__metadata__": {
+                "width": 640,
+                "height": 480,
+            },
+        }
+    )
 
     output = CellOutput(
         channel=CellChannel.OUTPUT,

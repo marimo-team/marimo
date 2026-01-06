@@ -24,7 +24,7 @@ from marimo._config.utils import deep_copy
 from marimo._convert.utils import get_markdown_from_cell
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.cell_output import CellChannel, CellOutput
-from marimo._messaging.mimetypes import KnownMimeType, METADATA_KEY
+from marimo._messaging.mimetypes import METADATA_KEY, KnownMimeType
 from marimo._runtime import dataflow
 from marimo._runtime.virtual_file import read_virtual_file
 from marimo._schemas.notebook import NotebookV1

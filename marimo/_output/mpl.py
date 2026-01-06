@@ -27,7 +27,7 @@ from matplotlib.backend_bases import (
 from matplotlib.backends.backend_agg import FigureCanvasAgg
 
 from marimo._messaging.cell_output import CellChannel
-from marimo._messaging.mimetypes import KnownMimeType, METADATA_KEY
+from marimo._messaging.mimetypes import METADATA_KEY, KnownMimeType
 from marimo._messaging.notification_utils import CellNotificationUtils
 from marimo._utils.data_uri import build_data_url
 
