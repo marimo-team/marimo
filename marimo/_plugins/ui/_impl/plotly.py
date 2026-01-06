@@ -203,9 +203,18 @@ class plotly(UIElement[PlotlySelection, list[dict[str, Any]]]):
                         figure, cast(dict[str, Any], range_value)
                     )
                     if heatmap_cells:
-                        initial_value["points"] = heatmap_cells
-                        initial_value["indices"] = list(
-                            range(len(heatmap_cells))
+                        # Append heatmap cells to existing points (e.g., scatter)
+                        # instead of replacing them
+                        existing_points = initial_value.get("points", [])
+                        existing_indices = initial_value.get("indices", [])
+                        initial_value["points"] = (
+                            existing_points + heatmap_cells
+                        )
+                        initial_value["indices"] = existing_indices + list(
+                            range(
+                                len(existing_indices),
+                                len(existing_indices) + len(heatmap_cells),
+                            )
                         )
 
         figure.for_each_selection(add_selection)
@@ -292,7 +301,6 @@ class plotly(UIElement[PlotlySelection, list[dict[str, Any]]]):
         result = self.points
         return result
 
-    # PERF: we can use numpy to speed up the extraction process if necessary
     @staticmethod
     def _extract_heatmap_cells_from_range(
         figure: go.Figure, range_data: dict[str, Any]
@@ -307,7 +315,99 @@ class plotly(UIElement[PlotlySelection, list[dict[str, Any]]]):
         x_min, x_max = min(x_range), max(x_range)
         y_min, y_max = min(y_range), max(y_range)
 
-        selected_cells = []
+        # Use numpy fast path if available for better performance on large heatmaps
+        if DependencyManager.numpy.has():
+            return plotly._extract_heatmap_cells_numpy(
+                figure, x_min, x_max, y_min, y_max
+            )
+
+        return plotly._extract_heatmap_cells_fallback(
+            figure, x_min, x_max, y_min, y_max
+        )
+
+    @staticmethod
+    def _extract_heatmap_cells_numpy(
+        figure: go.Figure,
+        x_min: float,
+        x_max: float,
+        y_min: float,
+        y_max: float,
+    ) -> list[dict[str, Any]]:
+        """Extract heatmap cells using numpy for O(selected) complexity."""
+        import numpy as np
+
+        selected_cells: list[dict[str, Any]] = []
+
+        for trace_idx, trace in enumerate(figure.data):
+            if getattr(trace, "type", None) != "heatmap":
+                continue
+
+            x_data = getattr(trace, "x", None)
+            y_data = getattr(trace, "y", None)
+            z_data = getattr(trace, "z", None)
+
+            if x_data is None or y_data is None or z_data is None:
+                continue
+
+            # Convert to numpy arrays for vectorized operations
+            x_arr = np.asarray(x_data)
+            y_arr = np.asarray(y_data)
+            z_arr = np.asarray(z_data)
+
+            # Determine if axes are numeric
+            x_is_numeric = np.issubdtype(x_arr.dtype, np.number)
+            y_is_numeric = np.issubdtype(y_arr.dtype, np.number)
+
+            # Compute masks for valid indices
+            if x_is_numeric:
+                x_mask = (x_arr >= x_min) & (x_arr <= x_max)
+            else:
+                # Categorical: cell spans (index - 0.5) to (index + 0.5)
+                # Strict overlap: x_max > cell_x_min and x_min < cell_x_max
+                x_indices = np.arange(len(x_arr))
+                x_mask = (x_max > x_indices - 0.5) & (x_min < x_indices + 0.5)
+
+            if y_is_numeric:
+                y_mask = (y_arr >= y_min) & (y_arr <= y_max)
+            else:
+                # Categorical: cell spans (index - 0.5) to (index + 0.5)
+                # Strict overlap: y_max > cell_y_min and y_min < cell_y_max
+                y_indices = np.arange(len(y_arr))
+                y_mask = (y_max > y_indices - 0.5) & (y_min < y_indices + 0.5)
+
+            # Get indices where masks are True
+            y_idx = np.where(y_mask)[0]
+            x_idx = np.where(x_mask)[0]
+
+            # Iterate only over selected indices (O(selected) instead of O(n*m))
+            for i in y_idx:
+                for j in x_idx:
+                    # Bounds check for z_data to handle malformed/ragged arrays
+                    if i >= len(z_arr) or j >= len(z_arr[i]):
+                        continue
+                    selected_cells.append(
+                        {
+                            "x": x_data[j],
+                            "y": y_data[i],
+                            "z": z_arr[i][j].item()
+                            if hasattr(z_arr[i][j], "item")
+                            else z_arr[i][j],
+                            "curveNumber": trace_idx,
+                        }
+                    )
+
+        return selected_cells
+
+    @staticmethod
+    def _extract_heatmap_cells_fallback(
+        figure: go.Figure,
+        x_min: float,
+        x_max: float,
+        y_min: float,
+        y_max: float,
+    ) -> list[dict[str, Any]]:
+        """Extract heatmap cells using pure Python (fallback when numpy unavailable)."""
+        selected_cells: list[dict[str, Any]] = []
 
         # Iterate through traces to find heatmaps
         for trace_idx, trace in enumerate(figure.data):
@@ -333,25 +433,28 @@ class plotly(UIElement[PlotlySelection, list[dict[str, Any]]]):
                         x_in_range = x_min <= x_val <= x_max
                     else:
                         # Categorical - each cell spans from (index - 0.5) to (index + 0.5)
-                        # Include cell if selection range overlaps with cell bounds
+                        # Include cell if selection range strictly overlaps with cell bounds
                         cell_x_min = j - 0.5
                         cell_x_max = j + 0.5
                         x_in_range = not (
-                            x_max < cell_x_min or x_min > cell_x_max
+                            x_max <= cell_x_min or x_min >= cell_x_max
                         )
 
                     if isinstance(y_val, (int, float)):
                         y_in_range = y_min <= y_val <= y_max
                     else:
                         # Categorical - each cell spans from (index - 0.5) to (index + 0.5)
-                        # Include cell if selection range overlaps with cell bounds
+                        # Include cell if selection range strictly overlaps with cell bounds
                         cell_y_min = i - 0.5
                         cell_y_max = i + 0.5
                         y_in_range = not (
-                            y_max < cell_y_min or y_min > cell_y_max
+                            y_max <= cell_y_min or y_min >= cell_y_max
                         )
 
                     if x_in_range and y_in_range:
+                        # Bounds check for z_data to handle malformed/ragged arrays
+                        if i >= len(z_data) or j >= len(z_data[i]):
+                            continue
                         selected_cells.append(
                             {
                                 "x": x_val,

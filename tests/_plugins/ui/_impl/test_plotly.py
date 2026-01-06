@@ -556,6 +556,7 @@ def test_heatmap_curve_number() -> None:
     result = plot._convert_value(selection)
 
     # Heatmap cells should have curveNumber = 1
+    assert len(result) > 0
     assert all(cell.get("curveNumber") == 1 for cell in result)
 
 

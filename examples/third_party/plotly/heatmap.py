@@ -49,7 +49,7 @@ def _(heatmap, mo):
 
     {heatmap}
 
-    ### Selected Cell:
+    ### Selected Cells:
     {heatmap.value}
     """)
     return
