@@ -404,7 +404,13 @@ OutputArea.displayName = "OutputArea";
 const Div = React.forwardRef<
   HTMLDivElement,
   React.ComponentPropsWithoutRef<"div">
->((props, ref) => <div ref={ref} {...props} />);
+>((props, ref) => (
+  <div
+    ref={ref}
+    {...props}
+    tabIndex={0}
+  />
+));
 Div.displayName = "Div";
 
 /**
@@ -505,6 +511,7 @@ const ExpandableOutput = React.memo(
             style={
               isExpanded || forceExpand ? { maxHeight: "none" } : undefined
             }
+            tabIndex={0}
           >
             {children}
           </div>
