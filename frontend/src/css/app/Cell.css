@@ -159,15 +159,15 @@
   /* Error styles for Cell, less precedence than needs run */
   &.has-error:not(.needs-run),
   &.error-outline {
-    @apply border-error/20 border-2 divide-error/20;
+    @apply border-error/20 border-1 divide-error/20 outline-1 outline-error/20;
   }
 
   &.has-error:not(.needs-run):hover {
-    @apply border-error/30;
+    @apply border-error/30 outline-error/30;
   }
 
   &.has-error:not(.needs-run):focus-within {
-    @apply border-1 shadow-md-solid divide-error/20 shadow-error/20;
+    @apply border-1 outline-0 shadow-md-solid divide-error/20 shadow-error/20;
   }
 
   &.error-outline,
@@ -180,14 +180,14 @@
 
   &.needs-run {
     /* TODO(akshayka): Can give this an outline to make more visible. */
-    @apply border-stale border-2 divide-stale;
+    @apply border-stale border-1 divide-stale outline-1 outline-stale;
 
     &:hover {
-      @apply border-action-foreground/30;
+      @apply border-action-foreground/30 outline-action-foreground/30;
     }
 
     &:focus-within {
-      @apply border-1 divide-stale shadow-md-solid shadow-stale;
+      @apply border-1 outline-0 divide-stale shadow-md-solid shadow-stale;
     }
 
     &:focus-within .cm-editor {
