@@ -14,6 +14,7 @@ type AllRequests = EditRequests & RunRequests;
 
 // We have various requests that act different when called and not connected to a Kernel. They are:
 // - throw an Error
+// - drop the request
 // - start the connection
 // - wait for the connection to be open
 
@@ -21,8 +22,8 @@ type Action =
   | "throwError"
   | "dropRequest"
   | "startConnection"
-  | "waitForConnectionOpen"
-  | "waitForKernelToBeInstantiated";
+  | "waitForConnectionOpen";
+
 const ACTIONS: Record<keyof AllRequests, Action> = {
   // These will start a connection if not already connected and then wait until the connection is open
   sendComponentValues: "startConnection",
