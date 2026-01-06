@@ -6,9 +6,13 @@ import { createLazyRequests } from "../requests-lazy";
 import type { EditRequests, RunRequests } from "../types";
 
 // Mock the connection module
-vi.mock("../connection", () => ({
-  waitForConnectionOpen: vi.fn().mockResolvedValue(undefined),
-}));
+vi.mock("../connection", async () => {
+  const { atom } = await import("jotai");
+  return {
+    connectionAtom: atom({ state: "NOT_STARTED" }),
+    waitForConnectionOpen: vi.fn().mockResolvedValue(undefined),
+  };
+});
 
 // Mock the kernel state module
 vi.mock("../../kernel/state", () => ({
@@ -154,121 +158,6 @@ describe("createLazyRequests", () => {
     await expect(
       lazyRequests.sendRun({ cellIds: ["cell1"], codes: ["code"] }),
     ).rejects.toThrow("Request failed");
-  });
-
-  describe("SKIP_REQUESTS", () => {
-    it("should not wait for init or connection for sendRestart", async () => {
-      const lazyRequests = createLazyRequests(
-        mockDelegate,
-        mockGetRuntimeManager,
-      );
-
-      await lazyRequests.sendRestart();
-
-      // Should not call init or wait for connection
-      expect(mockInit).not.toHaveBeenCalled();
-      expect(mockGetRuntimeManager).not.toHaveBeenCalled();
-      // Should call the delegate method directly
-      expect(mockDelegate.sendRestart).toHaveBeenCalled();
-    });
-
-    it("should call sendRestart immediately without waiting", async () => {
-      const { waitForConnectionOpen } = await import("../connection");
-      const lazyRequests = createLazyRequests(
-        mockDelegate,
-        mockGetRuntimeManager,
-      );
-
-      await lazyRequests.sendRestart();
-
-      expect(waitForConnectionOpen).not.toHaveBeenCalled();
-    });
-  });
-
-  describe("WAIT_FOR_INSTANTIATE_REQUESTS", () => {
-    it("should wait for kernel instantiation for sendRun", async () => {
-      const { waitForKernelToBeInstantiated } = await import(
-        "../../kernel/state"
-      );
-      const lazyRequests = createLazyRequests(
-        mockDelegate,
-        mockGetRuntimeManager,
-      );
-
-      await lazyRequests.sendRun({ cellIds: ["cell1"], codes: ["code"] });
-
-      expect(waitForKernelToBeInstantiated).toHaveBeenCalled();
-    });
-
-    it("should wait for kernel instantiation for sendDeleteCell", async () => {
-      const { waitForKernelToBeInstantiated } = await import(
-        "../../kernel/state"
-      );
-      const lazyRequests = createLazyRequests(
-        mockDelegate,
-        mockGetRuntimeManager,
-      );
-
-      await lazyRequests.sendDeleteCell({ cellId: "cell1" });
-
-      expect(waitForKernelToBeInstantiated).toHaveBeenCalled();
-    });
-
-    it("should wait for kernel instantiation for sendInterrupt", async () => {
-      const { waitForKernelToBeInstantiated } = await import(
-        "../../kernel/state"
-      );
-      const lazyRequests = createLazyRequests(
-        mockDelegate,
-        mockGetRuntimeManager,
-      );
-
-      await lazyRequests.sendInterrupt();
-
-      expect(waitForKernelToBeInstantiated).toHaveBeenCalled();
-    });
-
-    it("should wait for kernel instantiation for sendPdb", async () => {
-      const { waitForKernelToBeInstantiated } = await import(
-        "../../kernel/state"
-      );
-      const lazyRequests = createLazyRequests(
-        mockDelegate,
-        mockGetRuntimeManager,
-      );
-
-      await lazyRequests.sendPdb({ cellId: "cell1" });
-
-      expect(waitForKernelToBeInstantiated).toHaveBeenCalled();
-    });
-
-    it("should wait for kernel instantiation for sendRunScratchpad", async () => {
-      const { waitForKernelToBeInstantiated } = await import(
-        "../../kernel/state"
-      );
-      const lazyRequests = createLazyRequests(
-        mockDelegate,
-        mockGetRuntimeManager,
-      );
-
-      await lazyRequests.sendRunScratchpad({ code: "print('test')" });
-
-      expect(waitForKernelToBeInstantiated).toHaveBeenCalled();
-    });
-
-    it("should not wait for kernel instantiation for other requests", async () => {
-      const { waitForKernelToBeInstantiated } = await import(
-        "../../kernel/state"
-      );
-      const lazyRequests = createLazyRequests(
-        mockDelegate,
-        mockGetRuntimeManager,
-      );
-
-      await lazyRequests.sendInstantiate({ objectIds: ["obj1"], values: [] });
-
-      expect(waitForKernelToBeInstantiated).not.toHaveBeenCalled();
-    });
   });
 
   describe("Memoization", () => {

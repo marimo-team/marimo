@@ -33,6 +33,12 @@ router = APIRouter()
 @requires("edit")
 async def list_keys(request: Request) -> SuccessResponse:
     """
+    parameters:
+        - in: header
+          name: Marimo-Session-Id
+          schema:
+            type: string
+          required: true
     requestBody:
         required: true
         content:
@@ -54,6 +60,12 @@ async def list_keys(request: Request) -> SuccessResponse:
 @requires("edit")
 async def create_secret(request: Request) -> BaseResponse:
     """
+    parameters:
+        - in: header
+          name: Marimo-Session-Id
+          schema:
+            type: string
+          required: true
     requestBody:
         required: true
         content:

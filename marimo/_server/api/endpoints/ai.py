@@ -117,6 +117,12 @@ async def ai_completion(
     request: Request,
 ) -> StreamingResponse:
     """
+    parameters:
+        - in: header
+          name: Marimo-Session-Id
+          schema:
+            type: string
+          required: true
     requestBody:
         description: The request body for AI completion
         required: true
@@ -234,6 +240,12 @@ async def ai_chat(
     request: Request,
 ) -> StreamingResponse:
     """
+    parameters:
+        - in: header
+          name: Marimo-Session-Id
+          schema:
+            type: string
+          required: true
     requestBody:
         description: The request body for AI chat
         required: true
@@ -311,6 +323,12 @@ async def ai_inline_completion(
     request: Request,
 ) -> PlainTextResponse:
     """
+    parameters:
+        - in: header
+          name: Marimo-Session-Id
+          schema:
+            type: string
+          required: true
     requestBody:
         description: The request body for AI inline completion
         required: true
@@ -389,6 +407,12 @@ async def invoke_tool(
     request: Request,
 ) -> Response:
     """
+    parameters:
+        - in: header
+          name: Marimo-Session-Id
+          schema:
+            type: string
+          required: true
     requestBody:
         description: The request body for tool invocation
         required: true
@@ -535,6 +559,12 @@ async def mcp_refresh(
     request: Request,
 ) -> Response:
     """
+    parameters:
+        - in: header
+          name: Marimo-Session-Id
+          schema:
+            type: string
+          required: true
     responses:
         200:
             description: Refresh MCP server configuration

@@ -6,7 +6,6 @@ import type React from "react";
 import { renderShortcut } from "@/components/shortcuts/renderShortcut";
 import { Tooltip } from "@/components/ui/tooltip";
 import { cellErrorCount } from "@/core/cells/cells";
-import { IfCapability } from "@/core/config/if-capability";
 import { useHotkey } from "@/hooks/useHotkey";
 import { ShowInKioskMode } from "../../kiosk-mode";
 import { useChromeActions, useChromeState } from "../state";
@@ -44,35 +43,29 @@ export const Footer: React.FC = () => {
   });
 
   return (
-    <footer className="h-10 py-2 bg-background flex items-center text-muted-foreground text-md pl-2 pr-1 border-t border-border select-none no-print text-sm z-50 print:hidden hide-on-fullscreen overflow-x-auto overflow-y-hidden scrollbar-thin">
-      <IfCapability capability="terminal">
-        <div className="flex items-center">
-          <div className="flex">
-            <FooterItem
-              tooltip={
-                <span className="flex items-center gap-2">
-                  Toggle developer panel{" "}
-                  {renderShortcut("global.togglePanel", false)}
-                </span>
-              }
-              selected={isDeveloperPanelOpen}
-              onClick={() => toggleDeveloperPanel()}
-              data-testid="footer-panel"
-            >
-              <div className="flex items-center gap-1">
-                <XCircleIcon
-                  className={`w-4 h-4 ${issueCount > 0 ? "text-destructive" : ""}`}
-                />
-                <span>{issueCount}</span>
-                <AlertTriangleIcon
-                  className={`w-4 h-4 ml-1 ${warningCount > 0 ? "text-yellow-500" : ""}`}
-                />
-                <span>{warningCount}</span>
-              </div>
-            </FooterItem>
-          </div>
+    <footer className="h-10 py-1 gap-1 bg-background flex items-center text-muted-foreground text-md pl-2 pr-1 border-t border-border select-none no-print text-sm z-50 print:hidden hide-on-fullscreen overflow-x-auto overflow-y-hidden scrollbar-thin">
+      <FooterItem
+        className="h-full"
+        tooltip={
+          <span className="flex items-center gap-2">
+            Toggle developer panel {renderShortcut("global.togglePanel", false)}
+          </span>
+        }
+        selected={isDeveloperPanelOpen}
+        onClick={() => toggleDeveloperPanel()}
+        data-testid="footer-panel"
+      >
+        <div className="flex items-center gap-1 h-full">
+          <XCircleIcon
+            className={`w-4 h-4 ${issueCount > 0 ? "text-destructive" : ""}`}
+          />
+          <span>{issueCount}</span>
+          <AlertTriangleIcon
+            className={`w-4 h-4 ml-1 ${warningCount > 0 ? "text-yellow-500" : ""}`}
+          />
+          <span>{warningCount}</span>
         </div>
-      </IfCapability>
+      </FooterItem>
 
       <RuntimeSettings />
 

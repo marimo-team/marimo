@@ -21,6 +21,12 @@ router = APIRouter()
 @requires("edit")
 async def clear_cache(request: Request) -> SuccessResponse:
     """
+    parameters:
+        - in: header
+          name: Marimo-Session-Id
+          schema:
+            type: string
+          required: true
     requestBody:
         content:
             application/json:
@@ -41,6 +47,12 @@ async def clear_cache(request: Request) -> SuccessResponse:
 @requires("edit")
 async def get_cache_info(request: Request) -> SuccessResponse:
     """
+    parameters:
+        - in: header
+          name: Marimo-Session-Id
+          schema:
+            type: string
+          required: true
     requestBody:
         content:
             application/json:

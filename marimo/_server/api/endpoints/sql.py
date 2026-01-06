@@ -20,6 +20,12 @@ router = APIRouter()
 @requires("edit")
 async def validate_sql(request: Request) -> BaseResponse:
     """
+    parameters:
+        - in: header
+          name: Marimo-Session-Id
+          schema:
+            type: string
+          required: true
     requestBody:
         content:
             application/json:

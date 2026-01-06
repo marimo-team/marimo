@@ -4417,6 +4417,12 @@ paths:
           description: Invalid byte length in virtual file request
   /api/ai/chat:
     post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
       requestBody:
         content:
           application/json:
@@ -4426,6 +4432,12 @@ paths:
         required: true
   /api/ai/completion:
     post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
       requestBody:
         content:
           application/json:
@@ -4443,6 +4455,12 @@ paths:
           description: Get AI completion for a prompt
   /api/ai/inline_completion:
     post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
       requestBody:
         content:
           application/json:
@@ -4459,6 +4477,12 @@ paths:
           description: Get AI inline completion for code
   /api/ai/invoke_tool:
     post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
       requestBody:
         content:
           application/json:
@@ -4475,6 +4499,12 @@ paths:
           description: Tool invocation result
   /api/ai/mcp/refresh:
     post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
       responses:
         200:
           content:
@@ -4493,6 +4523,12 @@ paths:
           description: Get MCP server status
   /api/cache/clear:
     post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
       requestBody:
         content:
           application/json:
@@ -4507,6 +4543,12 @@ paths:
           description: Clear all caches
   /api/cache/info:
     post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
       requestBody:
         content:
           application/json:
@@ -4521,6 +4563,12 @@ paths:
           description: Get cache statistics
   /api/datasources/preview_column:
     post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
       requestBody:
         content:
           application/json:
@@ -4535,6 +4583,12 @@ paths:
           description: Preview a column in a dataset
   /api/datasources/preview_datasource_connection:
     post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
       requestBody:
         content:
           application/json:
@@ -4549,6 +4603,12 @@ paths:
           description: Broadcasts a datasource connection
   /api/datasources/preview_sql_table:
     post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
       requestBody:
         content:
           application/json:
@@ -4563,6 +4623,12 @@ paths:
           description: Preview a SQL table
   /api/datasources/preview_sql_table_list:
     post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
       requestBody:
         content:
           application/json:
@@ -4577,6 +4643,12 @@ paths:
           description: Preview a list of tables in an SQL schema
   /api/documentation/snippets:
     get:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
       responses:
         200:
           content:
@@ -4586,6 +4658,12 @@ paths:
           description: Load the snippets for the documentation page
   /api/export/auto_export/html:
     post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
       requestBody:
         content:
           application/json:
@@ -4602,6 +4680,12 @@ paths:
           description: File must be saved before downloading
   /api/export/auto_export/ipynb:
     post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
       requestBody:
         content:
           application/json:
@@ -4618,6 +4702,12 @@ paths:
           description: File must be saved before downloading
   /api/export/auto_export/markdown:
     post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
       requestBody:
         content:
           application/json:
@@ -4634,6 +4724,12 @@ paths:
           description: File must be saved before downloading
   /api/export/html:
     post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
       requestBody:
         content:
           application/json:
@@ -4650,6 +4746,12 @@ paths:
           description: File must be saved before downloading
   /api/export/markdown:
     post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
       requestBody:
         content:
           application/json:
@@ -4666,6 +4768,12 @@ paths:
           description: File must be saved before downloading
   /api/export/script:
     post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
       requestBody:
         content:
           application/json:
@@ -4854,6 +4962,12 @@ paths:
           description: Get the files in the workspace
   /api/kernel/code_autocomplete:
     post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
       requestBody:
         content:
           application/json:
@@ -4868,6 +4982,12 @@ paths:
           description: Complete a code fragment
   /api/kernel/copy:
     post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
       requestBody:
         content:
           application/json:
@@ -4882,6 +5002,12 @@ paths:
           description: Copy notebook
   /api/kernel/delete:
     post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
       requestBody:
         content:
           application/json:
@@ -4910,6 +5036,12 @@ paths:
           description: Format code
   /api/kernel/function_call:
     post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
       requestBody:
         content:
           application/json:
@@ -4924,6 +5056,12 @@ paths:
           description: Invoke an RPC
   /api/kernel/install_missing_packages:
     post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
       requestBody:
         content:
           application/json:
@@ -4938,6 +5076,12 @@ paths:
           description: Install missing packages
   /api/kernel/instantiate:
     post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
       requestBody:
         content:
           application/json:
@@ -4953,6 +5097,12 @@ paths:
             mode, instantiation happens server-side automatically.
   /api/kernel/interrupt:
     post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
       responses:
         200:
           content:
@@ -4962,6 +5112,12 @@ paths:
           description: Interrupt the kernel's execution
   /api/kernel/pdb/pm:
     post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
       requestBody:
         content:
           application/json:
@@ -4976,6 +5132,12 @@ paths:
           description: Run a post mortem on the most recent failed cell.
   /api/kernel/read_code:
     post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
       responses:
         200:
           content:
@@ -4989,6 +5151,12 @@ paths:
           description: Code is not available in run mode
   /api/kernel/rename:
     post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
       requestBody:
         content:
           application/json:
@@ -5003,6 +5171,12 @@ paths:
           description: Rename the current app
   /api/kernel/restart_session:
     post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
       responses:
         200:
           content:
@@ -5012,6 +5186,12 @@ paths:
           description: Restart the current session without affecting other sessions.
   /api/kernel/run:
     post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
       requestBody:
         content:
           application/json:
@@ -5027,6 +5207,12 @@ paths:
             new cells for unseen cell IDs. Only allowed in edit mode.
   /api/kernel/save:
     post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
       requestBody:
         content:
           application/json:
@@ -5041,6 +5227,12 @@ paths:
           description: Save the current app
   /api/kernel/save_app_config:
     post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
       requestBody:
         content:
           application/json:
@@ -5055,6 +5247,12 @@ paths:
           description: Save the app configuration
   /api/kernel/save_user_config:
     post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: false
+        schema:
+          type: string
       requestBody:
         content:
           application/json:
@@ -5070,6 +5268,12 @@ paths:
             in edit mode.
   /api/kernel/scratchpad/run:
     post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
       requestBody:
         content:
           application/json:
@@ -5084,6 +5288,12 @@ paths:
           description: Run the scratchpad
   /api/kernel/set_cell_config:
     post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
       requestBody:
         content:
           application/json:
@@ -5098,6 +5308,12 @@ paths:
           description: Set the configuration of a cell
   /api/kernel/set_model_value:
     post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
       requestBody:
         content:
           application/json:
@@ -5112,6 +5328,12 @@ paths:
           description: Set model value
   /api/kernel/set_ui_element_value:
     post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
       requestBody:
         content:
           application/json:
@@ -5126,6 +5348,12 @@ paths:
           description: Set UI element values
   /api/kernel/shutdown:
     post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: false
+        schema:
+          type: string
       responses:
         200:
           content:
@@ -5135,6 +5363,12 @@ paths:
           description: Shutdown the kernel
   /api/kernel/stdin:
     post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
       requestBody:
         content:
           application/json:
@@ -5149,6 +5383,12 @@ paths:
           description: Send input to the stdin stream
   /api/kernel/sync/cell_ids:
     post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
       requestBody:
         content:
           application/json:
@@ -5163,6 +5403,12 @@ paths:
           description: Sync cell ids
   /api/kernel/takeover:
     post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
       responses:
         200:
           content:
@@ -5221,6 +5467,12 @@ paths:
           description: List dependency tree
   /api/secrets/create:
     post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
       requestBody:
         content:
           application/json:
@@ -5245,6 +5497,12 @@ paths:
           description: Delete a secret
   /api/secrets/keys:
     post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
       requestBody:
         content:
           application/json:
@@ -5260,6 +5518,12 @@ paths:
           description: List all secret keys
   /api/sql/validate:
     post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
       requestBody:
         content:
           application/json:

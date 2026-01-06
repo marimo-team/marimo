@@ -250,8 +250,8 @@ export class RuntimeManager {
     return this.initialHealthyCheck.promise;
   }
 
-  headers(): Record<string, string> {
-    const headers: Record<string, string> = {
+  headers(): KnownHeaders {
+    const headers: KnownHeaders = {
       "Marimo-Session-Id": getSessionId(),
       "Marimo-Server-Token": this.config.serverToken ?? "",
       // Needed for widgets that need absolute URLs when embedding in an iframe
@@ -266,6 +266,19 @@ export class RuntimeManager {
 
     return headers;
   }
+
+  sessionHeaders(): Pick<KnownHeaders, "Marimo-Session-Id"> {
+    return {
+      "Marimo-Session-Id": getSessionId(),
+    };
+  }
+}
+
+interface KnownHeaders {
+  "Marimo-Session-Id": SessionId;
+  "Marimo-Server-Token": string;
+  "x-runtime-url": string;
+  [key: string]: string;
 }
 
 function asWsUrl(url: string): URL {

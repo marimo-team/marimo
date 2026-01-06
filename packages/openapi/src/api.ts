@@ -61,7 +61,9 @@ export interface paths {
     post: {
       parameters: {
         query?: never;
-        header?: never;
+        header: {
+          "Marimo-Session-Id": string;
+        };
         path?: never;
         cookie?: never;
       };
@@ -91,7 +93,9 @@ export interface paths {
     post: {
       parameters: {
         query?: never;
-        header?: never;
+        header: {
+          "Marimo-Session-Id": string;
+        };
         path?: never;
         cookie?: never;
       };
@@ -133,7 +137,9 @@ export interface paths {
     post: {
       parameters: {
         query?: never;
-        header?: never;
+        header: {
+          "Marimo-Session-Id": string;
+        };
         path?: never;
         cookie?: never;
       };
@@ -173,7 +179,9 @@ export interface paths {
     post: {
       parameters: {
         query?: never;
-        header?: never;
+        header: {
+          "Marimo-Session-Id": string;
+        };
         path?: never;
         cookie?: never;
       };
@@ -213,7 +221,9 @@ export interface paths {
     post: {
       parameters: {
         query?: never;
-        header?: never;
+        header: {
+          "Marimo-Session-Id": string;
+        };
         path?: never;
         cookie?: never;
       };
@@ -283,7 +293,9 @@ export interface paths {
     post: {
       parameters: {
         query?: never;
-        header?: never;
+        header: {
+          "Marimo-Session-Id": string;
+        };
         path?: never;
         cookie?: never;
       };
@@ -322,7 +334,9 @@ export interface paths {
     post: {
       parameters: {
         query?: never;
-        header?: never;
+        header: {
+          "Marimo-Session-Id": string;
+        };
         path?: never;
         cookie?: never;
       };
@@ -361,7 +375,9 @@ export interface paths {
     post: {
       parameters: {
         query?: never;
-        header?: never;
+        header: {
+          "Marimo-Session-Id": string;
+        };
         path?: never;
         cookie?: never;
       };
@@ -400,7 +416,9 @@ export interface paths {
     post: {
       parameters: {
         query?: never;
-        header?: never;
+        header: {
+          "Marimo-Session-Id": string;
+        };
         path?: never;
         cookie?: never;
       };
@@ -439,7 +457,9 @@ export interface paths {
     post: {
       parameters: {
         query?: never;
-        header?: never;
+        header: {
+          "Marimo-Session-Id": string;
+        };
         path?: never;
         cookie?: never;
       };
@@ -478,7 +498,9 @@ export interface paths {
     post: {
       parameters: {
         query?: never;
-        header?: never;
+        header: {
+          "Marimo-Session-Id": string;
+        };
         path?: never;
         cookie?: never;
       };
@@ -515,7 +537,9 @@ export interface paths {
     get: {
       parameters: {
         query?: never;
-        header?: never;
+        header: {
+          "Marimo-Session-Id": string;
+        };
         path?: never;
         cookie?: never;
       };
@@ -552,7 +576,9 @@ export interface paths {
     post: {
       parameters: {
         query?: never;
-        header?: never;
+        header: {
+          "Marimo-Session-Id": string;
+        };
         path?: never;
         cookie?: never;
       };
@@ -598,7 +624,9 @@ export interface paths {
     post: {
       parameters: {
         query?: never;
-        header?: never;
+        header: {
+          "Marimo-Session-Id": string;
+        };
         path?: never;
         cookie?: never;
       };
@@ -644,7 +672,9 @@ export interface paths {
     post: {
       parameters: {
         query?: never;
-        header?: never;
+        header: {
+          "Marimo-Session-Id": string;
+        };
         path?: never;
         cookie?: never;
       };
@@ -690,7 +720,9 @@ export interface paths {
     post: {
       parameters: {
         query?: never;
-        header?: never;
+        header: {
+          "Marimo-Session-Id": string;
+        };
         path?: never;
         cookie?: never;
       };
@@ -736,7 +768,9 @@ export interface paths {
     post: {
       parameters: {
         query?: never;
-        header?: never;
+        header: {
+          "Marimo-Session-Id": string;
+        };
         path?: never;
         cookie?: never;
       };
@@ -782,7 +816,9 @@ export interface paths {
     post: {
       parameters: {
         query?: never;
-        header?: never;
+        header: {
+          "Marimo-Session-Id": string;
+        };
         path?: never;
         cookie?: never;
       };
@@ -1327,7 +1363,9 @@ export interface paths {
     post: {
       parameters: {
         query?: never;
-        header?: never;
+        header: {
+          "Marimo-Session-Id": string;
+        };
         path?: never;
         cookie?: never;
       };
@@ -1366,7 +1404,9 @@ export interface paths {
     post: {
       parameters: {
         query?: never;
-        header?: never;
+        header: {
+          "Marimo-Session-Id": string;
+        };
         path?: never;
         cookie?: never;
       };
@@ -1405,7 +1445,9 @@ export interface paths {
     post: {
       parameters: {
         query?: never;
-        header?: never;
+        header: {
+          "Marimo-Session-Id": string;
+        };
         path?: never;
         cookie?: never;
       };
@@ -1483,7 +1525,9 @@ export interface paths {
     post: {
       parameters: {
         query?: never;
-        header?: never;
+        header: {
+          "Marimo-Session-Id": string;
+        };
         path?: never;
         cookie?: never;
       };
@@ -1522,7 +1566,9 @@ export interface paths {
     post: {
       parameters: {
         query?: never;
-        header?: never;
+        header: {
+          "Marimo-Session-Id": string;
+        };
         path?: never;
         cookie?: never;
       };
@@ -1561,7 +1607,9 @@ export interface paths {
     post: {
       parameters: {
         query?: never;
-        header?: never;
+        header: {
+          "Marimo-Session-Id": string;
+        };
         path?: never;
         cookie?: never;
       };
@@ -1600,7 +1648,9 @@ export interface paths {
     post: {
       parameters: {
         query?: never;
-        header?: never;
+        header: {
+          "Marimo-Session-Id": string;
+        };
         path?: never;
         cookie?: never;
       };
@@ -1635,7 +1685,9 @@ export interface paths {
     post: {
       parameters: {
         query?: never;
-        header?: never;
+        header: {
+          "Marimo-Session-Id": string;
+        };
         path?: never;
         cookie?: never;
       };
@@ -1674,7 +1726,9 @@ export interface paths {
     post: {
       parameters: {
         query?: never;
-        header?: never;
+        header: {
+          "Marimo-Session-Id": string;
+        };
         path?: never;
         cookie?: never;
       };
@@ -1723,7 +1777,9 @@ export interface paths {
     post: {
       parameters: {
         query?: never;
-        header?: never;
+        header: {
+          "Marimo-Session-Id": string;
+        };
         path?: never;
         cookie?: never;
       };
@@ -1762,7 +1818,9 @@ export interface paths {
     post: {
       parameters: {
         query?: never;
-        header?: never;
+        header: {
+          "Marimo-Session-Id": string;
+        };
         path?: never;
         cookie?: never;
       };
@@ -1797,7 +1855,9 @@ export interface paths {
     post: {
       parameters: {
         query?: never;
-        header?: never;
+        header: {
+          "Marimo-Session-Id": string;
+        };
         path?: never;
         cookie?: never;
       };
@@ -1836,7 +1896,9 @@ export interface paths {
     post: {
       parameters: {
         query?: never;
-        header?: never;
+        header: {
+          "Marimo-Session-Id": string;
+        };
         path?: never;
         cookie?: never;
       };
@@ -1875,7 +1937,9 @@ export interface paths {
     post: {
       parameters: {
         query?: never;
-        header?: never;
+        header: {
+          "Marimo-Session-Id": string;
+        };
         path?: never;
         cookie?: never;
       };
@@ -1914,7 +1978,9 @@ export interface paths {
     post: {
       parameters: {
         query?: never;
-        header?: never;
+        header?: {
+          "Marimo-Session-Id"?: string;
+        };
         path?: never;
         cookie?: never;
       };
@@ -1953,7 +2019,9 @@ export interface paths {
     post: {
       parameters: {
         query?: never;
-        header?: never;
+        header: {
+          "Marimo-Session-Id": string;
+        };
         path?: never;
         cookie?: never;
       };
@@ -1992,7 +2060,9 @@ export interface paths {
     post: {
       parameters: {
         query?: never;
-        header?: never;
+        header: {
+          "Marimo-Session-Id": string;
+        };
         path?: never;
         cookie?: never;
       };
@@ -2031,7 +2101,9 @@ export interface paths {
     post: {
       parameters: {
         query?: never;
-        header?: never;
+        header: {
+          "Marimo-Session-Id": string;
+        };
         path?: never;
         cookie?: never;
       };
@@ -2070,7 +2142,9 @@ export interface paths {
     post: {
       parameters: {
         query?: never;
-        header?: never;
+        header: {
+          "Marimo-Session-Id": string;
+        };
         path?: never;
         cookie?: never;
       };
@@ -2109,7 +2183,9 @@ export interface paths {
     post: {
       parameters: {
         query?: never;
-        header?: never;
+        header?: {
+          "Marimo-Session-Id"?: string;
+        };
         path?: never;
         cookie?: never;
       };
@@ -2144,7 +2220,9 @@ export interface paths {
     post: {
       parameters: {
         query?: never;
-        header?: never;
+        header: {
+          "Marimo-Session-Id": string;
+        };
         path?: never;
         cookie?: never;
       };
@@ -2183,7 +2261,9 @@ export interface paths {
     post: {
       parameters: {
         query?: never;
-        header?: never;
+        header: {
+          "Marimo-Session-Id": string;
+        };
         path?: never;
         cookie?: never;
       };
@@ -2222,7 +2302,9 @@ export interface paths {
     post: {
       parameters: {
         query?: never;
-        header?: never;
+        header: {
+          "Marimo-Session-Id": string;
+        };
         path?: never;
         cookie?: never;
       };
@@ -2407,7 +2489,9 @@ export interface paths {
     post: {
       parameters: {
         query?: never;
-        header?: never;
+        header: {
+          "Marimo-Session-Id": string;
+        };
         path?: never;
         cookie?: never;
       };
@@ -2481,7 +2565,9 @@ export interface paths {
     post: {
       parameters: {
         query?: never;
-        header?: never;
+        header: {
+          "Marimo-Session-Id": string;
+        };
         path?: never;
         cookie?: never;
       };
@@ -2520,7 +2606,9 @@ export interface paths {
     post: {
       parameters: {
         query?: never;
-        header?: never;
+        header: {
+          "Marimo-Session-Id": string;
+        };
         path?: never;
         cookie?: never;
       };
