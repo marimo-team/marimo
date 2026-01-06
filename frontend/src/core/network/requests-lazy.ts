@@ -71,8 +71,8 @@ const ACTIONS: Record<keyof AllRequests, Action> = {
   removePackage: "throwError",
 
   // Folder and file operations throw errors
-  sendListFiles: "throwError",
-  sendSearchFiles: "throwError",
+  sendListFiles: "startConnection",
+  sendSearchFiles: "startConnection",
   sendCreateFileOrFolder: "throwError",
   sendDeleteFileOrFolder: "throwError",
   sendRenameFileOrFolder: "throwError",

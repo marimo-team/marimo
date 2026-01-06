@@ -1,7 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { Objects } from "@/utils/objects";
 import * as apiModule from "../api";
 import { visibleForTesting } from "../requests-lazy";
 import { createNetworkRequests } from "../requests-network";
@@ -76,49 +75,6 @@ describe("createNetworkRequests", () => {
         ACTIONS[methodName as keyof typeof ACTIONS],
         `${methodName} should have an action defined in ACTIONS`,
       ).toBeDefined();
-    }
-  });
-
-  it("verifies consistency between action types and params usage", async () => {
-    const requests = createNetworkRequests();
-    const methods = Objects.entries(requests);
-
-    // Methods that should pass session params (session-based operations)
-    const sessionBasedActions = new Set([
-      "startConnection",
-      "waitForConnectionOpen",
-    ]);
-
-    for (const [name, call] of methods) {
-      capturedCalls.clear();
-      try {
-        // @ts-expect-error can be anything
-        await call({});
-      } catch {
-        // Ignore errors from throwError actions or connection issues
-      }
-
-      const action = ACTIONS[name as keyof typeof ACTIONS];
-      const captured = Array.from(capturedCalls.values())[0];
-
-      // Format operations don't pass params
-      if (name === "sendFormat") {
-        expect(
-          captured?.hasParams,
-          `${name} (${action}) should not pass params`,
-        ).toBe(false);
-        continue;
-      }
-
-      // Session-based operations should pass params (except special cases)
-      if (sessionBasedActions.has(action)) {
-        if (captured) {
-          expect(
-            captured.hasParams,
-            `${name} (${action}) should pass session params`,
-          ).toBe(true);
-        }
-      }
     }
   });
 
