@@ -147,10 +147,17 @@ export function resolvePlatform(): Platform {
 
 /**
  * On macOS, duplicate a Cmd-based keybinding to also work with Ctrl.
- * This allows users to use either Cmd or Ctrl as the modifier key.
+ * This allows users coming from Jupyter/Colab to use Ctrl-Enter to run cells.
  *
  * Returns an array with the original binding, plus a Ctrl variant on macOS.
  * For use with CodeMirror keymap bindings.
+ *
+ * Design decision: User-defined Cmd shortcuts also get Ctrl equivalents.
+ * The edge case is if a user wants `Cmd+<x>` and `Ctrl+<x>` to trigger
+ * different actions, this isn't currently supported. Given the relatively
+ * small number of keymaps, we're keeping this simple. If it becomes an issue,
+ * we can refactor to resolve a special "Mod" key internally and require users
+ * to specify explicit single-key mappings.
  *
  * Note: If the binding already contains Ctrl (e.g., Cmd-Ctrl-Enter),
  * no duplication is done to avoid producing invalid Ctrl-Ctrl-key combos.
