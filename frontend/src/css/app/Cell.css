@@ -14,7 +14,7 @@
   width: 100%;
   border: 1px solid var(--gray-4);
 
-  @apply divide-y divide-(--gray-5) shadow-sm-solid shadow-shade;
+  @apply divide-y divide-(--gray-5);
 
   &:focus-visible {
     /* focus-visible outlines the entire cell body in black, but the cell's
