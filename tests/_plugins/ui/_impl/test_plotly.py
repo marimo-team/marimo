@@ -596,3 +596,104 @@ def test_heatmap_initial_selection() -> None:
         p["x"] == "B" and p["y"] == "Y" and p["z"] == 5
         for p in initial_value["points"]
     )
+
+
+def test_heatmap_empty() -> None:
+    """Test heatmap with empty data."""
+    fig = go.Figure(
+        data=go.Heatmap(
+            z=[],
+            x=[],
+            y=[],
+        )
+    )
+    plot = plotly(fig)
+
+    selection = {
+        "range": {"x": [-0.5, 0.5], "y": [-0.5, 0.5]},
+        "points": [],
+        "indices": [],
+    }
+
+    result = plot._convert_value(selection)
+
+    # Should return empty list for empty heatmap
+    assert result == []
+
+
+def test_heatmap_single_cell() -> None:
+    """Test heatmap with a single cell."""
+    fig = go.Figure(
+        data=go.Heatmap(
+            z=[[42]],
+            x=["A"],
+            y=["X"],
+        )
+    )
+    plot = plotly(fig)
+
+    # Selection that covers the single cell (categorical at index 0)
+    selection = {
+        "range": {"x": [-0.5, 0.5], "y": [-0.5, 0.5]},
+        "points": [],
+        "indices": [],
+    }
+
+    result = plot._convert_value(selection)
+
+    # Should extract the single cell
+    assert len(result) == 1
+    assert result[0]["x"] == "A"
+    assert result[0]["y"] == "X"
+    assert result[0]["z"] == 42
+
+
+def test_heatmap_single_cell_numeric() -> None:
+    """Test heatmap with a single cell and numeric axes."""
+    fig = go.Figure(
+        data=go.Heatmap(
+            z=[[99]],
+            x=[5],
+            y=[10],
+        )
+    )
+    plot = plotly(fig)
+
+    # Selection that covers the single numeric cell
+    selection = {
+        "range": {"x": [0, 10], "y": [5, 15]},
+        "points": [],
+        "indices": [],
+    }
+
+    result = plot._convert_value(selection)
+
+    # Should extract the single cell
+    assert len(result) == 1
+    assert result[0]["x"] == 5
+    assert result[0]["y"] == 10
+    assert result[0]["z"] == 99
+
+
+def test_heatmap_single_cell_outside_selection() -> None:
+    """Test single-cell heatmap where selection doesn't cover the cell."""
+    fig = go.Figure(
+        data=go.Heatmap(
+            z=[[42]],
+            x=["A"],
+            y=["X"],
+        )
+    )
+    plot = plotly(fig)
+
+    # Selection that doesn't cover the cell (categorical at index 0)
+    selection = {
+        "range": {"x": [1.5, 2.5], "y": [1.5, 2.5]},
+        "points": [],
+        "indices": [],
+    }
+
+    result = plot._convert_value(selection)
+
+    # Should return empty list since selection doesn't cover the cell
+    assert result == []
