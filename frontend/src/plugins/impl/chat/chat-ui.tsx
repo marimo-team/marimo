@@ -157,19 +157,18 @@ export const Chatbot: React.FC<Props> = (props) => {
               start(controller) {
                 frontendStreamControllerRef.current = controller;
 
-                signal?.addEventListener("abort", () => {
+                const abortHandler = () => {
                   try {
                     controller.close();
                   } catch (error) {
                     Logger.debug("Controller may already be closed", { error });
                   }
                   frontendStreamControllerRef.current = null;
-                });
+                };
+                signal?.addEventListener("abort", abortHandler);
 
                 return () => {
-                  signal?.removeEventListener("abort", () => {
-                    frontendStreamControllerRef.current = null;
-                  });
+                  signal?.removeEventListener("abort", abortHandler);
                 };
               },
               cancel() {
