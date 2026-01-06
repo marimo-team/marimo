@@ -44,8 +44,8 @@ class plotly(UIElement[PlotlySelection, list[dict[str, Any]]]):
     Use `mo.ui.plotly` to make plotly plots reactive: select data with your
     cursor on the frontend, get them as a list of dicts in Python!
 
-    This function currently only supports scatter plots, treemaps charts,
-    sunbursts charts and heatmaps.
+    This function currently only supports scatter plots, treemap charts,
+    sunburst charts and heatmaps.
 
     Examples:
         ```python
