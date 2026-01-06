@@ -3,13 +3,11 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 from unittest.mock import patch
 
-import click
-import pytest
-
 from marimo._cli.sandbox import (
     _ensure_marimo_in_script_metadata,
     _normalize_sandbox_dependencies,
     construct_uv_command,
+    is_home_sandbox_mode,
     should_run_in_sandbox,
 )
 from marimo._utils.inline_script_metadata import PyProjectReader
@@ -126,7 +124,7 @@ def test_construct_uv_cmd_marimo_edit_empty_file() -> None:
         additional_deps=[],
     )
     assert "--refresh" in uv_cmd
-    assert uv_cmd[0] == "uv"
+    assert uv_cmd[0].endswith("uv")
     assert uv_cmd[1] == "run"
 
 
@@ -141,7 +139,7 @@ def test_construct_uv_cmd_marimo_edit_file_no_sandbox(
         additional_deps=[],
     )
     assert "--refresh" in uv_cmd
-    assert uv_cmd[0] == "uv"
+    assert uv_cmd[0].endswith("uv")
     assert uv_cmd[1] == "run"
 
 
@@ -157,7 +155,7 @@ def test_construct_uv_cmd_marimo_edit_sandboxed_file(
         additional_deps=[],
     )
     assert "--refresh" not in uv_cmd
-    assert uv_cmd[0] == "uv"
+    assert uv_cmd[0].endswith("uv")
     assert uv_cmd[1] == "run"
 
 
@@ -437,7 +435,6 @@ import marimo
             ):
                 result = should_run_in_sandbox(
                     sandbox=None,
-                    dangerous_sandbox=None,
                     name=str(script_path),
                 )
                 assert result
@@ -447,7 +444,6 @@ def test_should_run_in_sandbox_explicit_flag() -> None:
     """Test that should_run_in_sandbox returns True when sandbox=True."""
     result = should_run_in_sandbox(
         sandbox=True,
-        dangerous_sandbox=None,
         name="test.py",
     )
     assert result
@@ -457,33 +453,44 @@ def test_should_run_in_sandbox_explicit_false() -> None:
     """Test that should_run_in_sandbox returns False when sandbox=False."""
     result = should_run_in_sandbox(
         sandbox=False,
-        dangerous_sandbox=None,
         name="test.py",
     )
     assert not result
 
 
-def test_should_run_in_sandbox_dangerous_sandbox(tmp_path: Path) -> None:
-    """Test that dangerous_sandbox allows sandbox for directories."""
+def test_should_run_in_sandbox_directory(tmp_path: Path) -> None:
+    """Test that sandbox with directories is allowed for home sandbox mode."""
     dir_path = tmp_path / "notebooks"
     dir_path.mkdir()
 
-    # Without dangerous_sandbox, should raise an error
-    with pytest.raises(click.UsageError):
-        should_run_in_sandbox(
-            sandbox=True,
-            dangerous_sandbox=False,
-            name=str(dir_path),
-        )
+    # With IPC home sandbox mode, sandbox + directory is now allowed
+    result = should_run_in_sandbox(
+        sandbox=True,
+        name=str(dir_path),
+    )
+    assert result
 
-    # With dangerous_sandbox, should work
-    with patch("click.echo"):
-        result = should_run_in_sandbox(
-            sandbox=True,
-            dangerous_sandbox=True,
-            name=str(dir_path),
-        )
-        assert result
+
+def test_is_home_sandbox_mode(tmp_path: Path) -> None:
+    """Test is_home_sandbox_mode detection."""
+    dir_path = tmp_path / "notebooks"
+    dir_path.mkdir()
+    file_path = tmp_path / "notebook.py"
+    file_path.write_text("# test")
+
+    # sandbox=False always returns False
+    assert not is_home_sandbox_mode(sandbox=False, name=None)
+    assert not is_home_sandbox_mode(sandbox=False, name=str(dir_path))
+    assert not is_home_sandbox_mode(sandbox=False, name=str(file_path))
+
+    # sandbox=True with None (current dir) -> home sandbox mode
+    assert is_home_sandbox_mode(sandbox=True, name=None)
+
+    # sandbox=True with directory -> home sandbox mode
+    assert is_home_sandbox_mode(sandbox=True, name=str(dir_path))
+
+    # sandbox=True with file -> NOT home sandbox mode (uses uv wrapping)
+    assert not is_home_sandbox_mode(sandbox=True, name=str(file_path))
 
 
 def test_construct_uv_cmd_without_python_version(tmp_path: Path) -> None:

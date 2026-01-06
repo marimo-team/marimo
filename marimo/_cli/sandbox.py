@@ -9,7 +9,7 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
-from typing import Any, Literal, Optional
+from typing import Literal, Optional
 
 import click
 
@@ -77,58 +77,44 @@ def maybe_prompt_run_in_sandbox(name: str | None) -> bool:
     return False
 
 
-def should_run_in_sandbox(
-    sandbox: bool | None, dangerous_sandbox: bool | None, name: str | None
-) -> bool:
+def should_run_in_sandbox(sandbox: bool | None, name: str | None) -> bool:
     """Return whether the named notebook should be run in a sandbox.
 
-    Prompts the user if sandbox is None and the notebook has sandbox metadata.
+    Prompts the user if sandbox is None and the notebook has sandbox metadata
+    (only for single notebook, not directories).
 
-    The `sandbox` arg is whether the user requested sandbox. Even
-    if running in sandbox was requested, it may not be allowed
-    if the target is a directory (unless overridden by `dangerous_sandbox`).
+    With IPC-based kernel architecture (home sandbox mode), each notebook gets
+    its own sandboxed kernel, so multi-notebook servers are now supported with
+    --sandbox.
     """
-
-    # Dangerous sandbox can be forced on by setting an environment variable;
-    # this allows our VS Code extension to force sandbox regardless of the
-    # marimo version.
-    if sandbox and os.getenv("MARIMO_DANGEROUS_SANDBOX"):
-        dangerous_sandbox = True
-
-    if dangerous_sandbox and (name is None or os.path.isdir(name)):
-        sandbox = True
-        click.echo(
-            click.style(
-                "Warning: Using sandbox with multi-notebook edit servers is dangerous.\n",
-                fg="yellow",
-            )
-            + "Notebook dependencies may not be respected, may not be written, and may be overwritten.\n"
-            + "Learn more: https://github.com/marimo-team/marimo/issues/5219l.\n",
-            err=True,
-        )
-
     # When the sandbox flag is omitted we infer whether to
-    # to start in sandbox mode by examining the notebook file and
-    # prompting the user.
+    # start in sandbox mode by examining the notebook file and
+    # prompting the user. Only prompt for single notebooks, not directories.
     if sandbox is None:
-        sandbox = maybe_prompt_run_in_sandbox(name)
-
-    # Validation: we don't yet support multi-notebook sandboxed servers.
-    if (
-        sandbox
-        and not dangerous_sandbox
-        and (name is None or os.path.isdir(name))
-    ):
-        raise click.UsageError(
-            """marimo's package sandbox requires a notebook name:
-
-    * marimo edit --sandbox my_notebook.py
-
-  Multi-notebook sandboxed servers (marimo edit --sandbox) are not supported.
-  Follow this issue at: https://github.com/marimo-team/marimo/issues/2598."""
-        )
+        # Don't prompt for directories - user must explicitly pass --sandbox
+        if name is not None and not os.path.isdir(name):
+            sandbox = maybe_prompt_run_in_sandbox(name)
+        else:
+            sandbox = False
 
     return sandbox
+
+
+def is_home_sandbox_mode(sandbox: bool, name: str | None) -> bool:
+    """Check if we should use IPC kernel for home sandbox mode.
+
+    Home sandbox mode activates when:
+    - sandbox flag is True
+    - AND name is a directory OR name is None (current directory)
+
+    This mode uses IPC kernels with ZeroMQ for per-notebook sandboxed
+    environments.
+    """
+    if not sandbox:
+        return False
+    # name is None means current directory (home page)
+    # or name is explicitly a directory
+    return name is None or os.path.isdir(name)
 
 
 def _is_versioned(dependency: str) -> bool:
@@ -299,8 +285,6 @@ def construct_uv_command(
     cmd = ["marimo"] + args
     if "--sandbox" in cmd:
         cmd.remove("--sandbox")
-    if "--dangerous-sandbox" in cmd:
-        cmd.remove("--dangerous-sandbox")
 
     pyproject = (
         PyProjectReader.from_filename(name)
@@ -366,6 +350,15 @@ def run_in_sandbox(
     additional_features: Optional[list[DepFeatures]] = None,
     additional_deps: Optional[list[str]] = None,
 ) -> int:
+    """Run marimo in a sandboxed uv environment.
+
+    This wraps the marimo command with `uv run` to create an isolated
+    virtual environment with the notebook's dependencies.
+
+    Used for single-notebook sandbox mode (marimo edit --sandbox notebook.py).
+    For home sandbox mode (directory), see IPCKernelManagerImpl which
+    creates per-notebook sandboxed kernels.
+    """
     # If we fall back to the plain "uv" path, ensure it's actually on the system
     if find_uv_bin() == "uv" and not DependencyManager.which("uv"):
         raise click.UsageError("uv must be installed to use --sandbox")
@@ -384,7 +377,7 @@ def run_in_sandbox(
 
     process = subprocess.Popen(uv_cmd, env=env)
 
-    def handler(sig: int, frame: Any) -> None:
+    def handler(sig: int, frame: object) -> None:
         del sig
         del frame
         try:

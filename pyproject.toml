@@ -50,6 +50,7 @@ dependencies = [
     # for packaging.version; not sure what the lower bound is.
     "packaging",
     "msgspec>=0.20.0",
+    "sqlglot>=27.29.0",
 ]
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -87,10 +88,16 @@ sql = [
     "sqlglot[rs]>=26.2.0"      # SQL cells parsing
 ]
 
+# For sandbox home mode (per-notebook sandboxed kernels)
+sandbox = [
+    "pyzmq>=27.1.0",           # IPC communication for sandbox kernels
+]
+
 # List of deps that are recommended for most users
 # in order to unlock all features in marimo
 recommended = [
     "marimo[sql]",
+    "marimo[sandbox]",          # For sandbox home mode
     "altair>=5.4.0",            # Plotting in datasource viewer
     "openai>=1.55.3",           # AI features
     "ruff",                     # Formatting

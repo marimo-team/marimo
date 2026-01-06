@@ -178,6 +178,8 @@ def start(
     server_startup_command: Optional[str] = None,
     asset_url: Optional[str] = None,
     timeout: Optional[float] = None,
+    sandbox_mode: bool = False,
+    home_sandbox_mode: bool = False,
 ) -> None:
     """
     Start the server.
@@ -244,6 +246,8 @@ def start(
         auth_token=auth_token,
         redirect_console_to_browser=redirect_console_to_browser,
         watch=watch,
+        sandbox_mode=sandbox_mode,
+        home_sandbox_mode=home_sandbox_mode,
     )
 
     log_level = "info" if development_mode else "error"

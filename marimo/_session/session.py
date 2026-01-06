@@ -87,6 +87,8 @@ class SessionImpl(Session):
         auto_instantiate: bool,
         ttl_seconds: Optional[int],
         extensions: list[SessionExtension] | None = None,
+        sandbox_mode: bool = False,
+        home_sandbox_mode: bool = False,
     ) -> Session:
         """
         Create a new session.
@@ -98,19 +100,38 @@ class SessionImpl(Session):
         )
 
         configs = app_file_manager.app.cell_manager.config_map()
-        use_multiprocessing = mode == SessionMode.EDIT
-        queue_manager = QueueManagerImpl(
-            use_multiprocessing=use_multiprocessing
-        )
-        kernel_manager = KernelManagerImpl(
-            queue_manager=queue_manager,
-            mode=mode,
-            configs=configs,
-            app_metadata=app_metadata,
-            config_manager=config_manager,
-            virtual_files_supported=virtual_files_supported,
-            redirect_console_to_browser=redirect_console_to_browser,
-        )
+
+        # Create kernel manager
+        # Home sandbox mode uses IPC kernels with per-notebook sandboxed venvs
+        if home_sandbox_mode:
+            from marimo._session.managers import (
+                IPCKernelManagerImpl,
+                IPCQueueManagerImpl,
+            )
+
+            queue_manager = IPCQueueManagerImpl()
+            kernel_manager: KernelManager = IPCKernelManagerImpl(
+                queue_manager=queue_manager,
+                mode=mode,
+                configs=configs,
+                app_metadata=app_metadata,
+                config_manager=config_manager,
+                virtual_files_supported=virtual_files_supported,
+                redirect_console_to_browser=redirect_console_to_browser,
+            )
+        else:
+            # Original kernel: Process for edit, Thread for run
+            queue_manager = QueueManagerImpl()
+            kernel_manager = KernelManagerImpl(
+                queue_manager=queue_manager,
+                mode=mode,
+                configs=configs,
+                app_metadata=app_metadata,
+                config_manager=config_manager,
+                virtual_files_supported=virtual_files_supported,
+                redirect_console_to_browser=redirect_console_to_browser,
+                sandbox_mode=sandbox_mode,
+            )
 
         extensions = [
             *(extensions or []),

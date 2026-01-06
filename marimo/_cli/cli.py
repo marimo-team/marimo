@@ -327,19 +327,6 @@ edit_help_msg = "\n".join(
     help=sandbox_message,
 )
 @click.option(
-    "--dangerous-sandbox/--no-dangerous-sandbox",
-    is_flag=True,
-    default=None,
-    show_default=False,
-    type=bool,
-    hidden=True,
-    help="""Enables the usage of package sandboxing when running a multi-edit
-notebook server. This behavior can lead to surprising and unintended consequences,
-such as incorrectly overwriting package requirements or failing to write out
-requirements. These and other issues are described in
-https://github.com/marimo-team/marimo/issues/5219.""",
-)
-@click.option(
     "--trusted/--untrusted",
     is_flag=True,
     default=None,
@@ -428,7 +415,6 @@ def edit(
     allow_origins: Optional[tuple[str, ...]],
     skip_update_check: bool,
     sandbox: Optional[bool],
-    dangerous_sandbox: Optional[bool],
     trusted: Optional[bool],
     profile_dir: Optional[str],
     watch: bool,
@@ -442,7 +428,7 @@ def edit(
     name: Optional[str],
     args: tuple[str, ...],
 ) -> None:
-    from marimo._cli.sandbox import run_in_sandbox, should_run_in_sandbox
+    from marimo._cli.sandbox import is_home_sandbox_mode, should_run_in_sandbox
 
     pass_on_stdin = token_password_file == "-"
     # We support unix-style piping, e.g. cat notebook.py | marimo edit
@@ -508,14 +494,22 @@ def edit(
 
     # We check this after name validation, because this will convert
     # URLs into local file paths
-    if should_run_in_sandbox(
-        sandbox=sandbox, dangerous_sandbox=dangerous_sandbox, name=name
-    ):
-        from marimo._cli.sandbox import run_in_sandbox
 
-        # TODO: consider adding recommended as well
-        run_in_sandbox(sys.argv[1:], name=name, additional_features=["lsp"])
-        return
+    # Resolve sandbox mode
+    sandbox_mode = should_run_in_sandbox(sandbox=sandbox, name=name)
+
+    # Check if this is home sandbox mode (directory + sandbox)
+    home_sandbox = is_home_sandbox_mode(sandbox_mode, name)
+    if home_sandbox:
+        # Check for pyzmq dependency
+        from marimo._dependencies.dependencies import DependencyManager
+
+        if not DependencyManager.has("zmq"):
+            raise click.UsageError(
+                "pyzmq is required for sandbox home mode.\n"
+                "Install it with: pip install 'marimo[sandbox]'\n"
+                "Or: pip install pyzmq"
+            )
 
     start(
         file_router=AppFileRouter.infer(name),
@@ -545,6 +539,8 @@ def edit(
         server_startup_command=server_startup_command,
         asset_url=asset_url,
         timeout=timeout,
+        sandbox_mode=sandbox_mode,
+        home_sandbox_mode=home_sandbox,
     )
 
 
@@ -941,7 +937,7 @@ def run(
     name: str,
     args: tuple[str, ...],
 ) -> None:
-    from marimo._cli.sandbox import run_in_sandbox, should_run_in_sandbox
+    from marimo._cli.sandbox import resolve_sandbox_mode
 
     if prompt_run_in_docker_container(name, trusted=trusted):
         from marimo._cli.run_docker import run_in_docker
@@ -976,11 +972,11 @@ def run(
 
     # We check this after name validation, because this will convert
     # URLs into local file paths
-    if should_run_in_sandbox(
-        sandbox=sandbox, dangerous_sandbox=None, name=name
-    ):
-        run_in_sandbox(sys.argv[1:], name=name)
-        return
+
+    # Resolve sandbox mode and external python (handles conflicts and fallbacks)
+    sandbox_mode, external_python = resolve_sandbox_mode(
+        sandbox=sandbox, name=name
+    )
 
     start(
         file_router=AppFileRouter.from_filename(file),
@@ -1007,6 +1003,8 @@ def run(
         redirect_console_to_browser=redirect_console_to_browser,
         server_startup_command=server_startup_command,
         asset_url=asset_url,
+        external_python=external_python,
+        sandbox_mode=sandbox_mode,
     )
 
 
