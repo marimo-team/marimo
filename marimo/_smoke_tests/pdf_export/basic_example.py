@@ -39,6 +39,13 @@ def _(mo):
 
 
 @app.cell
+def _():
+    # How are errors serialized?
+    1 / 0
+    return
+
+
+@app.cell
 def _(px):
     df = px.data.iris()
     fig = px.scatter(
