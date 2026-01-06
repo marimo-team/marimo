@@ -339,11 +339,12 @@ export const Chatbot: React.FC<Props> = (props) => {
           is_final?: boolean;
         };
 
+        if (frontendMessage.content) {
+          controller.enqueue(frontendMessage.content);
+        }
         if (frontendMessage.is_final) {
           controller.close();
           frontendStreamControllerRef.current = null;
-        } else if (frontendMessage.content) {
-          controller.enqueue(frontendMessage.content);
         }
         return;
       }
