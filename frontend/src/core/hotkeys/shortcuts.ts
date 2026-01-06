@@ -151,11 +151,19 @@ export function resolvePlatform(): Platform {
  *
  * Returns an array with the original binding, plus a Ctrl variant on macOS.
  * For use with CodeMirror keymap bindings.
+ *
+ * Note: If the binding already contains Ctrl (e.g., Cmd-Ctrl-Enter),
+ * no duplication is done to avoid producing invalid Ctrl-Ctrl-key combos.
  */
-export function withCtrlEquivalent<T extends { key?: string }>(
+export function duplicateWithCtrlModifier<T extends { key?: string }>(
   binding: T,
 ): T[] {
-  if (!isPlatformMac() || !binding.key?.includes("Cmd")) {
+  // Skip if not macOS, not a Cmd binding, or already has Ctrl
+  if (
+    !isPlatformMac() ||
+    !binding.key?.includes("Cmd") ||
+    binding.key.includes("Ctrl")
+  ) {
     return [binding];
   }
   return [binding, { ...binding, key: binding.key.replaceAll("Cmd", "Ctrl") }];

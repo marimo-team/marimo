@@ -1,6 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import { describe, expect, it, vi } from "vitest";
-import { parseShortcut } from "../shortcuts";
+import { duplicateWithCtrlModifier, parseShortcut } from "../shortcuts";
 
 describe("parseShortcut", () => {
   it("should recognize single key shortcuts", () => {
@@ -166,5 +166,58 @@ describe("parseShortcut", () => {
 
     expect(parseShortcut("Ctrl+Shift+a")(event)).toBe(true);
     expect(parseShortcut("Ctrl+A")(event)).toBe(false);
+  });
+});
+
+describe("duplicateWithCtrlModifier", () => {
+  it("should duplicate Cmd binding with Ctrl variant on macOS", () => {
+    // Mock macOS platform
+    vi.spyOn(window.navigator, "platform", "get").mockReturnValue("MacIntel");
+
+    const binding = { key: "Cmd-Enter", run: () => true };
+    const result = duplicateWithCtrlModifier(binding);
+
+    expect(result).toHaveLength(2);
+    expect(result[0].key).toBe("Cmd-Enter");
+    expect(result[1].key).toBe("Ctrl-Enter");
+
+    vi.restoreAllMocks();
+  });
+
+  it("should not duplicate binding without Cmd", () => {
+    vi.spyOn(window.navigator, "platform", "get").mockReturnValue("MacIntel");
+
+    const binding = { key: "Shift-Enter", run: () => true };
+    const result = duplicateWithCtrlModifier(binding);
+
+    expect(result).toHaveLength(1);
+    expect(result[0].key).toBe("Shift-Enter");
+
+    vi.restoreAllMocks();
+  });
+
+  it("should not duplicate Cmd-Ctrl binding to avoid Ctrl-Ctrl", () => {
+    vi.spyOn(window.navigator, "platform", "get").mockReturnValue("MacIntel");
+
+    const binding = { key: "Cmd-Ctrl-Enter", run: () => true };
+    const result = duplicateWithCtrlModifier(binding);
+
+    // Should NOT create a Ctrl-Ctrl-Enter variant
+    expect(result).toHaveLength(1);
+    expect(result[0].key).toBe("Cmd-Ctrl-Enter");
+
+    vi.restoreAllMocks();
+  });
+
+  it("should not duplicate on non-macOS platforms", () => {
+    vi.spyOn(window.navigator, "platform", "get").mockReturnValue("Win32");
+
+    const binding = { key: "Cmd-Enter", run: () => true };
+    const result = duplicateWithCtrlModifier(binding);
+
+    expect(result).toHaveLength(1);
+    expect(result[0].key).toBe("Cmd-Enter");
+
+    vi.restoreAllMocks();
   });
 });

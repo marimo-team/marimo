@@ -7,7 +7,7 @@ import { createTracebackInfoAtom } from "@/core/cells/cells";
 import { type CellId, HTMLCellId, SCRATCH_CELL_ID } from "@/core/cells/ids";
 import type { KeymapConfig } from "@/core/config/config-schema";
 import type { HotkeyProvider } from "@/core/hotkeys/hotkeys";
-import { withCtrlEquivalent } from "@/core/hotkeys/shortcuts";
+import { duplicateWithCtrlModifier } from "@/core/hotkeys/shortcuts";
 import { store } from "@/core/state/jotai";
 import { createObservable } from "@/core/state/observable";
 import { formatKeymapExtension } from "../extensions";
@@ -36,7 +36,7 @@ function cellKeymaps({
 
   // Run-related keybindings get Ctrl equivalents on macOS for Jupyter/Colab users
   keybindings.push(
-    ...withCtrlEquivalent({
+    ...duplicateWithCtrlModifier({
       key: hotkeys.getHotkey("cell.run").key,
       preventDefault: true,
       stopPropagation: true,
@@ -62,7 +62,7 @@ function cellKeymaps({
         return true;
       },
     },
-    ...withCtrlEquivalent({
+    ...duplicateWithCtrlModifier({
       key: hotkeys.getHotkey("cell.runAndNewAbove").key,
       preventDefault: true,
       stopPropagation: true,
