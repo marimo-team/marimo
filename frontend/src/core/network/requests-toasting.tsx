@@ -8,6 +8,7 @@ import { toast } from "@/components/ui/use-toast";
 import { NoKernelConnected, prettyError } from "@/utils/errors";
 import { Logger } from "@/utils/Logger";
 import { useConnectToRuntime } from "../runtime/config";
+import { store } from "../state/jotai";
 import { isConnectingAtom } from "./connection";
 import type { EditRequests, RequestKey, RunRequests } from "./types";
 
@@ -83,6 +84,12 @@ export function createErrorToastingRequests(
       } catch (error) {
         // Special handling for NoKernelConnected error
         if (error instanceof NoKernelConnected) {
+          // If we are connecting to a kernel, don't show the toast
+          const isConnecting = store.get(isConnectingAtom);
+          if (isConnecting) {
+            return;
+          }
+
           const toastId = toast({
             title: "Kernel Not Connected",
             description:

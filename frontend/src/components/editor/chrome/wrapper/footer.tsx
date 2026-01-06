@@ -6,12 +6,16 @@ import type React from "react";
 import { renderShortcut } from "@/components/shortcuts/renderShortcut";
 import { Tooltip } from "@/components/ui/tooltip";
 import { cellErrorCount } from "@/core/cells/cells";
+import { isConnectingAtom } from "@/core/network/connection";
 import { useHotkey } from "@/hooks/useHotkey";
 import { ShowInKioskMode } from "../../kiosk-mode";
 import { useChromeActions, useChromeState } from "../state";
 import { FooterItem } from "./footer-item";
 import { AIStatusIcon } from "./footer-items/ai-status";
-import { connectionStatusAtom } from "./footer-items/backend-status";
+import {
+  BackendConnectionStatus,
+  connectionStatusAtom,
+} from "./footer-items/backend-status";
 import { CopilotStatusIcon } from "./footer-items/copilot-status";
 import { MachineStats } from "./footer-items/machine-stats";
 import { MinimapStatusIcon } from "./footer-items/minimap-status";
@@ -71,6 +75,8 @@ export const Footer: React.FC = () => {
 
       <div className="mx-auto" />
 
+      <ConnectingKernelIndicatorItem />
+
       <ShowInKioskMode>
         <Tooltip
           content={
@@ -93,4 +99,15 @@ export const Footer: React.FC = () => {
       </div>
     </footer>
   );
+};
+
+/**
+ * Only show the backend connection status if we are connecting to a kernel
+ */
+const ConnectingKernelIndicatorItem: React.FC = () => {
+  const isConnecting = useAtomValue(isConnectingAtom);
+  if (!isConnecting) {
+    return null;
+  }
+  return <BackendConnectionStatus />;
 };
