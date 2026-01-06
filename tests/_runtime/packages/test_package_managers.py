@@ -559,10 +559,10 @@ async def test_package_manager_install_method_with_callback() -> None:
             package: str,
             *,
             upgrade: bool,
-            dev: bool,
+            group: Optional[str] = None,
             log_callback: Optional[LogCallback] = None,
         ) -> bool:
-            del dev
+            del group
             del upgrade
             if log_callback:
                 log_callback(f"Installing {package}...\n")

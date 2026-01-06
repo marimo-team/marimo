@@ -19,11 +19,11 @@ components:
 
         /example/foo-0.1.0-py3-none-any.whl'
       properties:
-        dev:
+        group:
           anyOf:
-          - type: boolean
+          - type: string
           - type: 'null'
-          default: false
+          default: null
         package:
           type: string
         upgrade:
@@ -1239,6 +1239,17 @@ components:
       - key
       title: DeleteSecretRequest
       type: object
+    DependencyTag:
+      properties:
+        kind:
+          type: string
+        value:
+          type: string
+      required:
+      - kind
+      - value
+      title: DependencyTag
+      type: object
     DependencyTreeNode:
       properties:
         dependencies:
@@ -1249,9 +1260,7 @@ components:
           type: string
         tags:
           items:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/components/schemas/DependencyTag'
           type: array
         version:
           anyOf:
@@ -3426,11 +3435,11 @@ components:
       type: object
     RemovePackageRequest:
       properties:
-        dev:
+        group:
           anyOf:
-          - type: boolean
+          - type: string
           - type: 'null'
-          default: false
+          default: null
         package:
           type: string
       required:

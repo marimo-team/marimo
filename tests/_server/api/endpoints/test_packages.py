@@ -167,7 +167,7 @@ def test_add_package_without_upgrade(
     assert response.status_code == 200
     assert response.json() == {"success": True, "error": None}
     mock_package_manager.install.assert_called_once_with(
-        "test-package", version=None, upgrade=False, group=False
+        "test-package", version=None, upgrade=False, group=None
     )
 
 

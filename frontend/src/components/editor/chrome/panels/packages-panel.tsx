@@ -607,17 +607,12 @@ const DependencyTreeNode: React.FC<{
           <div className="flex gap-1 invisible group-hover:visible">
             <UpgradeButton
               packageName={node.name}
-              // COMMENT this may not be required anymore ..
-              // @ts-expect-error — backend tag types do not match frontend expectations yet
               tags={node.tags}
               onSuccess={onSuccess}
             />
 
             <RemoveButton
               packageName={node.name}
-              // FIXME: Backend types are wrong/outdated.
-              // tags actually have the shape: Array<{ kind: string; value: string }>
-              // @ts-expect-error — backend tag types do not match frontend expectations yet
               tags={node.tags}
               onSuccess={onSuccess}
             />

@@ -388,7 +388,9 @@ async def test_uv_install_dev_dependency_in_project(mock_run: MagicMock):
         [
             "uv",
             "add",
-            "--dev",
+            "--group",
+            "dev",
+            "--compile",
             "package1",
             "package2",
             "-p",
