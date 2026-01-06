@@ -10,7 +10,21 @@ import type { EditRequests, RunRequests } from "./types";
 type AllRequests = EditRequests & RunRequests;
 
 const SKIP_REQUESTS = new Set<keyof AllRequests>([
+  // These are requests that don't require an active session.
   "sendRestart",
+  "getDependencyTree",
+  "getPackageList",
+  // Homepage requests - called before session exists
+  "getRecentFiles",
+  "getWorkspaceFiles",
+  "getRunningNotebooks",
+  "shutdownSession",
+  "openTutorial",
+  // Local operations that don't need runtime
+  "sendFormat",
+  // Config operations that work without current session
+  "saveUserConfig",
+  // This does need an active session, but we don't want to wait for it.
   "sendCodeCompletionRequest",
 ]);
 
