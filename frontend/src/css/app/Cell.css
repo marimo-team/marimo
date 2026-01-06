@@ -79,6 +79,7 @@
      */
 
   &:hover {
+    @apply shadow-sm-solid shadow-shade;
     z-index: 30;
   }
 
@@ -159,6 +160,10 @@
     border: 1px solid var(--red-4);
   }
 
+  &.has-error:not(.needs-run):hover {
+    @apply shadow-sm-solid shadow-error/10;
+  }
+
   &.has-error:not(.needs-run):focus-within {
     @apply shadow-md-solid shadow-error/10;
   }
@@ -174,7 +179,11 @@
   &.needs-run {
     /* TODO(akshayka): Can give this an outline to make more visible. */
     border-color: var(--stale);
-    @apply divide-stale shadow-sm-solid shadow-stale;
+    @apply divide-stale shadow-xs-solid shadow-stale;
+
+    &:hover {
+      @apply divide-stale shadow-sm-solid shadow-stale;
+    }
 
     &:focus-within {
       @apply divide-stale shadow-md-solid shadow-stale;
