@@ -144,6 +144,20 @@ async def index(request: Request) -> HTMLResponse:
         app_manager = app_state.session_manager.app_manager(file_key)
         app_config = app_manager.app.config
 
+        # Pre-compute notebook snapshot for faster initial render
+        notebook_snapshot = None
+        if app_manager.filename:
+            from marimo._convert.converters import MarimoConvert
+
+            filepath = Path(app_manager.filename)
+            if filepath.exists():  # noqa: ASYNC240
+                try:
+                    notebook_snapshot = MarimoConvert.from_py(
+                        filepath.read_text(encoding="utf-8")  # noqa: ASYNC240
+                    ).to_notebook_v1()
+                except Exception:
+                    LOGGER.debug("Failed to pre-compute notebook snapshot")
+
         html = notebook_page_template(
             html=html,
             base_url=app_state.base_url,
@@ -153,6 +167,7 @@ async def index(request: Request) -> HTMLResponse:
             app_config=app_config,
             filename=app_manager.filename,
             mode=app_state.mode,
+            notebook_snapshot=notebook_snapshot,
             runtime_config=[{"url": app_state.remote_url}]
             if app_state.remote_url
             else None,

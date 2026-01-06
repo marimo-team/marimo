@@ -35,6 +35,12 @@ if TYPE_CHECKING:
 LOGGER = _loggers.marimo_logger()
 
 
+class KernelStartupError(Exception):
+    """Raised when kernel subprocess fails to start."""
+
+    pass
+
+
 class IPCQueueManagerImpl(QueueManager):
     """Manages queues for a session via ZeroMQ IPC.
 
@@ -150,8 +156,13 @@ class IPCKernelManagerImpl(KernelManager):
         # Build environment
         env = os.environ.copy()
 
-        # Build sandbox command
-        cmd = self._build_sandbox_command()
+        # Build sandbox command (may raise on dependency install failure)
+        try:
+            cmd = self._build_sandbox_command()
+        except Exception:
+            self._cleanup_sandbox()
+            raise
+
         from marimo._cli.print import echo, muted
 
         echo(
@@ -163,37 +174,41 @@ class IPCKernelManagerImpl(KernelManager):
 
         LOGGER.debug(f"Launching kernel: {' '.join(cmd)}")
 
-        self._process = subprocess.Popen(
-            cmd,
-            stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            env=env,
-        )
-
-        # Send connection info via stdin
-        assert self._process.stdin is not None
-        self._process.stdin.write(kernel_args.encode_json())
-        self._process.stdin.flush()
-        self._process.stdin.close()
-
-        # Wait for ready signal
-        assert self._process.stdout is not None
-        ready = self._process.stdout.readline().decode().strip()
-        if ready != "KERNEL_READY":
-            assert self._process.stderr is not None
-            stderr = self._process.stderr.read().decode()
-            raise RuntimeError(
-                f"Kernel failed to start.\n"
-                f"Expected: KERNEL_READY\n"
-                f"Got: {ready}\n"
-                f"Stderr: {stderr}"
+        try:
+            self._process = subprocess.Popen(
+                cmd,
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                env=env,
             )
 
-        LOGGER.debug("Kernel ready")
+            # Send connection info via stdin
+            assert self._process.stdin is not None
+            self._process.stdin.write(kernel_args.encode_json())
+            self._process.stdin.flush()
+            self._process.stdin.close()
 
-        # Create a ProcessLike wrapper for the subprocess
-        self.kernel_task = _SubprocessWrapper(self._process)
+            # Wait for ready signal
+            assert self._process.stdout is not None
+            ready = self._process.stdout.readline().decode().strip()
+            if ready != "KERNEL_READY":
+                assert self._process.stderr is not None
+                stderr = self._process.stderr.read().decode()
+                raise KernelStartupError(
+                    f"Kernel failed to start.\n\n"
+                    f"Command: {' '.join(cmd)}\n\n"
+                    f"Stderr:\n{stderr}"
+                )
+
+            LOGGER.debug("Kernel ready")
+
+            # Create a ProcessLike wrapper for the subprocess
+            self.kernel_task = _SubprocessWrapper(self._process)
+        except Exception:
+            # Cleanup sandbox on any failure
+            self._cleanup_sandbox()
+            raise
 
     @property
     def pid(self) -> int | None:
