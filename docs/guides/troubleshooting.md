@@ -42,8 +42,8 @@ defining `f` depends on the two cells above and connects to the one below with
 
 
 Alternatively, you can open the [dependency
-explorer](editor_features/dataflow.md#dependency-explorer) or [variables
-explorer](editor_features/dataflow.md#variables-explorer) in the left sidebar.
+graph](editor_features/dataflow.md#graph-view) or [variables
+panel](editor_features/dataflow.md#variables-panel) in the sidebar.
 
 <div align="center">
   <figure>
