@@ -12,7 +12,6 @@ from marimo._ai._types import (
     ChatModelConfigDict,
 )
 from marimo._ai.llm._impl import pydantic_ai
-from marimo._dependencies.dependencies import DependencyManager
 from marimo._output.formatting import as_html
 from marimo._output.rich_help import mddoc
 from marimo._plugins.core.web_component import JSONType
@@ -162,9 +161,7 @@ class chat(UIElement[dict[str, Any], list[ChatMessage]]):
         self._chat_history: list[ChatMessage] = []
         self._frontend_managed = False
 
-        if DependencyManager.pydantic_ai.has() and isinstance(
-            model, pydantic_ai
-        ):
+        if isinstance(model, pydantic_ai):
             self._frontend_managed = True
 
         if config is None:
