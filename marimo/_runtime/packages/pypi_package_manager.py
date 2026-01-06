@@ -97,7 +97,9 @@ class MicropipPackageManager(PypiPackageManager):
     docs_url = "https://micropip.pyodide.org/"
 
     def should_auto_install(self) -> bool:
-        return True
+        # We don't auto-install packages with micropip without the user's consent,
+        # since it can install unwanted packages.
+        return False
 
     def is_manager_installed(self) -> bool:
         return is_pyodide()

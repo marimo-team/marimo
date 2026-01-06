@@ -35,9 +35,6 @@ from marimo._runtime.commands import (
 from marimo._runtime.context.kernel_context import initialize_kernel_context
 from marimo._runtime.input_override import input_override
 from marimo._runtime.marimo_pdb import MarimoPdb
-from marimo._runtime.packages.pypi_package_manager import (
-    MicropipPackageManager,
-)
 from marimo._runtime.runtime import Kernel
 from marimo._runtime.utils.set_ui_element_request_manager import (
     SetUIElementRequestManager,
@@ -217,25 +214,10 @@ class PyodideSession:
         except Exception as e:
             LOGGER.warning("Error parsing script metadata: %s", e)
 
-        try:
-            import pyodide.code  # type: ignore
-
-            # Get imports from code
-            imports = pyodide.code.find_imports(code)  # type: ignore
-            if not isinstance(imports, list):
-                return []
-
-            # Pyodide find_imports is aggressive and grabs nested imports
-            # so we filter them out
-            module_names: set[str] = {mod.split(".")[0] for mod in imports}
-            # Convert module names to package names
-            package_manager = MicropipPackageManager()
-            return [
-                package_manager.module_to_package(mod) for mod in module_names
-            ]
-        except Exception as e:
-            LOGGER.warning("Error finding packages: %s", e)
-            return []
+        # We don't return "unknown" packages from the imports, since
+        # this is used downstream to pre-install packages while loading the notebook
+        # without user consent.
+        return []
 
 
 T = TypeVar("T")
