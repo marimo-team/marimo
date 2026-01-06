@@ -182,4 +182,9 @@
 
   /* biome-ignore format: definition needs to be oneline or breaks variants */
   --shadow-2xl-solid: 10px 12px 0px 0px var(--base-shadow-darker), 0 0px 8px 0px hsl(0deg 0% 90% / 50%);
+
+  /* Solid shadows with lighter shade color */
+  /* biome-ignore format: definition needs to be oneline or breaks variants */
+  --shadow-sm-solid-shade: 2px 2px 0px 0px var(--base-shadow), 0px 0px 2px 0px hsl(0deg 0% 50% / 20%);
+  --shadow-md-solid-shade: 4px 4px 0px 0px var(--base-shadow), 0 0px 2px 0px hsl(0deg 0% 60% / 50%);
 }

@@ -110,6 +110,10 @@
       border-bottom-right-radius: 9px;
     }
 
+    &:focus-within {
+      @apply shadow-md-solid shadow-shade;
+    }
+
     .cm {
       border-radius: 8px;
     }
@@ -165,8 +169,12 @@
 
   &.needs-run {
     /* TODO(akshayka): Can give this an outline to make more visible. */
-    outline: none;
+    border-color: var(--stale);
     @apply divide-stale shadow-md-solid shadow-stale;
+
+    &:focus-within {
+      @apply divide-stale shadow-md-solid shadow-stale;
+    }
 
     &:focus-within .cm-editor {
       border: 1px solid transparent;
@@ -226,14 +234,14 @@
 
   &.borderless {
     border-color: transparent;
-    box-shadow: none;
 
     & > * {
       border-bottom: none;
     }
 
     /* Apply the original styles */
-    &:hover {
+    &:hover,
+    &:focus {
       border: 1px solid var(--gray-4);
     }
   }
@@ -265,7 +273,6 @@
 
   &.borderless {
     border-color: transparent;
-    box-shadow: none;
 
     & > * {
       border-bottom: none;
