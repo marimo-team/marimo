@@ -3,6 +3,7 @@
 import type React from "react";
 import { useMemo } from "react";
 import { ListBox, ListBoxItem, useDragAndDrop } from "react-aria-components";
+import { Logger } from "@/utils/Logger";
 import {
   ContextMenu,
   ContextMenuCheckboxItem,
@@ -119,12 +120,21 @@ export const ReorderableList = <T extends { id: string | number }>({
   };
 
   const handleAction = (key: React.Key) => {
-    if (onAction) {
-      const item = value.find((i) => i.id === key);
-      if (item) {
-        onAction(item);
-      }
+    if (!onAction) {
+      return;
     }
+
+    const item = value.find((i) => i.id === key);
+
+    if (!item) {
+      Logger.warn("handleAction: item not found for key", {
+        key,
+        availableIds: value.map((v) => v.id),
+      });
+      return;
+    }
+
+    onAction(item);
   };
 
   const listBox = (
