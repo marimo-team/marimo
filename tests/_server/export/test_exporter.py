@@ -1538,6 +1538,39 @@ def test_convert_marimo_mimebundle_metadata_not_in_data():
 
 
 @pytest.mark.skipif(not HAS_NBFORMAT, reason="nbformat is not installed")
+def test_convert_marimo_mimebundle_dict():
+    """Handle the case when the mimebundle is a dict, not JSON-dumped string"""
+    mimebundle_data = {
+        "text/plain": "Figure",
+        "image/png": "PNG_DATA",
+        "__metadata__": {
+            "width": 640,
+            "height": 480,
+        },
+    }
+
+    output = CellOutput(
+        channel=CellChannel.OUTPUT,
+        mimetype="application/vnd.marimo+mimebundle",
+        data=mimebundle_data,
+    )
+
+    result = _convert_marimo_output_to_ipynb(output, [])
+
+    assert len(result) == 1
+    assert result[0]["output_type"] == "display_data"
+    # Verify __metadata__ is not in the data dict
+    assert "__metadata__" not in result[0]["data"]
+    assert "text/plain" in result[0]["data"]
+    assert "image/png" in result[0]["data"]
+    # But metadata should be in the metadata field
+    assert result[0]["metadata"] == {
+        "width": 640,
+        "height": 480,
+    }
+
+
+@pytest.mark.skipif(not HAS_NBFORMAT, reason="nbformat is not installed")
 def test_convert_regular_output_has_empty_metadata():
     """Test that regular outputs (non-mimebundle) have empty metadata."""
     output = CellOutput(

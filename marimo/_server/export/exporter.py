@@ -583,9 +583,14 @@ def _convert_marimo_output_to_ipynb(
         # Captured by stdout/stderr
         return ipynb_outputs
     elif output.mimetype == "application/vnd.marimo+mimebundle":
-        for mime, content in cast(
-            dict[str, Any], json.loads(cast(str, output.data))
-        ).items():
+        if isinstance(output.data, dict):
+            mimebundle = output.data
+        elif isinstance(output.data, str):
+            mimebundle = json.loads(output.data)
+        else:
+            raise ValueError(f"Invalid data type: {type(output.data)}")
+
+        for mime, content in mimebundle.items():
             if mime == METADATA_KEY and isinstance(content, dict):
                 metadata = content
             else:
