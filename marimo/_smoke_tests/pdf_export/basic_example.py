@@ -22,6 +22,12 @@ def _(mo):
     - a Plotly scatter plot
     - a matplotlib plot
     - a dataframe output
+
+    This Markdown also contains some math: $f(x)$
+
+    \[
+    g(x) = 0
+    \]
     """)
     return
 
