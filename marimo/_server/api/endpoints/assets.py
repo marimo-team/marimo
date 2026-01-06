@@ -309,16 +309,15 @@ async def serve_public_file(request: Request) -> Response:
         else:
             notebook_dir = Path.cwd()
         public_dir = notebook_dir / "public"
-        file_path = (public_dir / filepath).resolve()
+        file_path = public_dir / filepath
 
         # Security check: ensure file is inside public directory
         try:
-            validator = PathValidator(public_dir)
-            validator.validate_file_access(file_path)
+            PathValidator().validate_inside_directory(public_dir, file_path)
         except HTTPException:
             return Response(status_code=403, content="Access denied")
 
-        if file_path.is_file() and not file_path.is_symlink():
+        if file_path.is_file():
             return FileResponse(file_path)
 
     raise HTTPException(status_code=404, detail="File not found")
