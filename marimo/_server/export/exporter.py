@@ -24,7 +24,7 @@ from marimo._config.utils import deep_copy
 from marimo._convert.utils import get_markdown_from_cell
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.cell_output import CellChannel, CellOutput
-from marimo._messaging.mimetypes import KnownMimeType
+from marimo._messaging.mimetypes import KnownMimeType, METADATA_KEY
 from marimo._runtime import dataflow
 from marimo._runtime.virtual_file import read_virtual_file
 from marimo._schemas.notebook import NotebookV1
@@ -586,7 +586,7 @@ def _convert_marimo_output_to_ipynb(
         for mime, content in cast(
             dict[str, Any], json.loads(cast(str, output.data))
         ).items():
-            if mime == "__metadata__" and isinstance(content, dict):
+            if mime == METADATA_KEY and isinstance(content, dict):
                 metadata = content
 
             if mime not in get_args(KnownMimeType):
