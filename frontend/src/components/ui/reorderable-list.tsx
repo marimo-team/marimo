@@ -3,6 +3,7 @@
 import type React from "react";
 import { useMemo } from "react";
 import { ListBox, ListBoxItem, useDragAndDrop } from "react-aria-components";
+import { Logger } from "@/utils/Logger";
 import {
   ContextMenu,
   ContextMenuCheckboxItem,
@@ -21,9 +22,14 @@ export interface ReorderableListProps<T extends { id: string | number }> {
    */
   setValue: (items: T[]) => void;
   /**
-   * Render function for each item
+   * Render function for each item.
+   * Note: Avoid interactive elements (buttons) inside - they break drag behavior.
    */
   renderItem: (item: T) => React.ReactNode;
+  /**
+   * Callback when an item is clicked
+   */
+  onAction?: (item: T) => void;
   /**
    * All available items that can be added to the list
    */
@@ -71,6 +77,7 @@ export const ReorderableList = <T extends { id: string | number }>({
   value,
   setValue,
   renderItem,
+  onAction,
   availableItems,
   getItemLabel = (item) => String(item.id),
   minItems = 1,
@@ -112,13 +119,32 @@ export const ReorderableList = <T extends { id: string | number }>({
     }
   };
 
+  const handleAction = (key: React.Key) => {
+    if (!onAction) {
+      return;
+    }
+
+    const item = value.find((i) => i.id === key);
+
+    if (!item) {
+      Logger.warn("handleAction: item not found for key", {
+        key,
+        availableIds: value.map((v) => v.id),
+      });
+      return;
+    }
+
+    onAction(item);
+  };
+
   const listBox = (
     <ListBox
       aria-label={ariaLabel}
-      selectionMode="single"
+      selectionMode="none"
       items={value}
       dragAndDropHooks={dragAndDropHooks}
       className={className}
+      onAction={handleAction}
     >
       {(item) => (
         <ListBoxItem className="active:cursor-grabbing data-[dragging]:opacity-60">
