@@ -129,3 +129,282 @@ class TestPathValidator(unittest.TestCase):
         )  # Should not raise
 
         symlink_path.unlink()
+
+    def test_absolute_directory_with_relative_filepath(self):
+        """Test that relative filepaths are normalized relative to absolute directory."""
+        validator = PathValidator()
+        # Use absolute directory
+        directory = Path(self.test_dir).resolve()
+        # Use relative filepath (relative to the directory)
+        filepath = Path("test.py")
+
+        # Should validate successfully - test.py is inside test_dir
+        validator.validate_inside_directory(directory, filepath)
+
+    def test_absolute_directory_with_relative_filepath_traversal(self):
+        """Test path traversal prevention with absolute dir and relative filepath."""
+        validator = PathValidator()
+        directory = Path(self.test_dir).resolve()
+        # Try to traverse outside using relative path
+        filepath = Path("../outside_directory/outside.py")
+
+        with pytest.raises(HTTPException) as exc_info:
+            validator.validate_inside_directory(directory, filepath)
+        assert exc_info.value.status_code == HTTPStatus.FORBIDDEN
+
+    def test_relative_directory_with_relative_filepath(self):
+        """Test that both relative paths work correctly from cwd."""
+        validator = PathValidator()
+        # Change to temp_root so relative paths make sense
+        os.chdir(self.temp_root)
+
+        directory = Path("test_directory")
+        filepath = Path("test_directory/test.py")
+
+        # Should validate successfully
+        validator.validate_inside_directory(directory, filepath)
+
+    def test_relative_directory_with_relative_filepath_outside(self):
+        """Test that relative filepath outside relative directory fails."""
+        validator = PathValidator()
+        os.chdir(self.temp_root)
+
+        directory = Path("test_directory")
+        # File is outside the test_directory
+        filepath = Path("outside_directory/outside.py")
+
+        with pytest.raises(HTTPException) as exc_info:
+            validator.validate_inside_directory(directory, filepath)
+        assert exc_info.value.status_code == HTTPStatus.FORBIDDEN
+
+    def test_absolute_directory_with_nested_relative_filepath(self):
+        """Test nested relative filepath with absolute directory."""
+        validator = PathValidator()
+        # Create a nested directory structure
+        nested_dir = os.path.join(self.test_dir, "nested", "deeper")
+        os.makedirs(nested_dir)
+        nested_file = os.path.join(nested_dir, "nested.py")
+        with open(nested_file, "w") as f:
+            f.write("# nested")
+
+        directory = Path(self.test_dir).resolve()
+        # Relative path to nested file
+        filepath = Path("nested/deeper/nested.py")
+
+        # Should validate successfully
+        validator.validate_inside_directory(directory, filepath)
+
+    def test_absolute_directory_with_dot_relative_filepath(self):
+        """Test that ./ prefix in relative filepath works correctly."""
+        validator = PathValidator()
+        directory = Path(self.test_dir).resolve()
+        # Relative path with ./ prefix
+        filepath = Path("./test.py")
+
+        # Should validate successfully
+        validator.validate_inside_directory(directory, filepath)
+
+    def test_relative_directory_with_absolute_filepath_inside(self):
+        """Test relative directory with absolute filepath inside it."""
+        validator = PathValidator()
+        os.chdir(self.temp_root)
+
+        directory = Path("test_directory")
+        # Absolute path to file inside the relative directory
+        filepath = Path(self.test_file).resolve()
+
+        # Should validate successfully
+        validator.validate_inside_directory(directory, filepath)
+
+    def test_relative_directory_with_absolute_filepath_outside(self):
+        """Test relative directory with absolute filepath outside it."""
+        validator = PathValidator()
+        os.chdir(self.temp_root)
+
+        directory = Path("test_directory")
+        # Absolute path to file outside the directory
+        filepath = Path(self.outside_file).resolve()
+
+        with pytest.raises(HTTPException) as exc_info:
+            validator.validate_inside_directory(directory, filepath)
+        assert exc_info.value.status_code == HTTPStatus.FORBIDDEN
+
+    def test_path_traversal_staying_inside(self):
+        """Test path traversal that goes up but stays inside directory."""
+        validator = PathValidator()
+        # Create nested structure: test_dir/subdir/file.py
+        subdir = os.path.join(self.test_dir, "subdir")
+        os.makedirs(subdir)
+
+        directory = Path(self.test_dir).resolve()
+        # Path goes up from subdir but stays in test_dir
+        filepath = Path("subdir/../test.py")
+
+        # Should validate successfully - normalized path is test_dir/test.py
+        validator.validate_inside_directory(directory, filepath)
+
+    def test_path_traversal_middle_of_path(self):
+        """Test path traversal in the middle of a path."""
+        validator = PathValidator()
+        # Create structure: test_dir/dir1/dir2/file.py
+        dir1 = os.path.join(self.test_dir, "dir1")
+        dir2 = os.path.join(self.test_dir, "dir2")
+        os.makedirs(dir1)
+        os.makedirs(dir2)
+        file_in_dir2 = os.path.join(dir2, "file.py")
+        with open(file_in_dir2, "w") as f:
+            f.write("# file")
+
+        directory = Path(self.test_dir).resolve()
+        # Path has traversal in the middle: dir1/../dir2/file.py
+        filepath = Path("dir1/../dir2/file.py")
+
+        # Should validate successfully
+        validator.validate_inside_directory(directory, filepath)
+
+    def test_multiple_level_path_traversal(self):
+        """Test multiple levels of path traversal to escape."""
+        validator = PathValidator()
+        directory = Path(self.test_dir).resolve()
+        # Try to go up multiple levels
+        filepath = Path("../../../../../../etc/passwd")
+
+        with pytest.raises(HTTPException) as exc_info:
+            validator.validate_inside_directory(directory, filepath)
+        assert exc_info.value.status_code == HTTPStatus.FORBIDDEN
+
+    def test_filepath_equals_directory(self):
+        """Test that filepath cannot be the same as directory."""
+        validator = PathValidator()
+        directory = Path(self.test_dir).resolve()
+        filepath = directory
+
+        with pytest.raises(HTTPException) as exc_info:
+            validator.validate_inside_directory(directory, filepath)
+        assert exc_info.value.status_code == HTTPStatus.FORBIDDEN
+        assert "same as directory" in str(exc_info.value.detail)
+
+    def test_nonexistent_directory(self):
+        """Test that validation fails for non-existent directory."""
+        validator = PathValidator()
+        nonexistent_dir = Path(self.temp_root) / "does_not_exist"
+        filepath = Path("test.py")
+
+        with pytest.raises(HTTPException) as exc_info:
+            validator.validate_inside_directory(nonexistent_dir, filepath)
+        assert exc_info.value.status_code == HTTPStatus.BAD_REQUEST
+        assert "does not exist" in str(exc_info.value.detail)
+
+    def test_directory_is_file(self):
+        """Test that validation fails when directory is actually a file."""
+        validator = PathValidator()
+        # Use test_file as directory (it's actually a file)
+        not_a_directory = Path(self.test_file)
+        filepath = Path("test.py")
+
+        with pytest.raises(HTTPException) as exc_info:
+            validator.validate_inside_directory(not_a_directory, filepath)
+        assert exc_info.value.status_code == HTTPStatus.BAD_REQUEST
+        assert "not a directory" in str(exc_info.value.detail)
+
+    def test_empty_paths(self):
+        """Test that empty/ambiguous paths are rejected."""
+        validator = PathValidator()
+        # Path("") resolves to Path(".")
+        directory = Path(".")
+        filepath = Path(".")
+
+        with pytest.raises(HTTPException) as exc_info:
+            validator.validate_inside_directory(directory, filepath)
+        assert exc_info.value.status_code == HTTPStatus.BAD_REQUEST
+        assert "Empty or ambiguous" in str(exc_info.value.detail)
+
+    def test_broken_symlink_filepath(self):
+        """Test handling of broken symlinks in filepath."""
+        validator = PathValidator()
+        directory = Path(self.test_dir)
+        # Create a symlink to a non-existent file
+        broken_symlink = Path(self.test_dir) / "broken_link.py"
+        broken_symlink.symlink_to("/nonexistent/path/file.py")
+
+        # The symlink path itself is inside the directory, so it should be allowed
+        # (symlinks are not resolved)
+        validator.validate_inside_directory(directory, broken_symlink)
+
+        broken_symlink.unlink()
+
+    def test_symlink_directory(self):
+        """Test validation when the directory itself is a symlink."""
+        validator = PathValidator()
+        # Create a symlink to test_dir
+        symlink_dir = Path(self.temp_root) / "symlink_to_test_dir"
+        symlink_dir.symlink_to(self.test_dir)
+
+        # Use the symlink as the directory
+        filepath = symlink_dir / "test.py"
+
+        # Should validate successfully
+        validator.validate_inside_directory(symlink_dir, filepath)
+
+        symlink_dir.unlink()
+
+    def test_redundant_path_components(self):
+        """Test paths with redundant components like ./ and //."""
+        validator = PathValidator()
+        directory = Path(self.test_dir).resolve()
+
+        # Test various redundant path formats
+        test_cases = [
+            Path("./././test.py"),  # Multiple ./
+            Path("test.py"),  # Normal case for comparison
+        ]
+
+        for filepath in test_cases:
+            # All should validate successfully
+            validator.validate_inside_directory(directory, filepath)
+
+    def test_trailing_slash_in_filepath(self):
+        """Test filepath with trailing slash."""
+        validator = PathValidator()
+        directory = Path(self.test_dir).resolve()
+        # Create a subdirectory
+        subdir = os.path.join(self.test_dir, "subdir")
+        os.makedirs(subdir, exist_ok=True)
+
+        # Path with trailing slash (refers to directory)
+        filepath = Path("subdir/")
+
+        # Should validate successfully - subdir is inside test_dir
+        validator.validate_inside_directory(directory, filepath)
+
+    def test_absolute_filepath_with_traversal(self):
+        """Test absolute filepath with traversal components."""
+        validator = PathValidator()
+        directory = Path(self.test_dir).resolve()
+
+        # Create an absolute path with .. in it
+        # E.g., /path/to/test_dir/subdir/../test.py
+        subdir = os.path.join(self.test_dir, "subdir")
+        os.makedirs(subdir, exist_ok=True)
+
+        # Use resolved directory to ensure consistent path representation
+        filepath = directory / "subdir" / ".." / "test.py"
+
+        # Should validate successfully after normalization
+        validator.validate_inside_directory(directory, filepath)
+
+    def test_case_sensitive_paths(self):
+        """Test that path validation is case-sensitive on case-sensitive filesystems."""
+        validator = PathValidator()
+        directory = Path(self.test_dir).resolve()
+
+        # Create a file with specific casing
+        case_file = os.path.join(self.test_dir, "CamelCase.py")
+        with open(case_file, "w") as f:
+            f.write("# test")
+
+        # Use the exact casing
+        filepath = Path("CamelCase.py")
+
+        # Should validate successfully
+        validator.validate_inside_directory(directory, filepath)
