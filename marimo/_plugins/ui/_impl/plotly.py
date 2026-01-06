@@ -195,25 +195,9 @@ class plotly(UIElement[PlotlySelection, list[dict[str, Any]]]):
                 for trace in figure.data
             )
             if has_heatmap and initial_value.get("range"):
-                range_value = initial_value["range"]
-                if isinstance(range_value, dict):
-                    heatmap_cells = plotly._extract_heatmap_cells_from_range(
-                        figure, cast(dict[str, Any], range_value)
-                    )
-                    if heatmap_cells:
-                        # Append heatmap cells to existing points (e.g., scatter)
-                        # instead of replacing them
-                        existing_points = initial_value.get("points", [])
-                        existing_indices = initial_value.get("indices", [])
-                        initial_value["points"] = (
-                            existing_points + heatmap_cells
-                        )
-                        initial_value["indices"] = existing_indices + list(
-                            range(
-                                len(existing_indices),
-                                len(existing_indices) + len(heatmap_cells),
-                            )
-                        )
+                plotly._append_heatmap_cells_to_selection(
+                    figure, initial_value
+                )
 
         figure.for_each_selection(add_selection)
 
@@ -283,21 +267,41 @@ class plotly(UIElement[PlotlySelection, list[dict[str, Any]]]):
         # For heatmaps with a range selection, always extract all cells in range
         # (Plotly only sends corner/edge points, not all cells)
         if has_heatmap and value.get("range"):
-            range_value = value["range"]
-            # Ensure range_value is a dict before processing
-            if isinstance(range_value, dict):
-                heatmap_cells = self._extract_heatmap_cells_from_range(
-                    self._figure, cast(dict[str, Any], range_value)
-                )
-                if heatmap_cells:
-                    self._selection_data["points"] = heatmap_cells
-                    # Update indices to match the heatmap cells
-                    self._selection_data["indices"] = list(
-                        range(len(heatmap_cells))
-                    )
+            self._append_heatmap_cells_to_selection(
+                self._figure, self._selection_data
+            )
 
         result = self.points
         return result
+
+    @staticmethod
+    def _append_heatmap_cells_to_selection(
+        figure: go.Figure, selection_data: dict[str, Any]
+    ) -> None:
+        """Append heatmap cells within the selection range to the selection data.
+
+        This modifies selection_data in place, appending any heatmap cells
+        that fall within the range to the existing points and indices.
+        """
+        range_value = selection_data.get("range")
+        if not isinstance(range_value, dict):
+            return
+
+        heatmap_cells = plotly._extract_heatmap_cells_from_range(
+            figure, cast(dict[str, Any], range_value)
+        )
+        if heatmap_cells:
+            # Append heatmap cells to existing points (e.g., scatter)
+            # instead of replacing them
+            existing_points = selection_data.get("points", [])
+            existing_indices = selection_data.get("indices", [])
+            selection_data["points"] = existing_points + heatmap_cells
+            selection_data["indices"] = existing_indices + list(
+                range(
+                    len(existing_indices),
+                    len(existing_indices) + len(heatmap_cells),
+                )
+            )
 
     @staticmethod
     def _extract_heatmap_cells_from_range(
