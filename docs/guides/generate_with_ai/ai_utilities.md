@@ -1,31 +1,34 @@
-Many coding agents let you customise the marimo editing experience. This page lists some worthwhile utilities from different providers and we also provide a compelling use-case for each related to marimo development.
+Many coding agents let you customise the marimo editing experience. This page lists some worthwhile utilities and we also provide compelling use-cases related to marimo notebooks.
 
 ## Claude
 
+These features from Claude are very useful to help you write notebooks.
+
 ### Slash Commands
 
-[Slash Commands](https://code.claude.com/docs/en/slash-commands) allow you to predefine specific prompts that you can refer to during a conversation with Claude. You store these skills either in the `~/.claude/commands/` personal folder or in the `.claude/commands/` local folder of the project.
+[Slash Commands](https://code.claude.com/docs/en/slash-commands) allow you to predefine specific prompts that you can refer to during a conversation with Claude. You store these either in the `~/.claude/commands/` personal folder or in the `.claude/commands/` local folder of the project.
 
 Here's an example of a slash command that runs the `marimo check` linter of a notebook of your choice.
 
-```md
+```
 ---
-allowed-tools: Bash(uvx marimo check)
-description: Check a marimo notebook
+allowed-tools: Bash(uvx marimo check:*), Edit()
 ---
 
 ## Context
 
-This is the output of the marimo check command:
+This is the output of the "uvx marimo check --fix $ARGUMENTS" command:
 
-!`uvx marimo check $ARGUMENTS`
+!`uvx marimo check --fix $ARGUMENTS || true`
 
 ## Your task
 
-Address any warnings or errors that appear for the marimo notebook.
+Only (!) if the context suggests we need to edit the notebook, read the file
+$ARGUMENTS, then fix any warnings or errors shown in the output above. Do
+not make edits or read the file if there are no issues.
 ```
 
-You would store a command like this either in the `~/.claude/skills/` personal folder or in the `.claude/skills/` local folder of the project.
+When you add this file to `~/.claude/commands/marimo-check.md` you will be able to trigger it by typing `/marimo-check notebook.py`.
 
 There are more elaborate things you might do with these slash commands, to learn more you can check [the documentation](https://code.claude.com/docs/en/slash-commands#custom-slash-commands).
 
@@ -33,7 +36,7 @@ There are more elaborate things you might do with these slash commands, to learn
 
 [Skills](https://code.claude.com/docs/en/skills#agent-skills) are similar to commands, but you don't trigger them manually. You define them and then let Claude use them when it thinks it's relevant. You store these skills either in the `~/.claude/skills/` personal folder or in the `.claude/skills/` local folder of the project.
 
-As an example, this is what the start of a skill might look like to help you design anywidgets for your marimo notebooks:
+As an example, this is what the a skill might look like:
 
 ```md
 ---
@@ -41,17 +44,54 @@ name: anywidget-generator
 description: Generate anywidget components for marimo notebooks.
 ---
 
-# Put a full prompt here
+When writing an anywidget use vanilla javascript in `_esm` and do not forget about `_css`. The css should look bespoke in light mode and dark mode. Keep the css small unless explicitly asked to go the extra mile. When you display the widget it must be wrapped via `widget = mo.ui.anywidget(OriginalAnywidget())`.
+
+<example title="Example anywidget implementation">
+import anywidget
+import traitlets
+
+
+class CounterWidget(anywidget.AnyWidget):
+    _esm = """
+    // Define the main render function
+    function render({ model, el }) {
+      let count = () => model.get("number");
+      let btn = document.createElement("button");
+      btn.innerHTML = `count is ${count()}`;
+      btn.addEventListener("click", () => {
+        model.set("number", count() + 1);
+        model.save_changes();
+      });
+      model.on("change:number", () => {
+        btn.innerHTML = `count is ${count()}`;
+      });
+      el.appendChild(btn);
+    }
+    // Important! We must export at the bottom here!
+    export default { render };
+    """
+    _css = """button{
+      font-size: 14px;
+    }"""
+    number = traitlets.Int(0).tag(sync=True)
+
+widget = mo.ui.anywidget(CounterWidget())
+widget
+
+# Grabbing the widget from another cell, `.value` is a dictionary.
+print(widget.value["number"])
+</example>
+
+When sharing the anywidget, keep the example minimal. No need to combine it with marimo ui elements unless explicitly stated to do so.
 ```
 
 You would store this file in a path like `~/.claude/skills/anywidget-generator/SKILL.md`. The frontmatter gives the LLM just enough context to know when to trigger it and will only read the full prompt when it's needed.
 
 You can also choose to expand these skills by referring to a script that it can run, to learn more about that check the [multi-file documentation](https://code.claude.com/docs/en/skills#example:-multi-file-skill-structure).
 
-
 ### Hooks
 
-[Hooks](https://code.claude.com/docs/en/hooks) allow you to automatically run scripts when Claude uses a specific tool. They are useful if you want to automatically run a linter, via `marimo check`, every single time a marimo notebook is changed. Our default `Claude.md` file already points out to the LLM that it should run the `marimo check` command but hooks offer the most robust mechanism to enforce this behavior.
+[Hooks](https://code.claude.com/docs/en/hooks) allow you to automatically run scripts when Claude uses a specific tool. They are useful if you want to automatically run a linter, via [`marimo check`](../../../cli/#marimo-check), every single time a marimo notebook is changed. Our default [`CLAUDE.md`](../../generate_with_ai/prompts/#agentsmd-and-claudemd) file already points out to the LLM that it should run the `marimo check` command but hooks offer the most robust mechanism to enforce this behavior.
 
 To configure a hook, you can add a definition to your global Claude settings in `~/.claude/settings.json` or locally in your project `.claude/settings.json`.
 
@@ -129,6 +169,6 @@ fi
 exit 0
 ```
 
-The script if the edited file contains a `import marimo` and a `@app.cell` string in the file. If that's the case
+This script checks if the Python file contains a `import marimo` and a `@app.cell` string. If that's the case
 we assume we're dealing with a marimo notebook and we run `uvx marimo check` on the file. If this check fails, we
-tell the llm to automatically address the issues. This can save *a lot* of time.
+tell the coding agent to automatically address the issues. This can save *a lot* of time.
