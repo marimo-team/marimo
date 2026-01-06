@@ -4,16 +4,11 @@ from __future__ import annotations
 import asyncio
 import base64
 import io
+import json
 import mimetypes
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Literal,
-    Optional,
-    cast,
-)
+from typing import TYPE_CHECKING, Any, Literal, Optional, cast, get_args
 
 from marimo import _loggers
 from marimo._ast.app import InternalApp
@@ -522,6 +517,17 @@ def get_html_contents() -> str:
     return index_html.read_text(encoding="utf-8")
 
 
+def _maybe_extract_dataurl(data: Any) -> Any:
+    if (
+        isinstance(data, str)
+        and data.startswith("data:")
+        and ";base64," in data
+    ):
+        return data.split(";base64,")[1]
+    else:
+        return data
+
+
 def _convert_marimo_output_to_ipynb(
     output: Optional[CellOutput], console_outputs: list[CellOutput]
 ) -> list[NotebookNode]:
@@ -576,17 +582,16 @@ def _convert_marimo_output_to_ipynb(
         # Captured by stdout/stderr
         return ipynb_outputs
     elif output.mimetype == "application/vnd.marimo+mimebundle":
-        for mime, content in cast(dict[str, Any], output.data).items():
-            data[mime] = content
+        for mime, content in cast(
+            dict[str, Any], json.loads(cast(str, output.data))
+        ).items():
+            if mime not in get_args(KnownMimeType):
+                # our mimebundle can contain nonstandard mimetypes, such
+                # as metadata for a matplotlib plot
+                continue
+            data[mime] = _maybe_extract_dataurl(content)
     else:
-        if (
-            isinstance(output.data, str)
-            and output.data.startswith("data:")
-            and ";base64," in output.data
-        ):
-            data[output.mimetype] = output.data.split(";base64,")[1]
-        else:
-            data[output.mimetype] = output.data
+        data[output.mimetype] = _maybe_extract_dataurl(output.data)
 
     if data:
         ipynb_outputs.append(
