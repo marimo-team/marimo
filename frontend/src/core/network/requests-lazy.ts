@@ -1,6 +1,6 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
-import { NoKernelConnected } from "@/utils/errors";
+import { NoKernelConnectedError } from "@/utils/errors";
 import { Objects } from "@/utils/objects";
 import { memoizeLastValue } from "@/utils/once";
 import { waitForKernelToBeInstantiated } from "../kernel/state";
@@ -140,7 +140,7 @@ export function createLazyRequests(
           return Promise.resolve();
 
         case "throwError":
-          throw new NoKernelConnected();
+          throw new NoKernelConnectedError();
 
         case "waitForConnectionOpen":
           // Wait for connection but don't start it

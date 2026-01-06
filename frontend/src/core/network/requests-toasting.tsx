@@ -5,7 +5,7 @@ import { useAtomValue } from "jotai";
 import { Spinner } from "@/components/icons/spinner";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/use-toast";
-import { NoKernelConnected, prettyError } from "@/utils/errors";
+import { NoKernelConnectedError, prettyError } from "@/utils/errors";
 import { Logger } from "@/utils/Logger";
 import { useConnectToRuntime } from "../runtime/config";
 import { store } from "../state/jotai";
@@ -82,8 +82,8 @@ export function createErrorToastingRequests(
       try {
         return await handler(...args);
       } catch (error) {
-        // Special handling for NoKernelConnected error
-        if (error instanceof NoKernelConnected) {
+        // Special handling for NoKernelConnectedError error
+        if (error instanceof NoKernelConnectedError) {
           // If we are connecting to a kernel, don't show the toast
           const isConnecting = store.get(isConnectingAtom);
           if (isConnecting) {

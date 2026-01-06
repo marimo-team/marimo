@@ -71,9 +71,9 @@ export class CellNotInitializedError extends Error {
   }
 }
 
-export class NoKernelConnected extends Error {
+export class NoKernelConnectedError extends Error {
   constructor(message = "Not yet connected to a kernel.") {
     super(message);
-    this.name = "NoKernelConnected";
+    this.name = "NoKernelConnectedError";
   }
 }
