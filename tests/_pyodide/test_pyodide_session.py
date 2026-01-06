@@ -193,7 +193,8 @@ async def test_pyodide_session_find_packages(
     pyodide_session: PyodideSession,
     mock_pyodide: MagicMock,
 ) -> None:
-    # Test finding packages in code
+    # We don't use `pyodide.code.find_imports`
+    # because this returns imports not in the lockfile (and potentially not trusted).
     code = dedent(
         """
         import numpy as np
@@ -204,11 +205,8 @@ async def test_pyodide_session_find_packages(
     )
 
     packages = pyodide_session.find_packages(code)
-    # sklearn gets converted to scikit-learn
-    assert sorted(packages) == sorted(
-        ["numpy", "pandas", "scikit-learn", "matplotlib"]
-    )
-    mock_pyodide.code.find_imports.assert_called_once_with(code)
+    assert sorted(packages) == sorted([])
+    mock_pyodide.code.find_imports.assert_not_called()
 
 
 async def test_pyodide_session_find_packages_with_script_metadata(

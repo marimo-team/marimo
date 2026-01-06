@@ -336,38 +336,26 @@ async def test_missing_packages_hook(
                 ),
             }
 
+    def reset_package_manager() -> MicropipPackageManager:
+        k.packages_callbacks.package_manager = create_package_manager(
+            "micropip"
+        )
+        package_manager = k.packages_callbacks.package_manager
+        assert isinstance(package_manager, MicropipPackageManager)
+        return package_manager
+
     with (
         patch(
             "marimo._runtime.runtime.broadcast_notification", mock_broadcast
         ),
         patch("micropip.install", new_callable=AsyncMock),
     ):
-        # Case 1: Auto-install enabled
         runner = cast(cell_runner.Runner, MockRunner())
-        k.packages_callbacks.package_manager = create_package_manager(
-            "micropip"
-        )
-        package_manager = k.packages_callbacks.package_manager
-        assert isinstance(package_manager, MicropipPackageManager)
-        k.packages_callbacks.missing_packages_hook(runner)
 
-        # Should create install request
-        assert len(control_requests) == 1
-        request = control_requests[0]
-        assert isinstance(request, InstallPackagesCommand)
-        assert request.manager == package_manager.name
-        assert request.versions == {
-            "numpy": "",
-            "ibis-framework[duckdb]": "",
-            "grouped-one": "",
-            "grouped-two": "",
-        }
-        assert len(broadcast_messages) == 0
-
-        # Case 2: Auto-install disabled
+        # Case 1: Auto-install disabled
+        package_manager = reset_package_manager()
         control_requests.clear()
         broadcast_messages.clear()
-        package_manager.should_auto_install = lambda: False  # type: ignore
         k.packages_callbacks.missing_packages_hook(runner)
 
         # Should broadcast alert instead of installing
@@ -383,7 +371,8 @@ async def test_missing_packages_hook(
         ]
         assert alert.isolated == is_python_isolated()
 
-        # Case 3: Multiple missing modules
+        # Case 2: Multiple missing modules
+        package_manager = reset_package_manager()
         control_requests.clear()
         broadcast_messages.clear()
         k.module_registry.missing_modules = lambda: {
@@ -391,43 +380,22 @@ async def test_missing_packages_hook(
             "pandas",
             "scipy",
         }  # type: ignore
-        package_manager.should_auto_install = lambda: True  # type: ignore
         k.packages_callbacks.missing_packages_hook(runner)
 
         # Should create install request with all missing packages
-        assert len(control_requests) == 1
-        request = control_requests[0]
-        assert isinstance(request, InstallPackagesCommand)
-        assert request.manager == package_manager.name
-        assert request.versions == {
-            "grouped-one": "",
-            "grouped-two": "",
-            "ibis-framework[duckdb]": "",
-            "numpy": "",
-            "pandas": "",
-            "scipy": "",
-        }
-
-        # Case 4: Already attempted packages should be filtered
-        control_requests.clear()
-        broadcast_messages.clear()
-        package_manager.attempted_to_install = (
-            lambda package: package == "numpy"
-        )  # type: ignore
-        k.packages_callbacks.missing_packages_hook(runner)
-
-        # Should only include packages not yet attempted
-        assert len(control_requests) == 1
-        request = control_requests[0]
-        assert isinstance(request, InstallPackagesCommand)
-        assert request.manager == package_manager.name
-        assert request.versions == {
-            "grouped-one": "",
-            "grouped-two": "",
-            "ibis-framework[duckdb]": "",
-            "pandas": "",
-            "scipy": "",
-        }
+        assert len(control_requests) == 0
+        assert len(broadcast_messages) == 1
+        alert = broadcast_messages[0]
+        assert isinstance(alert, MissingPackageAlertNotification)
+        assert alert.packages == [
+            "grouped-one",
+            "grouped-two",
+            "ibis-framework[duckdb]",
+            "numpy",
+            "pandas",
+            "scipy",
+        ]
+        assert alert.isolated == is_python_isolated()
 
 
 def test_missing_packages_hook_pip(
