@@ -19,7 +19,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: prefix-dev/setup-pixi@v0.8.8
         with:
-          pixi-version: v0.47.0
+          pixi-version: v0.62.2
           cache: true
       - run: pixi run make check-prereqs
       - run: pixi run make fe
