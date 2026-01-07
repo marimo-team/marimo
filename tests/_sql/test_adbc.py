@@ -627,6 +627,26 @@ def test_adbc_sqlite_driver_catalog_interface() -> None:
         db_name_types, schema_name_types = _find_table_location(
             databases=dbs, table_name="t_types"
         )
+        t_no_details = next(
+            t
+            for db in dbs
+            for schema in db.schemas
+            for t in schema.tables
+            if db.name == db_name
+            and schema.name == schema_name
+            and t.name == "t"
+        )
+        assert t_no_details.columns == []
+        t_types_no_details = next(
+            t
+            for db in dbs
+            for schema in db.schemas
+            for t in schema.tables
+            if db.name == db_name_types
+            and schema.name == schema_name_types
+            and t.name == "t_types"
+        )
+        assert t_types_no_details.columns == []
 
         # With details enabled, columns should be populated.
         dbs = engine.get_databases(
@@ -634,19 +654,27 @@ def test_adbc_sqlite_driver_catalog_interface() -> None:
             include_tables=True,
             include_table_details=True,
         )
-        details = engine.get_table_details(
-            table_name="t", schema_name=schema_name, database_name=db_name
+        t_with_details = next(
+            t
+            for db in dbs
+            for schema in db.schemas
+            for t in schema.tables
+            if db.name == db_name
+            and schema.name == schema_name
+            and t.name == "t"
         )
-        assert details is not None
-        assert {c.name for c in details.columns} == {"id", "name"}
+        assert {c.name for c in t_with_details.columns} == {"id", "name"}
 
-        types_details = engine.get_table_details(
-            table_name="t_types",
-            schema_name=schema_name_types,
-            database_name=db_name_types,
+        t_types_with_details = next(
+            t
+            for db in dbs
+            for schema in db.schemas
+            for t in schema.tables
+            if db.name == db_name_types
+            and schema.name == schema_name_types
+            and t.name == "t_types"
         )
-        assert types_details is not None
-        assert {c.name for c in types_details.columns} == {
+        assert {c.name for c in t_types_with_details.columns} == {
             "int_col",
             "real_col",
             "text_col",
@@ -659,7 +687,7 @@ def test_adbc_sqlite_driver_catalog_interface() -> None:
         }
 
         # Verify that the driver/schema mapping yields sensible marimo DataTypes.
-        col_types = {c.name: c.type for c in types_details.columns}
+        col_types = {c.name: c.type for c in t_types_with_details.columns}
         assert col_types["int_col"] == "integer"
         assert col_types["real_col"] == "number"
         assert col_types["text_col"] == "string"
