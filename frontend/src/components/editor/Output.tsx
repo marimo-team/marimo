@@ -404,7 +404,14 @@ OutputArea.displayName = "OutputArea";
 const Div = React.forwardRef<
   HTMLDivElement,
   React.ComponentPropsWithoutRef<"div">
->((props, ref) => <div ref={ref} {...props} />);
+>((props, ref) => (
+  <div
+    ref={ref}
+    {...props}
+    // biome-ignore lint/a11y/noNoninteractiveTabindex: Needed to capture keypress events (similar to ConsoleOutput)
+    tabIndex={0}
+  />
+));
 Div.displayName = "Div";
 
 /**
@@ -505,6 +512,8 @@ const ExpandableOutput = React.memo(
             style={
               isExpanded || forceExpand ? { maxHeight: "none" } : undefined
             }
+            // biome-ignore lint/a11y/noNoninteractiveTabindex: Needed to capture keypress events (similar to ConsoleOutput)
+            tabIndex={0}
           >
             {children}
           </div>
