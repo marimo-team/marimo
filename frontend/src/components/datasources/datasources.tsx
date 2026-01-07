@@ -293,7 +293,7 @@ const Engine: React.FC<{
       {hasChildren ? (
         children
       ) : (
-        <EmptyState content="No databases available" className="pl-2" />
+        <EmptyState content="No databases available" className="pl-3" />
       )}
     </>
   );
@@ -317,7 +317,7 @@ const DatabaseItem: React.FC<{
   return (
     <>
       <CommandItem
-        className="text-sm flex flex-row gap-1 items-center cursor-pointer rounded-none"
+        className="text-sm flex flex-row gap-1 items-center pl-4 cursor-pointer rounded-none"
         onSelect={() => {
           setIsExpanded(!isExpanded);
           setIsSelected(!isSelected);
@@ -362,7 +362,7 @@ const SchemaList: React.FC<{
   searchValue,
 }) => {
   if (schemas.length === 0) {
-    return <EmptyState content="No schemas available" className="pl-6" />;
+    return <EmptyState content="No schemas available" className="pl-8" />;
   }
 
   const filteredSchemas = schemas.filter((schema) => {
@@ -418,7 +418,7 @@ const SchemaItem: React.FC<{
   return (
     <>
       <CommandItem
-        className="text-sm flex flex-row gap-1 items-center pl-5 cursor-pointer rounded-none"
+        className="text-sm flex flex-row gap-1 items-center pl-7 cursor-pointer rounded-none"
         onSelect={() => {
           setIsExpanded(!isExpanded);
           setIsSelected(!isSelected);
@@ -479,15 +479,15 @@ const TableList: React.FC<{
   }, [tables.length, sqlTableContext, tablesRequested]);
 
   if (isPending || tablesLoading) {
-    return <LoadingState message="Loading tables..." className="pl-12" />;
+    return <LoadingState message="Loading tables..." className="pl-11" />;
   }
 
   if (error) {
-    return <ErrorState error={error} className="pl-12" />;
+    return <ErrorState error={error} className="pl-11" />;
   }
 
   if (tables.length === 0) {
-    return <EmptyState content="No tables found" className="pl-9" />;
+    return <EmptyState content="No tables found" className="pl-11" />;
   }
 
   const filteredTables = tables.filter((table) => {
@@ -612,17 +612,17 @@ const DatasetTableItem: React.FC<{
 
   const renderColumns = () => {
     if (isPending || isFetching) {
-      return <LoadingState message="Loading columns..." className="pl-12" />;
+      return <LoadingState message="Loading columns..." className="pl-11" />;
     }
 
     if (error) {
-      return <ErrorState error={error} className="pl-12" />;
+      return <ErrorState error={error} className="pl-11" />;
     }
 
     const columns = table.columns;
 
     if (columns.length === 0) {
-      return <EmptyState content="No columns found" className="pl-12" />;
+      return <EmptyState content="No columns found" className="pl-11" />;
     }
 
     return columns.map((column) => (
@@ -659,7 +659,7 @@ const DatasetTableItem: React.FC<{
         className={cn(
           "rounded-none group h-8 cursor-pointer",
           sqlTableContext &&
-            (isSchemaless(sqlTableContext.schema) ? "pl-9" : "pl-12"),
+            (isSchemaless(sqlTableContext.schema) ? "pl-8" : "pl-12"),
           (isExpanded || isSearching) && "font-semibold",
         )}
         value={uniqueId}
@@ -667,7 +667,7 @@ const DatasetTableItem: React.FC<{
         forceMount={true}
         onSelect={() => setIsExpanded(!isExpanded)}
       >
-        <div className="flex gap-2 items-center flex-1">
+        <div className="flex gap-2 items-center flex-1 pl-1">
           {renderTableType()}
           <span className="text-sm">{table.name}</span>
         </div>
@@ -753,7 +753,7 @@ const DatasetColumnItem: React.FC<{
         <div
           className={cn(
             "flex flex-row gap-2 items-center flex-1",
-            sqlTableContext ? "pl-14" : "pl-7",
+            sqlTableContext ? "pl-13" : "pl-5",
           )}
         >
           <ColumnName columnName={columnText} dataType={column.type} />
