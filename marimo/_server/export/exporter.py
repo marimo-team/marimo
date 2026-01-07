@@ -4,16 +4,11 @@ from __future__ import annotations
 import asyncio
 import base64
 import io
+import json
 import mimetypes
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Literal,
-    Optional,
-    cast,
-)
+from typing import TYPE_CHECKING, Any, Literal, Optional, cast
 
 from marimo import _loggers
 from marimo._ast.app import InternalApp
@@ -29,7 +24,7 @@ from marimo._config.utils import deep_copy
 from marimo._convert.utils import get_markdown_from_cell
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.cell_output import CellChannel, CellOutput
-from marimo._messaging.mimetypes import KnownMimeType
+from marimo._messaging.mimetypes import METADATA_KEY, KnownMimeType
 from marimo._runtime import dataflow
 from marimo._runtime.virtual_file import read_virtual_file
 from marimo._schemas.notebook import NotebookV1
@@ -522,6 +517,17 @@ def get_html_contents() -> str:
     return index_html.read_text(encoding="utf-8")
 
 
+def _maybe_extract_dataurl(data: Any) -> Any:
+    if (
+        isinstance(data, str)
+        and data.startswith("data:")
+        and ";base64," in data
+    ):
+        return data.split(";base64,")[1]
+    else:
+        return data
+
+
 def _convert_marimo_output_to_ipynb(
     output: Optional[CellOutput], console_outputs: list[CellOutput]
 ) -> list[NotebookNode]:
@@ -571,22 +577,26 @@ def _convert_marimo_output_to_ipynb(
 
     # Handle rich output
     data: dict[str, Any] = {}
+    metadata: dict[str, Any] = {}
 
     if output.mimetype == "application/vnd.marimo+error":
         # Captured by stdout/stderr
         return ipynb_outputs
     elif output.mimetype == "application/vnd.marimo+mimebundle":
-        for mime, content in cast(dict[str, Any], output.data).items():
-            data[mime] = content
-    else:
-        if (
-            isinstance(output.data, str)
-            and output.data.startswith("data:")
-            and ";base64," in output.data
-        ):
-            data[output.mimetype] = output.data.split(";base64,")[1]
+        if isinstance(output.data, dict):
+            mimebundle = output.data
+        elif isinstance(output.data, str):
+            mimebundle = json.loads(output.data)
         else:
-            data[output.mimetype] = output.data
+            raise ValueError(f"Invalid data type: {type(output.data)}")
+
+        for mime, content in mimebundle.items():
+            if mime == METADATA_KEY and isinstance(content, dict):
+                metadata = content
+            else:
+                data[mime] = _maybe_extract_dataurl(content)
+    else:
+        data[output.mimetype] = _maybe_extract_dataurl(output.data)
 
     if data:
         ipynb_outputs.append(
@@ -595,7 +605,7 @@ def _convert_marimo_output_to_ipynb(
                 nbformat.v4.new_output(  # type: ignore[no-untyped-call]
                     "display_data",
                     data=data,
-                    metadata={},
+                    metadata=metadata,
                 ),
             )
         )

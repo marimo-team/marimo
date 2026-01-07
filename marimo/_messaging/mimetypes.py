@@ -38,3 +38,6 @@ ConsoleMimeType = Literal[
 
 MimeBundle = dict[KnownMimeType, Any]
 MimeBundleOrTuple = Union[MimeBundle, tuple[MimeBundle, Any]]
+
+# Used for metadata in a marimo mimebundle
+METADATA_KEY = "__metadata__"

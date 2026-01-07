@@ -19,7 +19,11 @@ from marimo._server.export import (
     run_app_then_export_as_ipynb,
     run_app_until_completion,
 )
-from marimo._server.export.exporter import Exporter
+from marimo._server.export.exporter import (
+    Exporter,
+    _convert_marimo_output_to_ipynb,
+    _maybe_extract_dataurl,
+)
 from marimo._server.models.export import ExportAsHTMLRequest
 from marimo._session.notebook import AppFileManager
 from marimo._session.state.session_view import SessionView
@@ -1145,3 +1149,441 @@ def test_export_html_replaces_multiple_virtual_files_complex(
 
     # Virtual file URLs should be replaced (though they may be URL-encoded in JSON)
     # So we just check that the base64 data is present, which proves replacement worked
+
+
+# Tests for marimo mimebundle ipynb export support
+
+
+def test_maybe_extract_dataurl_with_base64_data():
+    """Test that _maybe_extract_dataurl extracts base64 data from data URLs."""
+    data_url = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUA"
+    result = _maybe_extract_dataurl(data_url)
+    assert result == "iVBORw0KGgoAAAANSUhEUgAAAAUA"
+
+
+def test_maybe_extract_dataurl_without_base64():
+    """Test that _maybe_extract_dataurl returns non-data-URL strings as-is."""
+    regular_string = "hello world"
+    result = _maybe_extract_dataurl(regular_string)
+    assert result == "hello world"
+
+
+def test_maybe_extract_dataurl_with_non_string():
+    """Test that _maybe_extract_dataurl returns non-string data as-is."""
+    data = {"key": "value"}
+    result = _maybe_extract_dataurl(data)
+    assert result == {"key": "value"}
+
+    data = 123
+    result = _maybe_extract_dataurl(data)
+    assert result == 123
+
+
+def test_maybe_extract_dataurl_with_data_prefix_but_no_base64():
+    """Test that _maybe_extract_dataurl handles data: prefix without base64."""
+    data_url = "data:text/plain,hello"
+    result = _maybe_extract_dataurl(data_url)
+    assert result == "data:text/plain,hello"
+
+
+@pytest.mark.skipif(not HAS_NBFORMAT, reason="nbformat is not installed")
+def test_convert_marimo_mimebundle_to_ipynb_with_known_mimetypes():
+    """Test that marimo mimebundle with known mimetypes are converted correctly."""
+    mimebundle_data = json.dumps(
+        {
+            "text/plain": "Hello",
+            "text/html": "<p>Hello</p>",
+            "image/png": "data:image/png;base64,iVBORw0KGgo=",
+        }
+    )
+
+    output = CellOutput(
+        channel=CellChannel.OUTPUT,
+        mimetype="application/vnd.marimo+mimebundle",
+        data=mimebundle_data,
+    )
+
+    result = _convert_marimo_output_to_ipynb(output, [])
+
+    assert len(result) == 1
+    assert result[0]["output_type"] == "display_data"
+    assert "text/plain" in result[0]["data"]
+    assert result[0]["data"]["text/plain"] == "Hello"
+    assert "text/html" in result[0]["data"]
+    assert result[0]["data"]["text/html"] == "<p>Hello</p>"
+    assert "image/png" in result[0]["data"]
+    # Base64 data should be extracted from data URL
+    assert result[0]["data"]["image/png"] == "iVBORw0KGgo="
+
+
+@pytest.mark.skipif(not HAS_NBFORMAT, reason="nbformat is not installed")
+def test_convert_marimo_mimebundle_with_multiple_formats():
+    """Test marimo mimebundle with multiple output formats."""
+    mimebundle_data = json.dumps(
+        {
+            "text/plain": "Figure(640x480)",
+            "text/html": "<div>Chart</div>",
+            "image/png": "data:image/png;base64,PNG_BASE64_DATA",
+            "image/svg+xml": "<svg>...</svg>",
+            "application/json": {"data": [1, 2, 3]},
+        }
+    )
+
+    output = CellOutput(
+        channel=CellChannel.OUTPUT,
+        mimetype="application/vnd.marimo+mimebundle",
+        data=mimebundle_data,
+    )
+
+    result = _convert_marimo_output_to_ipynb(output, [])
+
+    assert len(result) == 1
+    assert result[0]["output_type"] == "display_data"
+    assert result[0]["data"]["text/plain"] == "Figure(640x480)"
+    assert result[0]["data"]["text/html"] == "<div>Chart</div>"
+    assert result[0]["data"]["image/png"] == "PNG_BASE64_DATA"
+    assert result[0]["data"]["image/svg+xml"] == "<svg>...</svg>"
+    assert result[0]["data"]["application/json"] == {"data": [1, 2, 3]}
+
+
+@pytest.mark.skipif(not HAS_NBFORMAT, reason="nbformat is not installed")
+def test_convert_regular_output_extracts_dataurl():
+    """Test that regular outputs also extract data URLs."""
+    output = CellOutput(
+        channel=CellChannel.OUTPUT,
+        mimetype="image/png",
+        data="data:image/png;base64,REGULAR_PNG_DATA",
+    )
+
+    result = _convert_marimo_output_to_ipynb(output, [])
+
+    assert len(result) == 1
+    assert result[0]["output_type"] == "display_data"
+    assert result[0]["data"]["image/png"] == "REGULAR_PNG_DATA"
+
+
+@pytest.mark.skipif(not HAS_NBFORMAT, reason="nbformat is not installed")
+def test_convert_regular_output_without_dataurl():
+    """Test that regular outputs without data URLs are passed through."""
+    output = CellOutput(
+        channel=CellChannel.OUTPUT,
+        mimetype="text/plain",
+        data="Hello World",
+    )
+
+    result = _convert_marimo_output_to_ipynb(output, [])
+
+    assert len(result) == 1
+    assert result[0]["output_type"] == "display_data"
+    assert result[0]["data"]["text/plain"] == "Hello World"
+
+
+@pytest.mark.skipif(not HAS_NBFORMAT, reason="nbformat is not installed")
+def test_convert_marimo_mimebundle_empty():
+    """Test that empty marimo mimebundle produces no output."""
+    mimebundle_data = json.dumps({})
+
+    output = CellOutput(
+        channel=CellChannel.OUTPUT,
+        mimetype="application/vnd.marimo+mimebundle",
+        data=mimebundle_data,
+    )
+
+    result = _convert_marimo_output_to_ipynb(output, [])
+
+    # Empty mimebundle should not produce any output
+    assert len(result) == 0
+
+
+@pytest.mark.skipif(not HAS_NBFORMAT, reason="nbformat is not installed")
+def test_convert_marimo_mimebundle_with_console_output():
+    """Test that console outputs (stdout/stderr) are converted correctly."""
+    # Test just console outputs without main output
+    console_outputs = [
+        CellOutput(
+            channel=CellChannel.STDOUT,
+            mimetype="text/plain",
+            data="Console output\n",
+        ),
+        CellOutput(
+            channel=CellChannel.STDERR,
+            mimetype="text/plain",
+            data="Warning message\n",
+        ),
+    ]
+
+    result = _convert_marimo_output_to_ipynb(None, console_outputs)
+
+    # Should have stdout and stderr outputs
+    assert len(result) == 2
+    assert result[0]["output_type"] == "stream"
+    assert result[0]["name"] == "stdout"
+    assert result[0]["text"] == "Console output\n"
+    assert result[1]["output_type"] == "stream"
+    assert result[1]["name"] == "stderr"
+    assert result[1]["text"] == "Warning message\n"
+
+
+@pytest.mark.skipif(not HAS_NBFORMAT, reason="nbformat is not installed")
+def test_convert_marimo_mimebundle_with_both_output_and_console():
+    """Test marimo mimebundle with both cell output and console outputs."""
+    mimebundle_data = json.dumps(
+        {
+            "text/plain": "Result",
+            "image/png": "PNG_DATA",
+        }
+    )
+
+    main_output = CellOutput(
+        channel=CellChannel.OUTPUT,
+        mimetype="application/vnd.marimo+mimebundle",
+        data=mimebundle_data,
+    )
+
+    console_outputs = [
+        CellOutput(
+            channel=CellChannel.STDOUT,
+            mimetype="text/plain",
+            data="Console output\n",
+        ),
+    ]
+
+    # First convert console outputs
+    console_result = _convert_marimo_output_to_ipynb(None, console_outputs)
+    # Then convert main output
+    main_result = _convert_marimo_output_to_ipynb(main_output, [])
+
+    # Verify console output
+    assert len(console_result) == 1
+    assert console_result[0]["output_type"] == "stream"
+    assert console_result[0]["name"] == "stdout"
+
+    # Verify main output
+    assert len(main_result) == 1
+    assert main_result[0]["output_type"] == "display_data"
+    assert main_result[0]["data"]["text/plain"] == "Result"
+    assert main_result[0]["data"]["image/png"] == "PNG_DATA"
+
+
+# Tests for metadata in ipynb export
+
+
+@pytest.mark.skipif(not HAS_NBFORMAT, reason="nbformat is not installed")
+def test_convert_marimo_mimebundle_with_metadata():
+    """Test that metadata from __metadata__ key is included in ipynb output."""
+    mimebundle_data = json.dumps(
+        {
+            "text/plain": "Figure",
+            "image/png": "PNG_DATA",
+            "__metadata__": {
+                "width": 640,
+                "height": 480,
+                "dpi": 100,
+            },
+        }
+    )
+
+    output = CellOutput(
+        channel=CellChannel.OUTPUT,
+        mimetype="application/vnd.marimo+mimebundle",
+        data=mimebundle_data,
+    )
+
+    result = _convert_marimo_output_to_ipynb(output, [])
+
+    assert len(result) == 1
+    assert result[0]["output_type"] == "display_data"
+    assert result[0]["data"]["text/plain"] == "Figure"
+    assert result[0]["data"]["image/png"] == "PNG_DATA"
+    # Verify metadata is included
+    assert "metadata" in result[0]
+    assert result[0]["metadata"] == {
+        "width": 640,
+        "height": 480,
+        "dpi": 100,
+    }
+
+
+@pytest.mark.skipif(not HAS_NBFORMAT, reason="nbformat is not installed")
+def test_convert_marimo_mimebundle_without_metadata():
+    """Test that outputs without metadata have empty metadata dict."""
+    mimebundle_data = json.dumps(
+        {
+            "text/plain": "Figure",
+            "image/png": "PNG_DATA",
+        }
+    )
+
+    output = CellOutput(
+        channel=CellChannel.OUTPUT,
+        mimetype="application/vnd.marimo+mimebundle",
+        data=mimebundle_data,
+    )
+
+    result = _convert_marimo_output_to_ipynb(output, [])
+
+    assert len(result) == 1
+    assert result[0]["output_type"] == "display_data"
+    assert result[0]["data"]["text/plain"] == "Figure"
+    assert result[0]["data"]["image/png"] == "PNG_DATA"
+    # Verify metadata is empty
+    assert "metadata" in result[0]
+    assert result[0]["metadata"] == {}
+
+
+@pytest.mark.skipif(not HAS_NBFORMAT, reason="nbformat is not installed")
+def test_convert_marimo_mimebundle_with_non_dict_metadata():
+    """Test that non-dict metadata is ignored."""
+    mimebundle_data = json.dumps(
+        {
+            "text/plain": "Figure",
+            "image/png": "PNG_DATA",
+            "__metadata__": "not a dict",  # This should be ignored
+        }
+    )
+
+    output = CellOutput(
+        channel=CellChannel.OUTPUT,
+        mimetype="application/vnd.marimo+mimebundle",
+        data=mimebundle_data,
+    )
+
+    result = _convert_marimo_output_to_ipynb(output, [])
+
+    assert len(result) == 1
+    assert result[0]["output_type"] == "display_data"
+    # Verify metadata is empty when non-dict value is provided
+    assert "metadata" in result[0]
+    assert result[0]["metadata"] == {}
+
+
+@pytest.mark.skipif(not HAS_NBFORMAT, reason="nbformat is not installed")
+def test_convert_marimo_mimebundle_with_nested_metadata():
+    """Test that nested metadata structures are preserved."""
+    mimebundle_data = json.dumps(
+        {
+            "text/plain": "Figure",
+            "image/png": "PNG_DATA",
+            "__metadata__": {
+                "figure": {
+                    "width": 640,
+                    "height": 480,
+                },
+                "plot": {
+                    "type": "line",
+                    "color": "blue",
+                },
+                "tags": ["important", "experiment-1"],
+            },
+        }
+    )
+
+    output = CellOutput(
+        channel=CellChannel.OUTPUT,
+        mimetype="application/vnd.marimo+mimebundle",
+        data=mimebundle_data,
+    )
+
+    result = _convert_marimo_output_to_ipynb(output, [])
+
+    assert len(result) == 1
+    assert result[0]["output_type"] == "display_data"
+    # Verify nested metadata is preserved
+    assert result[0]["metadata"] == {
+        "figure": {
+            "width": 640,
+            "height": 480,
+        },
+        "plot": {
+            "type": "line",
+            "color": "blue",
+        },
+        "tags": ["important", "experiment-1"],
+    }
+
+
+@pytest.mark.skipif(not HAS_NBFORMAT, reason="nbformat is not installed")
+def test_convert_marimo_mimebundle_metadata_not_in_data():
+    """Test that __metadata__ key is not included in output data."""
+    mimebundle_data = json.dumps(
+        {
+            "text/plain": "Figure",
+            "image/png": "PNG_DATA",
+            "__metadata__": {
+                "width": 640,
+                "height": 480,
+            },
+        }
+    )
+
+    output = CellOutput(
+        channel=CellChannel.OUTPUT,
+        mimetype="application/vnd.marimo+mimebundle",
+        data=mimebundle_data,
+    )
+
+    result = _convert_marimo_output_to_ipynb(output, [])
+
+    assert len(result) == 1
+    assert result[0]["output_type"] == "display_data"
+    # Verify __metadata__ is not in the data dict
+    assert "__metadata__" not in result[0]["data"]
+    assert "text/plain" in result[0]["data"]
+    assert "image/png" in result[0]["data"]
+    # But metadata should be in the metadata field
+    assert result[0]["metadata"] == {
+        "width": 640,
+        "height": 480,
+    }
+
+
+@pytest.mark.skipif(not HAS_NBFORMAT, reason="nbformat is not installed")
+def test_convert_marimo_mimebundle_dict():
+    """Handle the case when the mimebundle is a dict, not JSON-dumped string"""
+    mimebundle_data = {
+        "text/plain": "Figure",
+        "image/png": "PNG_DATA",
+        "__metadata__": {
+            "width": 640,
+            "height": 480,
+        },
+    }
+
+    output = CellOutput(
+        channel=CellChannel.OUTPUT,
+        mimetype="application/vnd.marimo+mimebundle",
+        data=mimebundle_data,
+    )
+
+    result = _convert_marimo_output_to_ipynb(output, [])
+
+    assert len(result) == 1
+    assert result[0]["output_type"] == "display_data"
+    # Verify __metadata__ is not in the data dict
+    assert "__metadata__" not in result[0]["data"]
+    assert "text/plain" in result[0]["data"]
+    assert "image/png" in result[0]["data"]
+    # But metadata should be in the metadata field
+    assert result[0]["metadata"] == {
+        "width": 640,
+        "height": 480,
+    }
+
+
+@pytest.mark.skipif(not HAS_NBFORMAT, reason="nbformat is not installed")
+def test_convert_regular_output_has_empty_metadata():
+    """Test that regular outputs (non-mimebundle) have empty metadata."""
+    output = CellOutput(
+        channel=CellChannel.OUTPUT,
+        mimetype="text/plain",
+        data="Hello World",
+    )
+
+    result = _convert_marimo_output_to_ipynb(output, [])
+
+    assert len(result) == 1
+    assert result[0]["output_type"] == "display_data"
+    assert result[0]["data"]["text/plain"] == "Hello World"
+    # Regular outputs should have empty metadata
+    assert "metadata" in result[0]
+    assert result[0]["metadata"] == {}
