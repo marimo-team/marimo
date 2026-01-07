@@ -513,7 +513,7 @@ def edit(
         # Check for pyzmq dependency
         from marimo._dependencies.dependencies import DependencyManager
 
-        if not DependencyManager.has("zmq"):
+        if not DependencyManager.zmq.has():
             raise click.UsageError(
                 "pyzmq is required when running the marimo edit server on a directory with --sandbox.\n"
                 "Install it with: pip install 'marimo[sandbox]'\n"
