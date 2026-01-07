@@ -4,10 +4,13 @@ on:
   issue_comment:
     types: [created]
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.issue.number }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
   pull-requests: write
-  id-token: write  # Required for OIDC
 
 env:
   TURBO_TEAM: marimo
@@ -37,9 +40,6 @@ jobs:
       comment_id: ${{ steps.comment.outputs.result }}
 
     steps:
-      - name: 🛑 Cancel Previous Runs
-        uses: styfle/cancel-workflow-action@0.12.1
-
       - name: 📝 Get PR Info
         id: pr
         env:
@@ -80,19 +80,10 @@ jobs:
             console.log(`Comment created with ID: ${comment.data.id}`);
             return comment.data.id;
 
-      - uses: pnpm/action-setup@v4
-
-      - name: ⎔ Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: 'pnpm'
-          cache-dependency-path: '**/pnpm-lock.yaml'
-
       - name: 📦 Build frontend
-        run: make fe
-        env:
-          TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+        uses: ./.github/actions/build-frontend
+        with:
+          turbo-token: ${{ secrets.TURBO_TOKEN }}
 
       - name: Install uv
         uses: astral-sh/setup-uv@v7
@@ -152,8 +143,9 @@ jobs:
     with:
       package-artifact-name: frontend-test-branch
       working-directory: '.'
+      npm-tag: 'dev'
     permissions:
-      id-token: write
+      id-token: write  # Required for OIDC
       contents: read
 
   update_pr_comment:
@@ -171,16 +163,18 @@ jobs:
         continue-on-error: true
         env:
           MARIMO_VERSION: ${{ needs.create-test-release.outputs.marimo_version }}
+          COMMENT_ID: ${{ needs.create-test-release.outputs.comment_id }}
         with:
           script: |
             try {
-              const commentId = ${{ needs.create-test-release.outputs.comment_id }}
+              const commentId = parseInt(process.env.COMMENT_ID, 10);
+              const marimoVersion = process.env.MARIMO_VERSION || 'unknown';
               console.log(`Updating comment with ID: ${commentId}`);
               await github.rest.issues.updateComment({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 comment_id: commentId,
-                body: `🚀 Test release published. You may be able to view the changes at https://marimo.app?v=${process.env.MARIMO_VERSION}`
+                body: `🚀 Test release published. You may be able to view the changes at https://marimo.app?v=${encodeURIComponent(marimoVersion)}`
               });
             } catch (err) {
               console.error(err);
@@ -190,10 +184,12 @@ jobs:
         if: needs.create-test-release.result == 'failure' || needs.publish_wasm_test.result == 'failure'
         uses: actions/github-script@v7
         continue-on-error: true
+        env:
+          COMMENT_ID: ${{ needs.create-test-release.outputs.comment_id }}
         with:
           script: |
             try {
-              const commentId = ${{ needs.create-test-release.outputs.comment_id }}
+              const commentId = parseInt(process.env.COMMENT_ID, 10);
               console.log(`Updating comment with ID: ${commentId}`);
               await github.rest.issues.updateComment({
                 owner: context.repo.owner,
