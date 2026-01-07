@@ -1,7 +1,7 @@
 from __future__ import annotations
 
+import os
 import sys
-import tempfile
 from pathlib import Path
 from typing import Any, Optional
 
@@ -13,30 +13,30 @@ from marimo._plugins.ui._impl.file_browser import (
     ListDirectoryResponse,
     file_browser,
 )
+from marimo._utils.paths import normalize_path
 
 
-def test_file_browser_init() -> None:
-    # Use a temporary directory for testing
-    with tempfile.TemporaryDirectory() as temp_dir:
-        fb = file_browser(initial_path=temp_dir)
-        assert isinstance(fb._initial_path, Path)
-        assert str(fb._initial_path) == str(Path(temp_dir).resolve())
-        assert fb._selection_mode == "file"
-        assert fb._filetypes == set()
-        assert fb._restrict_navigation is False
+def test_file_browser_init(tmp_path: Path) -> None:
+    # Use tmp_path fixture for testing
+    fb = file_browser(initial_path=tmp_path)
+    assert isinstance(fb._initial_path, Path)
+    assert str(fb._initial_path) == str(normalize_path(tmp_path))
+    assert fb._selection_mode == "file"
+    assert fb._filetypes == set()
+    assert fb._restrict_navigation is False
 
-        # Test with custom filetypes
-        custom_filetypes = [".txt", ".csv"]
-        fb = file_browser(
-            initial_path=temp_dir,
-            filetypes=custom_filetypes,
-            selection_mode="directory",
-            restrict_navigation=True,
-        )
-        assert fb._initial_path == Path(temp_dir).resolve()
-        assert fb._filetypes == set(custom_filetypes)
-        assert fb._selection_mode == "directory"
-        assert fb._restrict_navigation is True
+    # Test with custom filetypes
+    custom_filetypes = [".txt", ".csv"]
+    fb = file_browser(
+        initial_path=tmp_path,
+        filetypes=custom_filetypes,
+        selection_mode="directory",
+        restrict_navigation=True,
+    )
+    assert fb._initial_path == normalize_path(tmp_path)
+    assert fb._filetypes == set(custom_filetypes)
+    assert fb._selection_mode == "directory"
+    assert fb._restrict_navigation is True
 
 
 def test_list_directory() -> None:
@@ -837,3 +837,117 @@ def test_ignore_empty_dirs_symlink_loop_protection(tmp_path: Path) -> None:
     assert "empty_dir" not in directory_names
 
     # Test should complete without hanging (no infinite loop)
+
+
+def test_file_browser_symlink(tmp_path: Path) -> None:
+    """Test that file browser doesn't follow symlinks outside initial directory."""
+    # Create a safe directory inside temp
+    safe_dir = tmp_path / "safe"
+    safe_dir.mkdir()
+
+    # Create a file in the safe directory
+    safe_file = safe_dir / "safe.txt"
+    safe_file.write_text("safe content")
+
+    # Create a directory outside that we don't want to access
+    outside_dir = tmp_path / "outside"
+    outside_dir.mkdir()
+    secret_file = outside_dir / "secret.txt"
+    secret_file.write_text("secret content")
+
+    # Create a symlink inside safe_dir that points outside
+    symlink_to_outside = safe_dir / "link_to_outside"
+    try:
+        symlink_to_outside.symlink_to(outside_dir)
+    except OSError:
+        # On Windows, creating symlinks might require admin privileges
+        pytest.skip("Cannot create symlinks on this system")
+
+    # Create file browser restricted to safe_dir
+    fb = file_browser(initial_path=safe_dir, restrict_navigation=True)
+
+    # The initial path should not have followed the symlink
+    # It should be the normalized path, not resolved
+    expected_initial = normalize_path(safe_dir)
+    assert fb._initial_path == expected_initial
+
+    # List directory - should see the symlink but as a directory
+    response = fb._list_directory(ListDirectoryArgs(path=str(safe_dir)))
+
+    file_names = [f["name"] for f in response.files]
+    assert "safe.txt" in file_names
+    # The symlink should be visible but treated as a directory
+    assert "link_to_outside" in file_names
+
+
+def test_file_browser_normalize_path_not_resolve(tmp_path: Path) -> None:
+    """Test that file browser uses normalize_path, not resolve."""
+    # Create a real directory
+    real_dir = tmp_path / "real_directory"
+    real_dir.mkdir()
+
+    # Create a file in the real directory
+    real_file = real_dir / "test.txt"
+    real_file.write_text("test content")
+
+    # Create a symlink to the real directory
+    symlink_dir = tmp_path / "symlinked_directory"
+    try:
+        symlink_dir.symlink_to(real_dir)
+    except OSError:
+        # On Windows, creating symlinks might require admin privileges
+        pytest.skip("Cannot create symlinks on this system")
+
+    # Create file browser with symlinked directory
+    fb = file_browser(initial_path=symlink_dir)
+
+    # The initial path should contain "symlinked_directory"
+    # NOT "real_directory" (which is what resolve() would give)
+    assert "symlinked_directory" in str(fb._initial_path)
+    assert "real_directory" not in str(fb._initial_path)
+
+
+def test_file_browser_path_with_parent_references(tmp_path: Path) -> None:
+    """Test that file browser normalizes paths with .. components."""
+    # Create nested directories
+    nested = tmp_path / "level1" / "level2"
+    nested.mkdir(parents=True)
+
+    # Create a file
+    test_file = nested / "test.txt"
+    test_file.write_text("content")
+
+    # Create path with .. that goes up and back down
+    path_with_parent = tmp_path / "level1" / "level2" / ".." / "level2"
+
+    # Create file browser - should normalize the path
+    fb = file_browser(initial_path=path_with_parent)
+
+    # The path should be normalized (no .. in it)
+    assert ".." not in str(fb._initial_path)
+
+    # Should end with level2
+    assert fb._initial_path == nested
+
+
+def test_file_browser_relative_path_normalization(tmp_path: Path) -> None:
+    """Test that file browser normalizes relative paths to absolute."""
+    # Create a subdirectory
+    sub_dir = tmp_path / "subdir"
+    sub_dir.mkdir()
+
+    # Save current directory and change to tmp_path
+    original_cwd = Path.cwd()
+    try:
+        os.chdir(tmp_path)
+
+        # Create file browser with relative path
+        fb = file_browser(initial_path="./subdir")
+
+        # Should be absolute now
+        assert fb._initial_path.is_absolute()
+        assert fb._initial_path == sub_dir
+
+    finally:
+        # Restore original directory
+        os.chdir(original_cwd)

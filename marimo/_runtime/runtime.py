@@ -204,6 +204,7 @@ from marimo._types.ids import CellId_t, UIElementId, VariableName
 from marimo._types.lifespan import Lifespan
 from marimo._utils.assert_never import assert_never
 from marimo._utils.lifespans import Lifespans
+from marimo._utils.paths import normalize_path
 from marimo._utils.platform import is_pyodide
 from marimo._utils.signals import restore_signals
 from marimo._utils.typed_connection import TypedConnection
@@ -396,12 +397,12 @@ def notebook_dir() -> pathlib.Path | None:
     except ContextNotInitializedError:
         # If we are not running in a notebook (e.g. exported to Jupyter),
         # return the current working directory
-        return pathlib.Path().absolute()
+        return pathlib.Path().cwd()
 
     # NB: __file__ is patched by runner, so always bound to be correct.
     filename = ctx.globals.get("__file__", None) or ctx.filename
     if filename is not None:
-        path = pathlib.Path(filename).resolve()
+        path = normalize_path(pathlib.Path(filename))
         while not path.is_dir():
             path = path.parent
         return path
@@ -598,7 +599,9 @@ class Kernel:
             # we need to update sys.path.
             try:
                 notebook_directory = str(
-                    pathlib.Path(self.app_metadata.filename).parent.absolute()
+                    normalize_path(
+                        pathlib.Path(self.app_metadata.filename).parent
+                    )
                 )
                 if notebook_directory not in sys.path:
                     sys.path.insert(0, notebook_directory)
