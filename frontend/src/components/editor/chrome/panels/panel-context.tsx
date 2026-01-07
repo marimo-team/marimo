@@ -16,7 +16,10 @@ export const PanelSectionProvider = PanelSectionContext.Provider;
  */
 export function usePanelSection(): PanelSection {
   const section = useContext(PanelSectionContext);
-  invariant(section !== null, "usePanelSection must be used within a PanelSectionProvider");
+  invariant(
+    section !== null,
+    "usePanelSection must be used within a PanelSectionProvider",
+  );
   return section;
 }
 

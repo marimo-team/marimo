@@ -12,10 +12,6 @@ import {
 import type React from "react";
 import { Suspense, useRef, useState } from "react";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
-import {
-  usePanelOrientation,
-  usePanelSection,
-} from "../editor/chrome/panels/panel-context";
 import useEvent from "react-use-event-hook";
 import { useCellActions, useNotebook } from "@/core/cells/cells";
 import { useLastFocusedCellId } from "@/core/cells/focus";
@@ -31,6 +27,10 @@ import { useTheme } from "@/theme/useTheme";
 import { cn } from "@/utils/cn";
 import { Functions } from "@/utils/functions";
 import { CellEditor } from "../editor/cell/code/cell-editor";
+import {
+  usePanelOrientation,
+  usePanelSection,
+} from "../editor/chrome/panels/panel-context";
 import { HideInKioskMode } from "../editor/kiosk-mode";
 import { OutputArea } from "../editor/Output";
 import { ConsoleOutput } from "../editor/output/console/ConsoleOutput";
