@@ -26,6 +26,7 @@ import { getFeatureFlag } from "@/core/config/feature-flag";
 import { cn } from "@/utils/cn";
 import { ErrorBoundary } from "../../boundary/ErrorBoundary";
 import { ContextAwarePanel } from "../panels/context-aware-panel/context-aware-panel";
+import { PanelSectionProvider } from "../panels/panel-context";
 import { panelLayoutAtom, useChromeActions, useChromeState } from "../state";
 import { PANEL_MAP, PANELS, type PanelDescriptor } from "../types";
 import { BackendConnectionStatus } from "./footer-items/backend-status";
@@ -222,72 +223,74 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
 
   const helpPaneBody = (
     <ErrorBoundary>
-      <div className="flex flex-col h-full flex-1 overflow-hidden mr-[-4px]">
-        <div className="p-3 border-b flex justify-between items-center">
-          {selectedPanel === "ai" && agentsEnabled ? (
-            <Tabs
-              value={aiPanelTab}
-              onValueChange={(value) => {
-                if (value === "chat" || value === "agents") {
-                  setAiPanelTab(value);
-                }
-              }}
-            >
-              <TabsList>
-                <TabsTrigger
-                  value="chat"
-                  className="py-0.5 text-xs uppercase tracking-wide font-bold"
-                >
-                  Chat
-                </TabsTrigger>
-                <TabsTrigger
-                  value="agents"
-                  className="py-0.5 text-xs uppercase tracking-wide font-bold"
-                >
-                  Agents
-                </TabsTrigger>
-              </TabsList>
-            </Tabs>
-          ) : (
-            <span className="text-sm text-(--slate-11) uppercase tracking-wide font-semibold flex-1">
-              {selectedPanel}
-            </span>
-          )}
-          <Button
-            data-testid="close-helper-pane"
-            className="m-0"
-            size="xs"
-            variant="text"
-            onClick={() => setIsSidebarOpen(false)}
-          >
-            <XIcon className="w-4 h-4" />
-          </Button>
-        </div>
-        <Suspense>
-          <TooltipProvider>
-            {selectedPanel === "files" && <LazyFileExplorerPanel />}
-            {selectedPanel === "variables" && <LazySessionPanel />}
-            {selectedPanel === "dependencies" && <LazyDependencyGraphPanel />}
-            {selectedPanel === "packages" && <LazyPackagesPanel />}
-            {selectedPanel === "outline" && <LazyOutlinePanel />}
-            {selectedPanel === "documentation" && <LazyDocumentationPanel />}
-            {selectedPanel === "snippets" && <LazySnippetsPanel />}
-            {selectedPanel === "ai" && renderAiPanel()}
-            {selectedPanel === "errors" && <LazyErrorsPanel />}
-            {selectedPanel === "scratchpad" && <LazyScratchpadPanel />}
-            {selectedPanel === "tracing" && <LazyTracingPanel />}
-            {selectedPanel === "secrets" && <LazySecretsPanel />}
-            {selectedPanel === "logs" && <LazyLogsPanel />}
-            {selectedPanel === "terminal" && (
-              <LazyTerminal
-                visible={isSidebarOpen}
-                onClose={() => setIsSidebarOpen(false)}
-              />
+      <PanelSectionProvider value="sidebar">
+        <div className="flex flex-col h-full flex-1 overflow-hidden mr-[-4px]">
+          <div className="p-3 border-b flex justify-between items-center">
+            {selectedPanel === "ai" && agentsEnabled ? (
+              <Tabs
+                value={aiPanelTab}
+                onValueChange={(value) => {
+                  if (value === "chat" || value === "agents") {
+                    setAiPanelTab(value);
+                  }
+                }}
+              >
+                <TabsList>
+                  <TabsTrigger
+                    value="chat"
+                    className="py-0.5 text-xs uppercase tracking-wide font-bold"
+                  >
+                    Chat
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="agents"
+                    className="py-0.5 text-xs uppercase tracking-wide font-bold"
+                  >
+                    Agents
+                  </TabsTrigger>
+                </TabsList>
+              </Tabs>
+            ) : (
+              <span className="text-sm text-(--slate-11) uppercase tracking-wide font-semibold flex-1">
+                {selectedPanel}
+              </span>
             )}
-            {selectedPanel === "cache" && <LazyCachePanel />}
-          </TooltipProvider>
-        </Suspense>
-      </div>
+            <Button
+              data-testid="close-helper-pane"
+              className="m-0"
+              size="xs"
+              variant="text"
+              onClick={() => setIsSidebarOpen(false)}
+            >
+              <XIcon className="w-4 h-4" />
+            </Button>
+          </div>
+          <Suspense>
+            <TooltipProvider>
+              {selectedPanel === "files" && <LazyFileExplorerPanel />}
+              {selectedPanel === "variables" && <LazySessionPanel />}
+              {selectedPanel === "dependencies" && <LazyDependencyGraphPanel />}
+              {selectedPanel === "packages" && <LazyPackagesPanel />}
+              {selectedPanel === "outline" && <LazyOutlinePanel />}
+              {selectedPanel === "documentation" && <LazyDocumentationPanel />}
+              {selectedPanel === "snippets" && <LazySnippetsPanel />}
+              {selectedPanel === "ai" && renderAiPanel()}
+              {selectedPanel === "errors" && <LazyErrorsPanel />}
+              {selectedPanel === "scratchpad" && <LazyScratchpadPanel />}
+              {selectedPanel === "tracing" && <LazyTracingPanel />}
+              {selectedPanel === "secrets" && <LazySecretsPanel />}
+              {selectedPanel === "logs" && <LazyLogsPanel />}
+              {selectedPanel === "terminal" && (
+                <LazyTerminal
+                  visible={isSidebarOpen}
+                  onClose={() => setIsSidebarOpen(false)}
+                />
+              )}
+              {selectedPanel === "cache" && <LazyCachePanel />}
+            </TooltipProvider>
+          </Suspense>
+        </div>
+      </PanelSectionProvider>
     </ErrorBoundary>
   );
 
@@ -409,37 +412,47 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
         </div>
         {/* Panel content */}
         <Suspense fallback={<div />}>
-          <div className="flex-1 overflow-hidden">
-            {selectedDeveloperPanelTab === "files" && <LazyFileExplorerPanel />}
-            {selectedDeveloperPanelTab === "variables" && <LazySessionPanel />}
-            {selectedDeveloperPanelTab === "dependencies" && (
-              <LazyDependencyGraphPanel />
-            )}
-            {selectedDeveloperPanelTab === "packages" && <LazyPackagesPanel />}
-            {selectedDeveloperPanelTab === "outline" && <LazyOutlinePanel />}
-            {selectedDeveloperPanelTab === "documentation" && (
-              <LazyDocumentationPanel />
-            )}
-            {selectedDeveloperPanelTab === "snippets" && <LazySnippetsPanel />}
-            {selectedDeveloperPanelTab === "ai" && renderAiPanel()}
-            {selectedDeveloperPanelTab === "errors" && <LazyErrorsPanel />}
-            {selectedDeveloperPanelTab === "scratchpad" && (
-              <LazyScratchpadPanel />
-            )}
-            {selectedDeveloperPanelTab === "tracing" && <LazyTracingPanel />}
-            {selectedDeveloperPanelTab === "secrets" && <LazySecretsPanel />}
-            {selectedDeveloperPanelTab === "logs" && <LazyLogsPanel />}
-            {/* LazyMount needed for Terminal to avoid spurious connection */}
-            {selectedDeveloperPanelTab === "terminal" && (
-              <LazyMount isOpen={isDeveloperPanelOpen}>
-                <LazyTerminal
-                  visible={isDeveloperPanelOpen}
-                  onClose={() => setIsDeveloperPanelOpen(false)}
-                />
-              </LazyMount>
-            )}
-            {selectedDeveloperPanelTab === "cache" && <LazyCachePanel />}
-          </div>
+          <PanelSectionProvider value="developer-panel">
+            <div className="flex-1 overflow-hidden">
+              {selectedDeveloperPanelTab === "files" && (
+                <LazyFileExplorerPanel />
+              )}
+              {selectedDeveloperPanelTab === "variables" && (
+                <LazySessionPanel />
+              )}
+              {selectedDeveloperPanelTab === "dependencies" && (
+                <LazyDependencyGraphPanel />
+              )}
+              {selectedDeveloperPanelTab === "packages" && (
+                <LazyPackagesPanel />
+              )}
+              {selectedDeveloperPanelTab === "outline" && <LazyOutlinePanel />}
+              {selectedDeveloperPanelTab === "documentation" && (
+                <LazyDocumentationPanel />
+              )}
+              {selectedDeveloperPanelTab === "snippets" && (
+                <LazySnippetsPanel />
+              )}
+              {selectedDeveloperPanelTab === "ai" && renderAiPanel()}
+              {selectedDeveloperPanelTab === "errors" && <LazyErrorsPanel />}
+              {selectedDeveloperPanelTab === "scratchpad" && (
+                <LazyScratchpadPanel />
+              )}
+              {selectedDeveloperPanelTab === "tracing" && <LazyTracingPanel />}
+              {selectedDeveloperPanelTab === "secrets" && <LazySecretsPanel />}
+              {selectedDeveloperPanelTab === "logs" && <LazyLogsPanel />}
+              {/* LazyMount needed for Terminal to avoid spurious connection */}
+              {selectedDeveloperPanelTab === "terminal" && (
+                <LazyMount isOpen={isDeveloperPanelOpen}>
+                  <LazyTerminal
+                    visible={isDeveloperPanelOpen}
+                    onClose={() => setIsDeveloperPanelOpen(false)}
+                  />
+                </LazyMount>
+              )}
+              {selectedDeveloperPanelTab === "cache" && <LazyCachePanel />}
+            </div>
+          </PanelSectionProvider>
         </Suspense>
       </div>
     </Panel>
