@@ -156,6 +156,10 @@
     }
   }
 
+  &.disabled:hover {
+    border-color: var(--gray-6);
+  }
+
   /* Error styles for Cell, less precedence than needs run */
   &.has-error:not(.needs-run),
   &.error-outline {
@@ -284,6 +288,18 @@
 
 .dark .marimo-cell {
   @apply border-border;
+
+  &:hover {
+    border: 1px solid var(--gray-9);
+  }
+
+  &.needs-run:hover {
+    @apply border-action-foreground/30 outline-action-foreground/30;
+  }
+
+  &.has-error:hover {
+    @apply border-error/30 outline-error/30;
+  }
 
   &.borderless {
     border-color: transparent;
