@@ -17,6 +17,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { VariableTable } from "@/components/variables/variables-table";
 import { useCellIds } from "@/core/cells/cells";
+import { datasetTablesAtom } from "@/core/datasets/state";
 import { useVariables } from "@/core/variables/state";
 import { jotaiJsonStorage } from "@/utils/storage/jotai";
 
@@ -24,39 +25,42 @@ type OpenSections = "variables" | "datasources";
 
 interface SessionPanelState {
   openSections: OpenSections[];
-  accordionTouched: boolean;
+  hasUserInteracted: boolean;
 }
 
 const sessionPanelAtom = atomWithStorage<SessionPanelState>(
   "marimo:session-panel:state",
-  { openSections: ["variables"], accordionTouched: false },
+  { openSections: ["variables"], hasUserInteracted: false },
   jotaiJsonStorage,
 );
 
 const SessionPanel: React.FC = () => {
   const variables = useVariables();
   const cellIds = useCellIds();
+  const tables = useAtomValue(datasetTablesAtom);
   const dataConnections = useAtomValue(connectionsAtom);
   const [state, setState] = useAtom(sessionPanelAtom);
 
-  // If accordion hasn't been touched and there are connections, show datasources open
+  const datasourcesCount = tables.length + dataConnections.length;
+
+  // If the user hasn't interacted with the accordion and there are connections, show datasources open
   const openSections =
-    !state.accordionTouched && dataConnections.length > 0
-      ? [...new Set([...state.openSections, "datasources" as const])]
+    !state.hasUserInteracted && datasourcesCount > 0
+      ? [...new Set([...state.openSections, "datasources"])]
       : state.openSections;
 
   const handleValueChange = useCallback(
-    (value: string[]) => {
+    (value: OpenSections[]) => {
       setState({
-        openSections: value as OpenSections[],
-        accordionTouched: true,
+        openSections: value,
+        hasUserInteracted: true,
       });
     },
     [setState],
   );
 
   const isDatasourcesOpen = openSections.includes("datasources");
-  const showDatasourcesBadge = !isDatasourcesOpen && dataConnections.length > 0;
+  const showDatasourcesBadge = !isDatasourcesOpen && datasourcesCount > 0;
 
   return (
     <Accordion
@@ -75,7 +79,7 @@ const SessionPanel: React.FC = () => {
                 variant="secondary"
                 className="ml-1 px-1.5 py-0 mb-px text-[10px]"
               >
-                {dataConnections.length}
+                {datasourcesCount}
               </Badge>
             )}
           </span>
