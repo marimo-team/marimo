@@ -107,7 +107,7 @@ export const Sidebar: React.FC = () => {
         onAction={(panel) => toggleApplication(panel.type)}
         renderItem={(panel) => (
           <SidebarItem
-            tooltip={panel.label}
+            tooltip={panel.tooltip}
             selected={selectedPanel === panel.type}
           >
             {renderIcon(panel)}
