@@ -196,9 +196,17 @@ class PathValidator:
                         directory, Path.cwd()
                     )
                 )
+
+                # If it was an absolute directory, then the base is that directory
+                # otherwise, the base is the current working directory
+                if directory.is_absolute():
+                    filepath_base = directory
+                else:
+                    filepath_base = Path.cwd()
+
                 filepath_normalized = (
                     self._normalize_path_without_resolving_symlinks(
-                        filepath, directory_normalized
+                        filepath, filepath_base
                     )
                 )
                 self._check_containment(
