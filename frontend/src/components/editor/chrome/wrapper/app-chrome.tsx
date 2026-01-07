@@ -414,114 +414,39 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
           </Button>
         </div>
         {/* Panel content */}
-        <div className="flex-1 overflow-hidden">
-          {selectedDeveloperPanelTab === "files" && (
-            <LazyMount isOpen={isDeveloperPanelOpen}>
-              <Suspense fallback={<div />}>
-                <LazyFileExplorerPanel />
-              </Suspense>
-            </LazyMount>
-          )}
-          {selectedDeveloperPanelTab === "variables" && (
-            <LazyMount isOpen={isDeveloperPanelOpen}>
-              <Suspense fallback={<div />}>
-                <LazySessionPanel />
-              </Suspense>
-            </LazyMount>
-          )}
-          {selectedDeveloperPanelTab === "dependencies" && (
-            <LazyMount isOpen={isDeveloperPanelOpen}>
-              <Suspense fallback={<div />}>
-                <LazyDependencyGraphPanel />
-              </Suspense>
-            </LazyMount>
-          )}
-          {selectedDeveloperPanelTab === "packages" && (
-            <LazyMount isOpen={isDeveloperPanelOpen}>
-              <Suspense fallback={<div />}>
-                <LazyPackagesPanel />
-              </Suspense>
-            </LazyMount>
-          )}
-          {selectedDeveloperPanelTab === "outline" && (
-            <LazyMount isOpen={isDeveloperPanelOpen}>
-              <Suspense fallback={<div />}>
-                <LazyOutlinePanel />
-              </Suspense>
-            </LazyMount>
-          )}
-          {selectedDeveloperPanelTab === "documentation" && (
-            <LazyMount isOpen={isDeveloperPanelOpen}>
-              <Suspense fallback={<div />}>
-                <LazyDocumentationPanel />
-              </Suspense>
-            </LazyMount>
-          )}
-          {selectedDeveloperPanelTab === "snippets" && (
-            <LazyMount isOpen={isDeveloperPanelOpen}>
-              <Suspense fallback={<div />}>
-                <LazySnippetsPanel />
-              </Suspense>
-            </LazyMount>
-          )}
-          {selectedDeveloperPanelTab === "ai" && (
-            <LazyMount isOpen={isDeveloperPanelOpen}>
-              <Suspense fallback={<div />}>{renderAiPanel()}</Suspense>
-            </LazyMount>
-          )}
-          {selectedDeveloperPanelTab === "errors" && (
-            <LazyMount isOpen={isDeveloperPanelOpen}>
-              <Suspense fallback={<div />}>
-                <LazyErrorsPanel />
-              </Suspense>
-            </LazyMount>
-          )}
-          {selectedDeveloperPanelTab === "scratchpad" && (
-            <LazyMount isOpen={isDeveloperPanelOpen}>
-              <Suspense fallback={<div />}>
-                <LazyScratchpadPanel />
-              </Suspense>
-            </LazyMount>
-          )}
-          {selectedDeveloperPanelTab === "tracing" && (
-            <LazyMount isOpen={isDeveloperPanelOpen}>
-              <Suspense fallback={<div />}>
-                <LazyTracingPanel />
-              </Suspense>
-            </LazyMount>
-          )}
-          {selectedDeveloperPanelTab === "secrets" && (
-            <LazyMount isOpen={isDeveloperPanelOpen}>
-              <Suspense fallback={<div />}>
-                <LazySecretsPanel />
-              </Suspense>
-            </LazyMount>
-          )}
-          {selectedDeveloperPanelTab === "logs" && (
-            <LazyMount isOpen={isDeveloperPanelOpen}>
-              <Suspense fallback={<div />}>
-                <LazyLogsPanel />
-              </Suspense>
-            </LazyMount>
-          )}
-          {selectedDeveloperPanelTab === "terminal" && (
-            <LazyMount isOpen={isDeveloperPanelOpen}>
-              <Suspense fallback={<div />}>
+        <Suspense fallback={<div />}>
+          <div className="flex-1 overflow-hidden">
+            {selectedDeveloperPanelTab === "files" && <LazyFileExplorerPanel />}
+            {selectedDeveloperPanelTab === "variables" && <LazySessionPanel />}
+            {selectedDeveloperPanelTab === "dependencies" && (
+              <LazyDependencyGraphPanel />
+            )}
+            {selectedDeveloperPanelTab === "packages" && <LazyPackagesPanel />}
+            {selectedDeveloperPanelTab === "outline" && <LazyOutlinePanel />}
+            {selectedDeveloperPanelTab === "documentation" && (
+              <LazyDocumentationPanel />
+            )}
+            {selectedDeveloperPanelTab === "snippets" && <LazySnippetsPanel />}
+            {selectedDeveloperPanelTab === "ai" && renderAiPanel()}
+            {selectedDeveloperPanelTab === "errors" && <LazyErrorsPanel />}
+            {selectedDeveloperPanelTab === "scratchpad" && (
+              <LazyScratchpadPanel />
+            )}
+            {selectedDeveloperPanelTab === "tracing" && <LazyTracingPanel />}
+            {selectedDeveloperPanelTab === "secrets" && <LazySecretsPanel />}
+            {selectedDeveloperPanelTab === "logs" && <LazyLogsPanel />}
+            {/* LazyMount needed for Terminal to avoid spurious connection */}
+            {selectedDeveloperPanelTab === "terminal" && (
+              <LazyMount isOpen={isDeveloperPanelOpen}>
                 <LazyTerminal
                   visible={isDeveloperPanelOpen}
                   onClose={() => setIsDeveloperPanelOpen(false)}
                 />
-              </Suspense>
-            </LazyMount>
-          )}
-          {selectedDeveloperPanelTab === "cache" && (
-            <LazyMount isOpen={isDeveloperPanelOpen}>
-              <Suspense fallback={<div />}>
-                <LazyCachePanel />
-              </Suspense>
-            </LazyMount>
-          )}
-        </div>
+              </LazyMount>
+            )}
+            {selectedDeveloperPanelTab === "cache" && <LazyCachePanel />}
+          </div>
+        </Suspense>
       </div>
     </Panel>
   );
