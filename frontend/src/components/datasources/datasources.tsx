@@ -75,6 +75,7 @@ import { isSchemaless, sqlCode } from "./utils";
 // Indentation classes for the datasource tree hierarchy.
 const INDENT = {
   engineEmpty: "pl-3",
+  engine: "pl-3 pr-2",
   database: "pl-4",
   schemaEmpty: "pl-8",
   schema: "pl-7",
@@ -241,7 +242,7 @@ export const DataSources: React.FC = () => {
         ))}
 
         {dataConnections.length > 0 && tables.length > 0 && (
-          <DatasourceLabel>
+          <DatasourceLabel className={INDENT.engine}>
             <PythonIcon className="h-4 w-4 text-muted-foreground" />
             <span className="text-xs">Python</span>
           </DatasourceLabel>
@@ -277,7 +278,7 @@ const Engine: React.FC<{
 
   return (
     <>
-      <DatasourceLabel>
+      <DatasourceLabel className={INDENT.engine}>
         <DatabaseLogo
           className="h-4 w-4 text-muted-foreground"
           name={connection.dialect}
