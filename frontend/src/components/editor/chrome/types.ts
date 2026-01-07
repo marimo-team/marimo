@@ -54,8 +54,6 @@ export interface PanelDescriptor {
   tooltip: string;
   /** If true, the panel is completely unavailable */
   hidden?: boolean;
-  /** If true, the panel is available but not shown by default */
-  defaultHidden?: boolean;
   /** Which section this panel belongs to by default */
   defaultSection: PanelSection;
 }
@@ -99,8 +97,7 @@ export const PANELS: PanelDescriptor[] = [
     Icon: SquareDashedBottomCodeIcon,
     label: "Snippets",
     tooltip: "Snippets",
-    defaultSection: "sidebar",
-    defaultHidden: true,
+    defaultSection: "developer-panel",
   },
   {
     type: "outline",

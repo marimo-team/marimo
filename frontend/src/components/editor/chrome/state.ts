@@ -27,11 +27,10 @@ export interface PanelLayout {
 
 const DEFAULT_PANEL_LAYOUT: PanelLayout = {
   sidebar: PANELS.filter(
-    (p) => !p.hidden && !p.defaultHidden && p.defaultSection === "sidebar",
+    (p) => !p.hidden && p.defaultSection === "sidebar",
   ).map((p) => p.type),
   developerPanel: PANELS.filter(
-    (p) =>
-      !p.hidden && !p.defaultHidden && p.defaultSection === "developer-panel",
+    (p) => !p.hidden && p.defaultSection === "developer-panel",
   ).map((p) => p.type),
 };
 

@@ -22,7 +22,6 @@ import { ReorderableList } from "@/components/ui/reorderable-list";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LazyMount } from "@/components/utils/lazy-mount";
 import { cellErrorCount } from "@/core/cells/cells";
-import { snippetsEnabledAtom } from "@/core/config/config";
 import { getFeatureFlag } from "@/core/config/feature-flag";
 import { cn } from "@/utils/cn";
 import { ErrorBoundary } from "../../boundary/ErrorBoundary";
@@ -81,7 +80,6 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
   const { aiPanelTab, setAiPanelTab } = useAiPanelTab();
   const errorCount = useAtomValue(cellErrorCount);
   const [panelLayout, setPanelLayout] = useAtom(panelLayoutAtom);
-  const snippetsEnabled = useAtomValue(snippetsEnabledAtom);
 
   // Convert current developer panel items to PanelDescriptors
   const devPanelItems = useMemo(() => {
@@ -133,13 +131,9 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
       if (sidebarIds.has(p.type)) {
         return false;
       }
-      // Show defaultHidden panels only if enabled via config
-      if (p.defaultHidden && p.type === "snippets" && !snippetsEnabled) {
-        return false;
-      }
       return true;
     });
-  }, [panelLayout.sidebar, snippetsEnabled]);
+  }, [panelLayout.sidebar]);
 
   // sync sidebar
   useEffect(() => {
