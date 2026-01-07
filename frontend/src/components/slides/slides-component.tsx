@@ -21,6 +21,7 @@ interface SlidesComponentProps {
   forceKeyboardNavigation?: boolean;
   index?: string | null;
   height?: string | number | null;
+  wrapAround?: boolean;
 }
 
 const SlidesComponent = ({
@@ -28,6 +29,7 @@ const SlidesComponent = ({
   children,
   height,
   forceKeyboardNavigation = false,
+  wrapAround = false,
 }: PropsWithChildren<SlidesComponentProps>): JSX.Element => {
   const el = React.useRef<SwiperRef>(null);
   const [isFullscreen, setIsFullscreen] = React.useState(false);
@@ -78,6 +80,7 @@ const SlidesComponent = ({
       // Instant swipes, which make sequences of slides
       // that overlay content more legible
       speed={1}
+      loop={wrapAround}
     >
       {React.Children.map(children, (child, index) => {
         if (child == null) {
