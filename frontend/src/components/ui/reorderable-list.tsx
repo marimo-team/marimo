@@ -290,19 +290,19 @@ export const ReorderableList = <T extends object>({
     <ListBox
       aria-label={ariaLabel}
       selectionMode="none"
-      items={value}
       dragAndDropHooks={dragAndDropHooks}
       className={className}
       onAction={handleAction}
     >
-      {(item) => (
+      {value.map((item) => (
         <ListBoxItem
+          key={getKey(item)}
           id={getKey(item)}
           className="active:cursor-grabbing data-[dragging]:opacity-60 outline-none"
         >
           {renderItem(item)}
         </ListBoxItem>
-      )}
+      ))}
     </ListBox>
   );
 
