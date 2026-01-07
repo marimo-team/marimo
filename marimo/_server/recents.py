@@ -86,10 +86,10 @@ class RecentFilesManager:
         )
         files: list[MarimoFile] = []
 
-        base_dir = (directory or pathlib.Path.cwd()).resolve()
+        base_dir = directory or pathlib.Path.cwd()
         limited_files = state.files[: self.MAX_FILES]
         for file in limited_files:
-            file_path = pathlib.Path(file).resolve()
+            file_path = pathlib.Path(file)
             if _is_tmp_file(file) or not file_path.is_relative_to(base_dir):
                 continue
             if not file_path.exists():
