@@ -15,7 +15,6 @@ import http from "node:http";
 import fs from "node:fs";
 import path from "node:path";
 
-const PYODIDE_VERSION = "0.27.7";
 
 /**
  * Start a CORS-enabled HTTP server to serve the wheel file
@@ -91,7 +90,6 @@ async function main() {
   }
 
   console.log(`Testing wheel: ${absoluteWheelPath}`);
-  console.log(`Pyodide version: ${PYODIDE_VERSION}`);
   console.log("");
 
   let serverInfo = null;
@@ -106,7 +104,8 @@ async function main() {
 
     // Step 2: Load Pyodide
     console.log("Step 2: Loading Pyodide...");
-    const { loadPyodide } = await import("pyodide");
+    const { loadPyodide, version } = await import("pyodide");
+    console.log(`Pyodide version: ${version}`);
 
     // In Node.js, loadPyodide uses the bundled files from the npm package
     // Load without packages first, then add packages separately
