@@ -530,6 +530,17 @@ def _find_table_location(
     raise AssertionError(f"Did not find table {table_name!r} in catalog")
 
 
+def _table_summary(table: DataTable) -> dict[str, Any]:
+    """Return a stable representation of a DataTable for assertions."""
+    return {
+        "name": table.name,
+        "type": table.type,
+        "num_columns": table.num_columns,
+        "column_names": [c.name for c in table.columns],
+        "column_types": {c.name: c.type for c in table.columns},
+    }
+
+
 def test_adbc_sqlite_driver_catalog_interface() -> None:
     """Smoke test marimo ADBC catalog interface against the real SQLite driver."""
     pytest.importorskip(
@@ -636,7 +647,13 @@ def test_adbc_sqlite_driver_catalog_interface() -> None:
             and schema.name == schema_name
             and t.name == "t"
         )
-        assert t_no_details.columns == []
+        assert _table_summary(t_no_details) == {
+            "name": "t",
+            "type": "table",
+            "num_columns": None,
+            "column_names": [],
+            "column_types": {},
+        }
         t_types_no_details = next(
             t
             for db in dbs
@@ -646,7 +663,13 @@ def test_adbc_sqlite_driver_catalog_interface() -> None:
             and schema.name == schema_name_types
             and t.name == "t_types"
         )
-        assert t_types_no_details.columns == []
+        assert _table_summary(t_types_no_details) == {
+            "name": "t_types",
+            "type": "table",
+            "num_columns": None,
+            "column_names": [],
+            "column_types": {},
+        }
 
         # With details enabled, columns should be populated.
         dbs = engine.get_databases(
@@ -663,7 +686,21 @@ def test_adbc_sqlite_driver_catalog_interface() -> None:
             and schema.name == schema_name
             and t.name == "t"
         )
-        assert {c.name for c in t_with_details.columns} == {"id", "name"}
+        t_summary = _table_summary(t_with_details)
+        assert {
+            "name": t_summary["name"],
+            "type": t_summary["type"],
+            "num_columns": t_summary["num_columns"],
+            "column_names": t_summary["column_names"],
+        } == {
+            "name": "t",
+            "type": "table",
+            "num_columns": 2,
+            "column_names": ["id", "name"],
+        }
+        assert t_summary["column_types"]["id"] == "integer"
+        # SQLite/driver-specific: "name TEXT" may be mapped inconsistently.
+        assert t_summary["column_types"]["name"] in ("string", "integer")
 
         t_types_with_details = next(
             t
@@ -674,7 +711,11 @@ def test_adbc_sqlite_driver_catalog_interface() -> None:
             and schema.name == schema_name_types
             and t.name == "t_types"
         )
-        assert {c.name for c in t_types_with_details.columns} == {
+        types_summary = _table_summary(t_types_with_details)
+        assert types_summary["name"] == "t_types"
+        assert types_summary["type"] == "table"
+        assert types_summary["num_columns"] == 9
+        assert set(types_summary["column_names"]) == {
             "int_col",
             "real_col",
             "text_col",
@@ -687,7 +728,7 @@ def test_adbc_sqlite_driver_catalog_interface() -> None:
         }
 
         # Verify that the driver/schema mapping yields sensible marimo DataTypes.
-        col_types = {c.name: c.type for c in t_types_with_details.columns}
+        col_types = cast(dict[str, str], types_summary["column_types"])
         assert col_types["int_col"] == "integer"
         assert col_types["real_col"] == "number"
         assert col_types["text_col"] == "string"
