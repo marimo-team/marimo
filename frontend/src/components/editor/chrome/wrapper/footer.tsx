@@ -18,13 +18,16 @@ import {
 } from "./footer-items/backend-status";
 import { CopilotStatusIcon } from "./footer-items/copilot-status";
 import { MachineStats } from "./footer-items/machine-stats";
-import { MinimapStatusIcon } from "./footer-items/minimap-status";
 import { RTCStatus } from "./footer-items/rtc-status";
 import { RuntimeSettings } from "./footer-items/runtime-settings";
+import { useSetDependencyPanelTab } from "./useDependencyPanelTab";
 
 export const Footer: React.FC = () => {
-  const { isDeveloperPanelOpen } = useChromeState();
-  const { toggleDeveloperPanel } = useChromeActions();
+  const { isDeveloperPanelOpen, isSidebarOpen, selectedPanel } =
+    useChromeState();
+  const { toggleDeveloperPanel, openApplication, setIsSidebarOpen } =
+    useChromeActions();
+  const setDependencyPanelTab = useSetDependencyPanelTab();
 
   const errorCount = useAtomValue(cellErrorCount);
   const connectionStatus = useAtomValue(connectionStatusAtom);
@@ -44,6 +47,17 @@ export const Footer: React.FC = () => {
 
   useHotkey("global.togglePanel", () => {
     toggleDeveloperPanel();
+  });
+
+  useHotkey("global.toggleMinimap", () => {
+    // If already on dependencies panel with minimap tab, close the sidebar
+    if (isSidebarOpen && selectedPanel === "dependencies") {
+      setIsSidebarOpen(false);
+    } else {
+      // Open sidebar with dependencies panel and switch to minimap tab
+      openApplication("dependencies");
+      setDependencyPanelTab("minimap");
+    }
   });
 
   return (
@@ -92,7 +106,6 @@ export const Footer: React.FC = () => {
 
       <div className="flex items-center shrink-0 min-w-0">
         <MachineStats />
-        <MinimapStatusIcon />
         <AIStatusIcon />
         <CopilotStatusIcon />
         <RTCStatus />

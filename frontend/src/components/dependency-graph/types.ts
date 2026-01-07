@@ -2,7 +2,6 @@
 import type { CellId } from "@/core/cells/ids";
 
 export type LayoutDirection = "TB" | "LR";
-export type GraphLayoutView = LayoutDirection | "_minimap_";
 
 export type GraphSelection =
   | {

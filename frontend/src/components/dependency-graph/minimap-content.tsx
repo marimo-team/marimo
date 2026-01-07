@@ -1,9 +1,12 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { useAtom, useAtomValue } from "jotai";
-import { XIcon } from "lucide-react";
+import { useAtomValue } from "jotai";
 import * as React from "react";
-import { Button } from "@/components/ui/button";
+import {
+  type CellGraph,
+  cellGraphsAtom,
+  isVariableAffectedBySelectedCell,
+} from "@/components/editor/chrome/wrapper/minimap-state";
 import {
   useCellActions,
   useCellData,
@@ -13,14 +16,7 @@ import {
 import { cellFocusAtom, useCellFocusActions } from "@/core/cells/focus";
 import type { CellId } from "@/core/cells/ids";
 import { useVariables } from "@/core/variables/state";
-import { useHotkey } from "@/hooks/useHotkey";
 import { cn } from "@/utils/cn";
-import {
-  type CellGraph,
-  cellGraphsAtom,
-  isVariableAffectedBySelectedCell,
-  minimapOpenAtom,
-} from "./minimap-state";
 
 interface MinimapCellProps {
   cellId: CellId;
@@ -125,72 +121,6 @@ const MinimapCell: React.FC<MinimapCellProps> = (props) => {
       </svg>
     </button>
   );
-};
-
-const MinimapInternal: React.FC<{
-  open: boolean;
-  setOpen: (update: boolean) => void;
-}> = ({ open, setOpen }) => {
-  const cellIds = useCellIds();
-  const cellPositions: Record<CellId, number> = Object.fromEntries(
-    cellIds.inOrderIds.map((id, idx) => [id, idx]),
-  );
-  const columnBoundaries: number[] = [];
-  let cellCount = 0;
-  for (const [idx, column] of cellIds.getColumns().entries()) {
-    if (idx > 0) {
-      columnBoundaries.push(cellCount);
-    }
-    cellCount += column.inOrderIds.length;
-  }
-  return (
-    <div
-      className={cn(
-        "fixed top-14 right-5 z-50 bg-background/95 backdrop-blur-sm supports-backdrop-filter:bg-background/60 rounded-lg border shadow-lg w-64 flex flex-col max-h-[58vh]",
-        "motion-safe:transition-transform motion-safe:duration-200 motion-safe:ease-in-out",
-        open ? "translate-x-0" : "translate-x-[calc(100%+20px)]",
-      )}
-    >
-      <div className="flex items-center justify-between p-4 border-b">
-        <span className="text-sm font-semibold">Minimap</span>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-6 w-6"
-          onClick={() => setOpen(false)}
-        >
-          <XIcon className="h-4 w-4" />
-        </Button>
-      </div>
-      <div className="overflow-y-auto overflow-x-hidden flex-1 scrollbar-none">
-        <div className="py-3 pl-3 pr-4 relative min-h-full">
-          {cellIds.inOrderIds.map((cellId, idx) => {
-            const isColumnBoundary = columnBoundaries.includes(idx);
-            return (
-              <React.Fragment key={cellId}>
-                {/* Subtle visual divider between nodes */}
-                {isColumnBoundary && (
-                  <div
-                    className="absolute left-5 w-[36px] h-px bg-(--gray-4) pointer-events-none"
-                    aria-hidden="true"
-                  />
-                )}
-                <MinimapCell cellId={cellId} cellPositions={cellPositions} />
-              </React.Fragment>
-            );
-          })}
-        </div>
-        {/* Invisible element to prevent SVG overflow from affecting scroll */}
-        <div className="h-0 overflow-hidden" aria-hidden="true" />
-      </div>
-    </div>
-  );
-};
-
-export const Minimap: React.FC = () => {
-  const [open, setOpen] = useAtom(minimapOpenAtom);
-  useHotkey("global.toggleMinimap", () => setOpen((prev) => !prev));
-  return <MinimapInternal open={open} setOpen={setOpen} />;
 };
 
 function codePreview(code: string): string | undefined {
@@ -443,3 +373,46 @@ function isNonReferenceableCell(graph: CellGraph): boolean {
     graph.descendants.size === 0
   );
 }
+
+/**
+ * Minimap content component for display in the dependencies panel.
+ * Shows a scrollable list of cells with dependency visualization.
+ */
+export const MinimapContent: React.FC = () => {
+  const cellIds = useCellIds();
+  const cellPositions: Record<CellId, number> = Object.fromEntries(
+    cellIds.inOrderIds.map((id, idx) => [id, idx]),
+  );
+  const columnBoundaries: number[] = [];
+  let cellCount = 0;
+  for (const [idx, column] of cellIds.getColumns().entries()) {
+    if (idx > 0) {
+      columnBoundaries.push(cellCount);
+    }
+    cellCount += column.inOrderIds.length;
+  }
+
+  return (
+    <div className="overflow-y-auto overflow-x-hidden flex-1 scrollbar-none h-full max-w-80">
+      <div className="py-3 pl-3 pr-4 relative min-h-full">
+        {cellIds.inOrderIds.map((cellId, idx) => {
+          const isColumnBoundary = columnBoundaries.includes(idx);
+          return (
+            <React.Fragment key={cellId}>
+              {/* Subtle visual divider between nodes */}
+              {isColumnBoundary && (
+                <div
+                  className="absolute left-5 w-[36px] h-px bg-(--gray-4) pointer-events-none"
+                  aria-hidden="true"
+                />
+              )}
+              <MinimapCell cellId={cellId} cellPositions={cellPositions} />
+            </React.Fragment>
+          );
+        })}
+      </div>
+      {/* Invisible element to prevent SVG overflow from affecting scroll */}
+      <div className="h-0 overflow-hidden" aria-hidden="true" />
+    </div>
+  );
+};
