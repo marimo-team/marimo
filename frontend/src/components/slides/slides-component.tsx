@@ -50,6 +50,10 @@ const SlidesComponent = ({
     });
   }, [isFullscreen]);
 
+  const modules = wrapAround // virtual is incompatible with loop
+    ? [Keyboard, Pagination, Zoom, Navigation]
+    : [Virtual, Keyboard, Pagination, Zoom, Navigation];
+
   return (
     <Swiper
       ref={el}
@@ -62,7 +66,7 @@ const SlidesComponent = ({
         height: isFullscreen ? "100%" : height || "550px",
       }}
       slidesPerView={1}
-      modules={[Virtual, Keyboard, Pagination, Zoom, Navigation]}
+      modules={modules}
       zoom={{
         maxRatio: 5,
       }}
@@ -76,7 +80,7 @@ const SlidesComponent = ({
       pagination={{
         clickable: true,
       }}
-      virtual={true}
+      virtual={!wrapAround} // virtual is incompatible with loop, turn off if loop is on
       // Instant swipes, which make sequences of slides
       // that overlay content more legible
       speed={1}
