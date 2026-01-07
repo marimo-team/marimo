@@ -261,20 +261,19 @@ class IPCKernelManagerImpl(KernelManager):
                 os.kill(self._process.pid, signal.SIGINT)
 
     def close_kernel(self) -> None:
-        if self._process is None:
-            return
+        if self._process is not None:
+            self.queue_manager.put_control_request(commands.StopKernelCommand())
+            self.queue_manager.close_queues()
 
-        self.queue_manager.put_control_request(commands.StopKernelCommand())
-        self.queue_manager.close_queues()
+            # Terminate process if still alive
+            if self._process.poll() is None:
+                self._process.terminate()
+                try:
+                    self._process.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    self._process.kill()
 
-        # Terminate process if still alive
-        if self._process.poll() is None:
-            self._process.terminate()
-            try:
-                self._process.wait(timeout=5)
-            except subprocess.TimeoutExpired:
-                self._process.kill()
-
+        # Always attempt cleanup, even if _process is None
         cleanup_sandbox_dir(self._sandbox_dir)
         self._sandbox_dir = None
 
