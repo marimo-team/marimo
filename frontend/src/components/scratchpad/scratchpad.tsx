@@ -12,6 +12,10 @@ import {
 import type React from "react";
 import { Suspense, useRef, useState } from "react";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
+import {
+  usePanelOrientation,
+  usePanelSection,
+} from "../editor/chrome/panels/panel-context";
 import useEvent from "react-use-event-hook";
 import { useCellActions, useNotebook } from "@/core/cells/cells";
 import { useLastFocusedCellId } from "@/core/cells/focus";
@@ -53,6 +57,8 @@ export const ScratchPad: React.FC = () => {
   const lastFocusedCellId = useLastFocusedCellId();
   const { createNewCell, updateCellCode } = useCellActions();
   const { sendRunScratchpad } = useRequestClient();
+  const orientation = usePanelOrientation();
+  const section = usePanelSection();
 
   const cellId = SCRATCH_CELL_ID;
   const cellRuntime = notebookState.cellRuntime[cellId];
@@ -223,13 +229,15 @@ export const ScratchPad: React.FC = () => {
     </div>
   );
 
+  const isVertical = orientation === "vertical";
+
   return (
     <div
       className="flex flex-col h-full overflow-hidden"
       id={HTMLCellId.create(cellId)}
     >
-      <PanelGroup direction="horizontal" className="h-full">
-        {/* Left side: toolbar + editor */}
+      <PanelGroup key={section} direction={orientation} className="h-full">
+        {/* Editor panel */}
         <Panel defaultSize={40} minSize={20} maxSize={70}>
           <div className="h-full flex flex-col overflow-hidden relative">
             {renderToolbar()}
@@ -257,8 +265,13 @@ export const ScratchPad: React.FC = () => {
             {renderHistory()}
           </div>
         </Panel>
-        <PanelResizeHandle className="w-1 bg-border hover:bg-primary/50 transition-colors" />
-        {/* Right side: outputs */}
+        <PanelResizeHandle
+          className={cn(
+            "bg-border hover:bg-primary/50 transition-colors",
+            isVertical ? "h-1" : "w-1",
+          )}
+        />
+        {/* Output panel */}
         <Panel defaultSize={60} minSize={20}>
           <div className="h-full flex flex-col divide-y overflow-hidden">
             <div className="flex-1 overflow-auto">
