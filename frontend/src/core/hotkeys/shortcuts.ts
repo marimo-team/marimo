@@ -1,5 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
+import type { KeyBinding } from "@codemirror/view";
 import { Logger } from "@/utils/Logger";
 import { NOT_SET } from "./hotkeys";
 
@@ -162,7 +163,7 @@ export function resolvePlatform(): Platform {
  * Note: If the binding already contains Ctrl (e.g., Cmd-Ctrl-Enter),
  * no duplication is done to avoid producing invalid Ctrl-Ctrl-key combos.
  */
-export function duplicateWithCtrlModifier<T extends { key?: string }>(
+export function duplicateWithCtrlModifier<T extends KeyBinding>(
   binding: T,
 ): T[] {
   // Skip if not macOS, not a Cmd binding, or already has Ctrl
