@@ -9,6 +9,7 @@ from marimo._data.models import (
     Database,
     DataTable,
     DataTableColumn,
+    DataTableType,
     DataType,
     Schema,
 )
@@ -78,7 +79,7 @@ class AdbcDbApiConnection(Protocol):
     def adbc_get_info(self) -> dict[str | int, Any]: ...
 
 
-def _resolve_table_type(table_type: str) -> Literal["table", "view"]:
+def _resolve_table_type(table_type: str) -> DataTableType:
     if "view" in table_type.lower():
         return "view"
     return "table"
@@ -323,12 +324,7 @@ class AdbcConnectionCatalog:
     ) -> Optional[DataTable]:
         _ = database_name
         try:
-            adbc_get_table_schema = getattr(
-                self._adbc_connection, "adbc_get_table_schema", None
-            )
-            if not callable(adbc_get_table_schema):
-                return None
-            schema = adbc_get_table_schema(
+            schema = self._adbc_connection.adbc_get_table_schema(
                 table_name, db_schema_filter=schema_name or None
             )
         except Exception:
@@ -373,6 +369,18 @@ class AdbcConnectionCatalog:
 
 class AdbcDBAPIEngine(SQLConnection[AdbcDbApiConnection]):
     """ADBC DB-API wrapper connection."""
+
+    def __init__(
+        self,
+        connection: AdbcDbApiConnection,
+        engine_name: Optional[VariableName] = None,
+    ) -> None:
+        super().__init__(connection, engine_name)
+        self._catalog = AdbcConnectionCatalog(
+            adbc_connection=self._connection,
+            dialect=self.dialect,
+            engine_name=self._engine_name,
+        )
 
     @property
     def source(self) -> str:
@@ -443,26 +451,11 @@ class AdbcDBAPIEngine(SQLConnection[AdbcDbApiConnection]):
             auto_discover_columns=False,
         )
 
-    def _catalog(self) -> Optional[AdbcConnectionCatalog]:
-        if not callable(getattr(self._connection, "adbc_get_objects", None)):
-            return None
-        if not callable(
-            getattr(self._connection, "adbc_get_table_schema", None)
-        ):
-            return None
-        return AdbcConnectionCatalog(
-            adbc_connection=self._connection,
-            dialect=self.dialect,
-            engine_name=self._engine_name,
-        )
-
     def get_default_database(self) -> Optional[str]:
-        catalog = self._catalog()
-        return None if catalog is None else catalog.get_default_database()
+        return self._catalog.get_default_database()
 
     def get_default_schema(self) -> Optional[str]:
-        catalog = self._catalog()
-        return None if catalog is None else catalog.get_default_schema()
+        return self._catalog.get_default_schema()
 
     def get_databases(
         self,
@@ -471,10 +464,7 @@ class AdbcDBAPIEngine(SQLConnection[AdbcDbApiConnection]):
         include_tables: Union[bool, Literal["auto"]],
         include_table_details: Union[bool, Literal["auto"]],
     ) -> list[Database]:
-        catalog = self._catalog()
-        if catalog is None:
-            return []
-        return catalog.get_databases(
+        return self._catalog.get_databases(
             include_schemas=include_schemas,
             include_tables=include_tables,
             include_table_details=include_table_details,
@@ -483,10 +473,7 @@ class AdbcDBAPIEngine(SQLConnection[AdbcDbApiConnection]):
     def get_tables_in_schema(
         self, *, schema: str, database: str, include_table_details: bool
     ) -> list[DataTable]:
-        catalog = self._catalog()
-        if catalog is None:
-            return []
-        return catalog.get_tables_in_schema(
+        return self._catalog.get_tables_in_schema(
             schema=schema,
             database=database,
             include_table_details=include_table_details,
@@ -495,10 +482,7 @@ class AdbcDBAPIEngine(SQLConnection[AdbcDbApiConnection]):
     def get_table_details(
         self, *, table_name: str, schema_name: str, database_name: str
     ) -> Optional[DataTable]:
-        catalog = self._catalog()
-        if catalog is None:
-            return None
-        return catalog.get_table_details(
+        return self._catalog.get_table_details(
             table_name=table_name,
             schema_name=schema_name,
             database_name=database_name,
@@ -525,12 +509,6 @@ class AdbcDBAPIEngine(SQLConnection[AdbcDbApiConnection]):
 
             arrow_table = cursor.fetch_arrow_table()
 
-            if sql_output_format == "native":
-                # ADBC is Arrow-native: when users request native output, return
-                # the Arrow table directly (no pandas/polars conversion).
-                _try_commit()
-                return arrow_table
-
             def convert_to_polars() -> pl.DataFrame | pl.Series:
                 import polars as pl
 
@@ -543,6 +521,7 @@ class AdbcDBAPIEngine(SQLConnection[AdbcDbApiConnection]):
                 sql_output_format=sql_output_format,
                 to_polars=convert_to_polars,
                 to_pandas=convert_to_pandas,
+                to_native=lambda: arrow_table,
             )
             _try_commit()
             return result
