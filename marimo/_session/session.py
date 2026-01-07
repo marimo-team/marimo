@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING, Optional
 from uuid import uuid4
 
 from marimo import _loggers
+from marimo._cli.sandbox import SandboxMode
 from marimo._config.manager import MarimoConfigManager, ScriptConfigManager
 from marimo._messaging.notification import (
     NotificationMessage,
@@ -88,7 +89,7 @@ class SessionImpl(Session):
         auto_instantiate: bool,
         ttl_seconds: Optional[int],
         extensions: list[SessionExtension] | None = None,
-        home_sandbox_mode: bool = False,
+        sandbox_mode: SandboxMode | None = None,
     ) -> Session:
         """
         Create a new session.
@@ -102,10 +103,10 @@ class SessionImpl(Session):
         configs = app_file_manager.app.cell_manager.config_map()
 
         # Create kernel manager
-        # Home sandbox mode uses IPC kernels with per-notebook sandboxed venvs
+        # SandboxMode.MULTI uses IPC kernels with per-notebook sandboxed venvs
         queue_manager: QueueManager
         kernel_manager: KernelManager
-        if home_sandbox_mode:
+        if sandbox_mode is SandboxMode.MULTI:
             from marimo._ipc import QueueManager as IPCQueueManager
             from marimo._session.managers import (
                 IPCKernelManagerImpl,

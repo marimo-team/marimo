@@ -428,7 +428,7 @@ def edit(
     name: Optional[str],
     args: tuple[str, ...],
 ) -> None:
-    from marimo._cli.sandbox import is_home_sandbox_mode, should_run_in_sandbox
+    from marimo._cli.sandbox import SandboxMode, resolve_sandbox_mode
 
     pass_on_stdin = token_password_file == "-"
     # We support unix-style piping, e.g. cat notebook.py | marimo edit
@@ -495,21 +495,18 @@ def edit(
     # We check this after name validation, because this will convert
     # URLs into local file paths
 
-    # Resolve sandbox mode
-    sandbox_mode = should_run_in_sandbox(sandbox=sandbox, name=name)
-
-    # Check if this is home sandbox mode (directory + sandbox)
-    home_sandbox = is_home_sandbox_mode(sandbox_mode, name)
+    # Resolve sandbox mode: None, SandboxMode.SINGLE, or SandboxMode.MULTI
+    sandbox_mode = resolve_sandbox_mode(sandbox=sandbox, name=name)
 
     # Single-file sandbox: wrap with uv run
-    if sandbox_mode and not home_sandbox:
+    if sandbox_mode is SandboxMode.SINGLE:
         from marimo._cli.sandbox import run_in_sandbox
 
         run_in_sandbox(sys.argv[1:], name=name, additional_features=["lsp"])
         return
 
-    # Home sandbox mode: use IPC kernels with per-notebook sandboxed venvs
-    if home_sandbox:
+    # Multi-file sandbox: use IPC kernels with per-notebook sandboxed venvs
+    if sandbox_mode is SandboxMode.MULTI:
         # Check for pyzmq dependency
         from marimo._dependencies.dependencies import DependencyManager
 
@@ -549,7 +546,6 @@ def edit(
         asset_url=asset_url,
         timeout=timeout,
         sandbox_mode=sandbox_mode,
-        home_sandbox_mode=home_sandbox,
     )
 
 
@@ -946,7 +942,11 @@ def run(
     name: str,
     args: tuple[str, ...],
 ) -> None:
-    from marimo._cli.sandbox import run_in_sandbox, should_run_in_sandbox
+    from marimo._cli.sandbox import (
+        SandboxMode,
+        resolve_sandbox_mode,
+        run_in_sandbox,
+    )
 
     if prompt_run_in_docker_container(name, trusted=trusted):
         from marimo._cli.run_docker import run_in_docker
@@ -981,7 +981,8 @@ def run(
 
     # We check this after name validation, because this will convert
     # URLs into local file paths
-    if should_run_in_sandbox(sandbox=sandbox, name=name):
+    # For run command, only single-file sandbox is possible (no directory support)
+    if resolve_sandbox_mode(sandbox=sandbox, name=name) is SandboxMode.SINGLE:
         run_in_sandbox(sys.argv[1:], name=name)
         return
 

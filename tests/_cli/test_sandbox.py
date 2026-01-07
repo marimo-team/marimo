@@ -4,11 +4,11 @@ from typing import TYPE_CHECKING, Any
 from unittest.mock import patch
 
 from marimo._cli.sandbox import (
+    SandboxMode,
     _ensure_marimo_in_script_metadata,
     _normalize_sandbox_dependencies,
     construct_uv_command,
-    is_home_sandbox_mode,
-    should_run_in_sandbox,
+    resolve_sandbox_mode,
 )
 from marimo._utils.inline_script_metadata import PyProjectReader
 
@@ -411,8 +411,8 @@ import marimo
         assert "numpy" in requirements
 
 
-def test_should_run_in_sandbox_user_confirms(tmp_path: Path) -> None:
-    """Test that should_run_in_sandbox returns True when user types 'y'."""
+def test_resolve_sandbox_mode_user_confirms(tmp_path: Path) -> None:
+    """Test that resolve_sandbox_mode returns SandboxMode.SINGLE when user types 'y'."""
     # Create a file with dependencies
     script_path = tmp_path / "test.py"
     script_path.write_text(
@@ -433,64 +433,70 @@ import marimo
             with patch(
                 "marimo._cli.sandbox.sys.stdin.isatty", return_value=True
             ):
-                result = should_run_in_sandbox(
+                result = resolve_sandbox_mode(
                     sandbox=None,
                     name=str(script_path),
                 )
-                assert result
+                assert result is SandboxMode.SINGLE
 
 
-def test_should_run_in_sandbox_explicit_flag() -> None:
-    """Test that should_run_in_sandbox returns True when sandbox=True."""
-    result = should_run_in_sandbox(
+def test_resolve_sandbox_mode_explicit_single() -> None:
+    """Test that resolve_sandbox_mode returns SandboxMode.SINGLE for single file with sandbox=True."""
+    result = resolve_sandbox_mode(
         sandbox=True,
         name="test.py",
     )
-    assert result
+    assert result is SandboxMode.SINGLE
 
 
-def test_should_run_in_sandbox_explicit_false() -> None:
-    """Test that should_run_in_sandbox returns False when sandbox=False."""
-    result = should_run_in_sandbox(
+def test_resolve_sandbox_mode_explicit_false() -> None:
+    """Test that resolve_sandbox_mode returns None when sandbox=False."""
+    result = resolve_sandbox_mode(
         sandbox=False,
         name="test.py",
     )
-    assert not result
+    assert result is None
 
 
-def test_should_run_in_sandbox_directory(tmp_path: Path) -> None:
-    """Test that sandbox with directories is allowed for home sandbox mode."""
+def test_resolve_sandbox_mode_directory(tmp_path: Path) -> None:
+    """Test that resolve_sandbox_mode returns SandboxMode.MULTI for directories."""
     dir_path = tmp_path / "notebooks"
     dir_path.mkdir()
 
-    # With IPC home sandbox mode, sandbox + directory is now allowed
-    result = should_run_in_sandbox(
+    # Directory with sandbox=True returns SandboxMode.MULTI
+    result = resolve_sandbox_mode(
         sandbox=True,
         name=str(dir_path),
     )
-    assert result
+    assert result is SandboxMode.MULTI
 
 
-def test_is_home_sandbox_mode(tmp_path: Path) -> None:
-    """Test is_home_sandbox_mode detection."""
+def test_resolve_sandbox_mode_all_cases(tmp_path: Path) -> None:
+    """Test resolve_sandbox_mode for all cases."""
     dir_path = tmp_path / "notebooks"
     dir_path.mkdir()
     file_path = tmp_path / "notebook.py"
     file_path.write_text("# test")
 
-    # sandbox=False always returns False
-    assert not is_home_sandbox_mode(sandbox=False, name=None)
-    assert not is_home_sandbox_mode(sandbox=False, name=str(dir_path))
-    assert not is_home_sandbox_mode(sandbox=False, name=str(file_path))
+    # sandbox=False always returns None
+    assert resolve_sandbox_mode(sandbox=False, name=None) is None
+    assert resolve_sandbox_mode(sandbox=False, name=str(dir_path)) is None
+    assert resolve_sandbox_mode(sandbox=False, name=str(file_path)) is None
 
-    # sandbox=True with None (current dir) -> home sandbox mode
-    assert is_home_sandbox_mode(sandbox=True, name=None)
+    # sandbox=True with None (current dir) -> SandboxMode.MULTI
+    assert resolve_sandbox_mode(sandbox=True, name=None) is SandboxMode.MULTI
 
-    # sandbox=True with directory -> home sandbox mode
-    assert is_home_sandbox_mode(sandbox=True, name=str(dir_path))
+    # sandbox=True with directory -> SandboxMode.MULTI
+    assert (
+        resolve_sandbox_mode(sandbox=True, name=str(dir_path))
+        is SandboxMode.MULTI
+    )
 
-    # sandbox=True with file -> NOT home sandbox mode (uses uv wrapping)
-    assert not is_home_sandbox_mode(sandbox=True, name=str(file_path))
+    # sandbox=True with file -> SandboxMode.SINGLE
+    assert (
+        resolve_sandbox_mode(sandbox=True, name=str(file_path))
+        is SandboxMode.SINGLE
+    )
 
 
 def test_construct_uv_cmd_without_python_version(tmp_path: Path) -> None:

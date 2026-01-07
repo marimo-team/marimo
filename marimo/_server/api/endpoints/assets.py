@@ -12,6 +12,7 @@ from starlette.responses import FileResponse, HTMLResponse, Response
 from starlette.staticfiles import StaticFiles
 
 from marimo import _loggers
+from marimo._cli.sandbox import SandboxMode
 from marimo._config.manager import get_default_config_manager
 from marimo._output.utils import uri_decode_component, uri_encode_component
 from marimo._runtime.virtual_file import EMPTY_VIRTUAL_FILE, read_virtual_file
@@ -146,10 +147,10 @@ async def index(request: Request) -> HTMLResponse:
         app_config = app_manager.app.config
 
         # Pre-compute notebook snapshot for faster initial render
-        # Only in home sandbox mode where each notebook gets its own IPC kernel
+        # Only in SandboxMode.MULTI where each notebook gets its own IPC kernel
         notebook_snapshot = None
         if (
-            app_state.session_manager.home_sandbox_mode
+            app_state.session_manager.sandbox_mode is SandboxMode.MULTI
             and app_manager.filename
         ):
             from marimo._convert.converters import MarimoConvert

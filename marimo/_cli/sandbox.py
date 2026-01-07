@@ -9,10 +9,23 @@ import signal
 import subprocess
 import sys
 import tempfile
+from enum import Enum
 from pathlib import Path
 from typing import Literal, Optional
 
 import click
+
+
+class SandboxMode(Enum):
+    """Sandbox mode for marimo notebooks.
+
+    - SINGLE: Single-file sandbox (wraps entire process with uv run)
+    - MULTI: Multi-file sandbox (IPC kernels with per-notebook venvs)
+    """
+
+    SINGLE = "single"
+    MULTI = "multi"
+
 
 from marimo import _loggers
 from marimo._cli.print import bold, echo, green, muted
@@ -78,44 +91,39 @@ def maybe_prompt_run_in_sandbox(name: str | None) -> bool:
     return False
 
 
-def should_run_in_sandbox(sandbox: bool | None, name: str | None) -> bool:
-    """Return whether the named notebook should be run in a sandbox.
+def resolve_sandbox_mode(
+    sandbox: bool | None, name: str | None
+) -> SandboxMode | None:
+    """Determine sandbox mode for the given target.
 
-    Prompts the user if sandbox is None and the notebook has sandbox metadata
-    (only for single notebook, not directories).
+    Returns:
+        - None: No sandboxing
+        - SandboxMode.SINGLE: Single-file sandbox (wrap with uv run)
+        - SandboxMode.MULTI: Multi-file sandbox (IPC kernels with per-notebook venvs)
 
-    With IPC-based kernel architecture (home sandbox mode), each notebook gets
-    its own sandboxed kernel, so multi-notebook servers are now supported with
-    --sandbox.
+    When sandbox is None, prompts the user if the notebook has sandbox metadata
+    (only for single notebooks, not directories).
     """
+    # Determine if target is a directory (or None = current directory)
+    is_directory = name is None or os.path.isdir(name)
+
     # When the sandbox flag is omitted we infer whether to
     # start in sandbox mode by examining the notebook file and
     # prompting the user. Only prompt for single notebooks, not directories.
     if sandbox is None:
         # Don't prompt for directories - user must explicitly pass --sandbox
-        if name is not None and not os.path.isdir(name):
+        if not is_directory:
             sandbox = maybe_prompt_run_in_sandbox(name)
         else:
             sandbox = False
 
-    return sandbox
-
-
-def is_home_sandbox_mode(sandbox: bool, name: str | None) -> bool:
-    """Check if we should use IPC kernel for home sandbox mode.
-
-    Home sandbox mode activates when:
-    - sandbox flag is True
-    - AND name is a directory OR name is None (current directory)
-
-    This mode uses IPC kernels with ZeroMQ for per-notebook sandboxed
-    environments.
-    """
     if not sandbox:
-        return False
-    # name is None means current directory (home page)
-    # or name is explicitly a directory
-    return name is None or os.path.isdir(name)
+        return None
+
+    # Sandbox enabled - determine mode based on target type
+    # Directory or home page -> multi-file sandbox (IPC kernels)
+    # Single file -> single-file sandbox (uv run wrapper)
+    return SandboxMode.MULTI if is_directory else SandboxMode.SINGLE
 
 
 def _is_versioned(dependency: str) -> bool:
@@ -356,8 +364,8 @@ def run_in_sandbox(
     This wraps the marimo command with `uv run` to create an isolated
     virtual environment with the notebook's dependencies.
 
-    Used for single-notebook sandbox mode (marimo edit --sandbox notebook.py).
-    For home sandbox mode (directory), see IPCKernelManagerImpl which
+    Used for "single" sandbox mode (marimo edit --sandbox notebook.py).
+    For "multi" sandbox mode (directory), see IPCKernelManagerImpl which
     creates per-notebook sandboxed kernels.
     """
     # If we fall back to the plain "uv" path, ensure it's actually on the system
@@ -447,7 +455,7 @@ def build_sandbox_venv(
     """Build sandbox venv and install dependencies.
 
     Creates an ephemeral virtual environment using uv with the notebook's
-    dependencies installed. Used for IPC kernel mode where each notebook
+    dependencies installed. Used for "multi" sandbox mode where each notebook
     gets its own sandboxed environment.
 
     Args:
