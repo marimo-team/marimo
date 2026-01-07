@@ -203,6 +203,11 @@ export const ReorderableList = <T extends object>({
             continue;
           }
 
+          // Skip if item already exists in this list
+          if (value.some((item) => getKey(item) === getKey(data.item))) {
+            continue;
+          }
+
           // Calculate insert position
           const targetIndex = value.findIndex(
             (item) => getKey(item) === e.target.key,
@@ -240,6 +245,11 @@ export const ReorderableList = <T extends object>({
 
           // Only accept drops from different lists
           if (data.sourceListId === crossListDrag.listId) {
+            continue;
+          }
+
+          // Skip if item already exists in this list
+          if (value.some((item) => getKey(item) === getKey(data.item))) {
             continue;
           }
 
