@@ -2,7 +2,12 @@
 
 import type React from "react";
 import { useMemo } from "react";
-import { ListBox, ListBoxItem, useDragAndDrop } from "react-aria-components";
+import {
+  type DropItem,
+  ListBox,
+  ListBoxItem,
+  useDragAndDrop,
+} from "react-aria-components";
 import { Logger } from "@/utils/Logger";
 import {
   ContextMenu,
@@ -145,11 +150,7 @@ export const ReorderableList = <T extends object>({
 
   // Shared handler for cross-list drops
   const handleCrossListDrop = async (
-    items: Iterable<{
-      kind: string;
-      types: Set<string>;
-      getText: (type: string) => Promise<string>;
-    }>,
+    items: DropItem[],
     insertIndex: number,
   ) => {
     if (!mimeType || !crossListDrag?.listId || !onReceive) {
@@ -277,6 +278,9 @@ export const ReorderableList = <T extends object>({
     onAction(item);
   };
 
+  // When list is empty, show a drop zone placeholder
+  const isEmpty = value.length === 0;
+
   const listBox = (
     <ListBox
       aria-label={ariaLabel}
@@ -294,6 +298,17 @@ export const ReorderableList = <T extends object>({
           {renderItem(item)}
         </ListBoxItem>
       ))}
+      {/*
+       * When the list is empty, render an invisible placeholder item.
+       * This ensures the ListBox maintains minimum dimensions so users can:
+       * 1. Right-click to access the context menu and add items back
+       * 2. Drag items from another list into this empty list
+       */}
+      {isEmpty && (
+        <ListBoxItem id="__empty__" className="min-h-[40px] min-w-[40px]">
+          <span />
+        </ListBoxItem>
+      )}
     </ListBox>
   );
 
