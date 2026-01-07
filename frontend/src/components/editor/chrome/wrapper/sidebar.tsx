@@ -8,7 +8,6 @@ import { useMemo } from "react";
 import { ReorderableList } from "@/components/ui/reorderable-list";
 import { Tooltip } from "@/components/ui/tooltip";
 import { notebookQueuedOrRunningCountAtom } from "@/core/cells/cells";
-import { snippetsEnabledAtom } from "@/core/config/config";
 import { cn } from "@/utils/cn";
 import { FeedbackButton } from "../components/feedback-button";
 import { panelLayoutAtom, useChromeActions, useChromeState } from "../state";
@@ -19,7 +18,6 @@ export const Sidebar: React.FC = () => {
   const { toggleApplication, setSelectedDeveloperPanelTab } =
     useChromeActions();
   const [panelLayout, setPanelLayout] = useAtom(panelLayoutAtom);
-  const snippetsEnabled = useAtomValue(snippetsEnabledAtom);
 
   const renderIcon = ({ Icon }: PanelDescriptor, className?: string) => {
     return <Icon className={cn("h-5 w-5", className)} />;
@@ -37,13 +35,9 @@ export const Sidebar: React.FC = () => {
       if (devPanelIds.has(p.type)) {
         return false;
       }
-      // Show defaultHidden panels only if enabled via config
-      if (p.defaultHidden && p.type === "snippets" && !snippetsEnabled) {
-        return false;
-      }
       return true;
     });
-  }, [panelLayout.developerPanel, snippetsEnabled]);
+  }, [panelLayout.developerPanel]);
 
   // Convert current sidebar items to PanelDescriptors
   const sidebarItems = useMemo(() => {
