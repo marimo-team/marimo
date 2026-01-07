@@ -35,6 +35,12 @@ router = APIRouter()
 @requires("edit")
 async def code_complete(request: Request) -> BaseResponse:
     """
+    parameters:
+        - in: header
+          name: Marimo-Session-Id
+          schema:
+            type: string
+          required: true
     requestBody:
         content:
             application/json:
@@ -55,6 +61,12 @@ async def code_complete(request: Request) -> BaseResponse:
 @requires("edit")
 async def delete_cell(request: Request) -> BaseResponse:
     """
+    parameters:
+        - in: header
+          name: Marimo-Session-Id
+          schema:
+            type: string
+          required: true
     requestBody:
         content:
             application/json:
@@ -75,6 +87,12 @@ async def delete_cell(request: Request) -> BaseResponse:
 @requires("edit")
 async def sync_cell_ids(request: Request) -> BaseResponse:
     """
+    parameters:
+        - in: header
+          name: Marimo-Session-Id
+          schema:
+            type: string
+          required: true
     requestBody:
         content:
             application/json:
@@ -125,6 +143,12 @@ async def format_cell(request: Request) -> FormatResponse:
 @requires("edit")
 async def set_cell_config(request: Request) -> BaseResponse:
     """
+    parameters:
+        - in: header
+          name: Marimo-Session-Id
+          schema:
+            type: string
+          required: true
     requestBody:
         content:
             application/json:
@@ -145,6 +169,12 @@ async def set_cell_config(request: Request) -> BaseResponse:
 @requires("edit")
 async def stdin(request: Request) -> BaseResponse:
     """
+    parameters:
+        - in: header
+          name: Marimo-Session-Id
+          schema:
+            type: string
+          required: true
     requestBody:
         content:
             application/json:
@@ -169,6 +199,12 @@ async def stdin(request: Request) -> BaseResponse:
 @requires("edit")
 async def install_missing_packages(request: Request) -> BaseResponse:
     """
+    parameters:
+        - in: header
+          name: Marimo-Session-Id
+          schema:
+            type: string
+          required: true
     requestBody:
         content:
             application/json:

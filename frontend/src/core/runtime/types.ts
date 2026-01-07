@@ -9,13 +9,13 @@ export interface RuntimeConfig {
    * If true, the runtime will not be loaded until the user interacts with the notebook.
    * If false, the runtime will be loaded immediately.
    */
-  lazy: boolean;
+  readonly lazy: boolean;
   /**
    * The server token for the runtime (Skew protection token)
    */
-  serverToken?: string;
+  readonly serverToken?: string;
   /**
    * The API key or JWT token for the remote backend (used for authentication)
    */
-  authToken?: string | null;
+  readonly authToken?: string | null;
 }

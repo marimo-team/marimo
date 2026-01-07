@@ -670,7 +670,7 @@ class TestAnthropic:
             ChatMessage(
                 role="user",
                 content="Hello",
-                parts=None,
+                parts=[],
             ),
             ChatMessage(
                 role="assistant",
@@ -700,12 +700,12 @@ class TestAnthropic:
             ChatMessage(
                 role="user",
                 content="",
-                parts=None,
+                parts=[],
             ),
             ChatMessage(
                 role="assistant",
                 content="Hi there!",
-                parts=None,
+                parts=[],
             ),
         ]
 
@@ -938,6 +938,7 @@ def test_from_chat_message_dict():
 
     result = from_chat_message_dict(message_dict)
     assert result == ChatMessage(
+        id="",
         role="user",
         content="Hello, this is a test message.",
         attachments=None,

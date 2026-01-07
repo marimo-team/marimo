@@ -29,6 +29,12 @@ async def load_snippets(
     request: Request,
 ) -> Snippets:
     """
+    parameters:
+        - in: header
+          name: Marimo-Session-Id
+          schema:
+            type: string
+          required: true
     responses:
         200:
             description: Load the snippets for the documentation page

@@ -98,6 +98,7 @@ export async function buildCompletionRequestBody(
       parts.push(...completionBody.attachments);
     }
     return {
+      id: message.id,
       role: message.role,
       content: stringifyTextParts(message.parts), // This is no longer used in the backend
       parts,

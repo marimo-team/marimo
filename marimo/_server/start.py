@@ -34,7 +34,6 @@ from marimo._session.model import SessionMode
 from marimo._tracer import LOGGER
 from marimo._utils.lifespans import Lifespans
 from marimo._utils.net import find_free_port
-from marimo._utils.paths import marimo_package_path
 
 DEFAULT_PORT = 2718
 PROXY_REGEX = re.compile(r"^(.*):(\d+)$")
@@ -342,17 +341,6 @@ def start(
             app,
             port=port,
             host=host,
-            # TODO: cannot use reload unless the app is an import string
-            # although cannot use import string because it breaks the
-            # session manager
-            # reload=development_mode,
-            reload_dirs=(
-                [
-                    str((marimo_package_path() / "_static").resolve()),
-                ]
-                if development_mode
-                else None
-            ),
             log_level=log_level,
             # uvicorn times out HTTP connections (i.e. TCP sockets) every 5
             # seconds by default; for some reason breaks the server in

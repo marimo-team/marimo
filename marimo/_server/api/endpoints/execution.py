@@ -48,6 +48,12 @@ async def set_ui_element_values(
     request: Request,
 ) -> BaseResponse:
     """
+    parameters:
+        - in: header
+          name: Marimo-Session-Id
+          schema:
+            type: string
+          required: true
     requestBody:
         content:
             application/json:
@@ -82,6 +88,12 @@ async def set_model_values(
     request: Request,
 ) -> BaseResponse:
     """
+    parameters:
+        - in: header
+          name: Marimo-Session-Id
+          schema:
+            type: string
+          required: true
     requestBody:
         content:
             application/json:
@@ -105,6 +117,12 @@ async def instantiate(
     request: Request,
 ) -> BaseResponse:
     """
+    parameters:
+        - in: header
+          name: Marimo-Session-Id
+          schema:
+            type: string
+          required: true
     requestBody:
         content:
             application/json:
@@ -135,6 +153,12 @@ async def function_call(
     request: Request,
 ) -> BaseResponse:
     """
+    parameters:
+        - in: header
+          name: Marimo-Session-Id
+          schema:
+            type: string
+          required: true
     requestBody:
         content:
             application/json:
@@ -158,6 +182,12 @@ async def interrupt(
     request: Request,
 ) -> BaseResponse:
     """
+    parameters:
+        - in: header
+          name: Marimo-Session-Id
+          schema:
+            type: string
+          required: true
     responses:
         200:
             description: Interrupt the kernel's execution
@@ -179,6 +209,12 @@ async def run_cell(
     request: Request,
 ) -> BaseResponse:
     """
+    parameters:
+        - in: header
+          name: Marimo-Session-Id
+          schema:
+            type: string
+          required: true
     requestBody:
         content:
             application/json:
@@ -210,6 +246,12 @@ async def run_scratchpad(
     request: Request,
 ) -> BaseResponse:
     """
+    parameters:
+        - in: header
+          name: Marimo-Session-Id
+          schema:
+            type: string
+          required: true
     requestBody:
         content:
             application/json:
@@ -233,6 +275,12 @@ async def run_post_mortem(
     request: Request,
 ) -> BaseResponse:
     """
+    parameters:
+        - in: header
+          name: Marimo-Session-Id
+          schema:
+            type: string
+          required: true
     requestBody:
         content:
             application/json:
@@ -256,6 +304,12 @@ async def restart_session(
     request: Request,
 ) -> BaseResponse:
     """
+    parameters:
+        - in: header
+          name: Marimo-Session-Id
+          schema:
+            type: string
+          required: true
     responses:
         200:
             description: Restart the current session without affecting other sessions.
@@ -294,6 +348,12 @@ async def shutdown(
     request: Request,
 ) -> BaseResponse:
     """
+    parameters:
+        - in: header
+          name: Marimo-Session-Id
+          schema:
+            type: string
+          required: false
     responses:
         200:
             description: Shutdown the kernel
@@ -339,6 +399,12 @@ async def takeover_endpoint(
     request: Request,
 ) -> JSONResponse:
     """
+    parameters:
+        - in: header
+          name: Marimo-Session-Id
+          schema:
+            type: string
+          required: true
     responses:
         200:
             description: Successfully closed existing sessions

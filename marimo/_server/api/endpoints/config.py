@@ -41,6 +41,12 @@ async def save_user_config(
     request: Request,
 ) -> JSONResponse:
     """
+    parameters:
+        - in: header
+          name: Marimo-Session-Id
+          schema:
+            type: string
+          required: false
     requestBody:
         content:
             application/json:

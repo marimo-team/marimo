@@ -20,6 +20,7 @@ from marimo._plugins.ui._core.ui_element import UIElement
 from marimo._plugins.validators import validate_one_of
 from marimo._runtime.functions import Function
 from marimo._utils.files import natural_sort
+from marimo._utils.paths import normalize_path
 
 LOGGER = _loggers.marimo_logger()
 
@@ -155,13 +156,24 @@ class file_browser(
     ) -> None:
         validate_one_of(selection_mode, ["file", "directory"])
 
+        # Save the Path class of the initial path
+        self._path_cls: type[Path]
+        if isinstance(initial_path, str):
+            self._path_cls = Path
+        else:
+            self._path_cls = initial_path.__class__
+
+        # Make a Path object
         if not initial_path:
             initial_path = Path.cwd()
         elif isinstance(initial_path, str):
             initial_path = Path(initial_path)
+        self._initial_path = initial_path
 
-        # frontend plugin can't handle relative paths
-        initial_path = initial_path.resolve()
+        # Frontend can't handle relative paths, so normalize it and make it absolute
+        # Use normalize_path to avoid symlink resolution
+        self._initial_path = self._create_path(normalize_path(initial_path))
+
         # initial path must be a directory
         if not initial_path.is_dir():
             raise ValueError(
@@ -183,13 +195,6 @@ class file_browser(
             self._filetypes = set()
         self._restrict_navigation = restrict_navigation
         self._ignore_empty_dirs = ignore_empty_dirs
-        self._initial_path: Path = initial_path
-
-        self._path_cls: type[Path]
-        if isinstance(initial_path, str):
-            self._path_cls = Path
-        else:
-            self._path_cls = initial_path.__class__
 
         # Smart default limit based on path type
         if limit is None:
@@ -222,7 +227,7 @@ class file_browser(
             on_change=on_change,
         )
 
-    def _create_path(self, path_str: str) -> Path:
+    def _create_path(self, path_str: str | Path) -> Path:
         """Create a path object with the same class and client as the initial path."""
         kwargs: dict[str, Any] = {}
 

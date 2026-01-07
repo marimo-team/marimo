@@ -7,6 +7,7 @@ from typing import Any, cast
 
 from marimo import _loggers
 from marimo._cli.file_path import FileContentReader
+from marimo._utils.paths import normalize_path
 from marimo._utils.scripts import read_pyproject_from_script
 
 LOGGER = _loggers.marimo_logger()
@@ -184,7 +185,7 @@ def _pyproject_toml_to_requirements_txt(
             # If path is relative and we have a config path, resolve it relative to the config path
             if not source_path.is_absolute() and config_path:
                 config_dir = Path(config_path).parent
-                source_path = (config_dir / source_path).resolve()
+                source_path = normalize_path(config_dir / source_path)
             new_dependency = f"{dependency} @ {str(source_path)}"
 
         # Handle URLs

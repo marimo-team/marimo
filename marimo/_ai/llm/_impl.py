@@ -1,12 +1,21 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import dataclasses
 import os
 import re
 from typing import TYPE_CHECKING, Any, Callable, Optional, cast
 
+from marimo import _loggers
+from marimo._ai._pydantic_ai_utils import generate_id
+
 if TYPE_CHECKING:
-    from collections.abc import Generator
+    from collections.abc import AsyncGenerator, Generator
+
+    from pydantic_ai import Agent
+    from pydantic_ai.settings import ModelSettings
+    from pydantic_ai.ui.vercel_ai.request_types import UIMessage
+    from pydantic_ai.ui.vercel_ai.response_types import BaseChunk
 
 from marimo._ai._convert import (
     convert_to_anthropic_messages,
@@ -20,6 +29,8 @@ from marimo._ai._types import (
     ChatModelConfig,
 )
 from marimo._dependencies.dependencies import DependencyManager
+
+LOGGER = _loggers.marimo_logger()
 
 DEFAULT_SYSTEM_MESSAGE = (
     "You are a helpful assistant specializing in data science."
@@ -664,3 +675,165 @@ class bedrock(ChatModel):
             else:
                 # Re-raise original exception if not handled
                 raise
+
+
+class pydantic_ai(ChatModel):
+    """
+    Pydantic AI ChatModel
+
+    Args:
+        agent: The Pydantic AI agent to use.
+    """
+
+    def __init__(self, agent: Agent[Any, Any]):
+        DependencyManager.pydantic_ai.require(
+            "pydantic-ai chat model requires pydantic-ai. `pip install pydantic-ai`"
+        )
+        self.agent = agent
+
+    def __call__(
+        self, messages: list[ChatMessage], config: ChatModelConfig
+    ) -> AsyncGenerator[dict[str, Any], None]:
+        return self._stream_response(messages, config)
+
+    def _get_model_settings(self, config: ChatModelConfig) -> ModelSettings:
+        model_settings: ModelSettings = {}
+        if config.max_tokens is not None:
+            model_settings["max_tokens"] = config.max_tokens
+        if config.temperature is not None:
+            model_settings["temperature"] = config.temperature
+        if config.top_p is not None:
+            model_settings["top_p"] = config.top_p
+        if config.frequency_penalty is not None:
+            model_settings["frequency_penalty"] = config.frequency_penalty
+        if config.presence_penalty is not None:
+            model_settings["presence_penalty"] = config.presence_penalty
+        return model_settings
+
+    def _build_ui_messages(
+        self, messages: list[ChatMessage]
+    ) -> list[UIMessage]:
+        from pydantic_ai.ui.vercel_ai.request_types import (
+            TextUIPart,
+            UIMessage,
+            UIMessagePart,
+        )
+
+        ui_messages: list[UIMessage] = []
+
+        for message in messages:
+            message_id = message.id or generate_id("message")
+
+            if not message.id:
+                LOGGER.warning("Message %s has no id", message)
+
+            parts: list[UIMessagePart] = []
+            if message.parts:
+                parts = cast(
+                    list[UIMessagePart],
+                    [
+                        dataclasses.asdict(part)
+                        if dataclasses.is_dataclass(part)
+                        else part
+                        for part in message.parts
+                    ],
+                )
+            if not parts:
+                if message.content is not None:
+                    LOGGER.warning(
+                        "Message %s has no valid parts, using content instead",
+                        message,
+                    )
+                    parts = [TextUIPart(text=str(message.content))]
+                else:
+                    LOGGER.error(
+                        "Message %s has no parts and no content, skipping",
+                        message,
+                    )
+                    continue
+
+            ui_messages.append(
+                UIMessage(
+                    id=message_id,
+                    role=message.role,
+                    parts=parts,
+                    metadata=message.metadata,
+                )
+            )
+        return ui_messages
+
+    def _serialize_vercel_ai_chunk(
+        self, chunk: BaseChunk
+    ) -> dict[str, Any] | None:
+        """
+        Serialize vercel ai chunk to a dictionary. Skip "done" chunks - not part of Vercel AI SDK schema.
+
+        by_alias=True: Use camelCase keys expected by Vercel AI SDK.
+        exclude_none=True: Remove null values which cause validation errors.
+        """
+        try:
+            serialized = chunk.model_dump(
+                mode="json", by_alias=True, exclude_none=True
+            )
+        except Exception as e:
+            LOGGER.error("Error serializing vercel ai chunk: %s", e)
+            return None
+        else:
+            if serialized.get("type") == "done":
+                return None
+            return serialized
+
+    async def _stream_response(
+        self, messages: list[ChatMessage], config: ChatModelConfig
+    ) -> AsyncGenerator[dict[str, Any], None]:
+        """Streams back Vercel AI events.
+
+        Args:
+            messages: The messages to send to the model.
+            config: The model configuration.
+
+        Returns:
+            An asynchronous generator of serialized Vercel AI events.
+        """
+        from pydantic_ai.ui.vercel_ai import VercelAIAdapter
+        from pydantic_ai.ui.vercel_ai.request_types import SubmitMessage
+
+        ui_messages = self._build_ui_messages(messages)
+        model_settings = self._get_model_settings(config)
+        run_input = SubmitMessage(
+            id=generate_id("submit-message"),
+            trigger="submit-message",
+            messages=ui_messages,
+        )
+
+        adapter = VercelAIAdapter(agent=self.agent, run_input=run_input)
+        event_stream = adapter.run_stream(model_settings=model_settings)
+        async for event in event_stream:
+            if serialized := self._serialize_vercel_ai_chunk(event):
+                yield serialized
+
+    async def _stream_text(
+        self, messages: list[ChatMessage], config: ChatModelConfig
+    ) -> AsyncGenerator[str, None]:
+        """Streams back text from the model.
+
+        Args:
+            messages: The messages to send to the model.
+            config: The model configuration.
+
+        Returns:
+            An asynchronous generator of text.
+        """
+        from pydantic_ai.ui.vercel_ai import VercelAIAdapter
+
+        ui_messages = self._build_ui_messages(messages)
+        pydantic_model_messages = VercelAIAdapter.load_messages(ui_messages)
+        model_settings = self._get_model_settings(config)
+
+        async with self.agent.run_stream(
+            user_prompt=None,
+            message_history=pydantic_model_messages,
+            model_settings=model_settings,
+        ) as result:
+            async for text in result.stream_text(delta=True):
+                yield text

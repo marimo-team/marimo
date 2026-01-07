@@ -4,21 +4,19 @@ import type { UIMessage } from "ai";
 
 export type ChatRole = "system" | "user" | "assistant";
 
-export interface ChatMessage {
-  role: ChatRole;
-  content: string; // TODO: Deprecate content
-  parts: UIMessage["parts"] | null;
+export interface ChatMessage extends UIMessage {
+  content: string | null; // Content is only added for backwards compatibility
 }
 
 export interface SendMessageRequest {
   messages: ChatMessage[];
   config: {
-    max_tokens?: number;
-    temperature?: number;
-    top_p?: number;
-    top_k?: number;
-    frequency_penalty?: number;
-    presence_penalty?: number;
+    max_tokens: number | null;
+    temperature: number | null;
+    top_p: number | null;
+    top_k: number | null;
+    frequency_penalty: number | null;
+    presence_penalty: number | null;
   };
 }
 
@@ -27,10 +25,10 @@ export interface SendMessageRequest {
  * and are not modified when sent to the frontend.
  */
 export interface ChatConfig {
-  max_tokens: number;
-  temperature: number;
-  top_p: number;
-  top_k: number;
-  frequency_penalty: number;
-  presence_penalty: number;
+  max_tokens: number | null;
+  temperature: number | null;
+  top_p: number | null;
+  top_k: number | null;
+  frequency_penalty: number | null;
+  presence_penalty: number | null;
 }

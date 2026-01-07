@@ -16,6 +16,7 @@ from marimo._runtime.context import ContextNotInitializedError, get_context
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
+    from inspect import FrameInfo
 
 Fn = TypeVar("Fn", bound=Callable[..., Any])
 
@@ -282,6 +283,7 @@ def build_test_class(
     file: str,
     name: str,
     defs: set[str],
+    frames: list[FrameInfo],
     inner: bool = False,
 ) -> type[MarimoTest]:
     """
@@ -343,7 +345,6 @@ def build_test_class(
         # If not in runtime, we are running directly as a script. As
         # such, we need the values from the module frame.
         # Traverse frame upwards until we match the file.
-        frames = inspect.stack(context=0)
         for frame in frames:
             if Path(frame.filename).resolve() == Path(file).resolve():
                 base_local.update(frame.frame.f_locals)
@@ -387,7 +388,7 @@ def build_test_class(
                 return old_output, old_defs
 
             return build_test_class(
-                test.body, _run, file, var, class_defs, True
+                test.body, _run, file, var, class_defs, frames, True
             )
         raise ValueError(
             "Improperly compiled as a test. Please report to"
@@ -425,13 +426,13 @@ def process_for_pytest(func: Fn, cell: Cell) -> None:
         raise ValueError(
             f"Expected function or class definition, got {type(scope).__name__}"
         )
-    cls = build_test_class(
-        scope.body, run, inspect.getfile(func), name, cell.defs
-    )
-
     # Get first frame not in library to insert the class.
     # May be multiple levels if called from pytest or something.
     frames = inspect.stack(context=0)
+
+    cls = build_test_class(
+        scope.body, run, inspect.getfile(func), name, cell.defs, frames
+    )
 
     # ensure marimo/_ not in frame path, using this file as a reference.
     library = Path(__file__).parent.parent
