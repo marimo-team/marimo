@@ -24,7 +24,7 @@ if TYPE_CHECKING:
 
     import pandas as pd
     import polars as pl
-
+    import pyarrow as pa
 
 AdbcGetObjectsDepth = Literal[
     "all", "catalogs", "db_schemas", "tables", "columns"
@@ -34,9 +34,11 @@ AdbcGetObjectsDepth = Literal[
 class AdbcDbApiCursor(Protocol):
     description: Any
 
-    def execute(self, query: str, parameters: Sequence[Any] = ...) -> Any: ...
+    def execute(
+        self, query: str, parameters: Sequence[Any] = ...
+    ) -> AdbcDbApiCursor: ...
 
-    def fetch_arrow_table(self) -> Any: ...
+    def fetch_arrow_table(self) -> pa.Table: ...
 
     def close(self) -> None: ...
 
@@ -55,6 +57,9 @@ class AdbcDbApiConnection(Protocol):
 
     def close(self) -> None: ...
 
+    adbc_current_catalog: str
+    adbc_current_db_schema: str
+
     def adbc_get_objects(
         self,
         *,
@@ -64,13 +69,13 @@ class AdbcDbApiConnection(Protocol):
         table_name_filter: str | None = None,
         table_types_filter: list[str] | None = None,
         column_name_filter: str | None = None,
-    ) -> Any: ...
+    ) -> pa.RecordBatchReader: ...
 
     def adbc_get_table_schema(
         self, table_name: str, *, db_schema_filter: str | None = None
-    ) -> Any: ...
+    ) -> pa.Schema: ...
 
-    def adbc_get_info(self) -> dict[str, Any]: ...
+    def adbc_get_info(self) -> dict[str | int, Any]: ...
 
 
 def _resolve_table_type(table_type: str) -> Literal["table", "view"]:
@@ -111,7 +116,7 @@ _ADBC_DIALECT_SUBSTRING_RULES: tuple[tuple[str, str], ...] = (
 )
 
 
-def _adbc_info_to_dialect(*, info: dict[str, Any]) -> str:
+def _adbc_info_to_dialect(*, info: dict[str | int, Any]) -> str:
     """Infer marimo's dialect identifier from ADBC metadata.
 
     Notes:
@@ -190,7 +195,7 @@ class AdbcConnectionCatalog:
     def __init__(
         self,
         *,
-        adbc_connection: Any,
+        adbc_connection: AdbcDbApiConnection,
         dialect: str,
         engine_name: Optional[VariableName],
     ) -> None:
@@ -200,7 +205,7 @@ class AdbcConnectionCatalog:
 
     def get_default_database(self) -> Optional[str]:
         try:
-            return cast(str, self._adbc_connection.adbc_current_catalog)
+            return self._adbc_connection.adbc_current_catalog
         except Exception:
             # Some drivers (like arrow-adbc-driver-sqlite) do not support the standardized option for current
             # catalog/schema; treat as unavailable.
@@ -209,7 +214,7 @@ class AdbcConnectionCatalog:
 
     def get_default_schema(self) -> Optional[str]:
         try:
-            return cast(str, self._adbc_connection.adbc_current_db_schema)
+            return self._adbc_connection.adbc_current_db_schema
         except Exception:
             LOGGER.debug("Failed to read ADBC current schema", exc_info=True)
             return None
@@ -251,11 +256,10 @@ class AdbcConnectionCatalog:
         else:
             depth = "tables"
 
-        objects_pylist = cast(
-            list[dict[str, Any]],
+        objects_pylist = (
             self._adbc_connection.adbc_get_objects(depth=depth)
             .read_all()
-            .to_pylist(),
+            .to_pylist()
         )
 
         for catalog_row in objects_pylist:
@@ -331,15 +335,14 @@ class AdbcConnectionCatalog:
         self, *, schema: str, database: str, include_table_details: bool
     ) -> list[DataTable]:
         tables: list[DataTable] = []
-        objects_pylist = cast(
-            list[dict[str, Any]],
+        objects_pylist = (
             self._adbc_connection.adbc_get_objects(
                 depth="tables",
                 catalog_filter=database or None,
                 db_schema_filter=schema or None,
             )
             .read_all()
-            .to_pylist(),
+            .to_pylist()
         )
 
         for catalog_row in objects_pylist:
@@ -599,12 +602,7 @@ class AdbcDBAPIEngine(SQLConnection[AdbcDbApiConnection]):
                 return pl.from_arrow(arrow_table)
 
             def convert_to_pandas() -> pd.DataFrame:
-                import pandas as pd
-
-                return cast(
-                    pd.DataFrame,
-                    arrow_table.to_pandas(),  # type: ignore[attr-defined]
-                )
+                return arrow_table.to_pandas()
 
             result = convert_to_output(
                 sql_output_format=sql_output_format,

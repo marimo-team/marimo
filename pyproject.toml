@@ -117,6 +117,8 @@ dev = [
     # For SQL
     "duckdb>=1.0.0",
     "sqlglot[rs]>=26.2.0",
+    # Stubs for optional dataframe backends
+    "pyarrow-stubs",
     # For linting
     "ruff>=0.13.2",
     # For AI
@@ -200,6 +202,7 @@ dependencies = [
     "mcp>=1.0.0",
     # zeromq
     "pyzmq>=27.1.0",
+    "pyarrow-stubs",
 ]
 
 [tool.hatch.envs.typecheck.scripts]

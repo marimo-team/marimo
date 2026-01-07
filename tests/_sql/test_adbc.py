@@ -2,10 +2,11 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 import pytest
 
+from marimo._data.models import Database, DataTable, Schema
 from marimo._sql.engines.adbc import (
     AdbcConnectionCatalog,
     AdbcDBAPIEngine,
@@ -16,6 +17,8 @@ from marimo._types.ids import VariableName
 
 if TYPE_CHECKING:
     from collections.abc import Iterator, Sequence
+
+    import pyarrow as pa
 
 
 @dataclass
@@ -53,20 +56,24 @@ class FakeAdbcDbApiCursor:
         self,
         *,
         description: list[tuple[str, Any]] | None,
-        arrow_table: Any | None = None,
+        arrow_table: pa.Table | None = None,
     ) -> None:
         self.description = description
-        self._arrow_table = arrow_table
+        self._arrow_table: pa.Table | None = arrow_table
         self.did_execute = False
         self.did_fetch_arrow = False
         self.did_close = False
 
-    def execute(self, query: str, parameters: Sequence[Any] = ()) -> None:
+    def execute(
+        self, query: str, parameters: Sequence[Any] = ()
+    ) -> FakeAdbcDbApiCursor:
         _ = query, parameters
         self.did_execute = True
+        return self
 
-    def fetch_arrow_table(self) -> Any:
+    def fetch_arrow_table(self) -> pa.Table:
         self.did_fetch_arrow = True
+        assert self._arrow_table is not None
         return self._arrow_table
 
     def close(self) -> None:
@@ -74,6 +81,9 @@ class FakeAdbcDbApiCursor:
 
 
 class FakeAdbcDbApiConnection:
+    adbc_current_catalog: str
+    adbc_current_db_schema: str
+
     def __init__(
         self,
         *,
@@ -88,6 +98,8 @@ class FakeAdbcDbApiConnection:
         self.did_rollback = False
         self.did_close = False
         self.dialect = "postgresql"
+        self.adbc_current_catalog = "db1"
+        self.adbc_current_db_schema = "public"
         self.did_create_cursor = False
         self.last_get_objects_kwargs: dict[str, Any] | None = None
         self.adbc_get_info_calls = 0
@@ -115,7 +127,7 @@ class FakeAdbcDbApiConnection:
         table_name_filter: str | None = None,
         table_types_filter: list[str] | None = None,
         column_name_filter: str | None = None,
-    ) -> Any:
+    ) -> pa.RecordBatchReader:
         self.last_get_objects_kwargs = {
             "depth": depth,
             "catalog_filter": catalog_filter,
@@ -190,17 +202,19 @@ class FakeAdbcDbApiConnection:
             next_catalog_row["catalog_db_schemas"] = next_schemas
             catalogs.append(next_catalog_row)
 
-        return FakeAdbcObjectsReader(catalogs)
+        # ADBC DB-API wrapper returns a pyarrow.RecordBatchReader; our fake
+        # emulates the reader's `read_all().to_pylist()` interface.
+        return cast(Any, FakeAdbcObjectsReader(catalogs))
 
     def adbc_get_table_schema(
         self, table_name: str, *, db_schema_filter: str | None = None
-    ) -> FakeAdbcTableSchema:
+    ) -> pa.Schema:
         _ = table_name, db_schema_filter
-        return self._table_schema
+        return cast(Any, self._table_schema)
 
-    def adbc_get_info(self) -> dict[str, Any]:
+    def adbc_get_info(self) -> dict[str | int, Any]:
         self.adbc_get_info_calls += 1
-        return {"vendor_name": "PostgreSQL"}
+        return cast(dict[str | int, Any], {"vendor_name": "PostgreSQL"})
 
 
 def test_adbc_info_to_dialect_maps_known_vendor() -> None:
@@ -325,14 +339,46 @@ def test_adbc_catalog_parses_adbc_get_objects() -> None:
     assert conn.last_get_objects_kwargs is not None
     assert conn.last_get_objects_kwargs["depth"] == "tables"
 
-    assert len(databases) == 1
-    assert databases[0].name == "db1"
-    assert databases[0].dialect == "postgresql"
-    assert len(databases[0].schemas) == 1
-    assert databases[0].schemas[0].name == "public"
-    tables = databases[0].schemas[0].tables
-    assert [t.name for t in tables] == ["t1", "v1"]
-    assert [t.type for t in tables] == ["table", "view"]
+    assert databases == [
+        Database(
+            name="db1",
+            dialect="postgresql",
+            engine=VariableName("adbc_conn"),
+            schemas=[
+                Schema(
+                    name="public",
+                    tables=[
+                        DataTable(
+                            source_type="connection",
+                            source="postgresql",
+                            name="t1",
+                            num_rows=None,
+                            num_columns=None,
+                            variable_name=None,
+                            engine=VariableName("adbc_conn"),
+                            type="table",
+                            columns=[],
+                            primary_keys=[],
+                            indexes=[],
+                        ),
+                        DataTable(
+                            source_type="connection",
+                            source="postgresql",
+                            name="v1",
+                            num_rows=None,
+                            num_columns=None,
+                            variable_name=None,
+                            engine=VariableName("adbc_conn"),
+                            type="view",
+                            columns=[],
+                            primary_keys=[],
+                            indexes=[],
+                        ),
+                    ],
+                )
+            ],
+        )
+    ]
 
 
 def test_adbc_execute_prefers_arrow_fetch(monkeypatch) -> None:
@@ -350,7 +396,7 @@ def test_adbc_execute_prefers_arrow_fetch(monkeypatch) -> None:
 
     cursor = FakeAdbcDbApiCursor(
         description=[("col", None)],
-        arrow_table=object(),
+        arrow_table=cast("pa.Table", object()),
     )
     conn = FakeAdbcDbApiConnection(
         cursor=cursor,
@@ -383,8 +429,13 @@ def test_adbc_is_compatible_does_not_create_cursor() -> None:
 
 
 def test_adbc_catalog_auto_discovery_uses_cheap_dialect_heuristic() -> None:
+    conn = FakeAdbcDbApiConnection(
+        cursor=FakeAdbcDbApiCursor(description=None),
+        objects_pylist=[],
+        table_schema=FakeAdbcTableSchema([]),
+    )
     cheap = AdbcConnectionCatalog(
-        adbc_connection=object(),
+        adbc_connection=conn,
         dialect="sqlite",
         engine_name=None,
     )
@@ -393,7 +444,7 @@ def test_adbc_catalog_auto_discovery_uses_cheap_dialect_heuristic() -> None:
     assert cheap._resolve_should_auto_discover(False) is False
 
     expensive = AdbcConnectionCatalog(
-        adbc_connection=object(),
+        adbc_connection=conn,
         dialect="snowflake",
         engine_name=None,
     )
