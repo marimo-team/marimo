@@ -142,6 +142,46 @@ export const ReorderableList = <T extends object>({
     : null;
   const onReceive = crossListDrag?.onReceive;
 
+  // Shared handler for cross-list drops
+  const handleCrossListDrop = async (
+    items: Iterable<{ kind: string; types: Set<string>; getText: (type: string) => Promise<string> }>,
+    insertIndex: number,
+  ) => {
+    if (!mimeType || !crossListDrag?.listId || !onReceive) {
+      return;
+    }
+
+    for (const dragItem of items) {
+      if (dragItem.kind !== "text" || !dragItem.types.has(mimeType)) {
+        continue;
+      }
+
+      const text = await dragItem.getText(mimeType);
+      const data = parseDragData<T>(text);
+      if (!data) {
+        continue;
+      }
+
+      // Only accept drops from different lists
+      if (data.sourceListId === crossListDrag.listId) {
+        continue;
+      }
+
+      // Skip if item already exists in this list
+      if (value.some((item) => getKey(item) === getKey(data.item))) {
+        continue;
+      }
+
+      // Add to this list and notify parent
+      setValue([
+        ...value.slice(0, insertIndex),
+        data.item,
+        ...value.slice(insertIndex),
+      ]);
+      onReceive(data.item, data.sourceListId, insertIndex);
+    }
+  };
+
   const { dragAndDropHooks } = useDragAndDrop<T>({
     getItems: (keys) =>
       [...keys].map((key) => {
@@ -184,83 +224,19 @@ export const ReorderableList = <T extends object>({
       ]);
     },
 
-    // Handle drops from other lists
+    // Handle drops from other lists (on a specific item)
     async onInsert(e) {
-      if (!mimeType || !crossListDrag?.listId || !onReceive) {
-        return;
-      }
-
-      for (const dragItem of e.items) {
-        if (dragItem.kind === "text" && dragItem.types.has(mimeType)) {
-          const text = await dragItem.getText(mimeType);
-          const data = parseDragData<T>(text);
-          if (!data) {
-            continue;
-          }
-
-          // Only accept drops from different lists
-          if (data.sourceListId === crossListDrag?.listId) {
-            continue;
-          }
-
-          // Skip if item already exists in this list
-          if (value.some((item) => getKey(item) === getKey(data.item))) {
-            continue;
-          }
-
-          // Calculate insert position
-          const targetIndex = value.findIndex(
-            (item) => getKey(item) === e.target.key,
-          );
-          const insertIndex =
-            e.target.dropPosition === "before" ? targetIndex : targetIndex + 1;
-
-          // Add to this list
-          const newValue = [
-            ...value.slice(0, insertIndex),
-            data.item,
-            ...value.slice(insertIndex),
-          ];
-          setValue(newValue);
-
-          // Notify parent to handle source removal and side effects
-          onReceive(data.item, data.sourceListId, insertIndex);
-        }
-      }
+      const targetIndex = value.findIndex(
+        (item) => getKey(item) === e.target.key,
+      );
+      const insertIndex =
+        e.target.dropPosition === "before" ? targetIndex : targetIndex + 1;
+      await handleCrossListDrop(e.items, insertIndex);
     },
 
     // Handle drops on empty list or root
     async onRootDrop(e) {
-      if (!mimeType || !crossListDrag?.listId || !crossListDrag?.onReceive) {
-        return;
-      }
-
-      for (const dragItem of e.items) {
-        if (dragItem.kind === "text" && dragItem.types.has(mimeType)) {
-          const text = await dragItem.getText(mimeType);
-          const data = parseDragData<T>(text);
-          if (!data) {
-            continue;
-          }
-
-          // Only accept drops from different lists
-          if (data.sourceListId === crossListDrag.listId) {
-            continue;
-          }
-
-          // Skip if item already exists in this list
-          if (value.some((item) => getKey(item) === getKey(data.item))) {
-            continue;
-          }
-
-          // Append to end
-          const insertIndex = value.length;
-          setValue([...value, data.item]);
-
-          // Notify parent
-          crossListDrag.onReceive(data.item, data.sourceListId, insertIndex);
-        }
-      }
+      await handleCrossListDrop(e.items, value.length);
     },
   });
 
