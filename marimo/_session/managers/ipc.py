@@ -262,7 +262,9 @@ class IPCKernelManagerImpl(KernelManager):
 
     def close_kernel(self) -> None:
         if self._process is not None:
-            self.queue_manager.put_control_request(commands.StopKernelCommand())
+            self.queue_manager.put_control_request(
+                commands.StopKernelCommand()
+            )
             self.queue_manager.close_queues()
 
             # Terminate process if still alive

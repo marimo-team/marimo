@@ -795,7 +795,7 @@ def test_cli_sandbox_edit_new_file() -> None:
 
 
 @pytest.mark.skipif(
-    not (HAS_UV or HAS_ZMQ), reason="uv is required for sandbox tests"
+    not HAS_UV or not HAS_ZMQ, reason="uv is required for sandbox tests"
 )
 def test_cli_edit_sandbox_multi_notebook() -> None:
     # With IPC-based kernel, sandbox now works with multi-notebook servers
@@ -823,7 +823,7 @@ def test_cli_edit_sandbox_multi_notebook() -> None:
 
 
 @pytest.mark.skipif(
-    not (HAS_UV or HAS_ZMQ), reason="uv is required for sandbox tests"
+    not HAS_UV or not HAS_ZMQ, reason="uv is required for sandbox tests"
 )
 def test_cli_edit_directory_sandbox() -> None:
     # With IPC-based kernel, sandbox now works with directories
