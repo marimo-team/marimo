@@ -3,10 +3,6 @@ name: Publish dev release of marimo-base
 on:
   workflow_call: {}
 
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
-
 permissions:
   contents: read
   pull-requests: write
