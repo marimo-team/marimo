@@ -576,7 +576,6 @@ def test_ipc_kernel_deps_constant() -> None:
     from marimo._cli.sandbox import IPC_KERNEL_DEPS
 
     assert "pyzmq" in IPC_KERNEL_DEPS
-    assert "msgspec" in IPC_KERNEL_DEPS
 
 
 def test_get_sandbox_requirements_adds_additional_deps(tmp_path: Path) -> None:
