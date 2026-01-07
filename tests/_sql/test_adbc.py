@@ -541,6 +541,33 @@ def _table_summary(table: DataTable) -> dict[str, Any]:
     }
 
 
+def _get_table_from_databases(
+    *,
+    databases: list[Any],
+    database_name: str,
+    schema_name: str,
+    table_name: str,
+) -> DataTable:
+    for db in databases:
+        if getattr(db, "name", None) != database_name:
+            continue
+        for schema in getattr(db, "schemas", []):
+            if getattr(schema, "name", None) != schema_name:
+                continue
+            for table in getattr(schema, "tables", []):
+                if getattr(table, "name", None) == table_name:
+                    return cast(DataTable, table)
+    raise AssertionError(
+        f"Did not find table {table_name!r} in {database_name!r}.{schema_name!r}"
+    )
+
+
+def _sorted_table_summaries(tables: list[DataTable]) -> list[dict[str, Any]]:
+    return sorted(
+        (_table_summary(t) for t in tables), key=lambda d: str(d["name"])
+    )
+
+
 def test_adbc_sqlite_driver_catalog_interface() -> None:
     """Smoke test marimo ADBC catalog interface against the real SQLite driver."""
     pytest.importorskip(
@@ -633,43 +660,39 @@ def test_adbc_sqlite_driver_catalog_interface() -> None:
         )
 
         # When table details are excluded, tables should have no columns.
-        dbs = engine.get_databases(
+        dbs_without_details = engine.get_databases(
             include_schemas=True,
             include_tables=True,
             include_table_details=False,
         )
         db_name, schema_name = _find_table_location(
-            databases=dbs, table_name="t"
+            databases=dbs_without_details, table_name="t"
         )
         db_name_types, schema_name_types = _find_table_location(
-            databases=dbs, table_name="t_types"
+            databases=dbs_without_details, table_name="t_types"
         )
-        t_no_details = next(
-            t
-            for db in dbs
-            for schema in db.schemas
-            for t in schema.tables
-            if db.name == db_name
-            and schema.name == schema_name
-            and t.name == "t"
-        )
-        assert _table_summary(t_no_details) == {
+        assert _table_summary(
+            _get_table_from_databases(
+                databases=dbs_without_details,
+                database_name=db_name,
+                schema_name=schema_name,
+                table_name="t",
+            )
+        ) == {
             "name": "t",
             "type": "table",
             "num_columns": None,
             "column_names": [],
             "column_types": {},
         }
-        t_types_no_details = next(
-            t
-            for db in dbs
-            for schema in db.schemas
-            for t in schema.tables
-            if db.name == db_name_types
-            and schema.name == schema_name_types
-            and t.name == "t_types"
-        )
-        assert _table_summary(t_types_no_details) == {
+        assert _table_summary(
+            _get_table_from_databases(
+                databases=dbs_without_details,
+                database_name=db_name_types,
+                schema_name=schema_name_types,
+                table_name="t_types",
+            )
+        ) == {
             "name": "t_types",
             "type": "table",
             "num_columns": None,
@@ -678,22 +701,19 @@ def test_adbc_sqlite_driver_catalog_interface() -> None:
         }
 
         # With details enabled, columns should be populated.
-        dbs = engine.get_databases(
+        dbs_with_details = engine.get_databases(
             include_schemas=True,
             include_tables=True,
             include_table_details=True,
         )
-        t_with_details = next(
-            t
-            for db in dbs
-            for schema in db.schemas
-            for t in schema.tables
-            if db.name == db_name
-            and schema.name == schema_name
-            and t.name == "t"
-        )
-        t_summary = _table_summary(t_with_details)
-        assert t_summary == {
+        assert _table_summary(
+            _get_table_from_databases(
+                databases=dbs_with_details,
+                database_name=db_name,
+                schema_name=schema_name,
+                table_name="t",
+            )
+        ) == {
             "name": "t",
             "type": "table",
             "num_columns": 2,
@@ -701,16 +721,14 @@ def test_adbc_sqlite_driver_catalog_interface() -> None:
             "column_types": {"id": "integer", "name": "string"},
         }
 
-        t_types_with_details = next(
-            t
-            for db in dbs
-            for schema in db.schemas
-            for t in schema.tables
-            if db.name == db_name_types
-            and schema.name == schema_name_types
-            and t.name == "t_types"
+        types_summary = _table_summary(
+            _get_table_from_databases(
+                databases=dbs_with_details,
+                database_name=db_name_types,
+                schema_name=schema_name_types,
+                table_name="t_types",
+            )
         )
-        types_summary = _table_summary(t_types_with_details)
         assert types_summary == {
             "name": "t_types",
             "type": "table",
@@ -739,24 +757,10 @@ def test_adbc_sqlite_driver_catalog_interface() -> None:
             },
         }
 
-        # Verify that the driver/schema mapping yields sensible marimo DataTypes.
-        col_types = cast(dict[str, str], types_summary["column_types"])
-        assert col_types == {
-            "int_col": "integer",
-            "real_col": "number",
-            "text_col": "string",
-            "blob_col": "string",
-            "bool_col": "integer",
-            "date_col": "string",
-            "time_col": "string",
-            "ts_col": "string",
-            "numeric_col": "number",
-        }
-
         tables = engine.get_tables_in_schema(
             schema=schema_name, database=db_name, include_table_details=False
         )
-        assert [_table_summary(t) for t in tables] == [
+        assert _sorted_table_summaries(tables) == [
             {
                 "name": "t",
                 "type": "table",
@@ -783,7 +787,7 @@ def test_adbc_sqlite_driver_catalog_interface() -> None:
         tables_with_details = engine.get_tables_in_schema(
             schema=schema_name, database=db_name, include_table_details=True
         )
-        assert [_table_summary(t) for t in tables_with_details] == [
+        assert _sorted_table_summaries(tables_with_details) == [
             {
                 "name": "t",
                 "type": "table",
