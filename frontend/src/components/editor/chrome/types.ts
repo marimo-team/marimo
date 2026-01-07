@@ -21,7 +21,11 @@ import {
 import { getFeatureFlag } from "@/core/config/feature-flag";
 import { isWasm } from "@/core/wasm/utils";
 
+/**
+ * Unified panel ID for all panels in sidebar and developer panel
+ */
 export type PanelType =
+  // Sidebar defaults
   | "files"
   | "variables"
   | "outline"
@@ -30,107 +34,7 @@ export type PanelType =
   | "documentation"
   | "snippets"
   | "ai"
-  | "cache";
-
-export interface PanelDescriptor {
-  id: PanelType;
-  Icon: LucideIcon;
-  /** If true, the panel is completely unavailable */
-  hidden?: boolean;
-  /** If true, the panel is available but not shown by default */
-  defaultHidden?: boolean;
-  tooltip: string;
-  position: "sidebar" | "footer";
-}
-
-/* Panels are ordered in roughly decreasing order of importance as well as
- * logically grouped.
- *
- * 1. Must-have panels first.
- * 2. Panels that can add cells to the editor.
- * 3. Nice-to-have observability panels.
- */
-export const PANELS: PanelDescriptor[] = [
-  // 1. Must-have panels.
-  //
-  // The files panel is at the top to orient
-  // users within their filesystem and give
-  // them a quick glance at their project structure,
-  // without having to leave their editor.
-  {
-    id: "files",
-    Icon: FolderTreeIcon,
-    tooltip: "View files",
-    position: "sidebar",
-  },
-  // Because notebooks uniquely have data in RAM,
-  // it's important to give humans visibility into
-  // what that data is.
-  {
-    id: "variables",
-    Icon: VariableIcon,
-    tooltip: "Explore variables and data sources",
-    position: "sidebar",
-  },
-  // Every notebook has a package environment that must
-  // be managed.
-  {
-    id: "packages",
-    Icon: BoxIcon,
-    tooltip: "Manage packages",
-    position: "sidebar",
-  },
-  // 2. "AI" panel.
-  //
-  // The AI panel holds both agents and in-editor chat.
-  {
-    id: "ai",
-    Icon: BotIcon,
-    tooltip: "Chat & Agents",
-    position: "sidebar",
-  },
-  {
-    id: "snippets",
-    Icon: SquareDashedBottomCodeIcon,
-    tooltip: "Snippets",
-    position: "sidebar",
-    defaultHidden: true,
-  },
-  // 3. Nice-to-have observability panels.
-  //
-  // Utility panels that provide observability
-  // into the state or structure of the notebook. These
-  // observability panels are less crucial than variables
-  // or datasets, so they are positioned at the end of the
-  // sidebar.
-  {
-    id: "outline",
-    Icon: ScrollTextIcon,
-    tooltip: "View outline",
-    position: "sidebar",
-  },
-  {
-    id: "documentation",
-    Icon: TextSearchIcon,
-    tooltip: "View live docs",
-    position: "sidebar",
-  },
-  {
-    // TODO(akshayka): Consider making dependencies
-    // default off; the minimap is a more effective
-    // overview.
-    id: "dependencies",
-    Icon: NetworkIcon,
-    tooltip: "Explore dependencies",
-    position: "sidebar",
-  },
-];
-
-export const PANEL_MAP = new Map<PanelType, PanelDescriptor>(
-  PANELS.map((p) => [p.id, p]),
-);
-
-export type DeveloperPanelTabType =
+  // Developer panel defaults
   | "errors"
   | "scratchpad"
   | "tracing"
@@ -139,51 +43,137 @@ export type DeveloperPanelTabType =
   | "terminal"
   | "cache";
 
-export interface DeveloperPanelTabDescriptor {
-  type: DeveloperPanelTabType;
+export type PanelSection = "sidebar" | "developer-panel";
+
+export interface PanelDescriptor {
+  type: PanelType;
   Icon: LucideIcon;
+  /** Short label for developer panel tabs */
   label: string;
+  /** Descriptive tooltip for sidebar icons */
+  tooltip: string;
+  /** If true, the panel is completely unavailable */
   hidden?: boolean;
+  /** Which section this panel belongs to by default */
+  defaultSection: PanelSection;
 }
 
-export const DEVELOPER_PANEL_TABS: DeveloperPanelTabDescriptor[] = [
+/**
+ * All panels in the application.
+ * Panels can be in either sidebar or developer panel, configurable by user.
+ */
+export const PANELS: PanelDescriptor[] = [
+  // Sidebar defaults
+  {
+    type: "files",
+    Icon: FolderTreeIcon,
+    label: "Files",
+    tooltip: "View files",
+    defaultSection: "sidebar",
+  },
+  {
+    type: "variables",
+    Icon: VariableIcon,
+    label: "Variables",
+    tooltip: "Explore variables and data sources",
+    defaultSection: "sidebar",
+  },
+  {
+    type: "packages",
+    Icon: BoxIcon,
+    label: "Packages",
+    tooltip: "Manage packages",
+    defaultSection: "sidebar",
+  },
+  {
+    type: "ai",
+    Icon: BotIcon,
+    label: "AI",
+    tooltip: "Chat & Agents",
+    defaultSection: "sidebar",
+  },
+  {
+    type: "snippets",
+    Icon: SquareDashedBottomCodeIcon,
+    label: "Snippets",
+    tooltip: "Snippets",
+    defaultSection: "developer-panel",
+  },
+  {
+    type: "outline",
+    Icon: ScrollTextIcon,
+    label: "Outline",
+    tooltip: "View outline",
+    defaultSection: "sidebar",
+  },
+  {
+    type: "documentation",
+    Icon: TextSearchIcon,
+    label: "Docs",
+    tooltip: "View live docs",
+    defaultSection: "sidebar",
+  },
+  {
+    type: "dependencies",
+    Icon: NetworkIcon,
+    label: "Dependencies",
+    tooltip: "Explore dependencies",
+    defaultSection: "sidebar",
+  },
+  // Developer panel defaults
   {
     type: "errors",
     Icon: XCircleIcon,
     label: "Errors",
+    tooltip: "View errors",
+    defaultSection: "developer-panel",
   },
   {
     type: "scratchpad",
     Icon: NotebookPenIcon,
     label: "Scratchpad",
+    tooltip: "Scratchpad",
+    defaultSection: "developer-panel",
   },
   {
     type: "tracing",
     Icon: ActivityIcon,
     label: "Tracing",
+    tooltip: "View tracing",
+    defaultSection: "developer-panel",
   },
   {
     type: "secrets",
     Icon: KeyRoundIcon,
     label: "Secrets",
+    tooltip: "Manage secrets",
+    defaultSection: "developer-panel",
     hidden: isWasm(),
   },
   {
     type: "logs",
     Icon: FileTextIcon,
     label: "Logs",
+    tooltip: "View logs",
+    defaultSection: "developer-panel",
   },
   {
     type: "terminal",
     Icon: TerminalSquareIcon,
     label: "Terminal",
+    tooltip: "Terminal",
+    defaultSection: "developer-panel",
   },
-  // TODO(akshayka): The cache panel should not be default shown,
-  // even when it's out of feature flag. (User config to turn it on.)
   {
     type: "cache",
     Icon: DatabaseZapIcon,
     label: "Cache",
+    tooltip: "View cache",
+    defaultSection: "developer-panel",
     hidden: !getFeatureFlag("cache_panel"),
   },
 ];
+
+export const PANEL_MAP = new Map<PanelType, PanelDescriptor>(
+  PANELS.map((p) => [p.type, p]),
+);

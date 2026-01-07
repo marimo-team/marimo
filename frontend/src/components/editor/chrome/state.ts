@@ -6,15 +6,40 @@ import { z } from "zod";
 import { createReducerAndAtoms } from "@/utils/createReducer";
 import { jotaiJsonStorage } from "@/utils/storage/jotai";
 import { ZodLocalStorage } from "@/utils/storage/typed";
-import type { DeveloperPanelTabType, PanelType } from "./types";
+import type { PanelType } from "./types";
 import { PANELS } from "./types";
 
 export interface ChromeState {
   selectedPanel: PanelType | undefined;
   isSidebarOpen: boolean;
   isDeveloperPanelOpen: boolean;
-  selectedDeveloperPanelTab: DeveloperPanelTabType;
+  selectedDeveloperPanelTab: PanelType;
 }
+
+/**
+ * Layout configuration for panels in sidebar and developer panel.
+ * Each array contains the ordered list of visible panel IDs for that section.
+ */
+export interface PanelLayout {
+  sidebar: PanelType[];
+  developerPanel: PanelType[];
+}
+
+const DEFAULT_PANEL_LAYOUT: PanelLayout = {
+  sidebar: PANELS.filter(
+    (p) => !p.hidden && p.defaultSection === "sidebar",
+  ).map((p) => p.type),
+  developerPanel: PANELS.filter(
+    (p) => !p.hidden && p.defaultSection === "developer-panel",
+  ).map((p) => p.type),
+};
+
+export const panelLayoutAtom = atomWithStorage<PanelLayout>(
+  "marimo:panel-layout",
+  DEFAULT_PANEL_LAYOUT,
+  jotaiJsonStorage,
+  { getOnInit: true },
+);
 
 const KEY = "marimo:sidebar";
 const storage = new ZodLocalStorage<ChromeState>(
@@ -29,7 +54,7 @@ const storage = new ZodLocalStorage<ChromeState>(
       .string()
       .optional()
       .default("terminal")
-      .transform((v) => v as DeveloperPanelTabType),
+      .transform((v) => v as PanelType),
   }),
   initialState,
 );
@@ -81,11 +106,11 @@ const {
       ...state,
       isDeveloperPanelOpen: isOpen,
     }),
-    setSelectedDeveloperPanelTab: (state, tab: DeveloperPanelTabType) => ({
+    setSelectedDeveloperPanelTab: (state, tab: PanelType) => ({
       ...state,
       selectedDeveloperPanelTab: tab,
     }),
-    openDeveloperPanelTab: (state, tab: DeveloperPanelTabType) => ({
+    openDeveloperPanelTab: (state, tab: PanelType) => ({
       ...state,
       isDeveloperPanelOpen: true,
       selectedDeveloperPanelTab: tab,
@@ -119,13 +144,3 @@ export const exportedForTesting = {
   createActions,
   initialState,
 };
-
-// TODO: probably merge this with the chrome state
-export const sidebarOrderAtom = atomWithStorage<PanelType[]>(
-  "marimo:sidebar-order",
-  PANELS.filter(
-    (p) => !p.hidden && !p.defaultHidden && p.position === "sidebar",
-  ).map((p) => p.id),
-  jotaiJsonStorage,
-  { getOnInit: true },
-);
