@@ -556,6 +556,7 @@ export const LoadingDataTableComponent = memo(
       props.totalRows,
       props.lazy,
       props.cellHoverTexts,
+      props.cellStyles,
       paginationState.pageSize,
       paginationState.pageIndex,
     ]);
