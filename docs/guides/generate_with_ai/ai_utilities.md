@@ -8,7 +8,7 @@ These features from Claude are very useful to help you write notebooks.
 
 [Slash Commands](https://code.claude.com/docs/en/slash-commands) allow you to predefine specific prompts that you can refer to during a conversation with Claude. You store these either in the `~/.claude/commands/` personal folder or in the `.claude/commands/` local folder of the project.
 
-Here's an example of a slash command that runs the `marimo check` linter of a notebook of your choice.
+Here's an example of a slash command that runs the `marimo check` linter on a notebook of your choice.
 
 ```
 ---
