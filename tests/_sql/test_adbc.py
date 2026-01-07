@@ -740,39 +740,65 @@ def test_adbc_sqlite_driver_catalog_interface() -> None:
 
         # Verify that the driver/schema mapping yields sensible marimo DataTypes.
         col_types = cast(dict[str, str], types_summary["column_types"])
-        assert col_types["int_col"] == "integer"
-        assert col_types["real_col"] == "number"
-        assert col_types["text_col"] == "string"
-        # SQLite/driver-specific: these may come back as strings/ints depending on
-        # how the driver maps SQLite affinities.
-        assert col_types["bool_col"] in ("boolean", "integer")
-        assert col_types["date_col"] in ("date", "string")
-        assert col_types["time_col"] in ("time", "string")
-        assert col_types["ts_col"] in ("datetime", "string")
-        assert col_types["numeric_col"] in ("number", "integer", "string")
+        assert col_types == {
+            "int_col": "integer",
+            "real_col": "number",
+            "text_col": "string",
+            "blob_col": "string",
+            "bool_col": "integer",
+            "date_col": "string",
+            "time_col": "string",
+            "ts_col": "string",
+            "numeric_col": "number",
+        }
 
         tables = engine.get_tables_in_schema(
             schema=schema_name, database=db_name, include_table_details=False
         )
-        assert {t.name for t in tables} >= {"t", "t2", "t_types"}
+        assert [_table_summary(t) for t in tables] == [
+            {
+                "name": "t",
+                "type": "table",
+                "num_columns": None,
+                "column_names": [],
+                "column_types": {},
+            },
+            {
+                "name": "t2",
+                "type": "table",
+                "num_columns": None,
+                "column_names": [],
+                "column_types": {},
+            },
+            {
+                "name": "t_types",
+                "type": "table",
+                "num_columns": None,
+                "column_names": [],
+                "column_types": {},
+            },
+        ]
 
         tables_with_details = engine.get_tables_in_schema(
             schema=schema_name, database=db_name, include_table_details=True
         )
-        t = next(t for t in tables_with_details if t.name == "t")
-        assert {c.name for c in t.columns} == {"id", "name"}
-        t_types = next(t for t in tables_with_details if t.name == "t_types")
-        assert {c.name for c in t_types.columns} == {
-            "int_col",
-            "real_col",
-            "text_col",
-            "blob_col",
-            "bool_col",
-            "date_col",
-            "time_col",
-            "ts_col",
-            "numeric_col",
-        }
+        assert [_table_summary(t) for t in tables_with_details] == [
+            {
+                "name": "t",
+                "type": "table",
+                "num_columns": 2,
+                "column_names": ["id", "name"],
+                "column_types": {"id": "integer", "name": "string"},
+            },
+            {
+                "name": "t2",
+                "type": "table",
+                "num_columns": 1,
+                "column_names": ["x"],
+                "column_types": {"x": "number"},
+            },
+            types_summary,
+        ]
     finally:
         conn.close()
 
