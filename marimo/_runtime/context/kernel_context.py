@@ -19,7 +19,6 @@ from marimo._runtime.dataflow import DirectedGraph
 from marimo._runtime.functions import FunctionRegistry
 from marimo._runtime.params import CLIArgs, QueryParams
 from marimo._session.model import SessionMode
-from marimo._utils.platform import is_pyodide
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -160,10 +159,9 @@ def create_kernel_context(
 
     # Use shared memory in edit mode,
     # in-memory storage in run mode (same process)
-    # Pyodide doesn't support shared memory, so we use in-memory storage.
     storage = (
         SharedMemoryStorage()
-        if mode == SessionMode.EDIT and not is_pyodide()
+        if mode == SessionMode.EDIT
         else InMemoryStorage()
     )
 

@@ -46,10 +46,6 @@ class SharedMemoryStorage(VirtualFileStorage):
     """
 
     def __init__(self) -> None:
-        if is_pyodide():
-            raise RuntimeError(
-                "SharedMemoryStorage is not supported on Pyodide"
-            )
         self._storage: dict[str, shared_memory.SharedMemory] = {}
         self._shutting_down = False
 
