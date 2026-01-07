@@ -25,6 +25,7 @@ from marimo._server.templates.templates import (
     notebook_page_template,
 )
 from marimo._utils.paths import marimo_package_path
+from marimo._utils.async_path import AsyncPath
 
 if TYPE_CHECKING:
     from starlette.requests import Request
@@ -154,12 +155,10 @@ async def index(request: Request) -> HTMLResponse:
         ):
             from marimo._convert.converters import MarimoConvert
 
-            filepath = Path(app_manager.filename)
-            if await asyncio.to_thread(filepath.exists):
+            filepath = AsyncPath(app_manager.filename)
+            if await filepath.exists():
                 try:
-                    content = await asyncio.to_thread(
-                        filepath.read_text, encoding="utf-8"
-                    )
+                    content = await filepath.read_text(encoding="utf-8")
                     notebook_snapshot = MarimoConvert.from_py(
                         content
                     ).to_notebook_v1()

@@ -181,9 +181,11 @@ class IPCKernelManagerImpl(KernelManager):
                 additional_deps=IPC_KERNEL_DEPS,
             )
             cmd = [venv_python, "-m", "marimo._ipc.launch_kernel"]
-        except Exception:
+        except Exception as e:
             cleanup_sandbox_dir(self._sandbox_dir)
-            raise
+            raise KernelStartupError(
+                f"Failed to build sandbox environment.\n\n{e}"
+            ) from e
 
         echo(
             f"Running kernel in sandbox: {muted(' '.join(cmd))}",
@@ -225,10 +227,16 @@ class IPCKernelManagerImpl(KernelManager):
 
             # Create a ProcessLike wrapper for the subprocess
             self.kernel_task = _SubprocessWrapper(self._process)
-        except Exception:
-            # Cleanup sandbox on any failure
+        except KernelStartupError:
+            # Already a KernelStartupError, just cleanup and re-raise
             cleanup_sandbox_dir(self._sandbox_dir)
             raise
+        except Exception as e:
+            # Wrap other exceptions as KernelStartupError
+            cleanup_sandbox_dir(self._sandbox_dir)
+            raise KernelStartupError(
+                f"Failed to start kernel subprocess.\n\n{e}"
+            ) from e
 
     @property
     def pid(self) -> int | None:

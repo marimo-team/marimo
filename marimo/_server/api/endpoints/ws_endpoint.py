@@ -15,6 +15,7 @@ from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.notification import (
     AlertNotification,
     BannerNotification,
+    KernelStartupErrorNotification,
     NotificationMessage,
     ReconnectedNotification,
 )
@@ -44,6 +45,7 @@ from marimo._server.session_manager import SessionManager
 from marimo._session import Session
 from marimo._session.consumer import SessionConsumer
 from marimo._session.events import SessionEventBus
+from marimo._session.managers.ipc import KernelStartupError
 from marimo._session.model import (
     ConnectionState,
     SessionMode,
@@ -377,7 +379,12 @@ class WebSocketHandler(SessionConsumer):
             params=self.params,
             websocket=self.websocket,
         )
-        session, connection_type = connector.connect()
+        try:
+            session, connection_type = connector.connect()
+        except KernelStartupError as e:
+            LOGGER.error("Kernel startup failed: %s", e)
+            await self._close_kernel_startup_error(str(e))
+            return
         LOGGER.debug(
             "Connected to session %s with type %s",
             session.initialization_id,
@@ -423,6 +430,23 @@ class WebSocketHandler(SessionConsumer):
             await self.websocket.close(
                 WebSocketCodes.ALREADY_CONNECTED,
                 "MARIMO_ALREADY_CONNECTED",
+            )
+
+    async def _close_kernel_startup_error(self, error_message: str) -> None:
+        """Send full error as message, then close the WebSocket."""
+        if self.websocket.application_state is WebSocketState.CONNECTED:
+            # Send full error as a message before closing
+            # Format must match what ws_message_loop sends:
+            # {"op": "xxx", "data": {...}}
+            msg = serialize_kernel_message(
+                KernelStartupErrorNotification(error=error_message)
+            )
+            text = f'{{"op": "kernel-startup-error", "data": {msg.decode("utf-8")}}}'
+            await self.websocket.send_text(text)
+            # Then close with simple reason
+            await self.websocket.close(
+                WebSocketCodes.UNEXPECTED_ERROR,
+                "MARIMO_KERNEL_STARTUP_ERROR",
             )
 
     def on_attach(self, session: Session, event_bus: SessionEventBus) -> None:

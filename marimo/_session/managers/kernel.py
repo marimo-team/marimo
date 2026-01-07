@@ -8,6 +8,7 @@ import signal
 import sys
 import threading
 import time
+from uuid import uuid4
 from multiprocessing import Process, connection
 from typing import TYPE_CHECKING, Any, Optional, Union
 
@@ -162,8 +163,6 @@ class KernelManagerImpl(KernelManager):
 
     @property
     def profile_path(self) -> str | None:
-        from uuid import uuid4
-
         self._profile_path: str | None
 
         if hasattr(self, "_profile_path"):
