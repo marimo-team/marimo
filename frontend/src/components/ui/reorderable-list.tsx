@@ -144,7 +144,11 @@ export const ReorderableList = <T extends object>({
 
   // Shared handler for cross-list drops
   const handleCrossListDrop = async (
-    items: Iterable<{ kind: string; types: Set<string>; getText: (type: string) => Promise<string> }>,
+    items: Iterable<{
+      kind: string;
+      types: Set<string>;
+      getText: (type: string) => Promise<string>;
+    }>,
     insertIndex: number,
   ) => {
     if (!mimeType || !crossListDrag?.listId || !onReceive) {
