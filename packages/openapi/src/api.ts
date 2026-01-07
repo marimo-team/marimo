@@ -4147,6 +4147,15 @@ export interface components {
       ui_values: Record<string, any> | null;
     };
     /**
+     * KernelStartupErrorNotification
+     * @description Notification sent when kernel fails to start (e.g., sandbox build failure).
+     */
+    KernelStartupErrorNotification: {
+      error: string;
+      /** @enum {unknown} */
+      op: "kernel-startup-error";
+    };
+    /**
      * KeymapConfig
      * @description Configuration for keymaps.
      *
@@ -4234,6 +4243,7 @@ export interface components {
         | components["schemas"]["MissingPackageAlertNotification"]
         | components["schemas"]["InstallingPackageAlertNotification"]
         | components["schemas"]["StartupLogsNotification"]
+        | components["schemas"]["KernelStartupErrorNotification"]
         | components["schemas"]["VariablesNotification"]
         | components["schemas"]["VariableValuesNotification"]
         | components["schemas"]["QueryParamsSetNotification"]

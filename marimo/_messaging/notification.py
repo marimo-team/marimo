@@ -453,6 +453,7 @@ NotificationMessage = Union[
     MissingPackageAlertNotification,
     InstallingPackageAlertNotification,
     StartupLogsNotification,
+    KernelStartupErrorNotification,
     # Variables
     VariablesNotification,
     VariableValuesNotification,

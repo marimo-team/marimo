@@ -192,6 +192,8 @@ export async function initialize() {
         return;
       case "cache-info":
         return;
+      case "kernel-startup-error":
+        return;
       default:
         logNever(msg.data);
     }
