@@ -293,6 +293,14 @@
     border: 1px solid var(--gray-9);
   }
 
+  &.needs-run:hover {
+      @apply border-action-foreground/30 outline-action-foreground/30;
+  }
+
+  &.has-error:hover {
+    @apply border-error/30 outline-error/30;
+  }
+
   &.borderless {
     border-color: transparent;
 
