@@ -98,7 +98,11 @@ const sortedTablesAtom = atom((get) => {
   });
 });
 
-const connectionsAtom = atom((get) => {
+/**
+ * This atom is used to get the data connections that are available to the user.
+ * It filters out the internal engines if it has no databases or if it has only the in-memory database and no schemas.
+ */
+export const connectionsAtom = atom((get) => {
   const dataConnections = new Map(get(dataConnectionsMapAtom));
 
   // Filter out the internal engines if it has no databases
@@ -160,7 +164,7 @@ export const DataSources: React.FC = () => {
       className="border-b bg-background rounded-none h-full pb-10 overflow-auto outline-hidden"
       shouldFilter={false}
     >
-      <div className="flex items-center w-full">
+      <div className="flex items-center w-full border-b">
         <CommandInput
           placeholder="Search tables..."
           className="h-6 m-1"
@@ -170,7 +174,7 @@ export const DataSources: React.FC = () => {
             closeAllColumns(value.length > 0);
             setSearchValue(value);
           }}
-          rootClassName="flex-1 border-r"
+          rootClassName="flex-1 border-r border-b-0"
         />
         {hasSearch && (
           <button
@@ -183,12 +187,13 @@ export const DataSources: React.FC = () => {
         )}
 
         <AddDatabaseDialog>
-          <button
-            type="button"
-            className="float-right border-b px-2 m-0 h-full hover:bg-accent hover:text-accent-foreground"
+          <Button
+            variant="ghost"
+            size="sm"
+            className="px-2 rounded-none focus-visible:outline-hidden"
           >
             <PlusIcon className="h-4 w-4" />
-          </button>
+          </Button>
         </AddDatabaseDialog>
       </div>
 

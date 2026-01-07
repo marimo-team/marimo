@@ -1,10 +1,13 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
-import { useAtom } from "jotai";
+import { useAtom, useAtomValue } from "jotai";
 import { atomWithStorage } from "jotai/utils";
 import { DatabaseIcon, VariableIcon } from "lucide-react";
-import React from "react";
-import { DataSources } from "@/components/datasources/datasources";
+import React, { useCallback } from "react";
+import {
+  connectionsAtom,
+  DataSources,
+} from "@/components/datasources/datasources";
 import {
   Accordion,
   AccordionContent,
@@ -14,30 +17,52 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { VariableTable } from "@/components/variables/variables-table";
 import { useCellIds } from "@/core/cells/cells";
-import { useDatasets } from "@/core/datasets/state";
 import { useVariables } from "@/core/variables/state";
 import { jotaiJsonStorage } from "@/utils/storage/jotai";
 
-const openSectionsAtom = atomWithStorage<string[]>(
-  "marimo:session-panel:open-sections",
-  ["variables"],
+type OpenSections = "variables" | "datasources";
+
+interface SessionPanelState {
+  openSections: OpenSections[];
+  accordionTouched: boolean;
+}
+
+const sessionPanelAtom = atomWithStorage<SessionPanelState>(
+  "marimo:session-panel:state",
+  { openSections: ["variables"], accordionTouched: false },
   jotaiJsonStorage,
 );
 
 const SessionPanel: React.FC = () => {
   const variables = useVariables();
   const cellIds = useCellIds();
-  const datasets = useDatasets();
-  const [openSections, setOpenSections] = useAtom(openSectionsAtom);
+  const dataConnections = useAtomValue(connectionsAtom);
+  const [state, setState] = useAtom(sessionPanelAtom);
 
-  const datasourcesCount = datasets.tables.length;
+  // If accordion hasn't been touched and there are connections, show datasources open
+  const openSections =
+    !state.accordionTouched && dataConnections.length > 0
+      ? [...new Set([...state.openSections, "datasources" as const])]
+      : state.openSections;
+
+  const handleValueChange = useCallback(
+    (value: string[]) => {
+      setState({
+        openSections: value as OpenSections[],
+        accordionTouched: true,
+      });
+    },
+    [setState],
+  );
+
   const isDatasourcesOpen = openSections.includes("datasources");
+  const showDatasourcesBadge = !isDatasourcesOpen && dataConnections.length > 0;
 
   return (
     <Accordion
       type="multiple"
       value={openSections}
-      onValueChange={setOpenSections}
+      onValueChange={handleValueChange}
       className="flex flex-col h-full overflow-auto"
     >
       <AccordionItem value="datasources" className="border-b">
@@ -45,12 +70,12 @@ const SessionPanel: React.FC = () => {
           <span className="flex items-center gap-2">
             <DatabaseIcon className="w-4 h-4" />
             Data sources
-            {!isDatasourcesOpen && datasourcesCount > 0 && (
+            {showDatasourcesBadge && (
               <Badge
                 variant="secondary"
-                className="ml-1 px-1.5 py-0 text-[10px]"
+                className="ml-1 px-1.5 py-0 mb-px text-[10px]"
               >
-                {datasourcesCount}
+                {dataConnections.length}
               </Badge>
             )}
           </span>
