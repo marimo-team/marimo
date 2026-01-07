@@ -114,7 +114,7 @@ jobs:
           # Get version from package.json
           pyodide_version=$(cat frontend/package.json | jq -r '.dependencies["pyodide"]')
           echo "Pyodide version: $pyodide_version"
-          npm install -g pyodide@$pyodide_version
+          npm install pyodide@$pyodide_version
           wheel_file=$(ls dist/*.whl)
           echo "Testing wheel: $wheel_file"
           node tests/_pyodide/test_pyodide_acceptance.mjs "$wheel_file"
