@@ -8,9 +8,9 @@ import signal
 import sys
 import threading
 import time
-from uuid import uuid4
 from multiprocessing import Process, connection
 from typing import TYPE_CHECKING, Any, Optional, Union
+from uuid import uuid4
 
 from marimo import _loggers
 from marimo._config.settings import GLOBAL_SETTINGS
