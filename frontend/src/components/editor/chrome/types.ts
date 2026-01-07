@@ -18,7 +18,9 @@ import {
   VariableIcon,
   XCircleIcon,
 } from "lucide-react";
+import { hasCapability } from "@/core/config/capabilities";
 import { getFeatureFlag } from "@/core/config/feature-flag";
+import type { Capabilities } from "@/core/kernel/messages";
 import { isWasm } from "@/core/wasm/utils";
 
 /**
@@ -56,6 +58,8 @@ export interface PanelDescriptor {
   hidden?: boolean;
   /** Which section this panel belongs to by default */
   defaultSection: PanelSection;
+  /** Capability required for this panel to be visible. If the capability is false, the panel is hidden. */
+  requiredCapability?: keyof Capabilities;
 }
 
 /**
@@ -162,7 +166,9 @@ export const PANELS: PanelDescriptor[] = [
     Icon: TerminalSquareIcon,
     label: "Terminal",
     tooltip: "Terminal",
+    hidden: isWasm(),
     defaultSection: "developer-panel",
+    requiredCapability: "terminal",
   },
   {
     type: "cache",
@@ -177,3 +183,19 @@ export const PANELS: PanelDescriptor[] = [
 export const PANEL_MAP = new Map<PanelType, PanelDescriptor>(
   PANELS.map((p) => [p.type, p]),
 );
+
+/**
+ * Check if a panel should be hidden based on its `hidden` property
+ * and `requiredCapability`.
+ */
+export function isPanelHidden(panel: PanelDescriptor): boolean {
+  if (panel.hidden) {
+    return true;
+  }
+  if (panel.requiredCapability) {
+    if (!hasCapability(panel.requiredCapability)) {
+      return true;
+    }
+  }
+  return false;
+}
