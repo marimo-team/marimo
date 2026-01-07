@@ -1,0 +1,46 @@
+name: Publish Package to npm
+
+on:
+  workflow_call:
+    inputs:
+      package-artifact-name:
+        required: true
+        type: string
+        description: 'Name of the artifact containing the built package'
+      working-directory:
+        required: false
+        type: string
+        default: '.'
+        description: 'Directory within the artifact to publish from'
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write  # Required for OIDC authentication and provenance
+      contents: read
+    steps:
+      - name: 📦 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: ⬆️ Upgrade npm for OIDC support
+        run: npm install -g npm@latest
+
+      - name: 📥 Download built package artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.package-artifact-name }}
+          path: ${{ inputs.working-directory }}
+
+      - name: 📤 Publish to npm
+        working-directory: ${{ inputs.working-directory }}
+        run: |
+          for i in {1..3}; do
+            npm publish --access public --provenance && break || {
+              echo "Publish attempt $i failed, retrying..."
+              sleep 10
+            }
+          done

@@ -89,7 +89,7 @@ jobs:
       - name: Run LSP binary
         run: ./scripts/test-lsp.sh
       - name: Upload wheel
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: testwheel
           path: dist/*.whl
