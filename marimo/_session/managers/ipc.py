@@ -1,5 +1,5 @@
 # Copyright 2026 Marimo. All rights reserved.
-"""IPC-based managers for home sandbox mode using ZeroMQ.
+"""IPC-based managers using ZeroMQ.
 
 These implementations launch the kernel as a subprocess and communicate
 via ZeroMQ channels. Each notebook gets its own sandboxed virtual environment.
@@ -48,7 +48,7 @@ class IPCQueueManagerImpl(QueueManager):
     """Manages queues for a session via ZeroMQ IPC.
 
     This wraps the ZeroMQ-based IPC QueueManager to provide queues
-    for communication with the kernel subprocess. Used for home sandbox mode.
+    for communication with the kernel subprocess.
     """
 
     def __init__(self, ipc: IPCQueueManagerType) -> None:
@@ -117,7 +117,7 @@ class IPCQueueManagerImpl(QueueManager):
 
 
 class IPCKernelManagerImpl(KernelManager):
-    """IPC-based kernel manager for home sandbox mode.
+    """IPC-based kernel manager to spawn sandboxed kernels.
 
     Launches the kernel as a subprocess and communicates via ZeroMQ channels.
     Each notebook gets its own sandboxed virtual environment.

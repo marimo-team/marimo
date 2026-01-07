@@ -87,7 +87,7 @@ sql = [
     "sqlglot[rs]>=26.2.0"      # SQL cells parsing
 ]
 
-# For sandbox home mode (per-notebook sandboxed kernels)
+# For per-notebook sandboxed kernels
 sandbox = [
     "pyzmq>=27.1.0",           # IPC communication for sandbox kernels
     "uv>=0.9.21",              # for sandbox management

@@ -396,7 +396,7 @@ def run_in_sandbox(
 
 
 # Dependencies required for IPC kernel communication (ZeroMQ-based)
-IPC_KERNEL_DEPS: list[str] = ["pyzmq", "msgspec"]
+IPC_KERNEL_DEPS: list[str] = ["pyzmq"]
 
 
 def get_sandbox_requirements(

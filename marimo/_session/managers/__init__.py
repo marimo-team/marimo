@@ -9,7 +9,7 @@ Standard implementations (QueueManagerImpl, KernelManagerImpl):
     Communicate via multiprocessing or threading queues.
 
 IPC implementations (IPCQueueManagerImpl, IPCKernelManagerImpl):
-    For home sandbox mode. Launch kernel as subprocess with ZeroMQ IPC.
+    Launch kernel as subprocess with ZeroMQ IPC.
     Each notebook gets its own sandboxed virtual environment.
 """
 
