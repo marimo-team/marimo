@@ -45,8 +45,8 @@ class AdbcDbApiCursor(Protocol):
 class AdbcDbApiConnection(Protocol):
     """ADBC DB-API wrapper connection.
 
-    The ADBC Python cookbook documents these methods and their return types:
-    https://arrow.apache.org/adbc/current/python/cookbook/
+    For the canonical DB-API types/signatures, see:
+    https://arrow.apache.org/adbc/current/python/api/adbc_driver_manager.html#adbc_driver_manager.dbapi.Connection
     """
 
     def cursor(self) -> AdbcDbApiCursor: ...
