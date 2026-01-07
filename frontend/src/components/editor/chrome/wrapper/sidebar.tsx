@@ -12,7 +12,7 @@ import { snippetsEnabledAtom } from "@/core/config/config";
 import { cn } from "@/utils/cn";
 import { FeedbackButton } from "../components/feedback-button";
 import { panelLayoutAtom, useChromeActions, useChromeState } from "../state";
-import { PANELS, type PanelDescriptor } from "../types";
+import { PANEL_MAP, PANELS, type PanelDescriptor } from "../types";
 
 export const Sidebar: React.FC = () => {
   const { selectedPanel, selectedDeveloperPanelTab } = useChromeState();
@@ -47,9 +47,10 @@ export const Sidebar: React.FC = () => {
 
   // Convert current sidebar items to PanelDescriptors
   const sidebarItems = useMemo(() => {
-    return panelLayout.sidebar
-      .map((id) => PANELS.find((p) => p.type === id))
-      .filter((p): p is PanelDescriptor => p !== undefined);
+    return panelLayout.sidebar.flatMap((id) => {
+      const panel = PANEL_MAP.get(id);
+      return panel ? [panel] : [];
+    });
   }, [panelLayout.sidebar]);
 
   const handleSetSidebarItems = (items: PanelDescriptor[]) => {

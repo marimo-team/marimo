@@ -28,7 +28,7 @@ import { cn } from "@/utils/cn";
 import { ErrorBoundary } from "../../boundary/ErrorBoundary";
 import { ContextAwarePanel } from "../panels/context-aware-panel/context-aware-panel";
 import { panelLayoutAtom, useChromeActions, useChromeState } from "../state";
-import { PANELS, type PanelDescriptor } from "../types";
+import { PANEL_MAP, PANELS, type PanelDescriptor } from "../types";
 import { BackendConnectionStatus } from "./footer-items/backend-status";
 import { Minimap } from "./minimap";
 import { PanelsWrapper } from "./panels";
@@ -85,9 +85,10 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
 
   // Convert current developer panel items to PanelDescriptors
   const devPanelItems = useMemo(() => {
-    return panelLayout.developerPanel
-      .map((id) => PANELS.find((p) => p.type === id))
-      .filter((p): p is PanelDescriptor => p !== undefined);
+    return panelLayout.developerPanel.flatMap((id) => {
+      const panel = PANEL_MAP.get(id);
+      return panel ? [panel] : [];
+    });
   }, [panelLayout.developerPanel]);
 
   const handleSetDevPanelItems = (items: PanelDescriptor[]) => {
