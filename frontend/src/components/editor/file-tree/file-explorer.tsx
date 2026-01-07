@@ -60,6 +60,7 @@ import type { FilePath } from "@/utils/paths";
 import { fileSplit } from "@/utils/pathUtils";
 import { jotaiJsonStorage } from "@/utils/storage/jotai";
 import marimoIcon from "../../../assets/icon-32x32.png";
+import { useTreeDndManager } from "./dnd-wrapper";
 import { FileViewer } from "./file-viewer";
 import type { RequestingTree } from "./requesting-tree";
 import { openStateAtom, treeAtom } from "./state";
@@ -86,6 +87,7 @@ export const FileExplorer: React.FC<{
   height: number;
 }> = ({ height }) => {
   const treeRef = useRef<TreeApi<FileInfo>>(null);
+  const dndManager = useTreeDndManager();
   const [tree] = useAtom(treeAtom);
   const [data, setData] = useState<FileInfo[]>([]);
   const [openFile, setOpenFile] = useState<FileInfo | null>(null);
@@ -192,6 +194,8 @@ export const FileExplorer: React.FC<{
           data={visibleData}
           initialOpenState={openState}
           openByDefault={false}
+          // Use shared DnD manager to prevent "Cannot have two HTML5 backends" error
+          dndManager={dndManager}
           // Hide the drop cursor
           renderCursor={() => null}
           // Disable dropping files into files
