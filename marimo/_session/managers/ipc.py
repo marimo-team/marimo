@@ -253,10 +253,7 @@ class IPCKernelManagerImpl(KernelManager):
         if self._process is None:
             return
 
-        # Send stop command
         self.queue_manager.put_control_request(commands.StopKernelCommand())
-
-        # Close queues
         self.queue_manager.close_queues()
 
         # Terminate process if still alive
@@ -267,7 +264,6 @@ class IPCKernelManagerImpl(KernelManager):
             except subprocess.TimeoutExpired:
                 self._process.kill()
 
-        # Clean up sandbox directory
         cleanup_sandbox_dir(self._sandbox_dir)
         self._sandbox_dir = None
 

@@ -506,7 +506,7 @@ def edit(
 
         if not DependencyManager.has("zmq"):
             raise click.UsageError(
-                "pyzmq is required for sandbox home mode.\n"
+                "pyzmq is required when running the marimo edit server on a directory with --sandbox.\n"
                 "Install it with: pip install 'marimo[sandbox]'\n"
                 "Or: pip install pyzmq"
             )

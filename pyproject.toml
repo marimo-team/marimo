@@ -97,7 +97,7 @@ sandbox = [
 # in order to unlock all features in marimo
 recommended = [
     "marimo[sql]",
-    "marimo[sandbox]",          # For sandbox home mode
+    "marimo[sandbox]",          # For `marimo edit --sandbox DIRECTORY`
     "altair>=5.4.0",            # Plotting in datasource viewer
     "openai>=1.55.3",           # AI features
     "ruff",                     # Formatting
