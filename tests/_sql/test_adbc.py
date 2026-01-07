@@ -330,14 +330,12 @@ def test_adbc_catalog_parses_adbc_get_objects() -> None:
 def test_adbc_execute_prefers_arrow_fetch(monkeypatch) -> None:
     sentinel_result = object()
 
-    import marimo._sql.engines.adbc as adbc_module
-
     def fake_convert_to_output(*args: Any, **kwargs: Any) -> Any:
         _ = args, kwargs
         return sentinel_result
 
     monkeypatch.setattr(
-        adbc_module, "convert_to_output", fake_convert_to_output
+        "marimo._sql.engines.adbc.convert_to_output", fake_convert_to_output
     )
 
     cursor = FakeAdbcDbApiCursor(
