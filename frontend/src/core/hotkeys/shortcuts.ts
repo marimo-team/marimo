@@ -1,5 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
+import type { KeyBinding } from "@codemirror/view";
 import { Logger } from "@/utils/Logger";
 import { NOT_SET } from "./hotkeys";
 
@@ -106,8 +107,8 @@ function areKeysPressed(keys: string[], e: IKeyboardEvent): boolean {
 function normalizeKey(key: string): string {
   const specialKeys: { [key: string]: string } = {
     control: "ctrl",
-    command: "meta",
-    cmd: "meta",
+    command: "mod",
+    cmd: "mod",
     option: "alt",
     return: "enter",
   };
@@ -143,4 +144,35 @@ export function resolvePlatform(): Platform {
     return "windows";
   }
   return "linux";
+}
+
+/**
+ * On macOS, duplicate a Cmd-based keybinding to also work with Ctrl.
+ * This allows users coming from Jupyter/Colab to use Ctrl-Enter to run cells.
+ *
+ * Returns an array with the original binding, plus a Ctrl variant on macOS.
+ * For use with CodeMirror keymap bindings.
+ *
+ * Design decision: User-defined Cmd shortcuts also get Ctrl equivalents.
+ * The edge case is if a user wants `Cmd+<x>` and `Ctrl+<x>` to trigger
+ * different actions, this isn't currently supported. Given the relatively
+ * small number of keymaps, we're keeping this simple. If it becomes an issue,
+ * we can refactor to resolve a special "Mod" key internally and require users
+ * to specify explicit single-key mappings.
+ *
+ * Note: If the binding already contains Ctrl (e.g., Cmd-Ctrl-Enter),
+ * no duplication is done to avoid producing invalid Ctrl-Ctrl-key combos.
+ */
+export function duplicateWithCtrlModifier<T extends KeyBinding>(
+  binding: T,
+): T[] {
+  // Skip if not macOS, not a Cmd binding, or already has Ctrl
+  if (
+    !isPlatformMac() ||
+    !binding.key?.includes("Cmd") ||
+    binding.key.includes("Ctrl")
+  ) {
+    return [binding];
+  }
+  return [binding, { ...binding, key: binding.key.replaceAll("Cmd", "Ctrl") }];
 }
