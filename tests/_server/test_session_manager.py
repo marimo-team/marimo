@@ -9,6 +9,7 @@ import pytest
 from marimo._config.manager import get_default_config_manager
 from marimo._server.file_router import AppFileRouter
 from marimo._server.lsp import LspServer
+from marimo._server.session.listeners import RecentsTrackerListener
 from marimo._server.session_manager import SessionManager
 from marimo._server.tokens import AuthToken, SkewProtectionToken
 from marimo._session import (
@@ -18,7 +19,6 @@ from marimo._session import (
 from marimo._session.consumer import SessionConsumer
 from marimo._session.model import ConnectionState, SessionMode
 from marimo._session.notebook import AppFileManager
-from marimo._server.session.listeners import RecentsTrackerListener
 from marimo._types.ids import SessionId
 
 if TYPE_CHECKING:
@@ -411,7 +411,9 @@ def test_recents_listener_subscribed_to_event_bus(
     # Verify that RecentsTrackerListener is in the event bus listeners
     listeners = session_manager._event_bus._listeners
     recents_listeners = [
-        listen for listen in listeners if isinstance(l, RecentsTrackerListener)
+        listen
+        for listen in listeners
+        if isinstance(listen, RecentsTrackerListener)
     ]
     assert len(recents_listeners) == 1, (
         "RecentsTrackerListener should be subscribed to session manager's event bus"
