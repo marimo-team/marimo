@@ -9,8 +9,8 @@ import { Debugger } from "../debugger-code";
 // Mock CodeMirror language extensions
 vi.mock("@uiw/codemirror-extensions-langs", () => ({
   langs: {
-    shell: () => [],
-    python: () => [],
+    sh: () => [],
+    py: () => [],
   },
 }));
 
