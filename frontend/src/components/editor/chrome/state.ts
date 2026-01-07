@@ -7,7 +7,7 @@ import { createReducerAndAtoms } from "@/utils/createReducer";
 import { jotaiJsonStorage } from "@/utils/storage/jotai";
 import { ZodLocalStorage } from "@/utils/storage/typed";
 import type { PanelType } from "./types";
-import { PANELS } from "./types";
+import { isPanelHidden, PANELS } from "./types";
 
 export interface ChromeState {
   selectedPanel: PanelType | undefined;
@@ -27,10 +27,10 @@ export interface PanelLayout {
 
 const DEFAULT_PANEL_LAYOUT: PanelLayout = {
   sidebar: PANELS.filter(
-    (p) => !p.hidden && p.defaultSection === "sidebar",
+    (p) => !isPanelHidden(p) && p.defaultSection === "sidebar",
   ).map((p) => p.type),
   developerPanel: PANELS.filter(
-    (p) => !p.hidden && p.defaultSection === "developer-panel",
+    (p) => !isPanelHidden(p) && p.defaultSection === "developer-panel",
   ).map((p) => p.type),
 };
 

@@ -28,7 +28,12 @@ import { ErrorBoundary } from "../../boundary/ErrorBoundary";
 import { ContextAwarePanel } from "../panels/context-aware-panel/context-aware-panel";
 import { PanelSectionProvider } from "../panels/panel-context";
 import { panelLayoutAtom, useChromeActions, useChromeState } from "../state";
-import { PANEL_MAP, PANELS, type PanelDescriptor } from "../types";
+import {
+  isPanelHidden,
+  PANEL_MAP,
+  PANELS,
+  type PanelDescriptor,
+} from "../types";
 import { BackendConnectionStatus } from "./footer-items/backend-status";
 import { Minimap } from "./minimap";
 import { PanelsWrapper } from "./panels";
@@ -125,7 +130,7 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
   const availableDevPanels = useMemo(() => {
     const sidebarIds = new Set(panelLayout.sidebar);
     return PANELS.filter((p) => {
-      if (p.hidden) {
+      if (isPanelHidden(p)) {
         return false;
       }
       // Exclude panels that are in the sidebar

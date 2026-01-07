@@ -11,7 +11,12 @@ import { notebookQueuedOrRunningCountAtom } from "@/core/cells/cells";
 import { cn } from "@/utils/cn";
 import { FeedbackButton } from "../components/feedback-button";
 import { panelLayoutAtom, useChromeActions, useChromeState } from "../state";
-import { PANEL_MAP, PANELS, type PanelDescriptor } from "../types";
+import {
+  isPanelHidden,
+  PANEL_MAP,
+  PANELS,
+  type PanelDescriptor,
+} from "../types";
 
 export const Sidebar: React.FC = () => {
   const { selectedPanel, selectedDeveloperPanelTab } = useChromeState();
@@ -28,7 +33,7 @@ export const Sidebar: React.FC = () => {
   const availableSidebarPanels = useMemo(() => {
     const devPanelIds = new Set(panelLayout.developerPanel);
     return PANELS.filter((p) => {
-      if (p.hidden) {
+      if (isPanelHidden(p)) {
         return false;
       }
       // Exclude panels that are in the developer panel
