@@ -122,7 +122,7 @@ jobs:
 
       - name: Install Python deps
         run: |
-          uv add pytest pytest-asyncio pytest-timeout nbformat
+          uv add pytest pytest-asyncio pytest-timeout nbformat pyzmq
 
       - name: Download wheel
         uses: actions/download-artifact@v4

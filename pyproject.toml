@@ -134,7 +134,6 @@ test = [
     # For server testing
     "httpx~=0.28.0",
     "urllib3~=2.5.0",
-    "pyzmq>=27.1.0",
     # Pytest and plugins
     "pytest~=8.3.4",
     "pytest-timeout~=2.3.1",
