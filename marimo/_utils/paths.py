@@ -42,3 +42,31 @@ def maybe_make_dirs(filepath: Path) -> None:
     Create directories if they don't exist.
     """
     filepath.parent.mkdir(parents=True, exist_ok=True)
+
+
+def normalize_path(path: Path) -> Path:
+    """Normalize a path without resolving symlinks.
+
+    This function:
+    - Converts relative paths to absolute paths
+    - Normalizes .. and . components
+    - Does NOT resolve symlinks (unlike Path.resolve())
+
+    Args:
+        path: The path to normalize
+
+    Returns:
+        Normalized absolute path without symlink resolution
+
+    Example:
+        >>> normalize_path(Path("foo/../bar"))
+        Path("/current/working/dir/bar")
+    """
+    # Make absolute if relative (relative to current working directory)
+    if not path.is_absolute():
+        path = Path.cwd() / path
+
+    # Use os.path.normpath to normalize .. and . without resolving symlinks
+    normalized = Path(os.path.normpath(str(path)))
+
+    return normalized

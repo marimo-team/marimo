@@ -18,6 +18,7 @@ from marimo._session.events import (
 from marimo._session.extensions.types import SessionExtension
 from marimo._session.session import Session
 from marimo._utils.file_watcher import FileWatcherManager
+from marimo._utils.paths import normalize_path
 
 LOGGER = _loggers.marimo_logger()
 
@@ -92,8 +93,8 @@ class SessionFileWatcherExtension(SessionExtension, SessionEventListener):
         )
 
     def _canonicalize_path(self, path: str) -> Path:
-        """Canonicalize a path."""
-        return Path(path).absolute()
+        """Canonicalize a path without resolving symlinks."""
+        return normalize_path(Path(path))
 
     async def on_session_notebook_renamed(
         self, session: Session, old_path: str | None
