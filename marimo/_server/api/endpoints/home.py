@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+import pathlib
 import tempfile
 from typing import TYPE_CHECKING
 
@@ -58,7 +59,12 @@ async def read_code(
                         $ref: "#/components/schemas/RecentFilesResponse"
     """
     app_state = AppState(request)
-    files = app_state.session_manager.recents.get_recents()
+    # Pass the file router's directory to filter and relativize paths
+    directory = None
+    dir_str = app_state.session_manager.file_router.directory
+    if dir_str:
+        directory = pathlib.Path(dir_str)
+    files = app_state.session_manager.recents.get_recents(directory)
     return RecentFilesResponse(files=files)
 
 

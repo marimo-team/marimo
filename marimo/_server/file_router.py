@@ -167,15 +167,16 @@ class ListOfFilesAppFileRouter(AppFileRouter):
 
 class LazyListOfFilesAppFileRouter(AppFileRouter):
     def __init__(self, directory: str, include_markdown: bool) -> None:
-        # pass through Path to canonicalize, strips trailing slashes
-        self._directory = str(Path(directory))
+        # Make directory absolute but don't resolve symlinks to preserve user paths
+        abs_directory = Path(directory).absolute()
+        self._directory = str(abs_directory)
         self.include_markdown = include_markdown
         self._lazy_files: Optional[list[FileInfo]] = None
 
         # Use PathValidator for security validation
-        self._validator = PathValidator(Path(directory))
-        # Use DirectoryScanner for file discovery
-        self._scanner = DirectoryScanner(directory, include_markdown)
+        self._validator = PathValidator(abs_directory)
+        # Use DirectoryScanner for file discovery (use absolute path)
+        self._scanner = DirectoryScanner(str(abs_directory), include_markdown)
 
     @property
     def directory(self) -> str:
@@ -233,22 +234,21 @@ class LazyListOfFilesAppFileRouter(AppFileRouter):
         directory = Path(self._directory)
         filepath = Path(key)
 
+        # Resolve filepath for use
+        # If filepath is relative, resolve it relative to directory
+        if not filepath.is_absolute():
+            filepath = directory / filepath
+
         # Use PathValidator for security validation
         # Check if file is in an allowed temp directory (e.g., for tutorials)
         # If so, skip the directory validation
         is_in_allowed_temp_dir = self._validator.is_file_in_allowed_temp_dir(
-            key
+            str(filepath)
         )
 
         if not is_in_allowed_temp_dir:
             # Validate that filepath is inside directory
             self._validator.validate_inside_directory(directory, filepath)
-
-        # Resolve filepath for use
-        # If directory is absolute and filepath is relative, resolve relative to directory
-        if directory.is_absolute() and not filepath.is_absolute():
-            filepath = directory / filepath
-        # Note: We don't call resolve() here to preserve the original path format
 
         if filepath.exists():
             return AppFileManager(str(filepath), defaults=defaults)

@@ -145,7 +145,7 @@ class TestAppFileRouter(unittest.TestCase):
         filename = self.test_file1.name
         assert os.path.exists(filename), f"File {filename} does not exist"
         file_manager = router.get_file_manager(key=filename)
-        assert file_manager.filename == os.path.join(self.test_dir, filename)
+        assert file_manager.filename == filename
 
     def test_lazy_list_of_get_app_file_manager_nested(self):
         router = LazyListOfFilesAppFileRouter(
@@ -510,7 +510,8 @@ def test_lazy_router_skips_common_dirs(tmp_path: Path):
     # Should only find the root file, not files in skipped directories
     file_paths = [f.path for f in files if not f.is_directory]
     assert len(file_paths) == 1
-    assert str(root_file) in file_paths
+    # Paths are now relative to the router's directory
+    assert root_file.name in file_paths
 
 
 def test_lazy_router_counts_nested_files(tmp_path: Path):
