@@ -1,10 +1,7 @@
 name: Publish dev release of marimo-base
 
-# Publish development release to test pypi on pushes to main
 on:
-  push:
-    branches:
-      - main
+  workflow_call: {}
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
