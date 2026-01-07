@@ -2883,8 +2883,8 @@ export interface components {
      *     /example/foo-0.1.0-py3-none-any.whl
      */
     AddPackageRequest: {
-      /** @default false */
-      dev?: boolean | null;
+      /** @default null */
+      group?: string | null;
       package: string;
       /** @default false */
       upgrade?: boolean | null;
@@ -3592,13 +3592,16 @@ export interface components {
     DeleteSecretRequest: {
       key: string;
     };
+    /** DependencyTag */
+    DependencyTag: {
+      kind: string;
+      value: string;
+    };
     /** DependencyTreeNode */
     DependencyTreeNode: {
       dependencies: components["schemas"]["DependencyTreeNode"][];
       name: string;
-      tags: {
-        [key: string]: string;
-      }[];
+      tags: components["schemas"]["DependencyTag"][];
       version: string | null;
     };
     /** DependencyTreeResponse */
@@ -4722,8 +4725,8 @@ export interface components {
     };
     /** RemovePackageRequest */
     RemovePackageRequest: {
-      /** @default false */
-      dev?: boolean | null;
+      /** @default null */
+      group?: string | null;
       package: string;
     };
     /**

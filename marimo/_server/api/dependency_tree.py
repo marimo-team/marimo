@@ -1,7 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from marimo._utils.uv_tree import DependencyTreeNode
+from marimo._utils.uv_tree import DependencyTag, DependencyTreeNode
 
 
 def parse_name_version(content: str) -> tuple[str, str | None]:
@@ -50,7 +50,7 @@ def parse_uv_tree(text: str) -> DependencyTreeNode:
             content = content[:-3].strip()
 
         # tags (extras/groups)
-        tags: list[dict[str, str]] = []
+        tags: list[DependencyTag] = []
         while "(extra:" in content or "(group:" in content:
             start = (
                 content.rfind("(extra:")
@@ -65,14 +65,14 @@ def parse_uv_tree(text: str) -> DependencyTreeNode:
             tag_text = content[start + 1 : end]
             kind, value = tag_text.split(":", 1)
             assert kind == "extra" or kind == "group"
-            tags.append({"kind": kind, "value": value.strip()})
+            tags.append(DependencyTag(kind=kind, value=value.strip()))
             content = content[:start].strip()
 
         name, version = parse_name_version(content)
 
         # Add cycle indicator as a special tag
         if is_cycle:
-            tags.append({"kind": "cycle", "value": "true"})
+            tags.append(DependencyTag(kind="cycle", value="true"))
 
         node = DependencyTreeNode(
             name=name,

@@ -567,7 +567,7 @@ reportUnusedCallResult = false
 
 [tool.pixi.workspace]
 channels = ["conda-forge"]
-platforms = ["osx-arm64", "linux-64"]
+platforms = ["osx-arm64", "linux-64", "linux-aarch64"]
 
 [tool.pixi.dependencies]
 nodejs = "22.*"
@@ -581,3 +581,4 @@ pip = ">=25.0.1,<26"
 
 [tool.pixi.pypi-dependencies]
 marimo = {path = ".", editable = true}
+
