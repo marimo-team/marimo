@@ -4,7 +4,7 @@ Many coding agents let you customise the marimo editing experience. This page li
 
 These features from Claude are very useful to help you write notebooks.
 
-### Slash Commands
+### Slash commands
 
 [Slash Commands](https://code.claude.com/docs/en/slash-commands) allow you to predefine specific prompts that you can refer to during a conversation with Claude. You store these either in the `~/.claude/commands/` personal folder or in the `.claude/commands/` local folder of the project.
 
