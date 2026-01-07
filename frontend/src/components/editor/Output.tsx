@@ -404,12 +404,7 @@ OutputArea.displayName = "OutputArea";
 const Div = React.forwardRef<
   HTMLDivElement,
   React.ComponentPropsWithoutRef<"div">
->((props, ref) => (
-  <div
-    ref={ref}
-    {...props}
-  />
-));
+>((props, ref) => <div ref={ref} {...props} />);
 Div.displayName = "Div";
 
 /**
