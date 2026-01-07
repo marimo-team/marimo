@@ -500,6 +500,15 @@ def edit(
 
     # Check if this is home sandbox mode (directory + sandbox)
     home_sandbox = is_home_sandbox_mode(sandbox_mode, name)
+
+    # Single-file sandbox: wrap with uv run
+    if sandbox_mode and not home_sandbox:
+        from marimo._cli.sandbox import run_in_sandbox
+
+        run_in_sandbox(sys.argv[1:], name=name, additional_features=["lsp"])
+        return
+
+    # Home sandbox mode: use IPC kernels with per-notebook sandboxed venvs
     if home_sandbox:
         # Check for pyzmq dependency
         from marimo._dependencies.dependencies import DependencyManager

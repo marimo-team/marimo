@@ -60,32 +60,42 @@ class IPCQueueManagerImpl(QueueManager):
         return self._ipc
 
     @property
-    def control_queue(self) -> QueueType[commands.CommandMessage]:
+    def control_queue(  # type: ignore[override]
+        self,
+    ) -> QueueType[commands.CommandMessage]:
         return self._ensure_ipc().control_queue
 
     @property
-    def set_ui_element_queue(
+    def set_ui_element_queue(  # type: ignore[override]
         self,
     ) -> QueueType[commands.UpdateUIElementCommand]:
         return self._ensure_ipc().set_ui_element_queue
 
     @property
-    def completion_queue(self) -> QueueType[commands.CodeCompletionCommand]:
+    def completion_queue(  # type: ignore[override]
+        self,
+    ) -> QueueType[commands.CodeCompletionCommand]:
         return self._ensure_ipc().completion_queue
 
     @property
-    def input_queue(self) -> QueueType[str]:
+    def input_queue(  # type: ignore[override]
+        self,
+    ) -> QueueType[str]:
         return self._ensure_ipc().input_queue
 
     @property
-    def stream_queue(self) -> QueueType[Union[KernelMessage, None]]:
+    def stream_queue(  # type: ignore[override]
+        self,
+    ) -> QueueType[Union[KernelMessage, None]]:
         return cast(
             QueueType[Union[KernelMessage, None]],
             self._ensure_ipc().stream_queue,
         )
 
     @property
-    def win32_interrupt_queue(self) -> Optional[QueueType[bool]]:
+    def win32_interrupt_queue(  # type: ignore[override]
+        self,
+    ) -> Optional[QueueType[bool]]:
         return self._ensure_ipc().win32_interrupt_queue
 
     def close_queues(self) -> None:
