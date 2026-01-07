@@ -411,7 +411,7 @@ def test_recents_listener_subscribed_to_event_bus(
     # Verify that RecentsTrackerListener is in the event bus listeners
     listeners = session_manager._event_bus._listeners
     recents_listeners = [
-        l for l in listeners if isinstance(l, RecentsTrackerListener)
+        listen for listen in listeners if isinstance(l, RecentsTrackerListener)
     ]
     assert len(recents_listeners) == 1, (
         "RecentsTrackerListener should be subscribed to session manager's event bus"
