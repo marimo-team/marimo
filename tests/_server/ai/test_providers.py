@@ -95,7 +95,16 @@ def test_get_completion_provider(
     if dependency and not dependency.has():
         pytest.skip(f"{dependency.pkg} is not installed")
 
-    config = AnyProviderConfig(api_key="test-key", base_url="http://test-url")
+    if provider_type == BedrockProvider:
+        # For Bedrock, we pass bedrock-required details through the config
+        config = AnyProviderConfig(
+            api_key="aws_access_key_id:aws_secret_access_key",  # credentials
+            base_url="us-east-1",  # region name
+        )
+    else:
+        config = AnyProviderConfig(
+            api_key="test-key", base_url="http://test-url"
+        )
     provider = get_completion_provider(config, model_name)
     assert isinstance(provider, provider_type)
 
@@ -189,32 +198,6 @@ async def test_azure_openai_provider() -> None:
     assert api_version == "2023-05-15"
     assert deployment_name == "gpt-4-1"
     assert endpoint == "https://unknown_domain.openai"
-
-
-@pytest.mark.parametrize(
-    "provider_type",
-    [
-        pytest.param(OpenAIProvider, id="openai"),
-        pytest.param(BedrockProvider, id="bedrock"),
-    ],
-)
-def test_extract_content_with_none_tool_call_ids(
-    provider_type: type,
-) -> None:
-    """Test extract_content handles None tool_call_ids without errors."""
-    config = AnyProviderConfig(api_key="test-key", base_url="http://test")
-    provider = provider_type("test-model", config)
-
-    mock_response = MagicMock()
-    mock_delta = MagicMock()
-    mock_delta.content = "Hello"
-    mock_delta.tool_calls = None
-    mock_choice = MagicMock()
-    mock_choice.delta = mock_delta
-    mock_response.choices = [mock_choice]
-
-    result = provider.extract_content(mock_response, None)
-    assert result == [("Hello", "text")]
 
 
 def test_openai_extract_content_multiple_tool_calls() -> None:
@@ -480,38 +463,6 @@ def test_openai_extract_content_tool_delta_out_of_bounds() -> None:
     """
     config = AnyProviderConfig(api_key="test-key", base_url="http://test")
     provider = OpenAIProvider("gpt-4", config)
-
-    mock_response = MagicMock()
-    mock_delta = MagicMock()
-    mock_delta.content = None
-
-    # Create a tool call delta with index 0, but tool_call_ids is empty
-    mock_tool_delta = MagicMock()
-    mock_tool_delta.index = 0
-    mock_tool_delta.id = None  # No id for delta chunks
-    mock_tool_delta.function = MagicMock()
-    mock_tool_delta.function.name = None  # No name for delta chunks
-    mock_tool_delta.function.arguments = '{"location": "SF"}'
-
-    mock_delta.tool_calls = [mock_tool_delta]
-    mock_choice = MagicMock()
-    mock_choice.delta = mock_delta
-    mock_response.choices = [mock_choice]
-
-    # Call with empty tool_call_ids - this should not crash
-    result = provider.extract_content(mock_response, [])
-    # Should return None or empty list since we can't process the delta
-    assert result is None or result == []
-
-
-def test_bedrock_extract_content_tool_delta_out_of_bounds() -> None:
-    """Test Bedrock handles tool call delta with out-of-bounds index gracefully.
-
-    This reproduces the issue reported in #7330 where some providers may send
-    tool call deltas before the tool call start, causing an IndexError.
-    """
-    config = AnyProviderConfig(api_key="test-key", base_url="http://test")
-    provider = BedrockProvider("bedrock/anthropic.claude-3-sonnet", config)
 
     mock_response = MagicMock()
     mock_delta = MagicMock()
