@@ -26,7 +26,7 @@ jobs:
       contents: read
     steps:
       - name: 📦 Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: 22
           registry-url: 'https://registry.npmjs.org'
@@ -42,6 +42,8 @@ jobs:
 
       - name: 📤 Publish to npm
         working-directory: ${{ inputs.working-directory }}
+        env:
+          NODE_AUTH_TOKEN: "" # Clear placeholder set by setup-node to enable OIDC
         run: |
           TAG_FLAG=""
           if [ -n "${{ inputs.npm-tag }}" ]; then
