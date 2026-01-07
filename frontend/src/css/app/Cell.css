@@ -294,7 +294,7 @@
   }
 
   &.needs-run:hover {
-      @apply border-action-foreground/30 outline-action-foreground/30;
+    @apply border-action-foreground/30 outline-action-foreground/30;
   }
 
   &.has-error:hover {
