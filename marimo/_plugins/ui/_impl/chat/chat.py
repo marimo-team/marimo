@@ -11,12 +11,14 @@ from marimo._ai._types import (
     ChatModelConfig,
     ChatModelConfigDict,
 )
+from marimo._ai.llm._impl import pydantic_ai
 from marimo._output.formatting import as_html
 from marimo._output.rich_help import mddoc
 from marimo._plugins.core.web_component import JSONType
 from marimo._plugins.ui._core.ui_element import UIElement
 from marimo._plugins.ui._impl.chat.utils import from_chat_message_dict
 from marimo._runtime.commands import UpdateUIElementCommand
+from marimo._runtime.context import get_context
 from marimo._runtime.context.types import ContextNotInitializedError
 from marimo._runtime.functions import EmptyArgs, Function
 
@@ -157,6 +159,10 @@ class chat(UIElement[dict[str, Any], list[ChatMessage]]):
     ) -> None:
         self._model = model
         self._chat_history: list[ChatMessage] = []
+        self._frontend_managed = False
+
+        if isinstance(model, pydantic_ai):
+            self._frontend_managed = True
 
         if config is None:
             config = DEFAULT_CONFIG
@@ -175,6 +181,7 @@ class chat(UIElement[dict[str, Any], list[ChatMessage]]):
                 "config": cast(JSONType, config or {}),
                 "allow-attachments": allow_attachments,
                 "max-height": max_height,
+                "frontend-managed": self._frontend_managed,
             },
             functions=(
                 Function(
@@ -214,16 +221,46 @@ class chat(UIElement[dict[str, Any], list[ChatMessage]]):
         del self._chat_history[index]
         self._value = self._chat_history
 
-    async def _handle_streaming_response(self, response: Any) -> str:
+    def _send_chat_message(
+        self,
+        *,
+        message_id: str,
+        content: str | dict[str, Any] | None,
+        is_final: bool,
+    ) -> None:
+        """Helper method to send a chat message to the frontend."""
+        self._send_message(
+            {
+                "type": "stream_chunk",
+                "message_id": message_id,
+                "content": content,
+                "is_final": is_final,
+            },
+            buffers=None,
+        )
+
+    async def _handle_streaming_response(self, response: Any) -> str | None:
         """Handle streaming from both sync and async generators.
 
         Generators should yield delta chunks (new content only), which this
         method accumulates and sends to the frontend as complete text.
         This follows the standard streaming pattern used by OpenAI, Anthropic,
-        and other AI providers.
+        and other AI providers. For frontend-managed streaming, the response is set on the frontend,
+        so we don't need to return anything.
         """
         message_id = str(uuid.uuid4())
         accumulated_text = ""
+
+        if self._frontend_managed:
+            async for delta in response:
+                self._send_chat_message(
+                    message_id=message_id, content=delta, is_final=False
+                )
+            # Send final message to indicate streaming is complete
+            self._send_chat_message(
+                message_id=message_id, content=None, is_final=True
+            )
+            return None
 
         # Use async for if it's an async generator, otherwise regular for
         if inspect.isasyncgen(response):
@@ -231,72 +268,31 @@ class chat(UIElement[dict[str, Any], list[ChatMessage]]):
                 # Accumulate each delta chunk
                 delta_str = str(delta)
                 accumulated_text += delta_str
-                self._send_message(
-                    {
-                        "type": "stream_chunk",
-                        "message_id": message_id,
-                        "content": accumulated_text,
-                        "is_final": False,
-                    },
-                    buffers=None,
+                self._send_chat_message(
+                    message_id=message_id,
+                    content=accumulated_text,
+                    is_final=False,
                 )
         else:
             for delta in response:
                 # Accumulate each delta chunk
                 delta_str = str(delta)
                 accumulated_text += delta_str
-                self._send_message(
-                    {
-                        "type": "stream_chunk",
-                        "message_id": message_id,
-                        "content": accumulated_text,
-                        "is_final": False,
-                    },
-                    buffers=None,
+                self._send_chat_message(
+                    message_id=message_id,
+                    content=accumulated_text,
+                    is_final=False,
                 )
 
         # Send final message to indicate streaming is complete
         if accumulated_text:
-            self._send_message(
-                {
-                    "type": "stream_chunk",
-                    "message_id": message_id,
-                    "content": accumulated_text,
-                    "is_final": True,
-                },
-                buffers=None,
+            self._send_chat_message(
+                message_id=message_id, content=accumulated_text, is_final=True
             )
-
         return accumulated_text
 
-    async def _send_prompt(self, args: SendMessageRequest) -> str:
-        messages = args.messages
-
-        # If the model is a callable that takes a single argument,
-        # call it with just the messages.
-        response: object
-        if (
-            callable(self._model)
-            and not isinstance(self._model, type)
-            and len(inspect.signature(self._model).parameters) == 1
-        ):
-            response = self._model(messages)  # type: ignore
-        else:
-            response = self._model(messages, args.config)
-
-        if inspect.isawaitable(response):
-            response = await response
-        elif inspect.isasyncgen(response) or inspect.isgenerator(response):
-            # We support functions that stream the response with generators
-            # (both sync and async); each yielded value is the latest
-            # representation of the response, and the last value is the full value
-            response = await self._handle_streaming_response(response)
-
-        response_message = ChatMessage(role="assistant", content=response)
-        self._chat_history = messages + [response_message]
-
-        from marimo._runtime.context import get_context
-
+    def _update_chat_history(self, chat_history: list[ChatMessage]) -> None:
+        self._chat_history = chat_history
         # The frontend doesn't manage state, so we have to manually enqueue
         # a control request.
         try:
@@ -320,6 +316,38 @@ class chat(UIElement[dict[str, Any], list[ChatMessage]]):
                     )
                 )
 
+    async def _send_prompt(self, args: SendMessageRequest) -> str | None:
+        messages = args.messages
+
+        # If the model is a callable that takes a single argument,
+        # call it with just the messages.
+        response: object
+        if (
+            callable(self._model)
+            and not isinstance(self._model, type)
+            and len(inspect.signature(self._model).parameters) == 1
+        ):
+            response = self._model(messages)  # type: ignore
+        else:
+            response = self._model(messages, args.config)
+
+        if inspect.isawaitable(response):
+            response = await response
+        elif inspect.isasyncgen(response) or inspect.isgenerator(response):
+            # We support functions that stream the response with generators
+            # (both sync and async); each yielded value is the latest
+            # representation of the response, and the last value is the full value
+            response = await self._handle_streaming_response(response)
+
+        if self._frontend_managed:
+            # For frontend-managed streaming, the response is set on the frontend,
+            # so we don't need to return anything.
+            return None
+
+        response_message = ChatMessage(role="assistant", content=response)
+        chat_history = messages + [response_message]
+        self._update_chat_history(chat_history)
+
         # Return the response as HTML
         # If the response is a string, convert it to markdown
         if isinstance(response, str):
@@ -331,4 +359,21 @@ class chat(UIElement[dict[str, Any], list[ChatMessage]]):
             raise ValueError("Invalid chat history format")
 
         messages = value["messages"]
+
+        if self._frontend_managed:
+            from pydantic_ai.ui.vercel_ai.request_types import UIMessagePart
+
+            # The frontend sends messages as UIMessage dicts so we use pydantic-ai to cast them
+            # as Vercel messages
+            return [
+                ChatMessage.create(
+                    role=msg.get("role", "user"),
+                    message_id=msg.get("id"),
+                    content=None,
+                    parts=msg.get("parts", []),
+                    part_validator_class=UIMessagePart,
+                )
+                for msg in messages
+            ]
+
         return [from_chat_message_dict(msg) for msg in messages]

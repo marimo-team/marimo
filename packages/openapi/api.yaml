@@ -512,13 +512,19 @@ components:
           - type: 'null'
           default: null
         content: {}
-        parts:
+        id:
+          default: ''
+          type: string
+        metadata:
           anyOf:
-          - items:
-              type: object
-            type: array
+          - {}
           - type: 'null'
           default: null
+        parts:
+          default: []
+          items:
+            type: object
+          type: array
         role:
           enum:
           - assistant
