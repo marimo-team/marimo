@@ -34,7 +34,6 @@ if TYPE_CHECKING:
     from collections.abc import Iterator
 
 HAS_UV = DependencyManager.which("uv")
-HAS_ZMQ = DependencyManager.which("zmq")
 
 DIR_PATH = os.path.dirname(os.path.realpath(__file__))
 
@@ -794,9 +793,7 @@ def test_cli_sandbox_edit_new_file() -> None:
     _check_contents(p, b"edit", contents)
 
 
-@pytest.mark.skipif(
-    not HAS_UV or not HAS_ZMQ, reason="uv is required for sandbox tests"
-)
+@pytest.mark.skipif(not HAS_UV, reason="uv is required for sandbox tests")
 def test_cli_edit_sandbox_multi_notebook() -> None:
     # With IPC-based kernel, sandbox now works with multi-notebook servers
     port = _get_port()
@@ -822,9 +819,7 @@ def test_cli_edit_sandbox_multi_notebook() -> None:
     _check_contents(p, b'"serverToken": ', contents)
 
 
-@pytest.mark.skipif(
-    not HAS_UV or not HAS_ZMQ, reason="uv is required for sandbox tests"
-)
+@pytest.mark.skipif(not HAS_UV, reason="uv is required for sandbox tests")
 def test_cli_edit_directory_sandbox() -> None:
     # With IPC-based kernel, sandbox now works with directories
     port = _get_port()
