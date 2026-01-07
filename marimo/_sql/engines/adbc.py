@@ -1,7 +1,6 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from functools import cached_property
 from types import ModuleType
 from typing import TYPE_CHECKING, Any, Literal, Optional, Protocol, Union, cast
 
@@ -46,7 +45,8 @@ class AdbcDbApiCursor(Protocol):
 class AdbcDbApiConnection(Protocol):
     """ADBC DB-API wrapper connection.
 
-    The ADBC Python cookbook documents these methods and their return types.
+    The ADBC Python cookbook documents these methods and their return types:
+    https://arrow.apache.org/adbc/current/python/cookbook/
     """
 
     def cursor(self) -> AdbcDbApiCursor: ...
@@ -84,38 +84,6 @@ def _resolve_table_type(table_type: str) -> Literal["table", "view"]:
     return "table"
 
 
-_ADBC_DIALECT_SUBSTRING_RULES: tuple[tuple[str, str], ...] = (
-    ("postgres", "postgresql"),
-    ("timescale", "timescaledb"),
-    ("sqlite", "sqlite"),
-    ("duckdb", "duckdb"),
-    ("snowflake", "snowflake"),
-    ("redshift", "redshift"),
-    ("bigquery", "bigquery"),
-    ("clickhouse", "clickhouse"),
-    ("couchbase", "couchbase"),
-    ("cassandra", "cassandra"),
-    ("mongo", "mongodb"),
-    ("trino", "trino"),
-    ("presto", "trino"),
-    ("hive", "hive"),
-    ("flink", "flink"),
-    ("databricks", "spark"),
-    ("spark", "spark"),
-    ("athena", "athena"),
-    ("tidb", "tidb"),
-    ("db2i", "db2i"),
-    ("db2", "db2"),
-    ("singlestore", "singlestoredb"),
-    ("memsql", "singlestoredb"),
-    ("oracledb", "oracledb"),
-    ("oracle", "oracle"),
-    ("mariadb", "mariadb"),
-    ("mysql", "mysql"),
-    ("microsoftsql", "mssql"),
-)
-
-
 def _adbc_info_to_dialect(*, info: dict[str | int, Any]) -> str:
     """Infer marimo's dialect identifier from ADBC metadata.
 
@@ -128,45 +96,11 @@ def _adbc_info_to_dialect(*, info: dict[str | int, Any]) -> str:
     selection and for display in the UI.
     """
 
-    def normalize(value: str) -> str:
-        return "".join(ch for ch in value.casefold() if ch.isalnum())
-
     vendor_name = info.get("vendor_name")
-    driver_name = info.get("driver_name")
     vendor = vendor_name if isinstance(vendor_name, str) else None
-    driver = driver_name if isinstance(driver_name, str) else None
 
-    def from_normalized(normalized: str) -> str | None:
-        """Map a normalized vendor/driver name to a recognized marimo dialect string.
-
-        This function matches known synonyms and substrings to marimo's internal
-        dialect identifiers, which are used for editor selection, query formatting,
-        and UI display. If no known dialect is detected, returns None.
-
-        Args:
-            normalized: The normalized (casefolded, alphanumeric) vendor or driver string.
-
-        Returns:
-            A recognized marimo dialect string if matched, else None.
-        """
-        for needle, dialect in _ADBC_DIALECT_SUBSTRING_RULES:
-            if needle in normalized:
-                return dialect
-        return None
-
-    for candidate in (vendor, driver):
-        if candidate is None or not candidate.strip():
-            continue
-        normalized = normalize(candidate)
-        if dialect := from_normalized(normalized):
-            return dialect
-
-    # No known mapping: use a stable-ish identifier for UI and editor selection.
-    # Prefer vendor name over driver name.
     if vendor is not None and vendor.strip():
-        return vendor.strip().casefold()
-    if driver is not None and driver.strip():
-        return driver.strip().casefold()
+        return vendor.strip().lower()
 
     return "sql"
 
@@ -444,8 +378,8 @@ class AdbcDBAPIEngine(SQLConnection[AdbcDbApiConnection]):
     def source(self) -> str:
         return "adbc"
 
-    @cached_property
-    def _dialect(self) -> str:
+    @property
+    def dialect(self) -> str:
         try:
             info = self._connection.adbc_get_info()
             if isinstance(info, dict):
@@ -453,10 +387,6 @@ class AdbcDBAPIEngine(SQLConnection[AdbcDbApiConnection]):
         except Exception:
             LOGGER.debug("Failed to read ADBC driver metadata", exc_info=True)
         return "sql"
-
-    @property
-    def dialect(self) -> str:
-        return self._dialect
 
     @staticmethod
     def is_compatible(var: Any) -> bool:
@@ -487,18 +417,22 @@ class AdbcDBAPIEngine(SQLConnection[AdbcDbApiConnection]):
             # to avoid leaking resources during compatibility checks.
             cursor = var.cursor()
             try:
-                required_cursor_methods = (
-                    "execute",
-                    "fetch_arrow_table",
-                    "close",
-                )
+                required_cursor_methods = ("execute", "fetch_arrow_table")
                 return all(
                     callable(getattr(cursor, method, None))
                     for method in required_cursor_methods
                 )
             finally:
-                cursor.close()
+                # Never fail compatibility checks due to close errors
+                try:
+                    cursor.close()
+                except Exception:
+                    LOGGER.debug(
+                        "Failed to close cursor during ADBC compatibility check",
+                        exc_info=True,
+                    )
         except Exception:
+            LOGGER.debug("ADBC compatibility check failed", exc_info=True)
             return False
 
     @property
@@ -575,7 +509,6 @@ class AdbcDBAPIEngine(SQLConnection[AdbcDbApiConnection]):
     ) -> Any:
         sql_output_format = self.sql_output_format()
         cursor = self._connection.cursor()
-        should_close = True
 
         def _try_commit() -> None:
             try:
@@ -586,15 +519,17 @@ class AdbcDBAPIEngine(SQLConnection[AdbcDbApiConnection]):
         try:
             cursor.execute(query, parameters or ())
 
-            if sql_output_format == "native":
-                should_close = False
-                return cursor
-
             if not getattr(cursor, "description", None):
                 _try_commit()
                 return None
 
             arrow_table = cursor.fetch_arrow_table()
+
+            if sql_output_format == "native":
+                # ADBC is Arrow-native: when users request native output, return
+                # the Arrow table directly (no pandas/polars conversion).
+                _try_commit()
+                return arrow_table
 
             def convert_to_polars() -> pl.DataFrame | pl.Series:
                 import polars as pl
@@ -612,8 +547,7 @@ class AdbcDBAPIEngine(SQLConnection[AdbcDbApiConnection]):
             _try_commit()
             return result
         finally:
-            if should_close:
-                try:
-                    cursor.close()
-                except Exception:
-                    LOGGER.info("Failed to close cursor", exc_info=True)
+            try:
+                cursor.close()
+            except Exception:
+                LOGGER.info("Failed to close cursor", exc_info=True)

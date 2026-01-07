@@ -217,77 +217,23 @@ class FakeAdbcDbApiConnection:
         return cast(dict[str | int, Any], {"vendor_name": "PostgreSQL"})
 
 
-def test_adbc_info_to_dialect_maps_known_vendor() -> None:
+def test_adbc_info_to_dialect() -> None:
+    # Vendor string is lowercased (and stripped); driver_name is ignored.
     assert (
-        _adbc_info_to_dialect(info={"vendor_name": "PostgreSQL"})
+        _adbc_info_to_dialect(
+            info={"vendor_name": "PostgreSQL", "driver_name": "SQLite"}
+        )
         == "postgresql"
     )
     assert (
         _adbc_info_to_dialect(info={"vendor_name": "Microsoft SQL Server"})
-        == "mssql"
-    )
-    assert _adbc_info_to_dialect(info={"vendor_name": "DuckDB"}) == "duckdb"
-    assert (
-        _adbc_info_to_dialect(info={"vendor_name": "Amazon Athena"})
-        == "athena"
-    )
-    assert (
-        _adbc_info_to_dialect(info={"vendor_name": "AWS Athena"}) == "athena"
-    )
-    assert _adbc_info_to_dialect(info={"vendor_name": "Apache Hive"}) == "hive"
-    assert _adbc_info_to_dialect(info={"vendor_name": "Trino"}) == "trino"
-    assert _adbc_info_to_dialect(info={"vendor_name": "Presto"}) == "trino"
-    assert _adbc_info_to_dialect(info={"vendor_name": "Databricks"}) == "spark"
-    assert (
-        _adbc_info_to_dialect(info={"vendor_name": "Apache Cassandra"})
-        == "cassandra"
-    )
-    assert _adbc_info_to_dialect(info={"vendor_name": "MongoDB"}) == "mongodb"
-    assert (
-        _adbc_info_to_dialect(info={"vendor_name": "Oracle Database"})
-        == "oracle"
-    )
-    assert _adbc_info_to_dialect(info={"vendor_name": "TiDB"}) == "tidb"
-    assert (
-        _adbc_info_to_dialect(info={"vendor_name": "SingleStore"})
-        == "singlestoredb"
-    )
-    assert (
-        _adbc_info_to_dialect(info={"vendor_name": "TimescaleDB"})
-        == "timescaledb"
-    )
-    assert _adbc_info_to_dialect(info={"vendor_name": "MySQL"}) == "mysql"
-    assert _adbc_info_to_dialect(info={"vendor_name": "MariaDB"}) == "mariadb"
-    assert (
-        _adbc_info_to_dialect(info={"vendor_name": "MySQL Server"}) == "mysql"
-    )
-    assert (
-        _adbc_info_to_dialect(info={"vendor_name": "MariaDB Server"})
-        == "mariadb"
+        == "microsoft sql server"
     )
 
-
-def test_adbc_info_to_dialect_uses_driver_when_vendor_unknown() -> None:
-    assert (
-        _adbc_info_to_dialect(
-            info={"vendor_name": "Acme DB", "driver_name": "SQLite"}
-        )
-        == "sqlite"
-    )
-    assert (
-        _adbc_info_to_dialect(
-            info={"vendor_name": "Acme DB", "driver_name": "MariaDB Connector"}
-        )
-        == "mariadb"
-    )
-
-
-def test_adbc_info_to_dialect_falls_back_to_vendor_or_driver_identifier() -> (
-    None
-):
-    assert _adbc_info_to_dialect(info={"vendor_name": "AcmeDB"}) == "acmedb"
-    assert _adbc_info_to_dialect(info={"driver_name": "AcmeDB"}) == "acmedb"
+    # Missing/blank/non-string vendor_name falls back to "sql".
     assert _adbc_info_to_dialect(info={"vendor_name": "   "}) == "sql"
+    assert _adbc_info_to_dialect(info={"vendor_name": 123}) == "sql"
+    assert _adbc_info_to_dialect(info={"driver_name": "AcmeDB"}) == "sql"
     assert _adbc_info_to_dialect(info={}) == "sql"
 
 
@@ -414,6 +360,28 @@ def test_adbc_execute_prefers_arrow_fetch(monkeypatch) -> None:
     assert cursor.did_close is True
 
 
+def test_adbc_execute_native_returns_arrow_table(monkeypatch) -> None:
+    arrow_table = cast("pa.Table", object())
+    cursor = FakeAdbcDbApiCursor(
+        description=[("col", None)], arrow_table=arrow_table
+    )
+    conn = FakeAdbcDbApiConnection(
+        cursor=cursor,
+        objects_pylist=[],
+        table_schema=FakeAdbcTableSchema([]),
+    )
+    engine = AdbcDBAPIEngine(conn)
+
+    monkeypatch.setattr(engine, "sql_output_format", lambda: "native")
+    result = engine.execute("SELECT 1")
+
+    assert result is arrow_table
+    assert cursor.did_execute is True
+    assert cursor.did_fetch_arrow is True
+    assert conn.did_commit is True
+    assert cursor.did_close is True
+
+
 def test_adbc_is_compatible_does_not_create_cursor() -> None:
     conn = FakeAdbcDbApiConnection(
         cursor=FakeAdbcDbApiCursor(description=None),
@@ -449,18 +417,6 @@ def test_adbc_catalog_auto_discovery_uses_cheap_dialect_heuristic() -> None:
         engine_name=None,
     )
     assert expensive._resolve_should_auto_discover("auto") is False
-
-
-def test_adbc_engine_dialect_is_cached() -> None:
-    conn = FakeAdbcDbApiConnection(
-        cursor=FakeAdbcDbApiCursor(description=None),
-        objects_pylist=[],
-        table_schema=FakeAdbcTableSchema([]),
-    )
-    engine = AdbcDBAPIEngine(conn)
-    assert engine.dialect == "postgresql"
-    assert engine.dialect == "postgresql"
-    assert conn.adbc_get_info_calls == 1
 
 
 def test_adbc_catalog_get_databases_uses_depth_catalogs_when_no_schemas() -> (

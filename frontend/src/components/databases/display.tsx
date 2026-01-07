@@ -15,6 +15,7 @@ export function dbDisplayName(name: string) {
     case "mariadb":
       return "MariaDB";
     case "mssql":
+    case "microsoft sql server":
       return "Microsoft SQL Server";
     case "oracle":
       return "Oracle";

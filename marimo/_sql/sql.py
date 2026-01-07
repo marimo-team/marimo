@@ -50,7 +50,7 @@ def sql(
         query: The SQL query to execute.
         output: Whether to display the result in the UI. Defaults to True.
         engine: Optional SQL engine to use. Can be a SQLAlchemy, DuckDB, Clickhouse,
-            Redshift, Ibis, or DB-API 2.0 compatible connection (including ADBC DB-API wrappers).
+            Redshift, Ibis, or DB-API 2.0 compatible connection (including ADBC drivers).
                If None, uses DuckDB.
 
     Returns:
