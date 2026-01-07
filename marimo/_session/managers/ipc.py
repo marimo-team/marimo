@@ -31,6 +31,7 @@ if TYPE_CHECKING:
     from marimo._ast.cell import CellConfig
     from marimo._config.manager import MarimoConfigReader
     from marimo._ipc.queue_manager import QueueManager as IPCQueueManagerType
+    from marimo._ipc.types import ConnectionInfo
     from marimo._runtime.commands import AppMetadata
     from marimo._types.ids import CellId_t
 
@@ -50,38 +51,37 @@ class IPCQueueManagerImpl(QueueManager):
     for communication with the kernel subprocess. Used for home sandbox mode.
     """
 
-    def __init__(self) -> None:
-        # IPC queue manager is set when kernel starts
-        self._ipc: Optional[IPCQueueManagerType] = None
+    def __init__(self, ipc: IPCQueueManagerType) -> None:
+        self._ipc = ipc
 
-    def _ensure_ipc(self) -> IPCQueueManagerType:
-        if self._ipc is None:
-            raise RuntimeError("IPC queue manager not initialized")
-        return self._ipc
+    @classmethod
+    def from_ipc(cls, ipc: IPCQueueManagerType) -> IPCQueueManagerImpl:
+        """Create an IPCQueueManagerImpl from an IPC queue manager."""
+        return cls(ipc)
 
     @property
     def control_queue(  # type: ignore[override]
         self,
     ) -> QueueType[commands.CommandMessage]:
-        return self._ensure_ipc().control_queue
+        return self._ipc.control_queue
 
     @property
     def set_ui_element_queue(  # type: ignore[override]
         self,
     ) -> QueueType[commands.UpdateUIElementCommand]:
-        return self._ensure_ipc().set_ui_element_queue
+        return self._ipc.set_ui_element_queue
 
     @property
     def completion_queue(  # type: ignore[override]
         self,
     ) -> QueueType[commands.CodeCompletionCommand]:
-        return self._ensure_ipc().completion_queue
+        return self._ipc.completion_queue
 
     @property
     def input_queue(  # type: ignore[override]
         self,
     ) -> QueueType[str]:
-        return self._ensure_ipc().input_queue
+        return self._ipc.input_queue
 
     @property
     def stream_queue(  # type: ignore[override]
@@ -89,18 +89,17 @@ class IPCQueueManagerImpl(QueueManager):
     ) -> QueueType[Union[KernelMessage, None]]:
         return cast(
             QueueType[Union[KernelMessage, None]],
-            self._ensure_ipc().stream_queue,
+            self._ipc.stream_queue,
         )
 
     @property
     def win32_interrupt_queue(  # type: ignore[override]
         self,
     ) -> Optional[QueueType[bool]]:
-        return self._ensure_ipc().win32_interrupt_queue
+        return self._ipc.win32_interrupt_queue
 
     def close_queues(self) -> None:
-        if self._ipc is not None:
-            self._ipc.close_queues()
+        self._ipc.close_queues()
 
     def put_control_request(self, request: commands.CommandMessage) -> None:
         # Completions are on their own queue
@@ -128,6 +127,7 @@ class IPCKernelManagerImpl(KernelManager):
         self,
         *,
         queue_manager: IPCQueueManagerImpl,
+        connection_info: ConnectionInfo,
         mode: SessionMode,
         configs: dict[CellId_t, CellConfig],
         app_metadata: AppMetadata,
@@ -136,6 +136,7 @@ class IPCKernelManagerImpl(KernelManager):
         redirect_console_to_browser: bool = True,
     ) -> None:
         self.queue_manager = queue_manager
+        self.connection_info = connection_info
         self.mode = mode
         self.configs = configs
         self.app_metadata = app_metadata
@@ -144,20 +145,12 @@ class IPCKernelManagerImpl(KernelManager):
         self.redirect_console_to_browser = redirect_console_to_browser
 
         self._process: subprocess.Popen[bytes] | None = None
-        self._ipc_queue_manager: Optional[IPCQueueManagerType] = None
         self.kernel_task: ProcessLike | None = None
         self._sandbox_dir: str | None = None
 
     def start_kernel(self) -> None:
         from marimo._cli.print import echo, muted
-        from marimo._ipc import QueueManager as IPCQueueManager
         from marimo._ipc.types import KernelArgs
-
-        # Create ZeroMQ sockets (host side binds)
-        self._ipc_queue_manager, connection_info = IPCQueueManager.create()
-
-        # Update the queue manager with the real IPC manager
-        self.queue_manager._ipc = self._ipc_queue_manager
 
         # Build kernel args
         kernel_args = KernelArgs(
@@ -166,7 +159,7 @@ class IPCKernelManagerImpl(KernelManager):
             user_config=self.config_manager.get_config(hide_secrets=False),
             log_level=GLOBAL_SETTINGS.LOG_LEVEL,
             profile_path=None,
-            connection_info=connection_info,
+            connection_info=self.connection_info,
             virtual_files_supported=self.virtual_files_supported,
             redirect_console_to_browser=self.redirect_console_to_browser,
         )

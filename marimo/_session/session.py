@@ -106,14 +106,17 @@ class SessionImpl(Session):
         queue_manager: QueueManager
         kernel_manager: KernelManager
         if home_sandbox_mode:
+            from marimo._ipc import QueueManager as IPCQueueManager
             from marimo._session.managers import (
                 IPCKernelManagerImpl,
                 IPCQueueManagerImpl,
             )
 
-            queue_manager = IPCQueueManagerImpl()
+            ipc_queue_manager, connection_info = IPCQueueManager.create()
+            queue_manager = IPCQueueManagerImpl.from_ipc(ipc_queue_manager)
             kernel_manager = IPCKernelManagerImpl(
                 queue_manager=queue_manager,
+                connection_info=connection_info,
                 mode=mode,
                 configs=configs,
                 app_metadata=app_metadata,
