@@ -88,6 +88,33 @@ jobs:
           path: dist/*.whl
           retention-days: 1
 
+  test_pyodide:
+    needs: [changes, build_wheel]
+    if: ${{ needs.changes.outputs.cli == 'true' }}
+    name: Test Pyodide
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 📦 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Download wheel
+        uses: actions/download-artifact@v4
+        with:
+          name: testwheel
+          path: dist
+
+      - name: 🧪 Run Pyodide acceptance test
+        run: |
+          wheel_file=$(ls dist/*.whl)
+          echo "Testing wheel: $wheel_file"
+          node tests/_pyodide/test_pyodide_acceptance.mjs "$wheel_file"
+
   test_cli:
     needs: [changes, build_wheel]
     if: ${{ needs.changes.outputs.cli == 'true' }}
