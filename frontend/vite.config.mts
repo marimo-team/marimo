@@ -296,6 +296,10 @@ export default defineConfig({
       "@emotion/cache",
       "@codemirror/view",
       "@codemirror/state",
+      // Dedupe react-dnd to prevent "Cannot have two HTML5 backends" errors
+      "react-dnd",
+      "react-dnd-html5-backend",
+      "dnd-core",
     ],
   },
   experimental: {
