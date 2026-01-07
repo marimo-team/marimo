@@ -560,6 +560,11 @@ def test_adbc_sqlite_driver_catalog_interface() -> None:
         try:
             cursor.execute("CREATE TABLE t (id INTEGER, name TEXT)")
             cursor.execute("CREATE TABLE t2 (x REAL)")
+            # NOTE: The SQLite ADBC driver infers Arrow types from observed data.
+            # Without any rows, some declared TEXT columns can come back as int64.
+            # Insert at least one row to make schema inference deterministic.
+            cursor.execute("INSERT INTO t VALUES (1, 'hello')")
+            cursor.execute("INSERT INTO t2 VALUES (1.5)")
             cursor.execute(
                 """
                 CREATE TABLE t_types (
@@ -687,20 +692,13 @@ def test_adbc_sqlite_driver_catalog_interface() -> None:
             and t.name == "t"
         )
         t_summary = _table_summary(t_with_details)
-        assert {
-            "name": t_summary["name"],
-            "type": t_summary["type"],
-            "num_columns": t_summary["num_columns"],
-            "column_names": t_summary["column_names"],
-        } == {
+        assert t_summary == {
             "name": "t",
             "type": "table",
             "num_columns": 2,
             "column_names": ["id", "name"],
+            "column_types": {"id": "integer", "name": "string"},
         }
-        assert t_summary["column_types"]["id"] == "integer"
-        # SQLite/driver-specific: "name TEXT" may be mapped inconsistently.
-        assert t_summary["column_types"]["name"] in ("string", "integer")
 
         t_types_with_details = next(
             t
@@ -712,19 +710,32 @@ def test_adbc_sqlite_driver_catalog_interface() -> None:
             and t.name == "t_types"
         )
         types_summary = _table_summary(t_types_with_details)
-        assert types_summary["name"] == "t_types"
-        assert types_summary["type"] == "table"
-        assert types_summary["num_columns"] == 9
-        assert set(types_summary["column_names"]) == {
-            "int_col",
-            "real_col",
-            "text_col",
-            "blob_col",
-            "bool_col",
-            "date_col",
-            "time_col",
-            "ts_col",
-            "numeric_col",
+        assert types_summary == {
+            "name": "t_types",
+            "type": "table",
+            "num_columns": 9,
+            "column_names": [
+                "int_col",
+                "real_col",
+                "text_col",
+                "blob_col",
+                "bool_col",
+                "date_col",
+                "time_col",
+                "ts_col",
+                "numeric_col",
+            ],
+            "column_types": {
+                "int_col": "integer",
+                "real_col": "number",
+                "text_col": "string",
+                "blob_col": "string",
+                "bool_col": "integer",
+                "date_col": "string",
+                "time_col": "string",
+                "ts_col": "string",
+                "numeric_col": "number",
+            },
         }
 
         # Verify that the driver/schema mapping yields sensible marimo DataTypes.
