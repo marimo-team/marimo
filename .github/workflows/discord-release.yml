@@ -4,6 +4,10 @@ on:
   release:
     types: [published]
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.release.id }}
+  cancel-in-progress: false  # Don't cancel release notifications
+
 permissions:
   contents: read
 

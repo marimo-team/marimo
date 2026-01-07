@@ -7,12 +7,14 @@ on:
       - '[0-9]+.[0-9]+.[0-9]+'
   workflow_dispatch: {}
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
-  id-token: write  # Required for OIDC
 
 env:
-  TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
   TURBO_TEAM: marimo
   REGISTRY: ghcr.io
   IMAGE_NAME: marimo-team/marimo
@@ -29,25 +31,14 @@ jobs:
       marimo_version: ${{ steps.get_version.outputs.marimo_version }}
 
     steps:
-      - name: 🛑 Cancel Previous Runs
-        uses: styfle/cancel-workflow-action@0.12.1
-
       - name: ⬇️ Checkout repo
         uses: actions/checkout@v4
 
-      - uses: pnpm/action-setup@v4
-
-      - name: ⎔ Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: 'pnpm'
-          cache-dependency-path: '**/pnpm-lock.yaml'
-
       - name: 📦 Build frontend
-        run: make fe
-        env:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+        uses: ./.github/actions/build-frontend
+        with:
+          turbo-token: ${{ secrets.TURBO_TOKEN }}
+          codecov-token: ${{ secrets.CODECOV_TOKEN }}
 
       - name: 🥚 Install Hatch
         uses: pypa/hatch@install
@@ -109,7 +100,7 @@ jobs:
       package-artifact-name: frontend
       working-directory: '.'
     permissions:
-      id-token: write
+      id-token: write  # Required for OIDC
       contents: read
 
   publish_islands:
@@ -120,7 +111,7 @@ jobs:
       package-artifact-name: frontend-islands
       working-directory: '.'
     permissions:
-      id-token: write
+      id-token: write  # Required for OIDC
       contents: read
 
   publish_docker:
@@ -134,9 +125,6 @@ jobs:
       packages: write
 
     steps:
-      - name: 🛑 Cancel Previous Runs
-        uses: styfle/cancel-workflow-action@0.12.1
-
       - name: ⬇️ Checkout repo
         uses: actions/checkout@v4
 

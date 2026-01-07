@@ -6,13 +6,15 @@ on:
     branches:
       - main
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
   pull-requests: write
-  id-token: write  # Required for OIDC
 
 env:
-  TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
   TURBO_TEAM: marimo
 
 jobs:
@@ -27,27 +29,17 @@ jobs:
       marimo_version: ${{ steps.get_version.outputs.marimo_version }}
 
     steps:
-      - name: 🛑 Cancel Previous Runs
-        uses: styfle/cancel-workflow-action@0.12.1
-
       - name: ⬇️ Checkout repo
         uses: actions/checkout@v4
         with:
           # get tag history for version number
           fetch-depth: 0
 
-      - uses: pnpm/action-setup@v4
-      - name: ⎔ Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: 'pnpm'
-          cache-dependency-path: '**/pnpm-lock.yaml'
-
       - name: 📦 Build frontend
-        run: make fe
-        env:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+        uses: ./.github/actions/build-frontend
+        with:
+          turbo-token: ${{ secrets.TURBO_TOKEN }}
+          codecov-token: ${{ secrets.CODECOV_TOKEN }}
 
       - name: Install uv
         uses: astral-sh/setup-uv@v7
@@ -141,8 +133,9 @@ jobs:
     with:
       package-artifact-name: frontend-dev
       working-directory: '.'
+      npm-tag: 'dev'
     permissions:
-      id-token: write
+      id-token: write  # Required for OIDC
       contents: read
 
   publish_islands_dev:
@@ -152,8 +145,9 @@ jobs:
     with:
       package-artifact-name: frontend-islands-dev
       working-directory: '.'
+      npm-tag: 'dev'
     permissions:
-      id-token: write
+      id-token: write  # Required for OIDC
       contents: read
 
   comment_pr:
@@ -169,6 +163,7 @@ jobs:
         with:
           script: |
             try {
+              const marimoVersion = process.env.MARIMO_VERSION || 'unknown';
               const pullRequest = await github.rest.search.issuesAndPullRequests({
                 q: `sha:${context.sha} is:pr is:merged`
               });
@@ -178,7 +173,7 @@ jobs:
                   owner: context.repo.owner,
                   repo: context.repo.repo,
                   issue_number: pullRequest.data.items[0].number,
-                  body: `🚀 Development release published. You may be able to view the changes at https://marimo.app?v=${process.env.MARIMO_VERSION}`
+                  body: `🚀 Development release published. You may be able to view the changes at https://marimo.app?v=${encodeURIComponent(marimoVersion)}`
                 });
               } else {
                 console.log("No merged PR found for this SHA.");
