@@ -16,13 +16,13 @@ if TYPE_CHECKING:
 @mddoc
 def carousel(
     items: Sequence[object],
-    wrapAround: bool = False,
+    wrap_around: bool = False,
 ) -> Html:
     """Create a carousel of items.
 
     Args:
         items: A list of items.
-        wrapAround: Whether carousel jumps back to the start when navigating beyond the last item.
+        wrap_around: Whether carousel jumps back to the start when navigating beyond the last item.
 
     Returns:
         An `Html` object.
@@ -42,7 +42,7 @@ def carousel(
     return Html(
         build_stateless_plugin(
             component_name="marimo-carousel",
-            args={"wrap-around": wrapAround},
+            args={"wrap-around": wrap_around},
             slotted_html=item_content,
         )
     )
