@@ -83,7 +83,8 @@ export interface ReorderableListProps<T> {
     listId: string;
     /**
      * Callback when an item is received from another list.
-     * The item has already been added to this list's value.
+     * At this point, setValue has been called with the new item included,
+     * but the parent component may not have re-rendered yet.
      * Use this to remove the item from the source list and handle any side effects.
      */
     onReceive: (item: T, fromListId: string, insertIndex: number) => void;
