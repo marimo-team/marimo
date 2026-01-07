@@ -290,7 +290,8 @@ def test_get_engines_dbapi_databases():
 def test_get_engines_from_variables_adbc_sqlite() -> None:
     adbc_sqlite_dbapi = pytest.importorskip("adbc_driver_sqlite.dbapi")
 
-    conn = adbc_sqlite_dbapi.connect()
+    # Explicitly use a fresh in-memory database per test run.
+    conn = adbc_sqlite_dbapi.connect(":memory:")
     try:
         variables: list[tuple[str, object]] = [("adbc_sqlite", conn)]
         engines = get_engines_from_variables(variables)

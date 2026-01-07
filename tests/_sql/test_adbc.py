@@ -548,7 +548,8 @@ def test_adbc_sqlite_driver_catalog_interface() -> None:
     )
     adbc_sqlite_dbapi = pytest.importorskip("adbc_driver_sqlite.dbapi")
 
-    conn: Any = adbc_sqlite_dbapi.connect()
+    # Explicitly use a fresh in-memory database per test run.
+    conn: Any = adbc_sqlite_dbapi.connect(":memory:")
     try:
         engine = AdbcDBAPIEngine(conn)
         assert engine.source == "adbc"
@@ -811,7 +812,8 @@ def test_adbc_sqlite_driver_execute_polars(monkeypatch) -> None:
     pl = pytest.importorskip("polars")
     adbc_sqlite_dbapi = pytest.importorskip("adbc_driver_sqlite.dbapi")
 
-    conn: Any = adbc_sqlite_dbapi.connect()
+    # Explicitly use a fresh in-memory database per test run.
+    conn: Any = adbc_sqlite_dbapi.connect(":memory:")
     try:
         engine = AdbcDBAPIEngine(conn)
         assert engine.source == "adbc"
