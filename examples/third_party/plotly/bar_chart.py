@@ -1,5 +1,5 @@
 # /// script
-# requires-python = ">=3.13"
+# requires-python = ">=3.9"
 # dependencies = [
 #     "marimo",
 #     "plotly==6.5.1",
