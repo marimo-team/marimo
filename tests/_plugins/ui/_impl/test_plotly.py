@@ -12,6 +12,8 @@ import plotly.express as px
 import plotly.graph_objects as go
 
 from marimo._plugins.ui._impl.plotly import (
+    _extract_bars_fallback,
+    _extract_bars_numpy,
     _extract_heatmap_cells_fallback,
     _extract_heatmap_cells_numpy,
     plotly,
@@ -740,6 +742,390 @@ def test_heatmap_numpy_and_fallback_produce_same_results() -> None:
         assert np_cell["y"] == fb_cell["y"]
         assert np_cell["z"] == fb_cell["z"]
         assert np_cell["curveNumber"] == fb_cell["curveNumber"]
+
+
+# ============================================================================
+# Bar Chart Tests
+# ============================================================================
+
+
+def test_bar_chart_basic() -> None:
+    """Test that bar charts can be created (supported chart type)."""
+    fig = go.Figure(
+        data=go.Bar(
+            x=["A", "B", "C"],
+            y=[10, 20, 15],
+        )
+    )
+    plot = plotly(fig)
+
+    assert plot is not None
+    assert plot.value == []
+
+
+def test_bar_chart_selection_vertical() -> None:
+    """Test bar chart selection with vertical bars (categorical x-axis)."""
+    fig = go.Figure(
+        data=go.Bar(
+            x=["A", "B", "C", "D"],
+            y=[10, 20, 15, 25],
+        )
+    )
+    plot = plotly(fig)
+
+    # Simulate a selection from frontend (selecting bars B and C)
+    selection = {
+        "range": {"x": [0.5, 2.5], "y": [0, 30]},
+        "points": [],
+        "indices": [],
+    }
+
+    result = plot._convert_value(selection)
+
+    # Should extract bars at indices 1 and 2 (B and C)
+    assert len(result) == 2
+    assert any(bar["x"] == "B" and bar["y"] == 20 for bar in result)
+    assert any(bar["x"] == "C" and bar["y"] == 15 for bar in result)
+
+
+def test_bar_chart_selection_horizontal() -> None:
+    """Test bar chart selection with horizontal bars."""
+    fig = go.Figure(
+        data=go.Bar(
+            x=[10, 20, 15],
+            y=["A", "B", "C"],
+            orientation="h",
+        )
+    )
+    plot = plotly(fig)
+
+    # Simulate a selection (selecting bars A and B)
+    selection = {
+        "range": {"x": [0, 30], "y": [-0.5, 1.5]},
+        "points": [],
+        "indices": [],
+    }
+
+    result = plot._convert_value(selection)
+
+    # Should extract bars at y-indices 0 and 1 (A and B)
+    assert len(result) == 2
+    assert any(bar["y"] == "A" and bar["x"] == 10 for bar in result)
+    assert any(bar["y"] == "B" and bar["x"] == 20 for bar in result)
+
+
+def test_bar_chart_categorical_axis() -> None:
+    """Test bar chart with categorical x-axis (most common case)."""
+    fig = go.Figure(
+        data=go.Bar(
+            x=["Product A", "Product B", "Product C"],
+            y=[100, 200, 150],
+        )
+    )
+    plot = plotly(fig)
+
+    # Select middle bar (Product B at index 1)
+    selection = {
+        "range": {"x": [0.7, 1.3], "y": [0, 250]},
+        "points": [],
+        "indices": [],
+    }
+
+    result = plot._convert_value(selection)
+
+    assert len(result) == 1
+    assert result[0]["x"] == "Product B"
+    assert result[0]["y"] == 200
+
+
+def test_bar_chart_numeric_axis() -> None:
+    """Test bar chart with numeric x-axis (histogram-like)."""
+    fig = go.Figure(
+        data=go.Bar(
+            x=[10, 20, 30, 40],
+            y=[5, 12, 8, 15],
+        )
+    )
+    plot = plotly(fig)
+
+    # Select bars at x=20 and x=30
+    selection = {
+        "range": {"x": [15, 35], "y": [0, 20]},
+        "points": [],
+        "indices": [],
+    }
+
+    result = plot._convert_value(selection)
+
+    assert len(result) == 2
+    assert any(bar["x"] == 20 and bar["y"] == 12 for bar in result)
+    assert any(bar["x"] == 30 and bar["y"] == 8 for bar in result)
+
+
+def test_bar_chart_stacked() -> None:
+    """Test stacked bar chart - should return all segments at selected positions."""
+    fig = go.Figure()
+    # Two traces for stacked bars
+    fig.add_trace(go.Bar(x=["A", "B", "C"], y=[10, 15, 12], name="Series1"))
+    fig.add_trace(go.Bar(x=["A", "B", "C"], y=[5, 8, 6], name="Series2"))
+
+    plot = plotly(fig)
+
+    # Select bar at position A (index 0)
+    selection = {
+        "range": {"x": [-0.5, 0.5], "y": [0, 30]},
+        "points": [],
+        "indices": [],
+    }
+
+    result = plot._convert_value(selection)
+
+    # Should return both segments at position A (one from each trace)
+    assert len(result) == 2
+    assert any(bar["x"] == "A" and bar["y"] == 10 for bar in result)
+    assert any(bar["x"] == "A" and bar["y"] == 5 for bar in result)
+    # Check curveNumber to distinguish traces
+    assert result[0]["curveNumber"] != result[1]["curveNumber"]
+
+
+def test_bar_chart_grouped() -> None:
+    """Test grouped bar chart - should return all bars at selected position."""
+    fig = go.Figure()
+    # Two traces for grouped bars
+    fig.add_trace(go.Bar(x=["A", "B", "C"], y=[20, 25, 18], name="Series1"))
+    fig.add_trace(go.Bar(x=["A", "B", "C"], y=[15, 22, 16], name="Series2"))
+
+    plot = plotly(fig)
+
+    # Select category B (index 1)
+    selection = {
+        "range": {"x": [0.5, 1.5], "y": [0, 30]},
+        "points": [],
+        "indices": [],
+    }
+
+    result = plot._convert_value(selection)
+
+    # Should return both bars at category B
+    assert len(result) == 2
+    assert any(bar["x"] == "B" and bar["y"] == 25 for bar in result)
+    assert any(bar["x"] == "B" and bar["y"] == 22 for bar in result)
+
+
+def test_bar_chart_empty_selection() -> None:
+    """Test bar chart selection with range that includes no bars."""
+    fig = go.Figure(
+        data=go.Bar(
+            x=["A", "B", "C"],
+            y=[10, 20, 15],
+        )
+    )
+    plot = plotly(fig)
+
+    # Select a range with no bars (far to the right)
+    selection = {
+        "range": {"x": [5, 10], "y": [0, 30]},
+        "points": [],
+        "indices": [],
+    }
+
+    result = plot._convert_value(selection)
+
+    # Should be empty
+    assert result == []
+
+
+def test_bar_chart_single_bar() -> None:
+    """Test bar chart with a single bar."""
+    fig = go.Figure(
+        data=go.Bar(
+            x=["OnlyBar"],
+            y=[42],
+        )
+    )
+    plot = plotly(fig)
+
+    # Select the single bar (categorical at index 0)
+    selection = {
+        "range": {"x": [-0.5, 0.5], "y": [0, 50]},
+        "points": [],
+        "indices": [],
+    }
+
+    result = plot._convert_value(selection)
+
+    # Should extract the single bar
+    assert len(result) == 1
+    assert result[0]["x"] == "OnlyBar"
+    assert result[0]["y"] == 42
+
+
+def test_bar_chart_initial_selection() -> None:
+    """Test that initial selection works with bar charts."""
+    fig = go.Figure(
+        data=go.Bar(
+            x=["A", "B", "C", "D"],
+            y=[10, 20, 15, 25],
+        )
+    )
+
+    # Add an initial selection
+    fig.add_selection(x0=0.5, x1=2.5, y0=0, y1=30, xref="x", yref="y")
+
+    plot = plotly(fig)
+
+    # Check that initial value contains the selection
+    initial_value = plot._args.initial_value
+    assert "range" in initial_value
+    assert initial_value["range"]["x"] == [0.5, 2.5]
+    assert initial_value["range"]["y"] == [0, 30]
+
+    # For bar charts, should extract bars at indices 1 and 2 (B and C)
+    assert "points" in initial_value
+    assert len(initial_value["points"]) == 2
+    assert any(
+        bar["x"] == "B" and bar["y"] == 20 for bar in initial_value["points"]
+    )
+    assert any(
+        bar["x"] == "C" and bar["y"] == 15 for bar in initial_value["points"]
+    )
+
+
+def test_bar_chart_curve_number() -> None:
+    """Test that bar chart cells include curveNumber for multi-trace plots."""
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=[1, 2], y=[1, 2]))  # trace 0
+    fig.add_trace(go.Bar(x=["A", "B"], y=[10, 20]))  # trace 1
+
+    plot = plotly(fig)
+
+    selection = {
+        "range": {"x": [-0.5, 0.5], "y": [0, 30]},
+        "points": [],
+        "indices": [],
+    }
+
+    result = plot._convert_value(selection)
+
+    # Bar should have curveNumber = 1
+    bar_items = [r for r in result if "x" in r and r["x"] == "A"]
+    assert len(bar_items) > 0
+    assert bar_items[0]["curveNumber"] == 1
+
+
+def test_bar_chart_mixed_with_scatter() -> None:
+    """Test figure with both scatter and bar traces."""
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=[0, 1, 2], y=[5, 10, 15], mode="markers"))
+    fig.add_trace(go.Bar(x=["A", "B", "C"], y=[10, 20, 15]))
+
+    plot = plotly(fig)
+
+    # Select range that includes both scatter point and bar
+    selection = {
+        "range": {"x": [-0.5, 1.5], "y": [5, 25]},
+        "points": [],
+        "indices": [],
+    }
+
+    result = plot._convert_value(selection)
+
+    # Should include bars A and B (indices 0 and 1)
+    assert len(result) >= 2
+    assert any(r.get("x") == "A" and r.get("y") == 10 for r in result)
+    assert any(r.get("x") == "B" and r.get("y") == 20 for r in result)
+
+
+def test_bar_numpy_and_fallback_match_categorical() -> None:
+    """Test that numpy and fallback produce identical results for categorical bars."""
+    fig = go.Figure(
+        data=go.Bar(
+            x=["A", "B", "C", "D"],
+            y=[10, 20, 15, 25],
+        )
+    )
+
+    x_min, x_max = 0.5, 2.5
+    y_min, y_max = 0, 30
+
+    # Get results from both implementations
+    numpy_result = _extract_bars_numpy(fig, x_min, x_max, y_min, y_max)
+    fallback_result = _extract_bars_fallback(fig, x_min, x_max, y_min, y_max)
+
+    # Both should return the same number of bars
+    assert len(numpy_result) == len(fallback_result)
+
+    # Sort results for comparison
+    def sort_key(bar: dict[str, Any]) -> tuple[Any, ...]:
+        return (bar["x"], bar["y"], bar["curveNumber"])
+
+    numpy_sorted = sorted(numpy_result, key=sort_key)
+    fallback_sorted = sorted(fallback_result, key=sort_key)
+
+    # Compare each bar
+    for np_bar, fb_bar in zip(numpy_sorted, fallback_sorted):
+        assert np_bar["x"] == fb_bar["x"]
+        assert np_bar["y"] == fb_bar["y"]
+        assert np_bar["curveNumber"] == fb_bar["curveNumber"]
+
+
+def test_bar_numpy_and_fallback_match_numeric() -> None:
+    """Test that numpy and fallback produce identical results for numeric bars."""
+    fig = go.Figure(
+        data=go.Bar(
+            x=[10, 20, 30, 40],
+            y=[5, 12, 8, 15],
+        )
+    )
+
+    x_min, x_max = 15, 35
+    y_min, y_max = 0, 20
+
+    numpy_result = _extract_bars_numpy(fig, x_min, x_max, y_min, y_max)
+    fallback_result = _extract_bars_fallback(fig, x_min, x_max, y_min, y_max)
+
+    assert len(numpy_result) == len(fallback_result)
+
+    def sort_key(bar: dict[str, Any]) -> tuple[Any, ...]:
+        return (bar["x"], bar["y"], bar["curveNumber"])
+
+    numpy_sorted = sorted(numpy_result, key=sort_key)
+    fallback_sorted = sorted(fallback_result, key=sort_key)
+
+    for np_bar, fb_bar in zip(numpy_sorted, fallback_sorted):
+        assert np_bar["x"] == fb_bar["x"]
+        assert np_bar["y"] == fb_bar["y"]
+        assert np_bar["curveNumber"] == fb_bar["curveNumber"]
+
+
+def test_bar_numpy_and_fallback_match_horizontal() -> None:
+    """Test that numpy and fallback produce identical results for horizontal bars."""
+    fig = go.Figure(
+        data=go.Bar(
+            x=[10, 20, 15],
+            y=["A", "B", "C"],
+            orientation="h",
+        )
+    )
+
+    x_min, x_max = 0, 30
+    y_min, y_max = -0.5, 1.5
+
+    numpy_result = _extract_bars_numpy(fig, x_min, x_max, y_min, y_max)
+    fallback_result = _extract_bars_fallback(fig, x_min, x_max, y_min, y_max)
+
+    assert len(numpy_result) == len(fallback_result)
+
+    def sort_key(bar: dict[str, Any]) -> tuple[Any, ...]:
+        return (str(bar["y"]), bar["x"], bar["curveNumber"])
+
+    numpy_sorted = sorted(numpy_result, key=sort_key)
+    fallback_sorted = sorted(fallback_result, key=sort_key)
+
+    for np_bar, fb_bar in zip(numpy_sorted, fallback_sorted):
+        assert np_bar["x"] == fb_bar["x"]
+        assert np_bar["y"] == fb_bar["y"]
+        assert np_bar["curveNumber"] == fb_bar["curveNumber"]
 
 
 def test_heatmap_numpy_and_fallback_numeric_axes() -> None:
