@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import os
 import time
+from pathlib import Path
 from typing import Optional
 
 from marimo import _loggers
@@ -183,10 +184,14 @@ class DirectoryScanner:
                         continue
                     children = recurse(entry.path, depth + 1)
                     if children:
+                        entry_path = Path(entry.path)
+                        relative_path = str(
+                            entry_path.relative_to(self.directory)
+                        )
                         folders.append(
                             FileInfo(
-                                id=entry.path,
-                                path=entry.path,
+                                id=relative_path,
+                                path=relative_path,
                                 name=entry.name,
                                 is_directory=True,
                                 is_marimo_file=False,
@@ -196,9 +201,13 @@ class DirectoryScanner:
                 elif entry.name.endswith(self.allowed_extensions):
                     if is_marimo_app(entry.path):
                         file_count[0] += 1
+                        entry_path = Path(entry.path)
+                        relative_path = str(
+                            entry_path.relative_to(self.directory)
+                        )
                         file_info = FileInfo(
-                            id=entry.path,
-                            path=entry.path,
+                            id=relative_path,
+                            path=relative_path,
                             name=entry.name,
                             is_directory=False,
                             is_marimo_file=True,

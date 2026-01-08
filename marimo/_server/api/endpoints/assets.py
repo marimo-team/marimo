@@ -144,6 +144,15 @@ async def index(request: Request) -> HTMLResponse:
         app_manager = app_state.session_manager.app_manager(file_key)
         app_config = app_manager.app.config
 
+        # Make filename relative to file router's directory if possible
+        filename = app_manager.filename
+        directory = app_state.session_manager.file_router.directory
+        if filename and directory:
+            try:
+                filename = str(Path(filename).relative_to(directory))
+            except ValueError:
+                pass  # Keep absolute if not under directory
+
         html = notebook_page_template(
             html=html,
             base_url=app_state.base_url,
@@ -151,7 +160,7 @@ async def index(request: Request) -> HTMLResponse:
             config_overrides=config_manager.get_config_overrides(),
             server_token=app_state.skew_protection_token,
             app_config=app_config,
-            filename=app_manager.filename,
+            filename=filename,
             mode=app_state.mode,
             runtime_config=[{"url": app_state.remote_url}]
             if app_state.remote_url

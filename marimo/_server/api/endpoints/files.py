@@ -1,6 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 from starlette.authentication import requires
@@ -109,9 +110,15 @@ async def rename_file(
     """
     body = await parse_request(request, cls=RenameNotebookRequest)
     app_state = AppState(request)
+
+    # Resolve relative filenames against the file router's directory
+    if not Path(body.filename).is_absolute():
+        directory = app_state.session_manager.file_router.directory
+        if directory:
+            body.filename = str(Path(directory) / body.filename)
+
     filename = await abspath(body.filename)
 
-    # Convert to absolute path
     app_state.require_current_session().put_control_request(
         RenameNotebookCommand(filename=filename),
         from_consumer_id=ConsumerId(app_state.require_current_session_id()),
@@ -152,6 +159,13 @@ async def save(
     """
     app_state = AppState(request)
     body = await parse_request(request, cls=SaveNotebookRequest)
+
+    # Resolve relative filenames against the file router's directory
+    if body.filename and not Path(body.filename).is_absolute():
+        directory = app_state.session_manager.file_router.directory
+        if directory:
+            body.filename = str(Path(directory) / body.filename)
+
     session = app_state.require_current_session()
     contents = session.app_file_manager.save(body)
 
@@ -186,6 +200,13 @@ async def copy(
     """
     app_state = AppState(request)
     body = await parse_request(request, cls=CopyNotebookRequest)
+
+    # Resolve relative filenames against the file router's directory
+    if body.destination and not Path(body.destination).is_absolute():
+        directory = app_state.session_manager.file_router.directory
+        if directory:
+            body.destination = str(Path(directory) / body.destination)
+
     session = app_state.require_current_session()
     contents = session.app_file_manager.copy(body)
 
