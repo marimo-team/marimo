@@ -44,8 +44,8 @@ class plotly(UIElement[PlotlySelection, list[dict[str, Any]]]):
     Use `mo.ui.plotly` to make plotly plots reactive: select data with your
     cursor on the frontend, get them as a list of dicts in Python!
 
-    This function currently only supports scatter plots, treemap charts,
-    sunburst charts, heatmaps, and bar charts.
+    This function supports scatter plots, line charts, bar charts, treemap charts,
+    sunburst charts, and heatmaps.
 
     Examples:
         ```python
@@ -266,6 +266,11 @@ class plotly(UIElement[PlotlySelection, list[dict[str, Any]]]):
             for trace in self._figure.data
         )
 
+        has_scatter = any(
+            getattr(trace, "type", None) == "scatter"
+            for trace in self._figure.data
+        )
+
         # For heatmaps with a range selection, always extract all cells in range
         # (Plotly only sends corner/edge points, not all cells)
         if has_heatmap and value.get("range"):
@@ -281,6 +286,14 @@ class plotly(UIElement[PlotlySelection, list[dict[str, Any]]]):
         # For bar charts with a range selection, extract all bars in range
         if has_bar and value.get("range"):
             _append_bar_items_to_selection(self._figure, self._selection_data)
+
+        # For line/scatter charts with a range selection, extract all points in x-range
+        # This handles mode='lines', mode='lines+markers', and mode='markers'
+        # Plotly may not send point data for pure line charts, so we extract manually
+        if has_scatter and value.get("range"):
+            _append_scatter_points_to_selection(
+                self._figure, self._selection_data
+            )
 
         result = self.points
         return result
@@ -406,6 +419,233 @@ def _extract_heatmap_cells_numpy(
                 )
 
     return selected_cells
+
+
+def _append_scatter_points_to_selection(
+    figure: go.Figure, selection_data: dict[str, Any]
+) -> None:
+    """Append scatter/line points within the selection range to the selection data.
+
+    This modifies selection_data in place, appending any scatter/line points
+    that fall within the x-range to the existing points and indices.
+
+    For line charts, Plotly may not send point-level data in the selection event
+    (especially for mode='lines'). We manually extract all points where x is
+    within the selected range to match Altair's behavior.
+    """
+    range_value = selection_data.get("range")
+    if not isinstance(range_value, dict):
+        return
+
+    scatter_points = _extract_scatter_points_from_range(
+        figure, cast(dict[str, Any], range_value)
+    )
+    if scatter_points:
+        # Get existing points and indices
+        existing_points = selection_data.get("points", [])
+        existing_indices = selection_data.get("indices", [])
+
+        # Filter out empty dicts from existing points (these come from line charts)
+        # where Plotly sends the structure but no data
+        existing_points = [p for p in existing_points if p]
+
+        # Merge with scatter points, avoiding duplicates
+        # Use pointIndex and curveNumber to track uniqueness
+        # (can't use x/y values since field names vary: "x"/"y" vs "X"/"Y" etc.)
+        seen = set()
+        merged_points = []
+        merged_indices = []
+
+        # Add existing points first
+        for idx, point in enumerate(existing_points):
+            key = (
+                point.get("pointIndex"),
+                point.get("curveNumber"),
+            )
+            if key not in seen and key != (None, None):
+                seen.add(key)
+                merged_points.append(point)
+                if idx < len(existing_indices):
+                    merged_indices.append(existing_indices[idx])
+
+        # Add new scatter points
+        for point in scatter_points:
+            key = (
+                point.get("pointIndex"),
+                point.get("curveNumber"),
+            )
+            if key not in seen:
+                seen.add(key)
+                merged_points.append(point)
+                # Indices for manually extracted points - use the point's original index
+                if "pointIndex" in point:
+                    merged_indices.append(point["pointIndex"])
+
+        selection_data["points"] = merged_points
+        selection_data["indices"] = merged_indices
+
+
+def _extract_scatter_points_from_range(
+    figure: go.Figure, range_data: dict[str, Any]
+) -> list[dict[str, Any]]:
+    """Extract scatter/line points that fall within a selection range.
+
+    This follows Altair's behavior: returns all points where x is within
+    the x-range, regardless of y value.
+    """
+    if not range_data.get("x"):
+        return []
+
+    x_range = range_data["x"]
+    x_min, x_max = min(x_range), max(x_range)
+
+    # Use numpy fast path if available for better performance
+    if DependencyManager.numpy.has():
+        return _extract_scatter_points_numpy(figure, x_min, x_max)
+
+    return _extract_scatter_points_fallback(figure, x_min, x_max)
+
+
+def _extract_scatter_points_numpy(
+    figure: go.Figure,
+    x_min: float,
+    x_max: float,
+) -> list[dict[str, Any]]:
+    """Extract scatter/line points using numpy for better performance."""
+    import numpy as np
+
+    selected_points: list[dict[str, Any]] = []
+
+    # Get axis titles for field naming
+    x_axes: list[go.layout.XAxis] = []
+    figure.for_each_xaxis(x_axes.append)
+    x_axis = x_axes[0] if len(x_axes) == 1 else None
+
+    y_axes: list[go.layout.YAxis] = []
+    figure.for_each_yaxis(y_axes.append)
+    y_axis = y_axes[0] if len(y_axes) == 1 else None
+
+    x_field = x_axis.title.text if (x_axis and x_axis.title.text) else "x"
+    y_field = y_axis.title.text if (y_axis and y_axis.title.text) else "y"
+
+    for trace_idx, trace in enumerate(figure.data):
+        # Only process scatter traces (which includes lines, markers, lines+markers)
+        if getattr(trace, "type", None) != "scatter":
+            continue
+
+        x_data = getattr(trace, "x", None)
+        y_data = getattr(trace, "y", None)
+
+        if x_data is None or y_data is None:
+            continue
+
+        # Convert to numpy arrays for vectorized operations
+        x_arr = np.asarray(x_data)
+        y_arr = np.asarray(y_data)
+
+        # Check if x is numeric
+        x_is_numeric = np.issubdtype(x_arr.dtype, np.number)
+
+        # Filter by x-range (matching Altair behavior)
+        if x_is_numeric:
+            x_mask = (x_arr >= x_min) & (x_arr <= x_max)
+        else:
+            # Categorical: use index-based filtering
+            x_indices = np.arange(len(x_arr))
+            x_mask = (x_max > x_indices - 0.5) & (x_min < x_indices + 0.5)
+
+        # Get indices where mask is True
+        selected_indices = np.where(x_mask)[0]
+
+        # Build point dicts for selected indices
+        for idx in selected_indices:
+            # Use .item() to convert numpy types to Python types
+            x_val = (
+                x_arr[idx].item()
+                if hasattr(x_arr[idx], "item")
+                else x_arr[idx]
+            )
+            y_val = (
+                y_arr[idx].item()
+                if hasattr(y_arr[idx], "item")
+                else y_arr[idx]
+            )
+
+            point_dict = {
+                x_field: x_val,
+                y_field: y_val,
+                "curveNumber": trace_idx,
+                "pointIndex": int(idx),
+            }
+
+            # Add trace name if available
+            if hasattr(trace, "name") and trace.name:
+                point_dict["name"] = trace.name
+
+            selected_points.append(point_dict)
+
+    return selected_points
+
+
+def _extract_scatter_points_fallback(
+    figure: go.Figure,
+    x_min: float,
+    x_max: float,
+) -> list[dict[str, Any]]:
+    """Extract scatter/line points using pure Python (fallback when numpy unavailable)."""
+    selected_points: list[dict[str, Any]] = []
+
+    # Get axis titles for field naming
+    x_axes: list[go.layout.XAxis] = []
+    figure.for_each_xaxis(x_axes.append)
+    x_axis = x_axes[0] if len(x_axes) == 1 else None
+
+    y_axes: list[go.layout.YAxis] = []
+    figure.for_each_yaxis(y_axes.append)
+    y_axis = y_axes[0] if len(y_axes) == 1 else None
+
+    x_field = x_axis.title.text if (x_axis and x_axis.title.text) else "x"
+    y_field = y_axis.title.text if (y_axis and y_axis.title.text) else "y"
+
+    for trace_idx, trace in enumerate(figure.data):
+        # Only process scatter traces (which includes lines, markers, lines+markers)
+        if getattr(trace, "type", None) != "scatter":
+            continue
+
+        x_data = getattr(trace, "x", None)
+        y_data = getattr(trace, "y", None)
+
+        if x_data is None or y_data is None:
+            continue
+
+        # Iterate through points and filter by x-range
+        for point_idx, (x_val, y_val) in enumerate(zip(x_data, y_data)):
+            # Check if x is within range
+            x_in_range = False
+
+            if isinstance(x_val, (int, float)):
+                x_in_range = x_min <= x_val <= x_max
+            else:
+                # Categorical - use index-based filtering
+                cell_x_min = point_idx - 0.5
+                cell_x_max = point_idx + 0.5
+                x_in_range = not (x_max <= cell_x_min or x_min >= cell_x_max)
+
+            if x_in_range:
+                point_dict = {
+                    x_field: x_val,
+                    y_field: y_val,
+                    "curveNumber": trace_idx,
+                    "pointIndex": point_idx,
+                }
+
+                # Add trace name if available
+                if hasattr(trace, "name") and trace.name:
+                    point_dict["name"] = trace.name
+
+                selected_points.append(point_dict)
+
+    return selected_points
 
 
 def _extract_heatmap_cells_fallback(
