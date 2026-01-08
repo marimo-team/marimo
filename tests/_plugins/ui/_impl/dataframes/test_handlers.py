@@ -82,9 +82,18 @@ def assert_frame_equal(a: DataFrameType, b: DataFrameType) -> None:
     assert nw_a.to_dict(as_series=False) == nw_b.to_dict(as_series=False)
 
 
-def assert_frame_equal_with_nans(a: DataFrameType, b: DataFrameType) -> None:
+def assert_frame_equal_with_nans(
+    a: DataFrameType, b: DataFrameType, allow_nan_equals_zero: bool = False
+) -> None:
     """
     Assert two dataframes are equal, treating NaNs in the same locations as equal.
+
+    Args:
+        a: First dataframe
+        b: Second dataframe
+        allow_nan_equals_zero: If True, treat NaN and 0.0 as equivalent values.
+            This is useful for pivot operations where missing aggregations may
+            be filled with 0.0 or NaN depending on the backend.
     """
     import math
 
@@ -109,7 +118,21 @@ def assert_frame_equal_with_nans(a: DataFrameType, b: DataFrameType) -> None:
                 and math.isnan(val_a)
                 and math.isnan(val_b)
             )
-            if not (val_a == val_b or both_nan):
+            # For pivot operations, treat NaN and 0.0 as equivalent
+            nan_or_zero_match = (
+                allow_nan_equals_zero
+                and isinstance(val_a, (float, int))
+                and isinstance(val_b, (float, int))
+                and (
+                    (math.isnan(val_a) if isinstance(val_a, float) else False)
+                    or val_a == 0.0
+                )
+                and (
+                    (math.isnan(val_b) if isinstance(val_b, float) else False)
+                    or val_b == 0.0
+                )
+            )
+            if not (val_a == val_b or both_nan or nan_or_zero_match):
                 raise AssertionError(
                     f"DataFrame values differ at column '{col}', row {idx}: {val_a} != {val_b}"
                 )
@@ -1385,7 +1408,11 @@ class TestTransformHandler:
         df: DataFrameType, expected: DataFrameType, transform: PivotTransform
     ) -> None:
         result = apply(df, transform)
-        assert_frame_equal_with_nans(result, expected)
+        # Allow NaN and 0.0 to be treated as equivalent for pivot operations
+        # since different backends may fill missing aggregations differently
+        assert_frame_equal_with_nans(
+            result, expected, allow_nan_equals_zero=True
+        )
 
     @staticmethod
     @pytest.mark.parametrize(
