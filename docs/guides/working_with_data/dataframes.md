@@ -223,6 +223,32 @@ def __():
 ///
 
 
+### Formatting values
+
+Use `format_mapping` to format values for display in the dataframe UI. This
+affects how values appear in the table but does not change the underlying
+data returned by `.value` or downloads.
+
+```python
+import marimo as mo
+import pandas as pd
+
+df = pd.DataFrame(
+    {"person": ["Alice", "Bob"], "age": [20, 30], "height_cm": [165.2, 180.4]}
+)
+
+def format_height(value: float) -> str:
+    return f"{value:.1f} cm"
+
+mo.ui.dataframe(
+    df,
+    format_mapping={
+        "age": "{:d} years".format,
+        "height_cm": format_height,
+    },
+)
+```
+
 ### Custom filters
 
 Create custom filters with marimo UI elements, like sliders and dropdowns.

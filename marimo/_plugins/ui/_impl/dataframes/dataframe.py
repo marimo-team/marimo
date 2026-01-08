@@ -30,6 +30,7 @@ from marimo._plugins.ui._impl.table import (
     SortArgs,
     TableSearchError,
 )
+from marimo._plugins.ui._impl.tables.format import FormatMapping
 from marimo._plugins.ui._impl.tables.table_manager import (
     FieldTypes,
     TableManager,
@@ -110,6 +111,8 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
             dataframes via Ibis.
         show_download (bool, optional): Whether to show the download button.
             Defaults to True.
+        format_mapping (Optional[Dict[str, Union[str, Callable[..., Any]]]], optional): A mapping from
+            column names to formatting strings or functions.
         download_csv_encoding (str, optional): Encoding used when downloading CSV.
             Defaults to "utf-8". Set to "utf-8-sig" to include BOM for Excel.
         download_json_ensure_ascii (bool, optional): Whether to escape non-ASCII characters
@@ -130,6 +133,7 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
         limit: Optional[int] = None,
         show_download: bool = True,
         *,
+        format_mapping: Optional[FormatMapping] = None,
         download_csv_encoding: str = "utf-8",
         download_json_ensure_ascii: bool = True,
         lazy: Optional[bool] = None,
@@ -163,6 +167,7 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
         self._download_json_ensure_ascii = download_json_ensure_ascii
         self._handler = handler
         self._manager = self._get_cached_table_manager(df, self._limit)
+        self._format_mapping = format_mapping
         self._transform_container = TransformsContainer(nw_df, handler)
         self._error: Optional[str] = None
         self._last_transforms = Transformations([])
@@ -304,7 +309,9 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
 
         # Save the manager to be used for selection
         try:
-            data = result.take(args.page_size, offset).to_json_str()
+            data = result.take(args.page_size, offset).to_json_str(
+                self._format_mapping
+            )
         except BaseException as e:
             # Catch and re-raise the error as a non-BaseException
             # to avoid crashing the kernel
