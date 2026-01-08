@@ -4,7 +4,7 @@ import { useAtom, useAtomValue } from "jotai";
 import { MessageCircleQuestionIcon } from "lucide-react";
 import type React from "react";
 import type { PropsWithChildren } from "react";
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { ReorderableList } from "@/components/ui/reorderable-list";
 import { Tooltip } from "@/components/ui/tooltip";
 import {
@@ -22,8 +22,10 @@ import {
 } from "../types";
 
 export const Sidebar: React.FC = () => {
-  const { selectedPanel, selectedDeveloperPanelTab } = useChromeState();
-  const { toggleApplication, openApplication } = useChromeActions();
+  const { selectedPanel, selectedDeveloperPanelTab, isSidebarOpen } =
+    useChromeState();
+  const { toggleApplication, openApplication, setIsSidebarOpen } =
+    useChromeActions();
   const [panelLayout, setPanelLayout] = useAtom(panelLayoutAtom);
 
   const renderIcon = ({ Icon }: PanelDescriptor, className?: string) => {
@@ -83,6 +85,27 @@ export const Sidebar: React.FC = () => {
     // Select the dropped item in sidebar
     toggleApplication(item.type);
   };
+
+  // Auto-correct sidebar selection when the selected panel is no longer available
+  useEffect(() => {
+    if (!isSidebarOpen) {
+      return;
+    }
+    const isSelectionValid = sidebarItems.some((p) => p.type === selectedPanel);
+    if (!isSelectionValid) {
+      if (sidebarItems.length > 0) {
+        openApplication(sidebarItems[0].type);
+      } else {
+        setIsSidebarOpen(false);
+      }
+    }
+  }, [
+    isSidebarOpen,
+    sidebarItems,
+    selectedPanel,
+    openApplication,
+    setIsSidebarOpen,
+  ]);
 
   return (
     <div className="h-full pt-4 pb-1 px-1 flex flex-col items-start text-muted-foreground text-md select-none no-print text-sm z-50 dark:bg-background print:hidden hide-on-fullscreen">

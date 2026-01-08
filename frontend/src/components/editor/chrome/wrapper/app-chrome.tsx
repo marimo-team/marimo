@@ -186,6 +186,29 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
     });
   }, [isDeveloperPanelOpen]);
 
+  // Auto-correct developer panel selection when the selected tab is no longer available
+  useEffect(() => {
+    if (!isDeveloperPanelOpen) {
+      return;
+    }
+    const isSelectionValid = devPanelItems.some(
+      (p) => p.type === selectedDeveloperPanelTab,
+    );
+    if (!isSelectionValid) {
+      if (devPanelItems.length > 0) {
+        openApplication(devPanelItems[0].type);
+      } else {
+        setIsDeveloperPanelOpen(false);
+      }
+    }
+  }, [
+    isDeveloperPanelOpen,
+    devPanelItems,
+    selectedDeveloperPanelTab,
+    openApplication,
+    setIsDeveloperPanelOpen,
+  ]);
+
   const appBodyPanel = (
     <Panel id="app" key="app" className="relative h-full">
       <Suspense>{children}</Suspense>
