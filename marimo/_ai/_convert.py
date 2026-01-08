@@ -17,7 +17,6 @@ from marimo._ai._types import (
     TextPart,
     ToolInvocationPart,
 )
-from marimo._server.ai.tools.types import ToolDefinition
 
 if TYPE_CHECKING:
     from anthropic.types import (  # type: ignore[import-not-found]
@@ -563,82 +562,3 @@ def convert_to_ai_sdk_messages(
         if text_id is None:
             text_id = f"text_{uuid.uuid4().hex}"
         return f"data: {json.dumps({'type': 'text-delta', 'id': text_id, 'delta': str(content_text)})}\n\n"
-
-
-# Tool conversions
-def convert_to_openai_tools(
-    tools: list[ToolDefinition],
-) -> list[dict[str, Any]]:
-    return [
-        {
-            "type": "function",
-            "function": {
-                "name": tool.name,
-                "description": tool.description,
-                "parameters": tool.parameters,
-            },
-        }
-        for tool in tools
-    ]
-
-
-def convert_to_anthropic_tools(
-    tools: list[ToolDefinition],
-) -> list[dict[str, Any]]:
-    return [
-        {
-            "name": tool.name,
-            "description": tool.description,
-            "input_schema": tool.parameters,
-        }
-        for tool in tools
-    ]
-
-
-def convert_to_google_tools(
-    tools: list[ToolDefinition],
-) -> list[dict[str, Any]]:
-    return [
-        {
-            "function_declarations": [
-                {
-                    "name": tool.name,
-                    "description": tool.description,
-                    "parameters": _clean_google_parameters(
-                        {
-                            # Pydantic will raise validation errors if unknown keys are present
-                            # So we only include necessary keys
-                            "type": tool.parameters.get("type", "object"),
-                            "properties": tool.parameters.get(
-                                "properties", {}
-                            ),
-                            "required": tool.parameters.get("required", []),
-                        }
-                    ),
-                }
-            ]
-        }
-        for tool in tools
-    ]
-
-
-def _clean_google_parameters(parameters: dict[str, Any]) -> dict[str, Any]:
-    """
-    Recursively remove unsupported keys from Google tool parameters.
-    Google has strict parameter validation, so we should remove any keys that are not supported.
-    """
-    cleaned = {}
-    for key, value in parameters.items():
-        if key in ("additionalProperties"):
-            continue
-        if key == "properties" and isinstance(value, dict):
-            # Recursively clean nested properties
-            cleaned[key] = {
-                k: _clean_google_parameters(v) if isinstance(v, dict) else v
-                for k, v in value.items()
-            }
-        elif isinstance(value, dict):
-            cleaned[key] = _clean_google_parameters(value)
-        else:
-            cleaned[key] = value
-    return cleaned
