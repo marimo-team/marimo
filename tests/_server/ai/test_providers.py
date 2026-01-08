@@ -9,6 +9,7 @@ from marimo._server.ai.providers import (
     AnthropicProvider,
     AzureOpenAIProvider,
     BedrockProvider,
+    CustomProvider,
     GoogleProvider,
     OpenAIProvider,
     get_completion_provider,
@@ -80,7 +81,7 @@ def test_anyprovider_for_model(model_name: str, provider_name: str) -> None:
             id="bedrock",
         ),
         pytest.param(
-            "openrouter/gpt-4", OpenAIProvider, None, id="openrouter"
+            "openrouter/gpt-4", CustomProvider, None, id="openrouter"
         ),
     ],
 )
@@ -334,36 +335,44 @@ def test_anthropic_is_extended_thinking_model(
     [
         pytest.param(
             "gpt-4o",
-            "openai",
+            "deepseek",
             True,
-            id="openai_gpt4o_supports_responses",
-        ),
-        pytest.param(
-            "o1-mini",
-            "openai",
-            True,
-            id="openai_o1_supports_responses",
+            id="deepseek_supports_responses",
         ),
         pytest.param(
             "gpt-4",
             "openrouter",
+            True,
+            id="openrouter_supports_responses",
+        ),
+        pytest.param(
+            "gpt-4",
+            "together",
+            True,
+            id="together_supports_responses",
+        ),
+        pytest.param(
+            "gpt-4",
+            "ollama",
             False,
-            id="openrouter_no_responses",
+            id="ollama_chat_only",
         ),
         pytest.param(
             "gpt-4",
             "litellm",
             False,
-            id="litellm_no_responses",
+            id="litellm_chat_only",
         ),
     ],
 )
-def test_openai_supports_responses_api(
+@pytest.mark.skipif(
+    not DependencyManager.pydantic_ai.has(),
+    reason="pydantic_ai not installed",
+)
+def test_custom_provider_supports_responses_api(
     model_name: str, provider_name: str, expected: bool
 ) -> None:
     """Test that _supports_responses_api correctly identifies providers that support the responses API."""
     config = AnyProviderConfig(api_key="test-key", base_url=None)
-    provider = OpenAIProvider(model_name, config, provider_name=provider_name)
-    assert (
-        provider._supports_responses_api(provider_name, model_name) == expected
-    )
+    provider = CustomProvider(model_name, config, provider_name=provider_name)
+    assert provider._supports_responses_api() == expected
