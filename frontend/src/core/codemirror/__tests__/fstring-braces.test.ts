@@ -4,7 +4,7 @@ import { python } from "@codemirror/lang-python";
 import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { afterEach, describe, expect, it } from "vitest";
-import { fStringBraceInputHandler } from "../cm";
+import { stringBraceInputHandler } from "../cm";
 
 function createEditor(initialContent: string, cursorPosition: number): EditorView {
   const state = EditorState.create({
@@ -21,7 +21,7 @@ function createEditor(initialContent: string, cursorPosition: number): EditorVie
   return view;
 }
 
-describe("f-string brace auto-closing", () => {
+describe("string brace auto-closing", () => {
   let view: EditorView;
 
   afterEach(() => {
@@ -35,25 +35,25 @@ describe("f-string brace auto-closing", () => {
 
   it("should auto-close braces in f-strings", () => {
     view = createEditor('f"hello ', 8);
-    const result = fStringBraceInputHandler(view, 8, 8, "{");
+    const result = stringBraceInputHandler(view, 8, 8, "{");
 
     expect(result).toBe(true);
     expect(view.state.doc.toString()).toBe('f"hello {}');
     expect(view.state.selection.main.head).toBe(9);
   });
 
-  it("should auto-close braces in t-strings", () => {
-    view = createEditor('t"hello ', 8);
-    const result = fStringBraceInputHandler(view, 8, 8, "{");
+  it("should auto-close braces in regular double-quoted strings", () => {
+    view = createEditor('"hello ', 7);
+    const result = stringBraceInputHandler(view, 7, 7, "{");
 
     expect(result).toBe(true);
-    expect(view.state.doc.toString()).toBe('t"hello {}');
-    expect(view.state.selection.main.head).toBe(9);
+    expect(view.state.doc.toString()).toBe('"hello {}');
+    expect(view.state.selection.main.head).toBe(8);
   });
 
   it("should auto-close braces in rf-strings", () => {
     view = createEditor('rf"hello ', 9);
-    const result = fStringBraceInputHandler(view, 9, 9, "{");
+    const result = stringBraceInputHandler(view, 9, 9, "{");
 
     expect(result).toBe(true);
     expect(view.state.doc.toString()).toBe('rf"hello {}');
@@ -62,59 +62,53 @@ describe("f-string brace auto-closing", () => {
 
   it("should auto-close braces in fr-strings", () => {
     view = createEditor('fr"hello ', 9);
-    const result = fStringBraceInputHandler(view, 9, 9, "{");
+    const result = stringBraceInputHandler(view, 9, 9, "{");
 
     expect(result).toBe(true);
     expect(view.state.doc.toString()).toBe('fr"hello {}');
     expect(view.state.selection.main.head).toBe(10);
   });
 
-  it("should auto-close braces in rt-strings", () => {
-    view = createEditor('rt"hello ', 9);
-    const result = fStringBraceInputHandler(view, 9, 9, "{");
+  it("should auto-close braces in single-quoted strings", () => {
+    view = createEditor("'hello ", 7);
+    const result = stringBraceInputHandler(view, 7, 7, "{");
 
     expect(result).toBe(true);
-    expect(view.state.doc.toString()).toBe('rt"hello {}');
-    expect(view.state.selection.main.head).toBe(10);
-  });
-
-  it("should auto-close braces in tr-strings", () => {
-    view = createEditor('tr"hello ', 9);
-    const result = fStringBraceInputHandler(view, 9, 9, "{");
-
-    expect(result).toBe(true);
-    expect(view.state.doc.toString()).toBe('tr"hello {}');
-    expect(view.state.selection.main.head).toBe(10);
+    expect(view.state.doc.toString()).toBe("'hello {}");
+    expect(view.state.selection.main.head).toBe(8);
   });
 
   it("should auto-close braces in uppercase F-strings", () => {
     view = createEditor('F"hello ', 8);
-    const result = fStringBraceInputHandler(view, 8, 8, "{");
+    const result = stringBraceInputHandler(view, 8, 8, "{");
 
     expect(result).toBe(true);
     expect(view.state.doc.toString()).toBe('F"hello {}');
     expect(view.state.selection.main.head).toBe(9);
   });
 
-  it("should NOT auto-close braces in regular strings", () => {
+  it("should auto-close braces in regular strings", () => {
     view = createEditor('"hello ', 7);
-    const result = fStringBraceInputHandler(view, 7, 7, "{");
+    const result = stringBraceInputHandler(view, 7, 7, "{");
 
-    expect(result).toBe(false);
-    expect(view.state.doc.toString()).toBe('"hello ');
+    expect(result).toBe(true);
+    expect(view.state.doc.toString()).toBe('"hello {}');
+    expect(view.state.selection.main.head).toBe(8);
   });
 
-  it("should NOT auto-close braces in raw strings without f/t", () => {
+  it("should auto-close braces in raw strings without f/t", () => {
     view = createEditor('r"hello ', 8);
-    const result = fStringBraceInputHandler(view, 8, 8, "{");
+    const result = stringBraceInputHandler(view, 8, 8, "{");
 
-    expect(result).toBe(false);
-    expect(view.state.doc.toString()).toBe('r"hello ');
+    expect(result).toBe(true);
+    expect(view.state.doc.toString()).toBe('r"hello {}');
+    expect(view.state.selection.main.head).toBe(9);
   });
 
+  // Handled by other CodeMirror handler(s)
   it("should NOT auto-close braces outside strings", () => {
     view = createEditor("x = ", 4);
-    const result = fStringBraceInputHandler(view, 4, 4, "{");
+    const result = stringBraceInputHandler(view, 4, 4, "{");
 
     expect(result).toBe(false);
     expect(view.state.doc.toString()).toBe("x = ");
@@ -122,42 +116,42 @@ describe("f-string brace auto-closing", () => {
 
   it("should NOT auto-close braces when typing other characters", () => {
     view = createEditor('f"hello ', 8);
-    const result = fStringBraceInputHandler(view, 8, 8, "a");
+    const result = stringBraceInputHandler(view, 8, 8, "a");
 
     expect(result).toBe(false);
     expect(view.state.doc.toString()).toBe('f"hello ');
   });
 
-  it("should handle braces at the start of f-string", () => {
+  it("should handle braces at the start of string", () => {
     view = createEditor('f"', 2);
-    const result = fStringBraceInputHandler(view, 2, 2, "{");
+    const result = stringBraceInputHandler(view, 2, 2, "{");
 
     expect(result).toBe(true);
     expect(view.state.doc.toString()).toBe('f"{}');
     expect(view.state.selection.main.head).toBe(3);
   });
 
-  it("should handle braces in the middle of f-string content", () => {
+  it("should handle braces in the middle of string content", () => {
     view = createEditor('f"hello world ', 14);
-    const result = fStringBraceInputHandler(view, 14, 14, "{");
+    const result = stringBraceInputHandler(view, 14, 14, "{");
 
     expect(result).toBe(true);
     expect(view.state.doc.toString()).toBe('f"hello world {}');
     expect(view.state.selection.main.head).toBe(15);
   });
 
-  it("should handle multiple braces in f-string", () => {
-    view = createEditor('f"hello {} world ', 18);
-    const result = fStringBraceInputHandler(view, 18, 18, "{");
+  it("should handle multiple braces in string", () => {
+    view = createEditor('f"hello {} world', 16);
+    const result = stringBraceInputHandler(view, 16, 16, "{");
 
     expect(result).toBe(true);
-    expect(view.state.doc.toString()).toBe('f"hello {} world {}');
-    expect(view.state.selection.main.head).toBe(19);
+    expect(view.state.doc.toString()).toBe('f"hello {} world{}');
+    expect(view.state.selection.main.head).toBe(17);
   });
 
-  it("should handle empty f-string", () => {
+  it("should handle empty string", () => {
     view = createEditor('f""', 2);
-    const result = fStringBraceInputHandler(view, 2, 2, "{");
+    const result = stringBraceInputHandler(view, 2, 2, "{");
 
     expect(result).toBe(true);
     expect(view.state.doc.toString()).toBe('f"{}"');
