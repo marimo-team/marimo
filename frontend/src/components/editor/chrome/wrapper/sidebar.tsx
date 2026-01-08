@@ -7,7 +7,10 @@ import type { PropsWithChildren } from "react";
 import { useMemo } from "react";
 import { ReorderableList } from "@/components/ui/reorderable-list";
 import { Tooltip } from "@/components/ui/tooltip";
-import { notebookQueuedOrRunningCountAtom } from "@/core/cells/cells";
+import {
+  cellErrorCount,
+  notebookQueuedOrRunningCountAtom,
+} from "@/core/cells/cells";
 import { cn } from "@/utils/cn";
 import { FeedbackButton } from "../components/feedback-button";
 import { panelLayoutAtom, useChromeActions, useChromeState } from "../state";
@@ -108,7 +111,11 @@ export const Sidebar: React.FC = () => {
             tooltip={panel.tooltip}
             selected={selectedPanel === panel.type}
           >
-            {renderIcon(panel)}
+            {panel.type === "errors" ? (
+              <ErrorPanelIcon Icon={panel.Icon} />
+            ) : (
+              renderIcon(panel)
+            )}
           </SidebarItem>
         )}
       />
@@ -120,6 +127,15 @@ export const Sidebar: React.FC = () => {
       <div className="flex-1" />
       <QueuedOrRunningStack />
     </div>
+  );
+};
+
+const ErrorPanelIcon: React.FC<{ Icon: PanelDescriptor["Icon"] }> = ({
+  Icon,
+}) => {
+  const errorCount = useAtomValue(cellErrorCount);
+  return (
+    <Icon className={cn("h-5 w-5", errorCount > 0 && "text-destructive")} />
   );
 };
 
