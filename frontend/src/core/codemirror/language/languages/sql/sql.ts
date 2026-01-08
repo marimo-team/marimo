@@ -373,6 +373,7 @@ function connectionNameToParserDialect(
       return "Sqlite";
     case "mssql":
     case "sqlserver":
+    case "microsoft sql server":
       return "TransactSQL";
     case "duckdb":
       return "DuckDB";
@@ -404,6 +405,8 @@ function connectionNameToParserDialect(
     case "tidb":
     case "singlestoredb":
     case "spark":
+    case "databricks":
+    case "datafusion":
       Logger.debug("Unsupported dialect", { dialect });
       return null;
     default:
