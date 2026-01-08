@@ -79,7 +79,7 @@ def test_anyprovider_for_model(model_name: str, provider_name: str) -> None:
         pytest.param(
             "bedrock/anthropic.claude-3-sonnet-20240229",
             BedrockProvider,
-            None,
+            DependencyManager.boto3,
             id="bedrock",
         ),
         pytest.param(
