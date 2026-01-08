@@ -504,16 +504,15 @@ class CustomProvider(OpenAIClientMixin, PydanticProvider["Provider[Any]"]):
 
     def __init__(
         self,
-        model: str,
+        model_id: AiModelId,
         config: AnyProviderConfig,
-        provider_name: str,
         deps: list[Dependency] | None = None,
     ):
-        self._provider_name = provider_name
+        self._provider_name = model_id.provider
         self._responses_compatible, self._chat_compatible = (
             self._get_openai_compatible_providers()
         )
-        super().__init__(model, config, deps)
+        super().__init__(model_id.model, config, deps)
 
     def _get_openai_compatible_providers(self) -> tuple[set[str], set[str]]:
         """Get the sets of OpenAI-compatible providers from pydantic_ai.
@@ -572,7 +571,6 @@ class CustomProvider(OpenAIClientMixin, PydanticProvider["Provider[Any]"]):
             client = self.get_openai_client(config)
             return PydanticOpenAI(openai_client=client)
 
-        # For OpenAI-compatible providers, use the OpenAI client
         if self._is_openai_compatible():
             client = self.get_openai_client(config)
             try:
@@ -582,13 +580,15 @@ class CustomProvider(OpenAIClientMixin, PydanticProvider["Provider[Any]"]):
                     f"Provider {provider_class.__name__} doesn't accept openai_client"
                 )
 
-        return self.create_non_openai_provider(provider_class, config)
+        return self._create_custom_provider(provider_class, config)
 
-    def create_non_openai_provider(
+    def _create_custom_provider(
         self, provider_class: type[Provider[Any]], config: AnyProviderConfig
     ) -> Provider[Any]:
-        """Create a non-OpenAI provider based on the provider class.
-        Import on-demand to avoid requiring the provider packages to be installed."""
+        """
+        Create a custom provider based on the provider class. These providers are not OpenAI-compatible.
+        Import on-demand to avoid requiring the provider packages to be installed.
+        """
 
         provider_name = provider_class.__name__
 
@@ -674,9 +674,11 @@ class CustomProvider(OpenAIClientMixin, PydanticProvider["Provider[Any]"]):
                 settings=OpenAIChatModelSettings(max_tokens=max_tokens),
             )
 
-        return self._create_non_openai_model(max_tokens)
+        return self._create_custom_model(max_tokens)
 
-    def _create_non_openai_model(self, max_tokens: int) -> Model:
+    def _create_custom_model(self, max_tokens: int) -> Model:
+        """Create a custom model based on the provider class. These providers are not OpenAI-compatible."""
+
         from pydantic_ai.models import infer_model
         from pydantic_ai.settings import ModelSettings
 
@@ -985,12 +987,7 @@ def get_completion_provider(
             model_id.model, config, [DependencyManager.openai]
         )
     else:
-        return CustomProvider(
-            model_id.model,
-            config,
-            model_id.provider,
-            [DependencyManager.openai],
-        )
+        return CustomProvider(model_id, config, [DependencyManager.openai])
 
 
 async def merge_backticks(
