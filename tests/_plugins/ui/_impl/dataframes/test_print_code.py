@@ -694,6 +694,36 @@ def test_print_code_result_matches_actual_transform_polars(
             if sortable_cols:
                 code_result = code_result.sort(sortable_cols)
                 real_result = real_result.sort(sortable_cols)
+            else:
+                # If no sortable columns exist (e.g., only list/struct columns),
+                # convert to string representation for deterministic sorting
+                temp_sort_col = "__temp_sort_key__"
+                code_result = (
+                    code_result.with_columns(
+                        pl.concat_str(
+                            [
+                                pl.col(c).cast(pl.String)
+                                for c in code_result.columns
+                            ],
+                            separator="||",
+                        ).alias(temp_sort_col)
+                    )
+                    .sort(temp_sort_col)
+                    .drop(temp_sort_col)
+                )
+                real_result = (
+                    real_result.with_columns(
+                        pl.concat_str(
+                            [
+                                pl.col(c).cast(pl.String)
+                                for c in real_result.columns
+                            ],
+                            separator="||",
+                        ).alias(temp_sort_col)
+                    )
+                    .sort(temp_sort_col)
+                    .drop(temp_sort_col)
+                )
 
         pl_testing.assert_frame_equal(code_result, real_result)
 
