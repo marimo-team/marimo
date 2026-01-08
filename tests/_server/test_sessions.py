@@ -1066,3 +1066,53 @@ def test_session_with_script_config_overrides(
 
     # Cleanup
     session.close()
+
+
+@save_and_restore_main
+async def test_caching_enabled_only_in_edit_mode() -> None:
+    """Test that caching is only enabled in EDIT mode, not RUN mode."""
+    from marimo._session.extensions.extensions import CachingExtension
+
+    session_consumer = MagicMock()
+    session_consumer.connection_state.return_value = ConnectionState.OPEN
+
+    def create_session(mode: SessionMode, auto_instantiate: bool) -> Session:
+        return SessionImpl.create(
+            initialization_id="test_session",
+            session_consumer=session_consumer,
+            mode=mode,
+            app_metadata=app_metadata,
+            app_file_manager=AppFileManager.from_app(InternalApp(App())),
+            config_manager=get_default_config_manager(current_path=None),
+            virtual_files_supported=True,
+            redirect_console_to_browser=False,
+            ttl_seconds=None,
+            auto_instantiate=auto_instantiate,
+        )
+
+    def find_caching_extension(session: Session) -> CachingExtension:
+        extension = [
+            ext
+            for ext in session.extensions
+            if isinstance(ext, CachingExtension)
+        ]
+        assert len(extension) == 1
+        return extension[0]
+
+    # Test 1: EDIT mode with auto_instantiate=False -> caching enabled
+    session_edit = create_session(SessionMode.EDIT, False)
+
+    # Find the CachingExtension
+    caching_extension_edit = find_caching_extension(session_edit)
+    assert caching_extension_edit.enabled is True
+
+    # Test 2: RUN mode with auto_instantiate=True -> caching disabled
+    session_run = create_session(SessionMode.RUN, True)
+
+    # Find the CachingExtension
+    caching_extension_run = find_caching_extension(session_run)
+    assert caching_extension_run.enabled is False
+
+    # # Cleanup
+    session_edit.close()
+    session_run.close()
