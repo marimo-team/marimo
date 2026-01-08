@@ -43,7 +43,7 @@ if TYPE_CHECKING:
     from pydantic_ai.models import Model
     from pydantic_ai.models.bedrock import BedrockConverseModel
     from pydantic_ai.models.google import GoogleModel
-    from pydantic_ai.models.openai import OpenAIResponsesModel
+    from pydantic_ai.models.openai import OpenAIChatModel, OpenAIResponsesModel
     from pydantic_ai.providers import Provider
     from pydantic_ai.providers.anthropic import (
         AnthropicProvider as PydanticAnthropic,
@@ -504,8 +504,8 @@ class CustomProvider(OpenAIClientMixin, PydanticProvider["Provider[Any]"]):
 
     Note:
         We need to use the specific provider and model classes, because Pydantic AI has tuned them to send & return messages correctly.
-        We can also use `Agent("provider:model_name")` to avoid finding the provider and model classes ourselves. However, this does not let
-        us create custom providers and models. They rely on env vars to be set.
+        We can also use `Agent("provider:model_name")` to avoid finding the provider ourselves. However, this does not let
+        us create custom providers. They rely on env vars to be set.
     """
 
     def __init__(
@@ -597,6 +597,7 @@ class CustomProvider(OpenAIClientMixin, PydanticProvider["Provider[Any]"]):
         """
 
         provider_name = provider_class.__name__
+        LOGGER.debug(f"Creating custom provider: {provider_name}")
 
         if provider_name == "CerebrasProvider":
             from pydantic_ai.providers.cerebras import CerebrasProvider
@@ -643,133 +644,55 @@ class CustomProvider(OpenAIClientMixin, PydanticProvider["Provider[Any]"]):
             client = self.get_openai_client(config)
             return PydanticOpenAI(openai_client=client)
 
-    def create_model(self, max_tokens: int) -> Model:
-        """Create a model based on provider compatibility.
+    def create_model(self, max_tokens: int) -> OpenAIChatModel:
+        """Default to OpenAIChatModel"""
 
-        - OpenAIResponsesCompatibleProvider -> OpenAIResponsesModel
-        - OpenAIChatCompatibleProvider -> OpenAIChatModel
-        - Other providers -> infer_model to get appropriate model class
-        """
-        # Prefer using the Responses API if available for perf and features
-        # TODO: Does not work at the moment, so we just use the OpenAIChatModel instead
-        # if self._supports_responses_api():
-        #     from pydantic_ai.models.openai import (
-        #         OpenAIResponsesModel,
-        #         OpenAIResponsesModelSettings,
-        #     )
+        from pydantic_ai.models.openai import (
+            OpenAIChatModel,
+            OpenAIChatModelSettings,
+        )
 
-        #     LOGGER.debug(
-        #         f"Using OpenAIResponsesModel for {self._provider_name}"
-        #     )
-        #     return OpenAIResponsesModel(
-        #         model_name=self.model,
-        #         provider=self.provider,
-        #         settings=OpenAIResponsesModelSettings(max_tokens=max_tokens),
-        #     )
+        return OpenAIChatModel(
+            model_name=self.model,
+            provider=self.provider,
+            settings=OpenAIChatModelSettings(max_tokens=max_tokens),
+        )
 
-        if self._is_openai_compatible():
-            from pydantic_ai.models.openai import (
-                OpenAIChatModel,
-                OpenAIChatModelSettings,
-            )
-
-            LOGGER.debug(f"Using OpenAIChatModel for {self._provider_name}")
-            return OpenAIChatModel(
-                model_name=self.model,
-                provider=self.provider,
-                settings=OpenAIChatModelSettings(max_tokens=max_tokens),
-            )
-
-        return self._create_custom_model(max_tokens)
-
-    def _create_custom_model(self, max_tokens: int) -> Model:
-        """Create a custom model based on the provider class. These providers are not OpenAI-compatible."""
-
+    def create_agent(
+        self,
+        max_tokens: int,
+        tools: list[ToolDefinition],
+        system_prompt: str,
+    ) -> Agent[None, DeferredToolRequests | str]:
+        """Create a Pydantic AI agent"""
+        from pydantic_ai import Agent, UserError
         from pydantic_ai.models import infer_model
         from pydantic_ai.settings import ModelSettings
 
-        model_string = f"{self._provider_name}:{self.model}"
         try:
-            # Don't return inferred model at first, because we want to use our own provider
-            inferred = infer_model(model_string)
-            model_class = type(inferred)
-            LOGGER.debug(f"Inferred model class: {model_class.__name__}")
-        except Exception as e:
-            from pydantic_ai.models.openai import (
-                OpenAIChatModel,
-                OpenAIChatModelSettings,
+            model = infer_model(
+                f"{self._provider_name}:{self.model}",
+                provider_factory=lambda _: self.provider,
             )
-
+        except UserError:
             LOGGER.warning(
-                f"Could not infer model for {model_string}: {e}. Using OpenAIChatModel."
+                f"Model {self.model} not found. Falling back to OpenAIChatModel."
             )
-            return OpenAIChatModel(
-                model_name=self.model,
-                provider=self.provider,
-                settings=OpenAIChatModelSettings(max_tokens=max_tokens),
+            model = self.create_model(max_tokens)
+        except Exception as e:
+            LOGGER.error(
+                f"Error creating model: {e}. Falling back to OpenAIChatModel."
             )
+            model = self.create_model(max_tokens)
 
-        # Import on-demand as top-level imports will require the package to be installed
-        model_name = model_class.__name__
-
-        if model_name == "CerebrasModel":
-            from pydantic_ai.models.cerebras import (
-                CerebrasModel,
-                CerebrasModelSettings,
-            )
-
-            return CerebrasModel(
-                model_name=self.model,
-                provider=self.provider,
-                settings=CerebrasModelSettings(max_tokens=max_tokens),
-            )
-        if model_name == "CohereModel":
-            from pydantic_ai.models.cohere import (
-                CohereModel,
-                CohereModelSettings,
-            )
-
-            return CohereModel(
-                model_name=self.model,
-                provider=self.provider,
-                settings=CohereModelSettings(max_tokens=max_tokens),
-            )
-        if model_name == "GroqModel":
-            from pydantic_ai.models.groq import GroqModel, GroqModelSettings
-
-            return GroqModel(
-                model_name=self.model,
-                provider=self.provider,
-                settings=GroqModelSettings(max_tokens=max_tokens),
-            )
-        if model_name == "HuggingFaceModel":
-            from pydantic_ai.models.huggingface import (
-                HuggingFaceModel,
-                HuggingFaceModelSettings,
-            )
-
-            return HuggingFaceModel(
-                model_name=self.model,
-                provider=self.provider,
-                settings=HuggingFaceModelSettings(max_tokens=max_tokens),
-            )
-        if model_name == "MistralModel":
-            from pydantic_ai.models.mistral import (
-                MistralModel,
-                MistralModelSettings,
-            )
-
-            return MistralModel(
-                model_name=self.model,
-                provider=self.provider,
-                settings=MistralModelSettings(max_tokens=max_tokens),
-            )
-
-        # Unknown model class - return the inferred model directly
-        LOGGER.warning(
-            f"Unknown model: {self._provider_name}:{self.model}. Create a GitHub issue to request support."
+        toolset, output_type = self._get_toolsets_and_output_type(tools)
+        return Agent(
+            model,
+            model_settings=ModelSettings(max_tokens=max_tokens),
+            toolsets=[toolset] if tools else None,
+            instructions=system_prompt,
+            output_type=output_type,
         )
-        return model_class(settings=ModelSettings(max_tokens=max_tokens))
 
 
 class AnthropicProvider(PydanticProvider["PydanticAnthropic"]):
