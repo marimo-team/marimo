@@ -171,6 +171,7 @@ export class RuntimeManager {
       const response = await fetch(this.healthURL().toString());
       // If there is a redirect, update the URL in the config
       if (response.redirected) {
+        Logger.debug(`Runtime redirected to ${response.url}`);
         // strip /health from the URL
         const baseUrl = response.url.replace(/\/health$/, "");
         this.config.url = baseUrl;
