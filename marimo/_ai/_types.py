@@ -167,6 +167,11 @@ class DataReasoningPart:
     data: ReasoningData
 
 
+@dataclass
+class StepStartPart:
+    type: Literal["step-start"]
+
+
 if TYPE_CHECKING:
     ChatPart = Union[
         TextPart,
@@ -174,6 +179,7 @@ if TYPE_CHECKING:
         ToolInvocationPart,
         FilePart,
         DataReasoningPart,
+        StepStartPart,
     ]
 else:
     ChatPart = dict[str, Any]
@@ -184,6 +190,7 @@ PART_TYPES = [
     ToolInvocationPart,
     FilePart,
     DataReasoningPart,
+    StepStartPart,
 ]
 
 
