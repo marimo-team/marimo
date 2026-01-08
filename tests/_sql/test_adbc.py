@@ -551,6 +551,7 @@ def test_adbc_sqlite_driver_catalog_interface() -> None:
     # Explicitly use a fresh in-memory database per test run.
     conn: Any = adbc_sqlite_dbapi.connect(":memory:")
     try:
+
         def get_table(
             *,
             databases: list[Any],
