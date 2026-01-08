@@ -6,7 +6,10 @@ import { EditorView } from "@codemirror/view";
 import { afterEach, describe, expect, it } from "vitest";
 import { stringBraceInputHandler } from "../cm";
 
-function createEditor(initialContent: string, cursorPosition: number): EditorView {
+function createEditor(
+  initialContent: string,
+  cursorPosition: number,
+): EditorView {
   const state = EditorState.create({
     doc: initialContent,
     selection: { anchor: cursorPosition },
