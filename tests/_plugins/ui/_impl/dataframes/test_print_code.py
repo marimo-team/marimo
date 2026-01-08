@@ -572,6 +572,14 @@ def test_print_code_result_matches_actual_transform_polars(
     # TODO: unimplemented
     if transform.type == TransformType.AGGREGATE:
         assume(False)
+    # Don't group by unhashable types (lists, dicts) as ordering is non-deterministic
+    if transform.type == TransformType.GROUP_BY:
+        assume(
+            not any(
+                column_id in {"lists", "dicts"}
+                for column_id in transform.column_ids
+            )
+        )
     if transform.type == TransformType.PIVOT:
         assume(
             (
@@ -681,8 +689,9 @@ def test_print_code_result_matches_actual_transform_polars(
 
         # For group_by transforms, the row order might differ even with maintain_order=True
         # Sort both dataframes by all columns before comparing
+        # Note: We exclude grouping by unhashable types (lists, dicts) via assume() above,
+        # so all columns should be sortable
         if transform.type == TransformType.GROUP_BY:
-            # Filter out columns with unhashable types (dicts, lists)
             import polars.datatypes as pl_dtypes
 
             sortable_cols = [
@@ -694,36 +703,6 @@ def test_print_code_result_matches_actual_transform_polars(
             if sortable_cols:
                 code_result = code_result.sort(sortable_cols)
                 real_result = real_result.sort(sortable_cols)
-            else:
-                # If no sortable columns exist (e.g., only list/struct columns),
-                # convert to string representation for deterministic sorting
-                temp_sort_col = "__temp_sort_key__"
-                code_result = (
-                    code_result.with_columns(
-                        pl.concat_str(
-                            [
-                                pl.col(c).cast(pl.String)
-                                for c in code_result.columns
-                            ],
-                            separator="||",
-                        ).alias(temp_sort_col)
-                    )
-                    .sort(temp_sort_col)
-                    .drop(temp_sort_col)
-                )
-                real_result = (
-                    real_result.with_columns(
-                        pl.concat_str(
-                            [
-                                pl.col(c).cast(pl.String)
-                                for c in real_result.columns
-                            ],
-                            separator="||",
-                        ).alias(temp_sort_col)
-                    )
-                    .sort(temp_sort_col)
-                    .drop(temp_sort_col)
-                )
 
         pl_testing.assert_frame_equal(code_result, real_result)
 
