@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import datetime
+from functools import reduce
 from typing import TYPE_CHECKING, Any, Callable
 
 import narwhals.stable.v2 as nw
@@ -21,6 +22,7 @@ from marimo._plugins.ui._impl.dataframes.transforms.types import (
     ExplodeColumnsTransform,
     FilterRowsTransform,
     GroupByTransform,
+    PivotTransform,
     RenameColumnTransform,
     SampleRowsTransform,
     SelectColumnsTransform,
@@ -369,6 +371,89 @@ class NarwhalsTransformHandler(TransformHandler[DataFrame]):
                 .lazy()
             )
         assert_never(keep)
+
+    @staticmethod
+    def handle_pivot(df: DataFrame, transform: PivotTransform) -> DataFrame:
+        # Since ibis does not have a native pivot, and pivot is not supported for LazyFrame
+        # we implement it manually
+        # pivot results are also highly inconsistent across backends, so we standardize the output here
+
+        if not transform.index_column_ids and not transform.value_column_ids:
+            raise nw.exceptions.InvalidOperationError(
+                "Pivot transform requires at least one index column and or value column."
+            )
+
+        columns = df.collect_schema().names()
+        if not transform.index_column_ids:
+            index_columns = list(
+                filter(
+                    lambda col: col not in transform.column_ids
+                    and col not in transform.value_column_ids,
+                    columns,
+                )
+            )
+        else:
+            index_columns = transform.index_column_ids
+
+        if not transform.value_column_ids:
+            value_columns = list(
+                filter(
+                    lambda col: col not in transform.column_ids
+                    and col not in transform.index_column_ids,
+                    columns,
+                )
+            )
+        else:
+            value_columns = transform.value_column_ids
+
+        raw_pivot_columns = (
+            df.select(*transform.column_ids)
+            .unique()
+            .sort(by=transform.column_ids)
+            .collect()
+            .rows()
+        )
+
+        dfs = []
+        for raw_pivot_column in raw_pivot_columns:
+            aggs = []
+            mask = reduce(
+                lambda x, y: x & y,
+                [
+                    nw.col(on_col) == on_val
+                    for on_col, on_val in zip(
+                        transform.column_ids, raw_pivot_column
+                    )
+                ],
+            )
+            for value_column in value_columns:
+                expr = nw.col(value_column).alias(
+                    f"{value_column}_{'_'.join(map(str, raw_pivot_column))}_{transform.aggregation}"
+                )
+                if transform.aggregation == "count":
+                    aggs.append(expr.len())
+                elif transform.aggregation == "sum":
+                    aggs.append(expr.sum())
+                elif transform.aggregation == "mean":
+                    aggs.append(expr.mean())
+                elif transform.aggregation == "median":
+                    aggs.append(expr.median())
+                elif transform.aggregation == "min":
+                    aggs.append(expr.min())
+                elif transform.aggregation == "max":
+                    aggs.append(expr.max())
+                else:
+                    raise ValueError(
+                        f"Unsupported aggregation function: {transform.aggregation}"
+                    )
+            dfs.append(df.filter(mask).group_by(*index_columns).agg(*aggs))
+
+        result = df.select(*index_columns).unique()
+        for df_ in dfs:
+            result = result.join(df_, on=index_columns, how="left")
+        if transform.aggregation in {"count", "sum"}:
+            result = result.select(nw.all().fill_null(0))
+        return result.sort(by=index_columns)
 
     @staticmethod
     def as_python_code(
