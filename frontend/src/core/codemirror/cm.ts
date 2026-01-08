@@ -168,36 +168,41 @@ const startCompletionAtEndOfLine = (cm: EditorView): boolean => {
     : startCompletion(cm);
 };
 
-const fStringBraceHandler = EditorView.inputHandler.of(
-  (view, from, to, text) => {
-    if (text !== "{") {
-      return false;
-    }
+export function fStringBraceInputHandler(
+  view: EditorView,
+  from: number,
+  to: number,
+  text: string,
+): boolean {
+  if (text !== "{") {
+    return false;
+  }
 
-    const tree = syntaxTree(view.state);
-    const node = tree.resolveInner(from, -1);
+  const tree = syntaxTree(view.state);
+  const node = tree.resolveInner(from, -1);
 
-    if (!node?.type.name.includes("String")) {
-      return false;
-    }
+  if (!node?.type.name.includes("String")) {
+    return false;
+  }
 
-    const prefix = view.state.sliceDoc(
-      node.from,
-      Math.min(node.from + 3, node.to),
-    );
-    // Case insensitive, checks whether there is f or t in prefix
-    if (!/^(?:[ft]|[ft]r|r[ft])/i.test(prefix)) {
-      return false;
-    }
+  const prefix = view.state.sliceDoc(
+    node.from,
+    Math.min(node.from + 3, node.to),
+  );
+  // Case insensitive, checks whether there is f or t in prefix
+  if (!/^(?:[ft]|[ft]r|r[ft])/i.test(prefix)) {
+    return false;
+  }
 
-    view.dispatch({
-      changes: { from, to, insert: "{}" },
-      selection: { anchor: from + 1 },
-      userEvent: "input.type",
-    });
-    return true;
-  },
-);
+  view.dispatch({
+    changes: { from, to, insert: "{}" },
+    selection: { anchor: from + 1 },
+    userEvent: "input.type",
+  });
+  return true;
+}
+
+const fStringBraceHandler = EditorView.inputHandler.of(fStringBraceInputHandler);
 
 // Based on codemirror's basicSetup extension
 export const basicBundle = (opts: CodeMirrorSetupOpts): Extension[] => {
