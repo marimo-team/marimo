@@ -202,7 +202,9 @@ export function fStringBraceInputHandler(
   return true;
 }
 
-const fStringBraceHandler = EditorView.inputHandler.of(fStringBraceInputHandler);
+const fStringBraceHandler = EditorView.inputHandler.of(
+  fStringBraceInputHandler,
+);
 
 // Based on codemirror's basicSetup extension
 export const basicBundle = (opts: CodeMirrorSetupOpts): Extension[] => {
