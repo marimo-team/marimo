@@ -16,7 +16,10 @@ from marimo._messaging.msgspec_encoder import asdict
 from marimo._server.api.deps import AppState
 from marimo._server.api.utils import parse_request
 from marimo._server.export.exporter import AutoExporter, Exporter
-from marimo._server.export.utils import get_download_filename
+from marimo._server.export.utils import (
+    get_download_filename,
+    make_download_headers,
+)
 from marimo._server.models.export import (
     ExportAsHTMLRequest,
     ExportAsMarkdownRequest,
@@ -89,7 +92,7 @@ async def export_as_html(
     )
 
     if body.download:
-        headers = {"Content-Disposition": f"attachment; filename={filename}"}
+        headers = make_download_headers(filename)
     else:
         headers = {}
 
@@ -212,7 +215,7 @@ async def export_as_script(
     )
 
     if body.download:
-        headers = {"Content-Disposition": f"attachment; filename={filename}"}
+        headers = make_download_headers(filename)
     else:
         headers = {}
 
@@ -269,9 +272,7 @@ async def export_as_markdown(
         download_filename = get_download_filename(
             app_file_manager.filename, "md"
         )
-        headers = {
-            "Content-Disposition": f"attachment; filename={download_filename}"
-        }
+        headers = make_download_headers(download_filename)
     else:
         headers = {}
 

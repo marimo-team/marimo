@@ -23,7 +23,7 @@ from tests._server.mocks import (
     with_read_session,
     with_session,
 )
-from tests.mocks import snapshotter
+from tests.mocks import EDGE_CASE_FILENAMES, snapshotter
 
 if TYPE_CHECKING:
     from starlette.testclient import TestClient
@@ -579,3 +579,45 @@ def test_export_html_unnamed_file(client: TestClient) -> None:
     # Should return 400 Bad Request when file is unnamed
     assert response.status_code == 400
     assert "File must have a name before exporting" in response.text
+
+
+@with_session(SESSION_ID)
+def test_export_html_download_edge_case_filenames(client: TestClient) -> None:
+    """Test that HTML export with download=True works for non-ASCII filenames."""
+    for filename in EDGE_CASE_FILENAMES:
+        session = get_session_manager(client).get_session(SESSION_ID)
+        assert session
+        session.app_file_manager.filename = filename
+        response = client.post(
+            "/api/export/html",
+            headers=HEADERS,
+            json={
+                "download": True,
+                "files": [],
+                "includeCode": True,
+            },
+        )
+        assert response.status_code == 200, f"Failed for filename: {filename}"
+        assert "Content-Disposition" in response.headers
+        assert "attachment" in response.headers["Content-Disposition"]
+
+
+@with_session(SESSION_ID)
+def test_export_script_download_edge_case_filenames(
+    client: TestClient,
+) -> None:
+    """Test that script export with download=True works for non-ASCII filenames."""
+    for filename in EDGE_CASE_FILENAMES:
+        session = get_session_manager(client).get_session(SESSION_ID)
+        assert session
+        session.app_file_manager.filename = filename
+        response = client.post(
+            "/api/export/script",
+            headers=HEADERS,
+            json={
+                "download": True,
+            },
+        )
+        assert response.status_code == 200, f"Failed for filename: {filename}"
+        assert "Content-Disposition" in response.headers
+        assert "attachment" in response.headers["Content-Disposition"]
