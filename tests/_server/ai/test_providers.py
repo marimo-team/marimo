@@ -5,6 +5,7 @@ import pytest
 from marimo._config.config import AiConfig
 from marimo._dependencies.dependencies import Dependency, DependencyManager
 from marimo._server.ai.config import AnyProviderConfig
+from marimo._server.ai.ids import AiModelId, AiProviderId, ShortModelId
 from marimo._server.ai.providers import (
     AnthropicProvider,
     AzureOpenAIProvider,
@@ -374,5 +375,6 @@ def test_custom_provider_supports_responses_api(
 ) -> None:
     """Test that _supports_responses_api correctly identifies providers that support the responses API."""
     config = AnyProviderConfig(api_key="test-key", base_url=None)
-    provider = CustomProvider(model_name, config, provider_name=provider_name)
+    model_id = AiModelId(AiProviderId(provider_name), ShortModelId(model_name))
+    provider = CustomProvider(model_id, config, [DependencyManager.openai])
     assert provider._supports_responses_api() == expected
