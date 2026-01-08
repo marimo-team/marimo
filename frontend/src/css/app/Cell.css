@@ -313,6 +313,10 @@
       border: 1px solid var(--gray-4);
     }
   }
+
+  &.published {
+    border: none;
+  }
 }
 
 #App.disconnected {
