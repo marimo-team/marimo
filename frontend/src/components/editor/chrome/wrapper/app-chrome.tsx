@@ -35,10 +35,10 @@ import {
   type PanelDescriptor,
 } from "../types";
 import { BackendConnectionStatus } from "./footer-items/backend-status";
-import { Minimap } from "./minimap";
 import { PanelsWrapper } from "./panels";
 import { PendingAICells } from "./pending-ai-cells";
 import { useAiPanelTab } from "./useAiPanel";
+import { useDependencyPanelTab } from "./useDependencyPanelTab";
 import { handleDragging } from "./utils";
 
 const LazyTerminal = React.lazy(() => import("@/components/terminal/terminal"));
@@ -84,6 +84,7 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
   const sidebarRef = React.useRef<ImperativePanelHandle>(null);
   const developerPanelRef = React.useRef<ImperativePanelHandle>(null);
   const { aiPanelTab, setAiPanelTab } = useAiPanelTab();
+  const { dependencyPanelTab, setDependencyPanelTab } = useDependencyPanelTab();
   const errorCount = useAtomValue(cellErrorCount);
   const [panelLayout, setPanelLayout] = useAtom(panelLayoutAtom);
 
@@ -231,7 +232,36 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
       <PanelSectionProvider value="sidebar">
         <div className="flex flex-col h-full flex-1 overflow-hidden mr-[-4px]">
           <div className="p-3 border-b flex justify-between items-center">
-            {selectedPanel === "ai" && agentsEnabled ? (
+            {selectedPanel === "dependencies" ? (
+              <div className="flex items-center justify-between flex-1">
+                <span className="text-sm text-(--slate-11) uppercase tracking-wide font-semibold">
+                  Dependencies
+                </span>
+                <Tabs
+                  value={dependencyPanelTab}
+                  onValueChange={(value) => {
+                    if (value === "minimap" || value === "graph") {
+                      setDependencyPanelTab(value);
+                    }
+                  }}
+                >
+                  <TabsList>
+                    <TabsTrigger
+                      value="minimap"
+                      className="py-0.5 text-xs uppercase tracking-wide font-bold"
+                    >
+                      Minimap
+                    </TabsTrigger>
+                    <TabsTrigger
+                      value="graph"
+                      className="py-0.5 text-xs uppercase tracking-wide font-bold"
+                    >
+                      Graph
+                    </TabsTrigger>
+                  </TabsList>
+                </Tabs>
+              </div>
+            ) : selectedPanel === "ai" && agentsEnabled ? (
               <Tabs
                 value={aiPanelTab}
                 onValueChange={(value) => {
@@ -481,7 +511,6 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
         </Panel>
         <ContextAwarePanel />
       </PanelGroup>
-      <Minimap />
       <PendingAICells />
       <ErrorBoundary>
         <TooltipProvider>
