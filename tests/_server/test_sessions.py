@@ -1113,6 +1113,6 @@ async def test_caching_enabled_only_in_edit_mode() -> None:
     caching_extension_run = find_caching_extension(session_run)
     assert caching_extension_run.enabled is False
 
-    # # Cleanup
+    # Cleanup
     session_edit.close()
     session_run.close()
