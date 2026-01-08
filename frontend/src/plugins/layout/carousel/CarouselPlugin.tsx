@@ -15,7 +15,6 @@ import type {
 interface Data {
   index?: string | null;
   height?: string | number | null;
-  wrapAround?: boolean;
 }
 
 export class CarouselPlugin implements IStatelessPlugin<Data> {
@@ -24,7 +23,6 @@ export class CarouselPlugin implements IStatelessPlugin<Data> {
   validator = z.object({
     index: z.string().nullish(),
     height: z.union([z.string(), z.number()]).nullish(),
-    wrapAround: z.boolean().optional(),
   });
 
   // TODO: Move async when we support async css
@@ -38,7 +36,7 @@ export class CarouselPlugin implements IStatelessPlugin<Data> {
 
   render(props: IStatelessPluginProps<Data>): JSX.Element {
     return (
-      <LazySlidesComponent {...props.data}>
+      <LazySlidesComponent {...props.data} wrapAround={true}>
         {props.children}
       </LazySlidesComponent>
     );
