@@ -616,6 +616,7 @@ export const GlideDataEditor = <T,>({
           allowedFillDirections="vertical" // We can support all directions, but we need to handle datatype logic
           onKeyDown={onKeyDown}
           height={data.length > 10 ? 450 : undefined}
+          width={"100%"}
           rowMarkers={{
             kind: "both",
           }}
