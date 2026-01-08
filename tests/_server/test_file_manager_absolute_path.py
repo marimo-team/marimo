@@ -4,12 +4,15 @@
 from __future__ import annotations
 
 import os
+import sys
 from pathlib import Path
 
 import pytest
 
 from marimo._server.file_router import AppFileRouter
 from marimo._utils.http import HTTPException, HTTPStatus
+
+is_windows = sys.platform == "win32"
 
 
 class TestAbsoluteDirectoryPath:
@@ -43,19 +46,21 @@ if __name__ == "__main__":
         absolute_dir = str(test_dir.absolute())
         router = AppFileRouter.from_directory(absolute_dir)
 
-        # The directory should be stored correctly
+        # The directory should be stored correctly (always absolute)
         assert router.directory == absolute_dir
 
-        # Get the files - they should have absolute paths
+        # Get the files - they have relative paths (relative to directory)
         files = router.files
         assert len(files) > 0
         file_info = files[0]
         assert file_info.is_marimo_file
-        assert file_info.path == str(test_file)
+        # Path is relative to the directory
+        assert file_info.path == "notebook.py"
 
-        # Try to get a file manager using the file path
+        # Try to get a file manager using the relative path from files list
         file_manager = router.get_file_manager(file_info.path)
         assert file_manager is not None
+        # File manager resolves to absolute path
         assert file_manager.filename == str(test_file)
         assert file_manager.is_notebook_named
 
@@ -92,19 +97,22 @@ if __name__ == "__main__":
             relative_dir = "test_dir"
             router = AppFileRouter.from_directory(relative_dir)
 
-            # The directory should be stored correctly
-            assert router.directory == relative_dir
+            # The directory is converted to absolute for consistency
+            assert router.directory == str(test_dir.absolute())
 
-            # Get the files
+            # Get the files - paths are relative to the directory
             files = router.files
             assert len(files) > 0
             file_info = files[0]
             assert file_info.is_marimo_file
+            assert file_info.path == "notebook.py"
 
-            # Try to get a file manager using the file path
+            # Try to get a file manager using the relative file path
             file_manager = router.get_file_manager(file_info.path)
             assert file_manager is not None
             assert file_manager.is_notebook_named
+            # File manager resolves to absolute path
+            assert file_manager.filename == str(test_file.absolute())
         finally:
             os.chdir(original_cwd)
 
@@ -406,7 +414,7 @@ if __name__ == "__main__":
                 file_manager_from_basename = router.get_file_manager(basename)
                 assert file_manager_from_basename is not None
                 assert file_manager_from_basename.is_notebook_named
-            except HTTPException as e:
+            except HTTPException:
                 # This is the bug - it should have resolved relative to router.directory
                 pytest.fail(
                     f"Should be able to open file with basename '{basename}' "
@@ -459,13 +467,13 @@ if __name__ == "__main__":
             os.chdir(other_dir)
 
             # Try to open with relative path
-            relative_path = "subdir/notebook.py"
+            relative_path = os.path.join("subdir", "notebook.py")
 
             try:
                 file_manager = router.get_file_manager(relative_path)
                 assert file_manager is not None
                 assert file_manager.is_notebook_named
-            except HTTPException as e:
+            except HTTPException:
                 pytest.fail(
                     f"Should be able to open file with relative path '{relative_path}' "
                     f"when router has absolute directory '{absolute_dir}'"
@@ -494,12 +502,15 @@ if __name__ == "__main__":
         files = router.files
         assert len(files) == 2
 
-        # All paths should be absolute
+        # All paths are now relative to the directory
         for file_info in files:
-            assert Path(file_info.path).is_absolute()
-            assert file_info.path.startswith(absolute_dir)
+            # Paths are relative (just the filename for top-level files)
+            assert not Path(file_info.path).is_absolute()
+            # When joined with directory, should form a valid path
+            full_path = Path(absolute_dir) / file_info.path
+            assert full_path.exists()
 
-        # Verify each file can be opened using its path
+        # Verify each file can be opened using its relative path
         for file_info in files:
             file_manager = router.get_file_manager(file_info.path)
             assert file_manager is not None
@@ -562,3 +573,259 @@ if __name__ == "__main__":
             router.get_file_manager(str(secret_file.absolute()))
 
         assert exc_info.value.status_code == HTTPStatus.FORBIDDEN
+
+
+class TestRelativePathsInFileListing:
+    """Test that files list returns correct relative paths for various structures."""
+
+    def test_nested_directory_returns_relative_paths(
+        self, tmp_path: Path
+    ) -> None:
+        """Test that files in subdirectories have correct relative paths."""
+        # Create nested structure
+        test_dir = tmp_path / "test_dir"
+        test_dir.mkdir()
+        subdir = test_dir / "subdir"
+        subdir.mkdir()
+
+        # Create files at different levels
+        root_file = test_dir / "root.py"
+        root_file.write_text("import marimo\napp = marimo.App()")
+
+        nested_file = subdir / "nested.py"
+        nested_file.write_text("import marimo\napp = marimo.App()")
+
+        # Create router
+        router = AppFileRouter.from_directory(str(test_dir.absolute()))
+
+        files = router.files
+        file_paths = _collect_file_paths(files)
+
+        # Should have both files with relative paths
+        assert "root.py" in file_paths
+        assert os.path.join("subdir", "nested.py") in file_paths
+
+        # Both should be openable using their relative paths
+        for path in _collect_file_paths(files):
+            file_manager = router.get_file_manager(path)
+            assert file_manager is not None
+            assert file_manager.is_notebook_named
+
+    def test_deep_nesting_returns_correct_paths(self, tmp_path: Path) -> None:
+        """Test deeply nested directories have correct relative paths."""
+        # Create deep structure: test_dir/a/b/c/notebook.py
+        test_dir = tmp_path / "test_dir"
+        test_dir.mkdir()
+        dir_a = test_dir / "a"
+        dir_a.mkdir()
+        dir_b = dir_a / "b"
+        dir_b.mkdir()
+        dir_c = dir_b / "c"
+        dir_c.mkdir()
+
+        deep_file = dir_c / "notebook.py"
+        deep_file.write_text("import marimo\napp = marimo.App()")
+
+        # Create router
+        router = AppFileRouter.from_directory(str(test_dir.absolute()))
+
+        files = router.files
+        file_paths = _collect_file_paths(files)
+
+        # Should have the deep file with correct relative path
+        expected_path = os.path.join("a", "b", "c", "notebook.py")
+        assert expected_path in file_paths
+
+        # Should be openable using the actual path from the files list
+        actual_paths = _collect_file_paths(files)
+        file_manager = router.get_file_manager(actual_paths[0])
+        assert file_manager is not None
+        assert file_manager.filename == str(deep_file.absolute())
+
+    def test_both_relative_and_absolute_paths_work(
+        self, tmp_path: Path
+    ) -> None:
+        """Test that both relative and absolute paths can open the same file."""
+        test_dir = tmp_path / "test_dir"
+        test_dir.mkdir()
+
+        test_file = test_dir / "notebook.py"
+        test_file.write_text("import marimo\napp = marimo.App()")
+
+        router = AppFileRouter.from_directory(str(test_dir.absolute()))
+
+        # Get the relative path from files list
+        files = router.files
+        assert len(files) == 1
+        relative_path = files[0].path
+        assert relative_path == "notebook.py"
+
+        # Open with relative path
+        manager_from_relative = router.get_file_manager(relative_path)
+        assert manager_from_relative is not None
+
+        # Open with absolute path
+        absolute_path = str(test_file.absolute())
+        manager_from_absolute = router.get_file_manager(absolute_path)
+        assert manager_from_absolute is not None
+
+        # Both should point to the same file
+        assert manager_from_relative.filename == manager_from_absolute.filename
+
+    def test_path_traversal_in_relative_path_blocked(
+        self, tmp_path: Path
+    ) -> None:
+        """Test that path traversal attacks using relative paths are blocked."""
+        test_dir = tmp_path / "test_dir"
+        test_dir.mkdir()
+
+        # Create a file outside test_dir
+        outside_file = tmp_path / "outside.py"
+        outside_file.write_text("import marimo\napp = marimo.App()")
+
+        router = AppFileRouter.from_directory(str(test_dir.absolute()))
+
+        # Try to access file outside using path traversal
+        with pytest.raises(HTTPException) as exc_info:
+            router.get_file_manager("../outside.py")
+
+        assert exc_info.value.status_code == HTTPStatus.FORBIDDEN
+
+    @pytest.mark.skipif(is_windows, reason="Non-windows tests")
+    def test_path_traversal_multiple_levels_blocked(
+        self, tmp_path: Path
+    ) -> None:
+        """Test that multi-level path traversal is blocked."""
+        test_dir = tmp_path / "test_dir"
+        test_dir.mkdir()
+
+        router = AppFileRouter.from_directory(str(test_dir.absolute()))
+
+        # Try various path traversal attempts
+        traversal_attempts = [
+            "../../../etc/passwd",
+            "subdir/../../outside.py",
+            "a/../../../etc/passwd",
+        ]
+
+        for attempt in traversal_attempts:
+            with pytest.raises(HTTPException) as exc_info:
+                router.get_file_manager(str(attempt))
+            assert exc_info.value.status_code == HTTPStatus.FORBIDDEN, (
+                f"Path traversal '{attempt}' should be blocked"
+            )
+
+
+class TestFileManagerPathResolution:
+    """Test file manager path resolution edge cases."""
+
+    @pytest.mark.skipif(is_windows, reason="Non-windows tests")
+    def test_file_manager_with_dot_path(self, tmp_path: Path) -> None:
+        """Test that '.' in paths is handled correctly."""
+        test_dir = tmp_path / "test_dir"
+        test_dir.mkdir()
+
+        test_file = test_dir / "notebook.py"
+        test_file.write_text("import marimo\napp = marimo.App()")
+
+        router = AppFileRouter.from_directory(str(test_dir.absolute()))
+
+        # Try to open with ./ prefix
+        file_manager = router.get_file_manager("./notebook.py")
+        assert file_manager is not None
+        assert file_manager.filename == str(test_file.absolute())
+
+    @pytest.mark.skipif(is_windows, reason="// has special meaning on Windows")
+    def test_file_manager_with_redundant_slashes(self, tmp_path: Path) -> None:
+        """Test that redundant slashes in paths are handled."""
+        test_dir = tmp_path / "test_dir"
+        test_dir.mkdir()
+        subdir = test_dir / "subdir"
+        subdir.mkdir()
+
+        test_file = subdir / "notebook.py"
+        test_file.write_text("import marimo\napp = marimo.App()")
+
+        router = AppFileRouter.from_directory(str(test_dir.absolute()))
+
+        # Path normalization should handle redundant slashes
+        file_manager = router.get_file_manager("subdir//notebook.py")
+        assert file_manager is not None
+        assert file_manager.filename == str(test_file.absolute())
+
+    def test_nonexistent_file_returns_not_found(self, tmp_path: Path) -> None:
+        """Test that accessing a nonexistent file returns NOT_FOUND."""
+        test_dir = tmp_path / "test_dir"
+        test_dir.mkdir()
+
+        router = AppFileRouter.from_directory(str(test_dir.absolute()))
+
+        with pytest.raises(HTTPException) as exc_info:
+            router.get_file_manager("nonexistent.py")
+
+        assert exc_info.value.status_code == HTTPStatus.NOT_FOUND
+
+    def test_directory_stored_as_absolute(self, tmp_path: Path) -> None:
+        """Test that directory is always stored as absolute path."""
+        test_dir = tmp_path / "test_dir"
+        test_dir.mkdir()
+
+        original_cwd = os.getcwd()
+        try:
+            os.chdir(tmp_path)
+
+            # Create router with relative path
+            router = AppFileRouter.from_directory("test_dir")
+
+            # Directory should be stored as absolute
+            assert router.directory is not None
+            assert Path(router.directory).is_absolute()
+            assert router.directory == str(test_dir.absolute())
+        finally:
+            os.chdir(original_cwd)
+
+    def test_files_accessible_after_cwd_change(self, tmp_path: Path) -> None:
+        """Test that files remain accessible after changing working directory."""
+        test_dir = tmp_path / "test_dir"
+        test_dir.mkdir()
+        other_dir = tmp_path / "other_dir"
+        other_dir.mkdir()
+
+        test_file = test_dir / "notebook.py"
+        test_file.write_text("import marimo\napp = marimo.App()")
+
+        original_cwd = os.getcwd()
+        try:
+            # Create router while in tmp_path
+            os.chdir(tmp_path)
+            router = AppFileRouter.from_directory(str(test_dir.absolute()))
+
+            # Get files list
+            files = router.files
+            assert len(files) == 1
+            relative_path = files[0].path
+
+            # Change to a completely different directory
+            os.chdir(other_dir)
+
+            # Should still be able to open file using relative path
+            file_manager = router.get_file_manager(relative_path)
+            assert file_manager is not None
+            assert file_manager.filename == str(test_file.absolute())
+
+            # Should still be able to read content
+            content = file_manager.read_file()
+            assert "marimo.App" in content
+        finally:
+            os.chdir(original_cwd)
+
+
+# Find all file paths (including in nested children)
+def _collect_file_paths(items: list) -> list[str]:
+    paths = []
+    for item in items:
+        if not item.is_directory:
+            paths.append(item.path)
+        if item.children:
+            paths.extend(_collect_file_paths(item.children))
+    return paths
