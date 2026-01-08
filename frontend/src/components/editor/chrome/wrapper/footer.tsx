@@ -23,10 +23,8 @@ import { RuntimeSettings } from "./footer-items/runtime-settings";
 import { useSetDependencyPanelTab } from "./useDependencyPanelTab";
 
 export const Footer: React.FC = () => {
-  const { isDeveloperPanelOpen, isSidebarOpen, selectedPanel } =
-    useChromeState();
-  const { toggleDeveloperPanel, openApplication, setIsSidebarOpen } =
-    useChromeActions();
+  const { isDeveloperPanelOpen } = useChromeState();
+  const { toggleDeveloperPanel, toggleApplication } = useChromeActions();
   const setDependencyPanelTab = useSetDependencyPanelTab();
 
   const errorCount = useAtomValue(cellErrorCount);
@@ -42,7 +40,7 @@ export const Footer: React.FC = () => {
   const warningCount = 0;
 
   useHotkey("global.toggleTerminal", () => {
-    toggleDeveloperPanel();
+    toggleApplication("terminal");
   });
 
   useHotkey("global.togglePanel", () => {
@@ -50,14 +48,8 @@ export const Footer: React.FC = () => {
   });
 
   useHotkey("global.toggleMinimap", () => {
-    // If already on dependencies panel with minimap tab, close the sidebar
-    if (isSidebarOpen && selectedPanel === "dependencies") {
-      setIsSidebarOpen(false);
-    } else {
-      // Open sidebar with dependencies panel and switch to minimap tab
-      openApplication("dependencies");
-      setDependencyPanelTab("minimap");
-    }
+    toggleApplication("dependencies");
+    setDependencyPanelTab("minimap");
   });
 
   return (

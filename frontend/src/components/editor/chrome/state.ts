@@ -3,10 +3,11 @@
 import { useAtomValue } from "jotai";
 import { atomWithStorage } from "jotai/utils";
 import { z } from "zod";
+import { store } from "@/core/state/jotai";
 import { createReducerAndAtoms } from "@/utils/createReducer";
 import { jotaiJsonStorage } from "@/utils/storage/jotai";
 import { ZodLocalStorage } from "@/utils/storage/typed";
-import type { PanelType } from "./types";
+import type { PanelSection, PanelType } from "./types";
 import { isPanelHidden, PANELS } from "./types";
 
 export interface ChromeState {
@@ -40,6 +41,20 @@ export const panelLayoutAtom = atomWithStorage<PanelLayout>(
   jotaiJsonStorage,
   { getOnInit: true },
 );
+
+/**
+ * Resolve which section a panel belongs to based on current layout.
+ */
+function resolvePanelLocation(panelType: PanelType): PanelSection | null {
+  const layout = store.get(panelLayoutAtom);
+  if (layout.sidebar.includes(panelType)) {
+    return "sidebar";
+  }
+  if (layout.developerPanel.includes(panelType)) {
+    return "developer-panel";
+  }
+  return null;
+}
 
 const KEY = "marimo:sidebar";
 const storage = new ZodLocalStorage<ChromeState>(
@@ -76,20 +91,52 @@ const {
 } = createReducerAndAtoms(
   () => storage.get(KEY),
   {
-    openApplication: (state, selectedPanel: PanelType) => ({
-      ...state,
-      selectedPanel,
-      isSidebarOpen: true,
-    }),
-    toggleApplication: (state, selectedPanel: PanelType) => ({
-      ...state,
-      selectedPanel,
-      // If it was closed, open it
-      // If it was open, keep it open unless it was the same application
-      isSidebarOpen: state.isSidebarOpen
-        ? state.selectedPanel !== selectedPanel
-        : true,
-    }),
+    openApplication: (state, selectedPanel: PanelType) => {
+      const location = resolvePanelLocation(selectedPanel);
+      if (location === "sidebar") {
+        return {
+          ...state,
+          selectedPanel,
+          isSidebarOpen: true,
+        };
+      }
+      if (location === "developer-panel") {
+        return {
+          ...state,
+          selectedDeveloperPanelTab: selectedPanel,
+          isDeveloperPanelOpen: true,
+        };
+      }
+      // Panel not found in layout, no-op
+      return state;
+    },
+    toggleApplication: (state, selectedPanel: PanelType) => {
+      const location = resolvePanelLocation(selectedPanel);
+      if (location === "sidebar") {
+        return {
+          ...state,
+          selectedPanel,
+          // If it was closed, open it
+          // If it was open, keep it open unless it was the same application
+          isSidebarOpen: state.isSidebarOpen
+            ? state.selectedPanel !== selectedPanel
+            : true,
+        };
+      }
+      if (location === "developer-panel") {
+        return {
+          ...state,
+          selectedDeveloperPanelTab: selectedPanel,
+          // If it was closed, open it
+          // If it was open, keep it open unless it was the same tab
+          isDeveloperPanelOpen: state.isDeveloperPanelOpen
+            ? state.selectedDeveloperPanelTab !== selectedPanel
+            : true,
+        };
+      }
+      // Panel not found in layout, no-op
+      return state;
+    },
     toggleSidebarPanel: (state) => ({
       ...state,
       isSidebarOpen: !state.isSidebarOpen,
@@ -105,15 +152,6 @@ const {
     setIsDeveloperPanelOpen: (state, isOpen: boolean) => ({
       ...state,
       isDeveloperPanelOpen: isOpen,
-    }),
-    setSelectedDeveloperPanelTab: (state, tab: PanelType) => ({
-      ...state,
-      selectedDeveloperPanelTab: tab,
-    }),
-    openDeveloperPanelTab: (state, tab: PanelType) => ({
-      ...state,
-      isDeveloperPanelOpen: true,
-      selectedDeveloperPanelTab: tab,
     }),
   },
   [(_prevState, newState) => storage.set(KEY, newState)],

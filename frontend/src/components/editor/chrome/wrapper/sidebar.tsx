@@ -20,8 +20,7 @@ import {
 
 export const Sidebar: React.FC = () => {
   const { selectedPanel, selectedDeveloperPanelTab } = useChromeState();
-  const { toggleApplication, setSelectedDeveloperPanelTab } =
-    useChromeActions();
+  const { toggleApplication, openApplication } = useChromeActions();
   const [panelLayout, setPanelLayout] = useAtom(panelLayoutAtom);
 
   const renderIcon = ({ Icon }: PanelDescriptor, className?: string) => {
@@ -73,7 +72,7 @@ export const Sidebar: React.FC = () => {
           (id) => id !== item.type,
         );
         if (remainingDevPanels.length > 0) {
-          setSelectedDeveloperPanelTab(remainingDevPanels[0]);
+          openApplication(remainingDevPanels[0]);
         }
       }
     }
