@@ -40,11 +40,13 @@ def _():
 @app.cell
 def _(pd):
     # Create sample time series data
-    data = pd.DataFrame({
-        'month': list(range(1, 13)),
-        'sales': [45, 52, 48, 65, 72, 68, 80, 85, 78, 90, 95, 88],
-        'expenses': [30, 35, 32, 40, 45, 42, 50, 48, 52, 55, 58, 54]
-    })
+    data = pd.DataFrame(
+        {
+            "month": list(range(1, 13)),
+            "sales": [45, 52, 48, 65, 72, 68, 80, 85, 78, 90, 95, 88],
+            "expenses": [30, 35, 32, 40, 45, 42, 50, 48, 52, 55, 58, 54],
+        }
+    )
     data
     return (data,)
 
@@ -53,17 +55,17 @@ def _(pd):
 def _(data, go, mo):
     # 1. Simple line chart
     fig1 = go.Figure()
-    fig1.add_trace(go.Scatter(
-        x=data['month'],
-        y=data['sales'],
-        mode='lines',
-        name='Sales',
-        line=dict(color='#636EFA', width=2)
-    ))
+    fig1.add_trace(
+        go.Scatter(
+            x=data["month"],
+            y=data["sales"],
+            mode="lines",
+            name="Sales",
+            line=dict(color="#636EFA", width=2),
+        )
+    )
     fig1.update_layout(
-        title="Monthly Sales",
-        xaxis_title="Month",
-        yaxis_title="Sales ($1000s)"
+        title="Monthly Sales", xaxis_title="Month", yaxis_title="Sales ($1000s)"
     )
 
     line_chart = mo.ui.plotly(fig1)
@@ -91,18 +93,20 @@ def _(line_chart, mo):
 def _(data, go, mo):
     # 2. Line chart with markers
     fig2 = go.Figure()
-    fig2.add_trace(go.Scatter(
-        x=data['month'],
-        y=data['sales'],
-        mode='lines+markers',
-        name='Sales',
-        line=dict(color='#636EFA', width=2),
-        marker=dict(size=8)
-    ))
+    fig2.add_trace(
+        go.Scatter(
+            x=data["month"],
+            y=data["sales"],
+            mode="lines+markers",
+            name="Sales",
+            line=dict(color="#636EFA", width=2),
+            marker=dict(size=8),
+        )
+    )
     fig2.update_layout(
         title="Monthly Sales (with markers)",
         xaxis_title="Month",
-        yaxis_title="Sales ($1000s)"
+        yaxis_title="Sales ($1000s)",
     )
 
     line_markers = mo.ui.plotly(fig2)
@@ -127,24 +131,28 @@ def _(line_markers, mo):
 def _(data, go, mo):
     # 3. Multiple lines
     fig3 = go.Figure()
-    fig3.add_trace(go.Scatter(
-        x=data['month'],
-        y=data['sales'],
-        mode='lines',
-        name='Sales',
-        line=dict(color='#636EFA', width=2)
-    ))
-    fig3.add_trace(go.Scatter(
-        x=data['month'],
-        y=data['expenses'],
-        mode='lines',
-        name='Expenses',
-        line=dict(color='#EF553B', width=2)
-    ))
+    fig3.add_trace(
+        go.Scatter(
+            x=data["month"],
+            y=data["sales"],
+            mode="lines",
+            name="Sales",
+            line=dict(color="#636EFA", width=2),
+        )
+    )
+    fig3.add_trace(
+        go.Scatter(
+            x=data["month"],
+            y=data["expenses"],
+            mode="lines",
+            name="Expenses",
+            line=dict(color="#EF553B", width=2),
+        )
+    )
     fig3.update_layout(
         title="Sales vs Expenses",
         xaxis_title="Month",
-        yaxis_title="Amount ($1000s)"
+        yaxis_title="Amount ($1000s)",
     )
 
     multi_line = mo.ui.plotly(fig3)
@@ -166,21 +174,6 @@ def _(mo, multi_line):
     ### Number of selected points:
     {len(multi_line.value)}
     """)
-    return
-
-
-@app.cell
-def _(mo, multi_line, pd):
-    # Filter data based on selection
-    if len(multi_line.value) > 0:
-        selected_df = pd.DataFrame(multi_line.value)
-        mo.md(f"""
-        ## Selected Data as DataFrame
-
-        {selected_df}
-        """)
-    else:
-        mo.md("*No selection made yet*")
     return
 
 
