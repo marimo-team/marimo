@@ -4,7 +4,15 @@ from __future__ import annotations
 import os
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Generic, Literal, Optional, TypeVar
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Generic,
+    Literal,
+    Optional,
+    TypeVar,
+    get_args,
+)
 from urllib.parse import parse_qs, urlparse
 
 from starlette.exceptions import HTTPException
@@ -35,7 +43,7 @@ if TYPE_CHECKING:
     from pydantic_ai.models import Model
     from pydantic_ai.models.bedrock import BedrockConverseModel
     from pydantic_ai.models.google import GoogleModel
-    from pydantic_ai.models.openai import OpenAIChatModel, OpenAIResponsesModel
+    from pydantic_ai.models.openai import OpenAIResponsesModel
     from pydantic_ai.providers import Provider
     from pydantic_ai.providers.anthropic import (
         AnthropicProvider as PydanticAnthropic,
@@ -77,7 +85,6 @@ class PydanticProvider(ABC, Generic[ProviderT]):
         model: str,
         config: AnyProviderConfig,
         deps: list[Dependency] | None = None,
-        provider_name: str | None = None,
     ):
         """
         Initialize a Pydantic provider.
@@ -86,7 +93,6 @@ class PydanticProvider(ABC, Generic[ProviderT]):
             model: The model name.
             config: The provider config.
             deps: The dependencies to require.
-            provider_name: The name of the provider. If not provided, the name will be inferred from the provider created.
         """
         DependencyManager.require_many(
             "for AI assistance", DependencyManager.pydantic_ai, *(deps or [])
@@ -95,7 +101,6 @@ class PydanticProvider(ABC, Generic[ProviderT]):
         self.model = model
         self.config = config
         self.provider = self.create_provider(config)
-        self.provider_name = provider_name or self.provider.name
 
     @abstractmethod
     def create_provider(self, config: AnyProviderConfig) -> ProviderT:
@@ -274,110 +279,8 @@ class GoogleProvider(PydanticProvider["PydanticGoogle"]):
         )
 
 
-class OpenAIProvider(PydanticProvider["PydanticOpenAI"]):
-    # Medium effort provides a balance between speed and accuracy
-    # https://openai.com/index/openai-o3-mini/
-    DEFAULT_REASONING_EFFORT: ReasoningEffort = "medium"
-    DEFAULT_REASONING_SUMMARY: Literal["detailed", "concise", "auto"] = "auto"
-
-    def create_provider(self, config: AnyProviderConfig) -> PydanticOpenAI:
-        from pydantic_ai.providers.openai import (
-            OpenAIProvider as PydanticOpenAI,
-        )
-
-        client = self.get_openai_client(config)
-        return PydanticOpenAI(openai_client=client)
-
-    def create_model(
-        self, max_tokens: int
-    ) -> OpenAIChatModel | OpenAIResponsesModel:
-        from pydantic_ai.models.openai import (
-            OpenAIChatModel,
-            OpenAIChatModelSettings,
-            OpenAIResponsesModel,
-            OpenAIResponsesModelSettings,
-        )
-
-        is_reasoning_model = self._is_reasoning_model(self.model)
-        supports_responses_api = self._supports_responses_api(
-            self.provider_name, self.model
-        )
-        LOGGER.debug(
-            f"Model {self.model} is reasoning model: {is_reasoning_model} and supports responses API: {supports_responses_api}"
-        )
-
-        if supports_responses_api:
-            settings = (
-                OpenAIResponsesModelSettings(
-                    max_tokens=max_tokens,
-                    openai_reasoning_summary=self.DEFAULT_REASONING_SUMMARY,
-                    openai_reasoning_effort=self.DEFAULT_REASONING_EFFORT,
-                )
-                if is_reasoning_model
-                else OpenAIResponsesModelSettings(max_tokens=max_tokens)
-            )
-            return OpenAIResponsesModel(
-                model_name=self.model,
-                provider=self.provider,
-                settings=settings,
-            )
-
-        return OpenAIChatModel(
-            model_name=self.model,
-            provider=self.provider,
-            settings=OpenAIChatModelSettings(
-                max_tokens=max_tokens,
-                openai_reasoning_effort=self.DEFAULT_REASONING_EFFORT
-                if is_reasoning_model
-                else None,
-            ),
-        )
-
-    def _supports_responses_api(self, provider_name: str, model: str) -> bool:
-        """
-        Check if the model and provider supports the responses API.
-        We should prefer responses API due to better performance and features.
-        """
-        del model
-
-        if provider_name == "openai":
-            return True
-        return False
-
-    def _is_reasoning_model(self, model: str) -> bool:
-        """
-        Check if reasoning_effort should be added to the request.
-        Only add for actual OpenAI reasoning models, not for OpenAI-compatible APIs.
-
-        OpenAI-compatible APIs (identified by custom base_url) may not support
-        the reasoning_effort parameter even if the model name suggests it's a
-        reasoning model.
-        """
-        import re
-
-        # Check for reasoning model patterns: o{digit} or gpt-5, with optional openai/ prefix
-        reasoning_patterns = [
-            r"^openai/o\d",  # openai/o1, openai/o3, etc.
-            r"^o\d",  # o1, o3, etc.
-            r"^openai/gpt-5",  # openai/gpt-5*
-            r"^gpt-5",  # gpt-5*
-        ]
-
-        is_reasoning_model_name = any(
-            re.match(pattern, model) for pattern in reasoning_patterns
-        )
-
-        if not is_reasoning_model_name:
-            return False
-
-        # If using a custom base_url that's not OpenAI, don't assume reasoning is supported
-        if (
-            self.config.base_url
-            and "api.openai.com" not in self.config.base_url
-        ):
-            return False
-
-        return True
+class OpenAIClientMixin:
+    """Mixin providing OpenAI client creation logic for OpenAI-based providers."""
 
     def get_openai_client(self, config: AnyProviderConfig) -> AsyncOpenAI:
         import ssl
@@ -457,6 +360,79 @@ class OpenAIProvider(PydanticProvider["PydanticOpenAI"]):
         )
 
 
+class OpenAIProvider(OpenAIClientMixin, PydanticProvider["PydanticOpenAI"]):
+    # Medium effort provides a balance between speed and accuracy
+    # https://openai.com/index/openai-o3-mini/
+    DEFAULT_REASONING_EFFORT: ReasoningEffort = "medium"
+    DEFAULT_REASONING_SUMMARY: Literal["detailed", "concise", "auto"] = "auto"
+
+    def create_provider(self, config: AnyProviderConfig) -> PydanticOpenAI:
+        from pydantic_ai.providers.openai import (
+            OpenAIProvider as PydanticOpenAI,
+        )
+
+        client = self.get_openai_client(config)
+        return PydanticOpenAI(openai_client=client)
+
+    def create_model(self, max_tokens: int) -> OpenAIResponsesModel:
+        from pydantic_ai.models.openai import (
+            OpenAIResponsesModel,
+            OpenAIResponsesModelSettings,
+        )
+
+        is_reasoning_model = self._is_reasoning_model(self.model)
+
+        settings = (
+            OpenAIResponsesModelSettings(
+                max_tokens=max_tokens,
+                openai_reasoning_summary=self.DEFAULT_REASONING_SUMMARY,
+                openai_reasoning_effort=self.DEFAULT_REASONING_EFFORT,
+            )
+            if is_reasoning_model
+            else OpenAIResponsesModelSettings(max_tokens=max_tokens)
+        )
+        return OpenAIResponsesModel(
+            model_name=self.model,
+            provider=self.provider,
+            settings=settings,
+        )
+
+    def _is_reasoning_model(self, model: str) -> bool:
+        """
+        Check if reasoning_effort should be added to the request.
+        Only add for actual OpenAI reasoning models, not for OpenAI-compatible APIs.
+
+        OpenAI-compatible APIs (identified by custom base_url) may not support
+        the reasoning_effort parameter even if the model name suggests it's a
+        reasoning model.
+        """
+        import re
+
+        # Check for reasoning model patterns: o{digit} or gpt-5, with optional openai/ prefix
+        reasoning_patterns = [
+            r"^openai/o\d",  # openai/o1, openai/o3, etc.
+            r"^o\d",  # o1, o3, etc.
+            r"^openai/gpt-5",  # openai/gpt-5*
+            r"^gpt-5",  # gpt-5*
+        ]
+
+        is_reasoning_model_name = any(
+            re.match(pattern, model) for pattern in reasoning_patterns
+        )
+
+        if not is_reasoning_model_name:
+            return False
+
+        # If using a custom base_url that's not OpenAI, don't assume reasoning is supported
+        if (
+            self.config.base_url
+            and "api.openai.com" not in self.config.base_url
+        ):
+            return False
+
+        return True
+
+
 class AzureOpenAIProvider(OpenAIProvider):
     def _is_reasoning_model(self, model: str) -> bool:
         # https://learn.microsoft.com/en-us/answers/questions/5519548/does-gpt-5-via-azure-support-reasoning-effort-and
@@ -521,6 +497,271 @@ class AzureOpenAIProvider(OpenAIProvider):
             azure_deployment=deployment_name,
             azure_endpoint=endpoint or "",
         )
+
+
+class CustomProvider(OpenAIClientMixin, PydanticProvider["Provider[Any]"]):
+    """Support for custom providers which may or may not be OpenAI-compatible."""
+
+    def __init__(
+        self,
+        model: str,
+        config: AnyProviderConfig,
+        provider_name: str,
+        deps: list[Dependency] | None = None,
+    ):
+        self._provider_name = provider_name
+        self._responses_compatible, self._chat_compatible = (
+            self._get_openai_compatible_providers()
+        )
+        super().__init__(model, config, deps)
+
+    def _get_openai_compatible_providers(self) -> tuple[set[str], set[str]]:
+        """Get the sets of OpenAI-compatible providers from pydantic_ai.
+
+        Returns:
+            Tuple of (responses_compatible, chat_compatible) provider names.
+        """
+        from pydantic_ai.models import (
+            OpenAIChatCompatibleProvider,
+            OpenAIResponsesCompatibleProvider,
+        )
+
+        # These are TypeAliasType objects, so we need .__value__ to get the Literal
+        responses_compatible = set(
+            get_args(OpenAIResponsesCompatibleProvider.__value__)
+        )
+        chat_compatible = set(get_args(OpenAIChatCompatibleProvider.__value__))
+        return responses_compatible, chat_compatible
+
+    def _is_openai_compatible(self) -> bool:
+        """Check if the provider uses an OpenAI-compatible API."""
+        provider = self._provider_name.lower()
+        return (
+            provider in self._responses_compatible
+            or provider in self._chat_compatible
+        )
+
+    def _supports_responses_api(self) -> bool:
+        """Check if the provider supports the OpenAI Responses API."""
+        return self._provider_name.lower() in self._responses_compatible
+
+    def create_provider(self, config: AnyProviderConfig) -> Provider[Any]:
+        """Create a provider based on the provider name.
+
+        1. Try to infer the provider class from the name
+        2. For OpenAI-compatible providers, pass openai_client (with SSL settings)
+        3. For other providers, try to create the provider directly with the credentials
+        4. Fall back to OpenAIProvider if nothing else works or not found
+
+        Reference: https://ai.pydantic.dev/models/openai/#openai-compatible-models
+        """
+        from pydantic_ai.providers import infer_provider_class
+        from pydantic_ai.providers.openai import (
+            OpenAIProvider as PydanticOpenAI,
+        )
+
+        # Try to infer the provider class
+        try:
+            provider_class = infer_provider_class(self._provider_name)
+            LOGGER.debug(f"Inferred provider class: {provider_class.__name__}")
+        except ValueError:
+            # Unknown provider, fall back to OpenAI-compatible
+            LOGGER.debug(
+                f"Unknown provider: {self._provider_name}. Falling back to OpenAIProvider."
+            )
+            client = self.get_openai_client(config)
+            return PydanticOpenAI(openai_client=client)
+
+        # For OpenAI-compatible providers, use the OpenAI client
+        if self._is_openai_compatible():
+            client = self.get_openai_client(config)
+            try:
+                return provider_class(openai_client=client)  # type: ignore[call-arg]
+            except TypeError:
+                LOGGER.warning(
+                    f"Provider {provider_class.__name__} doesn't accept openai_client"
+                )
+
+        return self.create_non_openai_provider(provider_class, config)
+
+    def create_non_openai_provider(
+        self, provider_class: type[Provider[Any]], config: AnyProviderConfig
+    ) -> Provider[Any]:
+        """Create a non-OpenAI provider based on the provider class.
+        Import on-demand to avoid requiring the provider packages to be installed."""
+
+        provider_name = provider_class.__name__
+
+        if provider_name == "CerebrasProvider":
+            from pydantic_ai.providers.cerebras import CerebrasProvider
+
+            return CerebrasProvider(api_key=config.api_key)
+        if provider_name == "CohereProvider":
+            from pydantic_ai.providers.cohere import CohereProvider
+
+            return CohereProvider(api_key=config.api_key)
+        if provider_name == "GroqProvider":
+            from pydantic_ai.providers.groq import GroqProvider
+
+            return GroqProvider(
+                api_key=config.api_key, base_url=config.base_url
+            )
+        if provider_name == "HuggingFaceProvider":
+            from pydantic_ai.providers.huggingface import HuggingFaceProvider
+
+            if config.base_url:
+                return HuggingFaceProvider(
+                    api_key=config.api_key, base_url=config.base_url
+                )
+            return HuggingFaceProvider(api_key=config.api_key)
+        if provider_name == "MistralProvider":
+            from pydantic_ai.providers.mistral import MistralProvider
+
+            return MistralProvider(api_key=config.api_key)
+
+        LOGGER.warning(
+            f"Unknown provider: {provider_name}. Create a GitHub issue to request support."
+        )
+        # Try returning provider directly (use env vars)
+        try:
+            return provider_class()
+        except Exception as e:
+            from pydantic_ai.providers.openai import (
+                OpenAIProvider as PydanticOpenAI,
+            )
+
+            LOGGER.warning(
+                f"Failed to create provider {provider_class.__name__}: {e}. "
+                f"Falling back to OpenAIProvider."
+            )
+            client = self.get_openai_client(config)
+            return PydanticOpenAI(openai_client=client)
+
+    def create_model(self, max_tokens: int) -> Model:
+        """Create a model based on provider compatibility.
+
+        - OpenAIResponsesCompatibleProvider -> OpenAIResponsesModel
+        - OpenAIChatCompatibleProvider -> OpenAIChatModel
+        - Other providers -> infer_model to get appropriate model class
+        """
+        # Prefer using the Responses API if available for perf and features
+        # TODO: Does not work at the moment, so we just use the OpenAIChatModel instead
+        # if self._supports_responses_api():
+        #     from pydantic_ai.models.openai import (
+        #         OpenAIResponsesModel,
+        #         OpenAIResponsesModelSettings,
+        #     )
+
+        #     LOGGER.debug(
+        #         f"Using OpenAIResponsesModel for {self._provider_name}"
+        #     )
+        #     return OpenAIResponsesModel(
+        #         model_name=self.model,
+        #         provider=self.provider,
+        #         settings=OpenAIResponsesModelSettings(max_tokens=max_tokens),
+        #     )
+
+        if self._is_openai_compatible():
+            from pydantic_ai.models.openai import (
+                OpenAIChatModel,
+                OpenAIChatModelSettings,
+            )
+
+            LOGGER.debug(f"Using OpenAIChatModel for {self._provider_name}")
+            return OpenAIChatModel(
+                model_name=self.model,
+                provider=self.provider,
+                settings=OpenAIChatModelSettings(max_tokens=max_tokens),
+            )
+
+        return self._create_non_openai_model(max_tokens)
+
+    def _create_non_openai_model(self, max_tokens: int) -> Model:
+        from pydantic_ai.models import infer_model
+        from pydantic_ai.settings import ModelSettings
+
+        model_string = f"{self._provider_name}:{self.model}"
+        try:
+            # Don't return inferred model at first, because we want to use our own provider
+            inferred = infer_model(model_string)
+            model_class = type(inferred)
+            LOGGER.debug(f"Inferred model class: {model_class.__name__}")
+        except Exception as e:
+            from pydantic_ai.models.openai import (
+                OpenAIChatModel,
+                OpenAIChatModelSettings,
+            )
+
+            LOGGER.warning(
+                f"Could not infer model for {model_string}: {e}. Using OpenAIChatModel."
+            )
+            return OpenAIChatModel(
+                model_name=self.model,
+                provider=self.provider,
+                settings=OpenAIChatModelSettings(max_tokens=max_tokens),
+            )
+
+        # Import on-demand as top-level imports will require the package to be installed
+        model_name = model_class.__name__
+
+        if model_name == "CerebrasModel":
+            from pydantic_ai.models.cerebras import (
+                CerebrasModel,
+                CerebrasModelSettings,
+            )
+
+            return CerebrasModel(
+                model_name=self.model,
+                provider=self.provider,
+                settings=CerebrasModelSettings(max_tokens=max_tokens),
+            )
+        if model_name == "CohereModel":
+            from pydantic_ai.models.cohere import (
+                CohereModel,
+                CohereModelSettings,
+            )
+
+            return CohereModel(
+                model_name=self.model,
+                provider=self.provider,
+                settings=CohereModelSettings(max_tokens=max_tokens),
+            )
+        if model_name == "GroqModel":
+            from pydantic_ai.models.groq import GroqModel, GroqModelSettings
+
+            return GroqModel(
+                model_name=self.model,
+                provider=self.provider,
+                settings=GroqModelSettings(max_tokens=max_tokens),
+            )
+        if model_name == "HuggingFaceModel":
+            from pydantic_ai.models.huggingface import (
+                HuggingFaceModel,
+                HuggingFaceModelSettings,
+            )
+
+            return HuggingFaceModel(
+                model_name=self.model,
+                provider=self.provider,
+                settings=HuggingFaceModelSettings(max_tokens=max_tokens),
+            )
+        if model_name == "MistralModel":
+            from pydantic_ai.models.mistral import (
+                MistralModel,
+                MistralModelSettings,
+            )
+
+            return MistralModel(
+                model_name=self.model,
+                provider=self.provider,
+                settings=MistralModelSettings(max_tokens=max_tokens),
+            )
+
+        # Unknown model class - return the inferred model directly
+        LOGGER.warning(
+            f"Unknown model: {self._provider_name}:{self.model}. Create a GitHub issue to request support."
+        )
+        return model_class(settings=ModelSettings(max_tokens=max_tokens))
 
 
 class AnthropicProvider(PydanticProvider["PydanticAnthropic"]):
@@ -744,11 +985,11 @@ def get_completion_provider(
             model_id.model, config, [DependencyManager.openai]
         )
     else:
-        return OpenAIProvider(
+        return CustomProvider(
             model_id.model,
             config,
+            model_id.provider,
             [DependencyManager.openai],
-            provider_name=model_id.provider,
         )
 
 
