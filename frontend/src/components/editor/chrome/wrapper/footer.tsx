@@ -9,7 +9,7 @@ import { cellErrorCount } from "@/core/cells/cells";
 import { isConnectingAtom } from "@/core/network/connection";
 import { useHotkey } from "@/hooks/useHotkey";
 import { ShowInKioskMode } from "../../kiosk-mode";
-import { useChromeActions, useChromeState } from "../state";
+import { panelLayoutAtom, useChromeActions, useChromeState } from "../state";
 import { FooterItem } from "./footer-item";
 import { AIStatusIcon } from "./footer-items/ai-status";
 import {
@@ -29,11 +29,15 @@ export const Footer: React.FC = () => {
 
   const errorCount = useAtomValue(cellErrorCount);
   const connectionStatus = useAtomValue(connectionStatusAtom);
+  const panelLayout = useAtomValue(panelLayoutAtom);
 
   // Show issue count: cell errors + connection issues
+  // Don't include error count if errors panel is in sidebar (it shows there instead)
+  const errorsInSidebar = panelLayout.sidebar.includes("errors");
   const hasConnectionIssue =
     connectionStatus === "unhealthy" || connectionStatus === "disconnected";
-  const issueCount = errorCount + (hasConnectionIssue ? 1 : 0);
+  const issueCount =
+    (errorsInSidebar ? 0 : errorCount) + (hasConnectionIssue ? 1 : 0);
 
   // TODO: Add warning count from diagnostics/linting
   // This can signal warnings/errors with settings up AI / Copilot etc
