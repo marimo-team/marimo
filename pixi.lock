@@ -1161,7 +1161,7 @@ packages:
   - marimo[sql] ; extra == 'recommended'
   - marimo[sandbox] ; extra == 'recommended'
   - altair>=5.4.0 ; extra == 'recommended'
-  - openai>=1.55.3 ; extra == 'recommended'
+  - pydantic-ai-slim[openai]>=1.39.0 ; extra == 'recommended'
   - ruff ; extra == 'recommended'
   - nbformat>=5.7.0 ; extra == 'recommended'
   - python-lsp-server>=1.13.0 ; extra == 'lsp'

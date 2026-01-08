@@ -14,7 +14,6 @@ from starlette.responses import (
 from marimo import _loggers
 from marimo._ai._convert import convert_to_ai_sdk_messages
 from marimo._ai._pydantic_ai_utils import create_simple_prompt
-from marimo._ai._types import ChatMessage
 from marimo._config.config import AiConfig, MarimoConfig
 from marimo._server.ai.config import (
     AnyProviderConfig,
@@ -33,7 +32,6 @@ from marimo._server.ai.prompts import (
     get_refactor_or_insert_notebook_cell_system_prompt,
 )
 from marimo._server.ai.providers import (
-    PydanticProvider,
     StreamOptions,
     get_completion_provider,
     without_wrapping_backticks,
@@ -60,7 +58,6 @@ if TYPE_CHECKING:
     from collections.abc import AsyncGenerator
 
     from starlette.requests import Request
-    from starlette.responses import ContentStream
 
 # Taken from pydantic_ai.ui import SSE_CONTENT_TYPE
 SSE_CONTENT_TYPE = "text/event-stream"
@@ -169,65 +166,26 @@ async def ai_completion(
         model=model,
     )
 
-    if isinstance(provider, PydanticProvider):
-        # Currently, only useChat (use_messages=True) supports UI messages
-        # So, we can stream back the UI messages here. Else, we stream back the text.
-        if use_ui_messages:
-            return await provider.stream_completion(
-                messages=body.ui_messages,
-                system_prompt=system_prompt,
-                max_tokens=get_max_tokens(config),
-                additional_tools=[],
-            )
-        response = provider.stream_text(
-            user_prompt=prompt,
+    # Currently, only useChat (use_ui_messages=True) supports UI messages
+    # So, we can stream back the UI messages here. Else, we stream back the text.
+    if use_ui_messages:
+        return await provider.stream_completion(
             messages=body.ui_messages,
             system_prompt=system_prompt,
             max_tokens=get_max_tokens(config),
             additional_tools=[],
         )
-        safe_content = safe_stream_wrapper(response, text_only=False)
-        content_without_wrapping = without_wrapping_backticks(safe_content)
-        return StreamingResponse(
-            content=content_without_wrapping,
-            media_type="application/json",
-            headers={"x-vercel-ai-data-stream": "v1"},
-        )
-
-    messages = (
-        body.messages
-        if use_messages
-        else [ChatMessage(role="user", content=prompt)]
-    )
-
-    response = await provider.stream_completion(
-        messages=messages,
+    response = provider.stream_text(
+        user_prompt=prompt,
+        messages=body.ui_messages,
         system_prompt=system_prompt,
         max_tokens=get_max_tokens(config),
         additional_tools=[],
     )
-
-    # Pass back the entire SDK message if the frontend can handle it
-    content: ContentStream
-    if use_messages:
-        content = safe_stream_wrapper(
-            provider.as_stream_response(
-                response, StreamOptions(format_stream=True, text_only=False)
-            ),
-            text_only=False,
-        )
-    else:
-        content = safe_stream_wrapper(
-            without_wrapping_backticks(
-                provider.as_stream_response(
-                    response, StreamOptions(text_only=True)
-                )
-            ),
-            text_only=True,
-        )
-
+    safe_content = safe_stream_wrapper(response, text_only=False)
+    content_without_wrapping = without_wrapping_backticks(safe_content)
     return StreamingResponse(
-        content=content,
+        content=content_without_wrapping,
         media_type="application/json",
         headers={"x-vercel-ai-data-stream": "v1"},
     )
@@ -264,7 +222,6 @@ async def ai_chat(
     )
     ai_config = get_ai_config(config)
     custom_rules = ai_config.get("rules", None)
-    messages = body.messages
 
     # Get the system prompt
     system_prompt = get_chat_system_prompt(
@@ -288,31 +245,12 @@ async def ai_chat(
         format_stream=True, text_only=False, accept=accept
     )
 
-    if isinstance(provider, PydanticProvider):
-        return await provider.stream_completion(
-            messages=body.ui_messages,
-            system_prompt=system_prompt,
-            max_tokens=max_tokens,
-            additional_tools=additional_tools,
-            stream_options=stream_options,
-        )
-
-    response = await provider.stream_completion(
-        messages=messages,
+    return await provider.stream_completion(
+        messages=body.ui_messages,
         system_prompt=system_prompt,
         max_tokens=max_tokens,
         additional_tools=additional_tools,
-    )
-
-    return StreamingResponse(
-        content=safe_stream_wrapper(
-            provider.as_stream_response(
-                response, StreamOptions(format_stream=True, text_only=False)
-            ),
-            text_only=False,
-        ),
-        media_type="application/json",
-        headers={"x-vercel-ai-data-stream": "v1"},
+        stream_options=stream_options,
     )
 
 
@@ -352,7 +290,6 @@ async def ai_inline_completion(
     )
     # Use FIM (Fill-In-Middle) format for inline completion
     prompt = f"{FIM_PREFIX_TAG}{body.prefix}{FIM_SUFFIX_TAG}{body.suffix}{FIM_MIDDLE_TAG}"
-    messages = [ChatMessage(role="user", content=prompt)]
     system_prompt = get_inline_system_prompt(language=body.language)
 
     # This is currently not configurable and smaller than the default
@@ -369,21 +306,12 @@ async def ai_inline_completion(
 
     provider = get_completion_provider(provider_config, model=model)
     try:
-        if isinstance(provider, PydanticProvider):
-            content = await provider.completion(
-                messages=[create_simple_prompt(prompt)],
-                system_prompt=system_prompt,
-                max_tokens=INLINE_COMPLETION_MAX_TOKENS,
-                additional_tools=[],
-            )
-        else:
-            response = await provider.stream_completion(
-                messages=messages,
-                system_prompt=system_prompt,
-                max_tokens=INLINE_COMPLETION_MAX_TOKENS,
-                additional_tools=[],
-            )
-            content = await provider.collect_stream(response)
+        content = await provider.completion(
+            messages=[create_simple_prompt(prompt)],
+            system_prompt=system_prompt,
+            max_tokens=INLINE_COMPLETION_MAX_TOKENS,
+            additional_tools=[],
+        )
     except Exception as e:
         LOGGER.error("Error in AI inline completion: %s", str(e))
         raise HTTPException(
