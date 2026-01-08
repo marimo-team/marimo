@@ -500,7 +500,13 @@ class AzureOpenAIProvider(OpenAIProvider):
 
 
 class CustomProvider(OpenAIClientMixin, PydanticProvider["Provider[Any]"]):
-    """Support for custom providers which may or may not be OpenAI-compatible."""
+    """Support for custom providers which may or may not be OpenAI-compatible.
+
+    Note:
+        We need to use the specific provider and model classes, because Pydantic AI has tuned them to send & return messages correctly.
+        We can also use `Agent("provider:model_name")` to avoid finding the provider and model classes ourselves. However, this does not let
+        us create custom providers and models. They rely on env vars to be set.
+    """
 
     def __init__(
         self,
