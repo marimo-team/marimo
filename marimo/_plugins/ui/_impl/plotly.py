@@ -45,7 +45,7 @@ class plotly(UIElement[PlotlySelection, list[dict[str, Any]]]):
     cursor on the frontend, get them as a list of dicts in Python!
 
     This function currently only supports scatter plots, treemap charts,
-    sunburst charts and heatmaps.
+    sunburst charts, heatmaps, and bar charts.
 
     Examples:
         ```python
@@ -165,8 +165,8 @@ class plotly(UIElement[PlotlySelection, list[dict[str, Any]]]):
             [y_axis] = y_axes if len(y_axes) == 1 else [None]
 
             for trace in figure.data:
-                # Skip heatmap traces - they're handled separately below
-                if getattr(trace, "type", None) == "heatmap":
+                # Skip heatmap and bar traces - they're handled separately below
+                if getattr(trace, "type", None) in ("heatmap", "bar"):
                     continue
                 x_data = getattr(trace, "x", None)
                 y_data = getattr(trace, "y", None)
@@ -196,6 +196,10 @@ class plotly(UIElement[PlotlySelection, list[dict[str, Any]]]):
             )
             if has_heatmap and initial_value.get("range"):
                 _append_heatmap_cells_to_selection(figure, initial_value)
+
+            # Note: Bar chart extraction is handled in _convert_value, not here
+            # This avoids duplicate extraction since _convert_value is called
+            # during super().__init__() with the initial_value
 
         figure.for_each_selection(add_selection)
 
@@ -269,6 +273,15 @@ class plotly(UIElement[PlotlySelection, list[dict[str, Any]]]):
                 self._figure, self._selection_data
             )
 
+        has_bar = any(
+            getattr(trace, "type", None) == "bar"
+            for trace in self._figure.data
+        )
+
+        # For bar charts with a range selection, extract all bars in range
+        if has_bar and value.get("range"):
+            _append_bar_items_to_selection(self._figure, self._selection_data)
+
         result = self.points
         return result
 
@@ -290,8 +303,8 @@ def _append_heatmap_cells_to_selection(
     )
     if heatmap_cells:
         # Append heatmap cells to existing points (e.g., scatter)
-        # instead of replacing them
-        existing_points = selection_data.get("points", [])
+        # Filter out empty dicts that may come from frontend
+        existing_points = [p for p in selection_data.get("points", []) if p]
         existing_indices = selection_data.get("indices", [])
         selection_data["points"] = existing_points + heatmap_cells
         selection_data["indices"] = existing_indices + list(
@@ -461,3 +474,218 @@ def _extract_heatmap_cells_fallback(
                     )
 
     return selected_cells
+
+
+def _append_bar_items_to_selection(
+    figure: go.Figure, selection_data: dict[str, Any]
+) -> None:
+    """Append bars within the selection range to the selection data.
+
+    This modifies selection_data in place, appending any bars
+    that fall within the range to the existing points and indices.
+    """
+    range_value = selection_data.get("range")
+    if not isinstance(range_value, dict):
+        return
+
+    bar_items = _extract_bars_from_range(
+        figure, cast(dict[str, Any], range_value)
+    )
+    if bar_items:
+        # Append bar items to existing points (e.g., scatter)
+        # Filter out empty dicts that may come from frontend
+        existing_points = [p for p in selection_data.get("points", []) if p]
+        existing_indices = selection_data.get("indices", [])
+        selection_data["points"] = existing_points + bar_items
+        selection_data["indices"] = existing_indices + list(
+            range(
+                len(existing_indices),
+                len(existing_indices) + len(bar_items),
+            )
+        )
+
+
+def _extract_bars_from_range(
+    figure: go.Figure, range_data: dict[str, Any]
+) -> list[dict[str, Any]]:
+    """Extract bars that fall within a selection range."""
+
+    if not range_data.get("x") or not range_data.get("y"):
+        return []
+
+    x_range = range_data["x"]
+    y_range = range_data["y"]
+    x_min, x_max = min(x_range), max(x_range)
+    y_min, y_max = min(y_range), max(y_range)
+
+    # Use numpy fast path if available for better performance on large datasets
+    if DependencyManager.numpy.has():
+        return _extract_bars_numpy(figure, x_min, x_max, y_min, y_max)
+
+    return _extract_bars_fallback(figure, x_min, x_max, y_min, y_max)
+
+
+def _extract_bars_numpy(
+    figure: go.Figure,
+    x_min: float,
+    x_max: float,
+    y_min: float,
+    y_max: float,
+) -> list[dict[str, Any]]:
+    """Extract bars using numpy for O(selected) complexity."""
+    import numpy as np
+
+    selected_bars: list[dict[str, Any]] = []
+
+    for trace_idx, trace in enumerate(figure.data):
+        if getattr(trace, "type", None) != "bar":
+            continue
+
+        x_data = getattr(trace, "x", None)
+        y_data = getattr(trace, "y", None)
+
+        if x_data is None or y_data is None:
+            continue
+
+        # Determine bar orientation (default is 'v' for vertical)
+        orientation = getattr(trace, "orientation", "v")
+        if orientation is None:
+            orientation = "v"
+
+        # Convert to numpy arrays for vectorized operations
+        x_arr = np.asarray(x_data)
+        y_arr = np.asarray(y_data)
+
+        # For vertical bars: filter by x-axis position
+        # For horizontal bars: filter by y-axis position (swap roles)
+        if orientation == "v":
+            # Vertical bars: x-axis determines which bars are selected
+            # y-axis is the value (we don't filter by it, similar to Altair)
+            position_data = x_arr
+            value_data = y_arr
+            pos_min, pos_max = x_min, x_max
+        else:  # orientation == "h"
+            # Horizontal bars: y-axis determines which bars are selected
+            # x-axis is the value
+            position_data = y_arr
+            value_data = x_arr
+            pos_min, pos_max = y_min, y_max
+
+        # Determine if position axis is numeric or categorical
+        pos_is_numeric = np.issubdtype(position_data.dtype, np.number)
+
+        # Compute mask for valid indices
+        if pos_is_numeric:
+            # Numeric axis: direct range comparison
+            # TODO: Consider bar width in future implementations
+            # Currently treating bars as points at their position value
+            pos_mask = (position_data >= pos_min) & (position_data <= pos_max)
+        else:
+            # Categorical axis: each bar spans (index - 0.5) to (index + 0.5)
+            # Selection overlaps if: pos_max > bar_min AND pos_min < bar_max
+            pos_indices = np.arange(len(position_data))
+            pos_mask = (pos_max > pos_indices - 0.5) & (
+                pos_min < pos_indices + 0.5
+            )
+
+        # Get indices where mask is True
+        selected_indices = np.where(pos_mask)[0]
+
+        # Iterate only over selected indices
+        for i in selected_indices:
+            if orientation == "v":
+                selected_bars.append(
+                    {
+                        "x": x_data[i],
+                        "y": value_data[i].item()
+                        if hasattr(value_data[i], "item")
+                        else value_data[i],
+                        "curveNumber": trace_idx,
+                    }
+                )
+            else:  # horizontal
+                selected_bars.append(
+                    {
+                        "x": value_data[i].item()
+                        if hasattr(value_data[i], "item")
+                        else value_data[i],
+                        "y": y_data[i],
+                        "curveNumber": trace_idx,
+                    }
+                )
+
+    return selected_bars
+
+
+def _extract_bars_fallback(
+    figure: go.Figure,
+    x_min: float,
+    x_max: float,
+    y_min: float,
+    y_max: float,
+) -> list[dict[str, Any]]:
+    """Extract bars using pure Python (fallback when numpy unavailable)."""
+    selected_bars: list[dict[str, Any]] = []
+
+    for trace_idx, trace in enumerate(figure.data):
+        if getattr(trace, "type", None) != "bar":
+            continue
+
+        x_data = getattr(trace, "x", None)
+        y_data = getattr(trace, "y", None)
+
+        if x_data is None or y_data is None:
+            continue
+
+        # Determine bar orientation (default is 'v' for vertical)
+        orientation = getattr(trace, "orientation", "v")
+        if orientation is None:
+            orientation = "v"
+
+        # For vertical bars: filter by x-axis position
+        # For horizontal bars: filter by y-axis position
+        if orientation == "v":
+            position_data = x_data
+            value_data = y_data
+            pos_min, pos_max = x_min, x_max
+        else:  # orientation == "h"
+            position_data = y_data
+            value_data = x_data
+            pos_min, pos_max = y_min, y_max
+
+        # Iterate through bars
+        for i, pos_val in enumerate(position_data):
+            # Check if bar position is within selection range
+            pos_in_range = False
+
+            if isinstance(pos_val, (int, float)):
+                # Numeric axis: direct comparison
+                # TODO: Consider bar width in future implementations
+                # Currently treating bars as points at their position value
+                pos_in_range = pos_min <= pos_val <= pos_max
+            else:
+                # Categorical axis: each bar spans (index - 0.5) to (index + 0.5)
+                # Include bar if selection range strictly overlaps with bar bounds
+                bar_min = i - 0.5
+                bar_max = i + 0.5
+                pos_in_range = not (pos_max <= bar_min or pos_min >= bar_max)
+
+            if pos_in_range:
+                if orientation == "v":
+                    selected_bars.append(
+                        {
+                            "x": x_data[i],
+                            "y": value_data[i],
+                            "curveNumber": trace_idx,
+                        }
+                    )
+                else:  # horizontal
+                    selected_bars.append(
+                        {
+                            "x": value_data[i],
+                            "y": y_data[i],
+                            "curveNumber": trace_idx,
+                        }
+                    )
+
+    return selected_bars
