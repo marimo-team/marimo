@@ -110,7 +110,7 @@ nav:
           - Generate entire notebooks: guides/generate_with_ai/text_to_notebook.md
           - AI-assisted coding: guides/editor_features/ai_completion.md
           - Prompts: guides/generate_with_ai/prompts.md
-          - AI utilities: guides/generate_with_ai/ai_utilities.md
+          - Using Claude Code: guides/generate_with_ai/using_claude_code.md
       - Editor features:
           - Editor features: guides/editor_features/index.md
           - Editor overview: guides/editor_features/overview.md

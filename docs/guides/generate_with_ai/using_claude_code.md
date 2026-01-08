@@ -1,14 +1,10 @@
-Many coding agents let you customise the marimo editing experience. This page lists some worthwhile utilities and we also provide compelling use-cases related to marimo notebooks.
-
-## Claude
-
-These features from Claude are very useful to help you write notebooks.
+Claude lets you customise the marimo editing experience with it's agent. This page lists some worthwhile utilities and we also provide compelling use-cases related to marimo notebooks.
 
 ### Slash commands
 
 [Slash Commands](https://code.claude.com/docs/en/slash-commands) allow you to predefine specific prompts that you can refer to during a conversation with Claude. You store these either in the `~/.claude/commands/` personal folder or in the `.claude/commands/` local folder of the project.
 
-Here's an example of a slash command that runs the `marimo check` linter on a notebook of your choice.
+Here's an example of a slash command that runs the [`marimo check`](../../../cli/#marimo-check) linter on a notebook of your choice. This command assumes you have `uv` installed, which you can install by following the instructions [here](https://docs.astral.sh/uv/getting-started/installation/).
 
 ```
 ---
@@ -28,7 +24,7 @@ $ARGUMENTS, then fix any warnings or errors shown in the output above. Do
 not make edits or read the file if there are no issues.
 ```
 
-When you add this file to `~/.claude/commands/marimo-check.md` you will be able to trigger it by typing `/marimo-check notebook.py`.
+When you add this file to `~/.claude/commands/marimo-check.md` you will be able to trigger it by typing `/marimo-check notebook.py`. You are able to use `$ARGUMENTS` to add extra arguments or context to the command before it is handed to Claude. Also not that commands can run bash commands, like !`uvx marimo check --fix $ARGUMENTS || true` beforehand and will insert the output into the prompt. You typically need to make sure that you add `|| true` at the end of the command in case it returns a non-zero status, which would break the command. 
 
 There are more elaborate things you might do with these slash commands, to learn more you can check [the documentation](https://code.claude.com/docs/en/slash-commands#custom-slash-commands).
 
