@@ -193,9 +193,7 @@ export function stringBraceInputHandler(
   return true;
 }
 
-const stringBraceHandler = EditorView.inputHandler.of(
-  stringBraceInputHandler,
-);
+const stringBraceHandler = EditorView.inputHandler.of(stringBraceInputHandler);
 
 // Based on codemirror's basicSetup extension
 export const basicBundle = (opts: CodeMirrorSetupOpts): Extension[] => {
