@@ -24,7 +24,7 @@ $ARGUMENTS, then fix any warnings or errors shown in the output above. Do
 not make edits or read the file if there are no issues.
 ```
 
-When you add this file to `~/.claude/commands/marimo-check.md` you will be able to trigger it by typing `/marimo-check notebook.py`. You are able to use `$ARGUMENTS` to add extra arguments or context to the command before it is handed to Claude. Also not that commands can run bash commands, like !`uvx marimo check --fix $ARGUMENTS || true` beforehand and will insert the output into the prompt. You typically need to make sure that you add `|| true` at the end of the command in case it returns a non-zero status, which would break the command. 
+When you add this file to `~/.claude/commands/marimo-check.md` you will be able to trigger it by typing `/marimo-check notebook.py`. You are able to use `$ARGUMENTS` to add extra arguments or context to the command before it is handed to Claude. Also note that commands can run bash like !`uvx marimo check --fix $ARGUMENTS || true` beforehand. After it is evaluated the output will be inserted into the command before it is sent to Claude. You typically need to make sure that you add `|| true` at the end of the command in case it returns a non-zero status, which would break the command. 
 
 There are more elaborate things you might do with these slash commands, to learn more you can check [the documentation](https://code.claude.com/docs/en/slash-commands#custom-slash-commands).
 
