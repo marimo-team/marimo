@@ -18,7 +18,6 @@ import {
   VariableIcon,
   XCircleIcon,
 } from "lucide-react";
-import { hasCapability } from "@/core/config/capabilities";
 import { getFeatureFlag } from "@/core/config/feature-flag";
 import type { Capabilities } from "@/core/kernel/messages";
 import { isWasm } from "@/core/wasm/utils";
@@ -188,12 +187,15 @@ export const PANEL_MAP = new Map<PanelType, PanelDescriptor>(
  * Check if a panel should be hidden based on its `hidden` property
  * and `requiredCapability`.
  */
-export function isPanelHidden(panel: PanelDescriptor): boolean {
+export function isPanelHidden(
+  panel: PanelDescriptor,
+  capabilities: Capabilities,
+): boolean {
   if (panel.hidden) {
     return true;
   }
   if (panel.requiredCapability) {
-    if (!hasCapability(panel.requiredCapability)) {
+    if (!capabilities[panel.requiredCapability]) {
       return true;
     }
   }

@@ -22,6 +22,7 @@ import { ReorderableList } from "@/components/ui/reorderable-list";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LazyMount } from "@/components/utils/lazy-mount";
 import { cellErrorCount } from "@/core/cells/cells";
+import { capabilitiesAtom } from "@/core/config/capabilities";
 import { getFeatureFlag } from "@/core/config/feature-flag";
 import { cn } from "@/utils/cn";
 import { ErrorBoundary } from "../../boundary/ErrorBoundary";
@@ -83,14 +84,20 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
   const { dependencyPanelTab, setDependencyPanelTab } = useDependencyPanelTab();
   const errorCount = useAtomValue(cellErrorCount);
   const [panelLayout, setPanelLayout] = useAtom(panelLayoutAtom);
+  // Subscribe to capabilities to re-render when they change (e.g., terminal capability)
+  const capabilities = useAtomValue(capabilitiesAtom);
 
   // Convert current developer panel items to PanelDescriptors
+  // Filter out hidden panels (e.g., terminal when capability is not available)
   const devPanelItems = useMemo(() => {
     return panelLayout.developerPanel.flatMap((id) => {
       const panel = PANEL_MAP.get(id);
-      return panel ? [panel] : [];
+      if (!panel || isPanelHidden(panel, capabilities)) {
+        return [];
+      }
+      return [panel];
     });
-  }, [panelLayout.developerPanel]);
+  }, [panelLayout.developerPanel, capabilities]);
 
   const handleSetDevPanelItems = (items: PanelDescriptor[]) => {
     setPanelLayout((prev) => ({
@@ -127,7 +134,7 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
   const availableDevPanels = useMemo(() => {
     const sidebarIds = new Set(panelLayout.sidebar);
     return PANELS.filter((p) => {
-      if (isPanelHidden(p)) {
+      if (isPanelHidden(p, capabilities)) {
         return false;
       }
       // Exclude panels that are in the sidebar
@@ -136,7 +143,7 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
       }
       return true;
     });
-  }, [panelLayout.sidebar]);
+  }, [panelLayout.sidebar, capabilities]);
 
   // sync sidebar
   useEffect(() => {
