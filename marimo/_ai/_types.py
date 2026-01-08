@@ -244,7 +244,9 @@ class ChatMessage(msgspec.Struct):
             except Exception:
                 continue
 
-        LOGGER.error(f"Could not decode part {part}")
+        LOGGER.debug(
+            f"Could not decode part {part}. Ignore if it's a Vercel UI message part."
+        )
         return None
 
     @classmethod
