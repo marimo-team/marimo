@@ -4,7 +4,7 @@ You can add these prompts to your [custom rules](../editor_features/ai_completio
 
 ## AGENTS.md and CLAUDE.md
 
-You can run tools like [claude code](https://www.anthropic.com/claude-code) or [codex](https://openai.com/codex/) in the terminal and ask it to edit a marimo notebook on your behalf. Make sure that you run your notebook with the [watch flag](../..//api/watch.md) turned on, like `marimo edit --watch notebook.py`, to see updates appear live whenever the agent makes a change.
+You can run tools like [claude code](https://www.anthropic.com/claude-code) or [codex](https://openai.com/codex/) in the terminal and ask it to edit a marimo notebook on your behalf. Make sure that you run your notebook with the [watch flag](../../api/watch.md) turned on, like `marimo edit --watch notebook.py`, to see updates appear live whenever the agent makes a change.
 
 To help your agent, you might want to take the snippet below as starting context for your `CLAUDE.md`/`AGENTS.md` file. This snippet should be seen as a starting point and we recommend adding extra context yourself. Things like "prefer polars over pandas" to indicate your preferred libraries and tools.
 
