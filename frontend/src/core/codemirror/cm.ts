@@ -168,7 +168,7 @@ const startCompletionAtEndOfLine = (cm: EditorView): boolean => {
     : startCompletion(cm);
 };
 
-export function fStringBraceInputHandler(
+export function stringBraceInputHandler(
   view: EditorView,
   from: number,
   to: number,
@@ -185,15 +185,6 @@ export function fStringBraceInputHandler(
     return false;
   }
 
-  const prefix = view.state.sliceDoc(
-    node.from,
-    Math.min(node.from + 3, node.to),
-  );
-  // Case insensitive, checks whether there is f or t in prefix
-  if (!/^(?:[ft]|[ft]r|r[ft])/i.test(prefix)) {
-    return false;
-  }
-
   view.dispatch({
     changes: { from, to, insert: "{}" },
     selection: { anchor: from + 1 },
@@ -202,8 +193,8 @@ export function fStringBraceInputHandler(
   return true;
 }
 
-const fStringBraceHandler = EditorView.inputHandler.of(
-  fStringBraceInputHandler,
+const stringBraceHandler = EditorView.inputHandler.of(
+  stringBraceInputHandler,
 );
 
 // Based on codemirror's basicSetup extension
@@ -242,7 +233,7 @@ export const basicBundle = (opts: CodeMirrorSetupOpts): Extension[] => {
     hintTooltip(lspConfig),
     copilotBundle(completionConfig),
     foldGutter(),
-    fStringBraceHandler,
+    stringBraceHandler,
     closeBrackets(),
     completionKeymap(),
     // to avoid clash with charDeleteBackward keymap
