@@ -125,7 +125,7 @@ export const BackendConnectionStatus: React.FC = () => {
     if (isAppNotStarted(connection)) {
       void connectToRuntime();
     } else {
-      void refetch();
+      refetch();
     }
   };
 

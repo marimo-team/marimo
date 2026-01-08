@@ -142,7 +142,7 @@ export const MarimoErrorOutput = ({
   );
 
   const openScratchpad = () => {
-    chromeActions.openDeveloperPanelTab("scratchpad");
+    chromeActions.openApplication("scratchpad");
   };
 
   const renderMessages = () => {
@@ -186,7 +186,7 @@ export const MarimoErrorOutput = ({
               size="xs"
               variant="outline"
               className="mt-2 font-normal"
-              onClick={() => chromeActions.openDeveloperPanelTab("terminal")}
+              onClick={() => chromeActions.openApplication("terminal")}
             >
               <TerminalIcon className="h-3.5 w-3.5 mr-1.5" />
               <span>Open terminal</span>

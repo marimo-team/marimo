@@ -75,12 +75,8 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
     selectedPanel,
     selectedDeveloperPanelTab,
   } = useChromeState();
-  const {
-    setIsSidebarOpen,
-    setIsDeveloperPanelOpen,
-    setSelectedDeveloperPanelTab,
-    openApplication,
-  } = useChromeActions();
+  const { setIsSidebarOpen, setIsDeveloperPanelOpen, openApplication } =
+    useChromeActions();
   const sidebarRef = React.useRef<ImperativePanelHandle>(null);
   const developerPanelRef = React.useRef<ImperativePanelHandle>(null);
   const { aiPanelTab, setAiPanelTab } = useAiPanelTab();
@@ -123,7 +119,7 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
     }
 
     // Select the dropped item in developer panel
-    setSelectedDeveloperPanelTab(item.type);
+    openApplication(item.type);
   };
 
   // Get panels available for developer panel context menu
@@ -412,7 +408,7 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
             ariaLabel="Developer panel tabs"
             className="flex flex-row gap-1"
             minItems={0}
-            onAction={(panel) => setSelectedDeveloperPanelTab(panel.type)}
+            onAction={(panel) => openApplication(panel.type)}
             renderItem={(panel) => (
               <div
                 className={cn(
