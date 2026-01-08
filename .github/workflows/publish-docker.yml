@@ -96,10 +96,34 @@ jobs:
       - name: 🧪 Test docker build
         run: |
           docker run -d -e PORT=9090 -p 9090:9090 --name test_container ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:test
-          sleep 2
-          curl -f http://localhost:9090/health || (docker logs test_container && exit 1)
+
+          # Wait for container to be ready with retries
+          echo "Waiting for marimo server to start..."
+          MAX_ATTEMPTS=30
+          ATTEMPT=0
+          SLEEP_TIME=2
+
+          while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
+            ATTEMPT=$((ATTEMPT + 1))
+            echo "Attempt $ATTEMPT/$MAX_ATTEMPTS: Checking health endpoint..."
+
+            if curl -f http://localhost:9090/health 2>/dev/null; then
+              echo "✅ Health check passed!"
+              docker stop test_container
+              docker rm test_container
+              exit 0
+            else
+              echo "Health check failed. Waiting ${SLEEP_TIME}s..."
+              sleep $SLEEP_TIME
+            fi
+          done
+
+          echo "❌ Health check failed after $((MAX_ATTEMPTS * SLEEP_TIME)) seconds"
+          echo "Container logs:"
+          docker logs test_container
           docker stop test_container
           docker rm test_container
+          exit 1
 
       - name: 📦 Build and push Docker images (slim)
         uses: docker/build-push-action@v6
