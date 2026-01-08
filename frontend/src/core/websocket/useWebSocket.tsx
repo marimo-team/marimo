@@ -29,7 +29,8 @@ function createConnectionTransport(
   }
   // Create a connection transport using the ReconnectingWebSocket from partysocket
   // This handles reconnecting when the connection is lost.
-  return new ReconnectingWebSocket(options.url(), undefined, {
+  const urlProvider = options.url; // We don't call the URL provider now since it may change (i.e. if the runtime redirects)
+  return new ReconnectingWebSocket(urlProvider, undefined, {
     // We don't want Infinity retries
     maxRetries: 10,
     debug: false,
