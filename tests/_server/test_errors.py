@@ -361,7 +361,7 @@ async def test_module_not_found_with_isolated_environment():
 
 
 @pytest.mark.parametrize(
-    ("status_code", "message"),
+    ("status_code", "detail"),
     [
         (400, "Bad Request"),
         (401, "Unauthorized"),
