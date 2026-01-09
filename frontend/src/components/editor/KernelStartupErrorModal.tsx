@@ -61,8 +61,8 @@ export const KernelStartupErrorModal: React.FC = () => {
             Kernel Startup Failed
           </AlertDialogTitle>
           <AlertDialogDescription>
-            The kernel failed to start. This usually happens when the package manager
-            can't install your notebook's dependencies. 
+            The kernel failed to start. This usually happens when the package
+            manager can't install your notebook's dependencies.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <div className="my-4">
