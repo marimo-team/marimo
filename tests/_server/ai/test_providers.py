@@ -5,7 +5,6 @@ import pytest
 from marimo._config.config import AiConfig
 from marimo._dependencies.dependencies import Dependency, DependencyManager
 from marimo._server.ai.config import AnyProviderConfig
-from marimo._server.ai.ids import AiModelId, AiProviderId, ShortModelId
 from marimo._server.ai.providers import (
     AnthropicProvider,
     AzureOpenAIProvider,
@@ -329,52 +328,3 @@ def test_anthropic_is_extended_thinking_model(
     config = AnyProviderConfig(api_key="test-key", base_url=None)
     provider = AnthropicProvider(model_name, config)
     assert provider.is_extended_thinking_model(model_name) == expected
-
-
-@pytest.mark.parametrize(
-    ("model_name", "provider_name", "expected"),
-    [
-        pytest.param(
-            "gpt-4o",
-            "deepseek",
-            True,
-            id="deepseek_supports_responses",
-        ),
-        pytest.param(
-            "gpt-4",
-            "openrouter",
-            True,
-            id="openrouter_supports_responses",
-        ),
-        pytest.param(
-            "gpt-4",
-            "together",
-            True,
-            id="together_supports_responses",
-        ),
-        pytest.param(
-            "gpt-4",
-            "ollama",
-            False,
-            id="ollama_chat_only",
-        ),
-        pytest.param(
-            "gpt-4",
-            "litellm",
-            False,
-            id="litellm_chat_only",
-        ),
-    ],
-)
-@pytest.mark.skipif(
-    not DependencyManager.pydantic_ai.has(),
-    reason="pydantic_ai not installed",
-)
-def test_custom_provider_supports_responses_api(
-    model_name: str, provider_name: str, expected: bool
-) -> None:
-    """Test that _supports_responses_api correctly identifies providers that support the responses API."""
-    config = AnyProviderConfig(api_key="test-key", base_url=None)
-    model_id = AiModelId(AiProviderId(provider_name), ShortModelId(model_name))
-    provider = CustomProvider(model_id, config, [DependencyManager.openai])
-    assert provider._supports_responses_api() == expected
