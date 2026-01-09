@@ -5,7 +5,6 @@ import inspect
 import os
 import sys
 import tempfile
-from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pytest
