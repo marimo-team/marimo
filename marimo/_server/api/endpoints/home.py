@@ -117,6 +117,10 @@ async def workspace_files(
 
 
 def _get_active_sessions(app_state: AppState) -> list[MarimoFile]:
+    """Get list of active sessions with prettified paths."""
+    # Get directory from file router for path relativization
+    base_dir = app_state.session_manager.file_router.directory
+
     files: list[MarimoFile] = []
     for session_id, session in app_state.session_manager.sessions.items():
         state = session.connection_state()
@@ -126,7 +130,9 @@ def _get_active_sessions(app_state: AppState) -> list[MarimoFile]:
             files.append(
                 MarimoFile(
                     name=(basename or "new notebook"),
-                    path=(pretty_path(filename) if filename else session_id),
+                    path=pretty_path(filename, base_dir)
+                    if filename
+                    else session_id,
                     last_modified=0,
                     session_id=session_id,
                     initialization_id=session.initialization_id,
