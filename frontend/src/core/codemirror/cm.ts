@@ -178,6 +178,11 @@ export function stringBraceInputHandler(
     return false;
   }
 
+  // If there's a selection, let default behavior handle it
+  if (from !== to) {
+    return false;
+  }
+
   const tree = syntaxTree(view.state);
   const node = tree.resolveInner(from, -1);
 

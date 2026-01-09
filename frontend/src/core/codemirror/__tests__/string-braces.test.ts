@@ -187,4 +187,14 @@ describe("string brace auto-closing", () => {
     expect(view.state.doc.toString()).toBe("f'''hello {}");
     expect(view.state.selection.main.head).toBe(11);
   });
+
+  it("should NOT auto-close braces when text is selected", () => {
+    view = createEditor('f"hello world"', 8);
+    // User has selected "world" (from position 8 to 13)
+    const result = stringBraceInputHandler(view, 8, 13, "{");
+
+    expect(result).toBe(false);
+    // Document should remain unchanged since we return false
+    expect(view.state.doc.toString()).toBe('f"hello world"');
+  });
 });
