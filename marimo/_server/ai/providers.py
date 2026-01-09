@@ -547,7 +547,7 @@ class CustomProvider(OpenAIClientMixin, PydanticProvider["Provider[Any]"]):
         )
 
     def _supports_responses_api(self) -> bool:
-        """Check if the provider supports the OpenAI Responses API."""
+        """Check if the provider supports the OpenAI Responses API. We currently default to Pydantic's inferred model"""
         return self._provider_name.lower() in self._responses_compatible
 
     def create_provider(self, config: AnyProviderConfig) -> Provider[Any]:
