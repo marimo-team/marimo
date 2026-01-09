@@ -3,8 +3,6 @@ from __future__ import annotations
 
 import json
 
-import pytest
-
 from marimo._messaging.notification import (
     AlertNotification,
     KernelStartupErrorNotification,

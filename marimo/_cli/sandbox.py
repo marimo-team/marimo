@@ -15,18 +15,6 @@ from typing import Literal, Optional
 
 import click
 
-
-class SandboxMode(Enum):
-    """Sandbox mode for marimo notebooks.
-
-    - SINGLE: Single-file sandbox (wraps entire process with uv run)
-    - MULTI: Multi-file sandbox (IPC kernels with per-notebook venvs)
-    """
-
-    SINGLE = "single"
-    MULTI = "multi"
-
-
 from marimo import _loggers
 from marimo._cli.print import bold, echo, green, muted
 from marimo._config.settings import GLOBAL_SETTINGS
@@ -39,6 +27,18 @@ from marimo._utils.inline_script_metadata import (
 from marimo._utils.uv import find_uv_bin
 from marimo._utils.versions import is_editable
 from marimo._version import __version__
+
+
+class SandboxMode(Enum):
+    """Sandbox mode for marimo notebooks.
+
+    - SINGLE: Single-file sandbox (wraps entire process with uv run)
+    - MULTI: Multi-file sandbox (IPC kernels with per-notebook venvs)
+    """
+
+    SINGLE = "single"
+    MULTI = "multi"
+
 
 LOGGER = _loggers.marimo_logger()
 
