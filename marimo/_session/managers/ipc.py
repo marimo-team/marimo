@@ -41,8 +41,6 @@ LOGGER = _loggers.marimo_logger()
 class KernelStartupError(Exception):
     """Raised when kernel subprocess fails to start."""
 
-    pass
-
 
 class IPCQueueManagerImpl(QueueManager):
     """Manages queues for a session via ZeroMQ IPC.
