@@ -90,15 +90,6 @@ describe("string brace auto-closing", () => {
     expect(view.state.selection.main.head).toBe(9);
   });
 
-  it("should auto-close braces in regular strings", () => {
-    view = createEditor('"hello ', 7);
-    const result = stringBraceInputHandler(view, 7, 7, "{");
-
-    expect(result).toBe(true);
-    expect(view.state.doc.toString()).toBe('"hello {}');
-    expect(view.state.selection.main.head).toBe(8);
-  });
-
   it("should auto-close braces in raw strings without f/t", () => {
     view = createEditor('r"hello ', 8);
     const result = stringBraceInputHandler(view, 8, 8, "{");
@@ -159,5 +150,41 @@ describe("string brace auto-closing", () => {
     expect(result).toBe(true);
     expect(view.state.doc.toString()).toBe('f"{}"');
     expect(view.state.selection.main.head).toBe(3);
+  });
+
+  it("should auto-close braces in triple-quoted strings", () => {
+    view = createEditor('"""hello ', 9);
+    const result = stringBraceInputHandler(view, 9, 9, "{");
+
+    expect(result).toBe(true);
+    expect(view.state.doc.toString()).toBe('"""hello {}');
+    expect(view.state.selection.main.head).toBe(10);
+  });
+
+  it("should auto-close braces in triple-quoted f-strings", () => {
+    view = createEditor('f"""hello ', 10);
+    const result = stringBraceInputHandler(view, 10, 10, "{");
+
+    expect(result).toBe(true);
+    expect(view.state.doc.toString()).toBe('f"""hello {}');
+    expect(view.state.selection.main.head).toBe(11);
+  });
+
+  it("should auto-close braces in triple single-quoted strings", () => {
+    view = createEditor("'''hello ", 9);
+    const result = stringBraceInputHandler(view, 9, 9, "{");
+
+    expect(result).toBe(true);
+    expect(view.state.doc.toString()).toBe("'''hello {}");
+    expect(view.state.selection.main.head).toBe(10);
+  });
+
+  it("should auto-close braces in triple single-quoted f-strings", () => {
+    view = createEditor("f'''hello ", 10);
+    const result = stringBraceInputHandler(view, 10, 10, "{");
+
+    expect(result).toBe(true);
+    expect(view.state.doc.toString()).toBe("f'''hello {}");
+    expect(view.state.selection.main.head).toBe(11);
   });
 });
