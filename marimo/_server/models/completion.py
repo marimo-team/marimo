@@ -1,12 +1,16 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Any, Literal, Optional, Union
+from typing import TYPE_CHECKING, Any, Literal, Optional, Union
 
 import msgspec
 
-from marimo._ai._types import ChatMessage
 from marimo._server.ai.tools.types import ToolDefinition
+
+if TYPE_CHECKING:
+    from pydantic_ai.ui.vercel_ai.request_types import UIMessage
+else:
+    UIMessage = dict[str, Any]
 
 
 class SchemaColumn(msgspec.Struct, rename="camel"):
@@ -36,8 +40,6 @@ class AiCompletionContext(msgspec.Struct, rename="camel"):
 
 Language = Literal["python", "markdown", "sql"]
 
-UIMessage = dict[str, Any]
-
 
 class AiCompletionRequest(msgspec.Struct, rename="camel"):
     """
@@ -48,7 +50,6 @@ class AiCompletionRequest(msgspec.Struct, rename="camel"):
     prompt: str
     include_other_code: str
     code: str
-    messages: list[ChatMessage] = []  # Deprecated
     ui_messages: list[UIMessage] = []
     selected_text: Optional[str] = None
     context: Optional[AiCompletionContext] = None
@@ -69,7 +70,6 @@ class ChatRequest(msgspec.Struct, rename="camel"):
 
     context: AiCompletionContext
     include_other_code: str
-    messages: list[ChatMessage]  # Deprecated
     ui_messages: list[UIMessage]
     tools: Optional[list[ToolDefinition]] = None
     model: Optional[str] = None

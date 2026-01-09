@@ -75,11 +75,6 @@ components:
           - markdown
           - python
           - sql
-        messages:
-          default: []
-          items:
-            $ref: '#/components/schemas/ChatMessage'
-          type: array
         prompt:
           type: string
         selectedText:
@@ -544,10 +539,6 @@ components:
           $ref: '#/components/schemas/AiCompletionContext'
         includeOtherCode:
           type: string
-        messages:
-          items:
-            $ref: '#/components/schemas/ChatMessage'
-          type: array
         model:
           anyOf:
           - type: string
@@ -576,7 +567,6 @@ components:
       required:
       - context
       - includeOtherCode
-      - messages
       - uiMessages
       title: ChatRequest
       type: object
