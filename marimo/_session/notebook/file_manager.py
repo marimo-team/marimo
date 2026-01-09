@@ -193,7 +193,9 @@ class AppFileManager:
             if GLOBAL_SETTINGS.MANAGE_SCRIPT_METADATA:
                 from marimo._utils.scripts import write_pyproject_to_script
 
-                header = write_pyproject_to_script({"dependencies": ["marimo"]})
+                header = write_pyproject_to_script(
+                    {"dependencies": ["marimo"]}
+                )
 
         # Rewrap with header if relevant and set filename.
         notebook = NotebookSerializationV1(
