@@ -100,10 +100,14 @@ class chat(UIElement[dict[str, Any], list[ChatMessage]]):
 
         Using a built-in model:
         ```python
+        from pydantic_ai import Agent
+
         chat = mo.ui.chat(
-            mo.ai.llm.openai(
-                "gpt-4o",
-                system_message="You are a helpful assistant.",
+            mo.ai.llm.pydantic_ai(
+                Agent(
+                    "openai:gpt-5",
+                    system_prompt="You are a helpful assistant.",
+                )
             ),
         )
         ```
@@ -111,8 +115,11 @@ class chat(UIElement[dict[str, Any], list[ChatMessage]]):
         Using attachments:
         ```python
         chat = mo.ui.chat(
-            mo.ai.llm.openai(
-                "gpt-4o",
+            mo.ai.llm.pydantic_ai(
+                Agent(
+                    "openai:gpt-5",
+                    system_prompt="You are a helpful assistant.",
+                )
             ),
             allow_attachments=["image/png", "image/jpeg"],
         )

@@ -143,7 +143,7 @@ class PyodideSession:
             completion_queue=self._queue_manager.completion_queue,
             input_queue=self._queue_manager.input_queue,
             on_message=self._on_message,
-            is_edit_mode=self.mode == SessionMode.EDIT,
+            session_mode=self.mode,
             configs=self.app_manager.app.cell_manager.config_map(),
             app_metadata=self.app_metadata,
             user_config=self._initial_user_config,
@@ -418,7 +418,7 @@ def _launch_pyodide_kernel(
     completion_queue: asyncio.Queue[CodeCompletionCommand],
     input_queue: asyncio.Queue[str],
     on_message: Callable[[KernelMessage], None],
-    is_edit_mode: bool,
+    session_mode: SessionMode,
     configs: dict[CellId_t, CellConfig],
     app_metadata: AppMetadata,
     user_config: MarimoConfig,
@@ -435,6 +435,8 @@ def _launch_pyodide_kernel(
     # Some libraries mess with Python's default recursion limit, which becomes
     # a problem when running with Pyodide.
     patches.patch_recursion_limit(limit=1000)
+
+    is_edit_mode = session_mode == SessionMode.EDIT
 
     # Create communication channels
     stream = PyodideStream(on_message, input_queue)
@@ -470,7 +472,7 @@ def _launch_pyodide_kernel(
         stdout=stdout,
         stderr=stderr,
         virtual_files_supported=False,
-        mode=SessionMode.EDIT if is_edit_mode else SessionMode.RUN,
+        mode=session_mode,
     )
 
     if is_edit_mode:

@@ -167,6 +167,11 @@ class DataReasoningPart:
     data: ReasoningData
 
 
+@dataclass
+class StepStartPart:
+    type: Literal["step-start"]
+
+
 if TYPE_CHECKING:
     ChatPart = Union[
         TextPart,
@@ -174,6 +179,7 @@ if TYPE_CHECKING:
         ToolInvocationPart,
         FilePart,
         DataReasoningPart,
+        StepStartPart,
     ]
 else:
     ChatPart = dict[str, Any]
@@ -184,6 +190,7 @@ PART_TYPES = [
     ToolInvocationPart,
     FilePart,
     DataReasoningPart,
+    StepStartPart,
 ]
 
 
@@ -237,7 +244,9 @@ class ChatMessage(msgspec.Struct):
             except Exception:
                 continue
 
-        LOGGER.error(f"Could not decode part {part}")
+        LOGGER.debug(
+            f"Could not decode part {part}. Ignore if it's a Vercel UI message part."
+        )
         return None
 
     @classmethod

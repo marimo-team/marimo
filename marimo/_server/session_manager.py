@@ -112,6 +112,7 @@ class SessionManager:
         # Add recents tracking listener
         self.recents = RecentFilesManager()
         self._event_bus = SessionEventBus()
+        self._event_bus.subscribe(RecentsTrackerListener(self.recents))
 
         # Initialize file watching components
         self._watcher_manager = FileWatcherManager()
@@ -163,9 +164,7 @@ class SessionManager:
         # Create the session
         from marimo._runtime.commands import AppMetadata
 
-        extensions: list[SessionExtension] = [
-            RecentsTrackerListener(self.recents)
-        ]
+        extensions: list[SessionExtension] = []
         if self.watch:
             extensions.append(
                 SessionFileWatcherExtension(

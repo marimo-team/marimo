@@ -359,8 +359,7 @@ class TestAnyProviderConfig:
         provider_config = AnyProviderConfig.for_bedrock(config)
 
         assert provider_config.api_key == "profile:test-profile"
-        # Note: base_url is None because _get_base_url doesn't get "Bedrock" name parameter
-        assert provider_config.base_url is None
+        assert provider_config.base_url == "us-east-1"
 
     def test_for_bedrock_with_credentials(self):
         """Test Bedrock configuration with AWS credentials."""
@@ -375,8 +374,7 @@ class TestAnyProviderConfig:
         provider_config = AnyProviderConfig.for_bedrock(config)
 
         assert provider_config.api_key == "test-access-key:test-secret-key"
-        # Note: base_url is None because _get_base_url doesn't get "Bedrock" name parameter
-        assert provider_config.base_url is None
+        assert provider_config.base_url == "us-west-2"
 
     def test_for_model_openai(self) -> None:
         """Test for_model with OpenAI model."""

@@ -4,6 +4,10 @@ on:
   issue_comment:
     types: [created]
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.issue.number }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
   pull-requests: write
@@ -31,10 +35,11 @@ jobs:
       run:
         shell: bash
 
-    steps:
-      - name: 🛑 Cancel Previous Runs
-        uses: styfle/cancel-workflow-action@0.12.1
+    outputs:
+      marimo_version: ${{ steps.get_version.outputs.marimo_version }}
+      comment_id: ${{ steps.comment.outputs.result }}
 
+    steps:
       - name: 📝 Get PR Info
         id: pr
         env:
@@ -75,22 +80,10 @@ jobs:
             console.log(`Comment created with ID: ${comment.data.id}`);
             return comment.data.id;
 
-      - uses: pnpm/action-setup@v4
-
-      - name: ⎔ Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: 'pnpm'
-          cache-dependency-path: '**/pnpm-lock.yaml'
-          registry-url: 'https://registry.npmjs.org'
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
       - name: 📦 Build frontend
-        run: make fe
-        env:
-          TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+        uses: ./.github/actions/build-frontend
+        with:
+          turbo-token: ${{ secrets.TURBO_TOKEN }}
 
       - name: Install uv
         uses: astral-sh/setup-uv@v7
@@ -103,6 +96,7 @@ jobs:
       # This must be a valid semver version from
       # https://packaging.python.org/en/latest/discussions/versioning/
       - name: 🔨 Patch version number
+        id: get_version
         run: |
           # Get the version number
           current_version=`uv version --short`
@@ -112,6 +106,7 @@ jobs:
           MARIMO_VERSION="${current_version}-dev9${random_digits}"
           # Set the version in the environment for later steps
           echo "MARIMO_VERSION=$MARIMO_VERSION" >> $GITHUB_ENV
+          echo "marimo_version=$MARIMO_VERSION" >> $GITHUB_OUTPUT
           uv version "$MARIMO_VERSION"
         env:
           NO_COLOR: 1
@@ -134,44 +129,67 @@ jobs:
           echo "Updating package.json version to ${{ env.MARIMO_VERSION }}"
           npm version ${{ env.MARIMO_VERSION }} --no-git-tag-version
 
-      - name: 📤 Upload wasm to npm
-        working-directory: frontend
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: |
-          for i in {1..3}; do
-            npm publish --access public && break || {
-              echo "Publish attempt $i failed, retrying..."
-              sleep 10
-            }
-          done
+      - name: 📦 Upload frontend artifact for npm publish
+        uses: actions/upload-artifact@v6
+        with:
+          name: frontend-test-branch
+          path: frontend/
+          retention-days: 1
 
-      - name: 📝 Update PR Comment
+  publish_wasm_test:
+    name: 📤 Publish @marimo-team/frontend to npm
+    needs: create-test-release
+    uses: ./.github/workflows/publish-npm.yml
+    with:
+      package-artifact-name: frontend-test-branch
+      working-directory: '.'
+      npm-tag: 'dev'
+    permissions:
+      id-token: write  # Required for OIDC
+      contents: read
+
+  update_pr_comment:
+    name: 📝 Update PR Comment
+    needs: [create-test-release, publish_wasm_test]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: ⬇️ Checkout repo
+        uses: actions/checkout@v4
+
+      - name: 📝 Update PR Comment on Success
+        if: needs.publish_wasm_test.result == 'success'
         uses: actions/github-script@v7
         continue-on-error: true
+        env:
+          MARIMO_VERSION: ${{ needs.create-test-release.outputs.marimo_version }}
+          COMMENT_ID: ${{ needs.create-test-release.outputs.comment_id }}
         with:
           script: |
             try {
-              const commentId = ${{steps.comment.outputs.result}}
+              const commentId = parseInt(process.env.COMMENT_ID, 10);
+              const marimoVersion = process.env.MARIMO_VERSION || 'unknown';
               console.log(`Updating comment with ID: ${commentId}`);
               await github.rest.issues.updateComment({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 comment_id: commentId,
-                body: `🚀 Test release published. You may be able to view the changes at https://marimo.app?v=${process.env.MARIMO_VERSION}`
+                body: `🚀 Test release published. You may be able to view the changes at https://marimo.app?v=${encodeURIComponent(marimoVersion)}`
               });
             } catch (err) {
               console.error(err);
             }
 
       - name: 📝 Update PR Comment on Failure
-        if: failure()
+        if: needs.create-test-release.result == 'failure' || needs.publish_wasm_test.result == 'failure'
         uses: actions/github-script@v7
+        continue-on-error: true
+        env:
+          COMMENT_ID: ${{ needs.create-test-release.outputs.comment_id }}
         with:
           script: |
             try {
-              const commentId = ${{steps.comment.outputs.result}}
+              const commentId = parseInt(process.env.COMMENT_ID, 10);
               console.log(`Updating comment with ID: ${commentId}`);
               await github.rest.issues.updateComment({
                 owner: context.repo.owner,

@@ -1,6 +1,7 @@
 /* Copyright 2024 Marimo. All rights reserved. */
 
 import { NoKernelConnectedError } from "@/utils/errors";
+import { Logger } from "@/utils/Logger";
 import { Objects } from "@/utils/objects";
 import { memoizeLastValue } from "@/utils/once";
 import { waitForKernelToBeInstantiated } from "../kernel/state";
@@ -12,11 +13,22 @@ import type { EditRequests, RunRequests } from "./types";
 
 type AllRequests = EditRequests & RunRequests;
 
-// We have various requests that act different when called and not connected to a Kernel. They are:
-// - throw an Error
-// - drop the request
-// - start the connection
-// - wait for the connection to be open
+// We have various requests that act differently when called and not connected to a Kernel:
+//
+// - throwError: Throws NoKernelConnectedError, caught by requests-toasting.tsx
+//   and shown as a toast with a "Connect" button. Use for operations that
+//   shouldn't silently fail but also shouldn't auto-start the kernel.
+//
+// - dropRequest: Silently returns undefined. Only for requests where failure is
+//   expected and doesn't matter (e.g., background polling).
+//
+// - startConnection: Initializes the runtime and waits for connection before
+//   executing. Use for user-initiated actions that should "just work" and
+//   kick off the kernel if needed (e.g., clicking Run).
+//
+// - waitForConnectionOpen: Waits for an existing connection but won't start one.
+//   Use for operations that depend on a running kernel but shouldn't be the
+//   trigger to start it (e.g., saving, interrupting).
 
 type Action =
   | "throwError"
@@ -136,6 +148,9 @@ export function createLazyRequests(
 
       switch (action) {
         case "dropRequest":
+          Logger.debug(
+            `Dropping request: ${key}, since not connected to a kernel.`,
+          );
           // Silently drop the request
           return Promise.resolve();
 
@@ -153,6 +168,8 @@ export function createLazyRequests(
           await initOnce(runtimeManager);
           await waitForConnectionOpen();
           if (key !== "sendInstantiate") {
+            // We don't need to wait for kernel to be instantiated if we are sending an instantiate request
+            // otherwise we will wait forever
             await waitForKernelToBeInstantiated();
           }
           return request(...args);

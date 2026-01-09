@@ -1284,6 +1284,14 @@ def test_download_as(df: Any) -> None:
                 import polars as pl
 
                 return pl.read_json(buffer)
+            elif DependencyManager.pyarrow.has():
+                import json
+
+                import pyarrow as pa
+
+                rows = json.loads(data_bytes)
+                assert isinstance(rows, list)
+                return pa.Table.from_pylist(rows)
         elif format_type == "parquet":
             if DependencyManager.pandas.has():
                 import pandas as pd
@@ -1293,6 +1301,10 @@ def test_download_as(df: Any) -> None:
                 import polars as pl
 
                 return pl.read_parquet(buffer)
+            elif DependencyManager.pyarrow.has():
+                import pyarrow.parquet as pq
+
+                return pq.read_table(buffer)
         elif format_type == "csv":
             if DependencyManager.pandas.has():
                 import pandas as pd
@@ -1302,6 +1314,10 @@ def test_download_as(df: Any) -> None:
                 import polars as pl
 
                 return pl.read_csv(buffer)
+            elif DependencyManager.pyarrow.has():
+                import pyarrow.csv as pacsv
+
+                return pacsv.read_csv(buffer)
         raise ValueError(f"Unsupported format: {format_type}")
 
     # Test base downloads (full data)

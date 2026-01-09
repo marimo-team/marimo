@@ -679,10 +679,24 @@ class bedrock(ChatModel):
 
 class pydantic_ai(ChatModel):
     """
-    Pydantic AI ChatModel
+    [Pydantic AI](https://ai.pydantic.dev/) ChatModel
 
     Args:
-        agent: The Pydantic AI agent to use.
+        agent: A pydantic_ai Agent instance. [See docs](https://ai.pydantic.dev/agents/)
+
+    Example:
+        ```python
+        from pydantic_ai import Agent
+
+        agent = Agent(
+            model="gpt-5", system_prompt="You are a helpful assistant."
+        )
+        chatbot = mo.ui.chat(
+            mo.ai.llm.pydantic_ai(agent),
+            prompts=["What is the capital of France?", "What is marimo?"],
+        )
+        chatbot
+        ```
     """
 
     def __init__(self, agent: Agent[Any, Any]):

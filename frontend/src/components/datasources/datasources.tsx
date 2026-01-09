@@ -72,6 +72,21 @@ import {
 } from "./components";
 import { isSchemaless, sqlCode } from "./utils";
 
+// Indentation classes for the datasource tree hierarchy.
+const INDENT = {
+  engineEmpty: "pl-3",
+  engine: "pl-3 pr-2",
+  database: "pl-4",
+  schemaEmpty: "pl-8",
+  schema: "pl-7",
+  tableLoading: "pl-11",
+  tableSchemaless: "pl-8",
+  tableWithSchema: "pl-12",
+  columnLocal: "pl-5",
+  columnSql: "pl-13",
+  columnPreview: "pl-10",
+};
+
 const sortedTablesAtom = atom((get) => {
   const tables = get(datasetTablesAtom);
   const variables = get(variablesAtom);
@@ -98,7 +113,11 @@ const sortedTablesAtom = atom((get) => {
   });
 });
 
-const connectionsAtom = atom((get) => {
+/**
+ * This atom is used to get the data connections that are available to the user.
+ * It filters out the internal engines if it has no databases or if it has only the in-memory database and no schemas.
+ */
+export const connectionsAtom = atom((get) => {
   const dataConnections = new Map(get(dataConnectionsMapAtom));
 
   // Filter out the internal engines if it has no databases
@@ -160,7 +179,7 @@ export const DataSources: React.FC = () => {
       className="border-b bg-background rounded-none h-full pb-10 overflow-auto outline-hidden"
       shouldFilter={false}
     >
-      <div className="flex items-center w-full">
+      <div className="flex items-center w-full border-b">
         <CommandInput
           placeholder="Search tables..."
           className="h-6 m-1"
@@ -170,7 +189,7 @@ export const DataSources: React.FC = () => {
             closeAllColumns(value.length > 0);
             setSearchValue(value);
           }}
-          rootClassName="flex-1 border-r"
+          rootClassName="flex-1 border-r border-b-0"
         />
         {hasSearch && (
           <button
@@ -183,12 +202,13 @@ export const DataSources: React.FC = () => {
         )}
 
         <AddDatabaseDialog>
-          <button
-            type="button"
-            className="float-right border-b px-2 m-0 h-full hover:bg-accent hover:text-accent-foreground"
+          <Button
+            variant="ghost"
+            size="sm"
+            className="px-2 rounded-none focus-visible:outline-hidden"
           >
             <PlusIcon className="h-4 w-4" />
-          </button>
+          </Button>
         </AddDatabaseDialog>
       </div>
 
@@ -222,7 +242,7 @@ export const DataSources: React.FC = () => {
         ))}
 
         {dataConnections.length > 0 && tables.length > 0 && (
-          <DatasourceLabel>
+          <DatasourceLabel className={INDENT.engine}>
             <PythonIcon className="h-4 w-4 text-muted-foreground" />
             <span className="text-xs">Python</span>
           </DatasourceLabel>
@@ -258,7 +278,7 @@ const Engine: React.FC<{
 
   return (
     <>
-      <DatasourceLabel>
+      <DatasourceLabel className={INDENT.engine}>
         <DatabaseLogo
           className="h-4 w-4 text-muted-foreground"
           name={connection.dialect}
@@ -288,7 +308,10 @@ const Engine: React.FC<{
       {hasChildren ? (
         children
       ) : (
-        <EmptyState content="No databases available" className="pl-2" />
+        <EmptyState
+          content="No databases available"
+          className={INDENT.engineEmpty}
+        />
       )}
     </>
   );
@@ -312,7 +335,10 @@ const DatabaseItem: React.FC<{
   return (
     <>
       <CommandItem
-        className="text-sm flex flex-row gap-1 items-center cursor-pointer rounded-none"
+        className={cn(
+          "text-sm flex flex-row gap-1 items-center cursor-pointer rounded-none",
+          INDENT.database,
+        )}
         onSelect={() => {
           setIsExpanded(!isExpanded);
           setIsSelected(!isSelected);
@@ -357,7 +383,12 @@ const SchemaList: React.FC<{
   searchValue,
 }) => {
   if (schemas.length === 0) {
-    return <EmptyState content="No schemas available" className="pl-6" />;
+    return (
+      <EmptyState
+        content="No schemas available"
+        className={INDENT.schemaEmpty}
+      />
+    );
   }
 
   const filteredSchemas = schemas.filter((schema) => {
@@ -413,7 +444,10 @@ const SchemaItem: React.FC<{
   return (
     <>
       <CommandItem
-        className="text-sm flex flex-row gap-1 items-center pl-5 cursor-pointer rounded-none"
+        className={cn(
+          "text-sm flex flex-row gap-1 items-center cursor-pointer rounded-none",
+          INDENT.schema,
+        )}
         onSelect={() => {
           setIsExpanded(!isExpanded);
           setIsSelected(!isSelected);
@@ -474,15 +508,22 @@ const TableList: React.FC<{
   }, [tables.length, sqlTableContext, tablesRequested]);
 
   if (isPending || tablesLoading) {
-    return <LoadingState message="Loading tables..." className="pl-12" />;
+    return (
+      <LoadingState
+        message="Loading tables..."
+        className={INDENT.tableLoading}
+      />
+    );
   }
 
   if (error) {
-    return <ErrorState error={error} className="pl-12" />;
+    return <ErrorState error={error} className={INDENT.tableLoading} />;
   }
 
   if (tables.length === 0) {
-    return <EmptyState content="No tables found" className="pl-9" />;
+    return (
+      <EmptyState content="No tables found" className={INDENT.tableLoading} />
+    );
   }
 
   const filteredTables = tables.filter((table) => {
@@ -607,17 +648,27 @@ const DatasetTableItem: React.FC<{
 
   const renderColumns = () => {
     if (isPending || isFetching) {
-      return <LoadingState message="Loading columns..." className="pl-12" />;
+      return (
+        <LoadingState
+          message="Loading columns..."
+          className={INDENT.tableLoading}
+        />
+      );
     }
 
     if (error) {
-      return <ErrorState error={error} className="pl-12" />;
+      return <ErrorState error={error} className={INDENT.tableLoading} />;
     }
 
     const columns = table.columns;
 
     if (columns.length === 0) {
-      return <EmptyState content="No columns found" className="pl-12" />;
+      return (
+        <EmptyState
+          content="No columns found"
+          className={INDENT.tableLoading}
+        />
+      );
     }
 
     return columns.map((column) => (
@@ -654,7 +705,9 @@ const DatasetTableItem: React.FC<{
         className={cn(
           "rounded-none group h-8 cursor-pointer",
           sqlTableContext &&
-            (isSchemaless(sqlTableContext.schema) ? "pl-9" : "pl-12"),
+            (isSchemaless(sqlTableContext.schema)
+              ? INDENT.tableSchemaless
+              : INDENT.tableWithSchema),
           (isExpanded || isSearching) && "font-semibold",
         )}
         value={uniqueId}
@@ -662,7 +715,7 @@ const DatasetTableItem: React.FC<{
         forceMount={true}
         onSelect={() => setIsExpanded(!isExpanded)}
       >
-        <div className="flex gap-2 items-center flex-1">
+        <div className="flex gap-2 items-center flex-1 pl-1">
           {renderTableType()}
           <span className="text-sm">{table.name}</span>
         </div>
@@ -748,7 +801,7 @@ const DatasetColumnItem: React.FC<{
         <div
           className={cn(
             "flex flex-row gap-2 items-center flex-1",
-            sqlTableContext ? "pl-14" : "pl-7",
+            sqlTableContext ? INDENT.columnSql : INDENT.columnLocal,
           )}
         >
           <ColumnName columnName={columnText} dataType={column.type} />
@@ -775,7 +828,12 @@ const DatasetColumnItem: React.FC<{
         </span>
       </CommandItem>
       {isExpanded && (
-        <div className="pl-10 pr-2 py-2 bg-(--slate-1) shadow-inner border-b">
+        <div
+          className={cn(
+            INDENT.columnPreview,
+            "pr-2 py-2 bg-(--slate-1) shadow-inner border-b",
+          )}
+        >
           <ErrorBoundary>
             <DatasetColumnPreview
               table={table}

@@ -1,6 +1,10 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { langs, loadLanguage } from "@uiw/codemirror-extensions-langs";
+import {
+  type LanguageName,
+  langs,
+  loadLanguage,
+} from "@uiw/codemirror-extensions-langs";
 import ReactCodeMirror, {
   type Extension,
   type ReactCodeMirrorProps,
@@ -11,11 +15,22 @@ import type { ResolvedTheme } from "@/theme/useTheme";
 import { Logger } from "@/utils/Logger";
 import { ErrorBanner } from "../common/error-banner";
 
-export const LANGUAGE_MAP: Record<string, string> = {
+export const LANGUAGE_MAP: Record<string, LanguageName | undefined> = {
   python: "py",
   javascript: "js",
   typescript: "ts",
+  shell: "sh",
+  bash: "sh",
 };
+
+function isSupportedLanguage(
+  language: string | undefined,
+): language is LanguageName {
+  if (!language) {
+    return false;
+  }
+  return language in langs;
+}
 
 /**
  * A code editor that supports any language.
@@ -33,13 +48,13 @@ const AnyLanguageCodeMirror: React.FC<
   // Maybe normalize the language to the extension
   language = LANGUAGE_MAP[language || ""] || language;
 
-  const isNotSupported = language && !(language in langs);
-  if (isNotSupported) {
+  const isSupported = isSupportedLanguage(language);
+  if (!isSupported) {
     Logger.warn(`Language ${language} not found in CodeMirror.`);
   }
 
   const finalExtensions = useMemo((): Extension[] => {
-    if (!language) {
+    if (!isSupportedLanguage(language)) {
       return extensions;
     }
     return [loadLanguage(language), ...extensions].filter(Boolean);
@@ -47,7 +62,7 @@ const AnyLanguageCodeMirror: React.FC<
 
   return (
     <div className="relative w-full group hover-actions-parent">
-      {isNotSupported && (
+      {!isSupported && (
         <ErrorBanner
           className="mb-1 rounded-sm"
           error={`Language ${language} not supported. \n\nSupported languages are: ${Object.keys(
@@ -55,7 +70,7 @@ const AnyLanguageCodeMirror: React.FC<
           ).join(", ")}`}
         />
       )}
-      {showCopyButton && !isNotSupported && (
+      {showCopyButton && isSupported && (
         <CopyClipboardIcon
           tooltip={false}
           buttonClassName="absolute top-2 right-2 z-10 hover-action"

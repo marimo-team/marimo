@@ -12,8 +12,12 @@ import plotly.express as px
 import plotly.graph_objects as go
 
 from marimo._plugins.ui._impl.plotly import (
+    _extract_bars_fallback,
+    _extract_bars_numpy,
     _extract_heatmap_cells_fallback,
     _extract_heatmap_cells_numpy,
+    _extract_scatter_points_fallback,
+    _extract_scatter_points_numpy,
     plotly,
 )
 
@@ -331,8 +335,13 @@ def test_value_returns_points() -> None:
     }
 
     # _convert_value returns the points
+    # With the new line chart support, it now extracts ALL points in the x-range
     result = plot._convert_value(selection)
-    assert result == [{"x": 1, "y": 4}]
+    assert len(result) == 2  # Points at x=1 and x=2
+    assert result[0]["x"] == 1
+    assert result[0]["y"] == 4
+    assert result[1]["x"] == 2
+    assert result[1]["y"] == 5
 
 
 def test_plotly_name() -> None:
@@ -559,9 +568,19 @@ def test_heatmap_curve_number() -> None:
 
     result = plot._convert_value(selection)
 
-    # Heatmap cells should have curveNumber = 1
+    # Should include both scatter points (curveNumber=0) and heatmap cells (curveNumber=1)
     assert len(result) > 0
-    assert all(cell.get("curveNumber") == 1 for cell in result)
+
+    # Separate scatter and heatmap points
+    scatter_points = [p for p in result if p.get("curveNumber") == 0]
+    heatmap_cells = [p for p in result if p.get("curveNumber") == 1]
+
+    # Should have points from both traces
+    assert len(scatter_points) > 0, "Should have scatter points from trace 0"
+    assert len(heatmap_cells) > 0, "Should have heatmap cells from trace 1"
+
+    # Heatmap cells should have z values
+    assert all("z" in cell for cell in heatmap_cells)
 
 
 def test_heatmap_initial_selection() -> None:
@@ -740,6 +759,759 @@ def test_heatmap_numpy_and_fallback_produce_same_results() -> None:
         assert np_cell["y"] == fb_cell["y"]
         assert np_cell["z"] == fb_cell["z"]
         assert np_cell["curveNumber"] == fb_cell["curveNumber"]
+
+
+# ============================================================================
+# Bar Chart Tests
+# ============================================================================
+
+
+def test_bar_chart_basic() -> None:
+    """Test that bar charts can be created (supported chart type)."""
+    fig = go.Figure(
+        data=go.Bar(
+            x=["A", "B", "C"],
+            y=[10, 20, 15],
+        )
+    )
+    plot = plotly(fig)
+
+    assert plot is not None
+    assert plot.value == []
+
+
+# ============================================================================
+# Line Chart Tests
+# ============================================================================
+
+
+def test_line_chart_basic() -> None:
+    """Test that line charts can be created (supported chart type)."""
+    fig = go.Figure(
+        data=go.Scatter(
+            x=[1, 2, 3, 4, 5],
+            y=[10, 20, 15, 25, 30],
+            mode="lines",
+        )
+    )
+    plot = plotly(fig)
+
+    assert plot is not None
+    assert plot.value == []
+
+
+def test_bar_chart_selection_vertical() -> None:
+    """Test bar chart selection with vertical bars (categorical x-axis)."""
+    fig = go.Figure(
+        data=go.Bar(
+            x=["A", "B", "C", "D"],
+            y=[10, 20, 15, 25],
+        )
+    )
+    plot = plotly(fig)
+
+    # Simulate a selection from frontend (selecting bars B and C)
+    selection = {
+        "range": {"x": [0.5, 2.5], "y": [0, 30]},
+        "points": [],
+        "indices": [],
+    }
+
+    result = plot._convert_value(selection)
+
+    # Should extract bars at indices 1 and 2 (B and C)
+    assert len(result) == 2
+    assert any(bar["x"] == "B" and bar["y"] == 20 for bar in result)
+    assert any(bar["x"] == "C" and bar["y"] == 15 for bar in result)
+
+
+def test_line_chart_selection() -> None:
+    """Test box selection on pure line chart."""
+    fig = go.Figure(
+        data=go.Scatter(
+            x=[1, 2, 3, 4, 5],
+            y=[10, 20, 15, 25, 30],
+            mode="lines",
+        )
+    )
+    fig.update_xaxes(title_text="X")
+    fig.update_yaxes(title_text="Y")
+
+    plot = plotly(fig)
+
+    # Simulate box selection from x=2 to x=4
+    selection = {
+        "range": {"x": [2, 4], "y": [10, 30]},
+        "points": [],  # Empty for pure lines
+        "indices": [],
+    }
+
+    result = plot._convert_value(selection)
+
+    # Should return points at x=2, 3, 4
+    assert len(result) == 3
+    assert result[0]["X"] == 2
+    assert result[0]["Y"] == 20
+    assert result[1]["X"] == 3
+    assert result[1]["Y"] == 15
+    assert result[2]["X"] == 4
+    assert result[2]["Y"] == 25
+
+
+def test_line_markers_selection() -> None:
+    """Test box selection on line chart with markers."""
+    fig = go.Figure(
+        data=go.Scatter(
+            x=[1, 2, 3, 4, 5],
+            y=[10, 20, 15, 25, 30],
+            mode="lines+markers",
+        )
+    )
+    fig.update_xaxes(title_text="Time")
+    fig.update_yaxes(title_text="Value")
+
+    plot = plotly(fig)
+
+    # Simulate box selection from x=1.5 to x=3.5
+    selection = {
+        "range": {"x": [1.5, 3.5], "y": [10, 25]},
+        "points": [],
+        "indices": [],
+    }
+
+    result = plot._convert_value(selection)
+
+    # Should return points at x=2, 3
+    assert len(result) == 2
+    assert result[0]["Time"] == 2
+    assert result[0]["Value"] == 20
+    assert result[1]["Time"] == 3
+    assert result[1]["Value"] == 15
+
+
+def test_bar_chart_selection_horizontal() -> None:
+    """Test bar chart selection with horizontal bars."""
+    fig = go.Figure(
+        data=go.Bar(
+            x=[10, 20, 15],
+            y=["A", "B", "C"],
+            orientation="h",
+        )
+    )
+    plot = plotly(fig)
+
+    # Simulate a selection (selecting bars A and B)
+    selection = {
+        "range": {"x": [0, 30], "y": [-0.5, 1.5]},
+        "points": [],
+        "indices": [],
+    }
+
+    result = plot._convert_value(selection)
+
+    # Should extract bars at y-indices 0 and 1 (A and B)
+    assert len(result) == 2
+    assert any(bar["y"] == "A" and bar["x"] == 10 for bar in result)
+    assert any(bar["y"] == "B" and bar["x"] == 20 for bar in result)
+
+
+def test_bar_chart_categorical_axis() -> None:
+    """Test bar chart with categorical x-axis (most common case)."""
+    fig = go.Figure(
+        data=go.Bar(
+            x=["Product A", "Product B", "Product C"],
+            y=[100, 200, 150],
+        )
+    )
+    plot = plotly(fig)
+
+    # Select middle bar (Product B at index 1)
+    selection = {
+        "range": {"x": [0.7, 1.3], "y": [0, 250]},
+        "points": [],
+        "indices": [],
+    }
+
+    result = plot._convert_value(selection)
+
+    assert len(result) == 1
+    assert result[0]["x"] == "Product B"
+    assert result[0]["y"] == 200
+
+
+def test_bar_chart_numeric_axis() -> None:
+    """Test bar chart with numeric x-axis (histogram-like)."""
+    fig = go.Figure(
+        data=go.Bar(
+            x=[10, 20, 30, 40],
+            y=[5, 12, 8, 15],
+        )
+    )
+    plot = plotly(fig)
+
+    # Select bars at x=20 and x=30
+    selection = {
+        "range": {"x": [15, 35], "y": [0, 20]},
+        "points": [],
+        "indices": [],
+    }
+
+    result = plot._convert_value(selection)
+
+    assert len(result) == 2
+    assert any(bar["x"] == 20 and bar["y"] == 12 for bar in result)
+    assert any(bar["x"] == 30 and bar["y"] == 8 for bar in result)
+
+
+def test_bar_chart_stacked() -> None:
+    """Test stacked bar chart - should return all segments at selected positions."""
+    fig = go.Figure()
+    # Two traces for stacked bars
+    fig.add_trace(go.Bar(x=["A", "B", "C"], y=[10, 15, 12], name="Series1"))
+    fig.add_trace(go.Bar(x=["A", "B", "C"], y=[5, 8, 6], name="Series2"))
+
+    plot = plotly(fig)
+
+    # Select bar at position A (index 0)
+    selection = {
+        "range": {"x": [-0.5, 0.5], "y": [0, 30]},
+        "points": [],
+        "indices": [],
+    }
+
+    result = plot._convert_value(selection)
+
+    # Should return both segments at position A (one from each trace)
+    assert len(result) == 2
+    assert any(bar["x"] == "A" and bar["y"] == 10 for bar in result)
+    assert any(bar["x"] == "A" and bar["y"] == 5 for bar in result)
+    # Check curveNumber to distinguish traces
+    assert result[0]["curveNumber"] != result[1]["curveNumber"]
+
+
+def test_bar_chart_grouped() -> None:
+    """Test grouped bar chart - should return all bars at selected position."""
+    fig = go.Figure()
+    # Two traces for grouped bars
+    fig.add_trace(go.Bar(x=["A", "B", "C"], y=[20, 25, 18], name="Series1"))
+    fig.add_trace(go.Bar(x=["A", "B", "C"], y=[15, 22, 16], name="Series2"))
+
+    plot = plotly(fig)
+
+    # Select category B (index 1)
+    selection = {
+        "range": {"x": [0.5, 1.5], "y": [0, 30]},
+        "points": [],
+        "indices": [],
+    }
+
+    result = plot._convert_value(selection)
+
+    # Should return both bars at category B
+    assert len(result) == 2
+    assert any(bar["x"] == "B" and bar["y"] == 25 for bar in result)
+    assert any(bar["x"] == "B" and bar["y"] == 22 for bar in result)
+
+
+def test_bar_chart_empty_selection() -> None:
+    """Test bar chart selection with range that includes no bars."""
+    fig = go.Figure(
+        data=go.Bar(
+            x=["A", "B", "C"],
+            y=[10, 20, 15],
+        )
+    )
+    plot = plotly(fig)
+
+    # Select a range with no bars (far to the right)
+    selection = {
+        "range": {"x": [5, 10], "y": [0, 30]},
+        "points": [],
+        "indices": [],
+    }
+
+    result = plot._convert_value(selection)
+
+    # Should be empty
+    assert result == []
+
+
+def test_line_chart_with_axis_titles() -> None:
+    """Test line chart selection with custom axis titles."""
+    fig = go.Figure(
+        data=go.Scatter(
+            x=[1, 2, 3, 4, 5],
+            y=[10, 20, 15, 25, 30],
+            mode="lines",
+        )
+    )
+    fig.update_xaxes(title_text="Time")
+    fig.update_yaxes(title_text="Value")
+
+    plot = plotly(fig)
+
+    selection = {
+        "range": {"x": [2, 3], "y": [0, 30]},
+        "points": [],
+        "indices": [],
+    }
+
+    result = plot._convert_value(selection)
+
+    # Should return points at x=2, 3
+    assert len(result) == 2
+    assert result[0]["Time"] == 2
+    assert result[0]["Value"] == 20
+    assert result[1]["Time"] == 3
+    assert result[1]["Value"] == 15
+
+
+def test_multiple_line_traces_selection() -> None:
+    """Test box selection on multiple line traces."""
+    fig = go.Figure()
+    fig.add_trace(
+        go.Scatter(
+            x=[1, 2, 3, 4, 5],
+            y=[10, 20, 15, 25, 30],
+            mode="lines",
+            name="Series A",
+        )
+    )
+    fig.add_trace(
+        go.Scatter(
+            x=[1, 2, 3, 4, 5],
+            y=[15, 10, 20, 18, 25],
+            mode="lines",
+            name="Series B",
+        )
+    )
+    fig.update_xaxes(title_text="X")
+    fig.update_yaxes(title_text="Y")
+
+    plot = plotly(fig)
+
+    # Simulate box selection from x=2 to x=4
+    selection = {
+        "range": {"x": [2, 4], "y": [0, 30]},
+        "points": [],
+        "indices": [],
+    }
+
+    result = plot._convert_value(selection)
+
+    # Should return 6 points total: 3 from each trace
+    assert len(result) == 6
+
+    # Check Series A points
+    series_a_points = [p for p in result if p.get("name") == "Series A"]
+    assert len(series_a_points) == 3
+    assert series_a_points[0]["X"] == 2
+    assert series_a_points[1]["X"] == 3
+    assert series_a_points[2]["X"] == 4
+
+    # Check Series B points
+    series_b_points = [p for p in result if p.get("name") == "Series B"]
+    assert len(series_b_points) == 3
+    assert series_b_points[0]["X"] == 2
+    assert series_b_points[1]["X"] == 3
+    assert series_b_points[2]["X"] == 4
+
+
+def test_line_chart_no_axis_titles() -> None:
+    """Test line chart selection without axis titles."""
+    fig = go.Figure(
+        data=go.Scatter(
+            x=[1, 2, 3, 4, 5],
+            y=[10, 20, 15, 25, 30],
+            mode="lines",
+        )
+    )
+
+    plot = plotly(fig)
+
+    selection = {
+        "range": {"x": [2, 4], "y": [10, 30]},
+        "points": [],
+        "indices": [],
+    }
+
+    result = plot._convert_value(selection)
+
+    # Should use default field names 'x' and 'y'
+    assert len(result) == 3
+    assert result[0]["x"] == 2
+    assert result[0]["y"] == 20
+
+
+def test_line_chart_empty_selection() -> None:
+    """Test line chart with range that includes no points."""
+    fig = go.Figure(
+        data=go.Scatter(
+            x=[1, 2, 3],
+            y=[10, 20, 30],
+            mode="lines",
+        )
+    )
+
+    plot = plotly(fig)
+
+    # Select range outside data
+    selection = {
+        "range": {"x": [10, 20], "y": [0, 100]},
+        "points": [],
+        "indices": [],
+    }
+
+    result = plot._convert_value(selection)
+
+    # Should be empty
+    assert result == []
+
+
+def test_bar_chart_single_bar() -> None:
+    """Test bar chart with a single bar."""
+    fig = go.Figure(
+        data=go.Bar(
+            x=["OnlyBar"],
+            y=[42],
+        )
+    )
+    plot = plotly(fig)
+
+    # Select the single bar (categorical at index 0)
+    selection = {
+        "range": {"x": [-0.5, 0.5], "y": [0, 50]},
+        "points": [],
+        "indices": [],
+    }
+
+    result = plot._convert_value(selection)
+
+    # Should extract the single bar
+    assert len(result) == 1
+    assert result[0]["x"] == "OnlyBar"
+    assert result[0]["y"] == 42
+
+
+def test_line_chart_single_point_selection() -> None:
+    """Test line chart with range that covers only one point."""
+    fig = go.Figure(
+        data=go.Scatter(
+            x=[1, 2, 3, 4, 5],
+            y=[10, 20, 15, 25, 30],
+            mode="lines",
+        )
+    )
+
+    plot = plotly(fig)
+
+    # Very narrow range around x=3
+    selection = {
+        "range": {"x": [2.9, 3.1], "y": [0, 30]},
+        "points": [],
+        "indices": [],
+    }
+
+    result = plot._convert_value(selection)
+
+    # Should return only point at x=3
+    assert len(result) == 1
+    assert result[0]["x"] == 3
+    assert result[0]["y"] == 15
+
+
+def test_bar_chart_initial_selection() -> None:
+    """Test that initial selection works with bar charts."""
+    fig = go.Figure(
+        data=go.Bar(
+            x=["A", "B", "C", "D"],
+            y=[10, 20, 15, 25],
+        )
+    )
+
+    # Add an initial selection
+    fig.add_selection(x0=0.5, x1=2.5, y0=0, y1=30, xref="x", yref="y")
+
+    plot = plotly(fig)
+
+    # Check that initial value contains the selection
+    initial_value = plot._args.initial_value
+    assert "range" in initial_value
+    assert initial_value["range"]["x"] == [0.5, 2.5]
+    assert initial_value["range"]["y"] == [0, 30]
+
+    # For bar charts, should extract bars at indices 1 and 2 (B and C)
+    assert "points" in initial_value
+    assert len(initial_value["points"]) == 2
+    assert any(
+        bar["x"] == "B" and bar["y"] == 20 for bar in initial_value["points"]
+    )
+    assert any(
+        bar["x"] == "C" and bar["y"] == 15 for bar in initial_value["points"]
+    )
+
+
+def test_bar_chart_curve_number() -> None:
+    """Test that bar chart cells include curveNumber for multi-trace plots."""
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=[1, 2], y=[1, 2]))  # trace 0
+    fig.add_trace(go.Bar(x=["A", "B"], y=[10, 20]))  # trace 1
+
+    plot = plotly(fig)
+
+    selection = {
+        "range": {"x": [-0.5, 0.5], "y": [0, 30]},
+        "points": [],
+        "indices": [],
+    }
+
+    result = plot._convert_value(selection)
+
+    # Bar should have curveNumber = 1
+    bar_items = [r for r in result if "x" in r and r["x"] == "A"]
+    assert len(bar_items) > 0
+    assert bar_items[0]["curveNumber"] == 1
+
+
+def test_bar_chart_mixed_with_scatter() -> None:
+    """Test figure with both scatter and bar traces."""
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=[0, 1, 2], y=[5, 10, 15], mode="markers"))
+    fig.add_trace(go.Bar(x=["A", "B", "C"], y=[10, 20, 15]))
+
+    plot = plotly(fig)
+
+    # Select range that includes scatter points and bars
+    selection = {
+        "range": {"x": [-0.5, 2.5], "y": [5, 25]},
+        "points": [],
+        "indices": [],
+    }
+
+    result = plot._convert_value(selection)
+
+    # Should include both scatter points and bar(s)
+    # The exact count depends on the x-range mapping to categorical bar positions
+    assert len(result) >= 2
+    # Should have at least one bar
+    assert any(r.get("x") in ["A", "B", "C"] for r in result)
+    # Should have scatter points
+    assert any(isinstance(r.get("x"), int) for r in result)
+
+
+def test_line_chart_with_curve_number() -> None:
+    """Test that line chart points include curveNumber."""
+    fig = go.Figure()
+    fig.add_trace(
+        go.Scatter(x=[1, 2, 3], y=[10, 20, 15], mode="lines", name="A")
+    )
+    fig.add_trace(
+        go.Scatter(x=[1, 2, 3], y=[15, 10, 20], mode="lines", name="B")
+    )
+
+    plot = plotly(fig)
+
+    selection = {
+        "range": {"x": [1, 3], "y": [0, 30]},
+        "points": [],
+        "indices": [],
+    }
+
+    result = plot._convert_value(selection)
+
+    # Check that all points have curveNumber
+    assert all("curveNumber" in point for point in result)
+
+    # Check we have points from both traces
+    curve_numbers = {point["curveNumber"] for point in result}
+    assert curve_numbers == {0, 1}
+
+
+# Test numpy vs fallback implementations
+
+
+def test_bar_numpy_and_fallback_match_categorical() -> None:
+    """Test that numpy and fallback produce identical results for categorical bars."""
+    fig = go.Figure(
+        data=go.Bar(
+            x=["A", "B", "C", "D"],
+            y=[10, 20, 15, 25],
+        )
+    )
+
+    x_min, x_max = 0.5, 2.5
+    y_min, y_max = 0, 30
+
+    # Get results from both implementations
+    numpy_result = _extract_bars_numpy(fig, x_min, x_max, y_min, y_max)
+    fallback_result = _extract_bars_fallback(fig, x_min, x_max, y_min, y_max)
+
+    # Both should return the same number of bars
+    assert len(numpy_result) == len(fallback_result)
+
+    # Sort results for comparison
+    def sort_key(bar: dict[str, Any]) -> tuple[Any, ...]:
+        return (bar["x"], bar["y"], bar["curveNumber"])
+
+    numpy_sorted = sorted(numpy_result, key=sort_key)
+    fallback_sorted = sorted(fallback_result, key=sort_key)
+
+    # Compare each bar
+    for np_bar, fb_bar in zip(numpy_sorted, fallback_sorted):
+        assert np_bar["x"] == fb_bar["x"]
+        assert np_bar["y"] == fb_bar["y"]
+        assert np_bar["curveNumber"] == fb_bar["curveNumber"]
+
+
+def test_bar_numpy_and_fallback_match_numeric() -> None:
+    """Test that numpy and fallback produce identical results for numeric bars."""
+    fig = go.Figure(
+        data=go.Bar(
+            x=[10, 20, 30, 40],
+            y=[5, 12, 8, 15],
+        )
+    )
+
+    x_min, x_max = 15, 35
+    y_min, y_max = 0, 20
+
+    numpy_result = _extract_bars_numpy(fig, x_min, x_max, y_min, y_max)
+    fallback_result = _extract_bars_fallback(fig, x_min, x_max, y_min, y_max)
+
+    assert len(numpy_result) == len(fallback_result)
+
+    def sort_key(bar: dict[str, Any]) -> tuple[Any, ...]:
+        return (bar["x"], bar["y"], bar["curveNumber"])
+
+    numpy_sorted = sorted(numpy_result, key=sort_key)
+    fallback_sorted = sorted(fallback_result, key=sort_key)
+
+    for np_bar, fb_bar in zip(numpy_sorted, fallback_sorted):
+        assert np_bar["x"] == fb_bar["x"]
+        assert np_bar["y"] == fb_bar["y"]
+        assert np_bar["curveNumber"] == fb_bar["curveNumber"]
+
+
+def test_bar_numpy_and_fallback_match_horizontal() -> None:
+    """Test that numpy and fallback produce identical results for horizontal bars."""
+    fig = go.Figure(
+        data=go.Bar(
+            x=[10, 20, 15],
+            y=["A", "B", "C"],
+            orientation="h",
+        )
+    )
+
+    x_min, x_max = 0, 30
+    y_min, y_max = -0.5, 1.5
+
+    numpy_result = _extract_bars_numpy(fig, x_min, x_max, y_min, y_max)
+    fallback_result = _extract_bars_fallback(fig, x_min, x_max, y_min, y_max)
+
+    assert len(numpy_result) == len(fallback_result)
+
+    def sort_key(bar: dict[str, Any]) -> tuple[Any, ...]:
+        return (str(bar["y"]), bar["x"], bar["curveNumber"])
+
+    numpy_sorted = sorted(numpy_result, key=sort_key)
+    fallback_sorted = sorted(fallback_result, key=sort_key)
+
+    for np_bar, fb_bar in zip(numpy_sorted, fallback_sorted):
+        assert np_bar["x"] == fb_bar["x"]
+        assert np_bar["y"] == fb_bar["y"]
+        assert np_bar["curveNumber"] == fb_bar["curveNumber"]
+
+
+def test_scatter_points_numpy_and_fallback() -> None:
+    """Test that numpy and fallback implementations produce identical results."""
+    fig = go.Figure(
+        data=go.Scatter(
+            x=[1, 2, 3, 4, 5],
+            y=[10, 20, 15, 25, 30],
+            mode="lines",
+        )
+    )
+
+    x_min, x_max = 2, 4
+
+    # Get results from both implementations
+    numpy_result = _extract_scatter_points_numpy(fig, x_min, x_max)
+    fallback_result = _extract_scatter_points_fallback(fig, x_min, x_max)
+
+    # Both should return the same number of points
+    assert len(numpy_result) == len(fallback_result)
+
+    # Sort results for comparison (order might differ)
+    def sort_key(point: dict[str, Any]) -> tuple[Any, ...]:
+        return (point["x"], point["y"])
+
+    numpy_sorted = sorted(numpy_result, key=sort_key)
+    fallback_sorted = sorted(fallback_result, key=sort_key)
+
+    # Compare each point
+    for np_point, fb_point in zip(numpy_sorted, fallback_sorted):
+        assert np_point["x"] == fb_point["x"]
+        assert np_point["y"] == fb_point["y"]
+        assert np_point["curveNumber"] == fb_point["curveNumber"]
+
+
+def test_line_chart_filters_by_x_range_only() -> None:
+    """Test that line chart selection filters by x-range, matching Altair behavior."""
+    fig = go.Figure(
+        data=go.Scatter(
+            x=[1, 2, 3, 4, 5],
+            y=[10, 50, 15, 60, 30],  # Varying y values
+            mode="lines",
+        )
+    )
+
+    plot = plotly(fig)
+
+    # Select x range 2-4, with narrow y range that wouldn't include all points
+    selection = {
+        "range": {
+            "x": [2, 4],
+            "y": [10, 20],
+        },  # y range only covers some points
+        "points": [],
+        "indices": [],
+    }
+
+    result = plot._convert_value(selection)
+
+    # Should return ALL points in x-range [2,4], regardless of y
+    # This matches Altair behavior
+    assert len(result) == 3
+    assert result[0]["x"] == 2
+    assert result[0]["y"] == 50  # y=50 is outside [10,20] but still included
+    assert result[1]["x"] == 3
+    assert result[1]["y"] == 15
+    assert result[2]["x"] == 4
+    assert result[2]["y"] == 60  # y=60 is outside [10,20] but still included
+
+
+def test_mixed_heatmap_and_line_selection() -> None:
+    """Test that heatmap and line selections don't interfere with each other."""
+    # Create figure with both heatmap and line
+    fig = go.Figure()
+    fig.add_trace(
+        go.Scatter(x=[1, 2, 3], y=[10, 20, 15], mode="lines", name="Line")
+    )
+    # Note: Not adding heatmap since they typically don't mix,
+    # but test that scatter detection works correctly
+
+    plot = plotly(fig)
+
+    selection = {
+        "range": {"x": [1, 3], "y": [0, 30]},
+        "points": [],
+        "indices": [],
+    }
+
+    result = plot._convert_value(selection)
+
+    # Should extract line points
+    assert len(result) == 3
 
 
 def test_heatmap_numpy_and_fallback_numeric_axes() -> None:

@@ -5,6 +5,10 @@ on:
     branches: [main]
   pull_request:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
   pull-requests: write
@@ -37,9 +41,6 @@ jobs:
     name: Test docs
     runs-on: ubuntu-latest
     steps:
-      - name: 🛑 Cancel Previous Runs
-        uses: styfle/cancel-workflow-action@0.12.1
-
       - name: ⬇️ Checkout repo
         uses: actions/checkout@v4
 
@@ -64,9 +65,6 @@ jobs:
     name: Test lint and typecheck
     runs-on: ubuntu-latest
     steps:
-      - name: 🛑 Cancel Previous Runs
-        uses: styfle/cancel-workflow-action@0.12.1
-
       - name: ⬇️ Checkout repo
         uses: actions/checkout@v4
 
@@ -144,9 +142,6 @@ jobs:
             dependencies: "core,optional"
           # TODO: Add in 3.14 optional once there is broader wheel support
     steps:
-      - name: 🛑 Cancel Previous Runs
-        uses: styfle/cancel-workflow-action@0.12.1
-
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0 # Fetch all history for git diff
@@ -237,9 +232,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
-      - name: 🛑 Cancel Previous Runs
-        uses: styfle/cancel-workflow-action@0.12.1
-
       - uses: actions/checkout@v4
 
       - name: 🥚 Install Hatch

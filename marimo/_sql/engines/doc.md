@@ -49,6 +49,7 @@ Examples of just the query operations:
 
 Examples of both catalog and query operations:
 
+- Any Arrow Database Connectivity (ADBC) DB-API Driver
 - SQLAlchemy/SQLModel
 - DuckDB
 - Clickhouse

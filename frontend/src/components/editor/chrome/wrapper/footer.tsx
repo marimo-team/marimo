@@ -9,7 +9,7 @@ import { cellErrorCount } from "@/core/cells/cells";
 import { isConnectingAtom } from "@/core/network/connection";
 import { useHotkey } from "@/hooks/useHotkey";
 import { ShowInKioskMode } from "../../kiosk-mode";
-import { useChromeActions, useChromeState } from "../state";
+import { panelLayoutAtom, useChromeActions, useChromeState } from "../state";
 import { FooterItem } from "./footer-item";
 import { AIStatusIcon } from "./footer-items/ai-status";
 import {
@@ -18,32 +18,42 @@ import {
 } from "./footer-items/backend-status";
 import { CopilotStatusIcon } from "./footer-items/copilot-status";
 import { MachineStats } from "./footer-items/machine-stats";
-import { MinimapStatusIcon } from "./footer-items/minimap-status";
 import { RTCStatus } from "./footer-items/rtc-status";
 import { RuntimeSettings } from "./footer-items/runtime-settings";
+import { useSetDependencyPanelTab } from "./useDependencyPanelTab";
 
 export const Footer: React.FC = () => {
   const { isDeveloperPanelOpen } = useChromeState();
-  const { toggleDeveloperPanel } = useChromeActions();
+  const { toggleDeveloperPanel, toggleApplication } = useChromeActions();
+  const setDependencyPanelTab = useSetDependencyPanelTab();
 
   const errorCount = useAtomValue(cellErrorCount);
   const connectionStatus = useAtomValue(connectionStatusAtom);
+  const panelLayout = useAtomValue(panelLayoutAtom);
 
   // Show issue count: cell errors + connection issues
+  // Don't include error count if errors panel is in sidebar (it shows there instead)
+  const errorsInSidebar = panelLayout.sidebar.includes("errors");
   const hasConnectionIssue =
     connectionStatus === "unhealthy" || connectionStatus === "disconnected";
-  const issueCount = errorCount + (hasConnectionIssue ? 1 : 0);
+  const issueCount =
+    (errorsInSidebar ? 0 : errorCount) + (hasConnectionIssue ? 1 : 0);
 
   // TODO: Add warning count from diagnostics/linting
   // This can signal warnings/errors with settings up AI / Copilot etc
   const warningCount = 0;
 
   useHotkey("global.toggleTerminal", () => {
-    toggleDeveloperPanel();
+    toggleApplication("terminal");
   });
 
   useHotkey("global.togglePanel", () => {
     toggleDeveloperPanel();
+  });
+
+  useHotkey("global.toggleMinimap", () => {
+    toggleApplication("dependencies");
+    setDependencyPanelTab("minimap");
   });
 
   return (
@@ -92,7 +102,6 @@ export const Footer: React.FC = () => {
 
       <div className="flex items-center shrink-0 min-w-0">
         <MachineStats />
-        <MinimapStatusIcon />
         <AIStatusIcon />
         <CopilotStatusIcon />
         <RTCStatus />

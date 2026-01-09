@@ -145,7 +145,9 @@ class SessionImpl(Session):
             *(extensions or []),
             LoggingExtension(),
             HeartbeatExtension(),
-            CachingExtension(enabled=not auto_instantiate),
+            CachingExtension(
+                enabled=not auto_instantiate and mode == SessionMode.EDIT
+            ),
             NotificationListenerExtension(
                 kernel_manager=kernel_manager, queue_manager=queue_manager
             ),

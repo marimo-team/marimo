@@ -1,252 +1,37 @@
-name: Publish release
+name: Release
 
-# release a new version of marimo on tag push
+# Orchestrates both production and development releases
 on:
   push:
+    branches:
+      - main
     tags:
       - '[0-9]+.[0-9]+.[0-9]+'
   workflow_dispatch: {}
 
-permissions:
-  contents: read
-
-env:
-  TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
-  TURBO_TEAM: marimo
-  REGISTRY: ghcr.io
-  IMAGE_NAME: marimo-team/marimo
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  publish_release:
-    name: 📤 Publish release
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        shell: bash
-
-    outputs:
-      marimo_version: ${{ steps.get_version.outputs.marimo_version }}
-
-    steps:
-      - name: 🛑 Cancel Previous Runs
-        uses: styfle/cancel-workflow-action@0.12.1
-
-      - name: ⬇️ Checkout repo
-        uses: actions/checkout@v4
-
-      - uses: pnpm/action-setup@v4
-
-      - name: ⎔ Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: 'pnpm'
-          cache-dependency-path: '**/pnpm-lock.yaml'
-          registry-url: 'https://registry.npmjs.org'
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
-      - name: 📦 Build frontend
-        run: make fe
-        env:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
-
-      - name: 🥚 Install Hatch
-        uses: pypa/hatch@install
-
-      - name: 📦 Build marimo
-        run: hatch build
-
-      - name: 📤 Upload to PyPI
-        env:
-          HATCH_INDEX_USER: ${{ secrets.PYPI_USER }}
-          HATCH_INDEX_AUTH: ${{ secrets.PYPI_PASSWORD }}
-        run: hatch publish
-
-      - name: 🔨 Get version
-        id: get_version
-        run: |
-          echo "marimo_version=$(hatch version)" >> $GITHUB_OUTPUT
-
-      - name: 📦 Update package.json version from CLI
-        working-directory: frontend
-        run: |
-          echo "Updating package.json version to ${{ steps.get_version.outputs.marimo_version }}"
-          npm version ${{ steps.get_version.outputs.marimo_version }} --no-git-tag-version
-
-      - name: 📤 Upload wasm to npm
-        working-directory: frontend
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: |
-          for i in {1..3}; do
-            npm publish --access public && break || {
-              echo "Publish attempt $i failed, retrying..."
-              sleep 10
-            }
-          done
-
-      - name: 📦 Update package.json name to @marimo-team/islands
-        working-directory: frontend
-        run: |
-          sed -i 's/"name": "@marimo-team\/frontend"/"name": "@marimo-team\/islands"/' package.json
-
-      - name: 📦 Rebuild frontend
-        working-directory: frontend
-        env:
-          NODE_ENV: production
-          VITE_MARIMO_ISLANDS: 'true'
-          VITE_MARIMO_VERSION: ${{ steps.get_version.outputs.marimo_version }}
-        run: |
-          pnpm turbo build:islands
-          ./islands/validate.sh
-
-      - name: 📤 Upload islands to npm
-        working-directory: frontend
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: |
-          for i in {1..3}; do
-            npm publish --access public && break || {
-              echo "Publish attempt $i failed, retrying..."
-              sleep 10
-            }
-          done
-
-  publish_docker:
-    name: 🐋 Publish Docker images
-    runs-on: ubuntu-latest
-    needs: [publish_release]
-    # Don't error while this is in BETA
-    continue-on-error: true
+  # Publish production release on tag push
+  release_prod:
+    name: 🚀 Production Release
+    if: startsWith(github.ref, 'refs/tags/')
+    uses: ./.github/workflows/release-prod.yml
+    secrets: inherit
     permissions:
-      contents: read
-      packages: write
+      contents: read # Required for checkout
+      packages: write # Required for Docker image publishing
+      id-token: write # Required for OIDC
 
-    steps:
-      - name: 🛑 Cancel Previous Runs
-        uses: styfle/cancel-workflow-action@0.12.1
-
-      - name: ⬇️ Checkout repo
-        uses: actions/checkout@v4
-
-      - name: ⏳ Wait for PyPI package availability
-        run: |
-          VERSION="${{ needs.publish_release.outputs.marimo_version }}"
-          echo "Waiting for marimo version $VERSION to be available on PyPI..."
-
-          MAX_ATTEMPTS=30
-          ATTEMPT=0
-          SLEEP_TIME=10
-
-          while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
-            ATTEMPT=$((ATTEMPT + 1))
-            echo "Attempt $ATTEMPT/$MAX_ATTEMPTS: Checking PyPI for version $VERSION..."
-
-            # Check if the version exists on PyPI
-            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "https://pypi.org/pypi/marimo/$VERSION/json")
-
-            if [ "$HTTP_CODE" = "200" ]; then
-              echo "✅ Version $VERSION is available on PyPI!"
-              exit 0
-            else
-              echo "Version $VERSION not yet available (HTTP $HTTP_CODE). Waiting ${SLEEP_TIME}s..."
-              sleep $SLEEP_TIME
-            fi
-          done
-
-          echo "❌ Timed out waiting for version $VERSION on PyPI after $((MAX_ATTEMPTS * SLEEP_TIME)) seconds"
-          exit 1
-
-      - name: 🐋 Log in to the Container registry
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: 🐋 Extract metadata (tags, labels) for Docker
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-
-      - name: 🐋 Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: 🧪 Build docker image for testing
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: ./docker/Dockerfile
-          # Don't push test image
-          push: false
-          load: true
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:test
-          target: slim
-          build-args: |
-            marimo_version=${{ needs.publish_release.outputs.marimo_version }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-      - name: 🧪 Test docker build
-        run: |
-          docker run -d -e PORT=9090 -p 9090:9090 --name test_container ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:test
-          sleep 2
-          curl -f http://localhost:9090/health || (docker logs test_container && exit 1)
-          docker stop test_container
-          docker rm test_container
-
-      - name: 📦 Build and push Docker images (slim)
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: ./docker/Dockerfile
-          push: true
-          tags: |
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.publish_release.outputs.marimo_version }}
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
-          target: slim
-          platforms: linux/amd64,linux/arm64
-          build-args: |
-            marimo_version=${{ needs.publish_release.outputs.marimo_version }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-      - name: 📦 Build and push Docker images (data)
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: ./docker/Dockerfile
-          push: true
-          tags: |
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.publish_release.outputs.marimo_version }}-data
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest-data
-          target: data
-          platforms: linux/amd64,linux/arm64
-          build-args: |
-            marimo_version=${{ needs.publish_release.outputs.marimo_version }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-      - name: 📦 Build and push Docker images (sql)
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: ./docker/Dockerfile
-          push: true
-          tags: |
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.publish_release.outputs.marimo_version }}-sql
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest-sql
-          target: sql
-          platforms: linux/amd64,linux/arm64
-          build-args: |
-            marimo_version=${{ needs.publish_release.outputs.marimo_version }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+  # Publish development release on push to main
+  release_dev:
+    name: 🔧 Development Release
+    if: github.ref == 'refs/heads/main'
+    uses: ./.github/workflows/release-dev.yml
+    secrets: inherit
+    permissions:
+      contents: read # Required for checkout
+      pull-requests: write # Required for PR comment
+      id-token: write # Required for OIDC

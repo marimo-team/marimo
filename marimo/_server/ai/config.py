@@ -211,7 +211,7 @@ class AnyProviderConfig:
         ai_config = _get_ai_config(config, "bedrock")
         key = _get_key(ai_config, "Bedrock")
         return cls(
-            base_url=_get_base_url(ai_config),
+            base_url=_get_base_url(ai_config, "Bedrock"),
             api_key=key,
             tools=_get_tools(config.get("mode", "manual")),
         )

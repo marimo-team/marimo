@@ -231,6 +231,8 @@ const mountOptionsSchema = z.object({
     .array(
       z.looseObject({
         url: z.string(),
+        // Lazy by default, but can be overridden by the runtime config
+        lazy: z.boolean().default(true),
         authToken: z.string().nullish(),
       }),
     )
@@ -300,7 +302,6 @@ function initStore(options: unknown) {
     Logger.debug("⚡ Runtime URL", firstRuntimeConfig.url);
     store.set(runtimeConfigAtom, {
       ...firstRuntimeConfig,
-      lazy: true,
       serverToken: parsedOptions.data.serverToken,
     });
   } else {

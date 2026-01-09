@@ -5,6 +5,10 @@ on:
     branches: [main]
   pull_request:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
@@ -38,27 +42,16 @@ jobs:
         shell: bash
 
     steps:
-      - name: 🛑 Cancel Previous Runs
-        uses: styfle/cancel-workflow-action@0.12.1
-
       - name: ⬇️ Checkout repo
         uses: actions/checkout@v4
         with:
           fetch-depth: 0 # so we can run --since on the main branch and turbo can do faster cache hashing
 
-      - uses: pnpm/action-setup@v4
-
-      - name: ⎔ Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: "pnpm"
-          cache-dependency-path: "**/pnpm-lock.yaml"
-
       - name: 📦 Build frontend
-        run: make fe
-        env:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+        uses: ./.github/actions/build-frontend
+        with:
+          turbo-token: ${{ secrets.TURBO_TOKEN }}
+          codecov-token: ${{ secrets.CODECOV_TOKEN }}
 
       - name: 🥚 Install Hatch
         uses: pypa/hatch@install
@@ -89,11 +82,42 @@ jobs:
       - name: Run LSP binary
         run: ./scripts/test-lsp.sh
       - name: Upload wheel
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: testwheel
           path: dist/*.whl
           retention-days: 1
+
+  test_pyodide:
+    needs: [changes, build_wheel]
+    if: ${{ needs.changes.outputs.cli == 'true' }}
+    name: Test Pyodide
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 📦 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Download wheel
+        uses: actions/download-artifact@v4
+        with:
+          name: testwheel
+          path: dist
+
+      - name: 🧪 Run Pyodide acceptance test
+        run: |
+          # Get version from package.json
+          pyodide_version=$(cat frontend/package.json | jq -r '.dependencies["pyodide"]')
+          echo "Pyodide version: $pyodide_version"
+          npm install pyodide@$pyodide_version
+          wheel_file=$(ls dist/*.whl)
+          echo "Testing wheel: $wheel_file"
+          node tests/_pyodide/test_pyodide_acceptance.mjs "$wheel_file"
 
   test_cli:
     needs: [changes, build_wheel]
@@ -145,8 +169,6 @@ jobs:
     timeout-minutes: 3 # 2024-01-18 avg: 0.3m max: 0.5m
 
     steps:
-      - name: 🛑 Cancel Previous Runs
-        uses: styfle/cancel-workflow-action@0.12.1
       - uses: actions/checkout@v4
 
       - name: 🐍 Setup uv

@@ -55,7 +55,7 @@ const DebuggerOutput: React.FC<{
         lineNumbers: false,
       }}
       extensions={[
-        langs.shell(),
+        langs.sh(),
         EditorView.updateListener.of((update) => {
           if (update.docChanged) {
             ref.current.view?.dispatch({
@@ -104,7 +104,7 @@ const DebuggerInput: React.FC<{
           lineNumbers: false,
         }}
         extensions={[
-          langs.python(),
+          langs.py(),
           Prec.highest(
             keymap.of([
               {

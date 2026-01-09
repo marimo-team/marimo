@@ -15,9 +15,15 @@ export const RotatingChevron: React.FC<{ isExpanded: boolean }> = ({
 
 export const DatasourceLabel: React.FC<{
   children: React.ReactNode;
-}> = ({ children }) => {
+  className?: string;
+}> = ({ children, className }) => {
   return (
-    <div className="flex gap-1.5 items-center font-bold px-2 py-1.5 text-muted-foreground bg-(--slate-2) text-sm">
+    <div
+      className={cn(
+        "flex gap-1.5 items-center font-bold py-1.5 text-muted-foreground bg-(--slate-2) text-sm",
+        className,
+      )}
+    >
       {children}
     </div>
   );

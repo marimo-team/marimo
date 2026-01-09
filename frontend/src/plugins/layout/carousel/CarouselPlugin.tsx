@@ -36,7 +36,7 @@ export class CarouselPlugin implements IStatelessPlugin<Data> {
 
   render(props: IStatelessPluginProps<Data>): JSX.Element {
     return (
-      <LazySlidesComponent {...props.data}>
+      <LazySlidesComponent {...props.data} wrapAround={true}>
         {props.children}
       </LazySlidesComponent>
     );

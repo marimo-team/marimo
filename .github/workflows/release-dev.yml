@@ -1,17 +1,13 @@
 name: Publish dev release of marimo-base
 
-# Publish development release to test pypi on pushes to main
 on:
-  push:
-    branches:
-      - main
+  workflow_call: {}
 
 permissions:
   contents: read
   pull-requests: write
 
 env:
-  TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
   TURBO_TEAM: marimo
 
 jobs:
@@ -22,31 +18,21 @@ jobs:
       run:
         shell: bash
 
-    steps:
-      - name: 🛑 Cancel Previous Runs
-        uses: styfle/cancel-workflow-action@0.12.1
+    outputs:
+      marimo_version: ${{ steps.get_version.outputs.marimo_version }}
 
+    steps:
       - name: ⬇️ Checkout repo
         uses: actions/checkout@v4
         with:
           # get tag history for version number
           fetch-depth: 0
 
-      - uses: pnpm/action-setup@v4
-      - name: ⎔ Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: 'pnpm'
-          cache-dependency-path: '**/pnpm-lock.yaml'
-          registry-url: 'https://registry.npmjs.org'
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
       - name: 📦 Build frontend
-        run: make fe
-        env:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+        uses: ./.github/actions/build-frontend
+        with:
+          turbo-token: ${{ secrets.TURBO_TOKEN }}
+          codecov-token: ${{ secrets.CODECOV_TOKEN }}
 
       - name: Install uv
         uses: astral-sh/setup-uv@v7
@@ -54,6 +40,7 @@ jobs:
       # patch pyproject.toml version to be of the form
       # X.Y.<Z+1>-dev{n-commits-since-last-tag}
       - name: 🔨 Patch version number
+        id: get_version
         run: |
           # Get the version number and increment patch
           # - assumes version is on a line of the form __version__ == "x.y.z"
@@ -65,6 +52,7 @@ jobs:
           MARIMO_VERSION="${incremented_version}-dev${n_commits}"
           # Set the version in the environment for later steps
           echo "MARIMO_VERSION=$MARIMO_VERSION" >> $GITHUB_ENV
+          echo "marimo_version=$MARIMO_VERSION" >> $GITHUB_OUTPUT
           uv version "$MARIMO_VERSION"
         env:
           NO_COLOR: 1
@@ -102,25 +90,19 @@ jobs:
           echo "Updating package.json version to ${{ env.MARIMO_VERSION }}"
           npm version ${{ env.MARIMO_VERSION }} --no-git-tag-version
 
-      - name: 📤 Upload wasm to npm (@marimo-team/frontend)
-        working-directory: frontend
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: |
-          for i in {1..3}; do
-            npm publish --access public && break || {
-              echo "Publish attempt $i failed, retrying..."
-              sleep 10
-            }
-          done
+      - name: 📦 Upload frontend artifact for npm publish
+        uses: actions/upload-artifact@v6
+        with:
+          name: frontend-dev
+          path: frontend/
+          retention-days: 1
 
       - name: 📦 Update package.json name to @marimo-team/islands
         working-directory: frontend
         run: |
           sed -i 's/"name": "@marimo-team\/frontend"/"name": "@marimo-team\/islands"/' package.json
 
-      - name: 📦 Rebuild frontend
+      - name: 📦 Rebuild frontend for islands
         working-directory: frontend
         env:
           NODE_ENV: production
@@ -130,25 +112,51 @@ jobs:
           pnpm turbo build:islands
           ./islands/validate.sh
 
-      - name: 📤 Upload islands to npm (@marimo-team/islands)
-        working-directory: frontend
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: |
-          for i in {1..3}; do
-            npm publish --access public && break || {
-              echo "Publish attempt $i failed, retrying..."
-              sleep 10
-            }
-          done
+      - name: 📦 Upload islands artifact for npm publish
+        uses: actions/upload-artifact@v6
+        with:
+          name: frontend-islands-dev
+          path: frontend/
+          retention-days: 1
 
+  publish_wasm_dev:
+    name: 📤 Publish @marimo-team/frontend to npm
+    needs: publish_dev_release
+    uses: ./.github/workflows/publish-npm.yml
+    with:
+      package-artifact-name: frontend-dev
+      working-directory: '.'
+      npm-tag: 'dev'
+    permissions:
+      id-token: write  # Required for OIDC
+      contents: read
+
+  publish_islands_dev:
+    name: 📤 Publish @marimo-team/islands to npm
+    needs: publish_dev_release
+    uses: ./.github/workflows/publish-npm.yml
+    with:
+      package-artifact-name: frontend-islands-dev
+      working-directory: '.'
+      npm-tag: 'dev'
+    permissions:
+      id-token: write  # Required for OIDC
+      contents: read
+
+  comment_pr:
+    name: 📝 Comment PR
+    needs: [publish_dev_release, publish_wasm_dev, publish_islands_dev]
+    runs-on: ubuntu-latest
+    steps:
       - name: 📝 Comment PR
         uses: actions/github-script@v7
         continue-on-error: true
+        env:
+          MARIMO_VERSION: ${{ needs.publish_dev_release.outputs.marimo_version }}
         with:
           script: |
             try {
+              const marimoVersion = process.env.MARIMO_VERSION || 'unknown';
               const pullRequest = await github.rest.search.issuesAndPullRequests({
                 q: `sha:${context.sha} is:pr is:merged`
               });
@@ -158,7 +166,7 @@ jobs:
                   owner: context.repo.owner,
                   repo: context.repo.repo,
                   issue_number: pullRequest.data.items[0].number,
-                  body: `🚀 Development release published. You may be able to view the changes at https://marimo.app?v=${process.env.MARIMO_VERSION}`
+                  body: `🚀 Development release published. You may be able to view the changes at https://marimo.app?v=${encodeURIComponent(marimoVersion)}`
                 });
               } else {
                 console.log("No merged PR found for this SHA.");
