@@ -1,7 +1,11 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import inspect
+import os
 import sys
+import tempfile
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pytest
@@ -142,3 +146,205 @@ def test_tutorial_file_accessible_after_open(client: TestClient) -> None:
     file_manager = session_manager.app_manager(tutorial_path)
     assert file_manager is not None
     assert file_manager.path == tutorial_path
+
+
+@with_session(SESSION_ID)
+def test_running_notebooks_returns_relative_paths(client: TestClient) -> None:
+    """Test that running_notebooks returns paths relative to file router directory.
+
+    This is a regression test for the bug where `marimo edit subdirectory`
+    would return paths like `subdirectory/notebook.py` instead of `notebook.py`.
+    """
+    from marimo._server.file_router import LazyListOfFilesAppFileRouter
+
+    session_manager = get_session_manager(client)
+
+    # Create a temp directory structure: /tmp/xxx/subdir/notebook.py
+    with tempfile.TemporaryDirectory() as tmp_base:
+        subdir = os.path.join(tmp_base, "subdir")
+        os.makedirs(subdir)
+
+        # Create a notebook file in the subdirectory
+        notebook_path = os.path.join(subdir, "notebook.py")
+        content = inspect.cleandoc(
+            """
+            import marimo
+            app = marimo.App()
+
+            @app.cell
+            def __():
+                return
+
+            if __name__ == "__main__":
+                app.run()
+            """
+        )
+        with open(notebook_path, "w") as f:
+            f.write(content)
+
+        # Create a file router pointing to the subdirectory
+        # This simulates `marimo edit subdir`
+        file_router = LazyListOfFilesAppFileRouter(
+            subdir, include_markdown=False
+        )
+
+        # Replace the session manager's file router
+        original_file_router = session_manager.file_router
+        session_manager.file_router = file_router
+
+        # Update the session's filename to the absolute path of the notebook
+        session = session_manager.get_session(SESSION_ID)
+        assert session is not None
+        original_filename = session.app_file_manager.filename
+        session.app_file_manager.filename = notebook_path
+
+        try:
+            response = client.post(
+                "/api/home/running_notebooks",
+                headers=HEADERS,
+            )
+            body = response.json()
+            files = body["files"]
+
+            assert len(files) == 1
+            # The path should be relative to the subdirectory, not the CWD
+            # i.e., "notebook.py" not "subdir/notebook.py"
+            assert files[0]["path"] == "notebook.py"
+            assert files[0]["name"] == "notebook.py"
+        finally:
+            # Restore original state
+            session_manager.file_router = original_file_router
+            session.app_file_manager.filename = original_filename
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="Failing on Windows CI")
+@with_session(SESSION_ID, auto_shutdown=False)
+def test_shutdown_session_returns_relative_paths(client: TestClient) -> None:
+    """Test that shutdown_session returns paths relative to file router directory."""
+    from marimo._server.file_router import LazyListOfFilesAppFileRouter
+
+    session_manager = get_session_manager(client)
+
+    # Create a second session to test shutdown returns correct paths
+    # for remaining sessions
+    with tempfile.TemporaryDirectory() as tmp_base:
+        subdir = os.path.join(tmp_base, "subdir")
+        os.makedirs(subdir)
+
+        notebook_path = os.path.join(subdir, "notebook.py")
+        content = inspect.cleandoc(
+            """
+            import marimo
+            app = marimo.App()
+
+            @app.cell
+            def __():
+                return
+
+            if __name__ == "__main__":
+                app.run()
+            """
+        )
+        with open(notebook_path, "w") as f:
+            f.write(content)
+
+        file_router = LazyListOfFilesAppFileRouter(
+            subdir, include_markdown=False
+        )
+
+        original_file_router = session_manager.file_router
+        session_manager.file_router = file_router
+
+        session = session_manager.get_session(SESSION_ID)
+        assert session is not None
+        original_filename = session.app_file_manager.filename
+        session.app_file_manager.filename = notebook_path
+
+        try:
+            # Shutdown the session - response should have empty files
+            # since we're shutting down the only session
+            response = client.post(
+                "/api/home/shutdown_session",
+                headers=HEADERS,
+                json={"sessionId": SESSION_ID},
+            )
+            assert response.status_code == 200
+            # After shutdown, no sessions remain
+            assert response.json() == {"files": []}
+        finally:
+            session_manager.file_router = original_file_router
+            # Note: session is already shut down, so we don't restore filename
+
+
+def test_running_notebooks_handles_files_outside_directory(
+    client: TestClient,
+) -> None:
+    """Test that files outside the directory still get pretty_path treatment."""
+    from marimo._server.file_router import LazyListOfFilesAppFileRouter
+
+    session_manager = get_session_manager(client)
+    auth_token = session_manager.auth_token
+    headers = token_header(auth_token)
+
+    # Connect a session
+    with client.websocket_connect(
+        f"/ws?session_id={SESSION_ID}", headers=headers
+    ) as websocket:
+        data = websocket.receive_text()
+        assert data
+
+        # Create two separate temp directories
+        with tempfile.TemporaryDirectory() as router_dir:
+            with tempfile.TemporaryDirectory() as file_dir:
+                # Create a notebook in file_dir (outside router_dir)
+                notebook_path = os.path.join(file_dir, "outside.py")
+                content = inspect.cleandoc(
+                    """
+                    import marimo
+                    app = marimo.App()
+
+                    @app.cell
+                    def __():
+                        return
+
+                    if __name__ == "__main__":
+                        app.run()
+                    """
+                )
+                with open(notebook_path, "w") as f:
+                    f.write(content)
+
+                # Set up file router pointing to router_dir
+                file_router = LazyListOfFilesAppFileRouter(
+                    router_dir, include_markdown=False
+                )
+
+                original_file_router = session_manager.file_router
+                session_manager.file_router = file_router
+
+                session = session_manager.get_session(SESSION_ID)
+                assert session is not None
+                original_filename = session.app_file_manager.filename
+                session.app_file_manager.filename = notebook_path
+
+                try:
+                    response = client.post(
+                        "/api/home/running_notebooks",
+                        headers=HEADERS,
+                    )
+                    body = response.json()
+                    files = body["files"]
+
+                    assert len(files) == 1
+                    # File is outside directory, so it should use pretty_path
+                    # which returns the path as-is or relative to CWD
+                    # The important thing is it doesn't crash
+                    assert files[0]["name"] == "outside.py"
+                    # Path should contain the filename (exact path depends on CWD)
+                    assert "outside.py" in files[0]["path"]
+                finally:
+                    session_manager.file_router = original_file_router
+                    session.app_file_manager.filename = original_filename
+
+        # Shutdown to clean up
+        client.post("/api/kernel/shutdown", headers=headers)

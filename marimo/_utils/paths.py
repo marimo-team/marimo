@@ -19,21 +19,28 @@ def marimo_package_path() -> Path:
     return Path(str(import_files("marimo")))
 
 
-def pretty_path(filename: str) -> str:
+def pretty_path(filename: str, base_dir: Path | str | None = None) -> str:
     """
-    If it's an absolute path, shorten to relative path if
-    we don't go outside the current directory.
-    Otherwise, return the filename as is.
+    Make a path "pretty" by converting to relative if possible.
+
+    Args:
+        filename: The path to prettify
+        base_dir: If provided, compute relative to this directory first.
+                  Falls back to CWD-relative if file is outside base_dir.
+
+    Returns:
+        A shorter, more readable path when possible.
     """
-    if os.path.isabs(filename):
-        try:
-            relpath = os.path.relpath(filename)
-        except ValueError:
-            # Windows: relpath doesn't work if filename is on a different drive
-            # than current drive
-            return filename
-        if not relpath.startswith(".."):
-            return relpath
+    if not filename:
+        return filename
+
+    file_path = Path(filename)
+
+    if base_dir is not None and file_path.is_relative_to(base_dir):
+        return str(file_path.relative_to(base_dir))
+    if file_path.is_absolute() and file_path.is_relative_to(Path.cwd()):
+        return str(file_path.relative_to(Path.cwd()))
+
     return filename
 
 
