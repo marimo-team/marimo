@@ -186,6 +186,15 @@ class AppFileManager:
         elif path.exists():
             header = handler.extract_header(path)
 
+        # For new .py files in sandbox mode, generate header with marimo
+        if header is None and str(path).endswith(".py"):
+            from marimo._config.settings import GLOBAL_SETTINGS
+
+            if GLOBAL_SETTINGS.MANAGE_SCRIPT_METADATA:
+                from marimo._utils.scripts import write_pyproject_to_script
+
+                header = write_pyproject_to_script({"dependencies": ["marimo"]})
+
         # Rewrap with header if relevant and set filename.
         notebook = NotebookSerializationV1(
             app=notebook.app,

@@ -141,6 +141,7 @@ async def format_cell(request: Request) -> FormatResponse:
         return FormatResponse(codes=await formatter.format(body.codes))
     except ModuleNotFoundError:
         app_state = AppState(request)
+        # Installation occurs in the kernel which is not useful for multi mode.
         if app_state.session_manager.sandbox_mode is SandboxMode.MULTI:
             # Re-raise without name so error handler won't send install notification
             raise ModuleNotFoundError(
