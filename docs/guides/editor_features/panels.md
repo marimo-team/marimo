@@ -50,7 +50,7 @@ Both the sidebar and developer panel are fully customizable. You can:
 - **Move panels between sections**: Drag a panel from the sidebar to the developer panel (or vice versa) to relocate it
 - **Hide panels**: Right-click a panel icon to access options for hiding or moving it
 
-Your layout preferences are saved and persist across sessions. Panels automatically adapt their appearance based on their location - showing a more compact vertical layout in the sidebar and a wider horizontal layout in the developer panel.
+Your layout preferences are saved and persist across sessions. Panels automatically adapt their appearance based on their location — showing a more compact vertical layout in the sidebar and a wider horizontal layout in the developer panel.
 
 <!-- TODO: Add GIF showing drag-drop between sidebar and developer panel -->
 
