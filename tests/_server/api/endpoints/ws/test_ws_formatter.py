@@ -52,7 +52,7 @@ class TestFormatWireMessage:
     def test_with_unicode_data(self) -> None:
         """Test formatting with unicode characters."""
         op = "notification"
-        data = '{"text": "Hello 世界 🌍"}'.encode("utf-8")
+        data = '{"text": "Hello 世界 🌍"}'.encode()
         result = format_wire_message(op, data)
 
         parsed = json.loads(result)
@@ -82,7 +82,10 @@ class TestSerializeNotificationForWebsocket:
 
         parsed = json.loads(result)
         assert parsed["op"] == "kernel-startup-error"
-        assert parsed["data"]["error"] == "Failed to start kernel: module not found"
+        assert (
+            parsed["data"]["error"]
+            == "Failed to start kernel: module not found"
+        )
 
     def test_alert_notification(self) -> None:
         """Test serializing AlertNotification."""

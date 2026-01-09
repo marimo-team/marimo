@@ -12,8 +12,8 @@ from marimo._messaging.notification import (
     FocusCellNotification,
 )
 from marimo._messaging.serde import deserialize_kernel_notification_name
-from marimo._server.api.endpoints.ws.ws_formatter import format_wire_message
 from marimo._messaging.types import KernelMessage
+from marimo._server.api.endpoints.ws.ws_formatter import format_wire_message
 
 if TYPE_CHECKING:
     from starlette.websockets import WebSocket

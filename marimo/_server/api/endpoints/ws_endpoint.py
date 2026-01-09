@@ -27,6 +27,9 @@ from marimo._server.api.endpoints.ws.ws_connection_validator import (
     ConnectionParams,
     WebSocketConnectionValidator,
 )
+from marimo._server.api.endpoints.ws.ws_formatter import (
+    serialize_notification_for_websocket,
+)
 from marimo._server.api.endpoints.ws.ws_kernel_ready import (
     build_kernel_ready,
     is_rtc_available,
@@ -35,9 +38,6 @@ from marimo._server.api.endpoints.ws.ws_message_loop import (
     WebSocketMessageLoop,
 )
 from marimo._server.api.endpoints.ws.ws_rtc_handler import RTCWebSocketHandler
-from marimo._server.api.endpoints.ws.ws_formatter import (
-    serialize_notification_for_websocket,
-)
 from marimo._server.api.endpoints.ws.ws_session_connector import (
     SessionConnector,
 )
