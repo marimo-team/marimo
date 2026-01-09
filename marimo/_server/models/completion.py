@@ -1,16 +1,11 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Literal, Optional, Union
+from typing import Any, Literal, Optional, Union
 
 import msgspec
 
 from marimo._server.ai.tools.types import ToolDefinition
-
-if TYPE_CHECKING:
-    from pydantic_ai.ui.vercel_ai.request_types import UIMessage
-else:
-    UIMessage = dict[str, Any]
 
 
 class SchemaColumn(msgspec.Struct, rename="camel"):
@@ -39,6 +34,9 @@ class AiCompletionContext(msgspec.Struct, rename="camel"):
 
 
 Language = Literal["python", "markdown", "sql"]
+
+
+UIMessage = dict[str, Any]
 
 
 class AiCompletionRequest(msgspec.Struct, rename="camel"):
