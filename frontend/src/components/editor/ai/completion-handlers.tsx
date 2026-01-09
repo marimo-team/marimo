@@ -124,7 +124,7 @@ export const AcceptCompletionButton: React.FC<{
             size={size}
             disabled={isLoading}
             onClick={handleAcceptAndRun}
-            className={`${baseClasses} rounded-l-none px-1.5 ${borderless && "border-0 border-l-1"} ${playButtonStyles}`}
+            className={`${baseClasses} rounded-l-none px-1.5 ${borderless && "border-0 border-l"} ${playButtonStyles}`}
           >
             <PlayIcon className="h-2.5 w-2.5" />
           </Button>

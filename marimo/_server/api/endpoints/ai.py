@@ -145,13 +145,12 @@ async def ai_completion(
     ai_config = get_ai_config(config)
 
     custom_rules = ai_config.get("rules", None)
-    use_messages = len(body.messages) >= 1  # Deprecated
     use_ui_messages = len(body.ui_messages) >= 1
 
     system_prompt = get_refactor_or_insert_notebook_cell_system_prompt(
         language=body.language,
         is_insert=False,
-        support_multiple_cells=use_messages or use_ui_messages,
+        support_multiple_cells=use_ui_messages,
         custom_rules=custom_rules,
         cell_code=body.code,
         selected_text=body.selected_text,

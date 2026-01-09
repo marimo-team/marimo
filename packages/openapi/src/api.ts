@@ -2913,8 +2913,6 @@ export interface components {
        * @enum {unknown}
        */
       language?: "markdown" | "python" | "sql";
-      /** @default [] */
-      messages?: components["schemas"]["ChatMessage"][];
       prompt: string;
       /** @default null */
       selectedText?: string | null;
@@ -3220,7 +3218,6 @@ export interface components {
     ChatRequest: {
       context: components["schemas"]["AiCompletionContext"];
       includeOtherCode: string;
-      messages: components["schemas"]["ChatMessage"][];
       /** @default null */
       model?: string | null;
       /** @default null */
