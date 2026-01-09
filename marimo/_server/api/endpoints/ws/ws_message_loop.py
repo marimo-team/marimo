@@ -12,6 +12,7 @@ from marimo._messaging.notification import (
     FocusCellNotification,
 )
 from marimo._messaging.serde import deserialize_kernel_notification_name
+from marimo._server.api.endpoints.ws.ws_formatter import format_wire_message
 from marimo._messaging.types import KernelMessage
 
 if TYPE_CHECKING:
@@ -79,7 +80,7 @@ class WebSocketMessageLoop:
 
             # Serialize message
             try:
-                text = f'{{"op": "{op}", "data": {data.decode("utf-8")}}}'
+                text = format_wire_message(op, data)
             except Exception as e:
                 LOGGER.error("Failed to deserialize message: %s", str(e))
                 LOGGER.error("Message: %s", data)

@@ -35,6 +35,9 @@ from marimo._server.api.endpoints.ws.ws_message_loop import (
     WebSocketMessageLoop,
 )
 from marimo._server.api.endpoints.ws.ws_rtc_handler import RTCWebSocketHandler
+from marimo._server.api.endpoints.ws.ws_formatter import (
+    serialize_notification_for_websocket,
+)
 from marimo._server.api.endpoints.ws.ws_session_connector import (
     SessionConnector,
 )
@@ -435,13 +438,8 @@ class WebSocketHandler(SessionConsumer):
     async def _close_kernel_startup_error(self, error_message: str) -> None:
         """Send full error as message, then close the WebSocket."""
         if self.websocket.application_state is WebSocketState.CONNECTED:
-            # Send full error as a message before closing
-            # Format must match what ws_message_loop sends:
-            # {"op": "xxx", "data": {...}}
-            msg = serialize_kernel_message(
-                KernelStartupErrorNotification(error=error_message)
-            )
-            text = f'{{"op": "kernel-startup-error", "data": {msg.decode("utf-8")}}}'
+            notification = KernelStartupErrorNotification(error=error_message)
+            text = serialize_notification_for_websocket(notification)
             await self.websocket.send_text(text)
             # Then close with simple reason
             await self.websocket.close(
