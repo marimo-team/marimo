@@ -1,9 +1,9 @@
 /* Copyright 2026 Marimo. All rights reserved. */
-import { useState } from "react";
+import { useState, useCallback } from "react";
 
 export function useNonce() {
-  const [nonce, setNonce] = useState(0);
-  return () => {
-    setNonce(nonce + 1);
-  };
+  const [, setNonce] = useState(0);
+  return useCallback(() => {
+    setNonce((n: number) => n + 1);
+  }, []);
 }
