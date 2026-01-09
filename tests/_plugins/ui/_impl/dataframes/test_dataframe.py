@@ -176,6 +176,27 @@ class TestDataframes:
     @staticmethod
     @pytest.mark.parametrize(
         "df",
+        create_dataframes(
+            {"A": [1, 2], "B": ["a", "b"]},
+            exclude=["pyarrow", "duckdb", "lazy-polars"],
+        ),
+    )
+    def test_dataframe_format_mapping(df: IntoDataFrame) -> None:
+        def format_value(value: int) -> str:
+            return f"val-{value}"
+
+        subject = ui.dataframe(df, format_mapping={"A": format_value})
+
+        search_result = subject._search(
+            SearchTableArgs(page_size=2, page_number=0)
+        )
+        data = json.loads(search_result.data)
+        assert {row["A"] for row in data} == {"val-1", "val-2"}
+        assert type(subject.value) is type(df)
+
+    @staticmethod
+    @pytest.mark.parametrize(
+        "df",
         [
             *create_dataframes(
                 {"A": [], "B": []},

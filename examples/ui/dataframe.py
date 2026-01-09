@@ -33,7 +33,17 @@ def _(mo):
 
 @app.cell
 def _(data, lazy_button, mo):
-    dataframe_transformer = mo.ui.dataframe(data.iris(), lazy=lazy_button.value)
+    def format_length(value: float) -> str:
+        return f"{value:.1f} cm"
+
+    dataframe_transformer = mo.ui.dataframe(
+        data.iris(),
+        lazy=lazy_button.value,
+        format_mapping={
+            "sepal_length": format_length,
+            "sepal_width": "{:.1f}".format,
+        },
+    )
     dataframe_transformer
     return (dataframe_transformer,)
 
