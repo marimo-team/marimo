@@ -211,13 +211,14 @@ The deployment name is typically the model name.
 
 **Azure AI Foundry**
 
-AI Foundry uses OpenAI-compatible models, so you can use the same configuration as OpenAI-compatible providers.
+AI Foundry uses OpenAI-compatible models. You can configure it as a custom provider:
 
 ```toml title="marimo.toml"
 [ai.models]
-custom_models = ["custom-azure/mistral-medium"]
+custom_models = ["azure_foundry/mistral-medium"]
+chat_model = "azure_foundry/mistral-medium"
 
-[ai.open_ai_compatible]
+[ai.custom_providers.azure_foundry]
 api_key = "sk-proj-..."
 base_url = "https://<your-resource-name>.services.ai.azure.com/openai/v1"
 ```
@@ -365,10 +366,9 @@ autocomplete_model = "ollama/codellama" # or another model from `ollama ls`
     curl http://127.0.0.1:11434/v1/models
     ```
 
-### OpenAI-compatible providers
+### Custom providers
 
-Many providers expose OpenAI-compatible endpoints. Point `base_url` at the provider and use their models.
-Common examples include [GROQ](https://console.groq.com/docs/openai), DeepSeek, xAI, Together AI, and LM Studio.
+Add multiple OpenAI-compatible providers through the Settings UI. Each custom provider gets its own configuration section and can be referenced by name in your model settings.
 
 **Requirements**
 
@@ -376,7 +376,53 @@ Common examples include [GROQ](https://console.groq.com/docs/openai), DeepSeek, 
 * Provider OpenAI-compatible `base_url`
 * `pip install openai` or `uv add openai`
 
-**Configuration**
+**Adding a custom provider via UI (recommended)**
+
+1. Open marimo's Settings panel
+2. Navigate to **AI** → **AI Providers**
+3. Scroll to **Custom Providers** and click **Add Provider**
+4. Enter a name (e.g., `groq`, `together`, `mistral`)
+5. Enter the provider's Base URL (e.g., `https://api.groq.com/openai/v1`)
+6. Optionally enter the API key
+
+Once added, use your custom provider with the prefix you chose:
+
+```toml title="marimo.toml"
+[ai.models]
+chat_model = "groq/llama-3.1-70b-versatile"
+edit_model = "together/meta-llama/Llama-3-70b-chat-hf"
+```
+
+**Configuration via marimo.toml**
+
+You can also configure custom providers directly in `marimo.toml`:
+
+```toml title="marimo.toml"
+[ai.models]
+chat_model = "groq/llama-3.1-70b-versatile"
+edit_model = "together/meta-llama/Llama-3-70b-chat-hf"
+
+[ai.custom_providers.groq]
+api_key = "gsk-..."
+base_url = "https://api.groq.com/openai/v1"
+
+[ai.custom_providers.together]
+api_key = "tg-..."
+base_url = "https://api.together.xyz/v1"
+
+[ai.custom_providers.my_local_server]
+base_url = "http://localhost:8000/v1"
+```
+
+??? tip "Use the `/v1` path if required by your provider"
+    Some OpenAI-compatible providers expose their API under `/v1` (e.g., `https://host/v1`). If you see 404s, add `/v1` to your `base_url`.
+
+### OpenAI-compatible (legacy)
+
+!!! note "Prefer custom providers"
+    The `[ai.open_ai_compatible]` section is still supported for backward compatibility, but we recommend using **custom providers** instead, which allows you to configure multiple providers with distinct names.
+
+For a single OpenAI-compatible provider, you can use:
 
 ```toml title="marimo.toml"
 [ai.models]
@@ -387,31 +433,7 @@ api_key = "..."
 base_url = "https://api.provider-x.com/"
 ```
 
-??? tip "Use the `/v1` path if required by your provider"
-    Some OpenAI-compatible providers expose their API under `/v1` (e.g., `https://host/v1`). If you see 404s, add `/v1` to your `base_url`.
-
-??? tip "Using OpenAI-compatible providers"
-
-    === "Via UI Settings"
-
-        1. Open marimo's Settings panel
-        2. Navigate to the AI section
-        3. Enter your provider's API key in the "OpenAI-Compatible" section
-        4. Set Base URL to your provider (e.g., `https://api.provider-x.com`)
-        5. Set Model to your provider's model slug
-
-    === "Via marimo.toml"
-
-        Add this to `marimo.toml`:
-
-        ```toml
-        [ai.models]
-        chat_model = "provider-x/some-model"
-
-        [ai.open_ai_compatible]
-        api_key = "px-..."
-        base_url = "https://api.provider-x.com/"
-        ```
+Models that don't match a known provider prefix will fall back to this configuration.
 
 ### DeepSeek
 
@@ -428,7 +450,7 @@ Use DeepSeek via its OpenAI‑compatible API.
 [ai.models]
 chat_model = "deepseek/deepseek-chat"  # or "deepseek-reasoner"
 
-[ai.open_ai_compatible]
+[ai.custom_providers.deepseek]
 api_key = "dsk-..."
 base_url = "https://api.deepseek.com/"
 ```
@@ -448,7 +470,7 @@ Use Grok models via xAI's OpenAI‑compatible API.
 [ai.models]
 chat_model = "xai/grok-2-latest"
 
-[ai.open_ai_compatible]
+[ai.custom_providers.xai]
 api_key = "xai-..."
 base_url = "https://api.x.ai/v1/"
 ```
@@ -468,7 +490,7 @@ Connect to a local model served by LM Studio's OpenAI‑compatible endpoint.
 [ai.models]
 chat_model = "lmstudio/qwen2.5-coder-7b"
 
-[ai.open_ai_compatible]
+[ai.custom_providers.lmstudio]
 base_url = "http://127.0.0.1:1234/v1"  # LM Studio server
 ```
 
@@ -487,7 +509,7 @@ Use Mistral via its OpenAI‑compatible API.
 [ai.models]
 chat_model = "mistral/mistral-small-latest"  # e.g., codestral-latest, mistral-large-latest
 
-[ai.open_ai_compatible]
+[ai.custom_providers.mistral]
 api_key = "mistral-..."
 base_url = "https://api.mistral.ai/v1/"
 ```
@@ -507,7 +529,7 @@ Access multiple hosted models via Together AI's OpenAI‑compatible API.
 [ai.models]
 chat_model = "together/mistralai/Mixtral-8x7B-Instruct-v0.1"
 
-[ai.open_ai_compatible]
+[ai.custom_providers.together]
 api_key = "tg-..."
 base_url = "https://api.together.xyz/v1/"
 ```
@@ -527,7 +549,7 @@ Use Vercel's v0 OpenAI‑compatible models for app-oriented generation.
 [ai.models]
 chat_model = "v0/v0-1.5-md"
 
-[ai.open_ai_compatible]
+[ai.custom_providers.v0]
 api_key = "v0-..."
 base_url = "https://api.v0.dev/"  # Verify the endpoint in v0 docs
 ```
