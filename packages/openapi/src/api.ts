@@ -2993,6 +2993,9 @@ export interface components {
       anthropic?: components["schemas"]["AnthropicConfig"];
       azure?: components["schemas"]["OpenAiConfig"];
       bedrock?: components["schemas"]["BedrockConfig"];
+      custom_providers?: {
+        [key: string]: components["schemas"]["OpenAiConfig"];
+      };
       github?: components["schemas"]["GitHubConfig"];
       google?: components["schemas"]["GoogleAiConfig"];
       inline_tooltip?: boolean;

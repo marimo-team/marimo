@@ -175,6 +175,7 @@ export const UserConfigSchema = z
             aws_secret_access_key: z.string().optional(),
           })
           .optional(),
+        custom_providers: z.record(z.string(), AiConfigSchema).prefault({}),
         models: AiModelsSchema.prefault({
           displayed_models: [],
           custom_models: [],

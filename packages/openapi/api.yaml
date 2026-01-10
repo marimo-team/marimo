@@ -113,6 +113,10 @@ components:
           $ref: '#/components/schemas/OpenAiConfig'
         bedrock:
           $ref: '#/components/schemas/BedrockConfig'
+        custom_providers:
+          additionalProperties:
+            $ref: '#/components/schemas/OpenAiConfig'
+          type: object
         github:
           $ref: '#/components/schemas/GitHubConfig'
         google:
@@ -5785,4 +5789,3 @@ paths:
       summary: Submit login form
       tags:
       - auth
-

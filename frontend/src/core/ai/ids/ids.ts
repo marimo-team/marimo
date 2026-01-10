@@ -2,7 +2,7 @@
 
 import type { TypedString } from "@/utils/typed";
 
-export const PROVIDERS = [
+export const KNOWN_PROVIDERS = [
   "openai",
   "anthropic",
   "google",
@@ -15,7 +15,13 @@ export const PROVIDERS = [
   "wandb",
   "marimo",
 ] as const;
-export type ProviderId = (typeof PROVIDERS)[number];
+export type KnownProviderId = (typeof KNOWN_PROVIDERS)[number];
+
+/**
+ * Provider ID can be a known provider or a custom string
+ * The (string & {}) pattern allows any string while still providing autocomplete for known providers
+ */
+export type ProviderId = KnownProviderId | (string & {});
 
 export type ShortModelId = TypedString<"ShortModelId">;
 
@@ -68,6 +74,8 @@ function guessProviderId(id: string): ProviderId {
   return "ollama";
 }
 
-export function isKnownAIProvider(providerId: ProviderId): boolean {
-  return PROVIDERS.includes(providerId);
+export function isKnownAIProvider(
+  providerId: string,
+): providerId is KnownProviderId {
+  return (KNOWN_PROVIDERS as readonly string[]).includes(providerId);
 }
