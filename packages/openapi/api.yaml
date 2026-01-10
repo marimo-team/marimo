@@ -118,6 +118,10 @@ components:
           $ref: '#/components/schemas/OpenAiConfig'
         bedrock:
           $ref: '#/components/schemas/BedrockConfig'
+        custom_providers:
+          additionalProperties:
+            $ref: '#/components/schemas/OpenAiConfig'
+          type: object
         github:
           $ref: '#/components/schemas/GitHubConfig'
         google:
@@ -4400,7 +4404,7 @@ components:
       type: object
 info:
   title: marimo API
-  version: 0.18.4
+  version: 0.19.0
 openapi: 3.1.0
 paths:
   /@file/{filename_and_length}:

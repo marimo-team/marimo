@@ -73,6 +73,30 @@ class AnyProviderConfig:
         )
 
     @classmethod
+    def for_custom_provider(
+        cls, config: AiConfig, provider_name: str
+    ) -> AnyProviderConfig:
+        """Get config for a custom provider by name."""
+        custom_providers = cast(
+            dict[str, Any], config.get("custom_providers", {})
+        )
+        if provider_name not in custom_providers:
+            raise HTTPException(
+                status_code=HTTPStatus.BAD_REQUEST,
+                detail=f"Custom provider '{provider_name}' not configured. "
+                "Go to Settings > AI to configure.",
+            )
+
+        provider_config = cast(dict[str, Any], custom_providers[provider_name])
+        return cls._for_openai_like(
+            config,
+            key=provider_name,
+            name=provider_name.replace("_", " ").title(),
+            require_key=False,
+            ai_config=provider_config,
+        )
+
+    @classmethod
     def for_ollama(cls, config: AiConfig) -> AnyProviderConfig:
         default_base_url = "http://127.0.0.1:11434/v1"
         return cls._for_openai_like(
@@ -147,8 +171,9 @@ class AnyProviderConfig:
         fallback_key: Optional[str] = None,
         fallback_base_url: Optional[str] = None,
         require_key: bool = False,
+        ai_config: dict[str, Any] | None = None,
     ) -> AnyProviderConfig:
-        ai_config: dict[str, Any] = _get_ai_config(config, key)
+        ai_config = ai_config or _get_ai_config(config, key)
         key = _get_key(
             ai_config, name, fallback_key=fallback_key, require_key=require_key
         )
@@ -240,6 +265,12 @@ class AnyProviderConfig:
         elif model_id.provider == "openai_compatible":
             return cls.for_openai_compatible(config)
         else:
+            custom_providers = cast(
+                dict[str, Any], config.get("custom_providers", {})
+            )
+            if model_id.provider in custom_providers:
+                return cls.for_custom_provider(config, model_id.provider)
+
             # Catch-all: try OpenAI compatible first, then OpenAI.
             try:
                 if "open_ai_compatible" in config:

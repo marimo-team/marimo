@@ -1132,8 +1132,8 @@ packages:
   timestamp: 1727801725384
 - pypi: ./
   name: marimo
-  version: 0.18.4
-  sha256: 00d04a9c700e085afe77f6f44d2455742a7247499a2022ef89fe8f9c04858e5d
+  version: 0.19.1
+  sha256: 754cf8bbfbc75c93b4f818306c6f84f36d1182dfab0747cf7ca08136df1ca837
   requires_dist:
   - click>=8.0,<9
   - jedi>=0.18.0
@@ -1166,6 +1166,7 @@ packages:
   - mcp>=1.0.0 ; extra == 'mcp'
   - pydantic>2 ; extra == 'mcp'
   requires_python: '>=3.10'
+  editable: true
 - pypi: https://files.pythonhosted.org/packages/70/81/54e3ce63502cd085a0c556652a4e1b919c45a446bd1e5300e10c44c8c521/markdown-3.10-py3-none-any.whl
   name: markdown
   version: '3.10'

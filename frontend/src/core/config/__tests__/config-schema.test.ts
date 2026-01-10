@@ -198,6 +198,40 @@ test("default UserConfig with additional information", () => {
   );
 });
 
+test("UserConfig with custom_providers", () => {
+  const config = UserConfigSchema.parse({
+    ai: {
+      custom_providers: {
+        my_provider: {
+          api_key: "test-key",
+          base_url: "https://api.example.com/v1",
+        },
+        another_provider: {
+          base_url: "https://api.another.com/v1",
+        },
+      },
+    },
+  });
+
+  expect(config.ai?.custom_providers).toEqual({
+    my_provider: {
+      api_key: "test-key",
+      base_url: "https://api.example.com/v1",
+    },
+    another_provider: {
+      base_url: "https://api.another.com/v1",
+    },
+  });
+});
+
+test("UserConfig custom_providers defaults to empty object", () => {
+  const config = UserConfigSchema.parse({
+    ai: {},
+  });
+
+  expect(config.ai?.custom_providers).toEqual({});
+});
+
 test("resolvedMarimoConfigAtom overrides correctly and does not mutate the original array", () => {
   const initialUserConfig = {
     completion: {
