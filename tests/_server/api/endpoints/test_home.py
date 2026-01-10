@@ -275,6 +275,11 @@ def test_shutdown_session_returns_relative_paths(client: TestClient) -> None:
             # Note: session is already shut down, so we don't restore filename
 
 
+@pytest.mark.xfail(
+    sys.platform == "win32",
+    reason="Flaky on Windows - websocket cleanup may hang due to background threads. See #7774",
+    strict=False,
+)
 def test_running_notebooks_handles_files_outside_directory(
     client: TestClient,
 ) -> None:
