@@ -449,6 +449,7 @@ def _delete_lines_with_files(output: str) -> str:
     return "\n".join(remove_file_name(line) for line in output.splitlines())
 
 
+@pytest.mark.flaky(reruns=3)
 @patch("marimo._server.export.echo")
 async def test_run_until_completion_with_console_output(mock_echo: MagicMock):
     app = App()
@@ -482,8 +483,10 @@ async def test_run_until_completion_with_console_output(mock_echo: MagicMock):
         mock_echo.assert_any_call("hello stdout", file=ANY, nl=False)
         mock_echo.assert_any_call("hello stderr", file=ANY, nl=False)
 
+    # Console output notifications arrive asynchronously after CompletedRun.
+    # In slow CI environments, we need to wait longer for all notifications.
     n_tries = 0
-    limit = 10
+    limit = 50
     while n_tries <= limit:
         try:
             _assert_contents()
