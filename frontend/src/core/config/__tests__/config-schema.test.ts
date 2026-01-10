@@ -45,6 +45,7 @@ test("default UserConfig - empty", () => {
   expect(defaultConfig).toMatchInlineSnapshot(`
     {
       "ai": {
+        "custom_providers": {},
         "inline_tooltip": false,
         "mode": "manual",
         "models": {
@@ -114,6 +115,7 @@ test("default UserConfig - one level", () => {
   expect(defaultConfig).toMatchInlineSnapshot(`
     {
       "ai": {
+        "custom_providers": {},
         "inline_tooltip": false,
         "mode": "manual",
         "models": {
