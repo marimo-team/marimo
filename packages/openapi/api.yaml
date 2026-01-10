@@ -104,8 +104,9 @@ components:
         \ the Google AI config\n    - `bedrock`: the Bedrock config\n    - `azure`:\
         \ the Azure config\n    - `ollama`: the Ollama config\n    - `github`: the\
         \ GitHub config\n    - `openrouter`: the OpenRouter config\n    - `wandb`:\
-        \ the Weights & Biases config\n    - `open_ai_compatible`: the OpenAI-compatible\
-        \ config"
+        \ the Weights & Biases config\n    - `custom_providers`: a dict of custom\
+        \ OpenAI-compatible providers\n    - `open_ai_compatible`: the OpenAI-compatible\
+        \ config (deprecated, use custom_providers)"
       properties:
         anthropic:
           $ref: '#/components/schemas/AnthropicConfig'

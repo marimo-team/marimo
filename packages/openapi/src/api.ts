@@ -2987,7 +2987,8 @@ export interface components {
      *         - `github`: the GitHub config
      *         - `openrouter`: the OpenRouter config
      *         - `wandb`: the Weights & Biases config
-     *         - `open_ai_compatible`: the OpenAI-compatible config
+     *         - `custom_providers`: a dict of custom OpenAI-compatible providers
+     *         - `open_ai_compatible`: the OpenAI-compatible config (deprecated, use custom_providers)
      */
     AiConfig: {
       anthropic?: components["schemas"]["AnthropicConfig"];
