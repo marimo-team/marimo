@@ -366,9 +366,9 @@ autocomplete_model = "ollama/codellama" # or another model from `ollama ls`
     curl http://127.0.0.1:11434/v1/models
     ```
 
-### Custom providers
+## Custom providers
 
-Add multiple OpenAI-compatible providers through the Settings UI. Each custom provider gets its own configuration section and can be referenced by name in your model settings.
+Add multiple OpenAI-compatible providers through the Settings UI. Each custom provider gets its own configuration section and can be referenced by name in your model settings. The following section is a <strong>non-exhaustive</strong> list of supported providers.
 
 **Requirements**
 
@@ -381,9 +381,13 @@ Add multiple OpenAI-compatible providers through the Settings UI. Each custom pr
 1. Open marimo's Settings panel
 2. Navigate to **AI** → **AI Providers**
 3. Scroll to **Custom Providers** and click **Add Provider**
-4. Enter a name (e.g., `groq`, `together`, `mistral`)
-5. Enter the provider's Base URL (e.g., `https://api.groq.com/openai/v1`)
-6. Optionally enter the API key
+
+<div align="center">
+<video autoplay muted loop playsinline width="640px" height="480px">
+  <source src="/_static/docs-add-custom-provider.mp4" type="video/mp4">
+  Your browser does not support the video tag.
+</video>
+</div>
 
 Once added, use your custom provider with the prefix you chose:
 
@@ -417,24 +421,6 @@ base_url = "http://localhost:8000/v1"
 ??? tip "Use the `/v1` path if required by your provider"
     Some OpenAI-compatible providers expose their API under `/v1` (e.g., `https://host/v1`). If you see 404s, add `/v1` to your `base_url`.
 
-### OpenAI-compatible (legacy)
-
-!!! note "Prefer custom providers"
-    The `[ai.open_ai_compatible]` section is still supported for backward compatibility, but we recommend using **custom providers** instead, which allows you to configure multiple providers with distinct names.
-
-For a single OpenAI-compatible provider, you can use:
-
-```toml title="marimo.toml"
-[ai.models]
-chat_model = "provider-x/some-model"
-
-[ai.open_ai_compatible]
-api_key = "..."
-base_url = "https://api.provider-x.com/"
-```
-
-Models that don't match a known provider prefix will fall back to this configuration.
-
 ### DeepSeek
 
 Use DeepSeek via its OpenAI‑compatible API.
@@ -442,7 +428,6 @@ Use DeepSeek via its OpenAI‑compatible API.
 **Requirements**
 
 * DeepSeek API key
-* `pip install openai` or `uv add openai`
 
 **Configuration**
 
@@ -462,7 +447,6 @@ Use Grok models via xAI's OpenAI‑compatible API.
 **Requirements**
 
 * xAI API key
-* `pip install openai` or `uv add openai`
 
 **Configuration**
 
@@ -482,7 +466,6 @@ Connect to a local model served by LM Studio's OpenAI‑compatible endpoint.
 **Requirements**
 
 * Install LM Studio and start its server
-* `pip install openai` or `uv add openai`
 
 **Configuration**
 
@@ -501,7 +484,6 @@ Use Mistral via its OpenAI‑compatible API.
 **Requirements**
 
 * Mistral API key
-* `pip install openai` or `uv add openai`
 
 **Configuration**
 
@@ -521,7 +503,6 @@ Access multiple hosted models via Together AI's OpenAI‑compatible API.
 **Requirements**
 
 * Together AI API key
-* `pip install openai` or `uv add openai`
 
 **Configuration**
 
@@ -541,7 +522,6 @@ Use Vercel's v0 OpenAI‑compatible models for app-oriented generation.
 **Requirements**
 
 * v0 API key
-* `pip install openai` or `uv add openai`
 
 **Configuration**
 
@@ -556,3 +536,22 @@ base_url = "https://api.v0.dev/"  # Verify the endpoint in v0 docs
 
 See the [LiteLLM provider list](https://litellm.vercel.app/docs/providers) for more options. For non‑compatible APIs, submit a
 [feature request](https://github.com/marimo-team/marimo/issues/new?template=feature_request.yaml).
+
+
+### OpenAI-compatible (legacy)
+
+!!! note "Prefer custom providers"
+    The `[ai.open_ai_compatible]` section is still supported for backward compatibility, but we recommend using **custom providers** instead, which allows you to configure multiple providers with distinct names.
+
+For a single OpenAI-compatible provider, you can use:
+
+```toml title="marimo.toml"
+[ai.models]
+chat_model = "provider-x/some-model"
+
+[ai.open_ai_compatible]
+api_key = "..."
+base_url = "https://api.provider-x.com/"
+```
+
+Models that don't match a known provider prefix will fall back to this configuration.

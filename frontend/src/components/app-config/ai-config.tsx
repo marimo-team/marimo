@@ -764,7 +764,7 @@ export const CustomProvidersConfig: React.FC<AiConfigProps> = ({
             <SettingSubtitle>Custom Providers</SettingSubtitle>
             <p className="text-sm text-muted-secondary">
               Add your own OpenAI-compatible provider. Once added, you can
-              configure models for each provider in the AI Models tab.
+              configure models in the AI Models tab.
             </p>
 
             {customProviderEntries.length > 0 && (
