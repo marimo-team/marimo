@@ -168,7 +168,6 @@ const startCompletionAtEndOfLine = (cm: EditorView): boolean => {
     : startCompletion(cm);
 };
 
-
 // Based on codemirror's basicSetup extension
 export const basicBundle = (opts: CodeMirrorSetupOpts): Extension[] => {
   const {
