@@ -21,7 +21,6 @@ import {
   indentOnInput,
   indentUnit,
   syntaxHighlighting,
-  syntaxTree,
 } from "@codemirror/language";
 import { lintGutter } from "@codemirror/lint";
 import { EditorState, type Extension, Prec } from "@codemirror/state";
@@ -65,6 +64,7 @@ import { getCurrentLanguageAdapter } from "./language/commands";
 import { adaptiveLanguageConfiguration } from "./language/extension";
 import { dndBundle } from "./misc/dnd";
 import { pasteBundle } from "./misc/paste";
+import { stringsAutoCloseBraces } from "./misc/string-braces";
 import { reactiveReferencesBundle } from "./reactive-references/extension";
 import { darkTheme } from "./theme/dark";
 import { lightTheme } from "./theme/light";
@@ -168,37 +168,6 @@ const startCompletionAtEndOfLine = (cm: EditorView): boolean => {
     : startCompletion(cm);
 };
 
-export function stringBraceInputHandler(
-  view: EditorView,
-  from: number,
-  to: number,
-  text: string,
-): boolean {
-  if (text !== "{") {
-    return false;
-  }
-
-  // If there's a selection, let default behavior handle it
-  if (from !== to) {
-    return false;
-  }
-
-  const tree = syntaxTree(view.state);
-  const node = tree.resolveInner(from, -1);
-
-  if (!node?.type.name.includes("String")) {
-    return false;
-  }
-
-  view.dispatch({
-    changes: { from, to, insert: "{}" },
-    selection: { anchor: from + 1 },
-    userEvent: "input.type",
-  });
-  return true;
-}
-
-const stringBraceHandler = EditorView.inputHandler.of(stringBraceInputHandler);
 
 // Based on codemirror's basicSetup extension
 export const basicBundle = (opts: CodeMirrorSetupOpts): Extension[] => {
@@ -236,7 +205,7 @@ export const basicBundle = (opts: CodeMirrorSetupOpts): Extension[] => {
     hintTooltip(lspConfig),
     copilotBundle(completionConfig),
     foldGutter(),
-    stringBraceHandler,
+    stringsAutoCloseBraces(),
     closeBrackets(),
     completionKeymap(),
     // to avoid clash with charDeleteBackward keymap

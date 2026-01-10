@@ -4,7 +4,7 @@ import { python } from "@codemirror/lang-python";
 import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { afterEach, describe, expect, it } from "vitest";
-import { stringBraceInputHandler } from "../cm";
+import { stringBraceInputHandler } from "../string-braces";
 
 function createEditor(
   initialContent: string,
