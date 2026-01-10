@@ -143,3 +143,111 @@ def test_remove_secret_placeholders() -> None:
     assert config["ai"]["google"]["api_key"] == SECRET_PLACEHOLDER
     assert config["ai"]["anthropic"]["api_key"] == SECRET_PLACEHOLDER
     assert config["ai"]["openrouter"]["api_key"] == SECRET_PLACEHOLDER
+
+
+def test_mask_secrets_custom_providers() -> None:
+    """Test that custom_providers api_keys are masked."""
+    config = PartialMarimoConfig(
+        ai={
+            "custom_providers": {
+                "groq": {
+                    "api_key": "gsk-super-secret-groq-key",
+                    "base_url": "https://api.groq.com/openai/v1",
+                },
+                "together": {
+                    "api_key": "tg-super-secret-together-key",
+                    "base_url": "https://api.together.xyz/v1",
+                },
+                "local_provider": {
+                    "base_url": "http://localhost:8000/v1",
+                    # no api_key
+                },
+            },
+        },
+    )
+
+    # Verify original values
+    assert (
+        config["ai"]["custom_providers"]["groq"]["api_key"]
+        == "gsk-super-secret-groq-key"
+    )
+    assert (
+        config["ai"]["custom_providers"]["together"]["api_key"]
+        == "tg-super-secret-together-key"
+    )
+
+    # Mask secrets
+    new_config = mask_secrets(config)
+
+    # Verify api_keys are masked
+    assert (
+        new_config["ai"]["custom_providers"]["groq"]["api_key"]
+        == SECRET_PLACEHOLDER
+    )
+    assert (
+        new_config["ai"]["custom_providers"]["together"]["api_key"]
+        == SECRET_PLACEHOLDER
+    )
+
+    # Verify base_url is not masked
+    assert (
+        new_config["ai"]["custom_providers"]["groq"]["base_url"]
+        == "https://api.groq.com/openai/v1"
+    )
+    assert (
+        new_config["ai"]["custom_providers"]["together"]["base_url"]
+        == "https://api.together.xyz/v1"
+    )
+
+    # Verify provider without api_key is unchanged
+    assert (
+        new_config["ai"]["custom_providers"]["local_provider"]["base_url"]
+        == "http://localhost:8000/v1"
+    )
+    assert (
+        "api_key" not in new_config["ai"]["custom_providers"]["local_provider"]
+    )
+
+    # Ensure the original config is not modified
+    assert (
+        config["ai"]["custom_providers"]["groq"]["api_key"]
+        == "gsk-super-secret-groq-key"
+    )
+    assert (
+        config["ai"]["custom_providers"]["together"]["api_key"]
+        == "tg-super-secret-together-key"
+    )
+
+
+def test_remove_secret_placeholders_custom_providers() -> None:
+    """Test that custom_providers secret placeholders are removed."""
+    config = PartialMarimoConfig(
+        ai={
+            "custom_providers": {
+                "groq": {
+                    "api_key": SECRET_PLACEHOLDER,
+                    "base_url": "https://api.groq.com/openai/v1",
+                },
+            },
+        },
+    )
+    assert (
+        config["ai"]["custom_providers"]["groq"]["api_key"]
+        == SECRET_PLACEHOLDER
+    )
+
+    new_config = remove_secret_placeholders(config)
+
+    # api_key should be removed
+    assert "api_key" not in new_config["ai"]["custom_providers"]["groq"]
+    # base_url should still be there
+    assert (
+        new_config["ai"]["custom_providers"]["groq"]["base_url"]
+        == "https://api.groq.com/openai/v1"
+    )
+
+    # Ensure the original config is not modified
+    assert (
+        config["ai"]["custom_providers"]["groq"]["api_key"]
+        == SECRET_PLACEHOLDER
+    )
