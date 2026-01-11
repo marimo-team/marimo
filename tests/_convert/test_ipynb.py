@@ -8,6 +8,7 @@ import pytest
 from marimo._convert.ipynb import (
     CellsTransform,
     CodeCell,
+    RenameType,
     Transform,
     convert_from_ipynb_to_notebook_ir,
     transform_add_marimo_import,
@@ -18,6 +19,14 @@ from marimo._convert.ipynb import (
     transform_magic_commands,
     transform_remove_duplicate_imports,
 )
+
+
+# Helper to generate expected rename comments
+def _rename_comment(var_name: str, rename_type: RenameType) -> str:
+    return (
+        f"  # variable `{var_name}` was {rename_type.value} "
+        f"in the original Jupyter notebook"
+    )
 
 
 def dd(sources: list[str]) -> list[str]:
@@ -284,10 +293,10 @@ def test_transform_duplicate_definitions():
     assert result == [
         "a = 1",
         "print(a)",
-        "a_1 = 2",
+        f"a_1 = 2{_rename_comment('a', RenameType.REDEFINED)}",
         "print(a_1)",
         "print(a_1)",
-        "a_2 = 3",
+        f"a_2 = 3{_rename_comment('a', RenameType.REDEFINED)}",
     ]
 
 
@@ -525,9 +534,9 @@ def test_transform_duplicate_definitions_complex():
     assert result == [
         "x = 1 # comment unaffected",
         "a = 1\nb = 2\nprint(a, b)",
-        "a_1 = 3\nc = 4\nprint(a_1, c)",
-        "b_1 = 5\nd = 6\nprint(b_1, d)",
-        "a_2 = 7\nb_2 = 8\nc_1 = 9\nprint(a_2, b_2, c_1)",
+        f"a_1 = 3{_rename_comment('a', RenameType.REDEFINED)}\nc = 4\nprint(a_1, c)",
+        f"b_1 = 5{_rename_comment('b', RenameType.REDEFINED)}\nd = 6\nprint(b_1, d)",
+        f"a_2 = 7{_rename_comment('a', RenameType.REDEFINED)}\nb_2 = 8{_rename_comment('b', RenameType.REDEFINED)}\nc_1 = 9{_rename_comment('c', RenameType.REDEFINED)}\nprint(a_2, b_2, c_1)",
     ]
 
 
@@ -598,7 +607,7 @@ def test_transform_duplicate_definitions_with_comprehensions():
         "[x for x in range(10)]",
         "x = 5\nprint(x)",
         "{x: x**2 for x in range(5)}",
-        "x_1 = 10\nprint(x_1)",
+        f"x_1 = 10{_rename_comment('x', RenameType.REDEFINED)}\nprint(x_1)",
     ]
 
 
@@ -611,7 +620,7 @@ def test_transform_duplicate_definitions_with_reference_to_previous():
     result = transform_duplicate_definitions(sources)
     assert result == [
         "x = 1",
-        "x_1 = x + 1\nprint(x_1)",
+        f"x_1 = x + 1{_rename_comment('x', RenameType.MODIFIED)}\nprint(x_1)",
         "print(x_1)",
     ]
 
@@ -671,10 +680,10 @@ def test_transform_duplicate_definitions_with_re_def():
     result = transform_duplicate_definitions(sources)
     assert result == [
         "x = 1",
-        "x_1 = x + 1\nprint(x_1)",
-        "x_2 = x_1 + 2\nprint(x_2)",
-        "x_3 = x_2 + 3\nprint(x_3)",
-        "x_4 = 10\nprint(x_4)",
+        f"x_1 = x + 1{_rename_comment('x', RenameType.MODIFIED)}\nprint(x_1)",
+        f"x_2 = x_1 + 2{_rename_comment('x', RenameType.MODIFIED)}\nprint(x_2)",
+        f"x_3 = x_2 + 3{_rename_comment('x', RenameType.MODIFIED)}\nprint(x_3)",
+        f"x_4 = 10{_rename_comment('x', RenameType.REDEFINED)}\nprint(x_4)",
         "print(x_4)",
     ]
 
@@ -687,14 +696,18 @@ def test_transform_duplicate_definitions_with_multiple_variables():
         "x, y, z = y, z, x\nprint(x, y, z)",
     ]
     result = transform_duplicate_definitions(sources)
+    mod_x = _rename_comment("x", RenameType.MODIFIED)
+    mod_y = _rename_comment("y", RenameType.MODIFIED)
+    redef_x = _rename_comment("x", RenameType.REDEFINED)
+    redef_z = _rename_comment("z", RenameType.REDEFINED)
     assert_sources_equal(
         result,
         dd(
             [
                 "x, y = 1, 2",
-                "x_1 = x + y\ny_1 = y + x_1\nprint(x_1, y_1)",
-                "z = x_1 + y_1\nx_2 = z\nprint(x_2, y_1, z)",
-                "x_3, y_2, z_1 = (y_1, z, x_2)\nprint(x_3, y_2, z_1)",
+                f"x_1 = x + y{mod_x}\ny_1 = y + x_1{mod_y}\nprint(x_1, y_1)",
+                f"z = x_1 + y_1\nx_2 = z{redef_x}\nprint(x_2, y_1, z)",
+                f"x_3, y_2, z_1 = (y_1, z, x_2){mod_x}\nprint(x_3, y_2, z_1)",
             ]
         ),
     )
@@ -725,6 +738,7 @@ print(x)
 """,
         ]
     )
+    redef_x = _rename_comment("x", RenameType.REDEFINED)
     expected = dd(
         [
             "x = 10",
@@ -734,8 +748,8 @@ def func():
     x_1 = x + 1
     return x
 """,
-            """
-x_1 = func()
+            f"""
+x_1 = func(){redef_x}
 print(x_1)
 """,
             """
@@ -743,8 +757,8 @@ def another_func():
    x = 20
    return x
 """,
-            """
-x_2 = another_func()
+            f"""
+x_2 = another_func(){redef_x}
 print(x_2)
 """,
         ]
@@ -762,14 +776,16 @@ def test_transform_duplicate_definitions_with_comprehensions_and_lambdas():
         "x = lambda x: x**4\nprint([x(i) for i in range(5)])",
     ]
     result = transform_duplicate_definitions(sources)
+    mod_x = _rename_comment("x", RenameType.MODIFIED)
+    redef_x = _rename_comment("x", RenameType.REDEFINED)
     assert_sources_equal(
         result,
         dd(
             [
                 "x = [i for i in range(5)]",
-                "x_1 = list(map(lambda x: x**2, x))\nprint(x_1)",
-                "x_2 = {x: x**3 for x in x_1}\nprint(x_2)",
-                "x_3 = lambda x: x**4\nprint([x_3(i) for i in range(5)])",
+                f"x_1 = list(map(lambda x: x**2, x)){mod_x}\nprint(x_1)",
+                f"x_2 = {{x: x**3 for x in x_1}}{mod_x}\nprint(x_2)",
+                f"x_3 = lambda x: x**4{redef_x}\nprint([x_3(i) for i in range(5)])",
             ]
         ),
     )
@@ -781,12 +797,13 @@ def test_transform_duplicate_definitions_with_simple_lambda():
         "x = lambda x: x**2",
     ]
     result = transform_duplicate_definitions(sources)
+    redef_x = _rename_comment("x", RenameType.REDEFINED)
     assert_sources_equal(
         result,
         dd(
             [
                 "x = 0",
-                "x_1 = lambda x: x**2",
+                f"x_1 = lambda x: x**2{redef_x}",
             ]
         ),
     )
@@ -800,10 +817,11 @@ def test_transform_simple_redefinition() -> None:
         "x",
     ]
     result = transform_duplicate_definitions(sources)
+    redef_x = _rename_comment("x", RenameType.REDEFINED)
     assert result == [
         "x = 0",
         "x",
-        "x_1 = 1",
+        f"x_1 = 1{redef_x}",
         "x_1",
     ]
 
@@ -815,9 +833,10 @@ def test_transform_duplicate_definitions_with_simple_function():
         "def f(x): return x",
     ]
     result = transform_duplicate_definitions(sources)
+    redef_x = _rename_comment("x", RenameType.REDEFINED)
     assert result == [
         "x = 0",
-        "x_1 = 1",
+        f"x_1 = 1{redef_x}",
         "def f(x): return x",
     ]
 
@@ -830,10 +849,11 @@ def test_transform_duplicate_definitions_attrs():
         "x",
     ]
     result = transform_duplicate_definitions(sources)
+    mod_x = _rename_comment("x", RenameType.MODIFIED)
     assert result == [
         "x = 0",
         "x",
-        "x_1 = x.apply()",
+        f"x_1 = x.apply(){mod_x}",
         "x_1",
     ]
 
@@ -851,13 +871,14 @@ def test_transform_duplicate_definition_shadowed_definition():
         ]
     )
     result = transform_duplicate_definitions(sources)
+    redef_x = _rename_comment("x", RenameType.REDEFINED)
     assert_sources_equal(
         result,
         [
             "x = 0",
             "x",
-            """
-            x_1 = 1
+            f"""
+            x_1 = 1{redef_x}
             def f():
                 x = 1;
             """,
@@ -878,13 +899,14 @@ def test_transform_duplicate_definition_kwarg():
         ]
     )
     result = transform_duplicate_definitions(sources)
+    redef_x = _rename_comment("x", RenameType.REDEFINED)
     assert_sources_equal(
         result,
         [
             "x = 0",
             "x",
-            """
-            x_1 = 1
+            f"""
+            x_1 = 1{redef_x}
             def f(x=x_1):
                 return x
             """,
@@ -908,13 +930,14 @@ def test_transform_duplicate_definition_nested():
         ]
     )
     result = transform_duplicate_definitions(sources)
+    mod_x = _rename_comment("x", RenameType.MODIFIED)
     assert_sources_equal(
         result,
         [
             "x = 0",
             "x",
-            """
-            x_1 = 1
+            f"""
+            x_1 = 1{mod_x}
             def f(x=x_1):
                 x = 2
                 def g(x=x):
@@ -935,12 +958,13 @@ def test_transform_duplicate_function_definitions():
         ]
     )
     result = transform_duplicate_definitions(sources)
+    redef_f = _rename_comment("f", RenameType.REDEFINED)
     assert_sources_equal(
         result,
         [
             "def f(): pass",
             "f()",
-            "def f_1(): pass",
+            f"def f_1(): pass{redef_f}",
             "f_1()",
         ],
     )
@@ -956,12 +980,13 @@ def test_transform_duplicate_classes():
         ]
     )
     result = transform_duplicate_definitions(sources)
+    redef_A = _rename_comment("A", RenameType.REDEFINED)
     assert_sources_equal(
         result,
         [
             "class A(): ...",
             "A()",
-            "class A_1(): ...",
+            f"class A_1(): ...{redef_A}",
             "A_1()",
         ],
     )
@@ -999,14 +1024,15 @@ def test_transform_duplicate_definitions_numbered():
         ]
     )
     result = transform_duplicate_definitions(sources)
+    redef_df = _rename_comment("df", RenameType.REDEFINED)
     assert_sources_equal(
         result,
         [
             "df = 1",
             "df_1 = 1",
-            "df_2 = 2",
+            f"df_2 = 2{redef_df}",
             "df_2",
-            "df_3 = 3",
+            f"df_3 = 3{redef_df}",
             "df_3",
         ],
     )

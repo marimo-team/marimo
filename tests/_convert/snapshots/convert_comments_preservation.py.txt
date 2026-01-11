@@ -24,7 +24,7 @@ def _():
 def _():
     # Cell 3: Redefinition with more comments
     # This is the second definition of y
-    y_1 = 20  # Second definition with inline comment
+    y_1 = 20  # variable `y` was redefined in the original Jupyter notebook  # Second definition with inline comment
     result = y_1 * 2  # Calculate result
     print(result)  # Print the result
     return (y_1,)

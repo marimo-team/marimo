@@ -7,6 +7,7 @@ import re
 import sys
 from collections import defaultdict
 from dataclasses import dataclass, field
+from enum import Enum
 from typing import Any, Callable, Union
 
 from marimo._ast.cell import CellConfig
@@ -677,6 +678,21 @@ def _transform_aug_assign(sources: list[str]) -> list[str]:
     return new_sources
 
 
+class RenameType(Enum):
+    """Type of variable rename during notebook conversion."""
+
+    MODIFIED = "modified"  # Variable references its previous value
+    REDEFINED = "redefined"  # Variable is completely redefined
+
+
+@dataclass
+class RenameInfo:
+    """Information about a renamed variable."""
+
+    new_name: str
+    rename_type: RenameType
+
+
 def transform_duplicate_definitions(sources: list[str]) -> list[str]:
     """
     Rename variables with duplicate definitions across multiple cells,
@@ -714,11 +730,11 @@ def transform_duplicate_definitions(sources: list[str]) -> list[str]:
     print(a)
 
     # Cell 3
-    a_1 = a
+    a_1 = a  # variable `a` was modified in the original Jupyter notebook
     a_1 = a_1 + 2
 
     # Cell 4
-    a_2 = 3
+    a_2 = 3  # variable `a` was redefined in the original Jupyter notebook
     print(a_2)
     ```
     """
@@ -743,6 +759,22 @@ def transform_duplicate_definitions(sources: list[str]) -> list[str]:
                 continue
         return definitions
 
+    # Find all references in the AST
+    def find_references(source: str) -> set[str]:
+        try:
+            tree = ast.parse(source)
+            visitor = ScopedVisitor("", ignore_local=True)
+            visitor.visit(tree)
+            return set(visitor.refs)
+        except SyntaxError:
+            return set()
+
+    # Check if a cell modifies a variable (references it before redefining)
+    def is_modification(source: str, var_name: str) -> bool:
+        """Check if the cell references the variable before its first definition."""
+        refs = find_references(source)
+        return var_name in refs
+
     # Collect all definitions that are duplicates
     def get_duplicates(
         definitions: dict[str, list[int]],
@@ -756,9 +788,10 @@ def transform_duplicate_definitions(sources: list[str]) -> list[str]:
     # Create mappings for renaming duplicates
     def create_name_mappings(
         duplicates: dict[str, list[int]], definitions: set[str]
-    ) -> dict[int, dict[str, str]]:
+    ) -> tuple[dict[int, dict[str, str]], dict[int, dict[str, RenameInfo]]]:
         new_definitions: set[str] = set()
         name_mappings: dict[int, dict[str, str]] = defaultdict(dict)
+        rename_info: dict[int, dict[str, RenameInfo]] = defaultdict(dict)
         for name, cells in duplicates.items():
             for i, cell in enumerate(cells[1:], start=1):
                 counter = i
@@ -771,7 +804,17 @@ def transform_duplicate_definitions(sources: list[str]) -> list[str]:
                 counter += 1
                 name_mappings[cell][name] = new_name
                 new_definitions.add(new_name)
-        return name_mappings
+                # Check if this is a modification (references previous value)
+                # or a redefinition (completely new value)
+                rename_type = (
+                    RenameType.MODIFIED
+                    if is_modification(sources[cell], name)
+                    else RenameType.REDEFINED
+                )
+                rename_info[cell][name] = RenameInfo(
+                    new_name=new_name, rename_type=rename_type
+                )
+        return name_mappings, rename_info
 
     definitions = get_definitions(sources)
     duplicates = get_duplicates(definitions)
@@ -782,7 +825,9 @@ def transform_duplicate_definitions(sources: list[str]) -> list[str]:
     sources = _transform_aug_assign(sources)
 
     new_sources: list[str] = sources.copy()
-    name_mappings = create_name_mappings(duplicates, set(definitions.keys()))
+    name_mappings, rename_info = create_name_mappings(
+        duplicates, set(definitions.keys())
+    )
 
     for cell_idx, source in enumerate(sources):
         renamer = Renamer(name_mappings)
@@ -833,10 +878,74 @@ def transform_duplicate_definitions(sources: list[str]) -> list[str]:
         #    new_source_lines.append(f"{definition} = {dep}")
 
         # Add the modified source
-        new_source_lines.append(ast.unparse(new_tree))
+        unparsed_source = ast.unparse(new_tree)
+
+        # Add comments to indicate renamed variables
+        if cell_idx in rename_info:
+            unparsed_source = _add_rename_comments(
+                unparsed_source, rename_info[cell_idx]
+            )
+
+        new_source_lines.append(unparsed_source)
         new_sources[cell_idx] = "\n".join(new_source_lines)
 
     return new_sources
+
+
+def _add_rename_comments(
+    source: str, cell_rename_info: dict[str, RenameInfo]
+) -> str:
+    """
+    Add comments to lines where renamed variables are first defined.
+
+    Args:
+        source: The unparsed source code
+        cell_rename_info: Mapping from original variable name to RenameInfo
+
+    Returns:
+        Source code with comments added
+    """
+    lines = source.split("\n")
+    new_lines: list[str] = []
+    commented_vars: set[str] = (
+        set()
+    )  # Track which vars we've already commented
+
+    # Build a reverse mapping: new_name -> (original_name, rename_type)
+    new_to_original: dict[str, tuple[str, RenameType]] = {}
+    for original_name, info in cell_rename_info.items():
+        new_to_original[info.new_name] = (original_name, info.rename_type)
+
+    for line in lines:
+        # Check if this line contains an assignment to a renamed variable
+        # Look for patterns like "var_name = " at the start of the line
+        comment_to_add = None
+        for new_name, (original_name, rename_type) in new_to_original.items():
+            if new_name in commented_vars:
+                continue
+            # Check if this line starts with the renamed variable assignment
+            # Handle cases like "a_1 = ...", "a_1, b_1 = ...", etc.
+            stripped = line.lstrip()
+            if stripped.startswith(f"{new_name} =") or stripped.startswith(
+                f"{new_name}="
+            ):
+                comment_to_add = (
+                    f"  # variable `{original_name}` was {rename_type.value} "
+                    f"in the original Jupyter notebook"
+                )
+                commented_vars.add(new_name)
+                break
+
+        if comment_to_add:
+            # Add comment at end of line, avoiding duplicate comments
+            if "# variable `" not in line:
+                new_lines.append(line + comment_to_add)
+            else:
+                new_lines.append(line)
+        else:
+            new_lines.append(line)
+
+    return "\n".join(new_lines)
 
 
 def bind_cell_metadata(
