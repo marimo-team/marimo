@@ -12,6 +12,7 @@ from starlette.responses import FileResponse, HTMLResponse, Response
 from starlette.staticfiles import StaticFiles
 
 from marimo import _loggers
+from marimo._cli.sandbox import SandboxMode
 from marimo._config.manager import get_default_config_manager
 from marimo._output.utils import uri_decode_component, uri_encode_component
 from marimo._runtime.virtual_file import EMPTY_VIRTUAL_FILE, read_virtual_file
@@ -23,6 +24,7 @@ from marimo._server.templates.templates import (
     inject_script,
     notebook_page_template,
 )
+from marimo._utils.async_path import AsyncPath
 from marimo._utils.paths import marimo_package_path
 
 if TYPE_CHECKING:
@@ -144,6 +146,25 @@ async def index(request: Request) -> HTMLResponse:
         app_manager = app_state.session_manager.app_manager(file_key)
         app_config = app_manager.app.config
 
+        # Pre-compute notebook snapshot for faster initial render
+        # Only in SandboxMode.MULTI where each notebook gets its own IPC kernel
+        notebook_snapshot = None
+        if (
+            app_state.session_manager.sandbox_mode is SandboxMode.MULTI
+            and app_manager.filename
+        ):
+            from marimo._convert.converters import MarimoConvert
+
+            filepath = AsyncPath(app_manager.filename)
+            if await filepath.exists():
+                try:
+                    content = await filepath.read_text(encoding="utf-8")
+                    notebook_snapshot = MarimoConvert.from_py(
+                        content
+                    ).to_notebook_v1()
+                except Exception:
+                    LOGGER.debug("Failed to pre-compute notebook snapshot")
+
         # Make filename relative to file router's directory if possible
         filename = app_manager.filename
         directory = app_state.session_manager.file_router.directory
@@ -162,6 +183,7 @@ async def index(request: Request) -> HTMLResponse:
             app_config=app_config,
             filename=filename,
             mode=app_state.mode,
+            notebook_snapshot=notebook_snapshot,
             runtime_config=[{"url": app_state.remote_url}]
             if app_state.remote_url
             else None,

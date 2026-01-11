@@ -246,6 +246,13 @@ class BannerNotification(Notification, tag="banner"):
     action: Optional[Literal["restart"]] = None
 
 
+class KernelStartupErrorNotification(Notification, tag="kernel-startup-error"):
+    """Notification sent when kernel fails to start (e.g., sandbox build failure)."""
+
+    name: ClassVar[str] = "kernel-startup-error"
+    error: str
+
+
 class ReloadNotification(Notification, tag="reload"):
     name: ClassVar[str] = "reload"
 
@@ -446,6 +453,7 @@ NotificationMessage = Union[
     MissingPackageAlertNotification,
     InstallingPackageAlertNotification,
     StartupLogsNotification,
+    KernelStartupErrorNotification,
     # Variables
     VariablesNotification,
     VariableValuesNotification,

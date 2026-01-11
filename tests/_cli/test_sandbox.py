@@ -3,14 +3,12 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 from unittest.mock import patch
 
-import click
-import pytest
-
 from marimo._cli.sandbox import (
+    SandboxMode,
     _ensure_marimo_in_script_metadata,
     _normalize_sandbox_dependencies,
     construct_uv_command,
-    should_run_in_sandbox,
+    resolve_sandbox_mode,
 )
 from marimo._utils.inline_script_metadata import PyProjectReader
 
@@ -126,7 +124,7 @@ def test_construct_uv_cmd_marimo_edit_empty_file() -> None:
         additional_deps=[],
     )
     assert "--refresh" in uv_cmd
-    assert uv_cmd[0] == "uv"
+    assert uv_cmd[0].endswith("uv")
     assert uv_cmd[1] == "run"
 
 
@@ -141,7 +139,7 @@ def test_construct_uv_cmd_marimo_edit_file_no_sandbox(
         additional_deps=[],
     )
     assert "--refresh" in uv_cmd
-    assert uv_cmd[0] == "uv"
+    assert uv_cmd[0].endswith("uv")
     assert uv_cmd[1] == "run"
 
 
@@ -157,7 +155,7 @@ def test_construct_uv_cmd_marimo_edit_sandboxed_file(
         additional_deps=[],
     )
     assert "--refresh" not in uv_cmd
-    assert uv_cmd[0] == "uv"
+    assert uv_cmd[0].endswith("uv")
     assert uv_cmd[1] == "run"
 
 
@@ -413,8 +411,8 @@ import marimo
         assert "numpy" in requirements
 
 
-def test_should_run_in_sandbox_user_confirms(tmp_path: Path) -> None:
-    """Test that should_run_in_sandbox returns True when user types 'y'."""
+def test_resolve_sandbox_mode_user_confirms(tmp_path: Path) -> None:
+    """Test that resolve_sandbox_mode returns SandboxMode.SINGLE when user types 'y'."""
     # Create a file with dependencies
     script_path = tmp_path / "test.py"
     script_path.write_text(
@@ -435,55 +433,70 @@ import marimo
             with patch(
                 "marimo._cli.sandbox.sys.stdin.isatty", return_value=True
             ):
-                result = should_run_in_sandbox(
+                result = resolve_sandbox_mode(
                     sandbox=None,
-                    dangerous_sandbox=None,
                     name=str(script_path),
                 )
-                assert result
+                assert result is SandboxMode.SINGLE
 
 
-def test_should_run_in_sandbox_explicit_flag() -> None:
-    """Test that should_run_in_sandbox returns True when sandbox=True."""
-    result = should_run_in_sandbox(
+def test_resolve_sandbox_mode_explicit_single() -> None:
+    """Test that resolve_sandbox_mode returns SandboxMode.SINGLE for single file with sandbox=True."""
+    result = resolve_sandbox_mode(
         sandbox=True,
-        dangerous_sandbox=None,
         name="test.py",
     )
-    assert result
+    assert result is SandboxMode.SINGLE
 
 
-def test_should_run_in_sandbox_explicit_false() -> None:
-    """Test that should_run_in_sandbox returns False when sandbox=False."""
-    result = should_run_in_sandbox(
+def test_resolve_sandbox_mode_explicit_false() -> None:
+    """Test that resolve_sandbox_mode returns None when sandbox=False."""
+    result = resolve_sandbox_mode(
         sandbox=False,
-        dangerous_sandbox=None,
         name="test.py",
     )
-    assert not result
+    assert result is None
 
 
-def test_should_run_in_sandbox_dangerous_sandbox(tmp_path: Path) -> None:
-    """Test that dangerous_sandbox allows sandbox for directories."""
+def test_resolve_sandbox_mode_directory(tmp_path: Path) -> None:
+    """Test that resolve_sandbox_mode returns SandboxMode.MULTI for directories."""
     dir_path = tmp_path / "notebooks"
     dir_path.mkdir()
 
-    # Without dangerous_sandbox, should raise an error
-    with pytest.raises(click.UsageError):
-        should_run_in_sandbox(
-            sandbox=True,
-            dangerous_sandbox=False,
-            name=str(dir_path),
-        )
+    # Directory with sandbox=True returns SandboxMode.MULTI
+    result = resolve_sandbox_mode(
+        sandbox=True,
+        name=str(dir_path),
+    )
+    assert result is SandboxMode.MULTI
 
-    # With dangerous_sandbox, should work
-    with patch("click.echo"):
-        result = should_run_in_sandbox(
-            sandbox=True,
-            dangerous_sandbox=True,
-            name=str(dir_path),
-        )
-        assert result
+
+def test_resolve_sandbox_mode_all_cases(tmp_path: Path) -> None:
+    """Test resolve_sandbox_mode for all cases."""
+    dir_path = tmp_path / "notebooks"
+    dir_path.mkdir()
+    file_path = tmp_path / "notebook.py"
+    file_path.write_text("# test")
+
+    # sandbox=False always returns None
+    assert resolve_sandbox_mode(sandbox=False, name=None) is None
+    assert resolve_sandbox_mode(sandbox=False, name=str(dir_path)) is None
+    assert resolve_sandbox_mode(sandbox=False, name=str(file_path)) is None
+
+    # sandbox=True with None (current dir) -> SandboxMode.MULTI
+    assert resolve_sandbox_mode(sandbox=True, name=None) is SandboxMode.MULTI
+
+    # sandbox=True with directory -> SandboxMode.MULTI
+    assert (
+        resolve_sandbox_mode(sandbox=True, name=str(dir_path))
+        is SandboxMode.MULTI
+    )
+
+    # sandbox=True with file -> SandboxMode.SINGLE
+    assert (
+        resolve_sandbox_mode(sandbox=True, name=str(file_path))
+        is SandboxMode.SINGLE
+    )
 
 
 def test_construct_uv_cmd_without_python_version(tmp_path: Path) -> None:
@@ -559,3 +572,102 @@ app = marimo.App()
     _ensure_marimo_in_script_metadata(str(script_path))
 
     assert script_path.read_text() == original
+
+
+# Tests for IPC sandbox functions
+
+
+def test_ipc_kernel_deps_constant() -> None:
+    """Test IPC_KERNEL_DEPS constant contains expected deps."""
+    from marimo._cli.sandbox import IPC_KERNEL_DEPS
+
+    assert "pyzmq" in IPC_KERNEL_DEPS
+
+
+def test_get_sandbox_requirements_adds_additional_deps(tmp_path: Path) -> None:
+    """Test that additional deps are added when not present."""
+    from marimo._cli.sandbox import get_sandbox_requirements
+
+    script_path = tmp_path / "test.py"
+    script_path.write_text(
+        """# /// script
+# dependencies = ["numpy"]
+# ///
+import marimo
+"""
+    )
+
+    with patch("marimo._cli.sandbox.is_editable", return_value=False):
+        reqs = get_sandbox_requirements(
+            str(script_path),
+            additional_deps=["pyzmq", "msgspec"],
+        )
+
+    assert any("numpy" in r for r in reqs)
+    assert "pyzmq" in reqs
+    assert "msgspec" in reqs
+
+
+def test_get_sandbox_requirements_no_duplicate_deps(tmp_path: Path) -> None:
+    """Test that additional deps aren't duplicated if already present."""
+    from marimo._cli.sandbox import get_sandbox_requirements
+
+    script_path = tmp_path / "test.py"
+    script_path.write_text(
+        """# /// script
+# dependencies = ["numpy", "pyzmq>=25.0"]
+# ///
+import marimo
+"""
+    )
+
+    with patch("marimo._cli.sandbox.is_editable", return_value=False):
+        reqs = get_sandbox_requirements(
+            str(script_path),
+            additional_deps=["pyzmq", "msgspec"],
+        )
+
+    # Should have only one pyzmq entry (uv resolves versions, so it may be ==X.Y.Z)
+    pyzmq_entries = [r for r in reqs if "pyzmq" in r.lower()]
+    assert len(pyzmq_entries) == 1
+    assert "msgspec" in reqs
+
+
+def test_get_sandbox_requirements_none_filename() -> None:
+    """Test get_sandbox_requirements with None filename."""
+    from marimo._cli.sandbox import get_sandbox_requirements
+
+    with patch("marimo._cli.sandbox.is_editable", return_value=False):
+        reqs = get_sandbox_requirements(None, additional_deps=["pyzmq"])
+
+    # Should have marimo and additional deps
+    assert any("marimo" in r for r in reqs)
+    assert "pyzmq" in reqs
+
+
+def test_cleanup_sandbox_dir_removes_directory(tmp_path: Path) -> None:
+    """Test that cleanup_sandbox_dir removes the directory."""
+    from marimo._cli.sandbox import cleanup_sandbox_dir
+
+    sandbox_dir = tmp_path / "sandbox"
+    sandbox_dir.mkdir()
+    (sandbox_dir / "file.txt").write_text("test")
+
+    cleanup_sandbox_dir(str(sandbox_dir))
+
+    assert not sandbox_dir.exists()
+
+
+def test_cleanup_sandbox_dir_handles_none() -> None:
+    """Test that cleanup_sandbox_dir handles None gracefully."""
+    from marimo._cli.sandbox import cleanup_sandbox_dir
+
+    cleanup_sandbox_dir(None)  # Should not raise
+
+
+def test_cleanup_sandbox_dir_handles_nonexistent(tmp_path: Path) -> None:
+    """Test that cleanup_sandbox_dir handles nonexistent directory."""
+    from marimo._cli.sandbox import cleanup_sandbox_dir
+
+    nonexistent = str(tmp_path / "does_not_exist")
+    cleanup_sandbox_dir(nonexistent)  # Should not raise

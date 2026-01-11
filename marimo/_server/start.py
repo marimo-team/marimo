@@ -11,6 +11,7 @@ import uvicorn
 
 import marimo._server.api.lifespans as lifespans
 from marimo._cli.print import echo
+from marimo._cli.sandbox import SandboxMode
 from marimo._config.manager import get_default_config_manager
 from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._mcp.server.main import setup_mcp_server
@@ -177,6 +178,7 @@ def start(
     server_startup_command: Optional[str] = None,
     asset_url: Optional[str] = None,
     timeout: Optional[float] = None,
+    sandbox_mode: SandboxMode | None = None,
 ) -> None:
     """
     Start the server.
@@ -243,6 +245,7 @@ def start(
         auth_token=auth_token,
         redirect_console_to_browser=redirect_console_to_browser,
         watch=watch,
+        sandbox_mode=sandbox_mode,
     )
 
     log_level = "info" if development_mode else "error"

@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Optional, TypeVar
 
 from marimo import _loggers
+from marimo._cli.sandbox import SandboxMode
 from marimo._config.manager import MarimoConfigManager
 from marimo._runtime.commands import (
     SerializedCLIArgs,
@@ -76,6 +77,7 @@ class SessionManager:
         redirect_console_to_browser: bool,
         ttl_seconds: Optional[int],
         watch: bool = False,
+        sandbox_mode: SandboxMode | None = None,
     ) -> None:
         # Core configuration
         self.file_router = file_router
@@ -88,6 +90,7 @@ class SessionManager:
         self.argv = argv
         self.redirect_console_to_browser = redirect_console_to_browser
         self._config_manager = config_manager
+        self.sandbox_mode = sandbox_mode
 
         self._repository = SessionRepository()
 
@@ -188,6 +191,7 @@ class SessionManager:
             ttl_seconds=self.ttl_seconds,
             auto_instantiate=auto_instantiate,
             extensions=extensions,
+            sandbox_mode=self.sandbox_mode,
         )
 
         # Add to repository

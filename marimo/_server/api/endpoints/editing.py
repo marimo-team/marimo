@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 
 from starlette.authentication import requires
 
+from marimo._cli.sandbox import SandboxMode
 from marimo._messaging.notification import UpdateCellIdsNotification
 from marimo._server.api.deps import AppState
 from marimo._server.api.utils import dispatch_control_request, parse_request
@@ -136,7 +137,17 @@ async def format_cell(request: Request) -> FormatResponse:
     body = await parse_request(request, cls=FormatCellsRequest)
     formatter = DefaultFormatter(line_length=body.line_length)
 
-    return FormatResponse(codes=await formatter.format(body.codes))
+    try:
+        return FormatResponse(codes=await formatter.format(body.codes))
+    except ModuleNotFoundError:
+        app_state = AppState(request)
+        # Installation occurs in the kernel which is not useful for multi mode.
+        if app_state.session_manager.sandbox_mode is SandboxMode.MULTI:
+            # Re-raise without name so error handler won't send install notification
+            raise ModuleNotFoundError(
+                "Server does not have a formatter. Please install ruff"
+            ) from None
+        raise
 
 
 @router.post("/set_cell_config")

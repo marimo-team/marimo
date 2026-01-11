@@ -239,6 +239,7 @@ class DependencyManager:
     redshift_connector = Dependency("redshift_connector")
     mcp = Dependency("mcp")
     pydantic_ai = Dependency("pydantic_ai")
+    zmq = Dependency("zmq")  # pyzmq for sandbox IPC kernels
 
     # Version requirements to properly support the new superfences introduced in
     # pymdown#2470
