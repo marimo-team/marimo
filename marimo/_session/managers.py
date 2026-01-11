@@ -236,6 +236,14 @@ class KernelManagerImpl(KernelManager):
                 daemon=True,
             )
 
+        # Ensure __main__.__spec__ exists to prevent AttributeError in
+        # multiprocessing spawn code. This can happen due to race conditions
+        # with kernel threads from previous sessions that may have replaced
+        # sys.modules["__main__"] with a module lacking __spec__.
+        _main = sys.modules.get("__main__")
+        if _main is not None and not hasattr(_main, "__spec__"):
+            _main.__spec__ = None
+
         self.kernel_task.start()  # type: ignore
         if listener is not None:
             # First thing kernel does is connect to the socket, so it's safe to
