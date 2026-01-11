@@ -24,14 +24,17 @@
   }
 
   [data-code-block-container="true"] {
+    /* biome-ignore lint/complexity/noImportantStyles: override streamdown */
     margin-top: 0 !important;
   }
 
   [data-code-block-header="true"] {
+    /* biome-ignore lint/complexity/noImportantStyles: override streamdown */
     padding: 4px !important;
   }
 
   code {
+    /* biome-ignore lint/complexity/noImportantStyles: override streamdown */
     font-size: inherit !important;
     white-space: pre-wrap;
   }

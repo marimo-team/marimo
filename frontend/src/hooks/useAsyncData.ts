@@ -183,7 +183,9 @@ export function combineAsyncData<T extends unknown[]>(
   );
 
   const refetch = () => {
-    responses.forEach((response) => response.refetch());
+    for (const response of responses) {
+      response.refetch();
+    }
   };
 
   // short circuit if any response has an error

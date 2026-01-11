@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import { describe, expect, test } from "vitest";
 import { getDirtyValues } from "../user-config-form";

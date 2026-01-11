@@ -1,5 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
+import { useId } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -22,24 +23,32 @@ export const Disabled = {
 };
 
 export const WithLabel = {
-  render: () => (
-    <div className="grid w-full max-w-sm items-center gap-1.5">
-      <Label htmlFor="email">Email</Label>
-      <Input type="email" id="email" placeholder="Email" />
-    </div>
-  ),
+  render: function Render() {
+    const id = useId();
+    return (
+      <div className="grid w-full max-w-sm items-center gap-1.5">
+        <Label htmlFor={id}>Email</Label>
+        <Input type="email" id={id} placeholder="Email" />
+      </div>
+    );
+  },
 
   name: "With Label",
 };
 
 export const WithText = {
-  render: () => (
-    <div className="grid w-full max-w-sm items-center gap-1.5">
-      <Label htmlFor="email-2">Email</Label>
-      <Input type="email" id="email-2" placeholder="Email" />
-      <p className="text-sm text-muted-foreground">Enter your email address.</p>
-    </div>
-  ),
+  render: function Render() {
+    const id = useId();
+    return (
+      <div className="grid w-full max-w-sm items-center gap-1.5">
+        <Label htmlFor={id}>Email</Label>
+        <Input type="email" id={id} placeholder="Email" />
+        <p className="text-sm text-muted-foreground">
+          Enter your email address.
+        </p>
+      </div>
+    );
+  },
 
   name: "With Text",
 };

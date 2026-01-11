@@ -37,7 +37,9 @@ export function useAudioRecorder(opts: {
         recorder.addEventListener("dataavailable", (event) => {
           setRecordingBlob(event.data);
           onDone?.(event.data);
-          recorder.stream.getTracks().forEach((t) => t.stop());
+          for (const t of recorder.stream.getTracks()) {
+            t.stop();
+          }
           mediaRecorder.current = undefined;
         });
       })
@@ -71,7 +73,11 @@ export function useAudioRecorder(opts: {
 
   // Cleanup
   useOnUnmount(() => {
-    mediaRecorder.current?.stream.getTracks().forEach((t) => t.stop());
+    if (mediaRecorder.current) {
+      for (const t of mediaRecorder.current.stream.getTracks()) {
+        t.stop();
+      }
+    }
     mediaRecorder.current?.stop();
     timer.stop();
   });

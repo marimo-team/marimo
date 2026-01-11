@@ -1,5 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
+import { useId } from "react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -22,26 +23,32 @@ export const Disabled = {
 };
 
 export const WithLabel = {
-  render: () => (
-    <div className="grid w-full gap-1.5">
-      <Label htmlFor="message">Your message</Label>
-      <Textarea placeholder="Type your message here." id="message" />
-    </div>
-  ),
+  render: function Render() {
+    const id = useId();
+    return (
+      <div className="grid w-full gap-1.5">
+        <Label htmlFor={id}>Your message</Label>
+        <Textarea placeholder="Type your message here." id={id} />
+      </div>
+    );
+  },
 
   name: "With Label",
 };
 
 export const WithText = {
-  render: () => (
-    <div className="grid w-full gap-1.5">
-      <Label htmlFor="message-2">Your Message</Label>
-      <Textarea placeholder="Type your message here." id="message-2" />
-      <p className="text-sm text-muted-foreground">
-        Your message will be copied to the support team.
-      </p>
-    </div>
-  ),
+  render: function Render() {
+    const id = useId();
+    return (
+      <div className="grid w-full gap-1.5">
+        <Label htmlFor={id}>Your Message</Label>
+        <Textarea placeholder="Type your message here." id={id} />
+        <p className="text-sm text-muted-foreground">
+          Your message will be copied to the support team.
+        </p>
+      </div>
+    );
+  },
 
   name: "With Text",
 };

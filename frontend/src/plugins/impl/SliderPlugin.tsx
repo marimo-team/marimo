@@ -76,7 +76,7 @@ const SliderComponent = ({
   start,
   stop,
   step,
-  steps,
+  steps: _steps,
   debounce,
   orientation,
   showValue,

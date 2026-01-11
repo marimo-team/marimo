@@ -3,6 +3,7 @@ import React, {
   memo,
   type PropsWithChildren,
   useEffect,
+  useId,
   useMemo,
   useState,
 } from "react";
@@ -423,13 +424,19 @@ const GridControls: React.FC<{
   isLocked: boolean;
   setIsLocked: (isLocked: boolean) => void;
 }> = ({ layout, setLayout, isLocked, setIsLocked }) => {
+  const columnsId = useId();
+  const rowHeightId = useId();
+  const maxWidthId = useId();
+  const borderedId = useId();
+  const lockId = useId();
+
   return (
     <div className="flex flex-row absolute pl-5 top-8 gap-4 w-full justify-end pr-[350px] pb-3 border-b z-50">
       <div className="flex flex-row items-center gap-2">
-        <Label htmlFor="columns">Columns</Label>
+        <Label htmlFor={columnsId}>Columns</Label>
         <NumberField
           data-testid="grid-columns-input"
-          id="columns"
+          id={columnsId}
           value={layout.columns}
           className="w-[60px]"
           placeholder="# of Columns"
@@ -443,10 +450,10 @@ const GridControls: React.FC<{
         />
       </div>
       <div className="flex flex-row items-center gap-2">
-        <Label htmlFor="rowHeight">Row Height (px)</Label>
+        <Label htmlFor={rowHeightId}>Row Height (px)</Label>
         <NumberField
           data-testid="grid-row-height-input"
-          id="rowHeight"
+          id={rowHeightId}
           value={layout.rowHeight}
           className="w-[60px]"
           placeholder="Row Height (px)"
@@ -460,10 +467,10 @@ const GridControls: React.FC<{
         />
       </div>
       <div className="flex flex-row items-center gap-2">
-        <Label htmlFor="maxWidth">Max Width (px)</Label>
+        <Label htmlFor={maxWidthId}>Max Width (px)</Label>
         <NumberField
           data-testid="grid-max-width-input"
-          id="maxWidth"
+          id={maxWidthId}
           value={layout.maxWidth}
           className="w-[90px]"
           step={100}
@@ -477,13 +484,16 @@ const GridControls: React.FC<{
         />
       </div>
       <div className="flex flex-row items-center gap-2">
-        <Label className="flex flex-row items-center gap-1" htmlFor="lock">
+        <Label
+          className="flex flex-row items-center gap-1"
+          htmlFor={borderedId}
+        >
           <BorderAllIcon className="h-3 w-3" />
           Bordered
         </Label>
         <Switch
           data-testid="grid-bordered-switch"
-          id="lock"
+          id={borderedId}
           checked={layout.bordered}
           size="sm"
           onCheckedChange={(bordered) => {
@@ -495,13 +505,13 @@ const GridControls: React.FC<{
         />
       </div>
       <div className="flex flex-row items-center gap-2">
-        <Label className="flex flex-row items-center gap-1" htmlFor="lock">
+        <Label className="flex flex-row items-center gap-1" htmlFor={lockId}>
           <LockIcon className="h-3 w-3" />
           Lock Grid
         </Label>
         <Switch
           data-testid="grid-lock-switch"
-          id="lock"
+          id={lockId}
           checked={isLocked}
           size="sm"
           onCheckedChange={setIsLocked}

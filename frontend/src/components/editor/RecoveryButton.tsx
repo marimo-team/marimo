@@ -2,7 +2,7 @@
 
 import type { Notebook } from "@marimo-team/marimo-api";
 import { SaveIcon } from "lucide-react";
-import type { JSX } from "react";
+import { type JSX, useId } from "react";
 import { Button as EditorButton } from "@/components/editor/inputs/Inputs";
 import { Button } from "@/components/ui/button";
 import { getNotebook } from "@/core/cells/cells";
@@ -76,7 +76,7 @@ const RecoveryModal = (props: {
           Download unsaved changes?
         </DialogTitle>
         <DialogDescription
-          className="markdown break-words"
+          className="markdown wrap-break-word"
           style={{ wordBreak: "break-word" }}
         >
           <div className="prose dark:prose-invert">
@@ -131,6 +131,7 @@ export const RecoveryButton = (props: {
 }): JSX.Element => {
   const { filename, needsSave } = props;
   const { openModal, closeModal } = useImperativeModal();
+  const buttonId = useId();
 
   const proposedName =
     filename === null ? "app" : Paths.basename(filename).split(".")[0];
@@ -149,7 +150,7 @@ export const RecoveryButton = (props: {
     <Tooltip content={renderShortcut("global.save")}>
       <EditorButton
         onClick={openRecoveryModal}
-        id="save-button"
+        id={buttonId}
         aria-label="Save"
         className="rectangle"
         color={needsSave ? "yellow" : "gray"}

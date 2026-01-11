@@ -147,7 +147,7 @@ export class LoroSyncPluginValue implements PluginValue {
       return;
     }
     let adj = 0;
-    update.changes.iterChanges((fromA, toA, fromB, toB, insert) => {
+    update.changes.iterChanges((fromA, toA, _fromB, _toB, insert) => {
       const insertText = insert.sliceString(0, insert.length, "\n");
       if (fromA !== toA) {
         this.getTextFromDoc(this.doc).delete(fromA + adj, toA - fromA);

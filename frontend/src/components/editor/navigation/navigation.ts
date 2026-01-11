@@ -288,7 +288,7 @@ export function useCellNavigationProps(
         // Enter will focus the cell editor.
         Enter: () => {
           temporarilyShownCodeActions.add(cellId);
-          focusCellEditor(store, cellId);
+          focusCellEditor(cellId);
           selectionActions.clear();
           return true;
         },
@@ -420,7 +420,7 @@ export function useCellNavigationProps(
               editorView.current?.contentDOM.blur();
               focusCell(cellId);
             } else {
-              focusCellEditor(store, cellId);
+              focusCellEditor(cellId);
             }
           }
 

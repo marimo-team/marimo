@@ -2,7 +2,7 @@
 
 import { PopoverAnchor } from "@radix-ui/react-popover";
 import { FilePenIcon } from "lucide-react";
-import { type JSX, useEffect, useRef, useState } from "react";
+import { type JSX, useEffect, useId, useRef, useState } from "react";
 import type { FileInfo } from "@/core/network/types";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { Paths } from "@/utils/paths";
@@ -45,8 +45,11 @@ export const FilenameInput = ({
   const [focused, setFocused] = useState<boolean>(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const skipReset = useRef<boolean>(false);
+  const commandId = useId();
 
   useEffect(() => {
+    // TODO: Remove this lint exception
+    // eslint-disable-next-line react-you-might-not-need-an-effect/no-derived-state
     setSearchValue(initialValue);
   }, [initialValue]);
 
@@ -154,7 +157,7 @@ export const FilenameInput = ({
           onFocus={onFocus}
           onBlur={onBlur}
           shouldFilter={false}
-          id="filename-input"
+          id={commandId}
           className="bg-transparent group filename-input"
         >
           <CommandList>

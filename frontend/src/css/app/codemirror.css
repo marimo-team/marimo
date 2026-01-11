@@ -4,10 +4,12 @@
   /* This is the background for selected text when focused,
   but we want to use it when not in focus either because we
   will often lose focus during find/replace or in another editor */
+  /* biome-ignore lint/complexity/noImportantStyles: override codemirror */
   background-color: #d7d4f0 !important;
 }
 
 .dark .cm-selectionBackground {
+  /* biome-ignore lint/complexity/noImportantStyles: override codemirror */
   background-color: #1177cc80 !important;
 }
 

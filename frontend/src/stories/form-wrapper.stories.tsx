@@ -20,7 +20,7 @@ type Story = StoryObj<typeof FormWrapper>;
 const props: FormWrapperProps<string> = {
   currentValue: "currentValue",
   newValue: "currentValue",
-  setValue: (v) => {
+  setValue: () => {
     toast({
       title: "Form submitted",
     });
@@ -133,7 +133,7 @@ export const Validate: Story = {
         <FormWrapper
           {...props}
           shouldValidate={true}
-          validate={async ({ value }) => {
+          validate={async () => {
             const random = Math.random();
             if (random < 0.8) {
               return `Failed to validate. Random number was ${random}`;

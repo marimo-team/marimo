@@ -2,7 +2,7 @@
 
 import { useAtom, useAtomValue, useSetAtom, useStore } from "jotai";
 import { SaveIcon } from "lucide-react";
-import { useState } from "react";
+import { useId, useState } from "react";
 import { FilenameInput } from "@/components/editor/header/filename-input";
 import { Button as ControlButton } from "@/components/editor/inputs/Inputs";
 import { RecoveryButton } from "@/components/editor/RecoveryButton";
@@ -43,6 +43,7 @@ export const SaveComponent = ({ kioskMode }: SaveNotebookProps) => {
   const filename = useFilename();
   const needsSave = useAtomValue(needsSaveAtom);
   const closed = useAtomValue(connectionAtom).state === WebSocketState.CLOSED;
+  const saveButtonId = useId();
   const { saveOrNameNotebook, saveIfNotebookIsPersistent } = useSaveNotebook();
   useAutoSaveNotebook({ onSave: saveIfNotebookIsPersistent, kioskMode });
 
@@ -77,7 +78,7 @@ export const SaveComponent = ({ kioskMode }: SaveNotebookProps) => {
     <Tooltip content={renderShortcut("global.save")}>
       <ControlButton
         data-testid="save-button"
-        id="save-button"
+        id={saveButtonId}
         shape="rectangle"
         color={needsSave ? "yellow" : "hint-green"}
         onClick={handleSaveClick}

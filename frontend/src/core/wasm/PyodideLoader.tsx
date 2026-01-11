@@ -65,7 +65,7 @@ function isCodeHidden() {
   );
 }
 
-export const WasmSpinner: React.FC<PropsWithChildren> = ({ children }) => {
+export const WasmSpinner: React.FC<PropsWithChildren> = () => {
   const wasmInitialization = useAtomValue(wasmInitializationAtom);
 
   return <LargeSpinner title={wasmInitialization} />;

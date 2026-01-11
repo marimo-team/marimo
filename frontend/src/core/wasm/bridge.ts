@@ -376,7 +376,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
     return response as Snippets;
   };
 
-  openFile: EditRequests["openFile"] = async ({ path }) => {
+  openFile: EditRequests["openFile"] = async ({ path: _path }) => {
     const url = createShareableLink({
       code: null,
       baseUrl: window.location.origin,
@@ -410,7 +410,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
     return null;
   };
 
-  sendInstantiate: RunRequests["sendInstantiate"] = async (request) => {
+  sendInstantiate: RunRequests["sendInstantiate"] = async (_request) => {
     return null;
   };
 

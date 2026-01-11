@@ -5,11 +5,13 @@
 /* Ignore for touch devices */
 @media (hover: hover) and (pointer: fine) {
   .hover-action {
+    /* biome-ignore lint/complexity/noImportantStyles: required for hover behavior */
     display: none !important;
   }
 
   [data-is-dragging="true"] {
     .hover-actions-parent.hover-actions-parent .hover-action:not(:hover) {
+      /* biome-ignore lint/complexity/noImportantStyles: required for hover behavior */
       display: none !important;
     }
   }
@@ -17,21 +19,25 @@
 
 .hover-action:hover,
 .hover-action:focus {
+  /* biome-ignore lint/complexity/noImportantStyles: required for hover behavior */
   display: inline-flex !important;
 }
 
 .hover-actions-parent:hover .hover-action,
 .hover-actions-parent:focus .hover-action {
+  /* biome-ignore lint/complexity/noImportantStyles: required for hover behavior */
   display: inline-flex !important;
 }
 
 /* If parent has any children that have an open pop, show hover actions */
 .hover-actions-parent:has([data-state="open"]) .hover-action {
+  /* biome-ignore lint/complexity/noImportantStyles: required for hover behavior */
   display: inline-flex !important;
 }
 
 /* When any element is fullscreen, hide the element with this class */
 :root:has(:fullscreen) .hide-on-fullscreen {
+  /* biome-ignore lint/complexity/noImportantStyles: required for fullscreen behavior */
   display: none !important;
 }
 
