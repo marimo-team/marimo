@@ -195,7 +195,7 @@
     "typecheck": "tsgo",
     "lint": "run-s lint:biome lint:eslint lint:stylelint",
     "lint:biome": "biome lint --diagnostic-level=warn --error-on-warnings --write .",
-    "lint:eslint": "cross-env TIMING=1 eslint src e2e-tests --fix --max-warnings 52",
+    "lint:eslint": "cross-env TIMING=1 eslint src e2e-tests --fix --max-warnings 53",
     "lint:stylelint": "stylelint src/**/*.css --fix",
     "preview": "vite preview",
     "dev:quarto": "VITE_MARIMO_ISLANDS=true vite",

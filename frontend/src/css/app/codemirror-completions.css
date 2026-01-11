@@ -1,3 +1,4 @@
+/* biome-ignore-all lint/complexity/noImportantStyles: CodeMirror overrides require !important */
 /* -- Autocomplete Styling -- */
 @reference "../../css/globals.css";
 
@@ -239,11 +240,9 @@
   .cm-tooltip.cm-completionInfo {
     /* Codemirror generates an inline style for these properties,
       * so we have to override them with !important. */
-    /* biome-ignore lint/complexity/noImportantStyles: override codemirror inline styles */
     top: -1px !important;
 
     /* CodeMirror's default of 400px is often too small. */
-    /* biome-ignore lint/complexity/noImportantStyles: override codemirror inline styles */
     max-width: 36rem !important;
   }
 
@@ -268,13 +267,10 @@
 }
 
 .cm-signature-help {
-  /* biome-ignore lint/complexity/noImportantStyles: override codemirror styles */
   max-width: 550px !important;
-  /* biome-ignore lint/complexity/noImportantStyles: override codemirror styles */
   margin-right: 16px !important;
   overflow-y: auto;
   max-height: 330px;
-  /* biome-ignore lint/complexity/noImportantStyles: override codemirror styles */
   padding: 0.5rem !important;
   scrollbar-width: thin;
   line-height: normal;
@@ -429,11 +425,9 @@
 }
 
 .cm-signature-docs {
-  /* biome-ignore lint/complexity/noImportantStyles: override codemirror styles */
   color: black !important;
 }
 
 .dark .cm-signature-docs {
-  /* biome-ignore lint/complexity/noImportantStyles: override codemirror styles */
   color: white !important;
 }

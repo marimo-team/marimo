@@ -1,22 +1,20 @@
+/* biome-ignore-all lint/complexity/noImportantStyles: print styles require !important */
 @reference "../globals.css";
 
 /* Hide on print
 To hide an element on print, add the class `no-print` to it.
 When printing, the class `printing` is added to the body element to enable this rule. */
 body.printing .no-print {
-  /* biome-ignore lint/complexity/noImportantStyles: required for print styles */
   display: none !important;
 }
 
 body.printing #App {
   /* Full screen print */
-  /* biome-ignore lint/complexity/noImportantStyles: required for print styles */
   height: fit-content !important;
 }
 
 /* When printing the output of a cell, this unset the max-height set by the notebook to capture the full output */
 .printing-output {
-  /* biome-ignore lint/complexity/noImportantStyles: required for print styles */
   max-height: none !important;
 
   @apply bg-background;
@@ -30,11 +28,8 @@ body.printing #App {
 
   #App {
     /* Full screen print */
-    /* biome-ignore lint/complexity/noImportantStyles: required for print styles */
     height: fit-content !important;
-    /* biome-ignore lint/complexity/noImportantStyles: required for print styles */
     overflow-y: visible !important;
-    /* biome-ignore lint/complexity/noImportantStyles: required for print styles */
     overflow-x: hidden !important;
   }
 
@@ -56,9 +51,7 @@ body.printing #App {
   }
 
   * {
-    /* biome-ignore lint/complexity/noImportantStyles: required for print styles */
     box-shadow: none !important;
-    /* biome-ignore lint/complexity/noImportantStyles: required for print styles */
     text-shadow: none !important;
   }
 
@@ -74,28 +67,21 @@ body.printing #App {
 
   [data-panel-group],
   [data-panel] {
-    /* biome-ignore lint/complexity/noImportantStyles: required for print styles */
     overflow: visible !important;
-    /* biome-ignore lint/complexity/noImportantStyles: required for print styles */
     height: fit-content !important;
   }
 
   .tray,
   .tray::after,
   .tray::before {
-    /* biome-ignore lint/complexity/noImportantStyles: required for print styles */
     display: none !important;
   }
 
   .output-area,
   .console-output-area {
-    /* biome-ignore lint/complexity/noImportantStyles: required for print styles */
     width: 100% !important;
-    /* biome-ignore lint/complexity/noImportantStyles: required for print styles */
     padding-left: 0 !important;
-    /* biome-ignore lint/complexity/noImportantStyles: required for print styles */
     padding-right: 0 !important;
-    /* biome-ignore lint/complexity/noImportantStyles: required for print styles */
     max-height: none !important;
   }
 }

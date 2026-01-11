@@ -48,8 +48,6 @@ export const FilenameInput = ({
   const commandId = useId();
 
   useEffect(() => {
-    // TODO: Remove this lint exception
-    // eslint-disable-next-line react-you-might-not-need-an-effect/no-derived-state
     setSearchValue(initialValue);
   }, [initialValue]);
 
