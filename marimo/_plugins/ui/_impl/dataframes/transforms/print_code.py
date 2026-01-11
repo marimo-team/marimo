@@ -364,16 +364,15 @@ def python_print_polars(
 
     elif transform.type == TransformType.AGGREGATE:
         column_ids, aggregations = transform.column_ids, transform.aggregations
-        selected_df = f"{df_name}.select({_list_of_strings(column_ids)})"
-        result_df = "pl.DataFrame()"
+        # Build aggregation expressions that match narwhals behavior
+        # Each column/aggregation combination produces a column named "column_agg"
+        agg_exprs = []
         for agg_func in aggregations:
-            agg_df = f"{selected_df}.{agg_func}()"
-            rename_dict = {
-                column: f"{column}_{agg_func}" for column in column_ids
-            }
-            agg_df = f"{agg_df}.rename({rename_dict})"
-            result_df = f"{result_df}.hstack({agg_df})"
-        return result_df
+            for column_id in column_ids:
+                agg_exprs.append(
+                    f"pl.col({_as_literal(column_id)}).{agg_func}().alias({_as_literal(f'{column_id}_{agg_func}')})"
+                )
+        return f"{df_name}.select([{', '.join(agg_exprs)}])"
 
     elif transform.type == TransformType.GROUP_BY:
         column_ids, aggregation = transform.column_ids, transform.aggregation
