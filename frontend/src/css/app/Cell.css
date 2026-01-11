@@ -319,14 +319,9 @@
   }
 }
 
-/* -------------------------- Setup Cell --------------------------- */
-
 #cell-setup, #cell-setup .cm-editor, #cell-setup .cm-gutter {
   background-color: var(--gray-2);
 }
-
-
-
 
 #App.disconnected {
   /* Background determined by disconnected gradient/noise. */
