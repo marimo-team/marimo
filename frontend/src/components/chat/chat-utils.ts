@@ -8,7 +8,6 @@ import type {
   InvokeAiToolRequest,
   InvokeAiToolResponse,
 } from "@/core/network/types";
-import type { ChatMessage } from "@/plugins/impl/chat/types";
 import { blobToString } from "@/utils/fileToBase64";
 import { Logger } from "@/utils/Logger";
 import { getAICompletionBodyWithAttachments } from "../editor/ai/completion-utils";
@@ -68,7 +67,6 @@ function stringifyTextParts(parts: UIMessage["parts"]): string {
 export async function buildCompletionRequestBody(
   messages: UIMessage[],
 ): Promise<{
-  messages: ChatMessage[]; // Deprecated. TODO: Remove in the future
   uiMessages: UIMessage[];
   context?: (null | components["schemas"]["AiCompletionContext"]) | undefined;
   includeOtherCode: string;
@@ -91,25 +89,8 @@ export async function buildCompletionRequestBody(
     };
   }
 
-  function toChatMessage(message: UIMessage, isLast: boolean): ChatMessage {
-    // Clone parts to avoid mutating the original message
-    const parts = [...message.parts];
-    if (isLast) {
-      parts.push(...completionBody.attachments);
-    }
-    return {
-      id: message.id,
-      role: message.role,
-      content: stringifyTextParts(message.parts), // This is no longer used in the backend
-      parts,
-    };
-  }
-
   return {
     ...completionBody.body,
-    messages: messages.map((m, idx) =>
-      toChatMessage(m, idx === messages.length - 1),
-    ),
     uiMessages: messages.map((m, idx) =>
       addAttachmentsToMessage(m, idx === messages.length - 1),
     ),
