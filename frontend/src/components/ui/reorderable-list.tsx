@@ -293,7 +293,7 @@ export const ReorderableList = <T extends object>({
         <ListBoxItem
           key={getKey(item)}
           id={getKey(item)}
-          className="active:cursor-grabbing data-dragging:opacity-60 outline-none"
+          className="active:cursor-grabbing data-[dragging]:opacity-60 outline-none"
         >
           {renderItem(item)}
         </ListBoxItem>
