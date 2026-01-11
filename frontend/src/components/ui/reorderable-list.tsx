@@ -305,6 +305,7 @@ export const ReorderableList = <T extends object>({
        * 2. Drag items from another list into this empty list
        */}
       {isEmpty && (
+        // biome-ignore lint/correctness/useUniqueElementIds: react-aria ListBoxItem identifier
         <ListBoxItem id="__empty__" className="min-h-[40px] min-w-[40px]">
           <span />
         </ListBoxItem>

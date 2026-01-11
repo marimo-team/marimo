@@ -46,7 +46,7 @@ test.skip("page renders edit feature in edit mode", async ({ context }) => {
   expect(await page.getByText("title.py").count()).toBeGreaterThan(0);
 
   // Has elements with class name 'controls'
-  expect(page.locator("#save-button")).toBeVisible();
+  expect(page.getByTestId("save-button")).toBeVisible();
 
   // Can see output
   await expect(page.locator("h1").getByText("Hello Marimo!")).toBeVisible();
@@ -78,7 +78,7 @@ test("can toggle to presenter mode", async ({ context }) => {
   await expect(page.getByText("# Hello Marimo!")).toBeVisible();
 
   // Toggle preview-button
-  await page.locator("#preview-button").click();
+  await page.getByTestId("hide-code-button").click();
 
   // Can see output
   await expect(page.locator("h1").getByText("Hello Marimo!")).toBeVisible();
@@ -86,7 +86,7 @@ test("can toggle to presenter mode", async ({ context }) => {
   await expect(page.getByText("# Hello Marimo!")).not.toBeVisible();
 
   // Toggle preview-button again
-  await page.locator("#preview-button").click();
+  await page.getByTestId("hide-code-button").click();
 
   // Can see output and code
   await expect(page.locator("h1").getByText("Hello Marimo!")).toBeVisible();
@@ -101,7 +101,7 @@ test("page renders read only view in read mode", async ({ context }) => {
   // Filename is not visible
   await expect(page.getByText("components.py").last()).not.toBeVisible();
   // Has elements with class name 'controls'
-  await expect(page.locator("#save-button")).toHaveCount(0);
+  await expect(page.getByTestId("save-button")).toHaveCount(0);
 
   // Can see output
   await expect(page.locator("h1").getByText("UI Elements")).toBeVisible();

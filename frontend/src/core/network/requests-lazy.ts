@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import { NoKernelConnectedError } from "@/utils/errors";
 import { Logger } from "@/utils/Logger";
@@ -152,7 +152,7 @@ export function createLazyRequests(
             `Dropping request: ${key}, since not connected to a kernel.`,
           );
           // Silently drop the request
-          return Promise.resolve();
+          return;
 
         case "throwError":
           throw new NoKernelConnectedError();

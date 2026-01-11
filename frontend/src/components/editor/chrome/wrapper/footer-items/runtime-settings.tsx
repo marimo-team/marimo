@@ -27,7 +27,7 @@ interface RuntimeSettingsProps {
 }
 
 export const RuntimeSettings: React.FC<RuntimeSettingsProps> = ({
-  className,
+  className: _className,
 }) => {
   const { saveUserConfig } = useRequestClient();
   const [config, setUserConfig] = useResolvedMarimoConfig();

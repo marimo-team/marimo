@@ -69,7 +69,7 @@ export function getDirtyValues<T extends FieldValues>(
   dirtyFields: Partial<Record<keyof T, unknown>>,
 ): Partial<T> {
   const result: Partial<T> = {};
-  for (const key of Object.keys(dirtyFields) as Array<keyof T>) {
+  for (const key of Object.keys(dirtyFields) as (keyof T)[]) {
     const dirty = dirtyFields[key];
     if (dirty === true) {
       result[key] = values[key];

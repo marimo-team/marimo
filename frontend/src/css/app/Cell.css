@@ -207,6 +207,7 @@
 
   &.focus-outline {
     transition: all 0.6s;
+    /* biome-ignore lint/complexity/noImportantStyles: override default border */
     border-color: var(--blue-8) !important;
 
     /* custom shadow until our theme overrides can support colored shadow */

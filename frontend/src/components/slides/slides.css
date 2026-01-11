@@ -87,6 +87,7 @@ so we are resetting this back to initial. */
 
   /* Components that should be full width when in slides mode */
   div:has(> marimo-ui-element > marimo-vega) {
+    /* biome-ignore lint/complexity/noImportantStyles: override vega inline styles */
     display: block !important;
     flex: 1;
 

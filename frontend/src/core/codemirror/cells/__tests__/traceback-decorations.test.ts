@@ -12,11 +12,15 @@ import type { TracebackInfo } from "@/utils/traceback";
 import { cellIdState } from "../state";
 import { errorLineHighlighter } from "../traceback-decorations";
 
-function createEditor(
-  content: string,
-  cellId: CellId,
-  errorsObservable: Observable<TracebackInfo[] | undefined>,
-) {
+function createEditor({
+  content,
+  cellId,
+  errorsObservable,
+}: {
+  content: string;
+  cellId: CellId;
+  errorsObservable: Observable<TracebackInfo[] | undefined>;
+}) {
   const state = EditorState.create({
     doc: content,
     extensions: [
@@ -60,7 +64,7 @@ result = my_function()`;
       const errorsObservable = createMockObservable<
         TracebackInfo[] | undefined
       >(undefined);
-      view = createEditor(code, cellId, errorsObservable);
+      view = createEditor({ content: code, cellId, errorsObservable });
 
       // Fold the function body (lines 2-5)
       // @ts-expect-error - foldCode accepts position as second arg at runtime
@@ -111,7 +115,7 @@ result = my_function()`;
       const errorsObservable = createMockObservable<
         TracebackInfo[] | undefined
       >(undefined);
-      view = createEditor(code, cellId, errorsObservable);
+      view = createEditor({ content: code, cellId, errorsObservable });
 
       // Fold the function body (lines 2-4)
       // @ts-expect-error - foldCode accepts position as second arg at runtime
@@ -161,7 +165,7 @@ result = my_function()`;
       const errorsObservable = createMockObservable<
         TracebackInfo[] | undefined
       >(undefined);
-      view = createEditor(code, cellId1, errorsObservable);
+      view = createEditor({ content: code, cellId: cellId1, errorsObservable });
 
       // Fold the function body
       // @ts-expect-error - foldCode accepts position as second arg at runtime
@@ -213,7 +217,7 @@ result = my_function()`;
       const errorsObservable = createMockObservable<
         TracebackInfo[] | undefined
       >(undefined);
-      view = createEditor(code, cellId, errorsObservable);
+      view = createEditor({ content: code, cellId, errorsObservable });
 
       // Fold the function body
       // @ts-expect-error - foldCode accepts position as second arg at runtime
@@ -266,7 +270,7 @@ result = my_function()`;
       const errorsObservable = createMockObservable<
         TracebackInfo[] | undefined
       >(undefined);
-      view = createEditor(code, cellId, errorsObservable);
+      view = createEditor({ content: code, cellId, errorsObservable });
 
       // Fold the function
       // @ts-expect-error - foldCode accepts position as second arg at runtime
@@ -318,7 +322,7 @@ result = my_function()`;
       const errorsObservable = createMockObservable<
         TracebackInfo[] | undefined
       >(undefined);
-      view = createEditor(code, cellId, errorsObservable);
+      view = createEditor({ content: code, cellId, errorsObservable });
 
       // Fold the function
       // @ts-expect-error - foldCode accepts position as second arg at runtime
@@ -358,7 +362,7 @@ result = my_function()`;
       const errorsObservable = createMockObservable<
         TracebackInfo[] | undefined
       >(undefined);
-      view = createEditor(code, cellId, errorsObservable);
+      view = createEditor({ content: code, cellId, errorsObservable });
 
       // Fold the function
       // @ts-expect-error - foldCode accepts position as second arg at runtime
@@ -400,7 +404,7 @@ result = my_function()`;
       const errorsObservable = createMockObservable<
         TracebackInfo[] | undefined
       >(undefined);
-      view = createEditor(code, cellId, errorsObservable);
+      view = createEditor({ content: code, cellId, errorsObservable });
 
       // Fold the function
       // @ts-expect-error - foldCode accepts position as second arg at runtime
@@ -452,7 +456,7 @@ final = outer_function()`;
       const errorsObservable = createMockObservable<
         TracebackInfo[] | undefined
       >(undefined);
-      view = createEditor(code, cellId, errorsObservable);
+      view = createEditor({ content: code, cellId, errorsObservable });
 
       // Fold the outer function (which contains the inner function)
       // @ts-expect-error - foldCode accepts position as second arg at runtime
@@ -503,7 +507,7 @@ result = my_function()`;
       const errorsObservable = createMockObservable<
         TracebackInfo[] | undefined
       >(undefined);
-      view = createEditor(code, cellId, errorsObservable);
+      view = createEditor({ content: code, cellId, errorsObservable });
 
       // Fold the function
       // @ts-expect-error - foldCode accepts position as second arg at runtime
@@ -573,7 +577,7 @@ result = my_function()`;
       const errorsObservable = createMockObservable<
         TracebackInfo[] | undefined
       >(undefined);
-      view = createEditor(code, cellId, errorsObservable);
+      view = createEditor({ content: code, cellId, errorsObservable });
 
       // Fold the function
       // @ts-expect-error - foldCode accepts position as second arg at runtime

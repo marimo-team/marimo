@@ -46,8 +46,8 @@ function parsePipInstallCommand(
   let packageName = "";
   let packageStartOffset = 0;
 
-  for (const token_ of tokens) {
-    const token = token_.trim();
+  for (const rawToken of tokens) {
+    const token = rawToken.trim();
     if (!token) {
       continue;
     }

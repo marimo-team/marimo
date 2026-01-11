@@ -1,5 +1,5 @@
 /* Copyright 2026 Marimo. All rights reserved. */
-import React from "react";
+import React, { useId } from "react";
 import { Button } from "@/components/ui/button";
 import {
   DialogContent,
@@ -53,6 +53,10 @@ export const WriteSecretModal: React.FC<{
   // Only dotenv is supported for now
   const provider = "dotenv";
 
+  const keyId = useId();
+  const valueId = useId();
+  const locationId = useId();
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!location) {
@@ -105,9 +109,9 @@ export const WriteSecretModal: React.FC<{
         </DialogHeader>
         <div className="grid gap-4 py-4">
           <div className="grid gap-2">
-            <Label htmlFor="key">Key</Label>
+            <Label htmlFor={keyId}>Key</Label>
             <Input
-              id="key"
+              id={keyId}
               value={key}
               onChange={(e) => {
                 // Remove any non-word characters from the input
@@ -118,9 +122,9 @@ export const WriteSecretModal: React.FC<{
             />
           </div>
           <div className="grid gap-2">
-            <Label htmlFor="value">Value</Label>
+            <Label htmlFor={valueId}>Value</Label>
             <Input
-              id="value"
+              id={valueId}
               type="password"
               value={value}
               onChange={(e) => setValue(e.target.value)}
@@ -135,7 +139,7 @@ export const WriteSecretModal: React.FC<{
             )}
           </div>
           <div className="grid gap-2">
-            <Label htmlFor="location">Location</Label>
+            <Label htmlFor={locationId}>Location</Label>
             {providerNames.length === 0 && (
               <p className="text-sm text-muted-foreground">
                 No dotenv locations configured.

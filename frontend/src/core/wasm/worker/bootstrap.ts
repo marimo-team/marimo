@@ -59,7 +59,7 @@ export class DefaultWasmController implements WasmController {
         packages: [
           "micropip",
           "msgspec",
-          getMarimoWheel(opts.version),
+          getMarimoWheel(),
           "Markdown",
           "pymdown-extensions",
           "narwhals",

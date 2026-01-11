@@ -229,7 +229,9 @@ export async function vegaLoadData<T = object>(
     return results as T[];
   } finally {
     // Unsubscribe from middleware
-    unsubscribes.forEach((u) => u());
+    for (const u of unsubscribes) {
+      u();
+    }
   }
 }
 
@@ -248,7 +250,9 @@ export function parseCsvData(
   const data = read(csvData, { type: "csv", parse: "auto" });
 
   // Unsubscribe from middleware
-  unsubscribes.forEach((u) => u());
+  for (const u of unsubscribes) {
+    u();
+  }
 
   return data;
 }

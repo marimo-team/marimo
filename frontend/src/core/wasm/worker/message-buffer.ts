@@ -27,7 +27,9 @@ export class MessageBuffer<T> {
   start = () => {
     this.started = true;
     // Flush the buffer
-    this.buffer.forEach((data) => this.onMessage(data));
+    for (const data of this.buffer) {
+      this.onMessage(data);
+    }
     this.buffer = [];
   };
 }

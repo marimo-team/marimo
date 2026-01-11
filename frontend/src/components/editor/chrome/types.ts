@@ -194,10 +194,8 @@ export function isPanelHidden(
   if (panel.hidden) {
     return true;
   }
-  if (panel.requiredCapability) {
-    if (!capabilities[panel.requiredCapability]) {
-      return true;
-    }
+  if (panel.requiredCapability && !capabilities[panel.requiredCapability]) {
+    return true;
   }
   return false;
 }

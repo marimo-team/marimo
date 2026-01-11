@@ -8,7 +8,7 @@ import {
   SquareIcon,
   Undo2Icon,
 } from "lucide-react";
-import type { JSX } from "react";
+import { type JSX, useId } from "react";
 import { KeyboardShortcuts } from "@/components/editor/controls/keyboard-shortcuts";
 import { NotebookMenuDropdown } from "@/components/editor/controls/notebook-menu-dropdown";
 import { ShutdownButton } from "@/components/editor/controls/shutdown-button";
@@ -61,6 +61,7 @@ export const Controls = ({
   const needsRun = useAtomValue(needsRunAtom);
   const { undoDeleteCell } = useCellActions();
   const closed = connectionState === WebSocketState.CLOSED;
+  const previewButtonId = useId();
 
   let undoControl: JSX.Element | null = null;
   if (!closed && undoAvailable) {
@@ -116,7 +117,7 @@ export const Controls = ({
         <Tooltip content={renderShortcut("global.hideCode")}>
           <Button
             data-testid="hide-code-button"
-            id="preview-button"
+            id={previewButtonId}
             shape="rectangle"
             color="hint-green"
             onClick={onTogglePresenting}
