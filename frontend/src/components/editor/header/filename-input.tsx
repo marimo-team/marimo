@@ -22,6 +22,8 @@ import { getFeatureFlag } from "@/core/config/feature-flag";
 import { useRequestClient } from "@/core/network/requests";
 import { ErrorBoundary } from "../boundary/ErrorBoundary";
 
+export const FilenameInputDataId = "filename-input";
+
 interface FilenameInputProps {
   resetOnBlur?: boolean;
   placeholderText?: string;
@@ -57,7 +59,10 @@ export const FilenameInput = ({
 
   const onBlur = (evt: React.FocusEvent<HTMLInputElement>) => {
     // If we are coming from a click event from inside the popover, don't blur
-    if (evt.relatedTarget?.closest(".filename-input")) {
+    if (
+      evt.relatedTarget instanceof HTMLElement &&
+      evt.relatedTarget.closest(`[data-id="${FilenameInputDataId}"]`)
+    ) {
       return;
     }
 
@@ -161,7 +166,7 @@ export const FilenameInput = ({
           <CommandList>
             <PopoverAnchor>
               <CommandInput
-                data-id="filename-input"
+                data-id={FilenameInputDataId}
                 data-testid="dir-completion-input"
                 tabIndex={-1}
                 rootClassName="border-none justify-center px-1"
