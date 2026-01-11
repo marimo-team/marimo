@@ -254,6 +254,12 @@ def python_print_pandas(
             "sort=False",
         )
         pivot_code = f"{df_name}.pivot_table({args}).sort_index(axis=0)"
+        # Fill NaN with 0 for count/sum aggregations to match narwhals behavior
+        fill_code = (
+            f"{df_name} = {df_name}.fillna(0)"
+            if agg_func in ("count", "sum")
+            else ""
+        )
         flatten_columns_code = (
             f"{df_name}.columns = ["
             f"f\"{{'_'.join(map(str, col)).strip()}}_{agg_func}\" "
@@ -261,7 +267,13 @@ def python_print_pandas(
             f"for col in {df_name}.columns]"
         )
         reset_index_code = f"{df_name} = {df_name}.reset_index()"
-        return f"{pivot_code}\n{flatten_columns_code}\n{reset_index_code}"
+        code_parts = [
+            pivot_code,
+            fill_code,
+            flatten_columns_code,
+            reset_index_code,
+        ]
+        return "\n".join(part for part in code_parts if part)
 
     assert_never(transform.type)
 
@@ -352,16 +364,15 @@ def python_print_polars(
 
     elif transform.type == TransformType.AGGREGATE:
         column_ids, aggregations = transform.column_ids, transform.aggregations
-        selected_df = f"{df_name}.select({_list_of_strings(column_ids)})"
-        result_df = "pl.DataFrame()"
+        # Build aggregation expressions that match narwhals behavior
+        # Each column/aggregation combination produces a column named "column_agg"
+        agg_exprs = []
         for agg_func in aggregations:
-            agg_df = f"{selected_df}.{agg_func}()"
-            rename_dict = {
-                column: f"{column}_{agg_func}" for column in column_ids
-            }
-            agg_df = f"{agg_df}.rename({rename_dict})"
-            result_df = f"{result_df}.hstack({agg_df})"
-        return result_df
+            for column_id in column_ids:
+                agg_exprs.append(
+                    f"pl.col({_as_literal(column_id)}).{agg_func}().alias({_as_literal(f'{column_id}_{agg_func}')})"
+                )
+        return f"{df_name}.select([{', '.join(agg_exprs)}])"
 
     elif transform.type == TransformType.GROUP_BY:
         column_ids, aggregation = transform.column_ids, transform.aggregation
@@ -457,12 +468,14 @@ def python_print_polars(
             f"values={value_column_ids}",
             f"aggregate_function={_as_literal(transform.aggregation) if transform.aggregation != 'count' else _as_literal('len')}",
         )
+        pivot_code = f"{df_name}.pivot({args}).sort(by={index_column_ids})"
+        # Fill NaN with 0 for count/sum aggregations AFTER pivot to match narwhals behavior
+        # Only fill numeric columns (not index columns which retain original types)
         fill_null_code = (
-            ".select(pl.all().fill_null(0))"
+            f"{df_name} = {df_name}.with_columns(pl.selectors.numeric().fill_null(0))"
             if transform.aggregation in ["count", "sum"]
             else ""
-        )  # noqa: E501
-        pivot_code = f"{df_name}{fill_null_code}.pivot({args}).sort(by={index_column_ids})"  # noqa: E501
+        )
         lambda_code = (
             f'lambda col,replacements=replacements: f"{transform.value_column_ids[0]}_{{col.translate(replacements)}}_{transform.aggregation}"'  # noqa: E501
             if len(transform.value_column_ids) == 1
@@ -472,7 +485,8 @@ def python_print_polars(
             'replacements = str.maketrans({"{": "", "}": "", \'"\': "", ",": "_"})\n'
             f"{df_name} = {df_name}.rename({lambda_code})"
         )
-        return f"{pivot_code}\n{rename_code}"
+        code_parts = [pivot_code, fill_null_code, rename_code]
+        return "\n".join(part for part in code_parts if part)
 
     assert_never(transform.type)
 

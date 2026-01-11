@@ -4,13 +4,19 @@ import difflib
 import re
 from html.parser import HTMLParser
 from pathlib import Path
-from typing import Callable
+from typing import Protocol
 
 import pytest
 
 from marimo import __version__
 from marimo._utils.paths import maybe_make_dirs
 from marimo._utils.platform import is_windows
+
+
+class SnapshotFunc(Protocol):
+    def __call__(
+        self, filename: str, result: str, keep_version: bool = False
+    ) -> None: ...
 
 
 class ToText(HTMLParser):
@@ -35,7 +41,7 @@ class ToText(HTMLParser):
         return parser.text()
 
 
-def snapshotter(current_file: str) -> Callable[[str, str], None]:
+def snapshotter(current_file: str) -> SnapshotFunc:
     """
     Utility function to create and compare snapshots.
 

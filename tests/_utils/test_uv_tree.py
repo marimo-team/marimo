@@ -4,6 +4,7 @@ import json
 import os
 import pathlib
 import subprocess
+import sys
 
 import pytest
 
@@ -11,6 +12,11 @@ from marimo._messaging.msgspec_encoder import asdict
 from marimo._server.models.packages import DependencyTreeNode
 from marimo._utils.uv_tree import parse_uv_tree
 from tests.mocks import snapshotter
+
+skip_if_below_py312 = pytest.mark.skipif(
+    sys.version_info < (3, 12),
+    reason="uv resolution snapshots only run on Python 3.12+",
+)
 
 UV_BIN = os.environ.get("UV")
 SELF_DIR = pathlib.Path(__file__).parent
@@ -38,6 +44,7 @@ def uv(cmd: list[str], cwd: str | None = None) -> str:
 
 
 @pytest.mark.skipif(UV_BIN is None, reason="requires uv executable.")
+@skip_if_below_py312
 def test_complex_project_tree(tmp_path: pathlib.Path) -> None:
     uv(["init", "blah"], cwd=str(tmp_path))
     project_dir = tmp_path / "blah"
@@ -70,6 +77,7 @@ def test_simple_project_tree(tmp_path: pathlib.Path) -> None:
 
 
 @pytest.mark.skipif(UV_BIN is None, reason="requires uv executable.")
+@skip_if_below_py312
 def test_script_tree(tmp_path: pathlib.Path) -> None:
     script_path = tmp_path / "blah.py"
     uv(["init", "--script", str(script_path)])
@@ -88,7 +96,7 @@ def test_empty_script_tree_stable_output(tmp_path: pathlib.Path) -> None:
     snapshot_test("empty_script_tree.json", serialize(tree))
 
 
-@pytest.mark.xfail(reason="TODO: fix this. fails in CI.")
+@skip_if_below_py312
 def test_complex_project_tree_raw_snapshot() -> None:
     raw = """blah v0.1.0
 ├── anywidget v0.9.18
@@ -194,4 +202,8 @@ anywidget v0.9.18
 ├── psygnal v0.13.0
 └── typing-extensions v4.14.0"""
     tree = parse_uv_tree(raw)
-    snapshot_test("script_tree_from_raw.json", serialize(tree))
+    # Use keep_version=True to avoid jedi v0.19.2 being incorrectly
+    # sanitized when marimo version is 0.19.2
+    snapshot_test(
+        "script_tree_from_raw.json", serialize(tree), keep_version=True
+    )
