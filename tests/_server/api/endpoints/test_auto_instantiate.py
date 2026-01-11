@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
+from unittest.mock import MagicMock, patch
 
 from marimo._messaging.notification import KernelReadyNotification
 from marimo._session.model import SessionMode
@@ -129,6 +130,43 @@ class TestAutoInstantiateRunMode:
         finally:
             session_manager.mode = original_mode
             client.post("/api/kernel/shutdown", headers=headers)
+
+
+class TestAutoInstantiateHTTPRequest:
+    """Tests for HTTP request propagation during auto-instantiate."""
+
+    def test_auto_instantiate_passes_http_request(self) -> None:
+        """Verify _auto_instantiate passes HTTPRequest from websocket.
+
+        This verifies the fix for the issue where mo.app_meta().request
+        returned None in run mode because _auto_instantiate was passing
+        http_request=None instead of extracting it from the websocket.
+        """
+        from marimo._server.api.endpoints.ws.ws_session_connector import (
+            SessionConnector,
+        )
+
+        mock_session = MagicMock()
+        mock_http_request = MagicMock()
+
+        connector = SessionConnector(
+            manager=MagicMock(),
+            handler=MagicMock(),
+            params=MagicMock(),
+            websocket=MagicMock(),
+        )
+
+        with patch(
+            "marimo._runtime.commands.HTTPRequest.from_request",
+            return_value=mock_http_request,
+        ) as mock_from_request:
+            connector._auto_instantiate(mock_session)
+
+        mock_from_request.assert_called_once_with(connector.websocket)
+        assert (
+            mock_session.instantiate.call_args.kwargs["http_request"]
+            is mock_http_request
+        )
 
 
 class TestInstantiateNotebookRequest:

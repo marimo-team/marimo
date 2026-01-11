@@ -219,11 +219,13 @@ class SessionConnector:
 
     def _auto_instantiate(self, session: Session) -> None:
         """Auto-instantiate the session (used in run mode)."""
+        from marimo._runtime.commands import HTTPRequest
+
         session.instantiate(
             InstantiateNotebookRequest(
                 object_ids=[],
                 values=[],
                 auto_run=True,
             ),
-            http_request=None,
+            http_request=HTTPRequest.from_request(self.websocket),
         )
