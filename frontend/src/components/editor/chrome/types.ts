@@ -96,13 +96,6 @@ export const PANELS: PanelDescriptor[] = [
     defaultSection: "sidebar",
   },
   {
-    type: "snippets",
-    Icon: SquareDashedBottomCodeIcon,
-    label: "Snippets",
-    tooltip: "Snippets",
-    defaultSection: "developer-panel",
-  },
-  {
     type: "outline",
     Icon: ScrollTextIcon,
     label: "Outline",
@@ -168,6 +161,13 @@ export const PANELS: PanelDescriptor[] = [
     hidden: isWasm(),
     defaultSection: "developer-panel",
     requiredCapability: "terminal",
+  },
+  {
+    type: "snippets",
+    Icon: SquareDashedBottomCodeIcon,
+    label: "Snippets",
+    tooltip: "Snippets",
+    defaultSection: "developer-panel",
   },
   {
     type: "cache",
