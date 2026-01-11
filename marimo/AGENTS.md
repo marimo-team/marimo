@@ -12,7 +12,6 @@ You are an expert in Python, websockets protocol, and Starlette/ASGI web framewo
 
 ## Type Hints
 
-- Always add return type annotations to functions
 - Use modern typing syntax (`list[str]` not `List[str]`, `str | None` not `Optional[str]`)
 
 ## Error Handling
@@ -55,7 +54,7 @@ class SaveNotebookRequest(msgspec.Struct, rename="camel"):
 
 Use **dataclasses** for internal structures, test fixtures, and complex initialization.
 
-## Lazy Imports
+## Import handling
 
 Heavy dependencies must be imported lazily (banned at module level by ruff):
 
@@ -64,6 +63,8 @@ def get_dataframe():
     import pandas as pd  # altair, duckdb, numpy, polars, pyarrow, sqlglot, etc.
     return pd.DataFrame()
 ```
+
+Besides heavy dependencies, always import at the top of the file. If there are circular imports, it means the file structure is not optimal. Refactor code to remove circular dependencies.
 
 ## Testing
 
@@ -88,27 +89,28 @@ def test_number_out_of_bounds() -> None:
         ui.number(1, 10, value=11)
     assert "must be less than or equal" in str(e.value)
 
-# Skip when dependencies missing
-HAS_PANDAS = DependencyManager.pandas.has()
+# Use parametrize to create exhaustive test cases
+@pytest.mark.parametrize(("a", "b"), [(1, 2), (2, 3)])
+def test_add(a, b):
+    assert a + b == 3
 
-@pytest.mark.skipif(not HAS_PANDAS, reason="pandas not installed")
-def test_with_pandas() -> None:
-    import pandas as pd
-```
+# Group test cases by class or in different files
+class TestDecimals:
+    def test_decimal_init(self) -> None:
+        ...
 
-- pytest-asyncio configured globally (no `@pytest.mark.asyncio` needed)
-- Test timeout: 30 seconds
-- Validate entire object state, not individual attributes (e.g. `assert obj == expected` instead of `assert obj.attr == expected.attr`)
+    def test_decimal_out_of_bounds(self) -> None:
+        ...
 
-### Fixtures and Snapshots
-
-```python
-# Use fixtures from conftest.py
+# Use fixtures for setup and teardown
 @pytest.fixture
 def k() -> Generator[Kernel, None, None]:
     mocked = MockedKernel()
     yield mocked.k
     mocked.teardown()
+
+# Validate entire object state, not individual attributes
+assert obj == expected # instead of assert obj.attr == expected.attr
 
 # Snapshot testing for complex outputs
 from tests.mocks import snapshotter
@@ -116,9 +118,11 @@ snapshot = snapshotter(__file__)
 snapshot(filename, output)
 ```
 
-### Debugging
+### Debugging Issues
 
-Read error messages and test code first. Add debug prints if root cause unclear.
+1. Create a test case that reproduces the issue.
+2. Run the test case and inspect the issue.
+2. Add debug prints if root cause unclear.
 
 ## Code Style
 

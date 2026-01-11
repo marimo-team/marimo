@@ -8,14 +8,11 @@ You are an expert in React, TypeScript, TailwindCSS, Jotai, Radix UI, Zod, React
 - Use TypeScript with proper typing for all code
 - Use functional programming patterns; avoid classes
 - Favor composition over inheritance
-- Use named exports; avoid default exports
 
 ## Naming Conventions
 
 - **Directories**: lowercase with dashes (`components/auth-wizard/`)
 - **Components**: PascalCase (`DashboardMenu.tsx`)
-- **Hooks**: camelCase starting with `use` (`useLocalStorage`)
-- **Atoms/State**: camelCase ending with `Atom` (`notebookAtom`, `cellIdsAtom`)
 - **Variables**: descriptive with auxiliary verbs (`isLoading`, `hasError`, `canSubmit`)
 
 ## Path Aliases
@@ -23,10 +20,20 @@ You are an expert in React, TypeScript, TailwindCSS, Jotai, Radix UI, Zod, React
 ```typescript
 import { Button } from "@/components/ui/button";
 import { cn } from "@/utils/cn";
-import { store } from "@/core/state/jotai";
+```
+
+## Lazy Loading
+
+Use lazy loading for components that require heavy dependencies.
+
+```typescript
+import { lazy } from "react";
+const LazyComponent = lazy(() => import("@/components/LazyComponent"));
 ```
 
 ## State Management with Jotai
+
+While React hooks are preferred, Jotai is useful when you need to persist state outside of the React component tree or store in local storage.
 
 Use `createReducerAndAtoms` for complex state, `atomFamily` for per-item atoms:
 
@@ -51,6 +58,9 @@ export const cellDataAtom = atomFamily((cellId: CellId) =>
 // Imperative access outside React
 import { store } from "@/core/state/jotai";
 export const getNotebook = () => store.get(notebookAtom);
+
+// Local storage
+const sessionAtom = atomWithStorage<SessionState>("marimo:session", initialState, jotaiJsonStorage);
 ```
 
 ## UI and Styling
@@ -88,17 +98,10 @@ pnpm --filter @marimo-team/frontend test                            # All tests
 pnpm --filter @marimo-team/frontend test src/__tests__/lru.test.ts  # Specific file
 ```
 
-```typescript
-import { describe, expect, it } from "vitest";
-
-describe("prettyNumber", () => {
-  it("should format numbers with commas", () => {
-    expect(prettyNumber(123_456_789, "en-US")).toBe("123,456,789");
-  });
-});
-```
-
-Best practices: test edge cases, use descriptive names, group with `describe`, keep focused.
+Best practices
+- test edge cases
+- use descriptive names
+- group with `describe`
 
 ## Type Patterns
 
@@ -119,12 +122,8 @@ function isErrorMime(mimetype?: string): boolean {
 ## Code Quality
 
 ```typescript
-import { invariant } from "@/utils/invariant";
 import { logNever } from "@/utils/logNever";
 import { Logger } from "@/utils/Logger";
-
-// Assert conditions
-invariant(Array.isArray(data), "Expected data to be an array");
 
 // Exhaustive switch handling
 logNever(value);
@@ -134,4 +133,4 @@ Logger.warn(`Cell ${cellId} not found`);
 Logger.error(`Error in reducer:`, error);
 ```
 
-Comments should only explain "why", not "what". Keep them minimal.
+Keep comments minimal. Comments should only explain "why", not "what".
