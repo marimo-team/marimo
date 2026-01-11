@@ -1325,10 +1325,7 @@ const {
     };
   },
   addSetupCellIfDoesntExist: (state, action: { code?: string }) => {
-    let { code } = action;
-    if (code == null) {
-      code = "# Initialization code that runs before all other cells";
-    }
+    const { code } = action;
 
     if (state.cellIds.setupCellExists()) {
       // Just focus on the existing setup cell

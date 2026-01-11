@@ -585,7 +585,7 @@ const EditableCellComponent = ({
             className={cn(
               className,
               navigationProps.className,
-              "focus:ring-1 focus:ring-(--slate-7) focus:ring-offset-2",
+              "focus:ring-1 focus:ring-(--slate-8) focus:ring-offset-2",
             )}
             ref={cellContainerRef}
             {...cellDomProps(cellId, cellData.name)}
@@ -687,16 +687,16 @@ const EditableCellComponent = ({
                     <span className="max-w-16 text-xs">
                       {(isToplevel &&
                         "This function or class can be imported into other Python notebooks or modules.") || (
-                        <>
-                          This definition can't be reused in other Python
-                          modules:
-                          <br />
-                          <br />
-                          <pre>{cellRuntime.serialization}</pre>
-                          <br />
-                          Click this icon to learn more.
-                        </>
-                      )}
+                          <>
+                            This definition can't be reused in other Python
+                            modules:
+                            <br />
+                            <br />
+                            <pre>{cellRuntime.serialization}</pre>
+                            <br />
+                            Click this icon to learn more.
+                          </>
+                        )}
                     </span>
                   }
                 >
@@ -1032,16 +1032,12 @@ const SetupCellComponent = ({
   const hasConsoleOutput = cellRuntime.consoleOutputs.length > 0;
   const isErrorOutput = isErrorMime(cellRuntime.output?.mimetype);
 
-  const className = clsx(
-    "marimo-cell",
-    "hover-actions-parent z-10 border shadow-sm",
-    "border-(--blue-5)! rounded-sm!",
-    {
-      "needs-run": needsRun,
-      "has-error": cellRuntime.errored,
-      stopped: cellRuntime.stopped,
-    },
-  );
+  const className = clsx("marimo-cell", {
+    interactive: true,
+    "needs-run": needsRun,
+    "has-error": cellRuntime.errored,
+    stopped: cellRuntime.stopped,
+  });
 
   const handleRefactorWithAI: OnRefactorWithAI = useEvent(
     (opts: { prompt: string; triggerImmediately: boolean }) => {
@@ -1076,7 +1072,7 @@ const SetupCellComponent = ({
             {...mergeProps(navigationProps, {
               className: cn(
                 className,
-                "focus:ring-1 focus:ring-(--blue-7) focus:ring-offset-0",
+                "focus:ring-1 focus:ring-(--slate-8) focus:ring-offset-2",
               ),
               onBlur: closeCompletionHandler,
               onKeyDown: resumeCompletionHandler,
@@ -1086,7 +1082,11 @@ const SetupCellComponent = ({
             tabIndex={-1}
             data-setup-cell={true}
           >
-            <div className={cn("tray")} data-hidden={!isCellCodeShown}>
+            <div
+              className={cn("tray")}
+              data-has-output-above={false}
+              data-hidden={!isCellCodeShown}
+            >
               <StagedAICellBackground
                 cellId={cellId}
                 className="mo-ai-setup-cell"
