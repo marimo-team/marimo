@@ -1032,7 +1032,7 @@ const SetupCellComponent = ({
   const hasConsoleOutput = cellRuntime.consoleOutputs.length > 0;
   const isErrorOutput = isErrorMime(cellRuntime.output?.mimetype);
 
-  const className = clsx("marimo-cell", {
+  const className = clsx("marimo-cell", "hover-actions-parent z-10", {
     interactive: true,
     "needs-run": needsRun,
     "has-error": cellRuntime.errored,
