@@ -22,7 +22,7 @@ import { getFeatureFlag } from "@/core/config/feature-flag";
 import { useRequestClient } from "@/core/network/requests";
 import { ErrorBoundary } from "../boundary/ErrorBoundary";
 
-export const FilenameInputDataId = "filename-input";
+export const FILENAME_INPUT_DATA_ID = "filename-input";
 
 interface FilenameInputProps {
   resetOnBlur?: boolean;
@@ -47,7 +47,7 @@ export const FilenameInput = ({
   const [focused, setFocused] = useState<boolean>(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const skipReset = useRef<boolean>(false);
-  const commandId = useId();
+  const filenameInputId = useId();
 
   useEffect(() => {
     setSearchValue(initialValue);
@@ -61,7 +61,7 @@ export const FilenameInput = ({
     // If we are coming from a click event from inside the popover, don't blur
     if (
       evt.relatedTarget instanceof HTMLElement &&
-      evt.relatedTarget.closest(`[data-id="${FilenameInputDataId}"]`)
+      evt.relatedTarget.closest(`[data-id="${FILENAME_INPUT_DATA_ID}"]`)
     ) {
       return;
     }
@@ -160,13 +160,13 @@ export const FilenameInput = ({
           onFocus={onFocus}
           onBlur={onBlur}
           shouldFilter={false}
-          id={commandId}
+          id={filenameInputId}
+          data-id={FILENAME_INPUT_DATA_ID}
           className="bg-transparent group filename-input"
         >
           <CommandList>
             <PopoverAnchor>
               <CommandInput
-                data-id={FilenameInputDataId}
                 data-testid="dir-completion-input"
                 tabIndex={-1}
                 rootClassName="border-none justify-center px-1"

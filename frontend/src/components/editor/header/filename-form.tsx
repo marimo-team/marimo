@@ -2,8 +2,8 @@
 
 import type { JSX } from "react";
 import {
+  FILENAME_INPUT_DATA_ID,
   FilenameInput,
-  FilenameInputDataId,
 } from "@/components/editor/header/filename-input";
 import { useUpdateFilename } from "@/core/saving/filename";
 import { Paths } from "@/utils/paths";
@@ -23,7 +23,7 @@ export const FilenameForm = ({
       onNameChange={setFilename}
       flexibleWidth={true}
       resetOnBlur={true}
-      data-testid={FilenameInputDataId}
+      data-testid={FILENAME_INPUT_DATA_ID}
       className={filename === null ? "missing-filename" : "filename"}
     />
   );
