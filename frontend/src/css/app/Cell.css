@@ -319,7 +319,9 @@
   }
 }
 
-#cell-setup, #cell-setup .cm-editor, #cell-setup .cm-gutter {
+#cell-setup,
+#cell-setup .cm-editor,
+#cell-setup .cm-gutter {
   background-color: var(--gray-2);
 }
 

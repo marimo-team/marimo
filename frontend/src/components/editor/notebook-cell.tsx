@@ -687,16 +687,16 @@ const EditableCellComponent = ({
                     <span className="max-w-16 text-xs">
                       {(isToplevel &&
                         "This function or class can be imported into other Python notebooks or modules.") || (
-                          <>
-                            This definition can't be reused in other Python
-                            modules:
-                            <br />
-                            <br />
-                            <pre>{cellRuntime.serialization}</pre>
-                            <br />
-                            Click this icon to learn more.
-                          </>
-                        )}
+                        <>
+                          This definition can't be reused in other Python
+                          modules:
+                          <br />
+                          <br />
+                          <pre>{cellRuntime.serialization}</pre>
+                          <br />
+                          Click this icon to learn more.
+                        </>
+                      )}
                     </span>
                   }
                 >
