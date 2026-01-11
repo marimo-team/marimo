@@ -78,7 +78,7 @@ test("can toggle to presenter mode", async ({ context }) => {
   await expect(page.getByText("# Hello Marimo!")).toBeVisible();
 
   // Toggle preview-button
-  await page.locator("#preview-button").click();
+  await page.getByTestId("hide-code-button").click();
 
   // Can see output
   await expect(page.locator("h1").getByText("Hello Marimo!")).toBeVisible();
@@ -86,7 +86,7 @@ test("can toggle to presenter mode", async ({ context }) => {
   await expect(page.getByText("# Hello Marimo!")).not.toBeVisible();
 
   // Toggle preview-button again
-  await page.locator("#preview-button").click();
+  await page.getByTestId("hide-code-button").click();
 
   // Can see output and code
   await expect(page.locator("h1").getByText("Hello Marimo!")).toBeVisible();
