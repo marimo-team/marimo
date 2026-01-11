@@ -161,6 +161,7 @@ export const FilenameInput = ({
           <CommandList>
             <PopoverAnchor>
               <CommandInput
+                data-id="filename-input"
                 data-testid="dir-completion-input"
                 tabIndex={-1}
                 rootClassName="border-none justify-center px-1"

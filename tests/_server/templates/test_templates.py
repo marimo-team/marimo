@@ -922,8 +922,8 @@ class TestWasmNotebookTemplate(unittest.TestCase):
         assert '<marimo-wasm hidden="">' in result
         assert '<marimo-code hidden="">' in result
         assert '"showAppCode": false' in result
-        assert "#save-button" in result
-        assert "#filename-input" in result
+        assert '[data-id="save-button"]' in result
+        assert '[data-id="filename-input"]' in result
         assert "<title>My App</title>" in result
         _assert_no_leftover_replacements(result)
 

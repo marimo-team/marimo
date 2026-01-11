@@ -154,6 +154,8 @@ export const RecoveryButton = (props: {
         aria-label="Save"
         className="rectangle"
         color={needsSave ? "yellow" : "gray"}
+        data-id="save-button"
+        data-testid="save-button"
       >
         <SaveIcon strokeWidth={1.5} size={18} />
       </EditorButton>

@@ -77,6 +77,7 @@ export const SaveComponent = ({ kioskMode }: SaveNotebookProps) => {
   return (
     <Tooltip content={renderShortcut("global.save")}>
       <ControlButton
+        data-id="save-button"
         data-testid="save-button"
         id={saveButtonId}
         shape="rectangle"
