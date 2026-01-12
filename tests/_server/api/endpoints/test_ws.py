@@ -96,8 +96,6 @@ def test_ws(client: TestClient) -> None:
     with client.websocket_connect(WS_URL) as websocket:
         data = websocket.receive_json()
         assert_kernel_ready_response(data)
-    # shut down after websocket context manager exists, otherwise
-    # the test fails on windows (event loop closed twice)
 
 
 def test_without_session(client: TestClient) -> None:
@@ -120,7 +118,6 @@ def test_disconnect_and_reconnect(client: TestClient) -> None:
         assert data["op"] == "alert"
 
 
-
 def test_disconnect_then_reconnect_then_refresh(client: TestClient) -> None:
     with client.websocket_connect(WS_URL) as websocket:
         data = websocket.receive_json()
@@ -138,7 +135,6 @@ def test_disconnect_then_reconnect_then_refresh(client: TestClient) -> None:
         assert data == {"op": "reconnected", "data": {"op": "reconnected"}}
         data = websocket.receive_json()
         assert_kernel_ready_response(data, create_response({"resumed": True}))
-
 
 
 def test_allows_multiple_connections_with_other_sessions(
@@ -299,7 +295,6 @@ async def test_cannot_connect_kiosk_with_run_session(
         assert exc_info.value.reason == "MARIMO_KIOSK_NOT_ALLOWED"
 
 
-
 async def test_connects_to_existing_session_with_same_file(
     client: TestClient,
     temp_marimo_file: str,
@@ -341,7 +336,6 @@ async def test_connects_to_existing_session_with_same_file(
                 # make sure it doesn't change when we don't expect it to
                 assert len(messages2) == 4
                 assert messages2[0]["op"] == "variables"
-
 
 
 def flush_messages(
@@ -441,7 +435,6 @@ async def test_session_resumption(client: TestClient) -> None:
         assert len(replayed) >= 1
 
 
-
 # ==============================================================================
 # Edge Cases - Disconnection/Reconnection
 # ==============================================================================
@@ -473,7 +466,6 @@ async def test_reconnection_cancels_close_handle(client: TestClient) -> None:
             assert session is not None
 
 
-
 async def test_run_mode_ttl_expiration(client: TestClient) -> None:
     """Test that sessions expire after TTL in RUN mode."""
     session_manager = get_session_manager(client)
@@ -499,7 +491,6 @@ async def test_run_mode_ttl_expiration(client: TestClient) -> None:
         # Session should be closed
         session = session_manager.get_session("123")
         assert session is None
-
 
 
 # ==============================================================================
@@ -550,7 +541,6 @@ async def test_rtc_config_with_loro_unavailable(client: TestClient) -> None:
             assert_kernel_ready_response(data)
 
 
-
 # ============================================================================
 # Advanced WebSocket State Machine Tests
 # ============================================================================
@@ -574,7 +564,6 @@ async def test_rapid_reconnection_cancels_ttl_cleanup(
         assert data["op"] == "alert"
 
 
-
 async def test_multiple_rapid_reconnections(client: TestClient) -> None:
     """Test multiple rapid connect/disconnect cycles don't break session."""
     for i in range(5):
@@ -584,7 +573,6 @@ async def test_multiple_rapid_reconnections(client: TestClient) -> None:
                 assert_kernel_ready_response(data)
             else:
                 assert data["op"] == "reconnected"
-
 
 
 async def test_websocket_message_queue_delivery(client: TestClient) -> None:
@@ -601,4 +589,3 @@ async def test_websocket_message_queue_delivery(client: TestClient) -> None:
 
         messages = flush_messages(websocket, at_least=1)
         assert len(messages) >= 1
-
