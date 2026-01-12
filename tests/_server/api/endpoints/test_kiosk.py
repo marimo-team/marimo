@@ -153,7 +153,6 @@ async def test_connect_kiosk_with_session(client: TestClient) -> None:
             }
 
 
-
 def _receive_until(op: str, websocket: WebSocketTestSession) -> dict[str, Any]:
     while True:
         data = websocket.receive_json()
