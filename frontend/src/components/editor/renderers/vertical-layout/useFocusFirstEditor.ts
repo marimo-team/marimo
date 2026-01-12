@@ -3,6 +3,7 @@
 import { getNotebook } from "@/core/cells/cells";
 import type { CellId } from "@/core/cells/ids";
 import { useOnMount } from "@/hooks/useLifecycle";
+import { getIframeCapabilities } from "@/utils/capabilities";
 import { extractCellNameFromHash } from "@/utils/cell-urls";
 import { Logger } from "@/utils/Logger";
 
@@ -14,6 +15,12 @@ import { Logger } from "@/utils/Logger";
  */
 export function useFocusFirstEditor() {
   useOnMount(() => {
+    // Skip auto-focus when embedded in an iframe to avoid stealing focus
+    // from the parent window
+    if (getIframeCapabilities().isEmbedded) {
+      return;
+    }
+
     const delay = 100; // ms just so its not immediate
 
     const timeout = setTimeout(() => {
