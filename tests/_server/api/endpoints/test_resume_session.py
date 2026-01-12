@@ -163,7 +163,6 @@ def test_refresh_session(client: TestClient) -> None:
     assert get_session(client, "789")
 
     # Shutdown the kernel
-    client.post("/api/kernel/shutdown", headers=HEADERS)
 
 
 def test_save_session(client: TestClient) -> None:
@@ -243,7 +242,6 @@ def test_save_session(client: TestClient) -> None:
     assert get_session(client, "456")
 
     # Shutdown the kernel
-    client.post("/api/kernel/shutdown", headers=HEADERS)
 
 
 def test_save_config(client: TestClient) -> None:
@@ -270,7 +268,6 @@ def test_save_config(client: TestClient) -> None:
     assert '"width": "full"' in response.text
 
     # Shutdown the kernel
-    client.post("/api/kernel/shutdown", headers=HEADERS)
 
 
 def test_restart_session(client: TestClient) -> None:
@@ -300,7 +297,6 @@ def test_restart_session(client: TestClient) -> None:
         )
 
     # Shutdown the kernel
-    client.post("/api/kernel/shutdown", headers=HEADERS)
 
 
 @pytest.mark.flaky(reruns=5)
@@ -377,7 +373,6 @@ def test_resume_session_with_watch(client: TestClient) -> None:
 
     session_manager.watch = False
     session_manager._watcher_manager.stop_all()
-    client.post("/api/kernel/shutdown", headers=HEADERS)
 
 
 @contextmanager

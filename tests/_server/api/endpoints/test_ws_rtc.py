@@ -149,9 +149,6 @@ async def test_loro_sync(client: TestClient) -> None:
                 assert len(sync_msg1) > 0
                 assert len(sync_msg2) > 0
 
-    # Clean up by shutting down the kernel
-    client.post("/api/kernel/shutdown", headers=HEADERS)
-
 
 @pytest.mark.skipif(
     "sys.version_info < (3, 11) or sys.version_info >= (3, 14)"
@@ -196,8 +193,6 @@ async def test_loro_cleanup_on_session_close(
                 pass
 
     assert len(DOC_MANAGER.loro_docs_clients[file_key]) == 0
-
-    client.post("/api/kernel/shutdown", headers=HEADERS)
 
 
 @pytest.mark.skipif(
@@ -246,8 +241,6 @@ async def test_loro_persistence(client: TestClient) -> None:
             # Verify initial sync contains data
             assert len(sync_msg) > 0
 
-    client.post("/api/kernel/shutdown", headers=HEADERS)
-
 
 # ==============================================================================
 # Edge Cases - RTC Availability and Graceful Degradation
@@ -290,8 +283,6 @@ async def test_rtc_degrades_without_loro(client: TestClient) -> None:
 
             # Verify no RTC doc was created
             assert file_key not in DOC_MANAGER.loro_docs
-
-    client.post("/api/kernel/shutdown", headers=HEADERS)
 
 
 # ==============================================================================
@@ -361,5 +352,3 @@ async def test_ws_sync_cleanup_on_main_disconnect(client: TestClient) -> None:
                 # Client should be removed
                 if file_key in DOC_MANAGER.loro_docs_clients:
                     assert len(DOC_MANAGER.loro_docs_clients[file_key]) == 0
-
-    client.post("/api/kernel/shutdown", headers=HEADERS)

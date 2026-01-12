@@ -344,6 +344,3 @@ def test_running_notebooks_handles_files_outside_directory(
                 finally:
                     session_manager.file_router = original_file_router
                     session.app_file_manager.filename = original_filename
-
-        # Shutdown to clean up
-        client.post("/api/kernel/shutdown", headers=headers)
