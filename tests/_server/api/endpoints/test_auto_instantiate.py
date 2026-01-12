@@ -53,7 +53,11 @@ class TestAutoInstantiateEditMode:
         ws_url = _create_ws_url(session_id)
         headers = _create_headers(session_id)
 
-        with client.websocket_connect(ws_url):
+        with client.websocket_connect(ws_url) as websocket:
+            # Wait for the session to be fully established
+            data = websocket.receive_json()
+            assert data["op"] == "kernel-ready"
+
             # The /instantiate endpoint should work in edit mode
             response = client.post(
                 "/api/kernel/instantiate",
@@ -104,7 +108,11 @@ class TestAutoInstantiateRunMode:
         session_manager.mode = SessionMode.RUN
         ws_url = _create_ws_url(session_id)
 
-        with client.websocket_connect(ws_url):
+        with client.websocket_connect(ws_url) as websocket:
+            # Wait for the session to be fully established
+            data = websocket.receive_json()
+            assert data["op"] == "kernel-ready"
+
             # The /instantiate endpoint should be blocked in run mode
             # Returns 401 because @requires("edit") checks permissions
             response = client.post(
