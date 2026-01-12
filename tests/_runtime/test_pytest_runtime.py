@@ -1,12 +1,9 @@
 import os
 from pathlib import Path
 
-from marimo._runtime.pytest import run_pytest
-
-pytest_plugins = ["pytester"]
-
 
 def test_smoke_test():
+    from marimo._runtime.pytest import run_pytest
     from tests._runtime.script_data.contains_tests import app
 
     _, lcls = app.run()
