@@ -7,6 +7,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING
 
+from marimo._session.session import SessionImpl
 import pytest
 import uvicorn
 from starlette.testclient import TestClient
@@ -84,16 +85,27 @@ def client(user_config_manager: UserConfigManager) -> Iterator[TestClient]:
 
     yield client
 
-    session_manager: SessionManager = client.app.state.session_manager
-    kernel_tasks = []
-    for session in session_manager.sessions.values():
-        kernel_tasks.append(session._kernel_manager.kernel_task)
+    try:
+        session_manager: SessionManager = client.app.state.session_manager
+        kernel_tasks = []
+        # Kernels started in run mode run in their own threads; if these kernels
+        # execute code, they may patch and restore their own main modules.
+        # To ensure that this fixture correctly restores the original saved
+        # main module, we wait for threads to finish before restoring the module.
+        for session in session_manager.sessions.values():
+            assert isinstance(session, SessionImpl)
+            kernel_task = session._kernel_manager.kernel_task
+            if kernel_task is not None and isinstance(
+                kernel_task, threading.Thread
+            ):
+                kernel_tasks.append(kernel_task)
 
-    session_manager.shutdown()
-    for task in kernel_tasks:
-        task.join()
-
-    sys.modules["__main__"] = main
+        session_manager.shutdown()
+        for task in kernel_tasks:
+            if task.is_alive():
+                task.join()
+    finally:
+        sys.modules["__main__"] = main
 
 
 def get_session_manager(client: TestClient) -> SessionManager:
