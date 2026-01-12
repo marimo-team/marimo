@@ -14,8 +14,6 @@ marimo is designed to be:
     5. fun
 """
 
-# A change to main to ensure everything runs
-
 __all__ = [
     # Core API
     "App",
