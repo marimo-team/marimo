@@ -7,7 +7,6 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING
 
-from marimo._session.session import SessionImpl
 import pytest
 import uvicorn
 from starlette.testclient import TestClient
@@ -19,6 +18,7 @@ from marimo._server.config import StarletteServerStateInit
 from marimo._server.main import create_starlette_app
 from marimo._server.session_manager import SessionManager
 from marimo._server.utils import initialize_asyncio
+from marimo._session.session import SessionImpl
 from marimo._session.state.session_view import SessionView
 from tests._server.mocks import get_mock_session_manager
 from tests.utils import assert_serialize_roundtrip
