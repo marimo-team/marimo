@@ -133,10 +133,6 @@ def test_update_file_with_session(client: TestClient) -> None:
         assert "@app.cell" in file_contents
         assert "x=10; x" in file_contents
 
-        # Shutdown
-        client.post("/api/kernel/shutdown", headers=HEADERS)
-
-    # Clean up
     sm.watch = False
     sm._watcher_manager.stop_all()
 

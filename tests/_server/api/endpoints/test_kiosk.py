@@ -152,8 +152,6 @@ async def test_connect_kiosk_with_session(client: TestClient) -> None:
                 "data": {"cell_id": "cell-3"},
             }
 
-    client.post("/api/kernel/shutdown", headers=HEADERS)
-
 
 def _receive_until(op: str, websocket: WebSocketTestSession) -> dict[str, Any]:
     while True:
