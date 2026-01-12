@@ -838,6 +838,11 @@ const AgentPanel: React.FC = () => {
       return;
     }
 
+    // Skip if we're in the middle of creating a new session
+    if (isCreatingNewSession.current) {
+      return;
+    }
+
     // If there is an available session, resume it, otherwise create a new one
     const createOrResumeSession = async () => {
       const availableSession = tabLastActiveSessionId ?? activeSessionId;
