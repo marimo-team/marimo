@@ -64,6 +64,7 @@ import { getCurrentLanguageAdapter } from "./language/commands";
 import { adaptiveLanguageConfiguration } from "./language/extension";
 import { dndBundle } from "./misc/dnd";
 import { pasteBundle } from "./misc/paste";
+import { stringsAutoCloseBraces } from "./misc/string-braces";
 import { reactiveReferencesBundle } from "./reactive-references/extension";
 import { darkTheme } from "./theme/dark";
 import { lightTheme } from "./theme/light";
@@ -203,6 +204,7 @@ export const basicBundle = (opts: CodeMirrorSetupOpts): Extension[] => {
     hintTooltip(lspConfig),
     copilotBundle(completionConfig),
     foldGutter(),
+    stringsAutoCloseBraces(),
     closeBrackets(),
     completionKeymap(),
     // to avoid clash with charDeleteBackward keymap
