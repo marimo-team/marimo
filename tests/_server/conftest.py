@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import sys
+import threading
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING
@@ -82,6 +83,16 @@ def client(user_config_manager: UserConfigManager) -> Iterator[TestClient]:
     app.state.server = uvicorn_server
 
     yield client
+
+    session_manager: SessionManager = client.app.state.session_manager
+    kernel_tasks = []
+    for session in session_manager.sessions.values():
+        kernel_tasks.append(session._kernel_manager.kernel_task)
+
+    session_manager.shutdown()
+    for task in kernel_tasks:
+        task.join()
+
     sys.modules["__main__"] = main
 
 
