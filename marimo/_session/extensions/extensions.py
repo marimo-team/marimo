@@ -196,14 +196,13 @@ class NotificationListenerExtension(SessionExtension):
         kernel_manager: KernelManager,
         queue_manager: QueueManager,
     ) -> Distributor[KernelMessage]:
-        from marimo._session.model import SessionMode
-
-        if kernel_manager.mode == SessionMode.EDIT:
-            return ConnectionDistributor(kernel_manager.kernel_connection)
+        # IPC kernels (home sandbox mode) and run mode use stream_queue
+        # Edit mode without IPC uses kernel_connection
+        if queue_manager.stream_queue is not None:
+            return QueueDistributor(queue=queue_manager.stream_queue)
         else:
-            q = queue_manager.stream_queue
-            assert q is not None
-            return QueueDistributor(queue=q)
+            # Edit mode with original kernel manager uses connection
+            return ConnectionDistributor(kernel_manager.kernel_connection)
 
     def on_attach(self, session: Session, event_bus: SessionEventBus) -> None:
         del event_bus

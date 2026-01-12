@@ -1132,8 +1132,8 @@ packages:
   timestamp: 1727801725384
 - pypi: ./
   name: marimo
-  version: 0.18.4
-  sha256: 00d04a9c700e085afe77f6f44d2455742a7247499a2022ef89fe8f9c04858e5d
+  version: 0.19.0
+  sha256: e3b89cad4941115582da49edd3ebfebc3505ef26c2462d9e226798d3e4d59d6c
   requires_dist:
   - click>=8.0,<9
   - jedi>=0.18.0
@@ -1156,7 +1156,10 @@ packages:
   - duckdb>=1.0.0 ; extra == 'sql'
   - polars[pyarrow]>=1.9.0 ; extra == 'sql'
   - sqlglot[rs]>=26.2.0 ; extra == 'sql'
+  - pyzmq>=27.1.0 ; extra == 'sandbox'
+  - uv>=0.9.21 ; extra == 'sandbox'
   - marimo[sql] ; extra == 'recommended'
+  - marimo[sandbox] ; extra == 'recommended'
   - altair>=5.4.0 ; extra == 'recommended'
   - openai>=1.55.3 ; extra == 'recommended'
   - ruff ; extra == 'recommended'

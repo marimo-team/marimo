@@ -143,6 +143,14 @@ class TestNotificationListenerExtension:
     @pytest.fixture
     def queue_manager(self):
         manager = Mock()
+        # For original edit mode, stream_queue is None
+        manager.stream_queue = None
+        return manager
+
+    @pytest.fixture
+    def queue_manager_with_stream(self):
+        manager = Mock()
+        # For run mode and IPC mode, stream_queue is set
         manager.stream_queue = asyncio.Queue()
         return manager
 
@@ -168,29 +176,29 @@ class TestNotificationListenerExtension:
         assert extension.distributor is None
 
     def test_uses_correct_distributor_type(
-        self, kernel_manager, queue_manager
+        self, kernel_manager, queue_manager, queue_manager_with_stream
     ) -> None:
-        """Test that correct distributor type is used based on mode."""
+        """Test that correct distributor type is used based on stream_queue."""
         from marimo._utils.distributor import (
             ConnectionDistributor,
             QueueDistributor,
         )
 
+        # When stream_queue is None, use ConnectionDistributor (edit mode)
         extension = NotificationListenerExtension(
             kernel_manager, queue_manager
         )
-
-        # EDIT mode uses ConnectionDistributor
-        kernel_manager.mode = SessionMode.EDIT
         distributor = extension._create_distributor(
             kernel_manager, queue_manager
         )
         assert isinstance(distributor, ConnectionDistributor)
 
-        # RUN mode uses QueueDistributor
-        kernel_manager.mode = SessionMode.RUN
-        distributor = extension._create_distributor(
-            kernel_manager, queue_manager
+        # When stream_queue is present, use QueueDistributor (run mode or IPC)
+        extension2 = NotificationListenerExtension(
+            kernel_manager, queue_manager_with_stream
+        )
+        distributor = extension2._create_distributor(
+            kernel_manager, queue_manager_with_stream
         )
         assert isinstance(distributor, QueueDistributor)
 

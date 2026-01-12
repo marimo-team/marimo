@@ -295,3 +295,15 @@ def test_index_prefers_local_file_over_asset_url(client: TestClient) -> None:
 
     # Reset asset_url
     client.app.state.asset_url = None
+
+
+def test_index_includes_notebook_key_in_mount_config(
+    client: TestClient,
+) -> None:
+    """Test that index response includes notebook in mount config."""
+    response = client.get("/", headers=token_header())
+    assert response.status_code == 200
+
+    # Verify notebook key is present in mount config by checking HTML content
+    # The mount config is injected as JSON in the HTML
+    assert '"notebook":' in response.text or "'notebook':" in response.text

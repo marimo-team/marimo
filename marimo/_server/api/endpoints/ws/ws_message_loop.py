@@ -13,6 +13,7 @@ from marimo._messaging.notification import (
 )
 from marimo._messaging.serde import deserialize_kernel_notification_name
 from marimo._messaging.types import KernelMessage
+from marimo._server.api.endpoints.ws.ws_formatter import format_wire_message
 
 if TYPE_CHECKING:
     from starlette.websockets import WebSocket
@@ -79,7 +80,7 @@ class WebSocketMessageLoop:
 
             # Serialize message
             try:
-                text = f'{{"op": "{op}", "data": {data.decode("utf-8")}}}'
+                text = format_wire_message(op, data)
             except Exception as e:
                 LOGGER.error("Failed to deserialize message: %s", str(e))
                 LOGGER.error("Message: %s", data)

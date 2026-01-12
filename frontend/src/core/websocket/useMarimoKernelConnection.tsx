@@ -40,7 +40,7 @@ import {
 } from "../datasets/request-registry";
 import { useDatasetsActions } from "../datasets/state";
 import { UI_ELEMENT_REGISTRY } from "../dom/uiregistry";
-import { useBannersActions } from "../errors/state";
+import { kernelStartupErrorAtom, useBannersActions } from "../errors/state";
 import { FUNCTIONS_REGISTRY } from "../functions/FunctionRegistry";
 import {
   handleCellNotificationeration,
@@ -105,6 +105,7 @@ export function useMarimoKernelConnection(opts: {
   const setCapabilities = useSetAtom(capabilitiesAtom);
   const runtimeManager = useRuntimeManager();
   const setCacheInfo = useSetAtom(cacheInfoAtom);
+  const setKernelStartupError = useSetAtom(kernelStartupErrorAtom);
 
   const handleMessage = (e: MessageEvent<JsonString<NotificationPayload>>) => {
     const msg = jsonParseWithSpecialChar(e.data);
@@ -132,6 +133,11 @@ export function useMarimoKernelConnection(opts: {
       case "completed-run":
         return;
       case "interrupted":
+        return;
+
+      case "kernel-startup-error":
+        // Full error received via message before websocket close
+        setKernelStartupError(msg.data.error);
         return;
 
       case "send-ui-element-message": {
@@ -413,6 +419,17 @@ export function useMarimoKernelConnection(opts: {
           return;
 
         default:
+          // Check for kernel startup error (full error already received via message)
+          if (e.reason === "MARIMO_KERNEL_STARTUP_ERROR") {
+            setConnection({
+              state: WebSocketState.CLOSED,
+              code: WebSocketClosedReason.KERNEL_STARTUP_ERROR,
+              reason: "Failed to start kernel sandbox",
+            });
+            ws.close(); // prevent reconnecting
+            return;
+          }
+
           // Session should be valid
           // - browser tab might have been closed or re-opened
           // - computer might have just woken from sleep

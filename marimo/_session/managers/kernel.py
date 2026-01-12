@@ -1,138 +1,44 @@
 # Copyright 2026 Marimo. All rights reserved.
-"""Queue and Kernel managers for session management.
-
-This module contains the infrastructure components for managing
-kernel processes/threads and their associated communication queues.
-"""
+"""Kernel manager implementation using multiprocessing Process or threading Thread."""
 
 from __future__ import annotations
 
 import os
-import queue
 import signal
 import sys
 import threading
 import time
-from multiprocessing import Process, connection, get_context
-from multiprocessing.queues import Queue as MPQueue
-from typing import Any, Optional, Union
+from multiprocessing import Process, connection
+from typing import TYPE_CHECKING, Any, Optional, Union
 from uuid import uuid4
 
 from marimo import _loggers
-from marimo._ast.cell import CellConfig
-from marimo._config.manager import MarimoConfigReader
 from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._messaging.types import KernelMessage
 from marimo._output.formatters.formatters import register_formatters
 from marimo._runtime import commands, runtime
-from marimo._runtime.commands import AppMetadata
 from marimo._session.model import SessionMode
 from marimo._session.queue import ProcessLike
 from marimo._session.types import KernelManager, QueueManager
-from marimo._types.ids import CellId_t
 from marimo._utils.print import print_
 from marimo._utils.typed_connection import TypedConnection
+
+if TYPE_CHECKING:
+    from marimo._ast.cell import CellConfig
+    from marimo._config.manager import MarimoConfigReader
+    from marimo._runtime.commands import AppMetadata
+    from marimo._types.ids import CellId_t
 
 LOGGER = _loggers.marimo_logger()
 
 
-class QueueManagerImpl(QueueManager):
-    """Manages queues for a session."""
-
-    def __init__(self, *, use_multiprocessing: bool):
-        context = get_context("spawn") if use_multiprocessing else None
-
-        # Control messages for the kernel (run, set UI element, set config, etc
-        # ) are sent through the control queue
-        self.control_queue: Union[
-            MPQueue[commands.CommandMessage],
-            queue.Queue[commands.CommandMessage],
-        ] = context.Queue() if context is not None else queue.Queue()
-
-        # Set UI element queues are stored in both the control queue and
-        # this queue, so that the backend can merge/batch set-ui-element
-        # requests.
-        self.set_ui_element_queue: Union[
-            MPQueue[commands.UpdateUIElementCommand],
-            queue.Queue[commands.UpdateUIElementCommand],
-        ] = context.Queue() if context is not None else queue.Queue()
-
-        # Code completion requests are sent through a separate queue
-        self.completion_queue: Union[
-            MPQueue[commands.CodeCompletionCommand],
-            queue.Queue[commands.CodeCompletionCommand],
-        ] = context.Queue() if context is not None else queue.Queue()
-
-        self.win32_interrupt_queue: (
-            Union[MPQueue[bool], queue.Queue[bool]] | None
-        )
-        if sys.platform == "win32":
-            self.win32_interrupt_queue = (
-                context.Queue() if context is not None else queue.Queue()
-            )
-        else:
-            self.win32_interrupt_queue = None
-
-        # Input messages for the user's Python code are sent through the
-        # input queue
-        self.input_queue: Union[MPQueue[str], queue.Queue[str]] = (
-            context.Queue(maxsize=1)
-            if context is not None
-            else queue.Queue(maxsize=1)
-        )
-        self.stream_queue: Optional[
-            queue.Queue[Union[KernelMessage, None]]
-        ] = None
-        if not use_multiprocessing:
-            self.stream_queue = queue.Queue()
-
-    def close_queues(self) -> None:
-        if isinstance(self.control_queue, MPQueue):
-            # cancel join thread because we don't care if the queues still have
-            # things in it: don't want to make the child process wait for the
-            # queues to empty
-            self.control_queue.cancel_join_thread()
-            self.control_queue.close()
-        else:
-            # kernel thread cleans up read/write conn and IOloop handler on
-            # exit; we don't join the thread because we don't want to block
-            self.control_queue.put(commands.StopKernelCommand())
-
-        if isinstance(self.set_ui_element_queue, MPQueue):
-            self.set_ui_element_queue.cancel_join_thread()
-            self.set_ui_element_queue.close()
-
-        if isinstance(self.input_queue, MPQueue):
-            # again, don't make the child process wait for the queues to empty
-            self.input_queue.cancel_join_thread()
-            self.input_queue.close()
-
-        if isinstance(self.completion_queue, MPQueue):
-            self.completion_queue.cancel_join_thread()
-            self.completion_queue.close()
-
-        if isinstance(self.win32_interrupt_queue, MPQueue):
-            self.win32_interrupt_queue.cancel_join_thread()
-            self.win32_interrupt_queue.close()
-
-    def put_control_request(self, request: commands.CommandMessage) -> None:
-        """Put a control request in the control queue."""
-        # Completions are on their own queue
-        if isinstance(request, commands.CodeCompletionCommand):
-            self.completion_queue.put(request)
-            return
-
-        self.control_queue.put(request)
-        # Update UI elements are on both queues so they can be batched
-        if isinstance(request, commands.UpdateUIElementCommand):
-            self.set_ui_element_queue.put(request)
-
-    def put_input(self, text: str) -> None:
-        """Put an input request in the input queue."""
-        self.input_queue.put(text)
-
-
 class KernelManagerImpl(KernelManager):
+    """Kernel manager using multiprocessing Process or threading Thread.
+
+    Uses Process for edit mode (allows SIGINT interrupts) and Thread for
+    run mode (lower memory overhead).
+    """
+
     def __init__(
         self,
         *,
@@ -144,7 +50,7 @@ class KernelManagerImpl(KernelManager):
         virtual_files_supported: bool,
         redirect_console_to_browser: bool,
     ) -> None:
-        self.kernel_task: Optional[ProcessLike | threading.Thread] = None
+        self.kernel_task: Optional[Union[ProcessLike, threading.Thread]] = None
         self.queue_manager = queue_manager
         self.mode = mode
         self.configs = configs
@@ -197,7 +103,9 @@ class KernelManagerImpl(KernelManager):
 
             # We can't terminate threads, so we have to wait until they
             # naturally exit before cleaning up resources
-            def launch_kernel_with_cleanup(*args: Any) -> None:
+            def launch_kernel_with_cleanup(
+                *args: Any,
+            ) -> None:
                 runtime.launch_kernel(*args)
 
             # install formatter import hooks, which will be shared by all

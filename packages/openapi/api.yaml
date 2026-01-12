@@ -2201,6 +2201,20 @@ components:
       - capabilities
       title: KernelReadyNotification
       type: object
+    KernelStartupErrorNotification:
+      description: Notification sent when kernel fails to start (e.g., sandbox build
+        failure).
+      properties:
+        error:
+          type: string
+        op:
+          enum:
+          - kernel-startup-error
+      required:
+      - op
+      - error
+      title: KernelStartupErrorNotification
+      type: object
     KeymapConfig:
       description: "Configuration for keymaps.\n\n    **Keys.**\n\n    - `preset`:\
         \ one of `\"default\"` or `\"vim\"`\n    - `overrides`: a dict of keymap actions\
@@ -2341,6 +2355,7 @@ components:
           - $ref: '#/components/schemas/MissingPackageAlertNotification'
           - $ref: '#/components/schemas/InstallingPackageAlertNotification'
           - $ref: '#/components/schemas/StartupLogsNotification'
+          - $ref: '#/components/schemas/KernelStartupErrorNotification'
           - $ref: '#/components/schemas/VariablesNotification'
           - $ref: '#/components/schemas/VariableValuesNotification'
           - $ref: '#/components/schemas/QueryParamsSetNotification'
@@ -2376,6 +2391,7 @@ components:
               installing-package-alert: '#/components/schemas/InstallingPackageAlertNotification'
               interrupted: '#/components/schemas/InterruptedNotification'
               kernel-ready: '#/components/schemas/KernelReadyNotification'
+              kernel-startup-error: '#/components/schemas/KernelStartupErrorNotification'
               missing-package-alert: '#/components/schemas/MissingPackageAlertNotification'
               query-params-append: '#/components/schemas/QueryParamsAppendNotification'
               query-params-clear: '#/components/schemas/QueryParamsClearNotification'

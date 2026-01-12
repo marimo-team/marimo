@@ -15,6 +15,7 @@ from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.notification import (
     AlertNotification,
     BannerNotification,
+    KernelStartupErrorNotification,
     NotificationMessage,
     ReconnectedNotification,
 )
@@ -25,6 +26,9 @@ from marimo._server.api.deps import AppState
 from marimo._server.api.endpoints.ws.ws_connection_validator import (
     ConnectionParams,
     WebSocketConnectionValidator,
+)
+from marimo._server.api.endpoints.ws.ws_formatter import (
+    serialize_notification_for_websocket,
 )
 from marimo._server.api.endpoints.ws.ws_kernel_ready import (
     build_kernel_ready,
@@ -44,6 +48,7 @@ from marimo._server.session_manager import SessionManager
 from marimo._session import Session
 from marimo._session.consumer import SessionConsumer
 from marimo._session.events import SessionEventBus
+from marimo._session.managers.ipc import KernelStartupError
 from marimo._session.model import (
     ConnectionState,
     SessionMode,
@@ -377,7 +382,12 @@ class WebSocketHandler(SessionConsumer):
             params=self.params,
             websocket=self.websocket,
         )
-        session, connection_type = connector.connect()
+        try:
+            session, connection_type = connector.connect()
+        except KernelStartupError as e:
+            LOGGER.error("Kernel startup failed: %s", e)
+            await self._close_kernel_startup_error(str(e))
+            return
         LOGGER.debug(
             "Connected to session %s with type %s",
             session.initialization_id,
@@ -423,6 +433,18 @@ class WebSocketHandler(SessionConsumer):
             await self.websocket.close(
                 WebSocketCodes.ALREADY_CONNECTED,
                 "MARIMO_ALREADY_CONNECTED",
+            )
+
+    async def _close_kernel_startup_error(self, error_message: str) -> None:
+        """Send full error as message, then close the WebSocket."""
+        if self.websocket.application_state is WebSocketState.CONNECTED:
+            notification = KernelStartupErrorNotification(error=error_message)
+            text = serialize_notification_for_websocket(notification)
+            await self.websocket.send_text(text)
+            # Then close with simple reason
+            await self.websocket.close(
+                WebSocketCodes.UNEXPECTED_ERROR,
+                "MARIMO_KERNEL_STARTUP_ERROR",
             )
 
     def on_attach(self, session: Session, event_bus: SessionEventBus) -> None:

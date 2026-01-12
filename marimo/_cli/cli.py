@@ -327,19 +327,6 @@ edit_help_msg = "\n".join(
     help=sandbox_message,
 )
 @click.option(
-    "--dangerous-sandbox/--no-dangerous-sandbox",
-    is_flag=True,
-    default=None,
-    show_default=False,
-    type=bool,
-    hidden=True,
-    help="""Enables the usage of package sandboxing when running a multi-edit
-notebook server. This behavior can lead to surprising and unintended consequences,
-such as incorrectly overwriting package requirements or failing to write out
-requirements. These and other issues are described in
-https://github.com/marimo-team/marimo/issues/5219.""",
-)
-@click.option(
     "--trusted/--untrusted",
     is_flag=True,
     default=None,
@@ -428,7 +415,6 @@ def edit(
     allow_origins: Optional[tuple[str, ...]],
     skip_update_check: bool,
     sandbox: Optional[bool],
-    dangerous_sandbox: Optional[bool],
     trusted: Optional[bool],
     profile_dir: Optional[str],
     watch: bool,
@@ -442,7 +428,7 @@ def edit(
     name: Optional[str],
     args: tuple[str, ...],
 ) -> None:
-    from marimo._cli.sandbox import run_in_sandbox, should_run_in_sandbox
+    from marimo._cli.sandbox import SandboxMode, resolve_sandbox_mode
 
     pass_on_stdin = token_password_file == "-"
     # We support unix-style piping, e.g. cat notebook.py | marimo edit
@@ -508,14 +494,28 @@ def edit(
 
     # We check this after name validation, because this will convert
     # URLs into local file paths
-    if should_run_in_sandbox(
-        sandbox=sandbox, dangerous_sandbox=dangerous_sandbox, name=name
-    ):
+
+    # Resolve sandbox mode: None, SandboxMode.SINGLE, or SandboxMode.MULTI
+    sandbox_mode = resolve_sandbox_mode(sandbox=sandbox, name=name)
+
+    # Single-file sandbox: wrap with uv run
+    if sandbox_mode is SandboxMode.SINGLE:
         from marimo._cli.sandbox import run_in_sandbox
 
-        # TODO: consider adding recommended as well
         run_in_sandbox(sys.argv[1:], name=name, additional_features=["lsp"])
         return
+
+    # Multi-file sandbox: use IPC kernels with per-notebook sandboxed venvs
+    if sandbox_mode is SandboxMode.MULTI:
+        # Check for pyzmq dependency
+        from marimo._dependencies.dependencies import DependencyManager
+
+        if not DependencyManager.zmq.has():
+            raise click.UsageError(
+                "pyzmq is required when running the marimo edit server on a directory with --sandbox.\n"
+                "Install it with: pip install 'marimo[sandbox]'\n"
+                "Or: pip install pyzmq"
+            )
 
     start(
         file_router=AppFileRouter.infer(name),
@@ -545,6 +545,7 @@ def edit(
         server_startup_command=server_startup_command,
         asset_url=asset_url,
         timeout=timeout,
+        sandbox_mode=sandbox_mode,
     )
 
 
@@ -941,7 +942,11 @@ def run(
     name: str,
     args: tuple[str, ...],
 ) -> None:
-    from marimo._cli.sandbox import run_in_sandbox, should_run_in_sandbox
+    from marimo._cli.sandbox import (
+        SandboxMode,
+        resolve_sandbox_mode,
+        run_in_sandbox,
+    )
 
     if prompt_run_in_docker_container(name, trusted=trusted):
         from marimo._cli.run_docker import run_in_docker
@@ -976,9 +981,8 @@ def run(
 
     # We check this after name validation, because this will convert
     # URLs into local file paths
-    if should_run_in_sandbox(
-        sandbox=sandbox, dangerous_sandbox=None, name=name
-    ):
+    # For run command, only single-file sandbox is possible (no directory support)
+    if resolve_sandbox_mode(sandbox=sandbox, name=name) is SandboxMode.SINGLE:
         run_in_sandbox(sys.argv[1:], name=name)
         return
 

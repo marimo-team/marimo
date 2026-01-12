@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING, Optional
 from uuid import uuid4
 
 from marimo import _loggers
+from marimo._cli.sandbox import SandboxMode
 from marimo._config.manager import MarimoConfigManager, ScriptConfigManager
 from marimo._messaging.notification import (
     NotificationMessage,
@@ -48,6 +49,7 @@ from marimo._session.state.session_view import SessionView
 from marimo._session.types import (
     KernelManager,
     KernelState,
+    QueueManager,
     Session,
 )
 from marimo._types.ids import ConsumerId
@@ -87,6 +89,7 @@ class SessionImpl(Session):
         auto_instantiate: bool,
         ttl_seconds: Optional[int],
         extensions: list[SessionExtension] | None = None,
+        sandbox_mode: SandboxMode | None = None,
     ) -> Session:
         """
         Create a new session.
@@ -98,19 +101,45 @@ class SessionImpl(Session):
         )
 
         configs = app_file_manager.app.cell_manager.config_map()
-        use_multiprocessing = mode == SessionMode.EDIT
-        queue_manager = QueueManagerImpl(
-            use_multiprocessing=use_multiprocessing
-        )
-        kernel_manager = KernelManagerImpl(
-            queue_manager=queue_manager,
-            mode=mode,
-            configs=configs,
-            app_metadata=app_metadata,
-            config_manager=config_manager,
-            virtual_files_supported=virtual_files_supported,
-            redirect_console_to_browser=redirect_console_to_browser,
-        )
+
+        # Create kernel manager
+        # SandboxMode.MULTI uses IPC kernels with per-notebook sandboxed venvs
+        queue_manager: QueueManager
+        kernel_manager: KernelManager
+        if sandbox_mode is SandboxMode.MULTI:
+            from marimo._ipc import QueueManager as IPCQueueManager
+            from marimo._session.managers import (
+                IPCKernelManagerImpl,
+                IPCQueueManagerImpl,
+            )
+
+            ipc_queue_manager, connection_info = IPCQueueManager.create()
+            queue_manager = IPCQueueManagerImpl.from_ipc(ipc_queue_manager)
+            kernel_manager = IPCKernelManagerImpl(
+                queue_manager=queue_manager,
+                connection_info=connection_info,
+                mode=mode,
+                configs=configs,
+                app_metadata=app_metadata,
+                config_manager=config_manager,
+                virtual_files_supported=virtual_files_supported,
+                redirect_console_to_browser=redirect_console_to_browser,
+            )
+        else:
+            # Original kernel: Process for edit, Thread for run
+            use_multiprocessing = mode == SessionMode.EDIT
+            queue_manager = QueueManagerImpl(
+                use_multiprocessing=use_multiprocessing
+            )
+            kernel_manager = KernelManagerImpl(
+                queue_manager=queue_manager,
+                mode=mode,
+                configs=configs,
+                app_metadata=app_metadata,
+                config_manager=config_manager,
+                virtual_files_supported=virtual_files_supported,
+                redirect_console_to_browser=redirect_console_to_browser,
+            )
 
         extensions = [
             *(extensions or []),
