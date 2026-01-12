@@ -98,6 +98,8 @@ class tabs(UIElement[str, str]):
 
     def _convert_value(self, value: str) -> str:
         if not value:
-            return self._tab_keys[0]
+            if self._tab_keys:
+                return self._tab_keys[0]
+            return ""
         index = int(value)
         return self._tab_keys[index]
