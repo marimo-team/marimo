@@ -580,6 +580,13 @@ def test_print_code_result_matches_actual_transform_polars(
                 for column_id in transform.column_ids
             )
         )
+        # When aggregation_column_ids is empty, all remaining columns become
+        # aggregation columns. sum/mean fail on non-numeric columns (strings, etc.)
+        if not transform.aggregation_column_ids and transform.aggregation in {
+            "sum",
+            "mean",
+        }:
+            assume(False)
     if transform.type == TransformType.PIVOT:
         assume(
             (
@@ -596,6 +603,7 @@ def test_print_code_result_matches_actual_transform_polars(
                 == set()
             )
         )
+        # Exclude lists, dicts, datetimes from pivot columns
         assume(
             not any(
                 column_id in {"lists", "dicts", "datetimes"}
@@ -614,6 +622,20 @@ def test_print_code_result_matches_actual_transform_polars(
                 for column_id in transform.value_column_ids
             )
         )
+        # Exclude booleans from pivot column_ids - polars uses lowercase (true/false)
+        # while narwhals uses Python's str() which gives True/False
+        assume(
+            not any(
+                column_id in {"booleans"} for column_id in transform.column_ids
+            )
+        )
+        # When value_column_ids is empty, all remaining columns become values.
+        # sum/mean aggregations fail on non-numeric columns (strings, booleans)
+        if not transform.value_column_ids and transform.aggregation in {
+            "sum",
+            "mean",
+        }:
+            assume(False)
 
     # Polars
     polars_code = python_print_transforms(
@@ -1009,3 +1031,80 @@ class TestCombinedTransforms:
 
         self._test_transforms(pl_dataframe, transforms)
         self._test_transforms(pd_dataframe, transforms)
+
+    def test_pivot_count_fills_null_with_zero(self):
+        """Test that pivot with count aggregation fills null values with 0.
+
+        When pivoting, some combinations may not exist in the data, resulting
+        in null values. For count and sum aggregations, these should be filled
+        with 0 to match narwhals behavior.
+        """
+        import pandas as pd
+        import polars as pl
+
+        # Create data where pivot will produce nulls
+        # Only 'x' has values for group 'a', only 'y' has values for group 'b'
+        pd_df = pd.DataFrame(
+            {
+                "group": ["a", "a", "b", "b"],
+                "category": ["x", "x", "y", "y"],
+                "value": [1, 2, 3, 4],
+            }
+        )
+        pl_df = pl.DataFrame(
+            {
+                "group": ["a", "a", "b", "b"],
+                "category": ["x", "x", "y", "y"],
+                "value": [1, 2, 3, 4],
+            }
+        )
+
+        transforms = Transformations(
+            [
+                PivotTransform(
+                    type=TransformType.PIVOT,
+                    column_ids=["category"],
+                    index_column_ids=["group"],
+                    aggregation="count",
+                    value_column_ids=["value"],
+                ),
+            ]
+        )
+
+        self._test_transforms(pd_df, transforms)
+        self._test_transforms(pl_df, transforms)
+
+    def test_pivot_sum_fills_null_with_zero(self):
+        """Test that pivot with sum aggregation fills null values with 0."""
+        import pandas as pd
+        import polars as pl
+
+        pd_df = pd.DataFrame(
+            {
+                "group": ["a", "a", "b", "b"],
+                "category": ["x", "x", "y", "y"],
+                "value": [1, 2, 3, 4],
+            }
+        )
+        pl_df = pl.DataFrame(
+            {
+                "group": ["a", "a", "b", "b"],
+                "category": ["x", "x", "y", "y"],
+                "value": [1, 2, 3, 4],
+            }
+        )
+
+        transforms = Transformations(
+            [
+                PivotTransform(
+                    type=TransformType.PIVOT,
+                    column_ids=["category"],
+                    index_column_ids=["group"],
+                    aggregation="sum",
+                    value_column_ids=["value"],
+                ),
+            ]
+        )
+
+        self._test_transforms(pd_df, transforms)
+        self._test_transforms(pl_df, transforms)
