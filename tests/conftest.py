@@ -656,7 +656,10 @@ class TestableModuleStub(ModuleStub):
 #    ./test_pytest_scoped
 @pytest.hookimpl
 def pytest_make_collect_report(collector):
-    # Call maybe flaky on windows (recursive?)
+    # If it's not a module, we must early.
+    if not isinstance(collector, pytest.Module):
+        return None
+
     report = runner.pytest_make_collect_report(collector)
 
     # Defined within the file does not seem to hook correctly, as such filter
