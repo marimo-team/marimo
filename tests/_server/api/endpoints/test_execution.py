@@ -126,11 +126,6 @@ class TestExecutionRoutes_EditMode:
         assert response.status_code == 200, response.text
         assert response.headers["content-type"] == "application/json"
         assert "success" in response.json()
-        auth_token = get_session_manager(client).auth_token
-        client.post(
-            "/api/kernel/shutdown",
-            headers=token_header(auth_token),
-        )
 
     @staticmethod
     @with_session(SESSION_ID)

@@ -96,9 +96,6 @@ def test_ws(client: TestClient) -> None:
     with client.websocket_connect(WS_URL) as websocket:
         data = websocket.receive_json()
         assert_kernel_ready_response(data)
-    # shut down after websocket context manager exists, otherwise
-    # the test fails on windows (event loop closed twice)
-    client.post("/api/kernel/shutdown", headers=HEADERS)
 
 
 def test_without_session(client: TestClient) -> None:
@@ -107,7 +104,6 @@ def test_without_session(client: TestClient) -> None:
             raise AssertionError()
     assert exc_info.value.code == 1000
     assert exc_info.value.reason == "MARIMO_NO_SESSION_ID"
-    client.post("/api/kernel/shutdown", headers=HEADERS)
 
 
 def test_disconnect_and_reconnect(client: TestClient) -> None:
@@ -120,8 +116,6 @@ def test_disconnect_and_reconnect(client: TestClient) -> None:
         assert data == {"op": "reconnected", "data": {"op": "reconnected"}}
         data = websocket.receive_json()
         assert data["op"] == "alert"
-
-    client.post("/api/kernel/shutdown", headers=HEADERS)
 
 
 def test_disconnect_then_reconnect_then_refresh(client: TestClient) -> None:
@@ -142,8 +136,6 @@ def test_disconnect_then_reconnect_then_refresh(client: TestClient) -> None:
         data = websocket.receive_json()
         assert_kernel_ready_response(data, create_response({"resumed": True}))
 
-    client.post("/api/kernel/shutdown", headers=HEADERS)
-
 
 def test_allows_multiple_connections_with_other_sessions(
     client: TestClient,
@@ -158,7 +150,6 @@ def test_allows_multiple_connections_with_other_sessions(
                 assert_kernel_ready_response(
                     data, create_response({"resumed": True})
                 )
-    client.post("/api/kernel/shutdown", headers=HEADERS)
 
 
 def test_fails_on_multiple_connections_with_other_sessions(
@@ -173,7 +164,6 @@ def test_fails_on_multiple_connections_with_other_sessions(
                 raise AssertionError()
         assert exc_info.value.code == 1003
         assert exc_info.value.reason == "MARIMO_ALREADY_CONNECTED"
-    client.post("/api/kernel/shutdown", headers=HEADERS)
 
 
 def test_allows_multiple_connections_with_same_file(
@@ -191,7 +181,6 @@ def test_allows_multiple_connections_with_same_file(
             with client.websocket_connect(ws_2) as other_websocket:
                 data = other_websocket.receive_json()
                 assert_parse_ready_response(data)
-    client.post("/api/kernel/shutdown", headers=HEADERS)
 
 
 def test_fails_on_multiple_connections_with_same_file(
@@ -209,7 +198,6 @@ def test_fails_on_multiple_connections_with_same_file(
                 raise AssertionError()
         assert exc_info.value.code == 1003
         assert exc_info.value.reason == "MARIMO_ALREADY_CONNECTED"
-    client.post("/api/kernel/shutdown", headers=HEADERS)
 
 
 async def test_file_watcher_calls_reload(client: TestClient) -> None:
@@ -240,9 +228,7 @@ async def test_file_watcher_calls_reload(client: TestClient) -> None:
                 break
         else:
             raise AssertionError(f"Expected {expected}, but never received it")
-        session_manager.mode = SessionMode.EDIT
         session_manager.watch = False
-    client.post("/api/kernel/shutdown", headers=HEADERS)
 
 
 async def test_query_params(client: TestClient) -> None:
@@ -259,7 +245,6 @@ async def test_query_params(client: TestClient) -> None:
             "bar": ["2", "3"],
             "baz": "4",
         }
-    client.post("/api/kernel/shutdown", headers=HEADERS)
 
 
 async def test_connect_kiosk_without_session(client: TestClient) -> None:
@@ -271,7 +256,6 @@ async def test_connect_kiosk_without_session(client: TestClient) -> None:
             raise AssertionError()
     assert exc_info.value.code == WebSocketCodes.NORMAL_CLOSE
     assert exc_info.value.reason == "MARIMO_NO_SESSION"
-    client.post("/api/kernel/shutdown", headers=HEADERS)
 
 
 async def test_connect_kiosk_with_session(client: TestClient) -> None:
@@ -288,7 +272,6 @@ async def test_connect_kiosk_with_session(client: TestClient) -> None:
             assert_kernel_ready_response(
                 data, create_response({"kiosk": True, "resumed": True})
             )
-    client.post("/api/kernel/shutdown", headers=HEADERS)
 
 
 async def test_cannot_connect_kiosk_with_run_session(
@@ -310,9 +293,6 @@ async def test_cannot_connect_kiosk_with_run_session(
                 raise AssertionError()
         assert exc_info.value.code == WebSocketCodes.FORBIDDEN
         assert exc_info.value.reason == "MARIMO_KIOSK_NOT_ALLOWED"
-
-    client.post("/api/kernel/shutdown", headers=HEADERS)
-    session_manager.mode = SessionMode.EDIT
 
 
 async def test_connects_to_existing_session_with_same_file(
@@ -357,8 +337,6 @@ async def test_connects_to_existing_session_with_same_file(
                 assert len(messages2) == 4
                 assert messages2[0]["op"] == "variables"
 
-    client.post("/api/kernel/shutdown", headers=HEADERS)
-
 
 def flush_messages(
     websocket: WebSocketTestSession, at_least: int = 0
@@ -393,12 +371,6 @@ def test_ws_requires_authentication(client: TestClient) -> None:
     assert exc_info.value.code == WebSocketCodes.UNAUTHORIZED
     assert exc_info.value.reason == "MARIMO_UNAUTHORIZED"
 
-    # Ensure shutdown
-    try:
-        client.post("/api/kernel/shutdown", headers=HEADERS)
-    except Exception:
-        pass
-
 
 def test_ws_sync_requires_authentication(client: TestClient) -> None:
     """Test that WebSocket sync endpoint requires authentication."""
@@ -419,7 +391,6 @@ def test_ws_with_valid_authentication(client: TestClient) -> None:
         assert_kernel_ready_response(data)
 
     # Clean up
-    client.post("/api/kernel/shutdown", headers=HEADERS)
 
 
 # ==============================================================================
@@ -463,8 +434,6 @@ async def test_session_resumption(client: TestClient) -> None:
         replayed = flush_messages(websocket, at_least=1)
         assert len(replayed) >= 1
 
-    client.post("/api/kernel/shutdown", headers=HEADERS)
-
 
 # ==============================================================================
 # Edge Cases - Disconnection/Reconnection
@@ -496,9 +465,6 @@ async def test_reconnection_cancels_close_handle(client: TestClient) -> None:
             session = session_manager.get_session("123")
             assert session is not None
 
-    session_manager.mode = SessionMode.EDIT
-    client.post("/api/kernel/shutdown", headers=HEADERS)
-
 
 async def test_run_mode_ttl_expiration(client: TestClient) -> None:
     """Test that sessions expire after TTL in RUN mode."""
@@ -525,8 +491,6 @@ async def test_run_mode_ttl_expiration(client: TestClient) -> None:
         # Session should be closed
         session = session_manager.get_session("123")
         assert session is None
-
-    session_manager.mode = SessionMode.EDIT
 
 
 # ==============================================================================
@@ -576,8 +540,6 @@ async def test_rtc_config_with_loro_unavailable(client: TestClient) -> None:
             data = websocket.receive_json()
             assert_kernel_ready_response(data)
 
-    client.post("/api/kernel/shutdown", headers=HEADERS)
-
 
 # ============================================================================
 # Advanced WebSocket State Machine Tests
@@ -601,8 +563,6 @@ async def test_rapid_reconnection_cancels_ttl_cleanup(
         data = websocket.receive_json()
         assert data["op"] == "alert"
 
-    client.post("/api/kernel/shutdown", headers=HEADERS)
-
 
 async def test_multiple_rapid_reconnections(client: TestClient) -> None:
     """Test multiple rapid connect/disconnect cycles don't break session."""
@@ -613,8 +573,6 @@ async def test_multiple_rapid_reconnections(client: TestClient) -> None:
                 assert_kernel_ready_response(data)
             else:
                 assert data["op"] == "reconnected"
-
-    client.post("/api/kernel/shutdown", headers=HEADERS)
 
 
 async def test_websocket_message_queue_delivery(client: TestClient) -> None:
@@ -631,5 +589,3 @@ async def test_websocket_message_queue_delivery(client: TestClient) -> None:
 
         messages = flush_messages(websocket, at_least=1)
         assert len(messages) >= 1
-
-    client.post("/api/kernel/shutdown", headers=HEADERS)

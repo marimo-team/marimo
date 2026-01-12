@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import sys
+import threading
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING
@@ -17,6 +18,7 @@ from marimo._server.config import StarletteServerStateInit
 from marimo._server.main import create_starlette_app
 from marimo._server.session_manager import SessionManager
 from marimo._server.utils import initialize_asyncio
+from marimo._session.session import SessionImpl
 from marimo._session.state.session_view import SessionView
 from tests._server.mocks import get_mock_session_manager
 from tests.utils import assert_serialize_roundtrip
@@ -24,7 +26,8 @@ from tests.utils import assert_serialize_roundtrip
 if TYPE_CHECKING:
     from collections.abc import Generator, Iterator
 
-app = create_starlette_app(base_url="", enable_auth=True)
+# Module-level app only for client_with_lifespans fixture
+_module_app = create_starlette_app(base_url="", enable_auth=True)
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -35,7 +38,7 @@ def init() -> bool:
 
 @pytest.fixture(scope="module")
 def client_with_lifespans() -> Generator[TestClient, None, None]:
-    with TestClient(app) as c:
+    with TestClient(_module_app) as c:
         yield c
 
 
@@ -60,6 +63,9 @@ def user_config_manager() -> Iterator[UserConfigManager]:
 @pytest.fixture
 def client(user_config_manager: UserConfigManager) -> Iterator[TestClient]:
     main = sys.modules["__main__"]
+
+    # Create fresh app for this test to avoid shared state issues
+    app = create_starlette_app(base_url="", enable_auth=True)
     client = TestClient(app)
     StarletteServerStateInit(
         port=1234,
@@ -82,7 +88,28 @@ def client(user_config_manager: UserConfigManager) -> Iterator[TestClient]:
     app.state.server = uvicorn_server
 
     yield client
-    sys.modules["__main__"] = main
+
+    try:
+        session_manager: SessionManager = client.app.state.session_manager
+        kernel_tasks = []
+        # Kernels started in run mode run in their own threads; if these kernels
+        # execute code, they may patch and restore their own main modules.
+        # To ensure that this fixture correctly restores the original saved
+        # main module, we wait for threads to finish before restoring the module.
+        for session in session_manager.sessions.values():
+            assert isinstance(session, SessionImpl)
+            kernel_task = session._kernel_manager.kernel_task
+            if kernel_task is not None and isinstance(
+                kernel_task, threading.Thread
+            ):
+                kernel_tasks.append(kernel_task)
+
+        session_manager.shutdown()
+        for task in kernel_tasks:
+            if task.is_alive():
+                task.join()
+    finally:
+        sys.modules["__main__"] = main
 
 
 def get_session_manager(client: TestClient) -> SessionManager:
