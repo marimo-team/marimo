@@ -12,6 +12,7 @@ from marimo._ai._types import (
     ChatModelConfigDict,
 )
 from marimo._ai.llm._impl import pydantic_ai
+from marimo._dependencies.dependencies import DependencyManager
 from marimo._output.formatting import as_html
 from marimo._output.rich_help import mddoc
 from marimo._plugins.core.web_component import JSONType
@@ -125,6 +126,36 @@ class chat(UIElement[dict[str, Any], list[ChatMessage]]):
         )
         ```
 
+        Custom model with Vercel AI SDK streaming (reasoning, tool calls):
+        ```python
+        import uuid
+        import pydantic_ai.ui.vercel_ai.response_types as vercel
+
+
+        async def custom_model(messages, config):
+            # Generate unique IDs for message parts
+            reasoning_id = f"reasoning_{uuid.uuid4().hex}"
+            text_id = f"text_{uuid.uuid4().hex}"
+
+            # Stream reasoning/thinking
+            yield vercel.ReasoningStartChunk(id=reasoning_id)
+            yield vercel.ReasoningDeltaChunk(
+                id=reasoning_id, delta="Let me think..."
+            )
+            yield vercel.ReasoningEndChunk(id=reasoning_id)
+
+            # Stream text response
+            yield vercel.TextStartChunk(id=text_id)
+            yield vercel.TextDeltaChunk(id=text_id, delta="Here is my answer.")
+            yield vercel.TextEndChunk(id=text_id)
+
+            yield vercel.FinishChunk(finish_reason="stop")
+
+
+        chat = mo.ui.chat(custom_model, frontend_managed=True)
+        ```
+        Refer to examples/ai/chat/pydantic-ai-chat.py for a complete example.
+
     Attributes:
         value (List[ChatMessage]): The current chat history, a list of ChatMessage objects.
 
@@ -149,6 +180,10 @@ class chat(UIElement[dict[str, Any], list[ChatMessage]]):
             attachments types, or pass a list of mime types. Defaults to False.
         max_height (int, optional): Optional maximum height for the chat element.
             Defaults to None.
+        vercel_messages (bool, optional): When True, enables Vercel AI SDK streaming
+            for custom models. Your model should yield Vercel AI SDK chunks (dicts with
+            "type" field like "text-delta", "reasoning-delta", "tool-input-start", etc.).
+            The frontend will handle message state management. Defaults to False.
     """
 
     _name: Final[str] = "marimo-chatbot"
@@ -163,13 +198,13 @@ class chat(UIElement[dict[str, Any], list[ChatMessage]]):
         config: Optional[ChatModelConfigDict] = DEFAULT_CONFIG,
         allow_attachments: Union[bool, list[str]] = False,
         max_height: Optional[int] = None,
+        vercel_messages: bool = False,
     ) -> None:
         self._model = model
         self._chat_history: list[ChatMessage] = []
-        self._frontend_managed = False
-
-        if isinstance(model, pydantic_ai):
-            self._frontend_managed = True
+        self._frontend_managed = vercel_messages or isinstance(
+            model, pydantic_ai
+        )
 
         if config is None:
             config = DEFAULT_CONFIG
@@ -259,10 +294,21 @@ class chat(UIElement[dict[str, Any], list[ChatMessage]]):
         accumulated_text = ""
 
         if self._frontend_managed:
-            async for delta in response:
+
+            def serialize_and_send(delta: Any) -> None:
+                """Serialize and send a Vercel AI SDK chunk to the frontend."""
                 self._send_chat_message(
-                    message_id=message_id, content=delta, is_final=False
+                    message_id=message_id,
+                    content=self._serialize_vercel_ai_chunk(delta),
+                    is_final=False,
                 )
+
+            if inspect.isasyncgen(response):
+                async for delta in response:
+                    serialize_and_send(delta)
+            else:
+                for delta in response:
+                    serialize_and_send(delta)
             # Send final message to indicate streaming is complete
             self._send_chat_message(
                 message_id=message_id, content=None, is_final=True
@@ -368,19 +414,40 @@ class chat(UIElement[dict[str, Any], list[ChatMessage]]):
         messages = value["messages"]
 
         if self._frontend_managed:
-            from pydantic_ai.ui.vercel_ai.request_types import UIMessagePart
+            part_validator_class = None
+            if DependencyManager.pydantic_ai.imported():
+                from pydantic_ai.ui.vercel_ai.request_types import (
+                    UIMessagePart,
+                )
 
-            # The frontend sends messages as UIMessage dicts so we use pydantic-ai to cast them
-            # as Vercel messages
+                part_validator_class = UIMessagePart
+
             return [
                 ChatMessage.create(
                     role=msg.get("role", "user"),
                     message_id=msg.get("id"),
                     content=None,
                     parts=msg.get("parts", []),
-                    part_validator_class=UIMessagePart,
+                    part_validator_class=part_validator_class,
                 )
                 for msg in messages
             ]
 
         return [from_chat_message_dict(msg) for msg in messages]
+
+    def _serialize_vercel_ai_chunk(self, chunk: Any) -> dict[str, Any]:
+        """Serialize a Vercel AI SDK chunk to a dictionary.
+
+        by_alias=True: Use camelCase keys expected by Vercel AI SDK.
+        exclude_none=True: Remove null values which cause validation errors.
+        """
+        if DependencyManager.pydantic_ai.imported():
+            from pydantic_ai.ui.vercel_ai.response_types import (
+                BaseChunk,
+            )
+
+            if isinstance(chunk, BaseChunk):
+                return chunk.model_dump(
+                    mode="json", by_alias=True, exclude_none=True
+                )
+        return chunk
