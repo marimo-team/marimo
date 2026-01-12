@@ -26,7 +26,8 @@ from tests.utils import assert_serialize_roundtrip
 if TYPE_CHECKING:
     from collections.abc import Generator, Iterator
 
-app = create_starlette_app(base_url="", enable_auth=True)
+# Module-level app only for client_with_lifespans fixture
+_module_app = create_starlette_app(base_url="", enable_auth=True)
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -37,7 +38,7 @@ def init() -> bool:
 
 @pytest.fixture(scope="module")
 def client_with_lifespans() -> Generator[TestClient, None, None]:
-    with TestClient(app) as c:
+    with TestClient(_module_app) as c:
         yield c
 
 
@@ -62,6 +63,9 @@ def user_config_manager() -> Iterator[UserConfigManager]:
 @pytest.fixture
 def client(user_config_manager: UserConfigManager) -> Iterator[TestClient]:
     main = sys.modules["__main__"]
+
+    # Create fresh app for this test to avoid shared state issues
+    app = create_starlette_app(base_url="", enable_auth=True)
     client = TestClient(app)
     StarletteServerStateInit(
         port=1234,
