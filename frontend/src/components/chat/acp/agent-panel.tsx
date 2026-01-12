@@ -677,7 +677,7 @@ const AgentPanel: React.FC = () => {
     ? getAgentWebSocketUrl(selectedTab.agentId)
     : NO_WS_SET;
   const { sendUpdateFile, sendFileDetails } = useRequestClient();
-  const isCreatingNewSession = useRef(false);
+  const creatingOrResumingSession = useRef(false);
 
   const acpClient = useAcpClient({
     wsUrl,
@@ -716,6 +716,7 @@ const AgentPanel: React.FC = () => {
     sessionMode,
     activeSessionId,
     agent,
+    clearNotifications,
   } = acpClient;
 
   useEffect(() => {
@@ -757,40 +758,42 @@ const AgentPanel: React.FC = () => {
       return;
     }
 
-    // If there is an active session, we should stop it
-    if (activeSessionId) {
-      setActiveSessionId(null);
-      await agent.cancel({ sessionId: activeSessionId }).catch((error) => {
-        logger.error("Failed to cancel active session", { error });
-      });
-    }
+    creatingOrResumingSession.current = true;
 
-    // Get the selected model from the current session state
-    const currentModel = selectedTab?.selectedModel ?? null;
-    logger.debug("Creating new agent session", { model: currentModel });
-    isCreatingNewSession.current = true;
-    const newSession = await agent
-      .newSession({
+    try {
+      // If there is an active session, we should stop it
+      if (activeSessionId) {
+        await agent.cancel({ sessionId: activeSessionId }).catch((error) => {
+          logger.error("Failed to cancel active session", { error });
+        });
+        clearNotifications(activeSessionId);
+        setActiveSessionId(null);
+      }
+
+      // Get the selected model from the current session state
+      const currentModel = selectedTab?.selectedModel ?? null;
+      logger.debug("Creating new agent session", { model: currentModel });
+      const newSession = await agent.newSession({
         cwd: getCwd(),
         mcpServers: [],
         _meta: currentModel ? { model: currentModel } : undefined,
-      })
-      .finally(() => {
-        isCreatingNewSession.current = false;
       });
 
-    // Capture models from the response
-    if (newSession.models) {
-      logger.debug("Session models received", { models: newSession.models });
-      setSessionModels(newSession.models);
-    }
+      // Capture models from the response
+      if (newSession.models) {
+        logger.debug("Session models received", { models: newSession.models });
+        setSessionModels(newSession.models);
+      }
 
-    setSessionState((prev) =>
-      updateSessionExternalAgentSessionId(
-        prev,
-        newSession.sessionId as ExternalAgentSessionId,
-      ),
-    );
+      setSessionState((prev) =>
+        updateSessionExternalAgentSessionId(
+          prev,
+          newSession.sessionId as ExternalAgentSessionId,
+        ),
+      );
+    } finally {
+      creatingOrResumingSession.current = false;
+    }
   });
 
   const handleResumeSession = useEvent(
@@ -804,23 +807,28 @@ const AgentPanel: React.FC = () => {
       if (!agent.loadSession) {
         throw new Error("Agent does not support loading sessions");
       }
-      const loadedSession = await agent.loadSession({
-        sessionId: previousSessionId,
-        cwd: getCwd(),
-        mcpServers: [],
-      });
-
-      // Capture models from the response if available
-      if (loadedSession?.models) {
-        logger.debug("Session models received", {
-          models: loadedSession.models,
+      creatingOrResumingSession.current = true;
+      try {
+        const loadedSession = await agent.loadSession({
+          sessionId: previousSessionId,
+          cwd: getCwd(),
+          mcpServers: [],
         });
-        setSessionModels(loadedSession.models);
-      }
 
-      setSessionState((prev) =>
-        updateSessionExternalAgentSessionId(prev, previousSessionId),
-      );
+        // Capture models from the response if available
+        if (loadedSession?.models) {
+          logger.debug("Session models received", {
+            models: loadedSession.models,
+          });
+          setSessionModels(loadedSession.models);
+        }
+
+        setSessionState((prev) =>
+          updateSessionExternalAgentSessionId(prev, previousSessionId),
+        );
+      } finally {
+        creatingOrResumingSession.current = false;
+      }
     },
   );
 
@@ -838,8 +846,8 @@ const AgentPanel: React.FC = () => {
       return;
     }
 
-    // Skip if we're in the middle of creating a new session
-    if (isCreatingNewSession.current) {
+    // Prevent race conditions
+    if (creatingOrResumingSession.current) {
       return;
     }
 
