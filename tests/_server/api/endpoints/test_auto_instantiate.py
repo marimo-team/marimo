@@ -36,7 +36,6 @@ class TestAutoInstantiateEditMode:
         """In edit mode, auto_instantiated should be False."""
         session_id = "test-edit-mode"
         ws_url = _create_ws_url(session_id)
-        headers = _create_headers(session_id)
 
         with client.websocket_connect(ws_url) as websocket:
             data = websocket.receive_json()
@@ -45,8 +44,6 @@ class TestAutoInstantiateEditMode:
             kernel_ready = parse_raw(data["data"], KernelReadyNotification)
             # In edit mode, auto_instantiated should be False
             assert kernel_ready.auto_instantiated is False
-
-        client.post("/api/kernel/shutdown", headers=headers)
 
     def test_instantiate_endpoint_allowed_in_edit_mode(
         self, client: TestClient
@@ -65,8 +62,6 @@ class TestAutoInstantiateEditMode:
             )
             assert response.status_code == 200
 
-        client.post("/api/kernel/shutdown", headers=headers)
-
 
 class TestAutoInstantiateRunMode:
     """Tests for auto-instantiate in run mode."""
@@ -78,25 +73,19 @@ class TestAutoInstantiateRunMode:
         from tests._server.conftest import get_session_manager
 
         session_manager = get_session_manager(client)
-        original_mode = session_manager.mode
         session_id = "test-run-mode"
-        headers = _create_headers(session_id)
 
-        try:
-            # Switch to run mode
-            session_manager.mode = SessionMode.RUN
-            ws_url = _create_ws_url(session_id)
+        # Switch to run mode
+        session_manager.mode = SessionMode.RUN
+        ws_url = _create_ws_url(session_id)
 
-            with client.websocket_connect(ws_url) as websocket:
-                data = websocket.receive_json()
-                assert data["op"] == "kernel-ready"
+        with client.websocket_connect(ws_url) as websocket:
+            data = websocket.receive_json()
+            assert data["op"] == "kernel-ready"
 
-                kernel_ready = parse_raw(data["data"], KernelReadyNotification)
-                # In run mode, auto_instantiated should be True
-                assert kernel_ready.auto_instantiated is True
-        finally:
-            session_manager.mode = original_mode
-            client.post("/api/kernel/shutdown", headers=headers)
+            kernel_ready = parse_raw(data["data"], KernelReadyNotification)
+            # In run mode, auto_instantiated should be True
+            assert kernel_ready.auto_instantiated is True
 
     def test_instantiate_endpoint_blocked_in_run_mode(
         self, client: TestClient
@@ -109,27 +98,21 @@ class TestAutoInstantiateRunMode:
         from tests._server.conftest import get_session_manager
 
         session_manager = get_session_manager(client)
-        original_mode = session_manager.mode
         session_id = "test-instantiate-run"
         headers = _create_headers(session_id)
 
-        try:
-            # Switch to run mode
-            session_manager.mode = SessionMode.RUN
-            ws_url = _create_ws_url(session_id)
+        session_manager.mode = SessionMode.RUN
+        ws_url = _create_ws_url(session_id)
 
-            with client.websocket_connect(ws_url):
-                # The /instantiate endpoint should be blocked in run mode
-                # Returns 401 because @requires("edit") checks permissions
-                response = client.post(
-                    "/api/kernel/instantiate",
-                    headers=headers,
-                    json={"objectIds": [], "values": [], "autoRun": False},
-                )
-                assert response.status_code == 401
-        finally:
-            session_manager.mode = original_mode
-            client.post("/api/kernel/shutdown", headers=headers)
+        with client.websocket_connect(ws_url):
+            # The /instantiate endpoint should be blocked in run mode
+            # Returns 401 because @requires("edit") checks permissions
+            response = client.post(
+                "/api/kernel/instantiate",
+                headers=headers,
+                json={"objectIds": [], "values": [], "autoRun": False},
+            )
+            assert response.status_code == 401
 
 
 class TestAutoInstantiateHTTPRequest:
@@ -224,23 +207,20 @@ class TestInstantiateNotebookRequest:
         ws_url = _create_ws_url(session_id)
         headers = _create_headers(session_id)
 
-        try:
-            with client.websocket_connect(ws_url) as websocket:
-                # Get the kernel-ready message
-                data = websocket.receive_json()
-                assert data["op"] == "kernel-ready"
+        with client.websocket_connect(ws_url) as websocket:
+            # Get the kernel-ready message
+            data = websocket.receive_json()
+            assert data["op"] == "kernel-ready"
 
-                # Send instantiate without codes (should use file codes)
-                response = client.post(
-                    "/api/kernel/instantiate",
-                    headers=headers,
-                    json={
-                        "objectIds": [],
-                        "values": [],
-                        "autoRun": True,
-                        # No codes field
-                    },
-                )
-                assert response.status_code == 200
-        finally:
-            client.post("/api/kernel/shutdown", headers=headers)
+            # Send instantiate without codes (should use file codes)
+            response = client.post(
+                "/api/kernel/instantiate",
+                headers=headers,
+                json={
+                    "objectIds": [],
+                    "values": [],
+                    "autoRun": True,
+                    # No codes field
+                },
+            )
+            assert response.status_code == 200
