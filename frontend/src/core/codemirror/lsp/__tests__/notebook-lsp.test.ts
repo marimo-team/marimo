@@ -756,6 +756,129 @@ describe("NotebookLanguageServerClient", () => {
       // Verify that the import cell was not changed
       expect(mockView1.state.doc.toString()).toBe("import marimo as mo");
     });
+
+    it("should only rename private variables in the current cell (issue #7810)", async () => {
+      const props = {
+        workspaceFolders: null,
+        capabilities: {
+          textDocument: {
+            rename: {
+              prepareSupport: true,
+            },
+          },
+        },
+        languageId: "python",
+        transport: {
+          sendData: vi.fn(),
+          subscribe: vi.fn(),
+          connect: vi.fn(),
+          transportRequestManager: {
+            send: vi.fn(),
+          },
+        } as any,
+      };
+
+      // Setup editor views - both cells have a private variable _x
+      const cell1Code = "_x = 1\nprint(_x)";
+      const cell2Code = "_x = 2\nprint(_x)";
+
+      const mockView1 = new EditorView({
+        doc: cell1Code,
+        extensions: [
+          languageAdapterState.init(() => new PythonLanguageAdapter()),
+          languageMetadataField.init(() => ({})),
+          languageServerWithClient({
+            client: mockClient as unknown as LanguageServerClient,
+            documentUri: CellDocumentUri.of(Cells.cell1),
+            ...props,
+          }),
+        ],
+      });
+
+      const mockView2 = new EditorView({
+        doc: cell2Code,
+        extensions: [
+          languageAdapterState.init(() => new PythonLanguageAdapter()),
+          languageMetadataField.init(() => ({})),
+          languageServerWithClient({
+            client: mockClient as unknown as LanguageServerClient,
+            documentUri: CellDocumentUri.of(Cells.cell2),
+            ...props,
+          }),
+        ],
+      });
+
+      (notebookClient as any).getNotebookEditors = () => ({
+        [Cells.cell1]: mockView1,
+        [Cells.cell2]: mockView2,
+      });
+
+      // Update the mock to return the correct codes
+      vi.spyOn(store, "get").mockImplementation((atom) => {
+        if (atom === topologicalCodesAtom) {
+          return {
+            cellIds: [Cells.cell1, Cells.cell2],
+            codes: {
+              [Cells.cell1]: cell1Code,
+              [Cells.cell2]: cell2Code,
+            },
+          };
+        }
+        return undefined;
+      });
+
+      // Setup rename params - renaming _x in cell1
+      const renameParams: LSP.RenameParams = {
+        textDocument: { uri: CellDocumentUri.of(Cells.cell1) },
+        position: { line: 0, character: 0 }, // position of '_x'
+        newName: "_y",
+      };
+
+      // Open a document first to set up the lens
+      await notebookClient.textDocumentDidOpen({
+        textDocument: {
+          uri: CellDocumentUri.of(Cells.cell1),
+          languageId: "python",
+          version: 1,
+          text: cell1Code,
+        },
+      });
+
+      // Mock the response from the language server
+      // The LSP server would rename _x in BOTH cells (since it sees the merged doc)
+      const mockRenameResponse: LSP.WorkspaceEdit = {
+        documentChanges: [
+          {
+            textDocument: {
+              uri: "file:///__marimo_notebook__.py",
+              version: 1,
+            },
+            edits: [
+              {
+                range: {
+                  start: { line: 0, character: 0 },
+                  end: { line: 3, character: 10 },
+                },
+                // LSP renames _x to _y in both cells
+                newText: "_y = 1\nprint(_y)\n_y = 2\nprint(_y)",
+              },
+            ],
+          },
+        ],
+      };
+
+      mockClient.textDocumentRename = vi
+        .fn()
+        .mockResolvedValue(mockRenameResponse);
+
+      // Call rename
+      await notebookClient.textDocumentRename(renameParams);
+
+      // The fix: only cell1 should be renamed, cell2 should remain unchanged
+      // because private variables are cell-local in marimo
+      expect(mockView1.state.doc.toString()).toBe("_y = 1\nprint(_y)");
+      expect(mockView2.state.doc.toString()).toBe("_x = 2\nprint(_x)");
+    });
   });
 
   describe("diagnostics handling", () => {
