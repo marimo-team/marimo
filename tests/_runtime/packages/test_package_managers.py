@@ -15,6 +15,7 @@ from marimo._runtime.packages.pypi_package_manager import (
     PipPackageManager,
     RyePackageManager,
     UvPackageManager,
+    VersionMap,
 )
 
 
@@ -48,8 +49,8 @@ def test_update_script_metadata() -> None:
             runs_calls.append(command)
             return True
 
-        def _get_version_map(self) -> dict[str, str]:
-            return {"foo": "1.0", "bar": "2.0"}
+        def _get_version_map(self) -> VersionMap:
+            return VersionMap({"foo": "1.0", "bar": "2.0"})
 
     pm = MockUvPackageManager()
     pm.update_notebook_script_metadata(
@@ -83,8 +84,8 @@ def test_update_script_metadata_with_version_map() -> None:
             runs_calls.append(command)
             return True
 
-        def _get_version_map(self) -> dict[str, str]:
-            return {"foo": "1.0", "bar": "2.0"}
+        def _get_version_map(self) -> VersionMap:
+            return VersionMap({"foo": "1.0", "bar": "2.0"})
 
     pm = MockUvPackageManager()
     # It should ignore when not in the version map
@@ -120,8 +121,10 @@ def test_update_script_metadata_with_mapping() -> None:
             runs_calls.append(command)
             return True
 
-        def _get_version_map(self) -> dict[str, str]:
-            return {"ibis": "2.0", "ibis-framework": "2.0", "pyyaml": "1.0"}
+        def _get_version_map(self) -> VersionMap:
+            return VersionMap(
+                {"ibis": "2.0", "ibis-framework": "2.0", "pyyaml": "1.0"}
+            )
 
     pm = MockUvPackageManager()
     # It should not canonicalize when passed explicitly
@@ -139,7 +142,7 @@ def test_update_script_metadata_with_mapping() -> None:
         "nb.py", import_namespaces_to_add=["yaml"], upgrade=False
     )
     assert runs_calls == [
-        ["uv", "--quiet", "add", "--script", "nb.py", "PyYAML==1.0"],
+        ["uv", "--quiet", "add", "--script", "nb.py", "pyyaml==1.0"],
     ]
     runs_calls.clear()
 
@@ -177,12 +180,14 @@ def test_update_script_metadata_marimo_packages() -> None:
             runs_calls.append(command)
             return True
 
-        def _get_version_map(self) -> dict[str, str]:
-            return {
-                "marimo": "0.1.0",
-                "marimo-ai": "0.2.0",
-                "pandas": "2.0.0",
-            }
+        def _get_version_map(self) -> VersionMap:
+            return VersionMap(
+                {
+                    "marimo": "0.1.0",
+                    "marimo-ai": "0.2.0",
+                    "pandas": "2.0.0",
+                }
+            )
 
     pm = MockUvPackageManager()
 
@@ -566,9 +571,9 @@ def test_update_script_metadata_with_git_dependencies() -> None:
             runs_calls.append(command)
             return True
 
-        def _get_version_map(self) -> dict[str, str]:
+        def _get_version_map(self) -> VersionMap:
             # Git dependencies won't be in the version map with their git+ prefix
-            return {"python-gcode": "0.1.0"}
+            return VersionMap({"python-gcode": "0.1.0"})
 
     pm = MockUvPackageManager()
 
