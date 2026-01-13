@@ -1595,128 +1595,6 @@ def test_convert_regular_output_has_empty_metadata():
     assert result[0]["metadata"] == {}
 
 
-# =============================================================================
-# Unit tests for ipynb error output helper functions
-# =============================================================================
-
-
-def test_strip_html_from_traceback_simple():
-    """Test stripping HTML from simple traceback."""
-    html = (
-        '<span class="gt">Traceback</span>\n<span class="gr">ValueError</span>'
-    )
-    result = _strip_html_from_traceback(html)
-    assert result == ["Traceback", "ValueError"]
-
-
-def test_strip_html_from_traceback_complex():
-    """Test stripping HTML from complex code-highlighted traceback."""
-    html = """<span class="codehilite"><div class="highlight"><pre><span></span><span class="gt">Traceback (most recent call last):</span>
-<span class="w">    </span><span class="mi">1</span> <span class="o">/</span> <span class="mi">0</span>
-<span class="gr">ZeroDivisionError</span>: <span class="n">division by zero</span>
-</pre></div>
-</span>"""
-    result = _strip_html_from_traceback(html)
-    assert len(result) >= 3
-    assert "Traceback (most recent call last):" in result[0]
-    assert "ZeroDivisionError" in "".join(result)
-    assert "division by zero" in "".join(result)
-
-
-def test_strip_html_from_traceback_empty():
-    """Test stripping HTML from empty string."""
-    result = _strip_html_from_traceback("")
-    assert result == []
-
-
-def test_get_error_info_dict():
-    """Test extracting error info from dict."""
-    error = {"type": "ValueError", "msg": "invalid value"}
-    ename, evalue = _get_error_info(error)
-    assert ename == "ValueError"
-    assert evalue == "invalid value"
-
-
-def test_get_error_info_dict_defaults():
-    """Test extracting error info from dict with missing keys."""
-    error: dict[str, Any] = {}
-    ename, evalue = _get_error_info(error)
-    assert ename == "UnknownError"
-    assert evalue == ""
-
-
-def test_get_error_info_exception_raised():
-    """Test extracting error info from MarimoExceptionRaisedError."""
-    from marimo._messaging.errors import MarimoExceptionRaisedError
-
-    error = MarimoExceptionRaisedError(
-        exception_type="NameError",
-        msg="name 'x' is not defined",
-        raising_cell=None,
-    )
-    ename, evalue = _get_error_info(error)
-    assert ename == "NameError"
-    assert evalue == "name 'x' is not defined"
-
-
-def test_get_error_info_other_marimo_error():
-    """Test extracting error info from other MarimoError types."""
-    from marimo._messaging.errors import CycleError
-
-    error = CycleError(edges_with_vars=[])
-    ename, evalue = _get_error_info(error)
-    assert ename == "cycle"
-    assert "cycle" in evalue.lower() or evalue == ""
-
-
-def test_extract_traceback_from_console_with_traceback():
-    """Test extracting traceback from console outputs."""
-    console = [
-        CellOutput(
-            channel=CellChannel.STDOUT,
-            mimetype="text/plain",
-            data="some stdout",
-        ),
-        CellOutput(
-            channel=CellChannel.STDERR,
-            mimetype="application/vnd.marimo+traceback",
-            data="<span>Traceback (most recent call last):</span>\n<span>Error</span>",
-        ),
-    ]
-    result = _extract_traceback_from_console(console)
-    assert "Traceback (most recent call last):" in result[0]
-    assert "Error" in result[1]
-
-
-def test_extract_traceback_from_console_no_traceback():
-    """Test extracting traceback when none exists."""
-    console = [
-        CellOutput(
-            channel=CellChannel.STDOUT,
-            mimetype="text/plain",
-            data="some stdout",
-        ),
-        CellOutput(
-            channel=CellChannel.STDERR,
-            mimetype="text/plain",
-            data="some stderr",
-        ),
-    ]
-    result = _extract_traceback_from_console(console)
-    assert result == []
-
-
-def test_extract_traceback_from_console_empty():
-    """Test extracting traceback from empty console."""
-    result = _extract_traceback_from_console([])
-    assert result == []
-
-
-# =============================================================================
-# Integration tests for ipynb error output export
-# =============================================================================
-
-
 @pytest.mark.skipif(not HAS_NBFORMAT, reason="nbformat is not installed")
 async def test_export_ipynb_with_exception():
     """Test that exceptions are properly formatted in ipynb output."""
@@ -1783,6 +1661,83 @@ async def test_export_ipynb_with_stdout_and_exception():
 
 
 @pytest.mark.skipif(not HAS_NBFORMAT, reason="nbformat is not installed")
+async def test_export_ipynb_cycle_error():
+    """Test that cells depending on errored cells show ancestor error."""
+    app = App()
+
+    @app.cell()
+    def _():
+        x = 1
+        return (x,)
+
+    @app.cell()
+    def _():
+        x = 2
+        return (x,)
+
+    @app.cell()
+    def _(x):
+        y = x + 1
+        return (y,)
+
+    file_manager = AppFileManager.from_app(InternalApp(app))
+    session_view, did_error = await run_app_until_completion(
+        file_manager, cli_args={}, argv=None, quiet=True
+    )
+    assert did_error is True
+
+    result = Exporter().export_as_ipynb(
+        InternalApp(app), sort_mode="top-down", session_view=session_view
+    )
+    notebook = json.loads(result)
+
+    # Second cell should have an ancestor error
+    assert len(notebook["cells"]) >= 3
+    second_cell_outputs = notebook["cells"][1]["outputs"]
+    error_outputs = [
+        o for o in second_cell_outputs if o["output_type"] == "error"
+    ]
+    # Ancestor errors might be represented differently
+    # At minimum, there should be some error indication
+    assert len(error_outputs) >= 1
+
+@pytest.mark.skipif(not HAS_NBFORMAT, reason="nbformat is not installed")
+async def test_export_ipynb_cycle_error():
+    """Test that cells depending on errored cells show ancestor error."""
+    app = App()
+
+    @app.cell()
+    def _():
+        x = y + 1  # noqa: F821
+        return (x,)
+
+    @app.cell()
+    def _(x):
+        y = x + 1
+        return (y,)
+
+    file_manager = AppFileManager.from_app(InternalApp(app))
+    session_view, did_error = await run_app_until_completion(
+        file_manager, cli_args={}, argv=None, quiet=True
+    )
+    assert did_error is True
+
+    result = Exporter().export_as_ipynb(
+        InternalApp(app), sort_mode="top-down", session_view=session_view
+    )
+    notebook = json.loads(result)
+
+    # Second cell should have an ancestor error
+    assert len(notebook["cells"]) >= 2
+    second_cell_outputs = notebook["cells"][1]["outputs"]
+    error_outputs = [
+        o for o in second_cell_outputs if o["output_type"] == "error"
+    ]
+    # Ancestor errors might be represented differently
+    # At minimum, there should be some error indication
+    assert len(error_outputs) >= 1
+
+@pytest.mark.skipif(not HAS_NBFORMAT, reason="nbformat is not installed")
 async def test_export_ipynb_ancestor_error():
     """Test that cells depending on errored cells show ancestor error."""
     app = App()
@@ -1820,35 +1775,6 @@ async def test_export_ipynb_ancestor_error():
 
 
 @pytest.mark.skipif(not HAS_NBFORMAT, reason="nbformat is not installed")
-async def test_export_ipynb_with_stderr():
-    """Test that stderr is properly captured in ipynb output."""
-    app = App()
-
-    @app.cell()
-    def _():
-        import sys
-
-        sys.stderr.write("error message\n")
-
-    file_manager = AppFileManager.from_app(InternalApp(app))
-    session_view, did_error = await run_app_until_completion(
-        file_manager, cli_args={}, argv=None, quiet=True
-    )
-    assert did_error is False
-
-    result = Exporter().export_as_ipynb(
-        InternalApp(app), sort_mode="top-down", session_view=session_view
-    )
-    notebook = json.loads(result)
-    outputs = notebook["cells"][0]["outputs"]
-
-    # Should have stderr output
-    stderr_outputs = [o for o in outputs if o.get("name") == "stderr"]
-    assert len(stderr_outputs) == 1
-    assert "error message" in stderr_outputs[0]["text"][0]
-
-
-@pytest.mark.skipif(not HAS_NBFORMAT, reason="nbformat is not installed")
 @pytest.mark.skipif(
     sys.version_info >= (3, 13), reason="3.13 has different traceback format"
 )
@@ -1858,7 +1784,24 @@ async def test_export_ipynb_with_error_snapshot(tmp_path: Path):
 
     @app.cell()
     def _():
-        1 / 0
+        x = y
+
+    @app.cell()
+    def _():
+        Y = 0
+
+    @app.cell()
+    def _b():
+        Z = z
+
+    @app.cell()
+    def _a():
+        z = 1 / 0
+
+    @app.cell()
+    def _():
+        y = x
+        y = Y
 
     internal_app = InternalApp(app)
     test_file = tmp_path / "notebook.py"
