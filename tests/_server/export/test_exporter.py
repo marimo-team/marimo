@@ -22,10 +22,7 @@ from marimo._server.export import (
 from marimo._server.export.exporter import (
     Exporter,
     _convert_marimo_output_to_ipynb,
-    _extract_traceback_from_console,
-    _get_error_info,
     _maybe_extract_dataurl,
-    _strip_html_from_traceback,
 )
 from marimo._server.models.export import ExportAsHTMLRequest
 from marimo._session.notebook import AppFileManager
@@ -442,12 +439,17 @@ def _as_list(data: Any) -> list[Any]:
 
 def _delete_lines_with_files(output: str) -> str:
     # Remove any line that contains "File " up until a .py ending
+    # Note: temp paths are already stripped in the exporter, so this may be
+    # a no-op for most cases now
     def remove_file_name(line: str) -> str:
         if "File " not in line:
             return line
         start = line.index("File ")
-        end = line.rindex(".py") + 3
-        return line[0:start] + line[end:]
+        # Check if there's a .py extension to strip
+        if ".py" in line[start:]:
+            end = line.rindex(".py") + 3
+            return line[0:start] + line[end:]
+        return line
 
     return "\n".join(remove_file_name(line) for line in output.splitlines())
 
@@ -1661,7 +1663,7 @@ async def test_export_ipynb_with_stdout_and_exception():
 
 
 @pytest.mark.skipif(not HAS_NBFORMAT, reason="nbformat is not installed")
-async def test_export_ipynb_cycle_error():
+async def test_export_ipynb_redefinition_error():
     """Test that cells depending on errored cells show ancestor error."""
     app = App()
 
@@ -1701,6 +1703,7 @@ async def test_export_ipynb_cycle_error():
     # At minimum, there should be some error indication
     assert len(error_outputs) >= 1
 
+
 @pytest.mark.skipif(not HAS_NBFORMAT, reason="nbformat is not installed")
 async def test_export_ipynb_cycle_error():
     """Test that cells depending on errored cells show ancestor error."""
@@ -1736,6 +1739,7 @@ async def test_export_ipynb_cycle_error():
     # Ancestor errors might be represented differently
     # At minimum, there should be some error indication
     assert len(error_outputs) >= 1
+
 
 @pytest.mark.skipif(not HAS_NBFORMAT, reason="nbformat is not installed")
 async def test_export_ipynb_ancestor_error():
@@ -1779,29 +1783,39 @@ async def test_export_ipynb_ancestor_error():
     sys.version_info >= (3, 13), reason="3.13 has different traceback format"
 )
 async def test_export_ipynb_with_error_snapshot(tmp_path: Path):
-    """Snapshot test for error output formatting."""
+    """Snapshot test for error output formatting with cycles and errors."""
     app = App()
 
+    # Cell 1: Part of cycle (x depends on y)
     @app.cell()
-    def _():
+    def _(y):  # noqa: F811
         x = y
+        return (x,)
 
+    # Cell 2: Normal cell (Y = 0)
     @app.cell()
     def _():
-        Y = 0
+        Y = 0  # noqa: N806
+        return (Y,)
 
+    # Cell 3: Ancestor error (depends on z which fails)
     @app.cell()
-    def _b():
-        Z = z
+    def _b(z):
+        Z = z  # noqa: N806
+        return (Z,)
 
+    # Cell 4: ZeroDivisionError
     @app.cell()
     def _a():
         z = 1 / 0
+        return (z,)
 
+    # Cell 5: Part of cycle (y depends on x)
     @app.cell()
-    def _():
+    def _(x, Y):  # noqa: N803
         y = x
-        y = Y
+        y = Y  # noqa: F841
+        return (y,)
 
     internal_app = InternalApp(app)
     test_file = tmp_path / "notebook.py"

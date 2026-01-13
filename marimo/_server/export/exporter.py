@@ -6,6 +6,7 @@ import base64
 import io
 import json
 import mimetypes
+import re
 from concurrent.futures import ThreadPoolExecutor
 from html.parser import HTMLParser
 from pathlib import Path
@@ -579,10 +580,21 @@ class _HTMLTextExtractor(HTMLParser):
 
 
 def _strip_html_from_traceback(html_traceback: str) -> list[str]:
-    """Convert HTML-formatted traceback to plain text lines."""
+    """Convert HTML-formatted traceback to plain text lines.
+
+    Also strips temporary file paths from tracebacks. Exports run cells in
+    the kernel which compiles them with temp file paths. It's not easy to
+    set anonymous source since exports are done in the kernel, so we strip
+    the paths here instead.
+    """
     parser = _HTMLTextExtractor()
     parser.feed(html_traceback)
     text = parser.get_text()
+
+    # Strip temp file paths like /tmp/marimo_12345/__marimo__cell_Hbol_.py
+    # Replace with empty string to get cleaner tracebacks
+    text = re.sub(r'[^"]*__marimo__cell_[^"]*\.py', "", text)
+
     return text.splitlines()
 
 
@@ -608,7 +620,7 @@ def _get_error_info(
     if isinstance(error, dict):
         return error.get("type", "UnknownError"), error.get("msg", "")
     elif isinstance(error, MarimoExceptionRaisedError):
-        return error.exception_type, error.msg
+        return error.exception_type, error.msg.rstrip().strip(":")
     else:
         # For other error types, use the tag as ename and describe() as evalue
         error_dict = asdict(error)

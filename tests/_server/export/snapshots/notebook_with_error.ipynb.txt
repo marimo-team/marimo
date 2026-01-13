@@ -24,7 +24,7 @@
    "metadata": {},
    "outputs": [],
    "source": [
-    "Y = 0"
+    "Y = 0  # noqa: N806"
    ]
   },
   {
@@ -45,7 +45,7 @@
     }
    ],
    "source": [
-    "Z = z"
+    "Z = z  # noqa: N806"
    ]
   },
   {
@@ -64,8 +64,9 @@
      "output_type": "error",
      "traceback": [
       "Traceback (most recent call last):",
-      "  \", line 1, in <module>",
+      "  File \"\", line 1, in <module>",
       "    z = 1 / 0",
+      "        ~~^~~",
       "ZeroDivisionError: division by zero",
       ""
      ]
@@ -90,7 +91,7 @@
    ],
    "source": [
     "y = x\n",
-    "y = Y"
+    "y = Y  # noqa: F841"
    ]
   }
  ],
