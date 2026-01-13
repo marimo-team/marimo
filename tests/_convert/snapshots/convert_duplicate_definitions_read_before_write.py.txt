@@ -18,7 +18,7 @@ def _(x):
 @app.cell
 def _(x):
     x
-    x_1 = 2
+    x_1 = 2  # variable `x` was modified in the original Jupyter notebook
     x_1
     return (x_1,)
 
