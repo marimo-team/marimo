@@ -920,8 +920,10 @@ class TestExportIpynb:
             capture_output=True,
         )
         assert p.returncode != 0, p.stderr.decode()
-        assert "MultipleDefinitionError" in p.stderr.decode()
-        assert p.stdout.decode() == ""
+        # Error is now captured in the ipynb output as a proper Jupyter error
+        output = p.stdout.decode()
+        assert "multiple-defs" in output
+        assert "was defined by another cell" in output
 
     @pytest.mark.skipif(
         not DependencyManager.nbformat.has() or is_windows(),
@@ -941,8 +943,10 @@ class TestExportIpynb:
             capture_output=True,
         )
         assert p.returncode != 0, p.stderr.decode()
-        assert " division by zero" in p.stderr.decode()
+        # Error is now captured in the ipynb output (stdout) as a proper
+        # Jupyter error output, not printed to stderr
         output = p.stdout.decode()
+        assert "division by zero" in output
         output = _delete_lines_with_files(output)
         snapshot("ipynb_with_errors.txt", output)
 

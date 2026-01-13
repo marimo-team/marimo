@@ -7,12 +7,13 @@ import io
 import json
 import mimetypes
 from concurrent.futures import ThreadPoolExecutor
+from html.parser import HTMLParser
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Literal, Optional, cast
+from typing import TYPE_CHECKING, Any, Literal, Optional, Union, cast
 
 from marimo import _loggers
 from marimo._ast.app import InternalApp
-from marimo._ast.cell import Cell, CellImpl
+from marimo._ast.cell import Cell, CellConfig
 from marimo._ast.names import DEFAULT_CELL_NAME, is_internal_cell_name
 from marimo._config.config import (
     DEFAULT_CONFIG,
@@ -24,6 +25,10 @@ from marimo._config.utils import deep_copy
 from marimo._convert.utils import get_markdown_from_cell
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.cell_output import CellChannel, CellOutput
+from marimo._messaging.errors import (
+    Error as MarimoError,
+    MarimoExceptionRaisedError,
+)
 from marimo._messaging.mimetypes import METADATA_KEY, KnownMimeType
 from marimo._runtime import dataflow
 from marimo._runtime.virtual_file import read_virtual_file
@@ -278,24 +283,30 @@ class Exporter:
         import nbformat  # type: ignore[import-not-found]
 
         notebook = nbformat.v4.new_notebook()  # type: ignore[no-untyped-call]
-        graph = app.graph
-
-        # Sort cells based on sort_mode
-        if sort_mode == "top-down":
-            cell_ids = list(app.cell_manager.cell_ids())
-        else:
-            cell_ids = dataflow.topological_sort(graph, graph.cells.keys())
-
         notebook["cells"] = []
-        for cid in cell_ids:
-            if cid not in graph.cells:
-                LOGGER.warning("Cell %s not found in graph", cid)
-                continue
-            cell = graph.cells[cid]
-            outputs: list[NotebookNode] = []
 
+        # Determine cell order. When session_view is provided, always use
+        # top-down order since topological sort requires a valid graph
+        # (which may not exist due to cycles or multiple definitions).
+        if session_view is not None or sort_mode == "top-down":
+            cell_data_list = list(app.cell_manager.cell_data())
+        else:
+            # Topological sort requires accessing the graph
+            graph = app.graph
+            sorted_ids = dataflow.topological_sort(graph, graph.cells.keys())
+            # Build cell_data list in topological order
+            cell_data_list = [
+                app.cell_manager.cell_data_at(cid)
+                for cid in sorted_ids
+                if cid in graph.cells
+            ]
+
+        for cell_data in cell_data_list:
+            cid = cell_data.cell_id
+
+            # Get outputs if session_view is provided
+            outputs: list[NotebookNode] = []
             if session_view is not None:
-                # Get outputs for this cell and convert to IPython format
                 cell_output = session_view.get_cell_outputs([cid]).get(
                     cid, None
                 )
@@ -306,21 +317,15 @@ class Exporter:
                     cell_output, cell_console_outputs
                 )
 
-            notebook_cell = _create_notebook_cell(cell, outputs)
-            # Add metadata to the cell
-            marimo_metadata: dict[str, Any] = {}
-            if cell.config.is_different_from_default():
-                marimo_metadata["config"] = (
-                    cell.config.asdict_without_defaults()
-                )
-            name = app.cell_manager.cell_name(cid)
-            if not is_internal_cell_name(name):
-                marimo_metadata["name"] = name
-            if marimo_metadata:
-                notebook_cell["metadata"]["marimo"] = marimo_metadata
+            notebook_cell = _create_ipynb_cell(
+                cell_id=cid,
+                code=cell_data.code,
+                name=cell_data.name,
+                config=cell_data.config,
+                cell=cell_data.cell,
+                outputs=outputs,
+            )
             notebook["cells"].append(notebook_cell)
-
-        # notebook.metadata["marimo-version"] = __version__
 
         stream = io.StringIO()
         nbformat.write(notebook, stream)  # type: ignore[no-untyped-call]
@@ -479,27 +484,58 @@ class AutoExporter:
         self._executor.shutdown(wait=False)
 
 
-def _create_notebook_cell(
-    cell: CellImpl, outputs: list[NotebookNode]
+def _create_ipynb_cell(
+    cell_id: str,
+    code: str,
+    name: str,
+    config: CellConfig,
+    cell: Optional[Cell],
+    outputs: list[NotebookNode],
 ) -> NotebookNode:
+    """Create an ipynb cell with metadata.
+
+    Args:
+        cell_id: The cell's unique identifier
+        code: The cell's source code
+        name: The cell's name
+        config: The cell's configuration
+        cell: Optional Cell object for markdown detection
+        outputs: List of cell outputs (ignored for markdown cells)
+    """
     import nbformat
 
-    markdown_string = get_markdown_from_cell(
-        Cell(_name=DEFAULT_CELL_NAME, _cell=cell), cell.code
-    )
-    if markdown_string is not None:
-        return cast(
-            nbformat.NotebookNode,
-            nbformat.v4.new_markdown_cell(markdown_string, id=cell.cell_id),  # type: ignore[no-untyped-call]
-        )
+    # Try to extract markdown if we have a valid Cell
+    if cell is not None:
+        markdown_string = get_markdown_from_cell(cell, code)
+        if markdown_string is not None:
+            node = cast(
+                nbformat.NotebookNode,
+                nbformat.v4.new_markdown_cell(markdown_string, id=cell_id),  # type: ignore[no-untyped-call]
+            )
+            _add_marimo_metadata(node, name, config)
+            return node
 
     node = cast(
         nbformat.NotebookNode,
-        nbformat.v4.new_code_cell(cell.code, id=cell.cell_id),  # type: ignore[no-untyped-call]
+        nbformat.v4.new_code_cell(code, id=cell_id),  # type: ignore[no-untyped-call]
     )
     if outputs:
         node.outputs = outputs
+    _add_marimo_metadata(node, name, config)
     return node
+
+
+def _add_marimo_metadata(
+    node: NotebookNode, name: str, config: CellConfig
+) -> None:
+    """Add marimo-specific metadata to a notebook cell."""
+    marimo_metadata: dict[str, Any] = {}
+    if config.is_different_from_default():
+        marimo_metadata["config"] = config.asdict_without_defaults()
+    if not is_internal_cell_name(name):
+        marimo_metadata["name"] = name
+    if marimo_metadata:
+        node["metadata"]["marimo"] = marimo_metadata
 
 
 def get_html_contents() -> str:
@@ -528,8 +564,59 @@ def _maybe_extract_dataurl(data: Any) -> Any:
         return data
 
 
+class _HTMLTextExtractor(HTMLParser):
+    """Extract plain text from HTML."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.text_parts: list[str] = []
+
+    def handle_data(self, data: str) -> None:
+        self.text_parts.append(data)
+
+    def get_text(self) -> str:
+        return "".join(self.text_parts)
+
+
+def _strip_html_from_traceback(html_traceback: str) -> list[str]:
+    """Convert HTML-formatted traceback to plain text lines."""
+    parser = _HTMLTextExtractor()
+    parser.feed(html_traceback)
+    text = parser.get_text()
+    return text.splitlines()
+
+
+def _extract_traceback_from_console(
+    console_outputs: list[CellOutput],
+) -> list[str]:
+    """Extract traceback lines from console outputs."""
+    for output in console_outputs:
+        if (
+            output.channel == CellChannel.STDERR
+            and output.mimetype == "application/vnd.marimo+traceback"
+        ):
+            return _strip_html_from_traceback(str(output.data))
+    return []
+
+
+def _get_error_info(
+    error: Union[MarimoError, dict[str, Any]],
+) -> tuple[str, str]:
+    """Extract ename and evalue from a marimo error."""
+    from marimo._messaging.msgspec_encoder import asdict
+
+    if isinstance(error, dict):
+        return error.get("type", "UnknownError"), error.get("msg", "")
+    elif isinstance(error, MarimoExceptionRaisedError):
+        return error.exception_type, error.msg
+    else:
+        # For other error types, use the tag as ename and describe() as evalue
+        error_dict = asdict(error)
+        return error_dict.get("type", "Error"), error.describe()
+
+
 def _convert_marimo_output_to_ipynb(
-    output: Optional[CellOutput], console_outputs: list[CellOutput]
+    cell_output: Optional[CellOutput], console_outputs: list[CellOutput]
 ) -> list[NotebookNode]:
     """Convert marimo output format to IPython notebook format."""
     import nbformat
@@ -537,41 +624,65 @@ def _convert_marimo_output_to_ipynb(
     ipynb_outputs: list[NotebookNode] = []
 
     # Handle stdout/stderr
-    for output in console_outputs:
-        if output.channel == CellChannel.STDOUT:
+    for console_out in console_outputs:
+        if console_out.channel == CellChannel.STDOUT:
             ipynb_outputs.append(
                 cast(
                     nbformat.NotebookNode,
                     nbformat.v4.new_output(  # type: ignore[no-untyped-call]
                         "stream",
                         name="stdout",
-                        text=output.data,
+                        text=console_out.data,
                     ),
                 )
             )
-        if output.channel == CellChannel.STDERR:
+        elif console_out.channel == CellChannel.STDERR:
+            # Skip tracebacks - they're included in error outputs
+            if console_out.mimetype == "application/vnd.marimo+traceback":
+                continue
             ipynb_outputs.append(
                 cast(
                     nbformat.NotebookNode,
                     nbformat.v4.new_output(  # type: ignore[no-untyped-call]
                         "stream",
                         name="stderr",
-                        text=output.data,
+                        text=console_out.data,
                     ),
                 )
             )
 
-    if not output:
+    if not cell_output:
         return ipynb_outputs
 
-    if output.data is None:
+    if cell_output.data is None:
         return ipynb_outputs
 
-    if output.channel not in (CellChannel.OUTPUT, CellChannel.MEDIA):
+    # Handle error outputs
+    if cell_output.channel == CellChannel.MARIMO_ERROR:
+        traceback_lines = _extract_traceback_from_console(console_outputs)
+        errors = cast(
+            list[Union[MarimoError, dict[str, Any]]], cell_output.data
+        )
+        for error in errors:
+            ename, evalue = _get_error_info(error)
+            ipynb_outputs.append(
+                cast(
+                    nbformat.NotebookNode,
+                    nbformat.v4.new_output(  # type: ignore[no-untyped-call]
+                        "error",
+                        ename=ename,
+                        evalue=evalue,
+                        traceback=traceback_lines,
+                    ),
+                )
+            )
         return ipynb_outputs
 
-    if output.mimetype == "text/plain" and (
-        output.data == [] or output.data == ""
+    if cell_output.channel not in (CellChannel.OUTPUT, CellChannel.MEDIA):
+        return ipynb_outputs
+
+    if cell_output.mimetype == "text/plain" and (
+        cell_output.data == [] or cell_output.data == ""
     ):
         return ipynb_outputs
 
@@ -579,16 +690,16 @@ def _convert_marimo_output_to_ipynb(
     data: dict[str, Any] = {}
     metadata: dict[str, Any] = {}
 
-    if output.mimetype == "application/vnd.marimo+error":
-        # Captured by stdout/stderr
+    if cell_output.mimetype == "application/vnd.marimo+error":
+        # Already handled above via MARIMO_ERROR channel
         return ipynb_outputs
-    elif output.mimetype == "application/vnd.marimo+mimebundle":
-        if isinstance(output.data, dict):
-            mimebundle = output.data
-        elif isinstance(output.data, str):
-            mimebundle = json.loads(output.data)
+    elif cell_output.mimetype == "application/vnd.marimo+mimebundle":
+        if isinstance(cell_output.data, dict):
+            mimebundle = cell_output.data
+        elif isinstance(cell_output.data, str):
+            mimebundle = json.loads(cell_output.data)
         else:
-            raise ValueError(f"Invalid data type: {type(output.data)}")
+            raise ValueError(f"Invalid data type: {type(cell_output.data)}")
 
         for mime, content in mimebundle.items():
             if mime == METADATA_KEY and isinstance(content, dict):
@@ -596,7 +707,7 @@ def _convert_marimo_output_to_ipynb(
             else:
                 data[mime] = _maybe_extract_dataurl(content)
     else:
-        data[output.mimetype] = _maybe_extract_dataurl(output.data)
+        data[cell_output.mimetype] = _maybe_extract_dataurl(cell_output.data)
 
     if data:
         ipynb_outputs.append(

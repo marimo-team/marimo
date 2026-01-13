@@ -153,10 +153,13 @@ async def run_app_then_export_as_ipynb(
     file_manager = file_router.get_file_manager(file_key)
 
     with patch_html_for_non_interactive_output():
+        # Use quiet=True to suppress runtime stdout/stderr since outputs
+        # are captured in the session_view and will be included in the ipynb
         (session_view, did_error) = await run_app_until_completion(
             file_manager,
             cli_args,
             argv,
+            quiet=True,
         )
 
     result = Exporter().export_as_ipynb(
@@ -235,6 +238,7 @@ async def run_app_until_completion(
     file_manager: AppFileManager,
     cli_args: SerializedCLIArgs,
     argv: list[str] | None,
+    quiet: bool = False,
 ) -> tuple[SessionView, bool]:
     from marimo._session.consumer import SessionConsumer
     from marimo._session.events import SessionEventBus
@@ -252,7 +256,7 @@ async def run_app_until_completion(
 
         def notify(self, notification: KernelMessage) -> None:
             data = deserialize_kernel_message(notification)
-            # Print errors to stderr
+            # Print errors to stderr (unless quiet mode)
             if isinstance(data, CellNotification):
                 output = data.output
                 console_output = data.console
@@ -261,13 +265,14 @@ async def run_app_until_completion(
                     for err in errors:
                         # Not all errors are fatal
                         if is_unexpected_error(err):
-                            echo(
-                                f"{err.__class__.__name__}: {err.describe()}",
-                                file=sys.stderr,
-                            )
+                            if not quiet:
+                                echo(
+                                    f"{err.__class__.__name__}: {err.describe()}",
+                                    file=sys.stderr,
+                                )
                             self.did_error = True
 
-                if console_output:
+                if console_output and not quiet:
                     console_as_list: list[CellOutput] = (
                         console_output
                         if isinstance(console_output, list)

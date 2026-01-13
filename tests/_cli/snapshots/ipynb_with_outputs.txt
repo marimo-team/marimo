@@ -3,16 +3,6 @@
   {
    "cell_type": "code",
    "execution_count": null,
-   "id": "bkHC",
-   "metadata": {},
-   "outputs": [],
-   "source": [
-    "import marimo as mo"
-   ]
-  },
-  {
-   "cell_type": "code",
-   "execution_count": null,
    "id": "Hbol",
    "metadata": {},
    "outputs": [
@@ -58,6 +48,16 @@
    "metadata": {},
    "source": [
     "plain markdown"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "bkHC",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "import marimo as mo"
    ]
   }
  ],
