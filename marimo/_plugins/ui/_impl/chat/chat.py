@@ -134,26 +134,23 @@ class chat(UIElement[dict[str, Any], list[ChatMessage]]):
 
         Custom model with Vercel AI SDK streaming (reasoning, tool calls):
         ```python
-        import uuid
         import pydantic_ai.ui.vercel_ai.response_types as vercel
 
 
         async def custom_model(messages, config):
-            # Generate unique IDs for message parts
-            reasoning_id = f"reasoning_{uuid.uuid4().hex}"
-            text_id = f"text_{uuid.uuid4().hex}"
-
             # Stream reasoning/thinking
-            yield vercel.ReasoningStartChunk(id=reasoning_id)
+            yield vercel.ReasoningStartChunk(id="reasoning-1")
             yield vercel.ReasoningDeltaChunk(
-                id=reasoning_id, delta="Let me think..."
+                id="reasoning-1", delta="Let me think..."
             )
-            yield vercel.ReasoningEndChunk(id=reasoning_id)
+            yield vercel.ReasoningEndChunk(id="reasoning-1")
 
-            # Stream text response
-            yield vercel.TextStartChunk(id=text_id)
-            yield vercel.TextDeltaChunk(id=text_id, delta="Here is my answer.")
-            yield vercel.TextEndChunk(id=text_id)
+            # Stream text response (can also use plain dicts)
+            yield {"type": "text-start", "id": "text-1"}
+            yield vercel.TextDeltaChunk(
+                id="text-1", delta="Here is my answer."
+            )
+            yield vercel.TextEndChunk(id="text-1")
 
             yield vercel.FinishChunk(finish_reason="stop")
 
@@ -426,6 +423,8 @@ class chat(UIElement[dict[str, Any], list[ChatMessage]]):
                     UIMessagePart,
                 )
 
+                # The frontend sends messages as ChatMessage parts so we use pydantic-ai to cast them
+                # as Vercel UIMessagePart
                 part_validator_class = UIMessagePart
 
             return [

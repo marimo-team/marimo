@@ -234,7 +234,10 @@ export const Chatbot: React.FC<Props> = (props) => {
             Logger.error("Non-frontend-managed response is null", {
               response,
             });
-            return new Response("Internal server error", { status: 500 });
+            return new Response(
+              "Internal error, please check the console for more details.",
+              { status: 500 },
+            );
           }
 
           // If streaming didn't happen (non-generator response), update the message
