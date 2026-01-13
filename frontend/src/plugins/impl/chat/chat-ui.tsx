@@ -84,7 +84,13 @@ export const Chatbot: React.FC<Props> = (props) => {
   const codeMirrorInputRef = useRef<ReactCodeMirrorRef>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-  if (props.config !== prevPropsConfig) {
+  const configChanged = Object.keys(props.config).some(
+    (key) =>
+      props.config[key as keyof ChatConfig] !==
+      prevPropsConfig[key as keyof ChatConfig],
+  );
+
+  if (configChanged) {
     setConfig(props.config);
     setPrevPropsConfig(props.config);
   }
