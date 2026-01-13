@@ -23,10 +23,56 @@ from marimo._runtime.packages.utils import split_packages
 from marimo._utils.platform import is_pyodide
 from marimo._utils.uv import find_uv_bin
 from marimo._utils.uv_tree import DependencyTreeNode, parse_uv_tree
+from marimo._utils.versions import (
+    has_version_specifier,
+    without_extras,
+    without_version_specifier,
+)
 
 PY_EXE = sys.executable
 
 LOGGER = _loggers.marimo_logger()
+
+
+class VersionMap:
+    """
+    A map of package names to versions, with some extra
+    logic for defensibility when checking if a package is installed.
+    """
+
+    def __init__(self, version_map: dict[str, str]) -> None:
+        self.version_map = version_map
+
+    def get_version(self, package: str) -> str | None:
+        """Get the version of a package."""
+        # Remove extras and version specifier
+        package = without_extras(without_version_specifier(package)).lower()
+        return (
+            self._get(package)
+            # Try replacing _ with - and - with _
+            or self._get(package.replace("_", "-"))
+            or self._get(package.replace("-", "_"))
+        )
+
+    def resolve_with_version(self, package: str) -> str | None:
+        """Resolve a package name to a package name with a version specifier."""
+        package = without_extras(without_version_specifier(package)).lower()
+        if package in self.version_map:
+            return f"{package}=={self.version_map[package]}"
+        # Try replacing _ with - and - with _
+        package = package.replace("_", "-")
+        if package in self.version_map:
+            return f"{package}=={self.version_map[package]}"
+        package = package.replace("-", "_")
+        if package in self.version_map:
+            return f"{package}=={self.version_map[package]}"
+        return None
+
+    def _get(self, package: str) -> str | None:
+        return self.version_map.get(package)
+
+    def has(self, package: str) -> bool:
+        return self.get_version(package) is not None
 
 
 class PypiPackageManager(CanonicalizingPackageManager):
@@ -347,18 +393,15 @@ class UvPackageManager(PypiPackageManager):
             return False
 
         def _is_installed(package: str) -> bool:
-            without_brackets = package.split("[")[0]
-            return without_brackets.lower() in version_map
+            return version_map.has(package)
 
         def _maybe_add_version(package: str) -> str:
             # Skip marimo and marimo[<mod>], but not marimo-<something-else>
             if package == "marimo" or package.startswith("marimo["):
                 return package
-            without_brackets = package.split("[")[0]
-            version = version_map.get(without_brackets.lower())
-            if version:
-                return f"{package}=={version}"
-            return package
+            if has_version_specifier(package):
+                return package
+            return version_map.resolve_with_version(package) or package
 
         # Filter to packages that are found in "uv pip list" OR are direct references
         # Direct references (git URLs, direct URLs, local paths) bypass the installed check
@@ -464,9 +507,9 @@ class UvPackageManager(PypiPackageManager):
             )
         return success
 
-    def _get_version_map(self) -> dict[str, str]:
+    def _get_version_map(self) -> VersionMap:
         packages = self.list_packages()
-        return {pkg.name: pkg.version for pkg in packages}
+        return VersionMap({pkg.name: pkg.version for pkg in packages})
 
     # Only needs to run once per session
     @cached_property

@@ -13,6 +13,7 @@ from marimo._runtime.packages.pypi_package_manager import (
     PipPackageManager,
     PoetryPackageManager,
     UvPackageManager,
+    VersionMap,
 )
 
 if TYPE_CHECKING:
@@ -815,3 +816,191 @@ async def test_uv_install_in_project_no_fallback(mock_run: MagicMock):
 
     # Should fail without retry
     assert result is False
+
+
+# VersionMap Tests
+
+
+class TestVersionMap:
+    """Tests for VersionMap class"""
+
+    def test_get_version_exact_match(self) -> None:
+        """Test getting version with exact package name match"""
+
+        version_map = VersionMap({"numpy": "1.24.0", "pandas": "2.0.0"})
+        assert version_map.get_version("numpy") == "1.24.0"
+        assert version_map.get_version("pandas") == "2.0.0"
+
+    def test_get_version_with_underscore_to_dash(self) -> None:
+        """Test getting version when package name uses underscore but map has dash"""
+
+        version_map = VersionMap({"some-package": "1.0.0"})
+        assert version_map.get_version("some_package") == "1.0.0"
+
+    def test_get_version_with_dash_to_underscore(self) -> None:
+        """Test getting version when package name uses dash but map has underscore"""
+
+        version_map = VersionMap({"some_package": "1.0.0"})
+        assert version_map.get_version("some-package") == "1.0.0"
+
+    def test_get_version_case_insensitive(self) -> None:
+        """Test getting version is case insensitive"""
+
+        version_map = VersionMap({"numpy": "1.24.0"})
+        assert version_map.get_version("NumPy") == "1.24.0"
+        assert version_map.get_version("NUMPY") == "1.24.0"
+
+    def test_get_version_with_extras(self) -> None:
+        """Test getting version removes extras from package name"""
+
+        version_map = VersionMap({"requests": "2.28.0"})
+        assert version_map.get_version("requests[security]") == "2.28.0"
+        assert version_map.get_version("requests[security,socks]") == "2.28.0"
+
+    def test_get_version_with_version_specifier(self) -> None:
+        """Test getting version removes version specifier from package name"""
+
+        version_map = VersionMap({"numpy": "1.24.0"})
+        assert version_map.get_version("numpy>=1.20.0") == "1.24.0"
+        assert version_map.get_version("numpy==1.24.0") == "1.24.0"
+        assert version_map.get_version("numpy<2.0.0") == "1.24.0"
+
+    def test_get_version_with_extras_and_version(self) -> None:
+        """Test getting version with both extras and version specifier"""
+
+        version_map = VersionMap({"requests": "2.28.0"})
+        assert version_map.get_version("requests[security]>=2.0.0") == "2.28.0"
+
+    def test_get_version_not_found(self) -> None:
+        """Test getting version for non-existent package returns None"""
+
+        version_map = VersionMap({"numpy": "1.24.0"})
+        assert version_map.get_version("pandas") is None
+        assert version_map.get_version("nonexistent") is None
+
+    def test_has_package_exists(self) -> None:
+        """Test has() returns True for existing packages"""
+
+        version_map = VersionMap({"numpy": "1.24.0", "pandas": "2.0.0"})
+        assert version_map.has("numpy") is True
+        assert version_map.has("pandas") is True
+
+    def test_has_package_not_exists(self) -> None:
+        """Test has() returns False for non-existent packages"""
+
+        version_map = VersionMap({"numpy": "1.24.0"})
+        assert version_map.has("pandas") is False
+        assert version_map.has("nonexistent") is False
+
+    def test_has_with_underscore_dash_normalization(self) -> None:
+        """Test has() works with underscore/dash normalization"""
+
+        version_map = VersionMap({"some-package": "1.0.0"})
+        assert version_map.has("some_package") is True
+        assert version_map.has("some-package") is True
+
+    def test_has_with_extras(self) -> None:
+        """Test has() works with extras"""
+
+        version_map = VersionMap({"requests": "2.28.0"})
+        assert version_map.has("requests[security]") is True
+
+    def test_has_with_version_specifier(self) -> None:
+        """Test has() works with version specifiers"""
+
+        version_map = VersionMap({"numpy": "1.24.0"})
+        assert version_map.has("numpy>=1.20.0") is True
+
+    def test_resolve_with_version_exact_match(self) -> None:
+        """Test resolve_with_version with exact match"""
+
+        version_map = VersionMap({"numpy": "1.24.0"})
+        assert version_map.resolve_with_version("numpy") == "numpy==1.24.0"
+
+    def test_resolve_with_version_with_underscore_to_dash(self) -> None:
+        """Test resolve_with_version handles underscore to dash conversion"""
+
+        version_map = VersionMap({"some-package": "1.0.0"})
+        assert (
+            version_map.resolve_with_version("some_package")
+            == "some-package==1.0.0"
+        )
+
+    def test_resolve_with_version_with_dash_to_underscore(self) -> None:
+        """Test resolve_with_version handles dash to underscore conversion"""
+
+        version_map = VersionMap({"some_package": "1.0.0"})
+        assert (
+            version_map.resolve_with_version("some-package")
+            == "some_package==1.0.0"
+        )
+
+    def test_resolve_with_version_not_found(self) -> None:
+        """Test resolve_with_version returns None for non-existent package"""
+
+        version_map = VersionMap({"numpy": "1.24.0"})
+        assert version_map.resolve_with_version("pandas") is None
+
+    def test_resolve_with_version_case_insensitive(self) -> None:
+        """Test resolve_with_version is case insensitive"""
+
+        version_map = VersionMap({"numpy": "1.24.0"})
+        assert version_map.resolve_with_version("NumPy") == "numpy==1.24.0"
+
+    def test_resolve_with_version_with_extras(self) -> None:
+        """Test resolve_with_version removes extras"""
+
+        version_map = VersionMap({"requests": "2.28.0"})
+        assert (
+            version_map.resolve_with_version("requests[security]")
+            == "requests==2.28.0"
+        )
+
+    def test_resolve_with_version_with_version_specifier(self) -> None:
+        """Test resolve_with_version removes existing version specifier"""
+
+        version_map = VersionMap({"numpy": "1.24.0"})
+        assert (
+            version_map.resolve_with_version("numpy>=1.20.0")
+            == "numpy==1.24.0"
+        )
+
+    def test_version_map_empty(self) -> None:
+        """Test VersionMap with empty dict"""
+
+        version_map = VersionMap({})
+        assert version_map.get_version("numpy") is None
+        assert version_map.has("numpy") is False
+        assert version_map.resolve_with_version("numpy") is None
+
+    def test_version_map_real_world_packages(self) -> None:
+        """Test VersionMap with real-world package names"""
+
+        version_map = VersionMap(
+            {
+                "scikit-learn": "1.3.0",
+                "typing_extensions": "4.8.0",
+                "pillow": "10.0.0",
+                "beautifulsoup4": "4.12.0",
+            }
+        )
+
+        # Test scikit-learn
+        assert version_map.get_version("scikit_learn") == "1.3.0"
+        assert version_map.has("scikit-learn") is True
+        assert (
+            version_map.resolve_with_version("scikit_learn")
+            == "scikit-learn==1.3.0"
+        )
+
+        # Test typing_extensions
+        assert version_map.get_version("typing-extensions") == "4.8.0"
+        assert version_map.has("typing_extensions") is True
+
+        # Test pillow (no dash/underscore conversion)
+        assert version_map.get_version("pillow") == "10.0.0"
+        assert version_map.has("Pillow") is True
+
+        # Test beautifulsoup4 (number in name)
+        assert version_map.get_version("beautifulsoup4") == "4.12.0"
+        assert version_map.has("beautifulsoup4") is True
