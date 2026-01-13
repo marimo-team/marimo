@@ -53,8 +53,9 @@ export function focusAndScrollCellIntoView({
       Logger.warn("scrollCellIntoView: editor not found", cellId);
       return;
     }
-    // If already focused, do nothing.
-    if (editor.hasFocus) {
+    // Skip auto-focus if already focused, or if the document doesn't have
+    // focus to avoid stealing focus from outside (e.g., when embedded in an iframe)
+    if (editor.hasFocus || !document.hasFocus()) {
       return;
     }
 
