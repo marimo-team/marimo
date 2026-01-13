@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.18.4"
+__generated_with = "0.19.2"
 app = marimo.App(width="medium")
 
 with app.setup(hide_code=True):
@@ -168,7 +168,7 @@ def _(
 
 
 @app.cell
-def _(agent):
+def _(agent, model_name):
     chatbot = mo.ui.chat(
         mo.ai.llm.pydantic_ai(agent),
         prompts=[
@@ -179,6 +179,7 @@ def _(agent):
         ],
         allow_attachments=True,
         show_configuration_controls=True,
+        config={"top_p": None} if model_name.startswith("claude") else None,
     )
     chatbot
     return (chatbot,)
