@@ -2,7 +2,7 @@
 
 import marimo
 
-__generated_with = "0.17.4"
+__generated_with = "0.19.2"
 app = marimo.App()
 
 
@@ -22,8 +22,7 @@ def _(mo):
 
 @app.cell
 def _(mo, slider):
-    mo.md(
-        f"""
+    mo.md(f"""
     marimo is a **reactive** Python notebook.
 
     This means that unlike traditional notebooks, marimo notebooks **run
@@ -31,8 +30,7 @@ def _(mo, slider):
     interact with UI elements, like this slider: {slider}.
 
     {"##" + "🍃" * slider.value}
-    """
-    )
+    """)
     return
 
 
