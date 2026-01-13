@@ -622,3 +622,28 @@ def test_md_with_b64_in_wasm(
     # In WASM mode with b64 extension, the image should be base64 encoded
     assert "data:image/png;base64," in result
     assert "alt text" in result
+
+
+def test_md_indented_code_blocks() -> None:
+    # Test that indented code blocks (4 spaces) are properly recognized
+    # This requires disable_indented_code_blocks=False in pymdownx.superfences
+    indented_code_input = """This is some text
+
+    def foo():
+        return "bar"
+
+And more text"""
+
+    result = _md(indented_code_input, apply_markdown_class=False).text
+
+    # Should contain a code block with proper syntax highlighting
+    assert "<code>" in result
+    assert "def" in result
+    assert "foo" in result
+
+    # Verify it's wrapped in proper code block structure
+    assert "codehilite" in result or "<pre>" in result
+
+    # Test that the text before and after is preserved
+    assert "This is some text" in result
+    assert "And more text" in result
