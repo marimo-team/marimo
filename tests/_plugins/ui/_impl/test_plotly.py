@@ -771,6 +771,223 @@ def test_heatmap_numpy_and_fallback_produce_same_results() -> None:
 
 
 # ============================================================================
+# Datetime Axis Tests
+# ============================================================================
+
+
+def test_heatmap_selection_datetime_x_axis() -> None:
+    """Test heatmap with datetime x-axis and categorical y-axis.
+
+    This is the exact scenario reported in the bug: datetime x-axis,
+    string y-axis, which was causing a numpy UFuncNoLoopError.
+    """
+    from datetime import datetime, timedelta
+
+    # Create datetime x-axis
+    base_date = datetime(2024, 1, 1)
+    dates = [base_date + timedelta(days=i) for i in range(5)]
+
+    # String categories for y-axis
+    categories = ["Category A", "Category B", "Category C"]
+
+    # Generate z values (3 rows x 5 columns)
+    z_values = [[i * 5 + j for j in range(5)] for i in range(3)]
+
+    fig = go.Figure(
+        data=go.Heatmap(
+            z=z_values,
+            x=dates,
+            y=categories,
+        )
+    )
+    plot = plotly(fig)
+
+    # Simulate a range selection covering dates[1] to dates[3]
+    # and categories at indices 0 and 1
+    # IMPORTANT: Frontend sends ISO strings via JSON, not datetime objects
+    selection = {
+        "range": {
+            "x": [dates[1].isoformat(), dates[3].isoformat()],
+            "y": [-0.5, 1.5],
+        },
+        "points": [],
+        "indices": [],
+    }
+
+    result = plot._convert_value(selection)
+
+    # Should extract cells for dates[1], dates[2], dates[3]
+    # and categories at indices 0, 1
+    # That's 3 dates x 2 categories = 6 cells
+    assert len(result) == 6
+
+    # Verify we got the expected cells
+    for cell in result:
+        assert cell["x"] in dates[1:4]  # dates[1], dates[2], dates[3]
+        assert cell["y"] in ["Category A", "Category B"]
+        assert "z" in cell
+
+
+def test_heatmap_numpy_and_fallback_datetime_x_axis() -> None:
+    """Test that numpy and fallback produce same results for datetime x-axis."""
+    from datetime import datetime, timedelta
+
+    base_date = datetime(2024, 1, 1)
+    dates = [base_date + timedelta(days=i) for i in range(5)]
+    categories = ["A", "B", "C"]
+    z_values = [[i * 5 + j for j in range(5)] for i in range(3)]
+
+    fig = go.Figure(data=go.Heatmap(z=z_values, x=dates, y=categories))
+
+    # Use ISO strings for x range (as frontend sends), indices for y range
+    x_min, x_max = dates[1].isoformat(), dates[3].isoformat()
+    y_min, y_max = -0.5, 1.5
+
+    numpy_result = _extract_heatmap_cells_numpy(
+        fig, x_min, x_max, y_min, y_max
+    )
+    fallback_result = _extract_heatmap_cells_fallback(
+        fig, x_min, x_max, y_min, y_max
+    )
+
+    assert len(numpy_result) == len(fallback_result)
+
+    # Sort for comparison
+    def sort_key(cell: dict[str, Any]) -> tuple[Any, ...]:
+        return (str(cell["x"]), cell["y"], cell["z"])
+
+    numpy_sorted = sorted(numpy_result, key=sort_key)
+    fallback_sorted = sorted(fallback_result, key=sort_key)
+
+    for np_cell, fb_cell in zip(numpy_sorted, fallback_sorted):
+        assert np_cell["x"] == fb_cell["x"]
+        assert np_cell["y"] == fb_cell["y"]
+        assert np_cell["z"] == fb_cell["z"]
+
+
+def test_scatter_selection_datetime_x_axis() -> None:
+    """Test scatter/line chart with datetime x-axis."""
+    from datetime import datetime, timedelta
+
+    base_date = datetime(2024, 1, 1)
+    dates = [base_date + timedelta(days=i) for i in range(5)]
+    values = [10, 20, 15, 25, 30]
+
+    fig = go.Figure(data=go.Scatter(x=dates, y=values, mode="lines"))
+    plot = plotly(fig)
+
+    # Select dates[1] to dates[3] - frontend sends ISO strings
+    selection = {
+        "range": {
+            "x": [dates[1].isoformat(), dates[3].isoformat()],
+            "y": [0, 50],
+        },
+        "points": [],
+        "indices": [],
+    }
+
+    result = plot._convert_value(selection)
+
+    # Should return 3 points: at dates[1], dates[2], dates[3]
+    assert len(result) == 3
+    assert result[0]["x"] == dates[1]
+    assert result[0]["y"] == 20
+    assert result[1]["x"] == dates[2]
+    assert result[1]["y"] == 15
+    assert result[2]["x"] == dates[3]
+    assert result[2]["y"] == 25
+
+
+def test_scatter_numpy_and_fallback_datetime_x_axis() -> None:
+    """Test that numpy and fallback produce same results for datetime scatter."""
+    from datetime import datetime, timedelta
+
+    base_date = datetime(2024, 1, 1)
+    dates = [base_date + timedelta(days=i) for i in range(5)]
+    values = [10, 20, 15, 25, 30]
+
+    fig = go.Figure(data=go.Scatter(x=dates, y=values, mode="lines"))
+
+    # Frontend sends ISO strings
+    x_min, x_max = dates[1].isoformat(), dates[3].isoformat()
+
+    numpy_result = _extract_scatter_points_numpy(fig, x_min, x_max)
+    fallback_result = _extract_scatter_points_fallback(fig, x_min, x_max)
+
+    assert len(numpy_result) == len(fallback_result)
+
+    def sort_key(p: dict[str, Any]) -> tuple[Any, ...]:
+        return (str(p["x"]), p["y"])
+
+    numpy_sorted = sorted(numpy_result, key=sort_key)
+    fallback_sorted = sorted(fallback_result, key=sort_key)
+
+    for np_p, fb_p in zip(numpy_sorted, fallback_sorted):
+        assert np_p["x"] == fb_p["x"]
+        assert np_p["y"] == fb_p["y"]
+
+
+def test_bar_selection_datetime_x_axis() -> None:
+    """Test bar chart with datetime x-axis."""
+    from datetime import datetime, timedelta
+
+    base_date = datetime(2024, 1, 1)
+    dates = [base_date + timedelta(days=i) for i in range(5)]
+    values = [10, 20, 15, 25, 30]
+
+    fig = go.Figure(data=go.Bar(x=dates, y=values))
+    plot = plotly(fig)
+
+    # Select dates[1] to dates[3] - frontend sends ISO strings
+    selection = {
+        "range": {
+            "x": [dates[1].isoformat(), dates[3].isoformat()],
+            "y": [0, 50],
+        },
+        "points": [],
+        "indices": [],
+    }
+
+    result = plot._convert_value(selection)
+
+    # Should return 3 bars: at dates[1], dates[2], dates[3]
+    assert len(result) == 3
+    assert any(bar["x"] == dates[1] and bar["y"] == 20 for bar in result)
+    assert any(bar["x"] == dates[2] and bar["y"] == 15 for bar in result)
+    assert any(bar["x"] == dates[3] and bar["y"] == 25 for bar in result)
+
+
+def test_bar_numpy_and_fallback_datetime_x_axis() -> None:
+    """Test that numpy and fallback produce same results for datetime bars."""
+    from datetime import datetime, timedelta
+
+    base_date = datetime(2024, 1, 1)
+    dates = [base_date + timedelta(days=i) for i in range(5)]
+    values = [10, 20, 15, 25, 30]
+
+    fig = go.Figure(data=go.Bar(x=dates, y=values))
+
+    # Frontend sends ISO strings
+    x_min, x_max = dates[1].isoformat(), dates[3].isoformat()
+    y_min, y_max = 0, 50
+
+    numpy_result = _extract_bars_numpy(fig, x_min, x_max, y_min, y_max)
+    fallback_result = _extract_bars_fallback(fig, x_min, x_max, y_min, y_max)
+
+    assert len(numpy_result) == len(fallback_result)
+
+    def sort_key(bar: dict[str, Any]) -> tuple[Any, ...]:
+        return (str(bar["x"]), bar["y"])
+
+    numpy_sorted = sorted(numpy_result, key=sort_key)
+    fallback_sorted = sorted(fallback_result, key=sort_key)
+
+    for np_bar, fb_bar in zip(numpy_sorted, fallback_sorted):
+        assert np_bar["x"] == fb_bar["x"]
+        assert np_bar["y"] == fb_bar["y"]
+
+
+# ============================================================================
 # Scatter / Line Chart Tests
 # ============================================================================
 
