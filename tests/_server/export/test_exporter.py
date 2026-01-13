@@ -1706,7 +1706,7 @@ async def test_export_ipynb_redefinition_error():
 
 @pytest.mark.skipif(not HAS_NBFORMAT, reason="nbformat is not installed")
 async def test_export_ipynb_cycle_error():
-    """Test that cells depending on errored cells show ancestor error."""
+    """Test that cells in a cycle show cycle error."""
     app = App()
 
     @app.cell()
@@ -1780,7 +1780,7 @@ async def test_export_ipynb_ancestor_error():
 
 @pytest.mark.skipif(not HAS_NBFORMAT, reason="nbformat is not installed")
 @pytest.mark.skipif(
-    sys.version_info >= (3, 13), reason="3.13 has different traceback format"
+    sys.version_info < (3, 11), reason="3.10 has different stack trace format"
 )
 async def test_export_ipynb_with_error_snapshot(tmp_path: Path):
     """Snapshot test for error output formatting with cycles and errors."""

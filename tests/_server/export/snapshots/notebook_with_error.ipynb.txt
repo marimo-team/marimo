@@ -39,7 +39,7 @@
    "outputs": [
     {
      "ename": "Ancestor raised",
-     "evalue": "An ancestor raised an exception (ZeroDivisionError): ",
+     "evalue": "An ancestor raised an exception (ZeroDivisionError)",
      "output_type": "error",
      "traceback": []
     }
