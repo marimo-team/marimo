@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING, Any, Literal, Optional, Union, cast
 from marimo import _loggers
 from marimo._ast.app import InternalApp
 from marimo._ast.cell import Cell, CellConfig
+from marimo._ast.errors import CycleError, MultipleDefinitionError
 from marimo._ast.names import DEFAULT_CELL_NAME, is_internal_cell_name
 from marimo._config.config import (
     DEFAULT_CONFIG,
@@ -286,21 +287,25 @@ class Exporter:
         notebook = nbformat.v4.new_notebook()  # type: ignore[no-untyped-call]
         notebook["cells"] = []
 
-        # Determine cell order. When session_view is provided, always use
-        # top-down order since topological sort requires a valid graph
-        # (which may not exist due to cycles or multiple definitions).
-        if session_view is not None or sort_mode == "top-down":
+        # Determine cell order based on sort_mode
+        if sort_mode == "top-down":
             cell_data_list = list(app.cell_manager.cell_data())
         else:
-            # Topological sort requires accessing the graph
-            graph = app.graph
-            sorted_ids = dataflow.topological_sort(graph, graph.cells.keys())
-            # Build cell_data list in topological order
-            cell_data_list = [
-                app.cell_manager.cell_data_at(cid)
-                for cid in sorted_ids
-                if cid in graph.cells
-            ]
+            # Topological sort - try to sort, fall back to top-down on cycle
+            try:
+                graph = app.graph
+                sorted_ids = dataflow.topological_sort(
+                    graph, graph.cells.keys()
+                )
+                # Build cell_data list in topological order
+                cell_data_list = [
+                    app.cell_manager.cell_data_at(cid)
+                    for cid in sorted_ids
+                    if cid in graph.cells
+                ]
+            except (CycleError, MultipleDefinitionError):
+                # Fall back to top-down order if graph is invalid
+                cell_data_list = list(app.cell_manager.cell_data())
 
         for cell_data in cell_data_list:
             cid = cell_data.cell_id

@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Literal, Optional, cast
 
 from marimo import _loggers
 from marimo._ast.app import InternalApp
-from marimo._ast.errors import CycleError
+from marimo._ast.errors import CycleError, MultipleDefinitionError
 from marimo._ast.load import load_app
 from marimo._cli.print import echo
 from marimo._config.config import RuntimeConfig
@@ -100,11 +100,11 @@ def export_as_ipynb(
     actual_sort_mode = sort_mode
     if sort_mode == "topological":
         try:
-            # Check if graph can be accessed (raises CycleError if cycles)
+            # Check if graph can be accessed (raises CycleError/MultipleDefinitionError)
             _ = internal_app.graph
-        except CycleError:
+        except (CycleError, MultipleDefinitionError):
             echo(
-                "Warning: Notebook has cycles, "
+                "Warning: Notebook has errors, "
                 "using top-down order instead of topological.",
                 err=True,
             )
