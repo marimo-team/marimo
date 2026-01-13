@@ -5,7 +5,6 @@ import {
   tryFocus,
 } from "@/components/editor/navigation/focus-utils";
 import type { CellHandle } from "@/components/editor/notebook-cell";
-import { getIframeCapabilities } from "@/utils/capabilities";
 import { retryWithTimeout } from "@/utils/timeout";
 import { Logger } from "../../utils/Logger";
 import { scrollActiveLineIntoView } from "../codemirror/extensions";
@@ -54,9 +53,9 @@ export function focusAndScrollCellIntoView({
       Logger.warn("scrollCellIntoView: editor not found", cellId);
       return;
     }
-    // Skip auto-focus if already focused, or when embedded in an iframe
-    // to avoid stealing focus from the parent window
-    if (editor.hasFocus || getIframeCapabilities().isEmbedded) {
+    // Skip auto-focus if already focused, or if the document doesn't have
+    // focus to avoid stealing focus from outside (e.g., when embedded in an iframe)
+    if (editor.hasFocus || !document.hasFocus()) {
       return;
     }
 

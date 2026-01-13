@@ -3,7 +3,6 @@
 import { getNotebook } from "@/core/cells/cells";
 import type { CellId } from "@/core/cells/ids";
 import { useOnMount } from "@/hooks/useLifecycle";
-import { getIframeCapabilities } from "@/utils/capabilities";
 import { extractCellNameFromHash } from "@/utils/cell-urls";
 import { Logger } from "@/utils/Logger";
 
@@ -15,17 +14,17 @@ import { Logger } from "@/utils/Logger";
  */
 export function useFocusFirstEditor() {
   useOnMount(() => {
-    // Skip auto-focus when embedded in an iframe to avoid stealing focus
-    // from the parent window
-    if (getIframeCapabilities().isEmbedded) {
-      return;
-    }
-
     const delay = 100; // ms just so its not immediate
 
     const timeout = setTimeout(() => {
       // Let the DOM render
       requestAnimationFrame(() => {
+        // Skip auto-focus if the document doesn't have focus to avoid
+        // stealing focus from outside (e.g., when embedded in an iframe)
+        if (!document.hasFocus()) {
+          return;
+        }
+
         // Check if the URL contains a scrollTo parameter
         const hash = window.location.hash;
         const cellName = extractCellNameFromHash(hash);
