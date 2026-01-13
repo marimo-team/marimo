@@ -2,6 +2,8 @@
 
 import {
   ChevronDownIcon,
+  ExternalLinkIcon,
+  InfoIcon,
   PowerOffIcon,
   ZapIcon,
   ZapOffIcon,
@@ -16,6 +18,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Switch } from "@/components/ui/switch";
+import { Tooltip, TooltipProvider } from "@/components/ui/tooltip";
+import { ExternalLink } from "@/components/ui/links";
 import { useResolvedMarimoConfig } from "@/core/config/config";
 import { useRequestClient } from "@/core/network/requests";
 import { isWasm } from "@/core/wasm/utils";
@@ -99,83 +103,129 @@ export const RuntimeSettings: React.FC<RuntimeSettingsProps> = ({
         </FooterItem>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-64">
-        <DropdownMenuLabel>Runtime reactivity</DropdownMenuLabel>
+        <DropdownMenuLabel>
+          <div className="flex items-center justify-between w-full">
+            <span>Runtime reactivity</span>
+            <ExternalLink href="https://links.marimo.app/runtime-configuration">
+              <span className="text-xs font-normal flex items-center gap-1">
+                Docs
+                <ExternalLinkIcon className="w-3 h-3" />
+              </span>
+            </ExternalLink>
+          </div>
+        </DropdownMenuLabel>
         <DropdownMenuSeparator />
 
-        {/* On startup toggle */}
-        <DisableIfOverridden name="runtime.auto_instantiate">
-          <div className="flex items-center justify-between px-2 py-2">
-            <div className="flex items-center space-x-2">
-              {config.runtime.auto_instantiate ? (
-                <ZapIcon size={14} className="text-amber-500" />
-              ) : (
-                <ZapOffIcon size={14} className="text-muted-foreground" />
-              )}
-              <div>
-                <div className="text-sm font-medium">On startup</div>
-                <div className="text-xs text-muted-foreground">
-                  {config.runtime.auto_instantiate ? "autorun" : "lazy"}
-                </div>
-              </div>
-            </div>
-            <Switch
-              checked={config.runtime.auto_instantiate}
-              onCheckedChange={handleStartupToggle}
-              size="sm"
-            />
-          </div>
-        </DisableIfOverridden>
-
-        <DropdownMenuSeparator />
-
-        {/* On cell change toggle */}
-        <DisableIfOverridden name="runtime.on_cell_change">
-          <div className="flex items-center justify-between px-2 py-2">
-            <div className="flex items-center space-x-2">
-              {config.runtime.on_cell_change === "autorun" ? (
-                <ZapIcon size={14} className="text-amber-500" />
-              ) : (
-                <ZapOffIcon size={14} className="text-muted-foreground" />
-              )}
-              <div>
-                <div className="text-sm font-medium">On cell change</div>
-                <div className="text-xs text-muted-foreground">
-                  {config.runtime.on_cell_change}
-                </div>
-              </div>
-            </div>
-            <Switch
-              checked={config.runtime.on_cell_change === "autorun"}
-              onCheckedChange={handleCellChangeToggle}
-              size="sm"
-            />
-          </div>
-        </DisableIfOverridden>
-
-        {!isWasm() && (
-          <>
-            <DropdownMenuSeparator />
-
-            {/* On module change dropdown */}
-            <DisableIfOverridden name="runtime.auto_reload">
-              <div className="px-2 py-1">
-                <div className="flex items-center space-x-2 mb-2">
-                  {config.runtime.auto_reload === "off" && (
-                    <PowerOffIcon size={14} className="text-muted-foreground" />
-                  )}
-                  {config.runtime.auto_reload === "lazy" && (
-                    <ZapOffIcon size={14} className="text-muted-foreground" />
-                  )}
-                  {config.runtime.auto_reload === "autorun" && (
-                    <ZapIcon size={14} className="text-amber-500" />
-                  )}
-                  <div>
-                    <div className="text-sm font-medium">On module change</div>
-                    <div className="text-xs text-muted-foreground">
-                      {config.runtime.auto_reload}
-                    </div>
+        <TooltipProvider>
+          {/* On startup toggle */}
+          <DisableIfOverridden name="runtime.auto_instantiate">
+            <div className="flex items-center justify-between px-2 py-2">
+              <div className="flex items-center space-x-2">
+                {config.runtime.auto_instantiate ? (
+                  <ZapIcon size={14} className="text-amber-500" />
+                ) : (
+                  <ZapOffIcon size={14} className="text-muted-foreground" />
+                )}
+                <div>
+                  <div className="text-sm font-medium flex items-center gap-1">
+                    On startup
+                    <Tooltip
+                      content={
+                        <div className="max-w-[200px]">
+                          Whether to automatically run the notebook on startup
+                        </div>
+                      }
+                    >
+                      <InfoIcon className="w-3 h-3" />
+                    </Tooltip>
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    {config.runtime.auto_instantiate ? "autorun" : "lazy"}
                   </div>
                 </div>
+              </div>
+              <Switch
+                checked={config.runtime.auto_instantiate}
+                onCheckedChange={handleStartupToggle}
+                size="sm"
+              />
+            </div>
+          </DisableIfOverridden>
+
+          <DropdownMenuSeparator />
+
+          {/* On cell change toggle */}
+          <DisableIfOverridden name="runtime.on_cell_change">
+            <div className="flex items-center justify-between px-2 py-2">
+              <div className="flex items-center space-x-2">
+                {config.runtime.on_cell_change === "autorun" ? (
+                  <ZapIcon size={14} className="text-amber-500" />
+                ) : (
+                  <ZapOffIcon size={14} className="text-muted-foreground" />
+                )}
+                <div>
+                  <div className="text-sm font-medium flex items-center gap-1">
+                    On cell change
+                    <Tooltip
+                      content={
+                        <div className="max-w-[300px]">
+                          Whether to automatically run dependent cells after running
+                          a cell
+                        </div>
+                      }
+                    >
+                      <InfoIcon className="w-3 h-3" />
+                    </Tooltip>
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    {config.runtime.on_cell_change}
+                  </div>
+                </div>
+              </div>
+              <Switch
+                checked={config.runtime.on_cell_change === "autorun"}
+                onCheckedChange={handleCellChangeToggle}
+                size="sm"
+              />
+            </div>
+          </DisableIfOverridden>
+
+          {!isWasm() && (
+            <>
+              <DropdownMenuSeparator />
+
+              {/* On module change dropdown */}
+              <DisableIfOverridden name="runtime.auto_reload">
+                <div className="px-2 py-1">
+                  <div className="flex items-center space-x-2 mb-2">
+                    {config.runtime.auto_reload === "off" && (
+                      <PowerOffIcon size={14} className="text-muted-foreground" />
+                    )}
+                    {config.runtime.auto_reload === "lazy" && (
+                      <ZapOffIcon size={14} className="text-muted-foreground" />
+                    )}
+                    {config.runtime.auto_reload === "autorun" && (
+                      <ZapIcon size={14} className="text-amber-500" />
+                    )}
+                    <div>
+                      <div className="text-sm font-medium flex items-center gap-1">
+                        On module change
+                        <Tooltip
+                          content={
+                            <div className="max-w-[300px]">
+                              Whether to run affected cells, mark them as stale, or
+                              do nothing when an external module is updated
+                            </div>
+                          }
+                        >
+                          <InfoIcon className="w-3 h-3" />
+                        </Tooltip>
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {config.runtime.auto_reload}
+                      </div>
+                    </div>
+                  </div>
                 <div className="space-y-1">
                   {["off", "lazy", "autorun"].map((option) => (
                     <button
@@ -210,6 +260,7 @@ export const RuntimeSettings: React.FC<RuntimeSettingsProps> = ({
             </DisableIfOverridden>
           </>
         )}
+        </TooltipProvider>
       </DropdownMenuContent>
     </DropdownMenu>
   );
