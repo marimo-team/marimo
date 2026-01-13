@@ -35,5 +35,12 @@ def without_extras(package: str) -> str:
     return package.split("[")[0]
 
 
+def extract_extras(package: str) -> str:
+    """Extract extras from a package name (e.g., '[security]' from 'requests[security]')"""
+    if "[" not in package:
+        return ""
+    return "[" + package.split("[", 1)[1]
+
+
 def has_version_specifier(package: str) -> bool:
     return re.search(r"[=<>~]+", package) is not None

@@ -24,6 +24,7 @@ from marimo._utils.platform import is_pyodide
 from marimo._utils.uv import find_uv_bin
 from marimo._utils.uv_tree import DependencyTreeNode, parse_uv_tree
 from marimo._utils.versions import (
+    extract_extras,
     has_version_specifier,
     without_extras,
     without_version_specifier,
@@ -55,17 +56,33 @@ class VersionMap:
         )
 
     def resolve_with_version(self, package: str) -> str | None:
-        """Resolve a package name to a package name with a version specifier."""
-        package = without_extras(without_version_specifier(package)).lower()
-        if package in self.version_map:
-            return f"{package}=={self.version_map[package]}"
-        # Try replacing _ with - and - with _
-        package = package.replace("_", "-")
-        if package in self.version_map:
-            return f"{package}=={self.version_map[package]}"
-        package = package.replace("-", "_")
-        if package in self.version_map:
-            return f"{package}=={self.version_map[package]}"
+        """Resolve a package name to a package name with a version specifier.
+
+        Preserves extras from the original package name in the result.
+        For example: 'requests[security]' -> 'requests[security]==2.28.0'
+        """
+        # Extract and preserve extras
+        extras = extract_extras(without_version_specifier(package))
+
+        # Get the base package name without extras or version specifier
+        base_package = without_extras(
+            without_version_specifier(package)
+        ).lower()
+
+        # Try exact match
+        if base_package in self.version_map:
+            return f"{base_package}{extras}=={self.version_map[base_package]}"
+
+        # Try replacing _ with -
+        normalized_package = base_package.replace("_", "-")
+        if normalized_package in self.version_map:
+            return f"{normalized_package}{extras}=={self.version_map[normalized_package]}"
+
+        # Try replacing - with _
+        normalized_package = base_package.replace("-", "_")
+        if normalized_package in self.version_map:
+            return f"{normalized_package}{extras}=={self.version_map[normalized_package]}"
+
         return None
 
     def _get(self, package: str) -> str | None:

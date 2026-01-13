@@ -948,12 +948,56 @@ class TestVersionMap:
         assert version_map.resolve_with_version("NumPy") == "numpy==1.24.0"
 
     def test_resolve_with_version_with_extras(self) -> None:
-        """Test resolve_with_version removes extras"""
+        """Test resolve_with_version preserves extras"""
 
         version_map = VersionMap({"requests": "2.28.0"})
         assert (
             version_map.resolve_with_version("requests[security]")
-            == "requests==2.28.0"
+            == "requests[security]==2.28.0"
+        )
+
+    def test_resolve_with_version_with_multiple_extras(self) -> None:
+        """Test resolve_with_version preserves multiple extras"""
+
+        version_map = VersionMap({"requests": "2.28.0"})
+        assert (
+            version_map.resolve_with_version("requests[security,socks]")
+            == "requests[security,socks]==2.28.0"
+        )
+
+    def test_resolve_with_version_with_extras_and_version(self) -> None:
+        """Test resolve_with_version preserves extras when version is stripped"""
+
+        version_map = VersionMap({"requests": "2.28.0"})
+        assert (
+            version_map.resolve_with_version("requests[security]>=2.0.0")
+            == "requests[security]==2.28.0"
+        )
+
+    def test_resolve_with_version_with_extras_underscore_dash(self) -> None:
+        """Test resolve_with_version preserves extras with underscore/dash normalization"""
+
+        version_map = VersionMap({"some-package": "1.0.0"})
+        assert (
+            version_map.resolve_with_version("some_package[extra]")
+            == "some-package[extra]==1.0.0"
+        )
+
+        version_map = VersionMap({"some_package": "2.0.0"})
+        assert (
+            version_map.resolve_with_version("some-package[extra]")
+            == "some_package[extra]==2.0.0"
+        )
+
+    def test_resolve_with_version_with_complex_extras(self) -> None:
+        """Test resolve_with_version handles complex extras correctly"""
+
+        version_map = VersionMap({"apache-airflow": "2.7.0"})
+        assert (
+            version_map.resolve_with_version(
+                "apache-airflow[postgres,redis]>=2.0"
+            )
+            == "apache-airflow[postgres,redis]==2.7.0"
         )
 
     def test_resolve_with_version_with_version_specifier(self) -> None:

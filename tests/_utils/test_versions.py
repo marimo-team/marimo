@@ -4,6 +4,7 @@ from __future__ import annotations
 import pytest
 
 from marimo._utils.versions import (
+    extract_extras,
     has_version_specifier,
     without_extras,
     without_version_specifier,
@@ -65,6 +66,34 @@ class TestWithoutExtras:
         # Handles hyphens and underscores
         assert without_extras("scikit-learn[all]") == "scikit-learn"
         assert without_extras("typing_extensions[test]") == "typing_extensions"
+
+
+class TestExtractExtras:
+    """Tests for extract_extras function"""
+
+    def test_extracts_single_extra(self) -> None:
+        assert extract_extras("requests[security]") == "[security]"
+
+    def test_extracts_multiple_extras(self) -> None:
+        assert extract_extras("requests[security,socks]") == "[security,socks]"
+
+    def test_no_extras(self) -> None:
+        assert extract_extras("numpy") == ""
+        assert extract_extras("") == ""
+
+    def test_extras_with_version_specifier(self) -> None:
+        # extract_extras expects version specifier to be removed first
+        package = "requests[security]>=2.0.0"
+        assert (
+            extract_extras(without_version_specifier(package)) == "[security]"
+        )
+
+    def test_extras_with_nested_brackets(self) -> None:
+        # Should include everything after the first opening bracket
+        assert extract_extras("package[extra[nested]]") == "[extra[nested]]"
+
+    def test_extras_with_special_chars(self) -> None:
+        assert extract_extras("package[a-b_c.d]") == "[a-b_c.d]"
 
 
 class TestHasVersionSpecifier:
