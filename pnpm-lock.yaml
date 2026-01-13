@@ -494,8 +494,8 @@ importers:
         specifier: ^1.1.1
         version: 1.1.1
       use-acp:
-        specifier: 0.2.5
-        version: 0.2.5(@types/react@19.2.7)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)(use-sync-external-store@1.6.0(react@19.2.3))
+        specifier: 0.2.6
+        version: 0.2.6(@types/react@19.2.7)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)(use-sync-external-store@1.6.0(react@19.2.3))
       use-resize-observer:
         specifier: ^9.1.0
         version: 9.1.0(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
@@ -9800,8 +9800,8 @@ packages:
   url-parse@1.5.10:
     resolution: {integrity: sha512-WypcfiRhfeUP9vvF0j6rw0J3hrWrw6iZv3+22h6iRMJ/8z1Tj6XfLP4DsUix5MhMPnXpiHDoKyoZ/bdCkwBCiQ==}
 
-  use-acp@0.2.5:
-    resolution: {integrity: sha512-4TUEb4dlNzv1oOb0LboB5zYTNHBY6wSXS/3QCa1Fe9jLJ5x8xVY5rA+89FSzCnlDnd7XTwkLMJgaSXsQOOkoDA==}
+  use-acp@0.2.6:
+    resolution: {integrity: sha512-2D1vX0MSDIgx0f8bQp5s4ToVuWAZq1qKNyoNwXfag+1wKdIDCuRrVX0OehwRymCdv5Lmr4mJXji7ATxOnbXgvA==}
     peerDependencies:
       react: ^19.2.3
       react-dom: ^19.2.3
@@ -21528,7 +21528,7 @@ snapshots:
       querystringify: 2.2.0
       requires-port: 1.0.0
 
-  use-acp@0.2.5(@types/react@19.2.7)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)(use-sync-external-store@1.6.0(react@19.2.3)):
+  use-acp@0.2.6(@types/react@19.2.7)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)(use-sync-external-store@1.6.0(react@19.2.3)):
     dependencies:
       '@agentclientprotocol/sdk': 0.4.9
       react: 19.2.3
