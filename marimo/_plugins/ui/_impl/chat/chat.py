@@ -2,10 +2,12 @@
 from __future__ import annotations
 
 import inspect
+import json
 import uuid
 from dataclasses import dataclass
 from typing import Any, Callable, Final, Optional, Union, cast
 
+from marimo import _loggers
 from marimo._ai._types import (
     ChatMessage,
     ChatModelConfig,
@@ -23,6 +25,8 @@ from marimo._runtime.context import get_context
 from marimo._runtime.context.types import ContextNotInitializedError
 from marimo._runtime.functions import EmptyArgs, Function
 
+LOGGER = _loggers.marimo_logger()
+
 DEFAULT_CONFIG = ChatModelConfigDict(
     max_tokens=4096,
     temperature=0.5,
@@ -31,6 +35,8 @@ DEFAULT_CONFIG = ChatModelConfigDict(
     frequency_penalty=0,
     presence_penalty=0,
 )
+
+DONE_CHUNK: Final[str] = "[DONE]"
 
 
 @dataclass
@@ -152,7 +158,7 @@ class chat(UIElement[dict[str, Any], list[ChatMessage]]):
             yield vercel.FinishChunk(finish_reason="stop")
 
 
-        chat = mo.ui.chat(custom_model, frontend_managed=True)
+        chat = mo.ui.chat(custom_model, vercel_streaming=True)
         ```
         Refer to examples/ai/chat/pydantic-ai-chat.py for a complete example.
 
@@ -180,10 +186,10 @@ class chat(UIElement[dict[str, Any], list[ChatMessage]]):
             attachments types, or pass a list of mime types. Defaults to False.
         max_height (int, optional): Optional maximum height for the chat element.
             Defaults to None.
-        vercel_messages (bool, optional): When True, enables Vercel AI SDK streaming
+        vercel_streaming (bool, optional): When True, enables Vercel AI SDK streaming
             for custom models. Your model should yield Vercel AI SDK chunks (dicts with
             "type" field like "text-delta", "reasoning-delta", "tool-input-start", etc.).
-            The frontend will handle message state management. Defaults to False.
+            Defaults to False. This is automatically enabled if the model is a pydantic-ai Agent.
     """
 
     _name: Final[str] = "marimo-chatbot"
@@ -198,11 +204,11 @@ class chat(UIElement[dict[str, Any], list[ChatMessage]]):
         config: Optional[ChatModelConfigDict] = DEFAULT_CONFIG,
         allow_attachments: Union[bool, list[str]] = False,
         max_height: Optional[int] = None,
-        vercel_messages: bool = False,
+        vercel_streaming: bool = False,
     ) -> None:
         self._model = model
         self._chat_history: list[ChatMessage] = []
-        self._frontend_managed = vercel_messages or isinstance(
+        self._frontend_managed = vercel_streaming or isinstance(
             model, pydantic_ai
         )
 
@@ -435,8 +441,8 @@ class chat(UIElement[dict[str, Any], list[ChatMessage]]):
 
         return [from_chat_message_dict(msg) for msg in messages]
 
-    def _serialize_vercel_ai_chunk(self, chunk: Any) -> dict[str, Any]:
-        """Serialize a Vercel AI SDK chunk to a dictionary.
+    def _serialize_vercel_ai_chunk(self, chunk: Any) -> Any:
+        """Serialize a Vercel AI SDK chunk
 
         by_alias=True: Use camelCase keys expected by Vercel AI SDK.
         exclude_none=True: Remove null values which cause validation errors.
@@ -450,4 +456,21 @@ class chat(UIElement[dict[str, Any], list[ChatMessage]]):
                 return chunk.model_dump(
                     mode="json", by_alias=True, exclude_none=True
                 )
+
+        # Events may be SSE formatted strings
+        if isinstance(chunk, str):
+            if chunk.startswith("data:"):
+                stripped_chunk = chunk[5:].strip()
+                if stripped_chunk == DONE_CHUNK:
+                    return ""
+
+                try:
+                    return json.loads(stripped_chunk)
+                except json.JSONDecodeError:
+                    LOGGER.warning(
+                        "Error deserializing SSE chunk: %s. It is recommended to return dicts or Vercel AI SDK chunks with pydantic-ai",
+                        stripped_chunk,
+                    )
+                    return chunk
+
         return chunk

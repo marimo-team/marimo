@@ -526,7 +526,7 @@ export const Chatbot: React.FC<Props> = (props) => {
 
           return (
             <div
-              key={message.id}
+              key={`${message.id}-${index}`}
               className={cn(
                 "flex flex-col group gap-2",
                 message.role === "user" ? "items-end" : "items-start",

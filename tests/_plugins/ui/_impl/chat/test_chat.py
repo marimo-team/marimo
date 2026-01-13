@@ -580,7 +580,7 @@ def test_convert_value_with_list_input():
 
 
 def test_chat_vercel_messages_parameter():
-    """Test that vercel_messages=True sets frontend-managed mode."""
+    """Test that vercel_streaming=True sets frontend-managed mode."""
 
     def mock_model(
         messages: list[ChatMessage], config: ChatModelConfig
@@ -588,20 +588,20 @@ def test_chat_vercel_messages_parameter():
         del messages, config
         return "Mock response"
 
-    # Default: vercel_messages=False
+    # Default: vercel_streaming=False
     chat = ui.chat(mock_model)
     assert chat._frontend_managed is False
     assert chat._component_args["frontend-managed"] is False
 
-    # With vercel_messages=True
-    chat_vercel = ui.chat(mock_model, vercel_messages=True)
+    # With vercel_streaming=True
+    chat_vercel = ui.chat(mock_model, vercel_streaming=True)
     assert chat_vercel._frontend_managed is True
     assert chat_vercel._component_args["frontend-managed"] is True
 
 
 @pytest.mark.parametrize("use_async", [True, False])
 async def test_vercel_messages_streaming(use_async: bool):
-    """Test custom model (sync/async) streaming with vercel_messages=True."""
+    """Test custom model (sync/async) streaming with vercel_streaming=True."""
     sent_messages: list[dict] = []
 
     chunks = [
@@ -623,7 +623,7 @@ async def test_vercel_messages_streaming(use_async: bool):
         yield from chunks
 
     custom_model = async_model if use_async else sync_model
-    chat = ui.chat(custom_model, vercel_messages=True)
+    chat = ui.chat(custom_model, vercel_streaming=True)
 
     def capture_send_message(message: dict, buffers):  # noqa: ARG001
         sent_messages.append(message)
@@ -692,6 +692,76 @@ def test_serialize_vercel_ai_chunk_dict():
     assert result == chunk
 
 
+def test_serialize_vercel_ai_chunk_sse_string():
+    """Test _serialize_vercel_ai_chunk with SSE formatted string input."""
+
+    def mock_model(
+        messages: list[ChatMessage], config: ChatModelConfig
+    ) -> str:
+        del messages, config
+        return "Mock response"
+
+    chat = ui.chat(mock_model)
+
+    # SSE formatted string with valid JSON should be parsed
+    sse_chunk = (
+        'data: {"type": "text-delta", "id": "text-1", "delta": "Hello"}'
+    )
+    result = chat._serialize_vercel_ai_chunk(sse_chunk)
+    assert result == {"type": "text-delta", "id": "text-1", "delta": "Hello"}
+
+
+def test_serialize_vercel_ai_chunk_sse_done():
+    """Test _serialize_vercel_ai_chunk with SSE [DONE] chunk."""
+
+    def mock_model(
+        messages: list[ChatMessage], config: ChatModelConfig
+    ) -> str:
+        del messages, config
+        return "Mock response"
+
+    chat = ui.chat(mock_model)
+
+    # SSE [DONE] chunk should return empty string
+    sse_done = "data: [DONE]"
+    result = chat._serialize_vercel_ai_chunk(sse_done)
+    assert result == ""
+
+
+def test_serialize_vercel_ai_chunk_sse_invalid_json():
+    """Test _serialize_vercel_ai_chunk with SSE string containing invalid JSON."""
+
+    def mock_model(
+        messages: list[ChatMessage], config: ChatModelConfig
+    ) -> str:
+        del messages, config
+        return "Mock response"
+
+    chat = ui.chat(mock_model)
+
+    # SSE formatted string with invalid JSON should return original string and log warning
+    sse_invalid = "data: {invalid json}"
+    result = chat._serialize_vercel_ai_chunk(sse_invalid)
+    assert result == "data: {invalid json}"
+
+
+def test_serialize_vercel_ai_chunk_plain_string():
+    """Test _serialize_vercel_ai_chunk with plain string (not SSE formatted)."""
+
+    def mock_model(
+        messages: list[ChatMessage], config: ChatModelConfig
+    ) -> str:
+        del messages, config
+        return "Mock response"
+
+    chat = ui.chat(mock_model)
+
+    # Plain string should pass through unchanged
+    plain_string = "Hello world"
+    result = chat._serialize_vercel_ai_chunk(plain_string)
+    assert result == "Hello world"
+
+
 @pytest.mark.skipif(
     not DependencyManager.pydantic_ai.has(),
     reason="Pydantic AI is not installed",
@@ -749,7 +819,7 @@ async def test_vercel_messages_with_pydantic_chunks(use_async: bool):
         yield from chunks
 
     custom_model = async_model if use_async else sync_model
-    chat = ui.chat(custom_model, vercel_messages=True)
+    chat = ui.chat(custom_model, vercel_streaming=True)
 
     def capture_send_message(message: dict, buffers):  # noqa: ARG001
         sent_messages.append(message)
@@ -851,7 +921,7 @@ def test_convert_value_frontend_managed():
     reason="Pydantic AI is not installed",
 )
 def test_convert_value_vercel_messages():
-    """Test _convert_value with vercel_messages=True."""
+    """Test _convert_value with vercel_streaming=True."""
     from pydantic_ai.ui.vercel_ai.request_types import TextUIPart
 
     def mock_model(
@@ -860,7 +930,7 @@ def test_convert_value_vercel_messages():
         del messages, config
         return "Mock response"
 
-    chat = ui.chat(mock_model, vercel_messages=True)
+    chat = ui.chat(mock_model, vercel_streaming=True)
 
     value = {
         "messages": [
