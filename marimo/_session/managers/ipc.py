@@ -18,6 +18,7 @@ from marimo._cli.sandbox import (
     IPC_KERNEL_DEPS,
     build_sandbox_venv,
     cleanup_sandbox_dir,
+    get_configured_venv_python,
 )
 from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._messaging.types import KernelMessage
@@ -165,25 +166,42 @@ class IPCKernelManagerImpl(KernelManager):
         # Build environment
         env = os.environ.copy()
 
-        # Build sandbox venv with IPC dependencies
-        try:
-            self._sandbox_dir, venv_python = build_sandbox_venv(
-                self.app_metadata.filename,
-                additional_deps=IPC_KERNEL_DEPS,
-            )
-            cmd = [venv_python, "-m", "marimo._ipc.launch_kernel"]
-        except Exception as e:
-            cleanup_sandbox_dir(self._sandbox_dir)
-            raise KernelStartupError(
-                f"Failed to build sandbox environment.\n\n{e}"
-            ) from e
+        # Check for configured venv first
+        user_config = self.config_manager.get_config(hide_secrets=False)
+        configured_python = get_configured_venv_python(user_config)
 
-        echo(
-            f"Running kernel in sandbox: {muted(' '.join(cmd))}",
-            err=True,
-        )
-        # Set MARIMO_MANAGE_SCRIPT_METADATA for sandbox
-        env["MARIMO_MANAGE_SCRIPT_METADATA"] = "true"
+        # Ephemeral sandboxes are always editable; configured venvs respect the flag
+        editable = True
+
+        if configured_python:
+            # Use configured venv - no ephemeral sandbox needed
+            echo(
+                f"Using configured venv: {muted(configured_python)}",
+                err=True,
+            )
+            venv_python = configured_python
+            editable = user_config.get("env", {}).get("editable", False)
+        else:
+            # Build ephemeral sandbox venv with IPC dependencies
+            try:
+                self._sandbox_dir, venv_python = build_sandbox_venv(
+                    self.app_metadata.filename,
+                    additional_deps=IPC_KERNEL_DEPS,
+                )
+            except Exception as e:
+                cleanup_sandbox_dir(self._sandbox_dir)
+                raise KernelStartupError(
+                    f"Failed to build sandbox environment.\n\n{e}"
+                ) from e
+
+            echo(
+                f"Running kernel in sandbox: {muted(venv_python)}",
+                err=True,
+            )
+
+        cmd = [venv_python, "-m", "marimo._ipc.launch_kernel"]
+        if editable:
+            env["MARIMO_MANAGE_SCRIPT_METADATA"] = "true"
 
         LOGGER.debug(f"Launching kernel: {' '.join(cmd)}")
 

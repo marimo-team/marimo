@@ -205,6 +205,7 @@ class ProjectConfigManager(PartialMarimoConfigReader):
             project_config = self._resolve_dotenv(project_config)
             project_config = self._resolve_custom_css(project_config)
             project_config = self._resolve_vimrc(project_config)
+            project_config = self._resolve_venv(project_config)
         except Exception as e:
             LOGGER.warning("Failed to read project config: %s", e)
             return {}
@@ -305,6 +306,33 @@ class ProjectConfigManager(PartialMarimoConfigReader):
             "keymap": {**keymap, "vimrc": resolved_vimrc},
         }
 
+    def _resolve_venv(
+        self, config: PartialMarimoConfig
+    ) -> PartialMarimoConfig:
+        if self.pyproject_path is None:
+            return config
+
+        if "env" not in config:
+            return config
+
+        env_config = config["env"]
+        venv_path = env_config.get("venv")
+
+        if not isinstance(venv_path, str):
+            return config
+
+        # If already absolute, use as-is; otherwise resolve relative to
+        # pyproject.toml directory
+        venv = Path(venv_path)
+        if not venv.is_absolute():
+            venv = self.pyproject_path.parent / venv_path
+
+        resolved_venv = str(venv.absolute())
+        return {
+            **config,
+            "env": {**env_config, "venv": resolved_venv},
+        }
+
 
 class EnvConfigManager(PartialMarimoConfigReader):
     def _maybe_override_from_env(
@@ -378,6 +406,9 @@ class ScriptConfigManager(PartialMarimoConfigReader):
             if marimo_config is None:
                 return {}
 
+            # Resolve venv path relative to script directory
+            marimo_config = self._resolve_venv(marimo_config)
+
         except Exception as e:
             LOGGER.warning("Failed to read script config: %s", e)
             return {}
@@ -385,6 +416,35 @@ class ScriptConfigManager(PartialMarimoConfigReader):
         if hide_secrets:
             return mask_secrets_partial(marimo_config)
         return marimo_config
+
+    def _resolve_venv(
+        self, config: PartialMarimoConfig
+    ) -> PartialMarimoConfig:
+        """Resolve relative venv path to absolute, relative to script dir."""
+        if self.filename is None:
+            return config
+
+        if "env" not in config:
+            return config
+
+        env_config = config["env"]
+        venv_path = env_config.get("venv")
+
+        if not isinstance(venv_path, str):
+            return config
+
+        # If already absolute, use as-is; otherwise resolve relative to
+        # script directory
+        venv = Path(venv_path)
+        if not venv.is_absolute():
+            script_dir = Path(self.filename).parent
+            venv = script_dir / venv_path
+
+        resolved_venv = str(venv.absolute())
+        return {
+            **config,
+            "env": {**env_config, "venv": resolved_venv},
+        }
 
 
 class UserConfigManager(MarimoConfigReader):

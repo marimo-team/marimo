@@ -11,7 +11,7 @@ import sys
 import tempfile
 from enum import Enum
 from pathlib import Path
-from typing import Literal, Optional
+from typing import TYPE_CHECKING, Literal, Optional
 
 import click
 
@@ -28,6 +28,9 @@ from marimo._utils.uv import find_uv_bin
 from marimo._utils.versions import is_editable
 from marimo._version import __version__
 
+if TYPE_CHECKING:
+    from marimo._config.config import MarimoConfig
+
 
 class SandboxMode(Enum):
     """Sandbox mode for marimo notebooks.
@@ -41,6 +44,70 @@ class SandboxMode(Enum):
 
 
 LOGGER = _loggers.marimo_logger()
+
+# Dependencies required for IPC kernel communication (ZeroMQ-based)
+IPC_KERNEL_DEPS: list[str] = ["pyzmq"]
+
+
+def _find_python_in_venv(venv_path: str) -> str | None:
+    """Find Python interpreter in a venv directory.
+
+    Args:
+        venv_path: Path to the virtualenv directory.
+
+    Returns:
+        Path to Python binary, or None if not found.
+    """
+    venv = Path(venv_path)
+    if not venv.exists() or not venv.is_dir():
+        return None
+
+    if sys.platform == "win32":
+        python_path = venv / "Scripts" / "python.exe"
+    else:
+        python_path = venv / "bin" / "python"
+
+    if not python_path.exists():
+        return None
+
+    return str(python_path.resolve())
+
+
+def get_configured_venv_python(config: MarimoConfig) -> str | None:
+    """Get Python path from [tool.marimo.env].venv config.
+
+    Args:
+        config: The marimo config to check.
+
+    Returns:
+        Path to Python interpreter in configured venv, or None if not configured.
+
+    Raises:
+        click.UsageError: If venv is configured but invalid.
+    """
+    env_config = config.get("env", {})
+    venv_path = env_config.get("venv")
+
+    if not venv_path:
+        return None
+
+    # Validate venv exists
+    if not os.path.isdir(venv_path):
+        raise click.UsageError(
+            f"Configured venv does not exist: {venv_path}\n"
+            "Check [tool.marimo.env].venv in your pyproject.toml"
+        )
+
+    # Find Python in venv
+    python_path = _find_python_in_venv(venv_path)
+    if not python_path:
+        raise click.UsageError(
+            f"No Python interpreter found in configured venv: {venv_path}\n"
+            "Check [tool.marimo.env].venv in your pyproject.toml"
+        )
+
+    return python_path
+
 
 DepFeatures = Literal["lsp", "recommended"]
 
@@ -401,10 +468,6 @@ def run_in_sandbox(
     signal.signal(signal.SIGINT, handler)
 
     return process.wait()
-
-
-# Dependencies required for IPC kernel communication (ZeroMQ-based)
-IPC_KERNEL_DEPS: list[str] = ["pyzmq"]
 
 
 def get_sandbox_requirements(

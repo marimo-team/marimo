@@ -472,3 +472,54 @@ def test_env_config_manager_no_env_vars() -> None:
     manager = EnvConfigManager()
     config = manager.get_config(hide_secrets=False)
     assert config == {}
+
+
+# Tests for ScriptConfigManager venv resolution
+
+
+def test_script_config_manager_reads_env_venv_absolute(tmp_path: Path) -> None:
+    """Test ScriptConfigManager reads absolute venv path from script metadata."""
+    script = tmp_path / "test.py"
+    script.write_text(
+        """# /// script
+# [tool.marimo.env]
+# venv = "/absolute/path/to/venv"
+# ///
+import marimo
+"""
+    )
+    manager = ScriptConfigManager(str(script))
+    config = manager.get_config(hide_secrets=False)
+    assert config.get("env", {}).get("venv") == "/absolute/path/to/venv"
+
+
+def test_script_config_manager_resolves_relative_venv(tmp_path: Path) -> None:
+    """Test ScriptConfigManager resolves relative venv path relative to script dir."""
+    script = tmp_path / "test.py"
+    script.write_text(
+        """# /// script
+# [tool.marimo.env]
+# venv = "my_venv"
+# ///
+import marimo
+"""
+    )
+    manager = ScriptConfigManager(str(script))
+    config = manager.get_config(hide_secrets=False)
+    expected = str((tmp_path / "my_venv").absolute())
+    assert config.get("env", {}).get("venv") == expected
+
+
+def test_script_config_manager_no_venv_config(tmp_path: Path) -> None:
+    """Test ScriptConfigManager returns empty when no venv in metadata."""
+    script = tmp_path / "test.py"
+    script.write_text(
+        """# /// script
+# dependencies = []
+# ///
+import marimo
+"""
+    )
+    manager = ScriptConfigManager(str(script))
+    config = manager.get_config(hide_secrets=False)
+    assert config.get("env", {}).get("venv") is None
