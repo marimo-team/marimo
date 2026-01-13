@@ -22,6 +22,13 @@ class TestWithoutVersionSpecifier:
         assert without_version_specifier("requests<3.0.0") == "requests"
         assert without_version_specifier("urllib3<=2.0.0") == "urllib3"
         assert without_version_specifier("flask~=2.0.0") == "flask"
+        # Exclusion operator (PEP 440)
+        assert without_version_specifier("package!=1.0.0") == "package"
+
+    def test_handles_whitespace(self) -> None:
+        # Whitespace around version operators should be stripped
+        assert without_version_specifier("package >= 1.0.0") == "package"
+        assert without_version_specifier("package >=1.0.0") == "package"
 
     def test_preserves_package_without_version(self) -> None:
         assert without_version_specifier("django") == "django"
@@ -61,7 +68,7 @@ class TestWithoutExtras:
         assert without_extras("") == ""
 
     def test_handles_extras_with_versions_and_special_chars(self) -> None:
-        # Removes extras but keeps version specifier
+        # Removes extras and anything after them (including version specifiers)
         assert without_extras("requests[security]>=2.0.0") == "requests"
         # Handles hyphens and underscores
         assert without_extras("scikit-learn[all]") == "scikit-learn"
@@ -107,6 +114,8 @@ class TestHasVersionSpecifier:
         assert has_version_specifier("requests<3.0.0") is True
         assert has_version_specifier("urllib3<=2.0.0") is True
         assert has_version_specifier("flask~=2.0.0") is True
+        # Exclusion operator (PEP 440)
+        assert has_version_specifier("package!=1.0.0") is True
         # Multiple specifiers
         assert has_version_specifier("package>=1.0.0,<2.0.0") is True
 

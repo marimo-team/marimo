@@ -26,7 +26,7 @@ def is_editable(pkg_name: str) -> bool:
 
 
 def without_version_specifier(package: str) -> str:
-    return re.split(r"[=<>~]+", package)[0]
+    return re.split(r"[!<>=~]+", package)[0].strip()
 
 
 def without_extras(package: str) -> str:
@@ -43,4 +43,4 @@ def extract_extras(package: str) -> str:
 
 
 def has_version_specifier(package: str) -> bool:
-    return re.search(r"[=<>~]+", package) is not None
+    return re.search(r"[!<>=~]+", package) is not None
