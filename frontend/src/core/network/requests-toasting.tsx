@@ -64,6 +64,7 @@ export function createErrorToastingRequests(
     autoExportAsHTML: "", // No toast
     autoExportAsMarkdown: "", // No toast
     autoExportAsIPYNB: "", // No toast
+    updateCellOutputs: "", // No toast
     addPackage: "Failed to add package",
     removePackage: "Failed to remove package",
     getPackageList: "Failed to get package list",
