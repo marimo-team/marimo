@@ -104,7 +104,9 @@ def get_configured_venv_python(
 
     python_path = _find_python_in_venv(venv_path)
     if not python_path:
-        raise ValueError(f"No Python interpreter found in configured venv: {venv_path}")
+        raise ValueError(
+            f"No Python interpreter found in configured venv: {venv_path}"
+        )
 
     return python_path
 
@@ -330,7 +332,11 @@ def has_marimo_installed(venv_python: str) -> bool:
         True if marimo, msgspec, and zmq can all be imported.
     """
     result = subprocess.run(
-        [venv_python, "-c", "import marimo, msgspec, zmq; print(marimo.__version__)"],
+        [
+            venv_python,
+            "-c",
+            "import marimo, msgspec, zmq; print(marimo.__version__)",
+        ],
         capture_output=True,
         text=True,
     )
