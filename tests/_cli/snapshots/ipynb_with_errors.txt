@@ -27,15 +27,15 @@
    "metadata": {},
    "outputs": [
     {
-     "name": "stderr",
-     "output_type": "stream",
-     "text": [
-      "<span class=\"codehilite\"><div class=\"highlight\"><pre><span></span><span class=\"gt\">Traceback (most recent call last):</span>\n",
-      "<span class=\"w\">    </span><span class=\"mi\">1</span> <span class=\"o\">/</span> <span class=\"mi\">0</span>\n",
-      "<span class=\"w\">    </span><span class=\"pm\">~~^~~</span>\n",
-      "<span class=\"gr\">ZeroDivisionError</span>: <span class=\"n\">division by zero</span>\n",
-      "</pre></div>\n",
-      "</span>"
+     "ename": "ZeroDivisionError",
+     "evalue": "division by zero",
+     "output_type": "error",
+     "traceback": [
+      "Traceback (most recent call last):",
+      "    1 / 0",
+      "    ~~^~~",
+      "ZeroDivisionError: division by zero",
+      ""
      ]
     }
    ],

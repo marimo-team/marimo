@@ -131,7 +131,7 @@ def _get_extension_configs() -> dict[str, dict[str, Any]]:
             "pygments_lang_class": True,
         },
         "pymdownx.superfences": {
-            "disable_indented_code_blocks": True,
+            "disable_indented_code_blocks": False,
             "css_class": "codehilite",
         },
         "pymdownx.emoji": {

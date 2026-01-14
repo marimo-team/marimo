@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import re
 from importlib.metadata import Distribution
 
 
@@ -22,3 +23,24 @@ def is_editable(pkg_name: str) -> bool:
         json.loads(direct_url).get("dir_info", {}).get("editable", False)
     )
     return bool(pkg_is_editable)
+
+
+def without_version_specifier(package: str) -> str:
+    return re.split(r"[!<>=~]+", package)[0].strip()
+
+
+def without_extras(package: str) -> str:
+    if "[" not in package:
+        return package
+    return package.split("[")[0]
+
+
+def extract_extras(package: str) -> str:
+    """Extract extras from a package name (e.g., '[security]' from 'requests[security]')"""
+    if "[" not in package:
+        return ""
+    return "[" + package.split("[", 1)[1]
+
+
+def has_version_specifier(package: str) -> bool:
+    return re.search(r"[!<>=~]+", package) is not None

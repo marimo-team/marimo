@@ -1,3 +1,4 @@
+/* Copyright 2026 Marimo. All rights reserved. */
 import { atom } from "jotai";
 import { waitFor } from "../state/jotai";
 

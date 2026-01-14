@@ -75,11 +75,25 @@ interface Props extends PluginFunctions {
 export const Chatbot: React.FC<Props> = (props) => {
   const [input, setInput] = useState("");
   const [config, setConfig] = useState<ChatConfig>(props.config);
+  const [prevPropsConfig, setPrevPropsConfig] = useState<ChatConfig>(
+    props.config,
+  );
   const [files, setFiles] = useState<File[] | undefined>(undefined);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
   const codeMirrorInputRef = useRef<ReactCodeMirrorRef>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  const configChanged = Object.keys(props.config).some(
+    (key) =>
+      props.config[key as keyof ChatConfig] !==
+      prevPropsConfig[key as keyof ChatConfig],
+  );
+
+  if (configChanged) {
+    setConfig(props.config);
+    setPrevPropsConfig(props.config);
+  }
 
   // Use a ref to avoid stale closure in the fetch callback
   const configRef = useRef<ChatConfig>(config);
@@ -739,7 +753,6 @@ const ConfigPopup: React.FC<{
   config: ChatConfig;
   onChange: (newConfig: ChatConfig) => void;
 }> = ({ config, onChange }) => {
-  const [localConfig, setLocalConfig] = useState<ChatConfig>(config);
   const [open, setOpen] = useState(false);
 
   const handleChange = (key: keyof ChatConfig, value: number | null) => {
@@ -754,8 +767,7 @@ const ConfigPopup: React.FC<{
       finalValue = clampedValue;
     }
 
-    const newConfig = { ...localConfig, [key]: finalValue };
-    setLocalConfig(newConfig);
+    const newConfig = { ...config, [key]: finalValue };
     onChange(newConfig);
   };
 
@@ -782,7 +794,7 @@ const ConfigPopup: React.FC<{
       <PopoverContent className="w-70 border">
         <div className="grid gap-3">
           <h4 className="font-bold leading-none">Configuration</h4>
-          {Objects.entries(localConfig).map(([key, value]) => (
+          {Objects.entries(config).map(([key, value]) => (
             <div key={key} className="grid grid-cols-3 items-center gap-1">
               <Label
                 htmlFor={key}

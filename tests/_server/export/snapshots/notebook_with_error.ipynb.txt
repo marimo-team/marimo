@@ -1,0 +1,101 @@
+{
+ "cells": [
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "Hbol",
+   "metadata": {},
+   "outputs": [
+    {
+     "ename": "cycle",
+     "evalue": "This cell is in a cycle",
+     "output_type": "error",
+     "traceback": []
+    }
+   ],
+   "source": [
+    "x = y"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "MJUe",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "Y = 0  # noqa: N806"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "vblA",
+   "metadata": {
+    "marimo": {
+     "name": "_b"
+    }
+   },
+   "outputs": [
+    {
+     "ename": "Ancestor raised",
+     "evalue": "An ancestor raised an exception (ZeroDivisionError)",
+     "output_type": "error",
+     "traceback": []
+    }
+   ],
+   "source": [
+    "Z = z  # noqa: N806"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "bkHC",
+   "metadata": {
+    "marimo": {
+     "name": "_a"
+    }
+   },
+   "outputs": [
+    {
+     "ename": "ZeroDivisionError",
+     "evalue": "division by zero",
+     "output_type": "error",
+     "traceback": [
+      "Traceback (most recent call last):",
+      "  File \"\", line 1, in <module>",
+      "    z = 1 / 0",
+      "        ~~^~~",
+      "ZeroDivisionError: division by zero",
+      ""
+     ]
+    }
+   ],
+   "source": [
+    "z = 1 / 0"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "lEQa",
+   "metadata": {},
+   "outputs": [
+    {
+     "ename": "cycle",
+     "evalue": "This cell is in a cycle",
+     "output_type": "error",
+     "traceback": []
+    }
+   ],
+   "source": [
+    "y = x\n",
+    "y = Y  # noqa: F841"
+   ]
+  }
+ ],
+ "metadata": {},
+ "nbformat": 4,
+ "nbformat_minor": 5
+}
