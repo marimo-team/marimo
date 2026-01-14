@@ -20,7 +20,7 @@ import { XIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ReorderableList } from "@/components/ui/reorderable-list";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { LazyMount } from "@/components/utils/lazy-mount";
+import { LazyActivity } from "@/components/utils/lazy-mount";
 import { cellErrorCount } from "@/core/cells/cells";
 import { capabilitiesAtom } from "@/core/config/capabilities";
 import { getFeatureFlag } from "@/core/config/feature-flag";
@@ -34,6 +34,7 @@ import {
   PANEL_MAP,
   PANELS,
   type PanelDescriptor,
+  type PanelType,
 } from "../types";
 import { BackendConnectionStatus } from "./footer-items/backend-status";
 import { PanelsWrapper } from "./panels";
@@ -253,6 +254,29 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
     return <LazyChatPanel />;
   };
 
+  const SIDEBAR_PANELS: Record<PanelType, React.ReactNode> = {
+    files: <LazyFileExplorerPanel />,
+    variables: <LazySessionPanel />,
+    dependencies: <LazyDependencyGraphPanel />,
+    packages: <LazyPackagesPanel />,
+    outline: <LazyOutlinePanel />,
+    documentation: <LazyDocumentationPanel />,
+    snippets: <LazySnippetsPanel />,
+    ai: renderAiPanel(),
+    errors: <LazyErrorsPanel />,
+    scratchpad: <LazyScratchpadPanel />,
+    tracing: <LazyTracingPanel />,
+    secrets: <LazySecretsPanel />,
+    logs: <LazyLogsPanel />,
+    terminal: (
+      <LazyTerminal
+        visible={isSidebarOpen && selectedPanel === "terminal"}
+        onClose={() => setIsSidebarOpen(false)}
+      />
+    ),
+    cache: <LazyCachePanel />,
+  };
+
   const helpPaneBody = (
     <ErrorBoundary>
       <PanelSectionProvider value="sidebar">
@@ -328,26 +352,14 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
           </div>
           <Suspense>
             <TooltipProvider>
-              {selectedPanel === "files" && <LazyFileExplorerPanel />}
-              {selectedPanel === "variables" && <LazySessionPanel />}
-              {selectedPanel === "dependencies" && <LazyDependencyGraphPanel />}
-              {selectedPanel === "packages" && <LazyPackagesPanel />}
-              {selectedPanel === "outline" && <LazyOutlinePanel />}
-              {selectedPanel === "documentation" && <LazyDocumentationPanel />}
-              {selectedPanel === "snippets" && <LazySnippetsPanel />}
-              {selectedPanel === "ai" && renderAiPanel()}
-              {selectedPanel === "errors" && <LazyErrorsPanel />}
-              {selectedPanel === "scratchpad" && <LazyScratchpadPanel />}
-              {selectedPanel === "tracing" && <LazyTracingPanel />}
-              {selectedPanel === "secrets" && <LazySecretsPanel />}
-              {selectedPanel === "logs" && <LazyLogsPanel />}
-              {selectedPanel === "terminal" && (
-                <LazyTerminal
-                  visible={isSidebarOpen}
-                  onClose={() => setIsSidebarOpen(false)}
-                />
-              )}
-              {selectedPanel === "cache" && <LazyCachePanel />}
+              {Object.entries(SIDEBAR_PANELS).map(([key, Panel]) => (
+                <LazyActivity
+                  key={key}
+                  mode={selectedPanel === key ? "visible" : "hidden"}
+                >
+                  {Panel}
+                </LazyActivity>
+              ))}
             </TooltipProvider>
           </Suspense>
         </div>
@@ -387,6 +399,18 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
       </span>
     </Panel>
   );
+
+  const DEVELOPER_PANELS: Record<PanelType, React.ReactNode> = {
+    ...SIDEBAR_PANELS,
+    terminal: (
+      <LazyTerminal
+        visible={
+          isDeveloperPanelOpen && selectedDeveloperPanelTab === "terminal"
+        }
+        onClose={() => setIsDeveloperPanelOpen(false)}
+      />
+    ),
+  };
 
   const bottomPanel = (
     <Panel
@@ -475,43 +499,16 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
         <Suspense fallback={<div />}>
           <PanelSectionProvider value="developer-panel">
             <div className="flex-1 overflow-hidden">
-              {selectedDeveloperPanelTab === "files" && (
-                <LazyFileExplorerPanel />
-              )}
-              {selectedDeveloperPanelTab === "variables" && (
-                <LazySessionPanel />
-              )}
-              {selectedDeveloperPanelTab === "dependencies" && (
-                <LazyDependencyGraphPanel />
-              )}
-              {selectedDeveloperPanelTab === "packages" && (
-                <LazyPackagesPanel />
-              )}
-              {selectedDeveloperPanelTab === "outline" && <LazyOutlinePanel />}
-              {selectedDeveloperPanelTab === "documentation" && (
-                <LazyDocumentationPanel />
-              )}
-              {selectedDeveloperPanelTab === "snippets" && (
-                <LazySnippetsPanel />
-              )}
-              {selectedDeveloperPanelTab === "ai" && renderAiPanel()}
-              {selectedDeveloperPanelTab === "errors" && <LazyErrorsPanel />}
-              {selectedDeveloperPanelTab === "scratchpad" && (
-                <LazyScratchpadPanel />
-              )}
-              {selectedDeveloperPanelTab === "tracing" && <LazyTracingPanel />}
-              {selectedDeveloperPanelTab === "secrets" && <LazySecretsPanel />}
-              {selectedDeveloperPanelTab === "logs" && <LazyLogsPanel />}
-              {/* LazyMount needed for Terminal to avoid spurious connection */}
-              {selectedDeveloperPanelTab === "terminal" && (
-                <LazyMount isOpen={isDeveloperPanelOpen}>
-                  <LazyTerminal
-                    visible={isDeveloperPanelOpen}
-                    onClose={() => setIsDeveloperPanelOpen(false)}
-                  />
-                </LazyMount>
-              )}
-              {selectedDeveloperPanelTab === "cache" && <LazyCachePanel />}
+              {Object.entries(DEVELOPER_PANELS).map(([key, Panel]) => (
+                <LazyActivity
+                  key={key}
+                  mode={
+                    selectedDeveloperPanelTab === key ? "visible" : "hidden"
+                  }
+                >
+                  {Panel}
+                </LazyActivity>
+              ))}
             </div>
           </PanelSectionProvider>
         </Suspense>
