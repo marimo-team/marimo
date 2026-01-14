@@ -155,6 +155,7 @@ def _generate_server_api_schema() -> dict[str, Any]:
         export.ExportAsMarkdownRequest,
         export.ExportAsScriptRequest,
         export.ExportAsIPYNBRequest,
+        export.UpdateCellOutputsRequest,
         files.FileCreateRequest,
         files.FileCreateResponse,
         files.FileDeleteRequest,

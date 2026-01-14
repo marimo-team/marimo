@@ -1594,6 +1594,8 @@ const cellDataAtoms = splitAtom(
 );
 export const useCellDataAtoms = () => useAtom(cellDataAtoms);
 
+export const cellsRuntimeAtom = atom((get) => get(notebookAtom).cellRuntime);
+
 export const notebookIsRunningAtom = atom((get) =>
   notebookIsRunning(get(notebookAtom)),
 );

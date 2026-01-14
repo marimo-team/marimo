@@ -738,3 +738,52 @@ def _convert_marimo_output_to_ipynb(
         )
 
     return ipynb_outputs
+
+
+def merge_cell_output(
+    existing_output: Optional[CellOutput],
+    mimetype: KnownMimeType,
+    data: Any,
+) -> CellOutput:
+    """Merge new output data into existing cell output as a mimebundle.
+
+    Args:
+        existing_output: The cell's existing output, or None
+        mimetype: MIME type of the new data
+        data: The new data to add
+
+    Returns:
+        A CellOutput with the merged data
+    """
+    if existing_output is None:
+        return CellOutput(
+            channel=CellChannel.OUTPUT,
+            mimetype=mimetype,
+            data=data,
+        )
+
+    if isinstance(existing_output.data, list):
+        LOGGER.debug(
+            "Skipping list of errors output, should not have rich elements"
+        )
+        return existing_output
+
+    new_mimebundle = {mimetype: data}
+
+    # Existing output is already a mimebundle dict
+    if isinstance(existing_output.data, dict):
+        return CellOutput(
+            channel=existing_output.channel,
+            mimetype="application/vnd.marimo+mimebundle",
+            data={**existing_output.data, **new_mimebundle},
+            timestamp=existing_output.timestamp,
+        )
+
+    # Existing output is a string - convert to mimebundle
+    mimebundle = {existing_output.mimetype: existing_output.data}
+    return CellOutput(
+        channel=existing_output.channel,
+        mimetype="application/vnd.marimo+mimebundle",
+        data={**mimebundle, **new_mimebundle},
+        timestamp=existing_output.timestamp,
+    )

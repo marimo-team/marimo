@@ -15,7 +15,11 @@ from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.msgspec_encoder import asdict
 from marimo._server.api.deps import AppState
 from marimo._server.api.utils import parse_request
-from marimo._server.export.exporter import AutoExporter, Exporter
+from marimo._server.export.exporter import (
+    AutoExporter,
+    Exporter,
+    merge_cell_output,
+)
 from marimo._server.export.utils import (
     get_download_filename,
     make_download_headers,
@@ -24,6 +28,7 @@ from marimo._server.models.export import (
     ExportAsHTMLRequest,
     ExportAsMarkdownRequest,
     ExportAsScriptRequest,
+    UpdateCellOutputsRequest,
 )
 from marimo._server.models.models import SuccessResponse
 from marimo._server.router import APIRouter
@@ -416,3 +421,50 @@ async def auto_export_as_ipynb(
         content=asdict(SuccessResponse()),
         background=BackgroundTask(_background_export),
     )
+
+
+@router.post("/update_cell_outputs")
+@requires("edit")
+async def update_cell_outputs(
+    *,
+    request: Request,
+) -> JSONResponse | PlainTextResponse:
+    """
+    parameters:
+        - in: header
+          name: Marimo-Session-Id
+          schema:
+            type: string
+          required: true
+    requestBody:
+        content:
+            application/json:
+                schema:
+                    $ref: "#/components/schemas/UpdateCellOutputsRequest"
+    responses:
+        200:
+            description: Update the cell outputs
+            content:
+                application/json:
+                    schema:
+                        $ref: "#/components/schemas/SuccessResponse"
+        400:
+            description: File must be saved before downloading
+    """
+    app_state = AppState(request)
+    body = await parse_request(request, cls=UpdateCellOutputsRequest)
+    session = app_state.require_current_session()
+    session_view = session.session_view
+
+    for cell_id, output in body.cell_ids_to_output.items():
+        cell_notification = session_view.cell_notifications.get(cell_id)
+        if cell_notification is None:
+            LOGGER.warning(f"Cell {cell_id} not found in session_view")
+            continue
+
+        mimetype, data = output
+        cell_notification.output = merge_cell_output(
+            cell_notification.output, mimetype, data
+        )
+
+    return JSONResponse(content=asdict(SuccessResponse()))

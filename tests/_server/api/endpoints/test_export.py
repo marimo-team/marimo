@@ -621,3 +621,249 @@ def test_export_script_download_edge_case_filenames(
         assert response.status_code == 200, f"Failed for filename: {filename}"
         assert "Content-Disposition" in response.headers
         assert "attachment" in response.headers["Content-Disposition"]
+
+
+@with_session(SESSION_ID)
+def test_update_cell_outputs_new_cell(client: TestClient) -> None:
+    """Test updating cell outputs for a cell with no existing output."""
+    session = get_session_manager(client).get_session(SESSION_ID)
+    assert session
+
+    # Create a cell notification without output
+    cell_id = CellId_t("test_cell")
+    session.session_view.cell_notifications[cell_id] = CellNotification(
+        cell_id=cell_id,
+        output=None,
+        status="idle",
+    )
+
+    response = client.post(
+        "/api/export/update_cell_outputs",
+        headers=HEADERS,
+        json={
+            "cellIdsToOutput": {
+                cell_id: ["image/png", "data:image/png;base64,iVBORw0KGgo="]
+            }
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {"success": True}
+
+    # Verify output was created
+    cell_notification = session.session_view.cell_notifications[cell_id]
+    assert cell_notification.output is not None
+    assert cell_notification.output == CellOutput(
+        channel=CellChannel.OUTPUT,
+        mimetype="image/png",
+        data="data:image/png;base64,iVBORw0KGgo=",
+        timestamp=cell_notification.output.timestamp,
+    )
+
+
+@with_session(SESSION_ID)
+def test_update_cell_outputs_merge_with_string(client: TestClient) -> None:
+    """Test updating cell outputs merges with existing string output."""
+    session = get_session_manager(client).get_session(SESSION_ID)
+    assert session
+
+    # Create a cell notification with string output
+    cell_id = CellId_t("test_cell")
+    session.session_view.cell_notifications[cell_id] = CellNotification(
+        cell_id=cell_id,
+        output=CellOutput(
+            channel=CellChannel.OUTPUT,
+            mimetype="text/html",
+            data="<div>Hello</div>",
+        ),
+        status="idle",
+    )
+
+    response = client.post(
+        "/api/export/update_cell_outputs",
+        headers=HEADERS,
+        json={
+            "cellIdsToOutput": {
+                cell_id: ["image/png", "data:image/png;base64,iVBORw0KGgo="]
+            }
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {"success": True}
+
+    # Verify output was converted to mimebundle
+    cell_notification = session.session_view.cell_notifications[cell_id]
+    assert cell_notification.output is not None
+    assert cell_notification.output == CellOutput(
+        channel=CellChannel.OUTPUT,
+        mimetype="application/vnd.marimo+mimebundle",
+        data={
+            "text/html": "<div>Hello</div>",
+            "image/png": "data:image/png;base64,iVBORw0KGgo=",
+        },
+        timestamp=cell_notification.output.timestamp,
+    )
+
+
+@with_session(SESSION_ID)
+def test_update_cell_outputs_merge_with_mimebundle(
+    client: TestClient,
+) -> None:
+    """Test updating cell outputs merges with existing mimebundle."""
+    session = get_session_manager(client).get_session(SESSION_ID)
+    assert session
+
+    # Create a cell notification with mimebundle output
+    cell_id = CellId_t("test_cell")
+    session.session_view.cell_notifications[cell_id] = CellNotification(
+        cell_id=cell_id,
+        output=CellOutput(
+            channel=CellChannel.OUTPUT,
+            mimetype="application/vnd.marimo+mimebundle",
+            data={
+                "text/html": "<div>Hello</div>",
+                "text/plain": "Hello",
+            },
+        ),
+        status="idle",
+    )
+
+    response = client.post(
+        "/api/export/update_cell_outputs",
+        headers=HEADERS,
+        json={
+            "cellIdsToOutput": {
+                cell_id: ["image/png", "data:image/png;base64,iVBORw0KGgo="]
+            }
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {"success": True}
+
+    # Verify output was merged into mimebundle
+    cell_notification = session.session_view.cell_notifications[cell_id]
+    assert cell_notification.output is not None
+    assert cell_notification.output == CellOutput(
+        channel=CellChannel.OUTPUT,
+        mimetype="application/vnd.marimo+mimebundle",
+        data={
+            "text/html": "<div>Hello</div>",
+            "text/plain": "Hello",
+            "image/png": "data:image/png;base64,iVBORw0KGgo=",
+        },
+        timestamp=cell_notification.output.timestamp,
+    )
+
+
+@with_session(SESSION_ID)
+def test_update_cell_outputs_missing_cell(client: TestClient) -> None:
+    """Test updating cell outputs for non-existent cell logs warning."""
+    response = client.post(
+        "/api/export/update_cell_outputs",
+        headers=HEADERS,
+        json={
+            "cellIdsToOutput": {
+                "nonexistent_cell": ["image/png", "data:image/png;base64,test"]
+            }
+        },
+    )
+
+    # Should succeed but log a warning
+    assert response.status_code == 200
+    assert response.json() == {"success": True}
+
+
+@with_session(SESSION_ID)
+@pytest.mark.skipif(
+    not DependencyManager.nbformat.has(), reason="nbformat not installed"
+)
+def test_update_cell_outputs_then_export_ipynb(
+    client: TestClient, *, temp_marimo_file: str
+) -> None:
+    """Test that updating cell outputs works with ipynb export."""
+    from pathlib import Path
+
+    import nbformat
+
+    session = get_session_manager(client).get_session(SESSION_ID)
+    assert session
+    session.app_file_manager.filename = temp_marimo_file
+
+    # Create and run a cell that produces HTML output
+    cell_id = CellId_t("test_cell")
+    create_response = client.post(
+        "/api/kernel/run",
+        headers=HEADERS,
+        json={
+            "cellIds": [cell_id],
+            "codes": ["'<div>Chart goes here</div>'"],
+        },
+    )
+    assert create_response.status_code == 200
+
+    # Wait for cell to finish running
+    time.sleep(0.5)
+
+    # Manually set HTML mimetype for this test
+    # (In reality, this would come from mo.Html or similar)
+    cell_notification = session.session_view.cell_notifications.get(cell_id)
+    if cell_notification and cell_notification.output:
+        cell_notification.output = CellOutput(
+            channel=CellChannel.OUTPUT,
+            mimetype="text/html",
+            data="<div>Chart goes here</div>",
+            timestamp=cell_notification.output.timestamp,
+        )
+
+    # Update with screenshot
+    update_response = client.post(
+        "/api/export/update_cell_outputs",
+        headers=HEADERS,
+        json={
+            "cellIdsToOutput": {
+                cell_id: [
+                    "image/png",
+                    "data:image/png;base64,iVBORw0KGgoAAAANS",
+                ]
+            }
+        },
+    )
+    assert update_response.status_code == 200
+
+    # Export as ipynb
+    export_response = client.post(
+        "/api/export/auto_export/ipynb",
+        headers=HEADERS,
+        json={"download": False},
+    )
+    assert export_response.status_code == 200
+    assert export_response.json() == {"success": True}
+
+    # Read the exported file
+    export_dir = Path(temp_marimo_file).parent / "__marimo__"
+    ipynb_file = export_dir / Path(temp_marimo_file).with_suffix(".ipynb").name
+    assert ipynb_file.exists()
+
+    notebook = nbformat.read(str(ipynb_file), as_version=4)
+
+    # Find the cell with our test_cell id
+    test_cells = [c for c in notebook.cells if c.get("id") == cell_id]
+    assert len(test_cells) > 0, (
+        f"Cell {cell_id} not found in exported notebook"
+    )
+
+    cell = test_cells[0]
+    assert len(cell.outputs) > 0, "Cell should have outputs"
+
+    # Verify the mimebundle contains both HTML and PNG
+    output = cell.outputs[0]
+    assert output == {
+        "output_type": "display_data",
+        "data": {
+            "text/html": "<div>Chart goes here</div>",
+            "image/png": "iVBORw0KGgoAAAANS",
+        },
+        "metadata": {},
+    }

@@ -23,6 +23,7 @@ from marimo._server.export.exporter import (
     Exporter,
     _convert_marimo_output_to_ipynb,
     _maybe_extract_dataurl,
+    merge_cell_output,
 )
 from marimo._server.models.export import ExportAsHTMLRequest
 from marimo._session.notebook import AppFileManager
@@ -1832,3 +1833,112 @@ async def test_export_ipynb_with_error_snapshot(tmp_path: Path):
     # Filter file paths for deterministic snapshots
     content = _delete_lines_with_files(result.contents)
     snapshot("notebook_with_error.ipynb.txt", content)
+
+
+def test_merge_cell_output_with_none() -> None:
+    """Test merging into None creates a new CellOutput."""
+    result = merge_cell_output(None, "image/png", "data:image/png;base64,...")
+
+    assert result == CellOutput(
+        channel=CellChannel.OUTPUT,
+        mimetype="image/png",
+        data="data:image/png;base64,...",
+        timestamp=result.timestamp,
+    )
+
+
+def test_merge_cell_output_with_string_output() -> None:
+    """Test merging into string output converts to mimebundle."""
+    existing = CellOutput(
+        channel=CellChannel.OUTPUT,
+        mimetype="text/html",
+        data="<div>Hello</div>",
+    )
+
+    result = merge_cell_output(
+        existing, "image/png", "data:image/png;base64,..."
+    )
+
+    assert result == CellOutput(
+        channel=CellChannel.OUTPUT,
+        mimetype="application/vnd.marimo+mimebundle",
+        data={
+            "text/html": "<div>Hello</div>",
+            "image/png": "data:image/png;base64,...",
+        },
+        timestamp=existing.timestamp,
+    )
+
+
+def test_merge_cell_output_with_dict_output() -> None:
+    """Test merging into dict output adds to mimebundle."""
+    existing = CellOutput(
+        channel=CellChannel.OUTPUT,
+        mimetype="application/vnd.marimo+mimebundle",
+        data={
+            "text/html": "<div>Hello</div>",
+            "text/plain": "Hello",
+        },
+    )
+
+    result = merge_cell_output(
+        existing, "image/png", "data:image/png;base64,..."
+    )
+
+    assert result == CellOutput(
+        channel=CellChannel.OUTPUT,
+        mimetype="application/vnd.marimo+mimebundle",
+        data={
+            "text/html": "<div>Hello</div>",
+            "text/plain": "Hello",
+            "image/png": "data:image/png;base64,...",
+        },
+        timestamp=existing.timestamp,
+    )
+
+
+def test_merge_cell_output_with_error_list() -> None:
+    """Test merging into error list returns unchanged."""
+    from marimo._messaging.errors import Error, MarimoExceptionRaisedError
+
+    error_data: list[Error] = [
+        MarimoExceptionRaisedError(
+            exception_type="ValueError",
+            msg="Some error",
+            raising_cell=None,
+        )
+    ]
+    existing = CellOutput(
+        channel=CellChannel.MARIMO_ERROR,
+        mimetype="application/vnd.marimo+error",
+        data=error_data,
+    )
+
+    result = merge_cell_output(
+        existing, "image/png", "data:image/png;base64,..."
+    )
+
+    # Should return the existing output unchanged
+    assert result == existing
+    assert result.data == error_data
+
+
+def test_merge_cell_output_updates_mimetype_correctly() -> None:
+    """Test that mimetype is updated to mimebundle when merging."""
+    existing = CellOutput(
+        channel=CellChannel.OUTPUT,
+        mimetype="text/plain",
+        data="Plain text output",
+    )
+
+    result = merge_cell_output(existing, "text/html", "<b>HTML</b>")
+
+    assert result == CellOutput(
+        channel=CellChannel.OUTPUT,
+        mimetype="application/vnd.marimo+mimebundle",
+        data={
+            "text/plain": "Plain text output",
+            "text/html": "<b>HTML</b>",
+        },
+        timestamp=existing.timestamp,
+    )

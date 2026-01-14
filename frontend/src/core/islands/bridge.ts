@@ -171,6 +171,7 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
   autoExportAsHTML = throwNotImplemented;
   autoExportAsMarkdown = throwNotImplemented;
   autoExportAsIPYNB = throwNotImplemented;
+  updateCellOutputs = throwNotImplemented;
   addPackage = throwNotImplemented;
   removePackage = throwNotImplemented;
   getPackageList = throwNotImplemented;

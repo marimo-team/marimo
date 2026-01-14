@@ -1,7 +1,12 @@
 /* Copyright 2026 Marimo. All rights reserved. */
-import { useAtomValue } from "jotai";
+import { toPng } from "html-to-image";
+import { atom, useAtom, useAtomValue } from "jotai";
 import { appConfigAtom } from "@/core/config/config";
 import { useInterval } from "@/hooks/useInterval";
+import { Logger } from "@/utils/Logger";
+import { Objects } from "@/utils/objects";
+import { cellsRuntimeAtom } from "../cells/cells";
+import { type CellId, CellOutputId } from "../cells/ids";
 import { connectionAtom } from "../network/connection";
 import { useRequestClient } from "../network/requests";
 import { VirtualFileTracker } from "../static/virtual-file-tracker";
@@ -21,8 +26,13 @@ export function useAutoExport() {
   const markdownDisabled = !markdownEnabled || !isConnected;
   const htmlDisabled = !htmlEnabled || !isConnected;
   const ipynbDisabled = !ipynbEnabled || !isConnected;
-  const { autoExportAsHTML, autoExportAsIPYNB, autoExportAsMarkdown } =
-    useRequestClient();
+  const {
+    autoExportAsHTML,
+    autoExportAsIPYNB,
+    autoExportAsMarkdown,
+    updateCellOutputs,
+  } = useRequestClient();
+  const takeScreenshots = useEnrichCellOutputs();
 
   useInterval(
     async () => {
@@ -50,6 +60,12 @@ export function useAutoExport() {
 
   useInterval(
     async () => {
+      const cellsToOutput = await takeScreenshots();
+      if (Object.keys(cellsToOutput).length > 0) {
+        await updateCellOutputs({
+          cellIdsToOutput: cellsToOutput,
+        });
+      }
       await autoExportAsIPYNB({
         download: false,
       });
@@ -58,4 +74,70 @@ export function useAutoExport() {
     // Ignore if the document is not visible
     { delayMs: DELAY, whenVisible: true, disabled: ipynbDisabled },
   );
+}
+
+// Keep track of processed cell outputs to avoid redundant screenshots
+const richCellsOutputAtom = atom<Record<CellId, unknown>>({});
+
+function useEnrichCellOutputs() {
+  const [richCellsOutput, setRichCellsOutput] = useAtom(richCellsOutputAtom);
+  const cellRuntimes = useAtomValue(cellsRuntimeAtom);
+
+  return async (): Promise<Record<CellId, ["image/png", unknown]>> => {
+    // Find all HTML cells that need screenshots
+    const cellsToCapture = Objects.entries(cellRuntimes).filter(
+      ([cellId, runtime]) => {
+        const outputHasChanged =
+          richCellsOutput[cellId] !== runtime.output?.data;
+
+        return (
+          runtime.output?.mimetype === "text/html" &&
+          runtime.output.data &&
+          outputHasChanged
+        );
+      },
+    );
+
+    if (cellsToCapture.length === 0) {
+      return {};
+    }
+
+    const newCellsOutput: Record<CellId, unknown> = {};
+    for (const [cellId, runtime] of cellsToCapture) {
+      if (runtime.output?.data) {
+        newCellsOutput[cellId] = runtime.output.data;
+      }
+    }
+    setRichCellsOutput((prev) => ({ ...prev, ...newCellsOutput }));
+
+    // Capture screenshots
+    const results = await Promise.all(
+      cellsToCapture.map(async ([cellId]) => {
+        const outputElement = document.getElementById(
+          CellOutputId.create(cellId),
+        );
+        if (!outputElement) {
+          Logger.error(`Output element not found for cell ${cellId}`);
+          return null;
+        }
+
+        try {
+          const dataUrl = await toPng(outputElement);
+          return [cellId, ["image/png", dataUrl]] as [
+            CellId,
+            ["image/png", string],
+          ];
+        } catch (error) {
+          Logger.error(`Error screenshotting cell ${cellId}:`, error);
+          return null;
+        }
+      }),
+    );
+
+    return Objects.fromEntries(
+      results.filter(
+        (result): result is [CellId, ["image/png", string]] => result !== null,
+      ),
+    );
+  };
 }

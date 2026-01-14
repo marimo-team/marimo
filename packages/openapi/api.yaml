@@ -4041,6 +4041,43 @@ components:
       - cellIds
       title: UpdateCellIdsRequest
       type: object
+    UpdateCellOutputsRequest:
+      properties:
+        cellIdsToOutput:
+          additionalProperties:
+            items: false
+            maxItems: 2
+            minItems: 2
+            prefixItems:
+            - enum:
+              - application/json
+              - application/vnd.jupyter.widget-view+json
+              - application/vnd.marimo+error
+              - application/vnd.marimo+mimebundle
+              - application/vnd.marimo+traceback
+              - application/vnd.vega.v5+json
+              - application/vnd.vegalite.v5+json
+              - image/avif
+              - image/bmp
+              - image/gif
+              - image/jpeg
+              - image/png
+              - image/svg+xml
+              - image/tiff
+              - text/csv
+              - text/html
+              - text/latex
+              - text/markdown
+              - text/plain
+              - video/mp4
+              - video/mpeg
+            - {}
+            type: array
+          type: object
+      required:
+      - cellIdsToOutput
+      title: UpdateCellOutputsRequest
+      type: object
     UpdateUIElementCommand:
       description: "Update UI element values.\n\n    Triggered when users interact\
         \ with UI elements (sliders, inputs, dropdowns, etc.).\n    Updates element\
@@ -4416,7 +4453,7 @@ components:
       type: object
 info:
   title: marimo API
-  version: 0.18.4
+  version: 0.19.2
 openapi: 3.1.0
 paths:
   /@file/{filename_and_length}:
@@ -4808,6 +4845,28 @@ paths:
               schema:
                 type: string
           description: Export the notebook as a script
+        400:
+          description: File must be saved before downloading
+  /api/export/update_cell_outputs:
+    post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateCellOutputsRequest'
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+          description: Update the cell outputs
         400:
           description: File must be saved before downloading
   /api/files/create:
@@ -5719,4 +5778,3 @@ paths:
       summary: Submit login form
       tags:
       - auth
-
