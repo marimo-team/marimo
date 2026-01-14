@@ -1573,14 +1573,20 @@ class TestAppComposition:
         """
         await k.run([
             exec_req.get("""
-            # Import in kernel context
-            from tests._ast.app_data.notebook_filename import app
+            # Import in kernel context; the prefix the app gets
+            # depends on whether it was first imported in a kernel context,
+            # so we reload it in case notebook_filename was loaded elsewhere
+            # in tests
+            import tests._ast.app_data.notebook_filename as mod
+            import importlib
+            # This forces the app object to be constructed in the runtime context
+            importlib.reload(mod)
+            app = mod.app
             """)
         ])
         assert not k.errors
         nb_app = k.globals["app"]
         cell_ids = list(InternalApp(nb_app).cell_manager.cell_ids())
-        all_prefixed = all(is_external_cell_id(cid) for cid in cell_ids)
         setup_cell_ids = [cid for cid in cell_ids if cid.endswith(SETUP_CELL_NAME)]
         assert len(setup_cell_ids) == 1
         assert is_external_cell_id(setup_cell_ids[0])

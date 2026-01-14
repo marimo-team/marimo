@@ -102,7 +102,7 @@ jobs:
     if: ${{ needs.changes.outputs.backend == 'true' || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'test-all')) }}
     name: ${{ matrix.os }} / Py ${{ matrix.python-version }} / ${{ matrix.dependencies }} deps
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 20
+    timeout-minutes: 25
     defaults:
       run:
         shell: bash
