@@ -1,6 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+from datetime import datetime, timedelta
 from typing import Any
 
 import pytest
@@ -781,7 +782,6 @@ def test_heatmap_selection_datetime_x_axis() -> None:
     This is the exact scenario reported in the bug: datetime x-axis,
     string y-axis, which was causing a numpy UFuncNoLoopError.
     """
-    from datetime import datetime, timedelta
 
     # Create datetime x-axis
     base_date = datetime(2024, 1, 1)
@@ -830,8 +830,6 @@ def test_heatmap_selection_datetime_x_axis() -> None:
 
 def test_heatmap_numpy_and_fallback_datetime_x_axis() -> None:
     """Test that numpy and fallback produce same results for datetime x-axis."""
-    from datetime import datetime, timedelta
-
     base_date = datetime(2024, 1, 1)
     dates = [base_date + timedelta(days=i) for i in range(5)]
     categories = ["A", "B", "C"]
