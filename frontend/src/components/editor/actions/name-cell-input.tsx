@@ -93,11 +93,17 @@ export const NameCellContentEditable: React.FC<{
         onChange={inputProps.onChange}
         onBlur={inputProps.onBlur}
         onFocus={inputProps.onFocus}
-        onKeyDown={Events.onEnter((e) => {
-          if (e.target instanceof HTMLElement) {
-            e.target.blur();
+        onKeyDown={(e) => {
+          // Prevent all key presses from triggering hotkeys
+          e.stopPropagation();
+
+          // On Enter, blur the input to commit the change
+          if (e.key === "Enter") {
+            if (e.target instanceof HTMLElement) {
+              e.target.blur();
+            }
           }
-        })}
+        }}
       >
         {value}
       </span>

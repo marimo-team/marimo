@@ -42,6 +42,7 @@ export const Events = {
       target.tagName === "INPUT" ||
       target.tagName === "TEXTAREA" ||
       target.tagName.startsWith("MARIMO") ||
+      target.isContentEditable ||
       Events.fromCodeMirror(e)
     );
   },
