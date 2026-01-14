@@ -171,7 +171,9 @@ class IPCKernelManagerImpl(KernelManager):
 
         # Check for configured venv first
         user_config = self.config_manager.get_config(hide_secrets=False)
-        configured_python = get_configured_venv_python(user_config)
+        configured_python = get_configured_venv_python(
+            user_config, base_path=self.app_metadata.filename
+        )
 
         # Ephemeral sandboxes are always editable; configured venvs respect the flag
         editable = True

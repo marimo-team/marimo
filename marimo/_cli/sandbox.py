@@ -70,14 +70,18 @@ def _find_python_in_venv(venv_path: str) -> str | None:
     if not python_path.exists():
         return None
 
-    return str(python_path.resolve())
+    return str(python_path.absolute())
 
 
-def get_configured_venv_python(config: MarimoConfig) -> str | None:
+def get_configured_venv_python(
+    config: MarimoConfig,
+    base_path: str | None = None,
+) -> str | None:
     """Get Python path from [tool.marimo.env].venv config.
 
     Args:
         config: The marimo config to check.
+        base_path: Base path for resolving relative venv paths (e.g., script path).
 
     Returns:
         Path to Python interpreter in configured venv, or None if not configured.
@@ -91,14 +95,16 @@ def get_configured_venv_python(config: MarimoConfig) -> str | None:
     if not venv_path:
         return None
 
-    # Validate venv exists
+    if base_path and not os.path.isabs(venv_path):
+        base_dir = os.path.dirname(os.path.abspath(base_path))
+        venv_path = os.path.join(base_dir, venv_path)
+
     if not os.path.isdir(venv_path):
         raise click.UsageError(
             f"Configured venv does not exist: {venv_path}\n"
             "Check [tool.marimo.env].venv in your pyproject.toml"
         )
 
-    # Find Python in venv
     python_path = _find_python_in_venv(venv_path)
     if not python_path:
         raise click.UsageError(
@@ -293,30 +299,29 @@ def get_kernel_pythonpath() -> str:
     Returns:
         Colon-separated (or semicolon on Windows) path string for PYTHONPATH.
     """
-    import site
-
     paths: list[str] = []
 
     # Add marimo's parent directory (where marimo package can be imported from)
+    # NB. If running in edit mode this may be local directory.
     marimo_parent = str(get_marimo_dir())
-    if marimo_parent not in paths:
-        paths.append(marimo_parent)
+    paths.append(marimo_parent)
 
-    # Add site-packages for dependencies (pyzmq, msgspec)
-    try:
-        for sp in site.getsitepackages():
-            if sp not in paths:
-                paths.append(sp)
-    except AttributeError:
-        pass
-
-    # Also add user site-packages
-    try:
-        user_site = site.getusersitepackages()
-        if user_site and user_site not in paths:
-            paths.append(user_site)
-    except AttributeError:
-        pass
+    # Find actual paths where dependencies are installed by checking their __file__
+    # This is more reliable than site.getsitepackages() which may return
+    # ephemeral paths e.g. when running via `uv run --with=pyzmq`.
+    # We also include msgspec as a reliable dependency that _should_ be in the
+    # desired user system path.
+    for module_name in ["zmq", "msgspec"]:
+        try:
+            module = __import__(module_name)
+            if hasattr(module, "__file__") and module.__file__:
+                # Get the site-packages directory containing this module
+                module_path = Path(module.__file__).parent.parent
+                module_path_str = str(module_path)
+                if module_path_str not in paths:
+                    paths.append(module_path_str)
+        except ImportError:
+            pass
 
     return os.pathsep.join(paths)
 
