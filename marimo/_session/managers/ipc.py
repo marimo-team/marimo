@@ -154,7 +154,6 @@ class IPCKernelManagerImpl(KernelManager):
         from marimo._cli.print import echo, muted
         from marimo._ipc.types import KernelArgs
 
-        # Build kernel args
         kernel_args = KernelArgs(
             configs=self.configs,
             app_metadata=self.app_metadata,
@@ -166,10 +165,8 @@ class IPCKernelManagerImpl(KernelManager):
             redirect_console_to_browser=self.redirect_console_to_browser,
         )
 
-        # Build environment
         env = os.environ.copy()
 
-        # Check for configured venv first
         user_config = self.config_manager.get_config(hide_secrets=False)
         configured_python = get_configured_venv_python(
             user_config, base_path=self.app_metadata.filename
@@ -178,8 +175,9 @@ class IPCKernelManagerImpl(KernelManager):
         # Ephemeral sandboxes are always editable; configured venvs respect the flag
         editable = True
 
+        # An explicilty configured venv takes precident over an emphemeral
+        # sandbox.
         if configured_python:
-            # Use configured venv - no ephemeral sandbox needed
             echo(
                 f"Using configured venv: {muted(configured_python)}",
                 err=True,
@@ -215,7 +213,8 @@ class IPCKernelManagerImpl(KernelManager):
                 else:
                     env["PYTHONPATH"] = kernel_path
         else:
-            # Build ephemeral sandbox venv with IPC dependencies
+            # Fall back to building ephemeral sandbox venv
+            # with IPC dependencies.
             try:
                 self._sandbox_dir, venv_python = build_sandbox_venv(
                     self.app_metadata.filename,
