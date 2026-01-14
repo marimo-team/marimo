@@ -24,7 +24,7 @@ def test_get_configured_venv_python_returns_none_when_not_configured() -> None:
 
 def test_get_configured_venv_python_returns_none_when_venv_empty() -> None:
     """Test returns None when venv is empty string."""
-    config: dict[str, Any] = {"venv": ""}
+    config: dict[str, Any] = {"path": ""}
     result = get_configured_venv_python(config)
     assert result is None
 
@@ -46,7 +46,7 @@ def test_get_configured_venv_python_returns_path_when_valid(
     python_path = bin_dir / python_name
     python_path.touch()
 
-    config: dict[str, Any] = {"venv": str(venv_dir)}
+    config: dict[str, Any] = {"path": str(venv_dir)}
     result = get_configured_venv_python(config)
     assert result is not None
     assert result.endswith(python_name)
@@ -54,7 +54,7 @@ def test_get_configured_venv_python_returns_path_when_valid(
 
 def test_get_configured_venv_python_raises_on_missing_venv() -> None:
     """Test raises ValueError when configured venv doesn't exist."""
-    config: dict[str, Any] = {"venv": "/nonexistent/venv/path"}
+    config: dict[str, Any] = {"path": "/nonexistent/venv/path"}
     with pytest.raises(ValueError, match="does not exist"):
         get_configured_venv_python(config)
 
@@ -66,7 +66,7 @@ def test_get_configured_venv_python_raises_on_no_python(
     venv_dir = tmp_path / "venv"
     venv_dir.mkdir()  # Empty venv, no bin/python
 
-    config: dict[str, Any] = {"venv": str(venv_dir)}
+    config: dict[str, Any] = {"path": str(venv_dir)}
     with pytest.raises(ValueError, match="No Python interpreter"):
         get_configured_venv_python(config)
 
@@ -93,7 +93,7 @@ def test_get_configured_venv_python_resolves_relative_path(
     script_path.touch()
 
     # Relative path from script location
-    config: dict[str, Any] = {"venv": "venvs/myenv"}
+    config: dict[str, Any] = {"path": "venvs/myenv"}
     result = get_configured_venv_python(config, base_path=str(script_path))
     assert result is not None
     assert result.endswith(python_name)

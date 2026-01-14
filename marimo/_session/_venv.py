@@ -71,7 +71,7 @@ def get_configured_venv_python(
     Raises:
         ValueError: If venv is configured but invalid.
     """
-    venv_path = venv_config.get("venv")
+    venv_path = venv_config.get("path")
 
     if not venv_path:
         return None

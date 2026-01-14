@@ -107,13 +107,13 @@ class VenvConfig(TypedDict, total=False):
 
     **Keys.**
 
-    - `venv`: path to a virtualenv directory (absolute or relative to
+    - `path`: path to a virtualenv directory (absolute or relative to
       pyproject.toml)
     - `writable`: if true, marimo will manage script metadata (inline
       dependencies). Defaults to false.
     """
 
-    venv: str
+    path: str
     writable: bool
 
 
