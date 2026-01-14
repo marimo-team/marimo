@@ -1326,6 +1326,21 @@ components:
       - theme
       title: DisplayConfig
       type: object
+    EnvConfig:
+      description: "Configuration for external Python environment in home sandbox\
+        \ mode.\n\n    Allows specifying an existing virtualenv to use instead of\
+        \ creating\n    ephemeral sandboxes per notebook. Only applies in home sandbox\
+        \ mode.\n\n    **Keys.**\n\n    - `venv`: path to a virtualenv directory (absolute\
+        \ or relative to\n      pyproject.toml)\n    - `editable`: if true, marimo\
+        \ will manage script metadata (inline\n      dependencies). Defaults to false."
+      properties:
+        editable:
+          type: boolean
+        venv:
+          type: string
+      required: []
+      title: EnvConfig
+      type: object
     ExecuteCellCommand:
       description: "Execute a single cell.\n\n    Executes a cell with the provided\
         \ code. Dependent cells may be\n    re-executed based on the reactive execution\
@@ -2666,6 +2681,8 @@ components:
           $ref: '#/components/schemas/DiagnosticsConfig'
         display:
           $ref: '#/components/schemas/DisplayConfig'
+        env:
+          $ref: '#/components/schemas/EnvConfig'
         experimental:
           type: object
         formatting:
@@ -4416,7 +4433,7 @@ components:
       type: object
 info:
   title: marimo API
-  version: 0.18.4
+  version: 0.19.2
 openapi: 3.1.0
 paths:
   /@file/{filename_and_length}:
