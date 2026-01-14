@@ -225,7 +225,7 @@ class IPCKernelManagerImpl(KernelManager):
                         f"Options:\n"
                         f"  1. Set writable=true in [tool.marimo.venv] to allow marimo to install deps\n"
                         f"  2. Install marimo in your venv: uv pip install marimo --python {venv_python}\n"
-                        f"  3. Remove [tool.marimo.venv].venv to use an ephemeral sandbox instead"
+                        f"  3. Remove [tool.marimo.venv].path to use an ephemeral sandbox instead"
                     )
 
                 # Inject PYTHONPATH for marimo and dependencies from the
