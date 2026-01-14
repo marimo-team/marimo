@@ -10,12 +10,12 @@ from marimo._dependencies.dependencies import DependencyManager
 from marimo._sql.engines.clickhouse import ClickhouseEmbedded
 from marimo._sql.engines.duckdb import DuckDBEngine
 from marimo._sql.engines.sqlalchemy import SQLAlchemyEngine
+from marimo._sql.get_engines import get_engines_from_variables
 from marimo._sql.utils import (
     raise_df_import_error,
     sql_type_to_data_type,
     try_convert_to_polars,
 )
-from marimo._sql.get_engines import get_engines_from_variables
 
 HAS_DUCKDB = DependencyManager.duckdb.has()
 HAS_SQLALCHEMY = DependencyManager.sqlalchemy.has()
@@ -512,7 +512,7 @@ def test_try_convert_to_polars() -> None:
 def test_variables_without_datasource_engine() -> None:
     # Ibis Deferred expression object should not be handeled as a datasource engine #7791
     import ibis
-    
+
     deferred_for_test = ibis._["a"]
     variables_to_test = [("deferred_for_test", deferred_for_test)]
     engines = get_engines_from_variables(variables_to_test)
