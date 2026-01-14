@@ -19,6 +19,7 @@ from marimo._sql.engines.duckdb import INTERNAL_DUCKDB_ENGINE, DuckDBEngine
 from marimo._sql.engines.ibis import IbisEngine
 from marimo._sql.engines.redshift import RedshiftEngine
 from marimo._sql.engines.sqlalchemy import SQLAlchemyEngine
+from marimo._sql.get_engines import get_engines_from_variables
 from marimo._sql.get_engines import (
     engine_to_data_source_connection,
     get_engines_from_variables,
@@ -32,6 +33,7 @@ HAS_DUCKDB = DependencyManager.duckdb.has()
 HAS_CLICKHOUSE = DependencyManager.chdb.has()
 HAS_REDSHIFT = DependencyManager.redshift_connector.has()
 HAS_PYARROW = DependencyManager.pyarrow.has()
+HAS_IBIS = DependencyManager.ibis.has()
 
 
 @pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")
@@ -459,3 +461,17 @@ def test_get_engines_clickhouse() -> None:
     # assert connection.default_database == "default"
     # assert connection.default_schema == "default"
     assert connection.databases == []
+
+
+@pytest.mark.skipif(
+    not HAS_IBIS,
+    reason="Ibis not installed",
+)
+def test_variables_without_datasource_engine() -> None:
+    # Ibis Deferred expression object should not be handled as a datasource engine #7791
+    import ibis
+
+    deferred_for_test = ibis._["a"]
+    variables_to_test = [("deferred_for_test", deferred_for_test)]
+    engines = get_engines_from_variables(variables_to_test)
+    assert not engines    
