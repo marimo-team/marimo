@@ -24,9 +24,9 @@ from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._messaging.types import KernelMessage
 from marimo._runtime import commands
 from marimo._session._venv import (
-    IPC_KERNEL_DEPS,
     check_python_version_compatibility,
     get_configured_venv_python,
+    get_ipc_kernel_deps,
     get_kernel_pythonpath,
     has_marimo_installed,
     install_marimo_into_venv,
@@ -246,7 +246,7 @@ class IPCKernelManagerImpl(KernelManager):
             try:
                 self._sandbox_dir, venv_python = build_sandbox_venv(
                     self.app_metadata.filename,
-                    additional_deps=IPC_KERNEL_DEPS,
+                    additional_deps=get_ipc_kernel_deps(),
                 )
             except Exception as e:
                 cleanup_sandbox_dir(self._sandbox_dir)

@@ -689,11 +689,13 @@ def test_build_sandbox_venv_creates_venv(tmp_path: Path) -> None:
 @pytest.mark.skipif(not HAS_UV, reason="uv required")
 def test_build_sandbox_venv_with_additional_deps(tmp_path: Path) -> None:
     """Test additional deps are passed through."""
+    from marimo._session._venv import get_ipc_kernel_deps
+
     script = tmp_path / "test.py"
     script.write_text("# /// script\n# dependencies = []\n# ///\n")
 
     sandbox_dir, venv_python = build_sandbox_venv(
-        str(script), additional_deps=["pyzmq"]
+        str(script), additional_deps=get_ipc_kernel_deps()
     )
     try:
         assert os.path.isdir(sandbox_dir)

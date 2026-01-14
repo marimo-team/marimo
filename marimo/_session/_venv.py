@@ -14,6 +14,7 @@ from __future__ import annotations
 import os
 import subprocess
 import sys
+from importlib.metadata import version
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -27,8 +28,19 @@ if TYPE_CHECKING:
 
 LOGGER = _loggers.marimo_logger()
 
-# Dependencies required for IPC kernel communication (ZeroMQ-based)
-IPC_KERNEL_DEPS: list[str] = ["pyzmq"]
+
+def get_ipc_kernel_deps() -> list[str]:
+    """Get dependencies required for IPC kernel communication.
+
+    Returns pyzmq pinned to the currently installed version to ensure
+    compatibility between host and sandbox environments.
+    """
+    try:
+        pyzmq_version = version("pyzmq")
+        return [f"pyzmq=={pyzmq_version}"]
+    except Exception:
+        # Fallback if pyzmq not installed
+        return ["pyzmq>=27.1.0"]
 
 
 def _find_python_in_venv(venv_path: str) -> str | None:
@@ -197,7 +209,7 @@ def install_marimo_into_venv(venv_python: str) -> None:
     """
     uv_bin = find_uv_bin()
 
-    packages = [f"marimo=={__version__}"] + IPC_KERNEL_DEPS
+    packages = [f"marimo=={__version__}"] + get_ipc_kernel_deps()
 
     echo("Installing marimo into configured venv...", err=True)
 
