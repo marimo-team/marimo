@@ -9,6 +9,7 @@ import { invariant } from "@/utils/invariant";
 import { Logger } from "@/utils/Logger";
 import { LRUCache } from "@/utils/lru";
 import { Objects } from "@/utils/objects";
+import { getPositionAtWordBounds } from "../completion/hints";
 import { topologicalCodesAtom } from "../copilot/getCodes";
 import {
   getEditorCodeAsPython,
@@ -21,6 +22,14 @@ import {
   isClientWithNotify,
 } from "./types";
 import { getLSPDocument } from "./utils";
+
+/**
+ * Check if a variable name is private (starts with underscore but not dunder).
+ * Private variables in marimo are cell-local and should not be renamed across cells.
+ */
+function isPrivateVariable(name: string): boolean {
+  return name.startsWith("_") && !name.startsWith("__");
+}
 
 class Snapshotter {
   private documentVersion = 0;
@@ -433,15 +442,46 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
 
     // Update the code in the plugins manually
     const editors = this.getNotebookEditors();
-    for (const [cellId, ev] of Objects.entries(editors)) {
-      const newCode = editsToNewCode.get(cellId);
+
+    // Check if this is a private variable rename (should only affect current cell)
+    // Private variables in marimo are cell-local and should not be renamed across cells
+    const originEditor = editors[cellId];
+    let isPrivateRename = false;
+    if (originEditor) {
+      // Convert LSP position (line, character) to CodeMirror position
+      const line = originEditor.state.doc.line(params.position.line + 1);
+      const cmPosition = line.from + params.position.character;
+      const { startToken, endToken } = getPositionAtWordBounds(
+        originEditor.state.doc,
+        cmPosition,
+      );
+      const originalName = originEditor.state.doc.sliceString(
+        startToken,
+        endToken,
+      );
+      isPrivateRename = isPrivateVariable(originalName);
+      if (isPrivateRename) {
+        Logger.debug(
+          "[lsp] Private variable rename detected, limiting to current cell",
+          originalName,
+        );
+      }
+    }
+
+    for (const [currentCellId, ev] of Objects.entries(editors)) {
+      // For private variable renames, only update the originating cell
+      if (isPrivateRename && currentCellId !== cellId) {
+        continue;
+      }
+
+      const newCode = editsToNewCode.get(currentCellId);
       if (newCode == null) {
-        Logger.warn("No new code for cell", cellId);
+        Logger.warn("No new code for cell", currentCellId);
         continue;
       }
 
       if (!ev) {
-        Logger.warn("No view for plugin", cellId);
+        Logger.warn("No view for plugin", currentCellId);
         continue;
       }
 
