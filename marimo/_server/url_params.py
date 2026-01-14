@@ -26,7 +26,7 @@ class URLParamMapping:
 URL_PARAM_MAPPINGS: dict[str, URLParamMapping] = {
     "venv": URLParamMapping(
         url_key="venv",
-        config_path=("tool", "marimo", "env", "venv"),
+        config_path=("tool", "marimo", "venv", "path"),
         description="Virtual environment path for the notebook",
     ),
     # Add more mappings here as needed, e.g.:

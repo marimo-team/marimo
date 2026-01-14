@@ -16,7 +16,7 @@ class TestURLParamMappings:
         assert "venv" in URL_PARAM_MAPPINGS
         mapping = URL_PARAM_MAPPINGS["venv"]
         assert mapping.url_key == "venv"
-        assert mapping.config_path == ("tool", "marimo", "env", "venv")
+        assert mapping.config_path == ("tool", "marimo", "venv", "path")
 
     def test_internal_keys_include_venv(self) -> None:
         assert "venv" in INTERNAL_URL_PARAM_KEYS
@@ -36,8 +36,8 @@ class TestBuildHeaderFromParams:
         assert result is not None
         assert "# /// script" in result
         assert "# ///" in result
-        assert "[tool.marimo.env]" in result
-        assert 'venv = "/path/to/venv"' in result
+        assert "[tool.marimo.venv]" in result
+        assert 'path = "/path/to/venv"' in result
 
     def test_multiple_params_builds_header(self) -> None:
         # Once we add more params, this test can verify they all work
@@ -58,8 +58,8 @@ class TestAppDefaultsFromURLParams:
         base = AppDefaults()
         result = AppDefaults.from_url_params(base, {"venv": "/path/to/venv"})
         assert result.header is not None
-        assert "[tool.marimo.env]" in result.header
-        assert 'venv = "/path/to/venv"' in result.header
+        assert "[tool.marimo.venv]" in result.header
+        assert 'path = "/path/to/venv"' in result.header
 
     def test_preserves_base_defaults(self) -> None:
         base = AppDefaults(
@@ -88,7 +88,7 @@ class TestAppFileManagerWithHeader:
         from marimo._session.notebook import AppFileManager
 
         header = (
-            '# /// script\n# [tool.marimo.env]\n# venv = "/my/venv"\n# ///'
+            '# /// script\n# [tool.marimo.venv]\n# path = "/my/venv"\n# ///'
         )
         defaults = AppDefaults(header=header)
         manager = AppFileManager(filename=None, defaults=defaults)
@@ -104,8 +104,8 @@ class TestAppFileManagerWithHeader:
 
         code = manager.to_code()
         assert "# /// script" in code
-        assert "[tool.marimo.env]" in code
-        assert 'venv = "/path/to/venv"' in code
+        assert "[tool.marimo.venv]" in code
+        assert 'path = "/path/to/venv"' in code
 
     def test_end_to_end_url_params_to_header(self) -> None:
         """Test complete flow from URL params to header in code."""
@@ -120,8 +120,8 @@ class TestAppFileManagerWithHeader:
 
         # Header should be present
         assert "# /// script" in code
-        assert "[tool.marimo.env]" in code
-        assert 'venv = "/my/project/.venv"' in code
+        assert "[tool.marimo.venv]" in code
+        assert 'path = "/my/project/.venv"' in code
 
         # Width should still be applied
         assert manager.app.config.width == "full"
