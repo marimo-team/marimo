@@ -439,12 +439,17 @@ def _as_list(data: Any) -> list[Any]:
 
 def _delete_lines_with_files(output: str) -> str:
     # Remove any line that contains "File " up until a .py ending
+    # Note: temp paths are already stripped in the exporter, so this may be
+    # a no-op for most cases now
     def remove_file_name(line: str) -> str:
         if "File " not in line:
             return line
         start = line.index("File ")
-        end = line.rindex(".py") + 3
-        return line[0:start] + line[end:]
+        # Check if there's a .py extension to strip
+        if ".py" in line[start:]:
+            end = line.rindex(".py") + 3
+            return line[0:start] + line[end:]
+        return line
 
     return "\n".join(remove_file_name(line) for line in output.splitlines())
 
@@ -1590,3 +1595,240 @@ def test_convert_regular_output_has_empty_metadata():
     # Regular outputs should have empty metadata
     assert "metadata" in result[0]
     assert result[0]["metadata"] == {}
+
+
+@pytest.mark.skipif(not HAS_NBFORMAT, reason="nbformat is not installed")
+async def test_export_ipynb_with_exception():
+    """Test that exceptions are properly formatted in ipynb output."""
+    app = App()
+
+    @app.cell()
+    def _():
+        x = undefined_variable  # noqa: F821
+        return (x,)
+
+    # Run and export
+    file_manager = AppFileManager.from_app(InternalApp(app))
+    session_view, did_error = await run_app_until_completion(
+        file_manager, cli_args={}, argv=None, quiet=True
+    )
+    assert did_error is True
+
+    result = Exporter().export_as_ipynb(
+        InternalApp(app), sort_mode="top-down", session_view=session_view
+    )
+    notebook = json.loads(result)
+
+    # Find the error output
+    outputs = notebook["cells"][0]["outputs"]
+    error_outputs = [o for o in outputs if o["output_type"] == "error"]
+    assert len(error_outputs) == 1
+    assert error_outputs[0]["ename"] == "NameError"
+    assert "undefined_variable" in error_outputs[0]["evalue"]
+    # Traceback should be a list of strings
+    assert isinstance(error_outputs[0]["traceback"], list)
+
+
+@pytest.mark.skipif(not HAS_NBFORMAT, reason="nbformat is not installed")
+async def test_export_ipynb_with_stdout_and_exception():
+    """Test cell with both stdout and exception."""
+    app = App()
+
+    @app.cell()
+    def _():
+        print("hello before error")
+        raise ValueError("test error")
+
+    file_manager = AppFileManager.from_app(InternalApp(app))
+    session_view, did_error = await run_app_until_completion(
+        file_manager, cli_args={}, argv=None, quiet=True
+    )
+    assert did_error is True
+
+    result = Exporter().export_as_ipynb(
+        InternalApp(app), sort_mode="top-down", session_view=session_view
+    )
+    notebook = json.loads(result)
+    outputs = notebook["cells"][0]["outputs"]
+
+    # Should have both stdout and error
+    stdout_outputs = [o for o in outputs if o.get("name") == "stdout"]
+    error_outputs = [o for o in outputs if o["output_type"] == "error"]
+
+    assert len(stdout_outputs) == 1
+    assert "hello before error" in stdout_outputs[0]["text"][0]
+    assert len(error_outputs) == 1
+    assert error_outputs[0]["ename"] == "ValueError"
+    assert "test error" in error_outputs[0]["evalue"]
+
+
+@pytest.mark.skipif(not HAS_NBFORMAT, reason="nbformat is not installed")
+async def test_export_ipynb_redefinition_error():
+    """Test that cells depending on errored cells show ancestor error."""
+    app = App()
+
+    @app.cell()
+    def _():
+        x = 1
+        return (x,)
+
+    @app.cell()
+    def _():
+        x = 2
+        return (x,)
+
+    @app.cell()
+    def _(x):
+        y = x + 1
+        return (y,)
+
+    file_manager = AppFileManager.from_app(InternalApp(app))
+    session_view, did_error = await run_app_until_completion(
+        file_manager, cli_args={}, argv=None, quiet=True
+    )
+    assert did_error is True
+
+    result = Exporter().export_as_ipynb(
+        InternalApp(app), sort_mode="top-down", session_view=session_view
+    )
+    notebook = json.loads(result)
+
+    # Second cell should have an ancestor error
+    assert len(notebook["cells"]) >= 3
+    second_cell_outputs = notebook["cells"][1]["outputs"]
+    error_outputs = [
+        o for o in second_cell_outputs if o["output_type"] == "error"
+    ]
+    # Ancestor errors might be represented differently
+    # At minimum, there should be some error indication
+    assert len(error_outputs) >= 1
+
+
+@pytest.mark.skipif(not HAS_NBFORMAT, reason="nbformat is not installed")
+async def test_export_ipynb_cycle_error():
+    """Test that cells in a cycle show cycle error."""
+    app = App()
+
+    @app.cell()
+    def _():
+        x = y + 1  # noqa: F821
+        return (x,)
+
+    @app.cell()
+    def _(x):
+        y = x + 1
+        return (y,)
+
+    file_manager = AppFileManager.from_app(InternalApp(app))
+    session_view, did_error = await run_app_until_completion(
+        file_manager, cli_args={}, argv=None, quiet=True
+    )
+    assert did_error is True
+
+    result = Exporter().export_as_ipynb(
+        InternalApp(app), sort_mode="top-down", session_view=session_view
+    )
+    notebook = json.loads(result)
+
+    # Second cell should have an ancestor error
+    assert len(notebook["cells"]) >= 2
+    second_cell_outputs = notebook["cells"][1]["outputs"]
+    error_outputs = [
+        o for o in second_cell_outputs if o["output_type"] == "error"
+    ]
+    # Ancestor errors might be represented differently
+    # At minimum, there should be some error indication
+    assert len(error_outputs) >= 1
+
+
+@pytest.mark.skipif(not HAS_NBFORMAT, reason="nbformat is not installed")
+async def test_export_ipynb_ancestor_error():
+    """Test that cells depending on errored cells show ancestor error."""
+    app = App()
+
+    @app.cell()
+    def _():
+        x = undefined  # noqa: F821
+        return (x,)
+
+    @app.cell()
+    def _(x):
+        y = x + 1
+        return (y,)
+
+    file_manager = AppFileManager.from_app(InternalApp(app))
+    session_view, did_error = await run_app_until_completion(
+        file_manager, cli_args={}, argv=None, quiet=True
+    )
+    assert did_error is True
+
+    result = Exporter().export_as_ipynb(
+        InternalApp(app), sort_mode="top-down", session_view=session_view
+    )
+    notebook = json.loads(result)
+
+    # Second cell should have an ancestor error
+    assert len(notebook["cells"]) >= 2
+    second_cell_outputs = notebook["cells"][1]["outputs"]
+    error_outputs = [
+        o for o in second_cell_outputs if o["output_type"] == "error"
+    ]
+    # Ancestor errors might be represented differently
+    # At minimum, there should be some error indication
+    assert len(error_outputs) >= 1
+
+
+@pytest.mark.skipif(not HAS_NBFORMAT, reason="nbformat is not installed")
+@pytest.mark.skipif(
+    sys.version_info < (3, 11), reason="3.10 has different stack trace format"
+)
+async def test_export_ipynb_with_error_snapshot(tmp_path: Path):
+    """Snapshot test for error output formatting with cycles and errors."""
+    app = App()
+
+    # Cell 1: Part of cycle (x depends on y)
+    @app.cell()
+    def _(y):  # noqa: F811
+        x = y
+        return (x,)
+
+    # Cell 2: Normal cell (Y = 0)
+    @app.cell()
+    def _():
+        Y = 0  # noqa: N806
+        return (Y,)
+
+    # Cell 3: Ancestor error (depends on z which fails)
+    @app.cell()
+    def _b(z):
+        Z = z  # noqa: N806
+        return (Z,)
+
+    # Cell 4: ZeroDivisionError
+    @app.cell()
+    def _a():
+        z = 1 / 0
+        return (z,)
+
+    # Cell 5: Part of cycle (y depends on x)
+    @app.cell()
+    def _(x, Y):  # noqa: N803
+        y = x
+        y = Y  # noqa: F841
+        return (y,)
+
+    internal_app = InternalApp(app)
+    test_file = tmp_path / "notebook.py"
+    test_file.write_text(internal_app.to_py())
+
+    result = await run_app_then_export_as_ipynb(
+        MarimoPath(test_file),
+        sort_mode="top-down",
+        cli_args={},
+        argv=None,
+    )
+    assert result.did_error is True
+
+    # Filter file paths for deterministic snapshots
+    content = _delete_lines_with_files(result.contents)
+    snapshot("notebook_with_error.ipynb.txt", content)
