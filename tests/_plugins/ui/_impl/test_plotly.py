@@ -865,8 +865,6 @@ def test_heatmap_numpy_and_fallback_datetime_x_axis() -> None:
 
 def test_scatter_selection_datetime_x_axis() -> None:
     """Test scatter/line chart with datetime x-axis."""
-    from datetime import datetime, timedelta
-
     base_date = datetime(2024, 1, 1)
     dates = [base_date + timedelta(days=i) for i in range(5)]
     values = [10, 20, 15, 25, 30]
@@ -898,8 +896,6 @@ def test_scatter_selection_datetime_x_axis() -> None:
 
 def test_scatter_numpy_and_fallback_datetime_x_axis() -> None:
     """Test that numpy and fallback produce same results for datetime scatter."""
-    from datetime import datetime, timedelta
-
     base_date = datetime(2024, 1, 1)
     dates = [base_date + timedelta(days=i) for i in range(5)]
     values = [10, 20, 15, 25, 30]
@@ -927,8 +923,6 @@ def test_scatter_numpy_and_fallback_datetime_x_axis() -> None:
 
 def test_bar_selection_datetime_x_axis() -> None:
     """Test bar chart with datetime x-axis."""
-    from datetime import datetime, timedelta
-
     base_date = datetime(2024, 1, 1)
     dates = [base_date + timedelta(days=i) for i in range(5)]
     values = [10, 20, 15, 25, 30]
@@ -957,8 +951,6 @@ def test_bar_selection_datetime_x_axis() -> None:
 
 def test_bar_numpy_and_fallback_datetime_x_axis() -> None:
     """Test that numpy and fallback produce same results for datetime bars."""
-    from datetime import datetime, timedelta
-
     base_date = datetime(2024, 1, 1)
     dates = [base_date + timedelta(days=i) for i in range(5)]
     values = [10, 20, 15, 25, 30]
