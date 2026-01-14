@@ -775,15 +775,20 @@ def merge_cell_output(
         return CellOutput(
             channel=existing_output.channel,
             mimetype="application/vnd.marimo+mimebundle",
-            data={**existing_output.data, **new_mimebundle},
+            data=cast(
+                dict[str, Any],
+                {**existing_output.data, **new_mimebundle},
+            ),
             timestamp=existing_output.timestamp,
         )
 
     # Existing output is a string - convert to mimebundle
-    mimebundle = {existing_output.mimetype: existing_output.data}
+    mimebundle: dict[str, Any] = {
+        existing_output.mimetype: existing_output.data
+    }
     return CellOutput(
         channel=existing_output.channel,
         mimetype="application/vnd.marimo+mimebundle",
-        data={**mimebundle, **new_mimebundle},
+        data=cast(dict[str, Any], {**mimebundle, **new_mimebundle}),
         timestamp=existing_output.timestamp,
     )
