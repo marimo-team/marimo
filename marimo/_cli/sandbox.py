@@ -17,7 +17,6 @@ import click
 
 from marimo import _loggers
 from marimo._cli.print import bold, echo, green, muted
-from marimo._cli.venv import get_marimo_dir
 from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._utils.inline_script_metadata import (
@@ -212,6 +211,10 @@ def _resolve_requirements_txt_lines(pyproject: PyProjectReader) -> list[str]:
         except subprocess.CalledProcessError:
             pass  # Fall back if uv fails
     return pyproject.requirements_txt_lines
+
+
+def get_marimo_dir() -> Path:
+    return Path(__file__).parent.parent.parent
 
 
 def construct_uv_flags(

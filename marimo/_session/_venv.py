@@ -23,17 +23,12 @@ from marimo._utils.uv import find_uv_bin
 from marimo._version import __version__
 
 if TYPE_CHECKING:
-    from marimo._config.config import EnvConfig
+    from marimo._config.config import VenvConfig
 
 LOGGER = _loggers.marimo_logger()
 
 # Dependencies required for IPC kernel communication (ZeroMQ-based)
 IPC_KERNEL_DEPS: list[str] = ["pyzmq"]
-
-
-def get_marimo_dir() -> Path:
-    """Get the directory containing the marimo package."""
-    return Path(__file__).parent.parent.parent
 
 
 def _find_python_in_venv(venv_path: str) -> str | None:
@@ -61,13 +56,13 @@ def _find_python_in_venv(venv_path: str) -> str | None:
 
 
 def get_configured_venv_python(
-    env_config: EnvConfig,
+    venv_config: VenvConfig,
     base_path: str | None = None,
 ) -> str | None:
-    """Get Python path from env config.
+    """Get Python path from venv config.
 
     Args:
-        env_config: The env config dict (from get_env_config or config.get("env")).
+        venv_config: The venv config dict (from config.get("venv")).
         base_path: Base path for resolving relative venv paths (e.g., script path).
 
     Returns:
@@ -76,7 +71,7 @@ def get_configured_venv_python(
     Raises:
         ValueError: If venv is configured but invalid.
     """
-    venv_path = env_config.get("venv")
+    venv_path = venv_config.get("venv")
 
     if not venv_path:
         return None
@@ -109,17 +104,14 @@ def get_kernel_pythonpath() -> str:
     """
     paths: list[str] = []
 
-    # Add marimo's parent directory (where marimo package can be imported from)
-    # NB. If running in edit mode this may be local directory.
-    marimo_parent = str(get_marimo_dir())
-    paths.append(marimo_parent)
-
     # Find actual paths where dependencies are installed by checking their __file__
     # This is more reliable than site.getsitepackages() which may return
     # ephemeral paths e.g. when running via `uv run --with=pyzmq`.
     # We also include msgspec as a reliable dependency that _should_ be in the
     # desired user system path.
-    for module_name in ["zmq", "msgspec"]:
+    # Also add marimo's parent directory.
+    # NB. If running in edit mode this may be local directory.
+    for module_name in ["marimo", "zmq", "msgspec"]:
         try:
             module = __import__(module_name)
             if hasattr(module, "__file__") and module.__file__:

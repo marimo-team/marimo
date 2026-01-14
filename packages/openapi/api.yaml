@@ -1326,21 +1326,6 @@ components:
       - theme
       title: DisplayConfig
       type: object
-    EnvConfig:
-      description: "Configuration for external Python environment in home sandbox\
-        \ mode.\n\n    Allows specifying an existing virtualenv to use instead of\
-        \ creating\n    ephemeral sandboxes per notebook. Only applies in home sandbox\
-        \ mode.\n\n    **Keys.**\n\n    - `venv`: path to a virtualenv directory (absolute\
-        \ or relative to\n      pyproject.toml)\n    - `editable`: if true, marimo\
-        \ will manage script metadata (inline\n      dependencies). Defaults to false."
-      properties:
-        editable:
-          type: boolean
-        venv:
-          type: string
-      required: []
-      title: EnvConfig
-      type: object
     ExecuteCellCommand:
       description: "Execute a single cell.\n\n    Executes a cell with the provided\
         \ code. Dependent cells may be\n    re-executed based on the reactive execution\
@@ -2681,8 +2666,6 @@ components:
           $ref: '#/components/schemas/DiagnosticsConfig'
         display:
           $ref: '#/components/schemas/DisplayConfig'
-        env:
-          $ref: '#/components/schemas/EnvConfig'
         experimental:
           type: object
         formatting:
@@ -2705,6 +2688,8 @@ components:
           $ref: '#/components/schemas/SharingConfig'
         snippets:
           $ref: '#/components/schemas/SnippetsConfig'
+        venv:
+          $ref: '#/components/schemas/VenvConfig'
       required:
       - completion
       - display
@@ -4353,6 +4338,21 @@ components:
       - op
       - variables
       title: VariablesNotification
+      type: object
+    VenvConfig:
+      description: "Configuration for external Python environment in home sandbox\
+        \ mode.\n\n    Allows specifying an existing virtualenv to use instead of\
+        \ creating\n    ephemeral sandboxes per notebook. Only applies in home sandbox\
+        \ mode.\n\n    **Keys.**\n\n    - `venv`: path to a virtualenv directory (absolute\
+        \ or relative to\n      pyproject.toml)\n    - `writable`: if true, marimo\
+        \ will manage script metadata (inline\n      dependencies). Defaults to false."
+      properties:
+        venv:
+          type: string
+        writable:
+          type: boolean
+      required: []
+      title: VenvConfig
       type: object
     WorkspaceFilesRequest:
       properties:

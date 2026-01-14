@@ -18,7 +18,12 @@ from marimo._cli.sandbox import (
     build_sandbox_venv,
     cleanup_sandbox_dir,
 )
-from marimo._cli.venv import (
+from marimo._config.config import VenvConfig
+from marimo._config.manager import MarimoConfigReader
+from marimo._config.settings import GLOBAL_SETTINGS
+from marimo._messaging.types import KernelMessage
+from marimo._runtime import commands
+from marimo._session._venv import (
     IPC_KERNEL_DEPS,
     check_python_version_compatibility,
     get_configured_venv_python,
@@ -26,11 +31,6 @@ from marimo._cli.venv import (
     has_marimo_installed,
     install_marimo_into_venv,
 )
-from marimo._config.config import EnvConfig
-from marimo._config.manager import MarimoConfigReader
-from marimo._config.settings import GLOBAL_SETTINGS
-from marimo._messaging.types import KernelMessage
-from marimo._runtime import commands
 from marimo._session.model import SessionMode
 from marimo._session.queue import ProcessLike, QueueType
 from marimo._session.types import KernelManager, QueueManager
@@ -46,10 +46,10 @@ if TYPE_CHECKING:
 LOGGER = _loggers.marimo_logger()
 
 
-def _get_env_config(config_manager: MarimoConfigReader) -> EnvConfig:
-    """Get the [tool.marimo.env] config from a config manager."""
+def _get_venv_config(config_manager: MarimoConfigReader) -> VenvConfig:
+    """Get the [tool.marimo.venv] config from a config manager."""
     config = config_manager.get_config(hide_secrets=False)
-    return cast(EnvConfig, config.get("env", {}))
+    return cast(VenvConfig, config.get("venv", {}))
 
 
 class KernelStartupError(Exception):
@@ -177,16 +177,17 @@ class IPCKernelManagerImpl(KernelManager):
 
         env = os.environ.copy()
 
-        env_config = _get_env_config(self.config_manager)
+        venv_config = _get_venv_config(self.config_manager)
         try:
             configured_python = get_configured_venv_python(
-                env_config, base_path=self.app_metadata.filename
+                venv_config, base_path=self.app_metadata.filename
             )
         except ValueError as e:
             raise KernelStartupError(str(e)) from e
 
-        # Ephemeral sandboxes are always editable; configured venvs respect the flag
-        editable = True
+        # Ephemeral sandboxes are always writable; configured venvs respect the
+        # flag.
+        writable = True
 
         # An explicitly configured venv takes precedence over an ephemeral
         # sandbox.
@@ -196,10 +197,13 @@ class IPCKernelManagerImpl(KernelManager):
                 err=True,
             )
             venv_python = configured_python
-            editable = env_config.get("editable", False)
 
-            if editable:
-                # Install marimo + IPC deps into the venv
+            writable = venv_config.get("writable", False)
+
+            # Configured environments are assumed to be read-only.
+            # If not, then install marimo by default to ensure that the
+            # environment can spawn a marimo kernel.
+            if writable:
                 try:
                     install_marimo_into_venv(venv_python)
                 except Exception as e:
@@ -209,16 +213,24 @@ class IPCKernelManagerImpl(KernelManager):
             elif not has_marimo_installed(venv_python):
                 # Check Python version compatibility for binary deps
                 if not check_python_version_compatibility(venv_python):
+                    # If we have gotten to this point
+                    # - We have a prescibed venv
+                    # - The venv is not writable
+                    # - The venv does not contain marimo nor zmq
+                    # As such there is nothing we can do, as we can't get marimo
+                    # into the runtime without installing it somewhere else.
                     raise KernelStartupError(
                         f"Configured venv uses a different Python version than marimo.\n"
                         f"Binary dependencies (pyzmq, msgspec) aren't cross-version compatible.\n\n"
                         f"Options:\n"
-                        f"  1. Set editable=true in [tool.marimo.env] to allow marimo to install deps\n"
+                        f"  1. Set writable=true in [tool.marimo.venv] to allow marimo to install deps\n"
                         f"  2. Install marimo in your venv: uv pip install marimo --python {venv_python}\n"
-                        f"  3. Remove [tool.marimo.env].venv to use an ephemeral sandbox instead"
+                        f"  3. Remove [tool.marimo.venv].venv to use an ephemeral sandbox instead"
                     )
 
-                # Inject PYTHONPATH for marimo and dependencies
+                # Inject PYTHONPATH for marimo and dependencies from the
+                # current runtime as a last chance effort to expose marimo
+                # to the kernel.
                 kernel_path = get_kernel_pythonpath()
                 existing = env.get("PYTHONPATH", "")
                 if existing:
@@ -228,6 +240,9 @@ class IPCKernelManagerImpl(KernelManager):
         else:
             # Fall back to building ephemeral sandbox venv
             # with IPC dependencies.
+            # NB. "Ephemeral" sandboxes (or rather tmp sandboxes built by uv)
+            # are always writable, and as such install marimo as a default,
+            # making them much easier than a configured venv we cannot manage.
             try:
                 self._sandbox_dir, venv_python = build_sandbox_venv(
                     self.app_metadata.filename,
@@ -245,10 +260,10 @@ class IPCKernelManagerImpl(KernelManager):
             )
 
         cmd = [venv_python, "-m", "marimo._ipc.launch_kernel"]
-        if editable:
+        if writable:
             # Setting this attempts to make auto-installations work even if
             # other normally detected criteria are not true.
-            # IPC by itself does no seem to trigger them.
+            # IPC by itself does not seem to trigger them.
             env["MARIMO_MANAGE_SCRIPT_METADATA"] = "true"
 
         LOGGER.debug(f"Launching kernel: {' '.join(cmd)}")

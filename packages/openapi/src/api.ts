@@ -3651,24 +3651,6 @@ export interface components {
       theme: "dark" | "light" | "system";
     };
     /**
-     * EnvConfig
-     * @description Configuration for external Python environment in home sandbox mode.
-     *
-     *         Allows specifying an existing virtualenv to use instead of creating
-     *         ephemeral sandboxes per notebook. Only applies in home sandbox mode.
-     *
-     *         **Keys.**
-     *
-     *         - `venv`: path to a virtualenv directory (absolute or relative to
-     *           pyproject.toml)
-     *         - `editable`: if true, marimo will manage script metadata (inline
-     *           dependencies). Defaults to false.
-     */
-    EnvConfig: {
-      editable?: boolean;
-      venv?: string;
-    };
-    /**
      * ExecuteCellCommand
      * @description Execute a single cell.
      *
@@ -4430,7 +4412,6 @@ export interface components {
       datasources?: components["schemas"]["DatasourcesConfig"];
       diagnostics?: components["schemas"]["DiagnosticsConfig"];
       display: components["schemas"]["DisplayConfig"];
-      env?: components["schemas"]["EnvConfig"];
       experimental?: Record<string, any>;
       formatting: components["schemas"]["FormattingConfig"];
       keymap: components["schemas"]["KeymapConfig"];
@@ -4442,6 +4423,7 @@ export interface components {
       server: components["schemas"]["ServerConfig"];
       sharing?: components["schemas"]["SharingConfig"];
       snippets?: components["schemas"]["SnippetsConfig"];
+      venv?: components["schemas"]["VenvConfig"];
     };
     /** MarimoExceptionRaisedError */
     MarimoExceptionRaisedError: {
@@ -5371,6 +5353,24 @@ export interface components {
       /** @enum {unknown} */
       op: "variables";
       variables: components["schemas"]["VariableDeclarationNotification"][];
+    };
+    /**
+     * VenvConfig
+     * @description Configuration for external Python environment in home sandbox mode.
+     *
+     *         Allows specifying an existing virtualenv to use instead of creating
+     *         ephemeral sandboxes per notebook. Only applies in home sandbox mode.
+     *
+     *         **Keys.**
+     *
+     *         - `venv`: path to a virtualenv directory (absolute or relative to
+     *           pyproject.toml)
+     *         - `writable`: if true, marimo will manage script metadata (inline
+     *           dependencies). Defaults to false.
+     */
+    VenvConfig: {
+      venv?: string;
+      writable?: boolean;
     };
     /** WorkspaceFilesRequest */
     WorkspaceFilesRequest: {
