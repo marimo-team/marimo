@@ -63,6 +63,7 @@ export const MockRequestClient = {
       autoExportAsHTML: vi.fn().mockResolvedValue({}),
       autoExportAsMarkdown: vi.fn().mockResolvedValue({}),
       autoExportAsIPYNB: vi.fn().mockResolvedValue({}),
+      updateCellOutputs: vi.fn().mockResolvedValue({}),
       addPackage: vi.fn().mockResolvedValue({}),
       removePackage: vi.fn().mockResolvedValue({}),
       getPackageList: vi.fn().mockResolvedValue({ packages: [] }),
