@@ -76,16 +76,15 @@ export function useAutoExport() {
   );
 }
 
-// Keep track of processed cell outputs to avoid redundant screenshots
-const richCellsOutputAtom = atom<Record<CellId, unknown>>({});
+// We track cells that need screenshots, these will be exported to IPYNB
+const richCellsToOutputAtom = atom<Record<CellId, unknown>>({});
 
-function useEnrichCellOutputs() {
-  const [richCellsOutput, setRichCellsOutput] = useAtom(richCellsOutputAtom);
+export function useEnrichCellOutputs() {
+  const [richCellsOutput, setRichCellsOutput] = useAtom(richCellsToOutputAtom);
   const cellRuntimes = useAtomValue(cellsRuntimeAtom);
 
   return async (): Promise<Record<CellId, ["image/png", unknown]>> => {
-    // Find all HTML cells that need screenshots
-    const cellsToCapture = Objects.entries(cellRuntimes).filter(
+    const cellsToCaptureScreenshot = Objects.entries(cellRuntimes).filter(
       ([cellId, runtime]) => {
         const outputHasChanged =
           richCellsOutput[cellId] !== runtime.output?.data;
@@ -98,12 +97,12 @@ function useEnrichCellOutputs() {
       },
     );
 
-    if (cellsToCapture.length === 0) {
+    if (cellsToCaptureScreenshot.length === 0) {
       return {};
     }
 
     const newCellsOutput: Record<CellId, unknown> = {};
-    for (const [cellId, runtime] of cellsToCapture) {
+    for (const [cellId, runtime] of cellsToCaptureScreenshot) {
       if (runtime.output?.data) {
         newCellsOutput[cellId] = runtime.output.data;
       }
@@ -112,7 +111,7 @@ function useEnrichCellOutputs() {
 
     // Capture screenshots
     const results = await Promise.all(
-      cellsToCapture.map(async ([cellId]) => {
+      cellsToCaptureScreenshot.map(async ([cellId]) => {
         const outputElement = document.getElementById(
           CellOutputId.create(cellId),
         );

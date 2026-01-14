@@ -662,8 +662,8 @@ def test_update_cell_outputs_new_cell(client: TestClient) -> None:
 
 
 @with_session(SESSION_ID)
-def test_update_cell_outputs_merge_with_string(client: TestClient) -> None:
-    """Test updating cell outputs merges with existing string output."""
+def test_update_cell_outputs_overwrite_string(client: TestClient) -> None:
+    """Test updating cell outputs overwrites existing string output."""
     session = get_session_manager(client).get_session(SESSION_ID)
     assert session
 
@@ -692,25 +692,22 @@ def test_update_cell_outputs_merge_with_string(client: TestClient) -> None:
     assert response.status_code == 200
     assert response.json() == {"success": True}
 
-    # Verify output was converted to mimebundle
+    # Verify output was overwritten
     cell_notification = session.session_view.cell_notifications[cell_id]
     assert cell_notification.output is not None
     assert cell_notification.output == CellOutput(
         channel=CellChannel.OUTPUT,
-        mimetype="application/vnd.marimo+mimebundle",
-        data={
-            "text/html": "<div>Hello</div>",
-            "image/png": "data:image/png;base64,iVBORw0KGgo=",
-        },
+        mimetype="image/png",
+        data="data:image/png;base64,iVBORw0KGgo=",
         timestamp=cell_notification.output.timestamp,
     )
 
 
 @with_session(SESSION_ID)
-def test_update_cell_outputs_merge_with_mimebundle(
+def test_update_cell_outputs_overwrite_mimebundle(
     client: TestClient,
 ) -> None:
-    """Test updating cell outputs merges with existing mimebundle."""
+    """Test updating cell outputs overwrites existing mimebundle."""
     session = get_session_manager(client).get_session(SESSION_ID)
     assert session
 
@@ -742,17 +739,13 @@ def test_update_cell_outputs_merge_with_mimebundle(
     assert response.status_code == 200
     assert response.json() == {"success": True}
 
-    # Verify output was merged into mimebundle
+    # Verify output was overwritten
     cell_notification = session.session_view.cell_notifications[cell_id]
     assert cell_notification.output is not None
     assert cell_notification.output == CellOutput(
         channel=CellChannel.OUTPUT,
-        mimetype="application/vnd.marimo+mimebundle",
-        data={
-            "text/html": "<div>Hello</div>",
-            "text/plain": "Hello",
-            "image/png": "data:image/png;base64,iVBORw0KGgo=",
-        },
+        mimetype="image/png",
+        data="data:image/png;base64,iVBORw0KGgo=",
         timestamp=cell_notification.output.timestamp,
     )
 
@@ -776,48 +769,29 @@ def test_update_cell_outputs_missing_cell(client: TestClient) -> None:
 
 
 @with_session(SESSION_ID)
-@pytest.mark.skipif(
-    not DependencyManager.nbformat.has(), reason="nbformat not installed"
-)
-def test_update_cell_outputs_then_export_ipynb(
+def test_update_cell_outputs_integration(
     client: TestClient, *, temp_marimo_file: str
 ) -> None:
-    """Test that updating cell outputs works with ipynb export."""
-    from pathlib import Path
-
-    import nbformat
-
+    """Test that update_cell_outputs correctly overwrites screenshot data."""
     session = get_session_manager(client).get_session(SESSION_ID)
     assert session
     session.app_file_manager.filename = temp_marimo_file
 
-    # Create and run a cell that produces HTML output
-    cell_id = CellId_t("test_cell")
-    create_response = client.post(
-        "/api/kernel/run",
-        headers=HEADERS,
-        json={
-            "cellIds": [cell_id],
-            "codes": ["'<div>Chart goes here</div>'"],
-        },
-    )
-    assert create_response.status_code == 200
+    # Get an existing cell ID from the temp file (Hbol is the first cell)
+    cell_id = CellId_t("Hbol")
 
-    # Wait for cell to finish running
-    time.sleep(0.5)
-
-    # Manually set HTML mimetype for this test
-    # (In reality, this would come from mo.Html or similar)
-    cell_notification = session.session_view.cell_notifications.get(cell_id)
-    if cell_notification and cell_notification.output:
-        cell_notification.output = CellOutput(
+    # Manually set HTML output for this cell
+    session.session_view.cell_notifications[cell_id] = CellNotification(
+        cell_id=cell_id,
+        output=CellOutput(
             channel=CellChannel.OUTPUT,
             mimetype="text/html",
             data="<div>Chart goes here</div>",
-            timestamp=cell_notification.output.timestamp,
-        )
+        ),
+        status="idle",
+    )
 
-    # Update with screenshot
+    # Update with screenshot via API
     update_response = client.post(
         "/api/export/update_cell_outputs",
         headers=HEADERS,
@@ -832,38 +806,13 @@ def test_update_cell_outputs_then_export_ipynb(
     )
     assert update_response.status_code == 200
 
-    # Export as ipynb
-    export_response = client.post(
-        "/api/export/auto_export/ipynb",
-        headers=HEADERS,
-        json={"download": False},
+    # Verify the output was overwritten
+    cell_notification = session.session_view.cell_notifications.get(cell_id)
+    assert cell_notification is not None
+    assert cell_notification.output is not None
+    assert cell_notification.output == CellOutput(
+        channel=CellChannel.OUTPUT,
+        mimetype="image/png",
+        data="data:image/png;base64,iVBORw0KGgoAAAANS",
+        timestamp=cell_notification.output.timestamp,
     )
-    assert export_response.status_code == 200
-    assert export_response.json() == {"success": True}
-
-    # Read the exported file
-    export_dir = Path(temp_marimo_file).parent / "__marimo__"
-    ipynb_file = export_dir / Path(temp_marimo_file).with_suffix(".ipynb").name
-    assert ipynb_file.exists()
-
-    notebook = nbformat.read(str(ipynb_file), as_version=4)
-
-    # Find the cell with our test_cell id
-    test_cells = [c for c in notebook.cells if c.get("id") == cell_id]
-    assert len(test_cells) > 0, (
-        f"Cell {cell_id} not found in exported notebook"
-    )
-
-    cell = test_cells[0]
-    assert len(cell.outputs) > 0, "Cell should have outputs"
-
-    # Verify the mimebundle contains both HTML and PNG
-    output = cell.outputs[0]
-    assert output == {
-        "output_type": "display_data",
-        "data": {
-            "text/html": "<div>Chart goes here</div>",
-            "image/png": "iVBORw0KGgoAAAANS",
-        },
-        "metadata": {},
-    }

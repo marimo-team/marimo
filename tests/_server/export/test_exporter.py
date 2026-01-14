@@ -23,7 +23,6 @@ from marimo._server.export.exporter import (
     Exporter,
     _convert_marimo_output_to_ipynb,
     _maybe_extract_dataurl,
-    merge_cell_output,
 )
 from marimo._server.models.export import ExportAsHTMLRequest
 from marimo._session.notebook import AppFileManager
