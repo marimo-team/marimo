@@ -1,6 +1,5 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import React, {
-  Activity,
   type PropsWithChildren,
   Suspense,
   useEffect,
@@ -21,6 +20,7 @@ import { XIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ReorderableList } from "@/components/ui/reorderable-list";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { LazyActivity } from "@/components/utils/lazy-mount";
 import { cellErrorCount } from "@/core/cells/cells";
 import { capabilitiesAtom } from "@/core/config/capabilities";
 import { getFeatureFlag } from "@/core/config/feature-flag";
@@ -353,12 +353,12 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
           <Suspense>
             <TooltipProvider>
               {Object.entries(SIDEBAR_PANELS).map(([key, Panel]) => (
-                <Activity
+                <LazyActivity
                   key={key}
                   mode={selectedPanel === key ? "visible" : "hidden"}
                 >
                   {Panel}
-                </Activity>
+                </LazyActivity>
               ))}
             </TooltipProvider>
           </Suspense>
@@ -500,14 +500,14 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
           <PanelSectionProvider value="developer-panel">
             <div className="flex-1 overflow-hidden">
               {Object.entries(DEVELOPER_PANELS).map(([key, Panel]) => (
-                <Activity
+                <LazyActivity
                   key={key}
                   mode={
                     selectedDeveloperPanelTab === key ? "visible" : "hidden"
                   }
                 >
                   {Panel}
-                </Activity>
+                </LazyActivity>
               ))}
             </div>
           </PanelSectionProvider>
