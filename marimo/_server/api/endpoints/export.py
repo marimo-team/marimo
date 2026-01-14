@@ -12,7 +12,6 @@ from marimo import _loggers
 from marimo._convert.markdown import convert_from_ir_to_markdown
 from marimo._convert.script import convert_from_ir_to_script
 from marimo._dependencies.dependencies import DependencyManager
-from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.msgspec_encoder import asdict
 from marimo._server.api.deps import AppState
 from marimo._server.api.utils import parse_request
@@ -29,6 +28,7 @@ from marimo._server.models.export import (
 )
 from marimo._server.models.models import SuccessResponse
 from marimo._server.router import APIRouter
+from marimo._session.state.session_view import merge_cell_output
 from marimo._utils.http import HTTPStatus
 
 if TYPE_CHECKING:
@@ -459,12 +459,8 @@ async def update_cell_outputs(
             continue
 
         mimetype, data = output
-        if cell_notification.output is None:
-            cell_notification.output = CellOutput(
-                channel=CellChannel.OUTPUT, mimetype=mimetype, data=data
-            )
-        else:
-            cell_notification.output.mimetype = mimetype
-            cell_notification.output.data = data
+        cell_notification.output = merge_cell_output(
+            cell_notification.output, mimetype, data
+        )
 
     return JSONResponse(content=asdict(SuccessResponse()))

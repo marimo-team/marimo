@@ -3,10 +3,12 @@ from __future__ import annotations
 
 import time
 from dataclasses import dataclass
-from typing import Any, Literal, Optional
+from typing import Any, Literal, Optional, cast
 
+from marimo import _loggers
 from marimo._data.models import DataSourceConnection, DataTable
 from marimo._messaging.cell_output import CellChannel, CellOutput
+from marimo._messaging.mimetypes import KnownMimeType
 from marimo._messaging.notification import (
     CellNotification,
     DatasetsNotification,
@@ -41,6 +43,8 @@ from marimo._sql.connection_utils import (
 from marimo._sql.engines.duckdb import INTERNAL_DUCKDB_ENGINE
 from marimo._types.ids import CellId_t, WidgetModelId
 from marimo._utils.lists import as_list
+
+LOGGER = _loggers.marimo_logger()
 
 ExportType = Literal["html", "md", "ipynb", "session"]
 
@@ -484,3 +488,50 @@ def merge_cell_notification(
         current.output = previous.output
 
     return current
+
+
+def merge_cell_output(
+    existing_output: CellOutput | None,
+    mimetype: KnownMimeType,
+    data: Any,
+) -> CellOutput:
+    """Merge new output data into existing cell output as a mimebundle.
+
+    Args:
+        existing_output: The cell's existing output, or None
+        mimetype: MIME type of the new data
+        data: The new data to add
+
+    Returns:
+        A CellOutput with the merged data
+    """
+    if existing_output is None:
+        return CellOutput(
+            channel=CellChannel.OUTPUT, mimetype=mimetype, data=data
+        )
+
+    if isinstance(existing_output.data, list):
+        LOGGER.debug(
+            "Skipping list of errors output, should not have rich elements"
+        )
+        return existing_output
+
+    new_mimebundle = {mimetype: data}
+    if isinstance(existing_output.data, dict):
+        return CellOutput(
+            channel=existing_output.channel,
+            mimetype="application/vnd.marimo+mimebundle",
+            data=cast(
+                dict[str, Any], {**existing_output.data, **new_mimebundle}
+            ),
+            timestamp=existing_output.timestamp,
+        )
+
+    # Existing output is a string - convert to mimebundle
+    mimebundle = {existing_output.mimetype: existing_output.data}
+    return CellOutput(
+        channel=existing_output.channel,
+        mimetype="application/vnd.marimo+mimebundle",
+        data=cast(dict[str, Any], {**mimebundle, **new_mimebundle}),
+        timestamp=existing_output.timestamp,
+    )
