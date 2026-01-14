@@ -341,12 +341,17 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
               {selectedPanel === "tracing" && <LazyTracingPanel />}
               {selectedPanel === "secrets" && <LazySecretsPanel />}
               {selectedPanel === "logs" && <LazyLogsPanel />}
-              {selectedPanel === "terminal" && (
-                <LazyTerminal
-                  visible={isSidebarOpen}
-                  onClose={() => setIsSidebarOpen(false)}
-                />
-              )}
+              {/* LazyMount keeps Terminal mounted to preserve session across panel switches */}
+              <LazyMount isOpen={isSidebarOpen && selectedPanel === "terminal"}>
+                <div
+                  className={selectedPanel === "terminal" ? "h-full" : "hidden"}
+                >
+                  <LazyTerminal
+                    visible={isSidebarOpen && selectedPanel === "terminal"}
+                    onClose={() => setIsSidebarOpen(false)}
+                  />
+                </div>
+              </LazyMount>
               {selectedPanel === "cache" && <LazyCachePanel />}
             </TooltipProvider>
           </Suspense>
@@ -502,15 +507,29 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
               {selectedDeveloperPanelTab === "tracing" && <LazyTracingPanel />}
               {selectedDeveloperPanelTab === "secrets" && <LazySecretsPanel />}
               {selectedDeveloperPanelTab === "logs" && <LazyLogsPanel />}
-              {/* LazyMount needed for Terminal to avoid spurious connection */}
-              {selectedDeveloperPanelTab === "terminal" && (
-                <LazyMount isOpen={isDeveloperPanelOpen}>
+              {/* LazyMount keeps Terminal mounted to preserve session across tab switches */}
+              <LazyMount
+                isOpen={
+                  isDeveloperPanelOpen &&
+                  selectedDeveloperPanelTab === "terminal"
+                }
+              >
+                <div
+                  className={
+                    selectedDeveloperPanelTab === "terminal"
+                      ? "h-full"
+                      : "hidden"
+                  }
+                >
                   <LazyTerminal
-                    visible={isDeveloperPanelOpen}
+                    visible={
+                      isDeveloperPanelOpen &&
+                      selectedDeveloperPanelTab === "terminal"
+                    }
                     onClose={() => setIsDeveloperPanelOpen(false)}
                   />
-                </LazyMount>
-              )}
+                </div>
+              </LazyMount>
               {selectedDeveloperPanelTab === "cache" && <LazyCachePanel />}
             </div>
           </PanelSectionProvider>
