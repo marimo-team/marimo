@@ -151,7 +151,10 @@ def has_marimo_installed(venv_python: str) -> bool:
     if venv_version != __version__:
         LOGGER.warning(
             f"marimo version mismatch: venv has {venv_version}, "
-            f"current is {__version__}"
+            f"current is {__version__}. "
+            f"This may cause unexpected behavior. "
+            f"Consider upgrading both environments to the same version: "
+            f"uv pip install --upgrade marimo"
         )
 
     return True

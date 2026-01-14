@@ -10,8 +10,10 @@ if TYPE_CHECKING:
 import pytest
 
 from marimo._session._venv import (
+    check_python_version_compatibility,
     get_configured_venv_python,
     get_kernel_pythonpath,
+    has_marimo_installed,
 )
 
 
@@ -183,3 +185,108 @@ def test_get_kernel_pythonpath_deduplicates(
     paths = pythonpath.split(os.pathsep)
 
     assert paths.count("/shared/site-packages") == 1
+
+
+def test_has_marimo_installed_returns_true_when_imports_succeed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Test returns True when marimo and deps can be imported."""
+    import subprocess
+
+    from marimo._version import __version__
+
+    def mock_run(
+        *args: Any, **_kwargs: Any
+    ) -> subprocess.CompletedProcess[str]:
+        return subprocess.CompletedProcess(
+            args=args[0],
+            returncode=0,
+            stdout=f"{__version__}\n",
+            stderr="",
+        )
+
+    monkeypatch.setattr(subprocess, "run", mock_run)
+    assert has_marimo_installed("/fake/python") is True
+
+
+def test_has_marimo_installed_returns_false_when_import_fails(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Test returns False when imports fail."""
+    import subprocess
+
+    def mock_run(
+        *args: Any, **_kwargs: Any
+    ) -> subprocess.CompletedProcess[str]:
+        return subprocess.CompletedProcess(
+            args=args[0],
+            returncode=1,
+            stdout="",
+            stderr="ModuleNotFoundError: No module named 'marimo'",
+        )
+
+    monkeypatch.setattr(subprocess, "run", mock_run)
+    assert has_marimo_installed("/fake/python") is False
+
+
+def test_has_marimo_installed_returns_true_on_version_mismatch(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Test returns True even when venv has different marimo version."""
+    import subprocess
+
+    def mock_run(
+        *args: Any, **_kwargs: Any
+    ) -> subprocess.CompletedProcess[str]:
+        return subprocess.CompletedProcess(
+            args=args[0],
+            returncode=0,
+            stdout="0.0.1\n",  # Different version
+            stderr="",
+        )
+
+    monkeypatch.setattr(subprocess, "run", mock_run)
+    # Should return True even with version mismatch (warning is logged)
+    assert has_marimo_installed("/fake/python") is True
+
+
+def test_check_python_version_compatibility_returns_true_when_match(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Test returns True when Python versions match."""
+    import subprocess
+
+    current_version = f"{sys.version_info.major}.{sys.version_info.minor}"
+
+    def mock_run(
+        *args: Any, **_kwargs: Any
+    ) -> subprocess.CompletedProcess[str]:
+        return subprocess.CompletedProcess(
+            args=args[0],
+            returncode=0,
+            stdout=f"{current_version}\n",
+            stderr="",
+        )
+
+    monkeypatch.setattr(subprocess, "run", mock_run)
+    assert check_python_version_compatibility("/fake/python") is True
+
+
+def test_check_python_version_compatibility_returns_false_when_mismatch(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Test returns False when Python versions differ."""
+    import subprocess
+
+    def mock_run(
+        *args: Any, **_kwargs: Any
+    ) -> subprocess.CompletedProcess[str]:
+        return subprocess.CompletedProcess(
+            args=args[0],
+            returncode=0,
+            stdout="2.7\n",  # Different version
+            stderr="",
+        )
+
+    monkeypatch.setattr(subprocess, "run", mock_run)
+    assert check_python_version_compatibility("/fake/python") is False
