@@ -245,6 +245,11 @@ class AppFileManager:
                 kwargs["sql_output"] = self._defaults.sql_output
 
             empty_app = InternalApp(App(**kwargs))
+
+            # Set PEP 723 header from URL params if provided
+            if self._defaults.header is not None:
+                empty_app._app._header = self._defaults.header
+
             empty_app.cell_manager.register_cell(
                 cell_id=None,
                 code="",

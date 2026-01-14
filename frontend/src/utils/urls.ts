@@ -21,10 +21,29 @@ export function hasQueryParam(key: string, value?: string): boolean {
   return urlParams.get(key) === value;
 }
 
-export function newNotebookURL() {
+/**
+ * Parameters that can be passed when creating a new notebook URL.
+ * These are serialized into the notebook's PEP 723 header.
+ */
+export interface NewNotebookParams {
+  /** Virtual environment path for the notebook */
+  venv?: string;
+}
+
+/**
+ * Generate a URL for creating a new notebook.
+ * @param params Optional configuration for the new notebook
+ */
+export function newNotebookURL(params?: NewNotebookParams): string {
   const sessionId = generateSessionId();
   const initializationId = `__new__${sessionId}`;
-  return asURL(`?file=${initializationId}`).toString();
+  const url = asURL(`?file=${initializationId}`);
+
+  if (params?.venv) {
+    url.searchParams.set("venv", params.venv);
+  }
+
+  return url.toString();
 }
 
 const urlRegex = /^(https?:\/\/\S+)$/;
