@@ -15,15 +15,19 @@ from typing import TYPE_CHECKING, Optional, Union, cast
 
 from marimo import _loggers
 from marimo._cli.sandbox import (
-    IPC_KERNEL_DEPS,
     build_sandbox_venv,
-    check_python_version_compatibility,
     cleanup_sandbox_dir,
+)
+from marimo._cli.venv import (
+    IPC_KERNEL_DEPS,
+    check_python_version_compatibility,
     get_configured_venv_python,
     get_kernel_pythonpath,
     has_marimo_installed,
     install_marimo_into_venv,
 )
+from marimo._config.config import EnvConfig
+from marimo._config.manager import MarimoConfigReader
 from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._messaging.types import KernelMessage
 from marimo._runtime import commands
@@ -34,13 +38,18 @@ from marimo._utils.typed_connection import TypedConnection
 
 if TYPE_CHECKING:
     from marimo._ast.cell import CellConfig
-    from marimo._config.manager import MarimoConfigReader
     from marimo._ipc.queue_manager import QueueManager as IPCQueueManagerType
     from marimo._ipc.types import ConnectionInfo
     from marimo._runtime.commands import AppMetadata
     from marimo._types.ids import CellId_t
 
 LOGGER = _loggers.marimo_logger()
+
+
+def _get_env_config(config_manager: MarimoConfigReader) -> EnvConfig:
+    """Get the [tool.marimo.env] config from a config manager."""
+    config = config_manager.get_config(hide_secrets=False)
+    return cast(EnvConfig, config.get("env", {}))
 
 
 class KernelStartupError(Exception):
@@ -168,10 +177,10 @@ class IPCKernelManagerImpl(KernelManager):
 
         env = os.environ.copy()
 
-        user_config = self.config_manager.get_config(hide_secrets=False)
+        env_config = _get_env_config(self.config_manager)
         try:
             configured_python = get_configured_venv_python(
-                user_config, base_path=self.app_metadata.filename
+                env_config, base_path=self.app_metadata.filename
             )
         except ValueError as e:
             raise KernelStartupError(str(e)) from e
@@ -187,7 +196,7 @@ class IPCKernelManagerImpl(KernelManager):
                 err=True,
             )
             venv_python = configured_python
-            editable = user_config.get("env", {}).get("editable", False)
+            editable = env_config.get("editable", False)
 
             if editable:
                 # Install marimo + IPC deps into the venv

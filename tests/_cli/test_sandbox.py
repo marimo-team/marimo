@@ -1,14 +1,12 @@
 from __future__ import annotations
 
 import os
-import sys
 from typing import TYPE_CHECKING, Any
 from unittest.mock import patch
 
 if TYPE_CHECKING:
     from pathlib import Path
 
-import click
 import pytest
 
 from marimo._cli.sandbox import (
@@ -18,7 +16,6 @@ from marimo._cli.sandbox import (
     build_sandbox_venv,
     cleanup_sandbox_dir,
     construct_uv_command,
-    get_configured_venv_python,
     resolve_sandbox_mode,
 )
 from marimo._dependencies.dependencies import DependencyManager
@@ -672,61 +669,6 @@ def test_cleanup_sandbox_dir_handles_nonexistent(tmp_path: Path) -> None:
 
     nonexistent = str(tmp_path / "does_not_exist")
     cleanup_sandbox_dir(nonexistent)  # Should not raise
-
-
-def test_get_configured_venv_python_returns_none_when_not_configured() -> None:
-    """Test returns None when venv not in config."""
-    config: dict[str, Any] = {"env": {}}  # No venv configured
-    result = get_configured_venv_python(config)
-    assert result is None
-
-
-def test_get_configured_venv_python_returns_none_when_env_missing() -> None:
-    """Test returns None when env section missing from config."""
-    config: dict[str, Any] = {}
-    result = get_configured_venv_python(config)
-    assert result is None
-
-
-def test_get_configured_venv_python_returns_path_when_valid(
-    tmp_path: Path,
-) -> None:
-    """Test returns Python path when venv is valid."""
-    # Create a mock venv with Python
-    venv_dir = tmp_path / "venv"
-    venv_dir.mkdir()
-    if sys.platform == "win32":
-        bin_dir = venv_dir / "Scripts"
-        python_name = "python.exe"
-    else:
-        bin_dir = venv_dir / "bin"
-        python_name = "python"
-    bin_dir.mkdir()
-    python_path = bin_dir / python_name
-    python_path.touch()
-
-    config: dict[str, Any] = {"env": {"venv": str(venv_dir)}}
-    result = get_configured_venv_python(config)
-    assert result == str(python_path.resolve())
-
-
-def test_get_configured_venv_python_raises_on_missing_venv() -> None:
-    """Test raises UsageError when configured venv doesn't exist."""
-    config: dict[str, Any] = {"env": {"venv": "/nonexistent/venv/path"}}
-    with pytest.raises(ValueError, match="does not exist"):
-        get_configured_venv_python(config)
-
-
-def test_get_configured_venv_python_raises_on_no_python(
-    tmp_path: Path,
-) -> None:
-    """Test raises UsageError when venv has no Python interpreter."""
-    venv_dir = tmp_path / "venv"
-    venv_dir.mkdir()  # Empty venv, no bin/python
-
-    config: dict[str, Any] = {"env": {"venv": str(venv_dir)}}
-    with pytest.raises(ValueError, match="No Python interpreter"):
-        get_configured_venv_python(config)
 
 
 @pytest.mark.skipif(not HAS_UV, reason="uv required")
