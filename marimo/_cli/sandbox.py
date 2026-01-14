@@ -283,6 +283,96 @@ def get_marimo_dir() -> Path:
     return Path(__file__).parent.parent.parent
 
 
+def get_kernel_pythonpath() -> str:
+    """Get PYTHONPATH for kernel subprocess.
+
+    Returns paths needed to import marimo and its dependencies (pyzmq, msgspec)
+    from the parent process's environment. Used when launching a kernel
+    in a configured venv that has marimo available via path injection.
+
+    Returns:
+        Colon-separated (or semicolon on Windows) path string for PYTHONPATH.
+    """
+    import site
+
+    paths: list[str] = []
+
+    # Add marimo's parent directory (where marimo package can be imported from)
+    marimo_parent = str(get_marimo_dir())
+    if marimo_parent not in paths:
+        paths.append(marimo_parent)
+
+    # Add site-packages for dependencies (pyzmq, msgspec)
+    try:
+        for sp in site.getsitepackages():
+            if sp not in paths:
+                paths.append(sp)
+    except AttributeError:
+        pass
+
+    # Also add user site-packages
+    try:
+        user_site = site.getusersitepackages()
+        if user_site and user_site not in paths:
+            paths.append(user_site)
+    except AttributeError:
+        pass
+
+    return os.pathsep.join(paths)
+
+
+def check_python_version_compatibility(venv_python: str) -> bool:
+    """Check if venv Python version matches current Python.
+
+    Binary dependencies (pyzmq, msgspec) aren't cross-version compatible,
+    so the venv must use the same Python major.minor version.
+
+    Args:
+        venv_python: Path to the venv's Python interpreter.
+
+    Returns:
+        True if versions match, False otherwise.
+    """
+    result = subprocess.run(
+        [
+            venv_python,
+            "-c",
+            "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    venv_version = result.stdout.strip()
+    current_version = f"{sys.version_info.major}.{sys.version_info.minor}"
+
+    return venv_version == current_version
+
+
+def install_marimo_into_venv(venv_python: str) -> None:
+    """Install marimo and IPC dependencies into a venv.
+
+    Installs marimo and IPC dependencies (pyzmq) into the specified venv.
+
+    Args:
+        venv_python: Path to the venv's Python interpreter.
+    """
+    uv_bin = find_uv_bin()
+
+    packages = [f"marimo=={__version__}"] + IPC_KERNEL_DEPS
+
+    echo("Installing marimo into configured venv...", err=True)
+
+    result = subprocess.run(
+        [uv_bin, "pip", "install", "--python", venv_python] + packages,
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        LOGGER.warning(
+            f"Failed to install marimo into configured venv: {result.stderr}"
+        )
+
+
 def construct_uv_flags(
     pyproject: PyProjectReader,
     temp_file: "tempfile._TemporaryFileWrapper[str]",  # noqa: UP037

@@ -17,8 +17,11 @@ from marimo import _loggers
 from marimo._cli.sandbox import (
     IPC_KERNEL_DEPS,
     build_sandbox_venv,
+    check_python_version_compatibility,
     cleanup_sandbox_dir,
     get_configured_venv_python,
+    get_kernel_pythonpath,
+    install_marimo_into_venv,
 )
 from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._messaging.types import KernelMessage
@@ -181,6 +184,34 @@ class IPCKernelManagerImpl(KernelManager):
             )
             venv_python = configured_python
             editable = user_config.get("env", {}).get("editable", False)
+
+            if editable:
+                # Install marimo + IPC deps into the venv
+                try:
+                    install_marimo_into_venv(venv_python)
+                except Exception as e:
+                    raise KernelStartupError(
+                        f"Failed to install marimo into configured venv.\n\n{e}"
+                    ) from e
+            else:
+                # Check Python version compatibility for binary deps
+                if not check_python_version_compatibility(venv_python):
+                    raise KernelStartupError(
+                        f"Configured venv uses a different Python version than marimo.\n"
+                        f"Binary dependencies (pyzmq, msgspec) aren't cross-version compatible.\n\n"
+                        f"Options:\n"
+                        f"  1. Set editable=true in [tool.marimo.env] to allow marimo to install deps\n"
+                        f"  2. Install marimo in your venv: uv pip install marimo --python {venv_python}\n"
+                        f"  3. Remove [tool.marimo.env].venv to use an ephemeral sandbox instead"
+                    )
+
+                # Inject PYTHONPATH for marimo and dependencies
+                kernel_path = get_kernel_pythonpath()
+                existing = env.get("PYTHONPATH", "")
+                if existing:
+                    env["PYTHONPATH"] = f"{kernel_path}{os.pathsep}{existing}"
+                else:
+                    env["PYTHONPATH"] = kernel_path
         else:
             # Build ephemeral sandbox venv with IPC dependencies
             try:
