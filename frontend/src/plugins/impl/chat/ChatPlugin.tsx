@@ -15,7 +15,7 @@ export type PluginFunctions = {
   get_chat_history: (req: {}) => Promise<{ messages: UIMessage[] }>;
   delete_chat_history: (req: {}) => Promise<null>;
   delete_chat_message: (req: { index: number }) => Promise<null>;
-  send_prompt: (req: SendMessageRequest) => Promise<string | null>;
+  send_prompt: (req: SendMessageRequest) => Promise<unknown>;
 };
 
 const messageSchema = z.array(
@@ -47,7 +47,6 @@ export const ChatPlugin = createPlugin<{ messages: UIMessage[] }>(
       maxHeight: z.number().optional(),
       config: configSchema,
       allowAttachments: z.union([z.boolean(), z.string().array()]),
-      frontendManaged: z.boolean(),
     }),
   )
   .withFunctions<PluginFunctions>({
@@ -67,7 +66,7 @@ export const ChatPlugin = createPlugin<{ messages: UIMessage[] }>(
           config: configSchema,
         }),
       )
-      .output(z.union([z.string(), z.null()])),
+      .output(z.unknown()),
   })
   .renderer((props) => (
     <TooltipProvider>
@@ -77,7 +76,6 @@ export const ChatPlugin = createPlugin<{ messages: UIMessage[] }>(
           showConfigurationControls={props.data.showConfigurationControls}
           maxHeight={props.data.maxHeight}
           allowAttachments={props.data.allowAttachments}
-          frontendManaged={props.data.frontendManaged}
           config={props.data.config}
           get_chat_history={props.functions.get_chat_history}
           delete_chat_history={props.functions.delete_chat_history}

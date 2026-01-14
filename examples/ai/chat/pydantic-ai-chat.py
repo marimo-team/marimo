@@ -261,12 +261,17 @@ def _():
         )
         yield vercel.TextEndChunk(id=text_id)
         yield vercel.FinishStepChunk()
-        yield vercel.FinishChunk(finish_reason="stop")
+        yield vercel.FinishChunk()
 
 
-    custom_chat = mo.ui.chat(custom_model, vercel_messages=True)
+    custom_chat = mo.ui.chat(custom_model)
     custom_chat
     return (custom_chat,)
+
+
+@app.cell
+def _():
+    return
 
 
 @app.cell
