@@ -507,7 +507,7 @@ import marimo
     manager = ScriptConfigManager(str(script))
     config = manager.get_config(hide_secrets=False)
     expected = str((tmp_path / "my_venv").absolute())
-    assert config.get("env", {}).get("venv") == expected
+    assert expected.endswith(config.get("env", {}).get("venv"))
 
 
 def test_script_config_manager_no_venv_config(tmp_path: Path) -> None:

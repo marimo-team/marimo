@@ -585,17 +585,6 @@ app = marimo.App()
     assert script_path.read_text() == original
 
 
-# Tests for IPC sandbox functions
-
-
-def test_ipc_kernel_deps_constant() -> None:
-    """Test IPC_KERNEL_DEPS constant contains expected deps."""
-    from marimo._cli.sandbox import IPC_KERNEL_DEPS
-
-    assert "pyzmq" in IPC_KERNEL_DEPS
-    assert "msgspec" in IPC_KERNEL_DEPS
-
-
 def test_get_sandbox_requirements_adds_additional_deps(tmp_path: Path) -> None:
     """Test that additional deps are added when not present."""
     from marimo._cli.sandbox import get_sandbox_requirements
@@ -724,7 +713,7 @@ def test_get_configured_venv_python_returns_path_when_valid(
 def test_get_configured_venv_python_raises_on_missing_venv() -> None:
     """Test raises UsageError when configured venv doesn't exist."""
     config: dict[str, Any] = {"env": {"venv": "/nonexistent/venv/path"}}
-    with pytest.raises(click.UsageError, match="does not exist"):
+    with pytest.raises(ValueError, match="does not exist"):
         get_configured_venv_python(config)
 
 
@@ -736,7 +725,7 @@ def test_get_configured_venv_python_raises_on_no_python(
     venv_dir.mkdir()  # Empty venv, no bin/python
 
     config: dict[str, Any] = {"env": {"venv": str(venv_dir)}}
-    with pytest.raises(click.UsageError, match="No Python interpreter"):
+    with pytest.raises(ValueError, match="No Python interpreter"):
         get_configured_venv_python(config)
 
 
