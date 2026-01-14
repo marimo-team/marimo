@@ -214,7 +214,7 @@ class IPCKernelManagerImpl(KernelManager):
                 # Check Python version compatibility for binary deps
                 if not check_python_version_compatibility(venv_python):
                     # If we have gotten to this point
-                    # - We have a prescibed venv
+                    # - We have a prescribed venv
                     # - The venv is not writable
                     # - The venv does not contain marimo nor zmq
                     # As such there is nothing we can do, as we can't get marimo
