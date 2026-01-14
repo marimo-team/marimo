@@ -19,7 +19,6 @@ from marimo._sql.engines.duckdb import INTERNAL_DUCKDB_ENGINE, DuckDBEngine
 from marimo._sql.engines.ibis import IbisEngine
 from marimo._sql.engines.redshift import RedshiftEngine
 from marimo._sql.engines.sqlalchemy import SQLAlchemyEngine
-from marimo._sql.get_engines import get_engines_from_variables
 from marimo._sql.get_engines import (
     engine_to_data_source_connection,
     get_engines_from_variables,
@@ -474,4 +473,4 @@ def test_variables_without_datasource_engine() -> None:
     deferred_for_test = ibis._["a"]
     variables_to_test = [("deferred_for_test", deferred_for_test)]
     engines = get_engines_from_variables(variables_to_test)
-    assert not engines    
+    assert not engines
