@@ -674,7 +674,6 @@ def _convert_marimo_output_to_ipynb(
     if cell_output.data is None:
         return ipynb_outputs
 
-    # Handle error outputs
     if cell_output.channel == CellChannel.MARIMO_ERROR:
         traceback_lines = _extract_traceback_from_console(console_outputs)
         errors = cast(
