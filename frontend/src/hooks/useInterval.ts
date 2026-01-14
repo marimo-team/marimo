@@ -1,9 +1,16 @@
 /* Copyright 2026 Marimo. All rights reserved. */
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { useEventListener } from "./useEventListener";
 
 /**
  * Creates an interval that runs a callback every `delayMs` milliseconds.
+ *
+ * @param callback - The callback to run.
+ * @param opts - The options for the interval.
+ * @param opts.delayMs - The delay in milliseconds between runs.
+ * @param opts.whenVisible - Whether to run the callback when the document is visible.
+ * @param opts.disabled - Whether to disable the interval.
+ * @param opts.allowOverlap - Whether to allow the callback to run if it is already running.
  */
 export function useInterval(
   callback: () => void,
@@ -11,15 +18,30 @@ export function useInterval(
     delayMs: number | null;
     whenVisible: boolean;
     disabled?: boolean;
+    allowOverlap?: boolean;
   },
 ) {
-  const { delayMs, whenVisible, disabled = false } = opts;
-  const savedCallback = useRef<() => void>(undefined);
+  const { delayMs, whenVisible, disabled = false, allowOverlap = true } = opts;
+  const savedCallback = useRef<() => void | Promise<void>>(undefined);
+  const isRunning = useRef(false);
 
   // Store the callback
   useEffect(() => {
     savedCallback.current = callback;
   }, [callback]);
+
+  const runCallback = useCallback(async () => {
+    // If overlap is not allowed, we do not run the callback if it is already running
+    if (isRunning.current && !allowOverlap) {
+      return;
+    }
+    isRunning.current = true;
+    try {
+      await savedCallback.current?.();
+    } finally {
+      isRunning.current = false;
+    }
+  }, [allowOverlap]);
 
   // Run the interval
   useEffect(() => {
@@ -32,16 +54,16 @@ export function useInterval(
         return;
       }
 
-      savedCallback.current?.();
+      runCallback();
     }, delayMs);
 
     return () => clearInterval(id);
-  }, [delayMs, whenVisible, disabled]);
+  }, [delayMs, whenVisible, disabled, runCallback]);
 
   // When the document becomes visible, run the callback
   useEventListener(document, "visibilitychange", () => {
     if (document.visibilityState === "visible" && whenVisible && !disabled) {
-      savedCallback.current?.();
+      runCallback();
     }
   });
 

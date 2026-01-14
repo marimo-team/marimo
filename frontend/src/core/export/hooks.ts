@@ -72,22 +72,35 @@ export function useAutoExport() {
     },
     // Run every 5 seconds, or when the document becomes visible
     // Ignore if the document is not visible
-    { delayMs: DELAY, whenVisible: true, disabled: ipynbDisabled },
+    // Disallow overlapping calls to ensure no race conditions between screenshot and export
+    {
+      delayMs: DELAY,
+      whenVisible: true,
+      disabled: ipynbDisabled,
+      allowOverlap: false,
+    },
   );
 }
 
 // We track cells that need screenshots, these will be exported to IPYNB
 const richCellsToOutputAtom = atom<Record<CellId, unknown>>({});
 
+/**
+ * Take screenshots of cells with HTML outputs. These images will be sent to the backend to be exported to IPYNB.
+ * @returns A map of cell IDs to their screenshots data.
+ */
 export function useEnrichCellOutputs() {
   const [richCellsOutput, setRichCellsOutput] = useAtom(richCellsToOutputAtom);
   const cellRuntimes = useAtomValue(cellsRuntimeAtom);
 
   return async (): Promise<Record<CellId, ["image/png", unknown]>> => {
+    const trackedCellsOutput: Record<CellId, unknown> = {};
+
     const cellsToCaptureScreenshot = Objects.entries(cellRuntimes).filter(
       ([cellId, runtime]) => {
         const outputHasChanged =
           richCellsOutput[cellId] !== runtime.output?.data;
+        trackedCellsOutput[cellId] = runtime.output?.data;
 
         return (
           runtime.output?.mimetype === "text/html" &&
@@ -97,17 +110,12 @@ export function useEnrichCellOutputs() {
       },
     );
 
+    // Always update tracked outputs, this ensures data is fresh for the next run
+    setRichCellsOutput((prev) => ({ ...prev, ...trackedCellsOutput }));
+
     if (cellsToCaptureScreenshot.length === 0) {
       return {};
     }
-
-    const newCellsOutput: Record<CellId, unknown> = {};
-    for (const [cellId, runtime] of cellsToCaptureScreenshot) {
-      if (runtime.output?.data) {
-        newCellsOutput[cellId] = runtime.output.data;
-      }
-    }
-    setRichCellsOutput((prev) => ({ ...prev, ...newCellsOutput }));
 
     // Capture screenshots
     const results = await Promise.all(
