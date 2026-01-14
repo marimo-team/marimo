@@ -125,7 +125,7 @@ def test_get_kernel_pythonpath_detects_module_via_import(
     pythonpath = get_kernel_pythonpath()
     paths = pythonpath.split(os.pathsep)
 
-    assert "/fake/site-packages" in paths
+    assert os.path.normpath("/fake/site-packages") in paths
 
 
 def test_get_kernel_pythonpath_skips_module_without_file(
@@ -184,7 +184,7 @@ def test_get_kernel_pythonpath_deduplicates(
     pythonpath = get_kernel_pythonpath()
     paths = pythonpath.split(os.pathsep)
 
-    assert paths.count("/shared/site-packages") == 1
+    assert paths.count(os.path.normpath("/shared/site-packages")) == 1
 
 
 def test_has_marimo_installed_returns_true_when_imports_succeed(
