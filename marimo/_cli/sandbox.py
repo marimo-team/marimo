@@ -87,7 +87,7 @@ def get_configured_venv_python(
         Path to Python interpreter in configured venv, or None if not configured.
 
     Raises:
-        click.UsageError: If venv is configured but invalid.
+        ValueError: If venv is configured but invalid.
     """
     env_config = config.get("env", {})
     venv_path = env_config.get("venv")
@@ -100,17 +100,11 @@ def get_configured_venv_python(
         venv_path = os.path.join(base_dir, venv_path)
 
     if not os.path.isdir(venv_path):
-        raise click.UsageError(
-            f"Configured venv does not exist: {venv_path}\n"
-            "Check [tool.marimo.env].venv in your pyproject.toml"
-        )
+        raise ValueError(f"Configured venv does not exist: {venv_path}")
 
     python_path = _find_python_in_venv(venv_path)
     if not python_path:
-        raise click.UsageError(
-            f"No Python interpreter found in configured venv: {venv_path}\n"
-            "Check [tool.marimo.env].venv in your pyproject.toml"
-        )
+        raise ValueError(f"No Python interpreter found in configured venv: {venv_path}")
 
     return python_path
 
@@ -324,6 +318,33 @@ def get_kernel_pythonpath() -> str:
             pass
 
     return os.pathsep.join(paths)
+
+
+def has_marimo_installed(venv_python: str) -> bool:
+    """Check if marimo and its IPC deps are installed in the venv.
+
+    Args:
+        venv_python: Path to the venv's Python interpreter.
+
+    Returns:
+        True if marimo, msgspec, and zmq can all be imported.
+    """
+    result = subprocess.run(
+        [venv_python, "-c", "import marimo, msgspec, zmq; print(marimo.__version__)"],
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        return False
+
+    venv_version = result.stdout.strip()
+    if venv_version != __version__:
+        LOGGER.warning(
+            f"marimo version mismatch: venv has {venv_version}, "
+            f"current is {__version__}"
+        )
+
+    return True
 
 
 def check_python_version_compatibility(venv_python: str) -> bool:

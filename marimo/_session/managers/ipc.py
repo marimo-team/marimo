@@ -21,6 +21,7 @@ from marimo._cli.sandbox import (
     cleanup_sandbox_dir,
     get_configured_venv_python,
     get_kernel_pythonpath,
+    has_marimo_installed,
     install_marimo_into_venv,
 )
 from marimo._config.settings import GLOBAL_SETTINGS
@@ -168,14 +169,17 @@ class IPCKernelManagerImpl(KernelManager):
         env = os.environ.copy()
 
         user_config = self.config_manager.get_config(hide_secrets=False)
-        configured_python = get_configured_venv_python(
-            user_config, base_path=self.app_metadata.filename
-        )
+        try:
+            configured_python = get_configured_venv_python(
+                user_config, base_path=self.app_metadata.filename
+            )
+        except ValueError as e:
+            raise KernelStartupError(str(e)) from e
 
         # Ephemeral sandboxes are always editable; configured venvs respect the flag
         editable = True
 
-        # An explicilty configured venv takes precident over an emphemeral
+        # An explicitly configured venv takes precedence over an ephemeral
         # sandbox.
         if configured_python:
             echo(
@@ -193,7 +197,7 @@ class IPCKernelManagerImpl(KernelManager):
                     raise KernelStartupError(
                         f"Failed to install marimo into configured venv.\n\n{e}"
                     ) from e
-            else:
+            elif not has_marimo_installed(venv_python):
                 # Check Python version compatibility for binary deps
                 if not check_python_version_compatibility(venv_python):
                     raise KernelStartupError(
@@ -233,6 +237,9 @@ class IPCKernelManagerImpl(KernelManager):
 
         cmd = [venv_python, "-m", "marimo._ipc.launch_kernel"]
         if editable:
+            # Setting this attempts to make auto-installations work even if
+            # other normally detected criteria are not true.
+            # IPC by itself does no seem to trigger them.
             env["MARIMO_MANAGE_SCRIPT_METADATA"] = "true"
 
         LOGGER.debug(f"Launching kernel: {' '.join(cmd)}")
