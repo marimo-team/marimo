@@ -593,7 +593,7 @@ const PopoverFilterByValues = <TData, TValue>({
       <>
         <Command className="text-sm outline-hidden" shouldFilter={false}>
           <CommandInput
-            placeholder="Search"
+            placeholder={`Search among the top ${data.length} values`}
             autoFocus={true}
             onValueChange={(value) => setQuery(value.trim())}
           />
