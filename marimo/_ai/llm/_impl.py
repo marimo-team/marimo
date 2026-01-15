@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Any, Callable, Optional, cast
 
 from marimo import _loggers
 from marimo._ai._pydantic_ai_utils import generate_id
+from marimo._plugins.utils import remove_none_values
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator, Generator
@@ -746,9 +747,11 @@ class pydantic_ai(ChatModel):
                 parts = cast(
                     list[UIMessagePart],
                     [
-                        dataclasses.asdict(part)
-                        if dataclasses.is_dataclass(part)
-                        else part
+                        self._remove_none_values(
+                            dataclasses.asdict(part)
+                            if dataclasses.is_dataclass(part)
+                            else part
+                        )
                         for part in message.parts
                     ],
                 )
@@ -775,6 +778,11 @@ class pydantic_ai(ChatModel):
                 )
             )
         return ui_messages
+
+    def _remove_none_values(self, obj: dict[str, Any]) -> dict[str, Any]:
+        if isinstance(obj, dict) and hasattr(obj, "items"):
+            return remove_none_values(obj)
+        return obj
 
     def _serialize_vercel_ai_chunk(
         self, chunk: BaseChunk
