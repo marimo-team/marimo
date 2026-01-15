@@ -1,0 +1,95 @@
+{
+ "cells": [
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "Hbol",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "import marimo as mo"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "MJUe",
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/markdown": [
+       "&lt;marimo-vega data-initial-value=&#x27;{}&#x27; data-label=&#x27;null&#x27; data-spec=&#x27;{&amp;quot;config&amp;quot;:{&amp;quot;view&amp;quot;:{&amp;quot;continuousWidth&amp;quot;:300,&amp;quot;continuousHeight&amp;quot;:300}},&amp;quot;data&amp;quot;:{&amp;quot;url&amp;quot;:&amp;quot;data:text/plain;base64,QVJST1cxAAD/////qAAAAAQAAADy////FAAAAAQAAQAAAAoACwAIAAoABAD4////DAAAAAgACAAAAAQAAgAAADQAAAAEAAAAwP///yAAAAAQAAAACAAAAAECAAAAAAAAuP///0AAAAABAAAAAQAAAHkAAADs////OAAAACAAAAAYAAAAAQIAABAAEgAEABAAEQAIAAAADAAAAAAA9P///0AAAAABAAAACAAJAAQACAABAAAAeAAAAP////+wAAAABAAAAOz///+AAAAAAAAAABQAAAAEAAMADAATABAAEgAMAAQA6v///wMAAAAAAAAAXAAAABAAAAAAAAoAFAAEAAwAEAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAGAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAQAAAAAAAAAAYAAAAAAAAAAAAAAACAAAAAwAAAAAAAAAAAAAAAAAAAAMAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAIAAAAAAAAAAwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAFAAAAAAAAAAYAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP////8AAAAABAAAAOz///9AAAAAOAAAABQAAAAEAAAADAASABAABAAIAAwAAQAAALgAAAAAAAAAuAAAAAAAAACAAAAAAAAAAAAAAAAAAAAA+P///wwAAAAIAAgAAAAEAAIAAAA0AAAABAAAAMD///8gAAAAEAAAAAgAAAABAgAAAAAAALj///9AAAAAAQAAAAEAAAB5AAAA7P///zgAAAAgAAAAGAAAAAECAAAQABIABAAQABEACAAAAAwAAAAAAPT///9AAAAAAQAAAAgACQAEAAgAAQAAAHgA0gAAAEFSUk9XMQ==&amp;quot;,&amp;quot;format&amp;quot;:{&amp;quot;type&amp;quot;:&amp;quot;arrow&amp;quot;}},&amp;quot;mark&amp;quot;:{&amp;quot;type&amp;quot;:&amp;quot;point&amp;quot;},&amp;quot;encoding&amp;quot;:{&amp;quot;x&amp;quot;:{&amp;quot;field&amp;quot;:&amp;quot;x&amp;quot;,&amp;quot;type&amp;quot;:&amp;quot;quantitative&amp;quot;},&amp;quot;y&amp;quot;:{&amp;quot;field&amp;quot;:&amp;quot;y&amp;quot;,&amp;quot;type&amp;quot;:&amp;quot;quantitative&amp;quot;}},&amp;quot;width&amp;quot;:&amp;quot;container&amp;quot;,&amp;quot;&amp;#36;schema&amp;quot;:&amp;quot;https://vega.github.io/schema/vega-lite/v6.1.0.json&amp;quot;}&#x27; data-chart-selection=&#x27;true&#x27; data-field-selection=&#x27;true&#x27; data-embed-options=&#x27;{}&#x27;&gt;&lt;/marimo-vega&gt;"
+      ]
+     },
+     "metadata": {},
+     "output_type": "display_data"
+    }
+   ],
+   "source": [
+    "import altair as alt\n",
+    "import polars as pl\n",
+    "\n",
+    "df = pl.DataFrame({\"x\": [1, 2, 3], \"y\": [4, 5, 6]})\n",
+    "chart = alt.Chart(df).mark_point().encode(x=\"x\", y=\"y\")\n",
+    "mo.ui.altair_chart(chart)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "vblA",
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "image/png": "IMAGE_BASE64_DATA"
+     },
+     "metadata": {
+      "image/png": {
+       "height": 413,
+       "width": 556
+      }
+     },
+     "output_type": "display_data"
+    }
+   ],
+   "source": [
+    "import matplotlib.pyplot as plt\n",
+    "\n",
+    "fig, ax = plt.subplots()\n",
+    "ax.plot([1, 2, 3], [4, 5, 6])\n",
+    "plt.gca()"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "bkHC",
+   "metadata": {},
+   "source": [
+    "# Hello World"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "lEQa",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "hello stdout\n"
+     ]
+    }
+   ],
+   "source": [
+    "print(\"hello stdout\")"
+   ]
+  }
+ ],
+ "metadata": {},
+ "nbformat": 4,
+ "nbformat_minor": 5
+}

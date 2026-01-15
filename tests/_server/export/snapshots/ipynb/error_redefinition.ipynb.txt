@@ -1,0 +1,41 @@
+{
+ "cells": [
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "Hbol",
+   "metadata": {},
+   "outputs": [
+    {
+     "ename": "multiple-defs",
+     "evalue": "The variable 'x' was defined by another cell",
+     "output_type": "error",
+     "traceback": []
+    }
+   ],
+   "source": [
+    "x = 1"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "MJUe",
+   "metadata": {},
+   "outputs": [
+    {
+     "ename": "multiple-defs",
+     "evalue": "The variable 'x' was defined by another cell",
+     "output_type": "error",
+     "traceback": []
+    }
+   ],
+   "source": [
+    "x = 2  # Redefines x"
+   ]
+  }
+ ],
+ "metadata": {},
+ "nbformat": 4,
+ "nbformat_minor": 5
+}
