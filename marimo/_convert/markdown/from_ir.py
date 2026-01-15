@@ -11,7 +11,7 @@ from marimo import _loggers
 from marimo._ast import codegen
 from marimo._ast.compiler import const_or_id
 from marimo._ast.names import is_internal_cell_name
-from marimo._convert.common.utils import get_markdown_from_cell
+from marimo._convert.common.format import get_markdown_from_cell
 from marimo._schemas.serialization import NotebookSerializationV1
 from marimo._types.ids import CellId_t
 from marimo._version import __version__

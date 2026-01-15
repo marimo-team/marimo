@@ -9,7 +9,7 @@ from marimo._convert.common.dom_traversal import (
     replace_html_attributes,
     replace_virtual_files_with_data_uris,
 )
-from marimo._convert.common.utils import (
+from marimo._convert.common.format import (
     get_download_filename,
     get_filename,
     get_markdown_from_cell,

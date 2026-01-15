@@ -21,7 +21,7 @@ from marimo._config.utils import deep_copy
 from marimo._convert.common.dom_traversal import (
     replace_virtual_files_with_data_uris,
 )
-from marimo._convert.common.utils import (
+from marimo._convert.common.format import (
     get_download_filename,
     get_filename,
 )

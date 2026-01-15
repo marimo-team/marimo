@@ -36,7 +36,7 @@ from marimo._ast.app import App, InternalApp
 from marimo._ast.cell import Cell, CellConfig
 from marimo._ast.compiler import compile_cell
 from marimo._ast.names import DEFAULT_CELL_NAME
-from marimo._convert.common.utils import markdown_to_marimo, sql_to_marimo
+from marimo._convert.common.format import markdown_to_marimo, sql_to_marimo
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._schemas.serialization import (
     AppInstantiation,

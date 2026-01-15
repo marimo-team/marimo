@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING, Any, Literal, Optional, Union, cast
 from marimo._ast.cell import Cell, CellConfig
 from marimo._ast.errors import CycleError, MultipleDefinitionError
 from marimo._ast.names import is_internal_cell_name
-from marimo._convert.common.utils import get_markdown_from_cell
+from marimo._convert.common.format import get_markdown_from_cell
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.errors import (
