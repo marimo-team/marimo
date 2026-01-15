@@ -17,6 +17,7 @@ from marimo import _loggers
 from marimo._server.api.deps import AppState
 from marimo._server.router import APIRouter
 from marimo._session.model import SessionMode
+from marimo._utils.platform import is_pyodide, is_windows
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -323,12 +324,23 @@ async def _cancel_tasks(tasks: Iterable[asyncio.Task[Any]]) -> None:
                 pass
 
 
+def supports_terminal() -> bool:
+    """Whether the current environment supports terminals."""
+    return not is_windows() and not is_pyodide()
+
+
 @router.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket) -> None:
     app_state = AppState(websocket)
     if app_state.mode != SessionMode.EDIT:
         await websocket.close(
             code=1008, reason="Terminal only available in edit mode"
+        )
+        return
+
+    if not supports_terminal():
+        await websocket.close(
+            code=1008, reason="Terminal not supported in this environment"
         )
         return
 
