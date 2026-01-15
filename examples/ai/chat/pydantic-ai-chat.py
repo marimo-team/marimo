@@ -175,7 +175,7 @@ def _(agent):
             "Write the fibonacci function in Python",
             "Who is Ada Lovelace?",
             "What is marimo?",
-            "I need dogs",
+            "I need dogs (render as markdown)",
         ],
         allow_attachments=True,
         show_configuration_controls=True,
