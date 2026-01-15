@@ -6,13 +6,13 @@ from textwrap import dedent
 from marimo._ast import codegen
 from marimo._ast.cell import CellConfig
 from marimo._ast.compiler import compile_cell
-from marimo._convert.common import utils
+from marimo._convert.common import format
 
 
 def test_markdown_to_marimo():
     markdown = "# Hello, World!\nThis is a test."
     expected = 'mo.md(r"""\n# Hello, World!\nThis is a test.\n""")'  # noqa: E501
-    assert utils.markdown_to_marimo(markdown) == expected
+    assert format.markdown_to_marimo(markdown) == expected
 
     markdown = 'Here are some quotes: """'
     expected = r'''
@@ -20,14 +20,14 @@ mo.md(r"""
 Here are some quotes: \"\"\"
 """)'''.strip()
 
-    assert utils.markdown_to_marimo(markdown) == expected
+    assert format.markdown_to_marimo(markdown) == expected
 
     markdown = r"This has a backslash: \\"
     expected = '''
 mo.md(r"""
 This has a backslash: \\\\
 """)'''.strip()  # noqa: E501
-    assert utils.markdown_to_marimo(markdown) == expected
+    assert format.markdown_to_marimo(markdown) == expected
 
 
 def test_markdown_to_marimo_with_quotes():
@@ -38,7 +38,7 @@ mo.md(r"""
 "this is markdown"
 """)'''
     ).strip()
-    assert utils.markdown_to_marimo(markdown) == expected
+    assert format.markdown_to_marimo(markdown) == expected
 
 
 def test_generate_from_sources():
@@ -141,7 +141,7 @@ def test_markdown_with_quotes_and_cell_configs():
 
 def test_get_markdown_from_cell_base():
     empty_markdown_str = "mo.md('hello')"
-    markdown = utils.get_markdown_from_cell(
+    markdown = format.get_markdown_from_cell(
         compile_cell(empty_markdown_str, "id"), empty_markdown_str
     )
     assert markdown == "hello"
@@ -149,7 +149,7 @@ def test_get_markdown_from_cell_base():
 
 def test_get_markdown_from_cell_empty():
     empty_markdown_str = "mo.md()"
-    markdown = utils.get_markdown_from_cell(
+    markdown = format.get_markdown_from_cell(
         compile_cell(empty_markdown_str, "id"), empty_markdown_str
     )
     assert markdown is None
@@ -158,7 +158,7 @@ def test_get_markdown_from_cell_empty():
 def test_get_markdown_from_cell_broken():
     empty_markdown_str = "mo.md()"
     # This can occur because the cell isn't recompiled at this point.
-    markdown = utils.get_markdown_from_cell(
+    markdown = format.get_markdown_from_cell(
         compile_cell(empty_markdown_str, "id"), "mo.md(f'{broken(}')"
     )
     assert markdown is None
