@@ -32,6 +32,7 @@
      "output_type": "error",
      "traceback": [
       "Traceback (most recent call last):",
+      "  File \"\", line 1, in <module>",
       "    1 / 0",
       "    ~~^~~",
       "ZeroDivisionError: division by zero",
