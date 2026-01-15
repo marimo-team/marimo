@@ -10,6 +10,10 @@ import pytest
 
 from marimo._ast.app import App, InternalApp
 from marimo._config.config import DEFAULT_CONFIG
+from marimo._convert.ipynb.from_ir import (
+    _convert_marimo_output_to_ipynb,
+    _maybe_extract_dataurl,
+)
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.msgspec_encoder import encode_json_str
@@ -19,11 +23,7 @@ from marimo._server.export import (
     run_app_then_export_as_ipynb,
     run_app_until_completion,
 )
-from marimo._server.export.exporter import (
-    Exporter,
-    _convert_marimo_output_to_ipynb,
-    _maybe_extract_dataurl,
-)
+from marimo._server.export.exporter import Exporter
 from marimo._server.models.export import ExportAsHTMLRequest
 from marimo._session.notebook import AppFileManager
 from marimo._session.state.session_view import SessionView
