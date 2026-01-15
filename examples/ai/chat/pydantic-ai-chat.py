@@ -168,18 +168,17 @@ def _(
 
 
 @app.cell
-def _(agent, model_name):
+def _(agent):
     chatbot = mo.ui.chat(
         mo.ai.llm.pydantic_ai(agent),
         prompts=[
             "Write the fibonacci function in Python",
             "Who is Ada Lovelace?",
             "What is marimo?",
-            "I need dogs",
+            "I need dogs (render as markdown)",
         ],
         allow_attachments=True,
         show_configuration_controls=True,
-        config={"top_p": None} if model_name.startswith("claude") else None,
     )
     chatbot
     return (chatbot,)
@@ -268,11 +267,6 @@ def _():
     custom_chat = mo.ui.chat(custom_model)
     custom_chat
     return (custom_chat,)
-
-
-@app.cell
-def _():
-    return
 
 
 @app.cell
