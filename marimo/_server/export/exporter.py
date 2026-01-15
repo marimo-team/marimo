@@ -24,7 +24,14 @@ from marimo._config.config import (
 )
 from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._config.utils import deep_copy
-from marimo._convert.utils import get_markdown_from_cell
+from marimo._convert.common.dom_traversal import (
+    replace_virtual_files_with_data_uris,
+)
+from marimo._convert.common.utils import (
+    get_download_filename,
+    get_filename,
+    get_markdown_from_cell,
+)
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.errors import (
@@ -36,13 +43,6 @@ from marimo._runtime import dataflow
 from marimo._runtime.virtual_file import read_virtual_file
 from marimo._schemas.notebook import NotebookV1
 from marimo._schemas.session import NotebookSessionV1
-from marimo._server.export.dom_traversal import (
-    replace_virtual_files_with_data_uris,
-)
-from marimo._server.export.utils import (
-    get_download_filename,
-    get_filename,
-)
 from marimo._server.models.export import ExportAsHTMLRequest
 from marimo._server.templates.templates import (
     static_notebook_template,

@@ -30,6 +30,7 @@ def _():
     # Mixed cell with pip and other commands
     # packages added via marimo's package management: scikit-learn !pip install scikit-learn
     import numpy as np
+
     # packages added via marimo's package management: seaborn !pip install seaborn
     return
 

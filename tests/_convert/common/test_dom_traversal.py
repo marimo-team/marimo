@@ -1,7 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from marimo._server.export.dom_traversal import (
+from marimo._convert.common.dom_traversal import (
     _is_virtual_file_url,
     _parse_virtual_file_url,
     replace_html_attributes,

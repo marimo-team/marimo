@@ -64,7 +64,7 @@ def _():
 def _(np):
     # Cell 7: Duplicate import with different comment
     # This should be deduplicated but preserve one of the comments
-    arr = np.array([1, 2, 3])  # Import numpy again with different comment  # Create array
+    arr = np.array([1, 2, 3])  # Create array
     return
 
 
@@ -93,6 +93,8 @@ def _():
         """This is a docstring, not a comment."""
         # This is a comment inside the function
         return 42  # Return a value
+
+
     # Comment after function
     return
 

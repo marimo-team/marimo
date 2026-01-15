@@ -6,7 +6,7 @@ from textwrap import dedent
 from marimo._ast import codegen
 from marimo._ast.cell import CellConfig
 from marimo._ast.compiler import compile_cell
-from marimo._convert import utils
+from marimo._convert.common import utils
 
 
 def test_markdown_to_marimo():

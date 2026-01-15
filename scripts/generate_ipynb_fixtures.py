@@ -18,7 +18,7 @@ To add a new fixture, call `create_notebook_fixture(name, sources)`:
 - `sources`: a list of code cell contents (as strings or `nbformat` cell dicts)
 
 Run this script with `uv run scripts/generate_ipynb_fixtures.py` to regenerate all fixtures.
-Output notebooks are written to `tests/_convert/ipynb_data/`.
+Output notebooks are written to `tests/_convert/fixtures/`.
 """
 
 from __future__ import annotations
@@ -29,7 +29,7 @@ import jupytext
 
 
 SELF_DIR = Path(__file__).parent
-FIXTURES_DIR = SELF_DIR / "../tests/_convert/ipynb_data"
+FIXTURES_DIR = SELF_DIR / "../tests/_convert/fixtures"
 
 
 def create_notebook_fixture(name: str, sources: list[str | dict]) -> None:

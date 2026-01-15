@@ -7,12 +7,12 @@ from pathlib import Path
 import pytest
 
 from marimo._convert.converters import MarimoConvert
-from marimo._convert.ipynb import convert_from_ipynb_to_notebook_ir
+from marimo._convert.ipynb.to_ir import convert_from_ipynb_to_notebook_ir
 from tests.mocks import snapshotter
 
 snapshot = snapshotter(__file__)
 
-DIR_PATH = Path(__file__).parent / "ipynb_data"
+DIR_PATH = Path(__file__).parent / "fixtures"
 
 
 @pytest.mark.parametrize("ipynb_path", DIR_PATH.glob("*.ipynb.txt"))

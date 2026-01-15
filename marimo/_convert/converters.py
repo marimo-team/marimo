@@ -106,7 +106,7 @@ class MarimoConvert:
         Args:
             source: Markdown source code string
         """
-        from marimo._convert.markdown.markdown import (
+        from marimo._convert.markdown.to_ir import (
             convert_from_md_to_marimo_ir,
         )
 
@@ -119,7 +119,9 @@ class MarimoConvert:
         Args:
             source: Jupyter notebook JSON string
         """
-        from marimo._convert.ipynb import convert_from_ipynb_to_notebook_ir
+        from marimo._convert.ipynb.to_ir import (
+            convert_from_ipynb_to_notebook_ir,
+        )
 
         return MarimoConvert.from_ir(convert_from_ipynb_to_notebook_ir(source))
 

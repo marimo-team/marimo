@@ -14,7 +14,7 @@ from marimo._ast.compiler import compile_cell
 from marimo._ast.transformers import NameTransformer, RemoveImportTransformer
 from marimo._ast.variables import is_local
 from marimo._ast.visitor import Block, NamedNode, ScopedVisitor
-from marimo._convert.utils import markdown_to_marimo
+from marimo._convert.common.utils import markdown_to_marimo
 from marimo._runtime.dataflow import DirectedGraph
 from marimo._schemas.serialization import (
     AppInstantiation,
@@ -983,7 +983,7 @@ def _transform_sources(
         A tuple of (cells, exclamation_metadata) where exclamation_metadata
         contains pip packages and subprocess import information.
     """
-    from marimo._convert.comment_preserver import CommentPreserver
+    from marimo._convert.common.comment_preserver import CommentPreserver
 
     # Define transforms that don't need comment preservation
     simple_transforms = [

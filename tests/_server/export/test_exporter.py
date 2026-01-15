@@ -986,7 +986,7 @@ def test_export_html_replaces_virtual_files_in_outputs(
 
     # Mock read_virtual_file to return test image data
     with patch(
-        "marimo._server.export.dom_traversal.read_virtual_file"
+        "marimo._convert.common.dom_traversal.read_virtual_file"
     ) as mock_read:
         mock_read.return_value = b"fake_image_data"
 
@@ -1116,7 +1116,7 @@ def test_export_html_replaces_multiple_virtual_files_complex(
 
     with (
         patch(
-            "marimo._server.export.dom_traversal.read_virtual_file"
+            "marimo._convert.common.dom_traversal.read_virtual_file"
         ) as mock_read_dom,
         patch(
             "marimo._server.export.exporter.read_virtual_file"
