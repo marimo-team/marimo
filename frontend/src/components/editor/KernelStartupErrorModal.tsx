@@ -65,7 +65,7 @@ export const KernelStartupErrorModal: React.FC = () => {
             manager can't install your notebook's dependencies.
           </AlertDialogDescription>
         </AlertDialogHeader>
-        <div className="my-4">
+        <div className="my-4 overflow-hidden">
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm font-medium text-muted-foreground">
               Error Details
@@ -80,7 +80,7 @@ export const KernelStartupErrorModal: React.FC = () => {
               Copy
             </Button>
           </div>
-          <pre className="bg-muted p-4 rounded-md text-sm font-mono overflow-auto max-h-80 whitespace-pre-wrap break-words">
+          <pre className="bg-muted p-4 rounded-md text-sm font-mono overflow-auto max-h-80">
             {error}
           </pre>
         </div>
