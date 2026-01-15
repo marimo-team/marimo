@@ -51,7 +51,7 @@ def get_engines_from_variables(
     engines: list[tuple[VariableName, BaseEngine[Any]]] = []
 
     for variable_name, value in variables:
-        # Ibis Deferred expression object should not be handeled as datasource #7791
+        # Ibis Deferred expression object should not be handled as datasource #7791
         var_type = type(value)
         var_type_name = f"{var_type.__module__}.{var_type.__qualname__}"
         if var_type_name == "ibis.common.deferred.Deferred":
