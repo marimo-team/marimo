@@ -68,7 +68,7 @@ const storage = new ZodLocalStorage<ChromeState>(
     selectedDeveloperPanelTab: z
       .string()
       .optional()
-      .default("terminal")
+      .default("errors")
       .transform((v) => v as PanelType),
   }),
   initialState,
@@ -79,7 +79,7 @@ function initialState(): ChromeState {
     selectedPanel: "variables", // initial panel
     isSidebarOpen: false,
     isDeveloperPanelOpen: false,
-    selectedDeveloperPanelTab: "terminal",
+    selectedDeveloperPanelTab: "errors",
   };
 }
 
