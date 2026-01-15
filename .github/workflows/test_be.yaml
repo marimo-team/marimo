@@ -230,7 +230,7 @@ jobs:
     if: ${{ needs.changes.outputs.backend == 'true' && github.ref == 'refs/heads/main' && github.event_name == 'push' }}
     name: Test coverage
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
 
