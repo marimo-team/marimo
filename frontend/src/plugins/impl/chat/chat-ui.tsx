@@ -66,7 +66,6 @@ interface Props extends PluginFunctions {
   showConfigurationControls: boolean;
   maxHeight: number | undefined;
   allowAttachments: boolean | string[];
-  frontendManaged: boolean;
   value: UIMessage[];
   setValue: (messages: UIMessage[]) => void;
   host: HTMLElement;
@@ -152,116 +151,42 @@ export const Chatbot: React.FC<Props> = (props) => {
             };
           });
 
-          if (props.frontendManaged) {
-            const stream = new ReadableStream<UIMessageChunk>({
-              start(controller) {
-                frontendStreamControllerRef.current = controller;
+          const stream = new ReadableStream<UIMessageChunk>({
+            start(controller) {
+              frontendStreamControllerRef.current = controller;
 
-                const abortHandler = () => {
-                  try {
-                    controller.close();
-                  } catch (error) {
-                    Logger.debug("Controller may already be closed", { error });
-                  }
-                  frontendStreamControllerRef.current = null;
-                };
-                signal?.addEventListener("abort", abortHandler);
-
-                return () => {
-                  signal?.removeEventListener("abort", abortHandler);
-                };
-              },
-              cancel() {
-                frontendStreamControllerRef.current = null;
-              },
-            });
-
-            // Start the prompt, chunks will be sent via events
-            props
-              .send_prompt({
-                messages: messages,
-                config: chatConfig,
-              })
-              .catch((error: Error) => {
-                frontendStreamControllerRef.current?.error(error);
-                frontendStreamControllerRef.current = null;
-              });
-
-            return createUIMessageStreamResponse({ stream });
-          }
-
-          if (signal?.aborted) {
-            return new Response("Aborted", { status: 499 });
-          }
-
-          // Create a placeholder message for streaming (backend-managed)
-          const messageId = Date.now().toString();
-
-          setMessages((prev) => [
-            ...prev,
-            {
-              id: messageId,
-              role: "assistant",
-              parts: [{ type: "text", text: "" }],
-            },
-          ]);
-
-          // Create an abort-aware promise for the send_prompt call
-          const sendPromptPromise = props.send_prompt({
-            messages: messages,
-            config: chatConfig,
-          });
-
-          // Race the send_prompt with an abort signal
-          const response = await new Promise<string | null>(
-            (resolve, reject) => {
-              // Listen for abort
               const abortHandler = () => {
-                reject(new DOMException("Aborted", "AbortError"));
+                try {
+                  controller.close();
+                } catch (error) {
+                  Logger.debug("Controller may already be closed", { error });
+                }
+                frontendStreamControllerRef.current = null;
               };
               signal?.addEventListener("abort", abortHandler);
 
-              sendPromptPromise
-                .then(resolve)
-                .catch(reject)
-                .finally(() => {
-                  signal?.removeEventListener("abort", abortHandler);
-                });
+              return () => {
+                signal?.removeEventListener("abort", abortHandler);
+              };
             },
-          );
+            cancel() {
+              frontendStreamControllerRef.current = null;
+            },
+          });
 
-          if (response === null) {
-            Logger.error("Non-frontend-managed response is null", {
-              response,
+          // Start the prompt, chunks will be sent via events
+          void props
+            .send_prompt({
+              messages: messages,
+              config: chatConfig,
+            })
+            .catch((error: Error) => {
+              frontendStreamControllerRef.current?.error(error);
+              frontendStreamControllerRef.current = null;
             });
-            return new Response(
-              "Internal error, please check the console for more details.",
-              { status: 500 },
-            );
-          }
 
-          // If streaming didn't happen (non-generator response), update the message
-          // Check if streaming state is still set (meaning no chunks were received)
-          if (
-            streamingStateRef.current.backendMessageId === null &&
-            streamingStateRef.current.frontendMessageIndex === null
-          ) {
-            setMessages((prev) => {
-              const updated = [...prev];
-              const index = updated.findIndex((m) => m.id === messageId);
-              if (index !== -1) {
-                updated[index] = {
-                  ...updated[index],
-                  parts: [{ type: "text", text: response }],
-                };
-              }
-              return updated;
-            });
-          }
-
-          return new Response(response);
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        } catch (error: any) {
+          return createUIMessageStreamResponse({ stream });
+        } catch (error: unknown) {
           // Clear streaming state on error
           streamingStateRef.current = {
             backendMessageId: null,
@@ -269,13 +194,13 @@ export const Chatbot: React.FC<Props> = (props) => {
           };
 
           // Handle abort gracefully without showing an error
-          if (error.name === "AbortError") {
+          if (error instanceof Error && error.name === "AbortError") {
             return new Response("Aborted", { status: 499 });
           }
 
           // HACK: strip the error message to clean up the response
-          const strippedError = error.message
-            .split("failed with exception ")
+          const strippedError = (error as Error).message
+            ?.split("failed with exception ")
             .pop();
           return new Response(strippedError, { status: 400 });
         }
@@ -296,11 +221,7 @@ export const Chatbot: React.FC<Props> = (props) => {
         frontendMessageIndex: null,
       };
 
-      // For frontend-managed streaming, we set the value directly from the frontend.
-      // Because useChat creates the proper message structure for us.
-      if (props.frontendManaged) {
-        props.setValue(message.messages);
-      }
+      props.setValue(message.messages);
     },
     onError: (error) => {
       Logger.error("An error occurred:", error);
@@ -327,90 +248,28 @@ export const Chatbot: React.FC<Props> = (props) => {
         return;
       }
 
-      if (props.frontendManaged) {
-        // Push to the stream for useChat to process
-        const controller = frontendStreamControllerRef.current;
-        if (!controller) {
-          return;
-        }
-
-        const frontendMessage = message as {
-          type: string;
-          message_id: string;
-          content?: UIMessageChunk;
-          is_final?: boolean;
-        };
-
-        if (frontendMessage.content) {
-          controller.enqueue(frontendMessage.content);
-        }
-        if (frontendMessage.is_final) {
-          controller.close();
-          frontendStreamControllerRef.current = null;
-        }
+      // Push to the stream for useChat to process
+      const controller = frontendStreamControllerRef.current;
+      if (!controller) {
         return;
       }
 
-      // Handle regular text streaming chunks
-      const chunkMessage = message as {
+      const frontendMessage = message as {
         type: string;
         message_id: string;
-        content: string;
-        is_final: boolean;
+        content?: UIMessageChunk;
+        is_final?: boolean;
       };
 
-      // Initialize streaming state on first chunk if not already set
-      if (streamingStateRef.current.backendMessageId === null) {
-        // Find the last assistant message (which should be the placeholder we created)
-        setMessages((prev) => {
-          const updated = [...prev];
-          // Find the last assistant message
-          for (let i = updated.length - 1; i >= 0; i--) {
-            if (updated[i].role === "assistant") {
-              streamingStateRef.current = {
-                backendMessageId: chunkMessage.message_id,
-                frontendMessageIndex: i,
-              };
-              break;
-            }
-          }
-          return updated;
-        });
+      if (frontendMessage.content) {
+        controller.enqueue(frontendMessage.content);
+      }
+      if (frontendMessage.is_final) {
+        controller.close();
+        frontendStreamControllerRef.current = null;
       }
 
-      // Only process chunks for the current streaming message
-      const frontendIndex = streamingStateRef.current.frontendMessageIndex;
-      if (
-        streamingStateRef.current.backendMessageId ===
-          chunkMessage.message_id &&
-        frontendIndex !== null
-      ) {
-        setMessages((prev) => {
-          const updated = [...prev];
-          const index = frontendIndex;
-
-          // Update the message at the tracked index
-          if (index < updated.length) {
-            const messageToUpdate = updated[index];
-            if (messageToUpdate.role === "assistant") {
-              updated[index] = {
-                ...messageToUpdate,
-                parts: [{ type: "text", text: chunkMessage.content }],
-              };
-            }
-          }
-
-          return updated;
-        });
-
-        // Clear streaming state when final chunk arrives
-        if (chunkMessage.is_final) {
-          streamingStateRef.current = {
-            backendMessageId: null,
-            frontendMessageIndex: null,
-          };
-        }
-      }
+      return;
     },
   );
 
@@ -423,10 +282,7 @@ export const Chatbot: React.FC<Props> = (props) => {
       props.delete_chat_message({ index });
       setMessages(newMessages);
 
-      // Since we manage the state in the frontend, we need to update the value.
-      if (props.frontendManaged) {
-        props.setValue(newMessages);
-      }
+      props.setValue(newMessages);
     }
   };
 
