@@ -270,11 +270,6 @@ def _():
 
 
 @app.cell
-def _():
-    return
-
-
-@app.cell
 def _(custom_chat):
     custom_chat.value
     return
