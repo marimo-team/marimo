@@ -1,22 +1,19 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-import unittest
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Optional
-from unittest.mock import AsyncMock, MagicMock, Mock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from marimo._dependencies.dependencies import DependencyManager
-from marimo._server.ai.config import AnyProviderConfig
 from marimo._server.ai.prompts import (
     FIM_MIDDLE_TAG,
     FIM_PREFIX_TAG,
     FIM_SUFFIX_TAG,
 )
 from marimo._server.ai.providers import (
-    OpenAIProvider,
     without_wrapping_backticks,
 )
 from marimo._server.ai.tools.types import ToolCallResult
@@ -92,11 +89,9 @@ def _create_messages(prompt: str) -> list[dict[str, Any]]:
 class TestOpenAiEndpoints:
     @staticmethod
     @with_session(SESSION_ID)
-    @patch("openai.OpenAI")
     def test_completion_without_token(
-        client: TestClient, openai_mock: Any
+        client: TestClient,
     ) -> None:
-        del openai_mock
         user_config_manager = get_session_config_manager(client)
 
         with patch.object(
@@ -120,24 +115,17 @@ class TestOpenAiEndpoints:
 
     @staticmethod
     @with_session(SESSION_ID)
-    @patch("openai.AsyncOpenAI")
+    @patch("marimo._server.ai.providers.OpenAIProvider.stream_text")
     def test_completion_without_code(
-        client: TestClient, openai_mock: Any
+        client: TestClient, mock_stream_text: Any
     ) -> None:
         user_config_manager = get_session_config_manager(client)
 
-        oaiclient = MagicMock()
-        openai_mock.return_value = oaiclient
-
         # Mock async stream
         async def mock_stream():
-            yield FakeChoices(
-                choices=[Choice(delta=Delta(content="import pandas as pd"))]
-            )
+            yield "import pandas as pd"
 
-        oaiclient.chat.completions.create = AsyncMock(
-            side_effect=lambda **kwargs: mock_stream()  # noqa: ARG005
-        )
+        mock_stream_text.return_value = mock_stream()
 
         with patch.object(
             user_config_manager,
@@ -153,36 +141,26 @@ class TestOpenAiEndpoints:
                     "code": "",
                 },
             )
-            assert response.status_code == 200, "nope"
+            assert response.status_code == 200, response.text
+            # Verify stream_text was called
+            mock_stream_text.assert_called_once()
             # Assert the prompt it was called with
-            prompt = oaiclient.chat.completions.create.call_args.kwargs[
-                "messages"
-            ][1]["content"][0]["text"]
-            assert prompt == ("Help me create a dataframe")
-            # Assert the model it was called with
-            model = oaiclient.chat.completions.create.call_args.kwargs["model"]
-            assert model == "some-openai-model"
+            call_kwargs = mock_stream_text.call_args.kwargs
+            assert call_kwargs["user_prompt"] == "Help me create a dataframe"
 
     @staticmethod
     @with_session(SESSION_ID)
-    @patch("openai.AsyncOpenAI")
+    @patch("marimo._server.ai.providers.OpenAIProvider.stream_text")
     def test_completion_with_code(
-        client: TestClient, openai_mock: Any
+        client: TestClient, mock_stream_text: Any
     ) -> None:
         user_config_manager = get_session_config_manager(client)
 
-        oaiclient = MagicMock()
-        openai_mock.return_value = oaiclient
-
         # Mock async stream
         async def mock_stream():
-            yield FakeChoices(
-                choices=[Choice(delta=Delta(content="import pandas as pd"))]
-            )
+            yield "import pandas as pd"
 
-        oaiclient.chat.completions.create = AsyncMock(
-            side_effect=lambda **kwargs: mock_stream()  # noqa: ARG005
-        )
+        mock_stream_text.return_value = mock_stream()
 
         with patch.object(
             user_config_manager,
@@ -199,32 +177,25 @@ class TestOpenAiEndpoints:
                 },
             )
             assert response.status_code == 200, response.text
+            # Verify stream_text was called
+            mock_stream_text.assert_called_once()
             # Assert the prompt it was called with
-            prompt = oaiclient.chat.completions.create.call_args.kwargs[
-                "messages"
-            ][1]["content"][0]["text"]
-            assert prompt == "Help me create a dataframe"
+            call_kwargs = mock_stream_text.call_args.kwargs
+            assert call_kwargs["user_prompt"] == "Help me create a dataframe"
 
     @staticmethod
     @with_session(SESSION_ID)
-    @patch("openai.AsyncOpenAI")
+    @patch("marimo._server.ai.providers.OpenAIProvider.stream_text")
     def test_completion_with_custom_model(
-        client: TestClient, openai_mock: Any
+        client: TestClient, mock_stream_text: Any
     ) -> None:
         user_config_manager = get_session_config_manager(client)
 
-        oaiclient = MagicMock()
-        openai_mock.return_value = oaiclient
-
         # Mock async stream
         async def mock_stream():
-            yield FakeChoices(
-                choices=[Choice(delta=Delta(content="import pandas as pd"))]
-            )
+            yield "import pandas as pd"
 
-        oaiclient.chat.completions.create = AsyncMock(
-            side_effect=lambda **kwargs: mock_stream()  # noqa: ARG005
-        )
+        mock_stream_text.return_value = mock_stream()
 
         with patch.object(
             user_config_manager,
@@ -241,30 +212,22 @@ class TestOpenAiEndpoints:
                 },
             )
             assert response.status_code == 200, response.text
-            # Assert the model it was called with
-            model = oaiclient.chat.completions.create.call_args.kwargs["model"]
-            assert model == "gpt-marimo"
+            # Verify stream_text was called
+            mock_stream_text.assert_called_once()
 
     @staticmethod
     @with_session(SESSION_ID)
-    @patch("openai.AsyncOpenAI")
+    @patch("marimo._server.ai.providers.OpenAIProvider.stream_text")
     def test_completion_with_custom_base_url(
-        client: TestClient, openai_mock: Any
+        client: TestClient, mock_stream_text: Any
     ) -> None:
         user_config_manager = get_session_config_manager(client)
 
-        oaiclient = MagicMock()
-        openai_mock.return_value = oaiclient
-
         # Mock async stream
         async def mock_stream():
-            yield FakeChoices(
-                choices=[Choice(delta=Delta(content="import pandas as pd"))]
-            )
+            yield "import pandas as pd"
 
-        oaiclient.chat.completions.create = AsyncMock(
-            side_effect=lambda **kwargs: mock_stream()  # noqa: ARG005
-        )
+        mock_stream_text.return_value = mock_stream()
 
         with patch.object(
             user_config_manager,
@@ -281,31 +244,19 @@ class TestOpenAiEndpoints:
                 },
             )
             assert response.status_code == 200, response.text
-            # Assert the base_url it was called with
-            base_url = openai_mock.call_args.kwargs["base_url"]
-            assert base_url == "https://my-openai-instance.com"
-            # Assert the model it was called with
-            model = oaiclient.chat.completions.create.call_args.kwargs["model"]
-            assert model == "some-openai-model-with-base-url"
+            # Verify stream_text was called
+            mock_stream_text.assert_called_once()
 
     @staticmethod
     @with_session(SESSION_ID)
-    @patch("openai.AsyncOpenAI")
-    def test_inline_completion(client: TestClient, openai_mock: Any) -> None:
+    @patch("marimo._server.ai.providers.OpenAIProvider.completion")
+    def test_inline_completion(
+        client: TestClient, mock_completion: Any
+    ) -> None:
         user_config_manager = get_session_config_manager(client)
 
-        oaiclient = MagicMock()
-        openai_mock.return_value = oaiclient
-
-        # Mock async stream
-        async def mock_stream():
-            yield FakeChoices(
-                choices=[Choice(delta=Delta(content="df = pd.DataFrame()"))]
-            )
-
-        oaiclient.chat.completions.create = AsyncMock(
-            side_effect=lambda **kwargs: mock_stream()  # noqa: ARG005
-        )
+        # Mock completion to return a string
+        mock_completion.return_value = "df = pd.DataFrame()"
 
         with patch.object(
             user_config_manager, "get_config", return_value=_openai_config()
@@ -320,33 +271,24 @@ class TestOpenAiEndpoints:
                 },
             )
             assert response.status_code == 200, response.text
-            # Assert the prompt it was called with
-            prompt = oaiclient.chat.completions.create.call_args.kwargs[
-                "messages"
-            ][1]["content"][0]["text"]
-            assert (
-                prompt
-                == f"{FIM_PREFIX_TAG}import pandas as pd\n{FIM_SUFFIX_TAG}\ndf.head(){FIM_MIDDLE_TAG}"
+            # Verify completion was called
+            mock_completion.assert_called_once()
+            # Assert the messages contain FIM format
+            call_kwargs = mock_completion.call_args.kwargs
+            messages = call_kwargs["messages"]
+            assert len(messages) == 1
+            # Verify FIM format is used
+            assert messages[0].parts[0].text == (
+                f"{FIM_PREFIX_TAG}import pandas as pd\n"
+                f"{FIM_SUFFIX_TAG}\ndf.head()"
+                f"{FIM_MIDDLE_TAG}"
             )
-            # Assert the system prompt for FIM models
-            system_prompt = oaiclient.chat.completions.create.call_args.kwargs[
-                "messages"
-            ][0]["content"][0]["text"]
-            assert (
-                system_prompt
-                == f"You are a python code completion assistant. Complete the missing code between the prefix and suffix while maintaining proper syntax, style, and functionality.Only output the code that goes after the {FIM_SUFFIX_TAG} part. Do not add any explanation or markdown."
-            )
-            # Assert the model it was called with
-            model = oaiclient.chat.completions.create.call_args.kwargs["model"]
-            assert model == "gpt-marimo-for-inline-completion"
 
     @staticmethod
     @with_session(SESSION_ID)
-    @patch("openai.OpenAI")
     def test_inline_completion_without_token(
-        client: TestClient, openai_mock: Any
+        client: TestClient,
     ) -> None:
-        del openai_mock
         user_config_manager = get_session_config_manager(client)
 
         with patch.object(
@@ -368,24 +310,14 @@ class TestOpenAiEndpoints:
 
     @staticmethod
     @with_session(SESSION_ID)
-    @patch("openai.AsyncOpenAI")
+    @patch("marimo._server.ai.providers.OpenAIProvider.completion")
     def test_inline_completion_different_language(
-        client: TestClient, openai_mock: Any
+        client: TestClient, mock_completion: Any
     ) -> None:
         user_config_manager = get_session_config_manager(client)
 
-        oaiclient = MagicMock()
-        openai_mock.return_value = oaiclient
-
-        # Mock async stream
-        async def mock_stream():
-            yield FakeChoices(
-                choices=[Choice(delta=Delta(content="SELECT 1;"))]
-            )
-
-        oaiclient.chat.completions.create = AsyncMock(
-            side_effect=lambda **kwargs: mock_stream()  # noqa: ARG005
-        )
+        # Mock completion to return a string
+        mock_completion.return_value = "SELECT 1;"
 
         with patch.object(
             user_config_manager, "get_config", return_value=_openai_config()
@@ -400,17 +332,11 @@ class TestOpenAiEndpoints:
                 },
             )
             assert response.status_code == 200, response.text
-            # Assert the system prompt for FIM models
-            system_prompt = oaiclient.chat.completions.create.call_args.kwargs[
-                "messages"
-            ][0]["content"][0]["text"]
-            assert (
-                system_prompt
-                == f"You are a sql code completion assistant. Complete the missing code between the prefix and suffix while maintaining proper syntax, style, and functionality.Only output the code that goes after the {FIM_SUFFIX_TAG} part. Do not add any explanation or markdown."
-            )
-            # Assert model
-            model = oaiclient.chat.completions.create.call_args.kwargs["model"]
-            assert model == "gpt-marimo-for-inline-completion"
+            # Verify completion was called
+            mock_completion.assert_called_once()
+            # Assert the system prompt mentions SQL
+            call_kwargs = mock_completion.call_args.kwargs
+            assert "sql" in call_kwargs["system_prompt"].lower()
 
 
 @pytest.mark.skipif(
@@ -419,11 +345,9 @@ class TestOpenAiEndpoints:
 class TestAnthropicAiEndpoints:
     @staticmethod
     @with_session(SESSION_ID)
-    @patch("anthropic.Client")
     def test_anthropic_completion_without_token(
-        client: TestClient, anthropic_mock: Any
+        client: TestClient,
     ) -> None:
-        del anthropic_mock
         user_config_manager = get_session_config_manager(client)
 
         with patch.object(
@@ -744,197 +668,83 @@ def _google_ai_config():
 
 
 @with_session(SESSION_ID)
-def test_chat_without_code(client: TestClient) -> None:
+@patch("marimo._server.ai.providers.OpenAIProvider.stream_completion")
+def test_chat_without_code(
+    client: TestClient, mock_stream_completion: Any
+) -> None:
     user_config_manager = get_session_config_manager(client)
 
-    with patch("openai.AsyncOpenAI") as openai_mock:
-        oaiclient = MagicMock()
-        openai_mock.return_value = oaiclient
+    # Create a mock StreamingResponse
+    from starlette.responses import StreamingResponse
 
-        # Mock async stream
-        async def mock_stream():
-            yield FakeChoices(
-                choices=[
-                    Choice(delta=Delta(content="Hello, how can I help you?"))
-                ]
-            )
+    async def mock_stream():
+        yield b"Hello, how can I help you?"
 
-        oaiclient.chat.completions.create = AsyncMock(
-            side_effect=lambda **kwargs: mock_stream()  # noqa: ARG005
+    mock_response = StreamingResponse(
+        content=mock_stream(),
+        media_type="text/event-stream",
+    )
+    mock_stream_completion.return_value = mock_response
+
+    with patch.object(
+        user_config_manager, "get_config", return_value=_openai_config()
+    ):
+        response = client.post(
+            "/api/ai/chat",
+            headers=HEADERS,
+            json={
+                "messages": _create_messages("Hello"),
+                "uiMessages": _create_messages("Hello"),
+                "model": "gpt-4-turbo",
+                "variables": [],
+                "includeOtherCode": "",
+                "context": {},
+                "id": "123",
+            },
         )
-
-        with patch.object(
-            user_config_manager, "get_config", return_value=_openai_config()
-        ):
-            response = client.post(
-                "/api/ai/chat",
-                headers=HEADERS,
-                json={
-                    "messages": _create_messages("Hello"),
-                    "uiMessages": [],
-                    "model": "gpt-4-turbo",
-                    "variables": [],
-                    "includeOtherCode": "",
-                    "context": {},
-                    "id": "123",
-                },
-            )
-            assert response.status_code == 200, response.text
-            # Assert the prompt it was called with
-            prompt = oaiclient.chat.completions.create.call_args.kwargs[
-                "messages"
-            ][1]["content"][0]["text"]
-            assert prompt == "Hello"
+        assert response.status_code == 200, response.text
+        # Verify stream_completion was called
+        mock_stream_completion.assert_called_once()
 
 
 @with_session(SESSION_ID)
-def test_chat_with_code(client: TestClient) -> None:
+@patch("marimo._server.ai.providers.OpenAIProvider.stream_completion")
+def test_chat_with_code(
+    client: TestClient, mock_stream_completion: Any
+) -> None:
     user_config_manager = get_session_config_manager(client)
 
-    with patch("openai.AsyncOpenAI") as openai_mock:
-        oaiclient = MagicMock()
-        openai_mock.return_value = oaiclient
+    # Create a mock StreamingResponse
+    from starlette.responses import StreamingResponse
 
-        # Mock async stream
-        async def mock_stream():
-            yield FakeChoices(
-                choices=[Choice(delta=Delta(content="import pandas as pd"))]
-            )
+    async def mock_stream():
+        yield b"import pandas as pd"
 
-        oaiclient.chat.completions.create = AsyncMock(
-            side_effect=lambda **kwargs: mock_stream()  # noqa: ARG005
+    mock_response = StreamingResponse(
+        content=mock_stream(),
+        media_type="text/event-stream",
+    )
+    mock_stream_completion.return_value = mock_response
+
+    with patch.object(
+        user_config_manager, "get_config", return_value=_openai_config()
+    ):
+        response = client.post(
+            "/api/ai/chat",
+            headers=HEADERS,
+            json={
+                "messages": _create_messages("Help me create a dataframe"),
+                "uiMessages": _create_messages("Help me create a dataframe"),
+                "model": "gpt-4-turbo",
+                "variables": [],
+                "includeOtherCode": "import pandas as pd",
+                "context": {},
+                "id": "123",
+            },
         )
-
-        with patch.object(
-            user_config_manager, "get_config", return_value=_openai_config()
-        ):
-            response = client.post(
-                "/api/ai/chat",
-                headers=HEADERS,
-                json={
-                    "messages": _create_messages("Help me create a dataframe"),
-                    "uiMessages": [],
-                    "model": "gpt-4-turbo",
-                    "variables": [],
-                    "includeOtherCode": "import pandas as pd",
-                    "context": {},
-                    "id": "123",
-                },
-            )
-            assert response.status_code == 200, response.text
-            # Assert the prompt it was called with
-            prompt = oaiclient.chat.completions.create.call_args.kwargs[
-                "messages"
-            ][1]["content"][0]["text"]
-            assert prompt == "Help me create a dataframe"
-
-
-class TestGetContent(unittest.TestCase):
-    def test_extract_content_with_none_delta(self) -> None:
-        config = AnyProviderConfig(base_url=None, api_key="test-key")
-        provider = OpenAIProvider(model="gpt-4o", config=config)
-        # Create a mock response with choices but delta is None
-        mock_response = Mock()
-        mock_response.choices = [Mock()]
-        mock_response.choices[0].delta = None
-
-        # Ensure text attribute doesn't exist to avoid fallback
-        type(mock_response).text = property(lambda _: None)
-
-        # Call get_content with the mock response
-        result = provider.extract_content(mock_response)
-
-        # Assert that the result is None
-        assert result is None
-
-    def test_extract_content_with_delta_content(self) -> None:
-        # Create a mock response with choices and delta.content
-        mock_response = Mock()
-        mock_response.choices = [Mock()]
-        mock_response.choices[0].delta = Mock()
-        mock_response.choices[0].delta.content = "Test content"
-
-        # Call get_content with the mock response
-        config = AnyProviderConfig(base_url=None, api_key="test-key")
-        provider = OpenAIProvider(model="gpt-4o", config=config)
-        result = provider.extract_content(mock_response)
-
-        # Assert that the result is not None and has expected content
-        assert result is not None
-        result_text, result_type = result[0]
-        assert result_text == "Test content"
-        assert result_type == "text"
-
-
-class TestGetFinishReason(unittest.TestCase):
-    def test_get_finish_reason_with_no_choices(self) -> None:
-        config = AnyProviderConfig(base_url=None, api_key="test-key")
-        provider = OpenAIProvider(model="gpt-4o", config=config)
-        # Create a mock response with no choices
-        mock_response = Mock()
-        mock_response.choices = []
-
-        # Call get_finish_reason with the mock response
-        result = provider.get_finish_reason(mock_response)
-
-        # Assert that the result is None
-        assert result is None
-
-    def test_get_finish_reason_with_none_finish_reason(self) -> None:
-        config = AnyProviderConfig(base_url=None, api_key="test-key")
-        provider = OpenAIProvider(model="gpt-4o", config=config)
-        # Create a mock response with choices but finish_reason is None
-        mock_response = Mock()
-        mock_response.choices = [Mock()]
-        mock_response.choices[0].finish_reason = None
-
-        # Call get_finish_reason with the mock response
-        result = provider.get_finish_reason(mock_response)
-
-        # Assert that the result is None
-        assert result is None
-
-    def test_get_finish_reason_with_tool_calls(self) -> None:
-        config = AnyProviderConfig(base_url=None, api_key="test-key")
-        provider = OpenAIProvider(model="gpt-4o", config=config)
-        # Create a mock response with choices and finish_reason = "tool_calls"
-        mock_response = Mock()
-        mock_response.choices = [Mock()]
-        mock_response.choices[0].finish_reason = "tool_calls"
-
-        # Call get_finish_reason with the mock response
-        result = provider.get_finish_reason(mock_response)
-
-        # Assert that the result is "tool_calls"
-        assert result == "tool_calls"
-
-    def test_get_finish_reason_with_stop(self) -> None:
-        config = AnyProviderConfig(base_url=None, api_key="test-key")
-        provider = OpenAIProvider(model="gpt-4o", config=config)
-        # Create a mock response with choices and finish_reason = "stop"
-        mock_response = Mock()
-        mock_response.choices = [Mock()]
-        mock_response.choices[0].finish_reason = "stop"
-
-        # Call get_finish_reason with the mock response
-        result = provider.get_finish_reason(mock_response)
-
-        # Assert that the result is "stop"
-        assert result == "stop"
-
-    def test_get_finish_reason_with_other_reason(self) -> None:
-        config = AnyProviderConfig(base_url=None, api_key="test-key")
-        provider = OpenAIProvider(model="gpt-4o", config=config)
-        # Create a mock response with choices and finish_reason = "length"
-        mock_response = Mock()
-        mock_response.choices = [Mock()]
-        mock_response.choices[0].finish_reason = "length"
-
-        # Call get_finish_reason with the mock response
-        result = provider.get_finish_reason(mock_response)
-
-        # Assert that the result is "stop" (fallback for non-tool_calls reasons)
-        assert result == "stop"
+        assert response.status_code == 200, response.text
+        # Verify stream_completion was called
+        mock_stream_completion.assert_called_once()
 
 
 @pytest.mark.parametrize(

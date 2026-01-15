@@ -1133,7 +1133,7 @@ packages:
 - pypi: ./
   name: marimo
   version: 0.19.2
-  sha256: 90b3f019966fb4460ac05e6237db94ab2ca00f5a5f27aedaf5b41d4b4e109df2
+  sha256: a9b9623f9875a6ed5a6dc5adfce07b6ae1f89695dcc9e0a38ae8adf71e75efa9
   requires_dist:
   - click>=8.0,<9
   - jedi>=0.18.0
@@ -1161,7 +1161,7 @@ packages:
   - marimo[sql] ; extra == 'recommended'
   - marimo[sandbox] ; extra == 'recommended'
   - altair>=5.4.0 ; extra == 'recommended'
-  - openai>=1.55.3 ; extra == 'recommended'
+  - pydantic-ai-slim[openai]>=1.39.0 ; extra == 'recommended'
   - ruff ; extra == 'recommended'
   - nbformat>=5.7.0 ; extra == 'recommended'
   - python-lsp-server>=1.13.0 ; extra == 'lsp'

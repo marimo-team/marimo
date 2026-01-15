@@ -1,11 +1,8 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-import json
 import os
-import uuid
 from abc import ABC, abstractmethod
-from collections.abc import AsyncGenerator, AsyncIterator
 from dataclasses import dataclass
 from typing import (
     TYPE_CHECKING,
@@ -14,26 +11,19 @@ from typing import (
     Literal,
     Optional,
     TypeVar,
-    Union,
-    cast,
+    get_args,
 )
 from urllib.parse import parse_qs, urlparse
 
 from starlette.exceptions import HTTPException
 
 from marimo import _loggers
-from marimo._ai._convert import (
-    convert_to_ai_sdk_messages,
-    convert_to_openai_messages,
-    convert_to_openai_tools,
-    extract_text,
-)
+from marimo._ai._convert import extract_text
 from marimo._ai._pydantic_ai_utils import (
     convert_to_pydantic_messages,
     form_toolsets,
     generate_id,
 )
-from marimo._ai._types import ChatMessage
 from marimo._dependencies.dependencies import Dependency, DependencyManager
 from marimo._server.ai.config import AnyProviderConfig
 from marimo._server.ai.ids import AiModelId
@@ -42,25 +32,18 @@ from marimo._server.ai.tools.types import ToolDefinition
 from marimo._server.models.completion import UIMessage as ServerUIMessage
 from marimo._utils.http import HTTPStatus
 
-TIMEOUT = 30
-# Long-thinking models can take a long time to complete, so we set a longer timeout
-LONG_THINKING_TIMEOUT = 120
-
 if TYPE_CHECKING:
-    # Used for Bedrock, unified interface for all models
+    from collections.abc import AsyncGenerator, AsyncIterator
+
     from anthropic.types.beta import BetaThinkingConfigParam
-    from openai import (  # type: ignore[import-not-found]
-        AsyncOpenAI,
-        AsyncStream as OpenAiStream,
-    )
-    from openai.types.chat import (  # type: ignore[import-not-found]
-        ChatCompletionChunk,
-    )
+    from openai import AsyncOpenAI
+    from openai.types.shared.reasoning_effort import ReasoningEffort
     from pydantic_ai import Agent, DeferredToolRequests, FunctionToolset
     from pydantic_ai.messages import ThinkingPart
     from pydantic_ai.models import Model
     from pydantic_ai.models.bedrock import BedrockConverseModel
     from pydantic_ai.models.google import GoogleModel
+    from pydantic_ai.models.openai import OpenAIChatModel, OpenAIResponsesModel
     from pydantic_ai.providers import Provider
     from pydantic_ai.providers.anthropic import (
         AnthropicProvider as PydanticAnthropic,
@@ -69,44 +52,12 @@ if TYPE_CHECKING:
         BedrockProvider as PydanticBedrock,
     )
     from pydantic_ai.providers.google import GoogleProvider as PydanticGoogle
+    from pydantic_ai.providers.openai import OpenAIProvider as PydanticOpenAI
     from pydantic_ai.ui.vercel_ai import VercelAIAdapter
     from pydantic_ai.ui.vercel_ai.request_types import UIMessage, UIMessagePart
     from pydantic_ai.ui.vercel_ai.response_types import BaseChunk
     from starlette.responses import StreamingResponse
 
-
-ResponseT = TypeVar("ResponseT")
-StreamT = TypeVar("StreamT", bound=AsyncIterator[Any])
-FinishReason = Literal["tool_calls", "stop"]
-
-# Types for extract_content method return
-DictContent = tuple[
-    dict[str, Any],
-    Literal[
-        "tool_call_start",
-        "tool_call_end",
-        "reasoning_signature",
-        "tool_call_delta",
-    ],
-]
-TextContent = tuple[str, Literal["text", "reasoning"]]
-ExtractedContent = Union[TextContent, DictContent]
-ExtractedContentList = list[ExtractedContent]
-
-# Types for format_stream method parameter
-FinishContent = tuple[FinishReason, Literal["finish_reason"]]
-# StreamContent
-StreamTextContent = tuple[str, Literal["text", "reasoning"]]
-StreamDictContent = tuple[
-    dict[str, Any],
-    Literal[
-        "tool_call_start",
-        "tool_call_end",
-        "tool_call_delta",
-        "reasoning_signature",
-    ],
-]
-StreamContent = Union[StreamTextContent, StreamDictContent, FinishContent]
 
 LOGGER = _loggers.marimo_logger()
 
@@ -135,6 +86,14 @@ class PydanticProvider(ABC, Generic[ProviderT]):
         config: AnyProviderConfig,
         deps: list[Dependency] | None = None,
     ):
+        """
+        Initialize a Pydantic provider.
+
+        Args:
+            model: The model name.
+            config: The provider config.
+            deps: The dependencies to require.
+        """
         DependencyManager.require_many(
             "for AI assistance", DependencyManager.pydantic_ai, *(deps or [])
         )
@@ -320,352 +279,10 @@ class GoogleProvider(PydanticProvider["PydanticGoogle"]):
         )
 
 
-class CompletionProvider(Generic[ResponseT, StreamT], ABC):
-    """Base class for AI completion providers."""
+class OpenAIClientMixin:
+    """Mixin providing OpenAI client creation logic for OpenAI-based providers."""
 
-    def __init__(self, model: str, config: AnyProviderConfig):
-        self.model = model
-        self.config = config
-
-    @abstractmethod
-    async def stream_completion(
-        self,
-        messages: list[ChatMessage],
-        system_prompt: str,
-        max_tokens: int,
-        additional_tools: list[ToolDefinition],
-    ) -> StreamT:
-        """Create a completion stream."""
-        pass
-
-    @abstractmethod
-    def extract_content(
-        self, response: ResponseT, tool_call_ids: Optional[list[str]] = None
-    ) -> Optional[ExtractedContentList]:
-        """Extract content from a response chunk."""
-        pass
-
-    @abstractmethod
-    def get_finish_reason(self, response: ResponseT) -> Optional[FinishReason]:
-        """Get the stop reason for a response."""
-        pass
-
-    def format_stream(self, content: StreamContent) -> str:
-        """Format a response into stream protocol string."""
-        content_text, content_type = content
-        if content_type in [
-            "text",
-            "text_start",
-            "text_end",
-            "reasoning",
-            "reasoning_start",
-            "reasoning_end",
-            "reasoning_signature",
-            "tool_call_start",
-            "tool_call_delta",
-            "tool_call_end",
-            "finish_reason",
-        ]:
-            return convert_to_ai_sdk_messages(content_text, content_type)
-        return ""
-
-    async def collect_stream(self, response: StreamT) -> str:
-        """Collect a stream into a single string."""
-        result: list[str] = []
-        async for chunk in self.as_stream_response(
-            response, StreamOptions(text_only=True)
-        ):
-            result.append(chunk)
-        return "".join(result)
-
-    def _content_to_string(
-        self, content_data: Union[str, dict[str, Any]]
-    ) -> str:
-        """Convert content data to string for buffer operations."""
-        return (
-            json.dumps(content_data)
-            if isinstance(content_data, dict)
-            else str(content_data)
-        )
-
-    def _create_stream_content(
-        self, content_data: Union[str, dict[str, Any]], content_type: str
-    ) -> StreamContent:
-        """Create type-safe StreamContent tuple for format_stream method."""
-        # String content types
-        if isinstance(content_data, str):
-            if content_type == "text":
-                return (content_data, "text")
-            elif content_type == "reasoning":
-                return (content_data, "reasoning")
-
-        # Dict content types
-        if isinstance(content_data, dict):
-            if content_type == "tool_call_start":
-                return (content_data, "tool_call_start")
-            elif content_type == "tool_call_end":
-                return (content_data, "tool_call_end")
-            elif content_type == "tool_call_delta":
-                return (content_data, "tool_call_delta")
-            elif content_type == "reasoning_signature":
-                return (content_data, "reasoning_signature")
-
-        # Fallback - convert to string content
-        content_str = self._content_to_string(content_data)
-        return (content_str, "text")
-
-    def validate_tool_call_args(
-        self, tool_call_args: str
-    ) -> Optional[dict[str, Any]]:
-        """Validate tool call arguments."""
-        if not tool_call_args:
-            return None
-        try:
-            result = (
-                json.loads(tool_call_args)
-                if isinstance(tool_call_args, str)
-                else tool_call_args
-            )
-            return result if isinstance(result, dict) else None
-        except Exception as e:
-            LOGGER.error(
-                f"Failed to parse tool call arguments: {tool_call_args} (error: {e})"
-            )
-            raise HTTPException(
-                status_code=HTTPStatus.BAD_REQUEST,
-                detail=f"Invalid tool call arguments: malformed JSON: {tool_call_args}",
-            ) from e
-
-    async def as_stream_response(
-        self, response: StreamT, options: Optional[StreamOptions] = None
-    ) -> AsyncGenerator[str, None]:
-        """Convert a stream to an async generator of strings."""
-        original_content = ""
-        buffer = ""
-        options = options or StreamOptions()
-
-        # Tool info collected from the first chunk
-        tool_calls: dict[str, ActiveToolCall] = {}
-        tool_calls_order: list[str] = []
-
-        # Finish reason collected from the last chunk
-        finish_reason: Optional[FinishReason] = None
-
-        # Text block tracking for start/delta/end pattern
-        current_text_id: Optional[str] = None
-        current_reasoning_id: Optional[str] = None
-        has_text_started = False
-        has_reasoning_started = False
-
-        async for chunk in response:
-            # Always check for finish reason first, before checking content
-            # Some chunks (like RawMessageDeltaEvent) contain finish reasons but no extractable content
-            # If we check content first, these chunks get skipped and finish reason is never detected
-            finish_reason = self.get_finish_reason(chunk) or finish_reason
-
-            content = self.extract_content(chunk, tool_calls_order)
-            if not content:
-                continue
-
-            # Loop through all content chunks
-            for content_data, content_type in content:
-                if options.text_only and content_type != "text":
-                    continue
-
-                # Handle text content with start/delta/end pattern
-                if (
-                    content_type == "text"
-                    and isinstance(content_data, str)
-                    and options.format_stream
-                ):
-                    if not has_text_started:
-                        # Emit text-start event
-                        current_text_id = f"text_{uuid.uuid4().hex}"
-                        yield convert_to_ai_sdk_messages(
-                            "", "text_start", current_text_id
-                        )
-                        has_text_started = True
-
-                    # Emit text-delta event with the actual content
-                    yield convert_to_ai_sdk_messages(
-                        content_data, "text", current_text_id
-                    )
-                    continue
-
-                # Handle reasoning content with start/delta/end pattern
-                elif (
-                    content_type == "reasoning"
-                    and isinstance(content_data, str)
-                    and options.format_stream
-                ):
-                    if not has_reasoning_started:
-                        # Emit reasoning-start event
-                        current_reasoning_id = f"reasoning_{uuid.uuid4().hex}"
-                        yield convert_to_ai_sdk_messages(
-                            "", "reasoning_start", current_reasoning_id
-                        )
-                        has_reasoning_started = True
-
-                    # Emit reasoning-delta event with the actual content
-                    yield convert_to_ai_sdk_messages(
-                        content_data, "reasoning", current_reasoning_id
-                    )
-                    continue
-
-                # Tool handling
-                if content_type == "tool_call_start" and isinstance(
-                    content_data, dict
-                ):
-                    tool_call_id: Optional[str] = content_data.get(
-                        "toolCallId", None
-                    )
-                    tool_call_name: Optional[str] = content_data.get(
-                        "toolName", None
-                    )
-                    # Sometimes GoogleProvider emits the args in the tool_call_start chunk
-                    tool_call_args: str = ""
-                    if content_data.get("args"):
-                        # don't yield args in tool_call_start chunk
-                        # it will throw an error in ai-sdk-ui
-                        tool_call_args = content_data.pop("args")
-
-                    if tool_call_id and tool_call_name:
-                        # Add new tool calls to the list for tracking
-                        tool_calls_order.append(tool_call_id)
-                        tool_calls[tool_call_id] = ActiveToolCall(
-                            tool_call_id=tool_call_id,
-                            tool_call_name=tool_call_name,
-                            tool_call_args=tool_call_args,
-                        )
-
-                if content_type == "tool_call_delta" and isinstance(
-                    content_data, dict
-                ):
-                    tool_call_delta_id = content_data.get("toolCallId", None)
-                    tool_call_delta: str = content_data.get(
-                        "inputTextDelta", ""
-                    )
-
-                    if not tool_call_delta_id:
-                        if not tool_call_delta_id:
-                            LOGGER.error(
-                                f"Tool call id not found for tool call delta: {content_data}"
-                            )
-                        continue
-                    tool_call = tool_calls.get(tool_call_delta_id, None)
-                    if not tool_call:
-                        continue
-
-                    # tool_call_args is built up incrementally from deltas.
-                    tool_call.tool_call_args += tool_call_delta
-                    # update tool_call_delta to ai-sdk-ui structure
-                    # based on https://ai-sdk.dev/docs/ai-sdk-ui/stream-protocol#tool-call-delta-part
-                    content_data = {
-                        "toolCallId": tool_call.tool_call_id,
-                        "inputTextDelta": tool_call.tool_call_args,
-                    }
-
-                content_str = self._content_to_string(content_data)
-
-                if options.format_stream:
-                    stream_content = self._create_stream_content(
-                        content_data, content_type
-                    )
-                    content_str = self.format_stream(stream_content)
-
-                buffer += content_str
-                original_content += content_str
-
-                yield buffer
-                buffer = ""
-
-        # Emit text-end event if we started a text block
-        if has_text_started and current_text_id and options.format_stream:
-            yield convert_to_ai_sdk_messages("", "text_end", current_text_id)
-
-        # Emit reasoning-end event if we started a reasoning block
-        if (
-            has_reasoning_started
-            and current_reasoning_id
-            and options.format_stream
-        ):
-            yield convert_to_ai_sdk_messages(
-                "", "reasoning_end", current_reasoning_id
-            )
-
-        # Handle tool call end after the stream is complete
-        if len(tool_calls_order) > 0 and not options.text_only:
-            for tool_call_id in tool_calls_order:
-                tool_call = tool_calls.get(tool_call_id, None)
-                if not tool_call:
-                    continue
-                content_data = {
-                    "toolCallId": tool_call_id,
-                    "toolName": tool_call.tool_call_name,
-                    "input": self.validate_tool_call_args(
-                        tool_call.tool_call_args
-                    ),
-                }
-                content_type = "tool_call_end"
-                yield self.format_stream((content_data, content_type))
-
-        # Add a final finish reason chunk
-        if finish_reason and not options.text_only:
-            finish_content: FinishContent = (finish_reason, "finish_reason")
-            yield self.format_stream(finish_content)
-            # reset finish reason for next stream
-            finish_reason = None
-
-        LOGGER.debug(f"Completion content: {original_content}")
-
-
-class OpenAIProvider(
-    CompletionProvider[
-        "ChatCompletionChunk", "OpenAiStream[ChatCompletionChunk]"
-    ]
-):
-    # Medium effort provides a balance between speed and accuracy
-    # https://openai.com/index/openai-o3-mini/
-    DEFAULT_REASONING_EFFORT = "medium"
-
-    def _is_reasoning_model(self, model: str) -> bool:
-        """
-        Check if reasoning_effort should be added to the request.
-        Only add for actual OpenAI reasoning models, not for OpenAI-compatible APIs.
-
-        OpenAI-compatible APIs (identified by custom base_url) may not support
-        the reasoning_effort parameter even if the model name suggests it's a
-        reasoning model.
-        """
-        import re
-
-        # Check for reasoning model patterns: o{digit} or gpt-5, with optional openai/ prefix
-        reasoning_patterns = [
-            r"^openai/o\d",  # openai/o1, openai/o3, etc.
-            r"^o\d",  # o1, o3, etc.
-            r"^openai/gpt-5",  # openai/gpt-5*
-            r"^gpt-5",  # gpt-5*
-        ]
-
-        is_reasoning_model_name = any(
-            re.match(pattern, model) for pattern in reasoning_patterns
-        )
-
-        if not is_reasoning_model_name:
-            return False
-
-        # If using a custom base_url that's not OpenAI, don't assume reasoning is supported
-        if (
-            self.config.base_url
-            and "api.openai.com" not in self.config.base_url
-        ):
-            return False
-
-        return True
-
-    def get_client(self, config: AnyProviderConfig) -> AsyncOpenAI:
-        DependencyManager.openai.require(why="for AI assistance with OpenAI")
-
+    def get_openai_client(self, config: AnyProviderConfig) -> AsyncOpenAI:
         import ssl
         from pathlib import Path
 
@@ -742,129 +359,78 @@ class OpenAIProvider(
             project=project,
         )
 
-    async def stream_completion(
-        self,
-        messages: list[ChatMessage],
-        system_prompt: str,
-        max_tokens: int,
-        additional_tools: list[ToolDefinition],
-    ) -> OpenAiStream[ChatCompletionChunk]:
-        client = self.get_client(self.config)
-        tools = self.config.tools
-        create_params = {
-            "model": self.model,
-            "messages": cast(
-                Any,
-                convert_to_openai_messages(
-                    self._maybe_convert_roles(
-                        [ChatMessage(role="system", content=system_prompt)]
-                    )
-                    + messages
-                ),
-            ),
-            "stream": True,
-            "timeout": LONG_THINKING_TIMEOUT
-            if self._is_reasoning_model(self.model)
-            else TIMEOUT,
-        }
-        if tools:
-            all_tools = tools + additional_tools
-            create_params["tools"] = convert_to_openai_tools(all_tools)
-        if self._is_reasoning_model(self.model):
-            create_params["reasoning_effort"] = self.DEFAULT_REASONING_EFFORT
-            create_params["max_completion_tokens"] = max_tokens
-        else:
-            create_params["max_tokens"] = max_tokens
-        return cast(
-            "OpenAiStream[ChatCompletionChunk]",
-            await client.chat.completions.create(**create_params),
+
+class OpenAIProvider(OpenAIClientMixin, PydanticProvider["PydanticOpenAI"]):
+    # Medium effort provides a balance between speed and accuracy
+    # https://openai.com/index/openai-o3-mini/
+    DEFAULT_REASONING_EFFORT: ReasoningEffort = "medium"
+    DEFAULT_REASONING_SUMMARY: Literal["detailed", "concise", "auto"] = "auto"
+
+    def create_provider(self, config: AnyProviderConfig) -> PydanticOpenAI:
+        from pydantic_ai.providers.openai import (
+            OpenAIProvider as PydanticOpenAI,
         )
 
-    def extract_content(
-        self,
-        response: ChatCompletionChunk,
-        tool_call_ids: Optional[list[str]] = None,
-    ) -> Optional[ExtractedContentList]:
-        tool_call_ids = tool_call_ids or []
-        if (
-            hasattr(response, "choices")
-            and response.choices
-            and response.choices[0].delta
-        ):
-            delta = response.choices[0].delta
+        client = self.get_openai_client(config)
+        return PydanticOpenAI(openai_client=client)
 
-            # Text content
-            content = delta.content
-            if content:
-                return [(content, "text")]
+    def create_model(self, max_tokens: int) -> OpenAIResponsesModel:
+        from pydantic_ai.models.openai import (
+            OpenAIResponsesModel,
+            OpenAIResponsesModelSettings,
+        )
 
-            # Tool call:
-            if delta.tool_calls:
-                tool_content: ExtractedContentList = []
-                for tool_call in delta.tool_calls:
-                    tool_index = tool_call.index
+        is_reasoning_model = self._is_reasoning_model(self.model)
 
-                    # Start of tool call
-                    # id is only present for the first tool call chunk
-                    if (
-                        tool_call.id
-                        and tool_call.function
-                        and tool_call.function.name
-                    ):
-                        tool_info = {
-                            "toolCallId": tool_call.id,
-                            "toolName": tool_call.function.name,
-                        }
-                        tool_content.append((tool_info, "tool_call_start"))
-
-                    # Delta of tool call
-                    # arguments is only present second chunk onwards
-                    if (
-                        tool_call.function
-                        and tool_call.function.arguments
-                        and tool_index < len(tool_call_ids)
-                        and tool_call_ids[tool_index]
-                    ):
-                        tool_delta = {
-                            "toolCallId": tool_call_ids[tool_index],
-                            "inputTextDelta": tool_call.function.arguments,
-                        }
-                        tool_content.append((tool_delta, "tool_call_delta"))
-
-                # return the tool content
-                return tool_content
-
-        return None
-
-    def get_finish_reason(
-        self, response: ChatCompletionChunk
-    ) -> Optional[FinishReason]:
-        if (
-            hasattr(response, "choices")
-            and response.choices
-            and response.choices[0].finish_reason
-        ):
-            return (
-                "tool_calls"
-                if response.choices[0].finish_reason == "tool_calls"
-                else "stop"
+        settings = (
+            OpenAIResponsesModelSettings(
+                max_tokens=max_tokens,
+                openai_reasoning_summary=self.DEFAULT_REASONING_SUMMARY,
+                openai_reasoning_effort=self.DEFAULT_REASONING_EFFORT,
             )
-        return None
+            if is_reasoning_model
+            else OpenAIResponsesModelSettings(max_tokens=max_tokens)
+        )
+        return OpenAIResponsesModel(
+            model_name=self.model,
+            provider=self.provider,
+            settings=settings,
+        )
 
-    def _maybe_convert_roles(
-        self, messages: list[ChatMessage]
-    ) -> list[ChatMessage]:
-        # https://community.openai.com/t/o1-models-do-not-support-system-role-in-chat-completion/953880/3
-        if self.model.startswith("o1") or self.model.startswith("o3"):
+    def _is_reasoning_model(self, model: str) -> bool:
+        """
+        Check if reasoning_effort should be added to the request.
+        Only add for actual OpenAI reasoning models, not for OpenAI-compatible APIs.
 
-            def update_role(message: ChatMessage) -> ChatMessage:
-                if message.role == "system":
-                    return ChatMessage(role="user", content=message.content)
-                return message
+        OpenAI-compatible APIs (identified by custom base_url) may not support
+        the reasoning_effort parameter even if the model name suggests it's a
+        reasoning model.
+        """
+        import re
 
-            return [update_role(message) for message in messages]
+        # Check for reasoning model patterns: o{digit} or gpt-5, with optional openai/ prefix
+        reasoning_patterns = [
+            r"^openai/o\d",  # openai/o1, openai/o3, etc.
+            r"^o\d",  # o1, o3, etc.
+            r"^openai/gpt-5",  # openai/gpt-5*
+            r"^gpt-5",  # gpt-5*
+        ]
 
-        return messages
+        is_reasoning_model_name = any(
+            re.match(pattern, model) for pattern in reasoning_patterns
+        )
+
+        if not is_reasoning_model_name:
+            return False
+
+        # If using a custom base_url that's not OpenAI, don't assume reasoning is supported
+        if (
+            self.config.base_url
+            and "api.openai.com" not in self.config.base_url
+        ):
+            return False
+
+        return True
 
 
 class AzureOpenAIProvider(OpenAIProvider):
@@ -893,7 +459,7 @@ class AzureOpenAIProvider(OpenAIProvider):
         endpoint = f"{parsed_url.scheme}://{parsed_url.hostname}"
         return api_version, deployment_name, endpoint
 
-    def get_client(self, config: AnyProviderConfig) -> AsyncOpenAI:
+    def get_openai_client(self, config: AnyProviderConfig) -> AsyncOpenAI:
         from openai import AsyncAzureOpenAI
 
         base_url = config.base_url or None
@@ -930,6 +496,202 @@ class AzureOpenAIProvider(OpenAIProvider):
             api_version=api_version,
             azure_deployment=deployment_name,
             azure_endpoint=endpoint or "",
+        )
+
+
+class CustomProvider(OpenAIClientMixin, PydanticProvider["Provider[Any]"]):
+    """Support for custom providers which may or may not be OpenAI-compatible.
+
+    Note:
+        We need to use the specific provider and model classes, because Pydantic AI has tuned them to send & return messages correctly.
+        We can also use `Agent("provider:model_name")` to avoid finding the provider ourselves. However, this does not let
+        us create custom providers. They rely on env vars to be set.
+    """
+
+    def __init__(
+        self,
+        model_id: AiModelId,
+        config: AnyProviderConfig,
+        deps: list[Dependency] | None = None,
+    ):
+        self._provider_name = model_id.provider
+        self._responses_compatible, self._chat_compatible = (
+            self._get_openai_compatible_providers()
+        )
+        super().__init__(model_id.model, config, deps)
+
+    def _get_openai_compatible_providers(self) -> tuple[set[str], set[str]]:
+        """Get the sets of OpenAI-compatible providers from pydantic_ai.
+
+        Returns:
+            Tuple of (responses_compatible, chat_compatible) provider names.
+        """
+        from pydantic_ai.models import (
+            OpenAIChatCompatibleProvider,
+            OpenAIResponsesCompatibleProvider,
+        )
+
+        # These are TypeAliasType objects, so we need .__value__ to get the Literal
+        responses_compatible = set(
+            get_args(OpenAIResponsesCompatibleProvider.__value__)
+        )
+        chat_compatible = set(get_args(OpenAIChatCompatibleProvider.__value__))
+        return responses_compatible, chat_compatible
+
+    def _is_openai_compatible(self) -> bool:
+        """Check if the provider uses an OpenAI-compatible API."""
+        provider = self._provider_name.lower()
+        return (
+            provider in self._responses_compatible
+            or provider in self._chat_compatible
+        )
+
+    def _supports_responses_api(self) -> bool:
+        """Check if the provider supports the OpenAI Responses API. We currently default to Pydantic's inferred model"""
+        return self._provider_name.lower() in self._responses_compatible
+
+    def create_provider(self, config: AnyProviderConfig) -> Provider[Any]:
+        """Create a provider based on the provider name.
+
+        1. Try to infer the provider class from the name
+        2. For OpenAI-compatible providers, pass openai_client (with SSL settings)
+        3. For other providers, try to create the provider directly with the credentials
+        4. Fall back to OpenAIProvider if nothing else works or not found
+
+        Reference: https://ai.pydantic.dev/models/openai/#openai-compatible-models
+        """
+        from pydantic_ai.providers import infer_provider_class
+        from pydantic_ai.providers.openai import (
+            OpenAIProvider as PydanticOpenAI,
+        )
+
+        # Try to infer the provider class
+        try:
+            provider_class = infer_provider_class(self._provider_name)
+            LOGGER.debug(f"Inferred provider class: {provider_class.__name__}")
+        except ValueError:
+            # Unknown provider, fall back to OpenAI-compatible
+            LOGGER.debug(
+                f"Unknown provider: {self._provider_name}. Falling back to OpenAIProvider."
+            )
+            client = self.get_openai_client(config)
+            return PydanticOpenAI(openai_client=client)
+
+        if self._is_openai_compatible():
+            client = self.get_openai_client(config)
+            try:
+                return provider_class(openai_client=client)  # type: ignore[call-arg]
+            except TypeError:
+                LOGGER.warning(
+                    f"Provider {provider_class.__name__} doesn't accept openai_client"
+                )
+
+        return self._create_custom_provider(provider_class, config)
+
+    def _create_custom_provider(
+        self, provider_class: type[Provider[Any]], config: AnyProviderConfig
+    ) -> Provider[Any]:
+        """
+        Create a custom provider based on the provider class. These providers are not OpenAI-compatible.
+        Import on-demand to avoid requiring the provider packages to be installed.
+        """
+
+        provider_name = provider_class.__name__
+        LOGGER.debug(f"Creating custom provider: {provider_name}")
+
+        if provider_name == "CerebrasProvider":
+            from pydantic_ai.providers.cerebras import CerebrasProvider
+
+            return CerebrasProvider(api_key=config.api_key)
+        if provider_name == "CohereProvider":
+            from pydantic_ai.providers.cohere import CohereProvider
+
+            return CohereProvider(api_key=config.api_key)
+        if provider_name == "GroqProvider":
+            from pydantic_ai.providers.groq import GroqProvider
+
+            return GroqProvider(
+                api_key=config.api_key, base_url=config.base_url
+            )
+        if provider_name == "HuggingFaceProvider":
+            from pydantic_ai.providers.huggingface import HuggingFaceProvider
+
+            if config.base_url:
+                return HuggingFaceProvider(
+                    api_key=config.api_key, base_url=config.base_url
+                )
+            return HuggingFaceProvider(api_key=config.api_key)
+        if provider_name == "MistralProvider":
+            from pydantic_ai.providers.mistral import MistralProvider
+
+            return MistralProvider(api_key=config.api_key)
+
+        LOGGER.warning(
+            f"Unknown provider: {provider_name}. Create a GitHub issue to request support."
+        )
+        # Try returning provider directly (use env vars)
+        try:
+            return provider_class()
+        except Exception as e:
+            from pydantic_ai.providers.openai import (
+                OpenAIProvider as PydanticOpenAI,
+            )
+
+            LOGGER.warning(
+                f"Failed to create provider {provider_class.__name__}: {e}. "
+                f"Falling back to OpenAIProvider."
+            )
+            client = self.get_openai_client(config)
+            return PydanticOpenAI(openai_client=client)
+
+    def create_model(self, max_tokens: int) -> OpenAIChatModel:
+        """Default to OpenAIChatModel"""
+
+        from pydantic_ai.models.openai import (
+            OpenAIChatModel,
+            OpenAIChatModelSettings,
+        )
+
+        return OpenAIChatModel(
+            model_name=self.model,
+            provider=self.provider,
+            settings=OpenAIChatModelSettings(max_tokens=max_tokens),
+        )
+
+    def create_agent(
+        self,
+        max_tokens: int,
+        tools: list[ToolDefinition],
+        system_prompt: str,
+    ) -> Agent[None, DeferredToolRequests | str]:
+        """Create a Pydantic AI agent"""
+        from pydantic_ai import Agent, UserError
+        from pydantic_ai.models import infer_model
+        from pydantic_ai.settings import ModelSettings
+
+        try:
+            model = infer_model(
+                f"{self._provider_name}:{self.model}",
+                provider_factory=lambda _: self.provider,
+            )
+        except UserError:
+            LOGGER.warning(
+                f"Model {self.model} not found. Falling back to OpenAIChatModel."
+            )
+            model = self.create_model(max_tokens)
+        except Exception as e:
+            LOGGER.error(
+                f"Error creating model: {e}. Falling back to OpenAIChatModel."
+            )
+            model = self.create_model(max_tokens)
+
+        toolset, output_type = self._get_toolsets_and_output_type(tools)
+        return Agent(
+            model,
+            model_settings=ModelSettings(max_tokens=max_tokens),
+            toolsets=[toolset] if tools else None,
+            instructions=system_prompt,
+            output_type=output_type,
         )
 
 
@@ -1132,7 +894,7 @@ class BedrockProvider(PydanticProvider["PydanticBedrock"]):
 
 def get_completion_provider(
     config: AnyProviderConfig, model: str
-) -> CompletionProvider[Any, Any] | PydanticProvider[Any]:
+) -> PydanticProvider[Any]:
     model_id = AiModelId.from_model(model)
 
     if model_id.provider == "anthropic":
@@ -1149,10 +911,12 @@ def get_completion_provider(
         )
     elif model_id.provider == "azure":
         return AzureOpenAIProvider(model_id.model, config)
-    elif model_id.provider == "openrouter":
-        return OpenAIProvider(model_id.model, config)
+    elif model_id.provider == "openai":
+        return OpenAIProvider(
+            model_id.model, config, [DependencyManager.openai]
+        )
     else:
-        return OpenAIProvider(model_id.model, config)
+        return CustomProvider(model_id, config, [DependencyManager.openai])
 
 
 async def merge_backticks(

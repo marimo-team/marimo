@@ -5,7 +5,6 @@ from typing import Any, Literal, Optional, Union
 
 import msgspec
 
-from marimo._ai._types import ChatMessage
 from marimo._server.ai.tools.types import ToolDefinition
 
 
@@ -36,6 +35,7 @@ class AiCompletionContext(msgspec.Struct, rename="camel"):
 
 Language = Literal["python", "markdown", "sql"]
 
+
 UIMessage = dict[str, Any]
 
 
@@ -48,7 +48,6 @@ class AiCompletionRequest(msgspec.Struct, rename="camel"):
     prompt: str
     include_other_code: str
     code: str
-    messages: list[ChatMessage] = []  # Deprecated
     ui_messages: list[UIMessage] = []
     selected_text: Optional[str] = None
     context: Optional[AiCompletionContext] = None
@@ -69,7 +68,6 @@ class ChatRequest(msgspec.Struct, rename="camel"):
 
     context: AiCompletionContext
     include_other_code: str
-    messages: list[ChatMessage]  # Deprecated
     ui_messages: list[UIMessage]
     tools: Optional[list[ToolDefinition]] = None
     model: Optional[str] = None

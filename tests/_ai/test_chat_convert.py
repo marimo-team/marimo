@@ -9,15 +9,11 @@ import pytest
 from marimo._ai._convert import (
     convert_to_ai_sdk_messages,
     convert_to_anthropic_messages,
-    convert_to_anthropic_tools,
     convert_to_google_messages,
-    convert_to_google_tools,
     convert_to_groq_messages,
     convert_to_openai_messages,
-    convert_to_openai_tools,
     extract_text,
     get_google_messages_from_parts,
-    get_openai_messages_from_parts,
 )
 from marimo._ai._types import (
     ChatMessage,
@@ -1025,7 +1021,7 @@ def test_from_chat_message_dict():
         role="user",
         content="I'm already a ChatMessage object",
         attachments=None,
-        parts=None,
+        parts=[],
     )
 
     result_existing = from_chat_message_dict(existing_message)
@@ -1046,86 +1042,6 @@ def sample_tools():
             source="mcp",
             mode=["manual"],
         )
-    ]
-
-
-def test_convert_to_openai_tools(sample_tools):
-    result = convert_to_openai_tools(sample_tools)
-    assert len(result) == 1
-    assert result[0]["type"] == "function"
-    assert result[0]["function"]["name"] == "test_tool"
-    assert result[0]["function"]["description"] == "A test tool"
-    assert result[0]["function"]["parameters"] == {
-        "type": "object",
-        "properties": {"x": {"type": "integer"}},
-    }
-
-
-def test_convert_to_anthropic_tools(sample_tools):
-    result = convert_to_anthropic_tools(sample_tools)
-    assert len(result) == 1
-    assert result[0]["name"] == "test_tool"
-    assert result[0]["description"] == "A test tool"
-    assert result[0]["input_schema"] == {
-        "type": "object",
-        "properties": {"x": {"type": "integer"}},
-    }
-
-
-def test_convert_to_google_tools(sample_tools):
-    # Add some additional parameters in tools, it should be ignored
-    sample_tools[0].parameters["maxNumResults"] = 10
-    result = convert_to_google_tools(sample_tools)
-    assert result == [
-        {
-            "function_declarations": [
-                {
-                    "name": "test_tool",
-                    "description": "A test tool",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {"x": {"type": "integer"}},
-                        "required": [],
-                    },
-                }
-            ]
-        }
-    ]
-
-
-def test_convert_to_google_tools_with_unnecessary_parameters():
-    tools = [
-        ToolDefinition(
-            name="test_tool",
-            description="A test tool",
-            parameters={
-                "type": "object",
-                "properties": {
-                    "x": {
-                        "type": "integer",
-                        "additionalProperties": True,
-                    }  # additionalProperties is not supported by Google
-                },
-            },
-            source="mcp",
-            mode=["manual"],
-        )
-    ]
-    result = convert_to_google_tools(tools)
-    assert result == [
-        {
-            "function_declarations": [
-                {
-                    "name": "test_tool",
-                    "description": "A test tool",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {"x": {"type": "integer"}},
-                        "required": [],
-                    },
-                }
-            ]
-        }
     ]
 
 
@@ -1236,69 +1152,6 @@ def test_convert_to_ai_sdk_messages():
     )  # type: ignore
     expected = f"data: {json.dumps({'type': 'text-delta', 'id': 'test_fallback_id', 'delta': 'fallback'})}\n\n"
     assert result == expected
-
-
-# Tests for helper functions that convert parts to provider-specific formats
-def test_get_openai_messages_from_parts_text_only():
-    """Test converting TextPart to OpenAI format."""
-    parts = [
-        TextPart(type="text", text="Hello"),
-        TextPart(type="text", text="World"),
-    ]
-
-    result = get_openai_messages_from_parts("user", parts)
-
-    assert len(result) == 2
-    assert result[0] == {"role": "user", "content": "Hello"}
-    assert result[1] == {"role": "user", "content": "World"}
-
-
-def test_get_openai_messages_from_parts_with_tool_invocation():
-    """Test converting ToolInvocationPart to OpenAI format."""
-    parts = [
-        TextPart(type="text", text="Let me check the weather"),
-        ToolInvocationPart(
-            type="tool-weather_tool",
-            tool_call_id="call_123",
-            state="output-available",
-            input={"location": "New York"},
-            output={"temperature": "72°F", "condition": "sunny"},
-        ),
-    ]
-
-    result = get_openai_messages_from_parts("assistant", parts)
-
-    assert len(result) == 3  # text message, assistant tool call, tool result
-
-    # Check text message
-    assert result[0] == {
-        "role": "assistant",
-        "content": "Let me check the weather",
-    }
-
-    # Check assistant tool call message
-    assert result[1]["role"] == "assistant"
-    assert result[1]["content"] is None
-    assert len(result[1]["tool_calls"]) == 1
-    tool_call = result[1]["tool_calls"][0]
-    assert tool_call["id"] == "call_123"
-    assert tool_call["type"] == "function"
-    assert tool_call["function"]["name"] == "weather_tool"
-    assert tool_call["function"]["arguments"] == str({"location": "New York"})
-
-    # Check tool result message
-    assert result[2]["role"] == "tool"
-    assert result[2]["tool_call_id"] == "call_123"
-    assert result[2]["name"] == "weather_tool"
-    assert result[2]["content"] == str(
-        {"temperature": "72°F", "condition": "sunny"}
-    )
-
-
-def test_get_openai_messages_from_parts_empty():
-    """Test converting empty parts list."""
-    result = get_openai_messages_from_parts("user", [])
-    assert result == []
 
 
 def test_get_google_messages_from_parts_text_only():
