@@ -471,6 +471,6 @@ def test_variables_without_datasource_engine() -> None:
     import ibis
 
     deferred_for_test = ibis._["a"]
-    variables_to_test = [("deferred_for_test", deferred_for_test)]
-    engines = get_engines_from_variables(variables_to_test)
+    variables = [("deferred_for_test", deferred_for_test)]
+    engines = get_engines_from_variables(variables)
     assert not engines
