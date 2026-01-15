@@ -42,6 +42,7 @@ class SandboxMode(Enum):
 
 LOGGER = _loggers.marimo_logger()
 
+
 DepFeatures = Literal["lsp", "recommended"]
 
 
@@ -403,10 +404,6 @@ def run_in_sandbox(
     return process.wait()
 
 
-# Dependencies required for IPC kernel communication (ZeroMQ-based)
-IPC_KERNEL_DEPS: list[str] = ["pyzmq"]
-
-
 def get_sandbox_requirements(
     filename: str | None,
     additional_deps: list[str] | None = None,
@@ -415,7 +412,7 @@ def get_sandbox_requirements(
 
     Reads dependencies from the notebook's PEP 723 script metadata,
     normalizes marimo dependency, and adds any additional deps
-    (e.g., IPC_KERNEL_DEPS for kernel communication).
+    (e.g., get_ipc_kernel_deps() for kernel communication).
 
     Args:
         filename: Path to notebook file, or None for empty deps.
@@ -460,7 +457,7 @@ def build_sandbox_venv(
 
     Args:
         filename: Path to notebook file for reading dependencies.
-        additional_deps: Extra dependencies to add (e.g., IPC_KERNEL_DEPS).
+        additional_deps: Extra dependencies to add (e.g., get_ipc_kernel_deps()).
 
     Returns:
         Tuple of (sandbox_dir, venv_python_path).

@@ -4468,6 +4468,7 @@ export interface components {
       server: components["schemas"]["ServerConfig"];
       sharing?: components["schemas"]["SharingConfig"];
       snippets?: components["schemas"]["SnippetsConfig"];
+      venv?: components["schemas"]["VenvConfig"];
     };
     /** MarimoExceptionRaisedError */
     MarimoExceptionRaisedError: {
@@ -5428,6 +5429,24 @@ export interface components {
       /** @enum {unknown} */
       op: "variables";
       variables: components["schemas"]["VariableDeclarationNotification"][];
+    };
+    /**
+     * VenvConfig
+     * @description Configuration for external Python environment in home sandbox mode.
+     *
+     *         Allows specifying an existing virtualenv to use instead of creating
+     *         ephemeral sandboxes per notebook. Only applies in home sandbox mode.
+     *
+     *         **Keys.**
+     *
+     *         - `path`: path to a virtualenv directory (absolute or relative to
+     *           pyproject.toml)
+     *         - `writable`: if true, marimo will manage script metadata (inline
+     *           dependencies). Defaults to false.
+     */
+    VenvConfig: {
+      path?: string;
+      writable?: boolean;
     };
     /** WorkspaceFilesRequest */
     WorkspaceFilesRequest: {

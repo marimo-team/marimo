@@ -97,6 +97,26 @@ OnCellChangeType = Literal["lazy", "autorun"]
 ExecutionType = Literal["relaxed", "strict"]
 
 
+@mddoc
+@dataclass
+class VenvConfig(TypedDict, total=False):
+    """Configuration for external Python environment in home sandbox mode.
+
+    Allows specifying an existing virtualenv to use instead of creating
+    ephemeral sandboxes per notebook. Only applies in home sandbox mode.
+
+    **Keys.**
+
+    - `path`: path to a virtualenv directory (absolute or relative to
+      pyproject.toml)
+    - `writable`: if true, marimo will manage script metadata (inline
+      dependencies). Defaults to false.
+    """
+
+    path: str
+    writable: bool
+
+
 # TODO(akshayka): remove normal, migrate to compact
 # normal == compact
 WidthType = Literal["normal", "compact", "medium", "full", "columns"]
@@ -555,6 +575,7 @@ class MarimoConfig(TypedDict):
     datasources: NotRequired[DatasourcesConfig]
     sharing: NotRequired[SharingConfig]
     mcp: NotRequired[MCPConfig]
+    venv: NotRequired[VenvConfig]
 
 
 @mddoc
@@ -622,6 +643,7 @@ class PartialMarimoConfig(TypedDict, total=False):
     snippets: SnippetsConfig
     datasources: NotRequired[DatasourcesConfig]
     sharing: NotRequired[SharingConfig]
+    venv: NotRequired[VenvConfig]
 
 
 DEFAULT_CONFIG: MarimoConfig = {

@@ -1,19 +1,27 @@
 from __future__ import annotations
 
+import os
 from typing import TYPE_CHECKING, Any
 from unittest.mock import patch
+
+if TYPE_CHECKING:
+    from pathlib import Path
+
+import pytest
 
 from marimo._cli.sandbox import (
     SandboxMode,
     _ensure_marimo_in_script_metadata,
     _normalize_sandbox_dependencies,
+    build_sandbox_venv,
+    cleanup_sandbox_dir,
     construct_uv_command,
     resolve_sandbox_mode,
 )
+from marimo._dependencies.dependencies import DependencyManager
 from marimo._utils.inline_script_metadata import PyProjectReader
 
-if TYPE_CHECKING:
-    from pathlib import Path
+HAS_UV = DependencyManager.which("uv")
 
 
 @patch("marimo._cli.sandbox.is_editable", return_value=False)
@@ -574,16 +582,6 @@ app = marimo.App()
     assert script_path.read_text() == original
 
 
-# Tests for IPC sandbox functions
-
-
-def test_ipc_kernel_deps_constant() -> None:
-    """Test IPC_KERNEL_DEPS constant contains expected deps."""
-    from marimo._cli.sandbox import IPC_KERNEL_DEPS
-
-    assert "pyzmq" in IPC_KERNEL_DEPS
-
-
 def test_get_sandbox_requirements_adds_additional_deps(tmp_path: Path) -> None:
     """Test that additional deps are added when not present."""
     from marimo._cli.sandbox import get_sandbox_requirements
@@ -671,3 +669,36 @@ def test_cleanup_sandbox_dir_handles_nonexistent(tmp_path: Path) -> None:
 
     nonexistent = str(tmp_path / "does_not_exist")
     cleanup_sandbox_dir(nonexistent)  # Should not raise
+
+
+@pytest.mark.skipif(not HAS_UV, reason="uv required")
+def test_build_sandbox_venv_creates_venv(tmp_path: Path) -> None:
+    """Test venv is created and returns paths."""
+    script = tmp_path / "test.py"
+    script.write_text("# /// script\n# dependencies = []\n# ///\n")
+
+    sandbox_dir, venv_python = build_sandbox_venv(str(script))
+    try:
+        assert os.path.isdir(sandbox_dir)
+        assert os.path.exists(venv_python)
+        assert "python" in venv_python
+    finally:
+        cleanup_sandbox_dir(sandbox_dir)
+
+
+@pytest.mark.skipif(not HAS_UV, reason="uv required")
+def test_build_sandbox_venv_with_additional_deps(tmp_path: Path) -> None:
+    """Test additional deps are passed through."""
+    from marimo._session._venv import get_ipc_kernel_deps
+
+    script = tmp_path / "test.py"
+    script.write_text("# /// script\n# dependencies = []\n# ///\n")
+
+    sandbox_dir, venv_python = build_sandbox_venv(
+        str(script), additional_deps=get_ipc_kernel_deps()
+    )
+    try:
+        assert os.path.isdir(sandbox_dir)
+        assert os.path.exists(venv_python)
+    finally:
+        cleanup_sandbox_dir(sandbox_dir)

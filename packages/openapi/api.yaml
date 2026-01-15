@@ -2678,6 +2678,8 @@ components:
           $ref: '#/components/schemas/SharingConfig'
         snippets:
           $ref: '#/components/schemas/SnippetsConfig'
+        venv:
+          $ref: '#/components/schemas/VenvConfig'
       required:
       - completion
       - display
@@ -4363,6 +4365,21 @@ components:
       - op
       - variables
       title: VariablesNotification
+      type: object
+    VenvConfig:
+      description: "Configuration for external Python environment in home sandbox\
+        \ mode.\n\n    Allows specifying an existing virtualenv to use instead of\
+        \ creating\n    ephemeral sandboxes per notebook. Only applies in home sandbox\
+        \ mode.\n\n    **Keys.**\n\n    - `path`: path to a virtualenv directory (absolute\
+        \ or relative to\n      pyproject.toml)\n    - `writable`: if true, marimo\
+        \ will manage script metadata (inline\n      dependencies). Defaults to false."
+      properties:
+        path:
+          type: string
+        writable:
+          type: boolean
+      required: []
+      title: VenvConfig
       type: object
     WorkspaceFilesRequest:
       properties:
