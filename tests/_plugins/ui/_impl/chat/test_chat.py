@@ -222,6 +222,12 @@ async def test_chat_send_prompt_async_generator():
     # Check final message is marked as final
     assert sent_messages[-1]["is_final"] is True
 
+    # String generators now update chat history with accumulated text
+    assert len(chat._chat_history) == 2
+    assert chat._chat_history[0].role == "user"
+    assert chat._chat_history[1].role == "assistant"
+    assert chat._chat_history[1].content == "012"
+
 
 async def test_chat_streaming_sends_messages():
     """Test that streaming async generators send messages via _send_message"""
@@ -269,6 +275,12 @@ async def test_chat_streaming_sends_messages():
     assert sent_messages[-1]["is_final"]
     assert sent_messages[-1]["content"] is None
 
+    # String generators now update chat history with accumulated text
+    assert len(chat._chat_history) == 2
+    assert chat._chat_history[0].role == "user"
+    assert chat._chat_history[1].role == "assistant"
+    assert chat._chat_history[1].content == "Hello world !"
+
 
 async def test_chat_sync_generator_streaming():
     """Test that sync generators also work for streaming"""
@@ -314,6 +326,12 @@ async def test_chat_sync_generator_streaming():
     assert sent_messages[-1]["is_final"]
     assert sent_messages[-1]["content"] is None
 
+    # String generators now update chat history with accumulated text
+    assert len(chat._chat_history) == 2
+    assert chat._chat_history[0].role == "user"
+    assert chat._chat_history[1].role == "assistant"
+    assert chat._chat_history[1].content == "Hello world !"
+
 
 async def test_chat_streaming_complete_response():
     """Test that streaming sends all chunks correctly"""
@@ -348,6 +366,12 @@ async def test_chat_streaming_complete_response():
     # Verify all chunks were sent
     assert len(sent_messages) >= 4  # text-start + 3 deltas + text-end + final
     assert sent_messages[-1]["is_final"]
+
+    # String generators now update chat history with accumulated text
+    assert len(chat._chat_history) == 2
+    assert chat._chat_history[0].role == "user"
+    assert chat._chat_history[1].role == "assistant"
+    assert chat._chat_history[1].content == "Hello world!"
 
 
 def test_chat_get_history():
@@ -1309,14 +1333,18 @@ async def test_chat_value_sync_generator_text():
     # Streaming returns None
     assert response is None
 
-    # Verify chat._chat_history contains the user message
-    # (streaming responses are managed by frontend, so only user message is in backend history)
-    assert len(chat._chat_history) == 1
+    # String generators now update chat history with accumulated text
+    assert len(chat._chat_history) == 2
     assert chat._chat_history[0].role == "user"
     assert chat._chat_history[0].content == "Stream this"
+    assert chat._chat_history[1].role == "assistant"
+    assert chat._chat_history[1].content == "Hello world"
 
-    # Verify value is empty (until the frontend sends back the message)
-    assert chat.value == []
+    # Verify value also contains both messages
+    assert len(chat.value) == 2
+    assert chat.value[0].role == "user"
+    assert chat.value[1].role == "assistant"
+    assert chat.value[1].content == "Hello world"
 
 
 async def test_chat_value_async_generator_text():
@@ -1345,14 +1373,18 @@ async def test_chat_value_async_generator_text():
     # Streaming returns None
     assert response is None
 
-    # Verify chat._chat_history contains the user message
-    # (streaming responses are managed by frontend, so only user message is in backend history)
-    assert len(chat._chat_history) == 1
+    # String generators now update chat history with accumulated text
+    assert len(chat._chat_history) == 2
     assert chat._chat_history[0].role == "user"
     assert chat._chat_history[0].content == "Stream async"
+    assert chat._chat_history[1].role == "assistant"
+    assert chat._chat_history[1].content == "Async streaming"
 
-    # Verify value is empty (until the frontend sends back the message)
-    assert chat.value == []
+    # Verify value also contains both messages
+    assert len(chat.value) == 2
+    assert chat.value[0].role == "user"
+    assert chat.value[1].role == "assistant"
+    assert chat.value[1].content == "Async streaming"
 
 
 async def test_chat_value_sync_generator_dicts():
