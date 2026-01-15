@@ -34,7 +34,8 @@ import { Textarea } from "@/components/ui/textarea";
 import type { SupportedRole } from "@/core/ai/config";
 import {
   AiModelId,
-  PROVIDERS,
+  KNOWN_PROVIDERS,
+  type KnownProviderId,
   type ProviderId,
   type QualifiedModelId,
   type ShortModelId,
@@ -88,6 +89,11 @@ interface AiConfigProps {
 interface AiProviderTitleProps {
   provider?: AiProviderIconProps["provider"];
   children: React.ReactNode;
+}
+
+interface CustomProviderConfig {
+  api_key?: string;
+  base_url?: string;
 }
 
 export const AiProviderTitle: React.FC<AiProviderTitleProps> = ({
@@ -555,15 +561,18 @@ const AccordionFormItem = ({
   provider,
   children,
   isConfigured,
+  value,
 }: {
   title: string;
   triggerClassName?: string;
   provider: AiProviderIconProps["provider"];
   children: React.ReactNode;
   isConfigured: boolean;
+  /** Custom value for the accordion item. Defaults to provider. */
+  value?: string;
 }) => {
   return (
-    <AccordionItem value={provider}>
+    <AccordionItem value={value ?? provider}>
       <AccordionTrigger className={triggerClassName}>
         <AiProviderTitle provider={provider}>
           {title}
@@ -581,9 +590,228 @@ const AccordionFormItem = ({
   );
 };
 
+export const CustomProvidersConfig: React.FC<AiConfigProps> = ({
+  form,
+  config,
+  onSubmit,
+}) => {
+  const [isAddingProvider, setIsAddingProvider] = useState(false);
+  const [newProviderName, setNewProviderName] = useState("");
+  const [newProviderApiKey, setNewProviderApiKey] = useState("");
+  const [newProviderBaseUrl, setNewProviderBaseUrl] = useState("");
+
+  const providerNameInputId = useId();
+  const apiKeyInputId = useId();
+  const baseUrlInputId = useId();
+
+  const normalizedName = newProviderName.toLowerCase().replaceAll(/\s+/g, "_");
+  const customProviders = form.watch("ai.custom_providers");
+  const isDuplicate =
+    KNOWN_PROVIDERS.includes(normalizedName as KnownProviderId) ||
+    (customProviders && Object.keys(customProviders).includes(normalizedName));
+
+  const hasValidValues =
+    normalizedName.trim() && newProviderBaseUrl.trim() && !isDuplicate;
+
+  const resetForm = () => {
+    setNewProviderName("");
+    setNewProviderApiKey("");
+    setNewProviderBaseUrl("");
+    setIsAddingProvider(false);
+  };
+
+  return (
+    <FormField
+      control={form.control}
+      name="ai.custom_providers"
+      render={({ field }) => {
+        const customProviders = (field.value || {}) as Record<
+          string,
+          CustomProviderConfig
+        >;
+        const customProviderEntries = Object.entries(customProviders);
+
+        const addProvider = () => {
+          if (!hasValidValues) {
+            return;
+          }
+          field.onChange({
+            ...customProviders,
+            [normalizedName]: {
+              api_key: newProviderApiKey || undefined,
+              base_url: newProviderBaseUrl,
+            },
+          });
+          onSubmit(form.getValues());
+          resetForm();
+        };
+
+        const removeProvider = (providerName: string) => {
+          const { [providerName]: _, ...rest } = customProviders;
+          // Reset to clear nested dirty state, then set new value
+          form.resetField("ai.custom_providers");
+          form.setValue("ai.custom_providers", rest, { shouldDirty: true });
+          onSubmit(form.getValues());
+        };
+
+        const providerForm = (
+          <div className="flex flex-col gap-3 p-4 border border-border rounded-md bg-muted/20">
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor={providerNameInputId}>Provider Name</Label>
+              <Input
+                id={providerNameInputId}
+                placeholder="e.g., together, groq, mistral"
+                value={newProviderName}
+                onChange={(e) => setNewProviderName(e.target.value)}
+              />
+              {isDuplicate && (
+                <p className="text-xs text-destructive">
+                  A provider with this name already exists.
+                </p>
+              )}
+              {newProviderName && (
+                <p className="text-xs text-muted-secondary">
+                  Use models with prefix:{" "}
+                  <Kbd className="inline text-xs">{normalizedName}/</Kbd>
+                </p>
+              )}
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor={baseUrlInputId}>
+                Base URL <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                id={baseUrlInputId}
+                placeholder="e.g., https://api.together.xyz/v1"
+                value={newProviderBaseUrl}
+                onChange={(e) => setNewProviderBaseUrl(e.target.value)}
+              />
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor={apiKeyInputId}>API Key (optional)</Label>
+              <Input
+                id={apiKeyInputId}
+                placeholder="sk-..."
+                type="password"
+                value={newProviderApiKey}
+                onChange={(e) => setNewProviderApiKey(e.target.value)}
+              />
+            </div>
+
+            <div className="flex gap-2 mt-1">
+              <Button
+                onClick={addProvider}
+                disabled={!hasValidValues}
+                size="xs"
+              >
+                Add Provider
+              </Button>
+              <Button variant="outline" onClick={resetForm} size="xs">
+                Cancel
+              </Button>
+            </div>
+          </div>
+        );
+
+        const renderAccordionItem = ({
+          providerName,
+          providerConfig,
+          onRemove,
+        }: {
+          providerName: string;
+          providerConfig: CustomProviderConfig;
+          onRemove: (name: string) => void;
+        }) => {
+          const displayName = Strings.startCase(providerName);
+          const isConfigured =
+            !!providerConfig.api_key || !!providerConfig.base_url;
+
+          return (
+            <AccordionFormItem
+              key={`custom-${providerName}`}
+              title={displayName}
+              provider={providerName}
+              value={`custom-${providerName}`}
+              isConfigured={isConfigured}
+            >
+              <ApiKey
+                form={form}
+                config={config}
+                name={
+                  `ai.custom_providers.${providerName}.api_key` as FieldPath<UserConfig>
+                }
+                placeholder="sk-..."
+                testId={`custom-provider-${providerName}-api-key`}
+              />
+              <BaseUrl
+                form={form}
+                config={config}
+                name={
+                  `ai.custom_providers.${providerName}.base_url` as FieldPath<UserConfig>
+                }
+                placeholder="https://api.example.com/v1"
+                testId={`custom-provider-${providerName}-base-url`}
+              />
+              <Button
+                variant="destructive"
+                size="xs"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  onRemove(providerName);
+                }}
+                className="w-fit self-end"
+              >
+                <Trash2Icon className="h-4 w-4 mr-2" />
+                Remove Provider
+              </Button>
+            </AccordionFormItem>
+          );
+        };
+
+        return (
+          <SettingGroup>
+            <SettingSubtitle>Custom Providers</SettingSubtitle>
+            <p className="text-sm text-muted-secondary">
+              Add your own OpenAI-compatible provider. Once added, you can
+              configure models in the AI Models tab.
+            </p>
+
+            {customProviderEntries.length > 0 && (
+              <Accordion type="multiple" className="-mt-4">
+                {customProviderEntries.map(([name, providerConfig]) =>
+                  renderAccordionItem({
+                    providerName: name,
+                    providerConfig,
+                    onRemove: removeProvider,
+                  }),
+                )}
+              </Accordion>
+            )}
+
+            {isAddingProvider ? (
+              providerForm
+            ) : (
+              <AddButton
+                className="self-start"
+                isFormOpen={isAddingProvider}
+                setIsFormOpen={setIsAddingProvider}
+                label="Add Provider"
+              />
+            )}
+          </SettingGroup>
+        );
+      }}
+    />
+  );
+};
+
 export const AiProvidersConfig: React.FC<AiConfigProps> = ({
   form,
   config,
+  onSubmit,
 }) => {
   const isWasmRuntime = isWasm();
 
@@ -903,13 +1131,17 @@ export const AiProvidersConfig: React.FC<AiConfigProps> = ({
         </AccordionFormItem>
 
         <AccordionFormItem
-          title="OpenAI-Compatible"
+          title="OpenAI-Compatible (Legacy)"
           provider="openai-compatible"
           isConfigured={
             hasValue("ai.open_ai_compatible.api_key") &&
             hasValue("ai.open_ai_compatible.base_url")
           }
         >
+          <p className="text-sm text-amber-600 dark:text-amber-400 mb-2">
+            Consider using Custom Providers instead, which allows you to add
+            multiple providers with distinct names.
+          </p>
           <ApiKey
             form={form}
             config={config}
@@ -933,6 +1165,8 @@ export const AiProvidersConfig: React.FC<AiConfigProps> = ({
           />
         </AccordionFormItem>
       </Accordion>
+
+      <CustomProvidersConfig form={form} config={config} onSubmit={onSubmit} />
     </SettingGroup>
   );
 };
@@ -1133,6 +1367,16 @@ export const AiModelDisplayConfig: React.FC<AiConfigProps> = ({
     name: "ai.models.custom_models",
   }) as QualifiedModelId[];
 
+  const customProviders = useWatch({
+    control: form.control,
+    name: "ai.custom_providers",
+  }) as Record<string, CustomProviderConfig> | undefined;
+
+  const customProviderNames = useMemo(
+    () => Object.keys(customProviders || {}),
+    [customProviders],
+  );
+
   const aiModelRegistry = useMemo(
     () =>
       AiModelRegistry.create({
@@ -1212,6 +1456,7 @@ export const AiModelDisplayConfig: React.FC<AiConfigProps> = ({
       <AddModelForm
         form={form}
         customModels={customModels}
+        customProviderNames={customProviderNames}
         onSubmit={onSubmit}
       />
     </SettingGroup>
@@ -1221,8 +1466,9 @@ export const AiModelDisplayConfig: React.FC<AiConfigProps> = ({
 export const AddModelForm: React.FC<{
   form: UseFormReturn<UserConfig>;
   customModels: QualifiedModelId[];
+  customProviderNames: string[];
   onSubmit: (values: UserConfig) => void;
-}> = ({ form, customModels, onSubmit }) => {
+}> = ({ form, customModels, customProviderNames, onSubmit }) => {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [modelAdded, setModelAdded] = useState(false);
   const [provider, setProvider] = useState<ProviderId | "custom" | null>(null);
@@ -1293,16 +1539,27 @@ export const AddModelForm: React.FC<{
           </SelectTrigger>
           <SelectContent>
             <SelectGroup>
-              <SelectItem value="custom">
-                <div className="flex items-center gap-2">
-                  <AiProviderIcon
-                    provider="openai-compatible"
-                    className="h-4 w-4"
-                  />
-                  <span>Custom</span>
-                </div>
-              </SelectItem>
-              {PROVIDERS.filter((p) => p !== "marimo").map((p) => (
+              {customProviderNames.length > 0 && (
+                <>
+                  <p className="px-2 py-1 text-xs text-muted-secondary font-medium">
+                    Custom Providers
+                  </p>
+                  {customProviderNames.map((p) => (
+                    <SelectItem key={p} value={p}>
+                      <div className="flex items-center gap-2">
+                        <AiProviderIcon provider={p} className="h-4 w-4" />
+                        <span>{Strings.startCase(p)}</span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                  <p className="px-2 py-1 text-xs text-muted-secondary font-medium mt-1">
+                    Built-in Providers
+                  </p>
+                </>
+              )}
+              {KNOWN_PROVIDERS.filter(
+                (p) => p !== "marimo" && !customProviderNames.includes(p),
+              ).map((p) => (
                 <SelectItem key={p} value={p}>
                   <div className="flex items-center gap-2">
                     <AiProviderIcon provider={p} className="h-4 w-4" />
@@ -1310,6 +1567,18 @@ export const AddModelForm: React.FC<{
                   </div>
                 </SelectItem>
               ))}
+              <p className="px-2 py-1 text-xs text-muted-secondary font-medium mt-1">
+                Other
+              </p>
+              <SelectItem value="custom">
+                <div className="flex items-center gap-2">
+                  <AiProviderIcon
+                    provider="openai-compatible"
+                    className="h-4 w-4"
+                  />
+                  <span>Enter provider name</span>
+                </div>
+              </SelectItem>
             </SelectGroup>
           </SelectContent>
         </Select>
@@ -1379,17 +1648,12 @@ export const AddModelForm: React.FC<{
     <div>
       {isFormOpen && inputForm}
       <div className="flex flex-row text-sm">
-        <Button
-          onClick={(e) => {
-            e.preventDefault();
-            setIsFormOpen(true);
-          }}
-          variant="link"
-          disabled={isFormOpen}
-        >
-          <PlusIcon className="h-4 w-4 mr-2 mb-0.5" />
-          Add Model
-        </Button>
+        <AddButton
+          isFormOpen={isFormOpen}
+          setIsFormOpen={setIsFormOpen}
+          label="Add Model"
+          className="pl-2"
+        />
         {modelAdded && (
           <div className="flex items-center gap-1 text-green-700 bg-green-500/10 px-2 py-1 rounded-md ml-auto">
             ✓ Model added
@@ -1397,6 +1661,34 @@ export const AddModelForm: React.FC<{
         )}
       </div>
     </div>
+  );
+};
+
+const AddButton = ({
+  isFormOpen,
+  setIsFormOpen,
+  label,
+  className,
+}: {
+  isFormOpen: boolean;
+  setIsFormOpen: (isOpen: boolean) => void;
+  label: string;
+  className?: string;
+}) => {
+  return (
+    <Button
+      onClick={(e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        setIsFormOpen(true);
+      }}
+      variant="link"
+      disabled={isFormOpen}
+      className={cn("px-0", className)}
+    >
+      <PlusIcon className="h-4 w-4 mr-2 mb-0.5" />
+      {label}
+    </Button>
   );
 };
 

@@ -298,7 +298,8 @@ class AiConfig(TypedDict, total=False):
     - `github`: the GitHub config
     - `openrouter`: the OpenRouter config
     - `wandb`: the Weights & Biases config
-    - `open_ai_compatible`: the OpenAI-compatible config
+    - `custom_providers`: a dict of custom OpenAI-compatible providers
+    - `open_ai_compatible`: the OpenAI-compatible config (deprecated, use custom_providers)
     """
 
     rules: NotRequired[str]
@@ -317,6 +318,8 @@ class AiConfig(TypedDict, total=False):
     github: GitHubConfig
     openrouter: OpenAiConfig
     wandb: OpenAiConfig
+    custom_providers: NotRequired[dict[str, OpenAiConfig]]
+    # @deprecated: use `custom_providers` instead
     open_ai_compatible: OpenAiConfig
 
 
@@ -705,7 +708,8 @@ DEFAULT_CONFIG: MarimoConfig = {
         "models": {
             "displayed_models": [],
             "custom_models": [],
-        }
+        },
+        "custom_providers": {},
     },
     "snippets": {
         "custom_paths": [],
@@ -748,10 +752,17 @@ def merge_config(
         config = deep_copy(config)
         config.get("keymap", {}).pop("overrides", {})
 
+    # Fields that should be replaced instead of merged.
+    # These are "record" types where keys can be added/removed,
+    # as opposed to config objects where you only set specific fields.
+    replace_paths = frozenset({"ai.custom_providers"})
+
     merged = cast(
         MarimoConfig,
         deep_merge(
-            cast(dict[Any, Any], config), cast(dict[Any, Any], new_config)
+            cast(dict[Any, Any], config),
+            cast(dict[Any, Any], new_config),
+            replace_paths=replace_paths,
         ),
     )
 

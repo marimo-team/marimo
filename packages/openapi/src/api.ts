@@ -2987,12 +2987,16 @@ export interface components {
      *         - `github`: the GitHub config
      *         - `openrouter`: the OpenRouter config
      *         - `wandb`: the Weights & Biases config
-     *         - `open_ai_compatible`: the OpenAI-compatible config
+     *         - `custom_providers`: a dict of custom OpenAI-compatible providers
+     *         - `open_ai_compatible`: the OpenAI-compatible config (deprecated, use custom_providers)
      */
     AiConfig: {
       anthropic?: components["schemas"]["AnthropicConfig"];
       azure?: components["schemas"]["OpenAiConfig"];
       bedrock?: components["schemas"]["BedrockConfig"];
+      custom_providers?: {
+        [key: string]: components["schemas"]["OpenAiConfig"];
+      };
       github?: components["schemas"]["GitHubConfig"];
       google?: components["schemas"]["GoogleAiConfig"];
       inline_tooltip?: boolean;

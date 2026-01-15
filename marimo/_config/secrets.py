@@ -45,6 +45,7 @@ def mask_secrets(config: MarimoConfig) -> MarimoConfig:
 
     secrets = (
         ("ai", "*", "api_key"),
+        ("ai", "custom_providers", "*", "api_key"),
         ("ai", "bedrock", "aws_access_key_id"),
         ("ai", "bedrock", "aws_secret_access_key"),
         ("runtime", "dotenv"),
