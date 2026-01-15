@@ -355,7 +355,11 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
               {Object.entries(SIDEBAR_PANELS).map(([key, Panel]) => (
                 <LazyActivity
                   key={key}
-                  mode={selectedPanel === key ? "visible" : "hidden"}
+                  mode={
+                    isSidebarOpen && selectedPanel === key
+                      ? "visible"
+                      : "hidden"
+                  }
                 >
                   {Panel}
                 </LazyActivity>
@@ -503,7 +507,9 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
                 <LazyActivity
                   key={key}
                   mode={
-                    selectedDeveloperPanelTab === key ? "visible" : "hidden"
+                    isDeveloperPanelOpen && selectedDeveloperPanelTab === key
+                      ? "visible"
+                      : "hidden"
                   }
                 >
                   {Panel}
