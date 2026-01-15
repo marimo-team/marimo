@@ -10,7 +10,6 @@ from marimo._dependencies.dependencies import DependencyManager
 from marimo._sql.engines.clickhouse import ClickhouseEmbedded
 from marimo._sql.engines.duckdb import DuckDBEngine
 from marimo._sql.engines.sqlalchemy import SQLAlchemyEngine
-from marimo._sql.get_engines import get_engines_from_variables
 from marimo._sql.utils import (
     raise_df_import_error,
     sql_type_to_data_type,
