@@ -125,3 +125,7 @@ export const snippetsEnabledAtom = atom<boolean>((get) => {
   const includeDefaultSnippets = config.snippets?.include_default_snippets;
   return customPaths.length > 0 || includeDefaultSnippets === true;
 });
+
+export const disableFileDownloadsAtom = atom<boolean>((get) => {
+  return get(resolvedMarimoConfigAtom).server?.disable_file_downloads ?? false;
+});
