@@ -37,6 +37,12 @@ marimo's sandbox provides two key benefits. (1) Notebooks that carry their own
 dependencies are easy to share — just send the `.py` file. (2) Isolating a
 notebook from other installed packages prevents obscure bugs.
 
+!!! tip "Sandboxed Home"
+
+    You can also use `--sandbox` when editing a folder of notebooks. Each
+    notebook gets its own isolated environment. See
+    [Sandboxed Home](../editor_features/home.md#sandboxed-home).
+
 You can also run sandboxed notebooks as scripts:
 
 ```console
