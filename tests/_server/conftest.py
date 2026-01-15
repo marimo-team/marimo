@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import sys
-import threading
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING
@@ -28,6 +27,24 @@ if TYPE_CHECKING:
 
 # Module-level app only for client_with_lifespans fixture
 _module_app = create_starlette_app(base_url="", enable_auth=True)
+
+
+def join_kernel_tasks(session_manager: SessionManager) -> None:
+    # Kernels started in run mode run in their own threads; if these kernels
+    # execute code, they may patch and restore their own main modules.
+    # To ensure that this fixture correctly restores the original saved
+    # main module, we wait for threads to finish before restoring the module.
+    kernel_tasks = []
+    for session in session_manager.sessions.values():
+        assert isinstance(session, SessionImpl)
+        kernel_task = session._kernel_manager.kernel_task
+        if kernel_task is not None:
+            kernel_tasks.append(kernel_task)
+
+    session_manager.shutdown()
+    for task in kernel_tasks:
+        if task.is_alive():
+            task.join()
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -90,24 +107,7 @@ def client(user_config_manager: UserConfigManager) -> Iterator[TestClient]:
     yield client
 
     try:
-        session_manager: SessionManager = client.app.state.session_manager
-        kernel_tasks = []
-        # Kernels started in run mode run in their own threads; if these kernels
-        # execute code, they may patch and restore their own main modules.
-        # To ensure that this fixture correctly restores the original saved
-        # main module, we wait for threads to finish before restoring the module.
-        for session in session_manager.sessions.values():
-            assert isinstance(session, SessionImpl)
-            kernel_task = session._kernel_manager.kernel_task
-            if kernel_task is not None and isinstance(
-                kernel_task, threading.Thread
-            ):
-                kernel_tasks.append(kernel_task)
-
-        session_manager.shutdown()
-        for task in kernel_tasks:
-            if task.is_alive():
-                task.join()
+        join_kernel_tasks(client.app.state.session_manager)
     finally:
         sys.modules["__main__"] = main
 
