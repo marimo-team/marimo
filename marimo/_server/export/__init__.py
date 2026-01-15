@@ -16,7 +16,7 @@ from marimo._config.config import RuntimeConfig
 from marimo._config.manager import (
     get_default_config_manager,
 )
-from marimo._convert.common.format import get_download_filename
+from marimo._convert.common.filename import get_download_filename
 from marimo._convert.converters import MarimoConvert
 from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.errors import Error, is_unexpected_error

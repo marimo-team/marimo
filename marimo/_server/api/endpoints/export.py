@@ -9,7 +9,7 @@ from starlette.exceptions import HTTPException
 from starlette.responses import HTMLResponse, JSONResponse, PlainTextResponse
 
 from marimo import _loggers
-from marimo._convert.common.format import (
+from marimo._convert.common.filename import (
     get_download_filename,
     make_download_headers,
 )
