@@ -401,6 +401,12 @@ class AdbcDBAPIEngine(SQLConnection[AdbcDbApiConnection]):
         if isinstance(var, ModuleType):
             return False
 
+        # Ibis Deferred expression object should not be handled as datasource #7791
+        var_type = type(var)
+        var_type_name = f"{var_type.__module__}.{var_type.__qualname__}"
+        if var_type_name == "ibis.common.deferred.Deferred":
+            return False
+
         try:
             # First, validate the connection-level surface area to avoid
             # accidentally classifying regular DB-API connections as ADBC.
