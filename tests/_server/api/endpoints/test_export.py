@@ -621,3 +621,60 @@ def test_export_script_download_edge_case_filenames(
         assert response.status_code == 200, f"Failed for filename: {filename}"
         assert "Content-Disposition" in response.headers
         assert "attachment" in response.headers["Content-Disposition"]
+
+
+@with_session(SESSION_ID)
+def test_update_cell_outputs_new_cell(client: TestClient) -> None:
+    """Test updating cell outputs for a cell with no existing output."""
+    session = get_session_manager(client).get_session(SESSION_ID)
+    assert session
+
+    # Create a cell notification without output
+    cell_id = CellId_t("test_cell")
+    session.session_view.cell_notifications[cell_id] = CellNotification(
+        cell_id=cell_id,
+        output=None,
+        status="idle",
+    )
+
+    response = client.post(
+        "/api/export/update_cell_outputs",
+        headers=HEADERS,
+        json={
+            "cellIdsToOutput": {
+                cell_id: ["image/png", "data:image/png;base64,iVBORw0KGgo="]
+            }
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {"success": True}
+    assert session.session_view.needs_export("ipynb")
+
+    # Verify output was created
+    cell_notification = session.session_view.cell_notifications[cell_id]
+    assert cell_notification.output is not None
+    assert cell_notification.output == CellOutput(
+        channel=CellChannel.OUTPUT,
+        mimetype="image/png",
+        data="data:image/png;base64,iVBORw0KGgo=",
+        timestamp=cell_notification.output.timestamp,
+    )
+
+
+@with_session(SESSION_ID)
+def test_update_cell_outputs_missing_cell(client: TestClient) -> None:
+    """Test updating cell outputs for non-existent cell logs warning."""
+    response = client.post(
+        "/api/export/update_cell_outputs",
+        headers=HEADERS,
+        json={
+            "cellIdsToOutput": {
+                "nonexistent_cell": ["image/png", "data:image/png;base64,test"]
+            }
+        },
+    )
+
+    # Should succeed but log a warning
+    assert response.status_code == 200
+    assert response.json() == {"success": True}

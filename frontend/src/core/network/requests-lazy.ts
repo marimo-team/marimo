@@ -67,6 +67,7 @@ const ACTIONS: Record<keyof AllRequests, Action> = {
   autoExportAsHTML: "waitForConnectionOpen",
   autoExportAsMarkdown: "waitForConnectionOpen",
   autoExportAsIPYNB: "waitForConnectionOpen",
+  updateCellOutputs: "waitForConnectionOpen",
 
   // Sidebar operations that wait for connection
   listSecretKeys: "throwError",

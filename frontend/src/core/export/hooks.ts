@@ -1,7 +1,12 @@
 /* Copyright 2026 Marimo. All rights reserved. */
-import { useAtomValue } from "jotai";
+import { toPng } from "html-to-image";
+import { atom, useAtom, useAtomValue } from "jotai";
 import { appConfigAtom } from "@/core/config/config";
 import { useInterval } from "@/hooks/useInterval";
+import { Logger } from "@/utils/Logger";
+import { Objects } from "@/utils/objects";
+import { cellsRuntimeAtom } from "../cells/cells";
+import { type CellId, CellOutputId } from "../cells/ids";
 import { connectionAtom } from "../network/connection";
 import { useRequestClient } from "../network/requests";
 import { VirtualFileTracker } from "../static/virtual-file-tracker";
@@ -21,8 +26,13 @@ export function useAutoExport() {
   const markdownDisabled = !markdownEnabled || !isConnected;
   const htmlDisabled = !htmlEnabled || !isConnected;
   const ipynbDisabled = !ipynbEnabled || !isConnected;
-  const { autoExportAsHTML, autoExportAsIPYNB, autoExportAsMarkdown } =
-    useRequestClient();
+  const {
+    autoExportAsHTML,
+    autoExportAsIPYNB,
+    autoExportAsMarkdown,
+    updateCellOutputs,
+  } = useRequestClient();
+  const takeScreenshots = useEnrichCellOutputs();
 
   useInterval(
     async () => {
@@ -50,12 +60,91 @@ export function useAutoExport() {
 
   useInterval(
     async () => {
+      const cellsToOutput = await takeScreenshots();
+      if (Object.keys(cellsToOutput).length > 0) {
+        await updateCellOutputs({
+          cellIdsToOutput: cellsToOutput,
+        });
+      }
       await autoExportAsIPYNB({
         download: false,
       });
     },
     // Run every 5 seconds, or when the document becomes visible
     // Ignore if the document is not visible
-    { delayMs: DELAY, whenVisible: true, disabled: ipynbDisabled },
+    // Skip if running to ensure no race conditions between screenshot and export
+    {
+      delayMs: DELAY,
+      whenVisible: true,
+      disabled: ipynbDisabled,
+      skipIfRunning: true,
+    },
   );
+}
+
+// We track cells that need screenshots, these will be exported to IPYNB
+const richCellsToOutputAtom = atom<Record<CellId, unknown>>({});
+
+/**
+ * Take screenshots of cells with HTML outputs. These images will be sent to the backend to be exported to IPYNB.
+ * @returns A map of cell IDs to their screenshots data.
+ */
+export function useEnrichCellOutputs() {
+  const [richCellsOutput, setRichCellsOutput] = useAtom(richCellsToOutputAtom);
+  const cellRuntimes = useAtomValue(cellsRuntimeAtom);
+
+  return async (): Promise<Record<CellId, ["image/png", string]>> => {
+    const trackedCellsOutput: Record<CellId, unknown> = {};
+
+    const cellsToCaptureScreenshot: [CellId, unknown][] = [];
+    for (const [cellId, runtime] of Objects.entries(cellRuntimes)) {
+      const outputData = runtime.output?.data;
+      const outputHasChanged = richCellsOutput[cellId] !== outputData;
+      // Track latest output for this cell
+      trackedCellsOutput[cellId] = outputData;
+      if (
+        runtime.output?.mimetype === "text/html" &&
+        outputData &&
+        outputHasChanged
+      ) {
+        cellsToCaptureScreenshot.push([cellId, runtime]);
+      }
+    }
+    // Always update tracked outputs, this ensures data is fresh for the next run
+    setRichCellsOutput(trackedCellsOutput);
+
+    if (cellsToCaptureScreenshot.length === 0) {
+      return {};
+    }
+
+    // Capture screenshots
+    const results = await Promise.all(
+      cellsToCaptureScreenshot.map(async ([cellId]) => {
+        const outputElement = document.getElementById(
+          CellOutputId.create(cellId),
+        );
+        if (!outputElement) {
+          Logger.error(`Output element not found for cell ${cellId}`);
+          return null;
+        }
+
+        try {
+          const dataUrl = await toPng(outputElement);
+          return [cellId, ["image/png", dataUrl]] as [
+            CellId,
+            ["image/png", string],
+          ];
+        } catch (error) {
+          Logger.error(`Error screenshotting cell ${cellId}:`, error);
+          return null;
+        }
+      }),
+    );
+
+    return Objects.fromEntries(
+      results.filter(
+        (result): result is [CellId, ["image/png", string]] => result !== null,
+      ),
+    );
+  };
 }

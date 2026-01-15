@@ -405,6 +405,14 @@ export function createNetworkRequests(): EditRequests & RunRequests {
         })
         .then(handleResponseReturnNull);
     },
+    updateCellOutputs: async (request) => {
+      return getClient()
+        .POST("/api/export/update_cell_outputs", {
+          body: request,
+          params: getParams(),
+        })
+        .then(handleResponseReturnNull);
+    },
     addPackage: (request) => {
       return getClient()
         .POST("/api/packages/add", {

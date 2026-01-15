@@ -852,6 +852,54 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/export/update_cell_outputs": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header: {
+          "Marimo-Session-Id": string;
+        };
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: {
+        content: {
+          "application/json": components["schemas"]["UpdateCellOutputsRequest"];
+        };
+      };
+      responses: {
+        /** @description Update the cell outputs */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["SuccessResponse"];
+          };
+        };
+        /** @description File must be saved before downloading */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/files/create": {
     parameters: {
       query?: never;
@@ -5190,6 +5238,37 @@ export interface components {
     /** UpdateCellIdsRequest */
     UpdateCellIdsRequest: {
       cellIds: string[];
+    };
+    /** UpdateCellOutputsRequest */
+    UpdateCellOutputsRequest: {
+      cellIdsToOutput: {
+        [key: string]: [
+          (
+            | "application/json"
+            | "application/vnd.jupyter.widget-view+json"
+            | "application/vnd.marimo+error"
+            | "application/vnd.marimo+mimebundle"
+            | "application/vnd.marimo+traceback"
+            | "application/vnd.vega.v5+json"
+            | "application/vnd.vegalite.v5+json"
+            | "image/avif"
+            | "image/bmp"
+            | "image/gif"
+            | "image/jpeg"
+            | "image/png"
+            | "image/svg+xml"
+            | "image/tiff"
+            | "text/csv"
+            | "text/html"
+            | "text/latex"
+            | "text/markdown"
+            | "text/plain"
+            | "video/mp4"
+            | "video/mpeg"
+          ),
+          unknown,
+        ];
+      };
     };
     /**
      * UpdateUIElementCommand

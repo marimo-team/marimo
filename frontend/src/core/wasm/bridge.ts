@@ -589,6 +589,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
   autoExportAsHTML = throwNotImplemented;
   autoExportAsMarkdown = throwNotImplemented;
   autoExportAsIPYNB = throwNotImplemented;
+  updateCellOutputs = throwNotImplemented;
   writeSecret = throwNotImplemented;
   invokeAiTool = throwNotImplemented;
   clearCache = throwNotImplemented;

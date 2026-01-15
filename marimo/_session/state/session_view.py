@@ -3,10 +3,12 @@ from __future__ import annotations
 
 import time
 from dataclasses import dataclass
-from typing import Any, Literal, Optional
+from typing import Any, Literal, Optional, cast
 
+from marimo import _loggers
 from marimo._data.models import DataSourceConnection, DataTable
 from marimo._messaging.cell_output import CellChannel, CellOutput
+from marimo._messaging.mimetypes import KnownMimeType, MimeBundleTuple
 from marimo._messaging.notification import (
     CellNotification,
     DatasetsNotification,
@@ -42,7 +44,10 @@ from marimo._sql.engines.duckdb import INTERNAL_DUCKDB_ENGINE
 from marimo._types.ids import CellId_t, WidgetModelId
 from marimo._utils.lists import as_list
 
+LOGGER = _loggers.marimo_logger()
+
 ExportType = Literal["html", "md", "ipynb", "session"]
+MIMEBUNDLE_TYPE: KnownMimeType = "application/vnd.marimo+mimebundle"
 
 
 @dataclass
@@ -351,6 +356,54 @@ class SessionView:
             if cell_notif is not None and cell_notif.console:
                 outputs[cell_id] = as_list(cell_notif.console)
         return outputs
+
+    def update_cell_outputs(
+        self, cell_id_to_output: dict[CellId_t, MimeBundleTuple]
+    ) -> None:
+        self._touch()  # Mark all auto-export states as stale
+
+        for cell_id, output in cell_id_to_output.items():
+            cell_notif = self.cell_notifications.get(cell_id)
+            if cell_notif is None:
+                LOGGER.warning(f"Cell {cell_id} not found in session view")
+                continue
+
+            mimetype, data = output
+            new_mimebundle = {mimetype: data}
+
+            if cell_notif.output is None:
+                cell_notif.output = CellOutput(
+                    channel=CellChannel.OUTPUT, mimetype=mimetype, data=data
+                )
+            elif isinstance(cell_notif.output.data, list):
+                LOGGER.debug(
+                    "Skipping list of errors output, should not have rich elements"
+                )
+                continue
+            elif cell_notif.output.mimetype == MIMEBUNDLE_TYPE:
+                if not isinstance(cell_notif.output.data, dict):
+                    LOGGER.warning(
+                        "Existing output is a mimebundle for cell %s, but data is not a dict (type=%s)",
+                        cell_id,
+                        type(cell_notif.output.data).__name__,
+                    )
+                    continue
+                cell_notif.output.data = cast(
+                    dict[str, Any],
+                    {
+                        **cell_notif.output.data,
+                        **new_mimebundle,
+                    },
+                )
+            else:
+                # We form a new mimebundle including the existing output
+                mimebundle = {
+                    cell_notif.output.mimetype: cell_notif.output.data
+                }
+                cell_notif.output.mimetype = MIMEBUNDLE_TYPE
+                cell_notif.output.data = cast(
+                    dict[str, Any], {**mimebundle, **new_mimebundle}
+                )
 
     def save_execution_time(
         self, notification: NotificationMessage, event: Literal["start", "end"]
