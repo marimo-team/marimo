@@ -10,7 +10,6 @@ from marimo._version import __version__
 
 
 def convert_from_ir_to_script(ir: NotebookSerialization) -> str:
-    filename = ir.filename or "notebook.py"
     app = InternalApp(load_notebook_ir(ir))
 
     # Check if any code is async, if so, raise an error
@@ -25,7 +24,10 @@ def convert_from_ir_to_script(ir: NotebookSerialization) -> str:
             )
 
     graph = app.graph
-    header = codegen.get_header_comments(filename) or ""
+    if ir.filename:
+        header = codegen.get_header_comments(ir.filename) or ""
+    else:
+        header = ""
     codes: list[str] = [
         "# %%\n" + graph.cells[cid].code
         for cid in topological_sort(graph, graph.cells.keys())

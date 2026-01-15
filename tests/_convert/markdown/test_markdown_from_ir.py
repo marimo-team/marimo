@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from marimo._ast.app import App, InternalApp
-from marimo._convert.markdown import (
+from marimo._convert.markdown.from_ir import (
     _format_filename_title,
     _get_sql_options_from_cell,
     convert_from_ir_to_markdown,

@@ -158,7 +158,7 @@ def get_notebook_status(filename: str) -> LoadResult:
 
     notebook: Optional[NotebookSerialization] = None
     if path.suffix in (".md", ".qmd"):
-        from marimo._convert.markdown.markdown import (
+        from marimo._convert.markdown.to_ir import (
             convert_from_md_to_marimo_ir,
         )
 
@@ -219,7 +219,7 @@ def load_app(filename: Optional[str | Path]) -> Optional[App]:
         contents = _maybe_contents(filename)
         if not contents:
             return None
-        from marimo._convert.markdown.markdown import convert_from_md_to_app
+        from marimo._convert.markdown.to_ir import convert_from_md_to_app
 
         return convert_from_md_to_app(contents) if contents else None
     elif not path.suffix == ".py":

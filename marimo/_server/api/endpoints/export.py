@@ -9,6 +9,10 @@ from starlette.exceptions import HTTPException
 from starlette.responses import HTMLResponse, JSONResponse, PlainTextResponse
 
 from marimo import _loggers
+from marimo._convert.common.filename import (
+    get_download_filename,
+    make_download_headers,
+)
 from marimo._convert.markdown import convert_from_ir_to_markdown
 from marimo._convert.script import convert_from_ir_to_script
 from marimo._dependencies.dependencies import DependencyManager
@@ -16,10 +20,6 @@ from marimo._messaging.msgspec_encoder import asdict
 from marimo._server.api.deps import AppState
 from marimo._server.api.utils import parse_request
 from marimo._server.export.exporter import AutoExporter, Exporter
-from marimo._server.export.utils import (
-    get_download_filename,
-    make_download_headers,
-)
 from marimo._server.models.export import (
     ExportAsHTMLRequest,
     ExportAsMarkdownRequest,

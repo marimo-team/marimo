@@ -1,0 +1,47 @@
+{
+  "cells": [
+    {
+      "cell_type": "code",
+      "execution_count": null,
+      "id": "Hbol",
+      "metadata": {},
+      "outputs": [],
+      "source": [
+        "import marimo as mo"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "id": "MJUe",
+      "metadata": {},
+      "source": [
+        "# Hello, World!"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": null,
+      "id": "vblA",
+      "metadata": {},
+      "outputs": [],
+      "source": [
+        "x = 1\n",
+        "y = 2\n",
+        "z = x + y"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": null,
+      "id": "bkHC",
+      "metadata": {},
+      "outputs": [],
+      "source": [
+        "print(z)"
+      ]
+    }
+  ],
+  "metadata": {},
+  "nbformat": 4,
+  "nbformat_minor": 5
+}

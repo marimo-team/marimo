@@ -351,8 +351,8 @@ exclude = [
     "tests/_ast/codegen_data",
     "tests/_ast/test_app.py",
     "tests/_cli/cli_data",
-    "tests/_cli/ipynb_data",
-    "tests/_convert/ipynb_data/*.ipynb",
+    "tests/_cli/fixtures",
+    "tests/_convert/ipynb/fixtures",
     "tests/_lint/test_files",
     "tests/_runtime/runtime_data",
 ]
@@ -501,7 +501,8 @@ exclude = [
     'tests/_ast/codegen_data',
     'tests/_ast/cell_data',
     'tests/_cli/cli_data',
-    'tests/_cli/ipynb_data',
+    'tests/_cli/fixtures',
+    'tests/_convert/ipynb/fixtures',
     'tests/_runtime/runtime_data',
     'marimo/_snippets/data/',
     'marimo/_smoke_tests/',
@@ -510,7 +511,7 @@ warn_unused_ignores = false
 
 [tool.pytest.ini_options]
 minversion = "6.0"
-addopts = "-ra -q -v --ignore tests/_cli/ipynb_data --ignore tests/_ast/codegen_data --ignore tests/_ast/app_data"
+addopts = "-ra -q -v --ignore tests/_cli/fixtures --ignore tests/_ast/codegen_data --ignore tests/_ast/app_data"
 testpaths = ["tests"]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"

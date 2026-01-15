@@ -5,7 +5,7 @@ from textwrap import dedent
 
 import pytest
 
-from marimo._convert.ipynb import (
+from marimo._convert.ipynb.to_ir import (
     CellsTransform,
     CodeCell,
     Transform,

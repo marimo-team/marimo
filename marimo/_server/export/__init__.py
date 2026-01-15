@@ -16,6 +16,7 @@ from marimo._config.config import RuntimeConfig
 from marimo._config.manager import (
     get_default_config_manager,
 )
+from marimo._convert.common.filename import get_download_filename
 from marimo._convert.converters import MarimoConvert
 from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.errors import Error, is_unexpected_error
@@ -29,7 +30,6 @@ from marimo._output.hypertext import patch_html_for_non_interactive_output
 from marimo._runtime.commands import AppMetadata, SerializedCLIArgs
 from marimo._schemas.serialization import NotebookSerialization
 from marimo._server.export.exporter import Exporter
-from marimo._server.export.utils import get_download_filename
 from marimo._server.file_router import AppFileRouter
 from marimo._server.models.export import ExportAsHTMLRequest
 from marimo._server.models.models import InstantiateNotebookRequest

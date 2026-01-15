@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import json
 
-from marimo._convert.ipynb import convert_from_ipynb_to_notebook_ir
+from marimo._convert.ipynb.to_ir import convert_from_ipynb_to_notebook_ir
 from marimo._schemas.serialization import (
     AppInstantiation,
     Header,

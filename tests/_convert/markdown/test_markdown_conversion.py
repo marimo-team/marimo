@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import os
 import sys
+from pathlib import Path
 from textwrap import dedent
 
 import pytest
@@ -10,12 +11,10 @@ import pytest
 from marimo import __version__
 from marimo._ast.app import InternalApp
 from marimo._convert.converters import MarimoConvert
-from marimo._convert.markdown.markdown import convert_from_md_to_app
-from marimo._server.export import export_as_md
+from marimo._convert.markdown.to_ir import convert_from_md_to_app
 
 # Just a handful of scripts to test
 from marimo._tutorials import dataflow, for_jupyter_users, sql
-from marimo._utils.marimo_path import MarimoPath
 from tests.mocks import snapshotter
 
 modules = {
@@ -52,7 +51,9 @@ def convert_from_py_to_md(py: str) -> str:
 )
 def test_markdown_snapshots() -> None:
     for name, mod in modules.items():
-        output = export_as_md(MarimoPath(mod.__file__)).contents
+        py_contents = Path(str(mod.__file__)).read_text(encoding="utf-8")
+        converter = MarimoConvert.from_py(py_contents)
+        output = converter.to_markdown(filename=f"{name}.py")
         snapshot(f"{name}.md.txt", output)
 
 

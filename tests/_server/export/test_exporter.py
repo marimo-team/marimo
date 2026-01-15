@@ -10,6 +10,10 @@ import pytest
 
 from marimo._ast.app import App, InternalApp
 from marimo._config.config import DEFAULT_CONFIG
+from marimo._convert.ipynb.from_ir import (
+    _convert_marimo_output_to_ipynb,
+    _maybe_extract_dataurl,
+)
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.msgspec_encoder import encode_json_str
@@ -19,11 +23,7 @@ from marimo._server.export import (
     run_app_then_export_as_ipynb,
     run_app_until_completion,
 )
-from marimo._server.export.exporter import (
-    Exporter,
-    _convert_marimo_output_to_ipynb,
-    _maybe_extract_dataurl,
-)
+from marimo._server.export.exporter import Exporter
 from marimo._server.models.export import ExportAsHTMLRequest
 from marimo._session.notebook import AppFileManager
 from marimo._session.state.session_view import SessionView
@@ -986,7 +986,7 @@ def test_export_html_replaces_virtual_files_in_outputs(
 
     # Mock read_virtual_file to return test image data
     with patch(
-        "marimo._server.export.dom_traversal.read_virtual_file"
+        "marimo._convert.common.dom_traversal.read_virtual_file"
     ) as mock_read:
         mock_read.return_value = b"fake_image_data"
 
@@ -1116,7 +1116,7 @@ def test_export_html_replaces_multiple_virtual_files_complex(
 
     with (
         patch(
-            "marimo._server.export.dom_traversal.read_virtual_file"
+            "marimo._convert.common.dom_traversal.read_virtual_file"
         ) as mock_read_dom,
         patch(
             "marimo._server.export.exporter.read_virtual_file"
