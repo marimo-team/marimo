@@ -28,7 +28,6 @@ from marimo._server.models.export import (
 )
 from marimo._server.models.models import SuccessResponse
 from marimo._server.router import APIRouter
-from marimo._session.state.session_view import merge_cell_output
 from marimo._utils.http import HTTPStatus
 
 if TYPE_CHECKING:
@@ -450,17 +449,6 @@ async def update_cell_outputs(
     app_state = AppState(request)
     body = await parse_request(request, cls=UpdateCellOutputsRequest)
     session = app_state.require_current_session()
-    session_view = session.session_view
-
-    for cell_id, output in body.cell_ids_to_output.items():
-        cell_notification = session_view.cell_notifications.get(cell_id)
-        if cell_notification is None:
-            LOGGER.warning(f"Cell {cell_id} not found in session_view")
-            continue
-
-        mimetype, data = output
-        cell_notification.output = merge_cell_output(
-            cell_notification.output, mimetype, data
-        )
+    session.session_view.update_cell_outputs(body.cell_ids_to_output)
 
     return JSONResponse(content=asdict(SuccessResponse()))

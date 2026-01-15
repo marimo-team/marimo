@@ -637,6 +637,8 @@ def test_update_cell_outputs_new_cell(client: TestClient) -> None:
         status="idle",
     )
 
+    assert not session.session_view.needs_export("ipynb")
+
     response = client.post(
         "/api/export/update_cell_outputs",
         headers=HEADERS,
@@ -649,97 +651,9 @@ def test_update_cell_outputs_new_cell(client: TestClient) -> None:
 
     assert response.status_code == 200
     assert response.json() == {"success": True}
+    assert session.session_view.needs_export("ipynb")
 
     # Verify output was created
-    cell_notification = session.session_view.cell_notifications[cell_id]
-    assert cell_notification.output is not None
-    assert cell_notification.output == CellOutput(
-        channel=CellChannel.OUTPUT,
-        mimetype="image/png",
-        data="data:image/png;base64,iVBORw0KGgo=",
-        timestamp=cell_notification.output.timestamp,
-    )
-
-
-@with_session(SESSION_ID)
-def test_update_cell_outputs_overwrite_string(client: TestClient) -> None:
-    """Test updating cell outputs overwrites existing string output."""
-    session = get_session_manager(client).get_session(SESSION_ID)
-    assert session
-
-    # Create a cell notification with string output
-    cell_id = CellId_t("test_cell")
-    session.session_view.cell_notifications[cell_id] = CellNotification(
-        cell_id=cell_id,
-        output=CellOutput(
-            channel=CellChannel.OUTPUT,
-            mimetype="text/html",
-            data="<div>Hello</div>",
-        ),
-        status="idle",
-    )
-
-    response = client.post(
-        "/api/export/update_cell_outputs",
-        headers=HEADERS,
-        json={
-            "cellIdsToOutput": {
-                cell_id: ["image/png", "data:image/png;base64,iVBORw0KGgo="]
-            }
-        },
-    )
-
-    assert response.status_code == 200
-    assert response.json() == {"success": True}
-
-    # Verify output was overwritten
-    cell_notification = session.session_view.cell_notifications[cell_id]
-    assert cell_notification.output is not None
-    assert cell_notification.output == CellOutput(
-        channel=CellChannel.OUTPUT,
-        mimetype="image/png",
-        data="data:image/png;base64,iVBORw0KGgo=",
-        timestamp=cell_notification.output.timestamp,
-    )
-
-
-@with_session(SESSION_ID)
-def test_update_cell_outputs_overwrite_mimebundle(
-    client: TestClient,
-) -> None:
-    """Test updating cell outputs overwrites existing mimebundle."""
-    session = get_session_manager(client).get_session(SESSION_ID)
-    assert session
-
-    # Create a cell notification with mimebundle output
-    cell_id = CellId_t("test_cell")
-    session.session_view.cell_notifications[cell_id] = CellNotification(
-        cell_id=cell_id,
-        output=CellOutput(
-            channel=CellChannel.OUTPUT,
-            mimetype="application/vnd.marimo+mimebundle",
-            data={
-                "text/html": "<div>Hello</div>",
-                "text/plain": "Hello",
-            },
-        ),
-        status="idle",
-    )
-
-    response = client.post(
-        "/api/export/update_cell_outputs",
-        headers=HEADERS,
-        json={
-            "cellIdsToOutput": {
-                cell_id: ["image/png", "data:image/png;base64,iVBORw0KGgo="]
-            }
-        },
-    )
-
-    assert response.status_code == 200
-    assert response.json() == {"success": True}
-
-    # Verify output was overwritten
     cell_notification = session.session_view.cell_notifications[cell_id]
     assert cell_notification.output is not None
     assert cell_notification.output == CellOutput(
@@ -766,53 +680,3 @@ def test_update_cell_outputs_missing_cell(client: TestClient) -> None:
     # Should succeed but log a warning
     assert response.status_code == 200
     assert response.json() == {"success": True}
-
-
-@with_session(SESSION_ID)
-def test_update_cell_outputs_integration(
-    client: TestClient, *, temp_marimo_file: str
-) -> None:
-    """Test that update_cell_outputs correctly overwrites screenshot data."""
-    session = get_session_manager(client).get_session(SESSION_ID)
-    assert session
-    session.app_file_manager.filename = temp_marimo_file
-
-    # Get an existing cell ID from the temp file (Hbol is the first cell)
-    cell_id = CellId_t("Hbol")
-
-    # Manually set HTML output for this cell
-    session.session_view.cell_notifications[cell_id] = CellNotification(
-        cell_id=cell_id,
-        output=CellOutput(
-            channel=CellChannel.OUTPUT,
-            mimetype="text/html",
-            data="<div>Chart goes here</div>",
-        ),
-        status="idle",
-    )
-
-    # Update with screenshot via API
-    update_response = client.post(
-        "/api/export/update_cell_outputs",
-        headers=HEADERS,
-        json={
-            "cellIdsToOutput": {
-                cell_id: [
-                    "image/png",
-                    "data:image/png;base64,iVBORw0KGgoAAAANS",
-                ]
-            }
-        },
-    )
-    assert update_response.status_code == 200
-
-    # Verify the output was overwritten
-    cell_notification = session.session_view.cell_notifications.get(cell_id)
-    assert cell_notification is not None
-    assert cell_notification.output is not None
-    assert cell_notification.output == CellOutput(
-        channel=CellChannel.OUTPUT,
-        mimetype="image/png",
-        data="data:image/png;base64,iVBORw0KGgoAAAANS",
-        timestamp=cell_notification.output.timestamp,
-    )
