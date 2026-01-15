@@ -28,6 +28,48 @@ if TYPE_CHECKING:
     from collections.abc import AsyncIterator
 
 
+def assert_single_message(
+    sent_messages: list[dict],
+    expected_delta: str,
+    *,
+    use_contains: bool = False,
+) -> None:
+    """Helper to assert the standard 4-message pattern for non-streaming responses.
+
+    Args:
+        sent_messages: List of messages sent via _send_message
+        expected_delta: The expected text in the text-delta message
+        use_contains: If True, check if expected_delta is contained in the delta,
+                      otherwise check for exact equality
+    """
+    # Verify proper messages were sent: text-start, text-delta, text-end, final
+    assert len(sent_messages) == 4
+
+    # Message 0: text-start
+    assert sent_messages[0]["type"] == "stream_chunk"
+    assert sent_messages[0]["content"]["type"] == "text-start"
+    assert sent_messages[0]["is_final"] is False
+
+    # Message 1: text-delta
+    assert sent_messages[1]["type"] == "stream_chunk"
+    assert sent_messages[1]["content"]["type"] == "text-delta"
+    if use_contains:
+        assert expected_delta in sent_messages[1]["content"]["delta"]
+    else:
+        assert sent_messages[1]["content"]["delta"] == expected_delta
+    assert sent_messages[1]["is_final"] is False
+
+    # Message 2: text-end
+    assert sent_messages[2]["type"] == "stream_chunk"
+    assert sent_messages[2]["content"]["type"] == "text-end"
+    assert sent_messages[2]["is_final"] is False
+
+    # Message 3: final
+    assert sent_messages[3]["type"] == "stream_chunk"
+    assert sent_messages[3]["content"] is None
+    assert sent_messages[3]["is_final"] is True
+
+
 def test_chat_init():
     def mock_model(
         messages: list[ChatMessage], config: ChatModelConfig
@@ -84,13 +126,26 @@ async def test_chat_send_prompt():
         return f"Response to: {content}"
 
     chat = ui.chat(mock_model)
+
+    sent_messages: list[dict] = []
+
+    def capture_send_message(message: dict, buffers):  # noqa: ARG001
+        sent_messages.append(message)
+
+    chat._send_message = capture_send_message
+
     request = SendMessageRequest(
         messages=[ChatMessage(role="user", content="Hello")],
         config=ChatModelConfig(),
     )
     response = await chat._send_prompt(request)
 
-    assert response == "Response to: Hello"
+    # Non-streaming now also returns None
+    assert response is None
+
+    # Verify proper messages were sent
+    assert_single_message(sent_messages, "Response to: Hello")
+
     assert len(chat._chat_history) == 2
     assert chat._chat_history[0].role == "user"
     assert chat._chat_history[0].content == "Hello"
@@ -107,13 +162,26 @@ async def test_chat_send_prompt_async_function():
         return f"Response to: {messages[-1].content}"
 
     chat = ui.chat(mock_model)
+
+    sent_messages: list[dict] = []
+
+    def capture_send_message(message: dict, buffers):  # noqa: ARG001
+        sent_messages.append(message)
+
+    chat._send_message = capture_send_message
+
     request = SendMessageRequest(
         messages=[ChatMessage(role="user", content="Hello")],
         config=ChatModelConfig(),
     )
     response = await chat._send_prompt(request)
 
-    assert response == "Response to: Hello"
+    # Non-streaming now also returns None
+    assert response is None
+
+    # Verify proper messages were sent
+    assert_single_message(sent_messages, "Response to: Hello")
+
     assert len(chat._chat_history) == 2
     assert chat._chat_history[0].role == "user"
     assert chat._chat_history[0].content == "Hello"
@@ -1068,14 +1136,24 @@ async def test_chat_value_sync_non_generator():
     chat = ui.chat(mock_model)
     assert chat.value == []
 
+    sent_messages: list[dict] = []
+
+    def capture_send_message(message: dict, buffers):  # noqa: ARG001
+        sent_messages.append(message)
+
+    chat._send_message = capture_send_message
+
     request = SendMessageRequest(
         messages=[ChatMessage(role="user", content="Hello")],
         config=ChatModelConfig(),
     )
     response = await chat._send_prompt(request)
 
-    # Verify response
-    assert response == "Response to: Hello"
+    # Non-streaming now also returns None
+    assert response is None
+
+    # Verify proper messages were sent
+    assert_single_message(sent_messages, "Response to: Hello")
 
     # Verify chat.value contains both user and assistant messages
     assert len(chat.value) == 2
@@ -1104,14 +1182,26 @@ async def test_chat_value_sync_non_generator_with_rich_object():
     chat = ui.chat(mock_model)
     assert chat.value == []
 
+    sent_messages: list[dict] = []
+
+    def capture_send_message(message: dict, buffers):  # noqa: ARG001
+        sent_messages.append(message)
+
+    chat._send_message = capture_send_message
+
     request = SendMessageRequest(
         messages=[ChatMessage(role="user", content="Hello", id="msg-1")],
         config=ChatModelConfig(),
     )
     response = await chat._send_prompt(request)
 
-    # Verify response
-    assert response == "<span>Response to: Hello</span>"
+    # Non-streaming now also returns None
+    assert response is None
+
+    # Verify proper messages were sent (rich object is converted to HTML)
+    assert_single_message(
+        sent_messages, "<span>Response to: Hello</span>", use_contains=True
+    )
 
     # Verify chat.value contains both user and assistant messages
     assert len(chat.value) == 2
@@ -1166,14 +1256,24 @@ async def test_chat_value_async_non_generator():
     chat = ui.chat(mock_model)
     assert chat.value == []
 
+    sent_messages: list[dict] = []
+
+    def capture_send_message(message: dict, buffers):  # noqa: ARG001
+        sent_messages.append(message)
+
+    chat._send_message = capture_send_message
+
     request = SendMessageRequest(
         messages=[ChatMessage(role="user", content="Test message")],
         config=ChatModelConfig(),
     )
     response = await chat._send_prompt(request)
 
-    # Verify response
-    assert response == "Async response to: Test message"
+    # Non-streaming now also returns None
+    assert response is None
+
+    # Verify proper messages were sent
+    assert_single_message(sent_messages, "Async response to: Test message")
 
     # Verify chat.value contains both user and assistant messages
     assert len(chat.value) == 2

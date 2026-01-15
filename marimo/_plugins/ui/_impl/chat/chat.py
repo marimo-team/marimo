@@ -333,7 +333,7 @@ class chat(UIElement[dict[str, Any], list[ChatMessage]]):
                     )
                 )
 
-    async def _send_prompt(self, args: SendMessageRequest) -> str | None:
+    async def _send_prompt(self, args: SendMessageRequest) -> None:
         messages = args.messages
 
         self._chat_history = messages
@@ -369,14 +369,17 @@ class chat(UIElement[dict[str, Any], list[ChatMessage]]):
 
         # Add assistant response to chat history
         assistant_message = ChatMessage(
-            role="assistant", content=response, id=str(uuid.uuid4())
+            role="assistant",
+            content=response,
+            id=f"message_{uuid.uuid4().hex}",
         )
         self._chat_history.append(assistant_message)
 
+        await self._handle_streaming_response([response_str])
         # Update the chat history to trigger UI updates and on_message callback
         self._update_chat_history(self._chat_history)
 
-        return response_str
+        return None
 
     def _convert_value(self, value: dict[str, Any]) -> list[ChatMessage]:
         """Convert the frontend's chat history format to a list of ChatMessage objects."""
@@ -395,20 +398,29 @@ class chat(UIElement[dict[str, Any], list[ChatMessage]]):
             # as Vercel UIMessagePart
             part_validator_class = UIMessagePart
 
-        prev_msg_to_content: dict[str, Any] = {}
-        for msg in self._chat_history:
-            msg_id = msg.id
-            content = msg.content
-            if content is not None and msg_id:
-                prev_msg_to_content[msg_id] = content
+        def get_prev_content(idx: int) -> Any:
+            # Only get the prev content if messages are the same size
+            if len(messages) == len(self._chat_history):
+                return self._chat_history[idx].content
+            return None
 
         result: list[ChatMessage] = []
-        for msg in messages:
+        for i, msg in enumerate(messages):
+            prev_content = get_prev_content(i)
+            if isinstance(msg, ChatMessage):
+                if prev_content is not None:
+                    msg.content = prev_content
+                continue
+
             msg_id = msg.get("id")
             role = msg.get("role", "user")
             # Prefer the content in Python object format over the serialized content from the frontend,
             # since this is the most accurate representation of the message and more valuable to the user in Python-land.
-            content = prev_msg_to_content.get(msg_id, msg.get("content"))
+            content = (
+                prev_content
+                if prev_content is not None
+                else msg.get("content")
+            )
             result.append(
                 ChatMessage.create(
                     role=role,
