@@ -352,6 +352,14 @@ edit_help_msg = "\n".join(
     help="Enable skew protection middleware to prevent version mismatch issues.",
 )
 @click.option(
+    "--disable-file-downloads",
+    is_flag=True,
+    default=False,
+    show_default=True,
+    type=bool,
+    help="Disable file download button in the file explorer for data security.",
+)
+@click.option(
     "--remote-url",
     default=None,
     type=str,
@@ -419,6 +427,7 @@ def edit(
     profile_dir: Optional[str],
     watch: bool,
     skew_protection: bool,
+    disable_file_downloads: bool,
     remote_url: Optional[str],
     convert: bool,
     mcp: bool,
@@ -529,6 +538,7 @@ def edit(
         include_code=True,
         watch=watch,
         skew_protection=skew_protection,
+        disable_file_downloads=disable_file_downloads,
         cli_args=parse_args(args),
         argv=list(args),
         auth_token=resolve_token(
@@ -652,6 +662,14 @@ new_help_msg = "\n".join(
     help="Enable skew protection middleware to prevent version mismatch issues.",
 )
 @click.option(
+    "--disable-file-downloads",
+    is_flag=True,
+    default=False,
+    show_default=True,
+    type=bool,
+    help="Disable file download button in the file explorer for data security.",
+)
+@click.option(
     "--timeout",
     required=False,
     default=None,
@@ -671,6 +689,7 @@ def new(
     base_url: str,
     sandbox: Optional[bool],
     skew_protection: bool,
+    disable_file_downloads: bool,
     timeout: Optional[float],
     prompt: Optional[str],
 ) -> None:
@@ -744,6 +763,7 @@ def new(
         include_code=True,
         watch=False,
         skew_protection=skew_protection,
+        disable_file_downloads=disable_file_downloads,
         cli_args={},
         argv=[],
         auth_token=resolve_token(
@@ -854,6 +874,14 @@ Example:
     help="Enable skew protection middleware to prevent version mismatch issues.",
 )
 @click.option(
+    "--disable-file-downloads",
+    is_flag=True,
+    default=False,
+    show_default=True,
+    type=bool,
+    help="Disable file download button in the file explorer for data security.",
+)
+@click.option(
     "--base-url",
     default="",
     show_default=True,
@@ -931,6 +959,7 @@ def run(
     session_ttl: int,
     watch: bool,
     skew_protection: bool,
+    disable_file_downloads: bool,
     base_url: str,
     allow_origins: tuple[str, ...],
     redirect_console_to_browser: bool,
@@ -999,6 +1028,7 @@ def run(
         ttl_seconds=session_ttl,
         watch=watch,
         skew_protection=skew_protection,
+        disable_file_downloads=disable_file_downloads,
         base_url=base_url,
         allow_origins=allow_origins,
         cli_args=parse_args(args),
@@ -1100,6 +1130,14 @@ Recommended sequence:
     type=bool,
     help="Enable skew protection middleware to prevent version mismatch issues.",
 )
+@click.option(
+    "--disable-file-downloads",
+    is_flag=True,
+    default=False,
+    show_default=True,
+    type=bool,
+    help="Disable file download button in the file explorer for data security.",
+)
 @click.argument(
     "name",
     required=True,
@@ -1114,6 +1152,7 @@ def tutorial(
     token_password: Optional[str],
     token_password_file: Optional[str],
     skew_protection: bool,
+    disable_file_downloads: bool,
     name: Tutorial,
 ) -> None:
     temp_dir = tempfile.TemporaryDirectory()
@@ -1131,6 +1170,7 @@ def tutorial(
         headless=headless,
         watch=False,
         skew_protection=skew_protection,
+        disable_file_downloads=disable_file_downloads,
         cli_args={},
         argv=[],
         auth_token=resolve_token(

@@ -3612,13 +3612,16 @@ components:
         \ the web browser to use. `\"default\"` or a browser registered\n        with\
         \ Python's webbrowser module (eg, `\"firefox\"` or `\"chrome\"`)\n    - `follow_symlink`:\
         \ if true, the server will follow symlinks it finds\n        inside its static\
-        \ assets directory."
+        \ assets directory.\n    - `disable_file_downloads`: if true, the file download\
+        \ button will be\n        hidden in the file explorer for data security."
       properties:
         browser:
           anyOf:
           - enum:
             - default
           - type: string
+        disable_file_downloads:
+          type: boolean
         follow_symlink:
           type: boolean
       required:
@@ -4416,7 +4419,7 @@ components:
       type: object
 info:
   title: marimo API
-  version: 0.18.4
+  version: 0.19.2
 openapi: 3.1.0
 paths:
   /@file/{filename_and_length}:

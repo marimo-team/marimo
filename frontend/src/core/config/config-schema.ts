@@ -189,7 +189,11 @@ export const UserConfigSchema = z
       })
       // Pass through so that we don't remove any extra keys that the user has added.
       .prefault(() => ({})),
-    server: z.looseObject({}).prefault(() => ({})),
+    server: z
+      .looseObject({
+        disable_file_downloads: z.boolean().optional(),
+      })
+      .prefault(() => ({})),
     diagnostics: z
       .looseObject({
         enabled: z.boolean().optional(),

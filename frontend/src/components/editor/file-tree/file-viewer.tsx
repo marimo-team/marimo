@@ -15,7 +15,7 @@ import { Suspense, useEffect, useRef, useState } from "react";
 import { renderShortcut } from "@/components/shortcuts/renderShortcut";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Tooltip } from "@/components/ui/tooltip";
-import { hotkeysAtom } from "@/core/config/config";
+import { hotkeysAtom, useResolvedMarimoConfig } from "@/core/config/config";
 import { useRequestClient } from "@/core/network/requests";
 import type { FileInfo } from "@/core/network/types";
 import { filenameAtom } from "@/core/saving/file-state";
@@ -49,6 +49,8 @@ export const FileViewer: React.FC<Props> = ({ file, onOpenNotebook }) => {
   const { theme } = useTheme();
   const { sendFileDetails, sendUpdateFile } = useRequestClient();
   const hotkeys = useAtomValue(hotkeysAtom);
+  const [config] = useResolvedMarimoConfig();
+  const disableFileDownloads = config.server?.disable_file_downloads ?? false;
   const currentNotebookFilename = useAtomValue(filenameAtom);
   // undefined value means not modified yet
   const [internalValue, setInternalValue] = useState<string>("");
@@ -152,11 +154,13 @@ export const FileViewer: React.FC<Props> = ({ file, onOpenNotebook }) => {
           </Button>
         </Tooltip>
       )}
-      <Tooltip content="Download">
-        <Button size="small" onClick={handleDownload}>
-          <DownloadIcon />
-        </Button>
-      </Tooltip>
+      {!disableFileDownloads && (
+        <Tooltip content="Download">
+          <Button size="small" onClick={handleDownload}>
+            <DownloadIcon />
+          </Button>
+        </Tooltip>
+      )}
       {!isMedia(mimeType) && (
         <>
           <Tooltip content="Copy contents to clipboard">

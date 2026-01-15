@@ -5,13 +5,14 @@ import os
 import re
 import subprocess
 import threading
-from typing import Optional
+from typing import Optional, cast
 
 import uvicorn
 
 import marimo._server.api.lifespans as lifespans
 from marimo._cli.print import echo
 from marimo._cli.sandbox import SandboxMode
+from marimo._config.config import ServerConfig
 from marimo._config.manager import get_default_config_manager
 from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._mcp.server.main import setup_mcp_server
@@ -173,6 +174,7 @@ def start(
     auth_token: Optional[AuthToken],
     redirect_console_to_browser: bool,
     skew_protection: bool,
+    disable_file_downloads: bool = False,
     remote_url: Optional[str] = None,
     mcp: bool = False,
     server_startup_command: Optional[str] = None,
@@ -229,6 +231,18 @@ def start(
                 "package_management": {
                     "manager": "uv",
                 }
+            }
+        )
+
+    if disable_file_downloads:
+        config_reader = config_reader.with_overrides(
+            {
+                "server": cast(
+                    ServerConfig,
+                    {
+                        "disable_file_downloads": True,
+                    },
+                ),
             }
         )
 
