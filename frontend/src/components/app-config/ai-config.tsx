@@ -1399,7 +1399,9 @@ export const AiModelDisplayConfig: React.FC<AiConfigProps> = ({
       ? currentDisplayedModels.filter((id) => id !== modelId)
       : [...currentDisplayedModels, modelId];
 
-    form.setValue("ai.models.displayed_models", newModels);
+    form.setValue("ai.models.displayed_models", newModels, {
+      shouldDirty: true,
+    });
     onSubmit(form.getValues());
   });
 
@@ -1416,14 +1418,18 @@ export const AiModelDisplayConfig: React.FC<AiConfigProps> = ({
         ? [...new Set([...currentDisplayedModels, ...qualifiedModelIds])]
         : currentDisplayedModels.filter((id) => !qualifiedModelIds.has(id));
 
-      form.setValue("ai.models.displayed_models", newModels);
+      form.setValue("ai.models.displayed_models", newModels, {
+        shouldDirty: true,
+      });
       onSubmit(form.getValues());
     },
   );
 
   const deleteModel = useEvent((modelId: QualifiedModelId) => {
     const newModels = customModels.filter((id) => id !== modelId);
-    form.setValue("ai.models.custom_models", newModels);
+    form.setValue("ai.models.custom_models", newModels, {
+      shouldDirty: true,
+    });
     onSubmit(form.getValues());
   });
 
@@ -1500,7 +1506,9 @@ export const AddModelForm: React.FC<{
       modelName as ShortModelId,
     );
 
-    form.setValue("ai.models.custom_models", [newModel.id, ...customModels]);
+    form.setValue("ai.models.custom_models", [newModel.id, ...customModels], {
+      shouldDirty: true,
+    });
     onSubmit(form.getValues());
     resetForm();
 
