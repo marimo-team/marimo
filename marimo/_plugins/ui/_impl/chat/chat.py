@@ -280,7 +280,7 @@ class chat(UIElement[dict[str, Any], list[ChatMessage]]):
         method accumulates and sends to the frontend as complete text.
         This follows the standard streaming pattern used by OpenAI, Anthropic,
         and other AI providers. For frontend-managed streaming, the response is set on the frontend,
-        so we don't need to return anything. If generators just yield strings, we add it to the content instead.
+        so we don't need to return anything. If generators just yield strings, we update the chat history with the accumulated text.
         """
         message_id = str(uuid.uuid4())
 
@@ -307,10 +307,9 @@ class chat(UIElement[dict[str, Any], list[ChatMessage]]):
                     accumulated_text += delta
                 serializer.handle_chunk(delta)
 
-        # Only update chat history for real generators that yield strings.
-        # Non-streaming responses handle this separately to preserve rich objects.
+        # Generators that yield strings should update the 'content' field of the assistant message
         if accumulated_text and is_generator:
-            self._update_chat_history_with_assistant(
+            self._add_assistant_message_to_chat_history(
                 accumulated_text, accumulated_text
             )
 
@@ -384,9 +383,9 @@ class chat(UIElement[dict[str, Any], list[ChatMessage]]):
 
         await self._handle_streaming_response([response_str])
         # Update the chat history to trigger UI updates and on_message callback
-        self._update_chat_history_with_assistant(response, response_str)
+        self._add_assistant_message_to_chat_history(response, response_str)
 
-    def _update_chat_history_with_assistant(
+    def _add_assistant_message_to_chat_history(
         self, content: str | object, text: str
     ) -> None:
         assistant_message = ChatMessage(
