@@ -53,6 +53,12 @@ def _(chat):
 
 
 @app.cell
+def _(chat):
+    chat.value[1].content if len(chat.value) else None
+    return
+
+
+@app.cell
 def _(uuid, vercel):
     async def async_streaming_chunks(messages, config):
         # Generate unique IDs for message parts
