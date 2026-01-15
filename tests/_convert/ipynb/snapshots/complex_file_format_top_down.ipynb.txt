@@ -1,0 +1,196 @@
+{
+  "cells": [
+    {
+      "cell_type": "code",
+      "execution_count": null,
+      "id": "setup",
+      "metadata": {
+        "marimo": {
+          "name": "setup"
+        }
+      },
+      "outputs": [],
+      "source": [
+        "# Complex file format with setup cell\n",
+        "import marimo as mo"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "id": "Hbol",
+      "metadata": {
+        "marimo": {
+          "config": {
+            "hide_code": true
+          }
+        }
+      },
+      "source": [
+        "# Documentation\n",
+        "\n",
+        "This cell has **hidden code** and uses markdown.\n",
+        "\n",
+        "- Feature 1\n",
+        "- Feature 2"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": null,
+      "id": "MJUe",
+      "metadata": {
+        "marimo": {
+          "name": "imports"
+        }
+      },
+      "outputs": [],
+      "source": [
+        "\"\"\"Named cell with imports.\"\"\"\n",
+        "import pandas as pd\n",
+        "import numpy as np"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": null,
+      "id": "vblA",
+      "metadata": {
+        "marimo": {
+          "config": {
+            "disabled": true
+          },
+          "name": "disabled_cell"
+        }
+      },
+      "outputs": [],
+      "source": [
+        "\"\"\"This cell is disabled.\"\"\"\n",
+        "x = 42\n",
+        "should_not_run = True"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": null,
+      "id": "bkHC",
+      "metadata": {
+        "marimo": {
+          "name": "data_loading"
+        }
+      },
+      "outputs": [],
+      "source": [
+        "\"\"\"Named cell for data loading.\"\"\"\n",
+        "df = pd.DataFrame({\"a\": np.array([1, 2, 3]), \"b\": np.array([4, 5, 6])})"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": null,
+      "id": "lEQa",
+      "metadata": {
+        "marimo": {
+          "name": "analysis"
+        }
+      },
+      "outputs": [],
+      "source": [
+        "\"\"\"Named cell with analysis and markdown output.\"\"\"\n",
+        "result = df[\"a\"].sum()\n",
+        "mo.md(f\"The sum is **{result}**\")"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": null,
+      "id": "PKri",
+      "metadata": {},
+      "outputs": [],
+      "source": [
+        "\"\"\"Unnamed cell.\"\"\"\n",
+        "internal_var = 100"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": null,
+      "id": "Xref",
+      "metadata": {
+        "marimo": {
+          "name": "*add"
+        }
+      },
+      "outputs": [],
+      "source": [
+        "def add(x, y):\n",
+        "    \"\"\"Pure function.\"\"\"\n",
+        "    return x + y"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": null,
+      "id": "SFPL",
+      "metadata": {
+        "marimo": {
+          "config": {
+            "hide_code": true
+          },
+          "name": "*remove"
+        }
+      },
+      "outputs": [],
+      "source": [
+        "def remove(x, y):\n",
+        "    \"\"\"Hidden function.\"\"\"\n",
+        "    return x - y"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": null,
+      "id": "BYtC",
+      "metadata": {
+        "marimo": {
+          "name": "*MyClass"
+        }
+      },
+      "outputs": [],
+      "source": [
+        "class MyClass:\n",
+        "    \"\"\"Pure class.\"\"\"\n",
+        "    def __init__(self, x, y):\n",
+        "        self.x = x\n",
+        "        self.y = y\n",
+        "    def add(self):\n",
+        "        return self.x + self.y"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": null,
+      "id": "RGSE",
+      "metadata": {
+        "marimo": {
+          "config": {
+            "hide_code": true
+          },
+          "name": "*MyHiddenClass"
+        }
+      },
+      "outputs": [],
+      "source": [
+        "class MyHiddenClass:\n",
+        "    \"\"\"Hidden class.\"\"\"\n",
+        "    def __init__(self, x, y):\n",
+        "        self.x = x\n",
+        "        self.y = y\n",
+        "    def add(self):\n",
+        "        return self.x + self.y"
+      ]
+    }
+  ],
+  "metadata": {},
+  "nbformat": 4,
+  "nbformat_minor": 5
+}
