@@ -18,7 +18,7 @@ from marimo._dependencies.dependencies import DependencyManager
 from marimo._utils import async_path
 from marimo._utils.platform import is_windows
 from tests._server.templates.utils import normalize_index_html
-from tests.mocks import snapshotter
+from tests.mocks import delete_lines_with_files, snapshotter
 
 if TYPE_CHECKING:
     import pathlib
@@ -947,7 +947,7 @@ class TestExportIpynb:
         # Jupyter error output, not printed to stderr
         output = p.stdout.decode()
         assert "division by zero" in output
-        output = _delete_lines_with_files(output)
+        output = delete_lines_with_files(output)
         snapshot("ipynb_with_errors.txt", output)
 
     @staticmethod
@@ -1016,9 +1016,3 @@ class TestExportIpynb:
             capture_output=True,
         )
         assert p.returncode == 0, p.stderr.decode()
-
-
-def _delete_lines_with_files(output: str) -> str:
-    return "\n".join(
-        line for line in output.splitlines() if "File " not in line
-    )
