@@ -15,7 +15,7 @@ from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins import ui
 from marimo._plugins.ui._impl.chat.chat import (
     DEFAULT_CONFIG,
-    ChuckSerializer,
+    ChunkSerializer,
     DeleteChatMessageRequest,
     SendMessageRequest,
 )
@@ -684,13 +684,13 @@ async def test_vercel_messages_streaming(use_async: bool):
 
 
 def test_serialize_vercel_ai_chunk_dict():
-    """Test ChuckSerializer with dict input."""
+    """Test ChunkSerializer with dict input."""
     sent_chunks: list[dict] = []
 
     def on_send_chunk(chunk: dict):
         sent_chunks.append(chunk)
 
-    serializer = ChuckSerializer(on_send_chunk=on_send_chunk)
+    serializer = ChunkSerializer(on_send_chunk=on_send_chunk)
 
     # Dict input should pass through unchanged
     chunk = {"type": "text-delta", "id": "text-1", "delta": "Hello"}
@@ -699,13 +699,13 @@ def test_serialize_vercel_ai_chunk_dict():
 
 
 def test_serialize_plain_string():
-    """Test ChuckSerializer with plain string input."""
+    """Test ChunkSerializer with plain string input."""
     sent_chunks: list[dict] = []
 
     def on_send_chunk(chunk: dict):
         sent_chunks.append(chunk)
 
-    serializer = ChuckSerializer(on_send_chunk=on_send_chunk)
+    serializer = ChunkSerializer(on_send_chunk=on_send_chunk)
 
     # Plain strings should be wrapped in text-start/text-delta chunks
     serializer.handle_chunk("Hello")
@@ -730,13 +730,13 @@ def test_serialize_plain_string():
 
 
 def test_serialize_mixed_chunks():
-    """Test ChuckSerializer with mixed dict and string chunks."""
+    """Test ChunkSerializer with mixed dict and string chunks."""
     sent_chunks: list[dict] = []
 
     def on_send_chunk(chunk: dict):
         sent_chunks.append(chunk)
 
-    serializer = ChuckSerializer(on_send_chunk=on_send_chunk)
+    serializer = ChunkSerializer(on_send_chunk=on_send_chunk)
 
     # Send a dict chunk, then strings, then another dict
     serializer.handle_chunk({"type": "reasoning-start", "id": "r-1"})
@@ -768,13 +768,13 @@ def test_serialize_mixed_chunks():
 
 
 def test_serialize_only_dict_chunks():
-    """Test ChuckSerializer with only dict chunks (no text)."""
+    """Test ChunkSerializer with only dict chunks (no text)."""
     sent_chunks: list[dict] = []
 
     def on_send_chunk(chunk: dict):
         sent_chunks.append(chunk)
 
-    serializer = ChuckSerializer(on_send_chunk=on_send_chunk)
+    serializer = ChunkSerializer(on_send_chunk=on_send_chunk)
 
     # Send only dict chunks
     serializer.handle_chunk({"type": "reasoning-start", "id": "r-1"})
@@ -793,7 +793,7 @@ def test_serialize_only_dict_chunks():
     reason="Pydantic AI is not installed",
 )
 def test_serialize_pydantic_chunk():
-    """Test ChuckSerializer with pydantic BaseChunk input."""
+    """Test ChunkSerializer with pydantic BaseChunk input."""
     from pydantic_ai.ui.vercel_ai.response_types import TextDeltaChunk
 
     sent_chunks: list[dict] = []
@@ -801,7 +801,7 @@ def test_serialize_pydantic_chunk():
     def on_send_chunk(chunk: dict):
         sent_chunks.append(chunk)
 
-    serializer = ChuckSerializer(on_send_chunk=on_send_chunk)
+    serializer = ChunkSerializer(on_send_chunk=on_send_chunk)
 
     # Pydantic BaseChunk should be serialized with model_dump
     chunk = TextDeltaChunk(id="text-1", delta="Hello")

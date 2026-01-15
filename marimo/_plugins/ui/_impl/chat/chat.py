@@ -152,7 +152,7 @@ class chat(UIElement[dict[str, Any], list[ChatMessage]]):
             yield vercel.FinishChunk(finish_reason="stop")
 
 
-        chat = mo.ui.chat(custom_model, vercel_streaming=True)
+        chat = mo.ui.chat(custom_model)
         ```
         Refer to examples/ai/chat/pydantic-ai-chat.py for a complete example.
 
@@ -180,10 +180,6 @@ class chat(UIElement[dict[str, Any], list[ChatMessage]]):
             attachments types, or pass a list of mime types. Defaults to False.
         max_height (int, optional): Optional maximum height for the chat element.
             Defaults to None.
-        vercel_streaming (bool, optional): When True, enables Vercel AI SDK streaming
-            for custom models. Your model should yield Vercel AI SDK chunks (dicts with
-            "type" field like "text-delta", "reasoning-delta", "tool-input-start", etc.).
-            Defaults to False. This is automatically enabled if the model is a pydantic-ai Agent.
     """
 
     _name: Final[str] = "marimo-chatbot"
@@ -294,7 +290,7 @@ class chat(UIElement[dict[str, Any], list[ChatMessage]]):
                 is_final=False,
             )
 
-        serializer = ChuckSerializer(on_send_chunk=send_chunk)
+        serializer = ChunkSerializer(on_send_chunk=send_chunk)
 
         if inspect.isasyncgen(response):
             async for delta in response:
@@ -415,7 +411,7 @@ class chat(UIElement[dict[str, Any], list[ChatMessage]]):
 
 
 @dataclass
-class ChuckSerializer:
+class ChunkSerializer:
     on_send_chunk: Callable[[dict[str, Any]], None]
     _text_id: str | None = None
 
