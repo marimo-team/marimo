@@ -2,7 +2,12 @@
 
 marimo organizes editor tools into two main areas: the **sidebar** on the left and the **developer panel** at the bottom. This layout keeps everyday notebook tools easily accessible while providing a dedicated space for debugging and development utilities.
 
-<!-- TODO: Add screenshot showing both sidebar and developer panel -->
+<div align="center">
+<picture>
+  <source srcset="/_static/docs-sidebar-developer-panel.webp" type="image/webp">
+  <img src="/_static/docs-sidebar-developer-panel.jpg" alt="Editor showing sidebar on the left and developer panel at the bottom" style="max-width: 700px; width: 100%;" />
+</picture>
+</div>
 
 ## Sidebar
 
