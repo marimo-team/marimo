@@ -1054,3 +1054,321 @@ async def test_streaming_with_dict_chunks():
             "is_final": True,
         },
     ]
+
+
+async def test_chat_value_sync_non_generator():
+    """Test chat.value with sync model returning text (non-generator)."""
+
+    def mock_model(
+        messages: list[ChatMessage], config: ChatModelConfig
+    ) -> str:
+        del config
+        return f"Response to: {messages[-1].content}"
+
+    chat = ui.chat(mock_model)
+    assert chat.value == []
+
+    request = SendMessageRequest(
+        messages=[ChatMessage(role="user", content="Hello")],
+        config=ChatModelConfig(),
+    )
+    response = await chat._send_prompt(request)
+
+    # Verify response
+    assert response == "Response to: Hello"
+
+    # Verify chat.value contains both user and assistant messages
+    assert len(chat.value) == 2
+    assert chat.value[0].role == "user"
+    assert chat.value[0].content == "Hello"
+    assert chat.value[1].role == "assistant"
+    assert chat.value[1].content == "Response to: Hello"
+
+
+async def test_chat_value_sync_non_generator_with_rich_object():
+    """Test chat.value with sync model returning rich object (non-generator)."""
+
+    class RichObject:
+        def __init__(self, text: str):
+            self.text = text
+
+        def __str__(self):
+            return f"Response to: {self.text}"
+
+    def mock_model(
+        messages: list[ChatMessage], config: ChatModelConfig
+    ) -> RichObject:
+        del config, messages
+        return RichObject("Hello")
+
+    chat = ui.chat(mock_model)
+    assert chat.value == []
+
+    request = SendMessageRequest(
+        messages=[ChatMessage(role="user", content="Hello", id="msg-1")],
+        config=ChatModelConfig(),
+    )
+    response = await chat._send_prompt(request)
+
+    # Verify response
+    assert response == "<span>Response to: Hello</span>"
+
+    # Verify chat.value contains both user and assistant messages
+    assert len(chat.value) == 2
+    assert chat.value[0].role == "user"
+    assert chat.value[0].content == "Hello"
+    assert chat.value[1].role == "assistant"
+    assert isinstance(chat.value[1].content, RichObject)
+
+    msg_id_1 = chat.value[0].id
+    msg_id_2 = chat.value[1].id
+    assert msg_id_1
+    assert msg_id_2
+
+    # Simulate the frontend sending back the message
+    converted = chat._convert_value(
+        {
+            "messages": [
+                {
+                    "id": msg_id_1,
+                    "role": "user",
+                    "content": "Hello",
+                },
+                {
+                    "id": msg_id_2,
+                    "role": "assistant",
+                    "content": "Response to: Hello",
+                },
+            ]
+        }
+    )
+
+    # Verify chat.value still contains the rich object
+    assert len(converted) == 2
+    assert converted[0].role == "user"
+    assert converted[0].content == "Hello"
+    assert converted[0].id == msg_id_1
+    assert converted[1].role == "assistant"
+    assert converted[1].id == msg_id_2
+    assert isinstance(converted[1].content, RichObject)
+
+
+async def test_chat_value_async_non_generator():
+    """Test chat.value with async model returning text (non-generator)."""
+
+    async def mock_model(
+        messages: list[ChatMessage], config: ChatModelConfig
+    ) -> str:
+        del config
+        await asyncio.sleep(0.01)
+        return f"Async response to: {messages[-1].content}"
+
+    chat = ui.chat(mock_model)
+    assert chat.value == []
+
+    request = SendMessageRequest(
+        messages=[ChatMessage(role="user", content="Test message")],
+        config=ChatModelConfig(),
+    )
+    response = await chat._send_prompt(request)
+
+    # Verify response
+    assert response == "Async response to: Test message"
+
+    # Verify chat.value contains both user and assistant messages
+    assert len(chat.value) == 2
+    assert chat.value[0].role == "user"
+    assert chat.value[0].content == "Test message"
+    assert chat.value[1].role == "assistant"
+    assert chat.value[1].content == "Async response to: Test message"
+
+
+async def test_chat_value_sync_generator_text():
+    """Test chat.value with sync generator yielding text chunks."""
+
+    def mock_streaming_model(
+        messages: list[ChatMessage], config: ChatModelConfig
+    ):
+        del messages, config
+        yield "Hello"
+        yield " "
+        yield "world"
+
+    chat = ui.chat(mock_streaming_model)
+    assert chat.value == []
+
+    # Mock _send_message to avoid needing kernel context
+    chat._send_message = lambda message, buffers: None  # noqa: ARG005
+
+    request = SendMessageRequest(
+        messages=[ChatMessage(role="user", content="Stream this")],
+        config=ChatModelConfig(),
+    )
+    response = await chat._send_prompt(request)
+
+    # Streaming returns None
+    assert response is None
+
+    # Verify chat._chat_history contains the user message
+    # (streaming responses are managed by frontend, so only user message is in backend history)
+    assert len(chat._chat_history) == 1
+    assert chat._chat_history[0].role == "user"
+    assert chat._chat_history[0].content == "Stream this"
+
+    # Verify value is empty (until the frontend sends back the message)
+    assert chat.value == []
+
+
+async def test_chat_value_async_generator_text():
+    """Test chat.value with async generator yielding text chunks."""
+
+    async def mock_streaming_model(
+        messages: list[ChatMessage], config: ChatModelConfig
+    ):
+        del messages, config
+        for word in ["Async", " ", "streaming"]:
+            await asyncio.sleep(0.001)
+            yield word
+
+    chat = ui.chat(mock_streaming_model)
+    assert chat.value == []
+
+    # Mock _send_message to avoid needing kernel context
+    chat._send_message = lambda message, buffers: None  # noqa: ARG005
+
+    request = SendMessageRequest(
+        messages=[ChatMessage(role="user", content="Stream async")],
+        config=ChatModelConfig(),
+    )
+    response = await chat._send_prompt(request)
+
+    # Streaming returns None
+    assert response is None
+
+    # Verify chat._chat_history contains the user message
+    # (streaming responses are managed by frontend, so only user message is in backend history)
+    assert len(chat._chat_history) == 1
+    assert chat._chat_history[0].role == "user"
+    assert chat._chat_history[0].content == "Stream async"
+
+    # Verify value is empty (until the frontend sends back the message)
+    assert chat.value == []
+
+
+async def test_chat_value_sync_generator_dicts():
+    """Test chat.value with sync generator yielding dict chunks."""
+
+    def mock_streaming_model(
+        messages: list[ChatMessage], config: ChatModelConfig
+    ):
+        del messages, config
+        yield {"type": "text-start", "id": "text-1"}
+        yield {"type": "text-delta", "id": "text-1", "delta": "Dict"}
+        yield {"type": "text-delta", "id": "text-1", "delta": " chunks"}
+        yield {"type": "text-end", "id": "text-1"}
+
+    chat = ui.chat(mock_streaming_model)
+    assert chat.value == []
+
+    # Mock _send_message to avoid needing kernel context
+    chat._send_message = lambda message, buffers: None  # noqa: ARG005
+
+    request = SendMessageRequest(
+        messages=[ChatMessage(role="user", content="Send dicts")],
+        config=ChatModelConfig(),
+    )
+    response = await chat._send_prompt(request)
+
+    # Streaming returns None
+    assert response is None
+
+    # Verify chat._chat_history contains the user message
+    # (streaming responses with dicts are managed by frontend)
+    assert len(chat._chat_history) == 1
+    assert chat._chat_history[0].role == "user"
+    assert chat._chat_history[0].content == "Send dicts"
+
+    # Verify value is empty (until the frontend sends back the message)
+    assert chat.value == []
+
+
+async def test_chat_value_async_generator_dicts():
+    """Test chat.value with async generator yielding dict chunks."""
+
+    async def mock_streaming_model(
+        messages: list[ChatMessage], config: ChatModelConfig
+    ):
+        del messages, config
+        chunks = [
+            {"type": "text-start", "id": "text-1"},
+            {"type": "text-delta", "id": "text-1", "delta": "Async"},
+            {"type": "text-delta", "id": "text-1", "delta": " dict"},
+            {"type": "text-end", "id": "text-1"},
+        ]
+        for chunk in chunks:
+            await asyncio.sleep(0.001)
+            yield chunk
+
+    chat = ui.chat(mock_streaming_model)
+    assert chat.value == []
+
+    # Mock _send_message to avoid needing kernel context
+    chat._send_message = lambda message, buffers: None  # noqa: ARG005
+
+    request = SendMessageRequest(
+        messages=[ChatMessage(role="user", content="Send async dicts")],
+        config=ChatModelConfig(),
+    )
+    response = await chat._send_prompt(request)
+
+    # Streaming returns None
+    assert response is None
+
+    # Verify chat._chat_history contains the user message
+    # (streaming responses with dicts are managed by frontend)
+    assert len(chat._chat_history) == 1
+    assert chat._chat_history[0].role == "user"
+    assert chat._chat_history[0].content == "Send async dicts"
+
+    # Verify value is empty (until the frontend sends back the message)
+    assert chat.value == []
+
+
+async def test_chat_value_multiple_exchanges():
+    """Test chat.value accumulates messages across multiple exchanges."""
+
+    def mock_model(
+        messages: list[ChatMessage], config: ChatModelConfig
+    ) -> str:
+        del config
+        # Echo back the last user message
+        return f"Echo: {messages[-1].content}"
+
+    chat = ui.chat(mock_model)
+    assert chat.value == []
+
+    # First exchange
+    request1 = SendMessageRequest(
+        messages=[ChatMessage(role="user", content="First")],
+        config=ChatModelConfig(),
+    )
+    await chat._send_prompt(request1)
+
+    assert len(chat.value) == 2
+    assert chat.value[0].content == "First"
+    assert chat.value[1].content == "Echo: First"
+
+    # Second exchange - chat history accumulates
+    request2 = SendMessageRequest(
+        messages=[
+            ChatMessage(role="user", content="First"),
+            ChatMessage(role="assistant", content="Echo: First"),
+            ChatMessage(role="user", content="Second"),
+        ],
+        config=ChatModelConfig(),
+    )
+    await chat._send_prompt(request2)
+
+    assert len(chat.value) == 4
+    assert chat.value[2].content == "Second"
+    assert chat.value[3].content == "Echo: Second"

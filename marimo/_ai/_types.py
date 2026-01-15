@@ -204,12 +204,13 @@ class ChatMessage(msgspec.Struct):
     role: Literal["user", "assistant", "system"]
 
     # The content of the message.
+    # This can be a rich Python object.
     content: Any
 
     # The id of the message.
     id: str = ""
 
-    # Parts from AI SDK
+    # Parts from AI SDK Stream Protocol (must be serializable to JSON)
     parts: list[ChatPart] = []
 
     # Optional attachments to the message.

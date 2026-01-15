@@ -368,7 +368,9 @@ class chat(UIElement[dict[str, Any], list[ChatMessage]]):
         )
 
         # Add assistant response to chat history
-        assistant_message = ChatMessage(role="assistant", content=response_str)
+        assistant_message = ChatMessage(
+            role="assistant", content=response, id=str(uuid.uuid4())
+        )
         self._chat_history.append(assistant_message)
 
         # Update the chat history to trigger UI updates and on_message callback
@@ -377,6 +379,7 @@ class chat(UIElement[dict[str, Any], list[ChatMessage]]):
         return response_str
 
     def _convert_value(self, value: dict[str, Any]) -> list[ChatMessage]:
+        """Convert the frontend's chat history format to a list of ChatMessage objects."""
         if not isinstance(value, dict) or "messages" not in value:
             raise ValueError("Invalid chat history format")
 
@@ -392,22 +395,30 @@ class chat(UIElement[dict[str, Any], list[ChatMessage]]):
             # as Vercel UIMessagePart
             part_validator_class = UIMessagePart
 
-        msg_to_content = {
-            msg.get("id"): msg.get("content")
-            for msg in messages
-            if msg.get("content") is not None
-        }
+        prev_msg_to_content: dict[str, Any] = {}
+        for msg in self._chat_history:
+            msg_id = msg.id
+            content = msg.content
+            if content is not None and msg_id:
+                prev_msg_to_content[msg_id] = content
 
-        return [
-            ChatMessage.create(
-                role=msg.get("role", "user"),
-                message_id=msg.get("id"),
-                content=msg_to_content.get(msg.get("id")),
-                parts=msg.get("parts", []),
-                part_validator_class=part_validator_class,
+        result: list[ChatMessage] = []
+        for msg in messages:
+            msg_id = msg.get("id")
+            role = msg.get("role", "user")
+            # Prefer the content in Python object format over the serialized content from the frontend,
+            # since this is the most accurate representation of the message and more valuable to the user in Python-land.
+            content = prev_msg_to_content.get(msg_id, msg.get("content"))
+            result.append(
+                ChatMessage.create(
+                    role=role,
+                    message_id=msg_id,
+                    content=content,
+                    parts=msg.get("parts", []),
+                    part_validator_class=part_validator_class,
+                )
             )
-            for msg in messages
-        ]
+        return result
 
 
 @dataclass
