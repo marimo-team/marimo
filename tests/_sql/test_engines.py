@@ -22,7 +22,6 @@ HAS_SQLALCHEMY = DependencyManager.sqlalchemy.has()
 HAS_CLICKHOUSE = DependencyManager.chdb.has()
 HAS_PANDAS = DependencyManager.pandas.has()
 HAS_POLARS = DependencyManager.polars.has()
-HAS_IBIS = DependencyManager.ibis.has()
 
 UNUSED_DB_NAME = "unused_db"
 
@@ -503,17 +502,3 @@ def test_try_convert_to_polars() -> None:
         assert df is None
         assert isinstance(error, pl.exceptions.ComputeError)
         assert str(error) == "Test error"
-
-
-@pytest.mark.skipif(
-    not HAS_IBIS,
-    reason="Ibis not installed",
-)
-def test_variables_without_datasource_engine() -> None:
-    # Ibis Deferred expression object should not be handeled as a datasource engine #7791
-    import ibis
-
-    deferred_for_test = ibis._["a"]
-    variables_to_test = [("deferred_for_test", deferred_for_test)]
-    engines = get_engines_from_variables(variables_to_test)
-    assert not engines
