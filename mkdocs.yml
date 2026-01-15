@@ -295,10 +295,7 @@ nav:
   - Security: security.md
 plugins:
   - search
-  # Social cards plugin requires Cairo. If you have trouble installing Cairo,
-  # disable this plugin by setting CARDS=false in your environment.
   - social:
-      enabled: !ENV [CARDS, true]
       cards_layout_options:
         background_color: '#FFFFFF'
         color: '#000000'
