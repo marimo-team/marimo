@@ -38,23 +38,18 @@ def _load_fixture_app(path: Path | str) -> InternalApp:
     return InternalApp(app)
 
 
-# Apps with heavy dependencies (matplotlib, pandas, polars, etc) that may timeout
+# Apps with heavy dependencies (matplotlib, pandas, polars, etc) that timeout in CI
 HEAVY_DEPENDENCY_APPS = {"with_outputs"}
 
 
 @pytest.mark.parametrize(
     "app_path",
     [
-        pytest.param(
-            path,
-            marks=pytest.mark.xfail(
-                reason="times out due to heavy dependencies"
-            )
-            if path.stem in HEAVY_DEPENDENCY_APPS
-            else (),
-        )
+        path
         for path in FIXTURES_DIR.glob("*.py")
+        if path.stem not in HEAVY_DEPENDENCY_APPS
     ],
+    ids=lambda path: path.stem,
 )
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
 @pytest.mark.skipif(
