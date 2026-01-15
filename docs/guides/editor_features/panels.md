@@ -57,7 +57,11 @@ Both the sidebar and developer panel are fully customizable. You can:
 
 Your layout preferences are saved and persist across sessions. Panels automatically adapt their appearance based on their location — showing a more compact vertical layout in the sidebar and a wider horizontal layout in the developer panel.
 
-<!-- TODO: Add GIF showing drag-drop between sidebar and developer panel -->
+<div align="center">
+<video autoplay muted loop playsinline style="max-width: 700px; width: 100%; border-radius: 8px;">
+  <source src="/_static/docs-panel-drag-drop.webm" type="video/webm">
+</video>
+</div>
 
 ## Keyboard shortcuts
 

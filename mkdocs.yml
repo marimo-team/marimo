@@ -296,6 +296,7 @@ nav:
 plugins:
   - search
   - social:
+      enabled: !ENV [CARDS, true]
       cards_layout_options:
         background_color: '#FFFFFF'
         color: '#000000'

@@ -20,8 +20,8 @@ variables in your notebook into a single searchable list.
 
 <div align="center">
 <picture>
-  <source srcset="/_static/docs-variables-panel.webp" type="image/webp">
-  <img src="/_static/docs-variables-panel.jpg" alt="Variables panel showing variable relationships" style="max-width: 700px; width: 100%;" />
+  <source srcset="/_static/docs-dataflow-variables-explorer.webp" type="image/webp">
+  <img src="/_static/docs-dataflow-variables-explorer.jpg" alt="Variables explorer panel showing variable names, types, and relationships" style="max-width: 700px; width: 100%;" />
 </picture>
 </div>
 
@@ -37,6 +37,13 @@ single location with two tabs: **Minimap** (default) and **Graph**.
 To open it, click the **Dependencies icon** in the sidebar, or use the hotkey
 `Cmd/Ctrl-Shift-I` to toggle the panel.
 
+<div align="center">
+<picture>
+  <source srcset="/_static/docs-dataflow-dependencies-panel.webp" type="image/webp">
+  <img src="/_static/docs-dataflow-dependencies-panel.jpg" alt="Dependencies panel showing minimap and graph tabs" style="max-width: 700px; width: 100%;" />
+</picture>
+</div>
+
 ### Minimap
 
 The **Minimap** tab (shown by default) provides a _focused slice_ of your
@@ -47,8 +54,7 @@ Click a cell in the minimap to jump to it:
 
 <div align="center">
 <video autoplay muted loop playsinline style="max-width: 700px; width: 100%;">
-  <source src="/_static/docs-minimap.webm" type="video/webm">
-  <source src="/_static/docs-minimap.mp4" type="video/mp4">
+  <source src="/_static/docs-dataflow-minimap.webm" type="video/webm">
 </video>
 </div>
 
@@ -268,8 +274,8 @@ patterns, overall connectedness, and the broader structure of your notebook.
 
 <div align="center">
 <picture>
-  <source srcset="/_static/docs-dependency-explorer.webp" type="image/webp">
-  <img src="/_static/docs-dependency-explorer.jpg" alt="Dependency explorer showing a graph view of cell connections" style="max-width: 700px; width: 100%;" />
+  <source srcset="/_static/docs-dataflow-graph.webp" type="image/webp">
+  <img src="/_static/docs-dataflow-graph.jpg" alt="Graph view showing all cells as an interactive dataflow graph" style="max-width: 700px; width: 100%;" />
 </picture>
 </div>
 
