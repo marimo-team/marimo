@@ -11,6 +11,7 @@ from marimo._ai._types import (
     ChatMessage,
     ChatModelConfig,
     ChatModelConfigDict,
+    TextPart,
 )
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._output.formatting import as_html
@@ -273,31 +274,44 @@ class chat(UIElement[dict[str, Any], list[ChatMessage]]):
         )
 
     async def _handle_streaming_response(self, response: Any) -> None:
-        """Handle streaming from both sync and async generators.
+        """Handle streaming from both sync and async generators, and lists.
 
         Generators should yield delta chunks (new content only), which this
         method accumulates and sends to the frontend as complete text.
         This follows the standard streaming pattern used by OpenAI, Anthropic,
         and other AI providers. For frontend-managed streaming, the response is set on the frontend,
-        so we don't need to return anything.
+        so we don't need to return anything. If generators just yield strings, we update the chat history with the accumulated text.
         """
         message_id = str(uuid.uuid4())
 
         def send_chunk(chunk: dict[str, Any]) -> None:
             self._send_chat_message(
-                message_id=message_id,
-                content=chunk,
-                is_final=False,
+                message_id=message_id, content=chunk, is_final=False
             )
 
         serializer = ChunkSerializer(on_send_chunk=send_chunk)
+        accumulated_text = ""
+
+        is_generator = inspect.isasyncgen(response) or inspect.isgenerator(
+            response
+        )
 
         if inspect.isasyncgen(response):
             async for delta in response:
+                if isinstance(delta, str):
+                    accumulated_text += delta
                 serializer.handle_chunk(delta)
         else:
             for delta in response:
+                if isinstance(delta, str):
+                    accumulated_text += delta
                 serializer.handle_chunk(delta)
+
+        # Generators that yield strings should update the 'content' field of the assistant message
+        if accumulated_text and is_generator:
+            self._add_assistant_message_to_chat_history(
+                accumulated_text, accumulated_text
+            )
 
         serializer.on_end()
 
@@ -367,19 +381,21 @@ class chat(UIElement[dict[str, Any], list[ChatMessage]]):
             response if isinstance(response, str) else as_html(response).text
         )
 
-        # Add assistant response to chat history
-        assistant_message = ChatMessage(
-            role="assistant",
-            content=response,
-            id=f"message_{uuid.uuid4().hex}",
-        )
-        self._chat_history.append(assistant_message)
-
         await self._handle_streaming_response([response_str])
         # Update the chat history to trigger UI updates and on_message callback
-        self._update_chat_history(self._chat_history)
+        self._add_assistant_message_to_chat_history(response, response_str)
 
-        return None
+    def _add_assistant_message_to_chat_history(
+        self, content: str | object, text: str
+    ) -> None:
+        assistant_message = ChatMessage(
+            role="assistant",
+            content=content,
+            id=f"message_{uuid.uuid4().hex}",
+            parts=[TextPart(type="text", text=text)],
+        )
+        self._chat_history.append(assistant_message)
+        self._update_chat_history(self._chat_history)
 
     def _convert_value(self, value: dict[str, Any]) -> list[ChatMessage]:
         """Convert the frontend's chat history format to a list of ChatMessage objects."""
