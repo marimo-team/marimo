@@ -32,6 +32,7 @@ HAS_DUCKDB = DependencyManager.duckdb.has()
 HAS_CLICKHOUSE = DependencyManager.chdb.has()
 HAS_REDSHIFT = DependencyManager.redshift_connector.has()
 HAS_PYARROW = DependencyManager.pyarrow.has()
+HAS_IBIS = DependencyManager.ibis.has()
 
 
 @pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")
@@ -459,3 +460,17 @@ def test_get_engines_clickhouse() -> None:
     # assert connection.default_database == "default"
     # assert connection.default_schema == "default"
     assert connection.databases == []
+
+
+@pytest.mark.skipif(
+    not HAS_IBIS,
+    reason="Ibis not installed",
+)
+def test_variables_without_datasource_engine() -> None:
+    # Ibis Deferred expression object should not be handled as a datasource engine #7791
+    import ibis
+
+    deferred_for_test = ibis._["a"]
+    variables = [("deferred_for_test", deferred_for_test)]
+    engines = get_engines_from_variables(variables)
+    assert not engines
