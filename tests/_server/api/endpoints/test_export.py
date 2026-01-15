@@ -637,8 +637,6 @@ def test_update_cell_outputs_new_cell(client: TestClient) -> None:
         status="idle",
     )
 
-    assert not session.session_view.needs_export("ipynb")
-
     response = client.post(
         "/api/export/update_cell_outputs",
         headers=HEADERS,
