@@ -3,6 +3,11 @@
 Running `marimo edit` without a filename opens the home page, which lets you
 browse and manage notebooks in a directory.
 
+<figure markdown="span">
+  ![marimo home page](../../_static/docs-home.png)
+  <figcaption>The marimo home page</figcaption>
+</figure>
+
 ## Usage
 
 ```bash
