@@ -13,6 +13,8 @@ from tests.mocks import snapshotter
 SELF_DIR = pathlib.Path(__file__).parent
 snapshot_test = snapshotter(__file__)
 
+pytest.importorskip("nbformat")
+
 
 @pytest.mark.parametrize(
     "py_path", (SELF_DIR / "fixtures" / "py").glob("*.py")
