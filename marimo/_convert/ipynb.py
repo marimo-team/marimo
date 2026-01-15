@@ -119,7 +119,7 @@ def transform_add_marimo_import(sources: list[CodeCell]) -> list[CodeCell]:
         return sources
 
     if any(contains_mo(cell.source) for cell in sources):
-        return sources + [CodeCell("import marimo as mo")]
+        return [CodeCell("import marimo as mo")] + sources
 
     return sources
 
