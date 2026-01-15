@@ -35,6 +35,7 @@ import type { SupportedRole } from "@/core/ai/config";
 import {
   AiModelId,
   KNOWN_PROVIDERS,
+  type KnownProviderId,
   type ProviderId,
   type QualifiedModelId,
   type ShortModelId,
@@ -604,7 +605,13 @@ export const CustomProvidersConfig: React.FC<AiConfigProps> = ({
   const baseUrlInputId = useId();
 
   const normalizedName = newProviderName.toLowerCase().replaceAll(/\s+/g, "_");
-  const hasValidValues = normalizedName.trim() && newProviderBaseUrl.trim();
+  const customProviders = form.watch("ai.custom_providers");
+  const isDuplicate =
+    KNOWN_PROVIDERS.includes(normalizedName as KnownProviderId) ||
+    (customProviders && Object.keys(customProviders).includes(normalizedName));
+
+  const hasValidValues =
+    normalizedName.trim() && newProviderBaseUrl.trim() && !isDuplicate;
 
   const resetForm = () => {
     setNewProviderName("");
@@ -657,6 +664,11 @@ export const CustomProvidersConfig: React.FC<AiConfigProps> = ({
                 value={newProviderName}
                 onChange={(e) => setNewProviderName(e.target.value)}
               />
+              {isDuplicate && (
+                <p className="text-xs text-destructive">
+                  A provider with this name already exists.
+                </p>
+              )}
               {newProviderName && (
                 <p className="text-xs text-muted-secondary">
                   Use models with prefix:{" "}

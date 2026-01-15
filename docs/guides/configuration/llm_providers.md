@@ -381,6 +381,7 @@ Add multiple OpenAI-compatible providers through the Settings UI. Each custom pr
 1. Open marimo's Settings panel
 2. Navigate to **AI** → **AI Providers**
 3. Scroll to **Custom Providers** and click **Add Provider**
+4. Navigate to the **AI Models** tab and select your custom provider.
 
 <div align="center">
 <video autoplay muted loop playsinline width="640px" height="480px">
@@ -388,14 +389,6 @@ Add multiple OpenAI-compatible providers through the Settings UI. Each custom pr
   Your browser does not support the video tag.
 </video>
 </div>
-
-Once added, use your custom provider with the prefix you chose:
-
-```toml title="marimo.toml"
-[ai.models]
-chat_model = "groq/llama-3.1-70b-versatile"
-edit_model = "together/meta-llama/Llama-3-70b-chat-hf"
-```
 
 **Configuration via marimo.toml**
 
