@@ -68,7 +68,7 @@ describe("useInterval", () => {
     expect(callback).not.toHaveBeenCalled();
   });
 
-  describe("allowOverlap", () => {
+  describe("skipIfRunning", () => {
     it("should allow overlapping async calls by default", async () => {
       let concurrentCalls = 0;
       let maxConcurrentCalls = 0;
@@ -101,7 +101,7 @@ describe("useInterval", () => {
       expect(maxConcurrentCalls).toBeGreaterThan(1);
     });
 
-    it("should prevent overlapping async calls when allowOverlap is false", async () => {
+    it("should skip calls when skipIfRunning is true", async () => {
       let concurrentCalls = 0;
       let maxConcurrentCalls = 0;
 
@@ -117,7 +117,7 @@ describe("useInterval", () => {
         useInterval(callback, {
           delayMs: 500,
           whenVisible: false,
-          allowOverlap: false,
+          skipIfRunning: true,
         }),
       );
 
@@ -144,7 +144,7 @@ describe("useInterval", () => {
       expect(callback).toHaveBeenCalledTimes(2);
     });
 
-    it("should allow next call after previous async call completes with allowOverlap false", async () => {
+    it("should allow next call after previous async call completes with skipIfRunning true", async () => {
       const callback = vi.fn(async () => {
         // Quick async operation
         await Promise.resolve();
@@ -154,7 +154,7 @@ describe("useInterval", () => {
         useInterval(callback, {
           delayMs: 1000,
           whenVisible: false,
-          allowOverlap: false,
+          skipIfRunning: true,
         }),
       );
 

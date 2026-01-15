@@ -72,12 +72,12 @@ export function useAutoExport() {
     },
     // Run every 5 seconds, or when the document becomes visible
     // Ignore if the document is not visible
-    // Disallow overlapping calls to ensure no race conditions between screenshot and export
+    // Skip if running to ensure no race conditions between screenshot and export
     {
       delayMs: DELAY,
       whenVisible: true,
       disabled: ipynbDisabled,
-      allowOverlap: false,
+      skipIfRunning: true,
     },
   );
 }

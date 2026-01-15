@@ -10,7 +10,7 @@ import { useEventListener } from "./useEventListener";
  * @param opts.delayMs - The delay in milliseconds between runs.
  * @param opts.whenVisible - Whether to run the callback when the document is visible.
  * @param opts.disabled - Whether to disable the interval.
- * @param opts.allowOverlap - Whether to allow the callback to run if it is already running.
+ * @param opts.skipIfRunning - Whether to skip the callback if it is already running.
  */
 export function useInterval(
   callback: () => void,
@@ -18,10 +18,15 @@ export function useInterval(
     delayMs: number | null;
     whenVisible: boolean;
     disabled?: boolean;
-    allowOverlap?: boolean;
+    skipIfRunning?: boolean;
   },
 ) {
-  const { delayMs, whenVisible, disabled = false, allowOverlap = true } = opts;
+  const {
+    delayMs,
+    whenVisible,
+    disabled = false,
+    skipIfRunning = false,
+  } = opts;
   const savedCallback = useRef<() => void | Promise<void>>(undefined);
   const isRunning = useRef(false);
 
@@ -31,8 +36,7 @@ export function useInterval(
   }, [callback]);
 
   const runCallback = useCallback(async () => {
-    // If overlap is not allowed, we do not run the callback if it is already running
-    if (isRunning.current && !allowOverlap) {
+    if (isRunning.current && skipIfRunning) {
       return;
     }
     isRunning.current = true;
@@ -41,7 +45,7 @@ export function useInterval(
     } finally {
       isRunning.current = false;
     }
-  }, [allowOverlap]);
+  }, [skipIfRunning]);
 
   // Run the interval
   useEffect(() => {
