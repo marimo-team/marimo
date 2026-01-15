@@ -93,25 +93,25 @@ export function useEnrichCellOutputs() {
   const [richCellsOutput, setRichCellsOutput] = useAtom(richCellsToOutputAtom);
   const cellRuntimes = useAtomValue(cellsRuntimeAtom);
 
-  return async (): Promise<Record<CellId, ["image/png", unknown]>> => {
+  return async (): Promise<Record<CellId, ["image/png", string]>> => {
     const trackedCellsOutput: Record<CellId, unknown> = {};
 
-    const cellsToCaptureScreenshot = Objects.entries(cellRuntimes).filter(
-      ([cellId, runtime]) => {
-        const outputHasChanged =
-          richCellsOutput[cellId] !== runtime.output?.data;
-        trackedCellsOutput[cellId] = runtime.output?.data;
-
-        return (
-          runtime.output?.mimetype === "text/html" &&
-          runtime.output.data &&
-          outputHasChanged
-        );
-      },
-    );
-
+    const cellsToCaptureScreenshot: [CellId, unknown][] = [];
+    for (const [cellId, runtime] of Objects.entries(cellRuntimes)) {
+      const outputData = runtime.output?.data;
+      const outputHasChanged = richCellsOutput[cellId] !== outputData;
+      // Track latest output for this cell
+      trackedCellsOutput[cellId] = outputData;
+      if (
+        runtime.output?.mimetype === "text/html" &&
+        outputData &&
+        outputHasChanged
+      ) {
+        cellsToCaptureScreenshot.push([cellId, runtime]);
+      }
+    }
     // Always update tracked outputs, this ensures data is fresh for the next run
-    setRichCellsOutput((prev) => ({ ...prev, ...trackedCellsOutput }));
+    setRichCellsOutput(trackedCellsOutput);
 
     if (cellsToCaptureScreenshot.length === 0) {
       return {};

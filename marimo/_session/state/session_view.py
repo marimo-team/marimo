@@ -47,6 +47,7 @@ from marimo._utils.lists import as_list
 LOGGER = _loggers.marimo_logger()
 
 ExportType = Literal["html", "md", "ipynb", "session"]
+MIMEBUNDLE_TYPE: KnownMimeType = "application/vnd.marimo+mimebundle"
 
 
 @dataclass
@@ -359,8 +360,6 @@ class SessionView:
     def update_cell_outputs(
         self, cell_id_to_output: dict[CellId_t, MimeBundleTuple]
     ) -> None:
-        MIMEBUNDLE_TYPE: KnownMimeType = "application/vnd.marimo+mimebundle"
-
         self._touch()  # Mark all auto-export states as stale
 
         for cell_id, output in cell_id_to_output.items():
@@ -384,7 +383,9 @@ class SessionView:
             elif cell_notif.output.mimetype == MIMEBUNDLE_TYPE:
                 if not isinstance(cell_notif.output.data, dict):
                     LOGGER.warning(
-                        "Existing output is a mimebundle, but data is not a dict"
+                        "Existing output is a mimebundle for cell %s, but data is not a dict (type=%s)",
+                        cell_id,
+                        type(cell_notif.output.data).__name__,
                     )
                     continue
                 cell_notif.output.data = cast(
