@@ -670,7 +670,6 @@ DEFAULT_CONFIG: MarimoConfig = {
     "server": {
         "browser": "default",
         "follow_symlink": False,
-        "disable_file_downloads": False,
     },
     "language_servers": {
         "pylsp": {
