@@ -749,7 +749,7 @@ class TestExportIpynb:
         with_outputs = simplify_plotly(with_outputs)
         snapshot(
             _get_snapshot_path("ipynb", "ipynb_with_media_outputs"),
-            with_outputs,
+            with_outputs.strip(),
         )
 
     @pytest.mark.skipif(

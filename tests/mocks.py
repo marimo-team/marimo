@@ -169,13 +169,6 @@ def simplify_plotly(output: str) -> str:
         output,
         flags=re.DOTALL | re.IGNORECASE,
     )
-    # Replace self-closing <marimo-plotly .../> tags with a generic redacted version
-    output = re.sub(
-        r"<marimo-plotly\b[^>]*/>",
-        "<marimo-plotly>REDACTED</marimo-plotly>",
-        output,
-        flags=re.DOTALL | re.IGNORECASE,
-    )
     # Replace plotly base64 blobs in data URLs (including possible line breaks)
     output = re.sub(
         r"data:application/json;base64,[A-Za-z0-9+/=\n\r]*",
@@ -191,6 +184,64 @@ def simplify_plotly(output: str) -> str:
         output,
         flags=re.DOTALL,
     )
+
+    # Sanitize raw Plotly HTML output (from mo.ui.plotly())
+    # Replace random UUID-like div IDs (handles both escaped and unescaped quotes)
+    output = re.sub(
+        r'id=\\"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\\"',
+        'id=\\"PLOTLY_DIV_ID\\"',
+        output,
+    )
+    output = re.sub(
+        r'id="[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"',
+        'id="PLOTLY_DIV_ID"',
+        output,
+    )
+    # Replace UUID in getElementById calls (handles both escaped and unescaped quotes)
+    output = re.sub(
+        r'getElementById\(\\"([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\\"\)',
+        'getElementById(\\"PLOTLY_DIV_ID\\")',
+        output,
+    )
+    output = re.sub(
+        r'getElementById\("([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})"\)',
+        'getElementById("PLOTLY_DIV_ID")',
+        output,
+    )
+    # Replace UUID in Plotly.newPlot calls (handles both escaped and unescaped quotes)
+    output = re.sub(
+        r'Plotly\.newPlot\(\s*\\"([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\\"',
+        'Plotly.newPlot(\\"PLOTLY_DIV_ID\\"',
+        output,
+    )
+    output = re.sub(
+        r'Plotly\.newPlot\(\s*"([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})"',
+        'Plotly.newPlot("PLOTLY_DIV_ID"',
+        output,
+    )
+    # Replace plotly CDN URLs with version and integrity (handles both escaped and unescaped quotes)
+    output = re.sub(
+        r'src=\\"https://cdn\.plot\.ly/plotly-[^\\"]*\\" integrity=\\"[^\\"]*\\"',
+        'src=\\"https://cdn.plot.ly/plotly-VERSION.min.js\\" integrity=\\"INTEGRITY_HASH\\"',
+        output,
+    )
+    output = re.sub(
+        r'src="https://cdn\.plot\.ly/plotly-[^"]*" integrity="[^"]*"',
+        'src="https://cdn.plot.ly/plotly-VERSION.min.js" integrity="INTEGRITY_HASH"',
+        output,
+    )
+    # Replace base64-encoded binary data in plotly JSON (handles both escaped and unescaped quotes)
+    output = re.sub(
+        r'\\"bdata\\":\\"[^\\"]*\\"',
+        '\\"bdata\\":\\"PLOTLY_BINARY_DATA\\"',
+        output,
+    )
+    output = re.sub(
+        r'"bdata":"[^"]*"',
+        '"bdata":"PLOTLY_BINARY_DATA"',
+        output,
+    )
+
     return output
 
 
