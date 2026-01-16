@@ -296,8 +296,3 @@ when variables defined by other cells are used in the current cell. These
 
 Hover over any underlined variable and `Cmd/Ctrl-Click` to jump to its
 definition.
-
-This feature is currently **opt-in** and must be enabled via *Settings* > *User
-Settings* > *Display* > *Reference highlighting* or toggled via the command
-palette (`Cmd/Ctrl-K` > *Reference highlighting*).
-
