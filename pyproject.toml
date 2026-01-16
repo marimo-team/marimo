@@ -271,6 +271,7 @@ extra-dependencies = [
     "anywidget~=0.9.18",
     "ipython~=8.12.3",
     # testing gen ai
+    "pydantic>2",
     "pydantic-ai-slim[google,anthropic,bedrock,openai]>=1.39.0",
     # - google-auth uses cachetools, and cachetools<5.0.0 uses collections.MutableMapping (removed in Python 3.10)
     "cachetools>=5.0.0",
