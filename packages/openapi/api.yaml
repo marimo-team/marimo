@@ -3329,7 +3329,8 @@ components:
         `, `\"polars\"`, `\"lazy-polars\"`, or `\"pandas\"`.\n        The default\
         \ is `\"auto\"`.\n    - `default_auto_download`: an Optional list of export\
         \ types to automatically snapshot your notebook as:\n       `html`, `markdown`,\
-        \ `ipynb`.\n       The default is None."
+        \ `ipynb`.\n       The default is None.\n    - `default_csv_encoding`: the\
+        \ default encoding for CSV exports.\n        The default is `\"utf-8\"`."
       properties:
         auto_instantiate:
           type: boolean
@@ -3345,6 +3346,8 @@ components:
             - ipynb
             - markdown
           type: array
+        default_csv_encoding:
+          type: string
         default_sql_output:
           enum:
           - auto
@@ -4465,7 +4468,7 @@ components:
       type: object
 info:
   title: marimo API
-  version: 0.19.2
+  version: 0.19.4
 openapi: 3.1.0
 paths:
   /@file/{filename_and_length}:
@@ -5790,3 +5793,4 @@ paths:
       summary: Submit login form
       tags:
       - auth
+
