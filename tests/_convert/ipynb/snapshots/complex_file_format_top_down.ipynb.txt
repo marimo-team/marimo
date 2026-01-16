@@ -190,7 +190,30 @@
       ]
     }
   ],
-  "metadata": {},
+  "metadata": {
+    "language_info": {
+      "codemirror_mode": {
+        "name": "ipython",
+        "version": 3
+      },
+      "file_extension": ".py",
+      "mimetype": "text/x-python",
+      "name": "python",
+      "nbconvert_exporter": "python",
+      "pygments_lexer": "ipython3"
+    },
+    "marimo": {
+      "app_config": {
+        "auto_download": [
+          "html"
+        ],
+        "sql_output": "native",
+        "width": "medium"
+      },
+      "header": "# /// script\n# description = \"Complex file format with setup cell\"\n# requires-python = \">=3.12\"\n# dependencies = [\n#     \"marimo\",\n#     \"pandas>=2.1.0\",\n#     \"numpy>=2.1.0\",\n# ]\n# ///\n\n",
+      "marimo_version": "0.0.0"
+    }
+  },
   "nbformat": 4,
   "nbformat_minor": 5
 }
