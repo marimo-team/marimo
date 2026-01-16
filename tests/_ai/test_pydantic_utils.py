@@ -36,8 +36,8 @@ class TestGenerateId:
 
 
 @pytest.mark.skipif(
-    not DependencyManager.pydantic_ai.has(),
-    reason="pydantic_ai is not installed",
+    not DependencyManager.pydantic.has_at_version(min_version="2.2.0"),
+    reason="pydantic < 2.2.0",
 )
 class TestFormToolsets:
     def test_form_toolsets_empty_list(self):
