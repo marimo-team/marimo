@@ -466,10 +466,23 @@ async def test_reconnection_cancels_close_handle(client: TestClient) -> None:
             assert session is not None
 
 
-async def test_run_mode_ttl_expiration(client: TestClient) -> None:
-    """Test that sessions expire after TTL in RUN mode."""
+@pytest.mark.parametrize(
+    ("mode", "manager_ttl"),
+    [
+        (
+            SessionMode.RUN,
+            120,
+        ),  # RUN mode always uses TTL which has to be integer: default 120.
+        (SessionMode.EDIT, 120),  # EDIT mode with --session-ttl
+    ],
+)
+async def test_session_ttl_expiration(
+    client: TestClient, mode: SessionMode, manager_ttl: int | None
+) -> None:
+    """Test that sessions expire after TTL in RUN mode or when TTL cleanup applies in EDIT mode."""
     session_manager = get_session_manager(client)
-    session_manager.mode = SessionMode.RUN
+    session_manager.mode = mode
+    session_manager.ttl_seconds = manager_ttl
 
     with client.websocket_connect(WS_URL) as websocket:
         data = websocket.receive_json()
@@ -479,7 +492,6 @@ async def test_run_mode_ttl_expiration(client: TestClient) -> None:
         assert session is not None
 
         # Override TTL to be very short for testing
-        original_ttl = session.ttl_seconds
         session.ttl_seconds = 0.1
 
         # Close websocket
@@ -491,6 +503,34 @@ async def test_run_mode_ttl_expiration(client: TestClient) -> None:
         # Session should be closed
         session = session_manager.get_session("123")
         assert session is None
+
+
+async def test_edit_mode_without_session_ttl_no_delayed_cleanup(
+    client: TestClient,
+) -> None:
+    """Test that EDIT mode without --session-ttl doesn't use TTL-based cleanup.
+
+    This is the default behavior for `marimo edit` (without --session-ttl flag).
+    Sessions persist for reconnection - no delayed TTL cleanup is scheduled.
+    """
+    session_manager = get_session_manager(client)
+    session_manager.mode = SessionMode.EDIT
+    # Default: no --session-ttl flag passed
+    assert session_manager.ttl_seconds is None
+
+    with client.websocket_connect(WS_URL) as websocket:
+        data = websocket.receive_json()
+        assert_kernel_ready_response(data)
+
+        session = session_manager.get_session("123")
+        assert session is not None
+
+    # Wait for disconnect handling
+    await asyncio.sleep(0.1)
+
+    # Session should still exist
+    session = session_manager.get_session("123")
+    assert session is not None
 
 
 # ==============================================================================

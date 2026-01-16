@@ -327,10 +327,13 @@ class WebSocketHandler(SessionConsumer):
         if session:
             session.disconnect_consumer(self)
 
-        if self.manager.mode == SessionMode.RUN:
-            # When the websocket is closed, we wait session.ttl_seconds before
-            # closing the session. This is to prevent the session from being
-            # closed if the during an intermittent network issue.
+        # When the websocket is closed, we wait session.ttl_seconds before
+        # closing the session. This prevents the session from being closed
+        # during intermittent network issues.
+        # In RUN mode, this always applies.
+        # In EDIT mode, this only applies when --session-ttl is explicitly set.
+        if self.manager.ttl_seconds is not None:
+
             def _close() -> None:
                 if self.status != ConnectionState.OPEN:
                     LOGGER.debug(
