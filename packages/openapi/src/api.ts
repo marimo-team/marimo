@@ -4948,7 +4948,7 @@ export interface components {
      *         - `follow_symlink`: if true, the server will follow symlinks it finds
      *             inside its static assets directory.
      *         - `disable_file_downloads`: if true, the file download button will be
-     *             hidden in the file explorer for data security.
+     *             hidden in the file explorer.
      */
     ServerConfig: {
       browser: "default" | string;

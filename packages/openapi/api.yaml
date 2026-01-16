@@ -3613,7 +3613,7 @@ components:
         \ Python's webbrowser module (eg, `\"firefox\"` or `\"chrome\"`)\n    - `follow_symlink`:\
         \ if true, the server will follow symlinks it finds\n        inside its static\
         \ assets directory.\n    - `disable_file_downloads`: if true, the file download\
-        \ button will be\n        hidden in the file explorer for data security."
+        \ button will be\n        hidden in the file explorer."
       properties:
         browser:
           anyOf:
