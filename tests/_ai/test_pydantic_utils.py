@@ -6,6 +6,8 @@ from unittest.mock import AsyncMock
 
 import pytest
 
+from marimo._dependencies.dependencies import DependencyManager
+
 pytest.importorskip("pydantic_ai", reason="pydantic_ai not installed")
 
 from marimo._ai._pydantic_ai_utils import (
@@ -33,6 +35,10 @@ class TestGenerateId:
         assert result.startswith("_")
 
 
+@pytest.mark.skipif(
+    not DependencyManager.pydantic_ai.has(),
+    reason="pydantic_ai is not installed",
+)
 class TestFormToolsets:
     def test_form_toolsets_empty_list(self):
         tool_invoker = AsyncMock()
