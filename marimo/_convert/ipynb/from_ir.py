@@ -40,6 +40,7 @@ DEFAULT_LANGUAGE_INFO = {
     "pygments_lexer": "ipython3",
 }
 
+
 def convert_from_ir_to_ipynb(
     app: InternalApp,
     *,
@@ -60,6 +61,7 @@ def convert_from_ir_to_ipynb(
 
     DependencyManager.nbformat.require("to convert marimo notebooks to ipynb")
     import nbformat  # type: ignore[import-not-found]
+
     from marimo import __version__
 
     notebook = nbformat.v4.new_notebook()  # type: ignore[no-untyped-call]
