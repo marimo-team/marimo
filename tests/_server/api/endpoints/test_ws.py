@@ -469,7 +469,10 @@ async def test_reconnection_cancels_close_handle(client: TestClient) -> None:
 @pytest.mark.parametrize(
     ("mode", "manager_ttl"),
     [
-        (SessionMode.RUN, None),  # RUN mode always uses TTL cleanup
+        (
+            SessionMode.RUN,
+            120,
+        ),  # RUN mode always uses TTL which has to be integer: default 120.
         (SessionMode.EDIT, 120),  # EDIT mode with --session-ttl
     ],
 )
