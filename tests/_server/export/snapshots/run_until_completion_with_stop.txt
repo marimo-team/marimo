@@ -1,6 +1,6 @@
 [
   {
-    "output": "",
+    "output": "<pre class='text-xs'>&#x27;Stopped early&#x27;</pre>",
     "console": [],
     "status": "idle"
   },
@@ -10,13 +10,7 @@
     "status": "idle"
   },
   {
-    "output": [
-      {
-        "type": "ancestor-stopped",
-        "msg": "This cell wasn't run because an ancestor was stopped with `mo.stop`: ",
-        "raising_cell": "MJUe"
-      }
-    ],
+    "output": "",
     "console": [],
     "status": "idle"
   }

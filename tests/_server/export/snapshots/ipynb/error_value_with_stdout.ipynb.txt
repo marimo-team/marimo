@@ -1,0 +1,38 @@
+{
+ "cells": [
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "Hbol",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "hello before error\n"
+     ]
+    },
+    {
+     "ename": "ValueError",
+     "evalue": "test error",
+     "output_type": "error",
+     "traceback": [
+      "Traceback (most recent call last):",
+      "  File \"\", line 2, in <module>",
+      "    raise ValueError(\"test error\")",
+      "ValueError: test error",
+      ""
+     ]
+    }
+   ],
+   "source": [
+    "print(\"hello before error\")\n",
+    "raise ValueError(\"test error\")"
+   ]
+  }
+ ],
+ "metadata": {},
+ "nbformat": 4,
+ "nbformat_minor": 5
+}

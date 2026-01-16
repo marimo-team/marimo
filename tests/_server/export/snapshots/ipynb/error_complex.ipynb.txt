@@ -31,11 +31,7 @@
    "cell_type": "code",
    "execution_count": null,
    "id": "vblA",
-   "metadata": {
-    "marimo": {
-     "name": "_b"
-    }
-   },
+   "metadata": {},
    "outputs": [
     {
      "ename": "Ancestor raised",
@@ -52,11 +48,7 @@
    "cell_type": "code",
    "execution_count": null,
    "id": "bkHC",
-   "metadata": {
-    "marimo": {
-     "name": "_a"
-    }
-   },
+   "metadata": {},
    "outputs": [
     {
      "ename": "ZeroDivisionError",

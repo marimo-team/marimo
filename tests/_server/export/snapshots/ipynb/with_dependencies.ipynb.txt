@@ -7,7 +7,7 @@
    "metadata": {},
    "outputs": [],
    "source": [
-    "import marimo as mo"
+    "x = 1"
    ]
   },
   {
@@ -17,7 +17,7 @@
    "metadata": {},
    "outputs": [],
    "source": [
-    "slider = mo.ui.slider(0, 10)"
+    "y = x + 1"
    ]
   },
   {
@@ -25,23 +25,9 @@
    "execution_count": null,
    "id": "vblA",
    "metadata": {},
-   "outputs": [
-    {
-     "ename": "ZeroDivisionError",
-     "evalue": "division by zero",
-     "output_type": "error",
-     "traceback": [
-      "Traceback (most recent call last):",
-      "  File \"\", line 1, in <module>",
-      "    1 / 0",
-      "    ~~^~~",
-      "ZeroDivisionError: division by zero",
-      ""
-     ]
-    }
-   ],
+   "outputs": [],
    "source": [
-    "1 / 0"
+    "z = y + 1"
    ]
   }
  ],

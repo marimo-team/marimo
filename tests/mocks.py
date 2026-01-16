@@ -126,6 +126,39 @@ def _sanitize_version(output: str) -> str:
     )
 
 
+def delete_lines_with_files(output: str) -> str:
+    """Remove file paths from error messages for consistent snapshots."""
+
+    def remove_file_name(line: str) -> str:
+        if "File " not in line:
+            return line
+        start = line.index("File ")
+        if ".py" in line[start:]:
+            end = line.rindex(".py") + 3
+            return line[0:start] + line[end:]
+        return line
+
+    return "\n".join(remove_file_name(line) for line in output.splitlines())
+
+
+def simplify_images(output: str) -> str:
+    """Simplify image paths for consistent snapshots."""
+    # Handle data URLs
+    output = re.sub(
+        r"data:image/png;base64,.*",
+        "data:image/png;base64,IMAGE_BASE64_DATA",
+        output,
+    )
+
+    # Handle "image/png": "*"
+    output = re.sub(
+        r'"image/png": ".*"',
+        '"image/png": "IMAGE_BASE64_DATA"',
+        output,
+    )
+    return output
+
+
 NON_WINDOWS_EDGE_CASE_FILENAMES = [
     "test<script>.py",
     'test"quotes".py',
