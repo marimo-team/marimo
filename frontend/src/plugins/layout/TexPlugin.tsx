@@ -119,8 +119,7 @@ const TexComponent = ({
   // marimo-tex's textContent includes the nested delimiters (||(||(x||)||))
   // and will render correctly with displayMode: true. We detect this by
   // checking if the parent element is also a marimo-tex.
-  const isNested =
-    host.parentElement?.tagName.toLowerCase() === "marimo-tex";
+  const isNested = host.parentElement?.tagName.toLowerCase() === "marimo-tex";
 
   // Re-render when the text content changes.
   useLayoutEffect(() => {
