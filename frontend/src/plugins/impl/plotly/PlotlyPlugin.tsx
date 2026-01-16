@@ -270,6 +270,64 @@ export const PlotlyComponent = memo(
         className="w-full"
         useResizeHandler={true}
         frames={figure.frames ?? undefined}
+        onInitialized={useEvent((figure, graphDiv) => {
+          // Workaround for heatmap click events not firing in selection mode.
+          // When dragmode is "select", plotly.js emits plotly_selected with undefined
+          // data on single clicks, but plotly_click doesn't fire due to a race condition
+          // where _hoverdata gets cleared before Fx.click can use it.
+          // We intercept plotly_selected and check _hoverdata for heatmap clicks.
+          const gd = graphDiv as any;
+          if (gd && gd.on) {
+            gd.on("plotly_selected", (data: unknown) => {
+              // Only handle single clicks (data is undefined), not drag selections
+              if (data !== undefined) {
+                return;
+              }
+
+              // Check if we have hoverdata from a heatmap
+              const hoverData = gd._hoverdata;
+              if (
+                !hoverData ||
+                !Array.isArray(hoverData) ||
+                hoverData.length === 0
+              ) {
+                return;
+              }
+
+              // Check if the hovered point is from a heatmap trace
+              const heatmapPoints = hoverData.filter(
+                (point: any) =>
+                  point.data?.type === "heatmap" ||
+                  point.fullData?.type === "heatmap",
+              );
+
+              if (heatmapPoints.length === 0) {
+                return;
+              }
+
+              // Extract heatmap point data
+              const points = heatmapPoints.map((point: any) => ({
+                x: point.x,
+                y: point.y,
+                z: point.z,
+                curveNumber: point.curveNumber,
+              }));
+
+              const indices = heatmapPoints.map(
+                (point: any) => point.pointIndex,
+              );
+
+              // Update the selection state
+              setValue((prev) => ({
+                ...prev,
+                selections: [],
+                points: points,
+                indices: indices,
+                range: undefined,
+              }));
+            });
+          }
+        })}
         onError={useEvent((err) => {
           Logger.error("PlotlyPlugin: ", err);
         })}
