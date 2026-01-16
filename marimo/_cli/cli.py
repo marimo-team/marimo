@@ -402,7 +402,7 @@ edit_help_msg = "\n".join(
     default=None,
     show_default=False,
     type=int,
-    help="Seconds to wait before closing a session on websocket disconnect.",
+    help="Seconds to wait before closing a session on websocket disconnect. If None is provided, sessions are not automatically closed.",
 )
 @click.argument(
     "name",

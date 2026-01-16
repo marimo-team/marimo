@@ -332,12 +332,7 @@ class WebSocketHandler(SessionConsumer):
         # during intermittent network issues.
         # In RUN mode, this always applies.
         # In EDIT mode, this only applies when --session-ttl is explicitly set.
-        use_ttl_cleanup = (
-            self.manager.mode == SessionMode.RUN
-            or self.manager.ttl_seconds is not None
-        )
-
-        if use_ttl_cleanup:
+        if self.manager.ttl_seconds is not None:
 
             def _close() -> None:
                 if self.status != ConnectionState.OPEN:
