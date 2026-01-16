@@ -37,8 +37,8 @@ class TestFormToolsets:
     def test_form_toolsets_empty_list(self):
         tool_invoker = AsyncMock()
         toolset, deferred = form_toolsets([], tool_invoker)
-        assert toolset is not None
         assert deferred is False
+        assert toolset is not None
 
     def test_form_toolsets_with_backend_tool(self):
         tool_invoker = AsyncMock()
