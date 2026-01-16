@@ -22,7 +22,7 @@ from narwhals.typing import IntoDataFrame, IntoLazyFrame
 from marimo import _loggers
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.mimetypes import KnownMimeType
-from marimo._output.hypertext import is_no_js
+from marimo._output.hypertext import is_non_interactive
 from marimo._output.rich_help import mddoc
 from marimo._plugins.ui._core.ui_element import UIElement
 from marimo._plugins.ui._impl.charts.altair_transformer import (
@@ -657,7 +657,7 @@ class altair_chart(UIElement[ChartSelection, ChartDataType]):
 
     # Override _mime_ to return an Altair spec in non-JS environments
     def _mime_(self) -> tuple[KnownMimeType, str]:
-        if is_no_js():
+        if is_non_interactive():
             return (
                 get_chart_mimetype(spec_format="vega"),
                 chart_to_json(self._chart, validate=False),

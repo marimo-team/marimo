@@ -137,7 +137,7 @@ class Html(MIME):
         return self._text
 
     def _mime_(self) -> tuple[KnownMimeType, str]:
-        if not is_no_js():
+        if not is_non_interactive():
             return ("text/html", self.text)
 
         # Try PNG representation first (for objects with _repr_png_)
@@ -310,7 +310,7 @@ def patch_html_for_non_interactive_output() -> Iterator[None]:
         os.environ[MARIMO_NO_JS_KEY] = old_no_js
 
 
-def is_no_js() -> bool:
+def is_non_interactive() -> bool:
     """Whether to render HTML objects as best as possible assuming
     that this will be rendered without javascript.
 
