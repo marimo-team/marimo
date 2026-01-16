@@ -115,16 +115,18 @@ const TexComponent = ({
   // isn't a simple way to do that in Python without bringing in a new
   // dependency.
   //
-  // The number of children is always 1 (the LaTeX) or 3 redundant ||(, ||)
-  // delimiters as the first and third child, another marimo-tex tag as the
-  // second. Only try to render latex in the former case.
+  // When nested, the inner marimo-tex should not render because the outer
+  // marimo-tex's textContent includes the nested delimiters (||(||(x||)||))
+  // and will render correctly with displayMode: true. We detect this by
+  // checking if the parent element is also a marimo-tex.
+  const isNested = host.parentElement?.tagName.toLowerCase() === "marimo-tex";
 
   // Re-render when the text content changes.
   useLayoutEffect(() => {
-    if (ref.current) {
+    if (ref.current && !isNested) {
       renderLatex(ref.current, currentTex);
     }
-  }, [currentTex]);
+  }, [currentTex, isNested]);
 
   return <span ref={ref} />;
 };
