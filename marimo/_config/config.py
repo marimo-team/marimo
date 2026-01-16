@@ -235,10 +235,13 @@ class ServerConfig(TypedDict):
         with Python's webbrowser module (eg, `"firefox"` or `"chrome"`)
     - `follow_symlink`: if true, the server will follow symlinks it finds
         inside its static assets directory.
+    - `disable_file_downloads`: if true, the file download button will be
+        hidden in the file explorer.
     """
 
     browser: Union[Literal["default"], str]
     follow_symlink: bool
+    disable_file_downloads: NotRequired[bool]
 
 
 @dataclass
