@@ -459,8 +459,13 @@ class InteractiveMplHtml(Html):
         """
         import base64
 
+        from matplotlib.figure import Figure
+
         buf = io.BytesIO()
-        self._figure.savefig(buf, format="png", bbox_inches="tight")
+        if isinstance(self._figure, Figure):
+            self._figure.savefig(buf, format="png", bbox_inches="tight")
+        else:
+            self._figure.figure.canvas.print_figure(buf, format="png")
         return base64.b64encode(buf.getvalue())
 
 
