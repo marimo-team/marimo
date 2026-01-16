@@ -741,7 +741,10 @@ class TestExportIpynb:
     ) -> None:
         # Test with outputs
         p = _run_export(
-            "ipynb", temp_marimo_file_with_media, "--include-outputs"
+            "ipynb",
+            temp_marimo_file_with_media,
+            "--include-outputs",
+            "--sandbox",
         )
         _assert_success(p)
         with_outputs = p.stdout.decode()

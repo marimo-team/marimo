@@ -17,6 +17,7 @@
     "import plotly.graph_objs as go\n",
     "import numpy as np\n",
     "import pandas as pd\n",
+    "import pyarrow\n",
     "\n",
     "np.random.seed(5)"
    ]

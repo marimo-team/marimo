@@ -1,3 +1,16 @@
+# /// script
+# requires-python = ">=3.13"
+# dependencies = [
+#     "altair==6.0.0",
+#     "marimo",
+#     "matplotlib==3.10.8",
+#     "numpy==2.4.1",
+#     "pandas==2.3.3",
+#     "plotly==6.5.2",
+#     "pyarrow==22.0.0",
+# ]
+# ///
+
 import marimo
 
 __generated_with = "0.19.4"
@@ -12,6 +25,7 @@ def cell_imports():
     import plotly.graph_objs as go
     import numpy as np
     import pandas as pd
+    import pyarrow
 
     np.random.seed(5)
     return alt, go, mo, np, pd, plt
