@@ -103,12 +103,7 @@ export const Controls = ({
         </div>
       )}
 
-      <div
-        className={cn(
-          bottomRightControls,
-          appWidth === "compact" && "xl:flex-row items-end",
-        )}
-      >
+      <div className={cn(bottomRightControls)}>
         <HideInKioskMode>
           <SaveComponent kioskMode={false} />
         </HideInKioskMode>
