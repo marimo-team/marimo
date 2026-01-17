@@ -236,6 +236,173 @@ if __name__ == "__main__":
         assert "Expected string constant" in notebook.violations[0].description
 
 
+class TestTrailingComments:
+    """Tests for trailing comment preservation in @app.function and @app.class_definition."""
+
+    @staticmethod
+    def test_function_with_trailing_comment() -> None:
+        """@app.function should preserve trailing comments at body indentation."""
+        code = '''import marimo
+
+__generated_with = "0.0.0"
+app = marimo.App()
+
+
+@app.function
+def f():
+    # start
+    pass
+    # end
+
+
+if __name__ == "__main__":
+    app.run()
+'''
+        notebook = parse_notebook(code)
+        assert len(notebook.cells) == 1
+        assert "# end" in notebook.cells[0].code
+
+    @staticmethod
+    def test_function_with_trailing_comment_and_empty_line() -> None:
+        """@app.function should preserve trailing comments at body indentation."""
+        code = '''import marimo
+
+__generated_with = "0.0.0"
+app = marimo.App()
+
+
+@app.function
+def f():
+    # start
+    pass
+
+    # end
+
+
+if __name__ == "__main__":
+    app.run()
+'''
+        notebook = parse_notebook(code)
+        assert len(notebook.cells) == 1
+        assert "# end" in notebook.cells[0].code
+
+    @staticmethod
+    def test_two_functions() -> None:
+        """@app.function should preserve trailing comments at body indentation."""
+        code = '''import marimo
+
+__generated_with = "0.0.0"
+app = marimo.App()
+
+
+@app.function
+def f():
+    # start
+    pass
+
+    # end
+
+@app.function
+def g():
+    # start 1
+    pass
+    # end 1
+
+
+if __name__ == "__main__":
+    app.run()
+'''
+        notebook = parse_notebook(code)
+        assert len(notebook.cells) == 2
+        assert notebook.cells[0].code == '''def f():
+    # start
+    pass
+
+    # end'''
+
+        assert notebook.cells[1].code == '''def g():
+    # start 1
+    pass
+    # end 1'''
+
+    @staticmethod
+    def test_class_definition_with_trailing_comment() -> None:
+        """@app.class_definition should preserve trailing comments at body indentation."""
+        code = '''import marimo
+
+__generated_with = "0.0.0"
+app = marimo.App()
+
+
+@app.class_definition
+class MyClass:
+    def method(self):
+        pass
+    # trailing class comment
+
+
+if __name__ == "__main__":
+    app.run()
+'''
+        notebook = parse_notebook(code)
+        assert len(notebook.cells) == 1
+        assert "# trailing class comment" in notebook.cells[0].code
+
+    @staticmethod
+    def test_function_with_multiple_trailing_comments() -> None:
+        """@app.function should preserve multiple trailing comments."""
+        code = '''import marimo
+
+__generated_with = "0.0.0"
+app = marimo.App()
+
+
+@app.function
+def g():
+    x = 1
+    # comment 1
+    # comment 2
+
+
+if __name__ == "__main__":
+    app.run()
+'''
+        notebook = parse_notebook(code)
+        assert len(notebook.cells) == 1
+        assert "# comment 1" in notebook.cells[0].code
+        assert "# comment 2" in notebook.cells[0].code
+
+    @staticmethod
+    def test_function_without_trailing_comment() -> None:
+        """@app.function without trailing comments should work as before."""
+        code = '''import marimo
+
+__generated_with = "0.0.0"
+app = marimo.App()
+
+
+@app.function
+def h():
+    return 42
+
+
+if __name__ == "__main__":
+    app.run()
+'''
+        notebook = parse_notebook(code)
+        assert len(notebook.cells) == 1
+        assert notebook.cells[0].code == "def h():\n    return 42"
+
+    @staticmethod
+    def test_function_with_tab_indentation() -> None:
+        """@app.function should preserve trailing comments with tab indentation."""
+        # Use explicit tab characters
+        code = 'import marimo\n\n__generated_with = "0.0.0"\napp = marimo.App()\n\n\n@app.function\ndef f():\n\tpass\n\t# trailing comment\n\n\nif __name__ == "__main__":\n\tapp.run()\n'
+        notebook = parse_notebook(code)
+        assert len(notebook.cells) == 1
+        assert "# trailing comment" in notebook.cells[0].code
+
+
 def test_fixed_dedent() -> None:
     # Basic dedent
     assert fixed_dedent("    x = 1\n    y = 2") == snapshot("""\

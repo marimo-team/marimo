@@ -363,11 +363,52 @@ class Extractor:
             }
             cell_type = cell_types.get(attribute, None)
             if cell_type is not None:
-                code = self.extract_from_code(node)
-                violations.extend(code.violations)
+                code_result = self.extract_from_code(node)
+                violations.extend(code_result.violations)
+                extracted_code = code_result.unwrap()
+
+                # Capture trailing comments after the AST's end position.
+                #
+                # The AST doesn't include comments, so we need to look for
+                # lines after node.end_lineno that are at the function body
+                # indentation.
+                end_lineno = _none_to_0(node.end_lineno)
+                if hasattr(node, "body") and len(node.body) > 0:
+                    # Extract actual indentation from the first body line
+                    # (handles both tabs and spaces)
+                    first_body_line = self.lines[node.body[0].lineno - 1]
+                    body_indent = first_body_line[
+                        : len(first_body_line) - len(first_body_line.lstrip())
+                    ]
+                    # We find the extent of the function body definition by
+                    # consuming lines until we find a line that is not
+                    # indented.
+                    for line_idx in range(end_lineno, len(self.lines)):
+                        line = self.lines[line_idx]
+                        # Empty lines or lines at body indentation are included,
+                        # since they are part of the function body (or just whitespace,
+                        # which we will strip)
+                        if not line.strip() or line.startswith(body_indent):
+                            continue
+                        # Found a line that's not at the right indentation; this means
+                        # that we have exited the function body
+                        break
+                    else:
+                        line_idx = len(self.lines)
+
+                    if line_idx > end_lineno:
+                        # We strip trailing whitespace, which may include newlines;
+                        # this is a fine comporomise since hopefully users do not
+                        # rely on trailing whitespace to be preserved ...
+                        trailing_code = "\n".join(
+                            self.lines[end_lineno:line_idx]
+                        ).rstrip()
+                        if trailing_code:
+                            extracted_code = extracted_code + "\n" + trailing_code
+
                 return ParseResult(
                     cell_type(
-                        code=code.unwrap(),
+                        code=extracted_code,
                         _ast=node,
                         options=kwargs,
                     ),
