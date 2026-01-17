@@ -23,10 +23,23 @@ from tests._server.mocks import get_mock_session_manager
 from tests.utils import assert_serialize_roundtrip
 
 if TYPE_CHECKING:
+    import threading
     from collections.abc import Generator, Iterator
 
 # Module-level app only for client_with_lifespans fixture
 _module_app = create_starlette_app(base_url="", enable_auth=True)
+
+
+def get_kernel_tasks(
+    session_manager: SessionManager,
+) -> list[threading.Thread]:
+    kernel_tasks = []
+    for session in session_manager.sessions.values():
+        assert isinstance(session, SessionImpl)
+        kernel_task = session._kernel_manager.kernel_task
+        if kernel_task is not None:
+            kernel_tasks.append(kernel_task)
+    return kernel_tasks
 
 
 def join_kernel_tasks(session_manager: SessionManager) -> None:
@@ -34,13 +47,7 @@ def join_kernel_tasks(session_manager: SessionManager) -> None:
     # execute code, they may patch and restore their own main modules.
     # To ensure that this fixture correctly restores the original saved
     # main module, we wait for threads to finish before restoring the module.
-    kernel_tasks = []
-    for session in session_manager.sessions.values():
-        assert isinstance(session, SessionImpl)
-        kernel_task = session._kernel_manager.kernel_task
-        if kernel_task is not None:
-            kernel_tasks.append(kernel_task)
-
+    kernel_tasks = get_kernel_tasks(session_manager)
     session_manager.shutdown()
     for task in kernel_tasks:
         if task.is_alive():
