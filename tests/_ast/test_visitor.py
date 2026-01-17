@@ -1285,7 +1285,7 @@ def test_print_f_string() -> None:
     assert isinstance(joined_str.body[0].value, ast.JoinedStr)  # type: ignore
     assert (
         normalize_sql_f_string(joined_str.body[0].value)  # type: ignore
-        == "select * from cars where name = null"
+        == "select * from cars where name = 1"
     )
 
     joined_str = ast.parse(
@@ -1294,8 +1294,26 @@ def test_print_f_string() -> None:
     assert isinstance(joined_str.body[0].value, ast.JoinedStr)  # type: ignore
     assert (
         normalize_sql_f_string(joined_str.body[0].value)  # type: ignore
-        == "select * from 'null' where name = null"
+        == "select * from '1' where name = 1"
     )
+
+
+def test_normalize_sql_f_string_with_interval() -> None:
+    """Test that f-string normalization works with SQL interval expressions.
+
+    Regression test for issue #7717. Using "1" as placeholder instead of "null"
+    ensures that interval expressions like `interval '{days} days'` are valid SQL.
+    """
+    import ast
+
+    # This would fail with "null" placeholder: interval 'null days' is invalid
+    joined_str = ast.parse(
+        "f\"select * from t where ts > current_date - interval '{days_ago} days'\""
+    )
+    assert isinstance(joined_str.body[0].value, ast.JoinedStr)  # type: ignore
+    result = normalize_sql_f_string(joined_str.body[0].value)  # type: ignore
+    # With "1" placeholder, we get valid SQL: interval '1 days'
+    assert "interval '1 days'" in result
 
 
 def test_normalize_sql_f_string_with_empty_quotes() -> None:
