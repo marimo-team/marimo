@@ -162,8 +162,6 @@ def test_refresh_session(client: TestClient) -> None:
     assert not get_session(client, "456")
     assert get_session(client, "789")
 
-    # Shutdown the kernel
-
 
 def test_save_session(client: TestClient) -> None:
     filename = (

@@ -31,7 +31,7 @@ from marimo._server.session_manager import SessionManager
 from marimo._server.tokens import AuthToken
 from marimo._session.model import SessionMode
 from marimo._utils.net import find_free_port
-from tests._server.conftest import join_kernel_tasks
+from tests._server.conftest import join_kernel_thread_tasks
 from tests._server.mocks import get_mock_session_manager, token_header
 
 if TYPE_CHECKING:
@@ -177,7 +177,7 @@ def read_app() -> Starlette:
     yield app
 
     try:
-        join_kernel_tasks(session_manager)
+        join_kernel_thread_tasks(session_manager)
     finally:
         sys.modules["__main__"] = main
 
@@ -215,7 +215,7 @@ def no_auth_read_app() -> Starlette:
     yield app
 
     try:
-        join_kernel_tasks(session_manager)
+        join_kernel_thread_tasks(session_manager)
     finally:
         sys.modules["__main__"] = main
 
