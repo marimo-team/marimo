@@ -204,6 +204,12 @@ class Extractor:
             body_indent = first_body_line[
                 : len(first_body_line) - len(first_body_line.lstrip())
             ]
+            # Skip if body is on the same line as the definition (e.g.,
+            # `class Foo: ...` or `def f(): pass`) - empty indent would
+            # match all lines incorrectly.
+            if not body_indent:
+                return ParseResult(fixed_dedent(code), violations=violations)
+
             # Find the extent of the body by consuming lines until we find
             # a line that is not indented at the body level.
             for line_idx in range(end_lineno, len(self.lines)):
