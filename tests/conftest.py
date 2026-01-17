@@ -2,12 +2,11 @@
 from __future__ import annotations
 
 import dataclasses
-import inspect
-import os
 import re
+import shutil
 import sys
 import textwrap
-from tempfile import TemporaryDirectory
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import pytest
@@ -261,339 +260,88 @@ def executing_kernel() -> Generator[Kernel, None, None]:
     mocked.teardown()
 
 
-def _cleanup_tmp_dir(tmp_dir: TemporaryDirectory) -> None:
-    try:
-        # Tests shouldn't care whether temporary directory cleanup
-        # fails. Python 3.10+ has an ignore_cleanup_error argument,
-        # but we still support 3.9.
-        tmp_dir.cleanup()
-    except Exception:
-        pass
+FIXTURE_DIR = Path(__file__).parent / "fixtures"
 
 
 @pytest.fixture
-def temp_marimo_file() -> Generator[str, None, None]:
-    tmp_dir = TemporaryDirectory()
-    tmp_file = os.path.join(tmp_dir.name, "notebook.py")
-    content = inspect.cleandoc(
-        """
-        import marimo
-        app = marimo.App()
-
-        @app.cell
-        def __():
-            import marimo as mo
-            return mo,
-
-        @app.cell
-        def __(mo):
-            slider = mo.ui.slider(0, 10)
-            return slider,
-
-        if __name__ == "__main__":
-            app.run()
-        """
-    )
-
-    try:
-        with open(tmp_file, "w") as f:
-            f.write(content)
-        yield tmp_file
-    finally:
-        _cleanup_tmp_dir(tmp_dir)
+def temp_marimo_file(tmp_path: Path) -> str:
+    fixture_file = FIXTURE_DIR / "notebook.py"
+    tmp_file = tmp_path / "test" / "notebook.py"
+    tmp_file.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy(fixture_file, tmp_file)
+    return str(tmp_file)
 
 
 @pytest.fixture
-def temp_sandboxed_marimo_file() -> Generator[str, None, None]:
-    tmp_dir = TemporaryDirectory()
-    tmp_file = os.path.join(tmp_dir.name, "notebook.py")
-    content = inspect.cleandoc(
-        """
-        # Copyright 2026 Marimo. All rights reserved.
-        # /// script
-        # requires-python = ">=3.11"
-        # dependencies = [
-        #     "polars",
-        #     "marimo>=0.8.0",
-        #     "quak",
-        #     "vega-datasets",
-        # ]
-        # ///
-
-        import marimo
-        app = marimo.App()
-
-        @app.cell
-        def __():
-            import marimo as mo
-            return mo,
-
-        @app.cell
-        def __(mo):
-            slider = mo.ui.slider(0, 10)
-            return slider,
-
-        if __name__ == "__main__":
-            app.run()
-        """
-    )
-
-    try:
-        with open(tmp_file, "w") as f:
-            f.write(content)
-        yield tmp_file
-    finally:
-        _cleanup_tmp_dir(tmp_dir)
+def temp_sandboxed_marimo_file(tmp_path: Path) -> str:
+    fixture_file = FIXTURE_DIR / "notebook_sandboxed.py"
+    tmp_file = tmp_path / "sandboxed" / "notebook.py"
+    tmp_file.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy(fixture_file, tmp_file)
+    return str(tmp_file)
 
 
 @pytest.fixture
-def temp_async_marimo_file() -> Generator[str, None, None]:
-    tmp_dir = TemporaryDirectory()
-    tmp_file = os.path.join(tmp_dir.name, "notebook.py")
-    content = inspect.cleandoc(
-        """
-        import marimo
-        app = marimo.App()
-
-        @app.cell
-        async def __():
-            import asyncio
-            await asyncio.sleep(0.1)
-            return asyncio,
-
-        if __name__ == "__main__":
-            app.run()
-        """
-    )
-
-    try:
-        with open(tmp_file, "w") as f:
-            f.write(content)
-            f.flush()
-        yield tmp_file
-    finally:
-        _cleanup_tmp_dir(tmp_dir)
+def temp_async_marimo_file(tmp_path: Path) -> str:
+    fixture_file = FIXTURE_DIR / "notebook_async.py"
+    tmp_file = tmp_path / "async" / "notebook.py"
+    tmp_file.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy(fixture_file, tmp_file)
+    return str(tmp_file)
 
 
 @pytest.fixture
-def temp_unparsable_marimo_file() -> Generator[str, None, None]:
-    tmp_dir = TemporaryDirectory()
-    tmp_file = os.path.join(tmp_dir.name, "notebook.py")
-    content = inspect.cleandoc(
-        """
-        import marimo
-        app = marimo.App()
-
-        app._unparsable_cell(
-            r\"""
-            return
-            \""",
-            name="__"
-        )
-
-        app._unparsable_cell(
-            r\"""
-            partial_statement =
-            \""",
-            name="__"
-        )
-
-        @app.cell
-        def __():
-            valid_statement = 1
-            return valid_statement,
-
-        if __name__ == "__main__":
-            app.run()
-        """
-    )
-
-    try:
-        with open(tmp_file, "w") as f:
-            f.write(content)
-            f.flush()
-        yield tmp_file
-    finally:
-        _cleanup_tmp_dir(tmp_dir)
+def temp_unparsable_marimo_file(tmp_path: Path) -> str:
+    fixture_file = FIXTURE_DIR / "notebook_unparsable.py"
+    tmp_file = tmp_path / "unparsable" / "notebook.py"
+    tmp_file.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy(fixture_file, tmp_file)
+    return str(tmp_file)
 
 
 @pytest.fixture
-def temp_marimo_file_with_md() -> Generator[str, None, None]:
-    tmp_dir = TemporaryDirectory()
-    tmp_file = os.path.join(tmp_dir.name, "notebook.py")
-    content = inspect.cleandoc(
-        """
-        import marimo
-        app = marimo.App()
-
-        @app.cell
-        def __(mo):
-            control_dep = None
-            mo.md("markdown")
-            return control_dep
-
-        @app.cell
-        def __(mo, control_dep):
-            control_dep
-            mo.md(f"parameterized markdown {123}")
-            return
-
-        @app.cell
-        def __():
-            mo.md("plain markdown")
-            return mo,
-
-        @app.cell
-        def __():
-            import marimo as mo
-            return mo,
-
-        if __name__ == "__main__":
-            app.run()
-        """
-    )
-
-    try:
-        with open(tmp_file, "w") as f:
-            f.write(content)
-        yield tmp_file
-    finally:
-        _cleanup_tmp_dir(tmp_dir)
+def temp_marimo_file_with_md(tmp_path: Path) -> str:
+    fixture_file = FIXTURE_DIR / "notebook_with_md.py"
+    tmp_file = tmp_path / "with_md" / "notebook.py"
+    tmp_file.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy(fixture_file, tmp_file)
+    return str(tmp_file)
 
 
 @pytest.fixture
-def temp_md_marimo_file() -> Generator[str, None, None]:
-    tmp_dir = TemporaryDirectory()
-    tmp_file = os.path.join(tmp_dir.name, "notebook.md")
-    content = inspect.cleandoc(
-        """
-        ---
-        title: Notebook
-        marimo-version: 0.0.0
-        ---
-
-        # This is a markdown document.
-        <!---->
-        This is a another cell.
-
-        ```python {.marimo}
-        import marimo as mo
-        ```
-
-        ```python {.marimo}
-        slider = mo.ui.slider(0, 10)
-        ```
-        """
-    )
-
-    try:
-        with open(tmp_file, "w") as f:
-            f.write(content)
-        yield tmp_file
-    finally:
-        _cleanup_tmp_dir(tmp_dir)
+def temp_marimo_file_with_media(tmp_path: Path) -> str:
+    fixture_file = FIXTURE_DIR / "notebook_with_media.py"
+    tmp_file = tmp_path / "with_media" / "notebook.py"
+    tmp_file.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy(fixture_file, tmp_file)
+    return str(tmp_file)
 
 
 @pytest.fixture
-def old_temp_md_marimo_file() -> Generator[str, None, None]:
-    tmp_dir = TemporaryDirectory()
-    tmp_file = os.path.join(tmp_dir.name, "notebook.md")
-    content = inspect.cleandoc(
-        """
-        ---
-        title: Notebook
-        marimo-version: 0.0.0
-        ---
-
-        # This is a markdown document.
-        <!---->
-        This is a another cell.
-
-        ```{.python.marimo}
-        import marimo as mo
-        ```
-
-        ```{.python.marimo}
-        slider = mo.ui.slider(0, 10)
-        ```
-        """
-    )
-
-    try:
-        with open(tmp_file, "w") as f:
-            f.write(content)
-        yield tmp_file
-    finally:
-        _cleanup_tmp_dir(tmp_dir)
+def temp_md_marimo_file(tmp_path: Path) -> str:
+    fixture_file = FIXTURE_DIR / "notebook.md"
+    tmp_file = tmp_path / "with_md" / "notebook.md"
+    tmp_file.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy(fixture_file, tmp_file)
+    return str(tmp_file)
 
 
 @pytest.fixture
-def temp_marimo_file_with_errors() -> Generator[str, None, None]:
-    tmp_dir = TemporaryDirectory()
-    tmp_file = os.path.join(tmp_dir.name, "notebook.py")
-    content = inspect.cleandoc(
-        """
-        import marimo
-        app = marimo.App()
-
-        @app.cell
-        def __():
-            import marimo as mo
-            return mo,
-
-        @app.cell
-        def __(mo):
-            slider = mo.ui.slider(0, 10)
-            return slider,
-
-        @app.cell
-        def __():
-            1 / 0
-            return
-
-        if __name__ == "__main__":
-            app.run()
-        """
-    )
-
-    try:
-        with open(tmp_file, "w") as f:
-            f.write(content)
-        yield tmp_file
-    finally:
-        _cleanup_tmp_dir(tmp_dir)
+def temp_marimo_file_with_errors(tmp_path: Path) -> str:
+    fixture_file = FIXTURE_DIR / "notebook_with_errors.py"
+    tmp_file = tmp_path / "with_errors" / "notebook.py"
+    tmp_file.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy(fixture_file, tmp_file)
+    return str(tmp_file)
 
 
 @pytest.fixture
-def temp_marimo_file_with_multiple_definitions() -> Generator[str, None, None]:
-    tmp_dir = TemporaryDirectory()
-    tmp_file = os.path.join(tmp_dir.name, "notebook.py")
-    content = inspect.cleandoc(
-        """
-        import marimo
-        app = marimo.App()
-
-        @app.cell
-        def __():
-            x = 1
-            return x,
-
-        @app.cell
-        def __():
-            x = 2
-            return x,
-
-        if __name__ == "__main__":
-            app.run()
-        """
-    )
-
-    try:
-        with open(tmp_file, "w") as f:
-            f.write(content)
-        yield tmp_file
-    finally:
-        _cleanup_tmp_dir(tmp_dir)
+def temp_marimo_file_with_multiple_definitions(tmp_path: Path) -> str:
+    fixture_file = FIXTURE_DIR / "notebook_with_multiple_definitions.py"
+    tmp_file = tmp_path / "with_multiple_definitions" / "notebook.py"
+    tmp_file.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy(fixture_file, tmp_file)
+    return str(tmp_file)
 
 
 # Factory to create ExecuteCellCommands and abstract away cell ID

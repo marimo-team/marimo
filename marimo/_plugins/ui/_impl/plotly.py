@@ -13,6 +13,8 @@ from typing import (
 
 from marimo import _loggers
 from marimo._dependencies.dependencies import DependencyManager
+from marimo._messaging.mimetypes import KnownMimeType
+from marimo._output.hypertext import is_no_js
 from marimo._output.rich_help import mddoc
 from marimo._plugins.core.web_component import JSONType
 from marimo._plugins.ui._core.ui_element import UIElement
@@ -302,6 +304,12 @@ class plotly(UIElement[PlotlySelection, list[dict[str, Any]]]):
             },
             on_change=on_change,
         )
+
+    # Override _mime_ to return plotly HTML in non-JS environments
+    def _mime_(self) -> tuple[KnownMimeType, str]:
+        if is_no_js():
+            return ("text/html", self._figure._repr_html_())
+        return ("text/html", self.text)
 
     @property
     def ranges(self) -> dict[str, list[float]]:
