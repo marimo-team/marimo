@@ -426,6 +426,58 @@ if __name__ == "__main__":
         assert notebook.cells[0].name == "setup"
         assert notebook.cells[0].code == "import os\n# trailing setup comment"
 
+    @staticmethod
+    def test_single_line_function_no_trailing_capture() -> None:
+        """Single-line functions should not capture content from next cell."""
+        code = '''import marimo
+
+__generated_with = "0.0.0"
+app = marimo.App()
+
+
+@app.function
+def f(): pass
+
+
+@app.function
+def g():
+    return 42
+
+
+if __name__ == "__main__":
+    app.run()
+'''
+        notebook = parse_notebook(code)
+        assert len(notebook.cells) == 2
+        assert notebook.cells[0].code == "def f(): pass"
+        assert notebook.cells[1].code == "def g():\n    return 42"
+
+    @staticmethod
+    def test_single_line_class_no_trailing_capture() -> None:
+        """Single-line classes should not capture content from next cell."""
+        code = '''import marimo
+
+__generated_with = "0.0.0"
+app = marimo.App()
+
+
+@app.class_definition
+class Foo: ...
+
+
+@app.cell
+def _():
+    x = 1
+
+
+if __name__ == "__main__":
+    app.run()
+'''
+        notebook = parse_notebook(code)
+        assert len(notebook.cells) == 2
+        assert notebook.cells[0].code == "class Foo: ..."
+        assert notebook.cells[1].code == "x = 1"
+
 
 def test_fixed_dedent() -> None:
     # Basic dedent
