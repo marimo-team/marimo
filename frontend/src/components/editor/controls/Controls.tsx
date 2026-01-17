@@ -54,9 +54,7 @@ export const Controls = ({
   onRun,
   connectionState,
   running,
-  appConfig,
 }: ControlsProps): JSX.Element => {
-  const appWidth = appConfig.width;
   const undoAvailable = useAtomValue(canUndoDeletesAtom);
   const needsRun = useAtomValue(needsRunAtom);
   const { undoDeleteCell } = useCellActions();
