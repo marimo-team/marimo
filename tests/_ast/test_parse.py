@@ -402,6 +402,30 @@ if __name__ == "__main__":
         assert len(notebook.cells) == 1
         assert "# trailing comment" in notebook.cells[0].code
 
+    @staticmethod
+    def test_setup_cell_with_trailing_comment() -> None:
+        """Setup cells should preserve trailing comments."""
+        code = '''import marimo
+
+__generated_with = "0.0.0"
+app = marimo.App()
+
+with app.setup:
+    import os
+    # trailing setup comment
+
+@app.cell
+def _():
+    pass
+
+if __name__ == "__main__":
+    app.run()
+'''
+        notebook = parse_notebook(code)
+        assert len(notebook.cells) == 2
+        assert notebook.cells[0].name == "setup"
+        assert notebook.cells[0].code == "import os\n# trailing setup comment"
+
 
 def test_fixed_dedent() -> None:
     # Basic dedent
