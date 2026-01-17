@@ -20,7 +20,11 @@ from marimo._server.codes import WebSocketCodes
 from marimo._server.session_manager import SessionManager
 from marimo._session.model import SessionMode
 from marimo._utils.parse_dataclass import parse_raw
-from tests._server.conftest import get_session_manager, get_user_config_manager
+from tests._server.conftest import (
+    get_kernel_tasks,
+    get_session_manager,
+    get_user_config_manager,
+)
 from tests._server.mocks import token_header
 
 if TYPE_CHECKING:
@@ -492,17 +496,20 @@ async def test_session_ttl_expiration(
         assert session is not None
 
         # Override TTL to be very short for testing
-        session.ttl_seconds = 0.1
+        kernel_tasks = get_kernel_tasks(session_manager)
+        session.ttl_seconds = 0.01
 
-        # Close websocket
         websocket.close()
 
-        # Wait for TTL to expire
+        # Wait for TTL to expire, which should close the session
         await asyncio.sleep(0.3)
-
-        # Session should be closed
         session = session_manager.get_session("123")
         assert session is None
+
+        # We join on kernel threads to make sure that the main module
+        # is restored correctly.
+        for task in kernel_tasks:
+            task.join()
 
 
 async def test_edit_mode_without_session_ttl_no_delayed_cleanup(
