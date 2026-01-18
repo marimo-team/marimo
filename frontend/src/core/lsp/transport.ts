@@ -23,6 +23,11 @@ export interface ReconnectingWebSocketTransportOptions {
   onReconnect?: () => Promise<void>;
 }
 
+interface Subscription {
+  event: "pending" | "notification" | "response" | "error";
+  handler: Parameters<Transport["subscribe"]>[1];
+}
+
 /**
  * A WebSocket transport that automatically reconnects when the connection is lost.
  * This handles cases like computer sleep/wake or network interruptions.
@@ -33,6 +38,7 @@ export class ReconnectingWebSocketTransport extends Transport {
   private connectionPromise: Promise<void> | undefined;
   private isClosed = false;
   private hasConnectedBefore = false;
+  private pendingSubscriptions: Subscription[] = [];
 
   constructor(options: ReconnectingWebSocketTransportOptions) {
     super();
@@ -55,6 +61,12 @@ export class ReconnectingWebSocketTransport extends Transport {
 
     // Create a new delegate
     this.delegate = new WebSocketTransport(this.options.getWsUrl());
+
+    // Re-register all pending subscriptions on the new delegate
+    for (const { event, handler } of this.pendingSubscriptions) {
+      this.delegate.subscribe(event, handler);
+    }
+
     return this.delegate;
   }
 
@@ -132,6 +144,42 @@ export class ReconnectingWebSocketTransport extends Transport {
     this.delegate?.close();
     this.delegate = undefined;
     this.connectionPromise = undefined;
+  }
+
+  override subscribe(...args: Parameters<Transport["subscribe"]>): void {
+    // Register handler on parent Transport
+    super.subscribe(...args);
+
+    const [event, handler] = args;
+
+    // Track the subscription
+    this.pendingSubscriptions.push({ event, handler });
+
+    // Also register on delegate if it exists
+    if (this.delegate) {
+      this.delegate.subscribe(event, handler);
+    }
+  }
+
+  override unsubscribe(
+    ...args: Parameters<Transport["unsubscribe"]>
+  ): import("events").EventEmitter | undefined {
+    // Unregister from parent
+    const result = super.unsubscribe(...args);
+
+    const [event, handler] = args;
+
+    // Remove from pending subscriptions
+    this.pendingSubscriptions = this.pendingSubscriptions.filter(
+      (sub) => !(sub.event === event && sub.handler === handler),
+    );
+
+    // Also unregister from delegate if it exists
+    if (this.delegate) {
+      this.delegate.unsubscribe(event, handler);
+    }
+
+    return result;
   }
 
   override async sendData(

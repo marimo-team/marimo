@@ -41,6 +41,8 @@ describe("ReconnectingWebSocketTransport", () => {
       this.connect = vi.fn().mockResolvedValue(undefined);
       this.close = vi.fn();
       this.sendData = vi.fn().mockResolvedValue({ result: "success" });
+      this.subscribe = vi.fn();
+      this.unsubscribe = vi.fn();
     });
   });
 
@@ -286,5 +288,152 @@ describe("ReconnectingWebSocketTransport", () => {
     await expect(transport.sendData(data, 5000)).rejects.toThrow(
       "Reconnect callback failed",
     );
+  });
+
+  describe("subscribe", () => {
+    it("should track subscriptions", () => {
+      const getWsUrl = vi.fn(() => mockWsUrl);
+      const transport = new ReconnectingWebSocketTransport({ getWsUrl });
+
+      const handler = vi.fn();
+      transport.subscribe("notification", handler);
+
+      expect((transport as any).pendingSubscriptions).toHaveLength(1);
+      expect((transport as any).pendingSubscriptions[0]).toEqual({
+        event: "notification",
+        handler,
+      });
+    });
+
+    it("should register handler on delegate if it exists", async () => {
+      const getWsUrl = vi.fn(() => mockWsUrl);
+      const transport = new ReconnectingWebSocketTransport({ getWsUrl });
+
+      await transport.connect();
+
+      const handler = vi.fn();
+      transport.subscribe("notification", handler);
+
+      const delegate = (transport as any).delegate;
+      expect(delegate.subscribe).toHaveBeenCalledWith("notification", handler);
+    });
+
+    it("should register pending subscriptions when delegate is created", async () => {
+      const getWsUrl = vi.fn(() => mockWsUrl);
+      const transport = new ReconnectingWebSocketTransport({ getWsUrl });
+
+      const handler1 = vi.fn();
+      const handler2 = vi.fn();
+      transport.subscribe("notification", handler1);
+      transport.subscribe("response", handler2);
+
+      await transport.connect();
+
+      const delegate = (transport as any).delegate;
+      expect(delegate.subscribe).toHaveBeenCalledWith("notification", handler1);
+      expect(delegate.subscribe).toHaveBeenCalledWith("response", handler2);
+    });
+
+    it("should re-register subscriptions on reconnection", async () => {
+      const getWsUrl = vi.fn(() => mockWsUrl);
+      const transport = new ReconnectingWebSocketTransport({ getWsUrl });
+
+      // Add subscription before connection
+      const handler = vi.fn();
+      transport.subscribe("notification", handler);
+
+      // First connection
+      await transport.connect();
+      const firstDelegate = (transport as any).delegate;
+      expect(firstDelegate.subscribe).toHaveBeenCalledWith(
+        "notification",
+        handler,
+      );
+
+      // Clear mock calls
+      firstDelegate.subscribe.mockClear();
+
+      // Simulate connection loss
+      mockConnection.readyState = WebSocket.CLOSED;
+
+      // Reconnect by sending data
+      const data: any = { method: "test", params: [] };
+      await transport.sendData(data, 5000);
+
+      // New delegate should have been created
+      const secondDelegate = (transport as any).delegate;
+      expect(secondDelegate).not.toBe(firstDelegate);
+
+      // Subscription should be re-registered on new delegate
+      expect(secondDelegate.subscribe).toHaveBeenCalledWith(
+        "notification",
+        handler,
+      );
+    });
+  });
+
+  describe("unsubscribe", () => {
+    it("should remove subscription from tracking", () => {
+      const getWsUrl = vi.fn(() => mockWsUrl);
+      const transport = new ReconnectingWebSocketTransport({ getWsUrl });
+
+      const handler = vi.fn();
+      transport.subscribe("notification", handler);
+      expect((transport as any).pendingSubscriptions).toHaveLength(1);
+
+      transport.unsubscribe("notification", handler);
+      expect((transport as any).pendingSubscriptions).toHaveLength(0);
+    });
+
+    it("should unregister from delegate if it exists", async () => {
+      const getWsUrl = vi.fn(() => mockWsUrl);
+      const transport = new ReconnectingWebSocketTransport({ getWsUrl });
+
+      await transport.connect();
+
+      const handler = vi.fn();
+      transport.subscribe("notification", handler);
+
+      const delegate = (transport as any).delegate;
+      delegate.unsubscribe.mockClear();
+
+      transport.unsubscribe("notification", handler);
+
+      expect(delegate.unsubscribe).toHaveBeenCalledWith(
+        "notification",
+        handler,
+      );
+    });
+
+    it("should not re-register unsubscribed handlers on reconnection", async () => {
+      const getWsUrl = vi.fn(() => mockWsUrl);
+      const transport = new ReconnectingWebSocketTransport({ getWsUrl });
+
+      const handler1 = vi.fn();
+      const handler2 = vi.fn();
+      transport.subscribe("notification", handler1);
+      transport.subscribe("response", handler2);
+
+      await transport.connect();
+
+      // Unsubscribe handler1
+      transport.unsubscribe("notification", handler1);
+
+      // Simulate connection loss
+      mockConnection.readyState = WebSocket.CLOSED;
+
+      // Reconnect by sending data
+      const data: any = { method: "test", params: [] };
+      await transport.sendData(data, 5000);
+
+      const newDelegate = (transport as any).delegate;
+
+      // Only handler2 should be registered on the new delegate
+      expect(newDelegate.subscribe).not.toHaveBeenCalledWith(
+        "notification",
+        handler1,
+      );
+      expect(newDelegate.subscribe).toHaveBeenCalledWith("response", handler2);
+    });
   });
 });
