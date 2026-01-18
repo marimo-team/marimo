@@ -222,6 +222,8 @@ conda install -c conda-forge "vegafusion-python-embed>=1.4.0" "vegafusion>=1.4.0
 ```python
 @app.cell(hide_code=True)
 async def __():
+    import micropip
+    await micropip.install("plotly")
     import plotly.express as px
     return px,
 
