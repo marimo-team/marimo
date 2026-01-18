@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, NoReturn, TypeVar, cast
 
 from marimo._ast.cell import Cell
+from marimo._ast.fast_stack import fast_stack
 from marimo._ast.parse import ast_parse
 from marimo._runtime.context import ContextNotInitializedError, get_context
 
@@ -428,7 +429,7 @@ def process_for_pytest(func: Fn, cell: Cell) -> None:
         )
     # Get first frame not in library to insert the class.
     # May be multiple levels if called from pytest or something.
-    frames = inspect.stack(context=0)
+    frames = fast_stack()
 
     cls = build_test_class(
         scope.body, run, inspect.getfile(func), name, cell.defs, frames
