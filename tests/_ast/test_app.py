@@ -1593,12 +1593,12 @@ class TestAppComposition:
 
 
 class TestInternalAppOverrides:
-    """Tests for InternalApp.overrides() and overriden_cells() methods."""
+    """Tests for InternalApp.overrides() method."""
 
-    async def test_overrides_empty_when_no_defs_passed(
+    async def test_overrides_none_when_no_defs_passed(
         self, k: Kernel, exec_req: ExecReqProvider
     ) -> None:
-        """Test that overrides() returns empty set when no defs are passed."""
+        """Test that overrides() returns None when no defs are passed."""
         await k.run(
             [
                 exec_req.get(
@@ -1630,12 +1630,12 @@ class TestInternalAppOverrides:
             ]
         )
         assert not k.errors
-        assert k.globals["overrides"] == set()
+        assert k.globals["overrides"] is None
 
-    async def test_overrides_returns_overriden_defs(
+    async def test_overrides_returns_overriden_defs_dict(
         self, k: Kernel, exec_req: ExecReqProvider
     ) -> None:
-        """Test that overrides() returns the set of overriden definitions."""
+        """Test that overrides() returns a dict of overriden definitions."""
         await k.run(
             [
                 exec_req.get(
@@ -1667,60 +1667,12 @@ class TestInternalAppOverrides:
             ]
         )
         assert not k.errors
-        assert k.globals["overrides"] == {"x"}
+        assert k.globals["overrides"] == {"x": 100}
 
-    async def test_overriden_cells_returns_cells_with_overriden_defs(
+    async def test_overrides_returns_multiple_defs(
         self, k: Kernel, exec_req: ExecReqProvider
     ) -> None:
-        """Test that overriden_cells() returns cells whose defs are overriden."""
-        await k.run(
-            [
-                exec_req.get(
-                    """
-                    from marimo import App
-                    from marimo._ast.app import InternalApp
-
-                    app = App()
-
-                    @app.cell
-                    def __() -> tuple[int]:
-                        x = 10
-                        return (x,)
-
-                    @app.cell
-                    def __() -> tuple[int]:
-                        z = 5
-                        return (z,)
-
-                    @app.cell
-                    def __(x: int, z: int) -> tuple[int]:
-                        y = x + z
-                        return (y,)
-                    """
-                ),
-                exec_req.get(
-                    """
-                    # embed with x overriden
-                    result = await app.embed(defs={"x": 100})
-                    internal_app = InternalApp(app)
-                    overriden_cells = internal_app.overriden_cells()
-                    # Should have exactly one cell (the one defining x)
-                    num_overriden_cells = len(overriden_cells)
-                    """
-                ),
-            ]
-        )
-        assert not k.errors
-        # Only the cell defining x should be overriden
-        assert k.globals["num_overriden_cells"] == 1
-        overriden_cells = k.globals["overriden_cells"]
-        defs = set.union(*(set(k.globals["app"]._graph.cells[cid].defs) for cid in overriden_cells))
-        assert defs == {"x"}
-
-    async def test_overriden_cells_multiple_overrides(
-        self, k: Kernel, exec_req: ExecReqProvider
-    ) -> None:
-        """Test overriden_cells() with multiple overriden definitions."""
+        """Test that overrides() returns all overriden definitions."""
         await k.run(
             [
                 exec_req.get(
@@ -1752,21 +1704,14 @@ class TestInternalAppOverrides:
                     result = await app.embed(defs={"a": 10, "b": 20})
                     internal_app = InternalApp(app)
                     overrides = internal_app.overrides()
-                    overriden_cells = internal_app.overriden_cells()
-                    num_overriden_cells = len(overriden_cells)
                     """
                 ),
             ]
         )
         assert not k.errors
-        assert k.globals["overrides"] == {"a", "b"}
-        # Two cells should be overriden (one defining a, one defining b)
-        assert k.globals["num_overriden_cells"] == 2
-        overriden_cells = k.globals["overriden_cells"]
-        defs = set.union(*(set(k.globals["app"]._graph.cells[cid].defs) for cid in overriden_cells))
-        assert defs == {"a", "b"}
+        assert k.globals["overrides"] == {"a": 10, "b": 20}
 
-        
+
 
 
 class TestAppKernelRunnerRegistry:
