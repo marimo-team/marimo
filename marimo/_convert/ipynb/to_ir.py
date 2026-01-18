@@ -849,6 +849,7 @@ def bind_cell_metadata(
 
     - If "hide-cell" is present in the tags, the cell is marked hidden (and removed)
     - Remaining tags (if any) are inserted as a comment at the top of the source.
+    - If marimo-specific metadata is present, it is used to restore cell config.
     """
     cells: list[CodeCell] = []
     for source, meta, hide_code in zip(sources, metadata, hide_flags):
@@ -858,8 +859,25 @@ def bind_cell_metadata(
             hide_code = True
         if tags:
             source = f"# Cell tags: {', '.join(sorted(tags))}\n{source}"
+
+        # Extract marimo-specific cell config if present
+        marimo_meta = meta.get("marimo", {})
+        marimo_config = marimo_meta.get("config", {})
+
+        # Merge marimo config with existing flags
+        # marimo config takes precedence for hide_code if present
+        if "hide_code" in marimo_config:
+            hide_code = marimo_config["hide_code"]
+
         cells.append(
-            CodeCell(source=source, config=CellConfig(hide_code=hide_code))
+            CodeCell(
+                source=source,
+                config=CellConfig(
+                    hide_code=hide_code,
+                    column=marimo_config.get("column"),
+                    disabled=marimo_config.get("disabled", False),
+                ),
+            )
         )
     return cells
 
@@ -1040,6 +1058,13 @@ def convert_from_ipynb_to_notebook_ir(
     Convert a raw notebook to a NotebookSerializationV1 object.
     """
     notebook = json.loads(raw_notebook)
+
+    # Extract notebook-level marimo metadata if present
+    notebook_metadata = notebook.get("metadata", {})
+    marimo_nb_meta = notebook_metadata.get("marimo", {})
+    app_config = marimo_nb_meta.get("app_config", {})
+    stored_header = marimo_nb_meta.get("header")
+
     sources: list[str] = []
     metadata: list[dict[str, Any]] = []
     hide_flags: list[bool] = []
@@ -1067,13 +1092,20 @@ def convert_from_ipynb_to_notebook_ir(
         sources, metadata, hide_flags
     )
 
+    # Use stored header if available, otherwise build from inline_meta
+    # stored_header takes precedence when present (even if empty string)
+    if stored_header is not None:
+        header_value = stored_header
+    else:
+        header_value = build_metadata(inline_meta, extra_metadata)
+
     return NotebookSerializationV1(
-        app=AppInstantiation(),
-        header=Header(value=build_metadata(inline_meta, extra_metadata)),
+        app=AppInstantiation(options=app_config),
+        header=Header(value=header_value),
         cells=[
             CellDef(
                 code=cell.source,
-                options={"hide_code": cell.config.hide_code},
+                options=cell.config.asdict(),
             )
             for cell in transformed_cells
         ],

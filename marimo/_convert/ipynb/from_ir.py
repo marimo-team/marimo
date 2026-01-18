@@ -29,6 +29,18 @@ if TYPE_CHECKING:
     from marimo._session.state.session_view import SessionView
 
 
+# Note: We intentionally omit "version" as it would vary across environments
+# and break reproducibility. The marimo_version in metadata is sufficient.
+DEFAULT_LANGUAGE_INFO = {
+    "codemirror_mode": {"name": "ipython", "version": 3},
+    "file_extension": ".py",
+    "mimetype": "text/x-python",
+    "name": "python",
+    "nbconvert_exporter": "python",
+    "pygments_lexer": "ipython3",
+}
+
+
 def convert_from_ir_to_ipynb(
     app: InternalApp,
     *,
@@ -46,11 +58,29 @@ def convert_from_ir_to_ipynb(
     Returns:
         JSON string of the .ipynb notebook
     """
+
     DependencyManager.nbformat.require("to convert marimo notebooks to ipynb")
     import nbformat  # type: ignore[import-not-found]
 
+    from marimo import __version__
+
     notebook = nbformat.v4.new_notebook()  # type: ignore[no-untyped-call]
     notebook["cells"] = []
+
+    # Add marimo-specific notebook metadata
+    marimo_metadata: dict[str, Any] = {
+        "marimo_version": __version__,
+    }
+    app_config_diff = app.config.asdict_difference()
+    if app_config_diff:
+        marimo_metadata["app_config"] = app_config_diff
+    # Include header if present (PEP 723 metadata, docstrings, etc.)
+    if app._app._header:
+        marimo_metadata["header"] = app._app._header
+    notebook["metadata"]["marimo"] = marimo_metadata
+
+    # Add standard Jupyter language_info (no kernelspec)
+    notebook["metadata"]["language_info"] = DEFAULT_LANGUAGE_INFO
 
     # Determine cell order based on sort_mode
     if sort_mode == "top-down":
