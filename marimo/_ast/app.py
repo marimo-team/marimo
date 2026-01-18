@@ -1016,7 +1016,7 @@ class InternalApp:
         return await self._app._function_call(request)
 
     def overrides(self) -> dict[str, Any] | None:
-        """Overriden definitions; only matters for embedded apps."""
+        """Overridden definitions; only matters for embedded apps."""
         return self._app._get_kernel_runner()._previously_seen_defs
 
     def to_ir(self) -> NotebookSerializationV1:

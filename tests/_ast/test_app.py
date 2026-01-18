@@ -1632,10 +1632,10 @@ class TestInternalAppOverrides:
         assert not k.errors
         assert k.globals["overrides"] is None
 
-    async def test_overrides_returns_overriden_defs_dict(
+    async def test_overrides_returns_overridden_defs_dict(
         self, k: Kernel, exec_req: ExecReqProvider
     ) -> None:
-        """Test that overrides() returns a dict of overriden definitions."""
+        """Test that overrides() returns a dict of overridden definitions."""
         await k.run(
             [
                 exec_req.get(
@@ -1658,7 +1658,7 @@ class TestInternalAppOverrides:
                 ),
                 exec_req.get(
                     """
-                    # embed with x overriden
+                    # embed with x overridden
                     result = await app.embed(defs={"x": 100})
                     internal_app = InternalApp(app)
                     overrides = internal_app.overrides()
@@ -1672,7 +1672,7 @@ class TestInternalAppOverrides:
     async def test_overrides_returns_multiple_defs(
         self, k: Kernel, exec_req: ExecReqProvider
     ) -> None:
-        """Test that overrides() returns all overriden definitions."""
+        """Test that overrides() returns all overridden definitions."""
         await k.run(
             [
                 exec_req.get(
@@ -1700,7 +1700,7 @@ class TestInternalAppOverrides:
                 ),
                 exec_req.get(
                     """
-                    # embed with both a and b overriden
+                    # embed with both a and b overridden
                     result = await app.embed(defs={"a": 10, "b": 20})
                     internal_app = InternalApp(app)
                     overrides = internal_app.overrides()

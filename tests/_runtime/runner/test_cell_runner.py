@@ -139,10 +139,10 @@ raise ParseError("malformed SQL")
     assert isinstance(runner.exceptions[er.cell_id], MarimoSQLError)
 
 
-async def test_ui_element_update_skips_overriden_cells(
+async def test_ui_element_update_skips_overridden_cells(
     execution_kernel: Kernel, exec_req: ExecReqProvider
 ) -> None:
-    """Test that UI element updates skip cells whose defs are overriden."""
+    """Test that UI element updates skip cells whose defs are overridden."""
     from marimo._runtime.commands import UpdateUIElementCommand
 
     k = execution_kernel
@@ -177,7 +177,7 @@ async def test_ui_element_update_skips_overriden_cells(
             ),
             exec_req.get(
                 """
-                # Embed with x overriden - the cell defining x should be skipped
+                # Embed with x overridden - the cell defining x should be skipped
                 # on UI element updates
                 embed_result = await app.embed(defs={"x": 100})
                 slider_element = embed_result.defs["slider"]
@@ -187,18 +187,18 @@ async def test_ui_element_update_skips_overriden_cells(
         ]
     )
     assert not k.errors
-    # With x=100 overriden, result should be 200
+    # With x=100 overridden, result should be 200
     assert k.globals["initial_result"] == 200
 
     # Now update the slider - the cell defining x should NOT run
-    # because x is overriden
+    # because x is overridden
     slider_element = k.globals["slider_element"]
     assert await k.set_ui_element_value(
         UpdateUIElementCommand.from_ids_and_values([(slider_element._id, 8)])
     )
 
-    # After UI update, result should still be 200 because x is still overriden
+    # After UI update, result should still be 200 because x is still overridden
     embed_result = k.globals["embed_result"]
     assert embed_result.defs["result"] == 200
-    # x should still be the overriden value, not slider.value
+    # x should still be the overridden value, not slider.value
     assert embed_result.defs["x"] == 100

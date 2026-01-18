@@ -210,7 +210,7 @@ class Runner:
             cells_to_run - excluded_cells,
         )
 
-        # Overriden cells may be on the path of a UI element update.
+        # Overridden cells may be on the path of a UI element update.
         if (
             (ctx := safe_get_context()) is not None
             and ctx.is_embedded()
