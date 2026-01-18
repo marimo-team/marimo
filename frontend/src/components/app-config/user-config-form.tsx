@@ -993,7 +993,7 @@ export const UserConfigForm: React.FC = () => {
                       <br />
                       <br />
                       Running marimo in a{" "}
-                      <ExternalLink href="https://docs.marimo.io/guides/editor_features/package_management.html#running-marimo-in-a-sandbox-environment-uv-only">
+                      <ExternalLink href="https://docs.marimo.io/guides/package_management/inlining_dependencies.html">
                         sandboxed environment
                       </ExternalLink>{" "}
                       is only supported by <Kbd className="inline">uv</Kbd>
