@@ -137,3 +137,68 @@ raise ParseError("malformed SQL")
     stderr = buffer.getvalue()
     assert "Traceback (most recent call last):" not in stderr
     assert isinstance(runner.exceptions[er.cell_id], MarimoSQLError)
+
+
+async def test_ui_element_update_skips_overriden_cells(
+    execution_kernel: Kernel, exec_req: ExecReqProvider
+) -> None:
+    """Test that UI element updates skip cells whose defs are overriden."""
+    from marimo._runtime.commands import UpdateUIElementCommand
+
+    k = execution_kernel
+    await k.run(
+        [
+            exec_req.get(
+                """
+                from marimo import App
+                import marimo as mo
+
+                app = App()
+
+                @app.cell
+                def _():
+                    import marimo as mo
+                    # Use a counter to track how many times this cell runs
+                    slider = mo.ui.slider(0, 10, value=5)
+                    return (slider,)
+
+                @app.cell
+                def _(slider):
+                    # This cell defines x based on the slider
+                    x = slider.value
+                    return (x,)
+
+                @app.cell
+                def _(x):
+                    # This cell uses x
+                    result = x * 2
+                    return (result,)
+                """
+            ),
+            exec_req.get(
+                """
+                # Embed with x overriden - the cell defining x should be skipped
+                # on UI element updates
+                embed_result = await app.embed(defs={"x": 100})
+                slider_element = embed_result.defs["slider"]
+                initial_result = embed_result.defs["result"]
+                """
+            ),
+        ]
+    )
+    assert not k.errors
+    # With x=100 overriden, result should be 200
+    assert k.globals["initial_result"] == 200
+
+    # Now update the slider - the cell defining x should NOT run
+    # because x is overriden
+    slider_element = k.globals["slider_element"]
+    assert await k.set_ui_element_value(
+        UpdateUIElementCommand.from_ids_and_values([(slider_element._id, 8)])
+    )
+
+    # After UI update, result should still be 200 because x is still overriden
+    embed_result = k.globals["embed_result"]
+    assert embed_result.defs["result"] == 200
+    # x should still be the overriden value, not slider.value
+    assert embed_result.defs["x"] == 100
