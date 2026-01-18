@@ -174,7 +174,11 @@ def create_kernel_context(
         function_registry=FunctionRegistry(),
         cache_store=get_store(kernel.app_metadata.filename),
         cell_lifecycle_registry=CellLifecycleRegistry(),
-        app_kernel_runner_registry=AppKernelRunnerRegistry(),
+        app_kernel_runner_registry=(
+            parent.app_kernel_runner_registry
+            if parent is not None
+            else AppKernelRunnerRegistry()
+        ),
         virtual_file_registry=VirtualFileRegistry(storage=storage),
         virtual_files_supported=virtual_files_supported,
         stream=stream,

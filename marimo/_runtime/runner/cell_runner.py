@@ -28,6 +28,7 @@ from marimo._messaging.errors import (
 )
 from marimo._messaging.tracebacks import write_traceback
 from marimo._runtime import dataflow
+from marimo._runtime.context.types import safe_get_context
 from marimo._runtime.control_flow import MarimoInterrupt, MarimoStopError
 from marimo._runtime.exceptions import (
     MarimoMissingRefError,
@@ -203,6 +204,24 @@ class Runner:
                 cells_to_run,
                 relatives=dataflow.get_import_block_relatives(graph),
             )
+
+        if (ctx := safe_get_context()) is not None and ctx.is_embedded():
+            # Overriden cells may be on the path of a UI element update; we remove
+            # not only overriden cells but also any cell whose references are
+            # a subset of the overriden definitions, since these cells
+            # have already run and are not affected by roots
+            additional_excluded_cells = ctx.app.overriden_cells()
+            overrides = ctx.app.overrides()
+            for cell in dataflow.transitive_closure(
+                graph, additional_excluded_cells
+            ):
+                # TODO(akshayka): The issubset check is too strict, we could
+                # prune more cells.
+                if cell in graph.cells and graph.cells[cell].refs.issubset(
+                    overrides
+                ):
+                    additional_excluded_cells.add(cell)
+            excluded_cells = excluded_cells.union(additional_excluded_cells)
 
         return dataflow.topological_sort(
             graph,
