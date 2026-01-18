@@ -1713,6 +1713,9 @@ class TestInternalAppOverrides:
         assert not k.errors
         # Only the cell defining x should be overriden
         assert k.globals["num_overriden_cells"] == 1
+        overriden_cells = k.globals["overriden_cells"]
+        defs = set.union(*(set(k.globals["app"]._graph.cells[cid].defs) for cid in overriden_cells))
+        assert defs == {"x"}
 
     async def test_overriden_cells_multiple_overrides(
         self, k: Kernel, exec_req: ExecReqProvider
@@ -1759,6 +1762,11 @@ class TestInternalAppOverrides:
         assert k.globals["overrides"] == {"a", "b"}
         # Two cells should be overriden (one defining a, one defining b)
         assert k.globals["num_overriden_cells"] == 2
+        overriden_cells = k.globals["overriden_cells"]
+        defs = set.union(*(set(k.globals["app"]._graph.cells[cid].defs) for cid in overriden_cells))
+        assert defs == {"a", "b"}
+
+        
 
 
 class TestAppKernelRunnerRegistry:
