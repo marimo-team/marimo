@@ -36,9 +36,7 @@ Supported transforms are:
     @app.cell
     def __():
         import pandas as pd
-        import pyodide
-        csv = pyodide.http.open_url("https://raw.githubusercontent.com/mwaskom/seaborn-data/master/iris.csv")
-        df = pd.read_csv(csv)
+        df = pd.read_csv("https://raw.githubusercontent.com/mwaskom/seaborn-data/master/iris.csv")
         mo.ui.dataframe(df)
         return
 ```
