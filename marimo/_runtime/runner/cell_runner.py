@@ -205,28 +205,22 @@ class Runner:
                 relatives=dataflow.get_import_block_relatives(graph),
             )
 
-        if (ctx := safe_get_context()) is not None and ctx.is_embedded():
-            # Overriden cells may be on the path of a UI element update; we remove
-            # not only overriden cells but also any cell whose references are
-            # a subset of the overriden definitions, since these cells
-            # have already run and are not affected by roots
-            additional_excluded_cells = ctx.app.overriden_cells()
-            overrides = ctx.app.overrides()
-            for cell in dataflow.transitive_closure(
-                graph, additional_excluded_cells
-            ):
-                # TODO(akshayka): The issubset check is too strict, we could
-                # prune more cells.
-                if cell in graph.cells and graph.cells[cell].refs.issubset(
-                    overrides
-                ):
-                    additional_excluded_cells.add(cell)
-            excluded_cells = excluded_cells.union(additional_excluded_cells)
-
-        return dataflow.topological_sort(
+        sorted_cells = dataflow.topological_sort(
             graph,
             cells_to_run - excluded_cells,
         )
+
+        # Overriden cells may be on the path of a UI element update.
+        if (
+            (ctx := safe_get_context()) is not None
+            and ctx.is_embedded()
+            and ((overrides := ctx.app.overrides()) is not None)
+        ):
+            sorted_cells = dataflow.prune_cells_for_overrides(
+                graph, sorted_cells, overrides
+            )
+
+        return sorted_cells
 
     # Adapted from
     # https://github.com/ipython/ipykernel/blob/eddd3e666a82ebec287168b0da7cfa03639a3772/ipykernel/ipkernel.py#L312  # noqa: E501

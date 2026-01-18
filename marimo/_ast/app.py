@@ -1015,17 +1015,9 @@ class InternalApp:
     ) -> tuple[HumanReadableStatus, JSONType, bool]:
         return await self._app._function_call(request)
 
-    def overrides(self) -> set[str]:
+    def overrides(self) -> dict[str, Any] | None:
         """Overriden definitions; only matters for embedded apps."""
-        defs = self._app._get_kernel_runner()._previously_seen_defs
-        return set(defs.keys()) if defs is not None else set()
-
-    def overriden_cells(self) -> set[CellId_t]:
-        """Return cells whose definitions are overriden by an embed call."""
-        overriden_cells = set()
-        for override in self.overrides():
-            overriden_cells.update(self.graph.get_defining_cells(override))
-        return overriden_cells
+        return self._app._get_kernel_runner()._previously_seen_defs
 
     def to_ir(self) -> NotebookSerializationV1:
         return NotebookSerializationV1(
