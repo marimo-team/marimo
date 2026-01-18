@@ -1592,6 +1592,175 @@ class TestAppComposition:
         assert is_external_cell_id(setup_cell_ids[0])
 
 
+class TestInternalAppOverrides:
+    """Tests for InternalApp.overrides() and overriden_cells() methods."""
+
+    async def test_overrides_empty_when_no_defs_passed(
+        self, k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        """Test that overrides() returns empty set when no defs are passed."""
+        await k.run(
+            [
+                exec_req.get(
+                    """
+                    from marimo import App
+                    from marimo._ast.app import InternalApp
+
+                    app = App()
+
+                    @app.cell
+                    def __() -> tuple[int]:
+                        x = 10
+                        return (x,)
+
+                    @app.cell
+                    def __(x: int) -> tuple[int]:
+                        y = x + 1
+                        return (y,)
+                    """
+                ),
+                exec_req.get(
+                    """
+                    # embed without any overrides
+                    result = await app.embed()
+                    internal_app = InternalApp(app)
+                    overrides = internal_app.overrides()
+                    """
+                ),
+            ]
+        )
+        assert not k.errors
+        assert k.globals["overrides"] == set()
+
+    async def test_overrides_returns_overriden_defs(
+        self, k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        """Test that overrides() returns the set of overriden definitions."""
+        await k.run(
+            [
+                exec_req.get(
+                    """
+                    from marimo import App
+                    from marimo._ast.app import InternalApp
+
+                    app = App()
+
+                    @app.cell
+                    def __() -> tuple[int]:
+                        x = 10
+                        return (x,)
+
+                    @app.cell
+                    def __(x: int) -> tuple[int]:
+                        y = x + 1
+                        return (y,)
+                    """
+                ),
+                exec_req.get(
+                    """
+                    # embed with x overriden
+                    result = await app.embed(defs={"x": 100})
+                    internal_app = InternalApp(app)
+                    overrides = internal_app.overrides()
+                    """
+                ),
+            ]
+        )
+        assert not k.errors
+        assert k.globals["overrides"] == {"x"}
+
+    async def test_overriden_cells_returns_cells_with_overriden_defs(
+        self, k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        """Test that overriden_cells() returns cells whose defs are overriden."""
+        await k.run(
+            [
+                exec_req.get(
+                    """
+                    from marimo import App
+                    from marimo._ast.app import InternalApp
+
+                    app = App()
+
+                    @app.cell
+                    def __() -> tuple[int]:
+                        x = 10
+                        return (x,)
+
+                    @app.cell
+                    def __() -> tuple[int]:
+                        z = 5
+                        return (z,)
+
+                    @app.cell
+                    def __(x: int, z: int) -> tuple[int]:
+                        y = x + z
+                        return (y,)
+                    """
+                ),
+                exec_req.get(
+                    """
+                    # embed with x overriden
+                    result = await app.embed(defs={"x": 100})
+                    internal_app = InternalApp(app)
+                    overriden_cells = internal_app.overriden_cells()
+                    # Should have exactly one cell (the one defining x)
+                    num_overriden_cells = len(overriden_cells)
+                    """
+                ),
+            ]
+        )
+        assert not k.errors
+        # Only the cell defining x should be overriden
+        assert k.globals["num_overriden_cells"] == 1
+
+    async def test_overriden_cells_multiple_overrides(
+        self, k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        """Test overriden_cells() with multiple overriden definitions."""
+        await k.run(
+            [
+                exec_req.get(
+                    """
+                    from marimo import App
+                    from marimo._ast.app import InternalApp
+
+                    app = App()
+
+                    @app.cell
+                    def __() -> tuple[int]:
+                        a = 1
+                        return (a,)
+
+                    @app.cell
+                    def __() -> tuple[int]:
+                        b = 2
+                        return (b,)
+
+                    @app.cell
+                    def __(a: int, b: int) -> tuple[int]:
+                        c = a + b
+                        return (c,)
+                    """
+                ),
+                exec_req.get(
+                    """
+                    # embed with both a and b overriden
+                    result = await app.embed(defs={"a": 10, "b": 20})
+                    internal_app = InternalApp(app)
+                    overrides = internal_app.overrides()
+                    overriden_cells = internal_app.overriden_cells()
+                    num_overriden_cells = len(overriden_cells)
+                    """
+                ),
+            ]
+        )
+        assert not k.errors
+        assert k.globals["overrides"] == {"a", "b"}
+        # Two cells should be overriden (one defining a, one defining b)
+        assert k.globals["num_overriden_cells"] == 2
+
+
 class TestAppKernelRunnerRegistry:
     def test_get_runner(self, k: Kernel) -> None:
         # `k` fixture installs a context, needed for AppKernelRunner
