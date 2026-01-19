@@ -149,7 +149,7 @@ export class CopilotLanguageServerClient extends LanguageServerClient {
   }
 
   override async textDocumentCompletion(
-    params: CompletionParams,
+    _params: CompletionParams,
   ): Promise<CompletionList | CompletionItem[]> {
     // Not used in Copilot
     return [];
@@ -199,7 +199,7 @@ export class CopilotLanguageServerClient extends LanguageServerClient {
     });
   }
 
-  override textDocumentHover(params: HoverParams): Promise<Hover> {
+  override textDocumentHover(_params: HoverParams): Promise<Hover> {
     // Not used in Copilot
     return Promise.resolve({ contents: [] });
   }

@@ -256,7 +256,9 @@ export const VariableTable: React.FC<Props> = memo(
 
     const sortedVariables = useMemo(() => {
       const cellIdToIndex = new Map<CellId, number>();
-      cellIds.forEach((id, index) => cellIdToIndex.set(id, index));
+      for (const [index, id] of cellIds.entries()) {
+        cellIdToIndex.set(id, index);
+      }
       return sortData({
         variables: resolvedVariables,
         sort: sorting[0],

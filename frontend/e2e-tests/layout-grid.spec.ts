@@ -56,7 +56,7 @@ test("can edit Grid layout", async ({ page }) => {
   expect(bb1.y).toBeLessThan(bb2.y);
 
   // Toggle preview-button
-  await page.locator("#preview-button").click();
+  await page.getByTestId("hide-code-button").click();
   // Wait 500ms to allow preview to render
   await page.waitForTimeout(500);
 

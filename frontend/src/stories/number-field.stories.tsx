@@ -1,5 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
+import { useId } from "react";
 import { Label } from "@/components/ui/label";
 import { NumberField } from "@/components/ui/number-field";
 
@@ -19,12 +20,15 @@ export const Disabled = {
 };
 
 export const WithLabel = {
-  render: () => (
-    <div className="grid w-full gap-1.5">
-      <Label htmlFor="message">Your message</Label>
-      <NumberField placeholder="..." id="message" />
-    </div>
-  ),
+  render: function Render() {
+    const id = useId();
+    return (
+      <div className="grid w-full gap-1.5">
+        <Label htmlFor={id}>Your message</Label>
+        <NumberField placeholder="..." id={id} />
+      </div>
+    );
+  },
 
   name: "With Label",
 };

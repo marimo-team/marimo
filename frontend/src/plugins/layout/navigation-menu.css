@@ -9,6 +9,7 @@
   .auto-collapse-nav .paragraph {
     visibility: hidden;
     font-size: 0;
+    /* biome-ignore lint/complexity/noImportantStyles: required for collapsed nav */
     line-height: 0 !important;
   }
 
@@ -17,7 +18,9 @@
     @apply text-xl;
     line-height: 1;
     margin: 0;
+    /* biome-ignore lint/complexity/noImportantStyles: required for collapsed nav */
     margin-inline-end: 0 !important;
+    /* biome-ignore lint/complexity/noImportantStyles: required for collapsed nav */
     margin-inline-start: 0 !important;
   }
 

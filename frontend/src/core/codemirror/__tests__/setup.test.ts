@@ -99,7 +99,7 @@ function getDuplicateKeymaps(state: EditorState) {
     (keymap) => keymap,
   );
   const duplicates = Objects.fromEntries(
-    Object.entries(groupBy).filter(([key, value]) => value.length > 1),
+    Object.entries(groupBy).filter(([_key, value]) => value.length > 1),
   );
   return duplicates;
 }

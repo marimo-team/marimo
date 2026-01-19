@@ -1,7 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { CopyIcon } from "lucide-react";
-import React, { useMemo, useState } from "react";
+import React, { useId, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   DialogContent,
@@ -28,6 +28,7 @@ export const ShareStaticNotebookModal: React.FC<{
   const { exportAsHTML } = useRequestClient();
   // 4 character random string
   const randomHash = useMemo(() => Math.random().toString(36).slice(2, 6), []);
+  const slugId = useId();
 
   // Globally unique path
   const path = `${slug}-${randomHash}`;
@@ -108,7 +109,7 @@ export const ShareStaticNotebookModal: React.FC<{
         <div className="flex flex-col gap-6 py-4">
           <Input
             data-testid="slug-input"
-            id="slug"
+            id={slugId}
             autoFocus={true}
             value={slug}
             placeholder="Notebook slug"

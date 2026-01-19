@@ -79,7 +79,7 @@ export function hasNewLines(tr: Transaction | ViewUpdate): boolean {
 
   let hasNewLines = false;
   // Iterate through all changes in the transaction
-  tr.changes.iterChanges((fromA, toA, fromB, toB, inserted) => {
+  tr.changes.iterChanges((fromA, toA, _fromB, _toB, inserted) => {
     // Check if the inserted text contains line breaks
     if (inserted.toString().includes("\n")) {
       hasNewLines = true;

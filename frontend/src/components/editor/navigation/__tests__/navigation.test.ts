@@ -295,10 +295,7 @@ describe("useCellNavigationProps", () => {
         result.current.onKeyDown?.(mockEvent);
       });
 
-      expect(focusCellEditor).toHaveBeenCalledWith(
-        expect.anything(),
-        mockCellId,
-      );
+      expect(focusCellEditor).toHaveBeenCalledWith(mockCellId);
       expect(mockEvent.preventDefault).toHaveBeenCalled();
     });
 
@@ -502,10 +499,7 @@ describe("useCellNavigationProps", () => {
         result.current.onKeyDown?.(mockEvent);
       });
 
-      expect(focusCellEditor).toHaveBeenCalledWith(
-        expect.anything(),
-        mockCellId,
-      );
+      expect(focusCellEditor).toHaveBeenCalledWith(mockCellId);
       expect(mockEvent.preventDefault).toHaveBeenCalled();
     });
   });
@@ -599,10 +593,7 @@ describe("useCellNavigationProps", () => {
         result.current.onKeyDown?.(mockEvent);
       });
 
-      expect(focusCellEditor).toHaveBeenCalledWith(
-        expect.anything(),
-        mockCellId,
-      );
+      expect(focusCellEditor).toHaveBeenCalledWith(mockCellId);
       expect(mockEvent.preventDefault).toHaveBeenCalled();
     });
   });

@@ -15,7 +15,7 @@ let storedValue: string | null = null;
  */
 export function createStorage(location: "left" | "bottom"): PanelGroupStorage {
   return {
-    getItem(name) {
+    getItem(_name) {
       if (!storedValue) {
         return storedValue ?? null;
       }
@@ -35,7 +35,7 @@ export function createStorage(location: "left" | "bottom"): PanelGroupStorage {
         return null;
       }
     },
-    setItem(name, value) {
+    setItem(_name, value) {
       if (location !== "left") {
         // flip
         try {

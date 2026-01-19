@@ -39,7 +39,11 @@ export class VirtualFileTracker {
       case "text/html": {
         const prev = this.virtualFiles.get(cellId);
         const matches = findVirtualFiles(output.data);
-        prev?.forEach((file) => matches.add(file));
+        if (prev) {
+          for (const file of prev) {
+            matches.add(file);
+          }
+        }
         this.virtualFiles.set(cellId, matches);
         return;
       }
@@ -51,7 +55,9 @@ export class VirtualFileTracker {
   filenames(): string[] {
     const set = new Set<string>();
     for (const files of this.virtualFiles.values()) {
-      files.forEach((file) => set.add(file));
+      for (const file of files) {
+        set.add(file);
+      }
     }
 
     return [...set];
