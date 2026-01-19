@@ -3572,15 +3572,14 @@ export interface components {
      *
      *         Attributes:
      *             execution_requests: ExecuteCellCommand for each notebook cell.
-     *             cell_ids: Initial cell IDs in the notebook (unused for now).
+     *             cell_ids: Initial cell IDs in the notebook.
      *             set_ui_element_value_request: Initial UI element values.
      *             auto_run: Whether to automatically execute cells on instantiation.
      *             request: HTTP request context if available.
      */
     CreateNotebookCommand: {
       autoRun: boolean;
-      /** @default null */
-      cellIds?: string[] | null;
+      cellIds: string[];
       executionRequests: components["schemas"]["ExecuteCellCommand"][];
       /** @default null */
       request?: components["schemas"]["HTTPRequest"] | null;
