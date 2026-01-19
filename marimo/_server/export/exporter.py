@@ -307,11 +307,7 @@ class Exporter:
         return html, download_filename
 
     def export_as_pdf(
-        self,
-        *,
-        app: InternalApp,
-        session_view: SessionView,
-        webpdf: bool,
+        self, *, app: InternalApp, session_view: SessionView, webpdf: bool
     ) -> bytes | None:
         """Export notebook as a PDF.
 

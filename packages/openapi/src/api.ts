@@ -834,10 +834,10 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "text/plain": string;
+            "application/pdf": string;
           };
         };
-        /** @description File must be saved before downloading */
+        /** @description File must be saved before downloading or dependencies missing */
         400: {
           headers: {
             [name: string]: unknown;

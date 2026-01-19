@@ -8,7 +8,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { CellId } from "@/core/cells/ids";
 import { CellOutputId } from "@/core/cells/ids";
 import type { CellRuntimeState } from "@/core/cells/types";
-import { useEnrichCellOutputs } from "../hooks";
+import {
+  updateCellOutputsWithScreenshots,
+  useEnrichCellOutputs,
+} from "../hooks";
 
 // Mock html-to-image
 vi.mock("html-to-image", () => ({
@@ -500,5 +503,96 @@ describe("useEnrichCellOutputs", () => {
       expect(cellOutput[0]).toBe("image/png");
       expect(cellOutput[1]).toBe(mockDataUrl);
     }
+  });
+});
+
+describe("updateCellOutputsWithScreenshots", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("should call updateCellOutputs when there are screenshots", async () => {
+    const cellId = "cell-1" as CellId;
+    const mockScreenshots = {
+      [cellId]: ["image/png", "data:image/png;base64,test"] as [
+        "image/png",
+        string,
+      ],
+    };
+
+    const takeScreenshots = vi.fn().mockResolvedValue(mockScreenshots);
+    const updateCellOutputs = vi.fn().mockResolvedValue(null);
+
+    await updateCellOutputsWithScreenshots(takeScreenshots, updateCellOutputs);
+
+    expect(takeScreenshots).toHaveBeenCalledTimes(1);
+    expect(updateCellOutputs).toHaveBeenCalledTimes(1);
+    expect(updateCellOutputs).toHaveBeenCalledWith({
+      cellIdsToOutput: mockScreenshots,
+    });
+  });
+
+  it("should not call updateCellOutputs when there are no screenshots", async () => {
+    const takeScreenshots = vi.fn().mockResolvedValue({});
+    const updateCellOutputs = vi.fn().mockResolvedValue(null);
+
+    await updateCellOutputsWithScreenshots(takeScreenshots, updateCellOutputs);
+
+    expect(takeScreenshots).toHaveBeenCalledTimes(1);
+    expect(updateCellOutputs).not.toHaveBeenCalled();
+  });
+
+  it("should handle multiple cell screenshots", async () => {
+    const cell1 = "cell-1" as CellId;
+    const cell2 = "cell-2" as CellId;
+    const mockScreenshots = {
+      [cell1]: ["image/png", "data:image/png;base64,image1"] as [
+        "image/png",
+        string,
+      ],
+      [cell2]: ["image/png", "data:image/png;base64,image2"] as [
+        "image/png",
+        string,
+      ],
+    };
+
+    const takeScreenshots = vi.fn().mockResolvedValue(mockScreenshots);
+    const updateCellOutputs = vi.fn().mockResolvedValue(null);
+
+    await updateCellOutputsWithScreenshots(takeScreenshots, updateCellOutputs);
+
+    expect(updateCellOutputs).toHaveBeenCalledWith({
+      cellIdsToOutput: mockScreenshots,
+    });
+  });
+
+  it("should propagate errors from takeScreenshots", async () => {
+    const error = new Error("Screenshot failed");
+    const takeScreenshots = vi.fn().mockRejectedValue(error);
+    const updateCellOutputs = vi.fn().mockResolvedValue(null);
+
+    await expect(
+      updateCellOutputsWithScreenshots(takeScreenshots, updateCellOutputs),
+    ).rejects.toThrow("Screenshot failed");
+
+    expect(updateCellOutputs).not.toHaveBeenCalled();
+  });
+
+  it("should propagate errors from updateCellOutputs", async () => {
+    const cellId = "cell-1" as CellId;
+    const mockScreenshots = {
+      [cellId]: ["image/png", "data:image/png;base64,test"] as [
+        "image/png",
+        string,
+      ],
+    };
+    const error = new Error("Update failed");
+
+    const takeScreenshots = vi.fn().mockResolvedValue(mockScreenshots);
+    const updateCellOutputs = vi.fn().mockRejectedValue(error);
+
+    await expect(
+      updateCellOutputsWithScreenshots(takeScreenshots, updateCellOutputs),
+    ).rejects.toThrow("Update failed");
   });
 });

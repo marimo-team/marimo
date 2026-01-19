@@ -427,10 +427,7 @@ async def auto_export_as_ipynb(
 
 @router.post("/pdf")
 @requires("edit")
-async def export_as_pdf(
-    *,
-    request: Request,
-) -> Response:
+async def export_as_pdf(*, request: Request) -> Response:
     """
     parameters:
         - in: header
@@ -471,16 +468,13 @@ async def export_as_pdf(
     )
     if pdf_data is None:
         raise HTTPException(
-            status_code=HTTPStatus.SERVER_ERROR,
-            detail="Failed to export PDF",
+            status_code=HTTPStatus.SERVER_ERROR, detail="Failed to export PDF"
         )
     filename = get_download_filename(session.app_file_manager.filename, "pdf")
     headers = make_download_headers(filename)
 
     return Response(
-        content=pdf_data,
-        media_type="application/pdf",
-        headers=headers,
+        content=pdf_data, media_type="application/pdf", headers=headers
     )
 
 

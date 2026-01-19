@@ -4868,12 +4868,13 @@ paths:
       responses:
         200:
           content:
-            text/plain:
+            application/pdf:
               schema:
+                format: binary
                 type: string
           description: Export the notebook as a PDF
         400:
-          description: File must be saved before downloading
+          description: File must be saved before downloading or dependencies missing
   /api/export/script:
     post:
       parameters:
