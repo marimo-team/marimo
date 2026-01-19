@@ -175,6 +175,9 @@ class RuntimeContext(abc.ABC):
     def with_cell_id(self, cell_id: CellId_t) -> Iterator[None]:
         pass
 
+    def is_embedded(self) -> bool:
+        return self.parent is not None
+
     def add_child(self, runtime_context: RuntimeContext) -> None:
         if runtime_context not in self.children:
             self.children.append(runtime_context)

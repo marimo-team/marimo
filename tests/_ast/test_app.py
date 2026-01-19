@@ -1592,6 +1592,128 @@ class TestAppComposition:
         assert is_external_cell_id(setup_cell_ids[0])
 
 
+class TestInternalAppOverrides:
+    """Tests for InternalApp.overrides() method."""
+
+    async def test_overrides_none_when_no_defs_passed(
+        self, k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        """Test that overrides() returns None when no defs are passed."""
+        await k.run(
+            [
+                exec_req.get(
+                    """
+                    from marimo import App
+                    from marimo._ast.app import InternalApp
+
+                    app = App()
+
+                    @app.cell
+                    def __() -> tuple[int]:
+                        x = 10
+                        return (x,)
+
+                    @app.cell
+                    def __(x: int) -> tuple[int]:
+                        y = x + 1
+                        return (y,)
+                    """
+                ),
+                exec_req.get(
+                    """
+                    # embed without any overrides
+                    result = await app.embed()
+                    internal_app = InternalApp(app)
+                    overrides = internal_app.overrides()
+                    """
+                ),
+            ]
+        )
+        assert not k.errors
+        assert k.globals["overrides"] is None
+
+    async def test_overrides_returns_overridden_defs_dict(
+        self, k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        """Test that overrides() returns a dict of overridden definitions."""
+        await k.run(
+            [
+                exec_req.get(
+                    """
+                    from marimo import App
+                    from marimo._ast.app import InternalApp
+
+                    app = App()
+
+                    @app.cell
+                    def __() -> tuple[int]:
+                        x = 10
+                        return (x,)
+
+                    @app.cell
+                    def __(x: int) -> tuple[int]:
+                        y = x + 1
+                        return (y,)
+                    """
+                ),
+                exec_req.get(
+                    """
+                    # embed with x overridden
+                    result = await app.embed(defs={"x": 100})
+                    internal_app = InternalApp(app)
+                    overrides = internal_app.overrides()
+                    """
+                ),
+            ]
+        )
+        assert not k.errors
+        assert k.globals["overrides"] == {"x": 100}
+
+    async def test_overrides_returns_multiple_defs(
+        self, k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        """Test that overrides() returns all overridden definitions."""
+        await k.run(
+            [
+                exec_req.get(
+                    """
+                    from marimo import App
+                    from marimo._ast.app import InternalApp
+
+                    app = App()
+
+                    @app.cell
+                    def __() -> tuple[int]:
+                        a = 1
+                        return (a,)
+
+                    @app.cell
+                    def __() -> tuple[int]:
+                        b = 2
+                        return (b,)
+
+                    @app.cell
+                    def __(a: int, b: int) -> tuple[int]:
+                        c = a + b
+                        return (c,)
+                    """
+                ),
+                exec_req.get(
+                    """
+                    # embed with both a and b overridden
+                    result = await app.embed(defs={"a": 10, "b": 20})
+                    internal_app = InternalApp(app)
+                    overrides = internal_app.overrides()
+                    """
+                ),
+            ]
+        )
+        assert not k.errors
+        assert k.globals["overrides"] == {"a": 10, "b": 20}
+
+
+
+
 class TestAppKernelRunnerRegistry:
     def test_get_runner(self, k: Kernel) -> None:
         # `k` fixture installs a context, needed for AppKernelRunner
