@@ -36,19 +36,14 @@ selections to Python!
 ```python
 @app.cell
 async def __():
-    import pandas as pd
-    import pyodide
-    import micropip
-    import json
-    await micropip.install('altair')
     import altair as alt
+    import pandas as pd
+    import json
     return
 
 @app.cell
 def __():
-    cars = pd.DataFrame(json.loads(
-      pyodide.http.open_url('https://vega.github.io/vega-datasets/data/cars.json').read()
-    ))
+    cars = pd.read_json('https://vega.github.io/vega-datasets/data/cars.json')
 
     chart = mo.ui.altair_chart(alt.Chart(cars).mark_point().encode(
         x='Horsepower',
@@ -228,10 +223,9 @@ conda install -c conda-forge "vegafusion-python-embed>=1.4.0" "vegafusion>=1.4.0
 @app.cell(hide_code=True)
 async def __():
     import micropip
-    await micropip.install("pandas")
     await micropip.install("plotly")
     import plotly.express as px
-    return micropip, px
+    return px,
 
 
 @app.cell
