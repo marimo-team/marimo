@@ -81,6 +81,11 @@ def normalize_sql_f_string(node: ast.JoinedStr) -> str:
     We add placeholder for {...} expressions in the f-string.
     This is so we can create a valid SQL query to be passed to
     other utilities.
+
+    The placeholder "1" is used instead of "null" because it's valid in more
+    SQL contexts. For example, interval expressions like `interval '{days} days'`
+    become `interval '1 days'` which parses correctly, whereas `interval 'null days'`
+    would cause a parsing error (issue #7717).
     """
 
     def print_part(part: ast.expr) -> str:
@@ -91,8 +96,9 @@ def normalize_sql_f_string(node: ast.JoinedStr) -> str:
         elif isinstance(part, ast.Constant):
             return str(part.value)
         else:
-            # Just add null as a placeholder for {...} expressions
-            return "null"
+            # Use "1" as placeholder - it's valid in more SQL contexts than "null"
+            # (e.g., interval expressions like `interval '1 days'`)
+            return "1"
 
     result = "".join(print_part(part) for part in node.values)
     return result
