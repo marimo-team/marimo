@@ -31,7 +31,7 @@ from typing import (
 
 from marimo import _loggers
 from marimo._ast.app_config import _AppConfig
-from marimo._ast.cell import Cell, CellConfig, CellImpl
+from marimo._ast.cell import Cell, CellConfig, CellImpl, ImportWorkspace
 from marimo._ast.cell_id import external_prefix
 from marimo._ast.cell_manager import CellManager
 from marimo._ast.errors import (
@@ -292,16 +292,37 @@ class App:
             self._cell_manager.configs(),
         ):
             cell = None
-            # If the cell exists, the cell data should be set.
             cell_data = self._cell_manager._cell_data.get(cell_id)
             new_cell_id = app._cell_manager.create_cell_id()
+            # If the cell exists, the cell data should be set (ie not None).
             if cell_data is not None:
                 cell = cell_data.cell
                 if cell is not None:
+                    cell_impl = cell._cell
                     new_cell = Cell(
                         _name=cell.name,
+                        # CellImpl has mutable fields and cannot safely be shallow copied.
                         _cell=CellImpl(
-                            **{**cell._cell.__dict__, "cell_id": new_cell_id}
+                            cell_id=new_cell_id,
+                            key=cell_impl.key,
+                            code=cell_impl.code,
+                            mod=cell_impl.mod,
+                            defs=cell_impl.defs,
+                            refs=cell_impl.refs,
+                            sql_refs=cell_impl.sql_refs,
+                            temporaries=cell_impl.temporaries,
+                            variable_data=cell_impl.variable_data,
+                            deleted_refs=cell_impl.deleted_refs,
+                            body=cell_impl.body,
+                            last_expr=cell_impl.last_expr,
+                            language=cell_impl.language,
+                            markdown=cell_impl.markdown,
+                            config=CellConfig.from_dict(
+                                cell_impl.config.asdict()
+                            ),
+                            import_workspace=ImportWorkspace(
+                                is_import_block=cell_impl.import_workspace.is_import_block
+                            ),
                         ),
                         _app=InternalApp(app),
                     )
@@ -1014,6 +1035,10 @@ class InternalApp:
         self, request: InvokeFunctionCommand
     ) -> tuple[HumanReadableStatus, JSONType, bool]:
         return await self._app._function_call(request)
+
+    def overrides(self) -> dict[str, Any] | None:
+        """Overridden definitions; only matters for embedded apps."""
+        return self._app._get_kernel_runner()._previously_seen_defs
 
     def to_ir(self) -> NotebookSerializationV1:
         return NotebookSerializationV1(
