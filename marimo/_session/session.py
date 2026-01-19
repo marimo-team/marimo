@@ -360,13 +360,12 @@ class SessionImpl(Session):
         http_request: Optional[HTTPRequest],
     ) -> None:
         """Instantiate the app."""
+        app = self.app_file_manager.app
 
         # If codes are provided, use them instead of the file codes
         # This is used when the frontend has local edits that should be
         # used instead of the stored file (e.g. local editing before connecting).
-        codes = (
-            request.codes or self.app_file_manager.app.cell_manager.code_map()
-        )
+        codes = request.codes or app.cell_manager.code_map()
 
         execution_requests = tuple(
             ExecuteCellCommand(
@@ -380,6 +379,7 @@ class SessionImpl(Session):
         self.put_control_request(
             CreateNotebookCommand(
                 execution_requests=execution_requests,
+                cell_ids=tuple(app.cell_manager.cell_ids()),
                 set_ui_element_value_request=UpdateUIElementCommand(
                     object_ids=request.object_ids,
                     values=request.values,

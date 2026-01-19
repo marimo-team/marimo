@@ -245,6 +245,7 @@ def test_kernel_manager_interrupt(tmp_path: Path) -> None:
                     ),
                 ),
             ),
+            cell_ids=("1",),
             set_ui_element_value_request=UpdateUIElementCommand(
                 object_ids=[], values=[]
             ),
