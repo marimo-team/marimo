@@ -30,7 +30,6 @@ describe("withLoadingToast", () => {
     expect(toast).toHaveBeenCalledTimes(1);
     expect(toast).toHaveBeenCalledWith({
       title: "Loading...",
-      description: expect.anything(),
     });
     expect(mockDismiss).toHaveBeenCalledTimes(1);
     expect(result).toBe("success");
