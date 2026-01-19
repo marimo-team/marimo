@@ -1,6 +1,5 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import { toPng } from "html-to-image";
-import { Spinner } from "@/components/icons/spinner";
 import { toast } from "@/components/ui/use-toast";
 import { getRequestClient } from "@/core/network/requests";
 import { Filenames } from "@/utils/filenames";
@@ -16,7 +15,6 @@ export async function withLoadingToast<T>(
 ): Promise<T> {
   const loadingToast = toast({
     title,
-    description: <Spinner size="small" />,
   });
   try {
     const result = await fn();
@@ -84,10 +82,19 @@ export async function downloadAsPDF(opts: {
   const client = getRequestClient();
   const { filename, webpdf } = opts;
 
-  const pdfBlob = await client.exportAsPDF({
-    webpdf: webpdf,
-  });
+  try {
+    const pdfBlob = await client.exportAsPDF({
+      webpdf,
+    });
 
-  const filenameWithoutPath = Paths.basename(filename) ?? "notebook.py";
-  downloadBlob(pdfBlob, Filenames.toPDF(filenameWithoutPath));
+    const filenameWithoutPath = Paths.basename(filename) ?? "notebook.py";
+    downloadBlob(pdfBlob, Filenames.toPDF(filenameWithoutPath));
+  } catch (error) {
+    toast({
+      title: "Error",
+      description: "Failed to download as PDF.",
+      variant: "danger",
+    });
+    throw error;
+  }
 }
