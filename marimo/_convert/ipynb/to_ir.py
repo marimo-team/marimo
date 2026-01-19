@@ -415,16 +415,10 @@ def _normalize_git_url_package(package: str) -> str:
     Returns the package as-is if it's not a git URL.
     """
     # Check if this looks like a git URL or VCS URL
-    # Common patterns: git+https://, git+ssh://, git+git://, https://github.com/...
+    # Common patterns: git+https://, git+ssh://, git+git://, or any URL ending in .git
     is_git_url = package.startswith("git+") or (
         "://" in package
-        and (
-            "github.com" in package
-            or "gitlab.com" in package
-            or "bitbucket.org" in package
-            or package.startswith("https://")
-            or package.startswith("http://")
-        )
+        and package.rstrip("/").endswith(".git")
         and " @ " not in package
     )
 
