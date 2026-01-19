@@ -33,7 +33,10 @@ from marimo._messaging.variables import create_variable_value
 from marimo._output import formatting
 from marimo._plugins.ui._core.ui_element import UIElement
 from marimo._runtime.context.kernel_context import KernelRuntimeContext
-from marimo._runtime.context.types import get_context, get_global_context
+from marimo._runtime.context.types import (
+    get_context,
+    get_global_context,
+)
 from marimo._runtime.control_flow import MarimoInterrupt, MarimoStopError
 from marimo._runtime.runner import cell_runner
 from marimo._runtime.side_effect import SideEffect
@@ -111,14 +114,24 @@ def _set_run_result_status(
         cell.set_run_result_status("success")
 
 
+def _should_broadcast_data() -> bool:
+    ctx = get_context()
+    is_edit_mode = (
+        isinstance(ctx, KernelRuntimeContext)
+        and ctx.session_mode == SessionMode.EDIT
+    )
+    # We don't broadcast data in embedded contexts, since the variables panel,
+    # etc. should only show the top-level graph's variables.
+    return is_edit_mode and not ctx.is_embedded()
+
+
 @kernel_tracer.start_as_current_span("broadcast_variables")
 def _broadcast_variables(
     cell: CellImpl,
     runner: cell_runner.Runner,
     run_result: cell_runner.RunResult,
 ) -> None:
-    # Skip if not in edit mode
-    if not _is_edit_mode():
+    if not _should_broadcast_data():
         return
 
     del run_result
@@ -141,8 +154,7 @@ def _broadcast_datasets(
     runner: cell_runner.Runner,
     run_result: cell_runner.RunResult,
 ) -> None:
-    # Skip if not in edit mode
-    if not _is_edit_mode():
+    if not _should_broadcast_data():
         return
 
     del run_result
@@ -164,8 +176,7 @@ def _broadcast_data_source_connection(
     runner: cell_runner.Runner,
     run_result: cell_runner.RunResult,
 ) -> None:
-    # Skip if not in edit mode
-    if not _is_edit_mode():
+    if not _should_broadcast_data():
         return
 
     del run_result
@@ -197,8 +208,7 @@ def _broadcast_duckdb_datasource(
     runner: cell_runner.Runner,
     run_result: cell_runner.RunResult,
 ) -> None:
-    # Skip if not in edit mode
-    if not _is_edit_mode():
+    if not _should_broadcast_data():
         return
 
     del run_result
@@ -437,14 +447,6 @@ def _reset_matplotlib_context(
     if get_global_context().mpl_installed:
         # ensures that every cell gets a fresh axis.
         exec("__marimo__._output.mpl.close_figures()", runner.glbls)
-
-
-def _is_edit_mode() -> bool:
-    ctx = get_context()
-    return (
-        isinstance(ctx, KernelRuntimeContext)
-        and ctx.session_mode == SessionMode.EDIT
-    )
 
 
 POST_EXECUTION_HOOKS: list[PostExecutionHookType] = [
