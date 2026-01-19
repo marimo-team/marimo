@@ -177,7 +177,8 @@ class CellImpl:
     # Markdown content of the cell if it exists
     markdown: Optional[str] = None
 
-    # Mutable fields
+    # ------------------ Mutable fields --------------------------------------
+    #
     # explicit configuration of cell
     config: CellConfig = dataclasses.field(default_factory=CellConfig)
     # workspace for runtimes to use to store metadata about imports
