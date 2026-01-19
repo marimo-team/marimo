@@ -167,14 +167,23 @@ export async function openCommandPalette(opts: {
 }) {
   const { page, command } = opts;
 
+  // Blur any active element first to avoid typing into cell editors
+  await page.evaluate(() => {
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
+  });
+
   // Open command palette with Ctrl+K (or Cmd+K on Mac)
   await pressShortcut(page, "global.commandPalette");
 
-  // Wait for the command palette to be visible
-  await expect(page.getByPlaceholder("Type to search")).toBeVisible();
+  // Wait for the command palette input to be visible
+  const commandInput = page.getByPlaceholder("Type to search...");
+  await expect(commandInput).toBeVisible();
 
-  // Type the command
-  await page.keyboard.type(command);
+  // Focus and wait for it to be ready
+  await commandInput.focus();
+  await commandInput.fill(command);
 
   // Hit Enter to execute
   await page.keyboard.press("Enter");
