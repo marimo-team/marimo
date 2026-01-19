@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import ast
+import json
 from textwrap import dedent
 
 import pytest
@@ -1069,8 +1070,6 @@ def test_transform_add_subprocess_import_not_needed():
 
 
 def test_build_metadata_with_pip_packages():
-    import json
-
     # Create a minimal notebook with pip install
     notebook = {
         "cells": [
@@ -1092,8 +1091,6 @@ def test_build_metadata_with_pip_packages():
 
 
 def test_build_metadata_no_pip_packages():
-    import json
-
     # Create a notebook without pip install
     notebook = {
         "cells": [
@@ -1115,8 +1112,6 @@ def test_build_metadata_no_pip_packages():
 
 
 def test_build_metadata_with_existing_metadata():
-    import json
-
     # Create a notebook with existing PEP 723 metadata
     notebook = {
         "cells": [
@@ -1139,8 +1134,6 @@ def test_build_metadata_with_existing_metadata():
 
 
 def test_integration_exclamation_marks_full_pipeline():
-    import json
-
     # Test the full pipeline with mixed commands
     notebook = {
         "cells": [
@@ -1179,4 +1172,87 @@ def test_integration_exclamation_marks_full_pipeline():
     assert any(
         "# packages added via marimo's package management:" in s
         for s in sources
+    )
+
+
+def test_transform_git_url_packages():
+    from marimo._convert.ipynb.to_ir import _normalize_git_url_package
+
+    # Test git+https URL
+    result = _normalize_git_url_package(
+        "git+https://github.com/locuslab/mugrade.git"
+    )
+    assert result == "mugrade @ git+https://github.com/locuslab/mugrade.git"
+
+    # Test https URL (should be converted to git+https)
+    result = _normalize_git_url_package(
+        "https://github.com/user/mypackage.git"
+    )
+    assert result == "mypackage @ git+https://github.com/user/mypackage.git"
+
+    # Test URL without .git extension
+    result = _normalize_git_url_package("git+https://github.com/user/repo")
+    assert result == "repo @ git+https://github.com/user/repo"
+
+    # Test regular package (should remain unchanged)
+    result = _normalize_git_url_package("numpy")
+    assert result == "numpy"
+
+    result = _normalize_git_url_package("pandas>=1.0.0")
+    assert result == "pandas>=1.0.0"
+
+    # Test GitLab URL
+    result = _normalize_git_url_package(
+        "git+https://gitlab.com/user/project.git"
+    )
+    assert result == "project @ git+https://gitlab.com/user/project.git"
+
+
+def test_integration_git_url_in_notebook():
+    # Test the full pipeline with git URL install
+    notebook = {
+        "cells": [
+            {
+                "cell_type": "code",
+                "source": "!pip install --upgrade --no-deps git+https://github.com/locuslab/mugrade.git",
+                "metadata": {},
+            }
+        ],
+        "metadata": {},
+        "nbformat": 4,
+        "nbformat_minor": 2,
+    }
+
+    result = convert_from_ipynb_to_notebook_ir(json.dumps(notebook))
+
+    # Check that the git URL was properly converted to PEP 508 format
+    assert (
+        'dependencies = ["mugrade @ git+https://github.com/locuslab/mugrade.git"]'
+        in result.header.value
+    )
+
+
+def test_integration_mixed_packages_with_git_url():
+    # Test the full pipeline with mixed packages including git URLs
+    notebook = {
+        "cells": [
+            {
+                "cell_type": "code",
+                "source": "!pip install numpy pandas git+https://github.com/user/package.git",
+                "metadata": {},
+            }
+        ],
+        "metadata": {},
+        "nbformat": 4,
+        "nbformat_minor": 2,
+    }
+
+    result = convert_from_ipynb_to_notebook_ir(json.dumps(notebook))
+
+    # Check that all packages are properly formatted
+    header_value = result.header.value
+    assert '"numpy"' in header_value
+    assert '"pandas"' in header_value
+    assert (
+        '"package @ git+https://github.com/user/package.git"' in header_value
     )

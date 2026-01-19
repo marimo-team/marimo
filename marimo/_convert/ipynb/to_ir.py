@@ -403,6 +403,58 @@ class ExclamationMarkResult:
     needs_subprocess: bool
 
 
+def _normalize_git_url_package(package: str) -> str:
+    """
+    Normalize git URL packages to PEP 508 format.
+
+    Converts:
+        git+https://github.com/user/repo.git
+    To:
+        repo @ git+https://github.com/user/repo.git
+
+    Returns the package as-is if it's not a git URL.
+    """
+    # Check if this looks like a git URL or VCS URL
+    # Common patterns: git+https://, git+ssh://, git+git://, or any URL ending in .git
+    is_git_url = package.startswith("git+") or (
+        "://" in package
+        and package.rstrip("/").endswith(".git")
+        and " @ " not in package
+    )
+
+    if is_git_url:
+        import urllib.parse
+
+        # Extract the repo name from the URL
+        if package.startswith("git+"):
+            url_without_prefix = package[4:]  # Remove "git+"
+        else:
+            url_without_prefix = package
+
+        # Parse the URL to extract the path
+        parsed = urllib.parse.urlparse(url_without_prefix)
+        path = parsed.path
+
+        # Get the last part of the path as the repo name
+        repo_name = path.rstrip("/").split("/")[-1]
+
+        # Remove .git extension if present
+        if repo_name.endswith(".git"):
+            repo_name = repo_name[:-4]
+
+        # If we couldn't extract a name, use a placeholder
+        if not repo_name:
+            repo_name = "package"
+
+        # Ensure the URL has git+ prefix
+        if not package.startswith("git+"):
+            package = f"git+{package}"
+
+        return f"{repo_name} @ {package}"
+
+    return package
+
+
 def _extract_pip_install(
     command_line: str, command_tokens: list[str]
 ) -> ExclamationCommandResult:
@@ -414,7 +466,8 @@ def _extract_pip_install(
     packages = [
         p for p in command_tokens[install_idx + 1 :] if not p.startswith("-")
     ]
-    pip_packages = packages
+    # Normalize git URLs to PEP 508 format
+    pip_packages = [_normalize_git_url_package(p) for p in packages]
 
     # Comment out the pip command
     replacement = (
