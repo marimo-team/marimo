@@ -444,6 +444,31 @@ def new_figure_manager_given_figure(
     return manager
 
 
+class InteractiveMplHtml(Html):
+    """Html subclass that provides PNG fallback for ipynb export."""
+
+    def __init__(self, text: str, figure: Union[Figure, SubFigure]) -> None:
+        self._figure = figure
+        super().__init__(text)
+
+    def _repr_png_(self) -> bytes:
+        """Return base64-encoded PNG bytes for ipynb export fallback.
+
+        The Html._mime_ method expects _repr_png_ to return bytes that
+        can be decoded to a UTF-8 string, so we return base64-encoded data.
+        """
+        import base64
+
+        from matplotlib.figure import Figure
+
+        buf = io.BytesIO()
+        if isinstance(self._figure, Figure):
+            self._figure.savefig(buf, format="png", bbox_inches="tight")
+        else:
+            self._figure.figure.canvas.print_figure(buf, format="png")
+        return base64.b64encode(buf.getvalue())
+
+
 @mddoc
 def interactive(figure: Union[Figure, SubFigure, Axes]) -> Html:
     """Render a matplotlib figure using an interactive viewer.
@@ -510,13 +535,14 @@ def interactive(figure: Union[Figure, SubFigure, Axes]) -> Html:
 
     content = _template(str(figure_manager.num), port)
 
-    return Html(
+    return InteractiveMplHtml(
         h.iframe(
             srcdoc=html.escape(content),
             width="100%",
             height="550px",
             onload="__resizeIframe(this)",
-        )
+        ),
+        figure,
     )
 
 

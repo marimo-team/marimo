@@ -137,21 +137,22 @@ class Html(MIME):
         return self._text
 
     def _mime_(self) -> tuple[KnownMimeType, str]:
-        no_js = is_no_js()
-        if no_js and hasattr(self, "_repr_png_"):
-            return (
-                "image/png",
-                cast(
-                    str, cast(Any, self)._repr_png_().decode()
-                ),  # ignore[no-untyped-call]
-            )
-        if no_js and hasattr(self, "_repr_markdown_"):
-            return (
-                "text/markdown",
-                cast(
-                    str, cast(Any, self)._repr_markdown_()
-                ),  # ignore[no-untyped-call]
-            )
+        if not is_no_js():
+            return ("text/html", self.text)
+
+        # Try PNG representation first (for objects with _repr_png_)
+        repr_png = getattr(self, "_repr_png_", None)
+        if repr_png is not None and callable(repr_png):
+            png_bytes = cast(bytes, repr_png())
+            return ("image/png", png_bytes.decode())
+
+        # Try markdown representation (for objects with _repr_markdown_)
+        repr_markdown = getattr(self, "_repr_markdown_", None)
+        if repr_markdown is not None and callable(repr_markdown):
+            markdown_text = cast(str, repr_markdown())
+            return ("text/markdown", markdown_text)
+
+        # Default to HTML
         return ("text/html", self.text)
 
     def __format__(self, spec: str) -> str:
