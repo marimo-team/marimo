@@ -886,6 +886,60 @@ class TestApp:
             InternalApp(app).cell_manager.cell_ids()
         )
 
+    def test_app_clone_deep_copies_cell_impl_mutable_fields(self) -> None:
+        """Test that clone() deep-copies CellImpl's mutable fields.
+
+        CellImpl has mutable fields (config, import_workspace, and private
+        runtime state) that should not be shared between the original and
+        cloned app.
+        """
+        app = App()
+
+        @app.cell
+        def __():
+            x = 1
+            return (x,)
+
+        clone = app.clone()
+
+        original_internal = InternalApp(app)
+        cloned_internal = InternalApp(clone)
+
+        # Get the cell data from both apps
+        original_cell_ids = list(original_internal.cell_manager.cell_ids())
+        cloned_cell_ids = list(cloned_internal.cell_manager.cell_ids())
+
+        original_cell = original_internal.cell_manager._cell_data[
+            original_cell_ids[0]
+        ].cell
+        cloned_cell = cloned_internal.cell_manager._cell_data[
+            cloned_cell_ids[0]
+        ].cell
+
+        assert original_cell is not None
+        assert cloned_cell is not None
+
+        original_impl = original_cell._cell
+        cloned_impl = cloned_cell._cell
+
+        # CellImpl objects should be different
+        assert original_impl is not cloned_impl
+
+        # Public mutable fields should be deep-copied, not shared
+        assert original_impl.config is not cloned_impl.config
+        assert original_impl.import_workspace is not cloned_impl.import_workspace
+
+        # Private mutable runtime state fields should also be independent
+        assert original_impl._status is not cloned_impl._status
+        assert original_impl._run_result_status is not cloned_impl._run_result_status
+        assert original_impl._stale is not cloned_impl._stale
+        assert original_impl._output is not cloned_impl._output
+
+        # Verify mutation of config doesn't affect the original
+        cloned_impl.config.configure({"disabled": True})
+        assert cloned_impl.config.disabled is True
+        assert original_impl.config.disabled is False
+
     def test_to_py(self) -> None:
         """Test that InternalApp.to_py() returns the Python code representation."""
         app = App()
