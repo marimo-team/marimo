@@ -29,6 +29,7 @@ from marimo._runtime.commands import (
 from marimo._session.consumer import SessionConsumer
 from marimo._session.events import SessionEventBus
 from marimo._session.extensions.extensions import (
+    CacheMode,
     CachingExtension,
     HeartbeatExtension,
     LoggingExtension,
@@ -141,12 +142,22 @@ class SessionImpl(Session):
                 redirect_console_to_browser=redirect_console_to_browser,
             )
 
+        if mode == SessionMode.EDIT:
+            cache_enabled = not auto_instantiate
+            cache_mode = CacheMode.READ_WRITE
+        else:
+            cache_enabled = config_manager.get_config()["runtime"].get(
+                "serve_cached_sessions_in_apps", False
+            )
+            cache_mode = CacheMode.READ
+
         extensions = [
             *(extensions or []),
             LoggingExtension(),
             HeartbeatExtension(),
             CachingExtension(
-                enabled=not auto_instantiate and mode == SessionMode.EDIT
+                enabled=cache_enabled,
+                mode=cache_mode,
             ),
             NotificationListenerExtension(
                 kernel_manager=kernel_manager, queue_manager=queue_manager
