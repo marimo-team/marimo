@@ -9,6 +9,7 @@ import { cellsRuntimeAtom } from "../cells/cells";
 import { type CellId, CellOutputId } from "../cells/ids";
 import { connectionAtom } from "../network/connection";
 import { useRequestClient } from "../network/requests";
+import type { UpdateCellOutputsRequest } from "../network/types";
 import { VirtualFileTracker } from "../static/virtual-file-tracker";
 import { WebSocketState } from "../websocket/types";
 
@@ -60,12 +61,10 @@ export function useAutoExport() {
 
   useInterval(
     async () => {
-      const cellsToOutput = await takeScreenshots();
-      if (Object.keys(cellsToOutput).length > 0) {
-        await updateCellOutputs({
-          cellIdsToOutput: cellsToOutput,
-        });
-      }
+      await updateCellOutputsWithScreenshots(
+        takeScreenshots,
+        updateCellOutputs,
+      );
       await autoExportAsIPYNB({
         download: false,
       });
@@ -156,4 +155,17 @@ export function useEnrichCellOutputs() {
       ),
     );
   };
+}
+
+/**
+ * Utility function to take screenshots of cells with HTML outputs and update the cell outputs.
+ */
+export async function updateCellOutputsWithScreenshots(
+  takeScreenshots: () => Promise<Record<CellId, ["image/png", string]>>,
+  updateCellOutputs: (request: UpdateCellOutputsRequest) => Promise<null>,
+) {
+  const cellIdsToOutput = await takeScreenshots();
+  if (Object.keys(cellIdsToOutput).length > 0) {
+    await updateCellOutputs({ cellIdsToOutput });
+  }
 }

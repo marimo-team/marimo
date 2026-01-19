@@ -26,6 +26,7 @@ from marimo._convert.common.filename import (
     get_filename,
 )
 from marimo._convert.ipynb.from_ir import convert_from_ir_to_ipynb
+from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._runtime.virtual_file import read_virtual_file
 from marimo._schemas.notebook import NotebookV1
@@ -304,6 +305,64 @@ class Exporter:
         download_filename = get_download_filename(filename, "wasm.html")
 
         return html, download_filename
+
+    def export_as_pdf(
+        self,
+        *,
+        app: InternalApp,
+        session_view: SessionView,
+        webpdf: bool,
+    ) -> bytes | None:
+        """Export notebook as a PDF.
+
+        Args:
+            app: The app to export
+            session_view: The session view to export
+            webpdf: Whether to use webpdf
+            filename: The filename to export
+
+        Returns:
+            PDF data
+        """
+        required_dependencies = [
+            DependencyManager.nbformat,
+            DependencyManager.nbconvert,
+        ]
+        if webpdf:
+            required_dependencies.append(DependencyManager.playwright)
+
+        DependencyManager.require_many(
+            "for PDF export", *required_dependencies
+        )
+
+        ipynb_json_str = self.export_as_ipynb(
+            app=app, sort_mode="top-down", session_view=session_view
+        )
+
+        import nbformat
+
+        notebook = nbformat.reads(ipynb_json_str, as_version=4)  # type: ignore[no-untyped-call]
+        exporter: WebPDFExporter | PDFExporter
+
+        if webpdf:
+            from nbconvert import (  # type: ignore[import-not-found]
+                WebPDFExporter,
+            )
+
+            web_exporter = WebPDFExporter()
+            web_exporter.allow_chromium_download = True
+            exporter = web_exporter
+        else:
+            from nbconvert import PDFExporter
+
+            exporter = PDFExporter()
+
+        pdf_data, _resources = exporter.from_notebook_node(notebook)
+
+        if not isinstance(pdf_data, bytes):
+            LOGGER.error("PDF data is not bytes: %s", pdf_data)
+            return None
+        return pdf_data
 
     def export_assets(
         self, directory: Path, ignore_index_html: bool = False

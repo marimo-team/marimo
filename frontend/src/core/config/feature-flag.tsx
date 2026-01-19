@@ -13,6 +13,7 @@ export interface ExperimentalFeatures {
   chat_modes: boolean;
   cache_panel: boolean;
   external_agents: boolean;
+  nbconvert_pdf: boolean;
   // Add new feature flags here
 }
 
@@ -24,6 +25,7 @@ const defaultValues: ExperimentalFeatures = {
   chat_modes: false,
   cache_panel: false,
   external_agents: import.meta.env.DEV,
+  nbconvert_pdf: false,
 };
 
 export function getFeatureFlag<T extends keyof ExperimentalFeatures>(

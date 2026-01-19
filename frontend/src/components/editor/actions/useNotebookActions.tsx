@@ -54,7 +54,12 @@ import {
 } from "@/core/cells/cells";
 import { disabledCellIds } from "@/core/cells/utils";
 import { useResolvedMarimoConfig } from "@/core/config/config";
+import { getFeatureFlag } from "@/core/config/feature-flag";
 import { Constants } from "@/core/constants";
+import {
+  updateCellOutputsWithScreenshots,
+  useEnrichCellOutputs,
+} from "@/core/export/hooks";
 import { useLayoutActions, useLayoutState } from "@/core/layout/layout";
 import { useTogglePresenting } from "@/core/layout/useTogglePresenting";
 import { kioskModeAtom, viewStateAtom } from "@/core/mode";
@@ -64,7 +69,12 @@ import { downloadAsHTML } from "@/core/static/download-html";
 import { createShareableLink } from "@/core/wasm/share";
 import { isWasm } from "@/core/wasm/utils";
 import { copyToClipboard } from "@/utils/copy";
-import { downloadBlob, downloadHTMLAsImage } from "@/utils/download";
+import {
+  downloadAsPDF,
+  downloadBlob,
+  downloadHTMLAsImage,
+  withLoadingToast,
+} from "@/utils/download";
 import { Filenames } from "@/utils/filenames";
 import { Objects } from "@/utils/objects";
 import { newNotebookURL } from "@/utils/urls";
@@ -110,13 +120,15 @@ export function useNotebookActions() {
   const setCommandPaletteOpen = useSetAtom(commandPaletteAtom);
   const setSettingsDialogOpen = useSetAtom(settingDialogAtom);
   const setKeyboardShortcutsOpen = useSetAtom(keyboardShortcutsAtom);
-  const { exportAsMarkdown, readCode, saveCellConfig } = useRequestClient();
+  const { exportAsMarkdown, readCode, saveCellConfig, updateCellOutputs } =
+    useRequestClient();
 
   const hasDisabledCells = useAtomValue(hasDisabledCellsAtom);
   const canUndoDeletes = useAtomValue(canUndoDeletesAtom);
   const { selectedLayout } = useLayoutState();
   const { setLayoutView } = useLayoutActions();
   const togglePresenting = useTogglePresenting();
+  const takeScreenshots = useEnrichCellOutputs();
 
   // Fallback: if sharing is undefined, both are enabled by default
   const sharingHtmlEnabled = resolvedConfig.sharing?.html ?? true;
@@ -220,6 +232,21 @@ export function useNotebookActions() {
               </span>
             ),
           handle: async () => {
+            if (getFeatureFlag("nbconvert_pdf")) {
+              const downloadPDF = async () => {
+                await updateCellOutputsWithScreenshots(
+                  takeScreenshots,
+                  updateCellOutputs,
+                );
+                await downloadAsPDF({
+                  filename: filename ?? "notebook.py",
+                  webpdf: true,
+                });
+              };
+              await withLoadingToast("Downloading PDF...", downloadPDF);
+              return;
+            }
+
             const beforeprint = new Event("export-beforeprint");
             const afterprint = new Event("export-afterprint");
             function print() {

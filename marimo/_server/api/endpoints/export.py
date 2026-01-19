@@ -6,7 +6,12 @@ from typing import TYPE_CHECKING
 from starlette.authentication import requires
 from starlette.background import BackgroundTask
 from starlette.exceptions import HTTPException
-from starlette.responses import HTMLResponse, JSONResponse, PlainTextResponse
+from starlette.responses import (
+    HTMLResponse,
+    JSONResponse,
+    PlainTextResponse,
+    Response,
+)
 
 from marimo import _loggers
 from marimo._convert.common.filename import (
@@ -23,6 +28,7 @@ from marimo._server.export.exporter import AutoExporter, Exporter
 from marimo._server.models.export import (
     ExportAsHTMLRequest,
     ExportAsMarkdownRequest,
+    ExportAsPDFRequest,
     ExportAsScriptRequest,
     UpdateCellOutputsRequest,
 )
@@ -416,6 +422,65 @@ async def auto_export_as_ipynb(
     return JSONResponse(
         content=asdict(SuccessResponse()),
         background=BackgroundTask(_background_export),
+    )
+
+
+@router.post("/pdf")
+@requires("edit")
+async def export_as_pdf(
+    *,
+    request: Request,
+) -> Response:
+    """
+    parameters:
+        - in: header
+          name: Marimo-Session-Id
+          schema:
+            type: string
+          required: true
+    requestBody:
+        content:
+            application/json:
+                schema:
+                    $ref: "#/components/schemas/ExportAsPDFRequest"
+    responses:
+        200:
+            description: Export the notebook as a PDF
+            content:
+                application/pdf:
+                    schema:
+                        type: string
+                        format: binary
+        400:
+            description: File must be saved before downloading or dependencies missing
+    """
+    app_state = AppState(request)
+    body = await parse_request(request, cls=ExportAsPDFRequest)
+    session = app_state.require_current_session()
+
+    if not session.app_file_manager.is_notebook_named:
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail="File must have a name before exporting",
+        )
+
+    pdf_data = Exporter().export_as_pdf(
+        app=session.app_file_manager.app,
+        session_view=session.session_view,
+        webpdf=body.webpdf,
+    )
+    if pdf_data is None:
+        raise HTTPException(
+            status_code=HTTPStatus.SERVER_ERROR,
+            detail="Failed to export PDF",
+        )
+    filename = get_download_filename(session.app_file_manager.filename, "pdf")
+    headers = make_download_headers(filename)
+
+    return Response(
+        content=pdf_data,
+        media_type="application/pdf",
+        headers=headers,
     )
 
 
