@@ -167,6 +167,8 @@ class RuntimeConfig(TypedDict):
     - `default_auto_download`: an Optional list of export types to automatically snapshot your notebook as:
        `html`, `markdown`, `ipynb`.
        The default is None.
+    - `default_csv_encoding`: the default encoding for CSV exports.
+        The default is `"utf-8"`.
     """
 
     auto_instantiate: bool
@@ -180,6 +182,7 @@ class RuntimeConfig(TypedDict):
     dotenv: NotRequired[list[str]]
     default_sql_output: SqlOutputType
     default_auto_download: NotRequired[list[ExportType]]
+    default_csv_encoding: NotRequired[str]
 
 
 @mddoc
@@ -685,6 +688,7 @@ DEFAULT_CONFIG: MarimoConfig = {
             os.getenv("MARIMO_STD_STREAM_MAX_BYTES", 1_000_000)
         ),
         "default_sql_output": "auto",
+        "default_csv_encoding": "utf-8",
     },
     "save": {
         "autosave": "after_delay",
