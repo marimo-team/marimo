@@ -4,6 +4,7 @@ import { toast } from "@/components/ui/use-toast";
 import { getRequestClient } from "@/core/network/requests";
 import { Filenames } from "@/utils/filenames";
 import { Paths } from "@/utils/paths";
+import { prettyError } from "./errors";
 
 /**
  * Show a loading toast while an async operation is in progress.
@@ -91,8 +92,8 @@ export async function downloadAsPDF(opts: {
     downloadBlob(pdfBlob, Filenames.toPDF(filenameWithoutPath));
   } catch (error) {
     toast({
-      title: "Error",
-      description: "Failed to download as PDF.",
+      title: "Failed to download",
+      description: prettyError(error),
       variant: "danger",
     });
     throw error;
