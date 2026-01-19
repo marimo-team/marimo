@@ -1071,6 +1071,37 @@ export const UserConfigForm: React.FC = () => {
             />
             <FormField
               control={form.control}
+              name="runtime.cache_outputs"
+              render={({ field }) => (
+                <div className="flex flex-col gap-y-1">
+                  <FormItem className={formItemClasses}>
+                    <FormLabel className="font-normal">
+                      Cache outputs
+                    </FormLabel>
+                    <FormControl>
+                      <Checkbox
+                        data-testid="cache-outputs-checkbox"
+                        disabled={field.disabled}
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                    <IsOverridden
+                      userConfig={config}
+                      name="runtime.cache_outputs"
+                    />
+                  </FormItem>
+
+                  <FormDescription>
+                    Whether to cache cell outputs to disk and restore them on
+                    startup.
+                  </FormDescription>
+                </div>
+              )}
+            />
+            <FormField
+              control={form.control}
               name="runtime.on_cell_change"
               render={({ field }) => (
                 <div className="flex flex-col gap-y-1">

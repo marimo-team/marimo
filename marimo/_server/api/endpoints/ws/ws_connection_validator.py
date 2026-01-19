@@ -28,7 +28,6 @@ class ConnectionParams:
     session_id: SessionId
     file_key: MarimoFileKey
     kiosk: bool
-    auto_instantiate: bool
     rtc_enabled: bool
 
 
@@ -88,13 +87,11 @@ class WebSocketConnectionValidator:
         # Extract config-based parameters
         config = self.app_state.config_manager_at_file(file_key).get_config()
         rtc_enabled = config.get("experimental", {}).get("rtc_v2", False)
-        auto_instantiate = config["runtime"]["auto_instantiate"]
 
         return ConnectionParams(
             session_id=session_id,
             file_key=file_key,
             kiosk=kiosk,
-            auto_instantiate=auto_instantiate,
             rtc_enabled=rtc_enabled,
         )
 

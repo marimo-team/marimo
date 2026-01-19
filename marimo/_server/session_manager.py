@@ -145,7 +145,6 @@ class SessionManager:
         session_consumer: SessionConsumer,
         query_params: SerializedQueryParams,
         file_key: MarimoFileKey,
-        auto_instantiate: bool,
     ) -> Session:
         """Create a new session."""
         LOGGER.debug("Creating new session for id %s", session_id)
@@ -189,7 +188,6 @@ class SessionManager:
             virtual_files_supported=True,
             redirect_console_to_browser=self.redirect_console_to_browser,
             ttl_seconds=self.ttl_seconds,
-            auto_instantiate=auto_instantiate,
             extensions=extensions,
             sandbox_mode=self.sandbox_mode,
         )
