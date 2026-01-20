@@ -152,22 +152,12 @@ def _normalize_sandbox_dependencies(
 
         return dep.replace("marimo", f"marimo[{','.join(features)}]")
 
-    def local_path_dep(path: str) -> str:
-        return f"marimo @ {path}"
-
     # Find all marimo dependencies
     marimo_deps = [d for d in dependencies if is_marimo_dependency(d)]
     if not marimo_deps:
         if is_editable("marimo"):
             LOGGER.info("Using editable of marimo for sandbox")
             return dependencies + [f"-e {get_marimo_dir()}"]
-
-        # Check if a local wheel path is specified (for CI/testing)
-        wheel_path = os.environ.get("_MARIMO_WHEEL_PATH")
-        if wheel_path and os.path.exists(wheel_path):
-            LOGGER.info(f"Using local marimo wheel for sandbox: {wheel_path}")
-            dep = local_path_dep(wheel_path)
-            return dependencies + [dep]
 
         return dependencies + [
             include_features(f"marimo=={marimo_version}", additional_features)
@@ -183,12 +173,6 @@ def _normalize_sandbox_dependencies(
     if is_editable("marimo"):
         LOGGER.info("Using editable of marimo for sandbox")
         return filtered + [f"-e {get_marimo_dir()}"]
-
-    # Check if a local wheel path is specified (for CI/testing)
-    wheel_path = os.environ.get("_MARIMO_WHEEL_PATH")
-    if wheel_path and os.path.exists(wheel_path):
-        LOGGER.info(f"Using local marimo wheel for sandbox: {wheel_path}")
-        return filtered + [local_path_dep(wheel_path)]
 
     # Add version if not already versioned
     if not _is_versioned(chosen):

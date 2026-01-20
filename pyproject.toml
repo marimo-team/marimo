@@ -154,6 +154,57 @@ test = [
     "cffi>=1.16.0",
 ]
 
+test-optional = [
+    # For testing ADBC driver-based SQL connections
+    "adbc_driver_manager",
+    "adbc_driver_sqlite",
+    "python-lsp-server>=1.10.0",
+    # For testing mo.ui.chart, table, ...
+    "vl-convert-python",
+    "vegafusion",
+    "pyarrow>=19.0.1",
+    "pyarrow_hotfix",
+    "altair>=5.4.0",
+    "plotly>=5.14.0",
+    "polars>=1.32.2",
+    "sqlglot[rs]>=26.2.0",
+    "sqlalchemy>=2.0.40",
+    "pyiceberg>=0.9.0",
+    # For testing clickhouse
+    "chdb>=3; platform_system != 'Windows'", # there is no suitable wheel for windows
+    "clickhouse-connect>=0.8.18",
+    "redshift-connector[full]>=2.1.7",
+    "pandas>=1.5.3",
+    "hvplot~=0.11.3",
+    # Causes issues installing `shapely` (v2.0.7)
+    # "geopandas~=1.0.1",
+    "duckdb>=1.0.0",
+    "ibis-framework[duckdb]>=10.3.0",
+    # For testing mo.image
+    "pillow~=10.4.0",
+    "anywidget~=0.9.18",
+    "ipython~=8.12.3",
+    # testing gen ai
+    "pydantic-ai-slim[google,anthropic,bedrock,openai]>=1.39.0",
+    # - google-auth uses cachetools, and cachetools<5.0.0 uses collections.MutableMapping (removed in Python 3.10)
+    "cachetools>=5.0.0",
+    "boto3>=1.38.46",
+    # for bedrock ui chat
+    "litellm>=1.70.0",
+    # exporting as ipynb
+    "nbformat>=5.10.4",
+    "sympy>=1.13.3",
+    "jupytext>=1.17.2",
+    # For standard scientific computing/ ML
+    "jax>=0.4.0; python_version == '3.12'",
+    "torch>=2.4.0; python_version == '3.12'",
+    "scikit-bio>=0.6.3; python_version == '3.12'",
+    "mcp>=1.0.0",
+    # zeromq
+    "pyzmq>=27.1.0",
+]
+
+
 [tool.hatch]
 installer = "uv"
 
@@ -239,56 +290,7 @@ test-narwhals = """
 
 [tool.hatch.envs.test-optional]
 template = "test"
-dependency-groups = ["dev", "test"]
-extra-dependencies = [
-    # For testing ADBC driver-based SQL connections
-    "adbc_driver_manager",
-    "adbc_driver_sqlite",
-    "python-lsp-server>=1.10.0",
-    # For testing mo.ui.chart, table, ...
-    "vl-convert-python",
-    "vegafusion",
-    "pyarrow>=19.0.1",
-    "pyarrow_hotfix",
-    "altair>=5.4.0",
-    "plotly>=5.14.0",
-    "polars>=1.32.2",
-    "sqlglot[rs]>=26.2.0",
-    "sqlalchemy>=2.0.40",
-    "pyiceberg>=0.9.0",
-    # For testing clickhouse
-    "chdb>=3; platform_system != 'Windows'", # there is no suitable wheel for windows
-    "clickhouse-connect>=0.8.18",
-    "redshift-connector[full]>=2.1.7",
-    "pandas>=1.5.3",
-    "hvplot~=0.11.3",
-    # Causes issues installing `shapely` (v2.0.7)
-    # "geopandas~=1.0.1",
-    "duckdb>=1.0.0",
-    "ibis-framework[duckdb]>=10.3.0",
-    # For testing mo.image
-    "pillow~=10.4.0",
-    "anywidget~=0.9.18",
-    "ipython~=8.12.3",
-    # testing gen ai
-    "pydantic-ai-slim[google,anthropic,bedrock,openai]>=1.39.0",
-    # - google-auth uses cachetools, and cachetools<5.0.0 uses collections.MutableMapping (removed in Python 3.10)
-    "cachetools>=5.0.0",
-    "boto3>=1.38.46",
-    # for bedrock ui chat
-    "litellm>=1.70.0",
-    # exporting as ipynb
-    "nbformat>=5.10.4",
-    "sympy>=1.13.3",
-    "jupytext>=1.17.2",
-    # For standard scientific computing/ ML
-    "jax>=0.4.0; python_version == '3.12'",
-    "torch>=2.4.0; python_version == '3.12'",
-    "scikit-bio>=0.6.3; python_version == '3.12'",
-    "mcp>=1.0.0",
-    # zeromq
-    "pyzmq>=27.1.0",
-]
+dependency-groups = ["dev", "test", "test-optional"]
 
 [[tool.hatch.envs.test-optional.matrix]]
 python = ["3.10", "3.11", "3.12", "3.13", "3.14"]

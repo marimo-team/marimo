@@ -144,10 +144,6 @@ jobs:
           # TODO(https://github.com/astral-sh/setup-uv/issues/226): Remove this.
           prune-cache: ${{ matrix.os != 'windows-latest' }}
 
-      - name: Install Python deps
-        run: |
-          uv add pytest pytest-asyncio pytest-timeout nbformat pyzmq
-
       - name: Download wheel
         uses: actions/download-artifact@v4
         with:
@@ -160,8 +156,7 @@ jobs:
       - name: Test CLI
         shell: bash
         run: |
-          export _MARIMO_WHEEL_PATH=$(ls $PWD/marimo*.whl)
-          uv run --no-project pytest -v tests/_cli/test_cli* --maxfail=2
+          uv run --group=test-optional --group=test --group=dev pytest -v tests/_cli/test_cli* --maxfail=2
 
   test_examples:
     needs: [changes]
