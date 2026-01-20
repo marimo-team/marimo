@@ -111,7 +111,7 @@ def test_normalize_path_does_not_skip_regular_paths() -> None:
     # Should be converted to absolute
     assert result.is_absolute()
     # Module should be pathlib, not cloudpathlib
-    assert result.__class__.__module__ == "pathlib"
+    assert result.__class__.__module__.startswith("pathlib")
 
 
 class TestPrettyPath:
