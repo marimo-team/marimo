@@ -20,6 +20,7 @@ import { TextOutput } from "./output/TextOutput";
 import { VideoOutput } from "./output/VideoOutput";
 
 import "./output/Outputs.css";
+import { useAtomValue } from "jotai";
 import {
   ChevronsDownUpIcon,
   ChevronsUpDownIcon,
@@ -27,6 +28,7 @@ import {
 } from "lucide-react";
 import { tooltipHandler } from "@/components/charts/tooltip";
 import { useExpandedOutput } from "@/core/cells/outputs";
+import { viewStateAtom } from "@/core/mode";
 import { useIframeCapabilities } from "@/hooks/useIframeCapabilities";
 import { renderHTML } from "@/plugins/core/RenderHTML";
 import { Banner } from "@/plugins/impl/common/error-banner";
@@ -262,6 +264,8 @@ const MimeBundleOutputRenderer: React.FC<{
   cellId?: CellId;
 }> = memo(({ data, channel, cellId }) => {
   const mimebundle = Array.isArray(data) ? data[0] : data;
+  const { mode } = useAtomValue(viewStateAtom);
+  const appView = mode === "present" || mode === "read";
 
   // Extract metadata if present (e.g., for retina image rendering)
   const metadata = mimebundle[METADATA_KEY];
@@ -306,7 +310,12 @@ const MimeBundleOutputRenderer: React.FC<{
   return (
     <Tabs defaultValue={first} orientation="vertical">
       <div className="flex">
-        <TabsList className="self-start max-h-none flex flex-col gap-2 mr-4 shrink-0">
+        <TabsList
+          className={cn(
+            "self-start max-h-none flex flex-col gap-2 mr-3 shrink-0",
+            appView && "mt-4",
+          )}
+        >
           {mimeEntries.map(([mime]) => (
             <TabsTrigger
               key={mime}
@@ -319,7 +328,7 @@ const MimeBundleOutputRenderer: React.FC<{
             </TabsTrigger>
           ))}
         </TabsList>
-        <div className="flex-1">
+        <div className="flex-1 w-full">
           {mimeEntries.map(([mime, output]) => (
             <TabsContent key={mime} value={mime}>
               <ErrorBoundary>

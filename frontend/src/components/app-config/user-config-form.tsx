@@ -1285,7 +1285,7 @@ export const UserConfigForm: React.FC = () => {
             />
             <FormField
               control={form.control}
-              name="experimental.nbconvert_pdf"
+              name="experimental.server_side_pdf_export"
               render={({ field }) => (
                 <div className="flex flex-col gap-y-1">
                   <FormItem className={formItemClasses}>
@@ -1294,7 +1294,7 @@ export const UserConfigForm: React.FC = () => {
                     </FormLabel>
                     <FormControl>
                       <Checkbox
-                        data-testid="nbconvert-pdf-checkbox"
+                        data-testid="server-side-pdf-export-checkbox"
                         checked={field.value === true}
                         onCheckedChange={field.onChange}
                       />

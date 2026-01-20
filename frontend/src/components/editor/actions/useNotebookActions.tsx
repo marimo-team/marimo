@@ -232,7 +232,7 @@ export function useNotebookActions() {
               </span>
             ),
           handle: async () => {
-            if (getFeatureFlag("nbconvert_pdf")) {
+            if (getFeatureFlag("server_side_pdf_export")) {
               const downloadPDF = async () => {
                 await updateCellOutputsWithScreenshots(
                   takeScreenshots,
