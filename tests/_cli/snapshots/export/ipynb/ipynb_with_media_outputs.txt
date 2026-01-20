@@ -172,7 +172,7 @@
    "outputs": [
     {
      "data": {
-      "application/vnd.vegalite.v5+json": "{\n  \"$schema\": \"https://vega.github.io/schema/vega-lite/v6.1.0.json\",\n  \"config\": {\n    \"view\": {\n      \"continuousHeight\": 300,\n      \"continuousWidth\": 300\n    }\n  },\n  \"data\": {\n    \"name\": \"data-a202e5dd04552c98b78a4bc5fc59f367\"\n  },\n  \"datasets\": {\n    \"data-a202e5dd04552c98b78a4bc5fc59f367\": [\n      {\n        \"x\": 1,\n        \"y\": 1\n      }\n    ]\n  },\n  \"encoding\": {\n    \"x\": {\n      \"field\": \"x\",\n      \"type\": \"ordinal\"\n    },\n    \"y\": {\n      \"field\": \"y\",\n      \"type\": \"quantitative\"\n    }\n  },\n  \"mark\": {\n    \"type\": \"circle\"\n  },\n  \"usermeta\": {\n    \"embedOptions\": {}\n  },\n  \"width\": \"container\"\n}"
+      "application/vnd.vegalite.v6+json": "{\n  \"$schema\": \"https://vega.github.io/schema/vega-lite/v6.1.0.json\",\n  \"config\": {\n    \"view\": {\n      \"continuousHeight\": 300,\n      \"continuousWidth\": 300\n    }\n  },\n  \"data\": {\n    \"name\": \"data-a202e5dd04552c98b78a4bc5fc59f367\"\n  },\n  \"datasets\": {\n    \"data-a202e5dd04552c98b78a4bc5fc59f367\": [\n      {\n        \"x\": 1,\n        \"y\": 1\n      }\n    ]\n  },\n  \"encoding\": {\n    \"x\": {\n      \"field\": \"x\",\n      \"type\": \"ordinal\"\n    },\n    \"y\": {\n      \"field\": \"y\",\n      \"type\": \"quantitative\"\n    }\n  },\n  \"mark\": {\n    \"type\": \"circle\"\n  },\n  \"usermeta\": {\n    \"embedOptions\": {}\n  },\n  \"width\": \"container\"\n}"
      },
      "metadata": {},
      "output_type": "display_data"
@@ -193,7 +193,7 @@
    "outputs": [
     {
      "data": {
-      "application/vnd.vega.v5+json": "{\n  \"$schema\": \"https://vega.github.io/schema/vega-lite/v6.1.0.json\",\n  \"config\": {\n    \"view\": {\n      \"continuousHeight\": 300,\n      \"continuousWidth\": 300\n    }\n  },\n  \"data\": {\n    \"name\": \"data-a202e5dd04552c98b78a4bc5fc59f367\"\n  },\n  \"datasets\": {\n    \"data-a202e5dd04552c98b78a4bc5fc59f367\": [\n      {\n        \"x\": 1,\n        \"y\": 1\n      }\n    ]\n  },\n  \"encoding\": {\n    \"x\": {\n      \"field\": \"x\",\n      \"type\": \"ordinal\"\n    },\n    \"y\": {\n      \"field\": \"y\",\n      \"type\": \"quantitative\"\n    }\n  },\n  \"mark\": {\n    \"type\": \"circle\"\n  },\n  \"usermeta\": {\n    \"embedOptions\": {}\n  }\n}"
+      "application/vnd.vega.v6+json": "{\n  \"$schema\": \"https://vega.github.io/schema/vega-lite/v6.1.0.json\",\n  \"config\": {\n    \"view\": {\n      \"continuousHeight\": 300,\n      \"continuousWidth\": 300\n    }\n  },\n  \"data\": {\n    \"name\": \"data-a202e5dd04552c98b78a4bc5fc59f367\"\n  },\n  \"datasets\": {\n    \"data-a202e5dd04552c98b78a4bc5fc59f367\": [\n      {\n        \"x\": 1,\n        \"y\": 1\n      }\n    ]\n  },\n  \"encoding\": {\n    \"x\": {\n      \"field\": \"x\",\n      \"type\": \"ordinal\"\n    },\n    \"y\": {\n      \"field\": \"y\",\n      \"type\": \"quantitative\"\n    }\n  },\n  \"mark\": {\n    \"type\": \"circle\"\n  },\n  \"usermeta\": {\n    \"embedOptions\": {}\n  }\n}"
      },
      "metadata": {},
      "output_type": "display_data"

@@ -462,7 +462,9 @@ components:
           - application/vnd.marimo+mimebundle
           - application/vnd.marimo+traceback
           - application/vnd.vega.v5+json
+          - application/vnd.vega.v6+json
           - application/vnd.vegalite.v5+json
+          - application/vnd.vegalite.v6+json
           - image/avif
           - image/bmp
           - image/gif
@@ -4056,7 +4058,9 @@ components:
               - application/vnd.marimo+mimebundle
               - application/vnd.marimo+traceback
               - application/vnd.vega.v5+json
+              - application/vnd.vega.v6+json
               - application/vnd.vegalite.v5+json
+              - application/vnd.vegalite.v6+json
               - image/avif
               - image/bmp
               - image/gif
@@ -4468,7 +4472,7 @@ components:
       type: object
 info:
   title: marimo API
-  version: 0.19.2
+  version: 0.19.4
 openapi: 3.1.0
 paths:
   /@file/{filename_and_length}:
@@ -5793,3 +5797,4 @@ paths:
       summary: Submit login form
       tags:
       - auth
+
