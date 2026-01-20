@@ -50,7 +50,10 @@ from marimo._utils.paths import marimo_package_path
 from marimo._version import __version__
 
 if TYPE_CHECKING:
-    from nbconvert import PDFExporter, WebPDFExporter
+    from nbconvert import (  # type: ignore[import-not-found]
+        PDFExporter,
+        WebPDFExporter,
+    )
 
 LOGGER = _loggers.marimo_logger()
 

@@ -1,6 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import { toPng } from "html-to-image";
 import { atom, useAtom, useAtomValue } from "jotai";
+import { toast } from "@/components/ui/use-toast";
 import { appConfigAtom } from "@/core/config/config";
 import { useInterval } from "@/hooks/useInterval";
 import { Logger } from "@/utils/Logger";
@@ -164,8 +165,18 @@ export async function updateCellOutputsWithScreenshots(
   takeScreenshots: () => Promise<Record<CellId, ["image/png", string]>>,
   updateCellOutputs: (request: UpdateCellOutputsRequest) => Promise<null>,
 ) {
-  const cellIdsToOutput = await takeScreenshots();
-  if (Object.keys(cellIdsToOutput).length > 0) {
-    await updateCellOutputs({ cellIdsToOutput });
+  try {
+    const cellIdsToOutput = await takeScreenshots();
+    if (Object.keys(cellIdsToOutput).length > 0) {
+      await updateCellOutputs({ cellIdsToOutput });
+    }
+  } catch (error) {
+    Logger.error("Error updating cell outputs with screenshots:", error);
+    toast({
+      title: "Failed to capture cell outputs",
+      description:
+        "Some outputs may not appear in the PDF. Continuing with export.",
+      variant: "danger",
+    });
   }
 }

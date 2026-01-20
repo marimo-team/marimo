@@ -151,11 +151,7 @@ export function useNotebookActions() {
           label: "Download as HTML",
           handle: async () => {
             if (!filename) {
-              toast({
-                variant: "danger",
-                title: "Error",
-                description: "Notebooks must be named to be exported.",
-              });
+              toastNotebookMustBeNamed();
               return;
             }
             await downloadAsHTML({ filename, includeCode: true });
@@ -166,11 +162,7 @@ export function useNotebookActions() {
           label: "Download as HTML (exclude code)",
           handle: async () => {
             if (!filename) {
-              toast({
-                variant: "danger",
-                title: "Error",
-                description: "Notebooks must be named to be exported.",
-              });
+              toastNotebookMustBeNamed();
               return;
             }
             await downloadAsHTML({ filename, includeCode: false });
@@ -233,13 +225,18 @@ export function useNotebookActions() {
             ),
           handle: async () => {
             if (getFeatureFlag("server_side_pdf_export")) {
+              if (!filename) {
+                toastNotebookMustBeNamed();
+                return;
+              }
+
               const downloadPDF = async () => {
                 await updateCellOutputsWithScreenshots(
                   takeScreenshots,
                   updateCellOutputs,
                 );
                 await downloadAsPDF({
-                  filename: filename ?? "notebook.py",
+                  filename: filename,
                   webpdf: true,
                 });
               };
@@ -553,4 +550,12 @@ export function useNotebookActions() {
       }
       return action;
     });
+}
+
+function toastNotebookMustBeNamed() {
+  toast({
+    title: "Error",
+    description: "Notebooks must be named to be exported.",
+    variant: "danger",
+  });
 }
