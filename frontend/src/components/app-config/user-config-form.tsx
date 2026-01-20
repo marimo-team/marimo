@@ -188,12 +188,10 @@ export const UserConfigForm: React.FC = () => {
         ...dirtyAiConfig,
         models: {
           ...dirtyAiConfig?.models,
-          custom_models: dirtyAiConfig?.models?.custom_models ?? [],
-          displayed_models: dirtyAiConfig?.models?.displayed_models ?? [],
           ...(chatModel && { chat_model: chatModel }),
           ...(editModel && { edit_model: editModel }),
         },
-      };
+      } as typeof dirtyAiConfig;
       if (chatModel) {
         form.setValue("ai.models.chat_model", chatModel);
       }

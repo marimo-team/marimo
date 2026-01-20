@@ -205,9 +205,9 @@ export const BaseUrl: React.FC<BaseUrlProps> = ({
                 rootClassName="flex-1"
                 className="m-0 inline-flex h-7"
                 placeholder={placeholder}
-                disabled={disabled}
                 {...field}
                 value={asStringOrEmpty(field.value)}
+                disabled={disabled}
               />
             </FormControl>
             <FormMessage />
@@ -281,9 +281,9 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
                         data-testid={testId}
                         className="w-full border-border shadow-none focus-visible:shadow-xs"
                         placeholder={placeholder}
-                        disabled={disabled}
                         {...field}
                         value={asStringOrEmpty(field.value)}
+                        disabled={disabled}
                         onKeyDown={Events.stopPropagation()}
                       />
                       {value && (
