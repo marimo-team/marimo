@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import json
-from typing import Any, Literal
+from typing import Any
 from urllib.request import urlopen
 
 from marimo._config.config import Theme
@@ -13,11 +13,9 @@ from marimo._output.formatters.formatter_factory import FormatterFactory
 from marimo._plugins.core.media import io_to_data_url
 from marimo._plugins.ui._impl.altair_chart import (
     AltairChartType,
+    chart_to_json,
     maybe_fix_vegafusion_background,
     maybe_make_full_width,
-)
-from marimo._plugins.ui._impl.charts.altair_transformer import (
-    sanitize_nan_infs,
 )
 
 LOGGER = marimo_logger()
@@ -187,31 +185,3 @@ def _apply_format_locales(embed_options: dict[str, Any]) -> dict[str, Any]:
             embed_options["formatLocale"] = get_format_locale(format_locale)
 
     return embed_options
-
-
-def chart_to_json(
-    chart: AltairChartType,
-    spec_format: Literal["vega", "vega-lite"] = "vega-lite",
-    validate: bool = True,
-) -> str:
-    """
-    Convert an altair chart to a JSON string.
-
-    This function is a wrapper around the altair.Chart.to_json method.
-    It sanitizes the data in the chart if necessary and validates the spec.
-    """
-    try:
-        return chart.to_json(
-            format=spec_format,
-            validate=validate,
-            allow_nan=False,
-            default=str,
-        )
-    except ValueError:
-        chart.data = sanitize_nan_infs(chart.data)
-        return chart.to_json(
-            format=spec_format,
-            validate=validate,
-            allow_nan=False,
-            default=str,
-        )

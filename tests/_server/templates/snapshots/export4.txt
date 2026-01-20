@@ -63,8 +63,8 @@
             "configOverrides": {"formatting": {"line_length": 100}},
             "appConfig": {"css_file": "custom.css", "sql_output": "auto", "width": "compact"},
             "view": {"showAppCode": true},
-            "notebook": {"cells": [], "metadata": {"marimo_version": "0.1.0"}, "version": "1"},
-            "session": {"cells": [], "metadata": {"marimo_version": "0.1.0"}, "version": "1"},
+            "notebook": {"cells": [], "metadata": {"marimo_version": "0.0.0"}, "version": "1"},
+            "session": {"cells": [], "metadata": {"marimo_version": "0.0.0"}, "version": "1"},
             "runtimeConfig": null,
         };
     </script>
