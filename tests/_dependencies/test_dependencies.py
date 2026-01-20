@@ -48,13 +48,15 @@ def test_without_dependencies() -> None:
 def test_package_name_defaults_to_pkg() -> None:
     """Test that package_name defaults to pkg when not specified."""
     dep = Dependency("some_module")
-    assert dep.package_name == "some_module"
+    assert dep.pkg_name_to_install == "some_module"
 
 
 def test_package_name_used_in_require() -> None:
     """Test that package_name is used in ModuleNotFoundError."""
     # When package_name differs from pkg, the error should use package_name
-    missing = Dependency("missing_module", package_name="missing-package")
+    missing = Dependency(
+        "missing_module", pkg_name_to_install="missing-package"
+    )
     assert not missing.has()
 
     with pytest.raises(ModuleNotFoundError) as excinfo:
@@ -250,8 +252,12 @@ def test_require_many() -> None:
 
 def test_require_many_uses_package_name() -> None:
     """Test that require_many uses package_name when specified."""
-    missing1 = Dependency("missing_module1", package_name="missing-package-1")
-    missing2 = Dependency("missing_module2", package_name="missing-package-2")
+    missing1 = Dependency(
+        "missing_module1", pkg_name_to_install="missing-package-1"
+    )
+    missing2 = Dependency(
+        "missing_module2", pkg_name_to_install="missing-package-2"
+    )
 
     with pytest.raises(ManyModulesNotFoundError) as excinfo:
         DependencyManager.require_many(
