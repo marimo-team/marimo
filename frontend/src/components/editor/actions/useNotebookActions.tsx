@@ -237,7 +237,7 @@ export function useNotebookActions() {
                 );
                 await downloadAsPDF({
                   filename: filename,
-                  webpdf: true,
+                  webpdf: false,
                 });
               };
               await withLoadingToast("Downloading PDF...", downloadPDF);

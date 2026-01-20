@@ -6,7 +6,7 @@ import base64
 import mimetypes
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-from typing import TYPE_CHECKING, Literal, Optional, cast
+from typing import Literal, Optional, cast
 
 from marimo import _loggers
 from marimo._ast.app import InternalApp
@@ -48,12 +48,6 @@ from marimo._utils.data_uri import build_data_url
 from marimo._utils.marimo_path import MarimoPath
 from marimo._utils.paths import marimo_package_path
 from marimo._version import __version__
-
-if TYPE_CHECKING:
-    from nbconvert import (  # type: ignore[import-not-found]
-        PDFExporter,
-        WebPDFExporter,
-    )
 
 LOGGER = _loggers.marimo_logger()
 
@@ -320,21 +314,20 @@ class Exporter:
         Args:
             app: The app to export
             session_view: The session view to export
-            webpdf: Whether to use webpdf
+            webpdf: If False, tries standard PDF export (pandoc + TeX) first,
+                falling back to webpdf if that fails. If True, uses webpdf
+                directly.
 
         Returns:
             PDF data
         """
-        required_dependencies = [
+        dependencies = [
             DependencyManager.nbformat,
             DependencyManager.nbconvert,
         ]
         if webpdf:
-            required_dependencies.append(DependencyManager.playwright)
-
-        DependencyManager.require_many(
-            "for PDF export", *required_dependencies
-        )
+            dependencies.append(DependencyManager.playwright)
+        DependencyManager.require_many("for PDF export", *dependencies)
 
         ipynb_json_str = self.export_as_ipynb(
             app=app, sort_mode="top-down", session_view=session_view
@@ -343,22 +336,32 @@ class Exporter:
         import nbformat
 
         notebook = nbformat.reads(ipynb_json_str, as_version=4)  # type: ignore[no-untyped-call]
-        exporter: WebPDFExporter | PDFExporter
 
-        if webpdf:
-            from nbconvert import (  # type: ignore[import-not-found]
-                WebPDFExporter,
-            )
+        # Try standard PDF export first (requires pandoc + TeX)
+        # and fall back to webpdf if it fails
+        if not webpdf:
+            try:
+                from nbconvert import (  # type: ignore[import-not-found]
+                    PDFExporter,
+                )
 
-            web_exporter = WebPDFExporter()
-            web_exporter.allow_chromium_download = True
-            exporter = web_exporter
-        else:
-            from nbconvert import PDFExporter
+                exporter = PDFExporter()
+                pdf_data, _resources = exporter.from_notebook_node(notebook)
+                if isinstance(pdf_data, bytes):
+                    return pdf_data
+                LOGGER.error("PDF data is not bytes: %s", pdf_data)
+                return None
+            except OSError as e:
+                LOGGER.warning(
+                    "Standard PDF export failed, falling back to webpdf. Error: %s",
+                    e,
+                )
 
-            exporter = PDFExporter()
+        from nbconvert import WebPDFExporter  # type: ignore[import-not-found]
 
-        pdf_data, _resources = exporter.from_notebook_node(notebook)
+        web_exporter = WebPDFExporter()
+        web_exporter.allow_chromium_download = True
+        pdf_data, _resources = web_exporter.from_notebook_node(notebook)
 
         if not isinstance(pdf_data, bytes):
             LOGGER.error("PDF data is not bytes: %s", pdf_data)

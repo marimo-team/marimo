@@ -1062,3 +1062,62 @@ class TestPDFExport:
             )
 
             assert result is None
+
+    @pytest.mark.skipif(
+        not DependencyManager.nbformat.has()
+        or not DependencyManager.nbconvert.has(),
+        reason="nbformat or nbconvert not installed",
+    )
+    def test_export_as_pdf_falls_back_to_webpdf_on_oserror(
+        self,
+        session_view: SessionView,
+    ) -> None:
+        """Test PDF export falls back to webpdf when standard PDF fails with OSError."""
+
+        app = App()
+
+        @app.cell()
+        def test_cell():
+            return "test"
+
+        file_manager = AppFileManager.from_app(InternalApp(app))
+        exporter = Exporter()
+
+        # Mock PDFExporter to raise OSError (pandoc/xelatex not found)
+        mock_pdf_exporter_instance = MagicMock()
+        mock_pdf_exporter_instance.from_notebook_node.side_effect = OSError(
+            "xelatex not found"
+        )
+
+        # Mock WebPDFExporter to succeed
+        mock_webpdf_exporter_instance = MagicMock()
+        mock_webpdf_exporter_instance.from_notebook_node.return_value = (
+            b"fallback_webpdf_data",
+            {},
+        )
+
+        with (
+            patch("nbconvert.PDFExporter") as mock_pdf_exporter,
+            patch("nbconvert.WebPDFExporter") as mock_webpdf_exporter,
+        ):
+            mock_pdf_exporter.return_value = mock_pdf_exporter_instance
+            mock_webpdf_exporter.return_value = mock_webpdf_exporter_instance
+
+            result = exporter.export_as_pdf(
+                app=file_manager.app,
+                session_view=session_view,
+                webpdf=False,  # Request standard PDF, but it should fall back
+            )
+
+            # Should fall back to webpdf and succeed
+            assert result == b"fallback_webpdf_data"
+            # PDFExporter was tried first
+            mock_pdf_exporter.assert_called_once()
+            mock_pdf_exporter_instance.from_notebook_node.assert_called_once()
+            # WebPDFExporter was used as fallback
+            mock_webpdf_exporter.assert_called_once()
+            mock_webpdf_exporter_instance.from_notebook_node.assert_called_once()
+            # Verify allow_chromium_download is set on fallback
+            assert (
+                mock_webpdf_exporter_instance.allow_chromium_download is True
+            )

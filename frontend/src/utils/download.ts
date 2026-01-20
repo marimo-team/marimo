@@ -73,8 +73,8 @@ export function downloadBlob(blob: Blob, filename: string) {
 /**
  * Download the current notebook as a PDF file.
  *
- * We prefer to use webpdf mode, which only requires Chromium to be installed.
- * Standard PDF requires Pandoc & TeX (~few GBs).
+ * WebPDF only requires Chromium to be installed.
+ * Standard PDF requires Pandoc & TeX (~few GBs) but is of higher quality.
  */
 export async function downloadAsPDF(opts: {
   filename: string;
