@@ -426,14 +426,14 @@ const ChatInput: React.FC<ChatInputProps> = memo(
 ChatInput.displayName = "ChatInput";
 
 const ChatPanel = () => {
-  const aiEnabled = useAtomValue(aiEnabledAtom);
+  const aiConfigured = useAtomValue(aiEnabledAtom);
   const { handleClick } = useOpenSettingsToTab();
 
-  if (!aiEnabled) {
+  if (!aiConfigured) {
     return (
       <PanelEmptyState
         title="Chat with AI"
-        description="AI is currently disabled. Add your API key to enable."
+        description="No AI provider configured"
         action={
           <Button variant="outline" size="sm" onClick={() => handleClick("ai")}>
             Edit AI settings

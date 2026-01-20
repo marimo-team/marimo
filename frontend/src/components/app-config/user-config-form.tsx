@@ -50,6 +50,7 @@ import { Banner } from "@/plugins/impl/common/error-banner";
 import { THEMES } from "@/theme/useTheme";
 import { arrayToggle } from "@/utils/arrays";
 import { cn } from "@/utils/cn";
+import { autoPopulateModels } from "../ai/ai-utils";
 import { keyboardShortcutsAtom } from "../editor/controls/keyboard-shortcuts";
 import { Badge } from "../ui/badge";
 import { ExternalLink } from "../ui/links";
@@ -187,6 +188,22 @@ export const UserConfigForm: React.FC = () => {
     if (Object.keys(dirtyValues).length === 0) {
       return; // Nothing changed
     }
+
+    // Auto-populate AI models when credentials are set, makes it easier to get started
+    const { updatedAiConfig, chatModel, editModel } = autoPopulateModels(
+      values,
+      dirtyValues.ai,
+    );
+    if (updatedAiConfig) {
+      dirtyValues.ai = updatedAiConfig;
+      if (chatModel) {
+        form.setValue("ai.models.chat_model", chatModel);
+      }
+      if (editModel) {
+        form.setValue("ai.models.edit_model", editModel);
+      }
+    }
+
     await saveUserConfig({ config: dirtyValues }).then(() => {
       // Update local state with form values
       setConfig((prev) => ({ ...prev, ...values }));
