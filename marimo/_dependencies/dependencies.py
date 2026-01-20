@@ -15,6 +15,12 @@ class Dependency:
     pkg: str
     min_version: str | None = None
     max_version: str | None = None
+    # Package name for installation (defaults to pkg)
+    package_name: str | None = None
+
+    def __post_init__(self) -> None:
+        if self.package_name is None:
+            self.package_name = self.pkg
 
     def has(self, quiet: bool = False) -> bool:
         """Return True if the dependency is installed. For a more performant check, use imported()."""
@@ -89,7 +95,9 @@ class Dependency:
                     del sys.modules[self.pkg]
 
             # Including the `name` helps with auto-installations
-            raise ModuleNotFoundError(message, name=self.pkg) from None
+            raise ModuleNotFoundError(
+                message, name=self.package_name
+            ) from None
 
     def require_at_version(
         self,
@@ -238,7 +246,7 @@ class DependencyManager:
     litellm = Dependency("litellm")
     redshift_connector = Dependency("redshift_connector")
     mcp = Dependency("mcp")
-    pydantic_ai = Dependency("pydantic_ai")
+    pydantic_ai = Dependency("pydantic_ai", package_name="pydantic-ai-slim")
     pydantic = Dependency("pydantic")
     zmq = Dependency("zmq")  # pyzmq for sandbox IPC kernels
 
@@ -268,7 +276,11 @@ class DependencyManager:
 
     @staticmethod
     def require_many(why: str, *dependencies: Dependency) -> None:
-        missing = [dep.pkg for dep in dependencies if not dep.has()]
+        missing = [
+            dep.package_name
+            for dep in dependencies
+            if not dep.has() and dep.package_name is not None
+        ]
         if missing:
             raise ManyModulesNotFoundError(
                 missing,
