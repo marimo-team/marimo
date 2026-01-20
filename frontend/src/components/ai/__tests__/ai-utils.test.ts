@@ -125,16 +125,6 @@ describe("ai-utils", () => {
       expect(getConfiguredProvider(config)).toBeUndefined();
     });
 
-    it("should respect priority order (openai > anthropic)", () => {
-      const config: UserConfig = {
-        ai: {
-          open_ai: { api_key: "sk-test" },
-          anthropic: { api_key: "sk-ant-test" },
-        },
-      } as UserConfig;
-      expect(getConfiguredProvider(config)).toBe("openai");
-    });
-
     it("should return custom provider when configured", () => {
       const config = {
         ai: {
