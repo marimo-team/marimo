@@ -141,7 +141,7 @@ export const ApiKey: React.FC<ApiKeyProps> = ({
                 placeholder={placeholder}
                 type="password"
                 {...field}
-                value={asStringOrUndefined(field.value)}
+                value={asStringOrEmpty(field.value)}
                 onChange={(e) => {
                   const value = e.target.value;
                   if (!value.includes("*")) {
@@ -168,12 +168,11 @@ interface BaseUrlProps {
   testId: string;
   description?: React.ReactNode;
   disabled?: boolean;
-  defaultValue?: string;
 }
 
-function asStringOrUndefined<T>(value: T): string | undefined {
+function asStringOrEmpty<T>(value: T): string {
   if (value == null) {
-    return undefined;
+    return "";
   }
 
   if (typeof value === "string") {
@@ -191,13 +190,11 @@ export const BaseUrl: React.FC<BaseUrlProps> = ({
   testId,
   description,
   disabled = false,
-  defaultValue,
 }) => {
   return (
     <FormField
       control={form.control}
       name={name}
-      disabled={disabled}
       render={({ field }) => (
         <div className="flex flex-col space-y-1">
           <FormItem className={formItemClasses}>
@@ -208,9 +205,9 @@ export const BaseUrl: React.FC<BaseUrlProps> = ({
                 rootClassName="flex-1"
                 className="m-0 inline-flex h-7"
                 placeholder={placeholder}
-                defaultValue={defaultValue}
+                disabled={disabled}
                 {...field}
-                value={asStringOrUndefined(field.value)}
+                value={asStringOrEmpty(field.value)}
               />
             </FormControl>
             <FormMessage />
@@ -252,9 +249,8 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
     <FormField
       control={form.control}
       name={name}
-      disabled={disabled}
       render={({ field }) => {
-        const value = asStringOrUndefined(field.value);
+        const value = asStringOrEmpty(field.value);
 
         const selectModel = (modelId: QualifiedModelId) => {
           field.onChange(modelId);
@@ -285,8 +281,9 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
                         data-testid={testId}
                         className="w-full border-border shadow-none focus-visible:shadow-xs"
                         placeholder={placeholder}
+                        disabled={disabled}
                         {...field}
-                        value={asStringOrUndefined(field.value)}
+                        value={asStringOrEmpty(field.value)}
                         onKeyDown={Events.stopPropagation()}
                       />
                       {value && (
@@ -339,7 +336,6 @@ export const ProviderSelect: React.FC<ProviderSelectProps> = ({
     <FormField
       control={form.control}
       name={name}
-      disabled={disabled}
       render={({ field }) => (
         <div className="flex flex-col space-y-1">
           <FormItem className={formItemClasses}>
@@ -354,14 +350,14 @@ export const ProviderSelect: React.FC<ProviderSelectProps> = ({
                     field.onChange(e.target.value);
                   }
                 }}
-                value={asStringOrUndefined(
+                value={asStringOrEmpty(
                   field.value === true
                     ? "github"
                     : field.value === false
                       ? "none"
                       : field.value,
                 )}
-                disabled={field.disabled}
+                disabled={disabled}
                 className="inline-flex mr-2"
               >
                 {options.map((option) => (
@@ -918,7 +914,6 @@ export const AiProvidersConfig: React.FC<AiConfigProps> = ({
             config={config}
             name="ai.ollama.base_url"
             placeholder="http://localhost:11434/v1"
-            defaultValue="http://localhost:11434/v1"
             testId="ollama-base-url-input"
           />
         </AccordionFormItem>
@@ -1038,7 +1033,6 @@ export const AiProvidersConfig: React.FC<AiConfigProps> = ({
             config={config}
             name="ai.azure.base_url"
             placeholder="https://<your-resource-name>.openai.azure.com/openai/deployments/<deployment-name>?api-version=<api-version>"
-            defaultValue="https://<your-resource-name>.openai.azure.com/openai/deployments/<deployment-name>?api-version=<api-version>"
             testId="ai-azure-base-url-input"
           />
         </AccordionFormItem>
