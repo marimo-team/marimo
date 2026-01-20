@@ -1300,6 +1300,10 @@ export const UserConfigForm: React.FC = () => {
                       />
                     </FormControl>
                   </FormItem>
+                  <IsOverridden
+                    userConfig={config}
+                    name="experimental.server_side_pdf_export"
+                  />
                   <FormDescription>
                     Enable PDF export using{" "}
                     <Kbd className="inline">nbconvert</Kbd> and{" "}

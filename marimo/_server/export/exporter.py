@@ -6,7 +6,7 @@ import base64
 import mimetypes
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-from typing import Literal, Optional, cast
+from typing import TYPE_CHECKING, Literal, Optional, cast
 
 from marimo import _loggers
 from marimo._ast.app import InternalApp
@@ -48,6 +48,9 @@ from marimo._utils.data_uri import build_data_url
 from marimo._utils.marimo_path import MarimoPath
 from marimo._utils.paths import marimo_package_path
 from marimo._version import __version__
+
+if TYPE_CHECKING:
+    from nbconvert import PDFExporter, WebPDFExporter
 
 LOGGER = _loggers.marimo_logger()
 
@@ -315,7 +318,6 @@ class Exporter:
             app: The app to export
             session_view: The session view to export
             webpdf: Whether to use webpdf
-            filename: The filename to export
 
         Returns:
             PDF data

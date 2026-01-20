@@ -1,4 +1,3 @@
-# Copyright 2026 Marimo. All rights reserved.
 # Source - https://stackoverflow.com/a
 # Posted by Kache, modified by community. See post 'Timeline' for change history
 # Retrieved 2026-01-17, License - CC BY-SA 4.0

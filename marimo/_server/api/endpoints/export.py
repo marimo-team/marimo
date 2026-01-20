@@ -449,7 +449,9 @@ async def export_as_pdf(*, request: Request) -> Response:
                         type: string
                         format: binary
         400:
-            description: File must be saved before downloading or dependencies missing
+            description: File must be saved before downloading
+        500:
+            description: Export failed or dependencies missing
     """
     app_state = AppState(request)
     body = await parse_request(request, cls=ExportAsPDFRequest)
