@@ -261,6 +261,7 @@ extra-dependencies = [
     "clickhouse-connect>=0.8.18",
     "redshift-connector[full]>=2.1.7",
     "pandas>=1.5.3",
+    "cloudpathlib>=0.23.0",
     "hvplot~=0.11.3",
     # Causes issues installing `shapely` (v2.0.7)
     # "geopandas~=1.0.1",
