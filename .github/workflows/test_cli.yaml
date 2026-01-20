@@ -149,14 +149,16 @@ jobs:
         with:
           name: testwheel
 
-      - name: Install marimo
-        shell: bash
-        run: uv pip install marimo*whl
-
       - name: Test CLI
         shell: bash
         run: |
-          uv run --group=test-optional --group=test --group=dev pytest -v tests/_cli/test_cli* --maxfail=2
+          export MARIMO_WHEEL_PATH=$(ls $PWD/marimo*.whl)
+          uv run \
+            --group=test-optional \
+            --group=test \
+            --group=dev \
+            --with="marimo @ $MARIMO_WHEEL_PATH" \
+            pytest -v tests/_cli/test_cli* --maxfail=2
 
   test_examples:
     needs: [changes]
