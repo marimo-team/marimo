@@ -447,7 +447,9 @@ class TestExportHtmlSmokeTests:
         reason="matplotlib is not installed",
     )
     def test_export_plots_tutorial(self, tmp_path: pathlib.Path) -> None:
-        p = self._export_tutorial(tmp_path, "plots", "plots.py")
+        p = self._export_tutorial(
+            tmp_path, "plots", "plots.py", extra_args=("--no-sandbox",)
+        )
         self._assert_not_errored(p)
 
     def test_export_marimo_for_jupyter_users(
@@ -742,7 +744,10 @@ class TestExportIpynb:
     ) -> None:
         # Test with outputs
         p = _run_export(
-            "ipynb", temp_marimo_file_with_media, "--include-outputs"
+            "ipynb",
+            temp_marimo_file_with_media,
+            "--include-outputs",
+            "--no-sandbox",
         )
         _assert_success(p)
         with_outputs = p.stdout.decode()
