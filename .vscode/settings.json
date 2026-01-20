@@ -25,6 +25,14 @@
     "editor.defaultFormatter": "biomejs.biome",
   },
 
+  "python.testing.pytestEnabled": true,
+  "python.testing.pytestArgs": [
+    "tests",
+    "-v",
+    "--tb=short"
+  ],
+  "python.testing.autoTestDiscoverOnSaveEnabled": true,
+
   // Other settings that match our linters
   "files.trimTrailingWhitespace": true,
   "files.insertFinalNewline": true,

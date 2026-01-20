@@ -143,6 +143,7 @@ test = [
     "pytest-rerunfailures~=15.1",
     "pytest-asyncio~=0.26.0",
     "pytest-picked>=0.5.1",
+    "pytest-sugar~=1.0.0",
     # Comparison testing
     "inline-snapshot~=0.29.0",
     "hypothesis~=6.102.1",
@@ -516,6 +517,13 @@ asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
 timeout = 30 # seconds, per test
 faulthandler_timeout = 30 # seconds, during collection
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests as integration tests",
+    "unit: marks tests as unit tests",
+    "flaky: marks tests that are known to be flaky",
+    "requires(dep1, dep2, ...): requires one or more dependencies to be installed",
+]
 
 [tool.coverage.run]
 omit = ["marimo/_tutorials/*"]
