@@ -31,9 +31,6 @@ jobs:
     continue-on-error: true
 
     steps:
-      - name: 🛑 Cancel Previous Runs
-        uses: styfle/cancel-workflow-action@0.12.1
-
       - uses: actions/checkout@v4
 
       - uses: dagger/dagger-for-github@v6
