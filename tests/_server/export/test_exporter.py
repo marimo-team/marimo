@@ -931,14 +931,14 @@ class TestPDFExport:
             return False
 
         with patch.object(Dependency, "has", mock_has):
-            with pytest.raises(ManyModulesNotFoundError) as excinfo:
+            with pytest.raises(ModuleNotFoundError) as excinfo:
                 exporter.export_as_pdf(
                     app=file_manager.app,
                     session_view=session_view,
                     webpdf=True,
                 )
 
-            assert "playwright" in excinfo.value.package_names
+            assert "playwright" in str(excinfo.value)
 
     @pytest.mark.skipif(
         not DependencyManager.nbformat.has()

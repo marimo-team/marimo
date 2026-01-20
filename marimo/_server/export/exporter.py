@@ -321,13 +321,11 @@ class Exporter:
         Returns:
             PDF data
         """
-        dependencies = [
+        DependencyManager.require_many(
+            "for PDF export",
             DependencyManager.nbformat,
             DependencyManager.nbconvert,
-        ]
-        if webpdf:
-            dependencies.append(DependencyManager.playwright)
-        DependencyManager.require_many("for PDF export", *dependencies)
+        )
 
         ipynb_json_str = self.export_as_ipynb(
             app=app, sort_mode="top-down", session_view=session_view
@@ -357,6 +355,7 @@ class Exporter:
                     e,
                 )
 
+        DependencyManager.playwright.require("for webpdf export")
         from nbconvert import WebPDFExporter  # type: ignore[import-not-found]
 
         web_exporter = WebPDFExporter()
