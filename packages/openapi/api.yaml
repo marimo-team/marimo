@@ -4874,7 +4874,9 @@ paths:
                 type: string
           description: Export the notebook as a PDF
         400:
-          description: File must be saved before downloading or dependencies missing
+          description: File must be saved before downloading
+        500:
+          description: Export failed or dependencies missing
   /api/export/script:
     post:
       parameters:

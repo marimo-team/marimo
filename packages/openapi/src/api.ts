@@ -837,8 +837,15 @@ export interface paths {
             "application/pdf": string;
           };
         };
-        /** @description File must be saved before downloading or dependencies missing */
+        /** @description File must be saved before downloading */
         400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
+        /** @description Export failed or dependencies missing */
+        500: {
           headers: {
             [name: string]: unknown;
           };
