@@ -24,7 +24,9 @@ from marimo._server.api.middleware import (
     _URLRequest,
 )
 from marimo._server.config import StarletteServerStateInit
+from marimo._server.lsp import BaseLspServer
 from marimo._server.main import (
+    _create_lsps_proxy_middleware,
     create_starlette_app,
 )
 from marimo._server.session_manager import SessionManager
@@ -686,3 +688,81 @@ class TestProxyMiddleware:
         assert proxy_calls[-1] == "wss://example.com/proxy/test"
 
         # Could be good to go on to test the happy path for mpl but we're already doing that with the test client above so leaving just this invalid ID test for
+
+
+def _mock_lsp_server(server_id: str, port: int):
+    """Helper to create a mock LSP server."""
+
+    class MockLspServer(BaseLspServer):
+        id = server_id
+
+        def validate_requirements(self):
+            return True
+
+        def get_command(self):
+            return []
+
+        def missing_binary_alert(self):
+            return None
+
+    return MockLspServer(port=port)
+
+
+class TestLspProxyMiddleware:
+    """Test that LSP proxy middleware respects base_url configuration."""
+
+    def test_lsp_proxy_without_base_url(self) -> None:
+        middlewares = list(
+            _create_lsps_proxy_middleware(
+                base_url="", servers=[_mock_lsp_server("test-lsp", 8888)]
+            )
+        )
+
+        assert len(middlewares) == 1
+        assert middlewares[0].kwargs["proxy_path"] == "/lsp/test-lsp"
+        assert middlewares[0].kwargs["target_url"] == "http://localhost:8888"
+
+    def test_lsp_proxy_with_base_url(self) -> None:
+        middlewares = list(
+            _create_lsps_proxy_middleware(
+                base_url="/foo", servers=[_mock_lsp_server("test-lsp", 8888)]
+            )
+        )
+
+        assert len(middlewares) == 1
+        assert middlewares[0].kwargs["proxy_path"] == "/foo/lsp/test-lsp"
+        assert middlewares[0].kwargs["target_url"] == "http://localhost:8888"
+
+    def test_lsp_proxy_multiple_servers(self) -> None:
+        middlewares = list(
+            _create_lsps_proxy_middleware(
+                base_url="/app",
+                servers=[
+                    _mock_lsp_server("pylsp", 8888),
+                    _mock_lsp_server("copilot", 8889),
+                ],
+            )
+        )
+
+        assert len(middlewares) == 2
+        assert middlewares[0].kwargs["proxy_path"] == "/app/lsp/pylsp"
+        assert middlewares[0].kwargs["target_url"] == "http://localhost:8888"
+        assert middlewares[1].kwargs["proxy_path"] == "/app/lsp/copilot"
+        assert middlewares[1].kwargs["target_url"] == "http://localhost:8889"
+
+    def test_lsp_proxy_integration(self) -> None:
+        """Verify LSP proxy works with create_starlette_app."""
+        app = create_starlette_app(
+            base_url="/marimo",
+            lsp_servers=[_mock_lsp_server("test-lsp", 8888)],
+        )
+
+        proxy_mw = [
+            mw
+            for mw in app.user_middleware
+            if mw.cls == ProxyMiddleware
+            and mw.kwargs.get("proxy_path") == "/marimo/lsp/test-lsp"
+        ]
+
+        assert len(proxy_mw) == 1
+        assert proxy_mw[0].kwargs["target_url"] == "http://localhost:8888"
