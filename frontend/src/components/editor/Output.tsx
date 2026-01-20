@@ -90,6 +90,8 @@ export const OutputRenderer: React.FC<{
       case "application/vnd.marimo+mimebundle":
       case "application/vnd.vegalite.v5+json":
       case "application/vnd.vega.v5+json":
+      case "application/vnd.vegalite.v6+json":
+      case "application/vnd.vega.v6+json":
         return typeof data === "string" ? JSON.parse(data) : data;
       default:
         return;
@@ -199,6 +201,8 @@ export const OutputRenderer: React.FC<{
       );
     case "application/vnd.vegalite.v5+json":
     case "application/vnd.vega.v5+json":
+    case "application/vnd.vegalite.v6+json":
+    case "application/vnd.vega.v6+json":
       return (
         <Suspense fallback={<ChartLoadingState />}>
           <LazyVegaEmbed

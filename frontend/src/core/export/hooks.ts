@@ -85,6 +85,15 @@ export function useAutoExport() {
 // We track cells that need screenshots, these will be exported to IPYNB
 const richCellsToOutputAtom = atom<Record<CellId, unknown>>({});
 
+// MIME types to capture screenshots for
+const MIME_TYPES_TO_CAPTURE_SCREENSHOTS = new Set([
+  "text/html",
+  "application/vnd.vegalite.v5+json",
+  "application/vnd.vega.v5+json",
+  "application/vnd.vegalite.v6+json",
+  "application/vnd.vega.v6+json",
+]);
+
 /**
  * Take screenshots of cells with HTML outputs. These images will be sent to the backend to be exported to IPYNB.
  * @returns A map of cell IDs to their screenshots data.
@@ -103,7 +112,7 @@ export function useEnrichCellOutputs() {
       // Track latest output for this cell
       trackedCellsOutput[cellId] = outputData;
       if (
-        runtime.output?.mimetype === "text/html" &&
+        MIME_TYPES_TO_CAPTURE_SCREENSHOTS.has(runtime.output?.mimetype ?? "") &&
         outputData &&
         outputHasChanged
       ) {
