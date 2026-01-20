@@ -88,7 +88,7 @@ export async function downloadAsPDF(opts: {
       webpdf,
     });
 
-    const filenameWithoutPath = Paths.basename(filename) ?? "notebook.py";
+    const filenameWithoutPath = Paths.basename(filename);
     downloadBlob(pdfBlob, Filenames.toPDF(filenameWithoutPath));
   } catch (error) {
     toast({
