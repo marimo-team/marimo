@@ -191,20 +191,6 @@ describe("ai-utils", () => {
   });
 
   describe("autoPopulateModels", () => {
-    it("should return empty result when dirtyAiConfig is undefined", () => {
-      const values: UserConfig = {
-        ai: {
-          open_ai: { api_key: "sk-test" },
-        },
-      } as UserConfig;
-
-      const result = autoPopulateModels(values, undefined);
-
-      expect(result.updatedAiConfig).toBeUndefined();
-      expect(result.chatModel).toBeUndefined();
-      expect(result.editModel).toBeUndefined();
-    });
-
     it("should return empty result when both models are already set", () => {
       const values = {
         ai: {
@@ -218,11 +204,8 @@ describe("ai-utils", () => {
         },
       } as unknown as UserConfig;
 
-      const result = autoPopulateModels(values, {
-        open_ai: { api_key: "sk-test" },
-      });
+      const result = autoPopulateModels(values);
 
-      expect(result.updatedAiConfig).toBeUndefined();
       expect(result.chatModel).toBeUndefined();
       expect(result.editModel).toBeUndefined();
     });
@@ -232,9 +215,8 @@ describe("ai-utils", () => {
         ai: {},
       } as UserConfig;
 
-      const result = autoPopulateModels(values, {});
+      const result = autoPopulateModels(values);
 
-      expect(result.updatedAiConfig).toBeUndefined();
       expect(result.chatModel).toBeUndefined();
       expect(result.editModel).toBeUndefined();
     });
@@ -246,15 +228,10 @@ describe("ai-utils", () => {
         },
       } as UserConfig;
 
-      const result = autoPopulateModels(values, {
-        open_ai: { api_key: "sk-test" },
-      });
+      const result = autoPopulateModels(values);
 
       expect(result.chatModel).toBe("openai/gpt-4");
       expect(result.editModel).toBe("openai/gpt-4");
-      expect(result.updatedAiConfig).toBeDefined();
-      expect(result.updatedAiConfig?.models?.chat_model).toBe("openai/gpt-4");
-      expect(result.updatedAiConfig?.models?.edit_model).toBe("openai/gpt-4");
     });
 
     it("should only auto-populate chat_model when edit_model is set", () => {
@@ -269,14 +246,10 @@ describe("ai-utils", () => {
         },
       } as unknown as UserConfig;
 
-      const result = autoPopulateModels(values, {
-        open_ai: { api_key: "sk-test" },
-      });
+      const result = autoPopulateModels(values);
 
       expect(result.chatModel).toBe("openai/gpt-4");
       expect(result.editModel).toBeUndefined();
-      expect(result.updatedAiConfig?.models?.chat_model).toBe("openai/gpt-4");
-      expect(result.updatedAiConfig?.models?.edit_model).toBeUndefined();
     });
 
     it("should only auto-populate edit_model when chat_model is set", () => {
@@ -291,37 +264,23 @@ describe("ai-utils", () => {
         },
       } as unknown as UserConfig;
 
-      const result = autoPopulateModels(values, {
-        open_ai: { api_key: "sk-test" },
-      });
+      const result = autoPopulateModels(values);
 
       expect(result.chatModel).toBeUndefined();
       expect(result.editModel).toBe("openai/gpt-4");
-      expect(result.updatedAiConfig?.models?.chat_model).toBeUndefined();
-      expect(result.updatedAiConfig?.models?.edit_model).toBe("openai/gpt-4");
     });
 
-    it("should preserve existing dirty values in updatedAiConfig", () => {
+    it("should return recommended model for anthropic provider", () => {
       const values: UserConfig = {
         ai: {
           anthropic: { api_key: "sk-ant-test" },
         },
       } as UserConfig;
 
-      const dirtyAiConfig = {
-        anthropic: { api_key: "sk-ant-test" },
-        rules: "Always use type hints",
-      };
+      const result = autoPopulateModels(values);
 
-      const result = autoPopulateModels(values, dirtyAiConfig);
-
-      expect(result.updatedAiConfig?.anthropic).toEqual({
-        api_key: "sk-ant-test",
-      });
-      expect(result.updatedAiConfig?.rules).toBe("Always use type hints");
-      expect(result.updatedAiConfig?.models?.chat_model).toBe(
-        "anthropic/claude-3-sonnet",
-      );
+      expect(result.chatModel).toBe("anthropic/claude-3-sonnet");
+      expect(result.editModel).toBe("anthropic/claude-3-sonnet");
     });
   });
 });

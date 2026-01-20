@@ -61,36 +61,21 @@ export function getRecommendedModel(config: UserConfig): string | undefined {
 }
 
 export interface AutoPopulateResult {
-  /** Updated AI config to merge into dirtyValues, or undefined if no changes */
-  updatedAiConfig: UserConfig["ai"] | undefined;
-  /** Model that was auto-populated for chat, or undefined if not needed */
   chatModel: string | undefined;
-  /** Model that was auto-populated for edit, or undefined if not needed */
   editModel: string | undefined;
 }
 
 /**
- * Auto-populates chat and edit models if credentials are configured but models aren't set.
- * Returns the updated AI config and which models were auto-populated.
- * Only runs if the AI config is being changed.
+ * Determines which models to auto-populate based on configured credentials.
+ * Returns the recommended model for chat/edit if credentials are configured but models aren't set.
  *
  * @param values - The full form values
- * @param dirtyAiConfig - The dirty AI config (only AI fields that changed)
  */
-export function autoPopulateModels(
-  values: UserConfig,
-  dirtyAiConfig: UserConfig["ai"] | undefined,
-): AutoPopulateResult {
+export function autoPopulateModels(values: UserConfig): AutoPopulateResult {
   const result: AutoPopulateResult = {
-    updatedAiConfig: undefined,
     chatModel: undefined,
     editModel: undefined,
   };
-
-  // Only run if AI config is being changed
-  if (!dirtyAiConfig) {
-    return result;
-  }
 
   const needsChatModel = !values.ai?.models?.chat_model;
   const needsEditModel = !values.ai?.models?.edit_model;
@@ -110,17 +95,5 @@ export function autoPopulateModels(
   if (needsEditModel) {
     result.editModel = recommendedModel;
   }
-
-  result.updatedAiConfig = {
-    ...dirtyAiConfig,
-    models: {
-      ...dirtyAiConfig?.models,
-      custom_models: dirtyAiConfig?.models?.custom_models ?? [],
-      displayed_models: dirtyAiConfig?.models?.displayed_models ?? [],
-      ...(needsChatModel && { chat_model: recommendedModel }),
-      ...(needsEditModel && { edit_model: recommendedModel }),
-    },
-  };
-
   return result;
 }

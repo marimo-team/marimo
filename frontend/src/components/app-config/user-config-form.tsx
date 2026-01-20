@@ -181,6 +181,30 @@ export const UserConfigForm: React.FC = () => {
     defaultValues: config,
   });
 
+  const setAiModels = (values: UserConfig, dirtyAiConfig: UserConfig["ai"]) => {
+    const { chatModel, editModel } = autoPopulateModels(values);
+    if (chatModel || editModel) {
+      dirtyAiConfig = {
+        ...dirtyAiConfig,
+        models: {
+          ...dirtyAiConfig?.models,
+          custom_models: dirtyAiConfig?.models?.custom_models ?? [],
+          displayed_models: dirtyAiConfig?.models?.displayed_models ?? [],
+          ...(chatModel && { chat_model: chatModel }),
+          ...(editModel && { edit_model: editModel }),
+        },
+      };
+      if (chatModel) {
+        form.setValue("ai.models.chat_model", chatModel);
+      }
+      if (editModel) {
+        form.setValue("ai.models.edit_model", editModel);
+      }
+    }
+
+    return dirtyAiConfig;
+  };
+
   const onSubmitNotDebounced = async (values: UserConfig) => {
     // Only send values that were actually changed to avoid
     // overwriting backend values the form doesn't manage
@@ -190,18 +214,8 @@ export const UserConfigForm: React.FC = () => {
     }
 
     // Auto-populate AI models when credentials are set, makes it easier to get started
-    const { updatedAiConfig, chatModel, editModel } = autoPopulateModels(
-      values,
-      dirtyValues.ai,
-    );
-    if (updatedAiConfig) {
-      dirtyValues.ai = updatedAiConfig;
-      if (chatModel) {
-        form.setValue("ai.models.chat_model", chatModel);
-      }
-      if (editModel) {
-        form.setValue("ai.models.edit_model", editModel);
-      }
+    if (dirtyValues.ai) {
+      dirtyValues.ai = setAiModels(values, dirtyValues.ai);
     }
 
     await saveUserConfig({ config: dirtyValues }).then(() => {
