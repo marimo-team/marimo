@@ -1,6 +1,10 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { KNOWN_PROVIDERS, type KnownProviderId } from "@/core/ai/ids/ids";
+import {
+  KNOWN_PROVIDERS,
+  type KnownProviderId,
+  type ProviderId,
+} from "@/core/ai/ids/ids";
 import { getKnownModelMaps } from "@/core/ai/model-registry";
 import type { AiConfig, UserConfig } from "@/core/config/config-schema";
 
@@ -29,7 +33,7 @@ const CREDENTIAL_CHECKERS: Record<KnownProviderId, CredentialChecker> = {
  */
 export function getConfiguredProvider(
   config: UserConfig,
-): KnownProviderId | undefined {
+): ProviderId | undefined {
   const ai = config.ai;
 
   for (const provider of KNOWN_PROVIDERS) {
@@ -45,11 +49,9 @@ export function getConfiguredProvider(
       ([_, providerConfig]) => providerConfig?.base_url,
     );
     if (firstCustomProvider) {
-      return firstCustomProvider[0] as KnownProviderId;
+      return firstCustomProvider[0];
     }
   }
-
-  return undefined;
 }
 
 export function getRecommendedModel(config: UserConfig): string | undefined {
