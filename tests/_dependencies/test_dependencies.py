@@ -281,7 +281,7 @@ def test_require_many_uses_package_name() -> None:
                 missing1,
             )
 
-        assert excinfo.value.package_names == ["missing1"]
+        assert excinfo.value.package_names == ["missing-package-1"]
         assert "for testing mixed dependencies" in str(excinfo.value)
 
         # Test with all dependencies available
