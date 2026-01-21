@@ -201,6 +201,10 @@ def load_app(filename: Optional[str | Path]) -> Optional[App]:
                 f"Python script {path} is not a marimo notebook."
             )
 
+        if not notebook_ir.valid:
+            LOGGER.error(f"Notebook {path} is not a valid marimo notebook.")
+            return None
+
         app = load_notebook_ir(notebook_ir)
         app._cell_manager.ensure_one_cell()
         return app
