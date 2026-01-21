@@ -134,7 +134,7 @@
     "jotai-scope": "^0.10.0",
     "js-cookie": "^3.0.5",
     "katex": "^0.16.27",
-    "lodash-es": "^4.17.22",
+    "lodash-es": "^4.17.23",
     "loro-codemirror": "^0.3.3",
     "loro-crdt": "^1.10.3",
     "lucide-react": "^0.562.0",
