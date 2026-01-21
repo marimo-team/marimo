@@ -15,6 +15,11 @@ class Dependency:
     pkg: str
     min_version: str | None = None
     max_version: str | None = None
+    pkg_name_to_install: str | None = None
+
+    def __post_init__(self) -> None:
+        if self.pkg_name_to_install is None:
+            self.pkg_name_to_install = self.pkg
 
     def has(self, quiet: bool = False) -> bool:
         """Return True if the dependency is installed. For a more performant check, use imported()."""
@@ -89,7 +94,9 @@ class Dependency:
                     del sys.modules[self.pkg]
 
             # Including the `name` helps with auto-installations
-            raise ModuleNotFoundError(message, name=self.pkg) from None
+            raise ModuleNotFoundError(
+                message, name=self.pkg_name_to_install
+            ) from None
 
     def require_at_version(
         self,
@@ -211,6 +218,8 @@ class DependencyManager:
     ipython = Dependency("IPython")
     ipywidgets = Dependency("ipywidgets")
     nbformat = Dependency("nbformat")
+    nbconvert = Dependency("nbconvert")
+    playwright = Dependency("playwright")  # installed by nbconvert[webpdf]
     narwhals = Dependency("narwhals")
     ruff = Dependency("ruff")
     black = Dependency("black")
@@ -238,7 +247,9 @@ class DependencyManager:
     litellm = Dependency("litellm")
     redshift_connector = Dependency("redshift_connector")
     mcp = Dependency("mcp")
-    pydantic_ai = Dependency("pydantic_ai")
+    pydantic_ai = Dependency(
+        "pydantic_ai", pkg_name_to_install="pydantic-ai-slim"
+    )
     pydantic = Dependency("pydantic")
     zmq = Dependency("zmq")  # pyzmq for sandbox IPC kernels
 
@@ -268,7 +279,11 @@ class DependencyManager:
 
     @staticmethod
     def require_many(why: str, *dependencies: Dependency) -> None:
-        missing = [dep.pkg for dep in dependencies if not dep.has()]
+        missing = [
+            dep.pkg_name_to_install
+            for dep in dependencies
+            if not dep.has() and dep.pkg_name_to_install is not None
+        ]
         if missing:
             raise ManyModulesNotFoundError(
                 missing,

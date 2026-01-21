@@ -9,6 +9,9 @@ export const Filenames = {
   toPNG: (filename: string): string => {
     return Filenames.replace(filename, "png");
   },
+  toPDF: (filename: string): string => {
+    return Filenames.replace(filename, "pdf");
+  },
   toPY: (filename: string): string => {
     return Filenames.replace(filename, "py");
   },

@@ -45,6 +45,27 @@ def test_without_dependencies() -> None:
     assert "for testing" in str(excinfo.value)
 
 
+def test_package_name_defaults_to_pkg() -> None:
+    """Test that package_name defaults to pkg when not specified."""
+    dep = Dependency("some_module")
+    assert dep.pkg_name_to_install == "some_module"
+
+
+def test_package_name_used_in_require() -> None:
+    """Test that package_name is used in ModuleNotFoundError."""
+    # When package_name differs from pkg, the error should use package_name
+    missing = Dependency(
+        "missing_module", pkg_name_to_install="missing-package"
+    )
+    assert not missing.has()
+
+    with pytest.raises(ModuleNotFoundError) as excinfo:
+        missing.require("for testing")
+
+    # The error name should be the package_name, not the pkg
+    assert excinfo.value.name == "missing-package"
+
+
 def test_subpackage_cache_invalidation() -> None:
     """Test that subpackage dependencies properly invalidate importlib cache."""
     # Create a dependency for a missing subpackage
@@ -228,6 +249,29 @@ def test_require_many() -> None:
     assert excinfo.value.package_names == ["missing1", "missing2"]
     assert "for testing multiple dependencies" in str(excinfo.value)
 
+
+def test_require_many_uses_package_name() -> None:
+    """Test that require_many uses package_name when specified."""
+    missing1 = Dependency(
+        "missing_module1", pkg_name_to_install="missing-package-1"
+    )
+    missing2 = Dependency(
+        "missing_module2", pkg_name_to_install="missing-package-2"
+    )
+
+    with pytest.raises(ManyModulesNotFoundError) as excinfo:
+        DependencyManager.require_many(
+            "for testing package names",
+            missing1,
+            missing2,
+        )
+
+    # Should use package_name, not pkg
+    assert excinfo.value.package_names == [
+        "missing-package-1",
+        "missing-package-2",
+    ]
+
     # Test with some dependencies available (if pandas is installed)
     if DependencyManager.pandas.has():
         with pytest.raises(ManyModulesNotFoundError) as excinfo:
@@ -237,7 +281,7 @@ def test_require_many() -> None:
                 missing1,
             )
 
-        assert excinfo.value.package_names == ["missing1"]
+        assert excinfo.value.package_names == ["missing-package-1"]
         assert "for testing mixed dependencies" in str(excinfo.value)
 
         # Test with all dependencies available

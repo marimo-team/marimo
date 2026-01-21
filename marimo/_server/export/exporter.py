@@ -26,6 +26,7 @@ from marimo._convert.common.filename import (
     get_filename,
 )
 from marimo._convert.ipynb.from_ir import convert_from_ir_to_ipynb
+from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._runtime.virtual_file import read_virtual_file
 from marimo._schemas.notebook import NotebookV1
@@ -304,6 +305,67 @@ class Exporter:
         download_filename = get_download_filename(filename, "wasm.html")
 
         return html, download_filename
+
+    def export_as_pdf(
+        self, *, app: InternalApp, session_view: SessionView, webpdf: bool
+    ) -> bytes | None:
+        """Export notebook as a PDF.
+
+        Args:
+            app: The app to export
+            session_view: The session view to export
+            webpdf: If False, tries standard PDF export (pandoc + TeX) first,
+                falling back to webpdf if deps are not installed. If True, uses webpdf
+                directly.
+
+        Returns:
+            PDF data
+        """
+        DependencyManager.require_many(
+            "for PDF export",
+            DependencyManager.nbformat,
+            DependencyManager.nbconvert,
+        )
+
+        ipynb_json_str = self.export_as_ipynb(
+            app=app, sort_mode="top-down", session_view=session_view
+        )
+
+        import nbformat
+
+        notebook = nbformat.reads(ipynb_json_str, as_version=4)  # type: ignore[no-untyped-call]
+
+        # Try standard PDF export first (requires pandoc + TeX)
+        # and fall back to webpdf if it fails
+        if not webpdf:
+            try:
+                from nbconvert import (  # type: ignore[import-not-found]
+                    PDFExporter,
+                )
+
+                exporter = PDFExporter()
+                pdf_data, _resources = exporter.from_notebook_node(notebook)
+                if isinstance(pdf_data, bytes):
+                    return pdf_data
+                LOGGER.error("PDF data is not bytes: %s", pdf_data)
+                return None
+            except OSError as e:
+                LOGGER.warning(
+                    "Standard PDF export failed, falling back to webpdf. Error: %s",
+                    e,
+                )
+
+        DependencyManager.playwright.require("for webpdf export")
+        from nbconvert import WebPDFExporter  # type: ignore[import-not-found]
+
+        web_exporter = WebPDFExporter()
+        web_exporter.allow_chromium_download = True
+        pdf_data, _resources = web_exporter.from_notebook_node(notebook)
+
+        if not isinstance(pdf_data, bytes):
+            LOGGER.error("PDF data is not bytes: %s", pdf_data)
+            return None
+        return pdf_data
 
     def export_assets(
         self, directory: Path, ignore_index_html: bool = False

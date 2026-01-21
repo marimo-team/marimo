@@ -17,9 +17,11 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
-      - uses: prefix-dev/setup-pixi@v0.8.8
+      - uses: prefix-dev/setup-pixi@v0.9.3
         with:
           pixi-version: v0.62.2
+          locked: false
+          frozen: true
           cache: true
       - run: pixi run make check-prereqs
       - run: pixi run make fe

@@ -61,6 +61,7 @@ export function createErrorToastingRequests(
     shutdownSession: "Failed to shutdown session",
     exportAsHTML: "Failed to export HTML",
     exportAsMarkdown: "Failed to export Markdown",
+    exportAsPDF: "Failed to export PDF",
     autoExportAsHTML: "", // No toast
     autoExportAsMarkdown: "", // No toast
     autoExportAsIPYNB: "", // No toast

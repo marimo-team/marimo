@@ -142,7 +142,7 @@ def test_transform_add_marimo_import():
         "print('World')",
     ]
     result = strip_cells(transform_add_marimo_import)(sources)
-    assert "import marimo as mo" in result
+    assert result == ["import marimo as mo"] + sources
 
     # mo.sql
     sources = [
@@ -150,7 +150,7 @@ def test_transform_add_marimo_import():
         "print('World')",
     ]
     result = strip_cells(transform_add_marimo_import)(sources)
-    assert "import marimo as mo" in result
+    assert result == ["import marimo as mo"] + sources
 
     # if `import marimo as mo` is already present
     # it should not be added again
@@ -183,7 +183,7 @@ def test_transform_add_marimo_import_already_but_in_comment_or_definition():
         "# import marimo as mo",
     ]
     result = strip_cells(transform_add_marimo_import)(sources)
-    assert result == sources + ["import marimo as mo"]
+    assert result == ["import marimo as mo"] + sources
 
     # Definition
     sources = [
@@ -191,7 +191,7 @@ def test_transform_add_marimo_import_already_but_in_comment_or_definition():
         "def foo():\n    import marimo as mo",
     ]
     result = strip_cells(transform_add_marimo_import)(sources)
-    assert result == sources + ["import marimo as mo"]
+    assert result == ["import marimo as mo"] + sources
 
 
 def test_transform_magic_commands():

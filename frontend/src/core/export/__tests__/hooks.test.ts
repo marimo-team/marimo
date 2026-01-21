@@ -8,7 +8,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { CellId } from "@/core/cells/ids";
 import { CellOutputId } from "@/core/cells/ids";
 import type { CellRuntimeState } from "@/core/cells/types";
-import { useEnrichCellOutputs } from "../hooks";
+import {
+  updateCellOutputsWithScreenshots,
+  useEnrichCellOutputs,
+} from "../hooks";
 
 // Mock html-to-image
 vi.mock("html-to-image", () => ({
@@ -22,6 +25,11 @@ vi.mock("@/utils/Logger", () => ({
   },
 }));
 
+// Mock toast
+vi.mock("@/components/ui/use-toast", () => ({
+  toast: vi.fn(),
+}));
+
 // Mock cellsRuntimeAtom - must be defined inline in the factory function
 vi.mock("@/core/cells/cells", async () => {
   const { atom } = await import("jotai");
@@ -31,6 +39,7 @@ vi.mock("@/core/cells/cells", async () => {
 });
 
 import { toPng } from "html-to-image";
+import { toast } from "@/components/ui/use-toast";
 import { cellsRuntimeAtom } from "@/core/cells/cells";
 import { Logger } from "@/utils/Logger";
 
@@ -500,5 +509,115 @@ describe("useEnrichCellOutputs", () => {
       expect(cellOutput[0]).toBe("image/png");
       expect(cellOutput[1]).toBe(mockDataUrl);
     }
+  });
+});
+
+describe("updateCellOutputsWithScreenshots", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("should call updateCellOutputs when there are screenshots", async () => {
+    const cellId = "cell-1" as CellId;
+    const mockScreenshots = {
+      [cellId]: ["image/png", "data:image/png;base64,test"] as [
+        "image/png",
+        string,
+      ],
+    };
+
+    const takeScreenshots = vi.fn().mockResolvedValue(mockScreenshots);
+    const updateCellOutputs = vi.fn().mockResolvedValue(null);
+
+    await updateCellOutputsWithScreenshots(takeScreenshots, updateCellOutputs);
+
+    expect(takeScreenshots).toHaveBeenCalledTimes(1);
+    expect(updateCellOutputs).toHaveBeenCalledTimes(1);
+    expect(updateCellOutputs).toHaveBeenCalledWith({
+      cellIdsToOutput: mockScreenshots,
+    });
+  });
+
+  it("should not call updateCellOutputs when there are no screenshots", async () => {
+    const takeScreenshots = vi.fn().mockResolvedValue({});
+    const updateCellOutputs = vi.fn().mockResolvedValue(null);
+
+    await updateCellOutputsWithScreenshots(takeScreenshots, updateCellOutputs);
+
+    expect(takeScreenshots).toHaveBeenCalledTimes(1);
+    expect(updateCellOutputs).not.toHaveBeenCalled();
+  });
+
+  it("should handle multiple cell screenshots", async () => {
+    const cell1 = "cell-1" as CellId;
+    const cell2 = "cell-2" as CellId;
+    const mockScreenshots = {
+      [cell1]: ["image/png", "data:image/png;base64,image1"] as [
+        "image/png",
+        string,
+      ],
+      [cell2]: ["image/png", "data:image/png;base64,image2"] as [
+        "image/png",
+        string,
+      ],
+    };
+
+    const takeScreenshots = vi.fn().mockResolvedValue(mockScreenshots);
+    const updateCellOutputs = vi.fn().mockResolvedValue(null);
+
+    await updateCellOutputsWithScreenshots(takeScreenshots, updateCellOutputs);
+
+    expect(updateCellOutputs).toHaveBeenCalledWith({
+      cellIdsToOutput: mockScreenshots,
+    });
+  });
+
+  it("should catch errors from takeScreenshots and show toast", async () => {
+    const error = new Error("Screenshot failed");
+    const takeScreenshots = vi.fn().mockRejectedValue(error);
+    const updateCellOutputs = vi.fn().mockResolvedValue(null);
+
+    // Should not throw - errors are caught and shown via toast
+    await updateCellOutputsWithScreenshots(takeScreenshots, updateCellOutputs);
+
+    expect(updateCellOutputs).not.toHaveBeenCalled();
+    expect(Logger.error).toHaveBeenCalledWith(
+      "Error updating cell outputs with screenshots:",
+      error,
+    );
+    expect(toast).toHaveBeenCalledWith({
+      title: "Failed to capture cell outputs",
+      description:
+        "Some outputs may not appear in the PDF. Continuing with export.",
+      variant: "danger",
+    });
+  });
+
+  it("should catch errors from updateCellOutputs and show toast", async () => {
+    const cellId = "cell-1" as CellId;
+    const mockScreenshots = {
+      [cellId]: ["image/png", "data:image/png;base64,test"] as [
+        "image/png",
+        string,
+      ],
+    };
+    const error = new Error("Update failed");
+
+    const takeScreenshots = vi.fn().mockResolvedValue(mockScreenshots);
+    const updateCellOutputs = vi.fn().mockRejectedValue(error);
+
+    // Should not throw - errors are caught and shown via toast
+    await updateCellOutputsWithScreenshots(takeScreenshots, updateCellOutputs);
+
+    expect(Logger.error).toHaveBeenCalledWith(
+      "Error updating cell outputs with screenshots:",
+      error,
+    );
+    expect(toast).toHaveBeenCalledWith({
+      title: "Failed to capture cell outputs",
+      description:
+        "Some outputs may not appear in the PDF. Continuing with export.",
+      variant: "danger",
+    });
   });
 });

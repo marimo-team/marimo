@@ -381,6 +381,15 @@ export function createNetworkRequests(): EditRequests & RunRequests {
         })
         .then(handleResponse);
     },
+    exportAsPDF: async (request) => {
+      return getClient()
+        .POST("/api/export/pdf", {
+          body: request,
+          parseAs: "blob",
+          params: getParams(),
+        })
+        .then(handleResponse);
+    },
     autoExportAsHTML: async (request) => {
       return getClient()
         .POST("/api/export/auto_export/html", {

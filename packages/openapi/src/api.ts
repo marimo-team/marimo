@@ -804,6 +804,61 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/export/pdf": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header: {
+          "Marimo-Session-Id": string;
+        };
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: {
+        content: {
+          "application/json": components["schemas"]["ExportAsPDFRequest"];
+        };
+      };
+      responses: {
+        /** @description Export the notebook as a PDF */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/pdf": string;
+          };
+        };
+        /** @description File must be saved before downloading */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
+        /** @description Export failed or dependencies missing */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/export/script": {
     parameters: {
       query?: never;
@@ -3809,6 +3864,10 @@ export interface components {
     ExportAsMarkdownRequest: {
       download: boolean;
     };
+    /** ExportAsPDFRequest */
+    ExportAsPDFRequest: {
+      webpdf: boolean;
+    };
     /** ExportAsScriptRequest */
     ExportAsScriptRequest: {
       download: boolean;
@@ -4859,12 +4918,15 @@ export interface components {
      *         - `default_auto_download`: an Optional list of export types to automatically snapshot your notebook as:
      *            `html`, `markdown`, `ipynb`.
      *            The default is None.
+     *         - `default_csv_encoding`: the default encoding for CSV exports.
+     *             The default is `"utf-8"`.
      */
     RuntimeConfig: {
       auto_instantiate: boolean;
       /** @enum {unknown} */
       auto_reload: "autorun" | "lazy" | "off";
       default_auto_download?: ("html" | "ipynb" | "markdown")[];
+      default_csv_encoding?: string;
       /** @enum {unknown} */
       default_sql_output:
         | "auto"

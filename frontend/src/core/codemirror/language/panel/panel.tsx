@@ -8,6 +8,7 @@ import { Tooltip, TooltipProvider } from "@/components/ui/tooltip";
 import { normalizeName } from "@/core/cells/names";
 import { type ConnectionName, DUCKDB_ENGINE } from "@/core/datasets/engines";
 import { useAutoGrowInputProps } from "@/hooks/useAutoGrowInputProps";
+import { cellIdState } from "../../cells/state";
 import { formatSQL } from "../../format";
 import { languageAdapterState } from "../extension";
 import { MarkdownLanguageAdapter } from "../languages/markdown";
@@ -31,6 +32,7 @@ export const LanguagePanelComponent: React.FC<{
 }> = ({ view }) => {
   const { spanProps, inputProps } = useAutoGrowInputProps({ minWidth: 50 });
   const languageAdapter = view.state.field(languageAdapterState);
+  const cellId = view.state.facet(cellIdState);
 
   let actions: React.ReactNode = <div />;
   let showDivider = false;
@@ -93,6 +95,7 @@ export const LanguagePanelComponent: React.FC<{
         <SQLEngineSelect
           selectedEngine={metadata.engine}
           onChange={switchEngine}
+          cellId={cellId}
         />
         <div className="flex items-center gap-2 ml-auto">
           {metadata.engine === DUCKDB_ENGINE && <SQLModeSelect />}

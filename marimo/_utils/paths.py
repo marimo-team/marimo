@@ -58,6 +58,8 @@ def normalize_path(path: Path) -> Path:
     - Converts relative paths to absolute paths
     - Normalizes .. and . components
     - Does NOT resolve symlinks (unlike Path.resolve())
+    - Skips normalization for cloud paths (e.g., S3Path, GCSPath, AzurePath)
+      to avoid corrupting URI schemes like s3://
 
     Args:
         path: The path to normalize
@@ -69,6 +71,11 @@ def normalize_path(path: Path) -> Path:
         >>> normalize_path(Path("foo/../bar"))
         Path("/current/working/dir/bar")
     """
+    # Skip normalization for cloud paths (e.g., S3Path, GCSPath, AzurePath)
+    # os.path.normpath corrupts URI schemes like s3:// by reducing them to s3:/
+    if path.__class__.__module__.startswith("cloudpathlib"):
+        return path
+
     # Make absolute if relative (relative to current working directory)
     if not path.is_absolute():
         path = Path.cwd() / path

@@ -82,6 +82,38 @@ def test_normalize_path_does_not_resolve_symlinks() -> None:
         assert normalized != resolved
 
 
+def test_normalize_path_skips_cloudpathlib_paths() -> None:
+    """Test that cloud paths from cloudpathlib are returned unchanged.
+
+    os.path.normpath corrupts URI schemes like s3:// by reducing them to s3:/
+    This test verifies that cloudpathlib paths bypass normalization.
+    """
+    from unittest.mock import MagicMock
+
+    # Create a mock cloud path that simulates cloudpathlib.S3Path
+    # We can't inherit from PurePosixPath because it normalizes on construction
+    mock_path = MagicMock()
+    mock_path.__class__.__module__ = "cloudpathlib.s3.s3path"
+
+    # normalize_path should return the path unchanged
+    result = normalize_path(mock_path)
+
+    # Should be the exact same object, returned unchanged
+    assert result is mock_path
+
+
+def test_normalize_path_does_not_skip_regular_paths() -> None:
+    """Test that regular Path objects are still normalized properly."""
+    # Ensure the cloudpathlib check doesn't affect regular paths
+    relative_path = Path("foo") / "bar"
+    result = normalize_path(relative_path)
+
+    # Should be converted to absolute
+    assert result.is_absolute()
+    # Module should be pathlib, not cloudpathlib
+    assert result.__class__.__module__.startswith("pathlib")
+
+
 class TestPrettyPath:
     """Tests for pretty_path function."""
 

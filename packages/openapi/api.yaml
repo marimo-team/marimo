@@ -1492,6 +1492,14 @@ components:
       - download
       title: ExportAsMarkdownRequest
       type: object
+    ExportAsPDFRequest:
+      properties:
+        webpdf:
+          type: boolean
+      required:
+      - webpdf
+      title: ExportAsPDFRequest
+      type: object
     ExportAsScriptRequest:
       properties:
         download:
@@ -3331,7 +3339,8 @@ components:
         `, `\"polars\"`, `\"lazy-polars\"`, or `\"pandas\"`.\n        The default\
         \ is `\"auto\"`.\n    - `default_auto_download`: an Optional list of export\
         \ types to automatically snapshot your notebook as:\n       `html`, `markdown`,\
-        \ `ipynb`.\n       The default is None."
+        \ `ipynb`.\n       The default is None.\n    - `default_csv_encoding`: the\
+        \ default encoding for CSV exports.\n        The default is `\"utf-8\"`."
       properties:
         auto_instantiate:
           type: boolean
@@ -3347,6 +3356,8 @@ components:
             - ipynb
             - markdown
           type: array
+        default_csv_encoding:
+          type: string
         default_sql_output:
           enum:
           - auto
@@ -4844,6 +4855,31 @@ paths:
           description: Export the notebook as a markdown
         400:
           description: File must be saved before downloading
+  /api/export/pdf:
+    post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExportAsPDFRequest'
+      responses:
+        200:
+          content:
+            application/pdf:
+              schema:
+                format: binary
+                type: string
+          description: Export the notebook as a PDF
+        400:
+          description: File must be saved before downloading
+        500:
+          description: Export failed or dependencies missing
   /api/export/script:
     post:
       parameters:

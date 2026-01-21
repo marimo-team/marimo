@@ -4,7 +4,6 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from marimo._dependencies.dependencies import DependencyManager
 from marimo._output.hypertext import Html
 from marimo._plugins.stateless.mpl._mpl import (
     _convert_scheme_to_ws,
@@ -15,10 +14,8 @@ from marimo._runtime.commands import DeleteCellCommand
 from marimo._runtime.runtime import Kernel
 from tests.conftest import ExecReqProvider
 
-HAS_DEPS = DependencyManager.matplotlib.has()
 
-
-@pytest.mark.skipif(not HAS_DEPS, reason="matplotlib is not installed")
+@pytest.mark.requires("matplotlib")
 def test_mpl_interactive_repr_png() -> None:
     """Test that mpl.interactive provides PNG fallback for ipynb export."""
     import base64
@@ -46,7 +43,7 @@ def test_mpl_interactive_repr_png() -> None:
     plt.close(fig)
 
 
-@pytest.mark.skipif(not HAS_DEPS, reason="matplotlib is not installed")
+@pytest.mark.requires("matplotlib")
 def test_mpl_interactive_mime_no_js() -> None:
     """Test that _mime_ returns PNG when in no-JS mode (ipynb export)."""
     import matplotlib.pyplot as plt
@@ -74,7 +71,7 @@ def test_mpl_interactive_mime_no_js() -> None:
     plt.close(fig)
 
 
-@pytest.mark.skipif(not HAS_DEPS, reason="matplotlib is not installed")
+@pytest.mark.requires("matplotlib")
 async def test_mpl_interactive(k: Kernel, exec_req: ExecReqProvider) -> None:
     from threading import Thread
 
@@ -108,7 +105,7 @@ async def test_mpl_interactive(k: Kernel, exec_req: ExecReqProvider) -> None:
         await k.delete_cell(DeleteCellCommand(cell_id=cell.cell_id))
 
 
-@pytest.mark.skipif(not HAS_DEPS, reason="matplotlib is not installed")
+@pytest.mark.requires("matplotlib")
 async def test_mpl_show(k: Kernel, exec_req: ExecReqProvider) -> None:
     await k.run(
         [
@@ -123,7 +120,7 @@ async def test_mpl_show(k: Kernel, exec_req: ExecReqProvider) -> None:
     )
 
 
-@pytest.mark.skipif(not HAS_DEPS, reason="matplotlib is not installed")
+@pytest.mark.requires("matplotlib")
 def test_patch_javascript() -> None:
     from matplotlib.backends.backend_webagg_core import FigureManagerWebAgg
 
@@ -340,3 +337,35 @@ def test_get_or_create_application_with_restart() -> None:
 
         # Should have started two threads (original + restart)
         assert mock_thread_class.call_count == 2
+
+
+@pytest.mark.requires("matplotlib")
+def test_mpl_interactive_fallback_when_virtual_files_not_supported() -> None:
+    """Test that mpl.interactive falls back to PNG when virtual_files_supported=False."""
+    import matplotlib.pyplot as plt
+
+    from marimo._plugins.stateless.mpl._mpl import interactive
+    from marimo._runtime.context.kernel_context import KernelRuntimeContext
+
+    # Create a simple figure
+    fig, ax = plt.subplots()
+    ax.plot([1, 2, 3], [1, 2, 3])
+
+    # Mock the context to have virtual_files_supported=False (simulating HTML export)
+    mock_ctx = MagicMock(spec=KernelRuntimeContext)
+    mock_ctx.virtual_files_supported = False
+
+    with patch(
+        "marimo._plugins.stateless.mpl._mpl.get_context", return_value=mock_ctx
+    ):
+        # Call interactive - should fallback to static PNG
+        result = interactive(fig)
+
+        # Should return Html object
+        assert isinstance(result, Html)
+        # Should NOT contain iframe (interactive mode)
+        assert "iframe" not in result.text.lower()
+        # Should contain a PNG mimetype
+        assert result._mime_()[0] == "image/png"
+
+    plt.close(fig)

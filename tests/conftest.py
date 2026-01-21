@@ -16,6 +16,7 @@ from marimo._ast.app import App
 from marimo._ast.app_config import _AppConfig
 from marimo._ast.cell_manager import CellManager
 from marimo._config.config import DEFAULT_CONFIG
+from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.mimetypes import ConsoleMimeType
 from marimo._messaging.notification import (
     CellNotification,
@@ -48,6 +49,35 @@ if TYPE_CHECKING:
 
 # register import hooks for third-party module formatters
 register_formatters()
+
+
+def pytest_collection_modifyitems(
+    config: pytest.Config, items: list[pytest.Item]
+) -> None:
+    """Auto-skip tests based on @pytest.mark.requires() markers."""
+    del config  # Unused but required by pytest hook signature
+    for item in items:
+        requires_marker = item.get_closest_marker("requires")
+        if not requires_marker:
+            continue
+
+        missing_deps = []
+        # Get dependency names from marker args
+        for dep_name in requires_marker.args:
+            # Try to get the dependency from DependencyManager
+            dep_manager = getattr(DependencyManager, dep_name, None)
+            if dep_manager is not None:
+                if not dep_manager.has():
+                    missing_deps.append(dep_name)
+            else:
+                # Unknown dependency name
+                missing_deps.append(f"{dep_name} (unknown)")
+
+        # Skip test if any dependencies are missing
+        if missing_deps:
+            deps_str = ", ".join(missing_deps)
+            reason = f"requires {deps_str}"
+            item.add_marker(pytest.mark.skip(reason=reason))
 
 
 @pytest.fixture(autouse=True)

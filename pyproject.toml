@@ -143,6 +143,7 @@ test = [
     "pytest-rerunfailures~=15.1",
     "pytest-asyncio~=0.26.0",
     "pytest-picked>=0.5.1",
+    "pytest-sugar~=1.0.0",
     # Comparison testing
     "inline-snapshot~=0.29.0",
     "hypothesis~=6.102.1",
@@ -170,14 +171,14 @@ test-optional = [
     "sqlglot[rs]>=26.2.0",
     "sqlalchemy>=2.0.40",
     "pyiceberg>=0.9.0",
+    "cloudpathlib>=0.23.0",
     # For testing clickhouse
     "chdb>=3; platform_system != 'Windows'", # there is no suitable wheel for windows
     "clickhouse-connect>=0.8.18",
     "redshift-connector[full]>=2.1.7",
     "pandas>=1.5.3",
     "hvplot~=0.11.3",
-    # Causes issues installing `shapely` (v2.0.7)
-    # "geopandas~=1.0.1",
+    "geopandas>=1.1.0",
     "duckdb>=1.0.0",
     "ibis-framework[duckdb]>=10.3.0",
     # For testing mo.image
@@ -516,6 +517,13 @@ asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
 timeout = 30 # seconds, per test
 faulthandler_timeout = 30 # seconds, during collection
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests as integration tests",
+    "unit: marks tests as unit tests",
+    "flaky: marks tests that are known to be flaky",
+    "requires(dep1, dep2, ...): requires one or more dependencies to be installed",
+]
 
 [tool.coverage.run]
 omit = ["marimo/_tutorials/*"]

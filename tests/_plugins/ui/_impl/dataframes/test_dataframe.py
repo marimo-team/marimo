@@ -330,14 +330,24 @@ class TestDataframes:
     @pytest.mark.skipif(
         not HAS_DEPS, reason="optional dependencies not installed"
     )
-    def test_dataframe_download_encoding_utf8_sig_and_json_ensure_ascii() -> (
-        None
-    ):
+    def test_dataframe_csv_download_defaults_to_utf8() -> None:
+        df = pd.DataFrame({"A": [1, 2], "B": ["こんにちは", "世界"]})
+        subject = ui.dataframe(df)
+
+        csv_url = subject._download_as(DownloadAsArgs(format="csv"))
+        csv_bytes = from_data_uri(csv_url)[1]
+        # Check that BOM is not included
+        assert not csv_bytes.startswith(b"\xef\xbb\xbf")
+
+    @staticmethod
+    @pytest.mark.skipif(
+        not HAS_DEPS, reason="optional dependencies not installed"
+    )
+    def test_dataframe_download_encoding_utf8_sig() -> None:
         df = pd.DataFrame({"A": [1, 2], "B": ["こんにちは", "世界"]})
         subject = ui.dataframe(
             df,
             download_csv_encoding="utf-8-sig",
-            download_json_ensure_ascii=False,
         )
 
         # CSV should include BOM
@@ -345,6 +355,17 @@ class TestDataframes:
         csv_bytes = from_data_uri(csv_url)[1]
         assert csv_bytes.startswith(b"\xef\xbb\xbf")
         assert "こんにちは" in csv_bytes.decode("utf-8-sig")
+
+    @staticmethod
+    @pytest.mark.skipif(
+        not HAS_DEPS, reason="optional dependencies not installed"
+    )
+    def test_dataframe_download_json_ensure_ascii() -> None:
+        df = pd.DataFrame({"A": [1, 2], "B": ["こんにちは", "世界"]})
+        subject = ui.dataframe(
+            df,
+            download_json_ensure_ascii=False,
+        )
 
         # JSON should preserve characters without BOM when ensure_ascii is False
         json_url = subject._download_as(DownloadAsArgs(format="json"))

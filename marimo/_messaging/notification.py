@@ -1,8 +1,5 @@
 # Copyright 2026 Marimo. All rights reserved.
-"""Message Types
-
-Messages that the kernel sends to the frontend.
-"""
+"""Notification message types for kernel-to-frontend communication."""
 
 from __future__ import annotations
 
@@ -42,27 +39,30 @@ LOGGER = loggers.marimo_logger()
 
 
 class Notification(msgspec.Struct, tag_field="op"):
+    """Base class for all kernel-to-frontend notifications.
+
+    Uses msgspec's tagged union with "op" field as discriminator.
+    Subclasses must define both tag="..." and name: ClassVar[str].
+    """
+
     name: ClassVar[str]
 
 
 class CellNotification(Notification, tag="cell-op"):
-    """Op to transition a cell.
+    """Updates a cell's state in the frontend.
 
-    A CellNotification's data has some optional fields:
+    Only fields that are set (not None) will update the cell state.
+    Omitting a field leaves that aspect unchanged.
 
-    output        - a CellOutput
-    console       - a CellOutput (console msg to append), or a list of
-                    CellOutputs
-    status        - execution status
-    stale_inputs  - whether the cell has stale inputs (variables, modules, ...)
-    run_id        - the run associated with this cell.
-    serialization - the serialization status of the cell
-
-    Omitting a field means that its value should be unchanged!
-
-    And one required field:
-
-    cell_id - the cell id
+    Attributes:
+        cell_id: Unique identifier of the cell being updated.
+        output: Cell's output. Use CellOutput.empty() to clear.
+        console: Console messages. Single/list appends, [] clears, None unchanged.
+        status: Execution status (idle/running/stale/queued/disabled-transitively).
+        stale_inputs: Whether cell has stale inputs from changed dependencies.
+        run_id: Execution run ID for tracing. Auto-set from context.
+        serialization: Serialization status (TopLevelHints).
+        timestamp: Creation timestamp, auto-set.
     """
 
     name: ClassVar[str] = "cell-op"
@@ -96,7 +96,13 @@ class CellNotification(Notification, tag="cell-op"):
 
 
 class HumanReadableStatus(msgspec.Struct):
-    """Human-readable status."""
+    """Human-readable status for operation results.
+
+    Attributes:
+        code: Status code ("ok" or "error").
+        title: Optional short title.
+        message: Optional detailed description.
+    """
 
     code: Literal["ok", "error"]
     title: Union[str, None] = None
@@ -104,7 +110,13 @@ class HumanReadableStatus(msgspec.Struct):
 
 
 class FunctionCallResultNotification(Notification, tag="function-call-result"):
-    """Result of calling a function."""
+    """Result of a frontend-initiated function call.
+
+    Attributes:
+        function_call_id: ID matching the original request.
+        return_value: Function return value as JSON.
+        status: Human-readable success/failure status.
+    """
 
     name: ClassVar[str] = "function-call-result"
 
@@ -114,7 +126,13 @@ class FunctionCallResultNotification(Notification, tag="function-call-result"):
 
 
 class RemoveUIElementsNotification(Notification, tag="remove-ui-elements"):
-    """Invalidate UI elements for a given cell."""
+    """Removes UI elements associated with a cell.
+
+    Sent when cell is re-executed or deleted.
+
+    Attributes:
+        cell_id: Cell whose UI elements should be removed.
+    """
 
     name: ClassVar[str] = "remove-ui-elements"
     cell_id: CellId_t
@@ -123,7 +141,14 @@ class RemoveUIElementsNotification(Notification, tag="remove-ui-elements"):
 class UIElementMessageNotification(
     Notification, tag="send-ui-element-message"
 ):
-    """Send a message to a UI element."""
+    """Sends a message to a UI element/widget.
+
+    Attributes:
+        ui_element: UI element identifier (legacy).
+        model_id: Widget model ID (newer architecture).
+        message: Message payload as dictionary.
+        buffers: Optional binary buffers for large data.
+    """
 
     name: ClassVar[str] = "send-ui-element-message"
     ui_element: Optional[str]
@@ -133,18 +158,29 @@ class UIElementMessageNotification(
 
 
 class InterruptedNotification(Notification, tag="interrupted"):
-    """Written when the kernel is interrupted by the user."""
+    """Kernel was interrupted by user (SIGINT/Ctrl+C)."""
 
     name: ClassVar[str] = "interrupted"
 
 
 class CompletedRunNotification(Notification, tag="completed-run"):
-    """Written on run completion (of submitted cells and their descendants."""
+    """Run of submitted cells and descendants completed."""
 
     name: ClassVar[str] = "completed-run"
 
 
 class KernelCapabilitiesNotification(msgspec.Struct):
+    """Kernel capabilities detected at startup.
+
+    All fields auto-detected in __post_init__.
+
+    Attributes:
+        terminal: Terminal access (unavailable on Windows/Pyodide).
+        pylsp: Python Language Server Protocol installed.
+        ty: ty type checker installed.
+        basedpyright: basedpyright type checker installed.
+    """
+
     terminal: bool = False
     pylsp: bool = False
     ty: bool = False
@@ -159,7 +195,23 @@ class KernelCapabilitiesNotification(msgspec.Struct):
 
 
 class KernelReadyNotification(Notification, tag="kernel-ready"):
-    """Kernel is ready for execution."""
+    """Kernel ready for execution. First notification sent at startup.
+
+    Attributes:
+        cell_ids: Cell IDs in order.
+        codes: Source code for each cell.
+        names: Cell names/titles.
+        layout: Notebook layout config.
+        configs: Per-cell configuration.
+        resumed: Whether resumed from previous session.
+        ui_values: Previous UI element values if resumed.
+        last_executed_code: Last executed code per cell if resumed.
+        last_execution_time: Last execution time per cell if resumed.
+        app_config: Application configuration.
+        kiosk: Whether running in kiosk mode.
+        capabilities: Available kernel capabilities.
+        auto_instantiated: Whether cells already executed (run mode).
+    """
 
     name: ClassVar[str] = "kernel-ready"
     cell_ids: tuple[CellId_t, ...]
@@ -167,27 +219,24 @@ class KernelReadyNotification(Notification, tag="kernel-ready"):
     names: tuple[str, ...]
     layout: Optional[LayoutConfig]
     configs: tuple[CellConfig, ...]
-    # Whether the kernel was resumed from a previous session
     resumed: bool
-    # If the kernel was resumed, the values of the UI elements
     ui_values: Optional[dict[str, JSONType]]
-    # If the kernel was resumed, the last executed code for each cell
     last_executed_code: Optional[dict[CellId_t, str]]
-    # If the kernel was resumed, the last execution time for each cell
     last_execution_time: Optional[dict[CellId_t, float]]
-    # App config
     app_config: _AppConfig
-    # Whether the kernel is kiosk mode
     kiosk: bool
-    # Kernel capabilities
     capabilities: KernelCapabilitiesNotification
-    # Whether the kernel has already been instantiated server-side (e.g. run mode)
-    # If True, the frontend does not need to instantiate the app.
     auto_instantiated: bool = False
 
 
 class CompletionResultNotification(Notification, tag="completion-result"):
-    """Code completion result."""
+    """Code completion result from language server.
+
+    Attributes:
+        completion_id: Request ID this responds to.
+        prefix_length: Length of prefix to replace.
+        options: Completion options to display.
+    """
 
     name: ClassVar[str] = "completion-result"
     completion_id: str
@@ -196,9 +245,16 @@ class CompletionResultNotification(Notification, tag="completion-result"):
 
 
 class AlertNotification(Notification, tag="alert"):
+    """User-facing alert message.
+
+    Attributes:
+        title: Alert title.
+        description: Alert body (may contain HTML).
+        variant: Visual variant (e.g., "danger").
+    """
+
     name: ClassVar[str] = "alert"
     title: str
-    # description may be HTML
     description: str
     variant: Optional[Literal["danger"]] = None
 
@@ -206,6 +262,13 @@ class AlertNotification(Notification, tag="alert"):
 class MissingPackageAlertNotification(
     Notification, tag="missing-package-alert"
 ):
+    """Alert for missing packages with install option.
+
+    Attributes:
+        packages: Missing package names.
+        isolated: Whether in isolated environment.
+    """
+
     name: ClassVar[str] = "missing-package-alert"
     packages: list[str]
     isolated: bool
@@ -220,71 +283,130 @@ PackageStatusType = dict[
 class InstallingPackageAlertNotification(
     Notification, tag="installing-package-alert"
 ):
+    """Package installation progress with streaming logs.
+
+    Attributes:
+        packages: Package name to status (queued/installing/installed/failed).
+        logs: Optional streaming logs per package.
+        log_status: Log stream status (append/start/done).
+    """
+
     name: ClassVar[str] = "installing-package-alert"
     packages: PackageStatusType
-    # Optional fields for streaming logs per package
     logs: Optional[dict[str, str]] = None  # package name -> log content
     log_status: Optional[Literal["append", "start", "done"]] = None
 
 
 class ReconnectedNotification(Notification, tag="reconnected"):
+    """WebSocket reconnection confirmed."""
+
     name: ClassVar[str] = "reconnected"
 
 
 class StartupLogsNotification(Notification, tag="startup-logs"):
+    """Streaming kernel startup logs.
+
+    Attributes:
+        content: Log content to display.
+        status: Stream status (start/append/done).
+    """
+
     name: ClassVar[str] = "startup-logs"
     content: str
     status: Literal["append", "start", "done"]
 
 
 class BannerNotification(Notification, tag="banner"):
+    """Persistent banner message at top of notebook.
+
+    Attributes:
+        title: Banner title.
+        description: Banner body (may contain HTML).
+        variant: Visual variant (e.g., "danger").
+        action: Optional user action (e.g., "restart").
+    """
+
     name: ClassVar[str] = "banner"
     title: str
-    # description may be HTML
     description: str
     variant: Optional[Literal["danger"]] = None
     action: Optional[Literal["restart"]] = None
 
 
 class KernelStartupErrorNotification(Notification, tag="kernel-startup-error"):
-    """Notification sent when kernel fails to start (e.g., sandbox build failure)."""
+    """Kernel failed to start.
+
+    Attributes:
+        error: Error message describing failure.
+    """
 
     name: ClassVar[str] = "kernel-startup-error"
     error: str
 
 
 class ReloadNotification(Notification, tag="reload"):
+    """Instructs frontend to reload the page."""
+
     name: ClassVar[str] = "reload"
 
 
 class VariableDeclarationNotification(msgspec.Struct):
+    """Variable declaration and usage for dataflow graph.
+
+    Attributes:
+        name: Variable name.
+        declared_by: Cell IDs that define this variable.
+        used_by: Cell IDs that use this variable.
+    """
+
     name: str
     declared_by: list[CellId_t]
     used_by: list[CellId_t]
 
 
 class VariableValue(BaseStruct):
+    """Variable value and type for variables panel.
+
+    Attributes:
+        name: Variable name.
+        value: String representation of value.
+        datatype: Data type as string.
+    """
+
     name: str
     value: Optional[str]
     datatype: Optional[str]
 
 
 class VariablesNotification(Notification, tag="variables"):
-    """List of variable declarations."""
+    """Variable dataflow graph.
+
+    Attributes:
+        variables: Variable declarations and usage.
+    """
 
     name: ClassVar[str] = "variables"
     variables: list[VariableDeclarationNotification]
 
 
 class VariableValuesNotification(Notification, tag="variable-values"):
-    """List of variables and their types/values."""
+    """Current variable values.
+
+    Attributes:
+        variables: Variables with current values and types.
+    """
 
     name: ClassVar[str] = "variable-values"
     variables: list[VariableValue]
 
 
 class DatasetsNotification(Notification, tag="datasets"):
-    """List of datasets."""
+    """Available datasets for data explorer.
+
+    Attributes:
+        tables: Available data tables/datasets.
+        clear_channel: If set, clears tables from this channel first.
+    """
 
     name: ClassVar[str] = "datasets"
     tables: list[DataTable]
@@ -292,7 +414,13 @@ class DatasetsNotification(Notification, tag="datasets"):
 
 
 class SQLMetadata(msgspec.Struct, tag="sql-metadata"):
-    """Metadata for a SQL database."""
+    """SQL database and schema metadata.
+
+    Attributes:
+        connection: Connection identifier.
+        database: Database name.
+        schema: Schema name.
+    """
 
     connection: str
     database: str
@@ -300,7 +428,14 @@ class SQLMetadata(msgspec.Struct, tag="sql-metadata"):
 
 
 class SQLTablePreviewNotification(Notification, tag="sql-table-preview"):
-    """Preview of a table in a SQL database."""
+    """SQL table preview.
+
+    Attributes:
+        request_id: Request ID this responds to.
+        metadata: Database and schema metadata.
+        table: Table data (None if error).
+        error: Error message if failed.
+    """
 
     name: ClassVar[str] = "sql-table-preview"
     request_id: RequestId
@@ -312,7 +447,14 @@ class SQLTablePreviewNotification(Notification, tag="sql-table-preview"):
 class SQLTableListPreviewNotification(
     Notification, tag="sql-table-list-preview"
 ):
-    """Preview of a list of tables in a schema."""
+    """List of SQL tables in a schema.
+
+    Attributes:
+        request_id: Request ID this responds to.
+        metadata: Database and schema metadata.
+        tables: Tables in schema.
+        error: Error message if failed.
+    """
 
     name: ClassVar[str] = "sql-table-list-preview"
     request_id: RequestId
@@ -322,6 +464,16 @@ class SQLTableListPreviewNotification(
 
 
 class ColumnPreview(msgspec.Struct):
+    """Column preview with stats and visualization.
+
+    Attributes:
+        chart_spec: Vega-Lite chart spec.
+        chart_code: Python code to generate chart.
+        error: Error message if failed.
+        missing_packages: Required but not installed packages.
+        stats: Statistical summary.
+    """
+
     chart_spec: Optional[str] = None
     chart_code: Optional[str] = None
     error: Optional[str] = None
@@ -332,7 +484,14 @@ class ColumnPreview(msgspec.Struct):
 class DataColumnPreviewNotification(
     Notification, ColumnPreview, kw_only=True, tag="data-column-preview"
 ):
-    """Preview of a column in a dataset."""
+    """Data column preview with stats and visualization.
+
+    Inherits all ColumnPreview attributes.
+
+    Attributes:
+        table_name: Table containing the column.
+        column_name: Column being previewed.
+    """
 
     name: ClassVar[str] = "data-column-preview"
     table_name: str
@@ -342,11 +501,26 @@ class DataColumnPreviewNotification(
 class DataSourceConnectionsNotification(
     Notification, tag="data-source-connections"
 ):
+    """Available data source connections for SQL cells.
+
+    Attributes:
+        connections: Available data source connections.
+    """
+
     name: ClassVar[str] = "data-source-connections"
     connections: list[DataSourceConnection]
 
 
 class ValidateSQLResultNotification(Notification, tag="validate-sql-result"):
+    """SQL query validation result.
+
+    Attributes:
+        request_id: Request ID this responds to.
+        parse_result: SQL parsing result.
+        validate_result: Catalog validation result.
+        error: Error message if failed.
+    """
+
     name: ClassVar[str] = "validate-sql-result"
     request_id: RequestId
     parse_result: Optional[SqlParseResult] = None
@@ -355,7 +529,12 @@ class ValidateSQLResultNotification(Notification, tag="validate-sql-result"):
 
 
 class QueryParamsSetNotification(Notification, tag="query-params-set"):
-    """Set query parameters."""
+    """Sets URL query parameter, replacing existing values.
+
+    Attributes:
+        key: Query parameter key.
+        value: Value(s) to set.
+    """
 
     name: ClassVar[str] = "query-params-set"
     key: str
@@ -363,40 +542,70 @@ class QueryParamsSetNotification(Notification, tag="query-params-set"):
 
 
 class QueryParamsAppendNotification(Notification, tag="query-params-append"):
+    """Appends value to URL query parameter.
+
+    Attributes:
+        key: Query parameter key.
+        value: Value to append.
+    """
+
     name: ClassVar[str] = "query-params-append"
     key: str
     value: str
 
 
 class QueryParamsDeleteNotification(Notification, tag="query-params-delete"):
+    """Deletes URL query parameter values.
+
+    Attributes:
+        key: Query parameter key.
+        value: Specific value to delete. If None, deletes all values for key.
+    """
+
     name: ClassVar[str] = "query-params-delete"
     key: str
-    # If value is None, delete all values for the key
-    # If a value is provided, only that value is deleted
     value: Optional[str]
 
 
 class QueryParamsClearNotification(Notification, tag="query-params-clear"):
-    # Clear all query parameters
+    """Clears all URL query parameters."""
+
     name: ClassVar[str] = "query-params-clear"
 
 
 class FocusCellNotification(Notification, tag="focus-cell"):
+    """Focuses a cell (kiosk mode).
+
+    Attributes:
+        cell_id: Cell to focus.
+    """
+
     name: ClassVar[str] = "focus-cell"
     cell_id: CellId_t
 
 
 class UpdateCellCodesNotification(Notification, tag="update-cell-codes"):
+    """Updates cell code contents (kiosk mode).
+
+    Attributes:
+        cell_ids: Cells to update.
+        codes: New code for each cell.
+        code_is_stale: If True, code was not executed on backend (output may not match).
+    """
+
     name: ClassVar[str] = "update-cell-codes"
     cell_ids: list[CellId_t]
     codes: list[str]
-    # If true, this means the code was not run on the backend when updating
-    # the cell codes.
     code_is_stale: bool
 
 
 class SecretKeysResultNotification(Notification, tag="secret-keys-result"):
-    """Result of listing secret keys."""
+    """Available secret keys from secret providers.
+
+    Attributes:
+        request_id: Request ID this responds to.
+        secrets: Secret keys with provider info.
+    """
 
     request_id: RequestId
     name: ClassVar[str] = "secret-keys-result"
@@ -404,14 +613,26 @@ class SecretKeysResultNotification(Notification, tag="secret-keys-result"):
 
 
 class CacheClearedNotification(Notification, tag="cache-cleared"):
-    """Result of clearing cache."""
+    """Execution cache cleared result.
+
+    Attributes:
+        bytes_freed: Bytes freed by clearing cache.
+    """
 
     name: ClassVar[str] = "cache-cleared"
     bytes_freed: int
 
 
 class CacheInfoNotification(Notification, tag="cache-info"):
-    """Cache statistics information."""
+    """Execution cache statistics.
+
+    Attributes:
+        hits: Cache hits.
+        misses: Cache misses.
+        time: Time spent on cache operations (seconds).
+        disk_to_free: Disk space that could be freed (bytes).
+        disk_total: Total disk space used (bytes).
+    """
 
     name: ClassVar[str] = "cache-info"
     hits: int
@@ -422,11 +643,10 @@ class CacheInfoNotification(Notification, tag="cache-info"):
 
 
 class UpdateCellIdsNotification(Notification, tag="update-cell-ids"):
-    """
-    Update the cell ID ordering of the cells in the notebook.
+    """Updates cell ordering in notebook.
 
-    Right now we send the entire list of cell IDs,
-    but in the future we might want to send change-deltas.
+    Attributes:
+        cell_ids: Complete ordered list of cell IDs.
     """
 
     name: ClassVar[str] = "update-cell-ids"
@@ -441,18 +661,18 @@ class SetThemeNotification(Notification, tag="set-theme"):
 
 
 NotificationMessage = Union[
-    # Cell notifications
+    # Cell operations
     CellNotification,
     FunctionCallResultNotification,
     UIElementMessageNotification,
     RemoveUIElementsNotification,
-    # Notebook operations
+    # Notebook lifecycle
     ReloadNotification,
     ReconnectedNotification,
     InterruptedNotification,
     CompletedRunNotification,
     KernelReadyNotification,
-    # Editor operations
+    # Editor
     CompletionResultNotification,
     # Alerts
     AlertNotification,
@@ -469,7 +689,7 @@ NotificationMessage = Union[
     QueryParamsAppendNotification,
     QueryParamsDeleteNotification,
     QueryParamsClearNotification,
-    # Datasets
+    # Data/SQL
     DatasetsNotification,
     DataColumnPreviewNotification,
     SQLTablePreviewNotification,
@@ -481,7 +701,7 @@ NotificationMessage = Union[
     # Cache
     CacheClearedNotification,
     CacheInfoNotification,
-    # Kiosk specific
+    # Kiosk
     FocusCellNotification,
     UpdateCellCodesNotification,
     UpdateCellIdsNotification,
