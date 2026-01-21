@@ -9,15 +9,18 @@ import { Input } from "@/components/ui/input";
 import { Tooltip } from "@/components/ui/tooltip";
 import type { CellId } from "@/core/cells/ids";
 import { isInternalCellName } from "@/core/cells/names";
+import { useExpandedConsoleOutput } from "@/core/cells/outputs";
 import type { WithResponse } from "@/core/cells/types";
 import type { OutputMessage } from "@/core/kernel/messages";
 import { useInputHistory } from "@/hooks/useInputHistory";
+import { useOverflowDetection } from "@/hooks/useOverflowDetection";
 import { useSelectAllContent } from "@/hooks/useSelectAllContent";
 import { cn } from "@/utils/cn";
 import { invariant } from "@/utils/invariant";
 import { NameCellContentEditable } from "../../actions/name-cell-input";
 import { ErrorBoundary } from "../../boundary/ErrorBoundary";
 import { type OnRefactorWithAI, OutputRenderer } from "../../Output";
+import { ExpandCollapseButton } from "../ExpandCollapseButton";
 import { useWrapText } from "../useWrapText";
 import { processOutput } from "./process-output";
 import { RenderTextWithLinks } from "./text-rendering";
@@ -45,6 +48,7 @@ export const ConsoleOutput = (props: Props) => {
 const ConsoleOutputInternal = (props: Props): React.ReactNode => {
   const ref = React.useRef<HTMLDivElement>(null);
   const { wrapText, setWrapText } = useWrapText();
+  const [isExpanded, setIsExpanded] = useExpandedConsoleOutput(props.cellId);
   const {
     consoleOutputs,
     stale,
@@ -71,6 +75,9 @@ const ConsoleOutputInternal = (props: Props): React.ReactNode => {
 
   // Enable Ctrl/Cmd-A to select all content within the console output
   const selectAllProps = useSelectAllContent(hasOutputs);
+
+  // Detect overflow on resize
+  const isOverflowing = useOverflowDetection(ref, hasOutputs);
 
   // Keep scroll at the bottom if it is within 120px of the bottom,
   // so when we add new content, it will lock to the bottom
@@ -120,6 +127,18 @@ const ConsoleOutputInternal = (props: Props): React.ReactNode => {
 
   return (
     <div className="relative group">
+      {hasOutputs && (isOverflowing || isExpanded) && (
+        <div className="relative print:hidden">
+          <div className="absolute -right-9 top-1 z-1 flex flex-col gap-1">
+            <ExpandCollapseButton
+              isExpanded={isExpanded}
+              onToggle={() => setIsExpanded(!isExpanded)}
+              visibilityClassName="opacity-0 group-hover:opacity-100"
+              testId="expand-console-output-button"
+            />
+          </div>
+        </div>
+      )}
       {hasOutputs && (
         <div className="absolute top-1 right-5 z-10 opacity-0 group-hover:opacity-100 flex gap-1">
           <CopyClipboardIcon
@@ -154,6 +173,7 @@ const ConsoleOutputInternal = (props: Props): React.ReactNode => {
           hasOutputs ? "p-5" : "p-3",
           className,
         )}
+        style={isExpanded ? { maxHeight: "none" } : undefined}
       >
         {reversedOutputs.map((output, idx) => {
           if (output.channel === "pdb") {
