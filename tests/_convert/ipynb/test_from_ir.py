@@ -11,6 +11,7 @@ from marimo._ast.load import load_app
 from marimo._convert.ipynb import convert_from_ir_to_ipynb
 from marimo._convert.ipynb.from_ir import (
     _convert_marimo_output_to_ipynb,
+    _is_marimo_component,
     _maybe_extract_dataurl,
 )
 from marimo._messaging.cell_output import CellChannel, CellOutput
@@ -349,3 +350,159 @@ def test_convert_marimo_mimebundle_with_both_output_and_console() -> None:
     assert main_result[0]["output_type"] == "display_data"
     assert main_result[0]["data"]["text/plain"] == "Result"
     assert main_result[0]["data"]["image/png"] == "PNG_DATA"
+
+
+@pytest.mark.parametrize(
+    ("html_content", "expected"),
+    [
+        # Marimo components should be detected
+        ("<marimo-plotly data-figure='{}'>", True),
+        ("<marimo-table data-data='[]'>", True),
+        ("<marimo-slider value='5'>", True),
+        ('<marimo-output data-output="test">', True),
+        # List of strings (as Jupyter stores text/html)
+        (["<marimo-plotly data-figure='{}'>"], True),
+        (["<div>", "<marimo-chart>", "</div>"], True),
+        # Regular HTML should not be detected
+        ("<div>Hello World</div>", False),
+        ("<p>Some <b>text</b></p>", False),
+        ("<script>console.log('test')</script>", False),
+        # Edge cases
+        ("", False),
+        ("marimo-plotly", False),  # Not an HTML tag
+        ("<div>marimo-test</div>", False),  # Not a marimo tag
+        # Non-string types
+        (123, False),
+        (None, False),
+        ({"key": "value"}, False),
+    ],
+    ids=[
+        "marimo_plotly",
+        "marimo_table",
+        "marimo_slider",
+        "marimo_output",
+        "list_with_marimo",
+        "list_marimo_nested",
+        "regular_div",
+        "regular_paragraph",
+        "regular_script",
+        "empty_string",
+        "marimo_text_not_tag",
+        "marimo_in_text_not_tag",
+        "integer",
+        "none",
+        "dict",
+    ],
+)
+def test_is_marimo_component(html_content: Any, expected: bool) -> None:
+    """Test _is_marimo_component detection of marimo custom elements."""
+    assert _is_marimo_component(html_content) == expected
+
+
+def test_convert_mimebundle_filters_marimo_components() -> None:
+    """Test that marimo components in text/html are filtered out of mimebundle."""
+    # Mimebundle with marimo-plotly HTML and PNG fallback
+    mimebundle = {
+        "text/html": "<marimo-plotly data-figure='{\"data\": []}'>",
+        "image/png": "data:image/png;base64,iVBORw0KGgo=",
+    }
+
+    output = CellOutput(
+        channel=CellChannel.OUTPUT,
+        mimetype="application/vnd.marimo+mimebundle",
+        data=json.dumps(mimebundle),
+    )
+
+    result = _convert_marimo_output_to_ipynb(output, [])
+
+    # text/html should be filtered out because it contains a marimo component
+    assert result == [
+        {
+            "output_type": "display_data",
+            "data": {
+                "image/png": "iVBORw0KGgo="
+            },  # image/png should remain (with data URL prefix stripped)
+            "metadata": {},
+        }
+    ]
+
+
+def test_convert_mimebundle_keeps_regular_html() -> None:
+    """Test that regular HTML is preserved in mimebundle."""
+    mimebundle = {
+        "text/html": "<div><p>Regular HTML content</p></div>",
+        "image/png": "PNG_DATA",
+    }
+
+    output = CellOutput(
+        channel=CellChannel.OUTPUT,
+        mimetype="application/vnd.marimo+mimebundle",
+        data=json.dumps(mimebundle),
+    )
+
+    result = _convert_marimo_output_to_ipynb(output, [])
+
+    assert result == [
+        {
+            "output_type": "display_data",
+            "data": {
+                "text/html": "<div><p>Regular HTML content</p></div>",
+                "image/png": "PNG_DATA",
+            },
+            "metadata": {},
+        }
+    ]
+
+
+def test_convert_mimebundle_marimo_component_only_png_remains() -> None:
+    """Test mimebundle with only marimo HTML and PNG produces only PNG output."""
+    mimebundle = {
+        "text/html": ["<marimo-table data-data='[]'>"],  # List format
+        "image/png": "VALID_PNG_DATA",
+    }
+
+    output = CellOutput(
+        channel=CellChannel.OUTPUT,
+        mimetype="application/vnd.marimo+mimebundle",
+        data=mimebundle,  # Dict format, not JSON string
+    )
+
+    result = _convert_marimo_output_to_ipynb(output, [])
+
+    assert result == [
+        {
+            "output_type": "display_data",
+            "data": {"image/png": "VALID_PNG_DATA"},
+            "metadata": {},
+        }
+    ]
+
+
+def test_convert_mimebundle_marimo_component_preserves_other_mimes() -> None:
+    """Test that filtering marimo HTML preserves other MIME types."""
+    mimebundle = {
+        "text/html": "<marimo-slider value='5'>",
+        "text/plain": "Slider(value=5)",
+        "image/png": "PNG_DATA",
+        "application/json": {"value": 5},
+    }
+
+    output = CellOutput(
+        channel=CellChannel.OUTPUT,
+        mimetype="application/vnd.marimo+mimebundle",
+        data=json.dumps(mimebundle),
+    )
+
+    result = _convert_marimo_output_to_ipynb(output, [])
+
+    assert result == [
+        {
+            "output_type": "display_data",
+            "data": {
+                "text/plain": "Slider(value=5)",
+                "image/png": "PNG_DATA",
+                "application/json": {"value": 5},
+            },
+            "metadata": {},
+        }
+    ]

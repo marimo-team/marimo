@@ -1,6 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import { toPng } from "html-to-image";
 import { atom, useAtom, useAtomValue } from "jotai";
+import type { MimeType } from "@/components/editor/Output";
 import { toast } from "@/components/ui/use-toast";
 import { appConfigAtom } from "@/core/config/config";
 import { useInterval } from "@/hooks/useInterval";
@@ -86,7 +87,7 @@ export function useAutoExport() {
 const richCellsToOutputAtom = atom<Record<CellId, unknown>>({});
 
 // MIME types to capture screenshots for
-const MIME_TYPES_TO_CAPTURE_SCREENSHOTS = new Set([
+const MIME_TYPES_TO_CAPTURE_SCREENSHOTS = new Set<MimeType>([
   "text/html",
   "application/vnd.vegalite.v5+json",
   "application/vnd.vega.v5+json",
@@ -112,7 +113,8 @@ export function useEnrichCellOutputs() {
       // Track latest output for this cell
       trackedCellsOutput[cellId] = outputData;
       if (
-        MIME_TYPES_TO_CAPTURE_SCREENSHOTS.has(runtime.output?.mimetype ?? "") &&
+        runtime.output?.mimetype &&
+        MIME_TYPES_TO_CAPTURE_SCREENSHOTS.has(runtime.output.mimetype) &&
         outputData &&
         outputHasChanged
       ) {

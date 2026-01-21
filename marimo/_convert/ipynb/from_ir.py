@@ -198,6 +198,15 @@ def _maybe_extract_dataurl(data: Any) -> Any:
         return data
 
 
+def _is_marimo_component(html_content: Any) -> bool:
+    """Check if the content is a marimo component."""
+    if isinstance(html_content, list):
+        html_content = "".join(html_content)
+    if not isinstance(html_content, str):
+        return False
+    return "<marimo-" in html_content
+
+
 class _HTMLTextExtractor(HTMLParser):
     """Extract plain text from HTML."""
 
@@ -348,6 +357,9 @@ def _convert_marimo_output_to_ipynb(
         for mime, content in mimebundle.items():
             if mime == METADATA_KEY and isinstance(content, dict):
                 metadata = content
+            elif mime == "text/html" and _is_marimo_component(content):
+                # Skip marimo components because they cannot be rendered in IPython notebook format
+                continue
             else:
                 data[mime] = _maybe_extract_dataurl(content)
     else:
