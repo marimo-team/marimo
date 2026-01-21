@@ -48,10 +48,9 @@ import { renderMimeIcon } from "./renderMimeIcon";
 
 const METADATA_KEY = "__metadata__";
 
-type MimeBundleWithoutMetadata = Record<
-  OutputMessage["mimetype"],
-  { [key: string]: unknown }
->;
+export type MimeType = OutputMessage["mimetype"];
+
+type MimeBundleWithoutMetadata = Record<MimeType, { [key: string]: unknown }>;
 
 type MimeBundle = MimeBundleWithoutMetadata & {
   [METADATA_KEY]?: Record<string, { width?: number; height?: number }>;
@@ -72,7 +71,7 @@ export const OutputRenderer: React.FC<{
   onRefactorWithAI?: OnRefactorWithAI;
   wrapText?: boolean;
   metadata?: { width?: number; height?: number };
-  renderFallback?: (mimetype: OutputMessage["mimetype"]) => React.ReactNode;
+  renderFallback?: (mimetype: MimeType) => React.ReactNode;
 }> = memo((props) => {
   const {
     message,
@@ -222,9 +221,7 @@ export const OutputRenderer: React.FC<{
       return (
         <MimeBundleOutputRenderer
           channel={channel}
-          data={
-            parsedJsonData as Record<OutputMessage["mimetype"], OutputMessage>
-          }
+          data={parsedJsonData as Record<MimeType, OutputMessage>}
         />
       );
     case "application/vnd.jupyter.widget-view+json":
@@ -273,10 +270,7 @@ const MimeBundleOutputRenderer: React.FC<{
   // Filter out metadata from the mime entries and type narrow
   const mimeEntries = Objects.entries(mimebundle as Record<string, unknown>)
     .filter(([key]) => key !== METADATA_KEY)
-    .map(
-      ([mime, data]) =>
-        [mime, data] as [OutputMessage["mimetype"], CellOutput["data"]],
-    );
+    .map(([mime, data]) => [mime, data] as [MimeType, CellOutput["data"]]);
 
   // If there is none, return null
   const first = mimeEntries[0]?.[0];
