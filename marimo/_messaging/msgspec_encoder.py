@@ -121,7 +121,7 @@ def enc_hook(obj: Any) -> Any:
         try:
             # Check if it's a shapely geometry object
             # shapely.geometry.base.BaseGeometry is the base class
-            from shapely.geometry.base import BaseGeometry
+            from shapely.geometry.base import BaseGeometry  # type: ignore
 
             if isinstance(obj, BaseGeometry):
                 # Convert to WKT (Well-Known Text) string representation
