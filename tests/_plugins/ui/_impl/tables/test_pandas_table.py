@@ -1572,3 +1572,99 @@ class TestPandasTableManager(unittest.TestCase):
         assert not any(isinstance(col, str) for col in df.columns), (
             "Original DataFrame columns should NOT be strings"
         )
+
+    @pytest.mark.requires("geopandas")
+    def test_geopandas_geometry_serialization(self) -> None:
+        """Test that GeoDataFrame geometry columns serialize to readable strings.
+
+        This test reproduces issue #7918 where geometry columns appear as
+        empty dicts instead of proper WKT strings.
+        """
+        import geopandas as gpd  # type: ignore
+        import pandas as pd
+
+        # Create a simple GeoDataFrame with point geometries
+        gdf = gpd.GeoDataFrame(
+            {
+                "name": ["USA", "China", "India"],
+                "pop_est": [331002651, 1439323776, 1380004385],
+                "geometry": [
+                    gpd.points_from_xy([x], [y])[0]
+                    for x, y in [(-95, 37), (105, 35), (77, 20)]
+                ],
+            }
+        )
+
+        # Convert to pandas DataFrame (this is what marimo does internally)
+        df = pd.DataFrame(gdf)
+        manager = self.factory.create()(df)
+
+        # Convert to JSON
+        json_str = manager.to_json_str()
+        json_data = json.loads(json_str)
+
+        # The geometry column should contain readable WKT strings,
+        # not empty dicts or object representations
+        assert len(json_data) == 3
+
+        # Check that geometry is a string (WKT format)
+        for row in json_data:
+            assert "geometry" in row
+            geometry_value = row["geometry"]
+
+            # Should be a string, not a dict or empty object
+            assert isinstance(geometry_value, str), (
+                f"Expected geometry to be string, got {type(geometry_value)}: {geometry_value}"
+            )
+
+            # Should contain "POINT" (WKT format)
+            assert "POINT" in geometry_value, (
+                f"Expected geometry to contain 'POINT', got: {geometry_value}"
+            )
+
+        # Verify specific geometries
+        assert "POINT (-95 37)" in json_data[0]["geometry"]
+        assert "POINT (105 35)" in json_data[1]["geometry"]
+        assert "POINT (77 20)" in json_data[2]["geometry"]
+
+    @pytest.mark.requires("geopandas")
+    def test_geopandas_different_geometry_types(self) -> None:
+        """Test serialization of different geometry types (Point, Polygon, LineString)."""
+        import geopandas as gpd  # type: ignore
+        import pandas as pd
+        from shapely.geometry import LineString, Point, Polygon
+
+        # Create a GeoDataFrame with different geometry types
+        gdf = gpd.GeoDataFrame(
+            {
+                "name": ["Point", "LineString", "Polygon"],
+                "geometry": [
+                    Point(-95, 37),
+                    LineString([(-95, 37), (-90, 35), (-85, 38)]),
+                    Polygon([(-95, 37), (-90, 35), (-85, 38), (-95, 37)]),
+                ],
+            }
+        )
+
+        # Convert to pandas DataFrame
+        df = pd.DataFrame(gdf)
+        manager = self.factory.create()(df)
+
+        # Convert to JSON
+        json_str = manager.to_json_str()
+        json_data = json.loads(json_str)
+
+        # Check that all geometry types are serialized as strings
+        assert len(json_data) == 3
+
+        # Point geometry
+        assert isinstance(json_data[0]["geometry"], str)
+        assert "POINT" in json_data[0]["geometry"]
+
+        # LineString geometry
+        assert isinstance(json_data[1]["geometry"], str)
+        assert "LINESTRING" in json_data[1]["geometry"]
+
+        # Polygon geometry
+        assert isinstance(json_data[2]["geometry"], str)
+        assert "POLYGON" in json_data[2]["geometry"]

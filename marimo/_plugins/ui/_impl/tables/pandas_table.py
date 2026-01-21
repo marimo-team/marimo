@@ -38,7 +38,7 @@ if TYPE_CHECKING:
 def _maybe_convert_geopandas_to_pandas(data: pd.DataFrame) -> pd.DataFrame:
     # Convert to pandas dataframe since geopandas will fail on
     # certain operations (like to_json(orient="records"))
-    if DependencyManager.geopandas.has():
+    if DependencyManager.geopandas.imported():
         import geopandas as gpd  # type: ignore
         import pandas as pd
 

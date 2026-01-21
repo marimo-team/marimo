@@ -857,10 +857,7 @@ def test_parse_spec_duckdb() -> None:
     snapshot("parse_spec_duckdb.txt", json.dumps(spec, indent=2))
 
 
-@pytest.mark.skipif(
-    not HAS_DEPS or not DependencyManager.geopandas.has(),
-    reason="optional dependencies not installed",
-)
+@pytest.mark.requires("geopandas")
 def test_parse_spec_geopandas() -> None:
     import altair as alt
     import geopandas as gpd

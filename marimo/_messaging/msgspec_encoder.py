@@ -116,6 +116,19 @@ def enc_hook(obj: Any) -> Any:
         except AttributeError:
             pass
 
+    # Handle shapely geometry objects from geopandas
+    if DependencyManager.geopandas.imported():
+        try:
+            # Check if it's a shapely geometry object
+            # shapely.geometry.base.BaseGeometry is the base class
+            from shapely.geometry.base import BaseGeometry
+
+            if isinstance(obj, BaseGeometry):
+                # Convert to WKT (Well-Known Text) string representation
+                return str(obj)
+        except (ImportError, AttributeError):
+            pass
+
     if DependencyManager.polars.imported():
         import polars as pl
 
