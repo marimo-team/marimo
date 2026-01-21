@@ -37,7 +37,9 @@ class TestIsPyodide:
         assert not is_pyodide()
 
     def test_is_pyodide_when_loaded(self) -> None:
-        with patch("marimo._utils.platform.sys.modules", {"pyodide": object()}):
+        with patch(
+            "marimo._utils.platform.sys.modules", {"pyodide": object()}
+        ):
             assert is_pyodide()
 
 
@@ -49,17 +51,13 @@ class TestCheckSharedMemoryAvailable:
         assert error == ""
 
     def test_shared_memory_unavailable_on_pyodide(self) -> None:
-        with patch(
-            "marimo._utils.platform.is_pyodide", return_value=True
-        ):
+        with patch("marimo._utils.platform.is_pyodide", return_value=True):
             is_available, error = check_shared_memory_available()
             assert not is_available
             assert "Pyodide" in error
 
     def test_shared_memory_oserror(self) -> None:
-        with patch(
-            "marimo._utils.platform.is_pyodide", return_value=False
-        ):
+        with patch("marimo._utils.platform.is_pyodide", return_value=False):
             # Mock the SharedMemory class to raise OSError
             mock_shm_class = type(
                 "MockSharedMemory",
@@ -78,9 +76,13 @@ class TestCheckSharedMemoryAvailable:
                 assert not is_available
                 assert "Unable to create shared memory" in error
                 assert "Cannot allocate memory" in error
-                assert "Docker" in error  # Should mention Docker as a possible cause
+                assert (
+                    "Docker" in error
+                )  # Should mention Docker as a possible cause
 
-    def test_edit_exits_with_error_when_shared_memory_unavailable(self) -> None:
+    def test_edit_exits_with_error_when_shared_memory_unavailable(
+        self,
+    ) -> None:
         runner = CliRunner()
         with patch(
             "marimo._utils.platform.check_shared_memory_available",
