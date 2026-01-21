@@ -75,11 +75,6 @@ components:
           - markdown
           - python
           - sql
-        messages:
-          default: []
-          items:
-            $ref: '#/components/schemas/ChatMessage'
-          type: array
         prompt:
           type: string
         selectedText:
@@ -109,8 +104,9 @@ components:
         \ the Google AI config\n    - `bedrock`: the Bedrock config\n    - `azure`:\
         \ the Azure config\n    - `ollama`: the Ollama config\n    - `github`: the\
         \ GitHub config\n    - `openrouter`: the OpenRouter config\n    - `wandb`:\
-        \ the Weights & Biases config\n    - `open_ai_compatible`: the OpenAI-compatible\
-        \ config"
+        \ the Weights & Biases config\n    - `custom_providers`: a dict of custom\
+        \ OpenAI-compatible providers\n    - `open_ai_compatible`: the OpenAI-compatible\
+        \ config (deprecated, use custom_providers)"
       properties:
         anthropic:
           $ref: '#/components/schemas/AnthropicConfig'
@@ -118,6 +114,10 @@ components:
           $ref: '#/components/schemas/OpenAiConfig'
         bedrock:
           $ref: '#/components/schemas/BedrockConfig'
+        custom_providers:
+          additionalProperties:
+            $ref: '#/components/schemas/OpenAiConfig'
+          type: object
         github:
           $ref: '#/components/schemas/GitHubConfig'
         google:
@@ -462,7 +462,9 @@ components:
           - application/vnd.marimo+mimebundle
           - application/vnd.marimo+traceback
           - application/vnd.vega.v5+json
+          - application/vnd.vega.v6+json
           - application/vnd.vegalite.v5+json
+          - application/vnd.vegalite.v6+json
           - image/avif
           - image/bmp
           - image/gif
@@ -544,10 +546,6 @@ components:
           $ref: '#/components/schemas/AiCompletionContext'
         includeOtherCode:
           type: string
-        messages:
-          items:
-            $ref: '#/components/schemas/ChatMessage'
-          type: array
         model:
           anyOf:
           - type: string
@@ -576,7 +574,6 @@ components:
       required:
       - context
       - includeOtherCode
-      - messages
       - uiMessages
       title: ChatRequest
       type: object
@@ -2688,6 +2685,8 @@ components:
           $ref: '#/components/schemas/SharingConfig'
         snippets:
           $ref: '#/components/schemas/SnippetsConfig'
+        venv:
+          $ref: '#/components/schemas/VenvConfig'
       required:
       - completion
       - display
@@ -3612,13 +3611,16 @@ components:
         \ the web browser to use. `\"default\"` or a browser registered\n        with\
         \ Python's webbrowser module (eg, `\"firefox\"` or `\"chrome\"`)\n    - `follow_symlink`:\
         \ if true, the server will follow symlinks it finds\n        inside its static\
-        \ assets directory."
+        \ assets directory.\n    - `disable_file_downloads`: if true, the file download\
+        \ button will be\n        hidden in the file explorer."
       properties:
         browser:
           anyOf:
           - enum:
             - default
           - type: string
+        disable_file_downloads:
+          type: boolean
         follow_symlink:
           type: boolean
       required:
@@ -4041,6 +4043,45 @@ components:
       - cellIds
       title: UpdateCellIdsRequest
       type: object
+    UpdateCellOutputsRequest:
+      properties:
+        cellIdsToOutput:
+          additionalProperties:
+            items: false
+            maxItems: 2
+            minItems: 2
+            prefixItems:
+            - enum:
+              - application/json
+              - application/vnd.jupyter.widget-view+json
+              - application/vnd.marimo+error
+              - application/vnd.marimo+mimebundle
+              - application/vnd.marimo+traceback
+              - application/vnd.vega.v5+json
+              - application/vnd.vega.v6+json
+              - application/vnd.vegalite.v5+json
+              - application/vnd.vegalite.v6+json
+              - image/avif
+              - image/bmp
+              - image/gif
+              - image/jpeg
+              - image/png
+              - image/svg+xml
+              - image/tiff
+              - text/csv
+              - text/html
+              - text/latex
+              - text/markdown
+              - text/plain
+              - video/mp4
+              - video/mpeg
+            - {}
+            type: array
+          type: object
+      required:
+      - cellIdsToOutput
+      title: UpdateCellOutputsRequest
+      type: object
     UpdateUIElementCommand:
       description: "Update UI element values.\n\n    Triggered when users interact\
         \ with UI elements (sliders, inputs, dropdowns, etc.).\n    Updates element\
@@ -4337,6 +4378,21 @@ components:
       - variables
       title: VariablesNotification
       type: object
+    VenvConfig:
+      description: "Configuration for external Python environment in home sandbox\
+        \ mode.\n\n    Allows specifying an existing virtualenv to use instead of\
+        \ creating\n    ephemeral sandboxes per notebook. Only applies in home sandbox\
+        \ mode.\n\n    **Keys.**\n\n    - `path`: path to a virtualenv directory (absolute\
+        \ or relative to\n      pyproject.toml)\n    - `writable`: if true, marimo\
+        \ will manage script metadata (inline\n      dependencies). Defaults to false."
+      properties:
+        path:
+          type: string
+        writable:
+          type: boolean
+      required: []
+      title: VenvConfig
+      type: object
     WorkspaceFilesRequest:
       properties:
         includeMarkdown:
@@ -4416,7 +4472,7 @@ components:
       type: object
 info:
   title: marimo API
-  version: 0.18.4
+  version: 0.19.4
 openapi: 3.1.0
 paths:
   /@file/{filename_and_length}:
@@ -4808,6 +4864,28 @@ paths:
               schema:
                 type: string
           description: Export the notebook as a script
+        400:
+          description: File must be saved before downloading
+  /api/export/update_cell_outputs:
+    post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateCellOutputsRequest'
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+          description: Update the cell outputs
         400:
           description: File must be saved before downloading
   /api/files/create:

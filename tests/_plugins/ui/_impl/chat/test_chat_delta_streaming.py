@@ -1,10 +1,16 @@
 # Copyright 2026 Marimo. All rights reserved.
-"""Tests for delta-based streaming in chat UI."""
+"""Tests for delta-based streaming in chat UI.
+
+The streaming implementation uses the Vercel AI SDK protocol:
+- text-start: Begins a text stream with an id
+- text-delta: Contains incremental text content
+- text-end: Marks the end of a text stream
+"""
 
 from __future__ import annotations
 
 import asyncio
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator, Generator
@@ -13,11 +19,26 @@ from marimo._ai._types import ChatMessage
 from marimo._plugins.ui._impl.chat.chat import chat
 
 
-class TestDeltaStreaming:
-    """Test delta-based streaming mode."""
+def extract_deltas(sent_messages: list[dict[str, Any]]) -> list[str]:
+    """Extract delta text from Vercel AI SDK format messages."""
+    deltas = []
+    for msg in sent_messages:
+        content = msg.get("content")
+        if isinstance(content, dict) and content.get("type") == "text-delta":
+            deltas.append(content.get("delta", ""))
+    return deltas
 
-    async def test_async_delta_streaming_accumulates(self):
-        """Test that async generators yielding deltas are accumulated correctly."""
+
+def get_accumulated_text(sent_messages: list[dict[str, Any]]) -> str:
+    """Get the accumulated text from all deltas."""
+    return "".join(extract_deltas(sent_messages))
+
+
+class TestDeltaStreaming:
+    """Test delta-based streaming mode using Vercel AI SDK protocol."""
+
+    async def test_async_delta_streaming_sends_vercel_chunks(self):
+        """Test that async generators send Vercel AI SDK format chunks."""
 
         async def delta_generator() -> AsyncGenerator[str, None]:
             """Yields individual delta chunks."""
@@ -26,35 +47,40 @@ class TestDeltaStreaming:
             yield "world"
             yield "!"
 
-        # Create chat with the delta generator
         chat_ui = chat(delta_generator)
+        sent_messages: list[dict[str, Any]] = []
 
-        # Track messages sent
-        sent_messages: list[dict] = []
-
-        def capture_send(msg: dict, **kwargs: object) -> None:
+        def capture_send(msg: dict[str, Any], **kwargs: object) -> None:
             del kwargs  # Unused
             sent_messages.append(msg)
 
         chat_ui._send_message = capture_send  # type: ignore
 
-        # Handle the streaming response
+        # Handle the streaming response (returns None in new implementation)
         result = await chat_ui._handle_streaming_response(delta_generator())
 
-        # Verify final result is fully accumulated
-        assert result == "Hello world!"
+        # New implementation returns None (frontend manages state)
+        assert result is None
 
-        # Verify incremental chunks were sent correctly
-        assert len(sent_messages) == 5  # 4 deltas + 1 final
-        assert sent_messages[0]["content"] == "Hello"
-        assert sent_messages[1]["content"] == "Hello "
-        assert sent_messages[2]["content"] == "Hello world"
-        assert sent_messages[3]["content"] == "Hello world!"
-        assert sent_messages[4]["content"] == "Hello world!"
-        assert sent_messages[4]["is_final"] is True
+        # Verify Vercel AI SDK format: text-start, text-delta(s), text-end, final
+        content_types = [
+            msg["content"]["type"]
+            for msg in sent_messages
+            if isinstance(msg.get("content"), dict)
+        ]
+        assert content_types[0] == "text-start"
+        assert all(t == "text-delta" for t in content_types[1:-1])
+        assert content_types[-1] == "text-end"
 
-    async def test_sync_delta_streaming_accumulates(self):
-        """Test that sync generators yielding deltas are accumulated correctly."""
+        # Verify accumulated text from deltas
+        accumulated = get_accumulated_text(sent_messages)
+        assert accumulated == "Hello world!"
+
+        # Final message should have is_final=True
+        assert sent_messages[-1]["is_final"] is True
+
+    async def test_sync_delta_streaming_sends_vercel_chunks(self):
+        """Test that sync generators send Vercel AI SDK format chunks."""
 
         def delta_generator() -> Generator[str, None, None]:
             """Yields individual delta chunks."""
@@ -64,32 +90,20 @@ class TestDeltaStreaming:
             yield " "
             yield "Three"
 
-        # Create chat with the delta generator
         chat_ui = chat(delta_generator)
+        sent_messages: list[dict[str, Any]] = []
 
-        # Track messages sent
-        sent_messages: list[dict] = []
-
-        def capture_send(msg: dict, **kwargs: object) -> None:
+        def capture_send(msg: dict[str, Any], **kwargs: object) -> None:
             del kwargs  # Unused
             sent_messages.append(msg)
 
         chat_ui._send_message = capture_send  # type: ignore
 
-        # Handle the streaming response
         result = await chat_ui._handle_streaming_response(delta_generator())
 
-        # Verify final result is fully accumulated
-        assert result == "One Two Three"
-
-        # Verify incremental chunks were sent correctly
-        assert len(sent_messages) == 6  # 5 deltas + 1 final
-        assert sent_messages[0]["content"] == "One"
-        assert sent_messages[1]["content"] == "One "
-        assert sent_messages[2]["content"] == "One Two"
-        assert sent_messages[3]["content"] == "One Two "
-        assert sent_messages[4]["content"] == "One Two Three"
-        assert sent_messages[5]["is_final"] is True
+        assert result is None
+        accumulated = get_accumulated_text(sent_messages)
+        assert accumulated == "One Two Three"
 
     async def test_empty_delta_handled(self):
         """Test that empty deltas are handled gracefully."""
@@ -103,9 +117,9 @@ class TestDeltaStreaming:
             yield "world"
 
         chat_ui = chat(delta_generator)
-        sent_messages: list[dict] = []
+        sent_messages: list[dict[str, Any]] = []
 
-        def capture_send(msg: dict, **kwargs: object) -> None:
+        def capture_send(msg: dict[str, Any], **kwargs: object) -> None:
             del kwargs  # Unused
             sent_messages.append(msg)
 
@@ -113,9 +127,11 @@ class TestDeltaStreaming:
 
         result = await chat_ui._handle_streaming_response(delta_generator())
 
-        assert result == "Hello world"
-        # Empty deltas still trigger message sends
-        assert len(sent_messages) == 6  # 5 deltas (including empty) + 1 final
+        assert result is None
+        # Empty deltas are still sent as text-delta chunks
+        deltas = extract_deltas(sent_messages)
+        assert deltas == ["Hello", "", " ", "", "world"]
+        assert get_accumulated_text(sent_messages) == "Hello world"
 
     async def test_single_delta(self):
         """Test streaming with a single delta."""
@@ -124,9 +140,9 @@ class TestDeltaStreaming:
             yield "Single chunk"
 
         chat_ui = chat(delta_generator)
-        sent_messages: list[dict] = []
+        sent_messages: list[dict[str, Any]] = []
 
-        def capture_send(msg: dict, **kwargs: object) -> None:
+        def capture_send(msg: dict[str, Any], **kwargs: object) -> None:
             del kwargs  # Unused
             sent_messages.append(msg)
 
@@ -134,10 +150,12 @@ class TestDeltaStreaming:
 
         result = await chat_ui._handle_streaming_response(delta_generator())
 
-        assert result == "Single chunk"
-        assert len(sent_messages) == 2  # 1 delta + 1 final
-        assert sent_messages[0]["content"] == "Single chunk"
-        assert sent_messages[1]["is_final"] is True
+        assert result is None
+        assert get_accumulated_text(sent_messages) == "Single chunk"
+
+        # Should have: text-start, text-delta, text-end, final
+        assert len(sent_messages) == 4
+        assert sent_messages[-1]["is_final"] is True
 
     async def test_no_deltas(self):
         """Test streaming with no deltas (empty generator)."""
@@ -148,9 +166,9 @@ class TestDeltaStreaming:
                 yield ""
 
         chat_ui = chat(delta_generator)
-        sent_messages: list[dict] = []
+        sent_messages: list[dict[str, Any]] = []
 
-        def capture_send(msg: dict, **kwargs: object) -> None:
+        def capture_send(msg: dict[str, Any], **kwargs: object) -> None:
             del kwargs  # Unused
             sent_messages.append(msg)
 
@@ -158,9 +176,10 @@ class TestDeltaStreaming:
 
         result = await chat_ui._handle_streaming_response(delta_generator())
 
-        assert result == ""
-        # No final message sent if no content
-        assert len(sent_messages) == 0
+        assert result is None
+        # Should only have the final message (no text-start/end since no text)
+        assert len(sent_messages) == 1
+        assert sent_messages[0]["is_final"] is True
 
     async def test_unicode_deltas(self):
         """Test that unicode characters in deltas are handled correctly."""
@@ -173,9 +192,9 @@ class TestDeltaStreaming:
             yield "!"
 
         chat_ui = chat(delta_generator)
-        sent_messages: list[dict] = []
+        sent_messages: list[dict[str, Any]] = []
 
-        def capture_send(msg: dict, **kwargs: object) -> None:
+        def capture_send(msg: dict[str, Any], **kwargs: object) -> None:
             del kwargs  # Unused
             sent_messages.append(msg)
 
@@ -183,8 +202,8 @@ class TestDeltaStreaming:
 
         result = await chat_ui._handle_streaming_response(delta_generator())
 
-        assert result == "Hello 🌍 世界!"
-        assert sent_messages[-1]["content"] == "Hello 🌍 世界!"
+        assert result is None
+        assert get_accumulated_text(sent_messages) == "Hello 🌍 世界!"
 
     async def test_message_id_consistency(self):
         """Test that all chunks in a stream share the same message_id."""
@@ -195,9 +214,9 @@ class TestDeltaStreaming:
             yield "C"
 
         chat_ui = chat(delta_generator)
-        sent_messages: list[dict] = []
+        sent_messages: list[dict[str, Any]] = []
 
-        def capture_send(msg: dict, **kwargs: object) -> None:
+        def capture_send(msg: dict[str, Any], **kwargs: object) -> None:
             del kwargs  # Unused
             sent_messages.append(msg)
 
@@ -232,9 +251,9 @@ class TestDeltaStreaming:
                 await asyncio.sleep(0.001)  # Tiny delay
 
         chat_ui = chat(delta_generator)
-        sent_messages: list[dict] = []
+        sent_messages: list[dict[str, Any]] = []
 
-        def capture_send(msg: dict, **kwargs: object) -> None:
+        def capture_send(msg: dict[str, Any], **kwargs: object) -> None:
             del kwargs  # Unused
             sent_messages.append(msg)
 
@@ -242,16 +261,24 @@ class TestDeltaStreaming:
 
         result = await chat_ui._handle_streaming_response(delta_generator())
 
+        assert result is None
         expected = "This is a long streaming response with many deltas."
-        assert result == expected
-        assert len(sent_messages) == 11  # 10 deltas + 1 final
+        assert get_accumulated_text(sent_messages) == expected
 
-        # Verify progressive accumulation
-        assert sent_messages[0]["content"] == "This"
-        assert sent_messages[1]["content"] == "This is"
-        assert sent_messages[2]["content"] == "This is a"
-        assert sent_messages[-1]["content"] == expected
-        assert sent_messages[-1]["is_final"] is True
+        # Verify deltas are individual words
+        deltas = extract_deltas(sent_messages)
+        assert deltas == [
+            "This",
+            " is",
+            " a",
+            " long",
+            " streaming",
+            " response",
+            " with",
+            " many",
+            " deltas",
+            ".",
+        ]
 
 
 class TestStreamingWithChatModels:
@@ -262,7 +289,7 @@ class TestStreamingWithChatModels:
 
         async def custom_model(
             messages: list[ChatMessage],
-            config: dict,  # noqa: ARG001
+            config: dict[str, Any],  # noqa: ARG001
         ) -> AsyncGenerator[str, None]:
             """Custom model that yields deltas."""
             user_msg = messages[-1].content
@@ -272,9 +299,9 @@ class TestStreamingWithChatModels:
                 await asyncio.sleep(0.001)
 
         chat_ui = chat(custom_model)
-        sent_messages: list[dict] = []
+        sent_messages: list[dict[str, Any]] = []
 
-        def capture_send(msg: dict, **kwargs: object) -> None:
+        def capture_send(msg: dict[str, Any], **kwargs: object) -> None:
             del kwargs  # Unused
             sent_messages.append(msg)
 
@@ -286,61 +313,44 @@ class TestStreamingWithChatModels:
 
         result = await chat_ui._handle_streaming_response(generator)
 
-        assert result == "You said: Hello"
-        # Should have one chunk per character plus final
-        assert len(sent_messages) > 0
+        assert result is None
+        assert get_accumulated_text(sent_messages) == "You said: Hello"
         assert sent_messages[-1]["is_final"] is True
 
 
 class TestStreamingEfficiency:
-    """Test that delta streaming is efficient compared to accumulated streaming."""
+    """Test that delta streaming is efficient."""
 
-    async def test_delta_vs_accumulated_bandwidth(self):
-        """Demonstrate bandwidth savings of delta vs accumulated streaming."""
+    async def test_delta_streaming_sends_individual_chunks(self):
+        """Verify delta streaming sends individual chunks, not accumulated."""
 
         # Simulate 100-word response
         words = ["word" + str(i) for i in range(100)]
 
-        # Delta streaming: each word is sent once
         async def delta_stream() -> AsyncGenerator[str, None]:
             for word in words:
                 yield word + " "
 
         chat_ui = chat(delta_stream)
-        delta_sent_messages: list[dict] = []
+        sent_messages: list[dict[str, Any]] = []
 
-        def capture_delta(msg: dict, **kwargs: object) -> None:
+        def capture_delta(msg: dict[str, Any], **kwargs: object) -> None:
             del kwargs  # Unused
-            delta_sent_messages.append(msg)
+            sent_messages.append(msg)
 
         chat_ui._send_message = capture_delta  # type: ignore
 
         await chat_ui._handle_streaming_response(delta_stream())
 
-        # Calculate bytes sent with delta streaming
-        # Backend sends accumulated text, but receives deltas
-        delta_bytes_received = sum(len(word + " ") for word in words)
+        # Extract all deltas sent
+        deltas = extract_deltas(sent_messages)
 
-        # Each message sends the accumulated content
-        delta_bytes_sent = sum(
-            len(msg["content"]) for msg in delta_sent_messages
-        )
+        # Each delta should be a single word (not accumulated)
+        assert len(deltas) == 100
+        assert deltas[0] == "word0 "
+        assert deltas[1] == "word1 "  # NOT "word0 word1 "
+        assert deltas[99] == "word99 "
 
-        # With old accumulated approach, model would yield:
-        # "word0 ", "word0 word1 ", "word0 word1 word2 ", etc.
-        accumulated_bytes_received = sum(
-            len(" ".join(words[: i + 1]) + " ") for i in range(len(words))
-        )
-
-        # Delta mode receives much less data from the model
-        assert delta_bytes_received < accumulated_bytes_received
-
-        # For 100 words, delta receives ~100 words worth of data
-        # while accumulated receives ~5000 words worth (1+2+3+...+100)
-        efficiency_ratio = accumulated_bytes_received / delta_bytes_received
-        assert efficiency_ratio > 40  # Should be ~50x more efficient
-
-        print("\nEfficiency Test Results:")
-        print(f"Delta bytes received: {delta_bytes_received}")
-        print(f"Accumulated bytes received: {accumulated_bytes_received}")
-        print(f"Efficiency ratio: {efficiency_ratio:.1f}x")
+        # Total accumulated text should be all words
+        accumulated = get_accumulated_text(sent_messages)
+        assert accumulated == " ".join(words) + " "

@@ -1,0 +1,78 @@
+{
+ "cells": [
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "Hbol",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "hello stdout"
+     ]
+    },
+    {
+     "data": {
+      "text/html": [
+       "<pre class='text-xs'>12</pre>"
+      ]
+     },
+     "metadata": {},
+     "output_type": "display_data"
+    }
+   ],
+   "source": [
+    "import sys\n",
+    "\n",
+    "sys.stdout.write(\"hello stdout\")"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "MJUe",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stderr",
+     "output_type": "stream",
+     "text": [
+      "hello stderr"
+     ]
+    },
+    {
+     "data": {
+      "text/html": [
+       "<pre class='text-xs'>12</pre>"
+      ]
+     },
+     "metadata": {},
+     "output_type": "display_data"
+    }
+   ],
+   "source": [
+    "sys.stderr.write(\"hello stderr\")"
+   ]
+  }
+ ],
+ "metadata": {
+  "language_info": {
+   "codemirror_mode": {
+    "name": "ipython",
+    "version": 3
+   },
+   "file_extension": ".py",
+   "mimetype": "text/x-python",
+   "name": "python",
+   "nbconvert_exporter": "python",
+   "pygments_lexer": "ipython3"
+  },
+  "marimo": {
+   "marimo_version": "0.0.0"
+  }
+ },
+ "nbformat": 4,
+ "nbformat_minor": 5
+}

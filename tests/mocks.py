@@ -121,9 +121,132 @@ def snapshotter(current_file: str) -> SnapshotFunc:
 
 
 def _sanitize_version(output: str) -> str:
-    return output.replace(f"{__version__} (editable)", "0.0.0").replace(
+    output = output.replace(f"{__version__} (editable)", "0.0.0").replace(
         f"{__version__}", "0.0.0"
     )
+    output = re.sub(
+        r'"marimo_version": "[^"]*"', '"marimo_version": "0.0.0"', output
+    )
+    return output
+
+
+def delete_lines_with_files(output: str) -> str:
+    """Remove file paths from error messages for consistent snapshots."""
+
+    def remove_file_name(line: str) -> str:
+        if "File " not in line:
+            return line
+        start = line.index("File ")
+        if ".py" in line[start:]:
+            end = line.rindex(".py") + 3
+            return line[0:start] + line[end:]
+        return line
+
+    return "\n".join(remove_file_name(line) for line in output.splitlines())
+
+
+def simplify_images(output: str) -> str:
+    """Simplify image paths for consistent snapshots."""
+    # Handle data URLs
+    output = re.sub(
+        r"data:image/png;base64,.*",
+        "data:image/png;base64,IMAGE_BASE64_DATA",
+        output,
+    )
+
+    # Handle "image/png": "*"
+    output = re.sub(
+        r'"image/png": ".*"',
+        '"image/png": "IMAGE_BASE64_DATA"',
+        output,
+    )
+    return output
+
+
+def simplify_plotly(output: str) -> str:
+    """Simplify plotly output for consistent snapshots."""
+    # Replace any <marimo-plotly ...>...</marimo-plotly> (attributes or not, any whitespace, multiline)
+    # This will handle possible attributes, whitespace, and multiline contents.
+    output = re.sub(
+        r"<marimo-plotly\b[^>]*>.*?</marimo-plotly>",
+        "<marimo-plotly>REDACTED</marimo-plotly>",
+        output,
+        flags=re.DOTALL | re.IGNORECASE,
+    )
+    # Replace plotly base64 blobs in data URLs (including possible line breaks)
+    output = re.sub(
+        r"data:application/json;base64,[A-Za-z0-9+/=\n\r]*",
+        "data:application/json;base64,REDACTED_BASE64_DATA",
+        output,
+        flags=re.DOTALL,
+    )
+    # As a last resort, if there are still very large chunks of plotly content,
+    # we redact anything between tags that looks like giant plotly JSON blobs.
+    output = re.sub(
+        r'("application/vnd\.plotly\.v1\+json":\s*")[^"]*(")',
+        r"\1REDACTED_PLOTLY_JSON\2",
+        output,
+        flags=re.DOTALL,
+    )
+
+    # Sanitize raw Plotly HTML output (from mo.ui.plotly())
+    # Replace random UUID-like div IDs (handles both escaped and unescaped quotes)
+    output = re.sub(
+        r'id=\\"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\\"',
+        'id=\\"PLOTLY_DIV_ID\\"',
+        output,
+    )
+    output = re.sub(
+        r'id="[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"',
+        'id="PLOTLY_DIV_ID"',
+        output,
+    )
+    # Replace UUID in getElementById calls (handles both escaped and unescaped quotes)
+    output = re.sub(
+        r'getElementById\(\\"([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\\"\)',
+        'getElementById(\\"PLOTLY_DIV_ID\\")',
+        output,
+    )
+    output = re.sub(
+        r'getElementById\("([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})"\)',
+        'getElementById("PLOTLY_DIV_ID")',
+        output,
+    )
+    # Replace UUID in Plotly.newPlot calls (handles both escaped and unescaped quotes)
+    output = re.sub(
+        r'Plotly\.newPlot\(\s*\\"([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\\"',
+        'Plotly.newPlot(\\"PLOTLY_DIV_ID\\"',
+        output,
+    )
+    output = re.sub(
+        r'Plotly\.newPlot\(\s*"([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})"',
+        'Plotly.newPlot("PLOTLY_DIV_ID"',
+        output,
+    )
+    # Replace plotly CDN URLs with version and integrity (handles both escaped and unescaped quotes)
+    output = re.sub(
+        r'src=\\"https://cdn\.plot\.ly/plotly-[^\\"]*\\" integrity=\\"[^\\"]*\\"',
+        'src=\\"https://cdn.plot.ly/plotly-VERSION.min.js\\" integrity=\\"INTEGRITY_HASH\\"',
+        output,
+    )
+    output = re.sub(
+        r'src="https://cdn\.plot\.ly/plotly-[^"]*" integrity="[^"]*"',
+        'src="https://cdn.plot.ly/plotly-VERSION.min.js" integrity="INTEGRITY_HASH"',
+        output,
+    )
+    # Replace base64-encoded binary data in plotly JSON (handles both escaped and unescaped quotes)
+    output = re.sub(
+        r'\\"bdata\\":\\"[^\\"]*\\"',
+        '\\"bdata\\":\\"PLOTLY_BINARY_DATA\\"',
+        output,
+    )
+    output = re.sub(
+        r'"bdata":"[^"]*"',
+        '"bdata":"PLOTLY_BINARY_DATA"',
+        output,
+    )
+
+    return output
 
 
 NON_WINDOWS_EDGE_CASE_FILENAMES = [

@@ -34,12 +34,6 @@ vi.mock("../connection", () => ({
   waitForConnectionOpen: vi.fn().mockResolvedValue(undefined),
 }));
 
-vi.mock("../../state/jotai", () => ({
-  store: {
-    get: vi.fn(() => true),
-  },
-}));
-
 describe("createNetworkRequests", () => {
   let mockClient: any;
   let capturedCalls: Map<string, { hasParams: boolean; endpoint: string }>;
@@ -80,18 +74,6 @@ describe("createNetworkRequests", () => {
   });
 
   describe("special behavior", () => {
-    it("sendRun should drop requests if not connected", async () => {
-      const { store } = await import("../../state/jotai");
-
-      vi.mocked(store.get).mockReturnValue(false);
-
-      const requests = createNetworkRequests();
-      const result = await requests.sendRun({} as any);
-
-      expect(result).toBe(null);
-      expect(mockClient.POST).not.toHaveBeenCalled();
-    });
-
     it("exportAsHTML should set assetUrl in dev/test mode", async () => {
       const originalEnv = process.env.NODE_ENV;
       process.env.NODE_ENV = "development";

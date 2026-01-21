@@ -18,6 +18,7 @@ from marimo._server.config import StarletteServerStateInit
 from marimo._server.main import create_starlette_app
 from marimo._server.session_manager import SessionManager
 from marimo._server.utils import initialize_asyncio
+from marimo._session.queue import ProcessLike
 from marimo._session.session import SessionImpl
 from marimo._session.state.session_view import SessionView
 from tests._server.mocks import get_mock_session_manager
@@ -28,6 +29,34 @@ if TYPE_CHECKING:
 
 # Module-level app only for client_with_lifespans fixture
 _module_app = create_starlette_app(base_url="", enable_auth=True)
+
+
+def get_kernel_tasks(
+    session_manager: SessionManager,
+) -> list[threading.Thread | ProcessLike]:
+    kernel_tasks = []
+    for session in session_manager.sessions.values():
+        assert isinstance(session, SessionImpl)
+        kernel_task = session._kernel_manager.kernel_task
+        if kernel_task is not None:
+            kernel_tasks.append(kernel_task)
+    return kernel_tasks
+
+
+def join_kernel_thread_tasks(session_manager: SessionManager) -> None:
+    # Kernels started in run mode run in their own threads; if these kernels
+    # execute code, they may patch and restore their own main modules.
+    # To ensure that this fixture correctly restores the original saved
+    # main module, we wait for threads to finish before restoring the module.
+    kernel_tasks = get_kernel_tasks(session_manager)
+    session_manager.shutdown()
+    for task in kernel_tasks:
+        # At least some tests are flaky with processes (edit tasks)
+        # not joining for a long time; orphaned edit tasks
+        # won't affect other tests, but they are somewhat concerning
+        # ...
+        if isinstance(task, threading.Thread):
+            task.join()
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -90,24 +119,7 @@ def client(user_config_manager: UserConfigManager) -> Iterator[TestClient]:
     yield client
 
     try:
-        session_manager: SessionManager = client.app.state.session_manager
-        kernel_tasks = []
-        # Kernels started in run mode run in their own threads; if these kernels
-        # execute code, they may patch and restore their own main modules.
-        # To ensure that this fixture correctly restores the original saved
-        # main module, we wait for threads to finish before restoring the module.
-        for session in session_manager.sessions.values():
-            assert isinstance(session, SessionImpl)
-            kernel_task = session._kernel_manager.kernel_task
-            if kernel_task is not None and isinstance(
-                kernel_task, threading.Thread
-            ):
-                kernel_tasks.append(kernel_task)
-
-        session_manager.shutdown()
-        for task in kernel_tasks:
-            if task.is_alive():
-                task.join()
+        join_kernel_thread_tasks(client.app.state.session_manager)
     finally:
         sys.modules["__main__"] = main
 

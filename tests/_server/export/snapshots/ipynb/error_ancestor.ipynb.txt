@@ -1,0 +1,69 @@
+{
+ "cells": [
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "Hbol",
+   "metadata": {},
+   "outputs": [
+    {
+     "ename": "ValueError",
+     "evalue": "ancestor error",
+     "output_type": "error",
+     "traceback": [
+      "Traceback (most recent call last):",
+      "  File \"\", line 1, in <module>",
+      "    raise ValueError(\"ancestor error\")",
+      "ValueError: ancestor error",
+      ""
+     ]
+    }
+   ],
+   "source": [
+    "raise ValueError(\"ancestor error\")"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "MJUe",
+   "metadata": {},
+   "outputs": [
+    {
+     "ename": "NameError",
+     "evalue": "name 'x' is not defined",
+     "output_type": "error",
+     "traceback": [
+      "Traceback (most recent call last):",
+      "  File \"\", line 1, in <module>",
+      "    y = x + 1",
+      "        ^",
+      "NameError: name 'x' is not defined",
+      ""
+     ]
+    }
+   ],
+   "source": [
+    "y = x + 1"
+   ]
+  }
+ ],
+ "metadata": {
+  "language_info": {
+   "codemirror_mode": {
+    "name": "ipython",
+    "version": 3
+   },
+   "file_extension": ".py",
+   "mimetype": "text/x-python",
+   "name": "python",
+   "nbconvert_exporter": "python",
+   "pygments_lexer": "ipython3"
+  },
+  "marimo": {
+   "marimo_version": "0.0.0"
+  }
+ },
+ "nbformat": 4,
+ "nbformat_minor": 5
+}

@@ -202,6 +202,8 @@ export const DataFrameComponent = memo(
       sql_code,
     } = data || {};
 
+    const totalColumns = field_types?.length;
+
     const [internalValue, setInternalValue] = useState<Transformations>(
       value || EMPTY,
     );
@@ -317,7 +319,7 @@ export const DataFrameComponent = memo(
           data={url || ""}
           hasStableRowId={false}
           totalRows={total_rows ?? 0}
-          totalColumns={Object.keys(columns).length}
+          totalColumns={totalColumns ?? 0}
           maxColumns="all"
           pageSize={pageSize}
           pagination={true}

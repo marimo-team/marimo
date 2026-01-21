@@ -21,10 +21,13 @@ from narwhals.typing import IntoDataFrame, IntoLazyFrame
 
 from marimo import _loggers
 from marimo._dependencies.dependencies import DependencyManager
+from marimo._messaging.mimetypes import KnownMimeType
+from marimo._output.hypertext import is_no_js
 from marimo._output.rich_help import mddoc
 from marimo._plugins.ui._core.ui_element import UIElement
 from marimo._plugins.ui._impl.charts.altair_transformer import (
     register_transformers,
+    sanitize_nan_infs,
 )
 from marimo._utils import flatten
 from marimo._utils.narwhals_utils import (
@@ -652,6 +655,15 @@ class altair_chart(UIElement[ChartSelection, ChartDataType]):
             on_change=on_change,
         )
 
+    # Override _mime_ to return an Altair spec in non-JS environments
+    def _mime_(self) -> tuple[KnownMimeType, str]:
+        if is_no_js():
+            return (
+                get_chart_mimetype(spec_format="vega"),
+                chart_to_json(self._chart, validate=False),
+            )
+        return ("text/html", self.text)
+
     @property
     def selections(self) -> ChartSelection:
         return self._chart_selection
@@ -967,3 +979,55 @@ def _has_no_nested_hconcat(chart: AltairChartType) -> bool:
         return all(_has_no_nested_hconcat(layer) for layer in chart.layer)
 
     return True
+
+
+def chart_to_json(
+    chart: AltairChartType,
+    spec_format: Literal["vega", "vega-lite"] = "vega-lite",
+    validate: bool = True,
+) -> str:
+    """
+    Convert an altair chart to a JSON string.
+
+    This function is a wrapper around the altair.Chart.to_json method.
+    It sanitizes the data in the chart if necessary and validates the spec.
+    """
+    try:
+        return chart.to_json(
+            format=spec_format,
+            validate=validate,
+            allow_nan=False,
+            default=str,
+        )
+    except ValueError:
+        chart.data = sanitize_nan_infs(chart.data)
+        return chart.to_json(
+            format=spec_format,
+            validate=validate,
+            allow_nan=False,
+            default=str,
+        )
+
+
+def get_chart_mimetype(
+    spec_format: Literal["vega", "vega-lite"] = "vega-lite",
+) -> KnownMimeType:
+    """
+    Get the appropriate MIME type for a chart based on its schema version.
+
+    Returns the MIME type with the correct version (v5 or v6) based on the
+    chart's schema. Defaults to v6 if version cannot be determined.
+    """
+    try:
+        from altair import VEGA_VERSION
+
+        if spec_format == "vega":
+            return f"application/vnd.vega.v{VEGA_VERSION}+json"  # type: ignore
+        else:
+            return f"application/vnd.vegalite.v{VEGA_VERSION}+json"  # type: ignore
+    except Exception:
+        # Fallback to v6 if anything goes wrong
+        if spec_format == "vega":
+            return "application/vnd.vega.v6+json"
+        else:
+            return "application/vnd.vegalite.v6+json"

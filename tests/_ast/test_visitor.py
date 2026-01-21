@@ -1204,6 +1204,7 @@ def test_unbound_local_not_deleted_ref() -> None:
 
 
 HAS_DEPS = DependencyManager.duckdb.has()
+HAS_SQLGLOT = DependencyManager.sqlglot.has()
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="Requires duckdb")
@@ -1285,7 +1286,7 @@ def test_print_f_string() -> None:
     assert isinstance(joined_str.body[0].value, ast.JoinedStr)  # type: ignore
     assert (
         normalize_sql_f_string(joined_str.body[0].value)  # type: ignore
-        == "select * from cars where name = null"
+        == "select * from cars where name = 1"
     )
 
     joined_str = ast.parse(
@@ -1294,8 +1295,93 @@ def test_print_f_string() -> None:
     assert isinstance(joined_str.body[0].value, ast.JoinedStr)  # type: ignore
     assert (
         normalize_sql_f_string(joined_str.body[0].value)  # type: ignore
-        == "select * from 'null' where name = null"
+        == "select * from '1' where name = 1"
     )
+
+
+def test_normalize_sql_f_string_with_interval() -> None:
+    """Test that f-string normalization works with SQL interval expressions.
+
+    Regression test for issue #7717. Using "1" as placeholder instead of "null"
+    ensures that interval expressions like `interval '{days} days'` are valid SQL.
+    """
+    import ast
+
+    # This would fail with "null" placeholder: interval 'null days' is invalid
+    joined_str = ast.parse(
+        "f\"select * from t where ts > current_date - interval '{days_ago} days'\""
+    )
+    assert isinstance(joined_str.body[0].value, ast.JoinedStr)  # type: ignore
+    result = normalize_sql_f_string(joined_str.body[0].value)  # type: ignore
+    # With "1" placeholder, we get valid SQL: interval '1 days'
+    assert "interval '1 days'" in result
+
+
+@pytest.mark.parametrize(
+    ("expr", "expected", "should_parse"),
+    [
+        # WHERE clause value contexts
+        (
+            'f"SELECT * FROM t WHERE col = {value}"',
+            "SELECT * FROM t WHERE col = 1",
+            True,
+        ),
+        (
+            'f"SELECT * FROM t WHERE {lhs} = 10"',
+            "SELECT * FROM t WHERE 1 = 10",
+            True,
+        ),
+        (
+            'f"SELECT * FROM t WHERE col BETWEEN {a} AND {b}"',
+            "SELECT * FROM t WHERE col BETWEEN 1 AND 1",
+            True,
+        ),
+        (
+            'f"SELECT * FROM t WHERE col IN ({values})"',
+            "SELECT * FROM t WHERE col IN (1)",
+            True,
+        ),
+        (
+            "f\"SELECT * FROM t WHERE col LIKE '{pattern}%'\"",
+            "SELECT * FROM t WHERE col LIKE '1%'",
+            True,
+        ),
+        # Misc contexts
+        (
+            'f"SELECT {col} FROM t LIMIT {limit} OFFSET {offset}"',
+            "SELECT 1 FROM t LIMIT 1 OFFSET 1",
+            True,
+        ),
+        (
+            'f"INSERT INTO t VALUES ({x}, {y})"',
+            "INSERT INTO t VALUES (1, 1)",
+            True,
+        ),
+        # Identifier-ish contexts: normalization should still be stable, but
+        # parseability depends on SQL dialect.
+        (
+            'f"SELECT * FROM {table}"',
+            "SELECT * FROM 1",
+            False,
+        ),
+    ],
+)
+def test_normalize_sql_f_string_parameterized_coverage(
+    expr: str, expected: str, should_parse: bool
+) -> None:
+    joined_str = ast.parse(expr)
+    assert isinstance(joined_str.body[0].value, ast.JoinedStr)  # type: ignore
+    normalized = normalize_sql_f_string(joined_str.body[0].value)  # type: ignore
+    assert normalized == expected
+    assert "{" not in normalized
+    assert "}" not in normalized
+
+    if should_parse and HAS_SQLGLOT:
+        # A best-effort parse check to document what we expect to be valid SQL
+        # after f-string normalization.
+        from sqlglot import parse_one
+
+        parse_one(normalized, read="duckdb")
 
 
 def test_normalize_sql_f_string_with_empty_quotes() -> None:

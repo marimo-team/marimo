@@ -29,6 +29,7 @@ import {
 import { MarimoApp, preloadPage } from "./core/MarimoApp";
 import { type AppMode, initialModeAtom, viewStateAtom } from "./core/mode";
 import { cleanupAuthQueryParams } from "./core/network/auth";
+import { connectionAtom } from "./core/network/connection";
 import { requestClientAtom } from "./core/network/requests";
 import { resolveRequestClient } from "./core/network/resolve";
 import {
@@ -42,6 +43,7 @@ import { isStaticNotebook } from "./core/static/static-state";
 import { maybeRegisterVSCodeBindings } from "./core/vscode/vscode-bindings";
 import type { FileStore } from "./core/wasm/store";
 import { notebookFileStore } from "./core/wasm/store";
+import { WebSocketState } from "./core/websocket/types";
 import { vegaLoader } from "./plugins/impl/vega/loader";
 import { initializePlugins } from "./plugins/plugins";
 import { ThemeProvider } from "./theme/ThemeProvider";
@@ -304,6 +306,10 @@ function initStore(options: unknown) {
       ...firstRuntimeConfig,
       serverToken: parsedOptions.data.serverToken,
     });
+    // If the remote runtime is not lazy, start it in CONNECTING
+    if (!firstRuntimeConfig.lazy && !isStaticNotebook()) {
+      store.set(connectionAtom, { state: WebSocketState.CONNECTING });
+    }
   } else {
     store.set(runtimeConfigAtom, {
       ...DEFAULT_RUNTIME_CONFIG,

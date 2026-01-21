@@ -25,6 +25,8 @@ class MIME:
           application/vnd.marimo+traceback
           application/vnd.vega.v5+json
           application/vnd.vegalite.v5+json
+          application/vnd.vega.v6+json
+          application/vnd.vegalite.v6+json
           image/png
           image/svg+xml
           image/tiff

@@ -1427,3 +1427,29 @@ def test_cli_edit_with_timeout() -> None:
 
     stdout, _ = p.communicate(timeout=5)
     assert "Timeout due to inactivity" in stdout
+
+
+def test_cli_edit_with_session_ttl() -> None:
+    """Test that --session-ttl option is accepted by edit command."""
+    port = _get_port()
+    p = subprocess.Popen(
+        [
+            "marimo",
+            "edit",
+            "--no-token",
+            "--headless",
+            "-p",
+            str(port),
+            "--session-ttl",
+            "300",
+            "--skip-update-check",
+        ],
+        stderr=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+    )
+    try:
+        contents = _try_fetch(port)
+        _check_contents(p, b'"mode": "home"', contents)
+    finally:
+        p.kill()
+        p.wait(timeout=5)

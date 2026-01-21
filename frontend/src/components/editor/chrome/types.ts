@@ -96,13 +96,6 @@ export const PANELS: PanelDescriptor[] = [
     defaultSection: "sidebar",
   },
   {
-    type: "snippets",
-    Icon: SquareDashedBottomCodeIcon,
-    label: "Snippets",
-    tooltip: "Snippets",
-    defaultSection: "developer-panel",
-  },
-  {
     type: "outline",
     Icon: ScrollTextIcon,
     label: "Outline",
@@ -170,6 +163,13 @@ export const PANELS: PanelDescriptor[] = [
     requiredCapability: "terminal",
   },
   {
+    type: "snippets",
+    Icon: SquareDashedBottomCodeIcon,
+    label: "Snippets",
+    tooltip: "Snippets",
+    defaultSection: "developer-panel",
+  },
+  {
     type: "cache",
     Icon: DatabaseZapIcon,
     label: "Cache",
@@ -194,10 +194,8 @@ export function isPanelHidden(
   if (panel.hidden) {
     return true;
   }
-  if (panel.requiredCapability) {
-    if (!capabilities[panel.requiredCapability]) {
-      return true;
-    }
+  if (panel.requiredCapability && !capabilities[panel.requiredCapability]) {
+    return true;
   }
   return false;
 }

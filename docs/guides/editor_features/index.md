@@ -8,6 +8,7 @@ with code and data.
 | Guide                                       | Description                                      |
 | ------------------------------------------- | ------------------------------------------------ |
 | [Overview](overview.md)                     | An overview of editor features and configuration |
+| [Sidebar and Developer Panel](panels.md)   | Customize your workspace with panels             |
 | [Understanding dataflow](dataflow.md)       | Visualize and navigate cell dependencies         |
 | [Package Management](package_management.md) | Using package managers in marimo                 |
 | [AI Completion](ai_completion.md)           | Code with the help of a language model           |

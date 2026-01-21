@@ -13,6 +13,8 @@ from typing import (
 
 from marimo import _loggers
 from marimo._dependencies.dependencies import DependencyManager
+from marimo._messaging.mimetypes import KnownMimeType
+from marimo._output.hypertext import is_no_js
 from marimo._output.rich_help import mddoc
 from marimo._plugins.core.web_component import JSONType
 from marimo._plugins.ui._core.ui_element import UIElement
@@ -35,6 +37,95 @@ if TYPE_CHECKING:
 #  "indices": int[],
 # }
 PlotlySelection = dict[str, JSONType]
+
+
+def _is_orderable_value(value: Any) -> bool:
+    """Check if a value is orderable (numeric or datetime-like).
+
+    Used by fallback functions to determine if direct comparison is possible.
+    """
+    import datetime
+
+    if isinstance(value, (int, float, datetime.datetime, datetime.date)):
+        return True
+
+    # Check for ISO format datetime strings (sent from frontend via JSON)
+    if isinstance(value, str):
+        try:
+            datetime.datetime.fromisoformat(value.replace("Z", "+00:00"))
+            return True
+        except (ValueError, AttributeError):
+            pass
+
+    return False
+
+
+def _parse_datetime_bound(value: Any) -> Any:
+    """Parse a bound value that might be a datetime string from the frontend.
+
+    Returns the original value if it's already a datetime or not a valid
+    datetime string.
+    """
+    import datetime
+
+    if isinstance(value, (datetime.datetime, datetime.date)):
+        return value
+
+    if isinstance(value, str):
+        try:
+            return datetime.datetime.fromisoformat(
+                value.replace("Z", "+00:00")
+            )
+        except (ValueError, AttributeError):
+            pass
+
+    return value
+
+
+def _is_orderable_axis(arr: Any, bound_value: Any) -> bool:
+    """Check if an axis contains orderable (numeric/datetime) values.
+
+    This checks both numpy dtype and the actual element types to handle:
+    - Native numpy numeric/datetime64 arrays
+    - Object arrays containing Python datetime.datetime objects
+    - Datetime strings from frontend JSON (ISO format)
+
+    Args:
+        arr: A numpy array of axis values
+        bound_value: A sample bound value (e.g., x_min) to check compatibility
+
+    Returns:
+        True if the axis values can be compared with the bound values
+    """
+    import datetime
+
+    import numpy as np
+
+    # Check numpy dtype first (handles native numpy types)
+    if np.issubdtype(arr.dtype, np.number):
+        return True
+    if np.issubdtype(arr.dtype, np.datetime64):
+        return True
+
+    # For object arrays, check element types and bound value compatibility
+    if arr.dtype == np.object_ and len(arr) > 0:
+        first_elem = arr[0]
+        # Check if elements are datetime-like
+        if isinstance(first_elem, (datetime.datetime, datetime.date)):
+            # Bound can be datetime object or ISO string from frontend
+            if isinstance(bound_value, (datetime.datetime, datetime.date)):
+                return True
+            # Check for ISO format datetime strings (sent from frontend via JSON)
+            if isinstance(bound_value, str):
+                try:
+                    datetime.datetime.fromisoformat(
+                        bound_value.replace("Z", "+00:00")
+                    )
+                    return True
+                except (ValueError, AttributeError):
+                    pass
+
+    return False
 
 
 @mddoc
@@ -214,6 +305,12 @@ class plotly(UIElement[PlotlySelection, list[dict[str, Any]]]):
             on_change=on_change,
         )
 
+    # Override _mime_ to return plotly HTML in non-JS environments
+    def _mime_(self) -> tuple[KnownMimeType, str]:
+        if is_no_js():
+            return ("text/html", self._figure._repr_html_())
+        return ("text/html", self.text)
+
     @property
     def ranges(self) -> dict[str, list[float]]:
         """Get the range selection of the plot.
@@ -376,21 +473,35 @@ def _extract_heatmap_cells_numpy(
         y_arr = np.asarray(y_data)
         z_arr = np.asarray(z_data)
 
-        # Determine if axes are numeric
-        x_is_numeric = np.issubdtype(x_arr.dtype, np.number)
-        y_is_numeric = np.issubdtype(y_arr.dtype, np.number)
+        # Determine if axes are orderable (numeric or datetime-like)
+        x_is_orderable = _is_orderable_axis(x_arr, x_min)
+        y_is_orderable = _is_orderable_axis(y_arr, y_min)
+
+        # Parse datetime bounds (frontend sends ISO strings via JSON)
+        x_min_parsed = (
+            _parse_datetime_bound(x_min) if x_is_orderable else x_min
+        )
+        x_max_parsed = (
+            _parse_datetime_bound(x_max) if x_is_orderable else x_max
+        )
+        y_min_parsed = (
+            _parse_datetime_bound(y_min) if y_is_orderable else y_min
+        )
+        y_max_parsed = (
+            _parse_datetime_bound(y_max) if y_is_orderable else y_max
+        )
 
         # Compute masks for valid indices
-        if x_is_numeric:
-            x_mask = (x_arr >= x_min) & (x_arr <= x_max)
+        if x_is_orderable:
+            x_mask = (x_arr >= x_min_parsed) & (x_arr <= x_max_parsed)
         else:
             # Categorical: cell spans (index - 0.5) to (index + 0.5)
             # Strict overlap: x_max > cell_x_min and x_min < cell_x_max
             x_indices = np.arange(len(x_arr))
             x_mask = (x_max > x_indices - 0.5) & (x_min < x_indices + 0.5)
 
-        if y_is_numeric:
-            y_mask = (y_arr >= y_min) & (y_arr <= y_max)
+        if y_is_orderable:
+            y_mask = (y_arr >= y_min_parsed) & (y_arr <= y_max_parsed)
         else:
             # Categorical: cell spans (index - 0.5) to (index + 0.5)
             # Strict overlap: y_max > cell_y_min and y_min < cell_y_max
@@ -543,12 +654,20 @@ def _extract_scatter_points_numpy(
         x_arr = np.asarray(x_data)
         y_arr = np.asarray(y_data)
 
-        # Check if x is numeric
-        x_is_numeric = np.issubdtype(x_arr.dtype, np.number)
+        # Check if x is orderable (numeric or datetime-like)
+        x_is_orderable = _is_orderable_axis(x_arr, x_min)
+
+        # Parse datetime bounds (frontend sends ISO strings via JSON)
+        x_min_parsed = (
+            _parse_datetime_bound(x_min) if x_is_orderable else x_min
+        )
+        x_max_parsed = (
+            _parse_datetime_bound(x_max) if x_is_orderable else x_max
+        )
 
         # Filter by x-range (matching Altair behavior)
-        if x_is_numeric:
-            x_mask = (x_arr >= x_min) & (x_arr <= x_max)
+        if x_is_orderable:
+            x_mask = (x_arr >= x_min_parsed) & (x_arr <= x_max_parsed)
         else:
             # Categorical: use index-based filtering
             x_indices = np.arange(len(x_arr))
@@ -623,8 +742,11 @@ def _extract_scatter_points_fallback(
             # Check if x is within range
             x_in_range = False
 
-            if isinstance(x_val, (int, float)):
-                x_in_range = x_min <= x_val <= x_max
+            if _is_orderable_value(x_val) and _is_orderable_value(x_min):
+                # Parse datetime bounds (frontend sends ISO strings)
+                x_min_p = _parse_datetime_bound(x_min)
+                x_max_p = _parse_datetime_bound(x_max)
+                x_in_range = x_min_p <= x_val <= x_max_p
             else:
                 # Categorical - use index-based filtering
                 cell_x_min = point_idx - 0.5
@@ -678,8 +800,11 @@ def _extract_heatmap_cells_fallback(
                 x_in_range = False
                 y_in_range = False
 
-                if isinstance(x_val, (int, float)):
-                    x_in_range = x_min <= x_val <= x_max
+                if _is_orderable_value(x_val) and _is_orderable_value(x_min):
+                    # Parse datetime bounds (frontend sends ISO strings)
+                    x_min_p = _parse_datetime_bound(x_min)
+                    x_max_p = _parse_datetime_bound(x_max)
+                    x_in_range = x_min_p <= x_val <= x_max_p
                 else:
                     # Categorical - each cell spans from (index - 0.5) to (index + 0.5)
                     # Include cell if selection range strictly overlaps with cell bounds
@@ -689,8 +814,11 @@ def _extract_heatmap_cells_fallback(
                         x_max <= cell_x_min or x_min >= cell_x_max
                     )
 
-                if isinstance(y_val, (int, float)):
-                    y_in_range = y_min <= y_val <= y_max
+                if _is_orderable_value(y_val) and _is_orderable_value(y_min):
+                    # Parse datetime bounds (frontend sends ISO strings)
+                    y_min_p = _parse_datetime_bound(y_min)
+                    y_max_p = _parse_datetime_bound(y_max)
+                    y_in_range = y_min_p <= y_val <= y_max_p
                 else:
                     # Categorical - each cell spans from (index - 0.5) to (index + 0.5)
                     # Include cell if selection range strictly overlaps with cell bounds
@@ -811,15 +939,25 @@ def _extract_bars_numpy(
             value_data = x_arr
             pos_min, pos_max = y_min, y_max
 
-        # Determine if position axis is numeric or categorical
-        pos_is_numeric = np.issubdtype(position_data.dtype, np.number)
+        # Determine if position axis is orderable (numeric or datetime-like)
+        pos_is_orderable = _is_orderable_axis(position_data, pos_min)
+
+        # Parse datetime bounds (frontend sends ISO strings via JSON)
+        pos_min_parsed = (
+            _parse_datetime_bound(pos_min) if pos_is_orderable else pos_min
+        )
+        pos_max_parsed = (
+            _parse_datetime_bound(pos_max) if pos_is_orderable else pos_max
+        )
 
         # Compute mask for valid indices
-        if pos_is_numeric:
-            # Numeric axis: direct range comparison
+        if pos_is_orderable:
+            # Orderable axis: direct range comparison
             # TODO: Consider bar width in future implementations
             # Currently treating bars as points at their position value
-            pos_mask = (position_data >= pos_min) & (position_data <= pos_max)
+            pos_mask = (position_data >= pos_min_parsed) & (
+                position_data <= pos_max_parsed
+            )
         else:
             # Categorical axis: each bar spans (index - 0.5) to (index + 0.5)
             # Selection overlaps if: pos_max > bar_min AND pos_min < bar_max
@@ -898,11 +1036,14 @@ def _extract_bars_fallback(
             # Check if bar position is within selection range
             pos_in_range = False
 
-            if isinstance(pos_val, (int, float)):
-                # Numeric axis: direct comparison
+            if _is_orderable_value(pos_val) and _is_orderable_value(pos_min):
+                # Orderable axis (numeric or datetime): direct comparison
+                # Parse datetime bounds (frontend sends ISO strings)
+                pos_min_p = _parse_datetime_bound(pos_min)
+                pos_max_p = _parse_datetime_bound(pos_max)
                 # TODO: Consider bar width in future implementations
                 # Currently treating bars as points at their position value
-                pos_in_range = pos_min <= pos_val <= pos_max
+                pos_in_range = pos_min_p <= pos_val <= pos_max_p
             else:
                 # Categorical axis: each bar spans (index - 0.5) to (index + 0.5)
                 # Include bar if selection range strictly overlaps with bar bounds

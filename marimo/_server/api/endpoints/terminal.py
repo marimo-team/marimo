@@ -17,6 +17,7 @@ from marimo import _loggers
 from marimo._server.api.deps import AppState
 from marimo._server.router import APIRouter
 from marimo._session.model import SessionMode
+from marimo._utils.platform import is_pyodide, is_windows
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -323,12 +324,31 @@ async def _cancel_tasks(tasks: Iterable[asyncio.Task[Any]]) -> None:
                 pass
 
 
+def supports_terminal() -> bool:
+    """Whether the current environment supports terminals."""
+    if is_windows() or is_pyodide():
+        return False
+    # Try to import pty to verify it's actually available
+    try:
+        import pty  # noqa: F401
+
+        return True
+    except ImportError:
+        return False
+
+
 @router.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket) -> None:
     app_state = AppState(websocket)
     if app_state.mode != SessionMode.EDIT:
         await websocket.close(
             code=1008, reason="Terminal only available in edit mode"
+        )
+        return
+
+    if not supports_terminal():
+        await websocket.close(
+            code=1008, reason="Terminal not supported in this environment"
         )
         return
 
@@ -339,17 +359,29 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
         LOGGER.error(f"Failed to accept websocket connection: {e}")
         return
 
-    import pty
+    # Initialize PTY - wrap in try-except to handle any unexpected failures
+    try:
+        import pty
 
-    child_pid, fd = pty.fork()
-    if child_pid == 0:
-        # Child process - set up the shell environment
-        shell, env = _create_shell_environment()
-        cwd = env.get("PWD", os.getcwd())
-        _setup_child_process(shell, env, cwd)
+        child_pid, fd = pty.fork()
+        if child_pid == 0:
+            # Child process - set up the shell environment
+            shell, env = _create_shell_environment()
+            cwd = env.get("PWD", os.getcwd())
+            _setup_child_process(shell, env, cwd)
 
-    # Set up cleanup handler
-    cleanup_child = _create_process_cleanup_handler(child_pid, fd)
+        # Set up cleanup handler
+        cleanup_child = _create_process_cleanup_handler(child_pid, fd)
+    except Exception as e:
+        LOGGER.error(f"Failed to initialize terminal: {e}")
+        try:
+            if websocket.application_state != WebSocketState.DISCONNECTED:
+                await websocket.close(
+                    code=1011, reason="Failed to initialize terminal"
+                )
+        except Exception:
+            pass
+        return
 
     reader_task = asyncio.create_task(_read_from_pty(fd, websocket))
     writer_task = asyncio.create_task(_write_to_pty(fd, websocket, child_pid))

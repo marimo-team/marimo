@@ -21,6 +21,7 @@ export type ExportAsHTMLRequest = schemas["ExportAsHTMLRequest"];
 export type ExportAsMarkdownRequest = schemas["ExportAsMarkdownRequest"];
 export type ExportAsIPYNBRequest = schemas["ExportAsIPYNBRequest"];
 export type ExportAsScriptRequest = schemas["ExportAsScriptRequest"];
+export type UpdateCellOutputsRequest = schemas["UpdateCellOutputsRequest"];
 export type FileCreateRequest = schemas["FileCreateRequest"];
 export type FileCreateResponse = schemas["FileCreateResponse"];
 export type FileDeleteRequest = schemas["FileDeleteRequest"];
@@ -175,6 +176,7 @@ export interface EditRequests {
   autoExportAsHTML: (request: ExportAsHTMLRequest) => Promise<null>;
   autoExportAsMarkdown: (request: ExportAsMarkdownRequest) => Promise<null>;
   autoExportAsIPYNB: (request: ExportAsIPYNBRequest) => Promise<null>;
+  updateCellOutputs: (request: UpdateCellOutputsRequest) => Promise<null>;
   // Package requests
   getPackageList: () => Promise<ListPackagesResponse>;
   getDependencyTree: () => Promise<DependencyTreeResponse>;

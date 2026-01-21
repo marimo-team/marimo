@@ -175,6 +175,7 @@ export const UserConfigSchema = z
             aws_secret_access_key: z.string().optional(),
           })
           .optional(),
+        custom_providers: z.record(z.string(), AiConfigSchema).prefault({}),
         models: AiModelsSchema.prefault({
           displayed_models: [],
           custom_models: [],
@@ -189,7 +190,11 @@ export const UserConfigSchema = z
       })
       // Pass through so that we don't remove any extra keys that the user has added.
       .prefault(() => ({})),
-    server: z.looseObject({}).prefault(() => ({})),
+    server: z
+      .looseObject({
+        disable_file_downloads: z.boolean().optional(),
+      })
+      .prefault(() => ({})),
     diagnostics: z
       .looseObject({
         enabled: z.boolean().optional(),

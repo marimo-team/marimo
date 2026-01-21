@@ -3,17 +3,14 @@ from __future__ import annotations
 
 import asyncio
 import base64
-import io
-import json
 import mimetypes
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Literal, Optional, cast
+from typing import Literal, Optional, cast
 
 from marimo import _loggers
 from marimo._ast.app import InternalApp
-from marimo._ast.cell import Cell, CellImpl
-from marimo._ast.names import DEFAULT_CELL_NAME, is_internal_cell_name
+from marimo._ast.names import DEFAULT_CELL_NAME
 from marimo._config.config import (
     DEFAULT_CONFIG,
     DisplayConfig,
@@ -21,21 +18,18 @@ from marimo._config.config import (
 )
 from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._config.utils import deep_copy
-from marimo._convert.utils import get_markdown_from_cell
-from marimo._dependencies.dependencies import DependencyManager
-from marimo._messaging.cell_output import CellChannel, CellOutput
-from marimo._messaging.mimetypes import METADATA_KEY, KnownMimeType
-from marimo._runtime import dataflow
-from marimo._runtime.virtual_file import read_virtual_file
-from marimo._schemas.notebook import NotebookV1
-from marimo._schemas.session import NotebookSessionV1
-from marimo._server.export.dom_traversal import (
+from marimo._convert.common.dom_traversal import (
     replace_virtual_files_with_data_uris,
 )
-from marimo._server.export.utils import (
+from marimo._convert.common.filename import (
     get_download_filename,
     get_filename,
 )
+from marimo._convert.ipynb.from_ir import convert_from_ir_to_ipynb
+from marimo._messaging.mimetypes import KnownMimeType
+from marimo._runtime.virtual_file import read_virtual_file
+from marimo._schemas.notebook import NotebookV1
+from marimo._schemas.session import NotebookSessionV1
 from marimo._server.models.export import ExportAsHTMLRequest
 from marimo._server.templates.templates import (
     static_notebook_template,
@@ -58,9 +52,6 @@ LOGGER = _loggers.marimo_logger()
 
 # Root directory for static assets
 ROOT = (marimo_package_path() / "_static").resolve()
-
-if TYPE_CHECKING:
-    from nbformat.notebooknode import NotebookNode  # type: ignore
 
 VIRTUAL_FILE_ALLOWED_ATTRIBUTES = {"src"}
 # We don't include video/audio as it can potentially be too much data
@@ -272,60 +263,9 @@ class Exporter:
         session_view: Optional[SessionView] = None,
     ) -> str:
         """Export notebook as .ipynb, optionally including outputs if session_view provided."""
-        DependencyManager.nbformat.require(
-            "to convert marimo notebooks to ipynb"
+        return convert_from_ir_to_ipynb(
+            app, sort_mode=sort_mode, session_view=session_view
         )
-        import nbformat  # type: ignore[import-not-found]
-
-        notebook = nbformat.v4.new_notebook()  # type: ignore[no-untyped-call]
-        graph = app.graph
-
-        # Sort cells based on sort_mode
-        if sort_mode == "top-down":
-            cell_ids = list(app.cell_manager.cell_ids())
-        else:
-            cell_ids = dataflow.topological_sort(graph, graph.cells.keys())
-
-        notebook["cells"] = []
-        for cid in cell_ids:
-            if cid not in graph.cells:
-                LOGGER.warning("Cell %s not found in graph", cid)
-                continue
-            cell = graph.cells[cid]
-            outputs: list[NotebookNode] = []
-
-            if session_view is not None:
-                # Get outputs for this cell and convert to IPython format
-                cell_output = session_view.get_cell_outputs([cid]).get(
-                    cid, None
-                )
-                cell_console_outputs = session_view.get_cell_console_outputs(
-                    [cid]
-                ).get(cid, [])
-                outputs = _convert_marimo_output_to_ipynb(
-                    cell_output, cell_console_outputs
-                )
-
-            notebook_cell = _create_notebook_cell(cell, outputs)
-            # Add metadata to the cell
-            marimo_metadata: dict[str, Any] = {}
-            if cell.config.is_different_from_default():
-                marimo_metadata["config"] = (
-                    cell.config.asdict_without_defaults()
-                )
-            name = app.cell_manager.cell_name(cid)
-            if not is_internal_cell_name(name):
-                marimo_metadata["name"] = name
-            if marimo_metadata:
-                notebook_cell["metadata"]["marimo"] = marimo_metadata
-            notebook["cells"].append(notebook_cell)
-
-        # notebook.metadata["marimo-version"] = __version__
-
-        stream = io.StringIO()
-        nbformat.write(notebook, stream)  # type: ignore[no-untyped-call]
-        stream.seek(0)
-        return stream.read()
 
     def export_as_wasm(
         self,
@@ -479,29 +419,6 @@ class AutoExporter:
         self._executor.shutdown(wait=False)
 
 
-def _create_notebook_cell(
-    cell: CellImpl, outputs: list[NotebookNode]
-) -> NotebookNode:
-    import nbformat
-
-    markdown_string = get_markdown_from_cell(
-        Cell(_name=DEFAULT_CELL_NAME, _cell=cell), cell.code
-    )
-    if markdown_string is not None:
-        return cast(
-            nbformat.NotebookNode,
-            nbformat.v4.new_markdown_cell(markdown_string, id=cell.cell_id),  # type: ignore[no-untyped-call]
-        )
-
-    node = cast(
-        nbformat.NotebookNode,
-        nbformat.v4.new_code_cell(cell.code, id=cell.cell_id),  # type: ignore[no-untyped-call]
-    )
-    if outputs:
-        node.outputs = outputs
-    return node
-
-
 def get_html_contents() -> str:
     if GLOBAL_SETTINGS.DEVELOPMENT_MODE:
         import marimo._utils.requests as requests
@@ -515,99 +432,3 @@ def get_html_contents() -> str:
 
     index_html = Path(ROOT) / "index.html"
     return index_html.read_text(encoding="utf-8")
-
-
-def _maybe_extract_dataurl(data: Any) -> Any:
-    if (
-        isinstance(data, str)
-        and data.startswith("data:")
-        and ";base64," in data
-    ):
-        return data.split(";base64,")[1]
-    else:
-        return data
-
-
-def _convert_marimo_output_to_ipynb(
-    output: Optional[CellOutput], console_outputs: list[CellOutput]
-) -> list[NotebookNode]:
-    """Convert marimo output format to IPython notebook format."""
-    import nbformat
-
-    ipynb_outputs: list[NotebookNode] = []
-
-    # Handle stdout/stderr
-    for output in console_outputs:
-        if output.channel == CellChannel.STDOUT:
-            ipynb_outputs.append(
-                cast(
-                    nbformat.NotebookNode,
-                    nbformat.v4.new_output(  # type: ignore[no-untyped-call]
-                        "stream",
-                        name="stdout",
-                        text=output.data,
-                    ),
-                )
-            )
-        if output.channel == CellChannel.STDERR:
-            ipynb_outputs.append(
-                cast(
-                    nbformat.NotebookNode,
-                    nbformat.v4.new_output(  # type: ignore[no-untyped-call]
-                        "stream",
-                        name="stderr",
-                        text=output.data,
-                    ),
-                )
-            )
-
-    if not output:
-        return ipynb_outputs
-
-    if output.data is None:
-        return ipynb_outputs
-
-    if output.channel not in (CellChannel.OUTPUT, CellChannel.MEDIA):
-        return ipynb_outputs
-
-    if output.mimetype == "text/plain" and (
-        output.data == [] or output.data == ""
-    ):
-        return ipynb_outputs
-
-    # Handle rich output
-    data: dict[str, Any] = {}
-    metadata: dict[str, Any] = {}
-
-    if output.mimetype == "application/vnd.marimo+error":
-        # Captured by stdout/stderr
-        return ipynb_outputs
-    elif output.mimetype == "application/vnd.marimo+mimebundle":
-        if isinstance(output.data, dict):
-            mimebundle = output.data
-        elif isinstance(output.data, str):
-            mimebundle = json.loads(output.data)
-        else:
-            raise ValueError(f"Invalid data type: {type(output.data)}")
-
-        for mime, content in mimebundle.items():
-            if mime == METADATA_KEY and isinstance(content, dict):
-                metadata = content
-            else:
-                data[mime] = _maybe_extract_dataurl(content)
-    else:
-        data[output.mimetype] = _maybe_extract_dataurl(output.data)
-
-    if data:
-        ipynb_outputs.append(
-            cast(
-                nbformat.NotebookNode,
-                nbformat.v4.new_output(  # type: ignore[no-untyped-call]
-                    "display_data",
-                    data=data,
-                    metadata=metadata,
-                ),
-            )
-        )
-
-    return ipynb_outputs

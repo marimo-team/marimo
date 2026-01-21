@@ -397,6 +397,13 @@ edit_help_msg = "\n".join(
     type=float,
     help="Enable a global timeout to shut down the server after specified number of minutes of no connection",
 )
+@click.option(
+    "--session-ttl",
+    default=None,
+    show_default=False,
+    type=int,
+    help="Seconds to wait before closing a session on websocket disconnect. If None is provided, sessions are not automatically closed.",
+)
 @click.argument(
     "name",
     required=False,
@@ -425,6 +432,7 @@ def edit(
     server_startup_command: Optional[str],
     asset_url: Optional[str],
     timeout: Optional[float],
+    session_ttl: Optional[int],
     name: Optional[str],
     args: tuple[str, ...],
 ) -> None:
@@ -539,7 +547,7 @@ def edit(
         base_url=base_url,
         allow_origins=allow_origins,
         redirect_console_to_browser=True,
-        ttl_seconds=None,
+        ttl_seconds=session_ttl,
         remote_url=remote_url,
         mcp=mcp,
         server_startup_command=server_startup_command,

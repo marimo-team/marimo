@@ -9,6 +9,10 @@ from starlette.exceptions import HTTPException
 from starlette.responses import HTMLResponse, JSONResponse, PlainTextResponse
 
 from marimo import _loggers
+from marimo._convert.common.filename import (
+    get_download_filename,
+    make_download_headers,
+)
 from marimo._convert.markdown import convert_from_ir_to_markdown
 from marimo._convert.script import convert_from_ir_to_script
 from marimo._dependencies.dependencies import DependencyManager
@@ -16,14 +20,11 @@ from marimo._messaging.msgspec_encoder import asdict
 from marimo._server.api.deps import AppState
 from marimo._server.api.utils import parse_request
 from marimo._server.export.exporter import AutoExporter, Exporter
-from marimo._server.export.utils import (
-    get_download_filename,
-    make_download_headers,
-)
 from marimo._server.models.export import (
     ExportAsHTMLRequest,
     ExportAsMarkdownRequest,
     ExportAsScriptRequest,
+    UpdateCellOutputsRequest,
 )
 from marimo._server.models.models import SuccessResponse
 from marimo._server.router import APIRouter
@@ -416,3 +417,38 @@ async def auto_export_as_ipynb(
         content=asdict(SuccessResponse()),
         background=BackgroundTask(_background_export),
     )
+
+
+@router.post("/update_cell_outputs")
+@requires("edit")
+async def update_cell_outputs(
+    *, request: Request
+) -> JSONResponse | PlainTextResponse:
+    """
+    parameters:
+        - in: header
+          name: Marimo-Session-Id
+          schema:
+            type: string
+          required: true
+    requestBody:
+        content:
+            application/json:
+                schema:
+                    $ref: "#/components/schemas/UpdateCellOutputsRequest"
+    responses:
+        200:
+            description: Update the cell outputs
+            content:
+                application/json:
+                    schema:
+                        $ref: "#/components/schemas/SuccessResponse"
+        400:
+            description: File must be saved before downloading
+    """
+    app_state = AppState(request)
+    body = await parse_request(request, cls=UpdateCellOutputsRequest)
+    session = app_state.require_current_session()
+    session.session_view.update_cell_outputs(body.cell_ids_to_output)
+
+    return JSONResponse(content=asdict(SuccessResponse()))

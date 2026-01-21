@@ -344,6 +344,52 @@ def test_copy_file(client: TestClient) -> None:
     try_assert_n_times(5, _assert_contents)
 
 
+@with_session(SESSION_ID)
+def test_copy_file_with_relative_paths(client: TestClient) -> None:
+    """Test that copy works with relative paths when file_router has a directory."""
+    filename = get_session_manager(client).file_router.get_unique_file_key()
+    assert filename
+    path = Path(filename)
+    assert path.exists()
+    file_contents = path.read_text()
+    assert "import marimo as mo" in file_contents
+
+    # Get the directory and mock the file_router.directory property to simulate
+    # running from a subdirectory (marimo edit foo/dir/)
+    directory = str(path.parent)
+    file_router = get_session_manager(client).file_router
+
+    # Use relative paths (as the frontend would send when running from a
+    # subdirectory)
+    source_relative = path.name
+    dest_relative = f"_copy_{path.name}"
+    copied_file = path.parent / dest_relative
+
+    # Mock the directory property on the file router
+    with patch.object(
+        type(file_router),
+        "directory",
+        new_callable=lambda: property(lambda _: directory),
+    ):
+        response = client.post(
+            "/api/kernel/copy",
+            headers=HEADERS,
+            json={
+                "source": source_relative,
+                "destination": dest_relative,
+            },
+        )
+        assert response.status_code == 200, response.text
+        assert dest_relative in response.text
+
+    def _assert_contents():
+        file_contents = copied_file.read_text()
+        assert "import marimo as mo" in file_contents
+        assert 'marimo.App(width="full"' in file_contents
+
+    try_assert_n_times(5, _assert_contents)
+
+
 @with_websocket_session(SESSION_ID)
 def test_rename_propagates(
     client: TestClient, websocket: WebSocketTestSession

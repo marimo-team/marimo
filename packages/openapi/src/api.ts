@@ -852,6 +852,54 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/export/update_cell_outputs": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header: {
+          "Marimo-Session-Id": string;
+        };
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: {
+        content: {
+          "application/json": components["schemas"]["UpdateCellOutputsRequest"];
+        };
+      };
+      responses: {
+        /** @description Update the cell outputs */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["SuccessResponse"];
+          };
+        };
+        /** @description File must be saved before downloading */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/files/create": {
     parameters: {
       query?: never;
@@ -2913,8 +2961,6 @@ export interface components {
        * @enum {unknown}
        */
       language?: "markdown" | "python" | "sql";
-      /** @default [] */
-      messages?: components["schemas"]["ChatMessage"][];
       prompt: string;
       /** @default null */
       selectedText?: string | null;
@@ -2941,12 +2987,16 @@ export interface components {
      *         - `github`: the GitHub config
      *         - `openrouter`: the OpenRouter config
      *         - `wandb`: the Weights & Biases config
-     *         - `open_ai_compatible`: the OpenAI-compatible config
+     *         - `custom_providers`: a dict of custom OpenAI-compatible providers
+     *         - `open_ai_compatible`: the OpenAI-compatible config (deprecated, use custom_providers)
      */
     AiConfig: {
       anthropic?: components["schemas"]["AnthropicConfig"];
       azure?: components["schemas"]["OpenAiConfig"];
       bedrock?: components["schemas"]["BedrockConfig"];
+      custom_providers?: {
+        [key: string]: components["schemas"]["OpenAiConfig"];
+      };
       github?: components["schemas"]["GitHubConfig"];
       google?: components["schemas"]["GoogleAiConfig"];
       inline_tooltip?: boolean;
@@ -3170,7 +3220,9 @@ export interface components {
         | "application/vnd.marimo+mimebundle"
         | "application/vnd.marimo+traceback"
         | "application/vnd.vega.v5+json"
+        | "application/vnd.vega.v6+json"
         | "application/vnd.vegalite.v5+json"
+        | "application/vnd.vegalite.v6+json"
         | "image/avif"
         | "image/bmp"
         | "image/gif"
@@ -3220,7 +3272,6 @@ export interface components {
     ChatRequest: {
       context: components["schemas"]["AiCompletionContext"];
       includeOtherCode: string;
-      messages: components["schemas"]["ChatMessage"][];
       /** @default null */
       model?: string | null;
       /** @default null */
@@ -4423,6 +4474,7 @@ export interface components {
       server: components["schemas"]["ServerConfig"];
       sharing?: components["schemas"]["SharingConfig"];
       snippets?: components["schemas"]["SnippetsConfig"];
+      venv?: components["schemas"]["VenvConfig"];
     };
     /** MarimoExceptionRaisedError */
     MarimoExceptionRaisedError: {
@@ -4947,9 +4999,12 @@ export interface components {
      *             with Python's webbrowser module (eg, `"firefox"` or `"chrome"`)
      *         - `follow_symlink`: if true, the server will follow symlinks it finds
      *             inside its static assets directory.
+     *         - `disable_file_downloads`: if true, the file download button will be
+     *             hidden in the file explorer.
      */
     ServerConfig: {
       browser: "default" | string;
+      disable_file_downloads?: boolean;
       follow_symlink: boolean;
     };
     /** SetupRootError */
@@ -5191,6 +5246,39 @@ export interface components {
     UpdateCellIdsRequest: {
       cellIds: string[];
     };
+    /** UpdateCellOutputsRequest */
+    UpdateCellOutputsRequest: {
+      cellIdsToOutput: {
+        [key: string]: [
+          (
+            | "application/json"
+            | "application/vnd.jupyter.widget-view+json"
+            | "application/vnd.marimo+error"
+            | "application/vnd.marimo+mimebundle"
+            | "application/vnd.marimo+traceback"
+            | "application/vnd.vega.v5+json"
+            | "application/vnd.vega.v6+json"
+            | "application/vnd.vegalite.v5+json"
+            | "application/vnd.vegalite.v6+json"
+            | "image/avif"
+            | "image/bmp"
+            | "image/gif"
+            | "image/jpeg"
+            | "image/png"
+            | "image/svg+xml"
+            | "image/tiff"
+            | "text/csv"
+            | "text/html"
+            | "text/latex"
+            | "text/markdown"
+            | "text/plain"
+            | "video/mp4"
+            | "video/mpeg"
+          ),
+          unknown,
+        ];
+      };
+    };
     /**
      * UpdateUIElementCommand
      * @description Update UI element values.
@@ -5352,6 +5440,24 @@ export interface components {
       /** @enum {unknown} */
       op: "variables";
       variables: components["schemas"]["VariableDeclarationNotification"][];
+    };
+    /**
+     * VenvConfig
+     * @description Configuration for external Python environment in home sandbox mode.
+     *
+     *         Allows specifying an existing virtualenv to use instead of creating
+     *         ephemeral sandboxes per notebook. Only applies in home sandbox mode.
+     *
+     *         **Keys.**
+     *
+     *         - `path`: path to a virtualenv directory (absolute or relative to
+     *           pyproject.toml)
+     *         - `writable`: if true, marimo will manage script metadata (inline
+     *           dependencies). Defaults to false.
+     */
+    VenvConfig: {
+      path?: string;
+      writable?: boolean;
     };
     /** WorkspaceFilesRequest */
     WorkspaceFilesRequest: {

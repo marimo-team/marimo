@@ -20,8 +20,8 @@ variables in your notebook into a single searchable list.
 
 <div align="center">
 <picture>
-  <source srcset="/_static/docs-variables-panel.webp" type="image/webp">
-  <img src="/_static/docs-variables-panel.jpg" alt="Variables panel showing variable relationships" style="max-width: 700px; width: 100%;" />
+  <source srcset="/_static/docs-dataflow-variables-explorer.webp" type="image/webp">
+  <img src="/_static/docs-dataflow-variables-explorer.jpg" alt="Variables explorer panel showing variable names, types, and relationships" style="max-width: 700px; width: 100%;" />
 </picture>
 </div>
 
@@ -29,36 +29,32 @@ To open the panel, click the **variables icon** in the **left sidebar panel**.
 The variable explorer shows each variable's name, type, value, where it's
 defined, and where it's used.
 
-## Dependency explorer
+## Dependencies panel
 
-The **dependency explorer panel** provides a _bird's-eye view_ of your
-notebook's dataflow, showing all cells as an interactive graph. It helps you
-understand high-level patterns, overall connectedness, and the broader
-structure of your notebook.
+The **Dependencies panel** consolidates dataflow visualization tools into a
+single location with two tabs: **Minimap** (default) and **Graph**.
+
+To open it, click the **Dependencies icon** in the sidebar, or use the hotkey
+`Cmd/Ctrl-Shift-I` to toggle the panel.
 
 <div align="center">
 <picture>
-  <source srcset="/_static/docs-dependency-explorer.webp" type="image/webp">
-  <img src="/_static/docs-dependency-explorer.jpg" alt="Dependency explorer showing a graph view of cell connections" style="max-width: 700px; width: 100%;" />
+  <source srcset="/_static/docs-dataflow-dependencies-panel.webp" type="image/webp">
+  <img src="/_static/docs-dataflow-dependencies-panel.jpg" alt="Dependencies panel showing minimap and graph tabs" style="max-width: 700px; width: 100%;" />
 </picture>
 </div>
 
-To open the dependency explorer, click the **graph icon** in the **left sidebar
-panel**. You can choose between vertical or horizontal layouts.
+### Minimap
 
-## Minimap
-
-The **minimap** provides a _focused slice_ of your notebook's dataflow, helping
-you understand the reactive context of a given cell and navigate related cells.
-You can toggle the minimap a _hotkey_ (`Cmd/Ctrl-Shift-i`), or select the **map
-icon** from the **footer toolbar**.
+The **Minimap** tab (shown by default) provides a _focused slice_ of your
+notebook's dataflow, helping you understand the reactive context of a given
+cell and navigate related cells.
 
 Click a cell in the minimap to jump to it:
 
 <div align="center">
 <video autoplay muted loop playsinline style="max-width: 700px; width: 100%;">
-  <source src="/_static/docs-minimap.webm" type="video/webm">
-  <source src="/_static/docs-minimap.mp4" type="video/mp4">
+  <source src="/_static/docs-dataflow-minimap.webm" type="video/webm">
 </video>
 </div>
 
@@ -73,8 +69,8 @@ only through one or more intermediate cells
 The minimap can take some getting used to, but it's an effective representation
 for understanding how data flows around the current cell. It's meant to show
 _just enough_ local context to help you debug, trace relationships, and
-navigate complex notebooks. For a high level overview, use the [dependency
-explorer](#dependency-explorer).
+navigate complex notebooks. For a high level overview, use the [Graph
+view](#graph-view).
 
 ### Cell symbols
 
@@ -270,6 +266,20 @@ depends on. When tracing downstream, all variables in a dependent cell are
 considered affected. Our minimap also accounts for marimo's support for
 multi-column layouts.
 
+### Graph view
+
+The **Graph** tab provides a _bird's-eye view_ of your notebook's dataflow,
+showing all cells as an interactive graph. It helps you understand high-level
+patterns, overall connectedness, and the broader structure of your notebook.
+
+<div align="center">
+<picture>
+  <source srcset="/_static/docs-dataflow-graph.webp" type="image/webp">
+  <img src="/_static/docs-dataflow-graph.jpg" alt="Graph view showing all cells as an interactive dataflow graph" style="max-width: 700px; width: 100%;" />
+</picture>
+</div>
+
+You can choose between vertical or horizontal layouts for the graph.
 
 ## Reactive reference highlighting
 
@@ -286,8 +296,3 @@ when variables defined by other cells are used in the current cell. These
 
 Hover over any underlined variable and `Cmd/Ctrl-Click` to jump to its
 definition.
-
-This feature is currently **opt-in** and must be enabled via *Settings* > *User
-Settings* > *Display* > *Reference highlighting* or toggled via the command
-palette (`Cmd/Ctrl-K` > *Reference highlighting*).
-

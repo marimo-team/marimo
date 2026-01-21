@@ -519,6 +519,36 @@ x = as_marimo_element.count
         wrapped._update({"d": 4})
         assert wrapped.value == {"a": 100, "b": 200, "c": 300, "d": 4}
 
+    @staticmethod
+    async def test_getitem_and_contains() -> None:
+        """Test that __getitem__ and __contains__ are forwarded to the widget."""
+        from typing import Any
+
+        class DictLikeWidget(_anywidget.AnyWidget):
+            _esm = ""
+            data = traitlets.Dict({"a": 1, "b": 2}).tag(sync=True)
+
+            def __getitem__(self, key: str) -> Any:
+                return self.data[key]
+
+            def __contains__(self, key: str) -> bool:
+                return key in self.data
+
+        wrapped = anywidget(DictLikeWidget())
+
+        # Test __getitem__ forwarding
+        assert wrapped["a"] == 1
+        assert wrapped["b"] == 2
+
+        # Test __contains__ forwarding
+        assert "a" in wrapped
+        assert "b" in wrapped
+        assert "c" not in wrapped
+
+        # Test KeyError propagation
+        with pytest.raises(KeyError):
+            _ = wrapped["nonexistent"]
+
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
 class TestWireFormat:

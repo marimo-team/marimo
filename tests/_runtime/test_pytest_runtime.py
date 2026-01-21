@@ -1,3 +1,4 @@
+import asyncio
 import os
 from pathlib import Path
 
@@ -47,6 +48,8 @@ def test_smoke_test():
     previous = os.environ.get("PYTEST_CURRENT_TEST", "")
     os.environ["PYTEST_CURRENT_TEST"] = ""
     del os.environ["PYTEST_CURRENT_TEST"]
+    # Give time for env changes to sync (helps with race conditions on Windows)
+    asyncio.run(asyncio.sleep(0.1))
 
     # sanity check for run
     total = 0

@@ -142,8 +142,8 @@ describe("buildCellData", () => {
         cell2: "y = 2",
       },
       last_execution_time: {
-        cell1: 1234567890,
-        cell2: 1234567891,
+        cell1: 1_234_567_890,
+        cell2: 1_234_567_891,
       },
       app_config: {
         width: "normal",

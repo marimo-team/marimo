@@ -9,12 +9,14 @@ from typing import TYPE_CHECKING, Literal, Optional, cast
 
 from marimo import _loggers
 from marimo._ast.app import InternalApp
+from marimo._ast.errors import CycleError, MultipleDefinitionError
 from marimo._ast.load import load_app
 from marimo._cli.print import echo
 from marimo._config.config import RuntimeConfig
 from marimo._config.manager import (
     get_default_config_manager,
 )
+from marimo._convert.common.filename import get_download_filename
 from marimo._convert.converters import MarimoConvert
 from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.errors import Error, is_unexpected_error
@@ -28,7 +30,6 @@ from marimo._output.hypertext import patch_html_for_non_interactive_output
 from marimo._runtime.commands import AppMetadata, SerializedCLIArgs
 from marimo._schemas.serialization import NotebookSerialization
 from marimo._server.export.exporter import Exporter
-from marimo._server.export.utils import get_download_filename
 from marimo._server.file_router import AppFileRouter
 from marimo._server.models.export import ExportAsHTMLRequest
 from marimo._server.models.models import InstantiateNotebookRequest
@@ -94,9 +95,24 @@ def export_as_ipynb(
             did_error=True,
         )
 
+    # Try the requested sort mode, fall back to top-down if cycles exist
+    internal_app = InternalApp(app)
+    actual_sort_mode = sort_mode
+    if sort_mode == "topological":
+        try:
+            # Check if graph can be accessed (raises CycleError/MultipleDefinitionError)
+            _ = internal_app.graph
+        except (CycleError, MultipleDefinitionError):
+            echo(
+                "Warning: Notebook has errors, "
+                "using top-down order instead of topological.",
+                err=True,
+            )
+            actual_sort_mode = "top-down"
+
     result = Exporter().export_as_ipynb(
-        app=InternalApp(app),
-        sort_mode=sort_mode,
+        app=internal_app,
+        sort_mode=actual_sort_mode,
     )
     return ExportResult(
         contents=result,
@@ -153,10 +169,13 @@ async def run_app_then_export_as_ipynb(
     file_manager = file_router.get_file_manager(file_key)
 
     with patch_html_for_non_interactive_output():
+        # Use quiet=True to suppress runtime stdout/stderr since outputs
+        # are captured in the session_view and will be included in the ipynb
         (session_view, did_error) = await run_app_until_completion(
             file_manager,
             cli_args,
             argv,
+            quiet=True,
         )
 
     result = Exporter().export_as_ipynb(
@@ -235,6 +254,7 @@ async def run_app_until_completion(
     file_manager: AppFileManager,
     cli_args: SerializedCLIArgs,
     argv: list[str] | None,
+    quiet: bool = False,
 ) -> tuple[SessionView, bool]:
     from marimo._session.consumer import SessionConsumer
     from marimo._session.events import SessionEventBus
@@ -252,7 +272,7 @@ async def run_app_until_completion(
 
         def notify(self, notification: KernelMessage) -> None:
             data = deserialize_kernel_message(notification)
-            # Print errors to stderr
+            # Print errors to stderr (unless quiet mode)
             if isinstance(data, CellNotification):
                 output = data.output
                 console_output = data.console
@@ -261,13 +281,14 @@ async def run_app_until_completion(
                     for err in errors:
                         # Not all errors are fatal
                         if is_unexpected_error(err):
-                            echo(
-                                f"{err.__class__.__name__}: {err.describe()}",
-                                file=sys.stderr,
-                            )
+                            if not quiet:
+                                echo(
+                                    f"{err.__class__.__name__}: {err.describe()}",
+                                    file=sys.stderr,
+                                )
                             self.did_error = True
 
-                if console_output:
+                if console_output and not quiet:
                     console_as_list: list[CellOutput] = (
                         console_output
                         if isinstance(console_output, list)

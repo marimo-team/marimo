@@ -31,6 +31,7 @@ from marimo._server.session_manager import SessionManager
 from marimo._server.tokens import AuthToken
 from marimo._session.model import SessionMode
 from marimo._utils.net import find_free_port
+from tests._server.conftest import join_kernel_thread_tasks
 from tests._server.mocks import get_mock_session_manager, token_header
 
 if TYPE_CHECKING:
@@ -167,13 +168,18 @@ def edit_app() -> Starlette:
 
 @pytest.fixture
 def read_app() -> Starlette:
+    main = sys.modules["__main__"]
     app = create_starlette_app(base_url="")
     # Mock out the server
     with_server(app)
-    init_state(
-        session_manager=get_mock_session_manager(mode=SessionMode.RUN),
-    ).apply(app.state)
-    return app
+    session_manager = get_mock_session_manager(mode=SessionMode.RUN)
+    init_state(session_manager=session_manager).apply(app.state)
+    yield app
+
+    try:
+        join_kernel_thread_tasks(session_manager)
+    finally:
+        sys.modules["__main__"] = main
 
 
 @pytest.fixture(params=["read_app", "edit_app"])
@@ -196,6 +202,7 @@ def no_auth_edit_app() -> Starlette:
 
 @pytest.fixture
 def no_auth_read_app() -> Starlette:
+    main = sys.modules["__main__"]
     app = create_starlette_app(base_url="", enable_auth=False)
     session_manager = get_mock_session_manager(mode=SessionMode.RUN)
     # no auth
@@ -204,7 +211,13 @@ def no_auth_read_app() -> Starlette:
     init_state(session_manager=session_manager, enable_auth=False).apply(
         app.state
     )
-    return app
+
+    yield app
+
+    try:
+        join_kernel_thread_tasks(session_manager)
+    finally:
+        sys.modules["__main__"] = main
 
 
 @pytest.fixture(params=["no_auth_read_app", "no_auth_edit_app"])

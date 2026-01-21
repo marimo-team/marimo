@@ -91,6 +91,8 @@ const form = useForm<z.infer<typeof schema>>({ resolver: zodResolver(schema) });
 
 ## Testing
 
+### Unit Tests
+
 Tests live alongside source files or in `__tests__` directories.
 
 ```bash
@@ -98,10 +100,14 @@ pnpm --filter @marimo-team/frontend test                            # All tests
 pnpm --filter @marimo-team/frontend test src/__tests__/lru.test.ts  # Specific file
 ```
 
-Best practices
+Best practices:
 - test edge cases
 - use descriptive names
 - group with `describe`
+
+### E2E Tests
+
+E2E tests use Playwright. See [e2e-tests/README.md](e2e-tests/README.md) for details.
 
 ## Type Patterns
 

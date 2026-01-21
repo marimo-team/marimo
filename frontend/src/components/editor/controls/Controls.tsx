@@ -54,9 +54,7 @@ export const Controls = ({
   onRun,
   connectionState,
   running,
-  appConfig,
 }: ControlsProps): JSX.Element => {
-  const appWidth = appConfig.width;
   const undoAvailable = useAtomValue(canUndoDeletesAtom);
   const needsRun = useAtomValue(needsRunAtom);
   const { undoDeleteCell } = useCellActions();
@@ -103,12 +101,7 @@ export const Controls = ({
         </div>
       )}
 
-      <div
-        className={cn(
-          bottomRightControls,
-          appWidth === "compact" && "xl:flex-row items-end",
-        )}
-      >
+      <div className={cn(bottomRightControls)}>
         <HideInKioskMode>
           <SaveComponent kioskMode={false} />
         </HideInKioskMode>

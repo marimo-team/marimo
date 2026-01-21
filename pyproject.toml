@@ -4,7 +4,7 @@ build-backend = "uv_build"
 
 [project]
 name = "marimo"
-version = "0.19.2"
+version = "0.19.4"
 description = "A library for making reactive notebooks and apps"
 # We try to keep dependencies to a minimum, to avoid conflicts with
 # user environments; we need a very compelling reason for each dependency added.
@@ -97,11 +97,11 @@ sandbox = [
 # in order to unlock all features in marimo
 recommended = [
     "marimo[sql]",
-    "marimo[sandbox]",          # For `marimo edit --sandbox DIRECTORY`
-    "altair>=5.4.0",            # Plotting in datasource viewer
-    "openai>=1.55.3",           # AI features
-    "ruff",                     # Formatting
-    "nbformat>=5.7.0",          # Export as IPYNB
+    "marimo[sandbox]",                  # For `marimo edit --sandbox DIRECTORY`
+    "altair>=5.4.0",                    # Plotting in datasource viewer
+    "pydantic-ai-slim[openai]>=1.39.0", # AI features
+    "ruff",                             # Formatting
+    "nbformat>=5.7.0",                  # Export as IPYNB
 ]
 
 lsp = [
@@ -129,7 +129,7 @@ dev = [
     # For linting
     "ruff>=0.13.2",
     # For AI
-    "openai>=1.55.3",
+    "pydantic-ai-slim[openai]>=1.39.0",
 ]
 
 test = [
@@ -153,6 +153,57 @@ test = [
     "zstandard>=0.21.0",
     "cffi>=1.16.0",
 ]
+
+test-optional = [
+    # For testing ADBC driver-based SQL connections
+    "adbc_driver_manager",
+    "adbc_driver_sqlite",
+    "python-lsp-server>=1.10.0",
+    # For testing mo.ui.chart, table, ...
+    "vl-convert-python",
+    "vegafusion",
+    "pyarrow>=19.0.1",
+    "pyarrow_hotfix",
+    "altair>=5.4.0",
+    "plotly>=5.14.0",
+    "polars>=1.32.2",
+    "sqlglot[rs]>=26.2.0",
+    "sqlalchemy>=2.0.40",
+    "pyiceberg>=0.9.0",
+    # For testing clickhouse
+    "chdb>=3; platform_system != 'Windows'", # there is no suitable wheel for windows
+    "clickhouse-connect>=0.8.18",
+    "redshift-connector[full]>=2.1.7",
+    "pandas>=1.5.3",
+    "hvplot~=0.11.3",
+    # Causes issues installing `shapely` (v2.0.7)
+    # "geopandas~=1.0.1",
+    "duckdb>=1.0.0",
+    "ibis-framework[duckdb]>=10.3.0",
+    # For testing mo.image
+    "pillow~=10.4.0",
+    "anywidget~=0.9.18",
+    "ipython~=8.12.3",
+    # testing gen ai
+    "pydantic-ai-slim[google,anthropic,bedrock,openai]>=1.39.0",
+    # - google-auth uses cachetools, and cachetools<5.0.0 uses collections.MutableMapping (removed in Python 3.10)
+    "cachetools>=5.0.0",
+    "boto3>=1.38.46",
+    # for bedrock ui chat
+    "litellm>=1.70.0",
+    # exporting as ipynb
+    "nbformat>=5.10.4",
+    "sympy>=1.13.3",
+    "jupytext>=1.17.2",
+    # For standard scientific computing/ ML
+    "jax>=0.4.0; python_version == '3.12'",
+    "torch>=2.4.0; python_version == '3.12'",
+    "scikit-bio>=0.6.3; python_version == '3.12'",
+    "mcp>=1.0.0",
+    # zeromq
+    "pyzmq>=27.1.0",
+]
+
 
 [tool.hatch]
 installer = "uv"
@@ -192,8 +243,7 @@ dependencies = [
     "matplotlib>=3.8.0",
     "sqlglot[rs]>=26.2.0",
     "sqlalchemy>=2.0.40",
-    "pydantic-ai-slim[google,anthropic,bedrock]>=1.39.0",
-    "openai>=1.55.3",
+    "pydantic-ai-slim[google,anthropic,bedrock,openai]>=1.39.0",
     "loro>=1.5.0",
     "pandas-stubs>=1.5.3.230321",
     "pyiceberg>=0.9.0",
@@ -240,57 +290,7 @@ test-narwhals = """
 
 [tool.hatch.envs.test-optional]
 template = "test"
-dependency-groups = ["dev", "test"]
-extra-dependencies = [
-    # For testing ADBC driver-based SQL connections
-    "adbc_driver_manager",
-    "adbc_driver_sqlite",
-    "python-lsp-server>=1.10.0",
-    # For testing mo.ui.chart, table, ...
-    "vl-convert-python",
-    "vegafusion",
-    "pyarrow>=19.0.1",
-    "pyarrow_hotfix",
-    "altair>=5.4.0",
-    "plotly>=5.14.0",
-    "polars>=1.32.2",
-    "sqlglot[rs]>=26.2.0",
-    "sqlalchemy>=2.0.40",
-    "pyiceberg>=0.9.0",
-    # For testing clickhouse
-    "chdb>=3; platform_system != 'Windows'", # there is no suitable wheel for windows
-    "clickhouse-connect>=0.8.18",
-    "redshift-connector[full]>=2.1.7",
-    "pandas>=1.5.3",
-    "hvplot~=0.11.3",
-    # Causes issues installing `shapely` (v2.0.7)
-    # "geopandas~=1.0.1",
-    "duckdb>=1.0.0",
-    "ibis-framework[duckdb]>=10.3.0",
-    # For testing mo.image
-    "pillow~=10.4.0",
-    "anywidget~=0.9.18",
-    "ipython~=8.12.3",
-    # testing gen ai
-    "openai>=1.55.3",
-    "pydantic-ai-slim[google,anthropic,bedrock]>=1.39.0",
-    # - google-auth uses cachetools, and cachetools<5.0.0 uses collections.MutableMapping (removed in Python 3.10)
-    "cachetools>=5.0.0",
-    "boto3>=1.38.46",
-    # for bedrock ui chat
-    "litellm>=1.70.0",
-    # exporting as ipynb
-    "nbformat>=5.10.4",
-    "sympy>=1.13.3",
-    "jupytext>=1.17.2",
-    # For standard scientific computing/ ML
-    "jax>=0.4.0; python_version == '3.12'",
-    "torch>=2.4.0; python_version == '3.12'",
-    "scikit-bio>=0.6.3; python_version == '3.12'",
-    "mcp>=1.0.0",
-    # zeromq
-    "pyzmq>=27.1.0",
-]
+dependency-groups = ["dev", "test", "test-optional"]
 
 [[tool.hatch.envs.test-optional.matrix]]
 python = ["3.10", "3.11", "3.12", "3.13", "3.14"]
@@ -353,8 +353,7 @@ exclude = [
     "tests/_ast/codegen_data",
     "tests/_ast/test_app.py",
     "tests/_cli/cli_data",
-    "tests/_cli/ipynb_data",
-    "tests/_convert/ipynb_data/*.ipynb",
+    "tests/**/fixtures",
     "tests/_lint/test_files",
     "tests/_runtime/runtime_data",
 ]
@@ -503,7 +502,6 @@ exclude = [
     'tests/_ast/codegen_data',
     'tests/_ast/cell_data',
     'tests/_cli/cli_data',
-    'tests/_cli/ipynb_data',
     'tests/_runtime/runtime_data',
     'marimo/_snippets/data/',
     'marimo/_smoke_tests/',
@@ -512,7 +510,7 @@ warn_unused_ignores = false
 
 [tool.pytest.ini_options]
 minversion = "6.0"
-addopts = "-ra -q -v --ignore tests/_cli/ipynb_data --ignore tests/_ast/codegen_data --ignore tests/_ast/app_data"
+addopts = "-ra -q -v --ignore tests/_cli/fixtures --ignore tests/_ast/codegen_data --ignore tests/_ast/app_data"
 testpaths = ["tests"]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"

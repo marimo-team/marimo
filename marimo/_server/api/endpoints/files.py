@@ -202,9 +202,11 @@ async def copy(
     body = await parse_request(request, cls=CopyNotebookRequest)
 
     # Resolve relative filenames against the file router's directory
-    if body.destination and not Path(body.destination).is_absolute():
-        directory = app_state.session_manager.file_router.directory
-        if directory:
+    directory = app_state.session_manager.file_router.directory
+    if directory:
+        if body.source and not Path(body.source).is_absolute():
+            body.source = str(Path(directory) / body.source)
+        if body.destination and not Path(body.destination).is_absolute():
             body.destination = str(Path(directory) / body.destination)
 
     session = app_state.require_current_session()

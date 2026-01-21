@@ -249,7 +249,6 @@
   }
 
   /* Borderless styles for Cell */
-
   &.borderless {
     border-color: transparent;
 
@@ -258,7 +257,6 @@
     }
 
     /* Apply the original styles */
-    &:hover,
     &:focus {
       border: 1px solid var(--gray-4);
     }

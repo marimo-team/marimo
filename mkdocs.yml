@@ -114,6 +114,8 @@ nav:
       - Editor features:
           - Editor features: guides/editor_features/index.md
           - Editor overview: guides/editor_features/overview.md
+          - Home page: guides/editor_features/home.md
+          - Sidebar and Developer Panel: guides/editor_features/panels.md
           - Understanding dataflow: guides/editor_features/dataflow.md
           - Module autoreloading: guides/editor_features/module_autoreloading.md
           - Hotkeys: guides/editor_features/hotkeys.md

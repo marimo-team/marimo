@@ -13,6 +13,7 @@ from marimo._data.models import (
     Schema,
 )
 from marimo._messaging.cell_output import CellChannel, CellOutput
+from marimo._messaging.errors import UnknownError
 from marimo._messaging.msgspec_encoder import asdict as serialize
 from marimo._messaging.notification import (
     CellNotification,
@@ -1522,3 +1523,173 @@ def test_session_view_package_logs_empty_content(
 
     assert "empty_logs" in session_view.package_logs
     assert session_view.package_logs["empty_logs"] == ""
+
+
+class TestUpdateCellOutputs:
+    """Tests for SessionView.update_cell_outputs method."""
+
+    def test_creates_new_output_when_none(self) -> None:
+        """When existing output is None, creates a new CellOutput."""
+        session_view = SessionView()
+        cell_id = CellId_t("cell1")
+        session_view.cell_notifications[cell_id] = CellNotification(
+            cell_id=cell_id, output=None, status="idle"
+        )
+
+        session_view.update_cell_outputs(
+            {cell_id: ("image/png", "base64_data")}
+        )
+
+        output = session_view.cell_notifications[cell_id].output
+        assert output is not None
+        assert output.channel == CellChannel.OUTPUT
+        assert output.mimetype == "image/png"
+        assert output.data == "base64_data"
+
+    def test_skips_error_output(self) -> None:
+        """When existing output data is a list (errors), skips update."""
+        session_view = SessionView()
+        cell_id = CellId_t("cell1")
+        error = UnknownError(msg="Something went wrong")
+        error_output = CellOutput(
+            channel=CellChannel.OUTPUT,
+            mimetype="application/vnd.marimo+error",
+            data=[error],
+        )
+        session_view.cell_notifications[cell_id] = CellNotification(
+            cell_id=cell_id, output=error_output, status="idle"
+        )
+
+        session_view.update_cell_outputs(
+            {cell_id: ("image/png", "base64_data")}
+        )
+
+        # Output should be unchanged
+        assert session_view.cell_notifications[cell_id].output == error_output
+
+    def test_merges_into_existing_mimebundle(self) -> None:
+        """When existing output is a mimebundle, merges new data into it."""
+        session_view = SessionView()
+        cell_id = CellId_t("cell1")
+        session_view.cell_notifications[cell_id] = CellNotification(
+            cell_id=cell_id,
+            output=CellOutput(
+                channel=CellChannel.OUTPUT,
+                mimetype="application/vnd.marimo+mimebundle",
+                data={"text/html": "<div>Chart</div>"},
+            ),
+            status="idle",
+        )
+
+        session_view.update_cell_outputs(
+            {cell_id: ("image/png", "base64_data")}
+        )
+
+        output = session_view.cell_notifications[cell_id].output
+        assert output is not None
+        assert output.channel == CellChannel.OUTPUT
+        assert output.mimetype == "application/vnd.marimo+mimebundle"
+        assert output.data == {
+            "text/html": "<div>Chart</div>",
+            "image/png": "base64_data",
+        }
+
+    def test_converts_string_output_to_mimebundle(self) -> None:
+        """When existing output is a string, converts to mimebundle."""
+        session_view = SessionView()
+        cell_id = CellId_t("cell1")
+        session_view.cell_notifications[cell_id] = CellNotification(
+            cell_id=cell_id,
+            output=CellOutput(
+                channel=CellChannel.OUTPUT,
+                mimetype="text/html",
+                data="<div>Original</div>",
+            ),
+            status="idle",
+        )
+
+        session_view.update_cell_outputs(
+            {cell_id: ("image/png", "base64_data")}
+        )
+
+        output = session_view.cell_notifications[cell_id].output
+        assert output is not None
+        assert output.mimetype == "application/vnd.marimo+mimebundle"
+        assert output.data == {
+            "text/html": "<div>Original</div>",
+            "image/png": "base64_data",
+        }
+
+    def test_overwrites_same_mimetype(self) -> None:
+        """When merging same mimetype, new data overwrites old."""
+        session_view = SessionView()
+        cell_id = CellId_t("cell1")
+        session_view.cell_notifications[cell_id] = CellNotification(
+            cell_id=cell_id,
+            output=CellOutput(
+                channel=CellChannel.OUTPUT,
+                mimetype="application/vnd.marimo+mimebundle",
+                data={"text/html": "<div>HTML</div>", "image/png": "old_data"},
+            ),
+            status="idle",
+        )
+
+        session_view.update_cell_outputs({cell_id: ("image/png", "new_data")})
+
+        output = session_view.cell_notifications[cell_id].output
+        assert output is not None
+        assert output.data == {
+            "text/html": "<div>HTML</div>",
+            "image/png": "new_data",
+        }
+
+    def test_skips_missing_cell(self) -> None:
+        """When cell doesn't exist, logs warning and continues."""
+        session_view = SessionView()
+
+        # Should not raise
+        session_view.update_cell_outputs(
+            {CellId_t("missing"): ("image/png", "data")}
+        )
+
+    def test_marks_exports_stale(self) -> None:
+        """Calling update_cell_outputs marks all exports as stale."""
+        session_view = SessionView()
+        cell_id = CellId_t("cell1")
+        session_view.cell_notifications[cell_id] = CellNotification(
+            cell_id=cell_id, output=None, status="idle"
+        )
+
+        # Mark exports as done
+        session_view.mark_auto_export_html()
+        session_view.mark_auto_export_ipynb()
+        assert not session_view.needs_export("html")
+        assert not session_view.needs_export("ipynb")
+
+        session_view.update_cell_outputs({cell_id: ("image/png", "data")})
+
+        # Should be stale now
+        assert session_view.needs_export("html")
+        assert session_view.needs_export("ipynb")
+
+    def test_skips_malformed_mimebundle(self) -> None:
+        """When mimetype is mimebundle but data is not a dict, skips."""
+        session_view = SessionView()
+        cell_id = CellId_t("cell1")
+        malformed_output = CellOutput(
+            channel=CellChannel.OUTPUT,
+            mimetype="application/vnd.marimo+mimebundle",
+            data="not a dict",
+        )
+        session_view.cell_notifications[cell_id] = CellNotification(
+            cell_id=cell_id, output=malformed_output, status="idle"
+        )
+
+        session_view.update_cell_outputs(
+            {cell_id: ("image/png", "base64_data")}
+        )
+
+        # Output should be unchanged
+        assert (
+            session_view.cell_notifications[cell_id].output == malformed_output
+        )

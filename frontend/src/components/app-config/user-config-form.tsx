@@ -69,14 +69,21 @@ export function getDirtyValues<T extends FieldValues>(
   dirtyFields: Partial<Record<keyof T, unknown>>,
 ): Partial<T> {
   const result: Partial<T> = {};
-  for (const key of Object.keys(dirtyFields) as Array<keyof T>) {
+  for (const key of Object.keys(dirtyFields) as (keyof T)[]) {
     const dirty = dirtyFields[key];
+    const value = values[key];
+
+    // Skip if the value no longer exists (e.g., deleted from a record)
+    if (value === undefined) {
+      continue;
+    }
+
     if (dirty === true) {
-      result[key] = values[key];
+      result[key] = value;
     } else if (typeof dirty === "object" && dirty !== null) {
       // Nested object - recurse
       const nested = getDirtyValues(
-        values[key] as FieldValues,
+        value as FieldValues,
         dirty as Partial<Record<string, unknown>>,
       );
       if (Object.keys(nested).length > 0) {
@@ -986,7 +993,7 @@ export const UserConfigForm: React.FC = () => {
                       <br />
                       <br />
                       Running marimo in a{" "}
-                      <ExternalLink href="https://docs.marimo.io/guides/editor_features/package_management.html#running-marimo-in-a-sandbox-environment-uv-only">
+                      <ExternalLink href="https://docs.marimo.io/guides/package_management/inlining_dependencies.html">
                         sandboxed environment
                       </ExternalLink>{" "}
                       is only supported by <Kbd className="inline">uv</Kbd>

@@ -2,9 +2,8 @@
 
 import { once } from "lodash-es";
 import { getRuntimeManager } from "../runtime/config";
-import { store } from "../state/jotai";
 import { API, createClientWithRuntimeManager } from "./api";
-import { isConnectedAtom, waitForConnectionOpen } from "./connection";
+import { waitForConnectionOpen } from "./connection";
 import type { EditRequests, RunRequests } from "./types";
 
 const { handleResponse, handleResponseReturnNull } = API;
@@ -105,11 +104,7 @@ export function createNetworkRequests(): EditRequests & RunRequests {
         .then(handleResponseReturnNull);
     },
     sendRun: async (request) => {
-      // Rather than waiting, we just drop all sendRun requests if the connection is not open.
-      // Otherwise we can get into a weird state of sending requests for cells that no longer exist.
-      if (!store.get(isConnectedAtom)) {
-        return null;
-      }
+      await waitForConnectionOpen();
       return getClient()
         .POST("/api/kernel/run", {
           body: request,
@@ -405,6 +400,14 @@ export function createNetworkRequests(): EditRequests & RunRequests {
     autoExportAsIPYNB: async (request) => {
       return getClient()
         .POST("/api/export/auto_export/ipynb", {
+          body: request,
+          params: getParams(),
+        })
+        .then(handleResponseReturnNull);
+    },
+    updateCellOutputs: async (request) => {
+      return getClient()
+        .POST("/api/export/update_cell_outputs", {
           body: request,
           params: getParams(),
         })

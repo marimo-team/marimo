@@ -1,6 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { useAtom } from "jotai";
+import { useAtom, useAtomValue } from "jotai";
 import { atomWithStorage } from "jotai/utils";
 import {
   ArrowLeftIcon,
@@ -47,6 +47,7 @@ import { Tooltip } from "@/components/ui/tooltip";
 import { toast } from "@/components/ui/use-toast";
 import { useCellActions } from "@/core/cells/cells";
 import { useLastFocusedCellId } from "@/core/cells/focus";
+import { disableFileDownloadsAtom } from "@/core/config/config";
 import { useRequestClient } from "@/core/network/requests";
 import type { FileInfo } from "@/core/network/types";
 import { isWasm } from "@/core/wasm/utils";
@@ -396,6 +397,7 @@ const Edit = ({ node }: { node: NodeApi<FileInfo> }) => {
 const Node = ({ node, style, dragHandle }: NodeRendererProps<FileInfo>) => {
   const { openFile, sendCreateFileOrFolder, sendFileDetails } =
     useRequestClient();
+  const disableFileDownloads = useAtomValue(disableFileDownloadsAtom);
 
   const fileType: FileType = node.data.isDirectory
     ? "directory"
@@ -611,7 +613,7 @@ const Node = ({ node, style, dragHandle }: NodeRendererProps<FileInfo>) => {
           </>
         )}
         <DropdownMenuSeparator />
-        {!node.data.isDirectory && (
+        {!node.data.isDirectory && !disableFileDownloads && (
           <>
             <DropdownMenuItem
               onSelect={async () => {
