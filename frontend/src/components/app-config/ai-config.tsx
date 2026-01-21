@@ -115,6 +115,7 @@ interface ApiKeyProps {
   placeholder: string;
   testId: string;
   description?: React.ReactNode;
+  onChange?: (value: string) => void;
 }
 
 export const ApiKey: React.FC<ApiKeyProps> = ({
@@ -124,6 +125,7 @@ export const ApiKey: React.FC<ApiKeyProps> = ({
   placeholder,
   testId,
   description,
+  onChange,
 }) => {
   return (
     <FormField
@@ -146,6 +148,7 @@ export const ApiKey: React.FC<ApiKeyProps> = ({
                   const value = e.target.value;
                   if (!value.includes("*")) {
                     field.onChange(value);
+                    onChange?.(value);
                   }
                 }}
               />
@@ -168,6 +171,7 @@ interface BaseUrlProps {
   testId: string;
   description?: React.ReactNode;
   disabled?: boolean;
+  onChange?: (value: string) => void;
 }
 
 function asStringOrEmpty<T>(value: T): string {
@@ -190,6 +194,7 @@ export const BaseUrl: React.FC<BaseUrlProps> = ({
   testId,
   description,
   disabled = false,
+  onChange,
 }) => {
   return (
     <FormField
@@ -208,6 +213,10 @@ export const BaseUrl: React.FC<BaseUrlProps> = ({
                 {...field}
                 value={asStringOrEmpty(field.value)}
                 disabled={disabled}
+                onChange={(e) => {
+                  field.onChange(e.target.value);
+                  onChange?.(e.target.value);
+                }}
               />
             </FormControl>
             <FormMessage />
@@ -711,6 +720,22 @@ export const CustomProvidersConfig: React.FC<AiConfigProps> = ({
           </div>
         );
 
+        // Update a provider field by updating the entire custom_providers object.
+        // As this config will be replaced, it needs to be sent in its entirety.
+        const updateProviderField = (opts: {
+          providerName: string;
+          fieldName: keyof CustomProviderConfig;
+          value: string;
+        }) => {
+          field.onChange({
+            ...customProviders,
+            [opts.providerName]: {
+              ...customProviders[opts.providerName],
+              [opts.fieldName]: opts.value || undefined,
+            },
+          });
+        };
+
         const renderAccordionItem = ({
           providerName,
           providerConfig,
@@ -740,6 +765,13 @@ export const CustomProvidersConfig: React.FC<AiConfigProps> = ({
                 }
                 placeholder="sk-..."
                 testId={`custom-provider-${providerName}-api-key`}
+                onChange={(value) =>
+                  updateProviderField({
+                    providerName,
+                    fieldName: "api_key",
+                    value,
+                  })
+                }
               />
               <BaseUrl
                 form={form}
@@ -749,6 +781,13 @@ export const CustomProvidersConfig: React.FC<AiConfigProps> = ({
                 }
                 placeholder="https://api.example.com/v1"
                 testId={`custom-provider-${providerName}-base-url`}
+                onChange={(value) =>
+                  updateProviderField({
+                    providerName,
+                    fieldName: "base_url",
+                    value,
+                  })
+                }
               />
               <Button
                 variant="destructive"
