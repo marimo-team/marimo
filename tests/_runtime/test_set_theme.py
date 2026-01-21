@@ -11,9 +11,9 @@ from tests._messaging.mocks import MockStream
 def test_set_theme_dark() -> None:
     """Test set_theme with dark theme broadcasts correct notification."""
     stream = MockStream()
-    
+
     set_theme("dark")
-    
+
     # Note: broadcast_notification uses the global stream, so we need to check
     # if it was called correctly. For now, we just verify the function runs.
 
@@ -21,9 +21,9 @@ def test_set_theme_dark() -> None:
 def test_set_theme_light() -> None:
     """Test set_theme with light theme broadcasts correct notification."""
     stream = MockStream()
-    
+
     set_theme("light")
-    
+
     # Note: broadcast_notification uses the global stream, so we need to check
     # if it was called correctly. For now, we just verify the function runs.
 

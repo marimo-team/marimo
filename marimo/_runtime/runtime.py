@@ -373,7 +373,7 @@ def set_theme(theme: Literal["light", "dark"]) -> None:
             label="Toggle Dark Mode",
             on_click=lambda _: mo.set_theme(
                 "light" if mo.app_meta().theme == "dark" else "dark"
-            )
+            ),
         )
         button
         ```

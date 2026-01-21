@@ -30,7 +30,7 @@ import { useRunsActions } from "../cells/runs";
 import { focusAndScrollCellOutputIntoView } from "../cells/scrollCellIntoView";
 import type { CellData } from "../cells/types";
 import { capabilitiesAtom } from "../config/capabilities";
-import { useSetAppConfig, userConfigAtom } from "../config/config";
+import { userConfigAtom, useSetAppConfig } from "../config/config";
 import { useDataSourceActions } from "../datasets/data-source-connections";
 import type { ConnectionName } from "../datasets/engines";
 import {
@@ -321,7 +321,7 @@ export function useMarimoKernelConnection(opts: {
           },
         }));
         return;
-      
+
       default:
         logNever(msg.data);
     }

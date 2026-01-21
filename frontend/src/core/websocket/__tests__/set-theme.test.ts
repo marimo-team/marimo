@@ -7,10 +7,10 @@ import { defaultUserConfig } from "../../config/config-schema";
 
 test("set-theme message updates userConfigAtom", () => {
   const store = createStore();
-  
+
   // Initialize with default config
   store.set(userConfigAtom, defaultUserConfig());
-  
+
   // Simulate receiving a set-theme message
   store.set(userConfigAtom, (prev) => ({
     ...prev,
@@ -26,7 +26,7 @@ test("set-theme message updates userConfigAtom", () => {
 
 test("set-theme preserves other config values", () => {
   const store = createStore();
-  
+
   const customConfig = {
     ...defaultUserConfig(),
     display: {
@@ -35,9 +35,9 @@ test("set-theme preserves other config values", () => {
       theme: "light",
     },
   };
-  
+
   store.set(userConfigAtom, customConfig);
-  
+
   // Simulate receiving a set-theme message
   store.set(userConfigAtom, (prev) => ({
     ...prev,
@@ -54,9 +54,9 @@ test("set-theme preserves other config values", () => {
 
 test("set-theme can toggle between light and dark", () => {
   const store = createStore();
-  
+
   store.set(userConfigAtom, defaultUserConfig());
-  
+
   // Toggle to dark
   store.set(userConfigAtom, (prev) => ({
     ...prev,
@@ -65,9 +65,9 @@ test("set-theme can toggle between light and dark", () => {
       theme: "dark",
     },
   }));
-  
+
   expect(store.get(userConfigAtom).display.theme).toBe("dark");
-  
+
   // Toggle back to light
   store.set(userConfigAtom, (prev) => ({
     ...prev,
@@ -76,6 +76,6 @@ test("set-theme can toggle between light and dark", () => {
       theme: "light",
     },
   }));
-  
+
   expect(store.get(userConfigAtom).display.theme).toBe("light");
 });
