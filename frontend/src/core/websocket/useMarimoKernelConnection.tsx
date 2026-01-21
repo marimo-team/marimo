@@ -312,7 +312,7 @@ export function useMarimoKernelConnection(opts: {
       case "update-cell-ids":
         setCellIds({ cellIds: msg.data.cell_ids as CellId[] });
         return;
-      case "set-theme": {
+      case "set-theme":
         setUserConfig((prev) => ({
           ...prev,
           display: {
@@ -321,7 +321,7 @@ export function useMarimoKernelConnection(opts: {
           },
         }));
         return;
-      }
+      
       default:
         logNever(msg.data);
     }
