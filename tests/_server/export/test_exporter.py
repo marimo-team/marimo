@@ -906,6 +906,11 @@ class TestPDFExport:
 
             assert "for PDF export" in str(excinfo.value)
 
+    @pytest.mark.skipif(
+        not DependencyManager.nbformat.has()
+        or not DependencyManager.nbconvert.has(),
+        reason="nbformat or nbconvert not installed",
+    )
     def test_export_as_pdf_webpdf_requires_playwright(
         self,
         session_view: SessionView,
