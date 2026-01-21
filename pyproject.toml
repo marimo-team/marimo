@@ -178,8 +178,7 @@ test-optional = [
     "redshift-connector[full]>=2.1.7",
     "pandas>=1.5.3",
     "hvplot~=0.11.3",
-    # Causes issues installing `shapely` (v2.0.7)
-    # "geopandas~=1.0.1",
+    "geopandas>=1.1.0",
     "duckdb>=1.0.0",
     "ibis-framework[duckdb]>=10.3.0",
     # For testing mo.image
