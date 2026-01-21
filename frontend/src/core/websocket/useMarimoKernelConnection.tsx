@@ -30,7 +30,7 @@ import { useRunsActions } from "../cells/runs";
 import { focusAndScrollCellOutputIntoView } from "../cells/scrollCellIntoView";
 import type { CellData } from "../cells/types";
 import { capabilitiesAtom } from "../config/capabilities";
-import { useSetAppConfig } from "../config/config";
+import { useSetAppConfig, userConfigAtom } from "../config/config";
 import { useDataSourceActions } from "../datasets/data-source-connections";
 import type { ConnectionName } from "../datasets/engines";
 import {
@@ -106,6 +106,7 @@ export function useMarimoKernelConnection(opts: {
   const runtimeManager = useRuntimeManager();
   const setCacheInfo = useSetAtom(cacheInfoAtom);
   const setKernelStartupError = useSetAtom(kernelStartupErrorAtom);
+  const setUserConfig = useSetAtom(userConfigAtom);
 
   const handleMessage = (e: MessageEvent<JsonString<NotificationPayload>>) => {
     const msg = jsonParseWithSpecialChar(e.data);
@@ -311,6 +312,16 @@ export function useMarimoKernelConnection(opts: {
       case "update-cell-ids":
         setCellIds({ cellIds: msg.data.cell_ids as CellId[] });
         return;
+      case "set-theme": {
+        setUserConfig((prev) => ({
+          ...prev,
+          display: {
+            ...prev.display,
+            theme: msg.data.theme,
+          },
+        }));
+        return;
+      }
       default:
         logNever(msg.data);
     }

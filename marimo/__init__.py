@@ -74,6 +74,7 @@ __all__ = [
     "right",
     "routes",
     "running_in_notebook",
+    "set_theme",
     "show_code",
     "sidebar",
     "sql",
@@ -145,6 +146,7 @@ from marimo._runtime.runtime import (
     notebook_location,
     query_params,
     refs,
+    set_theme,
 )
 from marimo._runtime.state import state
 from marimo._runtime.threads import Thread, current_thread

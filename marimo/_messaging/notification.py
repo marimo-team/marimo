@@ -433,6 +433,13 @@ class UpdateCellIdsNotification(Notification, tag="update-cell-ids"):
     cell_ids: list[CellId_t]
 
 
+class SetThemeNotification(Notification, tag="set-theme"):
+    """Set the display theme of the app at runtime."""
+
+    name: ClassVar[str] = "set-theme"
+    theme: Literal["light", "dark"]
+
+
 NotificationMessage = Union[
     # Cell notifications
     CellNotification,
@@ -478,4 +485,6 @@ NotificationMessage = Union[
     FocusCellNotification,
     UpdateCellCodesNotification,
     UpdateCellIdsNotification,
+    # Theme
+    SetThemeNotification,
 ]
