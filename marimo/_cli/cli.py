@@ -525,6 +525,23 @@ def edit(
                 "Or: pip install pyzmq"
             )
 
+    # Check shared memory availability early (required for edit mode to
+    # communicate between the server process and kernel subprocess)
+    from marimo._utils.platform import check_shared_memory_available
+
+    shm_available, shm_error = check_shared_memory_available()
+    if not shm_available:
+        _loggers.marimo_logger().error(
+            f"marimo failed to start: marimo edit requires shared memory support for multiprocessing.\n\n"
+            f"{shm_error}\n\n"
+            "Possible solutions:\n"
+            "  - If running in Docker, ensure /dev/shm is mounted with sufficient size\n"
+            "    (e.g., --shm-size=256m or -v /dev/shm:/dev/shm)\n"
+            "  - If /dev/shm is full, clear unused shared memory segments\n"
+            "  - Use 'marimo run' instead if you only need to view notebooks"
+        )
+        sys.exit(1)
+
     start(
         file_router=AppFileRouter.infer(name),
         development_mode=GLOBAL_SETTINGS.DEVELOPMENT_MODE,
