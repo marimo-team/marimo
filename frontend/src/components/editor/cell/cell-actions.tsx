@@ -12,6 +12,7 @@ import React, {
   useState,
 } from "react";
 import useEvent from "react-use-event-hook";
+import { getCellForDomProps } from "@/components/data-table/cell-utils";
 import {
   renderMinimalShortcut,
   renderShortcut,
@@ -104,7 +105,11 @@ const CellActionsDropdownInternal = (
       {...restoreFocus}
     >
       <Command>
-        <CommandInput placeholder="Search actions..." className="h-6 m-1" />
+        <CommandInput
+          placeholder="Search actions..."
+          className="h-6 m-1"
+          {...getCellForDomProps(props.cellId)}
+        />
         <CommandList>
           <CommandEmpty>No results</CommandEmpty>
           {actions.map((group, i) => (
