@@ -12,7 +12,6 @@ from marimo._ast.app import App, InternalApp
 from marimo._ast.parse import (
     MarimoFileError,
     is_non_marimo_python_script,
-    parse_notebook,
 )
 from marimo._schemas.serialization import (
     CellDef,
@@ -82,25 +81,6 @@ def _dynamic_load(filename: str | Path) -> Optional[App]:
 
     app = marimo_app.app
     return app
-
-
-def _static_load(filepath: Path) -> Optional[App]:
-    contents = _maybe_contents(filepath)
-    if not contents:
-        return None
-
-    notebook = parse_notebook(contents, filepath=str(filepath))
-
-    if notebook and is_non_marimo_python_script(notebook):
-        # Should fail instead of overriding contents
-        raise MarimoFileError(
-            f"Python script {filepath} is not a marimo notebook."
-        )
-
-    if notebook is None or not notebook.valid:
-        return None
-
-    return load_notebook_ir(notebook, filepath=str(filepath))
 
 
 def find_cell(filename: str, lineno: int) -> CellDef | None:
@@ -215,6 +195,12 @@ def load_app(filename: Optional[str | Path]) -> Optional[App]:
 
     try:
         notebook_ir = handler.deserialize(contents, filepath=str(path))
+        if notebook_ir and is_non_marimo_python_script(notebook_ir):
+            # Should fail instead of overriding contents
+            raise MarimoFileError(
+                f"Python script {path} is not a marimo notebook."
+            )
+
         app = load_notebook_ir(notebook_ir)
         app._cell_manager.ensure_one_cell()
         return app
