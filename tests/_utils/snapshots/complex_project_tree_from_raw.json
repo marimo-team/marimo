@@ -57,7 +57,7 @@
                     },
                     {
                       "name": "jedi",
-                      "version": "0.0.0",
+                      "version": "0.19.2",
                       "tags": [],
                       "dependencies": [
                         {
@@ -205,7 +205,7 @@
             },
             {
               "name": "jedi",
-              "version": "0.0.0",
+              "version": "0.19.2",
               "tags": [],
               "dependencies": [
                 {
