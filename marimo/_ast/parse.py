@@ -96,6 +96,10 @@ class MarimoFileError(Exception):
     pass
 
 
+class NonMarimoPythonScriptError(Exception):
+    pass
+
+
 class Extractor:
     """Helper to extract AST nodes to schema/serialization ir."""
 

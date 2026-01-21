@@ -11,6 +11,7 @@ from marimo import _loggers
 from marimo._ast.app import App, InternalApp
 from marimo._ast.parse import (
     MarimoFileError,
+    NonMarimoPythonScriptError,
     is_non_marimo_python_script,
 )
 from marimo._schemas.serialization import (
@@ -197,7 +198,7 @@ def load_app(filename: Optional[str | Path]) -> Optional[App]:
         notebook_ir = handler.deserialize(contents, filepath=str(path))
         if notebook_ir and is_non_marimo_python_script(notebook_ir):
             # Should fail instead of overriding contents
-            raise MarimoFileError(
+            raise NonMarimoPythonScriptError(
                 f"Python script {path} is not a marimo notebook."
             )
 

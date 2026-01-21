@@ -3095,7 +3095,15 @@ export interface components {
       displayed_models: string[];
       edit_model?: string;
     };
-    /** AlertNotification */
+    /**
+     * AlertNotification
+     * @description User-facing alert message.
+     *
+     *         Attributes:
+     *             title: Alert title.
+     *             description: Alert body (may contain HTML).
+     *             variant: Visual variant (e.g., "danger").
+     */
     AlertNotification: {
       description: string;
       /** @enum {unknown} */
@@ -3115,7 +3123,16 @@ export interface components {
     AnthropicConfig: {
       api_key?: string;
     };
-    /** BannerNotification */
+    /**
+     * BannerNotification
+     * @description Persistent banner message at top of notebook.
+     *
+     *         Attributes:
+     *             title: Banner title.
+     *             description: Banner body (may contain HTML).
+     *             variant: Visual variant (e.g., "danger").
+     *             action: Optional user action (e.g., "restart").
+     */
     BannerNotification: {
       /** @default null */
       action?: "restart" | null;
@@ -3159,7 +3176,10 @@ export interface components {
     };
     /**
      * CacheClearedNotification
-     * @description Result of clearing cache.
+     * @description Execution cache cleared result.
+     *
+     *         Attributes:
+     *             bytes_freed: Bytes freed by clearing cache.
      */
     CacheClearedNotification: {
       bytes_freed: number;
@@ -3168,7 +3188,14 @@ export interface components {
     };
     /**
      * CacheInfoNotification
-     * @description Cache statistics information.
+     * @description Execution cache statistics.
+     *
+     *         Attributes:
+     *             hits: Cache hits.
+     *             misses: Cache misses.
+     *             time: Time spent on cache operations (seconds).
+     *             disk_to_free: Disk space that could be freed (bytes).
+     *             disk_total: Total disk space used (bytes).
      */
     CacheInfoNotification: {
       disk_to_free: number;
@@ -3207,23 +3234,20 @@ export interface components {
     };
     /**
      * CellNotification
-     * @description Op to transition a cell.
+     * @description Updates a cell's state in the frontend.
      *
-     *         A CellNotification's data has some optional fields:
+     *         Only fields that are set (not None) will update the cell state.
+     *         Omitting a field leaves that aspect unchanged.
      *
-     *         output        - a CellOutput
-     *         console       - a CellOutput (console msg to append), or a list of
-     *                         CellOutputs
-     *         status        - execution status
-     *         stale_inputs  - whether the cell has stale inputs (variables, modules, ...)
-     *         run_id        - the run associated with this cell.
-     *         serialization - the serialization status of the cell
-     *
-     *         Omitting a field means that its value should be unchanged!
-     *
-     *         And one required field:
-     *
-     *         cell_id - the cell id
+     *         Attributes:
+     *             cell_id: Unique identifier of the cell being updated.
+     *             output: Cell's output. Use CellOutput.empty() to clear.
+     *             console: Console messages. Single/list appends, [] clears, None unchanged.
+     *             status: Execution status (idle/running/stale/queued/disabled-transitively).
+     *             stale_inputs: Whether cell has stale inputs from changed dependencies.
+     *             run_id: Execution run ID for tracing. Auto-set from context.
+     *             serialization: Serialization status (TopLevelHints).
+     *             timestamp: Creation timestamp, auto-set.
      */
     CellNotification: {
       cell_id: string;
@@ -3409,7 +3433,7 @@ export interface components {
     };
     /**
      * CompletedRunNotification
-     * @description Written on run completion (of submitted cells and their descendants.
+     * @description Run of submitted cells and descendants completed.
      */
     CompletedRunNotification: {
       /** @enum {unknown} */
@@ -3447,7 +3471,12 @@ export interface components {
     };
     /**
      * CompletionResultNotification
-     * @description Code completion result.
+     * @description Code completion result from language server.
+     *
+     *         Attributes:
+     *             completion_id: Request ID this responds to.
+     *             prefix_length: Length of prefix to replace.
+     *             options: Completion options to display.
      */
     CompletionResultNotification: {
       completion_id: string;
@@ -3498,7 +3527,13 @@ export interface components {
     };
     /**
      * DataColumnPreviewNotification
-     * @description Preview of a column in a dataset.
+     * @description Data column preview with stats and visualization.
+     *
+     *         Inherits all ColumnPreview attributes.
+     *
+     *         Attributes:
+     *             table_name: Table containing the column.
+     *             column_name: Column being previewed.
      */
     DataColumnPreviewNotification: {
       /** @default null */
@@ -3540,7 +3575,13 @@ export interface components {
       name: string;
       source: string;
     };
-    /** DataSourceConnectionsNotification */
+    /**
+     * DataSourceConnectionsNotification
+     * @description Available data source connections for SQL cells.
+     *
+     *         Attributes:
+     *             connections: Available data source connections.
+     */
     DataSourceConnectionsNotification: {
       connections: components["schemas"]["DataSourceConnection"][];
       /** @enum {unknown} */
@@ -3628,7 +3669,11 @@ export interface components {
     };
     /**
      * DatasetsNotification
-     * @description List of datasets.
+     * @description Available datasets for data explorer.
+     *
+     *         Attributes:
+     *             tables: Available data tables/datasets.
+     *             clear_channel: If set, clears tables from this channel first.
      */
     DatasetsNotification: {
       /** @default null */
@@ -3985,7 +4030,13 @@ export interface components {
       message?: string | null;
       success: boolean;
     };
-    /** FocusCellNotification */
+    /**
+     * FocusCellNotification
+     * @description Focuses a cell (kiosk mode).
+     *
+     *         Attributes:
+     *             cell_id: Cell to focus.
+     */
     FocusCellNotification: {
       cell_id: string;
       /** @enum {unknown} */
@@ -4017,7 +4068,12 @@ export interface components {
     };
     /**
      * FunctionCallResultNotification
-     * @description Result of calling a function.
+     * @description Result of a frontend-initiated function call.
+     *
+     *         Attributes:
+     *             function_call_id: ID matching the original request.
+     *             return_value: Function return value as JSON.
+     *             status: Human-readable success/failure status.
      */
     FunctionCallResultNotification: {
       function_call_id: string;
@@ -4101,7 +4157,12 @@ export interface components {
     };
     /**
      * HumanReadableStatus
-     * @description Human-readable status.
+     * @description Human-readable status for operation results.
+     *
+     *         Attributes:
+     *             code: Status code ("ok" or "error").
+     *             title: Optional short title.
+     *             message: Optional detailed description.
      */
     HumanReadableStatus: {
       /** @enum {unknown} */
@@ -4146,7 +4207,15 @@ export interface components {
         [key: string]: string;
       };
     };
-    /** InstallingPackageAlertNotification */
+    /**
+     * InstallingPackageAlertNotification
+     * @description Package installation progress with streaming logs.
+     *
+     *         Attributes:
+     *             packages: Package name to status (queued/installing/installed/failed).
+     *             logs: Optional streaming logs per package.
+     *             log_status: Log stream status (append/start/done).
+     */
     InstallingPackageAlertNotification: {
       /** @default null */
       log_status?: ("append" | "done" | "start") | null;
@@ -4173,7 +4242,7 @@ export interface components {
     };
     /**
      * InterruptedNotification
-     * @description Written when the kernel is interrupted by the user.
+     * @description Kernel was interrupted by user (SIGINT/Ctrl+C).
      */
     InterruptedNotification: {
       /** @enum {unknown} */
@@ -4219,7 +4288,18 @@ export interface components {
       functionName: string;
       namespace: string;
     };
-    /** KernelCapabilitiesNotification */
+    /**
+     * KernelCapabilitiesNotification
+     * @description Kernel capabilities detected at startup.
+     *
+     *         All fields auto-detected in __post_init__.
+     *
+     *         Attributes:
+     *             terminal: Terminal access (unavailable on Windows/Pyodide).
+     *             pylsp: Python Language Server Protocol installed.
+     *             ty: ty type checker installed.
+     *             basedpyright: basedpyright type checker installed.
+     */
     KernelCapabilitiesNotification: {
       /** @default false */
       basedpyright?: boolean;
@@ -4232,7 +4312,22 @@ export interface components {
     };
     /**
      * KernelReadyNotification
-     * @description Kernel is ready for execution.
+     * @description Kernel ready for execution. First notification sent at startup.
+     *
+     *         Attributes:
+     *             cell_ids: Cell IDs in order.
+     *             codes: Source code for each cell.
+     *             names: Cell names/titles.
+     *             layout: Notebook layout config.
+     *             configs: Per-cell configuration.
+     *             resumed: Whether resumed from previous session.
+     *             ui_values: Previous UI element values if resumed.
+     *             last_executed_code: Last executed code per cell if resumed.
+     *             last_execution_time: Last execution time per cell if resumed.
+     *             app_config: Application configuration.
+     *             kiosk: Whether running in kiosk mode.
+     *             capabilities: Available kernel capabilities.
+     *             auto_instantiated: Whether cells already executed (run mode).
      */
     KernelReadyNotification: {
       app_config: components["schemas"]["_AppConfig"];
@@ -4258,7 +4353,10 @@ export interface components {
     };
     /**
      * KernelStartupErrorNotification
-     * @description Notification sent when kernel fails to start (e.g., sandbox build failure).
+     * @description Kernel failed to start.
+     *
+     *         Attributes:
+     *             error: Error message describing failure.
      */
     KernelStartupErrorNotification: {
       error: string;
@@ -4610,7 +4708,14 @@ export interface components {
       /** @enum {unknown} */
       type: "syntax";
     };
-    /** MissingPackageAlertNotification */
+    /**
+     * MissingPackageAlertNotification
+     * @description Alert for missing packages with install option.
+     *
+     *         Attributes:
+     *             packages: Missing package names.
+     *             isolated: Whether in isolated environment.
+     */
     MissingPackageAlertNotification: {
       isolated: boolean;
       /** @enum {unknown} */
@@ -4784,19 +4889,36 @@ export interface components {
       enable_ruff?: boolean;
       enabled?: boolean;
     };
-    /** QueryParamsAppendNotification */
+    /**
+     * QueryParamsAppendNotification
+     * @description Appends value to URL query parameter.
+     *
+     *         Attributes:
+     *             key: Query parameter key.
+     *             value: Value to append.
+     */
     QueryParamsAppendNotification: {
       key: string;
       /** @enum {unknown} */
       op: "query-params-append";
       value: string;
     };
-    /** QueryParamsClearNotification */
+    /**
+     * QueryParamsClearNotification
+     * @description Clears all URL query parameters.
+     */
     QueryParamsClearNotification: {
       /** @enum {unknown} */
       op: "query-params-clear";
     };
-    /** QueryParamsDeleteNotification */
+    /**
+     * QueryParamsDeleteNotification
+     * @description Deletes URL query parameter values.
+     *
+     *         Attributes:
+     *             key: Query parameter key.
+     *             value: Specific value to delete. If None, deletes all values for key.
+     */
     QueryParamsDeleteNotification: {
       key: string;
       /** @enum {unknown} */
@@ -4805,7 +4927,11 @@ export interface components {
     };
     /**
      * QueryParamsSetNotification
-     * @description Set query parameters.
+     * @description Sets URL query parameter, replacing existing values.
+     *
+     *         Attributes:
+     *             key: Query parameter key.
+     *             value: Value(s) to set.
      */
     QueryParamsSetNotification: {
       key: string;
@@ -4821,7 +4947,10 @@ export interface components {
     RecentFilesResponse: {
       files: components["schemas"]["MarimoFile"][];
     };
-    /** ReconnectedNotification */
+    /**
+     * ReconnectedNotification
+     * @description WebSocket reconnection confirmed.
+     */
     ReconnectedNotification: {
       /** @enum {unknown} */
       op: "reconnected";
@@ -4836,7 +4965,10 @@ export interface components {
       /** @enum {unknown} */
       type: "refresh-secrets";
     };
-    /** ReloadNotification */
+    /**
+     * ReloadNotification
+     * @description Instructs frontend to reload the page.
+     */
     ReloadNotification: {
       /** @enum {unknown} */
       op: "reload";
@@ -4849,7 +4981,12 @@ export interface components {
     };
     /**
      * RemoveUIElementsNotification
-     * @description Invalidate UI elements for a given cell.
+     * @description Removes UI elements associated with a cell.
+     *
+     *         Sent when cell is re-executed or deleted.
+     *
+     *         Attributes:
+     *             cell_id: Cell whose UI elements should be removed.
      */
     RemoveUIElementsNotification: {
       cell_id: string;
@@ -4943,7 +5080,12 @@ export interface components {
     };
     /**
      * SQLMetadata
-     * @description Metadata for a SQL database.
+     * @description SQL database and schema metadata.
+     *
+     *         Attributes:
+     *             connection: Connection identifier.
+     *             database: Database name.
+     *             schema: Schema name.
      */
     SQLMetadata: {
       connection: string;
@@ -4954,7 +5096,13 @@ export interface components {
     };
     /**
      * SQLTableListPreviewNotification
-     * @description Preview of a list of tables in a schema.
+     * @description List of SQL tables in a schema.
+     *
+     *         Attributes:
+     *             request_id: Request ID this responds to.
+     *             metadata: Database and schema metadata.
+     *             tables: Tables in schema.
+     *             error: Error message if failed.
      */
     SQLTableListPreviewNotification: {
       /** @default null */
@@ -4968,7 +5116,13 @@ export interface components {
     };
     /**
      * SQLTablePreviewNotification
-     * @description Preview of a table in a SQL database.
+     * @description SQL table preview.
+     *
+     *         Attributes:
+     *             request_id: Request ID this responds to.
+     *             metadata: Database and schema metadata.
+     *             table: Table data (None if error).
+     *             error: Error message if failed.
      */
     SQLTablePreviewNotification: {
       /** @default null */
@@ -5033,7 +5187,11 @@ export interface components {
     };
     /**
      * SecretKeysResultNotification
-     * @description Result of listing secret keys.
+     * @description Available secret keys from secret providers.
+     *
+     *         Attributes:
+     *             request_id: Request ID this responds to.
+     *             secrets: Secret keys with provider info.
      */
     SecretKeysResultNotification: {
       /** @enum {unknown} */
@@ -5155,7 +5313,14 @@ export interface components {
       errors: components["schemas"]["SqlParseError"][];
       success: boolean;
     };
-    /** StartupLogsNotification */
+    /**
+     * StartupLogsNotification
+     * @description Streaming kernel startup logs.
+     *
+     *         Attributes:
+     *             content: Log content to display.
+     *             status: Stream status (start/append/done).
+     */
     StartupLogsNotification: {
       content: string;
       /** @enum {unknown} */
@@ -5239,7 +5404,13 @@ export interface components {
     };
     /**
      * UIElementMessageNotification
-     * @description Send a message to a UI element.
+     * @description Sends a message to a UI element/widget.
+     *
+     *         Attributes:
+     *             ui_element: UI element identifier (legacy).
+     *             model_id: Widget model ID (newer architecture).
+     *             message: Message payload as dictionary.
+     *             buffers: Optional binary buffers for large data.
      */
     UIElementMessageNotification: {
       /** @default null */
@@ -5258,7 +5429,15 @@ export interface components {
       /** @enum {unknown} */
       type: "unknown";
     };
-    /** UpdateCellCodesNotification */
+    /**
+     * UpdateCellCodesNotification
+     * @description Updates cell code contents (kiosk mode).
+     *
+     *         Attributes:
+     *             cell_ids: Cells to update.
+     *             codes: New code for each cell.
+     *             code_is_stale: If True, code was not executed on backend (output may not match).
+     */
     UpdateCellCodesNotification: {
       cell_ids: string[];
       code_is_stale: boolean;
@@ -5291,10 +5470,10 @@ export interface components {
     };
     /**
      * UpdateCellIdsNotification
-     * @description Update the cell ID ordering of the cells in the notebook.
+     * @description Updates cell ordering in notebook.
      *
-     *     Right now we send the entire list of cell IDs,
-     *     but in the future we might want to send change-deltas.
+     *         Attributes:
+     *             cell_ids: Complete ordered list of cell IDs.
      */
     UpdateCellIdsNotification: {
       cell_ids: string[];
@@ -5452,7 +5631,16 @@ export interface components {
       query: string;
       requestId: string;
     };
-    /** ValidateSQLResultNotification */
+    /**
+     * ValidateSQLResultNotification
+     * @description SQL query validation result.
+     *
+     *         Attributes:
+     *             request_id: Request ID this responds to.
+     *             parse_result: SQL parsing result.
+     *             validate_result: Catalog validation result.
+     *             error: Error message if failed.
+     */
     ValidateSQLResultNotification: {
       /** @default null */
       error?: string | null;
@@ -5470,13 +5658,29 @@ export interface components {
       previewValue: unknown;
       valueType: string;
     };
-    /** VariableDeclarationNotification */
+    /**
+     * VariableDeclarationNotification
+     * @description Variable declaration and usage for dataflow graph.
+     *
+     *         Attributes:
+     *             name: Variable name.
+     *             declared_by: Cell IDs that define this variable.
+     *             used_by: Cell IDs that use this variable.
+     */
     VariableDeclarationNotification: {
       declared_by: string[];
       name: string;
       used_by: string[];
     };
-    /** VariableValue */
+    /**
+     * VariableValue
+     * @description Variable value and type for variables panel.
+     *
+     *         Attributes:
+     *             name: Variable name.
+     *             value: String representation of value.
+     *             datatype: Data type as string.
+     */
     VariableValue: {
       datatype: string | null;
       name: string;
@@ -5484,7 +5688,10 @@ export interface components {
     };
     /**
      * VariableValuesNotification
-     * @description List of variables and their types/values.
+     * @description Current variable values.
+     *
+     *         Attributes:
+     *             variables: Variables with current values and types.
      */
     VariableValuesNotification: {
       /** @enum {unknown} */
@@ -5493,7 +5700,10 @@ export interface components {
     };
     /**
      * VariablesNotification
-     * @description List of variable declarations.
+     * @description Variable dataflow graph.
+     *
+     *         Attributes:
+     *             variables: Variable declarations and usage.
      */
     VariablesNotification: {
       /** @enum {unknown} */
