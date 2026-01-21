@@ -20,6 +20,7 @@ import { TextOutput } from "./output/TextOutput";
 import { VideoOutput } from "./output/VideoOutput";
 
 import "./output/Outputs.css";
+import { useAtomValue } from "jotai";
 import {
   ChevronsDownUpIcon,
   ChevronsUpDownIcon,
@@ -27,6 +28,7 @@ import {
 } from "lucide-react";
 import { tooltipHandler } from "@/components/charts/tooltip";
 import { useExpandedOutput } from "@/core/cells/outputs";
+import { viewStateAtom } from "@/core/mode";
 import { useIframeCapabilities } from "@/hooks/useIframeCapabilities";
 import { renderHTML } from "@/plugins/core/RenderHTML";
 import { Banner } from "@/plugins/impl/common/error-banner";
@@ -46,10 +48,9 @@ import { renderMimeIcon } from "./renderMimeIcon";
 
 const METADATA_KEY = "__metadata__";
 
-type MimeBundleWithoutMetadata = Record<
-  OutputMessage["mimetype"],
-  { [key: string]: unknown }
->;
+export type MimeType = OutputMessage["mimetype"];
+
+type MimeBundleWithoutMetadata = Record<MimeType, { [key: string]: unknown }>;
 
 type MimeBundle = MimeBundleWithoutMetadata & {
   [METADATA_KEY]?: Record<string, { width?: number; height?: number }>;
@@ -70,7 +71,7 @@ export const OutputRenderer: React.FC<{
   onRefactorWithAI?: OnRefactorWithAI;
   wrapText?: boolean;
   metadata?: { width?: number; height?: number };
-  renderFallback?: (mimetype: OutputMessage["mimetype"]) => React.ReactNode;
+  renderFallback?: (mimetype: MimeType) => React.ReactNode;
 }> = memo((props) => {
   const {
     message,
@@ -90,6 +91,8 @@ export const OutputRenderer: React.FC<{
       case "application/vnd.marimo+mimebundle":
       case "application/vnd.vegalite.v5+json":
       case "application/vnd.vega.v5+json":
+      case "application/vnd.vegalite.v6+json":
+      case "application/vnd.vega.v6+json":
         return typeof data === "string" ? JSON.parse(data) : data;
       default:
         return;
@@ -199,6 +202,8 @@ export const OutputRenderer: React.FC<{
       );
     case "application/vnd.vegalite.v5+json":
     case "application/vnd.vega.v5+json":
+    case "application/vnd.vegalite.v6+json":
+    case "application/vnd.vega.v6+json":
       return (
         <Suspense fallback={<ChartLoadingState />}>
           <LazyVegaEmbed
@@ -216,9 +221,7 @@ export const OutputRenderer: React.FC<{
       return (
         <MimeBundleOutputRenderer
           channel={channel}
-          data={
-            parsedJsonData as Record<OutputMessage["mimetype"], OutputMessage>
-          }
+          data={parsedJsonData as Record<MimeType, OutputMessage>}
         />
       );
     case "application/vnd.jupyter.widget-view+json":
@@ -258,6 +261,8 @@ const MimeBundleOutputRenderer: React.FC<{
   cellId?: CellId;
 }> = memo(({ data, channel, cellId }) => {
   const mimebundle = Array.isArray(data) ? data[0] : data;
+  const { mode } = useAtomValue(viewStateAtom);
+  const appView = mode === "present" || mode === "read";
 
   // Extract metadata if present (e.g., for retina image rendering)
   const metadata = mimebundle[METADATA_KEY];
@@ -265,10 +270,7 @@ const MimeBundleOutputRenderer: React.FC<{
   // Filter out metadata from the mime entries and type narrow
   const mimeEntries = Objects.entries(mimebundle as Record<string, unknown>)
     .filter(([key]) => key !== METADATA_KEY)
-    .map(
-      ([mime, data]) =>
-        [mime, data] as [OutputMessage["mimetype"], CellOutput["data"]],
-    );
+    .map(([mime, data]) => [mime, data] as [MimeType, CellOutput["data"]]);
 
   // If there is none, return null
   const first = mimeEntries[0]?.[0];
@@ -302,7 +304,12 @@ const MimeBundleOutputRenderer: React.FC<{
   return (
     <Tabs defaultValue={first} orientation="vertical">
       <div className="flex">
-        <TabsList className="self-start max-h-none flex flex-col gap-2 mr-4 shrink-0">
+        <TabsList
+          className={cn(
+            "self-start max-h-none flex flex-col gap-2 mr-3 shrink-0",
+            appView && "mt-4",
+          )}
+        >
           {mimeEntries.map(([mime]) => (
             <TabsTrigger
               key={mime}
@@ -315,7 +322,7 @@ const MimeBundleOutputRenderer: React.FC<{
             </TabsTrigger>
           ))}
         </TabsList>
-        <div className="flex-1">
+        <div className="flex-1 w-full">
           {mimeEntries.map(([mime, output]) => (
             <TabsContent key={mime} value={mime}>
               <ErrorBoundary>

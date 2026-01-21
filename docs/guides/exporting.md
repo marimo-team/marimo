@@ -124,11 +124,15 @@ marimo export ipynb notebook.py -o notebook.ipynb
 
 ## Exporting to PDF, slides, or rst
 
+### Export PDF using Quarto
+
 The marimo [Quarto](https://www.github.com/marimo-team/quarto-marimo) plugin
 enables exporting to PDF and other formats with Pandoc. See this [publishing](./publishing/quarto.md) for more details.
 
-However, if you export to a Jupyter notebook, you can leverage various other Jupyter ecosystem tools. For PDFs, you will
-need to have [Pandoc](https://nbconvert.readthedocs.io/en/latest/install.html#installing-pandoc) and [Tex](https://nbconvert.readthedocs.io/en/latest/install.html#installing-tex) installed. The examples below use `uvx`, which you can obtain by [installing `uv`](https://docs.astral.sh/uv/getting-started/installation/).
+### Export PDF from the command line
+
+If you export to a Jupyter notebook, you can leverage various Jupyter ecosystem tools. For PDFs, you will
+need to have [Pandoc](https://nbconvert.readthedocs.io/en/latest/install.html#installing-pandoc) and [TeX](https://nbconvert.readthedocs.io/en/latest/install.html#installing-tex) installed. The examples below use `uvx`, which you can obtain by [installing `uv`](https://docs.astral.sh/uv/getting-started/installation/).
 
 ```bash
 NOTEBOOK=notebook.ipynb
@@ -165,6 +169,29 @@ You can also use other tools that work with Jupyter notebooks:
 
 - [Quarto](https://quarto.org) - Create beautiful documents, websites, presentations
 - [nbgrader](https://nbgrader.readthedocs.io/) - Grade notebook assignments
+
+### Export PDF from the command palette
+
+!!! note "Experimental feature"
+
+    This feature is experimental. Enable it in **Settings > Experimental > Better PDF Export**.
+
+You can export your notebook to PDF directly from the command palette (Ctrl+K) by clicking
+**Download as PDF**. This uses `nbconvert` under the hood and will attempt the
+following:
+
+1. **Standard PDF export** (requires [Pandoc](https://nbconvert.readthedocs.io/en/latest/install.html#installing-pandoc) and [TeX](https://nbconvert.readthedocs.io/en/latest/install.html#installing-tex)) — produces higher quality PDFs
+2. **WebPDF fallback** (requires Chromium via [Playwright](https://playwright.dev/python/)) — automatically used if Pandoc/TeX are not installed
+
+To install the required dependencies:
+
+```bash
+# For standard PDF export (higher quality)
+uv pip install nbconvert
+
+# For WebPDF fallback (easier setup)
+uv pip install "nbconvert[webpdf]"
+```
 
 ## Export to WASM-powered HTML
 

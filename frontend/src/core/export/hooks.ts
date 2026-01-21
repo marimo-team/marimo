@@ -1,6 +1,8 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import { toPng } from "html-to-image";
 import { atom, useAtom, useAtomValue } from "jotai";
+import type { MimeType } from "@/components/editor/Output";
+import { toast } from "@/components/ui/use-toast";
 import { appConfigAtom } from "@/core/config/config";
 import { useInterval } from "@/hooks/useInterval";
 import { Logger } from "@/utils/Logger";
@@ -9,6 +11,7 @@ import { cellsRuntimeAtom } from "../cells/cells";
 import { type CellId, CellOutputId } from "../cells/ids";
 import { connectionAtom } from "../network/connection";
 import { useRequestClient } from "../network/requests";
+import type { UpdateCellOutputsRequest } from "../network/types";
 import { VirtualFileTracker } from "../static/virtual-file-tracker";
 import { WebSocketState } from "../websocket/types";
 
@@ -60,12 +63,10 @@ export function useAutoExport() {
 
   useInterval(
     async () => {
-      const cellsToOutput = await takeScreenshots();
-      if (Object.keys(cellsToOutput).length > 0) {
-        await updateCellOutputs({
-          cellIdsToOutput: cellsToOutput,
-        });
-      }
+      await updateCellOutputsWithScreenshots(
+        takeScreenshots,
+        updateCellOutputs,
+      );
       await autoExportAsIPYNB({
         download: false,
       });
@@ -85,6 +86,15 @@ export function useAutoExport() {
 // We track cells that need screenshots, these will be exported to IPYNB
 const richCellsToOutputAtom = atom<Record<CellId, unknown>>({});
 
+// MIME types to capture screenshots for
+const MIME_TYPES_TO_CAPTURE_SCREENSHOTS = new Set<MimeType>([
+  "text/html",
+  "application/vnd.vegalite.v5+json",
+  "application/vnd.vega.v5+json",
+  "application/vnd.vegalite.v6+json",
+  "application/vnd.vega.v6+json",
+]);
+
 /**
  * Take screenshots of cells with HTML outputs. These images will be sent to the backend to be exported to IPYNB.
  * @returns A map of cell IDs to their screenshots data.
@@ -103,7 +113,8 @@ export function useEnrichCellOutputs() {
       // Track latest output for this cell
       trackedCellsOutput[cellId] = outputData;
       if (
-        runtime.output?.mimetype === "text/html" &&
+        runtime.output?.mimetype &&
+        MIME_TYPES_TO_CAPTURE_SCREENSHOTS.has(runtime.output.mimetype) &&
         outputData &&
         outputHasChanged
       ) {
@@ -147,4 +158,27 @@ export function useEnrichCellOutputs() {
       ),
     );
   };
+}
+
+/**
+ * Utility function to take screenshots of cells with HTML outputs and update the cell outputs.
+ */
+export async function updateCellOutputsWithScreenshots(
+  takeScreenshots: () => Promise<Record<CellId, ["image/png", string]>>,
+  updateCellOutputs: (request: UpdateCellOutputsRequest) => Promise<null>,
+) {
+  try {
+    const cellIdsToOutput = await takeScreenshots();
+    if (Object.keys(cellIdsToOutput).length > 0) {
+      await updateCellOutputs({ cellIdsToOutput });
+    }
+  } catch (error) {
+    Logger.error("Error updating cell outputs with screenshots:", error);
+    toast({
+      title: "Failed to capture cell outputs",
+      description:
+        "Some outputs may not appear in the PDF. Continuing with export.",
+      variant: "danger",
+    });
+  }
 }

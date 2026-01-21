@@ -8,6 +8,7 @@ import {
   DatabaseBackup,
   SearchCheck,
 } from "lucide-react";
+import { getCellForDomProps } from "@/components/data-table/cell-utils";
 import { transformDisplayName } from "@/components/databases/display";
 import { DatabaseLogo } from "@/components/databases/icon";
 import { Button } from "@/components/ui/button";
@@ -22,6 +23,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tooltip } from "@/components/ui/tooltip";
+import type { CellId } from "@/core/cells/ids";
 import {
   dataConnectionsMapAtom,
   setLatestEngineSelected,
@@ -38,11 +40,13 @@ import { type SQLMode, useSQLMode } from "../languages/sql/sql-mode";
 interface SelectProps {
   selectedEngine: ConnectionName;
   onChange: (engine: ConnectionName) => void;
+  cellId: CellId;
 }
 
 export const SQLEngineSelect: React.FC<SelectProps> = ({
   selectedEngine,
   onChange,
+  cellId,
 }) => {
   const connectionsMap = useAtomValue(dataConnectionsMapAtom);
 
@@ -98,10 +102,10 @@ export const SQLEngineSelect: React.FC<SelectProps> = ({
   return (
     <div className="flex flex-row gap-1 items-center">
       <Select value={selectedEngine} onValueChange={handleSelectEngine}>
-        <SQLSelectTrigger>
+        <SQLSelectTrigger {...getCellForDomProps(cellId)}>
           <SelectValue placeholder="Select an engine" />
         </SQLSelectTrigger>
-        <SelectContent>
+        <SelectContent {...getCellForDomProps(cellId)}>
           <SelectGroup>
             <SelectLabel>Database connections</SelectLabel>
             {engineIsDisconnected && (

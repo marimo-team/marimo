@@ -8,14 +8,14 @@ import queue
 import sys
 import typing
 
-import zmq
-
 from marimo import _loggers
 from marimo._ipc.queue_proxy import PushQueue, start_receiver_thread
 from marimo._ipc.types import ConnectionInfo
 from marimo._session.queue import QueueType
 
 if typing.TYPE_CHECKING:
+    import zmq
+
     from marimo._messaging.types import KernelMessage
     from marimo._runtime.commands import (
         CodeCompletionCommand,
@@ -50,6 +50,8 @@ class Channel(typing.Generic[T]):
 
         Note: maxsize is ignored for push channels as ZeroMQ handles buffering.
         """
+        import zmq
+
         socket = context.socket(zmq.PUSH)
         return cls(
             kind="push",
@@ -67,6 +69,8 @@ class Channel(typing.Generic[T]):
             context: ZeroMQ context for creating sockets
             maxsize: Maximum queue size (0 = unlimited)
         """
+        import zmq
+
         socket = context.socket(zmq.PULL)
         return cls(
             kind="pull",
@@ -116,6 +120,8 @@ class Connection:
         Returns:
             Tuple of (Connection instance, ConnectionInfo with port numbers)
         """
+        import zmq
+
         context = zmq.Context()
         conn = cls(
             context=context,
@@ -152,6 +158,8 @@ class Connection:
         Returns:
             Connected Connection instance
         """
+        import zmq
+
         context = zmq.Context()
 
         conn = cls(

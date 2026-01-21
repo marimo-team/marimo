@@ -14,6 +14,7 @@ from marimo._plugins.core.media import io_to_data_url
 from marimo._plugins.ui._impl.altair_chart import (
     AltairChartType,
     chart_to_json,
+    get_chart_mimetype,
     maybe_fix_vegafusion_background,
     maybe_make_full_width,
 )
@@ -65,6 +66,8 @@ class AltairFormatter(FormatterFactory):
                 "image/png",
                 "application/vnd.vega.v5+json",
                 "application/vnd.vegalite.v5+json",
+                "application/vnd.vega.v6+json",
+                "application/vnd.vegalite.v6+json",
             ]
             for mime_type in non_html_mime_types:
                 if mime_type in mimebundle:
@@ -83,7 +86,7 @@ class AltairFormatter(FormatterFactory):
             # If vegafusion is enabled, just wrap in altair_chart
             if alt.data_transformers.active.startswith("vegafusion"):
                 return (
-                    "application/vnd.vega.v5+json",
+                    get_chart_mimetype(spec_format="vega"),
                     chart_to_json(chart=chart, spec_format="vega"),
                 )
 
@@ -94,7 +97,7 @@ class AltairFormatter(FormatterFactory):
 
             # Return the chart as a vega-lite chart with embed options
             return (
-                "application/vnd.vegalite.v5+json",
+                get_chart_mimetype(spec_format="vega-lite"),
                 chart_to_json(chart=chart, validate=False),
             )
 

@@ -462,7 +462,9 @@ components:
           - application/vnd.marimo+mimebundle
           - application/vnd.marimo+traceback
           - application/vnd.vega.v5+json
+          - application/vnd.vega.v6+json
           - application/vnd.vegalite.v5+json
+          - application/vnd.vegalite.v6+json
           - image/avif
           - image/bmp
           - image/gif
@@ -1489,6 +1491,14 @@ components:
       required:
       - download
       title: ExportAsMarkdownRequest
+      type: object
+    ExportAsPDFRequest:
+      properties:
+        webpdf:
+          type: boolean
+      required:
+      - webpdf
+      title: ExportAsPDFRequest
       type: object
     ExportAsScriptRequest:
       properties:
@@ -4056,7 +4066,9 @@ components:
               - application/vnd.marimo+mimebundle
               - application/vnd.marimo+traceback
               - application/vnd.vega.v5+json
+              - application/vnd.vega.v6+json
               - application/vnd.vegalite.v5+json
+              - application/vnd.vegalite.v6+json
               - image/avif
               - image/bmp
               - image/gif
@@ -4468,7 +4480,7 @@ components:
       type: object
 info:
   title: marimo API
-  version: 0.19.2
+  version: 0.19.4
 openapi: 3.1.0
 paths:
   /@file/{filename_and_length}:
@@ -4840,6 +4852,31 @@ paths:
           description: Export the notebook as a markdown
         400:
           description: File must be saved before downloading
+  /api/export/pdf:
+    post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExportAsPDFRequest'
+      responses:
+        200:
+          content:
+            application/pdf:
+              schema:
+                format: binary
+                type: string
+          description: Export the notebook as a PDF
+        400:
+          description: File must be saved before downloading
+        500:
+          description: Export failed or dependencies missing
   /api/export/script:
     post:
       parameters:
@@ -5793,3 +5830,4 @@ paths:
       summary: Submit login form
       tags:
       - auth
+

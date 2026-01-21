@@ -28,5 +28,9 @@ class ExportAsMarkdownRequest(msgspec.Struct, rename="camel"):
     download: bool
 
 
+class ExportAsPDFRequest(msgspec.Struct, rename="camel"):
+    webpdf: bool
+
+
 class UpdateCellOutputsRequest(msgspec.Struct, rename="camel"):
     cell_ids_to_output: dict[CellId_t, MimeBundleTuple]

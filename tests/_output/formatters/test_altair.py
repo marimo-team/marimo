@@ -12,6 +12,14 @@ HAS_ALTAIR = DependencyManager.altair.has()
 HAS_VL_CONVERT = DependencyManager.has("vl-convert")
 
 
+def assert_vegalite_mimetype(mime: str) -> None:
+    """Assert that the mime type is a valid vega-lite mime type (v5 or v6)."""
+    assert mime in (
+        "application/vnd.vegalite.v5+json",
+        "application/vnd.vegalite.v6+json",
+    ), f"Expected vega-lite mime type (v5 or v6), got {mime}"
+
+
 @pytest.mark.skipif(
     not HAS_ALTAIR, reason="optional dependencies not installed"
 )
@@ -41,7 +49,7 @@ async def test_altair(
 
     result = executing_kernel.globals["result"]
     assert result is not None
-    assert result[0] == "application/vnd.vegalite.v5+json"
+    assert_vegalite_mimetype(result[0])
     # Valid JSON
     assert "$schema" in result[1]
     assert isinstance(result[1], str)
@@ -80,7 +88,7 @@ async def test_altair_with_embed_options(
 
     result = executing_kernel.globals["before_options_result"]
     assert result is not None
-    assert result[0] == "application/vnd.vegalite.v5+json"
+    assert_vegalite_mimetype(result[0])
     json_result = json.loads(result[1])
     assert json_result["usermeta"] == {
         "embedOptions": {},
@@ -88,7 +96,7 @@ async def test_altair_with_embed_options(
 
     result = executing_kernel.globals["after_options_result"]
     assert result is not None
-    assert result[0] == "application/vnd.vegalite.v5+json"
+    assert_vegalite_mimetype(result[0])
     json_result = json.loads(result[1])
     assert json_result["usermeta"] == {
         "embedOptions": {

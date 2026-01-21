@@ -659,7 +659,7 @@ class altair_chart(UIElement[ChartSelection, ChartDataType]):
     def _mime_(self) -> tuple[KnownMimeType, str]:
         if is_no_js():
             return (
-                "application/vnd.vega.v5+json",
+                get_chart_mimetype(spec_format="vega"),
                 chart_to_json(self._chart, validate=False),
             )
         return ("text/html", self.text)
@@ -1007,3 +1007,27 @@ def chart_to_json(
             allow_nan=False,
             default=str,
         )
+
+
+def get_chart_mimetype(
+    spec_format: Literal["vega", "vega-lite"] = "vega-lite",
+) -> KnownMimeType:
+    """
+    Get the appropriate MIME type for a chart based on its schema version.
+
+    Returns the MIME type with the correct version (v5 or v6) based on the
+    chart's schema. Defaults to v6 if version cannot be determined.
+    """
+    try:
+        from altair import VEGA_VERSION
+
+        if spec_format == "vega":
+            return f"application/vnd.vega.v{VEGA_VERSION}+json"  # type: ignore
+        else:
+            return f"application/vnd.vegalite.v{VEGA_VERSION}+json"  # type: ignore
+    except Exception:
+        # Fallback to v6 if anything goes wrong
+        if spec_format == "vega":
+            return "application/vnd.vega.v6+json"
+        else:
+            return "application/vnd.vegalite.v6+json"

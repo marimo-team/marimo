@@ -804,6 +804,61 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/export/pdf": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header: {
+          "Marimo-Session-Id": string;
+        };
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: {
+        content: {
+          "application/json": components["schemas"]["ExportAsPDFRequest"];
+        };
+      };
+      responses: {
+        /** @description Export the notebook as a PDF */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/pdf": string;
+          };
+        };
+        /** @description File must be saved before downloading */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
+        /** @description Export failed or dependencies missing */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/export/script": {
     parameters: {
       query?: never;
@@ -3220,7 +3275,9 @@ export interface components {
         | "application/vnd.marimo+mimebundle"
         | "application/vnd.marimo+traceback"
         | "application/vnd.vega.v5+json"
+        | "application/vnd.vega.v6+json"
         | "application/vnd.vegalite.v5+json"
+        | "application/vnd.vegalite.v6+json"
         | "image/avif"
         | "image/bmp"
         | "image/gif"
@@ -3806,6 +3863,10 @@ export interface components {
     /** ExportAsMarkdownRequest */
     ExportAsMarkdownRequest: {
       download: boolean;
+    };
+    /** ExportAsPDFRequest */
+    ExportAsPDFRequest: {
+      webpdf: boolean;
     };
     /** ExportAsScriptRequest */
     ExportAsScriptRequest: {
@@ -5255,7 +5316,9 @@ export interface components {
             | "application/vnd.marimo+mimebundle"
             | "application/vnd.marimo+traceback"
             | "application/vnd.vega.v5+json"
+            | "application/vnd.vega.v6+json"
             | "application/vnd.vegalite.v5+json"
+            | "application/vnd.vegalite.v6+json"
             | "image/avif"
             | "image/bmp"
             | "image/gif"

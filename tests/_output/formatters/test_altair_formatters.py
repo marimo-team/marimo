@@ -25,6 +25,22 @@ if TYPE_CHECKING:
     from narwhals.typing import IntoDataFrame
 
 
+def assert_vegalite_mimetype(mime: str) -> None:
+    """Assert that the mime type is a valid vega-lite mime type (v5 or v6)."""
+    assert mime in (
+        "application/vnd.vegalite.v5+json",
+        "application/vnd.vegalite.v6+json",
+    ), f"Expected vega-lite mime type (v5 or v6), got {mime}"
+
+
+def assert_vega_mimetype(mime: str) -> None:
+    """Assert that the mime type is a valid vega mime type (v5 or v6)."""
+    assert mime in (
+        "application/vnd.vega.v5+json",
+        "application/vnd.vega.v6+json",
+    ), f"Expected vega mime type (v5 or v6), got {mime}"
+
+
 def get_data():
     import polars as pl
 
@@ -57,7 +73,7 @@ def test_altair_formatter_registration():
     formatter = get_formatter(chart)
     assert formatter is not None
     mime, content = formatter(chart)
-    assert mime == "application/vnd.vegalite.v5+json"
+    assert_vegalite_mimetype(mime)
     assert isinstance(content, str)
     # Verify it's valid JSON
     json_content = json.loads(content)
@@ -92,7 +108,7 @@ def test_altair_formatter_full_width(mock_make_full_width: MagicMock):
     res = formatter(chart)
     assert res is not None
     mime, content = res
-    assert mime == "application/vnd.vegalite.v5+json"
+    assert_vegalite_mimetype(mime)
     assert isinstance(content, str)
     assert "container" in content
 
@@ -114,7 +130,7 @@ def test_altair_formatter_vegafusion_dark_mode():
         res = formatter(chart)
         assert res is not None
         mime, content = res
-        assert mime == "application/vnd.vega.v5+json"
+        assert_vega_mimetype(mime)
         assert isinstance(content, str)
         json_data = json.loads(content)
         assert "background" in json_data
@@ -134,7 +150,7 @@ def test_altair_formatter_mimebundle():
         "_repr_mimebundle_",
         return_value={
             "image/svg+xml": "<svg></svg>",
-            "application/vnd.vegalite.v5+json": json.dumps({"test": "data"}),
+            "application/vnd.vegalite.v6+json": json.dumps({"test": "data"}),
         },
     ):
         formatter = get_formatter(mock_chart)
@@ -145,7 +161,7 @@ def test_altair_formatter_mimebundle():
         assert mime == "application/vnd.marimo+mimebundle"
         mimebundle = json.loads(content)
         assert "image/svg+xml" in mimebundle
-        assert "application/vnd.vegalite.v5+json" in mimebundle
+        assert "application/vnd.vegalite.v6+json" in mimebundle
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="altair not installed")
@@ -197,7 +213,7 @@ def test_altair_formatter_sanitize_nan_infs(df: IntoDataFrame):
     formatter = get_formatter(chart)
     assert formatter is not None
     mime, content = formatter(chart)
-    assert mime == "application/vnd.vegalite.v5+json"
+    assert_vegalite_mimetype(mime)
     assert isinstance(content, str)
 
     for non_valid_value in ["NaN", "Infinity", "-Infinity"]:
