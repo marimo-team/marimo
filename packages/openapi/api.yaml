@@ -1492,6 +1492,14 @@ components:
       - download
       title: ExportAsMarkdownRequest
       type: object
+    ExportAsPDFRequest:
+      properties:
+        webpdf:
+          type: boolean
+      required:
+      - webpdf
+      title: ExportAsPDFRequest
+      type: object
     ExportAsScriptRequest:
       properties:
         download:
@@ -4844,6 +4852,31 @@ paths:
           description: Export the notebook as a markdown
         400:
           description: File must be saved before downloading
+  /api/export/pdf:
+    post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExportAsPDFRequest'
+      responses:
+        200:
+          content:
+            application/pdf:
+              schema:
+                format: binary
+                type: string
+          description: Export the notebook as a PDF
+        400:
+          description: File must be saved before downloading
+        500:
+          description: Export failed or dependencies missing
   /api/export/script:
     post:
       parameters:

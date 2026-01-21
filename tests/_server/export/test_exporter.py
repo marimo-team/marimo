@@ -13,7 +13,8 @@ import pytest
 from marimo._ast.app import App, InternalApp
 from marimo._ast.load import load_app
 from marimo._config.config import DEFAULT_CONFIG
-from marimo._dependencies.dependencies import DependencyManager
+from marimo._dependencies.dependencies import Dependency, DependencyManager
+from marimo._dependencies.errors import ManyModulesNotFoundError
 from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.msgspec_encoder import encode_json_str
 from marimo._messaging.notification import CellNotification
@@ -876,3 +877,252 @@ def test_export_html_replaces_multiple_virtual_files_complex(
     assert "data:image/png;base64," in html
     assert "data:image/svg+xml;base64," in html
     assert "https://example.com/external.png" in html
+
+
+class TestPDFExport:
+    def test_export_as_pdf_requires_dependencies(
+        self,
+        session_view: SessionView,
+    ) -> None:
+        """Test that PDF export raises error when dependencies are missing."""
+
+        app = App()
+
+        @app.cell()
+        def test_cell():
+            return "test"
+
+        file_manager = AppFileManager.from_app(InternalApp(app))
+        exporter = Exporter()
+
+        # Mock nbformat as missing
+        with patch.object(Dependency, "has", return_value=False):
+            with pytest.raises(ManyModulesNotFoundError) as excinfo:
+                exporter.export_as_pdf(
+                    app=file_manager.app,
+                    session_view=session_view,
+                    webpdf=False,
+                )
+
+            assert "for PDF export" in str(excinfo.value)
+
+    @pytest.mark.skipif(
+        not DependencyManager.nbformat.has()
+        or not DependencyManager.nbconvert.has(),
+        reason="nbformat or nbconvert not installed",
+    )
+    def test_export_as_pdf_webpdf_requires_playwright(
+        self,
+        session_view: SessionView,
+    ) -> None:
+        """Test that webpdf mode requires playwright dependency."""
+
+        app = App()
+
+        @app.cell()
+        def test_cell():
+            return "test"
+
+        file_manager = AppFileManager.from_app(InternalApp(app))
+        exporter = Exporter()
+
+        # Simulate nbformat and nbconvert available, but playwright missing
+        def mock_has(self: Dependency, quiet: bool = False) -> bool:
+            del quiet
+            if self.pkg == "playwright":
+                return False
+            if self.pkg in ("nbformat", "nbconvert"):
+                return True
+            return False
+
+        with patch.object(Dependency, "has", mock_has):
+            with pytest.raises(ModuleNotFoundError) as excinfo:
+                exporter.export_as_pdf(
+                    app=file_manager.app,
+                    session_view=session_view,
+                    webpdf=True,
+                )
+
+            assert "playwright" in str(excinfo.value)
+
+    @pytest.mark.skipif(
+        not DependencyManager.nbformat.has()
+        or not DependencyManager.nbconvert.has(),
+        reason="nbformat or nbconvert not installed",
+    )
+    def test_export_as_pdf_non_webpdf_mode(
+        self,
+        session_view: SessionView,
+    ) -> None:
+        """Test PDF export in non-webpdf mode (mocked)."""
+
+        app = App()
+
+        @app.cell()
+        def test_cell():
+            return "test"
+
+        file_manager = AppFileManager.from_app(InternalApp(app))
+        exporter = Exporter()
+
+        # Mock PDFExporter to avoid requiring LaTeX
+        mock_exporter_instance = MagicMock()
+        mock_exporter_instance.from_notebook_node.return_value = (
+            b"mock_pdf_data",
+            {},
+        )
+
+        with patch("nbconvert.PDFExporter") as mock_pdf_exporter:
+            mock_pdf_exporter.return_value = mock_exporter_instance
+
+            result = exporter.export_as_pdf(
+                app=file_manager.app,
+                session_view=session_view,
+                webpdf=False,
+            )
+
+            assert result == b"mock_pdf_data"
+            mock_pdf_exporter.assert_called_once()
+            mock_exporter_instance.from_notebook_node.assert_called_once()
+
+    @pytest.mark.skipif(
+        not DependencyManager.nbformat.has()
+        or not DependencyManager.nbconvert.has(),
+        reason="nbformat or nbconvert not installed",
+    )
+    def test_export_as_pdf_webpdf_mode(
+        self,
+        session_view: SessionView,
+    ) -> None:
+        """Test PDF export in webpdf mode (mocked)."""
+
+        app = App()
+
+        @app.cell()
+        def test_cell():
+            return "test"
+
+        file_manager = AppFileManager.from_app(InternalApp(app))
+        exporter = Exporter()
+
+        # Mock WebPDFExporter
+        mock_exporter_instance = MagicMock()
+        mock_exporter_instance.from_notebook_node.return_value = (
+            b"mock_webpdf_data",
+            {},
+        )
+
+        # Mock playwright as available
+        with (
+            patch.object(
+                DependencyManager.playwright, "has", return_value=True
+            ),
+            patch("nbconvert.WebPDFExporter") as mock_webpdf_exporter,
+        ):
+            mock_webpdf_exporter.return_value = mock_exporter_instance
+
+            result = exporter.export_as_pdf(
+                app=file_manager.app,
+                session_view=session_view,
+                webpdf=True,
+            )
+
+            assert result == b"mock_webpdf_data"
+            mock_webpdf_exporter.assert_called_once()
+            # Verify allow_chromium_download is set
+            assert mock_exporter_instance.allow_chromium_download is True
+
+    @pytest.mark.skipif(
+        not DependencyManager.nbformat.has()
+        or not DependencyManager.nbconvert.has(),
+        reason="nbformat or nbconvert not installed",
+    )
+    def test_export_as_pdf_returns_none_on_invalid_data(
+        self,
+        session_view: SessionView,
+    ) -> None:
+        """Test PDF export returns None when exporter returns non-bytes data."""
+
+        app = App()
+
+        @app.cell()
+        def test_cell():
+            return "test"
+
+        file_manager = AppFileManager.from_app(InternalApp(app))
+        exporter = Exporter()
+
+        # Mock PDFExporter to return invalid data
+        mock_exporter_instance = MagicMock()
+        mock_exporter_instance.from_notebook_node.return_value = (
+            "not_bytes",  # Invalid - should be bytes
+            {},
+        )
+
+        with patch("nbconvert.PDFExporter") as mock_pdf_exporter:
+            mock_pdf_exporter.return_value = mock_exporter_instance
+
+            result = exporter.export_as_pdf(
+                app=file_manager.app, session_view=session_view, webpdf=False
+            )
+
+            assert result is None
+
+    @pytest.mark.skipif(
+        not DependencyManager.nbformat.has()
+        or not DependencyManager.nbconvert.has(),
+        reason="nbformat or nbconvert not installed",
+    )
+    def test_export_as_pdf_falls_back_to_webpdf_on_oserror(
+        self,
+        session_view: SessionView,
+    ) -> None:
+        """Test PDF export falls back to webpdf when standard PDF fails with OSError."""
+
+        app = App()
+
+        @app.cell()
+        def test_cell():
+            return "test"
+
+        file_manager = AppFileManager.from_app(InternalApp(app))
+        exporter = Exporter()
+
+        # Mock PDFExporter to raise OSError (pandoc/xelatex not found)
+        mock_pdf_exporter_instance = MagicMock()
+        mock_pdf_exporter_instance.from_notebook_node.side_effect = OSError(
+            "xelatex not found"
+        )
+
+        # Mock WebPDFExporter to succeed
+        mock_webpdf_exporter_instance = MagicMock()
+        mock_webpdf_exporter_instance.from_notebook_node.return_value = (
+            b"fallback_webpdf_data",
+            {},
+        )
+
+        with (
+            patch("nbconvert.PDFExporter") as mock_pdf_exporter,
+            patch("nbconvert.WebPDFExporter") as mock_webpdf_exporter,
+        ):
+            mock_pdf_exporter.return_value = mock_pdf_exporter_instance
+            mock_webpdf_exporter.return_value = mock_webpdf_exporter_instance
+
+            result = exporter.export_as_pdf(
+                app=file_manager.app,
+                session_view=session_view,
+                webpdf=False,  # Request standard PDF, but it should fall back
+            )
+
+            # Should fall back to webpdf and succeed
+            assert result == b"fallback_webpdf_data"
+            # PDFExporter was tried first
+            mock_pdf_exporter.assert_called_once()
+            mock_pdf_exporter_instance.from_notebook_node.assert_called_once()
+            # WebPDFExporter was used as fallback
+            mock_webpdf_exporter.assert_called_once()
+            mock_webpdf_exporter_instance.from_notebook_node.assert_called_once()
+            # Verify allow_chromium_download is set on fallback
+            assert (
+                mock_webpdf_exporter_instance.allow_chromium_download is True
+            )

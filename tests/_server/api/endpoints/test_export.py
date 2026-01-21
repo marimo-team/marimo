@@ -678,3 +678,115 @@ def test_update_cell_outputs_missing_cell(client: TestClient) -> None:
     # Should succeed but log a warning
     assert response.status_code == 200
     assert response.json() == {"success": True}
+
+
+@with_session(SESSION_ID)
+def test_update_cell_outputs_empty_request(client: TestClient) -> None:
+    """Test updating cell outputs with empty cellIdsToOutput."""
+    response = client.post(
+        "/api/export/update_cell_outputs",
+        headers=HEADERS,
+        json={"cellIdsToOutput": {}},
+    )
+
+    # Should succeed even with empty request
+    assert response.status_code == 200
+    assert response.json() == {"success": True}
+
+
+@pytest.mark.skipif(
+    not DependencyManager.nbformat.has()
+    or not DependencyManager.nbconvert.has(),
+    reason="nbformat or nbconvert not installed",
+)
+@with_session(SESSION_ID)
+def test_export_pdf_endpoint(client: TestClient) -> None:
+    """Test PDF export endpoint."""
+    from unittest.mock import MagicMock, patch
+
+    session = get_session_manager(client).get_session(SESSION_ID)
+    assert session
+    session.app_file_manager.filename = "test.py"
+
+    # Mock the exporter to avoid needing LaTeX/Chromium
+    mock_exporter = MagicMock()
+    mock_exporter.export_as_pdf.return_value = b"mock_pdf_content"
+
+    with patch(
+        "marimo._server.api.endpoints.export.Exporter",
+        return_value=mock_exporter,
+    ):
+        response = client.post(
+            "/api/export/pdf",
+            headers=HEADERS,
+            json={"webpdf": False},
+        )
+
+    assert response.status_code == 200
+    assert response.content == b"mock_pdf_content"
+    assert response.headers["content-type"] == "application/pdf"
+
+
+@pytest.mark.skipif(
+    not DependencyManager.nbformat.has()
+    or not DependencyManager.nbconvert.has(),
+    reason="nbformat or nbconvert not installed",
+)
+@with_session(SESSION_ID)
+def test_export_pdf_endpoint_webpdf_mode(client: TestClient) -> None:
+    """Test PDF export endpoint with webpdf mode."""
+    from unittest.mock import MagicMock, patch
+
+    session = get_session_manager(client).get_session(SESSION_ID)
+    assert session
+    session.app_file_manager.filename = "test.py"
+
+    # Mock the exporter to avoid needing Chromium
+    mock_exporter = MagicMock()
+    mock_exporter.export_as_pdf.return_value = b"mock_webpdf_content"
+
+    with patch(
+        "marimo._server.api.endpoints.export.Exporter",
+        return_value=mock_exporter,
+    ):
+        response = client.post(
+            "/api/export/pdf",
+            headers=HEADERS,
+            json={"webpdf": True},
+        )
+
+    assert response.status_code == 200
+    assert response.content == b"mock_webpdf_content"
+    # Verify webpdf=True was passed to exporter
+    mock_exporter.export_as_pdf.assert_called_once()
+    call_kwargs = mock_exporter.export_as_pdf.call_args[1]
+    assert call_kwargs["webpdf"] is True
+
+
+@with_session(SESSION_ID)
+def test_export_pdf_endpoint_returns_error_on_failure(
+    client: TestClient,
+) -> None:
+    """Test PDF export endpoint returns error when export fails."""
+    from unittest.mock import MagicMock, patch
+
+    session = get_session_manager(client).get_session(SESSION_ID)
+    assert session
+    session.app_file_manager.filename = "test.py"
+
+    # Mock the exporter to return None (failure case)
+    mock_exporter = MagicMock()
+    mock_exporter.export_as_pdf.return_value = None
+
+    with patch(
+        "marimo._server.api.endpoints.export.Exporter",
+        return_value=mock_exporter,
+    ):
+        response = client.post(
+            "/api/export/pdf",
+            headers=HEADERS,
+            json={"webpdf": False},
+        )
+
+    assert response.status_code == 500
+    assert "Failed to export PDF" in response.text

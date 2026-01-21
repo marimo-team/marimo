@@ -211,6 +211,8 @@ class DependencyManager:
     ipython = Dependency("IPython")
     ipywidgets = Dependency("ipywidgets")
     nbformat = Dependency("nbformat")
+    nbconvert = Dependency("nbconvert")
+    playwright = Dependency("playwright")  # installed by nbconvert[webpdf]
     narwhals = Dependency("narwhals")
     ruff = Dependency("ruff")
     black = Dependency("black")
