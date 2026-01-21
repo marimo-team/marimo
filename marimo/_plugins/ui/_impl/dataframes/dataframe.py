@@ -113,8 +113,9 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
             Defaults to True.
         format_mapping (Optional[Dict[str, Union[str, Callable[..., Any]]]], optional): A mapping from
             column names to formatting strings or functions.
-        download_csv_encoding (str, optional): Encoding used when downloading CSV.
-            Defaults to "utf-8". Set to "utf-8-sig" to include BOM for Excel.
+        download_csv_encoding (str | None, optional): Encoding used when downloading CSV.
+            Defaults to the runtime config value (or "utf-8" if not configured).
+            Set to "utf-8-sig" to include BOM for Excel.
         download_json_ensure_ascii (bool, optional): Whether to escape non-ASCII characters
             in JSON downloads. Defaults to True.
         on_change (Optional[Callable[[DataFrameType], None]], optional): Optional callback
@@ -134,7 +135,7 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
         show_download: bool = True,
         *,
         format_mapping: Optional[FormatMapping] = None,
-        download_csv_encoding: str = "utf-8",
+        download_csv_encoding: str | None = None,
         download_json_ensure_ascii: bool = True,
         lazy: Optional[bool] = None,
     ) -> None:

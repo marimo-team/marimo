@@ -4918,12 +4918,15 @@ export interface components {
      *         - `default_auto_download`: an Optional list of export types to automatically snapshot your notebook as:
      *            `html`, `markdown`, `ipynb`.
      *            The default is None.
+     *         - `default_csv_encoding`: the default encoding for CSV exports.
+     *             The default is `"utf-8"`.
      */
     RuntimeConfig: {
       auto_instantiate: boolean;
       /** @enum {unknown} */
       auto_reload: "autorun" | "lazy" | "off";
       default_auto_download?: ("html" | "ipynb" | "markdown")[];
+      default_csv_encoding?: string;
       /** @enum {unknown} */
       default_sql_output:
         | "auto"
