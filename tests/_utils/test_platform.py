@@ -65,7 +65,7 @@ class TestCheckSharedMemoryAvailable:
                 "MockSharedMemory",
                 (),
                 {
-                    "__init__": lambda self, **kwargs: (_ for _ in ()).throw(
+                    "__init__": lambda _self, **_kwargs: (_ for _ in ()).throw(
                         OSError("Cannot allocate memory")
                     )
                 },
