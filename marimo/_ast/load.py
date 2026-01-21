@@ -19,6 +19,7 @@ from marimo._schemas.serialization import (
     NotebookSerialization,
     UnparsableCell,
 )
+from marimo._session.notebook.serializer import get_notebook_serializer
 
 LOGGER = _loggers.marimo_logger()
 
@@ -157,16 +158,8 @@ def get_notebook_status(filename: str) -> LoadResult:
         return LoadResult(status="empty", contents=contents)
 
     notebook: Optional[NotebookSerialization] = None
-    if path.suffix in (".md", ".qmd"):
-        from marimo._convert.markdown.to_ir import (
-            convert_from_md_to_marimo_ir,
-        )
-
-        notebook = convert_from_md_to_marimo_ir(contents)
-    elif path.suffix == ".py":
-        notebook = parse_notebook(contents, filepath=filename)
-    else:
-        raise MarimoFileError("File must end with .py, .md, or .qmd.")
+    handler = get_notebook_serializer(path)
+    notebook = handler.deserialize(contents, filepath=filename)
 
     # NB. A invalid notebook can still be opened.
     if notebook is None:
@@ -214,19 +207,17 @@ def load_app(filename: Optional[str | Path]) -> Optional[App]:
         return None
 
     path = Path(filename)
+    handler = get_notebook_serializer(path)
 
-    if path.suffix in (".md", ".qmd"):
-        contents = _maybe_contents(filename)
-        if not contents:
-            return None
-        from marimo._convert.markdown.to_ir import convert_from_md_to_app
-
-        return convert_from_md_to_app(contents) if contents else None
-    elif not path.suffix == ".py":
-        raise MarimoFileError("File must end with .py or .md")
+    contents = _maybe_contents(filename)
+    if not contents:
+        return None
 
     try:
-        return _static_load(path)
+        notebook_ir = handler.deserialize(contents, filepath=str(path))
+        app = load_notebook_ir(notebook_ir)
+        app._cell_manager.ensure_one_cell()
+        return app
     except MarimoFileError:
         # Security advantages of static load are lost here, but reasonable
         # fallback for now.

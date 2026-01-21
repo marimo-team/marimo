@@ -10,8 +10,9 @@ import pytest
 
 from marimo import __version__
 from marimo._ast.app import InternalApp
+from marimo._ast.load import load_notebook_ir
 from marimo._convert.converters import MarimoConvert
-from marimo._convert.markdown.to_ir import convert_from_md_to_app
+from marimo._convert.markdown.to_ir import convert_from_md_to_marimo_ir
 
 # Just a handful of scripts to test
 from marimo._tutorials import dataflow, for_jupyter_users, sql
@@ -101,7 +102,8 @@ def test_markdown_frontmatter() -> None:
     snapshot("frontmatter-test.py.txt", output)
 
     # As python object
-    app = InternalApp(convert_from_md_to_app(script))
+    notebook_ir = convert_from_md_to_marimo_ir(script)
+    app = InternalApp(load_notebook_ir(notebook_ir))
     assert app.config.app_title == "My Title"
     ids = list(app.cell_manager.cell_ids())
     assert len(ids) == 2
@@ -132,7 +134,8 @@ def test_no_frontmatter() -> None:
     snapshot("no-frontmatter.py.txt", output)
 
     # As python object
-    app = InternalApp(convert_from_md_to_app(script))
+    notebook_ir = convert_from_md_to_marimo_ir(script)
+    app = InternalApp(load_notebook_ir(notebook_ir))
     # TODO: Ideally extract notebook title.
     # i.e. assert app.config.app_title == "My Notebook"
     ids = list(app.cell_manager.cell_ids())
@@ -160,7 +163,9 @@ def test_markdown_just_frontmatter() -> None:
     snapshot("frontmatter-only.py.txt", output)
 
     # As python object
-    app = InternalApp(convert_from_md_to_app(script))
+    notebook_ir = convert_from_md_to_marimo_ir(script)
+    app = InternalApp(load_notebook_ir(notebook_ir))
+    app.cell_manager.ensure_one_cell()
     assert app.config.app_title == "My Title"
     ids = list(app.cell_manager.cell_ids())
     assert len(ids) == 1
@@ -200,7 +205,8 @@ def test_markdown_with_sql() -> None:
     snapshot("sql-notebook.py.txt", output)
 
     # As python object
-    app = InternalApp(convert_from_md_to_app(script))
+    notebook_ir = convert_from_md_to_marimo_ir(script)
+    app = InternalApp(load_notebook_ir(notebook_ir))
     assert app.config.app_title == "My Title"
     ids = list(app.cell_manager.cell_ids())
     assert len(ids) == 4
@@ -221,7 +227,9 @@ def test_markdown_empty() -> None:
     assert md_to_py("") == ""
 
     # As python object
-    app = InternalApp(convert_from_md_to_app(""))
+    notebook_ir = convert_from_md_to_marimo_ir("")
+    app = InternalApp(load_notebook_ir(notebook_ir))
+    app.cell_manager.ensure_one_cell()
     assert app.config.app_title is None
     ids = list(app.cell_manager.cell_ids())
     assert len(ids) == 1

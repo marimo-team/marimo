@@ -18,6 +18,47 @@ def get_filepath(name: str) -> str:
     return os.path.join(DIR_PATH, f"codegen_data/{name}.py")
 
 
+def test_filename_propagation_python(tmp_path):
+    """Test that filename is propagated through Python deserialization."""
+    notebook_path = tmp_path / "test_notebook.py"
+    notebook_path.write_text(
+        """import marimo
+__generated_with = "0.1.0"
+app = marimo.App()
+
+@app.cell
+def __():
+    x = 1
+    return x,
+""",
+        encoding="utf-8",
+    )
+
+    result = load.get_notebook_status(str(notebook_path))
+
+    assert result.notebook is not None
+    assert result.notebook.filename == str(notebook_path)
+
+
+def test_filename_propagation_markdown(tmp_path):
+    """Test that filename is propagated through Markdown deserialization."""
+    notebook_path = tmp_path / "test_notebook.md"
+    notebook_path.write_text(
+        """# Test Notebook
+
+```python {.marimo}
+x = 1
+```
+""",
+        encoding="utf-8",
+    )
+
+    result = load.get_notebook_status(str(notebook_path))
+
+    assert result.notebook is not None
+    assert result.notebook.filename == str(notebook_path)
+
+
 @pytest.fixture
 def static_load():
     return load._static_load

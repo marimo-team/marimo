@@ -10,7 +10,6 @@ from typing import (
     Literal,
     Optional,
     TypeVar,
-    Union,
     cast,
 )
 
@@ -32,9 +31,7 @@ from pymdownx.superfences import (  # type: ignore
 )
 
 from marimo import _loggers
-from marimo._ast.app import App, InternalApp
-from marimo._ast.cell import Cell, CellConfig
-from marimo._ast.compiler import compile_cell
+from marimo._ast.cell import CellConfig
 from marimo._ast.names import DEFAULT_CELL_NAME
 from marimo._convert.common.format import markdown_to_marimo, sql_to_marimo
 from marimo._dependencies.dependencies import DependencyManager
@@ -50,7 +47,7 @@ LOGGER = _loggers.marimo_logger()
 MARIMO_MD = "marimo-md"
 MARIMO_CODE = "marimo-code"
 
-ConvertKeys = Union[Literal["marimo-ir"], Literal["marimo-app"]]
+ConvertKeys = Literal["marimo-ir"]
 
 
 def backwards_compatible_sanitization(line: str) -> str:
@@ -197,42 +194,6 @@ class SafeWrap(Generic[T]):
         return self.inner
 
 
-def _tree_to_app_obj(root: Element) -> SafeWrap[App]:
-    app_config = app_config_from_root(root)
-    app = InternalApp(App(**app_config))
-
-    for child in root:
-        name = child.get("name", DEFAULT_CELL_NAME)
-        # Default to hiding markdown cells.
-        cell_config = get_cell_config_from_tag(
-            child, hide_code=child.tag == MARIMO_MD
-        )
-        source = get_source_from_tag(child)
-
-        cell_id = app.cell_manager.create_cell_id()
-        try:
-            cell_impl = compile_cell(source, cell_id)
-            cell_impl.configure(cell_config)
-            cell = Cell(_name=name, _cell=cell_impl)
-
-            app.cell_manager._register_cell(
-                cell,
-                app=app,
-            )
-        except SyntaxError:
-            # Cannot use register_unparsable_cell, since there is an
-            # expectation of a dedent and newlines.
-            app.cell_manager.register_cell(
-                cell_id=cell_id,
-                code=source,
-                config=cell_config,
-                name=name or DEFAULT_CELL_NAME,
-                cell=None,
-            )
-
-    return SafeWrap(app._app)
-
-
 def _tree_to_ir(root: Element) -> SafeWrap[NotebookSerializationV1]:
     app_config = app_config_from_root(root)
 
@@ -312,13 +273,12 @@ class MarimoMdParser(IdentityParser):
 
     output_formats: dict[ConvertKeys, Callable[[Element], SafeWrap[Any]]] = {  # type: ignore[assignment, misc]
         "marimo-ir": _tree_to_ir,
-        "marimo-app": _tree_to_app_obj,
     }
 
     def __init__(
         self,
         *args: Any,
-        output_format: ConvertKeys,
+        output_format: ConvertKeys = "marimo-ir",
         **kwargs: Any,
     ) -> None:
         super().__init__(
@@ -518,22 +478,24 @@ class ExpandAndClassifyProcessor(BlockProcessor):
         blocks.clear()
 
 
-def convert_from_md_to_app(text: str) -> App:
+def convert_from_md_to_marimo_ir(
+    text: str, filepath: Optional[str] = None
+) -> NotebookSerializationV1:
     if not text.strip():
-        app = App()
-    else:
-        app = cast(
-            App, MarimoMdParser(output_format="marimo-app").convert(text)
+        return NotebookSerializationV1(
+            app=AppInstantiation(options={}), filename=filepath
         )
-
-    app._cell_manager.ensure_one_cell()
-    return app
-
-
-def convert_from_md_to_marimo_ir(text: str) -> NotebookSerializationV1:
     notebook = MarimoMdParser(output_format="marimo-ir").convert(text)
     assert isinstance(notebook, NotebookSerializationV1)
-    return notebook
+    return NotebookSerializationV1(
+        app=notebook.app,
+        filename=filepath,
+        cells=notebook.cells,
+        violations=notebook.violations,
+        valid=notebook.valid,
+        header=notebook.header,
+        version=notebook.version,
+    )
 
 
 def extract_frontmatter(text: str) -> tuple[dict[str, str], str]:
