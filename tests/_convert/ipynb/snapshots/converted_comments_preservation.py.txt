@@ -5,6 +5,12 @@ app = marimo.App()
 
 @app.cell
 def _():
+    import marimo as mo
+    return (mo,)
+
+
+@app.cell
+def _():
     # Cell 1: Basic inline and line comments
     x = 1  # This is an inline comment
     print(x)  # Another inline comment
@@ -97,12 +103,6 @@ def _():
 
     # Comment after function
     return
-
-
-@app.cell
-def _():
-    import marimo as mo
-    return (mo,)
 
 
 if __name__ == "__main__":
