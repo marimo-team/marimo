@@ -112,8 +112,8 @@ function useCellFocusProps(
       // If the related target is for a cell id (data-for-cell-id), then we don't want to hide the code, otherwise it might
       // close the dropdown.
       if (
-        getDatForCellId(e.relatedTarget) === cellId ||
-        getDatForCellId(e.relatedTarget?.closest(`[${DATA_FOR_CELL_ID}]`)) ===
+        getDataForCellId(e.relatedTarget) === cellId ||
+        getDataForCellId(e.relatedTarget?.closest(`[${DATA_FOR_CELL_ID}]`)) ===
           cellId
       ) {
         return;
@@ -143,7 +143,7 @@ function isInVimPanel(element: Element | null): boolean {
   return false;
 }
 
-function getDatForCellId(element: Element | null | undefined): CellId | null {
+function getDataForCellId(element: Element | null | undefined): CellId | null {
   if (!element) {
     return null;
   }
