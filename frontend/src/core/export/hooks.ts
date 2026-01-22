@@ -1,14 +1,14 @@
 /* Copyright 2026 Marimo. All rights reserved. */
-import { toPng } from "html-to-image";
 import { atom, useAtom, useAtomValue } from "jotai";
 import type { MimeType } from "@/components/editor/Output";
 import { toast } from "@/components/ui/use-toast";
 import { appConfigAtom } from "@/core/config/config";
 import { useInterval } from "@/hooks/useInterval";
+import { getImageDataUrlForCell } from "@/utils/download";
 import { Logger } from "@/utils/Logger";
 import { Objects } from "@/utils/objects";
 import { cellsRuntimeAtom } from "../cells/cells";
-import { type CellId, CellOutputId } from "../cells/ids";
+import type { CellId } from "../cells/ids";
 import { connectionAtom } from "../network/connection";
 import { useRequestClient } from "../network/requests";
 import type { UpdateCellOutputsRequest } from "../network/types";
@@ -131,16 +131,12 @@ export function useEnrichCellOutputs() {
     // Capture screenshots
     const results = await Promise.all(
       cellsToCaptureScreenshot.map(async ([cellId]) => {
-        const outputElement = document.getElementById(
-          CellOutputId.create(cellId),
-        );
-        if (!outputElement) {
-          Logger.error(`Output element not found for cell ${cellId}`);
-          return null;
-        }
-
         try {
-          const dataUrl = await toPng(outputElement);
+          const dataUrl = await getImageDataUrlForCell(cellId);
+          if (!dataUrl) {
+            Logger.error(`Failed to capture screenshot for cell ${cellId}`);
+            return null;
+          }
           return [cellId, ["image/png", dataUrl]] as [
             CellId,
             ["image/png", string],

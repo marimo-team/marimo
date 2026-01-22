@@ -185,7 +185,7 @@ const ActionButtons: React.FC<{
     if (!app) {
       return;
     }
-    await downloadHTMLAsImage(app, document.title);
+    await downloadHTMLAsImage({ element: app, filename: document.title });
   };
 
   const handleDownloadAsHTML = async () => {

@@ -209,20 +209,15 @@ export function useNotebookActions() {
             if (!app) {
               return;
             }
-            await downloadHTMLAsImage(app, document.title);
+            await downloadHTMLAsImage({
+              element: app,
+              filename: document.title,
+            });
           },
         },
         {
           icon: <FileIcon size={14} strokeWidth={1.5} />,
           label: "Download as PDF",
-          disabled: viewState.mode !== "present",
-          tooltip:
-            viewState.mode === "present" ? undefined : (
-              <span>
-                Only available in app view. <br />
-                Toggle with: {renderShortcut("global.hideCode", false)}
-              </span>
-            ),
           handle: async () => {
             if (getFeatureFlag("server_side_pdf_export")) {
               if (!filename) {

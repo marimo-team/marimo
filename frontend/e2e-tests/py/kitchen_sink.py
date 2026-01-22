@@ -1,10 +1,21 @@
 # /// script
+# dependencies = [
+#     "altair==6.0.0",
+#     "marimo>=0.19.4",
+#     "matplotlib==3.10.8",
+#     "numpy==2.4.1",
+#     "plotly==6.5.2",
+#     "vega-datasets==0.9.0",
+# ]
 # [tool.marimo.runtime]
 # auto_instantiate = true
+# [tool.marimo.experimental]
+# server_side_pdf_export = true
 # ///
+
 import marimo
 
-__generated_with = "0.13.15"
+__generated_with = "0.19.4"
 app = marimo.App()
 
 
@@ -18,7 +29,6 @@ def _(np, plt):
     plt.title("Random Bar Chart")
     plt.xlabel("Categories")
     plt.ylabel("Values")
-    None
     return (bar,)
 
 
@@ -45,7 +55,7 @@ def _(mo):
 
 
 @app.cell
-def _(alt, callout_kind, mo, office_characters, vega_datasets):
+def _(alt, callout_kind, mo, office_characters, px, vega_datasets):
     options = ["Apples", "Oranges", "Pears"]
 
     # inputs
@@ -64,15 +74,27 @@ def _(alt, callout_kind, mo, office_characters, vega_datasets):
     text = mo.ui.text(placeholder="Search...", label="Filter")
     refresh = mo.ui.refresh(label="Refresh", options=["1s", "5s", "10s", "30s"])
     microphone = mo.ui.microphone(label="Drop a beat!")
+    _cars_df = vega_datasets.data.cars()
     chart = mo.ui.altair_chart(
-        alt.Chart(vega_datasets.data.cars())
+        alt.Chart(_cars_df)
         .mark_point()
-        .encode(
-            x="Horsepower",
-            y="Miles_per_Gallon",
-            color="Origin",
-        )
+        .encode(x="Horsepower", y="Miles_per_Gallon", color="Origin")
     )
+
+    figure = px.scatter(
+        _cars_df,
+        x="Horsepower",
+        y="Miles_per_Gallon",
+        color="Origin",
+        hover_data=["Name", "Horsepower", "Miles_per_Gallon", "Origin"],
+        title="Car Horsepower vs. Miles per Gallon",
+        labels={
+            "Horsepower": "Horsepower",
+            "Miles_per_Gallon": "Miles per Gallon",
+            "Origin": "Origin",
+        },
+    )
+    plotly_chart = mo.ui.plotly(figure)
 
     # form
     form = mo.ui.text_area(placeholder="...").form()
@@ -115,6 +137,7 @@ def _(alt, callout_kind, mo, office_characters, vega_datasets):
         microphone,
         multiselect,
         number,
+        plotly_chart,
         progress_bar,
         radio,
         refresh,
@@ -549,6 +572,14 @@ def _(chart, create_wrapper, mo):
 
 
 @app.cell
+def _(create_wrapper, mo, plotly_chart):
+    create_wrapper(
+        mo.vstack([plotly_chart, mo.ui.table(plotly_chart.value)]), "plotly-chart"
+    )
+    return
+
+
+@app.cell
 def _(mo):
     def create_box(num=1):
         box_size = 30 + num * 10
@@ -595,7 +626,8 @@ def _():
     import marimo as mo
     import matplotlib.pyplot as plt
     import numpy as np
-    return alt, mo, np, plt, vega_datasets
+    import plotly.express as px
+    return alt, mo, np, plt, px, vega_datasets
 
 
 if __name__ == "__main__":
