@@ -134,6 +134,8 @@ export function useNotebookActions() {
   const sharingHtmlEnabled = resolvedConfig.sharing?.html ?? true;
   const sharingWasmEnabled = resolvedConfig.sharing?.wasm ?? true;
 
+  const isServerSidePdfExportEnabled = getFeatureFlag("server_side_pdf_export");
+
   const renderCheckboxElement = (checked: boolean) => (
     <div className="w-8 flex justify-end">
       {checked && <CheckIcon size={14} />}
@@ -218,8 +220,17 @@ export function useNotebookActions() {
         {
           icon: <FileIcon size={14} strokeWidth={1.5} />,
           label: "Download as PDF",
+          disabled:
+            !isServerSidePdfExportEnabled && viewState.mode !== "present",
+          tooltip: !isServerSidePdfExportEnabled &&
+            viewState.mode !== "present" && (
+              <span>
+                Only available in app view. <br />
+                Toggle with: {renderShortcut("global.hideCode", false)}
+              </span>
+            ),
           handle: async () => {
-            if (getFeatureFlag("server_side_pdf_export")) {
+            if (isServerSidePdfExportEnabled) {
               if (!filename) {
                 toastNotebookMustBeNamed();
                 return;

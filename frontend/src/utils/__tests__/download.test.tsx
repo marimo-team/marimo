@@ -188,14 +188,11 @@ describe("getImageDataUrlForCell", () => {
     expect(mockElement.style.overflow).toBe("hidden");
   });
 
-  it("should return undefined and log error on failure", async () => {
+  it("should throw error on failure", async () => {
     vi.mocked(toPng).mockRejectedValue(new Error("Capture failed"));
 
-    const result = await getImageDataUrlForCell("cell-1" as CellId);
-
-    expect(result).toBeUndefined();
-    expect(Logger.error).toHaveBeenCalledWith(
-      "Failed to capture element as PNG.",
+    await expect(getImageDataUrlForCell("cell-1" as CellId)).rejects.toThrow(
+      "Capture failed",
     );
   });
 
@@ -203,7 +200,7 @@ describe("getImageDataUrlForCell", () => {
     mockElement.style.overflow = "scroll";
     vi.mocked(toPng).mockRejectedValue(new Error("Capture failed"));
 
-    await getImageDataUrlForCell("cell-1" as CellId);
+    await expect(getImageDataUrlForCell("cell-1" as CellId)).rejects.toThrow();
 
     expect(mockElement.classList.contains("printing-output")).toBe(false);
     expect(document.body.classList.contains("printing")).toBe(false);
@@ -286,14 +283,14 @@ describe("downloadHTMLAsImage", () => {
   });
 
   it("should not add body.printing when prepare is provided", async () => {
+    let bodyPrintingDuringCapture = false;
     vi.mocked(toPng).mockImplementation(async () => {
-      // body.printing should NOT be added by downloadHTMLAsImage when prepare is provided
-      // (the prepare function may add it itself)
+      // Capture the state during toPng execution
+      bodyPrintingDuringCapture = document.body.classList.contains("printing");
       return mockDataUrl;
     });
-    const prepare = vi.fn().mockReturnValue(() => {
-      // <noop>
-    });
+    const cleanup = vi.fn();
+    const prepare = vi.fn().mockReturnValue(cleanup);
 
     await downloadHTMLAsImage({
       element: mockElement,
@@ -301,8 +298,12 @@ describe("downloadHTMLAsImage", () => {
       prepare,
     });
 
-    // After completion, body.printing should be removed by cleanup, not downloadHTMLAsImage
+    // body.printing should NOT be added by downloadHTMLAsImage when prepare is provided
+    // (the prepare function is responsible for managing its own classes)
+    expect(bodyPrintingDuringCapture).toBe(false);
     expect(document.body.classList.contains("printing")).toBe(false);
+    expect(prepare).toHaveBeenCalledWith(mockElement);
+    expect(cleanup).toHaveBeenCalled();
   });
 
   it("should show error toast on failure", async () => {

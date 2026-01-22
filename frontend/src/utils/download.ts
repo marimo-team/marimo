@@ -70,9 +70,6 @@ export async function getImageDataUrlForCell(
 
   try {
     return await toPng(element);
-  } catch {
-    Logger.error("Failed to capture element as PNG.");
-    return;
   } finally {
     cleanup();
   }
@@ -103,16 +100,21 @@ export async function downloadHTMLAsImage(opts: {
   prepare?: (element: HTMLElement) => () => void;
 }) {
   const { element, filename, prepare } = opts;
-  let cleanup: (() => void) | undefined;
-  if (prepare) {
-    cleanup = prepare(element);
-  }
-  // Typically used for downloading the entire notebook
-  document.body.classList.add("printing");
 
   // Capture current scroll position
   const appEl = document.getElementById("App");
   const currentScrollY = appEl?.scrollTop ?? 0;
+
+  let cleanup: (() => void) | undefined;
+  if (prepare) {
+    // Let the prepare function handle adding classes (e.g., body.printing)
+    cleanup = prepare(element);
+  } else {
+    // When no prepare function is provided (e.g., downloading full notebook),
+    // add body.printing ourselves
+    document.body.classList.add("printing");
+  }
+
   try {
     // Get screenshot
     const dataUrl = await toPng(element);
