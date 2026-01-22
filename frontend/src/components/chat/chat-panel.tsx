@@ -262,7 +262,7 @@ const ChatInputFooter: React.FC<ChatInputFooterProps> = memo(
 
     return (
       <TooltipProvider>
-        <div className="px-3 py-2 border-t border-border/20 flex flex-row items-center justify-between">
+        <div className="px-3 py-2 border-t border-border/20 flex flex-row flex-wrap items-center justify-between gap-1">
           <div className="flex items-center gap-2">
             <FeatureFlagged feature="chat_modes">
               <Select value={currentMode} onValueChange={saveModeChange}>
