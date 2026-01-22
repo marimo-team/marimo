@@ -98,10 +98,8 @@ export const NameCellContentEditable: React.FC<{
           e.stopPropagation();
 
           // On Enter, blur the input to commit the change
-          if (e.key === "Enter") {
-            if (e.target instanceof HTMLElement) {
-              e.target.blur();
-            }
+          if (e.key === "Enter" && e.target instanceof HTMLElement) {
+            e.target.blur();
           }
         }}
       >
