@@ -214,7 +214,7 @@ export const DataExplorerComponent = ({
               <VegaEmbed
                 options={chartOptions(theme)}
                 key={idx}
-                spec={plot.spec}
+                spec={augmentSpecWithData(plot.spec, chartData)}
               />
             </HorizontalCarouselItem>
           ))}
