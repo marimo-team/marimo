@@ -115,6 +115,7 @@ interface ApiKeyProps {
   placeholder: string;
   testId: string;
   description?: React.ReactNode;
+  onChange?: (value: string) => void;
 }
 
 export const ApiKey: React.FC<ApiKeyProps> = ({
@@ -124,6 +125,7 @@ export const ApiKey: React.FC<ApiKeyProps> = ({
   placeholder,
   testId,
   description,
+  onChange,
 }) => {
   return (
     <FormField
@@ -141,11 +143,12 @@ export const ApiKey: React.FC<ApiKeyProps> = ({
                 placeholder={placeholder}
                 type="password"
                 {...field}
-                value={asStringOrUndefined(field.value)}
+                value={asStringOrEmpty(field.value)}
                 onChange={(e) => {
                   const value = e.target.value;
                   if (!value.includes("*")) {
                     field.onChange(value);
+                    onChange?.(value);
                   }
                 }}
               />
@@ -168,12 +171,12 @@ interface BaseUrlProps {
   testId: string;
   description?: React.ReactNode;
   disabled?: boolean;
-  defaultValue?: string;
+  onChange?: (value: string) => void;
 }
 
-function asStringOrUndefined<T>(value: T): string | undefined {
+function asStringOrEmpty<T>(value: T): string {
   if (value == null) {
-    return undefined;
+    return "";
   }
 
   if (typeof value === "string") {
@@ -191,13 +194,12 @@ export const BaseUrl: React.FC<BaseUrlProps> = ({
   testId,
   description,
   disabled = false,
-  defaultValue,
+  onChange,
 }) => {
   return (
     <FormField
       control={form.control}
       name={name}
-      disabled={disabled}
       render={({ field }) => (
         <div className="flex flex-col space-y-1">
           <FormItem className={formItemClasses}>
@@ -208,9 +210,13 @@ export const BaseUrl: React.FC<BaseUrlProps> = ({
                 rootClassName="flex-1"
                 className="m-0 inline-flex h-7"
                 placeholder={placeholder}
-                defaultValue={defaultValue}
                 {...field}
-                value={asStringOrUndefined(field.value)}
+                value={asStringOrEmpty(field.value)}
+                disabled={disabled}
+                onChange={(e) => {
+                  field.onChange(e.target.value);
+                  onChange?.(e.target.value);
+                }}
               />
             </FormControl>
             <FormMessage />
@@ -252,9 +258,8 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
     <FormField
       control={form.control}
       name={name}
-      disabled={disabled}
       render={({ field }) => {
-        const value = asStringOrUndefined(field.value);
+        const value = asStringOrEmpty(field.value);
 
         const selectModel = (modelId: QualifiedModelId) => {
           field.onChange(modelId);
@@ -286,7 +291,8 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
                         className="w-full border-border shadow-none focus-visible:shadow-xs"
                         placeholder={placeholder}
                         {...field}
-                        value={asStringOrUndefined(field.value)}
+                        value={asStringOrEmpty(field.value)}
+                        disabled={disabled}
                         onKeyDown={Events.stopPropagation()}
                       />
                       {value && (
@@ -339,7 +345,6 @@ export const ProviderSelect: React.FC<ProviderSelectProps> = ({
     <FormField
       control={form.control}
       name={name}
-      disabled={disabled}
       render={({ field }) => (
         <div className="flex flex-col space-y-1">
           <FormItem className={formItemClasses}>
@@ -354,14 +359,14 @@ export const ProviderSelect: React.FC<ProviderSelectProps> = ({
                     field.onChange(e.target.value);
                   }
                 }}
-                value={asStringOrUndefined(
+                value={asStringOrEmpty(
                   field.value === true
                     ? "github"
                     : field.value === false
                       ? "none"
                       : field.value,
                 )}
-                disabled={field.disabled}
+                disabled={disabled}
                 className="inline-flex mr-2"
               >
                 {options.map((option) => (
@@ -715,6 +720,22 @@ export const CustomProvidersConfig: React.FC<AiConfigProps> = ({
           </div>
         );
 
+        // Update a provider field by updating the entire custom_providers object.
+        // As this config will be replaced, it needs to be sent in its entirety.
+        const updateProviderField = (opts: {
+          providerName: string;
+          fieldName: keyof CustomProviderConfig;
+          value: string;
+        }) => {
+          field.onChange({
+            ...customProviders,
+            [opts.providerName]: {
+              ...customProviders[opts.providerName],
+              [opts.fieldName]: opts.value || undefined,
+            },
+          });
+        };
+
         const renderAccordionItem = ({
           providerName,
           providerConfig,
@@ -744,6 +765,13 @@ export const CustomProvidersConfig: React.FC<AiConfigProps> = ({
                 }
                 placeholder="sk-..."
                 testId={`custom-provider-${providerName}-api-key`}
+                onChange={(value) =>
+                  updateProviderField({
+                    providerName,
+                    fieldName: "api_key",
+                    value,
+                  })
+                }
               />
               <BaseUrl
                 form={form}
@@ -753,6 +781,13 @@ export const CustomProvidersConfig: React.FC<AiConfigProps> = ({
                 }
                 placeholder="https://api.example.com/v1"
                 testId={`custom-provider-${providerName}-base-url`}
+                onChange={(value) =>
+                  updateProviderField({
+                    providerName,
+                    fieldName: "base_url",
+                    value,
+                  })
+                }
               />
               <Button
                 variant="destructive"
@@ -918,7 +953,6 @@ export const AiProvidersConfig: React.FC<AiConfigProps> = ({
             config={config}
             name="ai.ollama.base_url"
             placeholder="http://localhost:11434/v1"
-            defaultValue="http://localhost:11434/v1"
             testId="ollama-base-url-input"
           />
         </AccordionFormItem>
@@ -1038,7 +1072,6 @@ export const AiProvidersConfig: React.FC<AiConfigProps> = ({
             config={config}
             name="ai.azure.base_url"
             placeholder="https://<your-resource-name>.openai.azure.com/openai/deployments/<deployment-name>?api-version=<api-version>"
-            defaultValue="https://<your-resource-name>.openai.azure.com/openai/deployments/<deployment-name>?api-version=<api-version>"
             testId="ai-azure-base-url-input"
           />
         </AccordionFormItem>
@@ -1427,6 +1460,13 @@ export const AiModelDisplayConfig: React.FC<AiConfigProps> = ({
 
   const deleteModel = useEvent((modelId: QualifiedModelId) => {
     const newModels = customModels.filter((id) => id !== modelId);
+    // Remove from displayed models if it's in there
+    const newDisplayedModels = currentDisplayedModels.filter(
+      (id) => id !== modelId,
+    );
+    form.setValue("ai.models.displayed_models", newDisplayedModels, {
+      shouldDirty: true,
+    });
     form.setValue("ai.models.custom_models", newModels, {
       shouldDirty: true,
     });

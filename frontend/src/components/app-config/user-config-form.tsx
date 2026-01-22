@@ -50,6 +50,7 @@ import { Banner } from "@/plugins/impl/common/error-banner";
 import { THEMES } from "@/theme/useTheme";
 import { arrayToggle } from "@/utils/arrays";
 import { cn } from "@/utils/cn";
+import { autoPopulateModels } from "../ai/ai-utils";
 import { keyboardShortcutsAtom } from "../editor/controls/keyboard-shortcuts";
 import { Badge } from "../ui/badge";
 import { ExternalLink } from "../ui/links";
@@ -180,6 +181,28 @@ export const UserConfigForm: React.FC = () => {
     defaultValues: config,
   });
 
+  const setAiModels = (values: UserConfig, dirtyAiConfig: UserConfig["ai"]) => {
+    const { chatModel, editModel } = autoPopulateModels(values);
+    if (chatModel || editModel) {
+      dirtyAiConfig = {
+        ...dirtyAiConfig,
+        models: {
+          ...dirtyAiConfig?.models,
+          ...(chatModel && { chat_model: chatModel }),
+          ...(editModel && { edit_model: editModel }),
+        },
+      } as typeof dirtyAiConfig;
+      if (chatModel) {
+        form.setValue("ai.models.chat_model", chatModel);
+      }
+      if (editModel) {
+        form.setValue("ai.models.edit_model", editModel);
+      }
+    }
+
+    return dirtyAiConfig;
+  };
+
   const onSubmitNotDebounced = async (values: UserConfig) => {
     // Only send values that were actually changed to avoid
     // overwriting backend values the form doesn't manage
@@ -187,6 +210,12 @@ export const UserConfigForm: React.FC = () => {
     if (Object.keys(dirtyValues).length === 0) {
       return; // Nothing changed
     }
+
+    // Auto-populate AI models when credentials are set, makes it easier to get started
+    if (dirtyValues.ai) {
+      dirtyValues.ai = setAiModels(values, dirtyValues.ai);
+    }
+
     await saveUserConfig({ config: dirtyValues }).then(() => {
       // Update local state with form values
       setConfig((prev) => ({ ...prev, ...values }));

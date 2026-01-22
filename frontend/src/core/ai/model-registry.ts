@@ -21,8 +21,17 @@ export interface AiModel extends AiModelType {
   custom: boolean;
 }
 
-const getKnownModelMap = once((): ReadonlyMap<QualifiedModelId, AiModel> => {
+interface KnownModelMaps {
+  /** Map of qualified model ID to model info */
+  modelMap: ReadonlyMap<QualifiedModelId, AiModel>;
+  /** Map of provider ID to first default model (supports chat or edit) */
+  defaultModelByProvider: ReadonlyMap<ProviderId, QualifiedModelId>;
+}
+
+export const getKnownModelMaps = once((): KnownModelMaps => {
   const modelMap = new Map<QualifiedModelId, AiModel>();
+  const defaultModelByProvider = new Map<ProviderId, QualifiedModelId>();
+
   for (const model of models) {
     const modelId = model.model as ShortModelId;
     const modelInfo: AiModel = {
@@ -33,12 +42,21 @@ const getKnownModelMap = once((): ReadonlyMap<QualifiedModelId, AiModel> => {
       custom: false,
     };
 
+    const supportsChatOrEdit =
+      modelInfo.roles.includes("chat") || modelInfo.roles.includes("edit");
+
     for (const provider of modelInfo.providers) {
       const qualifiedModelId: QualifiedModelId = `${provider}/${modelId}`;
       modelMap.set(qualifiedModelId, modelInfo);
+
+      // Track first model per provider that supports chat or edit
+      if (supportsChatOrEdit && !defaultModelByProvider.has(provider)) {
+        defaultModelByProvider.set(provider, qualifiedModelId);
+      }
     }
   }
-  return modelMap;
+
+  return { modelMap, defaultModelByProvider };
 });
 
 const getProviderMap = once(
@@ -125,7 +143,7 @@ export class AiModelRegistry {
   }) {
     const { displayedModels, customModels } = opts;
     const hasDisplayedModels = displayedModels.size > 0;
-    const knownModelMap = getKnownModelMap();
+    const knownModelMap = getKnownModelMaps().modelMap;
     const customModelsMap = new Map<QualifiedModelId, AiModel>();
 
     let modelsMap = new Map<QualifiedModelId, AiModel>();

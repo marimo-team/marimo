@@ -66,8 +66,8 @@ def test_deep_merge_nested_dicts() -> None:
     }
 
 
-def test_deep_merge_replace_paths_replaces_instead_of_merging() -> None:
-    """Test that paths in replace_paths are replaced, not merged."""
+def test_deep_merge_replace_paths_deletes_missing_keys() -> None:
+    """Test that replace_paths deletes keys not in update."""
     original = {
         "ai": {
             "custom_providers": {
@@ -96,6 +96,45 @@ def test_deep_merge_replace_paths_replaces_instead_of_merging() -> None:
     assert "provider2" not in result_replaced["ai"]["custom_providers"]
     assert result_replaced["ai"]["custom_providers"] == {
         "provider1": {"api_key": "key1_updated", "base_url": "url1"}
+    }
+
+
+def test_deep_merge_replace_paths_preserves_unmodified_fields() -> None:
+    """Test that replace_paths preserves fields not in update.
+
+    This is the key use case: editing base_url should preserve api_key
+    (which is filtered out as masked placeholder).
+    """
+    original = {
+        "ai": {
+            "custom_providers": {
+                "provider1": {"api_key": "secret", "base_url": "old_url"},
+                "provider2": {"api_key": "key2", "base_url": "url2"},
+            }
+        }
+    }
+    # Frontend sends all providers, but api_key filtered as placeholder
+    update = {
+        "ai": {
+            "custom_providers": {
+                "provider1": {"base_url": "new_url"},  # api_key missing
+                "provider2": {"api_key": "key2", "base_url": "url2"},
+            }
+        }
+    }
+
+    result = deep_merge(
+        original, update, replace_paths=frozenset({"ai.custom_providers"})
+    )
+
+    # api_key should be preserved from original
+    assert result["ai"]["custom_providers"]["provider1"] == {
+        "api_key": "secret",
+        "base_url": "new_url",
+    }
+    assert result["ai"]["custom_providers"]["provider2"] == {
+        "api_key": "key2",
+        "base_url": "url2",
     }
 
 
