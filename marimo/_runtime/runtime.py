@@ -1332,22 +1332,23 @@ class Kernel:
 
         # Always broadcast Variables message after graph mutation to ensure
         # frontend has the latest dependency information
-        broadcast_notification(
-            VariablesNotification(
-                variables=[
-                    VariableDeclarationNotification(
-                        name=variable,
-                        declared_by=list(declared_by),
-                        used_by=list(
-                            self.graph.get_referring_cells(
-                                variable, language="python"
-                            )
-                        ),
-                    )
-                    for variable, declared_by in self.graph.definitions.items()
-                ]
-            ),
-        )
+        if not get_context().is_embedded():
+            broadcast_notification(
+                VariablesNotification(
+                    variables=[
+                        VariableDeclarationNotification(
+                            name=variable,
+                            declared_by=list(declared_by),
+                            used_by=list(
+                                self.graph.get_referring_cells(
+                                    variable, language="python"
+                                )
+                            ),
+                        )
+                        for variable, declared_by in self.graph.definitions.items()
+                    ]
+                ),
+            )
 
         stale_cells = (
             set(
@@ -1945,7 +1946,7 @@ class Kernel:
                     # Entering undefined behavior territory ...
                     continue
 
-            if variable_values:
+            if variable_values and not ctx.is_embedded():
                 broadcast_notification(
                     VariableValuesNotification(variables=variable_values),
                     self.stream,
