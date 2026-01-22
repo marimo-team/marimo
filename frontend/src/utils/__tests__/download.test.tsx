@@ -206,6 +206,64 @@ describe("getImageDataUrlForCell", () => {
     expect(document.body.classList.contains("printing")).toBe(false);
     expect(mockElement.style.overflow).toBe("scroll");
   });
+
+  it("should maintain body.printing during concurrent captures", async () => {
+    // Create a second element
+    const mockElement2 = document.createElement("div");
+    mockElement2.id = CellOutputId.create("cell-2" as CellId);
+    document.body.append(mockElement2);
+
+    // Track body.printing state during each capture
+    const printingStateDuringCaptures: boolean[] = [];
+    let resolveFirst: () => void;
+    let resolveSecond: () => void;
+
+    const firstPromise = new Promise<void>((resolve) => {
+      resolveFirst = resolve;
+    });
+    const secondPromise = new Promise<void>((resolve) => {
+      resolveSecond = resolve;
+    });
+
+    vi.mocked(toPng).mockImplementation(async (element) => {
+      printingStateDuringCaptures.push(
+        document.body.classList.contains("printing"),
+      );
+
+      // Simulate async work - first capture takes longer
+      await (element.id.includes("cell-1") ? firstPromise : secondPromise);
+
+      // Check state again after waiting
+      printingStateDuringCaptures.push(
+        document.body.classList.contains("printing"),
+      );
+
+      return mockDataUrl;
+    });
+
+    // Start both captures concurrently
+    const capture1 = getImageDataUrlForCell("cell-1" as CellId);
+    const capture2 = getImageDataUrlForCell("cell-2" as CellId);
+
+    // Let second capture complete first
+    resolveSecond!();
+    await new Promise((r) => setTimeout(r, 0));
+
+    // body.printing should still be present because cell-1 is still capturing
+    expect(document.body.classList.contains("printing")).toBe(true);
+
+    // Now let first capture complete
+    resolveFirst!();
+    await Promise.all([capture1, capture2]);
+
+    // After all captures complete, body.printing should be removed
+    expect(document.body.classList.contains("printing")).toBe(false);
+
+    // All captures should have seen body.printing = true
+    expect(printingStateDuringCaptures.every(Boolean)).toBe(true);
+
+    mockElement2.remove();
+  });
 });
 
 describe("downloadHTMLAsImage", () => {
@@ -219,6 +277,8 @@ describe("downloadHTMLAsImage", () => {
     mockElement = document.createElement("div");
     mockAppEl = document.createElement("div");
     mockAppEl.id = "App";
+    // Mock scrollTo since jsdom doesn't implement it
+    mockAppEl.scrollTo = vi.fn();
     document.body.append(mockElement);
     document.body.append(mockAppEl);
 
@@ -339,6 +399,8 @@ describe("downloadCellOutputAsImage", () => {
     mockElement.id = CellOutputId.create("cell-1" as CellId);
     mockAppEl = document.createElement("div");
     mockAppEl.id = "App";
+    // Mock scrollTo since jsdom doesn't implement it
+    mockAppEl.scrollTo = vi.fn();
     document.body.append(mockElement);
     document.body.append(mockAppEl);
 

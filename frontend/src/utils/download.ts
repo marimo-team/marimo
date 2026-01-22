@@ -39,19 +39,39 @@ function findElementForCell(cellId: CellId): HTMLElement | undefined {
   return element;
 }
 
+/**
+ * Reference counter for body.printing class to handle concurrent screenshot captures.
+ * Only adds the class when count goes 0→1, only removes when count goes 1→0.
+ */
+let bodyPrintingRefCount = 0;
+
+function acquireBodyPrinting() {
+  bodyPrintingRefCount++;
+  if (bodyPrintingRefCount === 1) {
+    document.body.classList.add("printing");
+  }
+}
+
+function releaseBodyPrinting() {
+  bodyPrintingRefCount--;
+  if (bodyPrintingRefCount === 0) {
+    document.body.classList.remove("printing");
+  }
+}
+
 /*
  * Prepare a cell element for screenshot capture.
  * Returns a cleanup function that should be called when the screenshot is complete.
  */
 function prepareCellElementForScreenshot(element: HTMLElement) {
   element.classList.add("printing-output");
-  document.body.classList.add("printing");
+  acquireBodyPrinting();
   const originalOverflow = element.style.overflow;
   element.style.overflow = "auto";
 
   return () => {
     element.classList.remove("printing-output");
-    document.body.classList.remove("printing");
+    releaseBodyPrinting();
     element.style.overflow = originalOverflow;
   };
 }
