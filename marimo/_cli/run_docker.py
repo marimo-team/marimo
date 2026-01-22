@@ -130,7 +130,7 @@ def run_in_docker(
         sys.exit(1)
 
     # Define the container image and command
-    image = "ghcr.io/astral-sh/uv:0.4.21-python3.12-bookworm"
+    image = "ghcr.io/astral-sh/uv:0.9.25-python3.14-bookworm"
     container_command = [
         "uvx",
         "marimo",
@@ -160,7 +160,7 @@ def run_in_docker(
         "-e",
         "MARIMO_IN_SECURE_ENVIRONMENT=true",
         "-w",
-        "/app",
+        "/home",
         image,
     ] + container_command
 
