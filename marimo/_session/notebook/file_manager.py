@@ -17,7 +17,7 @@ from marimo._runtime.layout.layout import (
 )
 from marimo._schemas.serialization import Header, NotebookSerializationV1
 from marimo._server.app_defaults import AppDefaults
-from marimo._session.notebook.serializer import get_format_handler
+from marimo._session.notebook.serializer import get_notebook_serializer
 from marimo._session.notebook.storage import (
     FilesystemStorage,
     StorageInterface,
@@ -179,7 +179,7 @@ class AppFileManager:
         LOGGER.debug("Saving app to %s", path)
 
         # Get the header in case it was modified by the user (e.g. package installation)
-        handler = get_format_handler(path)
+        handler = get_notebook_serializer(path)
         header: Optional[str] = None
         if previous_path and previous_path.exists():
             header = handler.extract_header(previous_path)

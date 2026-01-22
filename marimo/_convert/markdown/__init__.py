@@ -10,7 +10,6 @@ from __future__ import annotations
 
 from marimo._convert.markdown.from_ir import convert_from_ir_to_markdown
 from marimo._convert.markdown.to_ir import (
-    convert_from_md_to_app,
     convert_from_md_to_marimo_ir,
     extract_frontmatter,
     formatted_code_block,
@@ -21,8 +20,7 @@ from marimo._convert.markdown.to_ir import (
 __all__ = [
     # Export (IR → Markdown)
     "convert_from_ir_to_markdown",
-    # Import (Markdown → IR/App)
-    "convert_from_md_to_app",
+    # Import (Markdown → IR)
     "convert_from_md_to_marimo_ir",
     # Utilities
     "extract_frontmatter",

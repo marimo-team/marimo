@@ -11,14 +11,15 @@ from marimo import _loggers
 from marimo._ast.app import App, InternalApp
 from marimo._ast.parse import (
     MarimoFileError,
+    NonMarimoPythonScriptError,
     is_non_marimo_python_script,
-    parse_notebook,
 )
 from marimo._schemas.serialization import (
     CellDef,
     NotebookSerialization,
     UnparsableCell,
 )
+from marimo._session.notebook.serializer import get_notebook_serializer
 
 LOGGER = _loggers.marimo_logger()
 
@@ -83,25 +84,6 @@ def _dynamic_load(filename: str | Path) -> Optional[App]:
     return app
 
 
-def _static_load(filepath: Path) -> Optional[App]:
-    contents = _maybe_contents(filepath)
-    if not contents:
-        return None
-
-    notebook = parse_notebook(contents, filepath=str(filepath))
-
-    if notebook and is_non_marimo_python_script(notebook):
-        # Should fail instead of overriding contents
-        raise MarimoFileError(
-            f"Python script {filepath} is not a marimo notebook."
-        )
-
-    if notebook is None or not notebook.valid:
-        return None
-
-    return load_notebook_ir(notebook, filepath=str(filepath))
-
-
 def find_cell(filename: str, lineno: int) -> CellDef | None:
     """Find the cell at the given line number in the notebook.
 
@@ -157,16 +139,8 @@ def get_notebook_status(filename: str) -> LoadResult:
         return LoadResult(status="empty", contents=contents)
 
     notebook: Optional[NotebookSerialization] = None
-    if path.suffix in (".md", ".qmd"):
-        from marimo._convert.markdown.to_ir import (
-            convert_from_md_to_marimo_ir,
-        )
-
-        notebook = convert_from_md_to_marimo_ir(contents)
-    elif path.suffix == ".py":
-        notebook = parse_notebook(contents, filepath=filename)
-    else:
-        raise MarimoFileError("File must end with .py, .md, or .qmd.")
+    handler = get_notebook_serializer(path)
+    notebook = handler.deserialize(contents, filepath=filename)
 
     # NB. A invalid notebook can still be opened.
     if notebook is None:
@@ -214,19 +188,27 @@ def load_app(filename: Optional[str | Path]) -> Optional[App]:
         return None
 
     path = Path(filename)
+    handler = get_notebook_serializer(path)
 
-    if path.suffix in (".md", ".qmd"):
-        contents = _maybe_contents(filename)
-        if not contents:
-            return None
-        from marimo._convert.markdown.to_ir import convert_from_md_to_app
-
-        return convert_from_md_to_app(contents) if contents else None
-    elif not path.suffix == ".py":
-        raise MarimoFileError("File must end with .py or .md")
+    contents = _maybe_contents(filename)
+    if not contents:
+        return None
 
     try:
-        return _static_load(path)
+        notebook_ir = handler.deserialize(contents, filepath=str(path))
+        if notebook_ir and is_non_marimo_python_script(notebook_ir):
+            # Should fail instead of overriding contents
+            raise NonMarimoPythonScriptError(
+                f"Python script {path} is not a marimo notebook."
+            )
+
+        if not notebook_ir.valid:
+            LOGGER.error(f"Notebook {path} is not a valid marimo notebook.")
+            return None
+
+        app = load_notebook_ir(notebook_ir)
+        app._cell_manager.ensure_one_cell()
+        return app
     except MarimoFileError:
         # Security advantages of static load are lost here, but reasonable
         # fallback for now.

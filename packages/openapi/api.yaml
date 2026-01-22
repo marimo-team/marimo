@@ -193,6 +193,9 @@ components:
       title: AiModelConfig
       type: object
     AlertNotification:
+      description: "User-facing alert message.\n\n    Attributes:\n        title:\
+        \ Alert title.\n        description: Alert body (may contain HTML).\n    \
+        \    variant: Visual variant (e.g., \"danger\")."
       properties:
         description:
           type: string
@@ -223,6 +226,10 @@ components:
       title: AnthropicConfig
       type: object
     BannerNotification:
+      description: "Persistent banner message at top of notebook.\n\n    Attributes:\n\
+        \        title: Banner title.\n        description: Banner body (may contain\
+        \ HTML).\n        variant: Visual variant (e.g., \"danger\").\n        action:\
+        \ Optional user action (e.g., \"restart\")."
       properties:
         action:
           anyOf:
@@ -288,7 +295,8 @@ components:
       title: BedrockConfig
       type: object
     CacheClearedNotification:
-      description: Result of clearing cache.
+      description: "Execution cache cleared result.\n\n    Attributes:\n        bytes_freed:\
+        \ Bytes freed by clearing cache."
       properties:
         bytes_freed:
           type: integer
@@ -301,7 +309,10 @@ components:
       title: CacheClearedNotification
       type: object
     CacheInfoNotification:
-      description: Cache statistics information.
+      description: "Execution cache statistics.\n\n    Attributes:\n        hits:\
+        \ Cache hits.\n        misses: Cache misses.\n        time: Time spent on\
+        \ cache operations (seconds).\n        disk_to_free: Disk space that could\
+        \ be freed (bytes).\n        disk_total: Total disk space used (bytes)."
       properties:
         disk_to_free:
           type: integer
@@ -356,14 +367,16 @@ components:
       title: CellConfig
       type: object
     CellNotification:
-      description: "Op to transition a cell.\n\n    A CellNotification's data has\
-        \ some optional fields:\n\n    output        - a CellOutput\n    console \
-        \      - a CellOutput (console msg to append), or a list of\n            \
-        \        CellOutputs\n    status        - execution status\n    stale_inputs\
-        \  - whether the cell has stale inputs (variables, modules, ...)\n    run_id\
-        \        - the run associated with this cell.\n    serialization - the serialization\
-        \ status of the cell\n\n    Omitting a field means that its value should be\
-        \ unchanged!\n\n    And one required field:\n\n    cell_id - the cell id"
+      description: "Updates a cell's state in the frontend.\n\n    Only fields that\
+        \ are set (not None) will update the cell state.\n    Omitting a field leaves\
+        \ that aspect unchanged.\n\n    Attributes:\n        cell_id: Unique identifier\
+        \ of the cell being updated.\n        output: Cell's output. Use CellOutput.empty()\
+        \ to clear.\n        console: Console messages. Single/list appends, [] clears,\
+        \ None unchanged.\n        status: Execution status (idle/running/stale/queued/disabled-transitively).\n\
+        \        stale_inputs: Whether cell has stale inputs from changed dependencies.\n\
+        \        run_id: Execution run ID for tracing. Auto-set from context.\n  \
+        \      serialization: Serialization status (TopLevelHints).\n        timestamp:\
+        \ Creation timestamp, auto-set."
       properties:
         cell_id:
           type: string
@@ -707,7 +720,7 @@ components:
       title: ColumnStats
       type: object
     CompletedRunNotification:
-      description: Written on run completion (of submitted cells and their descendants.
+      description: Run of submitted cells and descendants completed.
       properties:
         op:
           enum:
@@ -775,7 +788,9 @@ components:
       title: CompletionOption
       type: object
     CompletionResultNotification:
-      description: Code completion result.
+      description: "Code completion result from language server.\n\n    Attributes:\n\
+        \        completion_id: Request ID this responds to.\n        prefix_length:\
+        \ Length of prefix to replace.\n        options: Completion options to display."
       properties:
         completion_id:
           type: string
@@ -880,7 +895,9 @@ components:
       title: CycleError
       type: object
     DataColumnPreviewNotification:
-      description: Preview of a column in a dataset.
+      description: "Data column preview with stats and visualization.\n\n    Inherits\
+        \ all ColumnPreview attributes.\n\n    Attributes:\n        table_name: Table\
+        \ containing the column.\n        column_name: Column being previewed."
       properties:
         chart_code:
           anyOf:
@@ -964,6 +981,8 @@ components:
       title: DataSourceConnection
       type: object
     DataSourceConnectionsNotification:
+      description: "Available data source connections for SQL cells.\n\n    Attributes:\n\
+        \        connections: Available data source connections."
       properties:
         connections:
           items:
@@ -1106,7 +1125,9 @@ components:
       title: Database
       type: object
     DatasetsNotification:
-      description: List of datasets.
+      description: "Available datasets for data explorer.\n\n    Attributes:\n   \
+        \     tables: Available data tables/datasets.\n        clear_channel: If set,\
+        \ clears tables from this channel first."
       properties:
         clear_channel:
           anyOf:
@@ -1760,6 +1781,8 @@ components:
       title: FileUpdateResponse
       type: object
     FocusCellNotification:
+      description: "Focuses a cell (kiosk mode).\n\n    Attributes:\n        cell_id:\
+        \ Cell to focus."
       properties:
         cell_id:
           type: string
@@ -1805,7 +1828,10 @@ components:
       title: FormattingConfig
       type: object
     FunctionCallResultNotification:
-      description: Result of calling a function.
+      description: "Result of a frontend-initiated function call.\n\n    Attributes:\n\
+        \        function_call_id: ID matching the original request.\n        return_value:\
+        \ Function return value as JSON.\n        status: Human-readable success/failure\
+        \ status."
       properties:
         function_call_id:
           type: string
@@ -1910,7 +1936,9 @@ components:
       title: HTTPRequest
       type: object
     HumanReadableStatus:
-      description: Human-readable status.
+      description: "Human-readable status for operation results.\n\n    Attributes:\n\
+        \        code: Status code (\"ok\" or \"error\").\n        title: Optional\
+        \ short title.\n        message: Optional detailed description."
       properties:
         code:
           enum:
@@ -1983,6 +2011,10 @@ components:
       title: InstallPackagesRequest
       type: object
     InstallingPackageAlertNotification:
+      description: "Package installation progress with streaming logs.\n\n    Attributes:\n\
+        \        packages: Package name to status (queued/installing/installed/failed).\n\
+        \        logs: Optional streaming logs per package.\n        log_status: Log\
+        \ stream status (append/start/done)."
       properties:
         log_status:
           anyOf:
@@ -2039,7 +2071,7 @@ components:
       title: InstantiateNotebookRequest
       type: object
     InterruptedNotification:
-      description: Written when the kernel is interrupted by the user.
+      description: Kernel was interrupted by user (SIGINT/Ctrl+C).
       properties:
         op:
           enum:
@@ -2121,6 +2153,11 @@ components:
       title: InvokeFunctionRequest
       type: object
     KernelCapabilitiesNotification:
+      description: "Kernel capabilities detected at startup.\n\n    All fields auto-detected\
+        \ in __post_init__.\n\n    Attributes:\n        terminal: Terminal access\
+        \ (unavailable on Windows/Pyodide).\n        pylsp: Python Language Server\
+        \ Protocol installed.\n        ty: ty type checker installed.\n        basedpyright:\
+        \ basedpyright type checker installed."
       properties:
         basedpyright:
           default: false
@@ -2138,7 +2175,17 @@ components:
       title: KernelCapabilitiesNotification
       type: object
     KernelReadyNotification:
-      description: Kernel is ready for execution.
+      description: "Kernel ready for execution. First notification sent at startup.\n\
+        \n    Attributes:\n        cell_ids: Cell IDs in order.\n        codes: Source\
+        \ code for each cell.\n        names: Cell names/titles.\n        layout:\
+        \ Notebook layout config.\n        configs: Per-cell configuration.\n    \
+        \    resumed: Whether resumed from previous session.\n        ui_values: Previous\
+        \ UI element values if resumed.\n        last_executed_code: Last executed\
+        \ code per cell if resumed.\n        last_execution_time: Last execution time\
+        \ per cell if resumed.\n        app_config: Application configuration.\n \
+        \       kiosk: Whether running in kiosk mode.\n        capabilities: Available\
+        \ kernel capabilities.\n        auto_instantiated: Whether cells already executed\
+        \ (run mode)."
       properties:
         app_config:
           $ref: '#/components/schemas/_AppConfig'
@@ -2207,8 +2254,8 @@ components:
       title: KernelReadyNotification
       type: object
     KernelStartupErrorNotification:
-      description: Notification sent when kernel fails to start (e.g., sandbox build
-        failure).
+      description: "Kernel failed to start.\n\n    Attributes:\n        error: Error\
+        \ message describing failure."
       properties:
         error:
           type: string
@@ -2859,6 +2906,9 @@ components:
       title: MarimoSyntaxError
       type: object
     MissingPackageAlertNotification:
+      description: "Alert for missing packages with install option.\n\n    Attributes:\n\
+        \        packages: Missing package names.\n        isolated: Whether in isolated\
+        \ environment."
       properties:
         isolated:
           type: boolean
@@ -3142,6 +3192,8 @@ components:
       title: PythonLanguageServerConfig
       type: object
     QueryParamsAppendNotification:
+      description: "Appends value to URL query parameter.\n\n    Attributes:\n   \
+        \     key: Query parameter key.\n        value: Value to append."
       properties:
         key:
           type: string
@@ -3157,6 +3209,7 @@ components:
       title: QueryParamsAppendNotification
       type: object
     QueryParamsClearNotification:
+      description: Clears all URL query parameters.
       properties:
         op:
           enum:
@@ -3166,6 +3219,9 @@ components:
       title: QueryParamsClearNotification
       type: object
     QueryParamsDeleteNotification:
+      description: "Deletes URL query parameter values.\n\n    Attributes:\n     \
+        \   key: Query parameter key.\n        value: Specific value to delete. If\
+        \ None, deletes all values for key."
       properties:
         key:
           type: string
@@ -3183,7 +3239,8 @@ components:
       title: QueryParamsDeleteNotification
       type: object
     QueryParamsSetNotification:
-      description: Set query parameters.
+      description: "Sets URL query parameter, replacing existing values.\n\n    Attributes:\n\
+        \        key: Query parameter key.\n        value: Value(s) to set."
       properties:
         key:
           type: string
@@ -3221,6 +3278,7 @@ components:
       title: RecentFilesResponse
       type: object
     ReconnectedNotification:
+      description: WebSocket reconnection confirmed.
       properties:
         op:
           enum:
@@ -3241,6 +3299,7 @@ components:
       title: RefreshSecretsCommand
       type: object
     ReloadNotification:
+      description: Instructs frontend to reload the page.
       properties:
         op:
           enum:
@@ -3263,7 +3322,9 @@ components:
       title: RemovePackageRequest
       type: object
     RemoveUIElementsNotification:
-      description: Invalidate UI elements for a given cell.
+      description: "Removes UI elements associated with a cell.\n\n    Sent when cell\
+        \ is re-executed or deleted.\n\n    Attributes:\n        cell_id: Cell whose\
+        \ UI elements should be removed."
       properties:
         cell_id:
           type: string
@@ -3399,7 +3460,9 @@ components:
       title: RuntimeConfig
       type: object
     SQLMetadata:
-      description: Metadata for a SQL database.
+      description: "SQL database and schema metadata.\n\n    Attributes:\n       \
+        \ connection: Connection identifier.\n        database: Database name.\n \
+        \       schema: Schema name."
       properties:
         connection:
           type: string
@@ -3418,7 +3481,9 @@ components:
       title: SQLMetadata
       type: object
     SQLTableListPreviewNotification:
-      description: Preview of a list of tables in a schema.
+      description: "List of SQL tables in a schema.\n\n    Attributes:\n        request_id:\
+        \ Request ID this responds to.\n        metadata: Database and schema metadata.\n\
+        \        tables: Tables in schema.\n        error: Error message if failed."
       properties:
         error:
           anyOf:
@@ -3444,7 +3509,10 @@ components:
       title: SQLTableListPreviewNotification
       type: object
     SQLTablePreviewNotification:
-      description: Preview of a table in a SQL database.
+      description: "SQL table preview.\n\n    Attributes:\n        request_id: Request\
+        \ ID this responds to.\n        metadata: Database and schema metadata.\n\
+        \        table: Table data (None if error).\n        error: Error message\
+        \ if failed."
       properties:
         error:
           anyOf:
@@ -3582,7 +3650,9 @@ components:
       title: SchemaTable
       type: object
     SecretKeysResultNotification:
-      description: Result of listing secret keys.
+      description: "Available secret keys from secret providers.\n\n    Attributes:\n\
+        \        request_id: Request ID this responds to.\n        secrets: Secret\
+        \ keys with provider info."
       properties:
         op:
           enum:
@@ -3792,6 +3862,8 @@ components:
       title: SqlParseResult
       type: object
     StartupLogsNotification:
+      description: "Streaming kernel startup logs.\n\n    Attributes:\n        content:\
+        \ Log content to display.\n        status: Stream status (start/append/done)."
       properties:
         content:
           type: string
@@ -3927,7 +3999,10 @@ components:
       title: TyLanguageServerConfig
       type: object
     UIElementMessageNotification:
-      description: Send a message to a UI element.
+      description: "Sends a message to a UI element/widget.\n\n    Attributes:\n \
+        \       ui_element: UI element identifier (legacy).\n        model_id: Widget\
+        \ model ID (newer architecture).\n        message: Message payload as dictionary.\n\
+        \        buffers: Optional binary buffers for large data."
       properties:
         buffers:
           anyOf:
@@ -3975,6 +4050,10 @@ components:
       title: UnknownError
       type: object
     UpdateCellCodesNotification:
+      description: "Updates cell code contents (kiosk mode).\n\n    Attributes:\n\
+        \        cell_ids: Cells to update.\n        codes: New code for each cell.\n\
+        \        code_is_stale: If True, code was not executed on backend (output\
+        \ may not match)."
       properties:
         cell_ids:
           items:
@@ -4025,12 +4104,8 @@ components:
       title: UpdateCellConfigRequest
       type: object
     UpdateCellIdsNotification:
-      description: 'Update the cell ID ordering of the cells in the notebook.
-
-
-        Right now we send the entire list of cell IDs,
-
-        but in the future we might want to send change-deltas.'
+      description: "Updates cell ordering in notebook.\n\n    Attributes:\n      \
+        \  cell_ids: Complete ordered list of cell IDs."
       properties:
         cell_ids:
           items:
@@ -4284,6 +4359,10 @@ components:
       title: ValidateSQLRequest
       type: object
     ValidateSQLResultNotification:
+      description: "SQL query validation result.\n\n    Attributes:\n        request_id:\
+        \ Request ID this responds to.\n        parse_result: SQL parsing result.\n\
+        \        validate_result: Catalog validation result.\n        error: Error\
+        \ message if failed."
       properties:
         error:
           anyOf:
@@ -4324,6 +4403,9 @@ components:
       title: VariableContext
       type: object
     VariableDeclarationNotification:
+      description: "Variable declaration and usage for dataflow graph.\n\n    Attributes:\n\
+        \        name: Variable name.\n        declared_by: Cell IDs that define this\
+        \ variable.\n        used_by: Cell IDs that use this variable."
       properties:
         declared_by:
           items:
@@ -4342,6 +4424,9 @@ components:
       title: VariableDeclarationNotification
       type: object
     VariableValue:
+      description: "Variable value and type for variables panel.\n\n    Attributes:\n\
+        \        name: Variable name.\n        value: String representation of value.\n\
+        \        datatype: Data type as string."
       properties:
         datatype:
           anyOf:
@@ -4360,7 +4445,8 @@ components:
       title: VariableValue
       type: object
     VariableValuesNotification:
-      description: List of variables and their types/values.
+      description: "Current variable values.\n\n    Attributes:\n        variables:\
+        \ Variables with current values and types."
       properties:
         op:
           enum:
@@ -4375,7 +4461,8 @@ components:
       title: VariableValuesNotification
       type: object
     VariablesNotification:
-      description: List of variable declarations.
+      description: "Variable dataflow graph.\n\n    Attributes:\n        variables:\
+        \ Variable declarations and usage."
       properties:
         op:
           enum:

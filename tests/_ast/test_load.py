@@ -9,7 +9,7 @@ import pytest
 
 from marimo import _loggers
 from marimo._ast import load
-from marimo._ast.parse import MarimoFileError
+from marimo._ast.parse import MarimoFileError, NonMarimoPythonScriptError
 
 DIR_PATH = os.path.dirname(os.path.realpath(__file__))
 
@@ -18,18 +18,62 @@ def get_filepath(name: str) -> str:
     return os.path.join(DIR_PATH, f"codegen_data/{name}.py")
 
 
+def test_filename_propagation_python(tmp_path):
+    """Test that filename is propagated through Python deserialization."""
+    notebook_path = tmp_path / "test_notebook.py"
+    notebook_path.write_text(
+        """import marimo
+__generated_with = "0.1.0"
+app = marimo.App()
+
+@app.cell
+def __():
+    x = 1
+    return x,
+""",
+        encoding="utf-8",
+    )
+
+    result = load.get_notebook_status(str(notebook_path))
+
+    assert result.notebook is not None
+    assert result.notebook.filename == str(notebook_path)
+
+
+def test_filename_propagation_markdown(tmp_path):
+    """Test that filename is propagated through Markdown deserialization."""
+    notebook_path = tmp_path / "test_notebook.md"
+    notebook_path.write_text(
+        """# Test Notebook
+
+```python {.marimo}
+x = 1
+```
+""",
+        encoding="utf-8",
+    )
+
+    result = load.get_notebook_status(str(notebook_path))
+
+    assert result.notebook is not None
+    assert result.notebook.filename == str(notebook_path)
+
+
 @pytest.fixture
-def static_load():
-    return load._static_load
+def unified_load():
+    """Uses the new unified load_app path with deserialization."""
+    return load.load_app
 
 
 @pytest.fixture
 def dynamic_load():
+    """Direct dynamic load for backward compatibility testing."""
     return load._dynamic_load
 
 
-@pytest.fixture(params=["static_load", "dynamic_load"])
+@pytest.fixture(params=["unified_load", "dynamic_load"])
 def load_app(request):
+    """Parametrized fixture to test both load paths."""
     return request.getfixturevalue(request.param)
 
 
@@ -221,15 +265,17 @@ class TestGetCodes:
         assert app is None
 
     @staticmethod
-    def test_get_codes_non_marimo_python_script(static_load) -> None:
-        with pytest.raises(MarimoFileError, match="is not a marimo notebook."):
-            static_load(
+    def test_get_codes_non_marimo_python_script() -> None:
+        with pytest.raises(
+            NonMarimoPythonScriptError, match="is not a marimo notebook."
+        ):
+            load.load_app(
                 get_filepath("test_get_codes_non_marimo_python_script")
             )
 
     @staticmethod
-    def test_import_alias(static_load) -> None:
-        app = static_load(get_filepath("test_get_alias_import"))
+    def test_import_alias() -> None:
+        app = load.load_app(get_filepath("test_get_alias_import"))
         assert app is not None
         cell_manager = app._cell_manager
         assert list(cell_manager.names()) == ["one"]
@@ -283,16 +329,17 @@ class TestGetCodes:
 
         # Don't worry about the discrepancy since dynamic_load should not be in
         # prod.
-        if load_app == load._static_load:
+        if load_app == load.load_app:
             assert len(caplog.records) == 2
             assert "fake_kwarg" in caplog.text
         else:
+            # dynamic_load fallback
             assert len(caplog.records) == 1
         assert "kwarg_that_doesnt_exist" in caplog.text
 
     @staticmethod
-    def test_get_app_with_decorator(static_load) -> None:
-        app = static_load(get_filepath("test_with_decorator"))
+    def test_get_app_with_decorator() -> None:
+        app = load.load_app(get_filepath("test_with_decorator"))
         assert app is not None
         assert app._cell_manager.get_cell_data_by_name("wrap").cell.defs == {
             "wrap"

@@ -6,10 +6,10 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Optional, Protocol
 
-from marimo._ast import codegen
-from marimo._convert.converters import MarimoConvert
-from marimo._convert.markdown import convert_from_ir_to_markdown
-from marimo._schemas.serialization import NotebookSerializationV1
+from marimo._schemas.serialization import (
+    AppInstantiation,
+    NotebookSerializationV1,
+)
 
 
 class NotebookSerializer(Protocol):
@@ -25,6 +25,20 @@ class NotebookSerializer(Protocol):
 
         Returns:
             Serialized notebook content as string
+        """
+        ...
+
+    def deserialize(
+        self, content: str, filepath: Optional[str] = None
+    ) -> NotebookSerializationV1:
+        """Convert content string to notebook IR.
+
+        Args:
+            content: File content as string
+            filepath: Optional file path for error reporting
+
+        Returns:
+            Notebook in intermediate representation
         """
         ...
 
@@ -48,13 +62,26 @@ class PythonNotebookSerializer(NotebookSerializer):
 
         Handles header preservation when converting from other formats.
         """
-        contents = MarimoConvert.from_ir(notebook).to_py()
+        from marimo._ast.codegen import generate_filecontents_from_ir
 
-        return contents
+        return generate_filecontents_from_ir(notebook)
+
+    def deserialize(
+        self, content: str, filepath: Optional[str] = None
+    ) -> NotebookSerializationV1:
+        """Deserialize Python notebook content to IR."""
+        from marimo._ast.parse import parse_notebook
+
+        notebook = parse_notebook(content, filepath=filepath or "<marimo>")
+        return notebook or NotebookSerializationV1(
+            app=AppInstantiation(options={}), filename=filepath
+        )
 
     def extract_header(self, path: Path) -> Optional[str]:
         """Extract header comments from Python file."""
-        return codegen.get_header_comments(path)
+        from marimo._ast.codegen import get_header_comments
+
+        return get_header_comments(path)
 
 
 class MarkdownNotebookSerializer(NotebookSerializer):
@@ -62,7 +89,17 @@ class MarkdownNotebookSerializer(NotebookSerializer):
 
     def serialize(self, notebook: NotebookSerializationV1) -> str:
         """Serialize notebook to Markdown format."""
+        from marimo._convert.markdown import convert_from_ir_to_markdown
+
         return convert_from_ir_to_markdown(notebook)
+
+    def deserialize(
+        self, content: str, filepath: Optional[str] = None
+    ) -> NotebookSerializationV1:
+        """Deserialize Markdown notebook content to IR."""
+        from marimo._convert.markdown.to_ir import convert_from_md_to_marimo_ir
+
+        return convert_from_md_to_marimo_ir(content, filepath=filepath)
 
     def extract_header(self, path: Path) -> Optional[str]:
         """Extract YAML frontmatter from Markdown file."""
@@ -76,33 +113,33 @@ class MarkdownNotebookSerializer(NotebookSerializer):
 
 
 # Default format handlers
-DEFAULT_FORMAT_HANDLERS = {
+DEFAULT_NOTEBOOK_SERIALIZERS = {
     ".py": PythonNotebookSerializer(),
     ".md": MarkdownNotebookSerializer(),
     ".qmd": MarkdownNotebookSerializer(),
 }
 
 
-def get_format_handler(path: Path) -> NotebookSerializer:
-    """Get the appropriate format handler for a file.
+def get_notebook_serializer(path: Path) -> NotebookSerializer:
+    """Get the appropriate notebook serializer for a file.
 
     Args:
         path: File path
 
     Returns:
-        Appropriate format handler
+        Appropriate notebook serializer
 
     Raises:
-        ValueError: If no handler supports the file format
+        ValueError: If no notebook serializer supports the file format
     """
     # Ensure path is a Path object
     if not isinstance(path, Path):
         path = Path(path)
 
     ext = path.suffix
-    handler = DEFAULT_FORMAT_HANDLERS.get(ext)
+    handler = DEFAULT_NOTEBOOK_SERIALIZERS.get(ext)
     if handler is None:
         raise ValueError(
-            f"No format handler found for {path}. Supported extensions: {list(DEFAULT_FORMAT_HANDLERS.keys())}"
+            f"No notebook serializer found for {path}. Supported extensions: {list(DEFAULT_NOTEBOOK_SERIALIZERS.keys())}"
         )
     return handler

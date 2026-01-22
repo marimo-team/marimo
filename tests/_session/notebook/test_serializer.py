@@ -14,10 +14,10 @@ from marimo._schemas.serialization import (
     NotebookSerializationV1,
 )
 from marimo._session.notebook.serializer import (
-    DEFAULT_FORMAT_HANDLERS,
+    DEFAULT_NOTEBOOK_SERIALIZERS,
     MarkdownNotebookSerializer,
     PythonNotebookSerializer,
-    get_format_handler,
+    get_notebook_serializer,
 )
 
 
@@ -102,6 +102,60 @@ class TestPythonNotebookSerializer:
         assert "import marimo" in result
         assert "x = 1" in result
 
+    def test_deserialize_basic(self) -> None:
+        """Test deserializing Python notebook content."""
+        serializer = PythonNotebookSerializer()
+        content = """import marimo
+
+__generated_with = "0.1.0"
+app = marimo.App()
+
+@app.cell
+def __():
+    x = 1
+    return x,
+"""
+
+        result = serializer.deserialize(content)
+
+        assert result is not None
+        assert len(result.cells) == 1
+        assert "x = 1" in result.cells[0].code
+        # When no filepath is provided, defaults to "<marimo>"
+        assert result.filename == "<marimo>"
+
+    def test_deserialize_with_filepath(self) -> None:
+        """Test that filepath is propagated through deserialization."""
+        serializer = PythonNotebookSerializer()
+        content = """import marimo
+
+__generated_with = "0.1.0"
+app = marimo.App()
+
+@app.cell
+def __():
+    x = 1
+    return x,
+"""
+        filepath = "/path/to/notebook.py"
+
+        result = serializer.deserialize(content, filepath=filepath)
+
+        assert result is not None
+        assert result.filename == filepath
+        assert len(result.cells) == 1
+
+    def test_deserialize_empty_content(self) -> None:
+        """Test deserializing empty content returns empty notebook with filepath."""
+        serializer = PythonNotebookSerializer()
+        filepath = "/path/to/empty.py"
+
+        result = serializer.deserialize("", filepath=filepath)
+
+        assert result is not None
+        assert result.filename == filepath
+        assert len(result.cells) == 0
+
 
 class TestMarkdownNotebookSerializer:
     def test_serialize_basic(self) -> None:
@@ -148,33 +202,100 @@ header: |
 
         assert header is None or header == ""
 
+    def test_deserialize_basic(self) -> None:
+        """Test deserializing Markdown notebook content."""
+        serializer = MarkdownNotebookSerializer()
+        content = """# My Notebook
+
+```python {.marimo}
+x = 1
+```
+"""
+
+        result = serializer.deserialize(content)
+
+        assert result is not None
+        assert len(result.cells) == 2  # markdown cell + code cell
+        assert result.filename is None
+
+    def test_deserialize_with_filepath(self) -> None:
+        """Test that filepath is propagated through markdown deserialization."""
+        serializer = MarkdownNotebookSerializer()
+        content = """# My Notebook
+
+```python {.marimo}
+x = 1
+```
+"""
+        filepath = "/path/to/notebook.md"
+
+        result = serializer.deserialize(content, filepath=filepath)
+
+        assert result is not None
+        assert result.filename == filepath
+        assert len(result.cells) == 2
+
+    def test_deserialize_empty_content(self) -> None:
+        """Test deserializing empty markdown returns empty notebook with filepath."""
+        serializer = MarkdownNotebookSerializer()
+        filepath = "/path/to/empty.md"
+
+        result = serializer.deserialize("", filepath=filepath)
+
+        assert result is not None
+        assert result.filename == filepath
+        assert len(result.cells) == 0
+
+    def test_deserialize_with_frontmatter(self) -> None:
+        """Test deserializing markdown with frontmatter preserves filepath and metadata."""
+        serializer = MarkdownNotebookSerializer()
+        content = """---
+title: "Test Notebook"
+---
+
+# Content
+
+```python {.marimo}
+print("hello")
+```
+"""
+        filepath = "/path/to/notebook.md"
+
+        result = serializer.deserialize(content, filepath=filepath)
+
+        assert result is not None
+        assert result.filename == filepath
+        assert len(result.cells) == 2
+        # Frontmatter title is parsed and set in app options
+        assert result.app.options.get("app_title") == "Test Notebook"
+
 
 class TestGetFormatHandler:
     def test_get_python_handler(self, tmp_path: Path) -> None:
         path = tmp_path / "notebook.py"
 
-        handler = get_format_handler(path)
+        handler = get_notebook_serializer(path)
 
         assert isinstance(handler, PythonNotebookSerializer)
 
     def test_get_markdown_handler(self, tmp_path: Path) -> None:
         path = tmp_path / "notebook.md"
 
-        handler = get_format_handler(path)
+        handler = get_notebook_serializer(path)
 
         assert isinstance(handler, MarkdownNotebookSerializer)
 
     def test_get_qmd_handler(self, tmp_path: Path) -> None:
         path = tmp_path / "notebook.qmd"
 
-        handler = get_format_handler(path)
+        handler = get_notebook_serializer(path)
 
         assert isinstance(handler, MarkdownNotebookSerializer)
 
     def test_get_handler_with_string_path(self, tmp_path: Path) -> None:
         path_str = str(tmp_path / "notebook.py")
 
-        handler = get_format_handler(Path(path_str))
+        handler = get_notebook_serializer(Path(path_str))
 
         assert isinstance(handler, PythonNotebookSerializer)
 
@@ -182,13 +303,74 @@ class TestGetFormatHandler:
         path = tmp_path / "notebook.txt"
 
         with pytest.raises(ValueError) as exc_info:
-            get_format_handler(path)
+            get_notebook_serializer(path)
 
-        assert "No format handler found" in str(exc_info.value)
+        assert "No notebook serializer found" in str(exc_info.value)
         assert ".txt" in str(exc_info.value)
 
     def test_default_handlers_registered(self) -> None:
-        assert ".py" in DEFAULT_FORMAT_HANDLERS
-        assert ".md" in DEFAULT_FORMAT_HANDLERS
-        assert ".qmd" in DEFAULT_FORMAT_HANDLERS
-        assert len(DEFAULT_FORMAT_HANDLERS) == 3
+        assert ".py" in DEFAULT_NOTEBOOK_SERIALIZERS
+        assert ".md" in DEFAULT_NOTEBOOK_SERIALIZERS
+        assert ".qmd" in DEFAULT_NOTEBOOK_SERIALIZERS
+
+
+class TestDeserializationWithFilenames:
+    """Test that filenames are propagated through the deserialization chain."""
+
+    def test_python_notebook_filepath_propagation(
+        self, tmp_path: Path
+    ) -> None:
+        """Test Python notebook filepath propagation through get_notebook_serializer."""
+        filepath = tmp_path / "test.py"
+        content = """import marimo
+__generated_with = "0.1.0"
+app = marimo.App()
+
+@app.cell
+def __():
+    x = 1
+    return x,
+"""
+        filepath.write_text(content, encoding="utf-8")
+
+        handler = get_notebook_serializer(filepath)
+        result = handler.deserialize(content, filepath=str(filepath))
+
+        assert result.filename == str(filepath)
+        assert len(result.cells) == 1
+
+    def test_markdown_notebook_filepath_propagation(
+        self, tmp_path: Path
+    ) -> None:
+        """Test Markdown notebook filepath propagation through get_notebook_serializer."""
+        filepath = tmp_path / "test.md"
+        content = """# Test
+
+```python {.marimo}
+x = 1
+```
+"""
+        filepath.write_text(content, encoding="utf-8")
+
+        handler = get_notebook_serializer(filepath)
+        result = handler.deserialize(content, filepath=str(filepath))
+
+        assert result.filename == str(filepath)
+        assert len(result.cells) == 2
+
+    def test_qmd_notebook_filepath_propagation(self, tmp_path: Path) -> None:
+        """Test QMD notebook filepath propagation."""
+        filepath = tmp_path / "test.qmd"
+        content = """# Test
+
+```python {.marimo}
+x = 1
+```
+"""
+        filepath.write_text(content, encoding="utf-8")
+
+        handler = get_notebook_serializer(filepath)
+        result = handler.deserialize(content, filepath=str(filepath))
+
+        assert result.filename == str(filepath)
+        assert isinstance(handler, MarkdownNotebookSerializer)
