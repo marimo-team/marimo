@@ -138,7 +138,7 @@ export function useNotebookActions() {
   // With server side pdf export, it doesn't matter what mode we are in,
   // Default export uses browser print, which is better in present mode
   const pdfDownloadEnabled =
-    isServerSidePdfExportEnabled || viewState.mode !== "present";
+    isServerSidePdfExportEnabled || viewState.mode === "present";
 
   const renderCheckboxElement = (checked: boolean) => (
     <div className="w-8 flex justify-end">
