@@ -232,7 +232,7 @@ def test_merge_config_custom_providers_replaces_instead_of_merging() -> None:
     new_custom_providers = new_config.get("ai", {}).get("custom_providers", {})
     assert "provider1" in new_custom_providers
     assert "provider2" not in new_custom_providers
-    assert new_custom_providers["provider1"]["api_key"] == "key1_updated"
+    assert new_custom_providers["provider1"].get("api_key") == "key1_updated"
 
 
 def test_merge_config_custom_providers_can_be_emptied() -> None:
@@ -355,3 +355,142 @@ def test_merge_config_custom_providers_partial_update_preserves_fields() -> (
     assert provider1.get("base_url") == "https://new.example.com", (
         "base_url should be updated"
     )
+
+
+def test_merge_config_custom_providers_partial_update_api_key_preserves_base_url() -> (
+    None
+):
+    """Test that updating api_key preserves base_url (inverse of above test)."""
+    prev_config = merge_default_config(
+        PartialMarimoConfig(
+            ai={
+                "custom_providers": {
+                    "provider1": {
+                        "api_key": "old_key",
+                        "base_url": "https://api.example.com",
+                    },
+                },
+            },
+        )
+    )
+
+    # Update only api_key
+    new_config = merge_config(
+        prev_config,
+        PartialMarimoConfig(
+            ai={
+                "custom_providers": {
+                    "provider1": {
+                        "api_key": "new_key",
+                    },
+                },
+            },
+        ),
+    )
+
+    provider1 = (
+        new_config.get("ai", {})
+        .get("custom_providers", {})
+        .get("provider1", {})
+    )
+    assert provider1.get("api_key") == "new_key", "api_key should be updated"
+    assert provider1.get("base_url") == "https://api.example.com", (
+        "base_url should be preserved"
+    )
+
+
+def test_merge_config_custom_providers_add_new_keeps_existing() -> None:
+    """Test that adding a new provider preserves existing providers."""
+    prev_config = merge_default_config(
+        PartialMarimoConfig(
+            ai={
+                "custom_providers": {
+                    "provider1": {
+                        "api_key": "key1",
+                        "base_url": "https://api1.example.com",
+                    },
+                },
+            },
+        )
+    )
+
+    # Add provider2 while keeping provider1
+    new_config = merge_config(
+        prev_config,
+        PartialMarimoConfig(
+            ai={
+                "custom_providers": {
+                    "provider1": {
+                        "api_key": "key1",
+                        "base_url": "https://api1.example.com",
+                    },
+                    "provider2": {
+                        "api_key": "key2",
+                        "base_url": "https://api2.example.com",
+                    },
+                },
+            },
+        ),
+    )
+
+    custom_providers = new_config.get("ai", {}).get("custom_providers", {})
+    assert "provider1" in custom_providers, "provider1 should still exist"
+    assert "provider2" in custom_providers, "provider2 should be added"
+    assert custom_providers["provider1"].get("api_key") == "key1"
+    assert custom_providers["provider2"].get("api_key") == "key2"
+
+
+def test_merge_config_custom_providers_update_one_preserves_others() -> None:
+    """Test that updating one provider doesn't affect other providers."""
+    prev_config = merge_default_config(
+        PartialMarimoConfig(
+            ai={
+                "custom_providers": {
+                    "provider1": {
+                        "api_key": "key1",
+                        "base_url": "https://api1.example.com",
+                    },
+                    "provider2": {
+                        "api_key": "key2",
+                        "base_url": "https://api2.example.com",
+                    },
+                },
+            },
+        )
+    )
+
+    # Update only provider1's base_url, provider2 included unchanged
+    new_config = merge_config(
+        prev_config,
+        PartialMarimoConfig(
+            ai={
+                "custom_providers": {
+                    "provider1": {
+                        "base_url": "https://new-api1.example.com",
+                    },
+                    "provider2": {
+                        "api_key": "key2",
+                        "base_url": "https://api2.example.com",
+                    },
+                },
+            },
+        ),
+    )
+
+    custom_providers = new_config.get("ai", {}).get("custom_providers", {})
+
+    # provider1 should have updated base_url but preserved api_key
+    assert custom_providers["provider1"].get("api_key") == "key1", (
+        "provider1 api_key should be preserved"
+    )
+    assert custom_providers["provider1"].get("base_url") == (
+        "https://new-api1.example.com"
+    ), "provider1 base_url should be updated"
+
+    # provider2 should be completely unchanged
+    assert custom_providers["provider2"].get("api_key") == "key2", (
+        "provider2 should be unchanged"
+    )
+    assert custom_providers["provider2"].get("base_url") == (
+        "https://api2.example.com"
+    ), "provider2 should be unchanged"
