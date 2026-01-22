@@ -134,6 +134,12 @@ export function useNotebookActions() {
   const sharingHtmlEnabled = resolvedConfig.sharing?.html ?? true;
   const sharingWasmEnabled = resolvedConfig.sharing?.wasm ?? true;
 
+  const isServerSidePdfExportEnabled = getFeatureFlag("server_side_pdf_export");
+  // With server side pdf export, it doesn't matter what mode we are in,
+  // Default export uses browser print, which is better in present mode
+  const pdfDownloadEnabled =
+    isServerSidePdfExportEnabled || viewState.mode !== "present";
+
   const renderCheckboxElement = (checked: boolean) => (
     <div className="w-8 flex justify-end">
       {checked && <CheckIcon size={14} />}
@@ -209,22 +215,24 @@ export function useNotebookActions() {
             if (!app) {
               return;
             }
-            await downloadHTMLAsImage(app, document.title);
+            await downloadHTMLAsImage({
+              element: app,
+              filename: document.title,
+            });
           },
         },
         {
           icon: <FileIcon size={14} strokeWidth={1.5} />,
           label: "Download as PDF",
-          disabled: viewState.mode !== "present",
-          tooltip:
-            viewState.mode === "present" ? undefined : (
-              <span>
-                Only available in app view. <br />
-                Toggle with: {renderShortcut("global.hideCode", false)}
-              </span>
-            ),
+          disabled: !pdfDownloadEnabled,
+          tooltip: pdfDownloadEnabled ? undefined : (
+            <span>
+              Only available in app view. <br />
+              Toggle with: {renderShortcut("global.hideCode", false)}
+            </span>
+          ),
           handle: async () => {
-            if (getFeatureFlag("server_side_pdf_export")) {
+            if (isServerSidePdfExportEnabled) {
               if (!filename) {
                 toastNotebookMustBeNamed();
                 return;

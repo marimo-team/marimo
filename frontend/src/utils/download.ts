@@ -1,10 +1,12 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import { toPng } from "html-to-image";
 import { toast } from "@/components/ui/use-toast";
+import { type CellId, CellOutputId } from "@/core/cells/ids";
 import { getRequestClient } from "@/core/network/requests";
 import { Filenames } from "@/utils/filenames";
 import { Paths } from "@/utils/paths";
 import { prettyError } from "./errors";
+import { Logger } from "./Logger";
 
 /**
  * Show a loading toast while an async operation is in progress.
@@ -16,6 +18,7 @@ export async function withLoadingToast<T>(
 ): Promise<T> {
   const loadingToast = toast({
     title,
+    duration: Infinity,
   });
   try {
     const result = await fn();
@@ -27,15 +30,111 @@ export async function withLoadingToast<T>(
   }
 }
 
-export async function downloadHTMLAsImage(
-  element: HTMLElement,
+function findElementForCell(cellId: CellId): HTMLElement | undefined {
+  const element = document.getElementById(CellOutputId.create(cellId));
+  if (!element) {
+    Logger.error(`Output element not found for cell ${cellId}`);
+    return;
+  }
+  return element;
+}
+
+/**
+ * Reference counter for body.printing class to handle concurrent screenshot captures.
+ * Only adds the class when count goes 0→1, only removes when count goes 1→0.
+ */
+let bodyPrintingRefCount = 0;
+
+function acquireBodyPrinting() {
+  bodyPrintingRefCount++;
+  if (bodyPrintingRefCount === 1) {
+    document.body.classList.add("printing");
+  }
+}
+
+function releaseBodyPrinting() {
+  bodyPrintingRefCount--;
+  if (bodyPrintingRefCount === 0) {
+    document.body.classList.remove("printing");
+  }
+}
+
+/*
+ * Prepare a cell element for screenshot capture.
+ * Returns a cleanup function that should be called when the screenshot is complete.
+ */
+function prepareCellElementForScreenshot(element: HTMLElement) {
+  element.classList.add("printing-output");
+  acquireBodyPrinting();
+  const originalOverflow = element.style.overflow;
+  element.style.overflow = "auto";
+
+  return () => {
+    element.classList.remove("printing-output");
+    releaseBodyPrinting();
+    element.style.overflow = originalOverflow;
+  };
+}
+
+/**
+ * Capture a cell output as a PNG data URL.
+ */
+export async function getImageDataUrlForCell(
+  cellId: CellId,
+): Promise<string | undefined> {
+  const element = findElementForCell(cellId);
+  if (!element) {
+    return;
+  }
+  const cleanup = prepareCellElementForScreenshot(element);
+
+  try {
+    return await toPng(element);
+  } finally {
+    cleanup();
+  }
+}
+
+/**
+ * Download a cell output as a PNG image file.
+ */
+export async function downloadCellOutputAsImage(
+  cellId: CellId,
   filename: string,
 ) {
+  const element = findElementForCell(cellId);
+  if (!element) {
+    return;
+  }
+
+  await downloadHTMLAsImage({
+    element,
+    filename,
+    prepare: prepareCellElementForScreenshot,
+  });
+}
+
+export async function downloadHTMLAsImage(opts: {
+  element: HTMLElement;
+  filename: string;
+  prepare?: (element: HTMLElement) => () => void;
+}) {
+  const { element, filename, prepare } = opts;
+
   // Capture current scroll position
   const appEl = document.getElementById("App");
   const currentScrollY = appEl?.scrollTop ?? 0;
-  // Add classnames for printing
-  document.body.classList.add("printing");
+
+  let cleanup: (() => void) | undefined;
+  if (prepare) {
+    // Let the prepare function handle adding classes (e.g., body.printing)
+    cleanup = prepare(element);
+  } else {
+    // When no prepare function is provided (e.g., downloading full notebook),
+    // add body.printing ourselves
+    document.body.classList.add("printing");
+  }
+
   try {
     // Get screenshot
     const dataUrl = await toPng(element);
@@ -47,8 +146,10 @@ export async function downloadHTMLAsImage(
       variant: "danger",
     });
   } finally {
-    // Remove classnames for printing
-    document.body.classList.remove("printing");
+    cleanup?.();
+    if (document.body.classList.contains("printing")) {
+      document.body.classList.remove("printing");
+    }
     // Restore scroll position
     requestAnimationFrame(() => {
       appEl?.scrollTo(0, currentScrollY);
