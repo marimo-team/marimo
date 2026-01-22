@@ -358,6 +358,33 @@ class TestPandasTableManager(unittest.TestCase):
             {"index": "e", "a": 3},
         ]
 
+    def test_to_json_named_range_index(self) -> None:
+        # Test for issue #7942: Named RangeIndex (pandas 3.0 behavior)
+        # When setting a sequential integer column as index, pandas 3.0
+        # creates a RangeIndex with a name instead of Int64Index
+        x = [10, 20, -10, 20, 10]
+        yr = list(range(2015, 2020))
+        data = pd.DataFrame({"Year": yr, "Observation": x})
+        data.set_index("Year", inplace=True)
+
+        # Verify the index is a RangeIndex with a name (pandas 3.0+)
+        # In pandas 2.x, this would be Int64Index, but both should work
+        assert data.index.name == "Year"
+
+        # The JSON should include the Year values
+        json_data = self.factory_create_json_from_df(data)
+        assert json_data == [
+            {"Year": 2015, "Observation": 10},
+            {"Year": 2016, "Observation": 20},
+            {"Year": 2017, "Observation": -10},
+            {"Year": 2018, "Observation": 20},
+            {"Year": 2019, "Observation": 10},
+        ]
+
+        # Also verify row_headers are correct
+        manager = self.factory.create()(data)
+        assert manager.get_row_headers() == [("Year", ("integer", "int64"))]
+
     def test_to_json_multi_index(self) -> None:
         # Named index
         data = pd.DataFrame(
