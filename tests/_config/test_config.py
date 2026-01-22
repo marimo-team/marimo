@@ -306,3 +306,52 @@ def test_merge_config_custom_providers_preserves_other_ai_settings() -> None:
     custom_providers = new_config.get("ai", {}).get("custom_providers", {})
     assert "provider1" not in custom_providers
     assert "provider2" in custom_providers
+
+
+def test_merge_config_custom_providers_partial_update_preserves_fields() -> (
+    None
+):
+    """Test that updating one field of a provider preserves other fields.
+
+    This validates the merge-replace behavior: when updating only base_url,
+    the api_key should be preserved (not lost due to replacement).
+    """
+    prev_config = merge_default_config(
+        PartialMarimoConfig(
+            ai={
+                "custom_providers": {
+                    "provider1": {
+                        "api_key": "secret_key",
+                        "base_url": "https://old.example.com",
+                    },
+                },
+            },
+        )
+    )
+
+    # Update only base_url (simulates getDirtyValues sending partial update)
+    new_config = merge_config(
+        prev_config,
+        PartialMarimoConfig(
+            ai={
+                "custom_providers": {
+                    "provider1": {
+                        "base_url": "https://new.example.com",
+                    },
+                },
+            },
+        ),
+    )
+
+    # api_key should be preserved, base_url should be updated
+    provider1 = (
+        new_config.get("ai", {})
+        .get("custom_providers", {})
+        .get("provider1", {})
+    )
+    assert provider1.get("api_key") == "secret_key", (
+        "api_key should be preserved"
+    )
+    assert provider1.get("base_url") == "https://new.example.com", (
+        "base_url should be updated"
+    )

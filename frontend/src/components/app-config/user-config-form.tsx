@@ -220,7 +220,7 @@ export const UserConfigForm: React.FC = () => {
       // Update local state with form values
       setConfig((prev) => ({ ...prev, ...values }));
       // Reset form to clear dirty state, important when values are cleared
-      form.reset(values, { keepDirty: false, keepDirtyValues: true });
+      form.reset(values);
     });
   };
   const onSubmit = useDebouncedCallback(onSubmitNotDebounced, FORM_DEBOUNCE);
