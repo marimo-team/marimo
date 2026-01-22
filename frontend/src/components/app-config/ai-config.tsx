@@ -1460,6 +1460,13 @@ export const AiModelDisplayConfig: React.FC<AiConfigProps> = ({
 
   const deleteModel = useEvent((modelId: QualifiedModelId) => {
     const newModels = customModels.filter((id) => id !== modelId);
+    // Remove from displayed models if it's in there
+    const newDisplayedModels = currentDisplayedModels.filter(
+      (id) => id !== modelId,
+    );
+    form.setValue("ai.models.displayed_models", newDisplayedModels, {
+      shouldDirty: true,
+    });
     form.setValue("ai.models.custom_models", newModels, {
       shouldDirty: true,
     });
