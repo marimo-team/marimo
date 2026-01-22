@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.18.4"
+__generated_with = "0.19.2"
 app = marimo.App(auto_download=["ipynb"])
 
 
@@ -14,7 +14,7 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("""
+    mo.md(r"""
     This notebook contains:
 
     - Markdown
@@ -25,9 +25,9 @@ def _(mo):
 
     This Markdown also contains some math: $f(x)$
 
-    \[
+    $$
     g(x) = 0
-    \]
+    $$
     """)
     return
 
@@ -47,9 +47,8 @@ def _():
 
 @app.cell
 def _():
-    print("This is console output") 
+    print("This is console output")
     return
-
 
 
 @app.cell
@@ -60,6 +59,14 @@ def _(px):
     )
     fig
     return (df,)
+
+
+@app.cell
+def _(df, plt):
+    plt.scatter(x=df["sepal_width"], y=df["sepal_length"])
+    print("Plot in console output")
+    plt.show()
+    return
 
 
 @app.cell
