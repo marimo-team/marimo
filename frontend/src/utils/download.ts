@@ -124,9 +124,7 @@ export async function downloadHTMLAsImage(opts: {
       variant: "danger",
     });
   } finally {
-    if (cleanup) {
-      cleanup();
-    }
+    cleanup?.();
     if (document.body.classList.contains("printing")) {
       document.body.classList.remove("printing");
     }
