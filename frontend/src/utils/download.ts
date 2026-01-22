@@ -106,10 +106,9 @@ export async function downloadHTMLAsImage(opts: {
   let cleanup: (() => void) | undefined;
   if (prepare) {
     cleanup = prepare(element);
-  } else {
-    // Typically used for downloading the entire notebook
-    document.body.classList.add("printing");
   }
+  // Typically used for downloading the entire notebook
+  document.body.classList.add("printing");
 
   // Capture current scroll position
   const appEl = document.getElementById("App");
@@ -127,7 +126,8 @@ export async function downloadHTMLAsImage(opts: {
   } finally {
     if (cleanup) {
       cleanup();
-    } else {
+    }
+    if (document.body.classList.contains("printing")) {
       document.body.classList.remove("printing");
     }
     // Restore scroll position
