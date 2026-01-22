@@ -21,7 +21,12 @@ def _merge_key(
         # new keys in update get added to original
         return update[key]
     elif path in replace_paths:
-        # This path should be replaced, not merged
+        # Use merge-replace behavior:
+        # - Keys come from UPDATE only (so deletions work)
+        # - But each key's value is merged with original (so partial updates
+        #   preserve unmodified fields like api_key)
+        if isinstance(original[key], dict) and isinstance(update[key], dict):
+            return _merge_replace(original[key], update[key])
         return update[key]
     elif isinstance(original[key], dict) and isinstance(update[key], dict):
         # both dicts, so recurse
@@ -32,6 +37,29 @@ def _merge_key(
         # key is present in both original and update, but values are not
         # both dicts; just take the update value.
         return update[key]
+
+
+def _merge_replace(
+    original: dict[Any, Any], update: dict[Any, Any]
+) -> dict[Any, Any]:
+    """Merge-replace: keys from update, but merge each value with original.
+
+    This handles record-type dicts like custom_providers where:
+    - Deleting a record works (key not in update = deleted)
+    - Editing a record preserves unmodified fields (values are merged)
+    """
+    result = {}
+    for key in update:
+        if (
+            key in original
+            and isinstance(original[key], dict)
+            and isinstance(update[key], dict)
+        ):
+            # Merge the record's fields (original first, update overwrites)
+            result[key] = {**original[key], **update[key]}
+        else:
+            result[key] = update[key]
+    return result
 
 
 def deep_merge(
@@ -45,11 +73,12 @@ def deep_merge(
     Args:
         original: The original dict.
         update: The dict to merge into the original.
-        replace_paths: Optional set of dot-separated paths that should be
-            replaced instead of merged. For example, {"ai.custom_providers"}
-            means that if both original and update have ai.custom_providers,
-            the update value will completely replace the original instead of
-            being deep merged.
+        replace_paths: Optional set of dot-separated paths that use
+            merge-replace behavior. For these paths:
+            - Keys come from update only (so deletions work)
+            - Each key's value is merged with original (so partial updates
+              preserve unmodified fields like masked api_key)
+            Example: {"ai.custom_providers"}
         current_path: Internal parameter for tracking the current path during
             recursion.
 
