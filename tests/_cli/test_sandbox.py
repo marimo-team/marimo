@@ -566,6 +566,7 @@ import marimo
     script_path.write_text(original)
 
     _ensure_marimo_in_script_metadata(str(script_path))
+    _ensure_python_version_in_script_metadata(str(script_path))
 
     assert script_path.read_text() == original
 
@@ -582,6 +583,7 @@ app = marimo.App()
     script_path.write_text(original)
 
     _ensure_marimo_in_script_metadata(str(script_path))
+    _ensure_python_version_in_script_metadata(str(script_path))
 
     content = script_path.read_text()
     assert "# /// script" in content
@@ -604,6 +606,7 @@ import marimo
 """)
 
     _ensure_marimo_in_script_metadata(str(script_path))
+    _ensure_python_version_in_script_metadata(str(script_path))
 
     content = script_path.read_text()
     assert "requires-python" in content

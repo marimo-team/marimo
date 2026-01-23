@@ -360,10 +360,10 @@ def _ensure_python_version_in_script_metadata(name: str) -> None:
 
 
 def _ensure_marimo_in_script_metadata(name: str | None) -> None:
-    """Ensure marimo and python version are in the script metadata.
+    """Ensure marimo is in the script metadata.
 
     If the file has no PEP 723 script metadata or marimo is not listed
-    as a dependency, add marimo and the Python version.
+    as a dependency, add marimo using uv.
     """
     # Only applicable to `.py` files.
     if name is None or not name.endswith(".py"):
@@ -378,8 +378,7 @@ def _ensure_marimo_in_script_metadata(name: str | None) -> None:
     # Returns: True (has marimo), False (no marimo), None (no metadata)
     has_marimo = has_marimo_in_script_metadata(name)
     if has_marimo is True:
-        # marimo is already present, check python version
-        _ensure_python_version_in_script_metadata(name)
+        # marimo is already present
         return
 
     # Add marimo to script metadata using uv
@@ -394,13 +393,8 @@ def _ensure_marimo_in_script_metadata(name: str | None) -> None:
         LOGGER.info(f"Added marimo to script metadata: {result.stdout}")
     except subprocess.CalledProcessError as e:
         LOGGER.warning(f"Failed to add marimo to script metadata: {e.stderr}")
-        return
     except Exception as e:
         LOGGER.warning(f"Failed to add marimo to script metadata: {e}")
-        return
-
-    # Add Python version if not already present
-    _ensure_python_version_in_script_metadata(name)
 
 
 def run_in_sandbox(
@@ -423,8 +417,10 @@ def run_in_sandbox(
     if find_uv_bin() == "uv" and not DependencyManager.which("uv"):
         raise click.UsageError("uv must be installed to use --sandbox")
 
-    # Ensure marimo is in the script metadata before running
+    # Ensure marimo and python version are in the script metadata before running
     _ensure_marimo_in_script_metadata(name)
+    if name is not None and name.endswith(".py"):
+        _ensure_python_version_in_script_metadata(name)
 
     uv_cmd = construct_uv_command(
         args, name, additional_features or [], additional_deps or []
