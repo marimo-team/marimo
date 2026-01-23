@@ -584,6 +584,10 @@ def test_convert_console_output_channel() -> None:
 
     result = _convert_marimo_output_to_ipynb(None, console_outputs)
 
-    assert len(result) == 1
-    assert result[0]["output_type"] == "display_data"
-    assert result[0]["data"]["image/png"] == "CONSOLE_PNG_DATA"
+    assert result == [
+        {
+            "output_type": "display_data",
+            "metadata": {},
+            "data": {"image/png": "CONSOLE_PNG_DATA"},
+        }
+    ]
