@@ -718,6 +718,194 @@ def _(mo):
     return
 
 
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md("""
+    ## Nested Wrapper Span Issue
+
+    The following cells highlight the nested wrapper span issue that occurs when
+    nesting `mo.md()` calls via f-strings. Each `mo.md()` wraps content in a
+    `<span class="markdown prose dark:prose-invert contents">` element, leading
+    to redundant nested wrappers.
+
+    See discussion in #6464, #7931.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    # Simple nested mo.md() - demonstrates redundant wrapper spans
+    _inner = mo.md("**bold**")
+    _outer = mo.md(f"Text: {_inner}")
+
+    # This creates HTML like:
+    # <span class="markdown prose dark:prose-invert contents">
+    #   <span class="paragraph">Nested mo.md:
+    #     <span class="markdown prose dark:prose-invert contents">
+    #       <span class="paragraph">Text:
+    #         <span class="markdown prose dark:prose-invert contents">
+    #           <span class="paragraph"><strong>bold</strong></span>
+    #         </span>
+    #       </span>
+    #     </span>
+    #   </span>
+    # </span>
+    mo.md(f"Nested mo.md: {_outer}")
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    # Two levels of nesting with simple text
+    level1 = mo.md("*italic text*")
+    level2 = mo.md(f"Level 2: {level1}")
+    level3 = mo.md(f"Level 3: {level2}")
+
+    mo.md(f"""
+    ### Three Levels of Nested Simple Text
+
+    {level3}
+
+    Each level adds another wrapper span, creating deeply nested HTML.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    # Nested mo.md with inline elements - shows wrapper span accumulation
+    badge = mo.md("`status: ok`")
+    message = mo.md(f"Server responded with {badge}")
+    full_status = mo.md(f"**Status Update:** {message}")
+
+    mo.md(f"""
+    ### Inline Nesting Pattern
+
+    {full_status}
+
+    Common pattern: building up complex inline content from smaller pieces.
+    The HTML structure becomes deeply nested even for simple inline content.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    # Show the actual HTML structure
+    inner_md = mo.md("**bold**")
+
+    mo.md(f"""
+    ### Inspecting the HTML Output
+
+    The inner markdown's text property:
+
+    ```html
+    {inner_md.text}
+    ```
+
+    When used via f-string `__format__`, the entire HTML including the
+    wrapper span is embedded, creating nested `<span class="markdown ...">` elements.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    # Comparison: mo.Html vs mo.md nesting behavior
+    html_inner = mo.Html("<strong>bold via Html</strong>")
+    md_inner = mo.md("**bold via md**")
+
+    mo.md(f"""
+    ### Comparing mo.Html vs mo.md Nesting
+
+    **Using mo.Html (no extra wrapper):**
+
+    Inline: {html_inner}
+
+    **Using mo.md (adds wrapper span):**
+
+    Inline: {md_inner}
+
+    Notice: mo.Html embeds cleanly, mo.md adds its own styling wrapper.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    # Multiple nested items in a row
+    item1 = mo.md("**A**")
+    item2 = mo.md("**B**")
+    item3 = mo.md("**C**")
+
+    mo.md(f"""
+    ### Multiple Nested Items Inline
+
+    Items: {item1} | {item2} | {item3}
+
+    Each item carries its own wrapper span, even for single characters.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    # Nested mo.md in a list context
+    list_item1 = mo.md("First item with `code`")
+    list_item2 = mo.md("Second item with **bold**")
+    list_item3 = mo.md("Third item with *italic*")
+
+    mo.md(f"""
+    ### Nested mo.md in List Items
+
+    - {list_item1}
+    - {list_item2}
+    - {list_item3}
+
+    Each list item has its own markdown wrapper, which may affect spacing.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    # Workaround: using mo.Html for inline content
+    # This avoids the extra wrapper span
+    inline_bold = mo.Html("<strong>bold</strong>")
+    inline_code = mo.Html("<code>code</code>")
+
+    mo.md(f"""
+    ### Workaround: Use mo.Html for Inline Content
+
+    Using mo.Html directly: {inline_bold} and {inline_code}
+
+    This avoids the extra wrapper spans from mo.md, but requires
+    writing raw HTML instead of markdown syntax.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    # Edge case: deeply nested with mixed content types
+    deep1 = mo.md("core")
+    deep2 = mo.Html(f"<em>{deep1}</em>")
+    deep3 = mo.md(f"wrapped: {deep2}")
+    deep4 = mo.Html(f"<div style='padding: 4px; background: #f0f0f0;'>{deep3}</div>")
+    deep5 = mo.md(f"**Final:** {deep4}")
+
+    mo.md(f"""
+    ### Deeply Nested Mixed Content (5 levels)
+
+    {deep5}
+
+    Path: md -> Html -> md -> Html -> md
+
+    Each mo.md adds a wrapper span; mo.Html does not.
+    """)
+    return
+
+
 @app.cell
 def _():
     import marimo as mo
