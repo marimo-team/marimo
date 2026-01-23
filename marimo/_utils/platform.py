@@ -12,7 +12,6 @@ def is_windows() -> bool:
 def is_pyodide() -> bool:
     return "pyodide" in sys.modules
 
-
 def check_shared_memory_available() -> tuple[bool, str]:
     """Check if shared memory is available for multiprocessing.
 

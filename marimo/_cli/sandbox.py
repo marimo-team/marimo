@@ -24,6 +24,7 @@ from marimo._utils.inline_script_metadata import (
     has_marimo_in_script_metadata,
     is_marimo_dependency,
 )
+from marimo._utils.scripts import with_python_version_requirement
 from marimo._utils.uv import find_uv_bin
 from marimo._utils.versions import is_editable
 from marimo._version import __version__
@@ -344,13 +345,8 @@ def _ensure_python_version_in_script_metadata(name: str) -> None:
         # Already has Python version
         return
 
-    python_version = (
-        f">={platform.python_version_tuple()[0]}"
-        f".{platform.python_version_tuple()[1]}"
-    )
-    project["requires-python"] = python_version
-
     # Generate new script metadata block
+    project = with_python_version_requirement(project)
     new_block = write_pyproject_to_script(project)
 
     # Replace the old block with the new one
@@ -361,9 +357,6 @@ def _ensure_python_version_in_script_metadata(name: str) -> None:
     if new_content != content:
         with open(name, "w", encoding="utf-8") as f:
             f.write(new_content)
-        LOGGER.debug(
-            f"Added requires-python to script metadata: {python_version}"
-        )
 
 
 def _ensure_marimo_in_script_metadata(name: str | None) -> None:
