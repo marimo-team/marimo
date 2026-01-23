@@ -506,3 +506,84 @@ def test_convert_mimebundle_marimo_component_preserves_other_mimes() -> None:
             "metadata": {},
         }
     ]
+
+
+def test_convert_console_media_output() -> None:
+    """Test that MEDIA channel console outputs (e.g., plt.show()) are converted."""
+    console_outputs = [
+        CellOutput(
+            channel=CellChannel.STDOUT,
+            mimetype="text/plain",
+            data="Before plot\n",
+        ),
+        CellOutput(
+            channel=CellChannel.MEDIA,
+            mimetype="application/vnd.marimo+mimebundle",
+            data={
+                "text/plain": "<Figure size 640x480 with 1 Axes>",
+                "image/png": "data:image/png;base64,iVBORw0KGgo=",
+            },
+        ),
+        CellOutput(
+            channel=CellChannel.STDOUT,
+            mimetype="text/plain",
+            data="After plot\n",
+        ),
+    ]
+
+    result = _convert_marimo_output_to_ipynb(None, console_outputs)
+
+    assert len(result) == 3
+    # First stdout
+    assert result[0]["output_type"] == "stream"
+    assert result[0]["name"] == "stdout"
+    assert result[0]["text"] == "Before plot\n"
+    # Media output (plt.show())
+    assert result[1]["output_type"] == "display_data"
+    assert (
+        result[1]["data"]["text/plain"] == "<Figure size 640x480 with 1 Axes>"
+    )
+    assert result[1]["data"]["image/png"] == "iVBORw0KGgo="  # Base64 extracted
+    # Second stdout
+    assert result[2]["output_type"] == "stream"
+    assert result[2]["name"] == "stdout"
+    assert result[2]["text"] == "After plot\n"
+
+
+def test_convert_console_media_with_marimo_component() -> None:
+    """Test that marimo components in console MEDIA outputs are filtered."""
+    console_outputs = [
+        CellOutput(
+            channel=CellChannel.MEDIA,
+            mimetype="application/vnd.marimo+mimebundle",
+            data={
+                "text/html": "<marimo-plotly data-figure='{}'>",
+                "image/png": "PNG_FALLBACK_DATA",
+            },
+        ),
+    ]
+
+    result = _convert_marimo_output_to_ipynb(None, console_outputs)
+
+    # Marimo component HTML should be filtered, PNG should remain
+    assert len(result) == 1
+    assert result[0]["output_type"] == "display_data"
+    assert "text/html" not in result[0]["data"]
+    assert result[0]["data"]["image/png"] == "PNG_FALLBACK_DATA"
+
+
+def test_convert_console_output_channel() -> None:
+    """Test that OUTPUT channel console outputs are also handled."""
+    console_outputs = [
+        CellOutput(
+            channel=CellChannel.OUTPUT,
+            mimetype="image/png",
+            data="data:image/png;base64,CONSOLE_PNG_DATA",
+        ),
+    ]
+
+    result = _convert_marimo_output_to_ipynb(None, console_outputs)
+
+    assert len(result) == 1
+    assert result[0]["output_type"] == "display_data"
+    assert result[0]["data"]["image/png"] == "CONSOLE_PNG_DATA"
