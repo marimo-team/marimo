@@ -191,10 +191,19 @@ class AppFileManager:
             from marimo._config.settings import GLOBAL_SETTINGS
 
             if GLOBAL_SETTINGS.MANAGE_SCRIPT_METADATA:
+                import platform
+
                 from marimo._utils.scripts import write_pyproject_to_script
 
+                python_version = (
+                    f">={platform.python_version_tuple()[0]}"
+                    f".{platform.python_version_tuple()[1]}"
+                )
                 header = write_pyproject_to_script(
-                    {"dependencies": ["marimo"]}
+                    {
+                        "requires-python": python_version,
+                        "dependencies": ["marimo"],
+                    }
                 )
 
         # Rewrap with header if relevant and set filename.

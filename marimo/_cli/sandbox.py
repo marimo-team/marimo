@@ -320,13 +320,58 @@ def construct_uv_command(
     return uv_cmd + cmd
 
 
-def _ensure_marimo_in_script_metadata(name: str | None) -> None:
-    """Ensure marimo is in the script metadata if metadata exists.
+def _ensure_python_version_in_script_metadata(name: str) -> None:
+    """Add requires-python to script metadata if not present.
 
-    If the file has PEP 723 script metadata but marimo is not listed
-    as a dependency, add it using uv.
+    Reads the file, parses the PEP 723 metadata, adds requires-python
+    if missing, and writes the updated metadata back.
     """
+    from marimo._utils.scripts import (
+        REGEX,
+        read_pyproject_from_script,
+        write_pyproject_to_script,
+    )
 
+    with open(name, encoding="utf-8") as f:
+        content = f.read()
+
+    project = read_pyproject_from_script(content)
+    if project is None:
+        # No script metadata exists
+        return
+
+    if "requires-python" in project:
+        # Already has Python version
+        return
+
+    python_version = (
+        f">={platform.python_version_tuple()[0]}"
+        f".{platform.python_version_tuple()[1]}"
+    )
+    project["requires-python"] = python_version
+
+    # Generate new script metadata block
+    new_block = write_pyproject_to_script(project)
+
+    # Replace the old block with the new one
+    import re
+
+    new_content = re.sub(REGEX, new_block, content, count=1)
+
+    if new_content != content:
+        with open(name, "w", encoding="utf-8") as f:
+            f.write(new_content)
+        LOGGER.debug(
+            f"Added requires-python to script metadata: {python_version}"
+        )
+
+
+def _ensure_marimo_in_script_metadata(name: str | None) -> None:
+    """Ensure marimo and python version are in the script metadata.
+
+    If the file has no PEP 723 script metadata or marimo is not listed
+    as a dependency, add marimo and the Python version.
+    """
     # Only applicable to `.py` files.
     if name is None or not name.endswith(".py"):
         return
@@ -334,11 +379,13 @@ def _ensure_marimo_in_script_metadata(name: str | None) -> None:
     # Check if script metadata exists and whether marimo is present
     # Returns: True (has marimo), False (no marimo), None (no metadata)
     has_marimo = has_marimo_in_script_metadata(name)
-    if has_marimo is not False:
-        # Either marimo is present (True) or no metadata exists (None)
+    if has_marimo is True:
+        # marimo is already present, check python version
+        _ensure_python_version_in_script_metadata(name)
         return
 
     # Add marimo to script metadata using uv
+    # This will create the script metadata block if it doesn't exist
     try:
         result = subprocess.run(
             [find_uv_bin(), "add", "--script", name, "marimo"],
@@ -349,8 +396,13 @@ def _ensure_marimo_in_script_metadata(name: str | None) -> None:
         LOGGER.info(f"Added marimo to script metadata: {result.stdout}")
     except subprocess.CalledProcessError as e:
         LOGGER.warning(f"Failed to add marimo to script metadata: {e.stderr}")
+        return
     except Exception as e:
         LOGGER.warning(f"Failed to add marimo to script metadata: {e}")
+        return
+
+    # Add Python version if not already present
+    _ensure_python_version_in_script_metadata(name)
 
 
 def run_in_sandbox(
