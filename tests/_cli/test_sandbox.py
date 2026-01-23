@@ -648,6 +648,18 @@ import marimo
     assert script_path.read_text() == original
 
 
+def test_ensure_marimo_in_script_metadata_noop_when_file_missing(
+    tmp_path: Path,
+) -> None:
+    """Test that file is not created when it doesn't exist."""
+    script_path = tmp_path / "nonexistent.py"
+
+    _ensure_marimo_in_script_metadata(str(script_path))
+
+    # File should still not exist
+    assert not script_path.exists()
+
+
 def test_get_sandbox_requirements_adds_additional_deps(tmp_path: Path) -> None:
     """Test that additional deps are added when not present."""
     from marimo._cli.sandbox import get_sandbox_requirements

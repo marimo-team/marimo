@@ -369,6 +369,11 @@ def _ensure_marimo_in_script_metadata(name: str | None) -> None:
     if name is None or not name.endswith(".py"):
         return
 
+    # If the file doesn't exist, don't create it here - let marimo
+    # create the notebook normally with proper structure
+    if not os.path.exists(name):
+        return
+
     # Check if script metadata exists and whether marimo is present
     # Returns: True (has marimo), False (no marimo), None (no metadata)
     has_marimo = has_marimo_in_script_metadata(name)
