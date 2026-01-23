@@ -376,4 +376,70 @@ class PandasTableManagerFactory(TableManagerFactory):
             ) -> list[str | int | float]:
                 return self._original_data[column].unique().tolist()  # type: ignore[return-value,no-any-return]
 
+            def search(self, query: str) -> PandasTableManager:
+                """Override search to include index values in search when index is not default.
+
+                When a pandas Series (like from value_counts()) is converted to a DataFrame,
+                the Series index becomes the DataFrame index. The parent search method only
+                searches columns, not the index. This override resets the index (if needed)
+                before searching, making index values searchable.
+                """
+                # Check if we need to reset the index (same logic as to_json_str)
+                needs_reset = isinstance(
+                    self._original_data.index, pd.MultiIndex
+                ) or (
+                    isinstance(self._original_data.index, pd.Index)
+                    and not (
+                        isinstance(self._original_data.index, pd.RangeIndex)
+                        and self._original_data.index.name is None
+                    )
+                )
+
+                if needs_reset:
+                    # Create a copy with reset index for searching
+                    data_for_search = self._original_data.copy()
+                    index_names = data_for_search.index.names
+
+                    # Check for name conflicts between index names and column names
+                    conflicting_names = set(index_names) & set(
+                        data_for_search.columns
+                    )
+                    if conflicting_names:
+                        # Create new names, handling None values
+                        new_names: list[str] = []
+                        for name in index_names:
+                            if name in conflicting_names:
+                                new_names.append(f"{name}_index")
+                            else:
+                                new_names.append(str(name))
+
+                        # Rename the index to avoid conflict
+                        if isinstance(data_for_search.index, pd.MultiIndex):
+                            data_for_search.index = (
+                                data_for_search.index.set_names(new_names)
+                            )
+                        else:
+                            data_for_search.index = (
+                                data_for_search.index.rename(new_names[0])
+                            )
+
+                    data_for_search = data_for_search.reset_index()
+
+                    # Create a temporary manager with reset index for searching
+                    temp_manager = PandasTableManager(data_for_search)
+                    # Call parent search on the reset-index data
+                    searched_manager = super(
+                        PandasTableManager, temp_manager
+                    ).search(query)
+
+                    # Convert the narwhals result back to pandas DataFrame
+                    searched_data = searched_manager.data.to_native()
+                    # Create a new PandasTableManager with the filtered results
+                    return PandasTableManager(searched_data)
+                else:
+                    # Default index, use parent search method and convert result back to PandasTableManager
+                    searched_manager = super().search(query)
+                    searched_data = searched_manager.data.to_native()
+                    return PandasTableManager(searched_data)
+
         return PandasTableManager

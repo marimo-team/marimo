@@ -930,6 +930,49 @@ class TestPandasTableManager(unittest.TestCase):
         assert manager.search("bob").get_num_rows() == 0
         assert manager.search("nan").get_num_rows() == 4
 
+    def test_search_value_counts(self) -> None:
+        """
+        Test that searching works on value_counts() output.
+
+        When value_counts() returns a Series, it's converted to a DataFrame where
+        the Series index (the unique values) becomes the DataFrame index.
+        The search should work on these index values.
+        """
+        # Create a DataFrame and get value_counts
+        df = pd.DataFrame(
+            {
+                "Name": [
+                    "Dave",
+                    "Alice",
+                    "Dave",
+                    "Bob",
+                    "Alice",
+                    "Dave",
+                    "Charlie",
+                ]
+            }
+        )
+        value_counts_series = df["Name"].value_counts()
+        # Convert Series to DataFrame (as pandas_formatters does)
+        # If Series has no name, rename to "value" (as pandas_formatters does)
+        if value_counts_series.name is None:
+            value_counts_series = value_counts_series.rename("value")
+        value_counts_df = value_counts_series.to_frame()
+
+        manager = self.factory.create()(value_counts_df)
+
+        # Search for values that are in the index (like "Dave")
+        assert manager.search("Dave").get_num_rows() == 1
+        # Search for partial match
+        assert manager.search("D").get_num_rows() == 1  # Should find "Dave"
+        # Search for another value
+        assert manager.search("Alice").get_num_rows() == 1
+        # Search for value not in index
+        assert manager.search("Eve").get_num_rows() == 0
+        # Case insensitive search
+        assert manager.search("dave").get_num_rows() == 1
+        assert manager.search("DAVE").get_num_rows() == 1
+
     def test_apply_formatting_does_not_modify_original_data(self) -> None:
         original_data = self.data.copy()
         format_mapping = {
