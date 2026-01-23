@@ -269,6 +269,66 @@ def _get_error_info(
         return error_dict.get("type", "Error"), error.describe()
 
 
+def _convert_rich_output_to_ipynb(
+    output: CellOutput,
+) -> Optional[NotebookNode]:
+    """Convert a rich output (OUTPUT/MEDIA channel) to IPython notebook format.
+
+    Returns None if the output should be skipped or produces no data.
+    """
+    import nbformat
+
+    if output.data is None:
+        return None
+
+    if output.channel not in (CellChannel.OUTPUT, CellChannel.MEDIA):
+        return None
+
+    if output.mimetype == "text/plain" and (
+        output.data == [] or output.data == ""
+    ):
+        return None
+
+    # Handle rich output
+    data: dict[str, Any] = {}
+    metadata: dict[str, Any] = {}
+
+    if output.mimetype == "application/vnd.marimo+error":
+        # Errors are handled separately via MARIMO_ERROR channel
+        return None
+    elif output.mimetype == "application/vnd.marimo+mimebundle":
+        if isinstance(output.data, dict):
+            mimebundle = output.data
+        elif isinstance(output.data, str):
+            mimebundle = json.loads(output.data)
+        else:
+            raise ValueError(f"Invalid data type: {type(output.data)}")
+
+        for mime, content in mimebundle.items():
+            if mime == METADATA_KEY and isinstance(content, dict):
+                metadata = content
+            elif mime == "text/html" and _is_marimo_component(content):
+                # Skip marimo components because they cannot be rendered
+                # in IPython notebook format
+                continue
+            else:
+                data[mime] = _maybe_extract_dataurl(content)
+    else:
+        data[output.mimetype] = _maybe_extract_dataurl(output.data)
+
+    if not data:
+        return None
+
+    return cast(
+        nbformat.NotebookNode,
+        nbformat.v4.new_output(  # type: ignore[no-untyped-call]
+            "display_data",
+            data=data,
+            metadata=metadata,
+        ),
+    )
+
+
 def _convert_marimo_output_to_ipynb(
     cell_output: Optional[CellOutput], console_outputs: list[CellOutput]
 ) -> list[NotebookNode]:
@@ -277,7 +337,7 @@ def _convert_marimo_output_to_ipynb(
 
     ipynb_outputs: list[NotebookNode] = []
 
-    # Handle stdout/stderr
+    # Handle console outputs (stdout/stderr/media)
     for console_out in console_outputs:
         if console_out.channel == CellChannel.STDOUT:
             ipynb_outputs.append(
@@ -304,6 +364,11 @@ def _convert_marimo_output_to_ipynb(
                     ),
                 )
             )
+        elif console_out.channel in (CellChannel.OUTPUT, CellChannel.MEDIA):
+            # Handle rich outputs in console area (e.g., plt.show())
+            rich_output = _convert_rich_output_to_ipynb(console_out)
+            if rich_output is not None:
+                ipynb_outputs.append(rich_output)
 
     if not cell_output:
         return ipynb_outputs
@@ -331,50 +396,9 @@ def _convert_marimo_output_to_ipynb(
             )
         return ipynb_outputs
 
-    if cell_output.channel not in (CellChannel.OUTPUT, CellChannel.MEDIA):
-        return ipynb_outputs
-
-    if cell_output.mimetype == "text/plain" and (
-        cell_output.data == [] or cell_output.data == ""
-    ):
-        return ipynb_outputs
-
-    # Handle rich output
-    data: dict[str, Any] = {}
-    metadata: dict[str, Any] = {}
-
-    if cell_output.mimetype == "application/vnd.marimo+error":
-        # Already handled above via MARIMO_ERROR channel
-        return ipynb_outputs
-    elif cell_output.mimetype == "application/vnd.marimo+mimebundle":
-        if isinstance(cell_output.data, dict):
-            mimebundle = cell_output.data
-        elif isinstance(cell_output.data, str):
-            mimebundle = json.loads(cell_output.data)
-        else:
-            raise ValueError(f"Invalid data type: {type(cell_output.data)}")
-
-        for mime, content in mimebundle.items():
-            if mime == METADATA_KEY and isinstance(content, dict):
-                metadata = content
-            elif mime == "text/html" and _is_marimo_component(content):
-                # Skip marimo components because they cannot be rendered in IPython notebook format
-                continue
-            else:
-                data[mime] = _maybe_extract_dataurl(content)
-    else:
-        data[cell_output.mimetype] = _maybe_extract_dataurl(cell_output.data)
-
-    if data:
-        ipynb_outputs.append(
-            cast(
-                nbformat.NotebookNode,
-                nbformat.v4.new_output(  # type: ignore[no-untyped-call]
-                    "display_data",
-                    data=data,
-                    metadata=metadata,
-                ),
-            )
-        )
+    # Handle rich output from cell
+    rich_output = _convert_rich_output_to_ipynb(cell_output)
+    if rich_output is not None:
+        ipynb_outputs.append(rich_output)
 
     return ipynb_outputs
