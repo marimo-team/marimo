@@ -1472,7 +1472,7 @@ class table(
                 error=f"Failed to get row IDs: {str(e)}",
             )
 
-    # Override _mime_ to return an a plain HTML representation in non-interactive environments
+    # Override _mime_ to return a plain HTML representation in non-interactive environments
     def _mime_(self) -> tuple[KnownMimeType, str]:
         if is_non_interactive():
             df = self.data

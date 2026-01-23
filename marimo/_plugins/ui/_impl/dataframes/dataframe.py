@@ -229,7 +229,7 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
             ),
         )
 
-    # Override _mime_ to return an a plain HTML representation in non-interactive environments
+    # Override _mime_ to return a plain HTML representation in non-interactive environments
     def _mime_(self) -> tuple[KnownMimeType, str]:
         if is_non_interactive():
             # Generates a plain HTML representation of the table data,
