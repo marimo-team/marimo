@@ -1,4 +1,4 @@
-Claude lets you customise the marimo editing experience with it's agent. This page lists some worthwhile utilities and we also provide compelling use-cases related to marimo notebooks.
+Claude lets you customise the marimo editing experience with its agent. This page lists some worthwhile utilities, and we also provide compelling use cases related to marimo notebooks.
 
 ### Slash commands
 
@@ -30,7 +30,7 @@ There are more elaborate things you might do with these slash commands, to learn
 
 ### Skills
 
-[Skills](https://code.claude.com/docs/en/skills#agent-skills) are similar to commands, but you don't trigger them manually. You define them and then let Claude use them when it thinks it's relevant. You store these skills either in the `~/.claude/skills/` personal folder or in the `.claude/skills/` local folder of the project.
+[Skills](https://code.claude.com/docs/en/skills#agent-skills) are similar to commands, but you don't trigger them manually. You define them and then let Claude use them when it thinks they're relevant. You store these skills either in the `~/.claude/skills/` personal folder or in the `.claude/skills/` local folder of the project.
 
 As an example, this is what the a skill might look like:
 
