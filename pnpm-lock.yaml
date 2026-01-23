@@ -413,10 +413,10 @@ importers:
         specifier: ^3.4.3
         version: 3.4.3(@types/node@24.10.4)(@types/react@19.2.7)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
       react-aria:
-        specifier: ^3.44.0
+        specifier: 3.44.0
         version: 3.44.0(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
       react-aria-components:
-        specifier: ^1.13.0
+        specifier: 1.13.0
         version: 1.13.0(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
       react-codemirror-merge:
         specifier: 4.25.4
