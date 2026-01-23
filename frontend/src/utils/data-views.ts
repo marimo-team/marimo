@@ -3,25 +3,10 @@ import { get, set } from "lodash-es";
 import { invariant } from "./invariant";
 import {
   type Base64String,
-  binaryToByteString,
-  byteStringToBinary,
-  typedAtob,
-  typedBtoa,
+  base64ToDataView,
+  dataViewToBase64,
 } from "./json/base64";
 import { Logger } from "./Logger";
-
-/**
- * Convert a DataView to a base64 string.
- */
-export function dataViewToBase64(dataView: DataView): Base64String {
-  const bytes = new Uint8Array(
-    dataView.buffer,
-    dataView.byteOffset,
-    dataView.byteLength,
-  );
-  const byteString = binaryToByteString(bytes);
-  return typedBtoa(byteString);
-}
 
 /**
  * Recursively find all DataViews in an object and return their paths.
@@ -148,8 +133,7 @@ export function decodeFromWire<T extends Record<string, unknown>>(input: {
 
     // Handle both base64 strings (from wire format) and DataViews (direct usage)
     if (typeof buffer === "string") {
-      const bytes = byteStringToBinary(typedAtob(buffer));
-      set(out, bufferPath, new DataView(bytes.buffer));
+      set(out, bufferPath, base64ToDataView(buffer));
     } else {
       set(out, bufferPath, buffer);
     }
