@@ -24,6 +24,7 @@ from marimo._utils.inline_script_metadata import (
     has_marimo_in_script_metadata,
     is_marimo_dependency,
 )
+from marimo._utils.scripts import with_python_version_requirement
 from marimo._utils.uv import find_uv_bin
 from marimo._utils.versions import is_editable
 from marimo._version import __version__
@@ -320,25 +321,68 @@ def construct_uv_command(
     return uv_cmd + cmd
 
 
-def _ensure_marimo_in_script_metadata(name: str | None) -> None:
-    """Ensure marimo is in the script metadata if metadata exists.
+def _ensure_python_version_in_script_metadata(name: str) -> None:
+    """Add requires-python to script metadata if not present.
 
-    If the file has PEP 723 script metadata but marimo is not listed
-    as a dependency, add it using uv.
+    Reads the file, parses the PEP 723 metadata, adds requires-python
+    if missing, and writes the updated metadata back.
     """
+    from marimo._utils.scripts import (
+        REGEX,
+        read_pyproject_from_script,
+        write_pyproject_to_script,
+    )
 
+    with open(name, encoding="utf-8") as f:
+        content = f.read()
+
+    project = read_pyproject_from_script(content)
+    if project is None:
+        # No script metadata exists
+        return
+
+    if "requires-python" in project:
+        # Already has Python version
+        return
+
+    # Generate new script metadata block
+    project = with_python_version_requirement(project)
+    new_block = write_pyproject_to_script(project)
+
+    # Replace the old block with the new one
+    import re
+
+    new_content = re.sub(REGEX, new_block, content, count=1)
+
+    if new_content != content:
+        with open(name, "w", encoding="utf-8") as f:
+            f.write(new_content)
+
+
+def _ensure_marimo_in_script_metadata(name: str | None) -> None:
+    """Ensure marimo is in the script metadata.
+
+    If the file has no PEP 723 script metadata or marimo is not listed
+    as a dependency, add marimo using uv.
+    """
     # Only applicable to `.py` files.
     if name is None or not name.endswith(".py"):
+        return
+
+    # If the file doesn't exist or is empty, don't create it here - let marimo
+    # create the notebook normally with proper structure
+    if not os.path.exists(name) or os.path.getsize(name) == 0:
         return
 
     # Check if script metadata exists and whether marimo is present
     # Returns: True (has marimo), False (no marimo), None (no metadata)
     has_marimo = has_marimo_in_script_metadata(name)
-    if has_marimo is not False:
-        # Either marimo is present (True) or no metadata exists (None)
+    if has_marimo is True:
+        # marimo is already present
         return
 
     # Add marimo to script metadata using uv
+    # This will create the script metadata block if it doesn't exist
     try:
         result = subprocess.run(
             [find_uv_bin(), "add", "--script", name, "marimo"],
@@ -373,8 +417,10 @@ def run_in_sandbox(
     if find_uv_bin() == "uv" and not DependencyManager.which("uv"):
         raise click.UsageError("uv must be installed to use --sandbox")
 
-    # Ensure marimo is in the script metadata before running
+    # Ensure marimo and python version are in the script metadata before running
     _ensure_marimo_in_script_metadata(name)
+    if name is not None and name.endswith(".py"):
+        _ensure_python_version_in_script_metadata(name)
 
     uv_cmd = construct_uv_command(
         args, name, additional_features or [], additional_deps or []

@@ -25,6 +25,7 @@ from marimo._session.notebook.storage import (
 from marimo._types.ids import CellId_t
 from marimo._utils.http import HTTPException, HTTPStatus
 from marimo._utils.marimo_path import MarimoPath
+from marimo._utils.scripts import with_python_version_requirement
 
 LOGGER = _loggers.marimo_logger()
 
@@ -194,7 +195,11 @@ class AppFileManager:
                 from marimo._utils.scripts import write_pyproject_to_script
 
                 header = write_pyproject_to_script(
-                    {"dependencies": ["marimo"]}
+                    with_python_version_requirement(
+                        {
+                            "dependencies": ["marimo"],
+                        }
+                    )
                 )
 
         # Rewrap with header if relevant and set filename.

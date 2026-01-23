@@ -4,7 +4,10 @@ import textwrap
 
 import pytest
 
-from marimo._utils.scripts import read_pyproject_from_script
+from marimo._utils.scripts import (
+    read_pyproject_from_script,
+    with_python_version_requirement,
+)
 
 
 def test_read_pyproject_from_script():
@@ -79,3 +82,29 @@ def test_read_marimo_config_from_script():
     assert config["tool"]["marimo"]["runtime"]["output_max_bytes"] == 20
     assert config["tool"]["marimo"]["runtime"]["std_stream_max_bytes"] == 10
     assert config["tool"]["marimo"]["display"]["cell_output"] == "above"
+
+
+def test_with_python_version_requirement():
+    import platform
+
+    project = {"dependencies": ["numpy"]}
+    result = with_python_version_requirement(project)
+
+    # Original should not be mutated
+    assert project == {"dependencies": ["numpy"]}
+
+    # Check the result
+    major, minor = platform.python_version_tuple()[:2]
+    assert result == {
+        "dependencies": ["numpy"],
+        "requires-python": f">={major}.{minor}",
+    }
+
+
+def test_with_python_version_requirement_empty_project():
+    import platform
+
+    result = with_python_version_requirement({})
+
+    major, minor = platform.python_version_tuple()[:2]
+    assert result == {"requires-python": f">={major}.{minor}"}
