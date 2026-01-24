@@ -6,6 +6,7 @@ import { getRequestClient } from "@/core/network/requests";
 import { Filenames } from "@/utils/filenames";
 import { Paths } from "@/utils/paths";
 import { prettyError } from "./errors";
+import { replaceIframesForCapture } from "./iframe";
 import { Logger } from "./Logger";
 
 /**
@@ -94,6 +95,7 @@ function prepareCellElementForScreenshot(
  * @param enablePrintMode - When true, enables print mode which adds a 'printing' class to the body.
  *   This can cause layout shifts that cause the page to scroll.
  * @returns The PNG as a data URL, or undefined if the cell element wasn't found
+ * Handles iframes by capturing same-origin content or showing placeholders.
  */
 export async function getImageDataUrlForCell(
   cellId: CellId,
@@ -103,12 +105,15 @@ export async function getImageDataUrlForCell(
   if (!element) {
     return;
   }
+
+  const restoreIframes = await replaceIframesForCapture(element, toPng);
   const cleanup = prepareCellElementForScreenshot(element, enablePrintMode);
 
   try {
     return await toPng(element);
   } finally {
     cleanup();
+    restoreIframes();
   }
 }
 
@@ -142,6 +147,8 @@ export async function downloadHTMLAsImage(opts: {
   const appEl = document.getElementById("App");
   const currentScrollY = appEl?.scrollTop ?? 0;
 
+  const restoreIframes = await replaceIframesForCapture(element, toPng);
+
   let cleanup: (() => void) | undefined;
   if (prepare) {
     cleanup = prepare(element);
@@ -163,6 +170,7 @@ export async function downloadHTMLAsImage(opts: {
     });
   } finally {
     cleanup?.();
+    restoreIframes();
     if (document.body.classList.contains("printing")) {
       document.body.classList.remove("printing");
     }

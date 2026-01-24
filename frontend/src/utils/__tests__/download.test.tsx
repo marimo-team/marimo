@@ -544,3 +544,139 @@ describe("downloadByURL", () => {
     expect(mockAnchor.remove).toHaveBeenCalled();
   });
 });
+
+describe("iframe handling in getImageDataUrlForCell", () => {
+  const mockDataUrl = "data:image/png;base64,mockbase64data";
+  let mockElement: HTMLElement;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockElement = document.createElement("div");
+    mockElement.id = CellOutputId.create("cell-iframe" as CellId);
+    document.body.append(mockElement);
+  });
+
+  afterEach(() => {
+    mockElement.remove();
+  });
+
+  it("should replace cross-origin iframes with placeholders during capture", async () => {
+    // Create a cross-origin iframe (contentDocument will be null)
+    const iframe = document.createElement("iframe");
+    iframe.src = "https://example.com";
+    // Set dimensions for placeholder
+    Object.defineProperty(iframe, "offsetWidth", { value: 400 });
+    Object.defineProperty(iframe, "offsetHeight", { value: 300 });
+    mockElement.append(iframe);
+
+    let capturedElement: HTMLElement | null = null;
+    vi.mocked(toPng).mockImplementation(async (el: HTMLElement | null) => {
+      capturedElement = el;
+      if (!capturedElement) {
+        throw new Error("Capture failed");
+      }
+      // During capture, iframe should be replaced with placeholder
+      const iframes = capturedElement.querySelectorAll("iframe");
+      expect(iframes.length).toBe(0);
+
+      const placeholder = capturedElement.querySelector("div");
+      expect(placeholder).toBeTruthy();
+      expect(placeholder?.textContent).toContain("Embedded");
+
+      return mockDataUrl;
+    });
+
+    await getImageDataUrlForCell("cell-iframe" as CellId);
+
+    // After capture, iframe should be restored
+    const iframes = mockElement.querySelectorAll("iframe");
+    expect(iframes.length).toBe(1);
+    expect(iframes[0]).toBe(iframe);
+  });
+
+  it("should restore iframes even if capture fails", async () => {
+    const iframe = document.createElement("iframe");
+    iframe.src = "https://example.com";
+    Object.defineProperty(iframe, "offsetWidth", { value: 400 });
+    Object.defineProperty(iframe, "offsetHeight", { value: 300 });
+    mockElement.append(iframe);
+
+    vi.mocked(toPng).mockRejectedValue(new Error("Capture failed"));
+
+    await expect(
+      getImageDataUrlForCell("cell-iframe" as CellId),
+    ).rejects.toThrow("Capture failed");
+
+    // Iframe should still be restored
+    const iframes = mockElement.querySelectorAll("iframe");
+    expect(iframes.length).toBe(1);
+    expect(iframes[0]).toBe(iframe);
+  });
+
+  it("should handle multiple iframes", async () => {
+    const iframe1 = document.createElement("iframe");
+    iframe1.src = "https://example1.com";
+    Object.defineProperty(iframe1, "offsetWidth", { value: 400 });
+    Object.defineProperty(iframe1, "offsetHeight", { value: 300 });
+
+    const iframe2 = document.createElement("iframe");
+    iframe2.src = "https://example2.com";
+    Object.defineProperty(iframe2, "offsetWidth", { value: 200 });
+    Object.defineProperty(iframe2, "offsetHeight", { value: 150 });
+
+    mockElement.append(iframe1);
+    mockElement.append(iframe2);
+
+    vi.mocked(toPng).mockImplementation(async (el) => {
+      const iframes = el.querySelectorAll("iframe");
+      expect(iframes.length).toBe(0);
+      return mockDataUrl;
+    });
+
+    await getImageDataUrlForCell("cell-iframe" as CellId);
+
+    // Both iframes should be restored
+    const iframes = mockElement.querySelectorAll("iframe");
+    expect(iframes.length).toBe(2);
+  });
+
+  it("should handle nested iframes (mo.iframe with embedded content)", async () => {
+    // Simulate mo.iframe() which creates a same-origin iframe containing cross-origin embed
+    const outerIframe = document.createElement("iframe");
+    Object.defineProperty(outerIframe, "offsetWidth", { value: 420 });
+    Object.defineProperty(outerIframe, "offsetHeight", { value: 315 });
+
+    // Create mock body with nested cross-origin iframe
+    const mockBody = document.createElement("body");
+    const nestedIframe = document.createElement("iframe");
+    nestedIframe.src = "https://www.youtube.com/embed/abc123";
+    Object.defineProperty(nestedIframe, "offsetWidth", { value: 420 });
+    Object.defineProperty(nestedIframe, "offsetHeight", { value: 315 });
+    mockBody.append(nestedIframe);
+
+    // Mock contentDocument to simulate same-origin iframe
+    Object.defineProperty(outerIframe, "contentDocument", {
+      value: { body: mockBody },
+      configurable: true,
+    });
+
+    mockElement.append(outerIframe);
+
+    vi.mocked(toPng).mockImplementation(async (el: HTMLElement) => {
+      // When capturing the outer iframe's body, nested iframes should be placeholders
+      if (el === mockBody) {
+        const nestedIframes = el.querySelectorAll("iframe");
+        expect(nestedIframes.length).toBe(0);
+        const placeholder = el.querySelector("div");
+        expect(placeholder?.textContent).toContain("youtube.com");
+      }
+      return mockDataUrl;
+    });
+
+    await getImageDataUrlForCell("cell-iframe" as CellId);
+
+    // After capture, nested iframe should be restored
+    const restoredNested = mockBody.querySelector("iframe");
+    expect(restoredNested).toBe(nestedIframe);
+  });
+});
