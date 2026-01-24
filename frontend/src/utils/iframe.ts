@@ -48,10 +48,18 @@ async function captureIframeContent(
   }
 }
 
+// Default browser intrinsic size for iframes per CSS spec
+// https://stackoverflow.com/questions/5871668/default-width-height-of-an-iframe
+const MIN_PLACEHOLDER_WIDTH = 300;
+const MIN_PLACEHOLDER_HEIGHT = 150;
+
 function createIframePlaceholder(iframe: HTMLIFrameElement): HTMLDivElement {
   const placeholder = document.createElement("div");
   placeholder.style.width = `${iframe.offsetWidth}px`;
   placeholder.style.height = `${iframe.offsetHeight}px`;
+  // Fallback minimum dimensions in case iframe is hidden or not yet rendered
+  placeholder.style.minWidth = `${MIN_PLACEHOLDER_WIDTH}px`;
+  placeholder.style.minHeight = `${MIN_PLACEHOLDER_HEIGHT}px`;
   placeholder.style.backgroundColor = "#f5f5f5";
   placeholder.style.display = "flex";
   placeholder.style.alignItems = "center";
