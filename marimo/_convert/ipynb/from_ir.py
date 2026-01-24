@@ -329,6 +329,24 @@ def _convert_rich_output_to_ipynb(
     )
 
 
+def _clean_ansi_for_export(text: Any) -> str:
+    """Clean ANSI escape codes for export, keeping color codes intact.
+
+    ANSI codes are terminal styling sequences (colors, bold, cursor movement)
+    used by logging libraries like rich, colorama, and marimo's own logger.
+
+    We keep standard color codes (like \\x1b[34m) so nbconvert's LaTeX template
+    can convert them to colors via its ansi2latex filter. However, we must strip
+    character set selection sequences (like \\x1b(B) which nbconvert doesn't
+    handle and cause LaTeX to fail with "invalid character" errors.
+    """
+    if not isinstance(text, str):
+        return str(text)
+    # Strip character set selection sequences: ESC ( <char> or ESC ) <char>
+    # These have no visual effect and cause LaTeX compilation to fail
+    return re.sub(r"\x1b[()][A-Z0-9]", "", text)
+
+
 def _convert_marimo_output_to_ipynb(
     cell_output: Optional[CellOutput], console_outputs: list[CellOutput]
 ) -> list[NotebookNode]:
@@ -346,7 +364,8 @@ def _convert_marimo_output_to_ipynb(
                     nbformat.v4.new_output(  # type: ignore[no-untyped-call]
                         "stream",
                         name="stdout",
-                        text=console_out.data,
+                        # https://nbformat.readthedocs.io/en/latest/format_description.html#stream-output
+                        text=_clean_ansi_for_export(console_out.data),
                     ),
                 )
             )
@@ -360,7 +379,7 @@ def _convert_marimo_output_to_ipynb(
                     nbformat.v4.new_output(  # type: ignore[no-untyped-call]
                         "stream",
                         name="stderr",
-                        text=console_out.data,
+                        text=_clean_ansi_for_export(console_out.data),
                     ),
                 )
             )
