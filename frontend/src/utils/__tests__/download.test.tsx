@@ -158,7 +158,7 @@ describe("getImageDataUrlForCell", () => {
     expect(toPng).toHaveBeenCalledWith(mockElement);
   });
 
-  it("should add printing classes before capture", async () => {
+  it("should add printing classes before capture when enablePrintMode is true", async () => {
     vi.mocked(toPng).mockImplementation(async () => {
       // Check classes are applied during capture
       expect(mockElement.classList.contains("printing-output")).toBe(true);
@@ -167,16 +167,40 @@ describe("getImageDataUrlForCell", () => {
       return mockDataUrl;
     });
 
-    await getImageDataUrlForCell("cell-1" as CellId);
+    await getImageDataUrlForCell("cell-1" as CellId, true);
   });
 
-  it("should remove printing classes after capture", async () => {
+  it("should remove printing classes after capture when enablePrintMode is true", async () => {
     vi.mocked(toPng).mockResolvedValue(mockDataUrl);
 
-    await getImageDataUrlForCell("cell-1" as CellId);
+    await getImageDataUrlForCell("cell-1" as CellId, true);
 
     expect(mockElement.classList.contains("printing-output")).toBe(false);
     expect(document.body.classList.contains("printing")).toBe(false);
+  });
+
+  it("should add printing-output but NOT body.printing when enablePrintMode is false", async () => {
+    vi.mocked(toPng).mockImplementation(async () => {
+      // printing-output should still be added to the element
+      expect(mockElement.classList.contains("printing-output")).toBe(true);
+      // but body.printing should NOT be added
+      expect(document.body.classList.contains("printing")).toBe(false);
+      expect(mockElement.style.overflow).toBe("auto");
+      return mockDataUrl;
+    });
+
+    await getImageDataUrlForCell("cell-1" as CellId, false);
+  });
+
+  it("should cleanup printing-output when enablePrintMode is false", async () => {
+    mockElement.style.overflow = "hidden";
+    vi.mocked(toPng).mockResolvedValue(mockDataUrl);
+
+    await getImageDataUrlForCell("cell-1" as CellId, false);
+
+    expect(mockElement.classList.contains("printing-output")).toBe(false);
+    expect(document.body.classList.contains("printing")).toBe(false);
+    expect(mockElement.style.overflow).toBe("hidden");
   });
 
   it("should restore original overflow style after capture", async () => {
@@ -207,7 +231,7 @@ describe("getImageDataUrlForCell", () => {
     expect(mockElement.style.overflow).toBe("scroll");
   });
 
-  it("should maintain body.printing during concurrent captures", async () => {
+  it("should maintain body.printing during concurrent captures when enablePrintMode is true", async () => {
     // Create a second element
     const mockElement2 = document.createElement("div");
     mockElement2.id = CellOutputId.create("cell-2" as CellId);
@@ -241,9 +265,9 @@ describe("getImageDataUrlForCell", () => {
       return mockDataUrl;
     });
 
-    // Start both captures concurrently
-    const capture1 = getImageDataUrlForCell("cell-1" as CellId);
-    const capture2 = getImageDataUrlForCell("cell-2" as CellId);
+    // Start both captures concurrently with enablePrintMode = true
+    const capture1 = getImageDataUrlForCell("cell-1" as CellId, true);
+    const capture2 = getImageDataUrlForCell("cell-2" as CellId, true);
 
     // Let second capture complete first
     resolveSecond!();
@@ -261,6 +285,30 @@ describe("getImageDataUrlForCell", () => {
 
     // All captures should have seen body.printing = true
     expect(printingStateDuringCaptures.every(Boolean)).toBe(true);
+
+    mockElement2.remove();
+  });
+
+  it("should not interfere with body.printing during concurrent captures when enablePrintMode is false", async () => {
+    // Create a second element
+    const mockElement2 = document.createElement("div");
+    mockElement2.id = CellOutputId.create("cell-2" as CellId);
+    document.body.append(mockElement2);
+
+    vi.mocked(toPng).mockImplementation(async () => {
+      // body.printing should never be added when enablePrintMode is false
+      expect(document.body.classList.contains("printing")).toBe(false);
+      return mockDataUrl;
+    });
+
+    // Start both captures concurrently with enablePrintMode = false
+    const capture1 = getImageDataUrlForCell("cell-1" as CellId, false);
+    const capture2 = getImageDataUrlForCell("cell-2" as CellId, false);
+
+    await Promise.all([capture1, capture2]);
+
+    // body.printing should still not be present
+    expect(document.body.classList.contains("printing")).toBe(false);
 
     mockElement2.remove();
   });
@@ -342,7 +390,7 @@ describe("downloadHTMLAsImage", () => {
     expect(cleanup).toHaveBeenCalled();
   });
 
-  it("should not add body.printing when prepare is provided", async () => {
+  it("should delegate body.printing management to prepare function", async () => {
     let bodyPrintingDuringCapture = false;
     vi.mocked(toPng).mockImplementation(async () => {
       // Capture the state during toPng execution
@@ -350,7 +398,14 @@ describe("downloadHTMLAsImage", () => {
       return mockDataUrl;
     });
     const cleanup = vi.fn();
-    const prepare = vi.fn().mockReturnValue(cleanup);
+    // Mock prepare that adds body.printing
+    const prepare = vi.fn().mockImplementation(() => {
+      document.body.classList.add("printing");
+      return () => {
+        document.body.classList.remove("printing");
+        cleanup();
+      };
+    });
 
     await downloadHTMLAsImage({
       element: mockElement,
@@ -358,9 +413,8 @@ describe("downloadHTMLAsImage", () => {
       prepare,
     });
 
-    // body.printing should NOT be added by downloadHTMLAsImage when prepare is provided
-    // (the prepare function is responsible for managing its own classes)
-    expect(bodyPrintingDuringCapture).toBe(false);
+    // body.printing should be added by prepare function
+    expect(bodyPrintingDuringCapture).toBe(true);
     expect(document.body.classList.contains("printing")).toBe(false);
     expect(prepare).toHaveBeenCalledWith(mockElement);
     expect(cleanup).toHaveBeenCalled();
