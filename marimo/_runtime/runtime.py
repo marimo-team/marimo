@@ -120,6 +120,7 @@ from marimo._runtime.commands import (
     ListDataSourceConnectionCommand,
     ListSecretKeysCommand,
     ListSQLTablesCommand,
+    PackagesCommand,
     PreviewDatasetColumnCommand,
     PreviewSQLTableCommand,
     RefreshSecretsCommand,
@@ -151,6 +152,7 @@ from marimo._runtime.packages.import_error_extractors import (
 from marimo._runtime.packages.module_registry import ModuleRegistry
 from marimo._runtime.packages.package_manager import (
     LogCallback,
+    PackageDescription,
     PackageManager,
 )
 from marimo._runtime.packages.package_managers import create_package_manager
@@ -208,6 +210,7 @@ from marimo._utils.paths import normalize_path
 from marimo._utils.platform import is_pyodide
 from marimo._utils.signals import restore_signals
 from marimo._utils.typed_connection import TypedConnection
+from marimo._utils.uv_tree import DependencyTreeNode
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Iterator, Sequence
@@ -769,6 +772,25 @@ class Kernel:
             daemon=True,
         ).start()
         self._completion_worker_started = True
+
+    def start_packages_worker(
+        self, packages_queue: QueueType[PackagesCommand]
+    ) -> None:
+        """Start the packages worker thread.
+
+        Must be called after context is initialized.
+        """
+        from marimo._runtime.packages_worker import packages_worker
+
+        threading.Thread(
+            target=packages_worker,
+            args=(
+                packages_queue,
+                self.packages_callbacks,
+                get_context().stream,
+            ),
+            daemon=True,
+        ).start()
 
     @kernel_tracer.start_as_current_span("code_completion")
     def code_completion(
@@ -2798,6 +2820,22 @@ class PackagesCallbacks:
             # NOOP.
             self._maybe_add_marimo_to_script_metadata()
 
+    def list_packages(self) -> list[PackageDescription]:
+        return (
+            self.package_manager.list_packages()
+            if self.package_manager is not None
+            else []
+        )
+
+    def dependency_tree(
+        self, filename: str | None
+    ) -> DependencyTreeNode | None:
+        return (
+            self.package_manager.dependency_tree(filename)
+            if self.package_manager is not None
+            else None
+        )
+
     def send_missing_packages_alert(self, missing_packages: set[str]) -> None:
         if self.package_manager is None:
             return
@@ -3141,6 +3179,7 @@ def launch_kernel(
     control_queue: QueueType[CommandMessage],
     set_ui_element_queue: QueueType[UpdateUIElementCommand],
     completion_queue: QueueType[CodeCompletionCommand],
+    packages_queue: QueueType[PackagesCommand],
     input_queue: QueueType[str],
     stream_queue: QueueType[KernelMessage] | None,
     socket_addr: tuple[str, int] | None,
@@ -3258,8 +3297,10 @@ def launch_kernel(
     )
 
     if is_edit_mode:
-        # completions only provided in edit mode
+        # Code completion and package listings are not needed in run
+        # mode, since they are editing features only.
         kernel.start_completion_worker(completion_queue)
+        kernel.start_packages_worker(packages_queue)
 
         # In edit mode, kernel runs in its own process so it's interruptible.
         from marimo._output.formatters.formatters import register_formatters
