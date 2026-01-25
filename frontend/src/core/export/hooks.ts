@@ -35,7 +35,7 @@ export function useAutoExport() {
     autoExportAsMarkdown,
     updateCellOutputs,
   } = useRequestClient();
-  const takeScreenshots = useEnrichCellOutputs();
+  const takeScreenshots = useEnrichCellOutputs(false);
 
   useInterval(
     async () => {
@@ -97,9 +97,10 @@ const MIME_TYPES_TO_CAPTURE_SCREENSHOTS = new Set<MimeType>([
 
 /**
  * Take screenshots of cells with HTML outputs. These images will be sent to the backend to be exported to IPYNB.
+ * @param highFidelity - When true, the screenshots will be taken with high fidelity. This is slower but will produce better results.
  * @returns A map of cell IDs to their screenshots data.
  */
-export function useEnrichCellOutputs() {
+export function useEnrichCellOutputs(highFidelity = true) {
   const [richCellsOutput, setRichCellsOutput] = useAtom(richCellsToOutputAtom);
   const cellRuntimes = useAtomValue(cellsRuntimeAtom);
 
@@ -129,22 +130,28 @@ export function useEnrichCellOutputs() {
     }
 
     // Capture screenshots
+    const captureWhenIdle = (cellId: CellId): Promise<string | undefined> => {
+      return new Promise((resolve) => {
+        requestIdleCallback(
+          async () => {
+            const result = await getImageDataUrlForCell(cellId, highFidelity);
+            resolve(result);
+          },
+          { timeout: 2000 },
+        );
+      });
+    };
     const results = await Promise.all(
       cellsToCaptureScreenshot.map(async ([cellId]) => {
-        try {
-          const dataUrl = await getImageDataUrlForCell(cellId, false);
-          if (!dataUrl) {
-            Logger.error(`Failed to capture screenshot for cell ${cellId}`);
-            return null;
-          }
-          return [cellId, ["image/png", dataUrl]] as [
-            CellId,
-            ["image/png", string],
-          ];
-        } catch (error) {
-          Logger.error(`Error screenshotting cell ${cellId}:`, error);
+        const dataUrl = await captureWhenIdle(cellId);
+        if (!dataUrl) {
+          Logger.error(`Failed to capture screenshot for cell ${cellId}`);
           return null;
         }
+        return [cellId, ["image/png", dataUrl]] as [
+          CellId,
+          ["image/png", string],
+        ];
       }),
     );
 

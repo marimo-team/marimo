@@ -87,26 +87,36 @@ function prepareCellElementForScreenshot(
   };
 }
 
+interface toPngOptions {
+  skipFonts?: boolean;
+  pixelRatio?: number;
+}
+
 /**
  * Capture a cell output as a PNG data URL.
  *
  * @param cellId - The ID of the cell to capture
- * @param enablePrintMode - When true, enables print mode which adds a 'printing' class to the body.
- *   This can cause layout shifts that cause the page to scroll.
+ * @param highFidelity - When true, the screenshot will be taken with high fidelity. This is slower but will produce better results.
  * @returns The PNG as a data URL, or undefined if the cell element wasn't found
  */
 export async function getImageDataUrlForCell(
   cellId: CellId,
-  enablePrintMode = true,
+  highFidelity = true,
 ): Promise<string | undefined> {
   const element = findElementForCell(cellId);
   if (!element) {
     return;
   }
-  const cleanup = prepareCellElementForScreenshot(element, enablePrintMode);
+  const cleanup = prepareCellElementForScreenshot(element, highFidelity);
+
+  const options: toPngOptions = {};
+  if (highFidelity) {
+    options.skipFonts = true;
+    options.pixelRatio = 1;
+  }
 
   try {
-    return await toPng(element);
+    return await toPng(element, options);
   } finally {
     cleanup();
   }

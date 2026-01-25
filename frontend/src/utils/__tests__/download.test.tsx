@@ -149,16 +149,28 @@ describe("getImageDataUrlForCell", () => {
     );
   });
 
-  it("should capture screenshot and return data URL", async () => {
+  it("should capture screenshot and return data URL with highFidelity options", async () => {
     vi.mocked(toPng).mockResolvedValue(mockDataUrl);
 
     const result = await getImageDataUrlForCell("cell-1" as CellId);
 
     expect(result).toBe(mockDataUrl);
-    expect(toPng).toHaveBeenCalledWith(mockElement);
+    expect(toPng).toHaveBeenCalledWith(mockElement, {
+      skipFonts: true,
+      pixelRatio: 1,
+    });
   });
 
-  it("should add printing classes before capture when enablePrintMode is true", async () => {
+  it("should capture screenshot without options when highFidelity is false", async () => {
+    vi.mocked(toPng).mockResolvedValue(mockDataUrl);
+
+    const result = await getImageDataUrlForCell("cell-1" as CellId, false);
+
+    expect(result).toBe(mockDataUrl);
+    expect(toPng).toHaveBeenCalledWith(mockElement, {});
+  });
+
+  it("should add printing classes before capture when highFidelity is true", async () => {
     vi.mocked(toPng).mockImplementation(async () => {
       // Check classes are applied during capture
       expect(mockElement.classList.contains("printing-output")).toBe(true);
@@ -170,7 +182,7 @@ describe("getImageDataUrlForCell", () => {
     await getImageDataUrlForCell("cell-1" as CellId, true);
   });
 
-  it("should remove printing classes after capture when enablePrintMode is true", async () => {
+  it("should remove printing classes after capture when highFidelity is true", async () => {
     vi.mocked(toPng).mockResolvedValue(mockDataUrl);
 
     await getImageDataUrlForCell("cell-1" as CellId, true);
@@ -179,7 +191,7 @@ describe("getImageDataUrlForCell", () => {
     expect(document.body.classList.contains("printing")).toBe(false);
   });
 
-  it("should add printing-output but NOT body.printing when enablePrintMode is false", async () => {
+  it("should add printing-output but NOT body.printing when highFidelity is false", async () => {
     vi.mocked(toPng).mockImplementation(async () => {
       // printing-output should still be added to the element
       expect(mockElement.classList.contains("printing-output")).toBe(true);
@@ -192,7 +204,7 @@ describe("getImageDataUrlForCell", () => {
     await getImageDataUrlForCell("cell-1" as CellId, false);
   });
 
-  it("should cleanup printing-output when enablePrintMode is false", async () => {
+  it("should cleanup printing-output when highFidelity is false", async () => {
     mockElement.style.overflow = "hidden";
     vi.mocked(toPng).mockResolvedValue(mockDataUrl);
 
@@ -231,7 +243,7 @@ describe("getImageDataUrlForCell", () => {
     expect(mockElement.style.overflow).toBe("scroll");
   });
 
-  it("should maintain body.printing during concurrent captures when enablePrintMode is true", async () => {
+  it("should maintain body.printing during concurrent captures when highFidelity is true", async () => {
     // Create a second element
     const mockElement2 = document.createElement("div");
     mockElement2.id = CellOutputId.create("cell-2" as CellId);
@@ -265,7 +277,7 @@ describe("getImageDataUrlForCell", () => {
       return mockDataUrl;
     });
 
-    // Start both captures concurrently with enablePrintMode = true
+    // Start both captures concurrently with highFidelity = true
     const capture1 = getImageDataUrlForCell("cell-1" as CellId, true);
     const capture2 = getImageDataUrlForCell("cell-2" as CellId, true);
 
@@ -289,19 +301,19 @@ describe("getImageDataUrlForCell", () => {
     mockElement2.remove();
   });
 
-  it("should not interfere with body.printing during concurrent captures when enablePrintMode is false", async () => {
+  it("should not interfere with body.printing during concurrent captures when highFidelity is false", async () => {
     // Create a second element
     const mockElement2 = document.createElement("div");
     mockElement2.id = CellOutputId.create("cell-2" as CellId);
     document.body.append(mockElement2);
 
     vi.mocked(toPng).mockImplementation(async () => {
-      // body.printing should never be added when enablePrintMode is false
+      // body.printing should never be added when highFidelity is false
       expect(document.body.classList.contains("printing")).toBe(false);
       return mockDataUrl;
     });
 
-    // Start both captures concurrently with enablePrintMode = false
+    // Start both captures concurrently with highFidelity = false
     const capture1 = getImageDataUrlForCell("cell-1" as CellId, false);
     const capture2 = getImageDataUrlForCell("cell-2" as CellId, false);
 
