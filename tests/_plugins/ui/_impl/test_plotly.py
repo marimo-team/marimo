@@ -2083,3 +2083,161 @@ def test_heatmap_numpy_and_fallback_numeric_axes() -> None:
         assert np_cell["y"] == fb_cell["y"]
         assert np_cell["z"] == fb_cell["z"]
         assert np_cell["curveNumber"] == fb_cell["curveNumber"]
+
+
+def test_scattermap_basic() -> None:
+    """Test that scattermap plots can be created."""
+    fig = go.Figure(
+        data=go.Scattermap(
+            lat=[37.7749, 34.0522],
+            lon=[-122.4194, -118.2437],
+            mode="markers",
+        )
+    )
+    plot = plotly(fig)
+    assert plot.value == []
+
+
+def test_scattermap_selection_with_indices() -> None:
+    """Test scattermap selection extracts points by indices."""
+    fig = go.Figure(
+        data=go.Scattermap(
+            lat=[37.7749, 34.0522, 40.7128],
+            lon=[-122.4194, -118.2437, -74.0060],
+            mode="markers",
+            name="Cities",
+        )
+    )
+    plot = plotly(fig)
+
+    result = plot._convert_value({"points": [], "indices": [0, 2]})
+
+    assert result == [
+        {
+            "lat": 37.7749,
+            "lon": -122.4194,
+            "pointIndex": 0,
+            "curveNumber": 0,
+            "name": "Cities",
+        },
+        {
+            "lat": 40.7128,
+            "lon": -74.0060,
+            "pointIndex": 2,
+            "curveNumber": 0,
+            "name": "Cities",
+        },
+    ]
+
+
+def test_scattermap_selection_with_customdata() -> None:
+    """Test scattermap selection includes customdata (issue #7970)."""
+    import pandas as pd
+
+    df = pd.DataFrame(
+        {
+            "id": ["WC_0001", "WC_0002", "WC_0003"],
+            "lat": [-33.93, -33.95, -33.91],
+            "lon": [18.42, 18.46, 18.50],
+            "cluster": [0, 1, 0],
+        }
+    )
+
+    fig = go.Figure(
+        data=go.Scattermap(
+            lat=df["lat"],
+            lon=df["lon"],
+            mode="markers",
+            customdata=df[["id", "cluster"]].values,
+        )
+    )
+    plot = plotly(fig)
+
+    result = plot._convert_value({"points": [], "indices": [0]})
+
+    assert len(result) == 1
+    assert result[0]["customdata"][0] == "WC_0001"
+    assert result[0]["customdata"][1] == 0
+
+
+def test_scattermapbox_selection() -> None:
+    """Test scattermapbox (deprecated) selection works."""
+    fig = go.Figure(
+        data=go.Scattermapbox(
+            lat=[37.7749, 34.0522],
+            lon=[-122.4194, -118.2437],
+            mode="markers",
+            text=["SF", "LA"],
+        )
+    )
+    plot = plotly(fig)
+
+    result = plot._convert_value({"points": [], "indices": [1]})
+
+    assert len(result) == 1
+    assert result[0]["lat"] == 34.0522
+    assert result[0]["text"] == "LA"
+
+
+def test_scattergeo_selection() -> None:
+    """Test scattergeo selection works."""
+    fig = go.Figure(
+        data=go.Scattergeo(
+            lat=[37.7749, 34.0522],
+            lon=[-122.4194, -118.2437],
+            mode="markers",
+            hovertext=["SF", "LA"],
+        )
+    )
+    plot = plotly(fig)
+
+    result = plot._convert_value({"points": [], "indices": [0]})
+
+    assert len(result) == 1
+    assert result[0]["hovertext"] == "SF"
+
+
+def test_scattermap_preserves_frontend_points() -> None:
+    """Test that existing points with lat/lon from frontend are preserved."""
+    fig = go.Figure(
+        data=go.Scattermap(
+            lat=[37.7749],
+            lon=[-122.4194],
+            mode="markers",
+        )
+    )
+    plot = plotly(fig)
+
+    # Frontend already sent points with lat/lon
+    selection = {
+        "points": [{"lat": 37.7749, "lon": -122.4194, "pointIndex": 0}],
+        "indices": [0],
+    }
+
+    result = plot._convert_value(selection)
+
+    assert result == [{"lat": 37.7749, "lon": -122.4194, "pointIndex": 0}]
+
+
+def test_scattermap_empty_selection() -> None:
+    """Test scattermap with empty selection."""
+    fig = go.Figure(
+        data=go.Scattermap(lat=[37.7749], lon=[-122.4194], mode="markers")
+    )
+    plot = plotly(fig)
+
+    assert plot._convert_value({"points": [], "indices": []}) == []
+
+
+def test_scattermap_invalid_indices() -> None:
+    """Test scattermap ignores invalid indices."""
+    fig = go.Figure(
+        data=go.Scattermap(lat=[37.7749], lon=[-122.4194], mode="markers")
+    )
+    plot = plotly(fig)
+
+    # 100 and -1 are out of bounds
+    result = plot._convert_value({"points": [], "indices": [0, 100, -1]})
+
+    assert len(result) == 1
+    assert result[0]["pointIndex"] == 0
