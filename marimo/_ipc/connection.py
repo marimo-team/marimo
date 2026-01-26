@@ -131,7 +131,7 @@ class Connection:
             win32_interrupt=(
                 Channel.Push(context) if sys.platform == "win32" else None
             ),
-            input=Channel.Pull(context, maxsize=1),
+            input=Channel.Push(context, maxsize=1),
             stream=Channel.Pull(context),
         )
         info = ConnectionInfo(
@@ -170,7 +170,7 @@ class Connection:
             win32_interrupt=Channel.Pull(context)
             if connection_info.win32_interrupt
             else None,
-            input=Channel.Push(context, maxsize=1),
+            input=Channel.Pull(context, maxsize=1),
             stream=Channel.Push(context),
         )
 
