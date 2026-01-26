@@ -10,6 +10,7 @@ from marimo._ast.app import App, InternalApp
 from marimo._ast.load import load_app
 from marimo._convert.ipynb import convert_from_ir_to_ipynb
 from marimo._convert.ipynb.from_ir import (
+    _clean_ansi_for_export,
     _convert_marimo_output_to_ipynb,
     _is_marimo_component,
     _maybe_extract_dataurl,
@@ -191,11 +192,13 @@ def test_convert_marimo_mimebundle_to_ipynb(
     )
 
     result = _convert_marimo_output_to_ipynb(output, [])
-
-    assert len(result) == 1
-    assert result[0]["output_type"] == "display_data"
-    assert result[0]["data"] == expected_data
-    assert result[0]["metadata"] == expected_metadata
+    assert result == [
+        {
+            "output_type": "display_data",
+            "metadata": expected_metadata,
+            "data": expected_data,
+        }
+    ]
 
 
 def test_convert_marimo_mimebundle_with_non_dict_metadata() -> None:
@@ -215,12 +218,20 @@ def test_convert_marimo_mimebundle_with_non_dict_metadata() -> None:
     )
 
     result = _convert_marimo_output_to_ipynb(output, [])
-
-    assert len(result) == 1
-    assert result[0]["output_type"] == "display_data"
-    # Verify metadata is empty when non-dict value is provided
-    assert "metadata" in result[0]
-    assert result[0]["metadata"] == {}
+    assert (
+        result
+        == [
+            {
+                "output_type": "display_data",
+                "metadata": {},  # Verify metadata is empty when non-dict value is provided
+                "data": {
+                    "text/plain": "Figure",
+                    "image/png": "PNG_DATA",
+                    "__metadata__": "not a dict",
+                },
+            }
+        ]
+    )
 
 
 def test_convert_marimo_mimebundle_empty() -> None:
@@ -232,7 +243,7 @@ def test_convert_marimo_mimebundle_empty() -> None:
     )
 
     result = _convert_marimo_output_to_ipynb(output, [])
-    assert len(result) == 0
+    assert result == []
 
 
 def test_convert_marimo_mimebundle_dict() -> None:
@@ -251,12 +262,13 @@ def test_convert_marimo_mimebundle_dict() -> None:
 
     result = _convert_marimo_output_to_ipynb(output, [])
 
-    assert len(result) == 1
-    assert result[0]["output_type"] == "display_data"
-    assert "__metadata__" not in result[0]["data"]
-    assert result[0]["data"]["text/plain"] == "Figure"
-    assert result[0]["data"]["image/png"] == "PNG_DATA"
-    assert result[0]["metadata"] == {"width": 640, "height": 480}
+    assert result == [
+        {
+            "output_type": "display_data",
+            "metadata": {"width": 640, "height": 480},
+            "data": {"text/plain": "Figure", "image/png": "PNG_DATA"},
+        }
+    ]
 
 
 @pytest.mark.parametrize(
@@ -289,10 +301,13 @@ def test_convert_regular_output(
 
     result = _convert_marimo_output_to_ipynb(output, [])
 
-    assert len(result) == 1
-    assert result[0]["output_type"] == "display_data"
-    assert result[0]["data"] == expected_data
-    assert result[0]["metadata"] == {}
+    assert result == [
+        {
+            "output_type": "display_data",
+            "metadata": {},
+            "data": expected_data,
+        }
+    ]
 
 
 def test_convert_console_outputs() -> None:
@@ -311,14 +326,18 @@ def test_convert_console_outputs() -> None:
     ]
 
     result = _convert_marimo_output_to_ipynb(None, console_outputs)
-
-    assert len(result) == 2
-    assert result[0]["output_type"] == "stream"
-    assert result[0]["name"] == "stdout"
-    assert result[0]["text"] == "Console output\n"
-    assert result[1]["output_type"] == "stream"
-    assert result[1]["name"] == "stderr"
-    assert result[1]["text"] == "Warning message\n"
+    assert result == [
+        {
+            "output_type": "stream",
+            "name": "stdout",
+            "text": "Console output\n",
+        },
+        {
+            "output_type": "stream",
+            "name": "stderr",
+            "text": "Warning message\n",
+        },
+    ]
 
 
 def test_convert_marimo_mimebundle_with_both_output_and_console() -> None:
@@ -342,14 +361,24 @@ def test_convert_marimo_mimebundle_with_both_output_and_console() -> None:
     # Convert main output
     main_result = _convert_marimo_output_to_ipynb(main_output, [])
 
-    assert len(console_result) == 1
-    assert console_result[0]["output_type"] == "stream"
-    assert console_result[0]["name"] == "stdout"
+    assert console_result == [
+        {
+            "output_type": "stream",
+            "name": "stdout",
+            "text": "Console output\n",
+        }
+    ]
 
-    assert len(main_result) == 1
-    assert main_result[0]["output_type"] == "display_data"
-    assert main_result[0]["data"]["text/plain"] == "Result"
-    assert main_result[0]["data"]["image/png"] == "PNG_DATA"
+    assert main_result == [
+        {
+            "output_type": "display_data",
+            "metadata": {},
+            "data": {
+                "text/plain": "Result",
+                "image/png": "PNG_DATA",
+            },
+        }
+    ]
 
 
 @pytest.mark.parametrize(
@@ -533,21 +562,26 @@ def test_convert_console_media_output() -> None:
 
     result = _convert_marimo_output_to_ipynb(None, console_outputs)
 
-    assert len(result) == 3
-    # First stdout
-    assert result[0]["output_type"] == "stream"
-    assert result[0]["name"] == "stdout"
-    assert result[0]["text"] == "Before plot\n"
-    # Media output (plt.show())
-    assert result[1]["output_type"] == "display_data"
-    assert (
-        result[1]["data"]["text/plain"] == "<Figure size 640x480 with 1 Axes>"
-    )
-    assert result[1]["data"]["image/png"] == "iVBORw0KGgo="  # Base64 extracted
-    # Second stdout
-    assert result[2]["output_type"] == "stream"
-    assert result[2]["name"] == "stdout"
-    assert result[2]["text"] == "After plot\n"
+    assert result == [
+        {
+            "output_type": "stream",
+            "name": "stdout",
+            "text": "Before plot\n",
+        },
+        {
+            "output_type": "display_data",
+            "metadata": {},
+            "data": {
+                "text/plain": "<Figure size 640x480 with 1 Axes>",
+                "image/png": "iVBORw0KGgo=",  # Base64 extracted
+            },
+        },
+        {
+            "output_type": "stream",
+            "name": "stdout",
+            "text": "After plot\n",
+        },
+    ]
 
 
 def test_convert_console_media_with_marimo_component() -> None:
@@ -566,10 +600,13 @@ def test_convert_console_media_with_marimo_component() -> None:
     result = _convert_marimo_output_to_ipynb(None, console_outputs)
 
     # Marimo component HTML should be filtered, PNG should remain
-    assert len(result) == 1
-    assert result[0]["output_type"] == "display_data"
-    assert "text/html" not in result[0]["data"]
-    assert result[0]["data"]["image/png"] == "PNG_FALLBACK_DATA"
+    assert result == [
+        {
+            "output_type": "display_data",
+            "metadata": {},
+            "data": {"image/png": "PNG_FALLBACK_DATA"},
+        }
+    ]
 
 
 def test_convert_console_output_channel() -> None:
@@ -591,3 +628,156 @@ def test_convert_console_output_channel() -> None:
             "data": {"image/png": "CONSOLE_PNG_DATA"},
         }
     ]
+
+
+class TestCleanAnsiForExport:
+    @pytest.mark.parametrize(
+        ("input_text", "expected"),
+        [
+            # Plain text passes through unchanged
+            ("Hello World", "Hello World"),
+            ("", ""),
+            # Standard ANSI color codes are preserved (for nbconvert's template)
+            ("\x1b[34mBlue text\x1b[0m", "\x1b[34mBlue text\x1b[0m"),
+            (
+                "\x1b[31mRed\x1b[0m and \x1b[32mGreen\x1b[0m",
+                "\x1b[31mRed\x1b[0m and \x1b[32mGreen\x1b[0m",
+            ),
+            # Character set selection sequences ARE stripped (cause LaTeX errors)
+            ("\x1b(B", ""),
+            ("\x1b)B", ""),
+            ("\x1b(A", ""),
+            ("\x1b(0", ""),
+            # Mixed: color codes preserved, character set sequences stripped
+            (
+                "\x1b[34m[D 260124 22:51:42 cell_runner:711]\x1b(B\x1b[m Running",
+                "\x1b[34m[D 260124 22:51:42 cell_runner:711]\x1b[m Running",
+            ),
+            # Multiple character set sequences stripped
+            ("\x1b(B\x1b[34mText\x1b(B\x1b[0m\x1b)A", "\x1b[34mText\x1b[0m"),
+        ],
+        ids=[
+            "plain_text",
+            "empty_string",
+            "single_color",
+            "multiple_colors",
+            "charset_paren_b",
+            "charset_close_b",
+            "charset_paren_a",
+            "charset_paren_0",
+            "marimo_logger_output",
+            "multiple_charset_sequences",
+        ],
+    )
+    def test_clean_ansi_for_export(
+        self, input_text: str, expected: str
+    ) -> None:
+        """Test _clean_ansi_for_export with various ANSI sequences."""
+        result = _clean_ansi_for_export(input_text)
+        assert result == expected
+
+    def test_clean_ansi_for_export_non_string(self) -> None:
+        """Test _clean_ansi_for_export with non-string inputs."""
+        assert _clean_ansi_for_export({"key": "value"}) == "{'key': 'value'}"
+        assert _clean_ansi_for_export([1, 2, 3]) == "[1, 2, 3]"
+        assert _clean_ansi_for_export(None) == "None"
+        assert _clean_ansi_for_export(123) == "123"
+
+    def test_console_output_with_ansi_cleaned(self) -> None:
+        """Test console output conversion cleans ANSI sequences."""
+        # Simulated marimo logger output with problematic \x1b(B sequence
+        raw_log = "\x1b[34m[D 260124 22:51:42 cell_runner:711]\x1b(B\x1b[m Test message\n"
+
+        console_outputs = [
+            CellOutput(
+                channel=CellChannel.STDERR,
+                mimetype="text/plain",
+                data=raw_log,
+            ),
+        ]
+
+        result = _convert_marimo_output_to_ipynb(None, console_outputs)
+
+        assert result == [
+            {
+                "output_type": "stream",
+                "name": "stderr",
+                "text": "\x1b[34m[D 260124 22:51:42 cell_runner:711]\x1b[m Test message\n",
+            }
+        ]
+
+    def test_console_outputs_multiple_with_ansi(self) -> None:
+        """Test multiple console outputs with ANSI codes are all cleaned."""
+        console_outputs = [
+            CellOutput(
+                channel=CellChannel.STDOUT,
+                mimetype="text/plain",
+                data="\x1b[32m[I log]\x1b(B\x1b[m stdout message\n",
+            ),
+            CellOutput(
+                channel=CellChannel.STDERR,
+                mimetype="text/plain",
+                data="\x1b[34m[D log]\x1b(B\x1b[m stderr message\n",
+            ),
+        ]
+
+        result = _convert_marimo_output_to_ipynb(None, console_outputs)
+
+        assert result == [
+            {
+                "output_type": "stream",
+                "name": "stdout",
+                "text": "\x1b[32m[I log]\x1b[m stdout message\n",
+            },
+            {
+                "output_type": "stream",
+                "name": "stderr",
+                "text": "\x1b[34m[D log]\x1b[m stderr message\n",
+            },
+        ]
+
+    @pytest.mark.skip(
+        reason="This test can take some time and requires some libraries like xelatex, useful for local testing"
+    )
+    def test_clean_ansi_does_not_crash_pdf_export(self) -> None:
+        """Integration test: verify cleaned output doesn't crash nbconvert PDF export."""
+        pytest.importorskip("nbconvert")
+        import nbformat
+        from nbconvert import PDFExporter
+
+        # Simulated marimo logger output with problematic \x1b(B sequence
+        raw_log = (
+            "\x1b[34m[D 260124 22:51:42 cell_runner:711]\x1b(B\x1b[m Running\n"
+        )
+
+        # Verify raw log causes PDF export to crash
+        notebook = nbformat.v4.new_notebook()
+        cell = nbformat.v4.new_code_cell("print('test')")
+        cell.outputs = [
+            nbformat.v4.new_output("stream", name="stderr", text=raw_log)
+        ]
+        notebook.cells.append(cell)
+
+        exporter = PDFExporter()
+
+        with pytest.raises(OSError) as e:
+            exporter.from_notebook_node(notebook)
+
+        # Clean the output (this is what from_ir.py does)
+        cleaned_output = _clean_ansi_for_export(raw_log)
+
+        # Create a notebook with stream output containing cleaned ANSI
+        notebook = nbformat.v4.new_notebook()
+        cell = nbformat.v4.new_code_cell("print('test')")
+        cell.outputs = [
+            nbformat.v4.new_output(
+                "stream", name="stderr", text=cleaned_output
+            )
+        ]
+        notebook.cells.append(cell)
+
+        # This should not raise an error about invalid characters
+        pdf_output, _resources = exporter.from_notebook_node(notebook)
+
+        assert isinstance(pdf_output, bytes)
+        assert len(pdf_output) > 0

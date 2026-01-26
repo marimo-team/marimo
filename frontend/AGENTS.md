@@ -104,6 +104,7 @@ Best practices:
 - test edge cases
 - use descriptive names
 - group with `describe`
+- prefer complete assertions over individual property checks (e.g., `expect(result).toEqual(expected)` rather than checking each property separately)
 
 ### E2E Tests
 
