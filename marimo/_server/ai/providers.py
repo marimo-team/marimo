@@ -792,8 +792,11 @@ class AnthropicProvider(PydanticProvider["PydanticAnthropic"]):
         from ThinkingPart to ReasoningEndChunk, which breaks Anthropic's extended thinking
         on follow-up messages (Anthropic requires signatures on thinking blocks).
 
-        TODO: Remove this once https://github.com/pydantic/pydantic-ai/pull/3754 is released
+        This is a patch for pydantic-ai <1.47.0, which doesn't include the signature in the ReasoningEndChunk.
         """
+        if DependencyManager.pydantic_ai.has_at_version(min_version="1.47.0"):
+            return super().get_vercel_adapter()
+
         from pydantic_ai import DeferredToolRequests
         from pydantic_ai.ui.vercel_ai import VercelAIAdapter
         from pydantic_ai.ui.vercel_ai._event_stream import VercelAIEventStream
