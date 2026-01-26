@@ -1,14 +1,42 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import time
+
 import pytest
 
-from marimo._dependencies.dependencies import DependencyManager
 
-HAS_ZMQ = DependencyManager.zmq.has()
+@pytest.mark.requires("zmq")
+class TestIPCConnection:
+    def test_input_channel_direction(self) -> None:
+        """Test that input flows from host to kernel (not vice versa).
+
+        Regression test for #7972 where the input channel Push/Pull
+        directions were inverted, causing input() to fail in sandbox mode.
+        """
+        from marimo._ipc.connection import Connection
+
+        host_conn, connection_info = Connection.create()
+        kernel_conn = Connection.connect(connection_info)
+
+        # Allow ZeroMQ connections to establish
+        time.sleep(0.05)
+
+        try:
+            # Host sends input to kernel (what happens when user
+            # responds to an input() prompt)
+            test_input = "user response"
+            host_conn.input.queue.put(test_input)
+
+            # Kernel receives input
+            received = kernel_conn.input.queue.get(timeout=1.0)
+            assert received == test_input
+        finally:
+            host_conn.close()
+            kernel_conn.close()
 
 
-@pytest.mark.skipif(not HAS_ZMQ, reason="pyzmq not installed")
+@pytest.mark.requires("zmq")
 class TestIPCQueueManagerImpl:
     def test_from_ipc_factory(self) -> None:
         """Test that IPCQueueManagerImpl.from_ipc() creates a valid instance."""
