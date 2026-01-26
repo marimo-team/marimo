@@ -44,7 +44,6 @@ def _defs_equal(a: dict[str, Any] | None, b: dict[str, Any] | None) -> bool:
             continue
 
         try:
-
             if DependencyManager.numpy.imported():
                 import numpy as _np
             else:
