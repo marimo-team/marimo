@@ -5,8 +5,6 @@ environments:
     - url: https://conda.anaconda.org/conda-forge/
     indexes:
     - https://pypi.org/simple
-    options:
-      pypi-prerelease-mode: if-necessary-or-explicit
     packages:
       linux-64:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/_libgcc_mutex-0.1-conda_forge.tar.bz2
@@ -1132,8 +1130,8 @@ packages:
   timestamp: 1727801725384
 - pypi: ./
   name: marimo
-  version: 0.19.4
-  sha256: 8d121008dd6aa452b389d1132e1e5876c0aa09505840255a9b1987f19700d309
+  version: 0.19.6
+  sha256: 5df3eb37ef25f2340b9b738485e3cb211929e1fd800e6ce36882f61452098d3f
   requires_dist:
   - click>=8.0,<9
   - jedi>=0.18.0
@@ -1169,6 +1167,7 @@ packages:
   - mcp>=1.0.0 ; extra == 'mcp'
   - pydantic>2 ; extra == 'mcp'
   requires_python: '>=3.10'
+  editable: true
 - pypi: https://files.pythonhosted.org/packages/59/1b/6ef961f543593969d25b2afe57a3564200280528caa9bd1082eecdd7b3bc/markdown-3.10.1-py3-none-any.whl
   name: markdown
   version: 3.10.1
