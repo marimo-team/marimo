@@ -16,7 +16,7 @@ export function useOpenSettingsToTab() {
   const setAiSubTab = useSetAtom(aiSettingsSubTabAtom);
 
   // Note: If more settings categories need sub-tabs or deep-linking is required,
-  // consider refactoring to use a different strategy like query params
+  // consider using a different strategy like query params
   const handleClick = (tab: SettingCategoryId, subTab?: AiSettingsSubTab) => {
     setActiveCategory(tab);
     if (tab === "ai") {
