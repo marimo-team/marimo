@@ -7,8 +7,8 @@ import { useVariables } from "@/core/variables/state";
 import { cn } from "@/utils/cn";
 import { DependencyGraph } from "../../../dependency-graph/dependency-graph";
 import { MinimapContent } from "../../../dependency-graph/minimap-content";
-import { usePanelSection } from "./panel-context";
 import { useDependencyPanelTab } from "../wrapper/useDependencyPanelTab";
+import { usePanelSection } from "./panel-context";
 
 const DependencyGraphPanel: React.FC = () => {
   const { dependencyPanelTab, setDependencyPanelTab } = useDependencyPanelTab();
