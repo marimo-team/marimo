@@ -1,5 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
+import { useAtom } from "jotai";
 import {
   BotIcon,
   BrainIcon,
@@ -79,6 +80,7 @@ import { AWS_REGIONS } from "./constants";
 import { IncorrectModelId } from "./incorrect-model-id";
 import { IsOverridden } from "./is-overridden";
 import { MCPConfig } from "./mcp-config";
+import { aiSettingsSubTabAtom } from "./state";
 
 interface AiConfigProps {
   form: UseFormReturn<UserConfig>;
@@ -1270,18 +1272,6 @@ export const AiAssistConfig: React.FC<AiConfigProps> = ({
         onSubmit={onSubmit}
       />
 
-      <ul className="bg-muted p-2 rounded-md list-disc space-y-1 pl-6">
-        <li className="text-xs text-muted-secondary">
-          Models should include the provider name and model name separated by a
-          slash. For example, "anthropic/claude-3-5-sonnet-latest" or
-          "google/gemini-2.0-flash-exp"
-        </li>
-        <li className="text-xs text-muted-secondary">
-          Depending on the provider, we will use the respective API key and
-          additional configuration.
-        </li>
-      </ul>
-
       <FormField
         control={form.control}
         name="ai.rules"
@@ -1740,6 +1730,12 @@ const AddButton = ({
   );
 };
 
+export type AiSettingsSubTab =
+  | "ai-features"
+  | "ai-providers"
+  | "ai-models"
+  | "mcp";
+
 export const AiConfig: React.FC<AiConfigProps> = ({
   form,
   config,
@@ -1747,8 +1743,14 @@ export const AiConfig: React.FC<AiConfigProps> = ({
 }) => {
   // MCP is not supported in WASM
   const wasm = isWasm();
+  const [activeTab, setActiveTab] = useAtom(aiSettingsSubTabAtom);
+
   return (
-    <Tabs defaultValue="ai-features" className="flex-1">
+    <Tabs
+      value={activeTab}
+      onValueChange={(value) => setActiveTab(value as AiSettingsSubTab)}
+      className="flex-1"
+    >
       <TabsList className="mb-2">
         <TabsTrigger value="ai-features">AI Features</TabsTrigger>
         <TabsTrigger value="ai-providers">AI Providers</TabsTrigger>
