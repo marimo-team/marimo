@@ -5,7 +5,6 @@ import {
   BotIcon,
   BrainIcon,
   ChevronRightIcon,
-  InfoIcon,
   PlusIcon,
   Trash2Icon,
 } from "lucide-react";
@@ -62,7 +61,6 @@ import {
 } from "../ui/accordion";
 import { Button } from "../ui/button";
 import { Checkbox } from "../ui/checkbox";
-import { DropdownMenuSeparator } from "../ui/dropdown-menu";
 import { Label } from "../ui/label";
 import { ExternalLink } from "../ui/links";
 import {
@@ -236,9 +234,7 @@ interface ModelSelectorProps {
   config: UserConfig;
   name: FieldPath<UserConfig>;
   placeholder: string;
-  testId: string;
   description?: React.ReactNode;
-  disabled?: boolean;
   label: string;
   forRole: SupportedRole;
   onSubmit: (values: UserConfig) => void;
@@ -249,9 +245,7 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
   config,
   name,
   placeholder,
-  testId,
   description,
-  disabled = false,
   label,
   forRole,
   onSubmit,
@@ -278,34 +272,6 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
                 placeholder={placeholder}
                 onSelect={selectModel}
                 triggerClassName="text-sm"
-                customDropdownContent={
-                  <>
-                    <DropdownMenuSeparator />
-                    <p className="px-2 py-1.5 text-sm text-muted-secondary flex items-center gap-1">
-                      Enter a custom model
-                      <Tooltip content="Models should include the provider prefix, e.g. 'openai/gpt-4o'">
-                        <InfoIcon className="h-3 w-3" />
-                      </Tooltip>
-                    </p>
-                    <div className="px-2 py-1">
-                      <Input
-                        data-testid={testId}
-                        className="w-full border-border shadow-none focus-visible:shadow-xs"
-                        placeholder={placeholder}
-                        {...field}
-                        value={asStringOrEmpty(field.value)}
-                        disabled={disabled}
-                        onKeyDown={Events.stopPropagation()}
-                      />
-                      {value && (
-                        <IncorrectModelId
-                          value={value}
-                          includeSuggestion={false}
-                        />
-                      )}
-                    </div>
-                  </>
-                }
                 forRole={forRole}
               />
             </FormControl>
@@ -434,7 +400,6 @@ const renderCopilotProvider = ({
         config={config}
         name="ai.models.autocomplete_model"
         placeholder="ollama/qwen2.5-coder:1.5b"
-        testId="custom-model-input"
         description="Model to use for code completion when using a custom provider."
         onSubmit={onSubmit}
         forRole="autocomplete"
@@ -1211,8 +1176,6 @@ export const AiAssistConfig: React.FC<AiConfigProps> = ({
   config,
   onSubmit,
 }) => {
-  const isWasmRuntime = isWasm();
-
   return (
     <SettingGroup>
       <SettingSubtitle>AI Assistant</SettingSubtitle>
@@ -1246,8 +1209,6 @@ export const AiAssistConfig: React.FC<AiConfigProps> = ({
         config={config}
         name="ai.models.chat_model"
         placeholder={DEFAULT_AI_MODEL}
-        testId="ai-chat-model-input"
-        disabled={isWasmRuntime}
         description={
           <span>Model to use for chat conversations in the Chat panel.</span>
         }
@@ -1260,8 +1221,6 @@ export const AiAssistConfig: React.FC<AiConfigProps> = ({
         config={config}
         name="ai.models.edit_model"
         placeholder={DEFAULT_AI_MODEL}
-        testId="ai-edit-model-input"
-        disabled={isWasmRuntime}
         description={
           <span>
             Model to use for code editing with the{" "}
