@@ -136,6 +136,8 @@ class PackageManager(abc.ABC):
         if not self.is_manager_installed():
             return False
 
+        LOGGER.info(f"Running command: {command}")
+
         if log_callback is None:
             # Original behavior - just run the command without capturing output
             completed_process = subprocess.run(command)
