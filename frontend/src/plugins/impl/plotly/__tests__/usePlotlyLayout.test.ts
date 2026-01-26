@@ -13,6 +13,7 @@ function createFigure(layoutOverrides: Partial<Plotly.Layout> = {}): Figure {
   return {
     data: [],
     layout: { ...layoutOverrides } as Plotly.Layout,
+    frames: null,
   };
 }
 
@@ -74,14 +75,14 @@ describe("computeLayoutOnFigureChange", () => {
 
 describe("computeOmitKeys", () => {
   it("omits user-interaction keys unless they changed in figure", () => {
-    const unchanged = computeOmitKeys({} as Plotly.Layout, {} as Plotly.Layout);
+    const unchanged = computeOmitKeys({}, {});
     expect([...unchanged]).toEqual(
       expect.arrayContaining(["autosize", "dragmode", "xaxis", "yaxis"]),
     );
 
     const changed = computeOmitKeys(
-      { dragmode: "zoom", xaxis: { range: [0, 10] } } as Plotly.Layout,
-      { dragmode: "select", xaxis: { range: [0, 5] } } as Plotly.Layout,
+      { dragmode: "zoom", xaxis: { range: [0, 10] } },
+      { dragmode: "select", xaxis: { range: [0, 5] } },
     );
     expect(changed.has("dragmode")).toBe(false);
     expect(changed.has("xaxis")).toBe(false);
@@ -93,8 +94,8 @@ describe("computeLayoutUpdate", () => {
   it("merges figure layout while respecting omit keys", () => {
     // dragmode unchanged in figure -> preserve prev layout's dragmode
     const result1 = computeLayoutUpdate(
-      { dragmode: "pan", title: { text: "New" } } as Plotly.Layout,
-      { dragmode: "pan" } as Plotly.Layout,
+      { dragmode: "pan", title: { text: "New" } },
+      { dragmode: "pan" },
       { dragmode: "zoom", height: 400 },
     );
     expect(result1.dragmode).toBe("zoom");
@@ -103,8 +104,8 @@ describe("computeLayoutUpdate", () => {
 
     // dragmode changed in figure -> use figure's dragmode
     const result2 = computeLayoutUpdate(
-      { dragmode: "pan" } as Plotly.Layout,
-      { dragmode: "select" } as Plotly.Layout,
+      { dragmode: "pan" },
+      { dragmode: "select" },
       { dragmode: "zoom" },
     );
     expect(result2.dragmode).toBe("pan");

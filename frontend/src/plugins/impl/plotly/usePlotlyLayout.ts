@@ -58,8 +58,8 @@ export function computeLayoutOnFigureChange(
  * If a key changed in the figure, we should update it even if it's normally omitted.
  */
 export function computeOmitKeys(
-  currentLayout: Plotly.Layout,
-  previousLayout: Plotly.Layout,
+  currentLayout: Partial<Plotly.Layout>,
+  previousLayout: Partial<Plotly.Layout>,
 ): Set<keyof Plotly.Layout> {
   const omitKeys = new Set<keyof Plotly.Layout>(LAYOUT_OMIT_KEYS);
 
@@ -79,8 +79,8 @@ export function computeOmitKeys(
  * Omits keys that shouldn't override user interactions unless they changed.
  */
 export function computeLayoutUpdate(
-  figureLayout: Plotly.Layout,
-  previousFigureLayout: Plotly.Layout,
+  figureLayout: Partial<Plotly.Layout>,
+  previousFigureLayout: Partial<Plotly.Layout>,
   prevLayout: Partial<Plotly.Layout>,
 ): Partial<Plotly.Layout> {
   const omitKeys = computeOmitKeys(figureLayout, previousFigureLayout);
