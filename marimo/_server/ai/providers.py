@@ -721,6 +721,67 @@ class AnthropicProvider(PydanticProvider["PydanticAnthropic"]):
 
         return PydanticAnthropic(api_key=config.api_key)
 
+    def create_model(self, max_tokens: int) -> Model:
+        from pydantic_ai.models.anthropic import (
+            AnthropicModel,
+            AnthropicModelSettings,
+        )
+
+        is_thinking_model = self.is_extended_thinking_model(self.model)
+        thinking_config: BetaThinkingConfigParam = {"type": "disabled"}
+        if is_thinking_model:
+            thinking_config = {
+                "type": "enabled",
+                "budget_tokens": self.DEFAULT_EXTENDED_THINKING_BUDGET_TOKENS,
+            }
+
+        return AnthropicModel(
+            model_name=self.model,
+            provider=self.provider,
+            settings=AnthropicModelSettings(
+                max_tokens=max_tokens,
+                temperature=self.get_temperature(),
+                anthropic_thinking=thinking_config,
+            ),
+        )
+
+    def is_extended_thinking_model(self, model: str) -> bool:
+        return any(
+            model.startswith(prefix)
+            for prefix in self.EXTENDED_THINKING_MODEL_PREFIXES
+        )
+
+    def get_temperature(self) -> float:
+        return (
+            self.DEFAULT_EXTENDED_THINKING_TEMPERATURE
+            if self.is_extended_thinking_model(self.model)
+            else self.DEFAULT_TEMPERATURE
+        )
+
+    def convert_messages(
+        self, messages: list[ServerUIMessage]
+    ) -> list[UIMessage]:
+        return convert_to_pydantic_messages(messages, self.process_part)
+
+    def process_part(self, part: UIMessagePart) -> UIMessagePart:
+        """
+        Anthropic does not support binary content for text files, so we convert to text parts.
+        Ideally, we would use DocumentUrl parts with a url, but we only have the binary data from the frontend
+        Refer to: https://ai.pydantic.dev/input/#user-side-download-vs-direct-file-url
+        """
+        from pydantic_ai.ui.vercel_ai.request_types import (
+            FileUIPart,
+            TextUIPart,
+        )
+
+        if isinstance(part, FileUIPart) and part.media_type.startswith("text"):
+            return TextUIPart(
+                type="text",
+                text=extract_text(part.url),
+                provider_metadata=part.provider_metadata,
+            )
+        return part
+
     def get_vercel_adapter(
         self,
     ) -> type[VercelAIAdapter[None, DeferredToolRequests | str]]:
@@ -787,67 +848,6 @@ class AnthropicProvider(PydanticProvider["PydanticAnthropic"]):
                 )
 
         return AnthropicVercelAIAdapter
-
-    def create_model(self, max_tokens: int) -> Model:
-        from pydantic_ai.models.anthropic import (
-            AnthropicModel,
-            AnthropicModelSettings,
-        )
-
-        is_thinking_model = self.is_extended_thinking_model(self.model)
-        thinking_config: BetaThinkingConfigParam = {"type": "disabled"}
-        if is_thinking_model:
-            thinking_config = {
-                "type": "enabled",
-                "budget_tokens": self.DEFAULT_EXTENDED_THINKING_BUDGET_TOKENS,
-            }
-
-        return AnthropicModel(
-            model_name=self.model,
-            provider=self.provider,
-            settings=AnthropicModelSettings(
-                max_tokens=max_tokens,
-                temperature=self.get_temperature(),
-                anthropic_thinking=thinking_config,
-            ),
-        )
-
-    def is_extended_thinking_model(self, model: str) -> bool:
-        return any(
-            model.startswith(prefix)
-            for prefix in self.EXTENDED_THINKING_MODEL_PREFIXES
-        )
-
-    def get_temperature(self) -> float:
-        return (
-            self.DEFAULT_EXTENDED_THINKING_TEMPERATURE
-            if self.is_extended_thinking_model(self.model)
-            else self.DEFAULT_TEMPERATURE
-        )
-
-    def convert_messages(
-        self, messages: list[ServerUIMessage]
-    ) -> list[UIMessage]:
-        return convert_to_pydantic_messages(messages, self.process_part)
-
-    def process_part(self, part: UIMessagePart) -> UIMessagePart:
-        """
-        Anthropic does not support binary content for text files, so we convert to text parts.
-        Ideally, we would use DocumentUrl parts with a url, but we only have the binary data from the frontend
-        Refer to: https://ai.pydantic.dev/input/#user-side-download-vs-direct-file-url
-        """
-        from pydantic_ai.ui.vercel_ai.request_types import (
-            FileUIPart,
-            TextUIPart,
-        )
-
-        if isinstance(part, FileUIPart) and part.media_type.startswith("text"):
-            return TextUIPart(
-                type="text",
-                text=extract_text(part.url),
-                provider_metadata=part.provider_metadata,
-            )
-        return part
 
 
 class BedrockProvider(PydanticProvider["PydanticBedrock"]):
