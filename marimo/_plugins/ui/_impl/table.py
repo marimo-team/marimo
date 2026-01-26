@@ -21,7 +21,9 @@ from marimo import _loggers
 from marimo._data.models import BinValue, ColumnStats, ValueCount
 from marimo._data.preview_column import get_column_preview_dataset
 from marimo._dependencies.dependencies import DependencyManager
+from marimo._messaging.mimetypes import KnownMimeType
 from marimo._messaging.notification import ColumnPreview
+from marimo._output.hypertext import is_non_interactive
 from marimo._output.mime import MIME
 from marimo._output.rich_help import mddoc
 from marimo._plugins.core.web_component import JSONType
@@ -1470,20 +1472,17 @@ class table(
                 error=f"Failed to get row IDs: {str(e)}",
             )
 
-    def _repr_markdown_(self) -> str:
-        """Return a markdown representation of the table.
-
-        Generates a markdown or HTML representation of the table data,
-        useful for rendering in the GitHub viewer.
-
-        Returns:
-            str: HTML representation of the table if available,
-                otherwise string representation.
-        """
-        df = self.data
-        if hasattr(df, "_repr_html_"):
-            return df._repr_html_()  # type: ignore[attr-defined,no-any-return]
-        return str(df)
+    # Override _mime_ to return a plain HTML representation in non-interactive environments
+    def _mime_(self) -> tuple[KnownMimeType, str]:
+        if is_non_interactive():
+            df = self.data
+            # Generates a plain HTML representation of the table data,
+            # useful for rendering in the GitHub viewer.
+            repr_html = getattr(df, "_repr_html_", None)
+            if repr_html is not None and callable(repr_html):
+                return ("text/html", cast(str, repr_html()))
+            return ("text/html", str(df))
+        return ("text/html", self.text)
 
     @functools.cached_property
     def default_page_size(self) -> int:

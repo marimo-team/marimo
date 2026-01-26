@@ -11,8 +11,11 @@ from typing import (
     Literal,
     Optional,
     Union,
+    cast,
 )
 
+from marimo._messaging.mimetypes import KnownMimeType
+from marimo._output.hypertext import is_non_interactive
 from marimo._output.rich_help import mddoc
 from marimo._plugins.ui._core.ui_element import UIElement
 from marimo._plugins.ui._impl.dataframes.transforms.apply import (
@@ -225,6 +228,17 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
                 ),
             ),
         )
+
+    # Override _mime_ to return a plain HTML representation in non-interactive environments
+    def _mime_(self) -> tuple[KnownMimeType, str]:
+        if is_non_interactive():
+            # Generates a plain HTML representation of the table data,
+            # useful for rendering in the GitHub viewer.
+            repr_html = getattr(self._data, "_repr_html_", None)
+            if repr_html is not None and callable(repr_html):
+                return ("text/html", cast(str, repr_html()))
+            return ("text/html", str(self._data))
+        return ("text/html", self.text)
 
     def _get_column_types(self) -> list[list[Union[str, int]]]:
         return [
