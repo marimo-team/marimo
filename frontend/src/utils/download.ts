@@ -99,10 +99,13 @@ interface toPngOptions {
  * @param highFidelity - When true, the screenshot will be taken with high fidelity. This is slower but will produce better results.
  * @returns The PNG as a data URL, or undefined if the cell element wasn't found
  */
-export async function getImageDataUrlForCell(
-  cellId: CellId,
+export async function getImageDataUrlForCell({
+  cellId,
   highFidelity = true,
-): Promise<string | undefined> {
+}: {
+  cellId: CellId;
+  highFidelity?: boolean;
+}): Promise<string | undefined> {
   const element = findElementForCell(cellId);
   if (!element) {
     return;

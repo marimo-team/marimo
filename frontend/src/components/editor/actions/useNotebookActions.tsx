@@ -128,7 +128,7 @@ export function useNotebookActions() {
   const { selectedLayout } = useLayoutState();
   const { setLayoutView } = useLayoutActions();
   const togglePresenting = useTogglePresenting();
-  const takeScreenshots = useEnrichCellOutputs();
+  const takeScreenshots = useEnrichCellOutputs({});
 
   // Fallback: if sharing is undefined, both are enabled by default
   const sharingHtmlEnabled = resolvedConfig.sharing?.html ?? true;

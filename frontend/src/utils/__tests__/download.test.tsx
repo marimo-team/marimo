@@ -141,7 +141,9 @@ describe("getImageDataUrlForCell", () => {
   });
 
   it("should return undefined if element is not found", async () => {
-    const result = await getImageDataUrlForCell("nonexistent" as CellId);
+    const result = await getImageDataUrlForCell({
+      cellId: "nonexistent" as CellId,
+    });
 
     expect(result).toBeUndefined();
     expect(Logger.error).toHaveBeenCalledWith(
@@ -152,7 +154,7 @@ describe("getImageDataUrlForCell", () => {
   it("should capture screenshot and return data URL with highFidelity options", async () => {
     vi.mocked(toPng).mockResolvedValue(mockDataUrl);
 
-    const result = await getImageDataUrlForCell("cell-1" as CellId);
+    const result = await getImageDataUrlForCell({ cellId: "cell-1" as CellId });
 
     expect(result).toBe(mockDataUrl);
     expect(toPng).toHaveBeenCalledWith(mockElement, {
@@ -164,7 +166,10 @@ describe("getImageDataUrlForCell", () => {
   it("should capture screenshot without options when highFidelity is false", async () => {
     vi.mocked(toPng).mockResolvedValue(mockDataUrl);
 
-    const result = await getImageDataUrlForCell("cell-1" as CellId, false);
+    const result = await getImageDataUrlForCell({
+      cellId: "cell-1" as CellId,
+      highFidelity: false,
+    });
 
     expect(result).toBe(mockDataUrl);
     expect(toPng).toHaveBeenCalledWith(mockElement, {});
@@ -179,13 +184,19 @@ describe("getImageDataUrlForCell", () => {
       return mockDataUrl;
     });
 
-    await getImageDataUrlForCell("cell-1" as CellId, true);
+    await getImageDataUrlForCell({
+      cellId: "cell-1" as CellId,
+      highFidelity: true,
+    });
   });
 
   it("should remove printing classes after capture when highFidelity is true", async () => {
     vi.mocked(toPng).mockResolvedValue(mockDataUrl);
 
-    await getImageDataUrlForCell("cell-1" as CellId, true);
+    await getImageDataUrlForCell({
+      cellId: "cell-1" as CellId,
+      highFidelity: true,
+    });
 
     expect(mockElement.classList.contains("printing-output")).toBe(false);
     expect(document.body.classList.contains("printing")).toBe(false);
@@ -201,14 +212,20 @@ describe("getImageDataUrlForCell", () => {
       return mockDataUrl;
     });
 
-    await getImageDataUrlForCell("cell-1" as CellId, false);
+    await getImageDataUrlForCell({
+      cellId: "cell-1" as CellId,
+      highFidelity: false,
+    });
   });
 
   it("should cleanup printing-output when highFidelity is false", async () => {
     mockElement.style.overflow = "hidden";
     vi.mocked(toPng).mockResolvedValue(mockDataUrl);
 
-    await getImageDataUrlForCell("cell-1" as CellId, false);
+    await getImageDataUrlForCell({
+      cellId: "cell-1" as CellId,
+      highFidelity: false,
+    });
 
     expect(mockElement.classList.contains("printing-output")).toBe(false);
     expect(document.body.classList.contains("printing")).toBe(false);
@@ -219,7 +236,7 @@ describe("getImageDataUrlForCell", () => {
     mockElement.style.overflow = "hidden";
     vi.mocked(toPng).mockResolvedValue(mockDataUrl);
 
-    await getImageDataUrlForCell("cell-1" as CellId);
+    await getImageDataUrlForCell({ cellId: "cell-1" as CellId });
 
     expect(mockElement.style.overflow).toBe("hidden");
   });
@@ -227,16 +244,18 @@ describe("getImageDataUrlForCell", () => {
   it("should throw error on failure", async () => {
     vi.mocked(toPng).mockRejectedValue(new Error("Capture failed"));
 
-    await expect(getImageDataUrlForCell("cell-1" as CellId)).rejects.toThrow(
-      "Capture failed",
-    );
+    await expect(
+      getImageDataUrlForCell({ cellId: "cell-1" as CellId }),
+    ).rejects.toThrow("Capture failed");
   });
 
   it("should cleanup even on failure", async () => {
     mockElement.style.overflow = "scroll";
     vi.mocked(toPng).mockRejectedValue(new Error("Capture failed"));
 
-    await expect(getImageDataUrlForCell("cell-1" as CellId)).rejects.toThrow();
+    await expect(
+      getImageDataUrlForCell({ cellId: "cell-1" as CellId }),
+    ).rejects.toThrow();
 
     expect(mockElement.classList.contains("printing-output")).toBe(false);
     expect(document.body.classList.contains("printing")).toBe(false);
@@ -278,8 +297,14 @@ describe("getImageDataUrlForCell", () => {
     });
 
     // Start both captures concurrently with highFidelity = true
-    const capture1 = getImageDataUrlForCell("cell-1" as CellId, true);
-    const capture2 = getImageDataUrlForCell("cell-2" as CellId, true);
+    const capture1 = getImageDataUrlForCell({
+      cellId: "cell-1" as CellId,
+      highFidelity: true,
+    });
+    const capture2 = getImageDataUrlForCell({
+      cellId: "cell-2" as CellId,
+      highFidelity: true,
+    });
 
     // Let second capture complete first
     resolveSecond!();
@@ -314,8 +339,14 @@ describe("getImageDataUrlForCell", () => {
     });
 
     // Start both captures concurrently with highFidelity = false
-    const capture1 = getImageDataUrlForCell("cell-1" as CellId, false);
-    const capture2 = getImageDataUrlForCell("cell-2" as CellId, false);
+    const capture1 = getImageDataUrlForCell({
+      cellId: "cell-1" as CellId,
+      highFidelity: false,
+    });
+    const capture2 = getImageDataUrlForCell({
+      cellId: "cell-2" as CellId,
+      highFidelity: false,
+    });
 
     await Promise.all([capture1, capture2]);
 

@@ -35,7 +35,7 @@ export function useAutoExport() {
     autoExportAsMarkdown,
     updateCellOutputs,
   } = useRequestClient();
-  const takeScreenshots = useEnrichCellOutputs(false);
+  const takeScreenshots = useEnrichCellOutputs({ highFidelity: false });
 
   useInterval(
     async () => {
@@ -100,7 +100,11 @@ const MIME_TYPES_TO_CAPTURE_SCREENSHOTS = new Set<MimeType>([
  * @param highFidelity - When true, the screenshots will be taken with high fidelity. This is slower but will produce better results.
  * @returns A map of cell IDs to their screenshots data.
  */
-export function useEnrichCellOutputs(highFidelity = true) {
+export function useEnrichCellOutputs({
+  highFidelity = true,
+}: {
+  highFidelity?: boolean;
+}) {
   const [richCellsOutput, setRichCellsOutput] = useAtom(richCellsToOutputAtom);
   const cellRuntimes = useAtomValue(cellsRuntimeAtom);
 
@@ -134,8 +138,16 @@ export function useEnrichCellOutputs(highFidelity = true) {
       return new Promise((resolve) => {
         requestIdleCallback(
           async () => {
-            const result = await getImageDataUrlForCell(cellId, highFidelity);
-            resolve(result);
+            try {
+              const result = await getImageDataUrlForCell({
+                cellId,
+                highFidelity,
+              });
+              resolve(result);
+            } catch (error) {
+              Logger.error(`Error screenshotting cell ${cellId}:`, error);
+              resolve(undefined);
+            }
           },
           { timeout: 2000 },
         );

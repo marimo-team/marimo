@@ -49,6 +49,15 @@ describe("useEnrichCellOutputs", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     store = createStore();
+
+    // Mock requestIdleCallback which is not available in jsdom
+    vi.stubGlobal("requestIdleCallback", (callback: IdleRequestCallback) => {
+      callback({
+        didTimeout: false,
+        timeRemaining: () => 50,
+      } as IdleDeadline);
+      return 1;
+    });
   });
 
   const wrapper = ({ children }: { children: ReactNode }) =>
@@ -97,7 +106,7 @@ describe("useEnrichCellOutputs", () => {
       }),
     );
 
-    const { result } = renderHook(() => useEnrichCellOutputs(), { wrapper });
+    const { result } = renderHook(() => useEnrichCellOutputs({}), { wrapper });
 
     const enrichCellOutputs = result.current;
     const output = await enrichCellOutputs();
@@ -129,7 +138,7 @@ describe("useEnrichCellOutputs", () => {
       }),
     );
 
-    const { result } = renderHook(() => useEnrichCellOutputs(), { wrapper });
+    const { result } = renderHook(() => useEnrichCellOutputs({}), { wrapper });
 
     const enrichCellOutputs = result.current;
     const output = await enrichCellOutputs();
@@ -137,7 +146,10 @@ describe("useEnrichCellOutputs", () => {
     expect(document.getElementById).toHaveBeenCalledWith(
       CellOutputId.create(cellId),
     );
-    expect(toPng).toHaveBeenCalledWith(mockElement);
+    expect(toPng).toHaveBeenCalledWith(mockElement, {
+      skipFonts: true,
+      pixelRatio: 1,
+    });
     expect(output).toEqual({
       [cellId]: ["image/png", mockDataUrl],
     });
@@ -165,7 +177,7 @@ describe("useEnrichCellOutputs", () => {
       }),
     );
 
-    const { result, rerender } = renderHook(() => useEnrichCellOutputs(), {
+    const { result, rerender } = renderHook(() => useEnrichCellOutputs({}), {
       wrapper,
     });
 
@@ -206,7 +218,7 @@ describe("useEnrichCellOutputs", () => {
       }),
     );
 
-    const { result } = renderHook(() => useEnrichCellOutputs(), { wrapper });
+    const { result } = renderHook(() => useEnrichCellOutputs({}), { wrapper });
 
     const enrichCellOutputs = result.current;
     const output = await enrichCellOutputs();
@@ -236,7 +248,7 @@ describe("useEnrichCellOutputs", () => {
       }),
     );
 
-    const { result } = renderHook(() => useEnrichCellOutputs(), { wrapper });
+    const { result } = renderHook(() => useEnrichCellOutputs({}), { wrapper });
 
     const enrichCellOutputs = result.current;
     const output = await enrichCellOutputs();
@@ -285,7 +297,7 @@ describe("useEnrichCellOutputs", () => {
       }),
     );
 
-    const { result } = renderHook(() => useEnrichCellOutputs(), { wrapper });
+    const { result } = renderHook(() => useEnrichCellOutputs({}), { wrapper });
 
     const enrichCellOutputs = result.current;
     const output = await enrichCellOutputs();
@@ -331,7 +343,7 @@ describe("useEnrichCellOutputs", () => {
       }),
     );
 
-    const { result } = renderHook(() => useEnrichCellOutputs(), { wrapper });
+    const { result } = renderHook(() => useEnrichCellOutputs({}), { wrapper });
 
     const enrichCellOutputs = result.current;
     const output = await enrichCellOutputs();
@@ -343,6 +355,39 @@ describe("useEnrichCellOutputs", () => {
     expect(Logger.error).toHaveBeenCalledWith(
       `Output element not found for cell ${cell2}`,
     );
+  });
+
+  it("low fidelity should still capture screenshots for cells with changed output", async () => {
+    const cellId = "cell-1" as CellId;
+    const mockElement = document.createElement("div");
+    const mockDataUrl1 = "data:image/png;base64,image1";
+
+    vi.spyOn(document, "getElementById").mockReturnValue(mockElement);
+    vi.mocked(toPng).mockResolvedValue(mockDataUrl1);
+
+    setCellsRuntime(
+      createMockCellRuntimes({
+        [cellId]: {
+          output: {
+            channel: "output",
+            mimetype: "text/html",
+            data: "<div>Chart v1</div>",
+            timestamp: 0,
+          },
+        },
+      }),
+    );
+
+    const { result } = renderHook(
+      () => useEnrichCellOutputs({ highFidelity: false }),
+      { wrapper },
+    );
+
+    const enrichCellOutputs = result.current;
+    const output = await enrichCellOutputs();
+
+    expect(output).toEqual({ [cellId]: ["image/png", mockDataUrl1] });
+    expect(toPng).toHaveBeenCalledTimes(1);
   });
 
   it("should only capture screenshots for cells with changed output", async () => {
@@ -370,7 +415,7 @@ describe("useEnrichCellOutputs", () => {
       }),
     );
 
-    const { result, rerender } = renderHook(() => useEnrichCellOutputs(), {
+    const { result, rerender } = renderHook(() => useEnrichCellOutputs({}), {
       wrapper,
     });
 
@@ -438,7 +483,7 @@ describe("useEnrichCellOutputs", () => {
       }),
     );
 
-    const { result } = renderHook(() => useEnrichCellOutputs(), { wrapper });
+    const { result } = renderHook(() => useEnrichCellOutputs({}), { wrapper });
 
     const enrichCellOutputs = result.current;
     const output = await enrichCellOutputs();
@@ -463,7 +508,7 @@ describe("useEnrichCellOutputs", () => {
       }),
     );
 
-    const { result } = renderHook(() => useEnrichCellOutputs(), { wrapper });
+    const { result } = renderHook(() => useEnrichCellOutputs({}), { wrapper });
 
     const enrichCellOutputs = result.current;
     const output = await enrichCellOutputs();
@@ -495,7 +540,7 @@ describe("useEnrichCellOutputs", () => {
       }),
     );
 
-    const { result } = renderHook(() => useEnrichCellOutputs(), { wrapper });
+    const { result } = renderHook(() => useEnrichCellOutputs({}), { wrapper });
 
     const enrichCellOutputs = result.current;
     const output = await enrichCellOutputs();
