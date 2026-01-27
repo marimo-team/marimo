@@ -362,7 +362,7 @@ importers:
         specifier: ^5.2.11
         version: 5.2.11(@types/react@19.2.7)(react@19.2.3)
       html-to-image:
-        specifier: ^1.11.13
+        specifier: 1.11.13
         version: 1.11.13(patch_hash=eced1b085df9a49a9c81d730049c8285c754fc89e68672c14722337c75d72eaf)
       humanize-duration:
         specifier: ^3.33.2

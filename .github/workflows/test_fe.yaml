@@ -151,6 +151,10 @@ jobs:
             echo "Error: vega-lite version in package.json must be exactly 6.3.1. Newer versions break numeric tooltips"
             exit 1
           fi
+          if ! grep -q '"html-to-image": "1.11.13"' package.json; then
+            echo "Error: html-to-image version in package.json must be exactly 1.11.13. Newer versions break matplotlib toolbars"
+            exit 1
+          fi
 
       - name: 📦 Build
         id: build
