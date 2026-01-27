@@ -392,6 +392,22 @@ class plotly(UIElement[PlotlySelection, list[dict[str, Any]]]):
                 self._figure, self._selection_data
             )
 
+        # Check for map-based scatter traces (scattermap, scattermapbox, scattergeo)
+        # These use lat/lon instead of x/y
+        map_scatter_types = ("scattermap", "scattermapbox", "scattergeo")
+        has_map_scatter = any(
+            getattr(trace, "type", None) in map_scatter_types
+            for trace in self._figure.data
+        )
+
+        # For map scatter traces, extract points from the selection
+        # Unlike regular scatter, map selections don't have a "range" - they have
+        # direct point selection via lasso/box select on the map
+        if has_map_scatter:
+            _append_map_scatter_points_to_selection(
+                self._figure, self._selection_data
+            )
+
         result = self.points
         return result
 
@@ -1070,3 +1086,72 @@ def _extract_bars_fallback(
                     )
 
     return selected_bars
+
+
+def _append_map_scatter_points_to_selection(
+    figure: go.Figure, selection_data: dict[str, Any]
+) -> None:
+    """Extract points from map scatter traces (scattermap, scattermapbox, scattergeo).
+
+    These traces use lat/lon instead of x/y. If the frontend already sent
+    points with lat/lon, we preserve them. Otherwise, we extract from trace data.
+    """
+    existing_points = [p for p in selection_data.get("points", []) if p]
+    indices = selection_data.get("indices", [])
+
+    # If frontend already sent lat/lon points, nothing to do
+    if existing_points and any(
+        "lat" in p or "lon" in p for p in existing_points
+    ):
+        return
+
+    # Extract points from trace data using indices
+    if not indices or existing_points:
+        return
+
+    map_types = ("scattermap", "scattermapbox", "scattergeo")
+    extracted: list[dict[str, Any]] = []
+
+    for trace_idx, trace in enumerate(figure.data):
+        if getattr(trace, "type", None) not in map_types:
+            continue
+
+        lat_data = getattr(trace, "lat", None)
+        lon_data = getattr(trace, "lon", None)
+        if lat_data is None or lon_data is None:
+            continue
+
+        for idx in indices:
+            if not (0 <= idx < len(lat_data)):
+                continue
+
+            point: dict[str, Any] = {
+                "lat": lat_data[idx],
+                "lon": lon_data[idx],
+                "pointIndex": idx,
+                "curveNumber": trace_idx,
+            }
+
+            # Add optional fields
+            customdata = getattr(trace, "customdata", None)
+            if customdata is not None and idx < len(customdata):
+                point["customdata"] = customdata[idx]
+
+            text = getattr(trace, "text", None)
+            if text is not None:
+                point["text"] = text if isinstance(text, str) else text[idx]
+
+            hovertext = getattr(trace, "hovertext", None)
+            if hovertext is not None:
+                point["hovertext"] = (
+                    hovertext if isinstance(hovertext, str) else hovertext[idx]
+                )
+
+            name = getattr(trace, "name", None)
+            if name:
+                point["name"] = name
+
+            extracted.append(point)
+
+    if extracted:
+        selection_data["points"] = extracted
