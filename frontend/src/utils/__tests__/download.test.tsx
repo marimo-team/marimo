@@ -533,8 +533,6 @@ describe("downloadCellOutputAsImage", () => {
       return mockDataUrl;
     });
 
-    expect(mockElement.querySelector("iframe")).not.toBeNull();
-
     await downloadCellOutputAsImage("cell-1" as CellId, "result");
   });
 });

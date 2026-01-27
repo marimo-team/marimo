@@ -17,7 +17,7 @@ async function captureIframeContent(
     }
 
     // Replace any nested iframes within this iframe's body before capture.
-    // This handles cases like mo.iframe() containing a cross-origin embed.
+    // This handles cases like mo.iframe() containing an iframe
     const nestedIframes = iframeDoc.body.querySelectorAll("iframe");
     const nestedReplacements: {
       iframe: HTMLIFrameElement;
@@ -164,6 +164,7 @@ function createOffscreenClone(element: HTMLElement): {
 
 /**
  * If iframes are presesent, create an offscreen clone and replace the iframes with captured images or placeholders.
+ * This is needed because html-to-image
  * Otherwise, return the original element.
  */
 export async function getIframeCaptureTarget(
