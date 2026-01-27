@@ -178,6 +178,11 @@ export async function getIframeCaptureTarget(
   }
 
   const { clone, cleanup } = createOffscreenClone(element);
-  await replaceIframesInClone(element, clone, toPng);
-  return { target: clone, cleanup };
+  try {
+    await replaceIframesInClone(element, clone, toPng);
+    return { target: clone, cleanup };
+  } catch (error) {
+    cleanup();
+    throw error;
+  }
 }

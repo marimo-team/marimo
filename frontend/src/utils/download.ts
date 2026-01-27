@@ -140,7 +140,7 @@ export async function downloadCellOutputAsImage(
   await downloadHTMLAsImage({
     element,
     filename,
-    prepare: () => prepareCellElementForScreenshot(element, true),
+    prepare: (target) => prepareCellElementForScreenshot(target, true),
   });
 }
 

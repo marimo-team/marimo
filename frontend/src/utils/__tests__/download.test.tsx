@@ -514,6 +514,29 @@ describe("downloadCellOutputAsImage", () => {
     expect(document.body.classList.contains("printing")).toBe(false);
     expect(mockElement.style.overflow).toBe("visible");
   });
+
+  it("should apply preparation to iframe clone, not original", async () => {
+    const iframe = document.createElement("iframe");
+    iframe.src = "https://example.com";
+    Object.defineProperty(iframe, "offsetWidth", { value: 400 });
+    Object.defineProperty(iframe, "offsetHeight", { value: 300 });
+    Object.defineProperty(iframe, "contentDocument", {
+      value: null,
+      configurable: true,
+    });
+    mockElement.append(iframe);
+
+    vi.mocked(toPng).mockImplementation(async (el: HTMLElement) => {
+      expect(el).not.toBe(mockElement);
+      expect(el.classList.contains("printing-output")).toBe(true);
+      expect(mockElement.classList.contains("printing-output")).toBe(false);
+      return mockDataUrl;
+    });
+
+    expect(mockElement.querySelector("iframe")).not.toBeNull();
+
+    await downloadCellOutputAsImage("cell-1" as CellId, "result");
+  });
 });
 
 describe("downloadByURL", () => {
