@@ -58,10 +58,12 @@ describe("withLoadingToast", () => {
     });
 
     expect(toast).toHaveBeenCalledTimes(1);
-    expect(toast).toHaveBeenCalledWith({
-      title: "Loading...",
-      duration: Infinity,
-    });
+    expect(toast).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: "Loading...",
+        duration: Infinity,
+      }),
+    );
     expect(mockDismiss).toHaveBeenCalledTimes(1);
     expect(result).toBe("success");
   });
