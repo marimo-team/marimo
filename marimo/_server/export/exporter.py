@@ -307,13 +307,17 @@ class Exporter:
         return html, download_filename
 
     def export_as_pdf(
-        self, *, app: InternalApp, session_view: SessionView, webpdf: bool
+        self,
+        *,
+        app: InternalApp,
+        session_view: SessionView | None,
+        webpdf: bool,
     ) -> bytes | None:
         """Export notebook as a PDF.
 
         Args:
             app: The app to export
-            session_view: The session view to export
+            session_view: The session view to export. If None, outputs are not included.
             webpdf: If False, tries standard PDF export (pandoc + TeX) first,
                 falling back to webpdf if deps are not installed. If True, uses webpdf
                 directly.
