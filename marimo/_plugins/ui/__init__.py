@@ -17,6 +17,7 @@ __all__ = [
     "data_explorer",
     "dataframe",
     "date_range",
+    "date_slider",
     "date",
     "datetime",
     "experimental_data_editor",
@@ -55,6 +56,7 @@ from marimo._plugins.ui._impl.dataframes.dataframe import dataframe
 from marimo._plugins.ui._impl.dates import (
     date,
     date_range,
+    date_slider,
     datetime,
 )
 from marimo._plugins.ui._impl.dictionary import dictionary
