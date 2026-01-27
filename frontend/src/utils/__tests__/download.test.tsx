@@ -155,7 +155,13 @@ describe("getImageDataUrlForCell", () => {
     const result = await getImageDataUrlForCell("cell-1" as CellId);
 
     expect(result).toBe(mockDataUrl);
-    expect(toPng).toHaveBeenCalledWith(mockElement);
+    expect(toPng).toHaveBeenCalledWith(
+      mockElement,
+      expect.objectContaining({
+        filter: expect.any(Function),
+        onImageErrorHandler: expect.any(Function),
+      }),
+    );
   });
 
   it("should add printing classes before capture when enablePrintMode is true", async () => {
@@ -352,7 +358,13 @@ describe("downloadHTMLAsImage", () => {
 
     await downloadHTMLAsImage({ element: mockElement, filename: "test" });
 
-    expect(toPng).toHaveBeenCalledWith(mockElement);
+    expect(toPng).toHaveBeenCalledWith(
+      mockElement,
+      expect.objectContaining({
+        filter: expect.any(Function),
+        onImageErrorHandler: expect.any(Function),
+      }),
+    );
     expect(mockAnchor.href).toBe(mockDataUrl);
     expect(mockAnchor.download).toBe("test.png");
     expect(mockAnchor.click).toHaveBeenCalled();
@@ -488,7 +500,13 @@ describe("downloadCellOutputAsImage", () => {
 
     await downloadCellOutputAsImage("cell-1" as CellId, "result");
 
-    expect(toPng).toHaveBeenCalledWith(mockElement);
+    expect(toPng).toHaveBeenCalledWith(
+      mockElement,
+      expect.objectContaining({
+        filter: expect.any(Function),
+        onImageErrorHandler: expect.any(Function),
+      }),
+    );
     expect(mockAnchor.download).toBe("result.png");
   });
 

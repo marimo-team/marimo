@@ -137,7 +137,13 @@ describe("useEnrichCellOutputs", () => {
     expect(document.getElementById).toHaveBeenCalledWith(
       CellOutputId.create(cellId),
     );
-    expect(toPng).toHaveBeenCalledWith(mockElement);
+    expect(toPng).toHaveBeenCalledWith(
+      mockElement,
+      expect.objectContaining({
+        filter: expect.any(Function),
+        onImageErrorHandler: expect.any(Function),
+      }),
+    );
     expect(output).toEqual({
       [cellId]: ["image/png", mockDataUrl],
     });
