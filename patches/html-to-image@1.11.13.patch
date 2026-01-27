@@ -1,0 +1,16 @@
+diff --git a/src/clone-node.ts b/src/clone-node.ts
+index 5dfcd117a1dd3d3d5cfb7c98ead3eb828085337a..8aa85ca88f84e8e64297673dcff36b21d48a95b4 100644
+--- a/src/clone-node.ts
++++ b/src/clone-node.ts
+@@ -88,11 +88,6 @@ async function cloneChildren<T extends HTMLElement>(
+ 
+   if (isSlotElement(nativeNode) && nativeNode.assignedNodes) {
+     children = toArray<T>(nativeNode.assignedNodes())
+-  } else if (
+-    isInstanceOfElement(nativeNode, HTMLIFrameElement) &&
+-    nativeNode.contentDocument?.body
+-  ) {
+-    children = toArray<T>(nativeNode.contentDocument.body.childNodes)
+   } else {
+     children = toArray<T>((nativeNode.shadowRoot ?? nativeNode).childNodes)
+   }
