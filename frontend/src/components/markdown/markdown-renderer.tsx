@@ -1,6 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { EditorView } from "@codemirror/view";
+import { math } from "@streamdown/math";
 import { useAtomValue } from "jotai";
 import { BetweenHorizontalStartIcon } from "lucide-react";
 import { memo, Suspense, useState } from "react";
@@ -184,7 +185,11 @@ const COMPONENTS: Components = {
 
 export const MarkdownRenderer = memo(({ content }: { content: string }) => {
   return (
-    <Streamdown components={COMPONENTS} className="mo-markdown-renderer">
+    <Streamdown
+      components={COMPONENTS}
+      plugins={{ math }}
+      className="mo-markdown-renderer"
+    >
       {content}
     </Streamdown>
   );

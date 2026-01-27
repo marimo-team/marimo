@@ -349,6 +349,40 @@ def test_chat_system_prompts():
     snapshot("chat_system_prompts.txt", result)
 
 
+def test_markdown_rules_include_latex():
+    from marimo._server.ai.prompts import (
+        get_chat_system_prompt,
+        get_refactor_or_insert_notebook_cell_system_prompt,
+    )
+
+    # Test refactor prompt
+    refactor_prompt = get_refactor_or_insert_notebook_cell_system_prompt(
+        language="markdown",
+        is_insert=False,
+        support_multiple_cells=False,
+        custom_rules=None,
+        cell_code=None,
+        selected_text=None,
+        other_cell_codes=None,
+        context=None,
+    )
+    assert "double dollar signs ($$)" in refactor_prompt
+    assert "$$E=mc^2$$" in refactor_prompt
+    assert "Do NOT use single dollar signs" in refactor_prompt
+
+    # Test chat prompt
+    chat_prompt = get_chat_system_prompt(
+        custom_rules=None,
+        include_other_code="",
+        context=None,
+        mode="manual",
+        session_id=SessionId("test"),
+    )
+    assert "double dollar signs ($$)" in chat_prompt
+    assert "$$E=mc^2$$" in chat_prompt
+    assert "Do NOT use single dollar signs" in chat_prompt
+
+
 def test_format_variables():
     """Test the _format_variables function."""
     # Test empty variables
