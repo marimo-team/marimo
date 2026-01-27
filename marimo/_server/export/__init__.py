@@ -190,6 +190,41 @@ async def run_app_then_export_as_ipynb(
     )
 
 
+async def run_app_then_export_as_pdf(
+    filepath: MarimoPath,
+    *,
+    include_outputs: bool,
+    webpdf: bool,
+    cli_args: SerializedCLIArgs,
+    argv: list[str] | None,
+) -> tuple[bytes | None, bool]:
+    file_router = AppFileRouter.from_filename(filepath)
+    file_key = file_router.get_unique_file_key()
+    assert file_key is not None
+    file_manager = file_router.get_file_manager(file_key)
+
+    session_view: SessionView | None = None
+    did_error = False
+
+    if include_outputs:
+        with patch_html_for_non_interactive_output():
+            # Using quiet=True to suppress runtime stdout/stderr since outputs
+            # are captured in the session_view and will be included in the PDF
+            (session_view, did_error) = await run_app_until_completion(
+                file_manager,
+                cli_args,
+                argv,
+                quiet=True,
+            )
+
+    pdf_data = Exporter().export_as_pdf(
+        app=file_manager.app,
+        session_view=session_view,
+        webpdf=webpdf,
+    )
+    return pdf_data, did_error
+
+
 async def run_app_then_export_as_html(
     path: MarimoPath,
     include_code: bool,
