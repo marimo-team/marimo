@@ -106,16 +106,18 @@ export async function getImageDataUrlForCell(
     return;
   }
 
-  const { target, cleanup: cleanupIframes } = await getIframeCaptureTarget(
-    element,
-    toPng,
-  );
-  const cleanup = prepareCellElementForScreenshot(target, enablePrintMode);
-
+  let cleanupIframes: (() => void) | undefined;
+  let screenshotCleanup: (() => void) | undefined;
   try {
+    const { target, cleanup: iframeCleanup } = await getIframeCaptureTarget(
+      element,
+      toPng,
+    );
+    cleanupIframes = iframeCleanup;
+    screenshotCleanup = prepareCellElementForScreenshot(target, enablePrintMode);
     return await toPng(target);
   } finally {
-    cleanup();
+    screenshotCleanup?.();
     cleanupIframes?.();
   }
 }
@@ -150,36 +152,39 @@ export async function downloadHTMLAsImage(opts: {
   const appEl = document.getElementById("App");
   const currentScrollY = appEl?.scrollTop ?? 0;
 
-  const { target, cleanup: cleanupIframes } = await getIframeCaptureTarget(
-    element,
-    toPng,
-  );
-
-  let cleanup: (() => void) | undefined;
-  if (prepare) {
-    cleanup = prepare(target);
-  } else {
-    // When no prepare function is provided (e.g., downloading full notebook),
-    // add body.printing ourselves
-    document.body.classList.add("printing");
-  }
-
+  let cleanupIframes: (() => void) | undefined;
+  let screenshotCleanup: (() => void) | undefined;
   try {
-    // Get screenshot
-    const dataUrl = await toPng(target);
-    downloadByURL(dataUrl, Filenames.toPNG(filename));
-  } catch {
-    toast({
-      title: "Error",
-      description: "Failed to download as PNG.",
-      variant: "danger",
-    });
+    const { target, cleanup: iframeCleanup } = await getIframeCaptureTarget(
+      element,
+      toPng,
+    );
+    cleanupIframes = iframeCleanup;
+    if (prepare) {
+        screenshotCleanup = prepare(target);
+    } else {
+      // When no prepare function is provided (e.g., downloading full notebook),
+      // add body.printing ourselves
+      document.body.classList.add("printing");
+    }
+
+    try {
+      // Get screenshot
+      const dataUrl = await toPng(target);
+      downloadByURL(dataUrl, Filenames.toPNG(filename));
+    } catch {
+      toast({
+        title: "Error",
+        description: "Failed to download as PNG.",
+        variant: "danger",
+      });
+    }
   } finally {
-    cleanup?.();
-    cleanupIframes?.();
+    screenshotCleanup?.();
     if (document.body.classList.contains("printing")) {
       document.body.classList.remove("printing");
     }
+    cleanupIframes?.();
     // Restore scroll position
     requestAnimationFrame(() => {
       appEl?.scrollTo(0, currentScrollY);
