@@ -16,7 +16,7 @@ import {
   HelpCircleIcon,
   PaperclipIcon,
   RotateCwIcon,
-  SendIcon,
+  SendHorizontalIcon,
   SettingsIcon,
   Trash2Icon,
   X,
@@ -559,10 +559,10 @@ export const Chatbot: React.FC<Props> = (props) => {
           type="submit"
           disabled={isLoading || !input}
           variant="outline"
-          size="sm"
+          size="xs"
           className="text-(--slate-11)"
         >
-          <SendIcon className="h-5 w-5" />
+          <SendHorizontalIcon className="h-4 w-4" />
         </Button>
       </form>
     </div>

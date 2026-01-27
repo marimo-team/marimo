@@ -3,12 +3,8 @@
 import { useAtom, useAtomValue } from "jotai";
 import { capitalize } from "lodash-es";
 import {
-  AtSignIcon,
   BotMessageSquareIcon,
-  PaperclipIcon,
   RefreshCwIcon,
-  SendIcon,
-  SquareIcon,
   StopCircleIcon,
 } from "lucide-react";
 import React, { memo, useEffect, useMemo, useRef, useState } from "react";
@@ -25,8 +21,7 @@ import {
 import { PanelEmptyState } from "@/components/editor/chrome/panels/empty-state";
 import { Spinner } from "@/components/icons/spinner";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Tooltip, TooltipProvider } from "@/components/ui/tooltip";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { cn } from "@/utils/cn";
 import { Logger } from "@/utils/Logger";
 import { AgentDocs } from "./agent-docs";
@@ -70,7 +65,12 @@ import { store } from "@/core/state/jotai";
 import { ErrorBanner } from "@/plugins/impl/common/error-banner";
 import { Functions } from "@/utils/functions";
 import { Paths } from "@/utils/paths";
-import { FileAttachmentPill } from "../chat-components";
+import {
+  AddContextButton,
+  AttachFileButton,
+  FileAttachmentPill,
+  SendButton,
+} from "../chat-components";
 import { ReadyToChatBlock } from "./blocks";
 import {
   convertFilesToResourceLinks,
@@ -88,9 +88,6 @@ import type {
 } from "./types";
 
 const logger = Logger.get("agents");
-
-// File attachment constants
-const SUPPORTED_ATTACHMENT_TYPES = ["image/*", "text/*"];
 
 interface AgentTitleProps {
   currentAgentId?: ExternalAgentId;
@@ -392,55 +389,21 @@ const PromptArea = memo<PromptAreaProps>(
               )}
             </div>
             <div className="flex flex-row">
-              <Tooltip content="Add context">
-                <Button
-                  variant="text"
-                  size="icon"
-                  onClick={handleAddContext}
-                  disabled={isLoading}
-                >
-                  <AtSignIcon className="h-3.5 w-3.5" />
-                </Button>
-              </Tooltip>
-              <Tooltip content="Attach a file">
-                <Button
-                  variant="text"
-                  size="icon"
-                  className="cursor-pointer"
-                  onClick={() => fileInputRef.current?.click()}
-                  title="Attach a file"
-                  disabled={isLoading}
-                >
-                  <PaperclipIcon className="h-3.5 w-3.5" />
-                </Button>
-              </Tooltip>
-              <Input
-                ref={fileInputRef}
-                type="file"
-                multiple={true}
-                hidden={true}
-                onChange={(event) => {
-                  if (event.target.files) {
-                    onAddFiles([...event.target.files]);
-                  }
-                }}
-                accept={SUPPORTED_ATTACHMENT_TYPES.join(",")}
+              <AddContextButton
+                handleAddContext={handleAddContext}
+                isLoading={isLoading}
               />
-              <Tooltip content={isLoading ? "Stop" : "Submit"}>
-                <Button
-                  variant="text"
-                  size="sm"
-                  className="h-6 w-6 p-0 hover:bg-muted/30 cursor-pointer"
-                  onClick={isLoading ? onStop : handleSendClick}
-                  disabled={isLoading ? false : !promptValue.trim()}
-                >
-                  {isLoading ? (
-                    <SquareIcon className="h-3 w-3 fill-current" />
-                  ) : (
-                    <SendIcon className="h-3 w-3" />
-                  )}
-                </Button>
-              </Tooltip>
+              <AttachFileButton
+                fileInputRef={fileInputRef}
+                isLoading={isLoading}
+                onAddFiles={onAddFiles}
+              />
+              <SendButton
+                isLoading={isLoading}
+                onStop={onStop}
+                onSendClick={handleSendClick}
+                isEmpty={!promptValue.trim()}
+              />
             </div>
           </div>
         </TooltipProvider>
