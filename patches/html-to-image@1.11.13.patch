@@ -1,0 +1,46 @@
+diff --git a/es/clone-node.js b/es/clone-node.js
+index 114cbf214f65cda237dbba67458c2b68fadf421e..f6194624c9fcb8b57eb72f445277b6cd14d31c6d 100644
+--- a/es/clone-node.js
++++ b/es/clone-node.js
+@@ -59,10 +59,6 @@ async function cloneChildren(nativeNode, clonedNode, options) {
+     if (isSlotElement(nativeNode) && nativeNode.assignedNodes) {
+         children = toArray(nativeNode.assignedNodes());
+     }
+-    else if (isInstanceOfElement(nativeNode, HTMLIFrameElement) &&
+-        ((_a = nativeNode.contentDocument) === null || _a === void 0 ? void 0 : _a.body)) {
+-        children = toArray(nativeNode.contentDocument.body.childNodes);
+-    }
+     else {
+         children = toArray(((_b = nativeNode.shadowRoot) !== null && _b !== void 0 ? _b : nativeNode).childNodes);
+     }
+diff --git a/lib/clone-node.js b/lib/clone-node.js
+index 214f4d30a50baae7f007d2399eeac298366538c7..a81d0e313ace6c50ce1652c4deb0dc8df3e073a8 100644
+--- a/lib/clone-node.js
++++ b/lib/clone-node.js
+@@ -134,10 +134,6 @@ function cloneChildren(nativeNode, clonedNode, options) {
+                     if (isSlotElement(nativeNode) && nativeNode.assignedNodes) {
+                         children = (0, util_1.toArray)(nativeNode.assignedNodes());
+                     }
+-                    else if ((0, util_1.isInstanceOfElement)(nativeNode, HTMLIFrameElement) &&
+-                        ((_a = nativeNode.contentDocument) === null || _a === void 0 ? void 0 : _a.body)) {
+-                        children = (0, util_1.toArray)(nativeNode.contentDocument.body.childNodes);
+-                    }
+                     else {
+                         children = (0, util_1.toArray)(((_b = nativeNode.shadowRoot) !== null && _b !== void 0 ? _b : nativeNode).childNodes);
+                     }
+diff --git a/src/clone-node.ts b/src/clone-node.ts
+index 5dfcd117a1dd3d3d5cfb7c98ead3eb828085337a..8aa85ca88f84e8e64297673dcff36b21d48a95b4 100644
+--- a/src/clone-node.ts
++++ b/src/clone-node.ts
+@@ -88,11 +88,6 @@ async function cloneChildren<T extends HTMLElement>(
+ 
+   if (isSlotElement(nativeNode) && nativeNode.assignedNodes) {
+     children = toArray<T>(nativeNode.assignedNodes())
+-  } else if (
+-    isInstanceOfElement(nativeNode, HTMLIFrameElement) &&
+-    nativeNode.contentDocument?.body
+-  ) {
+-    children = toArray<T>(nativeNode.contentDocument.body.childNodes)
+   } else {
+     children = toArray<T>((nativeNode.shadowRoot ?? nativeNode).childNodes)
+   }
