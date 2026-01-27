@@ -149,6 +149,104 @@
    "outputs": [
     {
      "data": {
+      "text/html": [
+       "<div>\n",
+       "<style scoped>\n",
+       "    .dataframe tbody tr th:only-of-type {\n",
+       "        vertical-align: middle;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe tbody tr th {\n",
+       "        vertical-align: top;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe thead th {\n",
+       "        text-align: right;\n",
+       "    }\n",
+       "</style>\n",
+       "<table border=\"1\" class=\"dataframe\">\n",
+       "  <thead>\n",
+       "    <tr style=\"text-align: right;\">\n",
+       "      <th></th>\n",
+       "      <th>_marimo_row_id</th>\n",
+       "      <th>x</th>\n",
+       "    </tr>\n",
+       "  </thead>\n",
+       "  <tbody>\n",
+       "    <tr>\n",
+       "      <th>0</th>\n",
+       "      <td>0</td>\n",
+       "      <td>1</td>\n",
+       "    </tr>\n",
+       "  </tbody>\n",
+       "</table>\n",
+       "</div>"
+      ]
+     },
+     "metadata": {},
+     "output_type": "display_data"
+    }
+   ],
+   "source": [
+    "mo.ui.table(df)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "SFPL",
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<div>\n",
+       "<style scoped>\n",
+       "    .dataframe tbody tr th:only-of-type {\n",
+       "        vertical-align: middle;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe tbody tr th {\n",
+       "        vertical-align: top;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe thead th {\n",
+       "        text-align: right;\n",
+       "    }\n",
+       "</style>\n",
+       "<table border=\"1\" class=\"dataframe\">\n",
+       "  <thead>\n",
+       "    <tr style=\"text-align: right;\">\n",
+       "      <th></th>\n",
+       "      <th>x</th>\n",
+       "    </tr>\n",
+       "  </thead>\n",
+       "  <tbody>\n",
+       "    <tr>\n",
+       "      <th>0</th>\n",
+       "      <td>1</td>\n",
+       "    </tr>\n",
+       "  </tbody>\n",
+       "</table>\n",
+       "</div>"
+      ]
+     },
+     "metadata": {},
+     "output_type": "display_data"
+    }
+   ],
+   "source": [
+    "mo.ui.dataframe(df)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "BYtC",
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
       "image/png": "IMAGE_BASE64_DATA"
      },
      "metadata": {},
@@ -163,7 +261,7 @@
   {
    "cell_type": "code",
    "execution_count": null,
-   "id": "SFPL",
+   "id": "RGSE",
    "metadata": {
     "marimo": {
      "name": "cell_altair"
@@ -188,7 +286,7 @@
   {
    "cell_type": "code",
    "execution_count": null,
-   "id": "BYtC",
+   "id": "Kclp",
    "metadata": {},
    "outputs": [
     {
@@ -207,7 +305,7 @@
   {
    "cell_type": "code",
    "execution_count": null,
-   "id": "RGSE",
+   "id": "emfo",
    "metadata": {
     "marimo": {
      "name": "cell_plotly"
@@ -234,7 +332,7 @@
   {
    "cell_type": "code",
    "execution_count": null,
-   "id": "Kclp",
+   "id": "Hstk",
    "metadata": {},
    "outputs": [
     {

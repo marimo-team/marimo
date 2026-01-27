@@ -129,7 +129,7 @@ dev = [
     # For linting
     "ruff>=0.13.2",
     # For AI
-    "pydantic-ai-slim[openai]>=1.39.0",
+    "pydantic-ai-slim[openai]>=1.47.0",
 ]
 
 test = [
@@ -186,7 +186,7 @@ test-optional = [
     "anywidget~=0.9.18",
     "ipython~=8.12.3",
     # testing gen ai
-    "pydantic-ai-slim[google,anthropic,bedrock,openai]>=1.39.0",
+    "pydantic-ai-slim[google,anthropic,bedrock,openai]>=1.47.0",
     # - google-auth uses cachetools, and cachetools<5.0.0 uses collections.MutableMapping (removed in Python 3.10)
     "cachetools>=5.0.0",
     "boto3>=1.38.46",
@@ -244,7 +244,7 @@ dependencies = [
     "matplotlib>=3.8.0",
     "sqlglot[rs]>=26.2.0",
     "sqlalchemy>=2.0.40",
-    "pydantic-ai-slim[google,anthropic,bedrock,openai]>=1.39.0",
+    "pydantic-ai-slim[google,anthropic,bedrock,openai]>=1.47.0",
     "loro>=1.5.0",
     "pandas-stubs>=1.5.3.230321",
     "pyiceberg>=0.9.0",

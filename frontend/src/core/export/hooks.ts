@@ -132,7 +132,7 @@ export function useEnrichCellOutputs() {
     const results = await Promise.all(
       cellsToCaptureScreenshot.map(async ([cellId]) => {
         try {
-          const dataUrl = await getImageDataUrlForCell(cellId);
+          const dataUrl = await getImageDataUrlForCell(cellId, false);
           if (!dataUrl) {
             Logger.error(`Failed to capture screenshot for cell ${cellId}`);
             return null;

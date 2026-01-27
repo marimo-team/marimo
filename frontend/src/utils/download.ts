@@ -59,34 +59,51 @@ function releaseBodyPrinting() {
   }
 }
 
-/*
+/**
  * Prepare a cell element for screenshot capture.
- * Returns a cleanup function that should be called when the screenshot is complete.
+ *
+ * @param element - The cell output element to prepare
+ * @param enablePrintMode - When true, adds a 'printing' class to the body.
+ *   This can cause layout shifts that cause the page to scroll.
+ * @returns A cleanup function to restore the element's original state
  */
-function prepareCellElementForScreenshot(element: HTMLElement) {
+function prepareCellElementForScreenshot(
+  element: HTMLElement,
+  enablePrintMode: boolean,
+) {
   element.classList.add("printing-output");
-  acquireBodyPrinting();
+  if (enablePrintMode) {
+    acquireBodyPrinting();
+  }
   const originalOverflow = element.style.overflow;
   element.style.overflow = "auto";
 
   return () => {
     element.classList.remove("printing-output");
-    releaseBodyPrinting();
+    if (enablePrintMode) {
+      releaseBodyPrinting();
+    }
     element.style.overflow = originalOverflow;
   };
 }
 
 /**
  * Capture a cell output as a PNG data URL.
+ *
+ * @param cellId - The ID of the cell to capture
+ * @param enablePrintMode - When true, enables print mode which adds a 'printing' class to the body.
+ *   This can cause layout shifts that cause the page to scroll.
+ * @returns The PNG as a data URL, or undefined if the cell element wasn't found
  */
 export async function getImageDataUrlForCell(
   cellId: CellId,
+  enablePrintMode = true,
 ): Promise<string | undefined> {
   const element = findElementForCell(cellId);
   if (!element) {
     return;
   }
-  const cleanup = prepareCellElementForScreenshot(element);
+  const cleanup = prepareCellElementForScreenshot(element, enablePrintMode);
 
   try {
     return await toPng(element);
@@ -110,7 +127,7 @@ export async function downloadCellOutputAsImage(
   await downloadHTMLAsImage({
     element,
     filename,
-    prepare: prepareCellElementForScreenshot,
+    prepare: () => prepareCellElementForScreenshot(element, true),
   });
 }
 
@@ -127,7 +144,6 @@ export async function downloadHTMLAsImage(opts: {
 
   let cleanup: (() => void) | undefined;
   if (prepare) {
-    // Let the prepare function handle adding classes (e.g., body.printing)
     cleanup = prepare(element);
   } else {
     // When no prepare function is provided (e.g., downloading full notebook),

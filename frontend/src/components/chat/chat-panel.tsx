@@ -435,7 +435,11 @@ const ChatPanel = () => {
         title="Chat with AI"
         description="No AI provider configured or model selected"
         action={
-          <Button variant="outline" size="sm" onClick={() => handleClick("ai")}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => handleClick("ai", "ai-providers")}
+          >
             Edit AI settings
           </Button>
         }
