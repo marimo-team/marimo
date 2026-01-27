@@ -106,19 +106,17 @@ export async function getImageDataUrlForCell(
     return;
   }
 
-  const {
-    target,
-    cleanup: cleanupClone,
-    restoreIframes,
-  } = await getIframeCaptureTarget(element, toPng);
+  const { target, cleanup: cleanupIframes } = await getIframeCaptureTarget(
+    element,
+    toPng,
+  );
   const cleanup = prepareCellElementForScreenshot(target, enablePrintMode);
 
   try {
     return await toPng(target);
   } finally {
     cleanup();
-    cleanupClone();
-    restoreIframes?.();
+    cleanupIframes?.();
   }
 }
 
@@ -152,11 +150,10 @@ export async function downloadHTMLAsImage(opts: {
   const appEl = document.getElementById("App");
   const currentScrollY = appEl?.scrollTop ?? 0;
 
-  const {
-    target,
-    cleanup: cleanupClone,
-    restoreIframes,
-  } = await getIframeCaptureTarget(element, toPng);
+  const { target, cleanup: cleanupIframes } = await getIframeCaptureTarget(
+    element,
+    toPng,
+  );
 
   let cleanup: (() => void) | undefined;
   if (prepare) {
@@ -179,8 +176,7 @@ export async function downloadHTMLAsImage(opts: {
     });
   } finally {
     cleanup?.();
-    cleanupClone();
-    restoreIframes?.();
+    cleanupIframes?.();
     if (document.body.classList.contains("printing")) {
       document.body.classList.remove("printing");
     }

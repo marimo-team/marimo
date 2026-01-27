@@ -1,6 +1,5 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { prettyError } from "./errors";
 import { Logger } from "./Logger";
 
 /**
@@ -43,7 +42,7 @@ async function captureIframeContent(
       }
     }
   } catch (error) {
-    Logger.debug(`Failed to capture iframe content: ${prettyError(error)}`);
+    Logger.debug("Failed to capture iframe content:", error);
     return null;
   }
 }
@@ -98,52 +97,11 @@ function createIframeImage(
   return img;
 }
 
-interface IframeReplacement {
-  iframe: HTMLIFrameElement;
-  replacement: HTMLElement;
-}
-
-/**
- * Replace iframes in an element with captured images or placeholders.
- * Returns a cleanup function that restores the original iframes.
- */
-export async function replaceIframesForCapture(
-  element: HTMLElement,
-  toPng: (element: HTMLElement) => Promise<string>,
-): Promise<() => void> {
-  const iframes = element.querySelectorAll("iframe");
-  const replacements: IframeReplacement[] = [];
-
-  for (const iframe of iframes) {
-    if (!iframe.parentNode) {
-      continue;
-    }
-
-    const dataUrl = await captureIframeContent(iframe, toPng);
-
-    const replacement = dataUrl
-      ? createIframeImage(iframe, dataUrl)
-      : // Typically cross-origin iframes, we create a placeholder instead
-        createIframePlaceholder(iframe);
-
-    replacements.push({ iframe, replacement });
-    iframe.replaceWith(replacement);
-  }
-
-  const cleanup = () => {
-    for (const { iframe, replacement } of replacements) {
-      // Replace the placeholder/image back with the original iframe
-      replacement.replaceWith(iframe);
-    }
-  };
-  return cleanup;
-}
-
 /**
  * Replace iframes in a clone with captured images or placeholders.
  * Uses the source element's iframes for capture without mutating the source.
  */
-export async function replaceIframesForCaptureInClone(
+async function replaceIframesInClone(
   source: HTMLElement,
   clone: HTMLElement,
   toPng: (element: HTMLElement) => Promise<string>,
@@ -204,29 +162,22 @@ function createOffscreenClone(element: HTMLElement): {
   };
 }
 
+/**
+ * If iframes are presesent, create an offscreen clone and replace the iframes with captured images or placeholders.
+ * Otherwise, return the original element.
+ */
 export async function getIframeCaptureTarget(
   element: HTMLElement,
   toPng: (element: HTMLElement) => Promise<string>,
 ): Promise<{
   target: HTMLElement;
-  cleanup: () => void;
-  restoreIframes?: () => void;
+  cleanup?: () => void;
 }> {
   if (!element.querySelector("iframe")) {
-    return { target: element, cleanup: () => undefined };
+    return { target: element };
   }
 
-  try {
-    const { clone, cleanup } = createOffscreenClone(element);
-    await replaceIframesForCaptureInClone(element, clone, toPng);
-    return { target: clone, cleanup };
-  } catch (error) {
-    Logger.debug(`Clone capture failed, falling back: ${prettyError(error)}`);
-    const restoreIframes = await replaceIframesForCapture(element, toPng);
-    return {
-      target: element,
-      cleanup: () => undefined,
-      restoreIframes,
-    };
-  }
+  const { clone, cleanup } = createOffscreenClone(element);
+  await replaceIframesInClone(element, clone, toPng);
+  return { target: clone, cleanup };
 }
