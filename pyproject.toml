@@ -194,6 +194,8 @@ test-optional = [
     "litellm>=1.70.0",
     # exporting as ipynb
     "nbformat>=5.10.4",
+    # exporting as pdf
+    "nbconvert[webpdf]>=7.16.6",
     "sympy>=1.13.3",
     "jupytext>=1.17.2",
     # For standard scientific computing/ ML
