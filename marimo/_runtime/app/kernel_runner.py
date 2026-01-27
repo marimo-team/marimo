@@ -25,6 +25,47 @@ if TYPE_CHECKING:
     from marimo._plugins.core.web_component import JSONType
 
 
+def _defs_equal(a: dict[str, Any] | None, b: dict[str, Any] | None) -> bool:
+    """Safely compare embed defs, handling NumPy arrays without ambiguous truth values."""
+
+    if a is b:
+        return True
+    if a is None or b is None:
+        return False
+    if a.keys() != b.keys():
+        return False
+
+    for key in a:
+        va, vb = a[key], b[key]
+
+        # identical object
+        if va is vb:
+            continue
+
+        try:
+            # numpy-safe comparison
+            try:
+                import numpy as _np  # type: ignore
+            except Exception:
+                _np = None  # type: ignore
+
+            if (
+                _np is not None
+                and isinstance(va, _np.ndarray)
+                and isinstance(vb, _np.ndarray)
+            ):
+                if not _np.array_equal(va, vb):
+                    return False
+            else:
+                if va != vb:
+                    return False
+        except Exception:
+            # Any ambiguous or unsafe comparison => treat as changed
+            return False
+
+    return True
+
+
 class AppKernelRunner:
     """Runs an app in a kernel context; used for composition."""
 
@@ -116,7 +157,10 @@ class AppKernelRunner:
 
     def are_outputs_cached(self, defs: dict[str, Any] | None) -> bool:
         # The equality check is brittle but hashing isn't great either ...
-        return (defs == self._previously_seen_defs) and len(self.outputs) > 0
+        return (
+            _defs_equal(defs, self._previously_seen_defs)
+            and len(self.outputs) > 0
+        )
 
     def register_defs(self, defs: dict[str, Any] | None) -> None:
         self._previously_seen_defs = defs
