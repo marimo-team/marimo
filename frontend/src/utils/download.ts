@@ -7,6 +7,7 @@ import { Filenames } from "@/utils/filenames";
 import { Paths } from "@/utils/paths";
 import { prettyError } from "./errors";
 import { toPng } from "./html-to-image";
+import { captureIframeAsImage } from "./iframe";
 import { Logger } from "./Logger";
 
 /**
@@ -104,6 +105,12 @@ export async function getImageDataUrlForCell(
   if (!element) {
     return;
   }
+
+  const iframeDataUrl = await captureIframeAsImage(element);
+  if (iframeDataUrl) {
+    return iframeDataUrl;
+  }
+
   const cleanup = prepareCellElementForScreenshot(element, enablePrintMode);
 
   try {
@@ -122,6 +129,13 @@ export async function downloadCellOutputAsImage(
 ) {
   const element = findElementForCell(cellId);
   if (!element) {
+    return;
+  }
+
+  // Cell outputs that are iframes
+  const iframeDataUrl = await captureIframeAsImage(element);
+  if (iframeDataUrl) {
+    downloadByURL(iframeDataUrl, Filenames.toPNG(filename));
     return;
   }
 
