@@ -8,11 +8,12 @@ import {
   ImageIcon,
   PaperclipIcon,
   SendHorizontalIcon,
-  SquareIcon,
+  StopCircleIcon,
   XIcon,
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/utils/cn";
+import { Spinner } from "../icons/spinner";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Tooltip } from "../ui/tooltip";
@@ -76,12 +77,23 @@ export const SendButton = ({
   onStop,
   onSendClick,
   isEmpty,
+  showStopLabel = false, // Show a stop label and spinner instead of just the stop icon when loading
 }: {
   isLoading: boolean;
   onStop: () => void;
   onSendClick: () => void;
   isEmpty: boolean;
+  showStopLabel?: boolean;
 }) => {
+  const loadingContent = showStopLabel ? (
+    <div className="flex flex-row items-center gap-1 px-1.5">
+      <span className="text-xs text-error">Stop</span>
+      <Spinner size="small" />
+    </div>
+  ) : (
+    <StopCircleIcon className="size-4 text-error" />
+  );
+
   return (
     <Tooltip content={isLoading ? "Stop" : "Submit"}>
       <Button
@@ -92,7 +104,7 @@ export const SendButton = ({
         disabled={isLoading ? false : isEmpty}
       >
         {isLoading ? (
-          <SquareIcon className="h-3 w-3 fill-current text-error" />
+          loadingContent
         ) : (
           <SendHorizontalIcon className="h-3.5 w-3.5" />
         )}

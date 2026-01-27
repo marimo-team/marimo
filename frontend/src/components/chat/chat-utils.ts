@@ -238,7 +238,7 @@ export function useFileState() {
   });
 
   const removeFile = (fileToRemove: File) => {
-    setFiles((prev) => prev?.filter((f) => f !== fileToRemove));
+    setFiles((prev) => (prev ?? []).filter((f) => f !== fileToRemove));
   };
 
   return { files, setFiles, onAddFiles, removeFile };

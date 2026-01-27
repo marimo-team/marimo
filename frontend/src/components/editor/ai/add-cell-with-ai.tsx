@@ -297,6 +297,7 @@ export const AddCellWithAI: React.FC<{
           onStop={stop}
           onSendClick={submit}
           isEmpty={!input.trim()}
+          showStopLabel={true}
         />
       </div>
     </div>
