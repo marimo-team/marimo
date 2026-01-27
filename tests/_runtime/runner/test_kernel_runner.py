@@ -1,5 +1,7 @@
 from typing import cast
 
+import pytest
+
 from marimo._runtime.app.kernel_runner import AppKernelRunner
 from marimo._types.ids import CellId_t
 
@@ -12,6 +14,7 @@ def _make_runner():
     return runner
 
 
+@pytest.mark.requires("numpy")
 def test_numpy_defs_do_not_crash_and_invalidate_cache():
     runner = _make_runner()
 
@@ -28,6 +31,7 @@ def test_numpy_defs_do_not_crash_and_invalidate_cache():
     assert cached is False
 
 
+@pytest.mark.requires("numpy")
 def test_numpy_defs_equal_use_cache():
     runner = _make_runner()
 

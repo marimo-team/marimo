@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Any
 
 from marimo._ast.cell import CellImpl
 from marimo._config.config import DEFAULT_CONFIG
+from marimo._dependencies.dependencies import DependencyManager
 from marimo._runtime.app.common import RunOutput
 from marimo._runtime.commands import (
     AppMetadata,
@@ -43,12 +44,11 @@ def _defs_equal(a: dict[str, Any] | None, b: dict[str, Any] | None) -> bool:
             continue
 
         try:
-            # numpy-safe comparison
-            try:
-                import numpy as _np  # type: ignore
-            except Exception:
-                _np = None  # type: ignore
 
+            if DependencyManager.numpy.imported():
+                import numpy as _np
+            else:
+                _np = None
             if (
                 _np is not None
                 and isinstance(va, _np.ndarray)
