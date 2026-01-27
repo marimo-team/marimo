@@ -1,11 +1,12 @@
 /* Copyright 2026 Marimo. All rights reserved. */
-import { toPng } from "html-to-image";
+
 import { toast } from "@/components/ui/use-toast";
 import { type CellId, CellOutputId } from "@/core/cells/ids";
 import { getRequestClient } from "@/core/network/requests";
 import { Filenames } from "@/utils/filenames";
 import { Paths } from "@/utils/paths";
 import { prettyError } from "./errors";
+import { toPng } from "./html-to-image";
 import { Logger } from "./Logger";
 
 /**

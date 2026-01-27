@@ -2,7 +2,6 @@
 
 import type { Completion } from "@codemirror/autocomplete";
 import type { FileUIPart } from "ai";
-import { toPng } from "html-to-image";
 import { processOutput } from "@/components/editor/output/console/process-output";
 import { type NotebookState, notebookAtom } from "@/core/cells/cells";
 import { type CellId, CellOutputId } from "@/core/cells/ids";
@@ -10,6 +9,7 @@ import { displayCellName } from "@/core/cells/names";
 import { isOutputEmpty } from "@/core/cells/outputs";
 import type { OutputMessage } from "@/core/kernel/messages";
 import type { JotaiStore } from "@/core/state/jotai";
+import { toPng } from "@/utils/html-to-image";
 import { Logger } from "@/utils/Logger";
 import { type AIContextItem, AIContextProvider } from "../registry";
 import { contextToXml } from "../utils";
