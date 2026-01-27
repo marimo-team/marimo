@@ -25,7 +25,7 @@ from marimo._server.templates.templates import (
     notebook_page_template,
 )
 from marimo._utils.async_path import AsyncPath
-from marimo._utils.paths import marimo_package_path
+from marimo._utils.paths import marimo_package_path, normalize_path
 
 if TYPE_CHECKING:
     from starlette.requests import Request
@@ -36,7 +36,7 @@ LOGGER = _loggers.marimo_logger()
 router = APIRouter()
 
 # Root directory for static assets
-root = (marimo_package_path() / "_static").resolve()
+root = normalize_path(marimo_package_path() / "_static")
 
 server_config = (
     get_default_config_manager(current_path=None)
