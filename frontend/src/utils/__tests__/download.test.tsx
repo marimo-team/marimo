@@ -178,10 +178,46 @@ describe("getImageDataUrlForCell", () => {
     await getImageDataUrlForCell("cell-1" as CellId, false);
   });
 
-  it("should remove printing classes after capture when snappy is false", async () => {
-    vi.mocked(toPng).mockResolvedValue(mockDataUrl);
+  it("should inject scrollbar hiding styles during capture", async () => {
+    vi.mocked(toPng).mockImplementation(async () => {
+      // Check that a style tag with scrollbar hiding CSS is injected
+      const styleTag = mockElement.querySelector("style");
+      expect(styleTag).not.toBeNull();
+      expect(styleTag?.textContent).toContain("scrollbar-width: none");
+      expect(styleTag?.textContent).toContain("::-webkit-scrollbar");
+      return mockDataUrl;
+    });
 
     await getImageDataUrlForCell("cell-1" as CellId, false);
+  });
+
+  it("should inject scrollbar hiding styles during capture", async () => {
+    vi.mocked(toPng).mockImplementation(async () => {
+      // Check that a style tag with scrollbar hiding CSS is injected
+      const styleTag = mockElement.querySelector("style");
+      expect(styleTag).not.toBeNull();
+      expect(styleTag?.textContent).toContain("scrollbar-width: none");
+      expect(styleTag?.textContent).toContain("::-webkit-scrollbar");
+      return mockDataUrl;
+    });
+
+    await getImageDataUrlForCell("cell-1" as CellId, true);
+  });
+
+  it("should remove scrollbar hiding styles after capture", async () => {
+    vi.mocked(toPng).mockResolvedValue(mockDataUrl);
+
+    await getImageDataUrlForCell("cell-1" as CellId, true);
+
+    // Style tag should be removed after capture
+    const styleTag = mockElement.querySelector("style");
+    expect(styleTag).toBeNull();
+  });
+
+  it("should remove printing classes after capture when enablePrintMode is true", async () => {
+    vi.mocked(toPng).mockResolvedValue(mockDataUrl);
+
+    await getImageDataUrlForCell("cell-1" as CellId, true);
 
     expect(mockElement.classList.contains("printing-output")).toBe(false);
     expect(document.body.classList.contains("printing")).toBe(false);
@@ -237,6 +273,8 @@ describe("getImageDataUrlForCell", () => {
     expect(mockElement.classList.contains("printing-output")).toBe(false);
     expect(document.body.classList.contains("printing")).toBe(false);
     expect(mockElement.style.overflow).toBe("scroll");
+    // Scrollbar hiding styles should also be cleaned up
+    expect(mockElement.querySelector("style")).toBeNull();
   });
 
   it("should maintain body.printing during concurrent captures when snappy is false", async () => {
@@ -518,6 +556,10 @@ describe("downloadCellOutputAsImage", () => {
       expect(mockElement.classList.contains("printing-output")).toBe(true);
       expect(document.body.classList.contains("printing")).toBe(true);
       expect(mockElement.style.overflow).toBe("auto");
+      // Check that scrollbar hiding styles are injected
+      const styleTag = mockElement.querySelector("style");
+      expect(styleTag).not.toBeNull();
+      expect(styleTag?.textContent).toContain("scrollbar-width: none");
       return mockDataUrl;
     });
 
@@ -533,6 +575,8 @@ describe("downloadCellOutputAsImage", () => {
     expect(mockElement.classList.contains("printing-output")).toBe(false);
     expect(document.body.classList.contains("printing")).toBe(false);
     expect(mockElement.style.overflow).toBe("visible");
+    // Scrollbar hiding styles should be cleaned up
+    expect(mockElement.querySelector("style")).toBeNull();
   });
 });
 
