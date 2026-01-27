@@ -114,7 +114,10 @@ export async function getImageDataUrlForCell(
       toPng,
     );
     cleanupIframes = iframeCleanup;
-    screenshotCleanup = prepareCellElementForScreenshot(target, enablePrintMode);
+    screenshotCleanup = prepareCellElementForScreenshot(
+      target,
+      enablePrintMode,
+    );
     return await toPng(target);
   } finally {
     screenshotCleanup?.();
@@ -161,7 +164,7 @@ export async function downloadHTMLAsImage(opts: {
     );
     cleanupIframes = iframeCleanup;
     if (prepare) {
-        screenshotCleanup = prepare(target);
+      screenshotCleanup = prepare(target);
     } else {
       // When no prepare function is provided (e.g., downloading full notebook),
       // add body.printing ourselves
