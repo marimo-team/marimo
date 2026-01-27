@@ -329,6 +329,7 @@ export const AiCompletionEditor: React.FC<Props> = ({
                   onStop={stop}
                   onSendClick={handleSubmit}
                   isEmpty={!input.trim()}
+                  showStopLabel={true}
                 />
                 <AddContextButton
                   handleAddContext={() => addContextCompletion(inputRef)}
