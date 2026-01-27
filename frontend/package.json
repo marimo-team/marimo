@@ -142,6 +142,7 @@
     "lz-string": "^1.5.0",
     "marked": "^15.0.12",
     "mermaid": "^11.12.2",
+    "modern-screenshot": "^4.6.8",
     "partysocket": "1.1.10",
     "path-to-regexp": "^8.3.0",
     "plotly.js": "^2.35.3",
