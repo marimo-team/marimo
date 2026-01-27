@@ -13,8 +13,8 @@ import {
   useEnrichCellOutputs,
 } from "../hooks";
 
-// Mock html-to-image
-vi.mock("html-to-image", () => ({
+// Mock html-to-image wrapper
+vi.mock("@/utils/html-to-image", () => ({
   toPng: vi.fn(),
 }));
 
@@ -22,6 +22,7 @@ vi.mock("html-to-image", () => ({
 vi.mock("@/utils/Logger", () => ({
   Logger: {
     error: vi.fn(),
+    warn: vi.fn(),
   },
 }));
 
@@ -38,9 +39,9 @@ vi.mock("@/core/cells/cells", async () => {
   };
 });
 
-import { toPng } from "html-to-image";
 import { toast } from "@/components/ui/use-toast";
 import { cellsRuntimeAtom } from "@/core/cells/cells";
+import { toPng } from "@/utils/html-to-image";
 import { Logger } from "@/utils/Logger";
 
 describe("useEnrichCellOutputs", () => {
@@ -137,13 +138,7 @@ describe("useEnrichCellOutputs", () => {
     expect(document.getElementById).toHaveBeenCalledWith(
       CellOutputId.create(cellId),
     );
-    expect(toPng).toHaveBeenCalledWith(
-      mockElement,
-      expect.objectContaining({
-        filter: expect.any(Function),
-        onImageErrorHandler: expect.any(Function),
-      }),
-    );
+    expect(toPng).toHaveBeenCalledWith(mockElement);
     expect(output).toEqual({
       [cellId]: ["image/png", mockDataUrl],
     });

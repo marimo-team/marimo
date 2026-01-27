@@ -10,8 +10,8 @@ import {
   withLoadingToast,
 } from "../download";
 
-// Mock html-to-image
-vi.mock("html-to-image", () => ({
+// Mock html-to-image wrapper
+vi.mock("@/utils/html-to-image", () => ({
   toPng: vi.fn(),
 }));
 
@@ -32,6 +32,7 @@ vi.mock("@/components/icons/spinner", () => ({
 vi.mock("@/utils/Logger", () => ({
   Logger: {
     error: vi.fn(),
+    warn: vi.fn(),
   },
 }));
 
@@ -42,8 +43,8 @@ vi.mock("@/utils/filenames", () => ({
   },
 }));
 
-import { toPng } from "html-to-image";
 import { toast } from "@/components/ui/use-toast";
+import { toPng } from "@/utils/html-to-image";
 import { Logger } from "@/utils/Logger";
 
 describe("withLoadingToast", () => {
@@ -155,13 +156,7 @@ describe("getImageDataUrlForCell", () => {
     const result = await getImageDataUrlForCell("cell-1" as CellId);
 
     expect(result).toBe(mockDataUrl);
-    expect(toPng).toHaveBeenCalledWith(
-      mockElement,
-      expect.objectContaining({
-        filter: expect.any(Function),
-        onImageErrorHandler: expect.any(Function),
-      }),
-    );
+    expect(toPng).toHaveBeenCalledWith(mockElement);
   });
 
   it("should add printing classes before capture when enablePrintMode is true", async () => {
@@ -261,7 +256,8 @@ describe("getImageDataUrlForCell", () => {
       );
 
       // Simulate async work - first capture takes longer
-      await (element.id.includes("cell-1") ? firstPromise : secondPromise);
+      const el = element as unknown as HTMLElement;
+      await (el.id.includes("cell-1") ? firstPromise : secondPromise);
 
       // Check state again after waiting
       printingStateDuringCaptures.push(
@@ -358,13 +354,7 @@ describe("downloadHTMLAsImage", () => {
 
     await downloadHTMLAsImage({ element: mockElement, filename: "test" });
 
-    expect(toPng).toHaveBeenCalledWith(
-      mockElement,
-      expect.objectContaining({
-        filter: expect.any(Function),
-        onImageErrorHandler: expect.any(Function),
-      }),
-    );
+    expect(toPng).toHaveBeenCalledWith(mockElement);
     expect(mockAnchor.href).toBe(mockDataUrl);
     expect(mockAnchor.download).toBe("test.png");
     expect(mockAnchor.click).toHaveBeenCalled();
@@ -500,13 +490,7 @@ describe("downloadCellOutputAsImage", () => {
 
     await downloadCellOutputAsImage("cell-1" as CellId, "result");
 
-    expect(toPng).toHaveBeenCalledWith(
-      mockElement,
-      expect.objectContaining({
-        filter: expect.any(Function),
-        onImageErrorHandler: expect.any(Function),
-      }),
-    );
+    expect(toPng).toHaveBeenCalledWith(mockElement);
     expect(mockAnchor.download).toBe("result.png");
   });
 

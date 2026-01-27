@@ -128,7 +128,6 @@
     "eslint-plugin-header": "^3.1.1",
     "htm": "^3.1.1",
     "html-react-parser": "^5.2.11",
-    "html-to-image": "1.11.13",
     "humanize-duration": "^3.33.2",
     "iconify-icon": "^2.3.0",
     "jotai": "^2.16.1",
