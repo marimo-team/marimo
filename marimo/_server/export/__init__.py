@@ -47,9 +47,24 @@ if TYPE_CHECKING:
 
 @dataclass
 class ExportResult:
-    contents: str
+    contents: bytes
     download_filename: str
     did_error: bool
+
+    @classmethod
+    def from_text(
+        cls, *, text: str, download_filename: str, did_error: bool
+    ) -> ExportResult:
+        return cls(
+            contents=text.encode("utf-8"),
+            download_filename=download_filename,
+            did_error=did_error,
+        )
+
+    @property
+    def text(self) -> str:
+        """UTF-8 decoded contents"""
+        return self.contents.decode("utf-8")
 
 
 def _as_ir(path: MarimoPath) -> NotebookSerialization:
@@ -68,8 +83,8 @@ def export_as_script(path: MarimoPath) -> ExportResult:
     from marimo._convert.script import convert_from_ir_to_script
 
     ir = _as_ir(path)
-    return ExportResult(
-        contents=convert_from_ir_to_script(ir),
+    return ExportResult.from_text(
+        text=convert_from_ir_to_script(ir),
         download_filename=get_download_filename(path.short_name, "script.py"),
         did_error=False,
     )
@@ -77,8 +92,8 @@ def export_as_script(path: MarimoPath) -> ExportResult:
 
 def export_as_md(path: MarimoPath) -> ExportResult:
     ir = _as_ir(path)
-    return ExportResult(
-        contents=MarimoConvert.from_ir(ir).to_markdown(),
+    return ExportResult.from_text(
+        text=MarimoConvert.from_ir(ir).to_markdown(),
         download_filename=get_download_filename(path.short_name, "md"),
         did_error=False,
     )
@@ -90,7 +105,7 @@ def export_as_ipynb(
     app = load_app(path.absolute_name)
     if app is None:
         return ExportResult(
-            contents="",
+            contents=b"",
             download_filename=get_download_filename(path.short_name, "ipynb"),
             did_error=True,
         )
@@ -114,8 +129,8 @@ def export_as_ipynb(
         app=internal_app,
         sort_mode=actual_sort_mode,
     )
-    return ExportResult(
-        contents=result,
+    return ExportResult.from_text(
+        text=result,
         download_filename=get_download_filename(path.short_name, "ipynb"),
         did_error=False,
     )
@@ -130,7 +145,7 @@ def export_as_wasm(
     _app = load_app(path.absolute_name)
     if _app is None:
         return ExportResult(
-            contents="",
+            contents=b"",
             download_filename=get_download_filename(
                 path.short_name, "wasm.html"
             ),
@@ -150,8 +165,8 @@ def export_as_wasm(
         asset_url=asset_url,
         show_code=show_code,
     )
-    return ExportResult(
-        contents=result[0],
+    return ExportResult.from_text(
+        text=result[0],
         download_filename=result[1],
         did_error=False,
     )
@@ -183,8 +198,8 @@ async def run_app_then_export_as_ipynb(
         sort_mode=sort_mode,
         session_view=session_view,
     )
-    return ExportResult(
-        contents=result,
+    return ExportResult.from_text(
+        text=result,
         download_filename=get_download_filename(filepath.short_name, "ipynb"),
         did_error=did_error,
     )
@@ -258,8 +273,8 @@ async def run_app_then_export_as_html(
             files=[],
         ),
     )
-    return ExportResult(
-        contents=html,
+    return ExportResult.from_text(
+        text=html,
         download_filename=filename,
         did_error=did_error,
     )
@@ -278,8 +293,8 @@ async def run_app_then_export_as_reactive_html(
     html = generator.render_html()
     basename = os.path.basename(path.absolute_name)
     filename = f"{os.path.splitext(basename)[0]}.html"
-    return ExportResult(
-        contents=html,
+    return ExportResult.from_text(
+        text=html,
         download_filename=filename,
         did_error=False,
     )
