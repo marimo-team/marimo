@@ -3,10 +3,8 @@
 import { useCompletion } from "@ai-sdk/react";
 import { EditorView } from "@codemirror/view";
 import {
-  AtSignIcon,
   CircleCheckIcon,
   Loader2Icon,
-  SendIcon,
   SparklesIcon,
   XIcon,
 } from "lucide-react";
@@ -20,6 +18,10 @@ import { storePrompt } from "@marimo-team/codemirror-ai";
 import type { ReactCodeMirrorRef } from "@uiw/react-codemirror";
 import { useAtom, useAtomValue } from "jotai";
 import { AIModelDropdown } from "@/components/ai/ai-model-dropdown";
+import {
+  AddContextButton,
+  SendButton,
+} from "@/components/chat/chat-components";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -253,39 +255,6 @@ export const AiCompletionEditor: React.FC<Props> = ({
     }
   };
 
-  const loadingStopButton = (
-    <Button
-      data-testid="stop-completion-button"
-      variant="text"
-      size="xs"
-      className="mb-0"
-      onClick={stop}
-    >
-      <Loader2Icon className="animate-spin mr-1" size={14} />
-      Stop
-    </Button>
-  );
-
-  const submitButton = (
-    <Tooltip content="Submit">
-      <Button variant="text" size="icon" onClick={handleSubmit}>
-        <SendIcon className="h-3 w-3" />
-      </Button>
-    </Tooltip>
-  );
-
-  const contextButton = (
-    <Tooltip content="Add context">
-      <Button
-        variant="text"
-        size="icon"
-        onClick={() => addContextCompletion(inputRef)}
-      >
-        <AtSignIcon className="h-3 w-3" />
-      </Button>
-    </Tooltip>
-  );
-
   const completionButtons = (
     <>
       <AcceptCompletionButton
@@ -355,9 +324,16 @@ export const AiCompletionEditor: React.FC<Props> = ({
 
             <div className="-mr-1.5 py-1.5">
               <div className="flex flex-row items-center justify-end gap-0.5">
-                {isLoading && loadingStopButton}
-                {submitButton}
-                {contextButton}
+                <SendButton
+                  isLoading={isLoading}
+                  onStop={stop}
+                  onSendClick={handleSubmit}
+                  isEmpty={!input.trim()}
+                />
+                <AddContextButton
+                  handleAddContext={() => addContextCompletion(inputRef)}
+                  isLoading={isLoading}
+                />
                 <AIModelDropdown
                   triggerClassName="h-7 text-xs"
                   iconSize="small"
