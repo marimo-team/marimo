@@ -246,8 +246,8 @@ async def test_export_html_with_layout(tmp_path: Path) -> None:
         show_code=True,
     )
     assert result.did_error is False
-    assert "layout.json" not in result.contents
-    assert "data:application/json" in result.contents
+    assert "layout.json" not in result.text
+    assert "data:application/json" in result.text
 
 
 # HTML export
