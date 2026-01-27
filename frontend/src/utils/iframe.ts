@@ -1,6 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { toPng } from "html-to-image";
+import { toPng } from "./html-to-image";
 
 const PLACEHOLDER_WIDTH = 320;
 const PLACEHOLDER_HEIGHT = 180;
