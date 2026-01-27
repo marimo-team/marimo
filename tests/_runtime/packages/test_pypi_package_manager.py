@@ -308,7 +308,6 @@ async def test_uv_install_not_in_project(mock_popen: MagicMock):
             "uv",
             "pip",
             "install",
-            "--compile",
             "package1",
             "package2",
             "-p",
@@ -346,7 +345,6 @@ async def test_uv_install_not_in_project_with_target(mock_popen: MagicMock):
             "pip",
             "install",
             "--target=target_path",
-            "--compile",
             "package1",
             "package2",
             "-p",
@@ -370,7 +368,7 @@ async def test_uv_install_in_project(mock_run: MagicMock):
     result = await mgr._install("package1 package2", upgrade=False, dev=False)
 
     mock_run.assert_called_once_with(
-        ["uv", "add", "--compile", "package1", "package2", "-p", PY_EXE],
+        ["uv", "add", "package1", "package2", "-p", PY_EXE],
     )
     assert result is True
 
@@ -389,7 +387,6 @@ async def test_uv_install_dev_dependency_in_project(mock_run: MagicMock):
             "uv",
             "add",
             "--dev",
-            "--compile",
             "package1",
             "package2",
             "-p",
@@ -742,7 +739,6 @@ async def test_uv_install_cache_error_fallback(
             "uv",
             "pip",
             "install",
-            "--compile",
             "datamapplot",
             "-p",
             PY_EXE,
@@ -759,7 +755,6 @@ async def test_uv_install_cache_error_fallback(
             "uv",
             "pip",
             "install",
-            "--compile",
             "datamapplot",
             "-p",
             PY_EXE,
@@ -811,7 +806,7 @@ async def test_uv_install_in_project_no_fallback(mock_run: MagicMock):
 
     # Should only call run once (no fallback for project mode)
     mock_run.assert_called_once_with(
-        ["uv", "add", "--compile", "package1", "-p", PY_EXE],
+        ["uv", "add", "package1", "-p", PY_EXE],
     )
 
     # Should fail without retry

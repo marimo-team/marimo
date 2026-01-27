@@ -328,7 +328,7 @@ async def test_uv_pip_install() -> None:
         await pm._install("foo", upgrade=False, dev=False)
 
         assert runs_calls == [
-            ["uv", "pip", "install", "--compile", "foo", "-p", PY_EXE],
+            ["uv", "pip", "install", "foo", "-p", PY_EXE],
         ]
 
 
