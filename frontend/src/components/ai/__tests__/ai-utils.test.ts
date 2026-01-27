@@ -61,14 +61,14 @@ describe("ai-utils", () => {
   describe("getConfiguredProvider", () => {
     it("should return undefined when no AI config", () => {
       const config: UserConfig = {} as UserConfig;
-      expect(getConfiguredProvider(config)).toBeUndefined();
+      expect(getConfiguredProvider(config.ai)).toBeUndefined();
     });
 
     it("should return undefined when AI config has no credentials", () => {
       const config: UserConfig = {
         ai: {},
       } as UserConfig;
-      expect(getConfiguredProvider(config)).toBeUndefined();
+      expect(getConfiguredProvider(config.ai)).toBeUndefined();
     });
 
     it("should return openai when OpenAI API key is set", () => {
@@ -77,7 +77,7 @@ describe("ai-utils", () => {
           open_ai: { api_key: "sk-test" },
         },
       } as UserConfig;
-      expect(getConfiguredProvider(config)).toBe("openai");
+      expect(getConfiguredProvider(config.ai)).toBe("openai");
     });
 
     it("should return anthropic when Anthropic API key is set", () => {
@@ -86,7 +86,7 @@ describe("ai-utils", () => {
           anthropic: { api_key: "sk-ant-test" },
         },
       } as UserConfig;
-      expect(getConfiguredProvider(config)).toBe("anthropic");
+      expect(getConfiguredProvider(config.ai)).toBe("anthropic");
     });
 
     it("should return google when Google API key is set", () => {
@@ -95,7 +95,7 @@ describe("ai-utils", () => {
           google: { api_key: "google-key" },
         },
       } as UserConfig;
-      expect(getConfiguredProvider(config)).toBe("google");
+      expect(getConfiguredProvider(config.ai)).toBe("google");
     });
 
     it("should return ollama when Ollama base URL is set", () => {
@@ -104,7 +104,7 @@ describe("ai-utils", () => {
           ollama: { base_url: "http://localhost:11434" },
         },
       } as UserConfig;
-      expect(getConfiguredProvider(config)).toBe("ollama");
+      expect(getConfiguredProvider(config.ai)).toBe("ollama");
     });
 
     it("should return azure only when both API key and base URL are set", () => {
@@ -113,7 +113,7 @@ describe("ai-utils", () => {
           azure: { api_key: "azure-key", base_url: "https://azure.com" },
         },
       } as UserConfig;
-      expect(getConfiguredProvider(config)).toBe("azure");
+      expect(getConfiguredProvider(config.ai)).toBe("azure");
     });
 
     it("should return undefined for azure with only API key", () => {
@@ -122,7 +122,7 @@ describe("ai-utils", () => {
           azure: { api_key: "azure-key" },
         },
       } as UserConfig;
-      expect(getConfiguredProvider(config)).toBeUndefined();
+      expect(getConfiguredProvider(config.ai)).toBeUndefined();
     });
 
     it("should return custom provider when configured", () => {
@@ -133,14 +133,14 @@ describe("ai-utils", () => {
           },
         },
       } as unknown as UserConfig;
-      expect(getConfiguredProvider(config)).toBe("my_provider");
+      expect(getConfiguredProvider(config.ai)).toBe("my_provider");
     });
   });
 
   describe("getRecommendedModel", () => {
     it("should return undefined when no provider is configured", () => {
       const config: UserConfig = {} as UserConfig;
-      expect(getRecommendedModel(config)).toBeUndefined();
+      expect(getRecommendedModel(config.ai)).toBeUndefined();
     });
 
     it("should return openai model when OpenAI is configured", () => {
@@ -149,7 +149,7 @@ describe("ai-utils", () => {
           open_ai: { api_key: "sk-test" },
         },
       } as UserConfig;
-      expect(getRecommendedModel(config)).toBe("openai/gpt-4");
+      expect(getRecommendedModel(config.ai)).toBe("openai/gpt-4");
     });
 
     it("should return anthropic model when Anthropic is configured", () => {
@@ -158,7 +158,7 @@ describe("ai-utils", () => {
           anthropic: { api_key: "sk-ant-test" },
         },
       } as UserConfig;
-      expect(getRecommendedModel(config)).toBe("anthropic/claude-3-sonnet");
+      expect(getRecommendedModel(config.ai)).toBe("anthropic/claude-3-sonnet");
     });
 
     it("should return google model when Google is configured", () => {
@@ -167,7 +167,7 @@ describe("ai-utils", () => {
           google: { api_key: "google-key" },
         },
       } as UserConfig;
-      expect(getRecommendedModel(config)).toBe("google/gemini-pro");
+      expect(getRecommendedModel(config.ai)).toBe("google/gemini-pro");
     });
 
     it("should return ollama model when Ollama is configured", () => {
@@ -176,7 +176,7 @@ describe("ai-utils", () => {
           ollama: { base_url: "http://localhost:11434" },
         },
       } as UserConfig;
-      expect(getRecommendedModel(config)).toBe("ollama/llama2");
+      expect(getRecommendedModel(config.ai)).toBe("ollama/llama2");
     });
   });
 
@@ -194,7 +194,7 @@ describe("ai-utils", () => {
         },
       } as unknown as UserConfig;
 
-      const result = autoPopulateModels(values);
+      const result = autoPopulateModels(values.ai);
 
       expect(result.chatModel).toBeUndefined();
       expect(result.editModel).toBeUndefined();
@@ -205,7 +205,7 @@ describe("ai-utils", () => {
         ai: {},
       } as UserConfig;
 
-      const result = autoPopulateModels(values);
+      const result = autoPopulateModels(values.ai);
 
       expect(result.chatModel).toBeUndefined();
       expect(result.editModel).toBeUndefined();
@@ -218,7 +218,7 @@ describe("ai-utils", () => {
         },
       } as UserConfig;
 
-      const result = autoPopulateModels(values);
+      const result = autoPopulateModels(values.ai);
 
       expect(result.chatModel).toBe("openai/gpt-4");
       expect(result.editModel).toBe("openai/gpt-4");
@@ -236,7 +236,7 @@ describe("ai-utils", () => {
         },
       } as unknown as UserConfig;
 
-      const result = autoPopulateModels(values);
+      const result = autoPopulateModels(values.ai);
 
       expect(result.chatModel).toBe("openai/gpt-4");
       expect(result.editModel).toBeUndefined();
@@ -254,7 +254,7 @@ describe("ai-utils", () => {
         },
       } as unknown as UserConfig;
 
-      const result = autoPopulateModels(values);
+      const result = autoPopulateModels(values.ai);
 
       expect(result.chatModel).toBeUndefined();
       expect(result.editModel).toBe("openai/gpt-4");
@@ -267,7 +267,7 @@ describe("ai-utils", () => {
         },
       } as UserConfig;
 
-      const result = autoPopulateModels(values);
+      const result = autoPopulateModels(values.ai);
 
       expect(result.chatModel).toBe("anthropic/claude-3-sonnet");
       expect(result.editModel).toBe("anthropic/claude-3-sonnet");

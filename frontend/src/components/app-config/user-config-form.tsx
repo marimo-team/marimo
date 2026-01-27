@@ -243,7 +243,10 @@ export const UserConfigForm: React.FC = () => {
     defaultValues: config,
   });
 
-  const setAiModels = (values: UserConfig, dirtyAiConfig: UserConfig["ai"]) => {
+  const setAiModels = (
+    values: UserConfig["ai"],
+    dirtyAiConfig: UserConfig["ai"],
+  ) => {
     const { chatModel, editModel } = autoPopulateModels(values);
     if (chatModel || editModel) {
       dirtyAiConfig = {
@@ -280,7 +283,7 @@ export const UserConfigForm: React.FC = () => {
 
     // Auto-populate AI models when credentials are set, makes it easier to get started
     if (dirtyValues.ai) {
-      dirtyValues.ai = setAiModels(values, dirtyValues.ai);
+      dirtyValues.ai = setAiModels(values.ai, dirtyValues.ai);
     }
 
     await saveUserConfig({ config: dirtyValues }).then(() => {
