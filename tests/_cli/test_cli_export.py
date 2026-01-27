@@ -842,3 +842,21 @@ class TestExportIpynb:
     def test_cli_export_html_sandbox_no_prompt(temp_marimo_file: str) -> None:
         p = _run_export("html", temp_marimo_file, "--no-sandbox")
         _assert_success(p)
+
+
+class TestExportPDF:
+    @pytest.mark.skipif(
+        DependencyManager.nbformat.has() and DependencyManager.nbconvert.has(),
+        reason="This test expects PDF export deps to be missing.",
+    )
+    def test_export_pdf_missing_dependencies(
+        self, temp_marimo_file: str
+    ) -> None:
+        output_file = temp_marimo_file.replace(".py", ".pdf")
+        p = _run_export(
+            "pdf", temp_marimo_file, "--output", output_file, "--no-sandbox"
+        )
+        _assert_failure(p)
+        stderr = p.stderr.decode()
+        assert "nbconvert" in stderr
+        assert "pip install" in stderr
