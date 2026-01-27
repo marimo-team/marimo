@@ -66,7 +66,7 @@ def watch_and_export(
         if output:
             # Make dirs if needed
             maybe_make_dirs(output)
-            output.write_bytes(result.contents)
+            output.write_bytes(result.bytez)
         else:
             echo(result.text)
         return

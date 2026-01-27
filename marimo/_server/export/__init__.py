@@ -5,6 +5,7 @@ import asyncio
 import os
 import sys
 from dataclasses import dataclass, replace
+from functools import cached_property
 from typing import TYPE_CHECKING, Literal, Optional, cast
 
 from marimo import _loggers
@@ -47,7 +48,7 @@ if TYPE_CHECKING:
 
 @dataclass
 class ExportResult:
-    contents: bytes
+    contents: bytes | str
     download_filename: str
     did_error: bool
 
@@ -56,14 +57,23 @@ class ExportResult:
         cls, *, text: str, download_filename: str, did_error: bool
     ) -> ExportResult:
         return cls(
-            contents=text.encode("utf-8"),
+            contents=text,
             download_filename=download_filename,
             did_error=did_error,
         )
 
-    @property
+    @cached_property
+    def bytez(self) -> bytes:
+        """Return UTF-8 encoded bytes (cached)."""
+        if isinstance(self.contents, bytes):
+            return self.contents
+        return self.contents.encode("utf-8")
+
+    @cached_property
     def text(self) -> str:
-        """UTF-8 decoded contents"""
+        """Return UTF-8 decoded text (cached)."""
+        if isinstance(self.contents, str):
+            return self.contents
         return self.contents.decode("utf-8")
 
 
