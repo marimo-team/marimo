@@ -45,19 +45,16 @@ def _defs_equal(a: dict[str, Any] | None, b: dict[str, Any] | None) -> bool:
 
         try:
             if DependencyManager.numpy.imported():
-                import numpy as _np
-            else:
-                _np = None
-            if (
-                _np is not None
-                and isinstance(va, _np.ndarray)
-                and isinstance(vb, _np.ndarray)
-            ):
-                if not _np.array_equal(va, vb):
-                    return False
-            else:
-                if va != vb:
-                    return False
+                import numpy as np
+
+                if isinstance(va, np.ndarray) and isinstance(vb, np.ndarray):
+                    if not np.array_equal(va, vb):
+                        return False
+                    continue
+
+            if va != vb:
+                return False
+
         except Exception:
             # Any ambiguous or unsafe comparison => treat as changed
             return False
