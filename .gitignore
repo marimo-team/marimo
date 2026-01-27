@@ -126,6 +126,9 @@ __marimo__
 # pixi environments
 .pixi
 *.egg-info
+# lockfiles normally get commited but pixi's lockfile algorithm is so bad
+# that is almost always creates merge conflicts
+pixi.lock
 
 # mkdocs
 site
