@@ -53,6 +53,8 @@ def watch_and_export(
     watch: bool,
     export_callback: Callable[[MarimoPath], ExportResult],
     force: bool,
+    *,
+    initial_export_in_watch: bool = False,
 ) -> None:
     if watch and not output:
         raise click.UsageError(
@@ -60,13 +62,13 @@ def watch_and_export(
             + "an output file with --output."
         )
 
-    def write_data(data: str) -> None:
+    def write_result(result: ExportResult) -> None:
         if output:
             # Make dirs if needed
             maybe_make_dirs(output)
-            output.write_text(data, encoding="utf-8")
+            output.write_bytes(result.bytez)
         else:
-            echo(data)
+            echo(result.text)
         return
 
     if output:
@@ -78,102 +80,41 @@ def watch_and_export(
     # No watch, just run once
     if not watch:
         result = export_callback(marimo_path)
-        write_data(result.contents)
+        write_result(result)
         if result.did_error:
             raise click.ClickException(
                 "Export was successful, but some cells failed to execute."
             )
         return
 
+    # Watch mode: optionally do an initial export before waiting for changes
+    if initial_export_in_watch:
+        result = export_callback(marimo_path)
+        write_result(result)
+        if result.did_error:
+            echo(
+                "Warning: Export was successful, but some cells failed to execute.",
+                err=True,
+            )
+
     async def on_file_changed(file_path: Path) -> None:
         if output:
             echo(
                 f"File {str(file_path)} changed. Re-exporting to {green(str(output))}"
             )
-        result = export_callback(MarimoPath(file_path))
-        write_data(result.contents)
-
-    async def start() -> None:
-        # Watch the file for changes
-        watcher = FileWatcher.create(marimo_path.path, on_file_changed)
-        echo(f"Watching {green(marimo_path.relative_name)} for changes...")
-        watcher.start()
-        try:
-            # Run forever
-            while True:  # noqa: ASYNC110
-                await asyncio.sleep(1)
-        except KeyboardInterrupt:
-            watcher.stop()
-
-    asyncio_run(start())
-
-
-def watch_and_export_bytes(
-    marimo_path: MarimoPath,
-    output: Path,
-    watch: bool,
-    export_callback: Callable[[MarimoPath], tuple[bytes | None, bool]],
-    force: bool,
-) -> None:
-    if watch and not output:
-        raise click.UsageError(
-            "Cannot use --watch without providing "
-            + "an output file with --output."
-        )
-
-    output_path = Path(output)
-    if not force and not watch:
-        if not prompt_to_overwrite(output_path):
-            return
-
-    def write_data(data: bytes) -> None:
-        maybe_make_dirs(output_path)
-        output_path.write_bytes(data)
-
-    # No watch, just run once
-    if not watch:
-        pdf_bytes, did_error = export_callback(marimo_path)
-        if pdf_bytes is None:
-            raise click.ClickException("Failed to export PDF.")
-        write_data(pdf_bytes)
-        if did_error:
-            raise click.ClickException(
-                "Export was successful, but some cells failed to execute."
-            )
-        return
-
-    # Watch mode: do an initial export before waiting for changes
-    pdf_bytes, did_error = export_callback(marimo_path)
-    if pdf_bytes is None:
-        raise click.ClickException("Failed to export PDF.")
-    write_data(pdf_bytes)
-    if did_error:
-        echo(
-            "Warning: Export was successful, but some cells failed to execute.",
-            err=True,
-        )
-
-    async def on_file_changed(file_path: Path) -> None:
-        echo(
-            f"File {str(file_path)} changed. Re-exporting to {green(str(output_path))}"
-        )
         try:
             # `export_callback` may call `asyncio_run()` internally. This callback
             # runs inside the file watcher's event loop, so we must execute the
             # export in a separate thread to avoid `asyncio.run()` nesting.
-            pdf_bytes, did_error = await asyncio.to_thread(
+            result = await asyncio.to_thread(
                 export_callback, MarimoPath(file_path)
             )
         except Exception as e:
             echo(f"Error: {e}", err=True)
             return
 
-        if pdf_bytes is None:
-            echo("Error: Failed to export PDF.", err=True)
-            return
-
-        write_data(pdf_bytes)
-        if did_error:
+        write_result(result)
+        if result.did_error:
             echo(
                 "Warning: Export was successful, but some cells failed to execute.",
                 err=True,
@@ -710,8 +651,23 @@ def pdf(
         except Exception as e:
             raise click.ClickException(f"Failed to export PDF: {e}") from None
 
-    return watch_and_export_bytes(
-        MarimoPath(name), output, watch, export_callback, force
+    def export_callback_impl(file_path: MarimoPath) -> ExportResult:
+        pdf_bytes, did_error = export_callback(file_path)
+        if pdf_bytes is None:
+            raise click.ClickException("Failed to export PDF.")
+        return ExportResult(
+            contents=pdf_bytes,
+            download_filename=str(output),
+            did_error=did_error,
+        )
+
+    return watch_and_export(
+        MarimoPath(name),
+        output,
+        watch,
+        export_callback_impl,
+        force,
+        initial_export_in_watch=True,
     )
 
 

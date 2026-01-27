@@ -5,6 +5,7 @@ import asyncio
 import os
 import sys
 from dataclasses import dataclass, replace
+from functools import cached_property
 from typing import TYPE_CHECKING, Literal, Optional, cast
 
 from marimo import _loggers
@@ -47,9 +48,23 @@ if TYPE_CHECKING:
 
 @dataclass
 class ExportResult:
-    contents: str
+    contents: bytes | str
     download_filename: str
     did_error: bool
+
+    @cached_property
+    def bytez(self) -> bytes:
+        """Return UTF-8 encoded bytes (cached)."""
+        if isinstance(self.contents, bytes):
+            return self.contents
+        return self.contents.encode("utf-8")
+
+    @cached_property
+    def text(self) -> str:
+        """Return UTF-8 decoded text (cached)."""
+        if isinstance(self.contents, str):
+            return self.contents
+        return self.contents.decode("utf-8")
 
 
 def _as_ir(path: MarimoPath) -> NotebookSerialization:
@@ -90,7 +105,7 @@ def export_as_ipynb(
     app = load_app(path.absolute_name)
     if app is None:
         return ExportResult(
-            contents="",
+            contents=b"",
             download_filename=get_download_filename(path.short_name, "ipynb"),
             did_error=True,
         )
@@ -130,7 +145,7 @@ def export_as_wasm(
     _app = load_app(path.absolute_name)
     if _app is None:
         return ExportResult(
-            contents="",
+            contents=b"",
             download_filename=get_download_filename(
                 path.short_name, "wasm.html"
             ),
