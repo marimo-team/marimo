@@ -1,6 +1,10 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { replaceIframesForCapture } from "../iframe";
+import {
+  getIframeCaptureTarget,
+  replaceIframesForCapture,
+  replaceIframesForCaptureInClone,
+} from "../iframe";
 
 // Mock Logger
 vi.mock("@/utils/Logger", () => ({
@@ -186,6 +190,24 @@ describe("replaceIframesForCapture", () => {
       restore();
 
       expect(container.querySelector("iframe")).toBe(iframe);
+    });
+  });
+
+  describe("replaceIframesForCaptureInClone", () => {
+    it("should replace iframes in the clone without mutating the source", async () => {
+      const iframe = createSameOriginIframe("<p>Hello</p>", 400, 300);
+      container.append(iframe);
+
+      const clone = container.cloneNode(true) as HTMLDivElement;
+      document.body.append(clone);
+
+      await replaceIframesForCaptureInClone(container, clone, mockToPng);
+
+      expect(container.querySelector("iframe")).toBe(iframe);
+      expect(clone.querySelector("iframe")).toBeNull();
+      expect(clone.querySelector("img")).toBeTruthy();
+
+      clone.remove();
     });
   });
 
@@ -435,6 +457,173 @@ describe("replaceIframesForCapture", () => {
       restore();
 
       expect(container.querySelector("iframe")).toBe(iframe);
+    });
+  });
+});
+
+describe("getIframeCaptureTarget", () => {
+  let container: HTMLDivElement;
+  const mockToPng = vi.fn();
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    container = document.createElement("div");
+    document.body.append(container);
+    mockToPng.mockResolvedValue("data:image/png;base64,mockdata");
+  });
+
+  afterEach(() => {
+    container.remove();
+  });
+
+  describe("no iframes present", () => {
+    it("should return original element when no iframes exist", async () => {
+      const div = document.createElement("div");
+      div.textContent = "No iframes here";
+      container.append(div);
+
+      const { target, cleanup, restoreIframes } = await getIframeCaptureTarget(
+        container,
+        mockToPng,
+      );
+
+      // Should return original element
+      expect(target).toBe(container);
+      // Should not have created any clones
+      expect(document.querySelectorAll("[aria-hidden='true']").length).toBe(0);
+      // No restore function needed
+      expect(restoreIframes).toBeUndefined();
+
+      cleanup();
+    });
+
+    it("should not call toPng when no iframes exist", async () => {
+      container.innerHTML = "<p>Just text</p>";
+
+      await getIframeCaptureTarget(container, mockToPng);
+
+      expect(mockToPng).not.toHaveBeenCalled();
+    });
+
+    it("should return original element for empty container", async () => {
+      const { target } = await getIframeCaptureTarget(container, mockToPng);
+
+      expect(target).toBe(container);
+    });
+  });
+
+  describe("with iframes present", () => {
+    it("should create offscreen clone when iframes exist", async () => {
+      const iframe = document.createElement("iframe");
+      iframe.src = "https://example.com";
+      Object.defineProperty(iframe, "offsetWidth", { value: 400 });
+      Object.defineProperty(iframe, "offsetHeight", { value: 300 });
+      container.append(iframe);
+
+      const { target, cleanup } = await getIframeCaptureTarget(
+        container,
+        mockToPng,
+      );
+
+      // Should return a clone, not the original
+      expect(target).not.toBe(container);
+      // Original should still have iframe
+      expect(container.querySelector("iframe")).toBe(iframe);
+      // Clone should have placeholder instead of iframe
+      expect(target.querySelector("iframe")).toBeNull();
+      expect(target.querySelector("div")).toBeTruthy();
+
+      // Offscreen container should exist
+      const offscreenContainer = document.querySelector("[aria-hidden='true']");
+      expect(offscreenContainer).toBeTruthy();
+      expect((offscreenContainer as HTMLElement).style.left).toBe("-10000px");
+
+      cleanup();
+
+      // Offscreen container should be removed after cleanup
+      expect(document.querySelector("[aria-hidden='true']")).toBeNull();
+    });
+
+    it("should not mutate original element when using clone", async () => {
+      const iframe = document.createElement("iframe");
+      iframe.src = "https://example.com";
+      Object.defineProperty(iframe, "offsetWidth", { value: 400 });
+      Object.defineProperty(iframe, "offsetHeight", { value: 300 });
+      container.append(iframe);
+
+      const originalHTML = container.innerHTML;
+
+      const { cleanup } = await getIframeCaptureTarget(container, mockToPng);
+
+      // Original should be unchanged
+      expect(container.innerHTML).toBe(originalHTML);
+      expect(container.querySelector("iframe")).toBe(iframe);
+
+      cleanup();
+
+      // Still unchanged after cleanup
+      expect(container.innerHTML).toBe(originalHTML);
+    });
+
+    it("should preserve other content in clone", async () => {
+      const text = document.createElement("p");
+      text.textContent = "Some text";
+      const iframe = document.createElement("iframe");
+      iframe.src = "https://example.com";
+      Object.defineProperty(iframe, "offsetWidth", { value: 400 });
+      Object.defineProperty(iframe, "offsetHeight", { value: 300 });
+
+      container.append(text);
+      container.append(iframe);
+
+      const { target, cleanup } = await getIframeCaptureTarget(
+        container,
+        mockToPng,
+      );
+
+      // Clone should have the text content
+      expect(target.querySelector("p")?.textContent).toBe("Some text");
+      // Clone should have placeholder for iframe
+      expect(target.querySelector("iframe")).toBeNull();
+
+      cleanup();
+    });
+  });
+
+  describe("fallback behavior", () => {
+    it("should provide restoreIframes when falling back to original element", async () => {
+      const iframe = document.createElement("iframe");
+      iframe.src = "https://example.com";
+      Object.defineProperty(iframe, "offsetWidth", { value: 400 });
+      Object.defineProperty(iframe, "offsetHeight", { value: 300 });
+      container.append(iframe);
+
+      // Mock cloneNode to throw an error to trigger fallback
+      const originalCloneNode = container.cloneNode.bind(container);
+      vi.spyOn(container, "cloneNode").mockImplementation(() => {
+        throw new Error("Clone failed");
+      });
+
+      const { target, cleanup, restoreIframes } = await getIframeCaptureTarget(
+        container,
+        mockToPng,
+      );
+
+      // Should fall back to original element
+      expect(target).toBe(container);
+      // Should have restoreIframes function
+      expect(restoreIframes).toBeDefined();
+      // Original should be mutated (iframe replaced with placeholder)
+      expect(container.querySelector("iframe")).toBeNull();
+
+      // Restore should bring back the iframe
+      restoreIframes?.();
+      expect(container.querySelector("iframe")).toBe(iframe);
+
+      cleanup();
+
+      // Restore the mock
+      vi.spyOn(container, "cloneNode").mockImplementation(originalCloneNode);
     });
   });
 });

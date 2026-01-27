@@ -6,7 +6,7 @@ import { getRequestClient } from "@/core/network/requests";
 import { Filenames } from "@/utils/filenames";
 import { Paths } from "@/utils/paths";
 import { prettyError } from "./errors";
-import { replaceIframesForCapture } from "./iframe";
+import { getIframeCaptureTarget } from "./iframe";
 import { Logger } from "./Logger";
 
 /**
@@ -106,14 +106,19 @@ export async function getImageDataUrlForCell(
     return;
   }
 
-  const restoreIframes = await replaceIframesForCapture(element, toPng);
-  const cleanup = prepareCellElementForScreenshot(element, enablePrintMode);
+  const {
+    target,
+    cleanup: cleanupClone,
+    restoreIframes,
+  } = await getIframeCaptureTarget(element, toPng);
+  const cleanup = prepareCellElementForScreenshot(target, enablePrintMode);
 
   try {
-    return await toPng(element);
+    return await toPng(target);
   } finally {
     cleanup();
-    restoreIframes();
+    cleanupClone();
+    restoreIframes?.();
   }
 }
 
@@ -147,11 +152,15 @@ export async function downloadHTMLAsImage(opts: {
   const appEl = document.getElementById("App");
   const currentScrollY = appEl?.scrollTop ?? 0;
 
-  const restoreIframes = await replaceIframesForCapture(element, toPng);
+  const {
+    target,
+    cleanup: cleanupClone,
+    restoreIframes,
+  } = await getIframeCaptureTarget(element, toPng);
 
   let cleanup: (() => void) | undefined;
   if (prepare) {
-    cleanup = prepare(element);
+    cleanup = prepare(target);
   } else {
     // When no prepare function is provided (e.g., downloading full notebook),
     // add body.printing ourselves
@@ -160,7 +169,7 @@ export async function downloadHTMLAsImage(opts: {
 
   try {
     // Get screenshot
-    const dataUrl = await toPng(element);
+    const dataUrl = await toPng(target);
     downloadByURL(dataUrl, Filenames.toPNG(filename));
   } catch {
     toast({
@@ -170,7 +179,8 @@ export async function downloadHTMLAsImage(opts: {
     });
   } finally {
     cleanup?.();
-    restoreIframes();
+    cleanupClone();
+    restoreIframes?.();
     if (document.body.classList.contains("printing")) {
       document.body.classList.remove("printing");
     }
