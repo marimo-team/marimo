@@ -1434,6 +1434,7 @@ export const AiModelDisplayConfig: React.FC<AiConfigProps> = ({
 
     form.setValue("ai.models.displayed_models", newModels, {
       shouldDirty: true,
+      shouldTouch: true,
     });
     onSubmit(form.getValues());
   });
@@ -1453,6 +1454,7 @@ export const AiModelDisplayConfig: React.FC<AiConfigProps> = ({
 
       form.setValue("ai.models.displayed_models", newModels, {
         shouldDirty: true,
+        shouldTouch: true,
       });
       onSubmit(form.getValues());
     },
@@ -1466,9 +1468,11 @@ export const AiModelDisplayConfig: React.FC<AiConfigProps> = ({
     );
     form.setValue("ai.models.displayed_models", newDisplayedModels, {
       shouldDirty: true,
+      shouldTouch: true,
     });
     form.setValue("ai.models.custom_models", newModels, {
       shouldDirty: true,
+      shouldTouch: true,
     });
     onSubmit(form.getValues());
   });
@@ -1548,6 +1552,7 @@ export const AddModelForm: React.FC<{
 
     form.setValue("ai.models.custom_models", [newModel.id, ...customModels], {
       shouldDirty: true,
+      shouldTouch: true,
     });
     onSubmit(form.getValues());
     resetForm();
