@@ -19,6 +19,8 @@ from marimo._server.models.lsp import (
     LspHealthResponse,
     LspRestartResponse,
     LspServerHealth,
+    LspServerStatus,
+    ServerId,
 )
 from marimo._tracer import server_tracer
 from marimo._utils.net import find_free_port
@@ -61,6 +63,7 @@ class BaseLspServer(LspServer):
         self.process: Optional[subprocess.Popen[str]] = None
         self._health_check_task: Optional[asyncio.Task[None]] = None
         self._startup_failed = False
+        self._started_at: Optional[float] = None  # Unix timestamp
         self.log_file = _loggers.get_log_directory() / f"{self.id}.log"
 
     @server_tracer.start_as_current_span("lsp_server.start")
@@ -128,6 +131,7 @@ class BaseLspServer(LspServer):
                 )
 
             LOGGER.info(f"Started LSP {self.id} at port {self.port}")
+            self._started_at = time.time()
 
             # Start health monitoring in background
             if (
@@ -201,32 +205,47 @@ class BaseLspServer(LspServer):
     async def restart_server(self) -> Optional[AlertNotification]:
         """Stop and restart this LSP server."""
         self._startup_failed = False
+        self._started_at = None
         self.stop()
         await asyncio.sleep(0.5)  # Brief delay for cleanup
         return await self.start()
 
+    def _get_status(self) -> LspServerStatus:
+        """Determine the current status of the server."""
+        if self.has_failed():
+            return "crashed"
+        if not self.is_running():
+            return "stopped"
+        # Process is running - will need to check responsiveness externally
+        return "running"
+
     async def get_health(self) -> LspHealthResponse:
         """Get health status of this single LSP server."""
-
         is_running = self.is_running()
-        has_failed = self.has_failed()
 
-        is_responsive = False
+        # Determine server status
+        server_status: LspServerStatus
         last_ping_ms: Optional[float] = None
-        if is_running:
+
+        if self.has_failed():
+            server_status = "crashed"
+        elif not is_running:
+            server_status = "stopped"
+        else:
+            # Process is running - check responsiveness
             is_responsive, last_ping_ms = await self.ping()
+            server_status = "running" if is_responsive else "unresponsive"
 
         server_health = LspServerHealth(
-            server_id=self.id,
-            is_running=is_running,
-            is_responsive=is_responsive,
-            has_failed=has_failed,
+            server_id=ServerId(self.id),
+            status=server_status,
             port=self.port,
             last_ping_ms=last_ping_ms,
+            started_at=self._started_at,
         )
 
         status: Literal["healthy", "degraded", "unhealthy"]
-        if is_running and is_responsive:
+        if server_status == "running":
             status = "healthy"
         else:
             status = "unhealthy"
@@ -237,6 +256,7 @@ class BaseLspServer(LspServer):
         self, server_ids: Optional[list[str]] = None
     ) -> LspRestartResponse:
         """Restart this LSP server if requested."""
+        sid = ServerId(self.id)
         # If server_ids specified and this server not in list, skip
         if server_ids is not None and self.id not in server_ids:
             return LspRestartResponse(success=True, restarted=[], errors={})
@@ -247,14 +267,12 @@ class BaseLspServer(LspServer):
                 return LspRestartResponse(
                     success=False,
                     restarted=[],
-                    errors={self.id: alert.description},
+                    errors={sid: alert.description},
                 )
-            return LspRestartResponse(
-                success=True, restarted=[self.id], errors={}
-            )
+            return LspRestartResponse(success=True, restarted=[sid], errors={})
         except Exception as e:
             return LspRestartResponse(
-                success=False, restarted=[], errors={self.id: str(e)}
+                success=False, restarted=[], errors={sid: str(e)}
             )
 
     async def _monitor_process_health(self) -> None:
@@ -668,24 +686,34 @@ class CompositeLspServer(LspServer):
                 continue
 
             is_running = server.is_running()
-            has_failed = (
-                isinstance(server, BaseLspServer) and server.has_failed()
-            )
 
-            # Perform active ping if running
-            is_responsive = False
+            # Determine server status
+            server_status: LspServerStatus
             last_ping_ms: Optional[float] = None
-            if is_running and isinstance(server, BaseLspServer):
-                is_responsive, last_ping_ms = await server.ping()
+            started_at: Optional[float] = None
+
+            if isinstance(server, BaseLspServer):
+                started_at = server._started_at
+                if server.has_failed():
+                    server_status = "crashed"
+                elif not is_running:
+                    server_status = "stopped"
+                else:
+                    # Process is running - check responsiveness
+                    is_responsive, last_ping_ms = await server.ping()
+                    server_status = (
+                        "running" if is_responsive else "unresponsive"
+                    )
+            else:
+                server_status = "running" if is_running else "stopped"
 
             server_healths.append(
                 LspServerHealth(
-                    server_id=server_id,
-                    is_running=is_running,
-                    is_responsive=is_responsive,
-                    has_failed=has_failed,
+                    server_id=ServerId(server_id),
+                    status=server_status,
                     port=server.port,
                     last_ping_ms=last_ping_ms,
+                    started_at=started_at,
                 )
             )
 
@@ -693,9 +721,9 @@ class CompositeLspServer(LspServer):
         status: Literal["healthy", "degraded", "unhealthy"]
         if not server_healths:
             status = "healthy"  # No servers configured
-        elif all(s.is_running and s.is_responsive for s in server_healths):
+        elif all(s.status == "running" for s in server_healths):
             status = "healthy"
-        elif any(s.is_running and s.is_responsive for s in server_healths):
+        elif any(s.status == "running" for s in server_healths):
             status = "degraded"
         else:
             status = "unhealthy"
@@ -707,8 +735,8 @@ class CompositeLspServer(LspServer):
     ) -> LspRestartResponse:
         """Restart specified or failed LSP servers."""
         config = self.config_reader.get_config()
-        restarted: list[str] = []
-        errors: dict[str, str] = {}
+        restarted: list[ServerId] = []
+        errors: dict[ServerId, str] = {}
 
         servers_to_restart: list[str] = []
         if server_ids is None:
@@ -728,23 +756,24 @@ class CompositeLspServer(LspServer):
             servers_to_restart = server_ids
 
         for server_id in servers_to_restart:
+            sid = ServerId(server_id)
             if server_id not in self.servers:
-                errors[server_id] = f"Unknown server: {server_id}"
+                errors[sid] = f"Unknown server: {server_id}"
                 continue
 
             server = self.servers[server_id]
             if not isinstance(server, BaseLspServer):
-                errors[server_id] = "Server does not support restart"
+                errors[sid] = "Server does not support restart"
                 continue
 
             try:
                 alert = await server.restart_server()
                 if alert:
-                    errors[server_id] = alert.description
+                    errors[sid] = alert.description
                 else:
-                    restarted.append(server_id)
+                    restarted.append(sid)
             except Exception as e:
-                errors[server_id] = str(e)
+                errors[sid] = str(e)
 
         return LspRestartResponse(
             success=len(errors) == 0,

@@ -104,6 +104,37 @@ export const LspStatus: React.FC = () => {
     }
   };
 
+  const getServerStatusDisplay = (
+    status: "starting" | "running" | "stopped" | "crashed" | "unresponsive",
+    lastPingMs: number | null | undefined,
+  ) => {
+    switch (status) {
+      case "running":
+        return `✓ OK${lastPingMs == null ? "" : ` (${lastPingMs.toFixed(0)}ms)`}`;
+      case "starting":
+        return "⋯ Starting";
+      case "stopped":
+        return "✗ Stopped";
+      case "crashed":
+        return "✗ Crashed";
+      case "unresponsive":
+        return "✗ Not responding";
+    }
+  };
+
+  const getServerStatusColor = (
+    status: "starting" | "running" | "stopped" | "crashed" | "unresponsive",
+  ) => {
+    switch (status) {
+      case "running":
+        return "text-(--green-9)";
+      case "starting":
+        return "text-(--yellow-11)";
+      default:
+        return "text-(--red-9)";
+    }
+  };
+
   const tooltipContent = (
     <div className="text-sm">
       <b>LSP Status</b>
@@ -111,16 +142,8 @@ export const LspStatus: React.FC = () => {
         {data?.servers.map((server) => (
           <div key={server.serverId} className="flex justify-between gap-2">
             <span>{server.serverId}</span>
-            <span
-              className={
-                server.isResponsive ? "text-(--green-9)" : "text-(--red-9)"
-              }
-            >
-              {server.isResponsive
-                ? `✓ OK${server.lastPingMs == null ? "" : ` (${server.lastPingMs.toFixed(0)}ms)`}`
-                : server.hasFailed
-                  ? "✗ Failed"
-                  : "✗ Not responding"}
+            <span className={getServerStatusColor(server.status)}>
+              {getServerStatusDisplay(server.status, server.lastPingMs)}
             </span>
           </div>
         ))}

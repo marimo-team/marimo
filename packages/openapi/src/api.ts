@@ -4667,17 +4667,25 @@ export interface components {
     /**
      * LspServerHealth
      * @description Health status for a single LSP server.
+     *
+     *         Status meanings:
+     *         - starting: process launched, initializing
+     *         - running: healthy and responsive to pings
+     *         - stopped: not running (never started or cleanly stopped)
+     *         - crashed: exited with non-zero code
+     *         - unresponsive: process alive but not responding to pings
      */
     LspServerHealth: {
       /** @default null */
       error?: string | null;
-      hasFailed: boolean;
-      isResponsive: boolean;
-      isRunning: boolean;
       /** @default null */
       lastPingMs?: number | null;
       port: number;
       serverId: string;
+      /** @default null */
+      startedAt?: number | null;
+      /** @enum {unknown} */
+      status: "crashed" | "running" | "starting" | "stopped" | "unresponsive";
     };
     /**
      * MCPConfig

@@ -95,13 +95,12 @@ class TestLspModels:
         # LspServerHealth
         health = LspServerHealth(
             server_id="pylsp",
-            is_running=True,
-            is_responsive=True,
-            has_failed=False,
+            status="running",
             port=8080,
             last_ping_ms=5.0,
         )
         assert health.server_id == "pylsp"
+        assert health.status == "running"
         assert health.error is None
 
         # LspHealthResponse
@@ -168,7 +167,7 @@ class TestBaseLspServer:
     ) -> None:
         health = await mock_server.get_health()
         assert health.status == "unhealthy"
-        assert health.servers[0].is_running is False
+        assert health.servers[0].status == "stopped"
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(

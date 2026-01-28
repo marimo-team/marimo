@@ -2654,19 +2654,17 @@ components:
       title: LspRestartResponse
       type: object
     LspServerHealth:
-      description: Health status for a single LSP server.
+      description: "Health status for a single LSP server.\n\n    Status meanings:\n\
+        \    - starting: process launched, initializing\n    - running: healthy and\
+        \ responsive to pings\n    - stopped: not running (never started or cleanly\
+        \ stopped)\n    - crashed: exited with non-zero code\n    - unresponsive:\
+        \ process alive but not responding to pings"
       properties:
         error:
           anyOf:
           - type: string
           - type: 'null'
           default: null
-        hasFailed:
-          type: boolean
-        isResponsive:
-          type: boolean
-        isRunning:
-          type: boolean
         lastPingMs:
           anyOf:
           - type: number
@@ -2676,11 +2674,21 @@ components:
           type: integer
         serverId:
           type: string
+        startedAt:
+          anyOf:
+          - type: number
+          - type: 'null'
+          default: null
+        status:
+          enum:
+          - crashed
+          - running
+          - starting
+          - stopped
+          - unresponsive
       required:
       - serverId
-      - isRunning
-      - isResponsive
-      - hasFailed
+      - status
       - port
       title: LspServerHealth
       type: object
