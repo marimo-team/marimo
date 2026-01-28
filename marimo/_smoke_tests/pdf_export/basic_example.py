@@ -57,7 +57,7 @@ def _(px):
     fig = px.scatter(
         df, x="sepal_width", y="sepal_length", color="species", symbol="species"
     )
-    fig
+    # fig
     return (df,)
 
 
@@ -65,13 +65,13 @@ def _(px):
 def _(df, plt):
     plt.scatter(x=df["sepal_width"], y=df["sepal_length"])
     print("Plot in console output")
-    plt.show()
+    # plt.show()
     return
 
 
 @app.cell
-def _(df, plt):
-    plt.scatter(x=df["sepal_width"], y=df["sepal_length"])
+def _():
+    # plt.scatter(x=df["sepal_width"], y=df["sepal_length"])
     return
 
 
@@ -89,7 +89,7 @@ def _(mo):
       <button style='background-color: #00796b; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer;' onclick="alert('Button clicked!')">Click Me</button>
     </div>
     """)
-    iframe
+    # iframe
     return (iframe,)
 
 
@@ -118,6 +118,12 @@ def _(mo):
 @app.cell
 def _(df):
     df
+    return
+
+
+@app.cell
+def _(df, mo):
+    mo.vstack([df, df])
     return
 
 
