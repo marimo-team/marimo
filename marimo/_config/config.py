@@ -137,6 +137,8 @@ class RuntimeConfig(TypedDict):
         run on startup. This only applies when editing a notebook,
         and not when running as an application.
         The default is `True`.
+    - `cache_outputs`: if `True`, cache and restore cell outputs between
+        sessions. In run mode, the cache is read-only.
     - `auto_reload`: if `lazy`, cells importing modified modules will marked
       as stale; if `autorun`, affected cells will be automatically run. similar
       to IPython's %autoreload extension but with more code intelligence.
@@ -172,6 +174,7 @@ class RuntimeConfig(TypedDict):
     """
 
     auto_instantiate: bool
+    cache_outputs: bool
     auto_reload: Literal["off", "lazy", "autorun"]
     reactive_tests: bool
     on_cell_change: OnCellChangeType
@@ -677,6 +680,7 @@ DEFAULT_CONFIG: MarimoConfig = {
     # pyproject.toml is found.
     "runtime": {
         "auto_instantiate": False,
+        "cache_outputs": True,
         "auto_reload": "off",
         "reactive_tests": True,
         "on_cell_change": "autorun",

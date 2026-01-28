@@ -3373,22 +3373,24 @@ components:
       description: "Configuration for runtime.\n\n    **Keys.**\n\n    - `auto_instantiate`:\
         \ if `False`, cells won't automatically\n        run on startup. This only\
         \ applies when editing a notebook,\n        and not when running as an application.\n\
-        \        The default is `True`.\n    - `auto_reload`: if `lazy`, cells importing\
-        \ modified modules will marked\n      as stale; if `autorun`, affected cells\
-        \ will be automatically run. similar\n      to IPython's %autoreload extension\
-        \ but with more code intelligence.\n    - `reactive_tests`: if `True`, marimo\
-        \ will automatically run pytest on cells containing only test functions and\
-        \ test classes.\n      execution.\n    - `on_cell_change`: if `lazy`, cells\
-        \ will be marked stale when their\n      ancestors run but won't autorun;\
-        \ if `autorun`, cells will automatically\n      run when their ancestors run.\n\
-        \    - `execution_type`: if `relaxed`, marimo will not clone cell declarations;\n\
-        \      if `strict` marimo will clone cell declarations by default, avoiding\n\
-        \      hidden potential state build up.\n    - `watcher_on_save`: how to handle\
-        \ file changes when saving. `\"lazy\"` marks\n        affected cells as stale,\
-        \ `\"autorun\"` automatically runs affected cells.\n    - `output_max_bytes`:\
-        \ the maximum size in bytes of cell outputs; larger\n        values may affect\
-        \ frontend performance\n    - `std_stream_max_bytes`: the maximum size in\
-        \ bytes of console outputs;\n      larger values may affect frontend performance\n\
+        \        The default is `True`.\n    - `cache_outputs`: if `True`, cache and\
+        \ restore cell outputs between\n        sessions. In run mode, the cache is\
+        \ read-only.\n    - `auto_reload`: if `lazy`, cells importing modified modules\
+        \ will marked\n      as stale; if `autorun`, affected cells will be automatically\
+        \ run. similar\n      to IPython's %autoreload extension but with more code\
+        \ intelligence.\n    - `reactive_tests`: if `True`, marimo will automatically\
+        \ run pytest on cells containing only test functions and test classes.\n \
+        \     execution.\n    - `on_cell_change`: if `lazy`, cells will be marked\
+        \ stale when their\n      ancestors run but won't autorun; if `autorun`, cells\
+        \ will automatically\n      run when their ancestors run.\n    - `execution_type`:\
+        \ if `relaxed`, marimo will not clone cell declarations;\n      if `strict`\
+        \ marimo will clone cell declarations by default, avoiding\n      hidden potential\
+        \ state build up.\n    - `watcher_on_save`: how to handle file changes when\
+        \ saving. `\"lazy\"` marks\n        affected cells as stale, `\"autorun\"\
+        ` automatically runs affected cells.\n    - `output_max_bytes`: the maximum\
+        \ size in bytes of cell outputs; larger\n        values may affect frontend\
+        \ performance\n    - `std_stream_max_bytes`: the maximum size in bytes of\
+        \ console outputs;\n      larger values may affect frontend performance\n\
         \    - `pythonpath`: a list of directories to add to the Python search path.\n\
         \        Directories will be added to the head of sys.path. Similar to the\n\
         \        `PYTHONPATH` environment variable, the directories will be included\
@@ -3410,6 +3412,8 @@ components:
           - autorun
           - lazy
           - 'off'
+        cache_outputs:
+          type: boolean
         default_auto_download:
           items:
             enum:
@@ -3451,6 +3455,7 @@ components:
       required:
       - auto_instantiate
       - auto_reload
+      - cache_outputs
       - default_sql_output
       - on_cell_change
       - output_max_bytes
@@ -4570,7 +4575,7 @@ components:
       type: object
 info:
   title: marimo API
-  version: 0.19.4
+  version: 0.19.6
 openapi: 3.1.0
 paths:
   /@file/{filename_and_length}:

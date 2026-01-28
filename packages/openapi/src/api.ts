@@ -5025,6 +5025,8 @@ export interface components {
      *             run on startup. This only applies when editing a notebook,
      *             and not when running as an application.
      *             The default is `True`.
+     *         - `cache_outputs`: if `True`, cache and restore cell outputs between
+     *             sessions. In run mode, the cache is read-only.
      *         - `auto_reload`: if `lazy`, cells importing modified modules will marked
      *           as stale; if `autorun`, affected cells will be automatically run. similar
      *           to IPython's %autoreload extension but with more code intelligence.
@@ -5062,6 +5064,7 @@ export interface components {
       auto_instantiate: boolean;
       /** @enum {unknown} */
       auto_reload: "autorun" | "lazy" | "off";
+      cache_outputs: boolean;
       default_auto_download?: ("html" | "ipynb" | "markdown")[];
       default_csv_encoding?: string;
       /** @enum {unknown} */

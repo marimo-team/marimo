@@ -29,6 +29,7 @@ from marimo._runtime.commands import (
 from marimo._session.consumer import SessionConsumer
 from marimo._session.events import SessionEventBus
 from marimo._session.extensions.extensions import (
+    CacheMode,
     CachingExtension,
     HeartbeatExtension,
     LoggingExtension,
@@ -86,10 +87,10 @@ class SessionImpl(Session):
         config_manager: MarimoConfigManager,
         virtual_files_supported: bool,
         redirect_console_to_browser: bool,
-        auto_instantiate: bool,
         ttl_seconds: Optional[int],
         extensions: list[SessionExtension] | None = None,
         sandbox_mode: SandboxMode | None = None,
+        disable_cache: bool = False,
     ) -> Session:
         """
         Create a new session.
@@ -101,6 +102,18 @@ class SessionImpl(Session):
         )
 
         configs = app_file_manager.app.cell_manager.config_map()
+
+        runtime_config = config_manager.get_config()["runtime"]
+        cache_outputs = (
+            False
+            if disable_cache
+            else runtime_config.get("cache_outputs", True)
+        )
+        cache_mode = (
+            CacheMode.READ_WRITE
+            if mode == SessionMode.EDIT
+            else CacheMode.READ
+        )
 
         # Create kernel manager
         # SandboxMode.MULTI uses IPC kernels with per-notebook sandboxed venvs
@@ -146,7 +159,8 @@ class SessionImpl(Session):
             LoggingExtension(),
             HeartbeatExtension(),
             CachingExtension(
-                enabled=not auto_instantiate and mode == SessionMode.EDIT
+                enabled=cache_outputs,
+                mode=cache_mode,
             ),
             NotificationListenerExtension(
                 kernel_manager=kernel_manager, queue_manager=queue_manager

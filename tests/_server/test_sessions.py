@@ -518,7 +518,6 @@ def __():
             session_consumer=session_consumer,
             query_params={},
             file_key=file_key,
-            auto_instantiate=False,
         )
 
         # Wait a loop to ensure the session is created
@@ -557,7 +556,6 @@ def __():
             session_consumer=session_consumer2,
             query_params={},
             file_key=file_key,
-            auto_instantiate=False,
         )
 
         # Modify the file again
@@ -739,7 +737,6 @@ async def test_watch_mode_with_watcher_on_save_autorun(tmp_path: Path) -> None:
             session_consumer=session_consumer,
             query_params={},
             file_key=str(tmp_file),
-            auto_instantiate=False,
         )
         mock_session_view = MagicMock(spec=SessionView)
         session.session_view = mock_session_view
@@ -851,7 +848,6 @@ async def test_watch_mode_with_watcher_on_save_lazy(tmp_path: Path) -> None:
             session_consumer=session_consumer,
             query_params={},
             file_key=str(tmp_file),
-            auto_instantiate=False,
         )
 
         # Wait a bit for session to be ready
@@ -950,7 +946,6 @@ def __():
             session_consumer=session_consumer,
             query_params={},
             file_key=str(tmp_path1),
-            auto_instantiate=False,
         )
 
         # Try to rename to a non-existent file
@@ -1050,7 +1045,6 @@ def test_session_with_script_config_overrides(
         virtual_files_supported=True,
         redirect_console_to_browser=False,
         ttl_seconds=None,
-        auto_instantiate=True,
     )
 
     # Verify that the session's config is affected by the script config
@@ -1069,25 +1063,30 @@ def test_session_with_script_config_overrides(
 
 
 @save_and_restore_main
-async def test_caching_enabled_only_in_edit_mode() -> None:
-    """Test that caching is only enabled in EDIT mode, not RUN mode."""
-    from marimo._session.extensions.extensions import CachingExtension
+async def test_caching_respects_cache_outputs_setting() -> None:
+    """Test that caching follows cache_outputs and session mode."""
+    from marimo._session.extensions.extensions import (
+        CacheMode,
+        CachingExtension,
+    )
 
     session_consumer = MagicMock()
     session_consumer.connection_state.return_value = ConnectionState.OPEN
 
-    def create_session(mode: SessionMode, auto_instantiate: bool) -> Session:
+    def create_session(mode: SessionMode, cache_outputs: bool) -> Session:
+        config_manager = get_default_config_manager(
+            current_path=None
+        ).with_overrides({"runtime": {"cache_outputs": cache_outputs}})
         return SessionImpl.create(
             initialization_id="test_session",
             session_consumer=session_consumer,
             mode=mode,
             app_metadata=app_metadata,
             app_file_manager=AppFileManager.from_app(InternalApp(App())),
-            config_manager=get_default_config_manager(current_path=None),
+            config_manager=config_manager,
             virtual_files_supported=True,
             redirect_console_to_browser=False,
             ttl_seconds=None,
-            auto_instantiate=auto_instantiate,
         )
 
     def find_caching_extension(session: Session) -> CachingExtension:
@@ -1099,20 +1098,28 @@ async def test_caching_enabled_only_in_edit_mode() -> None:
         assert len(extension) == 1
         return extension[0]
 
-    # Test 1: EDIT mode with auto_instantiate=False -> caching enabled
-    session_edit = create_session(SessionMode.EDIT, False)
+    # Test 1: EDIT mode with cache_outputs=True -> caching enabled in write mode
+    session_edit = create_session(SessionMode.EDIT, True)
 
     # Find the CachingExtension
     caching_extension_edit = find_caching_extension(session_edit)
     assert caching_extension_edit.enabled is True
+    assert caching_extension_edit.mode is CacheMode.READ_WRITE
 
-    # Test 2: RUN mode with auto_instantiate=True -> caching disabled
+    # Test 2: RUN mode with cache_outputs=True -> caching enabled in read mode
     session_run = create_session(SessionMode.RUN, True)
 
     # Find the CachingExtension
     caching_extension_run = find_caching_extension(session_run)
-    assert caching_extension_run.enabled is False
+    assert caching_extension_run.enabled is True
+    assert caching_extension_run.mode is CacheMode.READ
+
+    # Test 3: cache_outputs=False -> caching disabled
+    session_disabled = create_session(SessionMode.EDIT, False)
+    caching_extension_disabled = find_caching_extension(session_disabled)
+    assert caching_extension_disabled.enabled is False
 
     # Cleanup
     session_edit.close()
     session_run.close()
+    session_disabled.close()

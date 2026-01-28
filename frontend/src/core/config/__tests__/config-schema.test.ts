@@ -86,6 +86,7 @@ test("default UserConfig - empty", () => {
       "runtime": {
         "auto_instantiate": true,
         "auto_reload": "off",
+        "cache_outputs": true,
         "default_auto_download": [],
         "default_sql_output": "auto",
         "on_cell_change": "autorun",
@@ -156,6 +157,7 @@ test("default UserConfig - one level", () => {
       "runtime": {
         "auto_instantiate": true,
         "auto_reload": "off",
+        "cache_outputs": true,
         "default_auto_download": [],
         "default_sql_output": "auto",
         "on_cell_change": "autorun",

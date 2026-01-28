@@ -118,6 +118,7 @@ export const UserConfigSchema = z
     runtime: z
       .looseObject({
         auto_instantiate: z.boolean().prefault(true),
+        cache_outputs: z.boolean().prefault(true),
         on_cell_change: z.enum(["lazy", "autorun"]).prefault("autorun"),
         auto_reload: z.enum(["off", "lazy", "autorun"]).prefault("off"),
         reactive_tests: z.boolean().prefault(true),
