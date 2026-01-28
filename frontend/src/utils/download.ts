@@ -94,7 +94,7 @@ function prepareCellElementForScreenshot(
   }
   const originalOverflow = element.style.overflow;
   element.style.overflow = "auto";
-  const cleanup = injectScrollbarHidingStyles(element);
+  const cleanupScrollbar = injectScrollbarHidingStyles(element);
 
   return () => {
     element.classList.remove("printing-output");
@@ -102,7 +102,7 @@ function prepareCellElementForScreenshot(
       releaseBodyPrinting();
     }
     element.style.overflow = originalOverflow;
-    cleanup();
+    cleanupScrollbar();
   };
 }
 
