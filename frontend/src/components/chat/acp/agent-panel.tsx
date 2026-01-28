@@ -71,6 +71,7 @@ import {
   FileAttachmentPill,
   SendButton,
 } from "../chat-components";
+import { useFileState } from "../chat-utils";
 import { ReadyToChatBlock } from "./blocks";
 import {
   convertFilesToResourceLinks,
@@ -627,7 +628,7 @@ const AgentPanel: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<Error | string | null>(null);
   const [promptValue, setPromptValue] = useState("");
-  const [files, setFiles] = useState<File[]>();
+  const { files, addFiles, clearFiles, removeFile } = useFileState();
   const [sessionModels, setSessionModels] = useState<SessionModelState | null>(
     null,
   );
@@ -854,7 +855,7 @@ const AgentPanel: React.FC = () => {
       });
       setIsLoading(true);
       setPromptValue("");
-      setFiles(undefined);
+      clearFiles();
 
       // Update session title with first message if it's still the default
       if (selectedTab?.title.startsWith("New ")) {
@@ -928,21 +929,6 @@ const AgentPanel: React.FC = () => {
     }
     await agent.cancel({ sessionId: activeSessionId });
     setIsLoading(false);
-  });
-
-  // Handler for adding files
-  const handleAddFiles = useEvent((newFiles: File[]) => {
-    if (newFiles.length === 0) {
-      return;
-    }
-    setFiles((prev) => [...(prev ?? []), ...newFiles]);
-  });
-
-  // Handler for removing files
-  const handleRemoveFile = useEvent((fileToRemove: File) => {
-    if (files) {
-      setFiles(files.filter((f) => f !== fileToRemove));
-    }
   });
 
   // Handler for manual connect
@@ -1111,7 +1097,7 @@ const AgentPanel: React.FC = () => {
               <FileAttachmentPill
                 file={file}
                 key={file.name}
-                onRemove={() => handleRemoveFile(file)}
+                onRemove={() => removeFile(file)}
               />
             ))}
           </div>
@@ -1123,7 +1109,7 @@ const AgentPanel: React.FC = () => {
           promptValue={promptValue}
           onPromptValueChange={setPromptValue}
           onPromptSubmit={handlePromptSubmit}
-          onAddFiles={handleAddFiles}
+          onAddFiles={addFiles}
           onStop={handleStop}
           fileInputRef={fileInputRef}
           commands={availableCommands}
