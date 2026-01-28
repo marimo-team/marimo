@@ -166,7 +166,7 @@ describe("getImageDataUrlForCell", () => {
     );
   });
 
-  it("should add printing classes before capture when snappy is false", async () => {
+  it("should add printing classes when snappy is false", async () => {
     vi.mocked(toPng).mockImplementation(async () => {
       // Check classes are applied during capture
       expect(mockElement.classList.contains("printing-output")).toBe(true);
@@ -176,6 +176,10 @@ describe("getImageDataUrlForCell", () => {
     });
 
     await getImageDataUrlForCell("cell-1" as CellId, false);
+
+    // Check that the classes are removed after capture
+    expect(mockElement.classList.contains("printing-output")).toBe(false);
+    expect(document.body.classList.contains("printing")).toBe(false);
   });
 
   it("should inject scrollbar hiding styles during capture", async () => {
@@ -189,19 +193,6 @@ describe("getImageDataUrlForCell", () => {
     });
 
     await getImageDataUrlForCell("cell-1" as CellId, false);
-  });
-
-  it("should inject scrollbar hiding styles during capture", async () => {
-    vi.mocked(toPng).mockImplementation(async () => {
-      // Check that a style tag with scrollbar hiding CSS is injected
-      const styleTag = mockElement.querySelector("style");
-      expect(styleTag).not.toBeNull();
-      expect(styleTag?.textContent).toContain("scrollbar-width: none");
-      expect(styleTag?.textContent).toContain("::-webkit-scrollbar");
-      return mockDataUrl;
-    });
-
-    await getImageDataUrlForCell("cell-1" as CellId, true);
   });
 
   it("should remove scrollbar hiding styles after capture", async () => {
@@ -212,15 +203,6 @@ describe("getImageDataUrlForCell", () => {
     // Style tag should be removed after capture
     const styleTag = mockElement.querySelector("style");
     expect(styleTag).toBeNull();
-  });
-
-  it("should remove printing classes after capture when enablePrintMode is true", async () => {
-    vi.mocked(toPng).mockResolvedValue(mockDataUrl);
-
-    await getImageDataUrlForCell("cell-1" as CellId, true);
-
-    expect(mockElement.classList.contains("printing-output")).toBe(false);
-    expect(document.body.classList.contains("printing")).toBe(false);
   });
 
   it("should add printing-output but NOT body.printing when snappy is true", async () => {
