@@ -36,6 +36,7 @@ import type { TopLevelFacetedUnitSpec } from "@/plugins/impl/data-explorer/queri
 import { useTheme } from "@/theme/useTheme";
 import { Events } from "@/utils/events";
 import { invariant } from "@/utils/invariant";
+import { processMimeBundle } from "@/utils/mime-types";
 import { Objects } from "@/utils/objects";
 import { LazyVegaEmbed } from "../charts/lazy";
 import { ChartLoadingState } from "../data-table/charts/components/chart-states";
@@ -268,9 +269,12 @@ const MimeBundleOutputRenderer: React.FC<{
   const metadata = mimebundle[METADATA_KEY];
 
   // Filter out metadata from the mime entries and type narrow
-  const mimeEntries = Objects.entries(mimebundle as Record<string, unknown>)
+  const rawEntries = Objects.entries(mimebundle as Record<string, unknown>)
     .filter(([key]) => key !== METADATA_KEY)
     .map(([mime, data]) => [mime, data] as [MimeType, CellOutput["data"]]);
+
+  // Apply precedence ordering and hiding rules
+  const { entries: mimeEntries } = processMimeBundle(rawEntries);
 
   // If there is none, return null
   const first = mimeEntries[0]?.[0];
@@ -285,21 +289,13 @@ const MimeBundleOutputRenderer: React.FC<{
         cellId={cellId}
         message={{
           channel: channel,
-          data: mimebundle[first],
+          data: mimeEntries[0][1],
           mimetype: first,
         }}
         metadata={metadata?.[first]}
       />
     );
   }
-
-  // Sort HTML first
-  mimeEntries.sort(([mimeA], [_mimeB]) => {
-    if (mimeA === "text/html") {
-      return -1;
-    }
-    return 0;
-  });
 
   return (
     <Tabs defaultValue={first} orientation="vertical">
