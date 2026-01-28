@@ -1,5 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
+import React from "react";
 import { toast } from "@/components/ui/use-toast";
 import { type CellId, CellOutputId } from "@/core/cells/ids";
 import { getRequestClient } from "@/core/network/requests";
@@ -9,6 +10,8 @@ import { prettyError } from "./errors";
 import { toPng } from "./html-to-image";
 import { captureIframeAsImage } from "./iframe";
 import { Logger } from "./Logger";
+import { ProgressState } from "./progress";
+import { ToastProgress } from "./toast-progress";
 
 /**
  * Show a loading toast while an async operation is in progress.
@@ -16,14 +19,16 @@ import { Logger } from "./Logger";
  */
 export async function withLoadingToast<T>(
   title: string,
-  fn: () => Promise<T>,
+  fn: (progress: ProgressState) => Promise<T>,
 ): Promise<T> {
+  const progress = ProgressState.indeterminate();
   const loadingToast = toast({
     title,
+    description: React.createElement(ToastProgress, { progress }),
     duration: Infinity,
   });
   try {
-    const result = await fn();
+    const result = await fn(progress);
     loadingToast.dismiss();
     return result;
   } catch (error) {
@@ -89,6 +94,8 @@ function prepareCellElementForScreenshot(
   };
 }
 
+const THRESHOLD_TIME_MS = 500;
+
 /**
  * Capture a cell output as a PNG data URL.
  *
@@ -114,7 +121,17 @@ export async function getImageDataUrlForCell(
   const cleanup = prepareCellElementForScreenshot(element, enablePrintMode);
 
   try {
-    return await toPng(element);
+    const startTime = Date.now();
+    const dataUrl = await toPng(element);
+    const timeTaken = Date.now() - startTime;
+    if (timeTaken > THRESHOLD_TIME_MS) {
+      Logger.debug(
+        "toPng operation for element",
+        element,
+        `took ${timeTaken} ms (exceeds threshold)`,
+      );
+    }
+    return dataUrl;
   } finally {
     cleanup();
   }

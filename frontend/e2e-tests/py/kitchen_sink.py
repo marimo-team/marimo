@@ -15,8 +15,8 @@
 
 import marimo
 
-__generated_with = "0.19.4"
-app = marimo.App()
+__generated_with = "0.19.6"
+app = marimo.App(auto_download=["ipynb"])
 
 
 @app.cell
@@ -58,23 +58,49 @@ def _(mo):
 def _(alt, callout_kind, mo, office_characters, px, vega_datasets):
     options = ["Apples", "Oranges", "Pears"]
 
-    # inputs
+    # Basic inputs
     button = mo.ui.button(label="Click me")
+    run_button = mo.ui.run_button(label="Run computation")
     checkbox = mo.ui.checkbox(label="check me")
-    date = mo.ui.date(label="Start Date")
-    dropdown = mo.ui.dropdown(options=options, value=options[0])
-    file = mo.vstack([mo.ui.file(kind="button"), mo.ui.file(kind="area")])
-    multiselect = mo.ui.multiselect(options=options)
-    number = mo.ui.number(start=1, stop=20, label="Number")
-    radio = mo.ui.radio(options=options)
-    slider = mo.ui.slider(start=1, stop=20, label="Slider", value=3)
     switch = mo.ui.switch(label="do not disturb")
-    table = mo.ui.table(data=office_characters, pagination=True)
-    text_area = mo.ui.text_area(placeholder="Search...", label="Description")
+
+    # Text inputs
     text = mo.ui.text(placeholder="Search...", label="Filter")
+    text_area = mo.ui.text_area(placeholder="Search...", label="Description")
+    code_editor = mo.ui.code_editor(
+        value="def hello():\n    return 'world'",
+        language="python",
+        min_height=100,
+    )
+
+    # Number inputs
+    number = mo.ui.number(start=1, stop=20, label="Number")
+    slider = mo.ui.slider(start=1, stop=20, label="Slider", value=3)
+    range_slider = mo.ui.range_slider(
+        start=0, stop=100, value=[20, 80], label="Range"
+    )
+
+    # Selection inputs
+    dropdown = mo.ui.dropdown(options=options, value=options[0])
+    multiselect = mo.ui.multiselect(options=options)
+    radio = mo.ui.radio(options=options)
+
+    # Date/time inputs
+    date = mo.ui.date(label="Start Date")
+    date_range = mo.ui.date_range(label="Date Range")
+    datetime_picker = mo.ui.datetime(label="Date and Time")
+
+    # File inputs
+    file = mo.vstack([mo.ui.file(kind="button"), mo.ui.file(kind="area")])
     refresh = mo.ui.refresh(label="Refresh", options=["1s", "5s", "10s", "30s"])
     microphone = mo.ui.microphone(label="Drop a beat!")
+
+    # Data components
+    table = mo.ui.table(data=office_characters, pagination=True)
     _cars_df = vega_datasets.data.cars()
+    dataframe_transformer = mo.ui.dataframe(_cars_df)
+
+    # Chart components
     chart = mo.ui.altair_chart(
         alt.Chart(_cars_df)
         .mark_point()
@@ -130,7 +156,11 @@ def _(alt, callout_kind, mo, office_characters, px, vega_datasets):
         callout,
         chart,
         checkbox,
+        code_editor,
+        dataframe_transformer,
         date,
+        date_range,
+        datetime_picker,
         dropdown,
         file,
         form,
@@ -140,7 +170,9 @@ def _(alt, callout_kind, mo, office_characters, px, vega_datasets):
         plotly_chart,
         progress_bar,
         radio,
+        range_slider,
         refresh,
+        run_button,
         slider,
         spinner,
         stat,
@@ -186,6 +218,16 @@ def _(button, create_wrapper, mo):
     create_wrapper(
         mo.hstack([button]),
         "button",
+    )
+    return
+
+
+@app.cell
+def _(create_wrapper, mo, run_button):
+    # run_button
+    create_wrapper(
+        mo.hstack([run_button, mo.md(f"Clicked: {run_button.value}")]),
+        "run_button",
     )
     return
 
@@ -318,6 +360,26 @@ def _(create_wrapper, date, mo):
 
 
 @app.cell
+def _(create_wrapper, date_range, mo):
+    # date_range
+    create_wrapper(
+        mo.hstack([date_range, mo.md(f"Has value: {date_range.value}")]),
+        "date_range",
+    )
+    return
+
+
+@app.cell
+def _(create_wrapper, datetime_picker, mo):
+    # datetime
+    create_wrapper(
+        mo.hstack([datetime_picker, mo.md(f"Has value: {datetime_picker.value}")]),
+        "datetime",
+    )
+    return
+
+
+@app.cell
 def _(create_wrapper, mo, switch):
     create_wrapper(
         mo.hstack([switch, mo.md(f"Has value: {switch.value}")]),
@@ -349,6 +411,16 @@ def _(create_wrapper, mo, slider):
     create_wrapper(
         mo.hstack([slider, mo.md(f"Has value: {slider.value}")]),
         "slider",
+    )
+    return
+
+
+@app.cell
+def _(create_wrapper, mo, range_slider):
+    # range_slider
+    create_wrapper(
+        mo.hstack([range_slider, mo.md(f"Has value: {range_slider.value}")]),
+        "range_slider",
     )
     return
 
@@ -420,6 +492,16 @@ def _(create_wrapper, mo, text_area):
     create_wrapper(
         mo.hstack([text_area, mo.md(f"Has value: {text_area.value}")]),
         "text_area",
+    )
+    return
+
+
+@app.cell
+def _(code_editor, create_wrapper, mo):
+    # code_editor
+    create_wrapper(
+        mo.vstack([code_editor, mo.md(f"```python\n{code_editor.value}\n```")]),
+        "code_editor",
     )
     return
 
@@ -534,6 +616,18 @@ def _(create_wrapper, table):
 
 
 @app.cell
+def _(create_wrapper, dataframe_transformer, mo):
+    # dataframe transformer
+    create_wrapper(
+        mo.vstack(
+            [dataframe_transformer, mo.ui.table(dataframe_transformer.value)]
+        ),
+        "dataframe_transformer",
+    )
+    return
+
+
+@app.cell
 def _(create_wrapper, spinner):
     # spinner
     create_wrapper(
@@ -575,6 +669,254 @@ def _(chart, create_wrapper, mo):
 def _(create_wrapper, mo, plotly_chart):
     create_wrapper(
         mo.vstack([plotly_chart, mo.ui.table(plotly_chart.value)]), "plotly-chart"
+    )
+    return
+
+
+@app.cell
+def _(create_wrapper, mo):
+    # video
+    _video_src = "https://www.youtube.com/watch?v=5ZxczGlrkyQ"
+    create_wrapper(
+        mo.video(src=_video_src, width=400),
+        "video",
+    )
+    return
+
+
+@app.cell
+def _(create_wrapper, mo):
+    # download button
+    data_to_download = "Hello, this is the file content!\nLine 2\nLine 3"
+    create_wrapper(
+        mo.download(
+            data=data_to_download.encode(),
+            filename="sample.txt",
+            label="Download Sample File",
+        ),
+        "download",
+    )
+    return
+
+
+@app.cell
+def _(create_wrapper, mo):
+    # json display
+    sample_json = {
+        "name": "marimo",
+        "version": "0.19.6",
+        "features": ["reactive", "interactive", "reproducible"],
+        "nested": {"key1": "value1", "key2": [1, 2, 3]},
+    }
+    create_wrapper(
+        mo.json(sample_json),
+        "json",
+    )
+    return
+
+
+@app.cell
+def _(create_wrapper, mo):
+    # mermaid diagram
+    create_wrapper(
+        mo.mermaid(
+            """
+            graph TD
+                A[Start] --> B{Decision}
+                B -->|Yes| C[Do Something]
+                B -->|No| D[Do Something Else]
+                C --> E[End]
+                D --> E
+            """
+        ),
+        "mermaid",
+    )
+    return
+
+
+@app.cell
+def _(create_wrapper, mo):
+    # icon
+    create_wrapper(
+        mo.hstack(
+            [
+                mo.icon("lucide:home", size=24),
+                mo.icon("lucide:settings", size=24),
+                mo.icon("lucide:user", size=24),
+                mo.icon("lucide:star", size=24, color="gold"),
+                mo.icon("lucide:heart", size=24, color="red"),
+            ],
+            gap=1,
+        ),
+        "icon",
+    )
+    return
+
+
+@app.cell
+def _(create_wrapper, mo):
+    # center, left, right alignment
+    create_wrapper(
+        mo.vstack(
+            [
+                mo.left(mo.md("**Left aligned**")),
+                mo.center(mo.md("**Center aligned**")),
+                mo.right(mo.md("**Right aligned**")),
+            ],
+            align="stretch",
+        ),
+        "alignment (left/center/right)",
+    )
+    return
+
+
+@app.cell
+def _(create_wrapper, mo):
+    # carousel
+    _images = [
+        "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400",
+        "https://images.unsplash.com/photo-1469474968028-56623f02e42e?w=400",
+        "https://images.unsplash.com/photo-1426604966848-d7adac402bff?w=400",
+    ]
+    create_wrapper(
+        mo.carousel(
+            [mo.image(src=img, width=300, rounded=True) for img in _images]
+        ),
+        "carousel",
+    )
+    return
+
+
+@app.cell
+def _(create_wrapper, mo):
+    # Html component
+    create_wrapper(
+        mo.Html(
+            """
+            <div style="padding: 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 10px; color: white;">
+                <h3 style="margin: 0;">Custom HTML</h3>
+                <p style="margin: 10px 0 0 0;">This is raw HTML content with custom styling.</p>
+            </div>
+            """
+        ),
+        "Html",
+    )
+    return
+
+
+@app.cell
+def _(create_wrapper, mo):
+    # style wrapper
+    styled_content = mo.md("This content has custom styling applied")
+    create_wrapper(
+        mo.style(
+            styled_content,
+            {
+                "background": "#f0f9ff",
+                "padding": "16px",
+                "border-radius": "8px",
+                "border": "2px solid #0ea5e9",
+            },
+        ),
+        "style",
+    )
+    return
+
+
+@app.cell
+def _(create_wrapper, mo):
+    # as_html conversion
+    class CustomObject:
+        def __repr__(self):
+            return "CustomObject(value=42)"
+
+
+    create_wrapper(
+        mo.as_html([1, 2, 3, {"key": "value"}]),
+        "as_html",
+    )
+    return
+
+
+@app.cell
+def _(create_wrapper, mo):
+    # nav_menu
+    create_wrapper(
+        mo.nav_menu(
+            {
+                "#section1": "Section 1",
+                "#section2": "Section 2",
+                "Links": {
+                    "https://marimo.io": "marimo.io",
+                    "https://github.com/marimo-team/marimo": "GitHub",
+                },
+            },
+            orientation="horizontal",
+        ),
+        "nav_menu",
+    )
+    return
+
+
+@app.cell
+def _(create_wrapper, mo):
+    # lazy loading
+    def expensive_component():
+        return mo.md("This content was **lazily loaded**!")
+
+
+    create_wrapper(
+        mo.lazy(expensive_component),
+        "lazy",
+    )
+    return
+
+
+@app.cell
+def _(create_wrapper, mo):
+    # show_code - display code with syntax highlighting
+    code_sample = '''
+    def fibonacci(n):
+    """Calculate the nth Fibonacci number."""
+    if n <= 1:
+        return n
+    return fibonacci(n-1) + fibonacci(n-2)
+
+    # Usage
+    result = fibonacci(10)
+    print(f"The 10th Fibonacci number is {result}")
+    '''
+    create_wrapper(
+        mo.show_code(code_sample),
+        "show_code",
+    )
+    return
+
+
+@app.cell
+def _(create_wrapper, mo):
+    # chat component (without model, just UI)
+    def simple_chat_model(messages, config):
+        # Echo bot for demonstration
+        return f"You said: {messages[-1].content}"
+
+
+    chat = mo.ui.chat(simple_chat_model, prompts=["Hello!", "How are you?"])
+    create_wrapper(chat, "chat")
+    return
+
+
+@app.cell
+def _(mo):
+    # sidebar example
+    mo.sidebar(
+        mo.vstack(
+            [
+                mo.md("# Menu"),
+                mo.ui.button(label="Home"),
+                mo.ui.button(label="Settings"),
+            ]
+        )
     )
     return
 
@@ -622,11 +964,11 @@ def _():
 @app.cell
 def _():
     import altair as alt
-    import vega_datasets
     import marimo as mo
     import matplotlib.pyplot as plt
     import numpy as np
     import plotly.express as px
+    import vega_datasets
     return alt, mo, np, plt, px, vega_datasets
 
 

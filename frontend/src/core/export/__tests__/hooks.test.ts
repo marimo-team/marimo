@@ -8,6 +8,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { CellId } from "@/core/cells/ids";
 import { CellOutputId } from "@/core/cells/ids";
 import type { CellRuntimeState } from "@/core/cells/types";
+import { ProgressState } from "@/utils/progress";
 import {
   updateCellOutputsWithScreenshots,
   useEnrichCellOutputs,
@@ -37,6 +38,8 @@ vi.mock("@/core/cells/cells", async () => {
     cellsRuntimeAtom: atom({}),
   };
 });
+
+const progress = ProgressState.indeterminate();
 
 import { toPng } from "html-to-image";
 import { toast } from "@/components/ui/use-toast";
@@ -100,7 +103,7 @@ describe("useEnrichCellOutputs", () => {
     const { result } = renderHook(() => useEnrichCellOutputs(), { wrapper });
 
     const enrichCellOutputs = result.current;
-    const output = await enrichCellOutputs();
+    const output = await enrichCellOutputs(progress);
 
     expect(output).toEqual({});
     expect(document.getElementById).not.toHaveBeenCalled();
@@ -132,7 +135,7 @@ describe("useEnrichCellOutputs", () => {
     const { result } = renderHook(() => useEnrichCellOutputs(), { wrapper });
 
     const enrichCellOutputs = result.current;
-    const output = await enrichCellOutputs();
+    const output = await enrichCellOutputs(progress);
 
     expect(document.getElementById).toHaveBeenCalledWith(
       CellOutputId.create(cellId),
@@ -177,7 +180,7 @@ describe("useEnrichCellOutputs", () => {
 
     // First call - should capture
     let enrichCellOutputs = result.current;
-    let output = await enrichCellOutputs();
+    let output = await enrichCellOutputs(progress);
     expect(output).toEqual({ [cellId]: ["image/png", mockDataUrl] });
     expect(toPng).toHaveBeenCalledTimes(1);
 
@@ -186,7 +189,7 @@ describe("useEnrichCellOutputs", () => {
 
     // Second call with same output - should not capture again
     enrichCellOutputs = result.current;
-    output = await enrichCellOutputs();
+    output = await enrichCellOutputs(progress);
     expect(output).toEqual({}); // Empty because output hasn't changed
     expect(toPng).toHaveBeenCalledTimes(1); // Still only 1 call
   });
@@ -215,7 +218,7 @@ describe("useEnrichCellOutputs", () => {
     const { result } = renderHook(() => useEnrichCellOutputs(), { wrapper });
 
     const enrichCellOutputs = result.current;
-    const output = await enrichCellOutputs();
+    const output = await enrichCellOutputs(progress);
 
     expect(output).toEqual({}); // Failed screenshot should be filtered out
     expect(Logger.error).toHaveBeenCalledWith(
@@ -245,7 +248,7 @@ describe("useEnrichCellOutputs", () => {
     const { result } = renderHook(() => useEnrichCellOutputs(), { wrapper });
 
     const enrichCellOutputs = result.current;
-    const output = await enrichCellOutputs();
+    const output = await enrichCellOutputs(progress);
 
     expect(output).toEqual({});
     expect(Logger.error).toHaveBeenCalledWith(
@@ -294,7 +297,7 @@ describe("useEnrichCellOutputs", () => {
     const { result } = renderHook(() => useEnrichCellOutputs(), { wrapper });
 
     const enrichCellOutputs = result.current;
-    const output = await enrichCellOutputs();
+    const output = await enrichCellOutputs(progress);
 
     expect(output).toEqual({
       [cell1]: ["image/png", mockDataUrl1],
@@ -340,7 +343,7 @@ describe("useEnrichCellOutputs", () => {
     const { result } = renderHook(() => useEnrichCellOutputs(), { wrapper });
 
     const enrichCellOutputs = result.current;
-    const output = await enrichCellOutputs();
+    const output = await enrichCellOutputs(progress);
 
     // Only the successful screenshot should be in the result
     expect(output).toEqual({
@@ -382,13 +385,13 @@ describe("useEnrichCellOutputs", () => {
 
     // First screenshot
     let enrichCellOutputs = result.current;
-    let output = await enrichCellOutputs();
+    let output = await enrichCellOutputs(progress);
     expect(output).toEqual({ [cellId]: ["image/png", mockDataUrl1] });
 
     // Second call - same output, should not be captured
     rerender();
     enrichCellOutputs = result.current;
-    output = await enrichCellOutputs();
+    output = await enrichCellOutputs(progress);
     expect(output).toEqual({});
 
     // Third call - output changed, should be captured
@@ -407,7 +410,7 @@ describe("useEnrichCellOutputs", () => {
 
     rerender();
     enrichCellOutputs = result.current;
-    output = await enrichCellOutputs();
+    output = await enrichCellOutputs(progress);
     expect(output).toEqual({ [cellId]: ["image/png", mockDataUrl2] });
     expect(toPng).toHaveBeenCalledTimes(2);
   });
@@ -447,7 +450,7 @@ describe("useEnrichCellOutputs", () => {
     const { result } = renderHook(() => useEnrichCellOutputs(), { wrapper });
 
     const enrichCellOutputs = result.current;
-    const output = await enrichCellOutputs();
+    const output = await enrichCellOutputs(progress);
 
     // None of these should trigger screenshots
     expect(output).toEqual({});
@@ -472,7 +475,7 @@ describe("useEnrichCellOutputs", () => {
     const { result } = renderHook(() => useEnrichCellOutputs(), { wrapper });
 
     const enrichCellOutputs = result.current;
-    const output = await enrichCellOutputs();
+    const output = await enrichCellOutputs(progress);
 
     expect(output).toEqual({});
     expect(document.getElementById).not.toHaveBeenCalled();
@@ -504,7 +507,7 @@ describe("useEnrichCellOutputs", () => {
     const { result } = renderHook(() => useEnrichCellOutputs(), { wrapper });
 
     const enrichCellOutputs = result.current;
-    const output = await enrichCellOutputs();
+    const output = await enrichCellOutputs(progress);
 
     // Verify the exact return type structure
     expect(output).toHaveProperty(cellId);
@@ -535,7 +538,11 @@ describe("updateCellOutputsWithScreenshots", () => {
     const takeScreenshots = vi.fn().mockResolvedValue(mockScreenshots);
     const updateCellOutputs = vi.fn().mockResolvedValue(null);
 
-    await updateCellOutputsWithScreenshots(takeScreenshots, updateCellOutputs);
+    await updateCellOutputsWithScreenshots({
+      progress,
+      takeScreenshots,
+      updateCellOutputs,
+    });
 
     expect(takeScreenshots).toHaveBeenCalledTimes(1);
     expect(updateCellOutputs).toHaveBeenCalledTimes(1);
@@ -548,7 +555,11 @@ describe("updateCellOutputsWithScreenshots", () => {
     const takeScreenshots = vi.fn().mockResolvedValue({});
     const updateCellOutputs = vi.fn().mockResolvedValue(null);
 
-    await updateCellOutputsWithScreenshots(takeScreenshots, updateCellOutputs);
+    await updateCellOutputsWithScreenshots({
+      progress,
+      takeScreenshots,
+      updateCellOutputs,
+    });
 
     expect(takeScreenshots).toHaveBeenCalledTimes(1);
     expect(updateCellOutputs).not.toHaveBeenCalled();
@@ -571,7 +582,11 @@ describe("updateCellOutputsWithScreenshots", () => {
     const takeScreenshots = vi.fn().mockResolvedValue(mockScreenshots);
     const updateCellOutputs = vi.fn().mockResolvedValue(null);
 
-    await updateCellOutputsWithScreenshots(takeScreenshots, updateCellOutputs);
+    await updateCellOutputsWithScreenshots({
+      progress,
+      takeScreenshots,
+      updateCellOutputs,
+    });
 
     expect(updateCellOutputs).toHaveBeenCalledWith({
       cellIdsToOutput: mockScreenshots,
@@ -584,7 +599,11 @@ describe("updateCellOutputsWithScreenshots", () => {
     const updateCellOutputs = vi.fn().mockResolvedValue(null);
 
     // Should not throw - errors are caught and shown via toast
-    await updateCellOutputsWithScreenshots(takeScreenshots, updateCellOutputs);
+    await updateCellOutputsWithScreenshots({
+      progress,
+      takeScreenshots,
+      updateCellOutputs,
+    });
 
     expect(updateCellOutputs).not.toHaveBeenCalled();
     expect(Logger.error).toHaveBeenCalledWith(
@@ -613,7 +632,11 @@ describe("updateCellOutputsWithScreenshots", () => {
     const updateCellOutputs = vi.fn().mockRejectedValue(error);
 
     // Should not throw - errors are caught and shown via toast
-    await updateCellOutputsWithScreenshots(takeScreenshots, updateCellOutputs);
+    await updateCellOutputsWithScreenshots({
+      progress,
+      takeScreenshots,
+      updateCellOutputs,
+    });
 
     expect(Logger.error).toHaveBeenCalledWith(
       "Error updating cell outputs with screenshots:",

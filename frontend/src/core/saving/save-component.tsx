@@ -190,6 +190,7 @@ export function useSaveNotebook() {
   return {
     saveOrNameNotebook,
     saveIfNotebookIsPersistent,
+    saveNotebook,
   };
 }
 

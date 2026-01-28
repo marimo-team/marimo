@@ -25,6 +25,30 @@ const Cells = {
 };
 
 describe("createNotebookLens", () => {
+  it("should produce correct lens for same inputs", () => {
+    // Use unique content for this test
+    const cellIds: CellId[] = [Cells.cell1, Cells.cell2];
+    const codes: Record<CellId, string> = {
+      [Cells.cell1]: "unique_memo_test_line1",
+      [Cells.cell2]: "unique_memo_test_line2",
+    };
+
+    const lens1 = createNotebookLens(cellIds, codes);
+    const lens2 = createNotebookLens(cellIds, codes);
+
+    // Same inputs should produce equivalent lens (same merged text)
+    expect(lens1.mergedText).toBe(lens2.mergedText);
+    expect(lens1.cellIds).toEqual(lens2.cellIds);
+
+    // Different content should produce a different lens
+    const differentCodes: Record<CellId, string> = {
+      [Cells.cell1]: "unique_memo_different",
+      [Cells.cell2]: "unique_memo_content",
+    };
+    const lens3 = createNotebookLens(cellIds, differentCodes);
+    expect(lens3.mergedText).not.toBe(lens1.mergedText);
+  });
+
   it("should calculate correct line offsets", () => {
     const cellIds: CellId[] = [Cells.cell1, Cells.cell2, Cells.cell3];
     const codes: Record<CellId, string> = {
@@ -111,6 +135,7 @@ describe("createNotebookLens", () => {
       ),
     ).toBe(true);
 
+    // This triggers the cross-cell diagnostic warning (start in range, end outside)
     expect(
       lens.isInRange(
         {
@@ -120,6 +145,24 @@ describe("createNotebookLens", () => {
         Cells.cell1,
       ),
     ).toBe(false);
+  });
+
+  it("should detect cross-cell diagnostics where start is in range but end is outside", () => {
+    const cellIds: CellId[] = [Cells.cell1, Cells.cell2];
+    const codes: Record<CellId, string> = {
+      [Cells.cell1]: "line1\nline2",
+      [Cells.cell2]: "line3",
+    };
+    const lens = createNotebookLens(cellIds, codes);
+
+    // Range that starts in cell1 (line 1) but ends in cell2 (line 2 = first line of cell2)
+    // This should return false and log a warning
+    const crossCellRange = {
+      start: { line: 1, character: 0 }, // line 1 is in cell1
+      end: { line: 2, character: 0 }, // line 2 is in cell2
+    };
+
+    expect(lens.isInRange(crossCellRange, Cells.cell1)).toBe(false);
   });
 
   it("should join all code into merged text", () => {
@@ -1117,6 +1160,83 @@ describe("NotebookLanguageServerClient", () => {
         import numpy
         print(math.sqrt(4))"
       `);
+    });
+  });
+
+  describe("sync returns lens to prevent race conditions", () => {
+    it("should return the lens used for synchronization", async () => {
+      mockClient.textDocumentDidChange = vi
+        .fn()
+        .mockImplementation((params) => params);
+
+      const result = await notebookClient.sync();
+
+      // sync() should return both params and the lens
+      expect(result).toHaveProperty("params");
+      expect(result).toHaveProperty("lens");
+      expect(result.lens.cellIds).toEqual([
+        Cells.cell1,
+        Cells.cell2,
+        Cells.cell3,
+      ]);
+      expect(result.lens.mergedText).toContain("# this is a comment");
+    });
+
+    it("should return consistent lens even when called multiple times rapidly", async () => {
+      mockClient.textDocumentDidChange = vi
+        .fn()
+        .mockImplementation((params) => params);
+
+      // Call sync multiple times rapidly
+      const [result1, result2, result3] = await Promise.all([
+        notebookClient.sync(),
+        notebookClient.sync(),
+        notebookClient.sync(),
+      ]);
+
+      // All should return the same lens content (memoized)
+      expect(result1.lens.mergedText).toBe(result2.lens.mergedText);
+      expect(result2.lens.mergedText).toBe(result3.lens.mergedText);
+    });
+  });
+
+  describe("SEEN_CELL_DOCUMENT_URIS memory management", () => {
+    it("should track opened cells in SEEN_CELL_DOCUMENT_URIS", async () => {
+      // Clear any existing state
+      const seenUris = (NotebookLanguageServerClient as any)
+        .SEEN_CELL_DOCUMENT_URIS;
+      seenUris.clear();
+
+      // Open some cells to add them to SEEN_CELL_DOCUMENT_URIS
+      await notebookClient.textDocumentDidOpen({
+        textDocument: {
+          uri: CellDocumentUri.of(Cells.cell1),
+          languageId: "python",
+          version: 1,
+          text: "code1",
+        },
+      });
+
+      await notebookClient.textDocumentDidOpen({
+        textDocument: {
+          uri: CellDocumentUri.of(Cells.cell2),
+          languageId: "python",
+          version: 1,
+          text: "code2",
+        },
+      });
+
+      // Verify cells were added
+      expect(seenUris.has(CellDocumentUri.of(Cells.cell1))).toBe(true);
+      expect(seenUris.has(CellDocumentUri.of(Cells.cell2))).toBe(true);
+      expect(seenUris.size).toBe(2);
+    });
+
+    it("should have pruneSeenCellUris static method", () => {
+      // Verify the method exists and is callable
+      expect(
+        typeof (NotebookLanguageServerClient as any).pruneSeenCellUris,
+      ).toBe("function");
     });
   });
 
