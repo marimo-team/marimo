@@ -166,51 +166,6 @@ describe("getImageDataUrlForCell", () => {
     );
   });
 
-  it("should add printing classes before capture when snappy is false", async () => {
-    vi.mocked(toPng).mockImplementation(async () => {
-      // Check classes are applied during capture
-      expect(mockElement.classList.contains("printing-output")).toBe(true);
-      expect(document.body.classList.contains("printing")).toBe(true);
-      expect(mockElement.style.overflow).toBe("auto");
-      return mockDataUrl;
-    });
-
-    await getImageDataUrlForCell("cell-1" as CellId, false);
-  });
-
-  it("should remove printing classes after capture when snappy is false", async () => {
-    vi.mocked(toPng).mockResolvedValue(mockDataUrl);
-
-    await getImageDataUrlForCell("cell-1" as CellId, false);
-
-    expect(mockElement.classList.contains("printing-output")).toBe(false);
-    expect(document.body.classList.contains("printing")).toBe(false);
-  });
-
-  it("should add printing-output but NOT body.printing when snappy is true", async () => {
-    vi.mocked(toPng).mockImplementation(async () => {
-      // printing-output should still be added to the element
-      expect(mockElement.classList.contains("printing-output")).toBe(true);
-      // but body.printing should NOT be added when snappy mode is on
-      expect(document.body.classList.contains("printing")).toBe(false);
-      expect(mockElement.style.overflow).toBe("auto");
-      return mockDataUrl;
-    });
-
-    await getImageDataUrlForCell("cell-1" as CellId, true);
-  });
-
-  it("should cleanup printing-output when snappy is true", async () => {
-    mockElement.style.overflow = "hidden";
-    vi.mocked(toPng).mockResolvedValue(mockDataUrl);
-
-    await getImageDataUrlForCell("cell-1" as CellId, true);
-
-    expect(mockElement.classList.contains("printing-output")).toBe(false);
-    expect(document.body.classList.contains("printing")).toBe(false);
-    expect(mockElement.style.overflow).toBe("hidden");
-  });
-
   it("should restore original overflow style after capture", async () => {
     mockElement.style.overflow = "hidden";
     vi.mocked(toPng).mockResolvedValue(mockDataUrl);
@@ -234,88 +189,27 @@ describe("getImageDataUrlForCell", () => {
 
     await expect(getImageDataUrlForCell("cell-1" as CellId)).rejects.toThrow();
 
-    expect(mockElement.classList.contains("printing-output")).toBe(false);
     expect(document.body.classList.contains("printing")).toBe(false);
     expect(mockElement.style.overflow).toBe("scroll");
   });
 
-  it("should maintain body.printing during concurrent captures when snappy is false", async () => {
-    // Create a second element
-    const mockElement2 = document.createElement("div");
-    mockElement2.id = CellOutputId.create("cell-2" as CellId);
-    document.body.append(mockElement2);
-
-    // Track body.printing state during each capture
-    const printingStateDuringCaptures: boolean[] = [];
-    let resolveFirst: () => void;
-    let resolveSecond: () => void;
-
-    const firstPromise = new Promise<void>((resolve) => {
-      resolveFirst = resolve;
-    });
-    const secondPromise = new Promise<void>((resolve) => {
-      resolveSecond = resolve;
-    });
-
-    vi.mocked(toPng).mockImplementation(async (element) => {
-      printingStateDuringCaptures.push(
-        document.body.classList.contains("printing"),
-      );
-
-      // Simulate async work - first capture takes longer
-      await (element.id.includes("cell-1") ? firstPromise : secondPromise);
-
-      // Check state again after waiting
-      printingStateDuringCaptures.push(
-        document.body.classList.contains("printing"),
-      );
-
-      return mockDataUrl;
-    });
-
-    // Start both captures concurrently with snappy = false (body.printing should be added)
-    const capture1 = getImageDataUrlForCell("cell-1" as CellId, false);
-    const capture2 = getImageDataUrlForCell("cell-2" as CellId, false);
-
-    // Let second capture complete first
-    resolveSecond!();
-    await new Promise((r) => setTimeout(r, 0));
-
-    // body.printing should still be present because cell-1 is still capturing
-    expect(document.body.classList.contains("printing")).toBe(true);
-
-    // Now let first capture complete
-    resolveFirst!();
-    await Promise.all([capture1, capture2]);
-
-    // After all captures complete, body.printing should be removed
-    expect(document.body.classList.contains("printing")).toBe(false);
-
-    // All captures should have seen body.printing = true
-    expect(printingStateDuringCaptures.every(Boolean)).toBe(true);
-
-    mockElement2.remove();
-  });
-
-  it("should not interfere with body.printing during concurrent captures when snappy is true", async () => {
+  it("should handle concurrent captures correctly", async () => {
     // Create a second element
     const mockElement2 = document.createElement("div");
     mockElement2.id = CellOutputId.create("cell-2" as CellId);
     document.body.append(mockElement2);
 
     vi.mocked(toPng).mockImplementation(async () => {
-      // body.printing should never be added when snappy is true
+      // body.printing should not be added during cell captures
       expect(document.body.classList.contains("printing")).toBe(false);
       return mockDataUrl;
     });
 
-    // Start both captures concurrently with snappy = true (body.printing should NOT be added)
-    const capture1 = getImageDataUrlForCell("cell-1" as CellId, true);
-    const capture2 = getImageDataUrlForCell("cell-2" as CellId, true);
+    const capture1 = getImageDataUrlForCell("cell-1" as CellId);
+    const capture2 = getImageDataUrlForCell("cell-2" as CellId);
 
     await Promise.all([capture1, capture2]);
 
-    // body.printing should still not be present
     expect(document.body.classList.contains("printing")).toBe(false);
 
     mockElement2.remove();
@@ -515,9 +409,7 @@ describe("downloadCellOutputAsImage", () => {
   it("should apply cell-specific preparation", async () => {
     vi.mocked(toPng).mockImplementation(async () => {
       // Check that cell-specific classes are applied
-      expect(mockElement.classList.contains("printing-output")).toBe(true);
-      expect(document.body.classList.contains("printing")).toBe(true);
-      expect(mockElement.style.overflow).toBe("auto");
+      expect(mockElement.style.overflow).toBe("visible");
       return mockDataUrl;
     });
 
@@ -530,7 +422,6 @@ describe("downloadCellOutputAsImage", () => {
 
     await downloadCellOutputAsImage("cell-1" as CellId, "result");
 
-    expect(mockElement.classList.contains("printing-output")).toBe(false);
     expect(document.body.classList.contains("printing")).toBe(false);
     expect(mockElement.style.overflow).toBe("visible");
   });

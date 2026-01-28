@@ -41,7 +41,11 @@ import { downloadAsHTML } from "@/core/static/download-html";
 import { isStaticNotebook } from "@/core/static/static-state";
 import { isWasm } from "@/core/wasm/utils";
 import { cn } from "@/utils/cn";
-import { downloadBlob, downloadHTMLAsImage } from "@/utils/download";
+import {
+  ADD_PRINTING_CLASS,
+  downloadBlob,
+  downloadHTMLAsImage,
+} from "@/utils/download";
 import { Filenames } from "@/utils/filenames";
 import { FloatingOutline } from "../../chrome/panels/outline/floating-outline";
 import { cellDomProps } from "../../common";
@@ -185,7 +189,12 @@ const ActionButtons: React.FC<{
     if (!app) {
       return;
     }
-    await downloadHTMLAsImage({ element: app, filename: document.title });
+    await downloadHTMLAsImage({
+      element: app,
+      filename: document.title,
+      // Add body.printing ONLY when converting the whole notebook to a screenshot
+      prepare: ADD_PRINTING_CLASS,
+    });
   };
 
   const handleDownloadAsHTML = async () => {
@@ -271,7 +280,7 @@ const ActionButtons: React.FC<{
     <div
       data-testid="notebook-actions-dropdown"
       className={cn(
-        "right-0 top-0 z-50 m-4 no-print flex gap-2 print:hidden",
+        "right-0 top-0 z-50 m-4 print:hidden flex gap-2",
         // If the notebook is static, we have a banner at the top, so
         // we can't use fixed positioning. Ideally this is sticky, but the
         // current dom structure makes that difficult.
@@ -284,7 +293,7 @@ const ActionButtons: React.FC<{
             <MoreHorizontalIcon className="w-4 h-4" />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="no-print w-[220px]">
+        <DropdownMenuContent align="end" className="print:hidden w-[220px]">
           {actions}
         </DropdownMenuContent>
       </DropdownMenu>

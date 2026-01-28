@@ -70,6 +70,7 @@ import { createShareableLink } from "@/core/wasm/share";
 import { isWasm } from "@/core/wasm/utils";
 import { copyToClipboard } from "@/utils/copy";
 import {
+  ADD_PRINTING_CLASS,
   downloadAsPDF,
   downloadBlob,
   downloadHTMLAsImage,
@@ -219,6 +220,8 @@ export function useNotebookActions() {
             await downloadHTMLAsImage({
               element: app,
               filename: document.title,
+              // Add body.printing ONLY when converting the whole notebook to a screenshot
+              prepare: ADD_PRINTING_CLASS,
             });
           },
         },
@@ -241,8 +244,7 @@ export function useNotebookActions() {
 
               const downloadPDF = async (progress: ProgressState) => {
                 await updateCellOutputsWithScreenshots({
-                  takeScreenshots: () =>
-                    takeScreenshots({ progress, snappy: false }),
+                  takeScreenshots: () => takeScreenshots({ progress }),
                   updateCellOutputs,
                 });
                 await downloadAsPDF({

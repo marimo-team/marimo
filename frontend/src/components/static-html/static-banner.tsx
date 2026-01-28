@@ -36,7 +36,7 @@ export const StaticBanner: React.FC = () => {
 
   return (
     <div
-      className="px-4 py-2 bg-(--sky-2) border-b border-(--sky-7) text-(--sky-11) flex justify-between items-center gap-4 no-print text-sm"
+      className="px-4 py-2 bg-(--sky-2) border-b border-(--sky-7) text-(--sky-11) flex justify-between items-center gap-4 print:hidden text-sm"
       data-testid="static-notebook-banner"
     >
       <span>
