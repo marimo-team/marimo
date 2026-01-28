@@ -77,6 +77,7 @@ import {
 } from "@/utils/download";
 import { Filenames } from "@/utils/filenames";
 import { Objects } from "@/utils/objects";
+import type { ProgressState } from "@/utils/progress";
 import { newNotebookURL } from "@/utils/urls";
 import { useRunAllCells } from "../cell/useRunCells";
 import { useChromeActions, useChromeState } from "../chrome/state";
@@ -238,11 +239,12 @@ export function useNotebookActions() {
                 return;
               }
 
-              const downloadPDF = async () => {
-                await updateCellOutputsWithScreenshots(
+              const downloadPDF = async (progress: ProgressState) => {
+                await updateCellOutputsWithScreenshots({
+                  progress,
                   takeScreenshots,
                   updateCellOutputs,
-                );
+                });
                 await downloadAsPDF({
                   filename: filename,
                   webpdf: false,
