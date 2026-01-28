@@ -1,6 +1,5 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { usePrevious } from "@dnd-kit/utilities";
 import { TooltipProvider } from "@radix-ui/react-tooltip";
 import { useAtomValue, useSetAtom } from "jotai";
 import { useEffect } from "react";
@@ -101,14 +100,6 @@ export const EditApp: React.FC<AppProps> = ({
       Paths.basename(filename ?? "") ||
       "Untitled Notebook";
   }, [appConfig.app_title, filename]);
-
-  // Delete column breakpoints if app width changes from "columns"
-  const previousWidth = usePrevious(appConfig.width);
-  useEffect(() => {
-    if (previousWidth === "columns" && appConfig.width !== "columns") {
-      mergeAllColumns();
-    }
-  }, [appConfig.width, previousWidth, mergeAllColumns, numColumns]);
 
   const runStaleCells = useRunStaleCells();
   const runAllCells = useRunAllCells();
