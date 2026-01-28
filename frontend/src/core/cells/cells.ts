@@ -154,6 +154,10 @@ export interface CreateNewCellAction {
   before: boolean;
   /** Initial code content for the new cell */
   code?: string;
+  /** Optional name for the new cell */
+  name?: string;
+  /** Optional cell configuration */
+  config?: CellConfig;
   /** The last executed code for the new cell */
   lastCodeRun?: string;
   /** Timestamp of the last execution */
@@ -182,6 +186,8 @@ const {
       cellId,
       before,
       code,
+      name,
+      config,
       lastCodeRun = null,
       lastExecutionTime = null,
       autoFocus = true,
@@ -221,6 +227,12 @@ const {
     const newCellId = action.newCellId || CellId.create();
     const insertionIndex = before ? cellIndex : cellIndex + 1;
 
+    // Merge provided config with hideCode setting
+    const mergedConfig = createCellConfig({
+      ...config,
+      hide_code: hideCode || config?.hide_code,
+    });
+
     return {
       ...state,
       cellIds: state.cellIds.insertId(newCellId, columnId, insertionIndex),
@@ -229,8 +241,9 @@ const {
         [newCellId]: createCell({
           id: newCellId,
           code,
+          name,
           lastCodeRun,
-          config: createCellConfig({ hide_code: hideCode }),
+          config: mergedConfig,
           lastExecutionTime,
           edited: Boolean(code) && code !== lastCodeRun,
         }),
@@ -364,6 +377,28 @@ const {
         cellId,
         toColumn.id,
         overCellId,
+      ),
+      scrollKey: null,
+    };
+  },
+  moveCellsRelativeTo: (
+    state,
+    action: {
+      cellIds: CellId[];
+      targetCellId: CellId;
+      position: "before" | "after";
+    },
+  ) => {
+    const { cellIds, targetCellId, position } = action;
+    if (cellIds.length === 0) {
+      return state;
+    }
+    return {
+      ...state,
+      cellIds: state.cellIds.moveCellsRelativeTo(
+        cellIds,
+        targetCellId,
+        position,
       ),
       scrollKey: null,
     };

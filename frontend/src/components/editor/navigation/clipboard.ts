@@ -5,15 +5,22 @@ import { z } from "zod";
 import { toast } from "@/components/ui/use-toast";
 import { getNotebook, useCellActions } from "@/core/cells/cells";
 import type { CellId } from "@/core/cells/ids";
+import {
+  usePendingCutActions,
+  usePendingCutState,
+} from "@/core/cells/pending-cut-service";
+import type { CellConfig } from "@/core/network/types";
 import { copyToClipboard } from "@/utils/copy";
 import { Logger } from "@/utils/Logger";
 
 // According to MDN, custom mimetypes should start with "web "
 const MARIMO_CELL_MIMETYPE = "web application/x-marimo-cell";
 
-interface ClipboardCellData {
+export interface ClipboardCellData {
   cells: {
     code: string;
+    name?: string;
+    config?: CellConfig;
   }[];
   version: "1.0";
 }
@@ -22,19 +29,23 @@ const ClipboardCellDataSchema = z.object({
   cells: z.array(
     z.object({
       code: z.string(),
+      name: z.string().optional(),
+      config: z
+        .object({
+          column: z.union([z.number(), z.null()]).optional(),
+          disabled: z.boolean().optional(),
+          hide_code: z.boolean().optional(),
+        })
+        .optional(),
     }),
   ),
   version: z.literal("1.0"),
 });
 
-// NOTE: We don't support Cut yet. We can wait for feedback before implementing.
-// It is a bit more complex as will need to:
-// - include id, outputs, and name
-// - delete the existing cell, but don't place on the undo stack
-// - don't want to invalidate downstream cells
-
 export function useCellClipboard() {
   const actions = useCellActions();
+  const pendingCutActions = usePendingCutActions();
+  const pendingCutState = usePendingCutState();
 
   const copyCells = useEvent(async (cellIds: CellId[]) => {
     const notebook = getNotebook();
@@ -49,7 +60,11 @@ export function useCellClipboard() {
 
     try {
       const clipboardData: ClipboardCellData = {
-        cells: cells.map((cell) => ({ code: cell.code })),
+        cells: cells.map((cell) => ({
+          code: cell.code,
+          name: cell.name,
+          config: cell.config,
+        })),
         version: "1.0",
       };
 
@@ -79,12 +94,87 @@ export function useCellClipboard() {
     }
   });
 
+  const cutCells = useEvent(async (cellIds: CellId[]) => {
+    const notebook = getNotebook();
+    const cells = cellIds
+      .map((cellId) => notebook.cellData[cellId])
+      .filter(Boolean);
+
+    if (cells.length === 0) {
+      // No cells to cut
+      return;
+    }
+
+    try {
+      const clipboardData: ClipboardCellData = {
+        cells: cells.map((cell) => ({
+          code: cell.code,
+          name: cell.name,
+          config: cell.config,
+        })),
+        version: "1.0",
+      };
+
+      // Create plain text representation (joined by newlines)
+      const plainText = cells.map((cell) => cell.code).join("\n\n");
+
+      // Create clipboard item with both custom mimetype and plain text
+      const clipboardItem = new ClipboardItemBuilder()
+        .add(MARIMO_CELL_MIMETYPE, clipboardData)
+        .add("text/plain", plainText)
+        .build();
+
+      await navigator.clipboard.write([clipboardItem]);
+
+      // Mark cells as pending cut instead of deleting immediately
+      pendingCutActions.markForCut({ cellIds, clipboardData });
+      toastCutSuccess(cells.length);
+    } catch (error) {
+      Logger.error("Failed to cut cells to clipboard", error);
+
+      // Fallback to simple text copy
+      try {
+        const clipboardData: ClipboardCellData = {
+          cells: cells.map((cell) => ({
+            code: cell.code,
+            name: cell.name,
+            config: cell.config,
+          })),
+          version: "1.0",
+        };
+        const plainText = cells.map((cell) => cell.code).join("\n\n");
+        await copyToClipboard(plainText);
+        // Mark cells as pending cut instead of deleting immediately
+        pendingCutActions.markForCut({ cellIds, clipboardData });
+        toastCutSuccess(cells.length);
+      } catch {
+        toastError();
+      }
+    }
+  });
+
   interface PasteOptions {
     before?: boolean;
   }
 
   const pasteAtCell = useEvent(async (cellId: CellId, opts?: PasteOptions) => {
     const { before = false } = opts ?? {};
+
+    // Check if we have pending cut cells (internal move)
+    if (pendingCutState.cellIds.size > 0) {
+      const pendingCellIds = [...pendingCutState.cellIds];
+
+      actions.moveCellsRelativeTo({
+        cellIds: pendingCellIds,
+        targetCellId: cellId,
+        position: before ? "before" : "after",
+      });
+
+      pendingCutActions.clear();
+      toastPasteSuccess(pendingCellIds.length);
+      return;
+    }
+
     try {
       const clipboardItems = await navigator.clipboard.read();
 
@@ -106,12 +196,14 @@ export function useCellClipboard() {
 
             // Create new cells with the copied data before/after the current cell
             const currentCellId = cellId;
-            const reversedCells = clipboardData.cells.reverse();
+            const reversedCells = [...clipboardData.cells].reverse();
             for (const cell of reversedCells) {
               actions.createNewCell({
                 cellId: currentCellId,
                 before,
                 code: cell.code,
+                name: cell.name,
+                config: cell.config,
                 autoFocus: true,
               });
             }
@@ -143,7 +235,9 @@ export function useCellClipboard() {
 
   return {
     copyCells,
+    cutCells,
     pasteAtCell,
+    clearPendingCut: pendingCutActions.clear,
   };
 }
 
@@ -152,6 +246,22 @@ const toastSuccess = (cellLength: number) => {
   toast({
     title: `${cellText} copied`,
     description: `${cellText} ${cellLength === 1 ? "has" : "have"} been copied to clipboard.`,
+  });
+};
+
+const toastCutSuccess = (cellLength: number) => {
+  const cellText = cellLength === 1 ? "Cell" : `${cellLength} cells`;
+  toast({
+    title: `${cellText} marked for cut`,
+    description: `${cellText} will be moved on paste.`,
+  });
+};
+
+const toastPasteSuccess = (cellLength: number) => {
+  const cellText = cellLength === 1 ? "Cell" : `${cellLength} cells`;
+  toast({
+    title: `${cellText} moved`,
+    description: `${cellText} ${cellLength === 1 ? "has" : "have"} been moved.`,
   });
 };
 

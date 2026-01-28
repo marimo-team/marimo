@@ -869,6 +869,67 @@ export class MultiColumn<T> {
     return new MultiColumn(newColumns);
   }
 
+  /**
+   * Move multiple cells to be immediately before (or after) a target cell.
+   * Cells are inserted in their original order.
+   *
+   * @throws Error if any cellId is not found in any column.
+   * If targetId is among the moved cells, cells are inserted at the end of the target column.
+   */
+  moveCellsRelativeTo(
+    cellIds: T[],
+    targetId: T,
+    position: "before" | "after",
+  ): MultiColumn<T> {
+    if (cellIds.length === 0) {
+      return this;
+    }
+
+    const cellIdSet = new Set(cellIds);
+    const targetColumn = this.findWithId(targetId);
+    const targetColIndex = this.indexOfOrThrow(targetColumn.id);
+
+    // Collect nodes to move
+    const nodesToMove: TreeNode<T>[] = [];
+    for (const id of cellIds) {
+      const col = this.findWithId(id);
+      const node = col.nodes.find((n) => n.value === id);
+      if (!node) {
+        throw new Error(`Node ${id} not found in column ${col.id}`);
+      }
+      nodesToMove.push(node);
+    }
+
+    // Remove moved cells from all columns
+    const columnsWithRemovals = this.columns.map((col) =>
+      col.withNodes(col.nodes.filter((n) => !cellIdSet.has(n.value))),
+    );
+
+    // Find target index in the cleaned column
+    const cleanedTargetCol = columnsWithRemovals[targetColIndex];
+    let insertIndex = cleanedTargetCol.nodes.findIndex(
+      (n) => n.value === targetId,
+    );
+
+    // If target was one of the moved cells, insert at end
+    if (insertIndex === -1) {
+      insertIndex = cleanedTargetCol.nodes.length;
+    } else if (position === "after") {
+      insertIndex += 1;
+    }
+
+    // Insert all moved nodes at target position
+    const newTargetNodes = arrayInsertMany(
+      cleanedTargetCol.nodes,
+      insertIndex,
+      nodesToMove,
+    );
+    columnsWithRemovals[targetColIndex] =
+      cleanedTargetCol.withNodes(newTargetNodes);
+
+    return new MultiColumn(columnsWithRemovals);
+  }
+
   indexOfOrThrow(id: CellColumnId): number {
     const index = this.columns.findIndex((c) => c.id === id);
     if (index === -1) {

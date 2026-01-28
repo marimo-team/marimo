@@ -82,6 +82,7 @@ import {
   useTemporarilyShownCode,
   useTemporarilyShownCodeActions,
 } from "./navigation/state";
+import { useIsPendingCut } from "@/core/cells/pending-cut-service";
 import { type OnRefactorWithAI, OutputArea } from "./Output";
 import { ConsoleOutput } from "./output/console/ConsoleOutput";
 import { CellDragHandle, SortableCell } from "./SortableCell";
@@ -387,6 +388,7 @@ const EditableCellComponent = ({
   const deleteCell = useDeleteCellCallback();
   const runCell = useRunCell(cellId);
   const { sendStdin } = useRequestClient();
+  const isPendingCut = useIsPendingCut(cellId);
 
   const [languageAdapter, setLanguageAdapter] = useState<LanguageAdapterType>();
 
@@ -539,6 +541,7 @@ const EditableCellComponent = ({
     stale: cellRuntime.status === "disabled-transitively",
     borderless:
       isMarkdownCodeHidden && hasOutput && !navigationProps["data-selected"],
+    "pending-cut": isPendingCut,
   });
 
   const handleRefactorWithAI: OnRefactorWithAI = useEvent(
