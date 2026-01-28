@@ -94,6 +94,8 @@ function prepareCellElementForScreenshot(
   };
 }
 
+const THRESHOLD_TIME_MS = 500;
+
 /**
  * Capture a cell output as a PNG data URL.
  *
@@ -121,7 +123,14 @@ export async function getImageDataUrlForCell(
   try {
     const startTime = Date.now();
     const dataUrl = await toPng(element);
-    Logger.debug("Time taken for toPng", Date.now() - startTime, "ms");
+    const timeTaken = Date.now() - startTime;
+    if (timeTaken > THRESHOLD_TIME_MS) {
+      Logger.debug(
+        "toPng operation for element",
+        element,
+        `took ${timeTaken} ms (exceeds threshold)`,
+      );
+    }
     return dataUrl;
   } finally {
     cleanup();
