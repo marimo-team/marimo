@@ -228,6 +228,100 @@ lint = "ruff check --fix"
 lint-unsafe = "ruff check --fix --unsafe-fixes"
 format = "ruff format"
 
+# Fork maintenance scripts - safe git operations for long-running fork
+# See docs/rfc-embedding-marimo-agentic.md for fork strategy documentation
+
+# Check fork status: how far behind/ahead of upstream
+fork-status = """
+echo "=== Fork Status ===" && \
+git fetch upstream --quiet && \
+git fetch origin --quiet && \
+BEHIND=$(git rev-list --count main..upstream/main 2>/dev/null || echo "?") && \
+AHEAD=$(git rev-list --count upstream/main..main 2>/dev/null || echo "?") && \
+echo "main is $BEHIND commits behind upstream/main" && \
+echo "main is $AHEAD commits ahead of upstream/main" && \
+CURRENT=$(git branch --show-current) && \
+if [ "$CURRENT" != "main" ]; then \
+    BRANCH_BEHIND=$(git rev-list --count $CURRENT..main 2>/dev/null || echo "?") && \
+    BRANCH_AHEAD=$(git rev-list --count main..$CURRENT 2>/dev/null || echo "?") && \
+    echo "$CURRENT is $BRANCH_BEHIND commits behind main, $BRANCH_AHEAD commits ahead"; \
+fi
+"""
+
+# Fetch latest from upstream (safe, read-only)
+fork-fetch = "git fetch upstream && git fetch origin && echo 'Fetched from upstream and origin'"
+
+# Sync main with upstream using fast-forward only (SAFE - fails if diverged)
+fork-sync-main = """
+echo "=== Syncing main with upstream (fast-forward only) ===" && \
+git fetch upstream && \
+CURRENT=$(git branch --show-current) && \
+if [ "$CURRENT" = "main" ]; then \
+    git merge upstream/main --ff-only && \
+    echo "main updated successfully"; \
+else \
+    git fetch upstream main:main && \
+    echo "main updated successfully (from branch $CURRENT)"; \
+fi
+"""
+
+# Push main to origin after sync (requires fork-sync-main first)
+fork-push-main = """
+echo "=== Pushing main to origin ===" && \
+git fetch upstream --quiet && \
+BEHIND=$(git rev-list --count main..upstream/main 2>/dev/null) && \
+if [ "$BEHIND" != "0" ]; then \
+    echo "ERROR: main is $BEHIND commits behind upstream. Run 'hatch run fork-sync-main' first." && exit 1; \
+fi && \
+git push origin main && \
+echo "main pushed to origin successfully"
+"""
+
+# Rebase current feature branch onto main (interactive confirmation recommended)
+fork-rebase-branch = """
+CURRENT=$(git branch --show-current) && \
+if [ "$CURRENT" = "main" ]; then \
+    echo "ERROR: Cannot rebase main. Switch to a feature branch first." && exit 1; \
+fi && \
+echo "=== Rebasing $CURRENT onto main ===" && \
+echo "This will rewrite history on branch: $CURRENT" && \
+git fetch origin --quiet && \
+git rebase main && \
+echo "Rebase complete. Review changes, then run 'hatch run fork-push-branch' to push."
+"""
+
+# Push feature branch with --force-with-lease (SAFE - fails if remote has new commits)
+fork-push-branch = """
+CURRENT=$(git branch --show-current) && \
+if [ "$CURRENT" = "main" ]; then \
+    echo "ERROR: Use 'hatch run fork-push-main' for main branch." && exit 1; \
+fi && \
+echo "=== Pushing $CURRENT with --force-with-lease ===" && \
+git push origin $CURRENT --force-with-lease && \
+echo "$CURRENT pushed to origin successfully"
+"""
+
+# Full sync workflow: fetch, sync main, rebase current branch
+fork-full-sync = """
+echo "=== Full Fork Sync ===" && \
+hatch run fork-fetch && \
+hatch run fork-sync-main && \
+CURRENT=$(git branch --show-current) && \
+if [ "$CURRENT" != "main" ]; then \
+    echo "" && \
+    echo "To rebase your feature branch, run:" && \
+    echo "  hatch run fork-rebase-branch" && \
+    echo "  hatch run fork-push-branch"; \
+fi
+"""
+
+# Show recent upstream commits not yet in main
+fork-upstream-log = """
+git fetch upstream --quiet && \
+echo "=== Recent upstream commits not in main ===" && \
+git log main..upstream/main --oneline -20
+"""
+
 [tool.hatch.envs.typecheck]
 python = "3.12"
 installer = "uv"

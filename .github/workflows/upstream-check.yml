@@ -1,0 +1,129 @@
+# Check for upstream updates from marimo-team/marimo
+# Runs weekly and creates an issue if fork is behind
+name: Check Upstream
+
+on:
+  schedule:
+    - cron: '0 9 * * 1'  # Weekly Monday 9am UTC
+  workflow_dispatch:  # Allow manual trigger
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Add upstream remote
+        run: |
+          git remote add upstream https://github.com/marimo-team/marimo.git || true
+          git fetch upstream
+
+      - name: Check for upstream updates
+        id: check
+        run: |
+          BEHIND=$(git rev-list --count main..upstream/main)
+          echo "behind=$BEHIND" >> $GITHUB_OUTPUT
+
+          if [ "$BEHIND" -gt 0 ]; then
+            echo "::warning::Fork is $BEHIND commits behind upstream"
+
+            # Get recent upstream commits for the issue body
+            COMMITS=$(git log main..upstream/main --oneline -10)
+            echo "commits<<EOF" >> $GITHUB_OUTPUT
+            echo "$COMMITS" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create or update issue
+        if: steps.check.outputs.behind > 0
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const behind = ${{ steps.check.outputs.behind }};
+            const commits = `${{ steps.check.outputs.commits }}`;
+
+            const title = `Fork is ${behind} commits behind upstream`;
+            const body = `## Upstream Sync Required
+
+            This fork is **${behind} commits** behind [marimo-team/marimo](https://github.com/marimo-team/marimo).
+
+            ### Recent upstream commits (last 10):
+            \`\`\`
+            ${commits}
+            \`\`\`
+
+            ### Sync Instructions
+
+            \`\`\`bash
+            # Sync main with upstream
+            uvx hatch run fork-sync-main
+            uvx hatch run fork-push-main
+
+            # If on a feature branch, rebase it
+            uvx hatch run fork-rebase-branch
+            uvx hatch run fork-push-branch
+            \`\`\`
+
+            See [FORK.md](../blob/main/FORK.md) for full documentation.
+
+            ---
+            *This issue is automatically updated weekly.*`;
+
+            // Look for existing open issue
+            const issues = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'upstream-sync'
+            });
+
+            const existingIssue = issues.data.find(i => i.title.includes('commits behind upstream'));
+
+            if (existingIssue) {
+              // Update existing issue
+              await github.rest.issues.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: existingIssue.number,
+                title: title,
+                body: body
+              });
+              console.log(`Updated issue #${existingIssue.number}`);
+            } else {
+              // Create new issue
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: title,
+                body: body,
+                labels: ['upstream-sync']
+              });
+              console.log('Created new upstream sync issue');
+            }
+
+      - name: Close issue if synced
+        if: steps.check.outputs.behind == 0
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issues = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'upstream-sync'
+            });
+
+            for (const issue of issues.data) {
+              if (issue.title.includes('commits behind upstream')) {
+                await github.rest.issues.update({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: issue.number,
+                  state: 'closed',
+                  body: issue.body + '\n\n---\n**Resolved:** Fork is now in sync with upstream.'
+                });
+                console.log(`Closed issue #${issue.number}`);
+              }
+            }
