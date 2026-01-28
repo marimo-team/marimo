@@ -111,23 +111,11 @@ export async function downloadCellOutputAsImage(
   cellId: CellId,
   filename: string,
 ) {
-  const element = findElementForCell(cellId);
-  if (!element) {
+  const dataUrl = await getImageDataUrlForCell(cellId);
+  if (!dataUrl) {
     return;
   }
-
-  // Cell outputs that are iframes
-  const iframeDataUrl = await captureIframeAsImage(element);
-  if (iframeDataUrl) {
-    downloadByURL(iframeDataUrl, Filenames.toPNG(filename));
-    return;
-  }
-
-  await downloadHTMLAsImage({
-    element,
-    filename,
-    prepare: () => prepareCellElementForScreenshot(element),
-  });
+  return downloadByURL(dataUrl, Filenames.toPNG(filename));
 }
 
 export const ADD_PRINTING_CLASS = (): (() => void) => {
@@ -151,10 +139,6 @@ export async function downloadHTMLAsImage(opts: {
   let cleanup: (() => void) | undefined;
   if (prepare) {
     cleanup = prepare(element);
-  } else {
-    // When no prepare function is provided (e.g., downloading full notebook),
-    // add body.printing ourselves
-    document.body.classList.add("printing");
   }
 
   try {

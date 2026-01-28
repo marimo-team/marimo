@@ -115,7 +115,7 @@ export const Sidebar: React.FC = () => {
   ]);
 
   return (
-    <div className="h-full pt-4 pb-1 px-1 flex flex-col items-start text-muted-foreground text-md select-none print:hidden text-sm z-50 dark:bg-background print:hidden hide-on-fullscreen">
+    <div className="h-full pt-4 pb-1 px-1 flex flex-col items-start text-muted-foreground text-md select-none text-sm z-50 dark:bg-background print:hidden hide-on-fullscreen">
       <ReorderableList<PanelDescriptor>
         value={sidebarItems}
         setValue={handleSetSidebarItems}

@@ -165,6 +165,7 @@ export const defaultHtmlToImageOptions: HtmlToImageOptions = {
   onImageErrorHandler: (event) => {
     Logger.error("Error loading image:", event);
   },
+  includeStyleProperties: necessaryStyleProperties,
 };
 
 /**
@@ -177,7 +178,6 @@ export async function toPng(
 ): Promise<string> {
   return htmlToImageToPng(element, {
     ...defaultHtmlToImageOptions,
-    includeStyleProperties: necessaryStyleProperties,
     ...options,
   });
 }

@@ -409,7 +409,7 @@ describe("downloadCellOutputAsImage", () => {
   it("should apply cell-specific preparation", async () => {
     vi.mocked(toPng).mockImplementation(async () => {
       // Check that cell-specific classes are applied
-      expect(mockElement.style.overflow).toBe("auto");
+      expect(mockElement.style.overflow).toBe("visible");
       return mockDataUrl;
     });
 

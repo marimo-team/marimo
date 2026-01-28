@@ -280,7 +280,7 @@ const ActionButtons: React.FC<{
     <div
       data-testid="notebook-actions-dropdown"
       className={cn(
-        "right-0 top-0 z-50 m-4 print:hidden flex gap-2 print:hidden",
+        "right-0 top-0 z-50 m-4 print:hidden flex gap-2",
         // If the notebook is static, we have a banner at the top, so
         // we can't use fixed positioning. Ideally this is sticky, but the
         // current dom structure makes that difficult.

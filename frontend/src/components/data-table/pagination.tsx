@@ -65,9 +65,9 @@ export const DataTablePagination = <TData,>({
           <span>{prettyNumber(selected, locale)} selected</span>
           <Button
             size="xs"
-            data-testid="select-all-button print:hidden"
+            data-testid="select-all-button"
             variant="link"
-            className="h-4"
+            className="h-4 print:hidden"
             onMouseDown={Events.preventFocus}
             onClick={() => {
               if (onSelectAllRowsChange) {
@@ -89,9 +89,9 @@ export const DataTablePagination = <TData,>({
           <span>{prettyNumber(selected, locale)} selected</span>
           <Button
             size="xs"
-            data-testid="clear-selection-button print:hidden"
+            data-testid="clear-selection-button"
             variant="link"
-            className="h-4"
+            className="h-4 print:hidden"
             onMouseDown={Events.preventFocus}
             onClick={() => {
               if (!isCellSelection) {
