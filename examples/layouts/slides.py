@@ -10,7 +10,7 @@
 
 import marimo
 
-__generated_with = "0.17.4"
+__generated_with = "0.19.6"
 app = marimo.App(width="medium", layout_file="layouts/slides.slides.json")
 
 
@@ -99,29 +99,27 @@ def _(mo):
 
 @app.cell
 def _(mo, print_and_run):
-    mo.md(
-        f"""
-        When printing a floating-point number to the output, the fractional parts can be difficult to read and compare. For example, the following query returns three numbers between 1 and 8 but their printed widths are very different due to their fractional parts.
+    mo.md(f"""
+    When printing a floating-point number to the output, the fractional parts can be difficult to read and compare. For example, the following query returns three numbers between 1 and 8 but their printed widths are very different due to their fractional parts.
 
-        {print_and_run("SELECT x FROM 'example.csv';")}
+    {print_and_run("SELECT x FROM 'example.csv';")}
 
-        By casting a column to a DECIMAL with a fixed number of digits after the decimal point, we can pretty-print it as follows:
+    By casting a column to a DECIMAL with a fixed number of digits after the decimal point, we can pretty-print it as follows:
 
-        {print_and_run('''
-        SELECT x::DECIMAL(15, 3) AS x
-        FROM 'example.csv';
-        ''')}
+    {print_and_run('''
+    SELECT x::DECIMAL(15, 3) AS x
+    FROM 'example.csv';
+    ''')}
 
-        A typical alternative solution is to use the printf or format functions, e.g.:
+    A typical alternative solution is to use the printf or format functions, e.g.:
 
-        {print_and_run('''
-        SELECT printf('%.3f', x)
-        FROM 'example.csv';
-        ''')}
+    {print_and_run('''
+    SELECT printf('%.3f', x)
+    FROM 'example.csv';
+    ''')}
 
-        However, these approaches require us to specify a formatting string that's easy to forget. What's worse, the statement above returns string values, which makes subsequent operations (e.g., sorting) more difficult. Therefore, unless keeping the full precision of the floating-point numbers is a concern, casting to DECIMAL values should be the preferred solution for most use cases.
-        """
-    )
+    However, these approaches require us to specify a formatting string that's easy to forget. What's worse, the statement above returns string values, which makes subsequent operations (e.g., sorting) more difficult. Therefore, unless keeping the full precision of the floating-point numbers is a concern, casting to DECIMAL values should be the preferred solution for most use cases.
+    """)
     return
 
 
@@ -135,31 +133,29 @@ def _(mo):
 
 @app.cell
 def _(mo, print_and_run):
-    mo.md(
-        f"""
-        To copy the schema from a table without copying its data, we can use LIMIT 0.
+    mo.md(f"""
+    To copy the schema from a table without copying its data, we can use LIMIT 0.
 
-        {print_and_run('''
-        CREATE OR REPLACE TABLE example AS
-            FROM 'example.csv';
-        CREATE OR REPLACE TABLE tbl AS
-            FROM example
-            LIMIT 0;
-        ''')}
+    {print_and_run('''
+    CREATE OR REPLACE TABLE example AS
+        FROM 'example.csv';
+    CREATE OR REPLACE TABLE tbl AS
+        FROM example
+        LIMIT 0;
+    ''')}
 
-        This will result in an empty table with the same schema as the source table:
+    This will result in an empty table with the same schema as the source table:
 
-        {print_and_run('DESCRIBE tbl;')}
+    {print_and_run('DESCRIBE tbl;')}
 
-        This will return the schema of the table.
+    This will return the schema of the table.
 
-        ```sql
-        CREATE TABLE example(s VARCHAR, x DOUBLE);
-        ```
+    ```sql
+    CREATE TABLE example(s VARCHAR, x DOUBLE);
+    ```
 
-        After editing the table’s name (e.g., example to tbl), this query can be used to create a new table with the same schema.
-        """
-    )
+    After editing the table’s name (e.g., example to tbl), this query can be used to create a new table with the same schema.
+    """)
     return
 
 
@@ -179,28 +175,26 @@ def _(mo):
 
 @app.cell
 def _(mo, print_and_run, rerun):
-    mo.md(
-        f"""
-        Sometimes, we need to introduce some entropy into the ordering of the data by shuffling it. To shuffle non-deterministically, we can simply sort on a random value provided the random() function:
+    mo.md(f"""
+    Sometimes, we need to introduce some entropy into the ordering of the data by shuffling it. To shuffle non-deterministically, we can simply sort on a random value provided the random() function:
 
-        {rerun}
+    {rerun}
 
-        {print_and_run('''
-        FROM 'example.csv' ORDER BY random();
-        ''')}
+    {print_and_run('''
+    FROM 'example.csv' ORDER BY random();
+    ''')}
 
-        Shuffling deterministically is a bit more tricky. To achieve this, we can order on the hash, of the rowid pseudocolumn. Note that this column is only available in physical tables, so we first have to load the CSV in a table, then perform the shuffle operation as follows:
+    Shuffling deterministically is a bit more tricky. To achieve this, we can order on the hash, of the rowid pseudocolumn. Note that this column is only available in physical tables, so we first have to load the CSV in a table, then perform the shuffle operation as follows:
 
-        {rerun}
+    {rerun}
 
-        {print_and_run('''
-        CREATE OR REPLACE TABLE example AS FROM 'example.csv';
-        FROM example ORDER BY hash(rowid + 42);
-        ''')}
+    {print_and_run('''
+    CREATE OR REPLACE TABLE example AS FROM 'example.csv';
+    FROM example ORDER BY hash(rowid + 42);
+    ''')}
 
-        Note that the + 42 is only necessary to nudge the first row from its position – as hash(0) returns 0, the smallest possible value, using it for ordering leaves the first row in its place.
-        """
-    )
+    Note that the + 42 is only necessary to nudge the first row from its position – as hash(0) returns 0, the smallest possible value, using it for ordering leaves the first row in its place.
+    """)
     return
 
 
