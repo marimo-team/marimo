@@ -11,9 +11,6 @@ overrides:
   form-data: '>=4.0.5'
 
 patchedDependencies:
-  html-to-image@1.11.13:
-    hash: eced1b085df9a49a9c81d730049c8285c754fc89e68672c14722337c75d72eaf
-    path: patches/html-to-image@1.11.13.patch
   react-plotly.js:
     hash: e65888c226f3ef8f42923cbb3b026d2f4811da3e96fa0d7dee3cb62df02c6189
     path: patches/react-plotly.js.patch
@@ -361,9 +358,6 @@ importers:
       html-react-parser:
         specifier: ^5.2.11
         version: 5.2.11(@types/react@19.2.7)(react@19.2.3)
-      html-to-image:
-        specifier: 1.11.13
-        version: 1.11.13(patch_hash=eced1b085df9a49a9c81d730049c8285c754fc89e68672c14722337c75d72eaf)
       humanize-duration:
         specifier: ^3.33.2
         version: 3.33.2
@@ -403,6 +397,9 @@ importers:
       mermaid:
         specifier: ^11.12.2
         version: 11.12.2
+      modern-screenshot:
+        specifier: ^4.6.8
+        version: 4.6.8
       partysocket:
         specifier: 1.1.10
         version: 1.1.10
@@ -6554,9 +6551,6 @@ packages:
     resolution: {integrity: sha512-ztqyC3kLto0e9WbNp0aeP+M3kTt+nbaIveGmUxAtZa+8iFgKLUOD4YKM5j+f3QD89bra7UeumolZHKuOXnTmeQ==}
     engines: {node: '>=8'}
 
-  html-to-image@1.11.13:
-    resolution: {integrity: sha512-cuOPoI7WApyhBElTTb9oqsawRvZ0rHhaHwghRLlTuffoD1B2aDemlCruLeZrUIIdvG7gs9xeELEPm6PhuASqrg==}
-
   html-url-attributes@3.0.1:
     resolution: {integrity: sha512-ol6UPyBWqsrO6EJySPz2O7ZSr856WDrEzM5zMqp+FJJLGMW35cLYmmZnl0vztAZxRUoNZJFTCohfjuIJ8I4QBQ==}
 
@@ -7563,6 +7557,9 @@ packages:
 
   mlly@1.7.4:
     resolution: {integrity: sha512-qmdSIPC4bDJXgZTCR7XosJiNKySV7O215tsPtDN9iEO/7q/76b/ijtgRu/+epFXSJhijtTCCGp3DWS549P3xKw==}
+
+  modern-screenshot@4.6.8:
+    resolution: {integrity: sha512-GJkv/yWPOJTlxj1LZDU2k474cDyOWL+LVaqTdDWQwQ5d8zIuTz1892+1cV9V0ZpK6HYZFo/+BNLBbierO9d2TA==}
 
   moo@0.5.2:
     resolution: {integrity: sha512-iSAJLHYKnX41mKcJKjqvnAN9sf0LMDTXDEvFv+ffuRR9a1MIuXLjMNL6EsnDHSkKLTWNqQQ5uo61P4EbU4NU+Q==}
@@ -17458,8 +17455,6 @@ snapshots:
 
   html-tags@3.3.1: {}
 
-  html-to-image@1.11.13(patch_hash=eced1b085df9a49a9c81d730049c8285c754fc89e68672c14722337c75d72eaf): {}
-
   html-url-attributes@3.0.1: {}
 
   html-void-elements@3.0.0: {}
@@ -18663,6 +18658,8 @@ snapshots:
       pathe: 2.0.3
       pkg-types: 1.3.1
       ufo: 1.6.1
+
+  modern-screenshot@4.6.8: {}
 
   moo@0.5.2: {}
 
