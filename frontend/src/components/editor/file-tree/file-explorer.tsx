@@ -510,7 +510,7 @@ const Node = ({ node, style, dragHandle }: NodeRendererProps<FileInfo>) => {
     return (
       <DropdownMenuContent
         align="end"
-        className="no-print w-[220px]"
+        className="print:hidden w-[220px]"
         onClick={(e) => e.stopPropagation()}
         onCloseAutoFocus={(e) => e.preventDefault()}
       >

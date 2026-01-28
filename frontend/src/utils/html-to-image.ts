@@ -113,10 +113,9 @@ export const necessaryStyleProperties = [
   "clip-path",
 
   // Overflow & Visibility
-  // We don't include overflow properties because they can include scrollbars
-  // "overflow",
-  // "overflow-x",
-  // "overflow-y",
+  "overflow",
+  "overflow-x",
+  "overflow-y",
   "visibility",
 
   // SVG
@@ -149,12 +148,11 @@ export const defaultHtmlToImageOptions: HtmlToImageOptions = {
   filter: (node) => {
     try {
       if ("classList" in node) {
-        // Filter out matplotlib toolbars
-        if (node.classList.contains("mpl-toolbar")) {
-          return false;
-        }
-
-        if (node.classList.contains("no-print")) {
+        const classes = node.classList;
+        if (
+          classes.contains("mpl-toolbar") ||
+          classes.contains("print:hidden")
+        ) {
           return false;
         }
       }
@@ -176,11 +174,10 @@ export const defaultHtmlToImageOptions: HtmlToImageOptions = {
 export async function toPng(
   element: HTMLElement,
   options?: HtmlToImageOptions,
-  snappy?: boolean,
 ): Promise<string> {
   return htmlToImageToPng(element, {
     ...defaultHtmlToImageOptions,
-    includeStyleProperties: snappy ? necessaryStyleProperties : undefined,
+    includeStyleProperties: necessaryStyleProperties,
     ...options,
   });
 }

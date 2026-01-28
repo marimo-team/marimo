@@ -1,22 +1,8 @@
 @reference "../globals.css";
 
-/* Hide on print
-To hide an element on print, add the class `no-print` to it.
-When printing, the class `printing` is added to the body element to enable this rule. */
-body.printing .no-print {
-  display: none !important;
-}
-
 body.printing #App {
   /* Full screen print */
   height: fit-content !important;
-}
-
-/* When printing the output of a cell, this unset the max-height set by the notebook to capture the full output */
-.printing-output {
-  max-height: none !important;
-
-  @apply bg-background;
 }
 
 @media print {

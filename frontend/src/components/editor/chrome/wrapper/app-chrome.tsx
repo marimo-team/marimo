@@ -227,7 +227,7 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
     <PanelResizeHandle
       onDragging={handleDragging}
       className={cn(
-        "border-border no-print z-10",
+        "border-border print:hidden z-10",
         isSidebarOpen ? "resize-handle" : "resize-handle-collapsed",
         "vertical",
       )}
@@ -238,7 +238,7 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
     <PanelResizeHandle
       onDragging={handleDragging}
       className={cn(
-        "border-border no-print z-20",
+        "border-border print:hidden z-20",
         isDeveloperPanelOpen ? "resize-handle" : "resize-handle-collapsed",
         "horizontal",
       )}
@@ -382,7 +382,7 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
       collapsedSize={0}
       collapsible={true}
       className={cn(
-        "dark:bg-(--slate-1) no-print print:hidden hide-on-fullscreen",
+        "dark:bg-(--slate-1) print:hidden hide-on-fullscreen",
         isSidebarOpen && "border-r border-l border-(--slate-7)",
       )}
       minSize={10}
@@ -427,7 +427,7 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
       collapsedSize={0}
       collapsible={true}
       className={cn(
-        "dark:bg-(--slate-1) no-print print:hidden hide-on-fullscreen",
+        "dark:bg-(--slate-1) print:hidden hide-on-fullscreen",
         isDeveloperPanelOpen && "border-t",
       )}
       minSize={10}

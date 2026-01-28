@@ -47,49 +47,20 @@ function findElementForCell(cellId: CellId): HTMLElement | undefined {
 }
 
 /**
- * Reference counter for body.printing class to handle concurrent screenshot captures.
- * Only adds the class when count goes 0→1, only removes when count goes 1→0.
- */
-let bodyPrintingRefCount = 0;
-
-function acquireBodyPrinting() {
-  bodyPrintingRefCount++;
-  if (bodyPrintingRefCount === 1) {
-    document.body.classList.add("printing");
-  }
-}
-
-function releaseBodyPrinting() {
-  bodyPrintingRefCount--;
-  if (bodyPrintingRefCount === 0) {
-    document.body.classList.remove("printing");
-  }
-}
-
-/**
  * Prepare a cell element for screenshot capture.
  *
  * @param element - The cell output element to prepare
- * @param snappy - When true, avoids layout shifts and speeds up the capture.
  * @returns A cleanup function to restore the element's original state
  */
-function prepareCellElementForScreenshot(
-  element: HTMLElement,
-  snappy: boolean,
-) {
-  element.classList.add("printing-output");
-  if (!snappy) {
-    acquireBodyPrinting();
-  }
+function prepareCellElementForScreenshot(element: HTMLElement) {
   const originalOverflow = element.style.overflow;
-  element.style.overflow = "auto";
+  const maxHeight = element.style.maxHeight;
+  element.style.overflow = "visible";
+  element.style.maxHeight = "none";
 
   return () => {
-    element.classList.remove("printing-output");
-    if (!snappy) {
-      releaseBodyPrinting();
-    }
     element.style.overflow = originalOverflow;
+    element.style.maxHeight = maxHeight;
   };
 }
 
@@ -99,12 +70,10 @@ const THRESHOLD_TIME_MS = 500;
  * Capture a cell output as a PNG data URL.
  *
  * @param cellId - The ID of the cell to capture
- * @param snappy - When true, uses a faster method to capture the image. Avoids layout shifts.
  * @returns The PNG as a data URL, or undefined if the cell element wasn't found
  */
 export async function getImageDataUrlForCell(
   cellId: CellId,
-  snappy = false,
 ): Promise<string | undefined> {
   const element = findElementForCell(cellId);
   if (!element) {
@@ -116,11 +85,11 @@ export async function getImageDataUrlForCell(
     return iframeDataUrl;
   }
 
-  const cleanup = prepareCellElementForScreenshot(element, snappy);
+  const cleanup = prepareCellElementForScreenshot(element);
 
   try {
     const startTime = Date.now();
-    const dataUrl = await toPng(element, undefined, snappy);
+    const dataUrl = await toPng(element);
     const timeTaken = Date.now() - startTime;
     if (timeTaken > THRESHOLD_TIME_MS) {
       Logger.debug(
@@ -157,9 +126,16 @@ export async function downloadCellOutputAsImage(
   await downloadHTMLAsImage({
     element,
     filename,
-    prepare: () => prepareCellElementForScreenshot(element, false),
+    prepare: () => prepareCellElementForScreenshot(element),
   });
 }
+
+export const ADD_PRINTING_CLASS = (): (() => void) => {
+  document.body.classList.add("printing");
+  return () => {
+    document.body.classList.remove("printing");
+  };
+};
 
 export async function downloadHTMLAsImage(opts: {
   element: HTMLElement;

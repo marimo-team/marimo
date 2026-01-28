@@ -65,7 +65,7 @@ export const DataTablePagination = <TData,>({
           <span>{prettyNumber(selected, locale)} selected</span>
           <Button
             size="xs"
-            data-testid="select-all-button"
+            data-testid="select-all-button print:hidden"
             variant="link"
             className="h-4"
             onMouseDown={Events.preventFocus}
@@ -89,7 +89,7 @@ export const DataTablePagination = <TData,>({
           <span>{prettyNumber(selected, locale)} selected</span>
           <Button
             size="xs"
-            data-testid="clear-selection-button"
+            data-testid="clear-selection-button print:hidden"
             variant="link"
             className="h-4"
             onMouseDown={Events.preventFocus}
@@ -139,7 +139,7 @@ export const DataTablePagination = <TData,>({
 
   const renderPageSizeSelector = () => {
     return (
-      <div className="flex items-center gap-1 text-xs whitespace-nowrap mr-1">
+      <div className="flex items-center gap-1 text-xs whitespace-nowrap mr-1 print:hidden">
         <Select
           value={pageSize.toString()}
           onValueChange={(value) => table.setPageSize(Number(value))}
@@ -173,7 +173,7 @@ export const DataTablePagination = <TData,>({
         {showPageSizeSelector && renderPageSizeSelector()}
       </div>
 
-      <div className="flex items-end space-x-2">
+      <div className="flex items-end space-x-2 print:hidden">
         <Button
           size="xs"
           variant="outline"

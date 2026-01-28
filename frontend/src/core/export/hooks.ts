@@ -1,9 +1,10 @@
 /* Copyright 2026 Marimo. All rights reserved. */
-import { atom, useAtom, useAtomValue } from "jotai";
+import { useAtomValue } from "jotai";
 import type { MimeType } from "@/components/editor/Output";
 import { toast } from "@/components/ui/use-toast";
 import { appConfigAtom } from "@/core/config/config";
 import { useInterval } from "@/hooks/useInterval";
+import { AsyncCaptureTracker } from "@/utils/async-capture-tracker";
 import { getImageDataUrlForCell } from "@/utils/download";
 import { Logger } from "@/utils/Logger";
 import { Objects } from "@/utils/objects";
@@ -67,7 +68,6 @@ export function useAutoExport() {
       const screenshotFn = () =>
         takeScreenshots({
           progress: ProgressState.indeterminate(),
-          snappy: true,
         });
       await updateCellOutputsWithScreenshots({
         takeScreenshots: screenshotFn,
@@ -89,9 +89,6 @@ export function useAutoExport() {
   );
 }
 
-// We track cells that need screenshots, these will be exported to IPYNB
-const richCellsToOutputAtom = atom<Record<CellId, unknown>>({});
-
 // MIME types to capture screenshots for
 const MIME_TYPES_TO_CAPTURE_SCREENSHOTS = new Set<MimeType>([
   "text/html",
@@ -101,63 +98,102 @@ const MIME_TYPES_TO_CAPTURE_SCREENSHOTS = new Set<MimeType>([
   "application/vnd.vega.v6+json",
 ]);
 
-type ScreenshotResults = Record<CellId, ["image/png", string]>;
+type ScreenshotResult = ["image/png", string];
+type ScreenshotResults = Record<CellId, ScreenshotResult>;
+
+// Only marks cells as captured after successful screenshot.
+export const captureTracker = new AsyncCaptureTracker<
+  CellId,
+  ScreenshotResult
+>();
+
+interface UseEnrichCellOutputsOptions {
+  progress: ProgressState;
+}
 
 /**
  * Take screenshots of cells with HTML outputs. These images will be sent to the backend to be exported to IPYNB.
  * @returns A map of cell IDs to their screenshots data.
  */
-export function useEnrichCellOutputs() {
-  const [richCellsOutput, setRichCellsOutput] = useAtom(richCellsToOutputAtom);
+export function useEnrichCellOutputs(): (
+  opts: UseEnrichCellOutputsOptions,
+) => Promise<ScreenshotResults> {
   const cellRuntimes = useAtomValue(cellsRuntimeAtom);
 
-  return async ({
-    progress,
-    snappy,
-  }: {
-    progress: ProgressState;
-    snappy: boolean;
-  }): Promise<ScreenshotResults> => {
-    const trackedCellsOutput: Record<CellId, unknown> = {};
+  return async (
+    opts: UseEnrichCellOutputsOptions,
+  ): Promise<ScreenshotResults> => {
+    const { progress } = opts;
+
+    // Prune tracked state for cells that no longer exist
+    const currentCellIds = new Set(Objects.keys(cellRuntimes));
+    captureTracker.prune(currentCellIds);
 
     const cellsToCaptureScreenshot: [CellId, unknown][] = [];
+    const inFlightWaiters: {
+      cellId: CellId;
+      promise: Promise<ScreenshotResult | undefined>;
+    }[] = [];
+
     for (const [cellId, runtime] of Objects.entries(cellRuntimes)) {
       const outputData = runtime.output?.data;
-      const outputHasChanged = richCellsOutput[cellId] !== outputData;
-      // Track latest output for this cell
-      trackedCellsOutput[cellId] = outputData;
       if (
         runtime.output?.mimetype &&
         MIME_TYPES_TO_CAPTURE_SCREENSHOTS.has(runtime.output.mimetype) &&
-        outputData &&
-        outputHasChanged
+        outputData
       ) {
-        cellsToCaptureScreenshot.push([cellId, runtime]);
+        if (captureTracker.needsCapture(cellId, outputData)) {
+          cellsToCaptureScreenshot.push([cellId, outputData]);
+        } else {
+          // If already in-flight with the same value, await its result
+          const promise = captureTracker.waitForInFlight(cellId, outputData);
+          if (promise) {
+            inFlightWaiters.push({ cellId, promise });
+          }
+        }
       }
     }
-    // Always update tracked outputs, this ensures data is fresh for the next run
-    setRichCellsOutput(trackedCellsOutput);
 
-    if (cellsToCaptureScreenshot.length === 0) {
+    if (cellsToCaptureScreenshot.length === 0 && inFlightWaiters.length === 0) {
       return {};
     }
 
-    // Capture screenshots
-    const total = cellsToCaptureScreenshot.length;
-    progress.addTotal(total);
+    // Start the progress bar for new captures only
+    if (cellsToCaptureScreenshot.length > 0) {
+      progress.addTotal(cellsToCaptureScreenshot.length);
+    }
+
+    // Capture screenshots — each key gets its own AbortSignal so
+    // aborting one cell does not affect the others.
     const results: ScreenshotResults = {};
-    for (const [cellId] of cellsToCaptureScreenshot) {
+    for (const [cellId, outputData] of cellsToCaptureScreenshot) {
+      const handle = captureTracker.startCapture(cellId, outputData);
       try {
-        const dataUrl = await getImageDataUrlForCell(cellId, snappy);
-        if (!dataUrl) {
-          Logger.error(`Failed to capture screenshot for cell ${cellId}`);
+        const dataUrl = await getImageDataUrlForCell(cellId);
+        if (handle.signal.aborted) {
           continue;
         }
-        results[cellId] = ["image/png", dataUrl];
+        if (!dataUrl) {
+          Logger.error(`Failed to capture screenshot for cell ${cellId}`);
+          handle.markFailed();
+          continue;
+        }
+        const result: ScreenshotResult = ["image/png", dataUrl];
+        results[cellId] = result;
+        handle.markCaptured(result);
       } catch (error) {
         Logger.error(`Error screenshotting cell ${cellId}:`, error);
+        handle.markFailed();
       } finally {
         progress.increment(1);
+      }
+    }
+
+    // Await in-flight captures started by concurrent callers
+    for (const { cellId, promise } of inFlightWaiters) {
+      const result = await promise;
+      if (result) {
+        results[cellId] = result;
       }
     }
 
