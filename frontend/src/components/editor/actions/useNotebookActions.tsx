@@ -129,7 +129,7 @@ export function useNotebookActions() {
   const { selectedLayout } = useLayoutState();
   const { setLayoutView } = useLayoutActions();
   const togglePresenting = useTogglePresenting();
-  const takeScreenshots = useEnrichCellOutputs({ snappy: false });
+  const takeScreenshots = useEnrichCellOutputs();
 
   // Fallback: if sharing is undefined, both are enabled by default
   const sharingHtmlEnabled = resolvedConfig.sharing?.html ?? true;
@@ -241,8 +241,8 @@ export function useNotebookActions() {
 
               const downloadPDF = async (progress: ProgressState) => {
                 await updateCellOutputsWithScreenshots({
-                  progress,
-                  takeScreenshots,
+                  takeScreenshots: () =>
+                    takeScreenshots({ progress, snappy: false }),
                   updateCellOutputs,
                 });
                 await downloadAsPDF({
