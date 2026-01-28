@@ -119,7 +119,10 @@ export async function getImageDataUrlForCell(
   const cleanup = prepareCellElementForScreenshot(element, enablePrintMode);
 
   try {
-    return await toPng(element);
+    const startTime = Date.now();
+    const dataUrl = await toPng(element);
+    Logger.debug("Time taken for toPng", Date.now() - startTime, "ms");
+    return dataUrl;
   } finally {
     cleanup();
   }

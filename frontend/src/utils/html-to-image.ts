@@ -13,7 +13,14 @@ export const defaultHtmlToImageOptions: HtmlToImageOptions = {
     try {
       if ("classList" in node) {
         // Filter out matplotlib toolbars
-        return !node.classList.contains("mpl-toolbar");
+        if (node.classList.contains("mpl-toolbar")) {
+          return false;
+        }
+
+        if (node.classList.contains("no-print")) {
+          Logger.debug("Filtering out no-print element:", node);
+          return false;
+        }
       }
       return true;
     } catch (error) {
@@ -30,7 +37,7 @@ export const defaultHtmlToImageOptions: HtmlToImageOptions = {
  * Convert an HTML element to a PNG data URL.
  * This is a wrapper around html-to-image's toPng with default options applied.
  */
-export function toPng(
+export async function toPng(
   element: HTMLElement,
   options?: HtmlToImageOptions,
 ): Promise<string> {
