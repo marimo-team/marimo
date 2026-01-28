@@ -1344,6 +1344,78 @@ components:
       - theme
       title: DisplayConfig
       type: object
+    EmbeddingConfig:
+      description: "Server-controlled embedding restrictions.\n\n    When `enabled`\
+        \ is `True`, panels and features are hidden by default\n    unless explicitly\
+        \ enabled in `panels` and `features`."
+      properties:
+        enabled:
+          type: boolean
+        features:
+          $ref: '#/components/schemas/EmbeddingFeaturesConfig'
+        panels:
+          $ref: '#/components/schemas/EmbeddingPanelConfig'
+      required: []
+      title: EmbeddingConfig
+      type: object
+    EmbeddingFeaturesConfig:
+      description: "Feature availability in embedding mode.\n\n    All features are\
+        \ disabled by default when embedding mode is enabled.\n    Set a feature to\
+        \ `True` to make it available."
+      properties:
+        app_config:
+          type: boolean
+        command_palette:
+          type: boolean
+        feedback:
+          type: boolean
+        keyboard_shortcuts:
+          type: boolean
+        settings:
+          type: boolean
+        sharing:
+          type: boolean
+      required: []
+      title: EmbeddingFeaturesConfig
+      type: object
+    EmbeddingPanelConfig:
+      description: "Panel visibility in embedding mode.\n\n    All panels are hidden\
+        \ by default when embedding mode is enabled.\n    Set a panel to `True` to\
+        \ make it visible."
+      properties:
+        ai:
+          type: boolean
+        cache:
+          type: boolean
+        dependencies:
+          type: boolean
+        documentation:
+          type: boolean
+        errors:
+          type: boolean
+        files:
+          type: boolean
+        logs:
+          type: boolean
+        outline:
+          type: boolean
+        packages:
+          type: boolean
+        scratchpad:
+          type: boolean
+        secrets:
+          type: boolean
+        snippets:
+          type: boolean
+        terminal:
+          type: boolean
+        tracing:
+          type: boolean
+        variables:
+          type: boolean
+      required: []
+      title: EmbeddingPanelConfig
+      type: object
     ExecuteCellCommand:
       description: "Execute a single cell.\n\n    Executes a cell with the provided\
         \ code. Dependent cells may be\n    re-executed based on the reactive execution\
@@ -3693,7 +3765,9 @@ components:
         \ Python's webbrowser module (eg, `\"firefox\"` or `\"chrome\"`)\n    - `follow_symlink`:\
         \ if true, the server will follow symlinks it finds\n        inside its static\
         \ assets directory.\n    - `disable_file_downloads`: if true, the file download\
-        \ button will be\n        hidden in the file explorer."
+        \ button will be\n        hidden in the file explorer.\n    - `embedding`:\
+        \ server-controlled embedding restrictions for granular\n        UI panel\
+        \ visibility and feature toggles."
       properties:
         browser:
           anyOf:
@@ -3702,6 +3776,8 @@ components:
           - type: string
         disable_file_downloads:
           type: boolean
+        embedding:
+          $ref: '#/components/schemas/EmbeddingConfig'
         follow_symlink:
           type: boolean
       required:
@@ -4570,7 +4646,7 @@ components:
       type: object
 info:
   title: marimo API
-  version: 0.19.4
+  version: 0.19.6
 openapi: 3.1.0
 paths:
   /@file/{filename_and_length}:

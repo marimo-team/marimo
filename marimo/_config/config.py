@@ -229,6 +229,62 @@ class FormattingConfig(TypedDict):
 
 
 @dataclass
+class EmbeddingPanelConfig(TypedDict, total=False):
+    """Panel visibility in embedding mode.
+
+    All panels are hidden by default when embedding mode is enabled.
+    Set a panel to `True` to make it visible.
+    """
+
+    # Sidebar panels
+    files: bool
+    variables: bool
+    packages: bool
+    ai: bool
+    outline: bool
+    documentation: bool
+    dependencies: bool
+    snippets: bool
+    # Developer panel
+    errors: bool
+    scratchpad: bool
+    tracing: bool
+    secrets: bool
+    logs: bool
+    terminal: bool
+    cache: bool
+
+
+@dataclass
+class EmbeddingFeaturesConfig(TypedDict, total=False):
+    """Feature availability in embedding mode.
+
+    All features are disabled by default when embedding mode is enabled.
+    Set a feature to `True` to make it available.
+    """
+
+    settings: bool
+    sharing: bool
+    feedback: bool
+    command_palette: bool
+    app_config: bool
+    keyboard_shortcuts: bool
+
+
+@dataclass
+class EmbeddingConfig(TypedDict, total=False):
+    """Server-controlled embedding restrictions.
+
+    When `enabled` is `True`, panels and features are hidden by default
+    unless explicitly enabled in `panels` and `features`.
+    """
+
+    enabled: bool
+    panels: EmbeddingPanelConfig
+    features: EmbeddingFeaturesConfig
+
+
+@dataclass
 class ServerConfig(TypedDict):
     """Configuration for the server.
 
@@ -240,11 +296,14 @@ class ServerConfig(TypedDict):
         inside its static assets directory.
     - `disable_file_downloads`: if true, the file download button will be
         hidden in the file explorer.
+    - `embedding`: server-controlled embedding restrictions for granular
+        UI panel visibility and feature toggles.
     """
 
     browser: Union[Literal["default"], str]
     follow_symlink: bool
     disable_file_downloads: NotRequired[bool]
+    embedding: NotRequired[EmbeddingConfig]
 
 
 @dataclass
