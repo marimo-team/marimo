@@ -407,7 +407,7 @@ const ChatPanelBody = () => {
   const [activeChat, setActiveChat] = useAtom(activeChatAtom);
   const [input, setInput] = useState("");
   const [newThreadInput, setNewThreadInput] = useState("");
-  const { files, setFiles, onAddFiles, removeFile } = useFileState();
+  const { files, addFiles, clearFiles, removeFile } = useFileState();
   const newThreadInputRef = useRef<ReactCodeMirrorRef>(null);
   const newMessageInputRef = useRef<ReactCodeMirrorRef>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -555,7 +555,7 @@ const ChatPanelBody = () => {
         ...(fileParts ?? []),
       ],
     });
-    setFiles([]);
+    clearFiles();
     setInput("");
   };
 
@@ -563,7 +563,7 @@ const ChatPanelBody = () => {
     setActiveChat(null);
     setInput("");
     setNewThreadInput("");
-    setFiles([]);
+    clearFiles();
   });
 
   const handleMessageEdit = useEvent((index: number, newValue: string) => {
@@ -594,7 +594,7 @@ const ChatPanelBody = () => {
         files: fileParts,
       });
       setInput("");
-      setFiles([]);
+      clearFiles();
     },
   );
 
@@ -627,7 +627,7 @@ const ChatPanelBody = () => {
       isLoading={isLoading}
       onStop={stop}
       fileInputRef={fileInputRef}
-      onAddFiles={onAddFiles}
+      onAddFiles={addFiles}
       onClose={handleOnCloseThread}
     />
   ) : (
@@ -640,7 +640,7 @@ const ChatPanelBody = () => {
       onStop={stop}
       onClose={() => newMessageInputRef.current?.editor?.blur()}
       fileInputRef={fileInputRef}
-      onAddFiles={onAddFiles}
+      onAddFiles={addFiles}
     />
   );
 

@@ -1,7 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { act, renderHook } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { toast } from "@/components/ui/use-toast";
 import { useFileState } from "../chat-utils";
 
@@ -10,6 +10,10 @@ vi.mock("@/components/ui/use-toast", () => ({
 }));
 
 describe("useFileState", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   it("initializes with no files", () => {
     const { result } = renderHook(() => useFileState());
     expect(result.current.files).toEqual([]);
@@ -20,7 +24,7 @@ describe("useFileState", () => {
     const fileA = { name: "a.txt", size: 10 } as File;
     const fileB = { name: "b.txt", size: 20 } as File;
 
-    act(() => result.current.onAddFiles([fileA, fileB]));
+    act(() => result.current.addFiles([fileA, fileB]));
 
     expect(result.current.files).toEqual([fileA, fileB]);
     expect(toast).not.toHaveBeenCalled();
@@ -31,8 +35,8 @@ describe("useFileState", () => {
     const fileA = { name: "a.txt", size: 10 } as File;
     const fileB = { name: "b.txt", size: 20 } as File;
 
-    act(() => result.current.onAddFiles([fileA]));
-    act(() => result.current.onAddFiles([fileB]));
+    act(() => result.current.addFiles([fileA]));
+    act(() => result.current.addFiles([fileB]));
 
     expect(result.current.files).toEqual([fileA, fileB]);
   });
@@ -41,8 +45,8 @@ describe("useFileState", () => {
     const { result } = renderHook(() => useFileState());
     const fileA = { name: "a.txt", size: 10 } as File;
 
-    act(() => result.current.onAddFiles([fileA]));
-    act(() => result.current.onAddFiles([]));
+    act(() => result.current.addFiles([fileA]));
+    act(() => result.current.addFiles([]));
 
     expect(result.current.files).toEqual([fileA]);
   });
@@ -54,11 +58,12 @@ describe("useFileState", () => {
       size: 1024 * 1024 * 50 + 1, // > 50MB
     } as File;
 
-    act(() => result.current.onAddFiles([bigFile]));
+    act(() => result.current.addFiles([bigFile]));
 
     expect(result.current.files).toEqual([]);
     expect(toast).toHaveBeenCalledWith({
-      title: "File size exceeds 50MB limit",
+      title: "Attachments too large",
+      description: "The total size must be under 50 MB.",
       variant: "danger",
     });
   });
@@ -68,9 +73,21 @@ describe("useFileState", () => {
     const fileA = { name: "a.txt", size: 10 } as File;
     const fileB = { name: "b.txt", size: 20 } as File;
 
-    act(() => result.current.onAddFiles([fileA, fileB]));
+    act(() => result.current.addFiles([fileA, fileB]));
     act(() => result.current.removeFile(fileA));
 
     expect(result.current.files).toEqual([fileB]);
+  });
+
+  it("clears all files", () => {
+    const { result } = renderHook(() => useFileState());
+    const fileA = { name: "a.txt", size: 10 } as File;
+    const fileB = { name: "b.txt", size: 20 } as File;
+
+    act(() => result.current.addFiles([fileA, fileB]));
+    expect(result.current.files).toEqual([fileA, fileB]);
+
+    act(() => result.current.clearFiles());
+    expect(result.current.files).toEqual([]);
   });
 });

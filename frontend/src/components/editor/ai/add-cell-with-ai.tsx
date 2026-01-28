@@ -104,7 +104,7 @@ export const AddCellWithAI: React.FC<{
   const inputRef = useRef<ReactCodeMirrorRef>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { files, onAddFiles, removeFile } = useFileState();
+  const { files, addFiles, removeFile } = useFileState();
   const aiConfig = useAtomValue(aiAtom);
 
   const { createNewCell, prepareForRun } = useCellActions();
@@ -289,7 +289,7 @@ export const AddCellWithAI: React.FC<{
           <AttachFileButton
             fileInputRef={fileInputRef}
             isLoading={isLoading}
-            onAddFiles={onAddFiles}
+            onAddFiles={addFiles}
           />
         )}
         <SendButton

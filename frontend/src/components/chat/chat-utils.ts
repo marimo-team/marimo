@@ -216,30 +216,27 @@ export function hasPendingToolCalls(messages: UIMessage[]): boolean {
 export function useFileState() {
   const [files, setFiles] = useState<File[]>([]);
 
-  const onAddFiles = useEvent((newFiles: File[]) => {
+  const addFiles = useEvent((newFiles: File[]) => {
     if (newFiles.length === 0) {
       return;
     }
 
-    let fileSize = 0;
-    for (const file of newFiles) {
-      fileSize += file.size;
-    }
-
-    if (fileSize > MAX_ATTACHMENT_SIZE) {
+    const totalSize = newFiles.reduce((size, file) => size + file.size, 0);
+    if (totalSize > MAX_ATTACHMENT_SIZE) {
       toast({
-        title: "File size exceeds 50MB limit",
+        title: "Attachments too large",
+        description: "The total size must be under 50 MB.",
         variant: "danger",
       });
       return;
     }
 
-    setFiles((prev) => [...(prev ?? []), ...newFiles]);
+    setFiles((prev) => [...prev, ...newFiles]);
   });
 
-  const removeFile = (fileToRemove: File) => {
-    setFiles((prev) => (prev ?? []).filter((f) => f !== fileToRemove));
-  };
+  const clearFiles = () => setFiles([]);
+  const removeFile = (fileToRemove: File) =>
+    setFiles((prev) => prev.filter((f) => f !== fileToRemove));
 
-  return { files, setFiles, onAddFiles, removeFile };
+  return { files, addFiles, clearFiles, removeFile };
 }
