@@ -32,6 +32,9 @@ export const Objects = {
   keys<K extends string | number>(obj: Record<K, unknown>): K[] {
     return Object.keys(obj) as K[];
   },
+  size<K extends string | number>(obj: Record<K, unknown>): number {
+    return Object.keys(obj).length;
+  },
   /**
    * Type-safe keyBy
    */

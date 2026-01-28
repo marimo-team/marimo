@@ -7,6 +7,7 @@ import { useInterval } from "@/hooks/useInterval";
 import { getImageDataUrlForCell } from "@/utils/download";
 import { Logger } from "@/utils/Logger";
 import { Objects } from "@/utils/objects";
+import { ProgressState } from "@/utils/progress";
 import { cellsRuntimeAtom } from "../cells/cells";
 import type { CellId } from "../cells/ids";
 import { connectionAtom } from "../network/connection";
@@ -63,10 +64,11 @@ export function useAutoExport() {
 
   useInterval(
     async () => {
-      await updateCellOutputsWithScreenshots(
+      await updateCellOutputsWithScreenshots({
+        progress: ProgressState.indeterminate(),
         takeScreenshots,
         updateCellOutputs,
-      );
+      });
       await autoExportAsIPYNB({
         download: false,
       });
@@ -95,6 +97,8 @@ const MIME_TYPES_TO_CAPTURE_SCREENSHOTS = new Set<MimeType>([
   "application/vnd.vega.v6+json",
 ]);
 
+type ScreenshotResults = Record<CellId, ["image/png", string]>;
+
 /**
  * Take screenshots of cells with HTML outputs. These images will be sent to the backend to be exported to IPYNB.
  * @returns A map of cell IDs to their screenshots data.
@@ -103,7 +107,7 @@ export function useEnrichCellOutputs() {
   const [richCellsOutput, setRichCellsOutput] = useAtom(richCellsToOutputAtom);
   const cellRuntimes = useAtomValue(cellsRuntimeAtom);
 
-  return async (): Promise<Record<CellId, ["image/png", string]>> => {
+  return async (progress: ProgressState): Promise<ScreenshotResults> => {
     const trackedCellsOutput: Record<CellId, unknown> = {};
 
     const cellsToCaptureScreenshot: [CellId, unknown][] = [];
@@ -129,43 +133,40 @@ export function useEnrichCellOutputs() {
     }
 
     // Capture screenshots
-    const results = await Promise.all(
-      cellsToCaptureScreenshot.map(async ([cellId]) => {
-        try {
-          const dataUrl = await getImageDataUrlForCell(cellId, false);
-          if (!dataUrl) {
-            Logger.error(`Failed to capture screenshot for cell ${cellId}`);
-            return null;
-          }
-          return [cellId, ["image/png", dataUrl]] as [
-            CellId,
-            ["image/png", string],
-          ];
-        } catch (error) {
-          Logger.error(`Error screenshotting cell ${cellId}:`, error);
-          return null;
+    const total = cellsToCaptureScreenshot.length;
+    progress.addTotal(total);
+    const results: ScreenshotResults = {};
+    for (const [cellId] of cellsToCaptureScreenshot) {
+      try {
+        const dataUrl = await getImageDataUrlForCell(cellId, false);
+        if (!dataUrl) {
+          Logger.error(`Failed to capture screenshot for cell ${cellId}`);
+          continue;
         }
-      }),
-    );
+        results[cellId] = ["image/png", dataUrl];
+      } catch (error) {
+        Logger.error(`Error screenshotting cell ${cellId}:`, error);
+      } finally {
+        progress.increment(1);
+      }
+    }
 
-    return Objects.fromEntries(
-      results.filter(
-        (result): result is [CellId, ["image/png", string]] => result !== null,
-      ),
-    );
+    return results;
   };
 }
 
 /**
  * Utility function to take screenshots of cells with HTML outputs and update the cell outputs.
  */
-export async function updateCellOutputsWithScreenshots(
-  takeScreenshots: () => Promise<Record<CellId, ["image/png", string]>>,
-  updateCellOutputs: (request: UpdateCellOutputsRequest) => Promise<null>,
-) {
+export async function updateCellOutputsWithScreenshots(opts: {
+  progress: ProgressState;
+  takeScreenshots: (progress: ProgressState) => Promise<ScreenshotResults>;
+  updateCellOutputs: (request: UpdateCellOutputsRequest) => Promise<null>;
+}) {
+  const { progress, takeScreenshots, updateCellOutputs } = opts;
   try {
-    const cellIdsToOutput = await takeScreenshots();
-    if (Object.keys(cellIdsToOutput).length > 0) {
+    const cellIdsToOutput = await takeScreenshots(progress);
+    if (Objects.size(cellIdsToOutput) > 0) {
       await updateCellOutputs({ cellIdsToOutput });
     }
   } catch (error) {

@@ -15,8 +15,8 @@
 
 import marimo
 
-__generated_with = "0.19.4"
-app = marimo.App()
+__generated_with = "0.19.6"
+app = marimo.App(auto_download=["ipynb"])
 
 
 @app.cell
