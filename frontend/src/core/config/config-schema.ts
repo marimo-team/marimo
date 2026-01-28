@@ -193,6 +193,40 @@ export const UserConfigSchema = z
     server: z
       .looseObject({
         disable_file_downloads: z.boolean().optional(),
+        embedding: z
+          .looseObject({
+            enabled: z.boolean().optional(),
+            panels: z
+              .looseObject({
+                files: z.boolean().optional(),
+                variables: z.boolean().optional(),
+                packages: z.boolean().optional(),
+                ai: z.boolean().optional(),
+                outline: z.boolean().optional(),
+                documentation: z.boolean().optional(),
+                dependencies: z.boolean().optional(),
+                snippets: z.boolean().optional(),
+                errors: z.boolean().optional(),
+                scratchpad: z.boolean().optional(),
+                tracing: z.boolean().optional(),
+                secrets: z.boolean().optional(),
+                logs: z.boolean().optional(),
+                terminal: z.boolean().optional(),
+                cache: z.boolean().optional(),
+              })
+              .optional(),
+            features: z
+              .looseObject({
+                settings: z.boolean().optional(),
+                sharing: z.boolean().optional(),
+                feedback: z.boolean().optional(),
+                command_palette: z.boolean().optional(),
+                app_config: z.boolean().optional(),
+                keyboard_shortcuts: z.boolean().optional(),
+              })
+              .optional(),
+          })
+          .optional(),
       })
       .prefault(() => ({})),
     diagnostics: z

@@ -9,6 +9,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { useEmbeddingFeature } from "@/core/config/embedding";
 import { Button as EditorButton } from "../editor/inputs/Inputs";
 import { Button } from "../ui/button";
 import {
@@ -33,6 +34,13 @@ export const ConfigButton: React.FC<Props> = ({
   tooltip = "Settings",
 }) => {
   const [settingDialog, setSettingDialog] = useAtom(settingDialogAtom);
+  const settingsEnabled = useEmbeddingFeature("settings");
+  const appConfigEnabled = useEmbeddingFeature("app_config");
+
+  // In embedding mode, if neither settings nor app_config are enabled, hide the button
+  if (!settingsEnabled && !appConfigEnabled) {
+    return null;
+  }
 
   const button = (
     <EditorButton
@@ -59,7 +67,12 @@ export const ConfigButton: React.FC<Props> = ({
     </DialogContent>
   );
 
-  if (!showAppConfig) {
+  // When showAppConfig is false OR app_config embedding feature is disabled,
+  // only show the user settings dialog (if settings feature is enabled)
+  if (!showAppConfig || !appConfigEnabled) {
+    if (!settingsEnabled) {
+      return null;
+    }
     return (
       <Dialog open={settingDialog} onOpenChange={setSettingDialog}>
         <DialogTrigger>{button}</DialogTrigger>
@@ -81,20 +94,26 @@ export const ConfigButton: React.FC<Props> = ({
           onFocusOutside={(evt) => evt.preventDefault()}
         >
           <AppConfigForm />
-          <div className="h-px bg-border my-2" />
-          <Button
-            onClick={() => setSettingDialog(true)}
-            variant="link"
-            className="px-0"
-          >
-            <SettingsIcon strokeWidth={1.8} className="w-4 h-4 mr-2" />
-            User settings
-          </Button>
+          {settingsEnabled && (
+            <>
+              <div className="h-px bg-border my-2" />
+              <Button
+                onClick={() => setSettingDialog(true)}
+                variant="link"
+                className="px-0"
+              >
+                <SettingsIcon strokeWidth={1.8} className="w-4 h-4 mr-2" />
+                User settings
+              </Button>
+            </>
+          )}
         </PopoverContent>
       </Popover>
-      <Dialog open={settingDialog} onOpenChange={setSettingDialog}>
-        {userSettingsDialog}
-      </Dialog>
+      {settingsEnabled && (
+        <Dialog open={settingDialog} onOpenChange={setSettingDialog}>
+          {userSettingsDialog}
+        </Dialog>
+      )}
     </>
   );
 };

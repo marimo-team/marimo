@@ -1,5 +1,51 @@
 @AGENTS.md
 
+## Quality Checks (Required Before Committing)
+
+Every commit must pass all quality gates. Run these commands before `/checkpoint` or `/ship`:
+
+```bash
+# Run ALL checks (recommended)
+make py-check && make fe-check
+
+# Or run individually:
+make py-check    # Python: typos, copyright, lint, format, typecheck
+make fe-check    # Frontend: biome lint, eslint, stylelint, typecheck
+```
+
+### If Python Config Types Change
+
+When modifying `marimo/_config/config.py` (adding TypedDicts, config fields), regenerate the OpenAPI schema:
+
+```bash
+# 1. Generate OpenAPI schema from Python
+python -m marimo development openapi > packages/openapi/api.yaml
+
+# 2. Regenerate TypeScript types
+pnpm --filter @marimo-team/marimo-api codegen
+
+# 3. Run frontend checks to verify types
+make fe-check
+```
+
+### Common Lint Fixes
+
+| Error | Fix |
+|-------|-----|
+| `noUnusedImports` | Remove the unused import |
+| `noUselessFragments` | Replace `<>{children}</>` with `children` |
+| Biome suppression placeholder | Replace `<explanation>` with actual reason |
+
+## Slash Commands
+
+| Command | Description |
+|---------|-------------|
+| `/checkpoint` | Create a local commit with rich context (for saving progress) |
+| `/ship` | Commit, push, and open a PR (for completed work) |
+
+Use `/checkpoint` during development to save progress at natural breakpoints.
+Use `/ship` when work is complete and ready for review.
+
 ## Fork Workflow (try-ama/marimo)
 
 This is a fork of marimo-team/marimo. See [FORK.md](FORK.md) for full documentation.

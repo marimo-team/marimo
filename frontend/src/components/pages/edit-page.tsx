@@ -2,6 +2,7 @@
 
 import { lazy } from "react";
 import type { AppConfig, UserConfig } from "@/core/config/config-schema";
+import { IfEmbeddingFeature } from "@/core/config/IfEmbeddingFeature";
 import { KnownQueryParams } from "@/core/constants";
 import { EditApp } from "@/core/edit-app";
 import { AppChrome } from "../editor/chrome/wrapper/app-chrome";
@@ -25,7 +26,9 @@ const EditPage = (props: Props) => {
     return (
       <>
         <EditApp hideControls={true} {...props} />
-        <LazyCommandPalette />
+        <IfEmbeddingFeature feature="command_palette">
+          <LazyCommandPalette />
+        </IfEmbeddingFeature>
       </>
     );
   }
@@ -33,7 +36,9 @@ const EditPage = (props: Props) => {
   return (
     <AppChrome>
       <EditApp {...props} />
-      <LazyCommandPalette />
+      <IfEmbeddingFeature feature="command_palette">
+        <LazyCommandPalette />
+      </IfEmbeddingFeature>
     </AppChrome>
   );
 };
