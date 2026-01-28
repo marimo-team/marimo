@@ -132,7 +132,7 @@ const LoadingDataEditor = (props: Props) => {
       columnFields={columnFields}
       setColumnFields={setColumnFields}
       editableColumns={props.editableColumns}
-      edits={props.edits.edits} // TODO: This is returning old edits upon refresh
+      edits={props.edits.edits}
       onAddEdits={(edits) => {
         props.onEdits((v) => ({ ...v, edits: [...v.edits, ...edits] }));
       }}
