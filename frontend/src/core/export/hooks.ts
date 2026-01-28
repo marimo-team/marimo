@@ -36,7 +36,7 @@ export function useAutoExport() {
     autoExportAsMarkdown,
     updateCellOutputs,
   } = useRequestClient();
-  const takeScreenshots = useEnrichCellOutputs();
+  const takeScreenshots = useEnrichCellOutputs({ snappy: true });
 
   useInterval(
     async () => {
@@ -103,7 +103,7 @@ type ScreenshotResults = Record<CellId, ["image/png", string]>;
  * Take screenshots of cells with HTML outputs. These images will be sent to the backend to be exported to IPYNB.
  * @returns A map of cell IDs to their screenshots data.
  */
-export function useEnrichCellOutputs() {
+export function useEnrichCellOutputs({ snappy }: { snappy: boolean }) {
   const [richCellsOutput, setRichCellsOutput] = useAtom(richCellsToOutputAtom);
   const cellRuntimes = useAtomValue(cellsRuntimeAtom);
 
@@ -138,7 +138,7 @@ export function useEnrichCellOutputs() {
     const results: ScreenshotResults = {};
     for (const [cellId] of cellsToCaptureScreenshot) {
       try {
-        const dataUrl = await getImageDataUrlForCell(cellId, false);
+        const dataUrl = await getImageDataUrlForCell(cellId, snappy);
         if (!dataUrl) {
           Logger.error(`Failed to capture screenshot for cell ${cellId}`);
           continue;

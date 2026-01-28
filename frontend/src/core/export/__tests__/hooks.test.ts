@@ -100,7 +100,12 @@ describe("useEnrichCellOutputs", () => {
       }),
     );
 
-    const { result } = renderHook(() => useEnrichCellOutputs(), { wrapper });
+    const { result } = renderHook(
+      () => useEnrichCellOutputs({ snappy: false }),
+      {
+        wrapper,
+      },
+    );
 
     const enrichCellOutputs = result.current;
     const output = await enrichCellOutputs(progress);
@@ -132,7 +137,12 @@ describe("useEnrichCellOutputs", () => {
       }),
     );
 
-    const { result } = renderHook(() => useEnrichCellOutputs(), { wrapper });
+    const { result } = renderHook(
+      () => useEnrichCellOutputs({ snappy: false }),
+      {
+        wrapper,
+      },
+    );
 
     const enrichCellOutputs = result.current;
     const output = await enrichCellOutputs(progress);
@@ -145,6 +155,55 @@ describe("useEnrichCellOutputs", () => {
       expect.objectContaining({
         filter: expect.any(Function),
         onImageErrorHandler: expect.any(Function),
+      }),
+    );
+    expect(output).toEqual({
+      [cellId]: ["image/png", mockDataUrl],
+    });
+  });
+
+  it("should pass snappy=true to toPng with includeStyleProperties", async () => {
+    const cellId = "cell-1" as CellId;
+    const mockElement = document.createElement("div");
+    const mockDataUrl = "data:image/png;base64,mockImageData";
+
+    // Mock document.getElementById
+    vi.spyOn(document, "getElementById").mockReturnValue(mockElement);
+    vi.mocked(toPng).mockResolvedValue(mockDataUrl);
+
+    setCellsRuntime(
+      createMockCellRuntimes({
+        [cellId]: {
+          output: {
+            channel: "output",
+            mimetype: "text/html",
+            data: "<div>Chart</div>",
+            timestamp: 0,
+          },
+        },
+      }),
+    );
+
+    const { result } = renderHook(
+      () => useEnrichCellOutputs({ snappy: true }),
+      {
+        wrapper,
+      },
+    );
+
+    const enrichCellOutputs = result.current;
+    const output = await enrichCellOutputs(progress);
+
+    expect(document.getElementById).toHaveBeenCalledWith(
+      CellOutputId.create(cellId),
+    );
+    // When snappy=true, includeStyleProperties should be set
+    expect(toPng).toHaveBeenCalledWith(
+      mockElement,
+      expect.objectContaining({
+        filter: expect.any(Function),
+        onImageErrorHandler: expect.any(Function),
+        includeStyleProperties: expect.any(Array),
       }),
     );
     expect(output).toEqual({
@@ -174,9 +233,12 @@ describe("useEnrichCellOutputs", () => {
       }),
     );
 
-    const { result, rerender } = renderHook(() => useEnrichCellOutputs(), {
-      wrapper,
-    });
+    const { result, rerender } = renderHook(
+      () => useEnrichCellOutputs({ snappy: false }),
+      {
+        wrapper,
+      },
+    );
 
     // First call - should capture
     let enrichCellOutputs = result.current;
@@ -215,7 +277,12 @@ describe("useEnrichCellOutputs", () => {
       }),
     );
 
-    const { result } = renderHook(() => useEnrichCellOutputs(), { wrapper });
+    const { result } = renderHook(
+      () => useEnrichCellOutputs({ snappy: false }),
+      {
+        wrapper,
+      },
+    );
 
     const enrichCellOutputs = result.current;
     const output = await enrichCellOutputs(progress);
@@ -245,7 +312,12 @@ describe("useEnrichCellOutputs", () => {
       }),
     );
 
-    const { result } = renderHook(() => useEnrichCellOutputs(), { wrapper });
+    const { result } = renderHook(
+      () => useEnrichCellOutputs({ snappy: false }),
+      {
+        wrapper,
+      },
+    );
 
     const enrichCellOutputs = result.current;
     const output = await enrichCellOutputs(progress);
@@ -294,7 +366,12 @@ describe("useEnrichCellOutputs", () => {
       }),
     );
 
-    const { result } = renderHook(() => useEnrichCellOutputs(), { wrapper });
+    const { result } = renderHook(
+      () => useEnrichCellOutputs({ snappy: false }),
+      {
+        wrapper,
+      },
+    );
 
     const enrichCellOutputs = result.current;
     const output = await enrichCellOutputs(progress);
@@ -340,7 +417,12 @@ describe("useEnrichCellOutputs", () => {
       }),
     );
 
-    const { result } = renderHook(() => useEnrichCellOutputs(), { wrapper });
+    const { result } = renderHook(
+      () => useEnrichCellOutputs({ snappy: false }),
+      {
+        wrapper,
+      },
+    );
 
     const enrichCellOutputs = result.current;
     const output = await enrichCellOutputs(progress);
@@ -379,9 +461,12 @@ describe("useEnrichCellOutputs", () => {
       }),
     );
 
-    const { result, rerender } = renderHook(() => useEnrichCellOutputs(), {
-      wrapper,
-    });
+    const { result, rerender } = renderHook(
+      () => useEnrichCellOutputs({ snappy: false }),
+      {
+        wrapper,
+      },
+    );
 
     // First screenshot
     let enrichCellOutputs = result.current;
@@ -447,7 +532,12 @@ describe("useEnrichCellOutputs", () => {
       }),
     );
 
-    const { result } = renderHook(() => useEnrichCellOutputs(), { wrapper });
+    const { result } = renderHook(
+      () => useEnrichCellOutputs({ snappy: false }),
+      {
+        wrapper,
+      },
+    );
 
     const enrichCellOutputs = result.current;
     const output = await enrichCellOutputs(progress);
@@ -472,7 +562,12 @@ describe("useEnrichCellOutputs", () => {
       }),
     );
 
-    const { result } = renderHook(() => useEnrichCellOutputs(), { wrapper });
+    const { result } = renderHook(
+      () => useEnrichCellOutputs({ snappy: false }),
+      {
+        wrapper,
+      },
+    );
 
     const enrichCellOutputs = result.current;
     const output = await enrichCellOutputs(progress);
@@ -504,7 +599,12 @@ describe("useEnrichCellOutputs", () => {
       }),
     );
 
-    const { result } = renderHook(() => useEnrichCellOutputs(), { wrapper });
+    const { result } = renderHook(
+      () => useEnrichCellOutputs({ snappy: false }),
+      {
+        wrapper,
+      },
+    );
 
     const enrichCellOutputs = result.current;
     const output = await enrichCellOutputs(progress);

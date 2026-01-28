@@ -70,16 +70,15 @@ function releaseBodyPrinting() {
  * Prepare a cell element for screenshot capture.
  *
  * @param element - The cell output element to prepare
- * @param enablePrintMode - When true, adds a 'printing' class to the body.
- *   This can cause layout shifts that cause the page to scroll.
+ * @param snappy - When true, avoids layout shifts and speeds up the capture.
  * @returns A cleanup function to restore the element's original state
  */
 function prepareCellElementForScreenshot(
   element: HTMLElement,
-  enablePrintMode: boolean,
+  snappy: boolean,
 ) {
   element.classList.add("printing-output");
-  if (enablePrintMode) {
+  if (!snappy) {
     acquireBodyPrinting();
   }
   const originalOverflow = element.style.overflow;
@@ -87,7 +86,7 @@ function prepareCellElementForScreenshot(
 
   return () => {
     element.classList.remove("printing-output");
-    if (enablePrintMode) {
+    if (!snappy) {
       releaseBodyPrinting();
     }
     element.style.overflow = originalOverflow;
@@ -100,13 +99,12 @@ const THRESHOLD_TIME_MS = 500;
  * Capture a cell output as a PNG data URL.
  *
  * @param cellId - The ID of the cell to capture
- * @param enablePrintMode - When true, enables print mode which adds a 'printing' class to the body.
- *   This can cause layout shifts that cause the page to scroll.
+ * @param snappy - When true, uses a faster method to capture the image. Avoids layout shifts.
  * @returns The PNG as a data URL, or undefined if the cell element wasn't found
  */
 export async function getImageDataUrlForCell(
   cellId: CellId,
-  enablePrintMode = true,
+  snappy = false,
 ): Promise<string | undefined> {
   const element = findElementForCell(cellId);
   if (!element) {
@@ -118,11 +116,11 @@ export async function getImageDataUrlForCell(
     return iframeDataUrl;
   }
 
-  const cleanup = prepareCellElementForScreenshot(element, enablePrintMode);
+  const cleanup = prepareCellElementForScreenshot(element, snappy);
 
   try {
     const startTime = Date.now();
-    const dataUrl = await toPng(element);
+    const dataUrl = await toPng(element, undefined, snappy);
     const timeTaken = Date.now() - startTime;
     if (timeTaken > THRESHOLD_TIME_MS) {
       Logger.debug(
@@ -159,7 +157,7 @@ export async function downloadCellOutputAsImage(
   await downloadHTMLAsImage({
     element,
     filename,
-    prepare: () => prepareCellElementForScreenshot(element, true),
+    prepare: () => prepareCellElementForScreenshot(element, false),
   });
 }
 
