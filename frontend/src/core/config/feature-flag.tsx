@@ -25,7 +25,7 @@ const defaultValues: ExperimentalFeatures = {
   chat_modes: false,
   cache_panel: false,
   external_agents: import.meta.env.DEV,
-  server_side_pdf_export: false,
+  server_side_pdf_export: true,
 };
 
 export function getFeatureFlag<T extends keyof ExperimentalFeatures>(
