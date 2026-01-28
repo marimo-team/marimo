@@ -50,7 +50,7 @@ export const Primary: Story = {
               cellId: "cell2" as CellId,
               message: "String length is too short.".repeat(100),
             },
-            ...Array.from({ length: 100 }).map((_, index) => ({
+            ...Array.from({ length: 100 }).map(() => ({
               timestamp: Date.now(),
               level: "stdout" as const,
               cellId: "cell1" as CellId,

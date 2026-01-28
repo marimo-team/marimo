@@ -2,7 +2,7 @@
 
 import { PopoverAnchor } from "@radix-ui/react-popover";
 import { FilePenIcon } from "lucide-react";
-import { type JSX, useEffect, useRef, useState } from "react";
+import { type JSX, useEffect, useId, useRef, useState } from "react";
 import type { FileInfo } from "@/core/network/types";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { Paths } from "@/utils/paths";
@@ -21,6 +21,8 @@ import "./filename-input.css";
 import { getFeatureFlag } from "@/core/config/feature-flag";
 import { useRequestClient } from "@/core/network/requests";
 import { ErrorBoundary } from "../boundary/ErrorBoundary";
+
+export const FILENAME_INPUT_DATA_ID = "filename-input";
 
 interface FilenameInputProps {
   resetOnBlur?: boolean;
@@ -45,6 +47,7 @@ export const FilenameInput = ({
   const [focused, setFocused] = useState<boolean>(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const skipReset = useRef<boolean>(false);
+  const filenameInputId = useId();
 
   useEffect(() => {
     setSearchValue(initialValue);
@@ -56,7 +59,10 @@ export const FilenameInput = ({
 
   const onBlur = (evt: React.FocusEvent<HTMLInputElement>) => {
     // If we are coming from a click event from inside the popover, don't blur
-    if (evt.relatedTarget?.closest(".filename-input")) {
+    if (
+      evt.relatedTarget instanceof HTMLElement &&
+      evt.relatedTarget.closest(`[data-id="${FILENAME_INPUT_DATA_ID}"]`)
+    ) {
       return;
     }
 
@@ -154,7 +160,8 @@ export const FilenameInput = ({
           onFocus={onFocus}
           onBlur={onBlur}
           shouldFilter={false}
-          id="filename-input"
+          id={filenameInputId}
+          data-id={FILENAME_INPUT_DATA_ID}
           className="bg-transparent group filename-input"
         >
           <CommandList>

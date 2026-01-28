@@ -195,9 +195,11 @@ export class Model<T extends Record<string, any>> implements AnyModel<T> {
           );
           break;
         case "custom":
-          this.listeners["msg:custom"]?.forEach((cb) =>
-            cb(data.content, buffers),
-          );
+          if (this.listeners["msg:custom"]) {
+            for (const cb of this.listeners["msg:custom"]) {
+              cb(data.content, buffers);
+            }
+          }
           break;
         case "open":
           this.updateAndEmitDiffs(
@@ -232,12 +234,18 @@ export class Model<T extends Record<string, any>> implements AnyModel<T> {
     if (!this.listeners[event]) {
       return;
     }
-    this.listeners[event].forEach((cb) => cb(value));
+    for (const cb of this.listeners[event]) {
+      cb(value);
+    }
   }
 
   // Debounce 0 to send off one request in a single frame
   private emitAnyChange = debounce(() => {
-    this.listeners[this.ANY_CHANGE_EVENT]?.forEach((cb) => cb());
+    if (this.listeners[this.ANY_CHANGE_EVENT]) {
+      for (const cb of this.listeners[this.ANY_CHANGE_EVENT]) {
+        cb();
+      }
+    }
   }, 0);
 }
 

@@ -46,6 +46,7 @@
   padding-right: 38px;
 }
 .vega-embed details:not([open]) > :not(summary) {
+  /* biome-ignore lint/complexity/noImportantStyles: required for vega embed */
   display: none !important;
 }
 .vega-embed summary {
@@ -80,6 +81,7 @@
 }
 .vega-embed:hover summary,
 .vega-embed:focus-within summary {
+  /* biome-ignore lint/complexity/noImportantStyles: required for vega embed */
   opacity: 1 !important;
   transition: opacity 0.2s ease;
 }

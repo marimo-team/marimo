@@ -77,10 +77,10 @@ describe("variableCompletionSource", () => {
     const context: Partial<CompletionContext> = {
       pos: 8,
       explicit: false,
-      matchBefore: (expr: RegExp) => ({ from: 7, to: 8, text: "v" }),
+      matchBefore: () => ({ from: 7, to: 8, text: "v" }),
       state,
       aborted: false,
-      tokenBefore: (types: readonly string[]) => null,
+      tokenBefore: () => null,
     };
 
     const result = variableCompletionSource(context as CompletionContext);
@@ -97,10 +97,10 @@ describe("variableCompletionSource", () => {
     const context: Partial<CompletionContext> = {
       pos: 7,
       explicit: false,
-      matchBefore: (expr: RegExp) => ({ from: 6, to: 7, text: "v" }),
+      matchBefore: () => ({ from: 6, to: 7, text: "v" }),
       state,
       aborted: false,
-      tokenBefore: (types: readonly string[]) => null,
+      tokenBefore: () => null,
     };
 
     const result = variableCompletionSource(context as CompletionContext);
@@ -115,10 +115,10 @@ describe("variableCompletionSource", () => {
     const context: Partial<CompletionContext> = {
       pos: 13,
       explicit: false,
-      matchBefore: (expr: RegExp) => ({ from: 12, to: 13, text: "v" }),
+      matchBefore: () => ({ from: 12, to: 13, text: "v" }),
       state,
       aborted: false,
-      tokenBefore: (types: readonly string[]) => null,
+      tokenBefore: () => null,
     };
 
     const result = variableCompletionSource(context as CompletionContext);
@@ -136,7 +136,7 @@ describe("variableCompletionSource", () => {
       matchBefore: () => null,
       state,
       aborted: false,
-      tokenBefore: (types: readonly string[]) => null,
+      tokenBefore: () => null,
     };
 
     const result = variableCompletionSource(context as CompletionContext);
@@ -151,10 +151,10 @@ describe("variableCompletionSource", () => {
     const context: Partial<CompletionContext> = {
       pos: 9,
       explicit: false,
-      matchBefore: (expr: RegExp) => ({ from: 8, to: 9, text: "v" }),
+      matchBefore: () => ({ from: 8, to: 9, text: "v" }),
       state,
       aborted: false,
-      tokenBefore: (types: readonly string[]) => null,
+      tokenBefore: () => null,
     };
 
     const result = variableCompletionSource(context as CompletionContext);

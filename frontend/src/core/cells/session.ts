@@ -42,7 +42,7 @@ function mergeSessionAndNotebookCells(
     return {
       cellIds,
       sessionCellData: new Map(
-        cellIds.map((id, idx) => [id, null] as [CellId, SessionCell | null]),
+        cellIds.map((id) => [id, null] as [CellId, SessionCell | null]),
       ),
       notebookCellData: new Map(
         cellIds.map(

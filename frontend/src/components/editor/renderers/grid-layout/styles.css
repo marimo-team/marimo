@@ -16,7 +16,9 @@
 }
 
 .disable-animation .react-grid-item {
+  /* biome-ignore lint/complexity/noImportantStyles: override react-grid-layout */
   transition: none !important;
+  /* biome-ignore lint/complexity/noImportantStyles: override react-grid-layout */
   transition-property: none !important;
 }
 

@@ -218,6 +218,7 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
   ]);
 
   const appBodyPanel = (
+    // biome-ignore lint/correctness/useUniqueElementIds: Panel id for react-resizable-panels persistence
     <Panel id="app" key="app" className="relative h-full">
       <Suspense>{children}</Suspense>
     </Panel>
@@ -372,6 +373,7 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
   );
 
   const helperPanel = (
+    // biome-ignore lint/correctness/useUniqueElementIds: Panel id for react-resizable-panels persistence
     <Panel
       ref={sidebarRef}
       // This cannot by dynamic and must be constant
@@ -417,6 +419,7 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
   };
 
   const bottomPanel = (
+    // biome-ignore lint/correctness/useUniqueElementIds: Panel id for react-resizable-panels persistence
     <Panel
       ref={developerPanelRef}
       // This cannot by dynamic and must be constant
@@ -529,6 +532,7 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
           <Sidebar />
         </TooltipProvider>
         {helperPanel}
+        {/* biome-ignore lint/correctness/useUniqueElementIds: Panel id for react-resizable-panels persistence */}
         <Panel
           id="app-chrome-body"
           className={cn(isDeveloperPanelOpen && !isSidebarOpen && "border-l")}
