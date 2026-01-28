@@ -100,6 +100,10 @@ export type InvokeAiToolRequest = schemas["InvokeAiToolRequest"];
 export type InvokeAiToolResponse = schemas["InvokeAiToolResponse"];
 export type ClearCacheRequest = schemas["ClearCacheRequest"];
 export type GetCacheInfoRequest = schemas["GetCacheInfoRequest"];
+export type LspHealthResponse = schemas["LspHealthResponse"];
+export type LspRestartRequest = schemas["LspRestartRequest"];
+export type LspRestartResponse = schemas["LspRestartResponse"];
+export type LspServerHealth = schemas["LspServerHealth"];
 
 /**
  * Requests sent to the BE during run/edit mode.

@@ -37,6 +37,7 @@ import {
   type PanelType,
 } from "../types";
 import { BackendConnectionStatus } from "./footer-items/backend-status";
+import { LspStatus } from "./footer-items/lsp-status";
 import { PanelsWrapper } from "./panels";
 import { PendingAICells } from "./pending-ai-cells";
 import { useAiPanelTab } from "./useAiPanel";
@@ -490,6 +491,7 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
           />
           <div className="border-l border-border h-4 mx-1" />
           <BackendConnectionStatus />
+          <LspStatus />
           <div className="flex-1" />
           <Button
             size="xs"

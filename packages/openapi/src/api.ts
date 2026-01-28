@@ -2432,6 +2432,80 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/lsp/health": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description Get health status of all LSP servers */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["LspHealthResponse"];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/lsp/restart": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: {
+        content: {
+          "application/json": components["schemas"]["LspRestartRequest"];
+        };
+      };
+      responses: {
+        /** @description Restart LSP servers */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["LspRestartResponse"];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/packages/add": {
     parameters: {
       query?: never;
@@ -4560,6 +4634,50 @@ export interface components {
     /** ListSecretKeysResponse */
     ListSecretKeysResponse: {
       keys: components["schemas"]["SecretKeysWithProvider"][];
+    };
+    /**
+     * LspHealthResponse
+     * @description Aggregated health response for all LSP servers.
+     */
+    LspHealthResponse: {
+      servers: components["schemas"]["LspServerHealth"][];
+      /** @enum {unknown} */
+      status: "degraded" | "healthy" | "unhealthy";
+    };
+    /**
+     * LspRestartRequest
+     * @description Request to restart LSP servers.
+     */
+    LspRestartRequest: {
+      /** @default null */
+      serverIds?: string[] | null;
+    };
+    /**
+     * LspRestartResponse
+     * @description Response from restart operation.
+     */
+    LspRestartResponse: {
+      /** @default {} */
+      errors?: {
+        [key: string]: string;
+      };
+      restarted: string[];
+      success: boolean;
+    };
+    /**
+     * LspServerHealth
+     * @description Health status for a single LSP server.
+     */
+    LspServerHealth: {
+      /** @default null */
+      error?: string | null;
+      hasFailed: boolean;
+      isResponsive: boolean;
+      isRunning: boolean;
+      /** @default null */
+      lastPingMs?: number | null;
+      port: number;
+      serverId: string;
     };
     /**
      * MCPConfig
