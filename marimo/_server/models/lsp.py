@@ -6,7 +6,7 @@ from typing import Literal, NewType, Optional
 import msgspec
 
 # Type-safe server identifier
-ServerId = NewType("ServerId", str)
+LspServerId = NewType("LspServerId", str)
 
 # Status enum for LSP server health
 LspServerStatus = Literal[
@@ -29,7 +29,7 @@ class LspServerHealth(msgspec.Struct, rename="camel"):
     - unresponsive: process alive but not responding to pings
     """
 
-    server_id: ServerId
+    server_id: LspServerId
     status: LspServerStatus
     port: int
     last_ping_ms: Optional[float] = None
@@ -47,7 +47,7 @@ class LspHealthResponse(msgspec.Struct, rename="camel"):
 class LspRestartRequest(msgspec.Struct, rename="camel"):
     """Request to restart LSP servers."""
 
-    server_ids: Optional[list[ServerId]] = (
+    server_ids: Optional[list[LspServerId]] = (
         None  # None = restart failed servers
     )
 
@@ -56,5 +56,5 @@ class LspRestartResponse(msgspec.Struct, rename="camel"):
     """Response from restart operation."""
 
     success: bool
-    restarted: list[ServerId]  # Server IDs that were restarted
-    errors: dict[ServerId, str] = {}  # Server ID -> error message
+    restarted: list[LspServerId]  # Server IDs that were restarted
+    errors: dict[LspServerId, str] = {}  # Server ID -> error message

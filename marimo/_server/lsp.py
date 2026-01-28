@@ -19,8 +19,8 @@ from marimo._server.models.lsp import (
     LspHealthResponse,
     LspRestartResponse,
     LspServerHealth,
+    LspServerId,
     LspServerStatus,
-    ServerId,
 )
 from marimo._tracer import server_tracer
 from marimo._utils.net import find_free_port
@@ -52,7 +52,7 @@ class LspServer(ABC):
 
     @abstractmethod
     async def restart(
-        self, server_ids: Optional[list[str]] = None
+        self, server_ids: Optional[list[LspServerId]] = None
     ) -> LspRestartResponse:
         pass
 
@@ -244,7 +244,7 @@ class BaseLspServer(LspServer):
             server_status = "running" if is_responsive else "unresponsive"
 
         server_health = LspServerHealth(
-            server_id=ServerId(self.id),
+            server_id=LspServerId(self.id),
             status=server_status,
             port=self.port,
             last_ping_ms=last_ping_ms,
@@ -260,10 +260,10 @@ class BaseLspServer(LspServer):
         return LspHealthResponse(status=status, servers=[server_health])
 
     async def restart(
-        self, server_ids: Optional[list[str]] = None
+        self, server_ids: Optional[list[LspServerId]] = None
     ) -> LspRestartResponse:
         """Restart this LSP server if requested."""
-        sid = ServerId(self.id)
+        sid = LspServerId(self.id)
         # If server_ids specified and this server not in list, skip
         if server_ids is not None and self.id not in server_ids:
             return LspRestartResponse(success=True, restarted=[], errors={})
@@ -624,7 +624,7 @@ class NoopLspServer(LspServer):
         return LspHealthResponse(status="healthy", servers=[])
 
     async def restart(
-        self, server_ids: Optional[list[str]] = None
+        self, server_ids: Optional[list[LspServerId]] = None
     ) -> LspRestartResponse:
         del server_ids  # Unused
         return LspRestartResponse(success=True, restarted=[], errors={})
@@ -730,7 +730,7 @@ class CompositeLspServer(LspServer):
 
             server_healths.append(
                 LspServerHealth(
-                    server_id=ServerId(server_id),
+                    server_id=LspServerId(server_id),
                     status=server_status,
                     port=server.port,
                     last_ping_ms=last_ping_ms,
@@ -752,14 +752,14 @@ class CompositeLspServer(LspServer):
         return LspHealthResponse(status=status, servers=server_healths)
 
     async def restart(
-        self, server_ids: Optional[list[str]] = None
+        self, server_ids: Optional[list[LspServerId]] = None
     ) -> LspRestartResponse:
         """Restart specified or failed LSP servers."""
         config = self.config_reader.get_config()
-        restarted: list[ServerId] = []
-        errors: dict[ServerId, str] = {}
+        restarted: list[LspServerId] = []
+        errors: dict[LspServerId, str] = {}
 
-        servers_to_restart: list[str] = []
+        servers_to_restart: list[LspServerId] = []
         if server_ids is None:
             # Restart all failed/non-responsive servers
             for server_id, server in self.servers.items():
@@ -768,16 +768,16 @@ class CompositeLspServer(LspServer):
                 if isinstance(server, BaseLspServer):
                     is_running = server.is_running()
                     if server.has_failed():
-                        servers_to_restart.append(server_id)
+                        servers_to_restart.append(LspServerId(server_id))
                     elif is_running:
                         is_responsive, _ = await server.ping()
                         if not is_responsive:
-                            servers_to_restart.append(server_id)
+                            servers_to_restart.append(LspServerId(server_id))
         else:
             servers_to_restart = server_ids
 
         for server_id in servers_to_restart:
-            sid = ServerId(server_id)
+            sid = LspServerId(server_id)
             if server_id not in self.servers:
                 errors[sid] = f"Unknown server: {server_id}"
                 continue
