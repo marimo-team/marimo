@@ -18,7 +18,6 @@ export const defaultHtmlToImageOptions: HtmlToImageOptions = {
         }
 
         if (node.classList.contains("no-print")) {
-          Logger.debug("Filtering out no-print element:", node);
           return false;
         }
       }
