@@ -130,16 +130,18 @@ export const GlideDataEditor = <T,>({
 
   // Apply initial edits after data has loaded
   useEffect(() => {
-    // Don't apply if:
-    // - Already applied edits
-    // - Data hasn't loaded yet (still empty)
-    // - No edits to apply
-    if (hasAppliedEdits.current || data.length === 0 || edits.length === 0) {
+    // Don't apply if already applied or data hasn't loaded yet
+    if (hasAppliedEdits.current || data.length === 0) {
       return;
     }
 
-    // Mark as applied so we don't re-apply on subsequent renders
+    // Mark as applied once data loads - prevents re-applying user edits
     hasAppliedEdits.current = true;
+
+    // No initial edits to apply
+    if (edits.length === 0) {
+      return;
+    }
 
     // Group edits by row index to build new rows
     const newRows = new Map<number, Record<string, unknown>>();
@@ -226,7 +228,7 @@ export const GlideDataEditor = <T,>({
     // Force re-render to update the total rows
     rerender();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data.length, edits]);
+  }, [data.length]);
 
   const getCellContent = useCallback(
     (cell: Item): GridCell => {
