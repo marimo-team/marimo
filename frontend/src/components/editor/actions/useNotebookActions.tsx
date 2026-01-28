@@ -241,8 +241,8 @@ export function useNotebookActions() {
 
               const downloadPDF = async (progress: ProgressState) => {
                 await updateCellOutputsWithScreenshots({
-                  progress,
-                  takeScreenshots,
+                  takeScreenshots: () =>
+                    takeScreenshots({ progress, snappy: false }),
                   updateCellOutputs,
                 });
                 await downloadAsPDF({

@@ -64,9 +64,13 @@ export function useAutoExport() {
 
   useInterval(
     async () => {
+      const screenshotFn = () =>
+        takeScreenshots({
+          progress: ProgressState.indeterminate(),
+          snappy: true,
+        });
       await updateCellOutputsWithScreenshots({
-        progress: ProgressState.indeterminate(),
-        takeScreenshots,
+        takeScreenshots: screenshotFn,
         updateCellOutputs,
       });
       await autoExportAsIPYNB({
@@ -107,7 +111,13 @@ export function useEnrichCellOutputs() {
   const [richCellsOutput, setRichCellsOutput] = useAtom(richCellsToOutputAtom);
   const cellRuntimes = useAtomValue(cellsRuntimeAtom);
 
-  return async (progress: ProgressState): Promise<ScreenshotResults> => {
+  return async ({
+    progress,
+    snappy,
+  }: {
+    progress: ProgressState;
+    snappy: boolean;
+  }): Promise<ScreenshotResults> => {
     const trackedCellsOutput: Record<CellId, unknown> = {};
 
     const cellsToCaptureScreenshot: [CellId, unknown][] = [];
@@ -138,7 +148,7 @@ export function useEnrichCellOutputs() {
     const results: ScreenshotResults = {};
     for (const [cellId] of cellsToCaptureScreenshot) {
       try {
-        const dataUrl = await getImageDataUrlForCell(cellId, false);
+        const dataUrl = await getImageDataUrlForCell(cellId, snappy);
         if (!dataUrl) {
           Logger.error(`Failed to capture screenshot for cell ${cellId}`);
           continue;
@@ -159,13 +169,12 @@ export function useEnrichCellOutputs() {
  * Utility function to take screenshots of cells with HTML outputs and update the cell outputs.
  */
 export async function updateCellOutputsWithScreenshots(opts: {
-  progress: ProgressState;
-  takeScreenshots: (progress: ProgressState) => Promise<ScreenshotResults>;
+  takeScreenshots: () => Promise<ScreenshotResults>;
   updateCellOutputs: (request: UpdateCellOutputsRequest) => Promise<null>;
 }) {
-  const { progress, takeScreenshots, updateCellOutputs } = opts;
+  const { takeScreenshots, updateCellOutputs } = opts;
   try {
-    const cellIdsToOutput = await takeScreenshots(progress);
+    const cellIdsToOutput = await takeScreenshots();
     if (Objects.size(cellIdsToOutput) > 0) {
       await updateCellOutputs({ cellIdsToOutput });
     }

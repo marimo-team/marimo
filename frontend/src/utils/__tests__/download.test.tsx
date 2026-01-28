@@ -166,7 +166,7 @@ describe("getImageDataUrlForCell", () => {
     );
   });
 
-  it("should add printing classes before capture when enablePrintMode is true", async () => {
+  it("should add printing classes before capture when snappy is false", async () => {
     vi.mocked(toPng).mockImplementation(async () => {
       // Check classes are applied during capture
       expect(mockElement.classList.contains("printing-output")).toBe(true);
@@ -175,36 +175,36 @@ describe("getImageDataUrlForCell", () => {
       return mockDataUrl;
     });
 
-    await getImageDataUrlForCell("cell-1" as CellId, true);
+    await getImageDataUrlForCell("cell-1" as CellId, false);
   });
 
-  it("should remove printing classes after capture when enablePrintMode is true", async () => {
+  it("should remove printing classes after capture when snappy is false", async () => {
     vi.mocked(toPng).mockResolvedValue(mockDataUrl);
 
-    await getImageDataUrlForCell("cell-1" as CellId, true);
+    await getImageDataUrlForCell("cell-1" as CellId, false);
 
     expect(mockElement.classList.contains("printing-output")).toBe(false);
     expect(document.body.classList.contains("printing")).toBe(false);
   });
 
-  it("should add printing-output but NOT body.printing when enablePrintMode is false", async () => {
+  it("should add printing-output but NOT body.printing when snappy is true", async () => {
     vi.mocked(toPng).mockImplementation(async () => {
       // printing-output should still be added to the element
       expect(mockElement.classList.contains("printing-output")).toBe(true);
-      // but body.printing should NOT be added
+      // but body.printing should NOT be added when snappy mode is on
       expect(document.body.classList.contains("printing")).toBe(false);
       expect(mockElement.style.overflow).toBe("auto");
       return mockDataUrl;
     });
 
-    await getImageDataUrlForCell("cell-1" as CellId, false);
+    await getImageDataUrlForCell("cell-1" as CellId, true);
   });
 
-  it("should cleanup printing-output when enablePrintMode is false", async () => {
+  it("should cleanup printing-output when snappy is true", async () => {
     mockElement.style.overflow = "hidden";
     vi.mocked(toPng).mockResolvedValue(mockDataUrl);
 
-    await getImageDataUrlForCell("cell-1" as CellId, false);
+    await getImageDataUrlForCell("cell-1" as CellId, true);
 
     expect(mockElement.classList.contains("printing-output")).toBe(false);
     expect(document.body.classList.contains("printing")).toBe(false);
@@ -239,7 +239,7 @@ describe("getImageDataUrlForCell", () => {
     expect(mockElement.style.overflow).toBe("scroll");
   });
 
-  it("should maintain body.printing during concurrent captures when enablePrintMode is true", async () => {
+  it("should maintain body.printing during concurrent captures when snappy is false", async () => {
     // Create a second element
     const mockElement2 = document.createElement("div");
     mockElement2.id = CellOutputId.create("cell-2" as CellId);
@@ -273,9 +273,9 @@ describe("getImageDataUrlForCell", () => {
       return mockDataUrl;
     });
 
-    // Start both captures concurrently with enablePrintMode = true
-    const capture1 = getImageDataUrlForCell("cell-1" as CellId, true);
-    const capture2 = getImageDataUrlForCell("cell-2" as CellId, true);
+    // Start both captures concurrently with snappy = false (body.printing should be added)
+    const capture1 = getImageDataUrlForCell("cell-1" as CellId, false);
+    const capture2 = getImageDataUrlForCell("cell-2" as CellId, false);
 
     // Let second capture complete first
     resolveSecond!();
@@ -297,21 +297,21 @@ describe("getImageDataUrlForCell", () => {
     mockElement2.remove();
   });
 
-  it("should not interfere with body.printing during concurrent captures when enablePrintMode is false", async () => {
+  it("should not interfere with body.printing during concurrent captures when snappy is true", async () => {
     // Create a second element
     const mockElement2 = document.createElement("div");
     mockElement2.id = CellOutputId.create("cell-2" as CellId);
     document.body.append(mockElement2);
 
     vi.mocked(toPng).mockImplementation(async () => {
-      // body.printing should never be added when enablePrintMode is false
+      // body.printing should never be added when snappy is true
       expect(document.body.classList.contains("printing")).toBe(false);
       return mockDataUrl;
     });
 
-    // Start both captures concurrently with enablePrintMode = false
-    const capture1 = getImageDataUrlForCell("cell-1" as CellId, false);
-    const capture2 = getImageDataUrlForCell("cell-2" as CellId, false);
+    // Start both captures concurrently with snappy = true (body.printing should NOT be added)
+    const capture1 = getImageDataUrlForCell("cell-1" as CellId, true);
+    const capture2 = getImageDataUrlForCell("cell-2" as CellId, true);
 
     await Promise.all([capture1, capture2]);
 
