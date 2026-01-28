@@ -63,7 +63,7 @@ export const LspStatus: React.FC = () => {
         toast({
           variant: "danger",
           title: "LSP Restart Failed",
-          description: Object.entries(result.errors)
+          description: Object.entries(result.errors ?? {})
             .map(([k, v]) => `${k}: ${v}`)
             .join("\n"),
         });
@@ -117,7 +117,7 @@ export const LspStatus: React.FC = () => {
               }
             >
               {server.isResponsive
-                ? `✓ OK${server.lastPingMs === undefined ? "" : ` (${server.lastPingMs.toFixed(0)}ms)`}`
+                ? `✓ OK${server.lastPingMs == null ? "" : ` (${server.lastPingMs.toFixed(0)}ms)`}`
                 : server.hasFailed
                   ? "✗ Failed"
                   : "✗ Not responding"}
