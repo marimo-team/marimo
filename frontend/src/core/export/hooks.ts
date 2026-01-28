@@ -190,8 +190,12 @@ export function useEnrichCellOutputs(): (
     }
 
     // Await in-flight captures started by concurrent callers
-    for (const { cellId, promise } of inFlightWaiters) {
-      const result = await promise;
+    const settled = await Promise.allSettled(
+      inFlightWaiters.map(({ promise }) => promise),
+    );
+    for (const [i, { cellId }] of inFlightWaiters.entries()) {
+      const result =
+        settled[i].status === "fulfilled" ? settled[i].value : undefined;
       if (result) {
         results[cellId] = result;
       }
