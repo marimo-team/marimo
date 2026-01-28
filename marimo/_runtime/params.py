@@ -35,7 +35,10 @@ if TYPE_CHECKING:
 class QueryParams(State[SerializedQueryParams]):
     """Query parameters for a marimo app."""
 
-    IGNORED_KEYS = {"access_token", "refresh_token", "session_id"}
+    # Keys filtered from user-facing query params.
+    # Note: "venv" and other new notebook params are defined in
+    # marimo/_server/url_params.py:INTERNAL_URL_PARAM_KEYS
+    IGNORED_KEYS = {"access_token", "refresh_token", "session_id", "venv"}
 
     def __init__(
         self,

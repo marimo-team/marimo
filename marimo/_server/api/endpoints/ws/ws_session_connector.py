@@ -184,6 +184,7 @@ class SessionConnector:
             session_consumer=self.handler,
             file_key=self.params.file_key,
             auto_instantiate=self.params.auto_instantiate,
+            new_notebook_params=self.params.new_notebook_params,
         )
 
         self._notify_kernel_ready(new_session)
