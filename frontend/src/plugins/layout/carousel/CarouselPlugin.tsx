@@ -1,11 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import React, { type JSX } from "react";
-import swiperCssNavigation from "swiper/css/navigation?inline";
-import swiperCssPagination from "swiper/css/pagination?inline";
-import swiperCssScrollbar from "swiper/css/scrollbar?inline";
-import swiperCssVirtual from "swiper/css/virtual?inline";
-import swiperCss from "swiper/css?inline";
 import { z } from "zod";
 import slidesCss from "@/components/slides/slides.css?inline";
 import type {
@@ -27,14 +22,8 @@ export class CarouselPlugin implements IStatelessPlugin<Data> {
   });
 
   // TODO: Move async when we support async css
-  cssStyles = [
-    swiperCss,
-    swiperCssVirtual,
-    swiperCssNavigation,
-    swiperCssPagination,
-    swiperCssScrollbar,
-    slidesCss,
-  ];
+  // slidesCss includes swiper css, so we don't need to include it here.
+  cssStyles = [slidesCss];
 
   render(props: IStatelessPluginProps<Data>): JSX.Element {
     return (
