@@ -44,10 +44,17 @@ class BaseLspServer(LspServer):
         self.process: Optional[subprocess.Popen[str]] = None
         self._health_check_task: Optional[asyncio.Task[None]] = None
         self._startup_failed = False
+        self._start_lock = asyncio.Lock()
         self.log_file = _loggers.get_log_directory() / f"{self.id}.log"
 
     @server_tracer.start_as_current_span("lsp_server.start")
     async def start(self) -> Optional[AlertNotification]:
+        # Use lock to prevent race conditions when start() is called concurrently
+        # (e.g., user rapidly toggles LSP settings)
+        async with self._start_lock:
+            return await self._start_internal()
+
+    async def _start_internal(self) -> Optional[AlertNotification]:
         if self.process is not None:
             LOGGER.debug("LSP server already started")
             return None
@@ -194,9 +201,23 @@ class BaseLspServer(LspServer):
             self._health_check_task.cancel()
 
         if self.process is not None:
+            LOGGER.debug("Stopping LSP server at port %s", self.port)
             self.process.terminate()
+            try:
+                # Wait for graceful shutdown with timeout
+                self.process.wait(timeout=5)
+                LOGGER.debug("LSP server stopped gracefully")
+            except subprocess.TimeoutExpired:
+                # Force kill if process doesn't respond to terminate
+                LOGGER.warning(
+                    "LSP server did not stop gracefully, forcing kill"
+                )
+                self.process.kill()
+                try:
+                    self.process.wait(timeout=2)
+                except subprocess.TimeoutExpired:
+                    LOGGER.error("Failed to kill LSP server process")
             self.process = None
-            LOGGER.debug("Stopped LSP server at port %s", self.port)
         else:
             LOGGER.debug("LSP server not running")
 
