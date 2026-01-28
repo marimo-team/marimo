@@ -113,9 +113,10 @@ export const necessaryStyleProperties = [
   "clip-path",
 
   // Overflow & Visibility
-  "overflow",
-  "overflow-x",
-  "overflow-y",
+  // We don't include overflow properties because they can include scrollbars
+  // "overflow",
+  // "overflow-x",
+  // "overflow-y",
   "visibility",
 
   // SVG
