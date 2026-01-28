@@ -87,3 +87,22 @@ export function useDeleteManyCellsCallback() {
     });
   });
 }
+
+export function useDeleteManyCellsSilentCallback() {
+  const { deleteCellSilent } = useCellActions();
+  const { sendDeleteCell } = useRequestClient();
+
+  return useEvent(async (opts: { cellIds: CellId[] }) => {
+    // Can't delete the last cell
+    if (store.get(hasOnlyOneCellAtom)) {
+      return;
+    }
+
+    const { cellIds } = opts;
+    for (const cellId of cellIds) {
+      await sendDeleteCell({ cellId }).then(() => {
+        deleteCellSilent({ cellId });
+      });
+    }
+  });
+}
