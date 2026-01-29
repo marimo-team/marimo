@@ -81,9 +81,83 @@ If conflicts occur during `fork-rebase-branch`:
 - Why it was necessary
 - Files modified: `path/to/file.py`
 
+## Building Frontend Assets
+
+This fork includes a GitHub Actions workflow that builds the frontend assets and creates installable Python wheels. This solves the issue of missing JS/CSS assets when installing directly from git.
+
+### Automatic Builds
+
+The `build-release.yml` workflow runs automatically on:
+- Push to `main` branch
+- Push to feature branches (`ama-*`, `feat/*`, `feature/*`)
+- Pull requests to `main`
+- Manual trigger via GitHub Actions UI
+
+Each build produces:
+- Python wheel (`*.whl`) with bundled frontend assets
+- Source distribution (`*.tar.gz`)
+
+### Getting Built Artifacts
+
+#### From GitHub Actions
+1. Go to **Actions** tab in the repository
+2. Select a successful **Build & Release** workflow run
+3. Download the wheel artifact from the **Artifacts** section
+
+#### Creating a Release
+1. Go to **Actions** → **Build & Release**
+2. Click **Run workflow**
+3. Check "Create a GitHub release"
+4. Click **Run workflow**
+
+This creates a tagged release with downloadable wheel files.
+
+### Local Build
+
+To build the frontend locally:
+
+```bash
+# Ensure prerequisites are installed
+make check-prereqs
+
+# Build frontend assets
+make fe
+
+# Build Python wheel
+uv build --wheel
+
+# The wheel is in dist/
+ls dist/*.whl
+```
+
 ## Installation in Other Projects
 
-### From Branch (Development)
+### From GitHub Release (Recommended)
+
+Install a pre-built wheel directly from a GitHub release:
+
+```bash
+# Install specific release
+pip install "marimo @ https://github.com/try-ama/marimo/releases/download/fork-VERSION/marimo-VERSION-py3-none-any.whl"
+
+# Or with uv
+uv add "marimo @ https://github.com/try-ama/marimo/releases/download/fork-VERSION/marimo-VERSION-py3-none-any.whl"
+```
+
+### From Downloaded Wheel
+
+If you've downloaded a wheel from GitHub Actions artifacts or releases:
+
+```bash
+pip install ./marimo-*.whl
+# or
+uv pip install ./marimo-*.whl
+```
+
+### From Branch (Development - No Frontend Assets)
+
+**Note:** Installing directly from git does NOT include built frontend assets. The application will fall back to CDN assets, which may not include your fork's customizations.
+
 ```toml
 [project]
 dependencies = [
@@ -91,7 +165,7 @@ dependencies = [
 ]
 ```
 
-### From Commit (Production)
+### From Commit (Production - No Frontend Assets)
 ```toml
 [project]
 dependencies = [

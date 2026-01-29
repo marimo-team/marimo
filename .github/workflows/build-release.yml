@@ -1,0 +1,229 @@
+# Build and release workflow for try-ama/marimo fork
+# Builds frontend assets and creates installable Python wheel
+name: Build & Release
+
+on:
+  push:
+    branches:
+      - main
+      - 'ama-*'      # Feature branches
+      - 'feat/*'
+      - 'feature/*'
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:  # Allow manual trigger
+    inputs:
+      create_release:
+        description: 'Create a GitHub release'
+        required: false
+        default: false
+        type: boolean
+
+env:
+  NODE_VERSION: '20'
+  PYTHON_VERSION: '3.12'
+
+jobs:
+  build:
+    name: Build Frontend & Package
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write  # Needed for releases
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for version detection
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+
+      - name: Get pnpm store directory
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+
+      - name: Setup pnpm cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
+      - name: Install Node dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Build frontend
+        run: |
+          echo "Building frontend assets..."
+          export NODE_ENV=production
+          pnpm turbo build --filter @marimo-team/frontend
+
+          echo "Copying assets to marimo/_static/..."
+          rm -rf marimo/_static/
+          mkdir -p marimo/_static/
+          cp -R frontend/dist/* marimo/_static/
+          rm -rf marimo/_static/files/wasm-intro.py
+
+          # Copy CLAUDE.md if it exists
+          if [ -f docs/_static/CLAUDE.md ]; then
+            cp docs/_static/CLAUDE.md marimo/_static/CLAUDE.md
+          fi
+
+          echo "Frontend build complete!"
+          ls -la marimo/_static/
+
+      - name: Build LSP
+        run: |
+          if [ -d "packages/lsp" ]; then
+            echo "Building LSP..."
+            ./scripts/buildlsp.sh || echo "LSP build skipped or failed (non-critical)"
+          fi
+
+      - name: Get version info
+        id: version
+        run: |
+          # Extract version from pyproject.toml
+          VERSION=$(grep -Po '(?<=^version = ")[^"]*' pyproject.toml)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+          # Create a build identifier
+          SHORT_SHA=$(git rev-parse --short HEAD)
+          BUILD_ID="${VERSION}+${SHORT_SHA}"
+          echo "build_id=$BUILD_ID" >> $GITHUB_OUTPUT
+
+          # Get branch name for artifact naming
+          BRANCH_NAME=${GITHUB_REF_NAME//\//-}
+          echo "branch=$BRANCH_NAME" >> $GITHUB_OUTPUT
+
+      - name: Build Python wheel
+        run: |
+          echo "Building Python wheel..."
+          uv build --wheel
+
+          echo "Build artifacts:"
+          ls -la dist/
+
+      - name: Upload wheel artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: marimo-wheel-${{ steps.version.outputs.branch }}-${{ github.run_number }}
+          path: dist/*.whl
+          retention-days: 30
+
+      - name: Upload source distribution
+        uses: actions/upload-artifact@v4
+        with:
+          name: marimo-sdist-${{ steps.version.outputs.branch }}-${{ github.run_number }}
+          path: dist/*.tar.gz
+          retention-days: 30
+
+      - name: Create Release
+        if: github.event_name == 'workflow_dispatch' && inputs.create_release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: fork-${{ steps.version.outputs.build_id }}
+          name: Fork Release ${{ steps.version.outputs.build_id }}
+          body: |
+            ## Fork Release
+
+            This is an automated release from the try-ama/marimo fork.
+
+            **Version:** ${{ steps.version.outputs.version }}
+            **Commit:** ${{ github.sha }}
+            **Branch:** ${{ github.ref_name }}
+
+            ### Installation
+
+            ```bash
+            # Download the wheel from the release assets and install:
+            pip install marimo-${{ steps.version.outputs.version }}-py3-none-any.whl
+
+            # Or install directly from this release:
+            pip install "marimo @ https://github.com/${{ github.repository }}/releases/download/fork-${{ steps.version.outputs.build_id }}/marimo-${{ steps.version.outputs.version }}-py3-none-any.whl"
+            ```
+          files: |
+            dist/*.whl
+            dist/*.tar.gz
+          draft: false
+          prerelease: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # Optional: Run basic smoke tests on the built wheel
+  test-wheel:
+    name: Test Wheel Installation
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Download wheel
+        uses: actions/download-artifact@v4
+        with:
+          name: marimo-wheel-${{ github.ref_name == 'refs/heads/main' && 'main' || github.ref_name }}-${{ github.run_number }}
+          path: dist/
+        continue-on-error: true
+
+      - name: Download wheel (fallback pattern)
+        if: failure()
+        uses: actions/download-artifact@v4
+        with:
+          pattern: marimo-wheel-*
+          path: dist/
+          merge-multiple: true
+
+      - name: Install and test wheel
+        run: |
+          pip install dist/*.whl
+
+          # Verify marimo is installed and can import
+          python -c "import marimo; print(f'marimo version: {marimo.__version__}')"
+
+          # Verify static assets are present
+          python -c "
+          import marimo
+          from pathlib import Path
+          static_dir = Path(marimo.__file__).parent / '_static'
+          print(f'Static directory exists: {static_dir.exists()}')
+          if static_dir.exists():
+              files = list(static_dir.iterdir())
+              print(f'Static files count: {len(files)}')
+              print('Files:', [f.name for f in files[:10]])
+
+              # Check for key assets
+              assets_dir = static_dir / 'assets'
+              if assets_dir.exists():
+                  print(f'Assets directory exists with {len(list(assets_dir.iterdir()))} files')
+              else:
+                  print('WARNING: Assets directory missing!')
+                  exit(1)
+          else:
+              print('ERROR: Static directory missing!')
+              exit(1)
+          "
+
+          # Quick CLI check
+          marimo --version
