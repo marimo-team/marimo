@@ -5,6 +5,7 @@ import {
   BotIcon,
   BrainIcon,
   ChevronRightIcon,
+  InfoIcon,
   PlusIcon,
   Trash2Icon,
 } from "lucide-react";
@@ -61,6 +62,7 @@ import {
 } from "../ui/accordion";
 import { Button } from "../ui/button";
 import { Checkbox } from "../ui/checkbox";
+import { DropdownMenuSeparator } from "../ui/dropdown-menu";
 import { Label } from "../ui/label";
 import { ExternalLink } from "../ui/links";
 import {
@@ -272,6 +274,32 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
                 placeholder={placeholder}
                 onSelect={selectModel}
                 triggerClassName="text-sm"
+                customDropdownContent={
+                  <>
+                    <DropdownMenuSeparator />
+                    <p className="px-2 py-1.5 text-sm text-muted-secondary flex items-center gap-1">
+                      Enter a custom model
+                      <Tooltip content="Models should include the provider prefix, e.g. 'openai/gpt-4o'">
+                        <InfoIcon className="h-3 w-3" />
+                      </Tooltip>
+                    </p>
+                    <div className="px-2 py-1">
+                      <Input
+                        className="w-full border-border shadow-none focus-visible:shadow-xs"
+                        placeholder={placeholder}
+                        {...field}
+                        value={asStringOrEmpty(field.value)}
+                        onKeyDown={Events.stopPropagation()}
+                      />
+                      {value && (
+                        <IncorrectModelId
+                          value={value}
+                          includeSuggestion={false}
+                        />
+                      )}
+                    </div>
+                  </>
+                }
                 forRole={forRole}
               />
             </FormControl>
