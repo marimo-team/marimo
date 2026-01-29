@@ -44,6 +44,7 @@ function createMockEditorView(code: string): EditorView {
           lspConfig: {},
         }),
         cellConfigExtension({
+          cellId: "cell1" as CellId,
           completionConfig: {
             copilot: false,
             activate_on_typing: true,
