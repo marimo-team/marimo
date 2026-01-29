@@ -47,13 +47,6 @@ class Snapshotter {
     this.getNotebookCode = getNotebookCode;
   }
 
-  /**
-   * Map from the global document version to the cell id and version.
-   */
-  private versionToCellNumberAndVersion = new LRUCache<number, NotebookLens>(
-    20,
-  );
-
   private lastSnapshot: NotebookLens | null = null;
 
   public snapshot() {
@@ -76,14 +69,6 @@ class Snapshotter {
       didChange,
       version: this.documentVersion,
     };
-  }
-
-  public getSnapshot(version: number) {
-    const snapshot = this.versionToCellNumberAndVersion.get(version);
-    if (!snapshot) {
-      throw new Error(`No snapshot for version ${version}`);
-    }
-    return snapshot;
   }
 
   public getLatestSnapshot() {
@@ -657,14 +642,49 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
 
   public async textDocumentCompletion(params: LSP.CompletionParams) {
     const { lens } = this.snapshotter.getLatestSnapshot();
+
+    // Check if URI is valid
+    if (!CellDocumentUri.is(params.textDocument.uri)) {
+      Logger.error(
+        "[lsp] Invalid cell document URI in completion request",
+        params.textDocument.uri,
+      );
+      return null;
+    }
+
     const cellId = CellDocumentUri.parse(params.textDocument.uri);
+
+    // Check if cellId is valid (not undefined string)
+    if (!cellId || cellId === "undefined") {
+      Logger.error("[lsp] Invalid cellId 'undefined' in completion request", {
+        cellId,
+        uri: params.textDocument.uri,
+        availableCellIds: lens.cellIds,
+      });
+      // Return null to fail gracefully instead of sending wrong position
+      return null;
+    }
+
+    // Warn if cellId not found in lens (might be okay if cell was just added)
+    if (!lens.cellIds.includes(cellId)) {
+      Logger.warn(
+        "[lsp] CellId in completion request not found in current lens",
+        {
+          cellId,
+          uri: params.textDocument.uri,
+          availableCellIds: lens.cellIds,
+        },
+      );
+    }
+
+    const transformedPosition = lens.transformPosition(params.position, cellId);
 
     return this.client.textDocumentCompletion({
       ...params,
       textDocument: {
         uri: this.documentUri,
       },
-      position: lens.transformPosition(params.position, cellId),
+      position: transformedPosition,
     });
   }
 
