@@ -1,5 +1,5 @@
 diff --git a/es/clone-node.js b/es/clone-node.js
-index 114cbf214f65cda237dbba67458c2b68fadf421e..f6194624c9fcb8b57eb72f445277b6cd14d31c6d 100644
+index 114cbf2..f619462 100644
 --- a/es/clone-node.js
 +++ b/es/clone-node.js
 @@ -59,10 +59,6 @@ async function cloneChildren(nativeNode, clonedNode, options) {
@@ -13,8 +13,43 @@ index 114cbf214f65cda237dbba67458c2b68fadf421e..f6194624c9fcb8b57eb72f445277b6cd
      else {
          children = toArray(((_b = nativeNode.shadowRoot) !== null && _b !== void 0 ? _b : nativeNode).childNodes);
      }
+diff --git a/es/embed-webfonts.js b/es/embed-webfonts.js
+index f6b0d96..1379972 100644
+--- a/es/embed-webfonts.js
++++ b/es/embed-webfonts.js
+@@ -190,9 +190,12 @@ export async function embedWebFonts(clonedNode, options) {
+         : options.skipFonts
+             ? null
+             : await getWebFontCSS(clonedNode, options);
+-    if (cssText) {
++    const finalCssText = options.extraStyleContent != null
++        ? options.extraStyleContent.concat(cssText || '')
++        : cssText;
++    if (finalCssText) {
+         const styleNode = document.createElement('style');
+-        const styleContent = document.createTextNode(cssText);
++        const styleContent = document.createTextNode(finalCssText);
+         styleNode.appendChild(styleContent);
+         if (clonedNode.firstChild) {
+             clonedNode.insertBefore(styleNode, clonedNode.firstChild);
+diff --git a/es/types.d.ts b/es/types.d.ts
+index a832baf..b487b06 100644
+--- a/es/types.d.ts
++++ b/es/types.d.ts
+@@ -75,6 +75,11 @@ export interface Options {
+      * create embed CSS for use across multiple calls to library functions.
+      */
+     fontEmbedCSS?: string;
++    /**
++     * A CSS string to specify additional custom style content. It will be
++     * added to the style-tag.
++     */
++    extraStyleContent?: string;
+     /**
+      * A boolean to turn off auto scaling for truly massive images..
+      */
 diff --git a/lib/clone-node.js b/lib/clone-node.js
-index 214f4d30a50baae7f007d2399eeac298366538c7..a81d0e313ace6c50ce1652c4deb0dc8df3e073a8 100644
+index 214f4d3..a81d0e3 100644
 --- a/lib/clone-node.js
 +++ b/lib/clone-node.js
 @@ -134,10 +134,6 @@ function cloneChildren(nativeNode, clonedNode, options) {
@@ -28,12 +63,56 @@ index 214f4d30a50baae7f007d2399eeac298366538c7..a81d0e313ace6c50ce1652c4deb0dc8d
                      else {
                          children = (0, util_1.toArray)(((_b = nativeNode.shadowRoot) !== null && _b !== void 0 ? _b : nativeNode).childNodes);
                      }
+diff --git a/lib/embed-webfonts.js b/lib/embed-webfonts.js
+index c91538b..b8e9697 100644
+--- a/lib/embed-webfonts.js
++++ b/lib/embed-webfonts.js
+@@ -280,7 +280,7 @@ function getWebFontCSS(node, options) {
+ exports.getWebFontCSS = getWebFontCSS;
+ function embedWebFonts(clonedNode, options) {
+     return __awaiter(this, void 0, void 0, function () {
+-        var cssText, _a, _b, styleNode, styleContent;
++        var cssText, _a, _b, finalCssText, styleNode, styleContent;
+         return __generator(this, function (_c) {
+             switch (_c.label) {
+                 case 0:
+@@ -300,9 +300,12 @@ function embedWebFonts(clonedNode, options) {
+                     _c.label = 5;
+                 case 5:
+                     cssText = _a;
+-                    if (cssText) {
++                    finalCssText = options.extraStyleContent != null
++                        ? options.extraStyleContent.concat(cssText || '')
++                        : cssText;
++                    if (finalCssText) {
+                         styleNode = document.createElement('style');
+-                        styleContent = document.createTextNode(cssText);
++                        styleContent = document.createTextNode(finalCssText);
+                         styleNode.appendChild(styleContent);
+                         if (clonedNode.firstChild) {
+                             clonedNode.insertBefore(styleNode, clonedNode.firstChild);
+diff --git a/lib/types.d.ts b/lib/types.d.ts
+index a832baf..b487b06 100644
+--- a/lib/types.d.ts
++++ b/lib/types.d.ts
+@@ -75,6 +75,11 @@ export interface Options {
+      * create embed CSS for use across multiple calls to library functions.
+      */
+     fontEmbedCSS?: string;
++    /**
++     * A CSS string to specify additional custom style content. It will be
++     * added to the style-tag.
++     */
++    extraStyleContent?: string;
+     /**
+      * A boolean to turn off auto scaling for truly massive images..
+      */
 diff --git a/src/clone-node.ts b/src/clone-node.ts
-index 5dfcd117a1dd3d3d5cfb7c98ead3eb828085337a..8aa85ca88f84e8e64297673dcff36b21d48a95b4 100644
+index 5dfcd11..8aa85ca 100644
 --- a/src/clone-node.ts
 +++ b/src/clone-node.ts
 @@ -88,11 +88,6 @@ async function cloneChildren<T extends HTMLElement>(
- 
+
    if (isSlotElement(nativeNode) && nativeNode.assignedNodes) {
      children = toArray<T>(nativeNode.assignedNodes())
 -  } else if (
@@ -44,3 +123,40 @@ index 5dfcd117a1dd3d3d5cfb7c98ead3eb828085337a..8aa85ca88f84e8e64297673dcff36b21
    } else {
      children = toArray<T>((nativeNode.shadowRoot ?? nativeNode).childNodes)
    }
+diff --git a/src/embed-webfonts.ts b/src/embed-webfonts.ts
+index a84a699..7e706e3 100644
+--- a/src/embed-webfonts.ts
++++ b/src/embed-webfonts.ts
+@@ -258,9 +258,14 @@ export async function embedWebFonts<T extends HTMLElement>(
+       ? null
+       : await getWebFontCSS(clonedNode, options)
+
+-  if (cssText) {
++  const finalCssText =
++    options.extraStyleContent != null
++      ? options.extraStyleContent.concat(cssText || '')
++      : cssText
++
++  if (finalCssText) {
+     const styleNode = document.createElement('style')
+-    const styleContent = document.createTextNode(cssText)
++    const styleContent = document.createTextNode(finalCssText)
+
+     styleNode.appendChild(styleContent)
+
+diff --git a/src/types.ts b/src/types.ts
+index 6023c3c..b3cb4bd 100644
+--- a/src/types.ts
++++ b/src/types.ts
+@@ -82,6 +82,11 @@ export interface Options {
+    * create embed CSS for use across multiple calls to library functions.
+    */
+   fontEmbedCSS?: string
++  /**
++   * A CSS string to specify additional custom style content. It will be
++   * added to the style-tag.
++   */
++  extraStyleContent?: string
+   /**
+    * A boolean to turn off auto scaling for truly massive images..
+    */

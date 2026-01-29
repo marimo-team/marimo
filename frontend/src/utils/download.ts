@@ -46,20 +46,8 @@ function findElementForCell(cellId: CellId): HTMLElement | undefined {
   return element;
 }
 
-// We inject styles to hide scrollbars on children of the element.
-// Hacky but needed to apply pseudo-styles
-function injectScrollbarHidingStyles(element: HTMLElement) {
-  const style = document.createElement("style");
-  style.textContent = `
-    * { scrollbar-width: none; -ms-overflow-style: none; }
-    *::-webkit-scrollbar { display: none; }
-  `;
-  element.prepend(style);
-  return () => style.remove();
-}
-
 /**
- * Prepare a cell element for screenshot capture.
+ * Expands the element to its full height.
  *
  * @param element - The cell output element to prepare
  * @returns A cleanup function to restore the element's original state
@@ -69,16 +57,18 @@ function prepareCellElementForScreenshot(element: HTMLElement) {
   const maxHeight = element.style.maxHeight;
   element.style.overflow = "visible";
   element.style.maxHeight = "none";
-  const scrollbarCleanup = injectScrollbarHidingStyles(element);
 
   return () => {
     element.style.overflow = originalOverflow;
     element.style.maxHeight = maxHeight;
-    scrollbarCleanup();
   };
 }
 
 const THRESHOLD_TIME_MS = 500;
+const HIDE_SCROLLBAR_STYLES = `
+  * { scrollbar-width: none; -ms-overflow-style: none; }
+  *::-webkit-scrollbar { display: none; }
+`;
 
 /**
  * Capture a cell output as a PNG data URL.
@@ -88,7 +78,11 @@ const THRESHOLD_TIME_MS = 500;
  */
 export async function getImageDataUrlForCell(
   cellId: CellId,
+  opts?: {
+    snappy?: boolean; // If true, avoid layout shifts
+  },
 ): Promise<string | undefined> {
+  const { snappy = false } = opts ?? {};
   const element = findElementForCell(cellId);
   if (!element) {
     return;
@@ -99,11 +93,16 @@ export async function getImageDataUrlForCell(
     return iframeDataUrl;
   }
 
-  const cleanup = prepareCellElementForScreenshot(element);
+  let cleanup: (() => void) | undefined;
+  if (!snappy) {
+    cleanup = prepareCellElementForScreenshot(element);
+  }
 
   try {
     const startTime = Date.now();
-    const dataUrl = await toPng(element);
+    const dataUrl = await toPng(element, {
+      extraStyleContent: HIDE_SCROLLBAR_STYLES,
+    });
     const timeTaken = Date.now() - startTime;
     if (timeTaken > THRESHOLD_TIME_MS) {
       Logger.debug(
@@ -114,7 +113,7 @@ export async function getImageDataUrlForCell(
     }
     return dataUrl;
   } finally {
-    cleanup();
+    cleanup?.();
   }
 }
 

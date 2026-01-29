@@ -565,6 +565,85 @@ describe("useEnrichCellOutputs", () => {
       expect(cellOutput[1]).toBe(mockDataUrl);
     }
   });
+
+  it("should pass snappy option to getImageDataUrlForCell when snappy is true", async () => {
+    const cellId = "cell-1" as CellId;
+    const mockElement = document.createElement("div");
+    mockElement.style.overflow = "hidden";
+    mockElement.style.maxHeight = "100px";
+    const mockDataUrl = "data:image/png;base64,mockImageData";
+
+    vi.spyOn(document, "getElementById").mockReturnValue(mockElement);
+    vi.mocked(toPng).mockImplementation(async () => {
+      // When snappy is true, element styles should NOT be modified
+      expect(mockElement.style.overflow).toBe("hidden");
+      expect(mockElement.style.maxHeight).toBe("100px");
+      return mockDataUrl;
+    });
+
+    setCellsRuntime(
+      createMockCellRuntimes({
+        [cellId]: {
+          output: {
+            channel: "output",
+            mimetype: "text/html",
+            data: "<div>Chart</div>",
+            timestamp: 0,
+          },
+        },
+      }),
+    );
+
+    const { result } = renderHook(() => useEnrichCellOutputs(), { wrapper });
+
+    const takeScreenshots = result.current;
+    const output = await takeScreenshots({ progress, snappy: true });
+
+    expect(output).toEqual({
+      [cellId]: ["image/png", mockDataUrl],
+    });
+  });
+
+  it("should expand element when snappy is false (default)", async () => {
+    const cellId = "cell-1" as CellId;
+    const mockElement = document.createElement("div");
+    mockElement.style.overflow = "hidden";
+    mockElement.style.maxHeight = "100px";
+    const mockDataUrl = "data:image/png;base64,mockImageData";
+
+    vi.spyOn(document, "getElementById").mockReturnValue(mockElement);
+    vi.mocked(toPng).mockImplementation(async () => {
+      // When snappy is false, element should be expanded
+      expect(mockElement.style.overflow).toBe("visible");
+      expect(mockElement.style.maxHeight).toBe("none");
+      return mockDataUrl;
+    });
+
+    setCellsRuntime(
+      createMockCellRuntimes({
+        [cellId]: {
+          output: {
+            channel: "output",
+            mimetype: "text/html",
+            data: "<div>Chart</div>",
+            timestamp: 0,
+          },
+        },
+      }),
+    );
+
+    const { result } = renderHook(() => useEnrichCellOutputs(), { wrapper });
+
+    const takeScreenshots = result.current;
+    const output = await takeScreenshots({ progress, snappy: false });
+
+    expect(output).toEqual({
+      [cellId]: ["image/png", mockDataUrl],
+    });
+    // After capture, styles should be restored
+    expect(mockElement.style.overflow).toBe("hidden");
+    expect(mockElement.style.maxHeight).toBe("100px");
+  });
 });
 
 describe("updateCellOutputsWithScreenshots", () => {
