@@ -46,6 +46,18 @@ function findElementForCell(cellId: CellId): HTMLElement | undefined {
   return element;
 }
 
+// We inject styles to hide scrollbars on children of the element.
+// Hacky but needed to apply pseudo-styles
+function injectScrollbarHidingStyles(element: HTMLElement) {
+  const style = document.createElement("style");
+  style.textContent = `
+    * { scrollbar-width: none; -ms-overflow-style: none; }
+    *::-webkit-scrollbar { display: none; }
+  `;
+  element.prepend(style);
+  return () => style.remove();
+}
+
 /**
  * Prepare a cell element for screenshot capture.
  *
@@ -57,10 +69,12 @@ function prepareCellElementForScreenshot(element: HTMLElement) {
   const maxHeight = element.style.maxHeight;
   element.style.overflow = "visible";
   element.style.maxHeight = "none";
+  const scrollbarCleanup = injectScrollbarHidingStyles(element);
 
   return () => {
     element.style.overflow = originalOverflow;
     element.style.maxHeight = maxHeight;
+    scrollbarCleanup();
   };
 }
 
@@ -115,7 +129,7 @@ export async function downloadCellOutputAsImage(
   if (!dataUrl) {
     return;
   }
-  return downloadByURL(dataUrl, Filenames.toPNG(filename));
+  downloadByURL(dataUrl, Filenames.toPNG(filename));
 }
 
 export const ADD_PRINTING_CLASS = (): (() => void) => {

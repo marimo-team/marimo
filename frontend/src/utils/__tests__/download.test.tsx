@@ -232,9 +232,12 @@ describe("downloadHTMLAsImage", () => {
     document.body.append(mockElement);
     document.body.append(mockAppEl);
 
-    // Mock anchor element for download
+    // Mock anchor element for download (only for "a" tags to not break other createElement calls)
     mockAnchor = document.createElement("a");
-    vi.spyOn(document, "createElement").mockReturnValue(mockAnchor);
+    const originalCreateElement = document.createElement.bind(document);
+    vi.spyOn(document, "createElement").mockImplementation((tagName: string) =>
+      tagName === "a" ? mockAnchor : originalCreateElement(tagName),
+    );
     vi.spyOn(mockAnchor, "click").mockImplementation(() => {
       // <noop></noop>
     });
@@ -367,7 +370,10 @@ describe("downloadCellOutputAsImage", () => {
     document.body.append(mockAppEl);
 
     mockAnchor = document.createElement("a");
-    vi.spyOn(document, "createElement").mockReturnValue(mockAnchor);
+    const originalCreateElement = document.createElement.bind(document);
+    vi.spyOn(document, "createElement").mockImplementation((tagName: string) =>
+      tagName === "a" ? mockAnchor : originalCreateElement(tagName),
+    );
     vi.spyOn(mockAnchor, "click").mockImplementation(() => {
       // <noop></noop>
     });
@@ -414,6 +420,26 @@ describe("downloadCellOutputAsImage", () => {
     });
 
     await downloadCellOutputAsImage("cell-1" as CellId, "result");
+  });
+
+  it("should inject scrollbar hiding styles during capture", async () => {
+    vi.mocked(toPng).mockImplementation(async () => {
+      // Check that scrollbar hiding styles are injected
+      const styleElement = mockElement.querySelector("style");
+      expect(styleElement).not.toBeNull();
+      expect(styleElement?.textContent).toContain("scrollbar-width: none");
+      expect(styleElement?.textContent).toContain("-ms-overflow-style: none");
+      expect(styleElement?.textContent).toContain(
+        "*::-webkit-scrollbar { display: none; }",
+      );
+      return mockDataUrl;
+    });
+
+    await downloadCellOutputAsImage("cell-1" as CellId, "result");
+
+    // Scrollbar styles should be removed after capture
+    const styleElement = mockElement.querySelector("style");
+    expect(styleElement).toBeNull();
   });
 
   it("should cleanup after download", async () => {
