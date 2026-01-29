@@ -146,6 +146,7 @@ class SessionManager:
         query_params: SerializedQueryParams,
         file_key: MarimoFileKey,
         auto_instantiate: bool,
+        new_notebook_params: Optional[dict[str, str]] = None,
     ) -> Session:
         """Create a new session."""
         LOGGER.debug("Creating new session for id %s", session_id)
@@ -156,7 +157,16 @@ class SessionManager:
             return existing
 
         # Get app file manager
-        defaults = AppDefaults.from_config_manager(self._config_manager)
+        base_defaults = AppDefaults.from_config_manager(self._config_manager)
+
+        # Apply URL params for new notebooks (builds PEP 723 header)
+        if new_notebook_params and file_key.startswith(AppFileRouter.NEW_FILE):
+            defaults = AppDefaults.from_url_params(
+                base_defaults, new_notebook_params
+            )
+        else:
+            defaults = base_defaults
+
         app_file_manager = self.file_router.get_file_manager(
             file_key, defaults
         )

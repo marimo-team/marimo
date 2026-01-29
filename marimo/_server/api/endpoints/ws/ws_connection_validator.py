@@ -11,7 +11,7 @@ from marimo import _loggers
 from marimo._server.api.auth import validate_auth
 from marimo._server.api.deps import AppState
 from marimo._server.codes import WebSocketCodes
-from marimo._server.file_router import MarimoFileKey
+from marimo._server.file_router import AppFileRouter, MarimoFileKey
 from marimo._types.ids import SessionId
 
 LOGGER = _loggers.marimo_logger()
@@ -30,6 +30,8 @@ class ConnectionParams:
     kiosk: bool
     auto_instantiate: bool
     rtc_enabled: bool
+    # URL params for new notebook configuration (serialized to header)
+    new_notebook_params: dict[str, str]
 
 
 class WebSocketConnectionValidator:
@@ -90,13 +92,34 @@ class WebSocketConnectionValidator:
         rtc_enabled = config.get("experimental", {}).get("rtc_v2", False)
         auto_instantiate = config["runtime"]["auto_instantiate"]
 
+        # Extract new notebook params if this is a new file
+        new_notebook_params: dict[str, str] = {}
+        if file_key.startswith(AppFileRouter.NEW_FILE):
+            new_notebook_params = self._extract_new_notebook_params()
+
         return ConnectionParams(
             session_id=session_id,
             file_key=file_key,
             kiosk=kiosk,
             auto_instantiate=auto_instantiate,
             rtc_enabled=rtc_enabled,
+            new_notebook_params=new_notebook_params,
         )
+
+    def _extract_new_notebook_params(self) -> dict[str, str]:
+        """Extract URL params that configure new notebooks.
+
+        Returns:
+            Dictionary of URL param key-value pairs for known config params.
+        """
+        from marimo._server.url_params import INTERNAL_URL_PARAM_KEYS
+
+        params: dict[str, str] = {}
+        for key in INTERNAL_URL_PARAM_KEYS:
+            value = self.app_state.query_params(key)
+            if value is not None:
+                params[key] = value
+        return params
 
     async def extract_file_key_only(self) -> Optional[MarimoFileKey]:
         """Extract only the file_key parameter (for RTC endpoint).
