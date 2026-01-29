@@ -328,7 +328,7 @@ def _ensure_python_version_in_script_metadata(name: str) -> None:
     """
     import re
 
-    from marimo._utils.scripts import REGEX, read_pyproject_from_script
+    from marimo._utils.scripts import read_pyproject_from_script
 
     with open(name, encoding="utf-8") as f:
         content = f.read()
