@@ -11,9 +11,9 @@ overrides:
   form-data: '>=4.0.5'
 
 patchedDependencies:
-  html-to-image@1.11.13:
-    hash: 397adc1075a23b602424603f0b15c9349f473931ead545dfe61106bc106a30b5
-    path: patches/html-to-image@1.11.13.patch
+  html-to-image:
+    hash: 753b87e99b34f4c9942b91a37b3d8cee6b0b4e24df2613b6b3eeb5788e85f526
+    path: patches/html-to-image.patch
   react-plotly.js:
     hash: e65888c226f3ef8f42923cbb3b026d2f4811da3e96fa0d7dee3cb62df02c6189
     path: patches/react-plotly.js.patch
@@ -363,7 +363,7 @@ importers:
         version: 5.2.11(@types/react@19.2.7)(react@19.2.3)
       html-to-image:
         specifier: 1.11.13
-        version: 1.11.13(patch_hash=397adc1075a23b602424603f0b15c9349f473931ead545dfe61106bc106a30b5)
+        version: 1.11.13(patch_hash=753b87e99b34f4c9942b91a37b3d8cee6b0b4e24df2613b6b3eeb5788e85f526)
       humanize-duration:
         specifier: ^3.33.2
         version: 3.33.2
@@ -17458,7 +17458,7 @@ snapshots:
 
   html-tags@3.3.1: {}
 
-  html-to-image@1.11.13(patch_hash=397adc1075a23b602424603f0b15c9349f473931ead545dfe61106bc106a30b5): {}
+  html-to-image@1.11.13(patch_hash=753b87e99b34f4c9942b91a37b3d8cee6b0b4e24df2613b6b3eeb5788e85f526): {}
 
   html-url-attributes@3.0.1: {}
 
