@@ -181,6 +181,7 @@ def module_name_to_pypi_name() -> dict[str, str]:
         "armor": "armor-api",
         "armstrong": "armstrong.utils.celery",
         "arstecnica": "arstecnica.sqlalchemy.async",
+        "art": "openpipe-art",
         "article-downloader": "article-downloader",
         "artifactcli": "artifact-cli",
         "arvados": "arvados-python-client",
