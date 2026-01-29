@@ -127,6 +127,8 @@ def sql(
             raise_df_import_error("polars[pyarrow]")
 
     if output:
+        from marimo._output.formatters.df_formatters import include_opinionated
+        from marimo._output.formatting import plain
         from marimo._plugins.stateless.plain_text import plain_text
         from marimo._plugins.ui._impl import table
 
@@ -134,6 +136,9 @@ def sql(
             # For EXPLAIN queries in DuckDB, display plain output to preserve box drawings
             text_output = extract_explain_content(df)
             t = plain_text(text_output)
+        elif not include_opinionated():
+            # Respect display.dataframes config - use plain formatting
+            t = plain(df)
         elif can_narwhalify_lazyframe(df):
             # For pl.LazyFrame and DuckDBRelation, we only show the first few rows
             # to avoid loading all the data into memory.
