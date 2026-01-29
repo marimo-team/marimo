@@ -115,6 +115,7 @@ export const setupCodeMirror = (opts: CodeMirrorSetupOpts): Extension[] => {
     jupyterHelpExtension(),
     // Cell editing
     cellConfigExtension({
+      cellId,
       completionConfig,
       hotkeys,
       placeholderType,
