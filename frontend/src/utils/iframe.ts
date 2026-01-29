@@ -1,7 +1,5 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { toPng } from "./html-to-image";
-
 const PLACEHOLDER_WIDTH = 320;
 const PLACEHOLDER_HEIGHT = 180;
 
@@ -95,11 +93,11 @@ function createPlaceholderImage(url: string | null): string {
 }
 
 /**
- * Capture an iframe as a PNG image. We need to do this because external iframes are not supported by html-to-image.
+ * Capture external iframes as a PNG image. External iframes are not supported by html-to-image.
  * @param element - The element to capture the iframe from
  * @returns The image data URL of the iframe, or a placeholder image if the iframe is external
  */
-export async function captureIframeAsImage(
+export async function captureExternalIframes(
   element: HTMLElement,
 ): Promise<string | null> {
   const iframe = element.querySelector("iframe");
@@ -133,10 +131,5 @@ export async function captureIframeAsImage(
     }
   }
 
-  // Capture the iframe content
-  try {
-    return await toPng(doc.body);
-  } catch {
-    return createPlaceholderImage(null);
-  }
+  return null;
 }

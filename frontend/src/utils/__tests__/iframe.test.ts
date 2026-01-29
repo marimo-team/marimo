@@ -1,13 +1,8 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { captureIframeAsImage } from "../iframe";
+import { captureExternalIframes } from "../iframe";
 
-// Mock html-to-image
-vi.mock("html-to-image", () => ({
-  toPng: vi.fn().mockResolvedValue("data:image/png;base64,mock"),
-}));
-
-describe("captureIframeAsImage", () => {
+describe("captureExternalIframes", () => {
   const originalCreateElement = document.createElement.bind(document);
 
   beforeEach(() => {
@@ -53,7 +48,7 @@ describe("captureIframeAsImage", () => {
     const element = document.createElement("div");
     element.innerHTML = "<p>No iframe here</p>";
 
-    const result = await captureIframeAsImage(element);
+    const result = await captureExternalIframes(element);
     expect(result).toBeNull();
   });
 
@@ -61,7 +56,7 @@ describe("captureIframeAsImage", () => {
     const element = document.createElement("div");
     element.innerHTML = '<iframe src="https://external.com/page"></iframe>';
 
-    const result = await captureIframeAsImage(element);
+    const result = await captureExternalIframes(element);
 
     expect(result).not.toBeNull();
     expect(result).toMatch(/^data:image\/png;base64,/);
@@ -72,7 +67,7 @@ describe("captureIframeAsImage", () => {
     element.innerHTML =
       '<iframe src="https://www.openstreetmap.org/export/embed.html"></iframe>';
 
-    const result = await captureIframeAsImage(element);
+    const result = await captureExternalIframes(element);
 
     expect(result).not.toBeNull();
     expect(result).toMatch(/^data:image\/png;base64,/);
@@ -85,7 +80,7 @@ describe("captureIframeAsImage", () => {
     element.append(iframe);
 
     // The iframe has no body accessible in jsdom
-    const result = await captureIframeAsImage(element);
+    const result = await captureExternalIframes(element);
 
     // In jsdom, contentDocument may not be accessible
     expect(result).toBeNull();
@@ -96,7 +91,7 @@ describe("captureIframeAsImage", () => {
     element.innerHTML = '<iframe src="./@file/123.html"></iframe>';
 
     // Same-origin relative URL, but contentDocument not accessible in jsdom
-    const result = await captureIframeAsImage(element);
+    const result = await captureExternalIframes(element);
 
     // Returns null because jsdom can't access contentDocument for file URLs
     expect(result).toBeNull();
@@ -113,7 +108,7 @@ describe("captureIframeAsImage", () => {
       const element = document.createElement("div");
       element.innerHTML = `<iframe src="${url}"></iframe>`;
 
-      const result = await captureIframeAsImage(element);
+      const result = await captureExternalIframes(element);
 
       expect(result).not.toBeNull();
       expect(result).toMatch(/^data:image\/png;base64,/);
@@ -128,7 +123,7 @@ describe("captureIframeAsImage", () => {
       const element = document.createElement("div");
       element.innerHTML = `<iframe src="${url}"></iframe>`;
 
-      const result = await captureIframeAsImage(element);
+      const result = await captureExternalIframes(element);
 
       // In jsdom, these return null because contentDocument isn't accessible
       // but they should NOT return a placeholder (which would indicate external detection)

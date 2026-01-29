@@ -8,7 +8,7 @@ import { Filenames } from "@/utils/filenames";
 import { Paths } from "@/utils/paths";
 import { prettyError } from "./errors";
 import { toPng } from "./html-to-image";
-import { captureIframeAsImage } from "./iframe";
+import { captureExternalIframes } from "./iframe";
 import { Logger } from "./Logger";
 import { ProgressState } from "./progress";
 import { ToastProgress } from "./toast-progress";
@@ -66,9 +66,11 @@ export async function getImageDataUrlForCell(
     return;
   }
 
-  const iframeDataUrl = await captureIframeAsImage(element);
-  if (iframeDataUrl) {
-    return iframeDataUrl;
+  // TODO: This doesn't handle external iframes + normal elements together (eg. in vstack).
+  // It will return the iframe only
+  const externalIframeDataUrl = await captureExternalIframes(element);
+  if (externalIframeDataUrl) {
+    return externalIframeDataUrl;
   }
 
   const startTime = Date.now();
