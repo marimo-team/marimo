@@ -46,24 +46,6 @@ function findElementForCell(cellId: CellId): HTMLElement | undefined {
   return element;
 }
 
-/**
- * Prepare a cell element for screenshot capture.
- *
- * @param element - The cell output element to prepare
- * @returns A cleanup function to restore the element's original state
- */
-function prepareCellElementForScreenshot(element: HTMLElement) {
-  const originalOverflow = element.style.overflow;
-  const maxHeight = element.style.maxHeight;
-  element.style.overflow = "visible";
-  element.style.maxHeight = "none";
-
-  return () => {
-    element.style.overflow = originalOverflow;
-    element.style.maxHeight = maxHeight;
-  };
-}
-
 const THRESHOLD_TIME_MS = 500;
 const HIDE_SCROLLBAR_STYLES = `
   * { scrollbar-width: none; -ms-overflow-style: none; }
@@ -89,25 +71,26 @@ export async function getImageDataUrlForCell(
     return iframeDataUrl;
   }
 
-  const cleanup = prepareCellElementForScreenshot(element);
-
-  try {
-    const startTime = Date.now();
-    const dataUrl = await toPng(element, {
-      extraStyleContent: HIDE_SCROLLBAR_STYLES,
-    });
-    const timeTaken = Date.now() - startTime;
-    if (timeTaken > THRESHOLD_TIME_MS) {
-      Logger.debug(
-        "toPng operation for element",
-        element,
-        `took ${timeTaken} ms (exceeds threshold)`,
-      );
-    }
-    return dataUrl;
-  } finally {
-    cleanup();
+  const startTime = Date.now();
+  const dataUrl = await toPng(element, {
+    extraStyleContent: HIDE_SCROLLBAR_STYLES,
+    // Add these styles so the element output is not clipped
+    // Width can be clipped since pdf has limited width
+    style: {
+      maxHeight: "none",
+      overflow: "visible",
+    },
+    height: element.scrollHeight,
+  });
+  const timeTaken = Date.now() - startTime;
+  if (timeTaken > THRESHOLD_TIME_MS) {
+    Logger.debug(
+      "toPng operation for element",
+      element,
+      `took ${timeTaken} ms (exceeds threshold)`,
+    );
   }
+  return dataUrl;
 }
 
 /**
