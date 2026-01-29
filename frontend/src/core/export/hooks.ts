@@ -68,6 +68,7 @@ export function useAutoExport() {
       const screenshotFn = () =>
         takeScreenshots({
           progress: ProgressState.indeterminate(),
+          snappy: true, // Since this happens frequently, make it fast
         });
       await updateCellOutputsWithScreenshots({
         takeScreenshots: screenshotFn,
@@ -109,6 +110,7 @@ export const captureTracker = new AsyncCaptureTracker<
 
 interface UseEnrichCellOutputsOptions {
   progress: ProgressState;
+  snappy?: boolean; // If true, avoid layout shifts and slow capture
 }
 
 /**
@@ -123,7 +125,7 @@ export function useEnrichCellOutputs(): (
   return async (
     opts: UseEnrichCellOutputsOptions,
   ): Promise<ScreenshotResults> => {
-    const { progress } = opts;
+    const { progress, snappy = false } = opts;
 
     // Prune tracked state for cells that no longer exist
     const currentCellIds = new Set(Objects.keys(cellRuntimes));
@@ -169,7 +171,7 @@ export function useEnrichCellOutputs(): (
     for (const [cellId, outputData] of cellsToCaptureScreenshot) {
       const handle = captureTracker.startCapture(cellId, outputData);
       try {
-        const dataUrl = await getImageDataUrlForCell(cellId);
+        const dataUrl = await getImageDataUrlForCell(cellId, { snappy });
         if (handle.signal.aborted) {
           continue;
         }
@@ -194,10 +196,9 @@ export function useEnrichCellOutputs(): (
       inFlightWaiters.map(({ promise }) => promise),
     );
     for (const [i, { cellId }] of inFlightWaiters.entries()) {
-      const result =
-        settled[i].status === "fulfilled" ? settled[i].value : undefined;
-      if (result) {
-        results[cellId] = result;
+      const settledResult = settled[i];
+      if (settledResult.status === "fulfilled" && settledResult.value) {
+        results[cellId] = settledResult.value;
       }
     }
 

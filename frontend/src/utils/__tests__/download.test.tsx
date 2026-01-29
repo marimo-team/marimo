@@ -175,6 +175,40 @@ describe("getImageDataUrlForCell", () => {
     expect(mockElement.style.overflow).toBe("hidden");
   });
 
+  it("should expand element when snappy is false (default)", async () => {
+    mockElement.style.overflow = "hidden";
+    mockElement.style.maxHeight = "100px";
+    vi.mocked(toPng).mockImplementation(async () => {
+      // During capture, element should be expanded
+      expect(mockElement.style.overflow).toBe("visible");
+      expect(mockElement.style.maxHeight).toBe("none");
+      return mockDataUrl;
+    });
+
+    await getImageDataUrlForCell("cell-1" as CellId);
+
+    // After capture, original styles should be restored
+    expect(mockElement.style.overflow).toBe("hidden");
+    expect(mockElement.style.maxHeight).toBe("100px");
+  });
+
+  it("should NOT expand element when snappy is true", async () => {
+    mockElement.style.overflow = "hidden";
+    mockElement.style.maxHeight = "100px";
+    vi.mocked(toPng).mockImplementation(async () => {
+      // During capture, element should NOT be modified
+      expect(mockElement.style.overflow).toBe("hidden");
+      expect(mockElement.style.maxHeight).toBe("100px");
+      return mockDataUrl;
+    });
+
+    await getImageDataUrlForCell("cell-1" as CellId, { snappy: true });
+
+    // Styles should remain unchanged
+    expect(mockElement.style.overflow).toBe("hidden");
+    expect(mockElement.style.maxHeight).toBe("100px");
+  });
+
   it("should throw error on failure", async () => {
     vi.mocked(toPng).mockRejectedValue(new Error("Capture failed"));
 
@@ -232,9 +266,12 @@ describe("downloadHTMLAsImage", () => {
     document.body.append(mockElement);
     document.body.append(mockAppEl);
 
-    // Mock anchor element for download
+    // Mock anchor element for download (only for "a" tags to not break other createElement calls)
     mockAnchor = document.createElement("a");
-    vi.spyOn(document, "createElement").mockReturnValue(mockAnchor);
+    const originalCreateElement = document.createElement.bind(document);
+    vi.spyOn(document, "createElement").mockImplementation((tagName: string) =>
+      tagName === "a" ? mockAnchor : originalCreateElement(tagName),
+    );
     vi.spyOn(mockAnchor, "click").mockImplementation(() => {
       // <noop></noop>
     });
@@ -367,7 +404,10 @@ describe("downloadCellOutputAsImage", () => {
     document.body.append(mockAppEl);
 
     mockAnchor = document.createElement("a");
-    vi.spyOn(document, "createElement").mockReturnValue(mockAnchor);
+    const originalCreateElement = document.createElement.bind(document);
+    vi.spyOn(document, "createElement").mockImplementation((tagName: string) =>
+      tagName === "a" ? mockAnchor : originalCreateElement(tagName),
+    );
     vi.spyOn(mockAnchor, "click").mockImplementation(() => {
       // <noop></noop>
     });
@@ -414,6 +454,34 @@ describe("downloadCellOutputAsImage", () => {
     });
 
     await downloadCellOutputAsImage("cell-1" as CellId, "result");
+  });
+
+  it("should pass scrollbar hiding styles to toPng via extraStyleContent", async () => {
+    vi.mocked(toPng).mockResolvedValue(mockDataUrl);
+
+    await downloadCellOutputAsImage("cell-1" as CellId, "result");
+
+    // Verify that toPng was called with extraStyleContent containing scrollbar hiding styles
+    expect(toPng).toHaveBeenCalledWith(
+      mockElement,
+      expect.objectContaining({
+        extraStyleContent: expect.stringContaining("scrollbar-width: none"),
+      }),
+    );
+    expect(toPng).toHaveBeenCalledWith(
+      mockElement,
+      expect.objectContaining({
+        extraStyleContent: expect.stringContaining("-ms-overflow-style: none"),
+      }),
+    );
+    expect(toPng).toHaveBeenCalledWith(
+      mockElement,
+      expect.objectContaining({
+        extraStyleContent: expect.stringContaining(
+          "*::-webkit-scrollbar { display: none; }",
+        ),
+      }),
+    );
   });
 
   it("should cleanup after download", async () => {
