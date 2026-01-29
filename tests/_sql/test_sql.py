@@ -643,7 +643,7 @@ class TestDisplayConfigBehavior:
         not HAS_POLARS or not HAS_DUCKDB, reason="polars and duckdb required"
     )
     def test_sql_plain_output_when_not_opinionated(
-        self, mock_include_opinionated, mock_replace
+        self, _mock_include_opinionated, mock_replace
     ):
         """Test that SQL uses plain() when include_opinionated returns False."""
         import duckdb
@@ -679,7 +679,7 @@ class TestDisplayConfigBehavior:
         not HAS_POLARS or not HAS_DUCKDB, reason="polars and duckdb required"
     )
     def test_sql_rich_output_when_opinionated(
-        self, mock_include_opinionated, mock_replace
+        self, _mock_include_opinionated, mock_replace
     ):
         """Test that SQL uses table() when include_opinionated returns True."""
         import duckdb
