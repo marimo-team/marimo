@@ -31,6 +31,7 @@ function createEditor(doc: string) {
           lspConfig: {},
         }),
         cellConfigExtension({
+          cellId: "cell1" as CellId,
           completionConfig: {
             activate_on_typing: true,
             signature_hint_on_typing: false,
