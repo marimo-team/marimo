@@ -530,7 +530,7 @@ Requires nbformat and nbconvert to be installed.
 )
 @click.option(
     "--webpdf/--no-webpdf",
-    default=False,
+    default=True,
     show_default=True,
     type=bool,
     help=(
