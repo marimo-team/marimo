@@ -401,13 +401,30 @@ describe("downloadCellOutputAsImage", () => {
     vi.restoreAllMocks();
   });
 
-  it("should return early if element not found", async () => {
+  it("should show error toast if element not found", async () => {
     await downloadCellOutputAsImage("nonexistent" as CellId, "test");
 
     expect(toPng).not.toHaveBeenCalled();
     expect(Logger.error).toHaveBeenCalledWith(
       "Output element not found for cell nonexistent",
     );
+    expect(toast).toHaveBeenCalledWith({
+      title: "Failed to download PNG",
+      description: expect.any(String),
+      variant: "danger",
+    });
+  });
+
+  it("should show error toast if toPng fails", async () => {
+    vi.mocked(toPng).mockRejectedValue(new Error("Screenshot failed"));
+
+    await downloadCellOutputAsImage("cell-1" as CellId, "result");
+
+    expect(toast).toHaveBeenCalledWith({
+      title: "Failed to download PNG",
+      description: expect.stringContaining("Screenshot failed"),
+      variant: "danger",
+    });
   });
 
   it("should download cell output as image", async () => {
