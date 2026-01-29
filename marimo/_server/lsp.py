@@ -2,7 +2,9 @@
 from __future__ import annotations
 
 import asyncio
+import socket
 import subprocess
+import time
 from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Any, Literal, Optional, Union, cast
@@ -13,6 +15,13 @@ from marimo._config.manager import MarimoConfigReader
 from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.notification import AlertNotification
+from marimo._server.models.lsp import (
+    LspHealthResponse,
+    LspRestartResponse,
+    LspServerHealth,
+    LspServerId,
+    LspServerStatus,
+)
 from marimo._tracer import server_tracer
 from marimo._utils.net import find_free_port
 from marimo._utils.paths import marimo_package_path
@@ -37,6 +46,16 @@ class LspServer(ABC):
     def is_running(self) -> bool:
         pass
 
+    @abstractmethod
+    async def get_health(self) -> LspHealthResponse:
+        pass
+
+    @abstractmethod
+    async def restart(
+        self, server_ids: Optional[list[LspServerId]] = None
+    ) -> LspRestartResponse:
+        pass
+
 
 class BaseLspServer(LspServer):
     def __init__(self, port: int) -> None:
@@ -44,6 +63,7 @@ class BaseLspServer(LspServer):
         self.process: Optional[subprocess.Popen[str]] = None
         self._health_check_task: Optional[asyncio.Task[None]] = None
         self._startup_failed = False
+        self._started_at: Optional[float] = None  # Unix timestamp
         self._start_lock = asyncio.Lock()
         self.log_file = _loggers.get_log_directory() / f"{self.id}.log"
 
@@ -118,6 +138,7 @@ class BaseLspServer(LspServer):
                 )
 
             LOGGER.info(f"Started LSP {self.id} at port {self.port}")
+            self._started_at = time.time()
 
             # Start health monitoring in background
             if (
@@ -152,6 +173,114 @@ class BaseLspServer(LspServer):
             and self.process.returncode is not None
             and self.process.returncode != 0
         )
+
+    async def ping(
+        self, timeout_ms: float = 5000
+    ) -> tuple[bool, Optional[float]]:
+        """
+        Send an active health ping to verify server responsiveness.
+
+        Returns (is_responsive, response_time_ms).
+        Uses TCP socket connection check to verify the server port is listening.
+        """
+        if not self.is_running():
+            return False, None
+
+        start = time.monotonic()
+        try:
+            # Run socket connection in thread to avoid blocking
+            loop = asyncio.get_running_loop()
+            result = await loop.run_in_executor(
+                None, self._tcp_ping, timeout_ms
+            )
+            elapsed_ms = (time.monotonic() - start) * 1000
+            return result, elapsed_ms if result else None
+        except Exception:
+            return False, None
+
+    def _tcp_ping(self, timeout_ms: float) -> bool:
+        """Attempt TCP connection to check if server is listening."""
+        try:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.settimeout(timeout_ms / 1000)
+            result = sock.connect_ex(("localhost", self.port))
+            sock.close()
+            return result == 0
+        except Exception:
+            return False
+
+    async def restart_server(self) -> Optional[AlertNotification]:
+        """Stop and restart this LSP server."""
+        self._startup_failed = False
+        self._started_at = None
+        self.stop()
+        await asyncio.sleep(0.5)  # Brief delay for cleanup
+        return await self.start()
+
+    def _get_status(self) -> LspServerStatus:
+        """Determine the current status of the server."""
+        if self.has_failed():
+            return "crashed"
+        if not self.is_running():
+            return "stopped"
+        # Process is running - will need to check responsiveness externally
+        return "running"
+
+    async def get_health(self) -> LspHealthResponse:
+        """Get health status of this single LSP server."""
+        is_running = self.is_running()
+
+        # Determine server status
+        server_status: LspServerStatus
+        last_ping_ms: Optional[float] = None
+
+        if self.has_failed():
+            server_status = "crashed"
+        elif not is_running:
+            server_status = "stopped"
+        else:
+            # Process is running - check responsiveness
+            is_responsive, last_ping_ms = await self.ping()
+            server_status = "running" if is_responsive else "unresponsive"
+
+        server_health = LspServerHealth(
+            server_id=LspServerId(self.id),
+            status=server_status,
+            port=self.port,
+            last_ping_ms=last_ping_ms,
+            started_at=self._started_at,
+        )
+
+        status: Literal["healthy", "degraded", "unhealthy"]
+        if server_status == "running":
+            status = "healthy"
+        else:
+            status = "unhealthy"
+
+        return LspHealthResponse(status=status, servers=[server_health])
+
+    async def restart(
+        self, server_ids: Optional[list[LspServerId]] = None
+    ) -> LspRestartResponse:
+        """Restart this LSP server if requested."""
+        sid = LspServerId(self.id)
+        # If server_ids specified and this server not in list, skip
+        if server_ids is not None and self.id not in server_ids:
+            return LspRestartResponse(success=True, restarted=[], errors={})
+
+        try:
+            alert = await self.restart_server()
+            if alert:
+                return LspRestartResponse(
+                    success=False,
+                    restarted=[],
+                    errors={sid: alert.description},
+                )
+            return LspRestartResponse(success=True, restarted=[sid], errors={})
+        except Exception as e:
+            return LspRestartResponse(
+                success=False, restarted=[], errors={sid: str(e)}
+            )
 
     async def _monitor_process_health(self) -> None:
         """Monitor the LSP process health and log if it crashes."""
@@ -479,6 +608,9 @@ class TyServer(BaseLspServer):
 
 
 class NoopLspServer(LspServer):
+    port: int = 0
+    id: str = "noop"
+
     async def start(self) -> None:
         pass
 
@@ -487,6 +619,15 @@ class NoopLspServer(LspServer):
 
     def is_running(self) -> bool:
         return False
+
+    async def get_health(self) -> LspHealthResponse:
+        return LspHealthResponse(status="healthy", servers=[])
+
+    async def restart(
+        self, server_ids: Optional[list[LspServerId]] = None
+    ) -> LspRestartResponse:
+        del server_ids  # Unused
+        return LspRestartResponse(success=True, restarted=[], errors={})
 
 
 class CompositeLspServer(LspServer):
@@ -555,6 +696,111 @@ class CompositeLspServer(LspServer):
 
     def is_running(self) -> bool:
         return any(server.is_running() for server in self.servers.values())
+
+    async def get_health(self) -> LspHealthResponse:
+        """Get aggregated health status of all LSP servers."""
+        config = self.config_reader.get_config()
+        server_healths: list[LspServerHealth] = []
+
+        for server_id, server in self.servers.items():
+            if not self._is_enabled(config, server_id):
+                continue
+
+            is_running = server.is_running()
+
+            # Determine server status
+            server_status: LspServerStatus
+            last_ping_ms: Optional[float] = None
+            started_at: Optional[float] = None
+
+            if isinstance(server, BaseLspServer):
+                started_at = server._started_at
+                if server.has_failed():
+                    server_status = "crashed"
+                elif not is_running:
+                    server_status = "stopped"
+                else:
+                    # Process is running - check responsiveness
+                    is_responsive, last_ping_ms = await server.ping()
+                    server_status = (
+                        "running" if is_responsive else "unresponsive"
+                    )
+            else:
+                server_status = "running" if is_running else "stopped"
+
+            server_healths.append(
+                LspServerHealth(
+                    server_id=LspServerId(server_id),
+                    status=server_status,
+                    port=server.port,
+                    last_ping_ms=last_ping_ms,
+                    started_at=started_at,
+                )
+            )
+
+        # Determine aggregate status
+        status: Literal["healthy", "degraded", "unhealthy"]
+        if not server_healths:
+            status = "healthy"  # No servers configured
+        elif all(s.status == "running" for s in server_healths):
+            status = "healthy"
+        elif any(s.status == "running" for s in server_healths):
+            status = "degraded"
+        else:
+            status = "unhealthy"
+
+        return LspHealthResponse(status=status, servers=server_healths)
+
+    async def restart(
+        self, server_ids: Optional[list[LspServerId]] = None
+    ) -> LspRestartResponse:
+        """Restart specified or failed LSP servers."""
+        config = self.config_reader.get_config()
+        restarted: list[LspServerId] = []
+        errors: dict[LspServerId, str] = {}
+
+        servers_to_restart: list[LspServerId] = []
+        if server_ids is None:
+            # Restart all failed/non-responsive servers
+            for server_id, server in self.servers.items():
+                if not self._is_enabled(config, server_id):
+                    continue
+                if isinstance(server, BaseLspServer):
+                    is_running = server.is_running()
+                    if server.has_failed():
+                        servers_to_restart.append(LspServerId(server_id))
+                    elif is_running:
+                        is_responsive, _ = await server.ping()
+                        if not is_responsive:
+                            servers_to_restart.append(LspServerId(server_id))
+        else:
+            servers_to_restart = server_ids
+
+        for server_id in servers_to_restart:
+            sid = LspServerId(server_id)
+            if server_id not in self.servers:
+                errors[sid] = f"Unknown server: {server_id}"
+                continue
+
+            server = self.servers[server_id]
+            if not isinstance(server, BaseLspServer):
+                errors[sid] = "Server does not support restart"
+                continue
+
+            try:
+                alert = await server.restart_server()
+                if alert:
+                    errors[sid] = alert.description
+                else:
+                    restarted.append(sid)
+            except Exception as e:
+                errors[sid] = str(e)
+
+        return LspRestartResponse(
+            success=len(errors) == 0,
+            restarted=restarted,
+            errors=errors,
+        )
 
 
 def any_lsp_server_running(config: MarimoConfig) -> bool:

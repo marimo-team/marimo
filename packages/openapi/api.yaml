@@ -2604,6 +2604,94 @@ components:
       - keys
       title: ListSecretKeysResponse
       type: object
+    LspHealthResponse:
+      description: Aggregated health response for all LSP servers.
+      properties:
+        servers:
+          items:
+            $ref: '#/components/schemas/LspServerHealth'
+          type: array
+        status:
+          enum:
+          - degraded
+          - healthy
+          - unhealthy
+      required:
+      - status
+      - servers
+      title: LspHealthResponse
+      type: object
+    LspRestartRequest:
+      description: Request to restart LSP servers.
+      properties:
+        serverIds:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          default: null
+      required: []
+      title: LspRestartRequest
+      type: object
+    LspRestartResponse:
+      description: Response from restart operation.
+      properties:
+        errors:
+          additionalProperties:
+            type: string
+          default: {}
+          type: object
+        restarted:
+          items:
+            type: string
+          type: array
+        success:
+          type: boolean
+      required:
+      - success
+      - restarted
+      title: LspRestartResponse
+      type: object
+    LspServerHealth:
+      description: "Health status for a single LSP server.\n\n    Status meanings:\n\
+        \    - starting: process launched, initializing\n    - running: healthy and\
+        \ responsive to pings\n    - stopped: not running (never started or cleanly\
+        \ stopped)\n    - crashed: exited with non-zero code\n    - unresponsive:\
+        \ process alive but not responding to pings"
+      properties:
+        error:
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+        lastPingMs:
+          anyOf:
+          - type: number
+          - type: 'null'
+          default: null
+        port:
+          type: integer
+        serverId:
+          type: string
+        startedAt:
+          anyOf:
+          - type: number
+          - type: 'null'
+          default: null
+        status:
+          enum:
+          - crashed
+          - running
+          - starting
+          - stopped
+          - unresponsive
+      required:
+      - serverId
+      - status
+      - port
+      title: LspServerHealth
+      type: object
     MCPConfig:
       description: 'Configuration for MCP servers
 
@@ -4570,7 +4658,7 @@ components:
       type: object
 info:
   title: marimo API
-  version: 0.19.4
+  version: 0.19.6
 openapi: 3.1.0
 paths:
   /@file/{filename_and_length}:
@@ -5642,6 +5730,29 @@ paths:
                     type: string
                 type: object
           description: Successfully closed existing sessions
+  /api/lsp/health:
+    get:
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LspHealthResponse'
+          description: Get health status of all LSP servers
+  /api/lsp/restart:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LspRestartRequest'
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LspRestartResponse'
+          description: Restart LSP servers
   /api/packages/add:
     post:
       requestBody:

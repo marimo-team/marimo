@@ -9,37 +9,32 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import click
-import msgspec
-import msgspec.json
 
-from marimo._cli.print import orange
 from marimo._data.models import DataType
 from marimo._messaging.errors import Error as MarimoError
 from marimo._messaging.notification import NotificationMessage
 from marimo._runtime.commands import CommandMessage
-from marimo._session.state.serialize import (
-    serialize_notebook,
-    serialize_session_view,
-)
-from marimo._utils.code import hash_code
 
 if TYPE_CHECKING:
     import psutil
 
 
 def _generate_server_api_schema() -> dict[str, Any]:
+    import msgspec
+    import msgspec.json
     from starlette.schemas import SchemaGenerator
 
     import marimo._config.config as config
     import marimo._data.models as data
     import marimo._messaging.errors as errors
-    import marimo._messaging.notification as notification
+    import marimo._messaging.notification as notifications
     import marimo._runtime.commands as commands
     import marimo._secrets.models as secrets_models
     import marimo._server.models.completion as completion
     import marimo._server.models.export as export
     import marimo._server.models.files as files
     import marimo._server.models.home as home
+    import marimo._server.models.lsp as lsp
     import marimo._server.models.models as models
     import marimo._server.models.packages as packages
     import marimo._server.models.secrets as secrets
@@ -97,41 +92,41 @@ def _generate_server_api_schema() -> dict[str, Any]:
         secrets_models.SecretKeysWithProvider,
         secrets.CreateSecretRequest,
         # Operations
-        notification.CellNotification,
-        notification.HumanReadableStatus,
-        notification.FunctionCallResultNotification,
-        notification.UIElementMessageNotification,
-        notification.RemoveUIElementsNotification,
-        notification.InterruptedNotification,
-        notification.CompletedRunNotification,
-        notification.KernelReadyNotification,
-        notification.CompletionResultNotification,
-        notification.AlertNotification,
-        notification.MissingPackageAlertNotification,
-        notification.InstallingPackageAlertNotification,
-        notification.ReconnectedNotification,
-        notification.BannerNotification,
-        notification.ReloadNotification,
-        notification.VariableDeclarationNotification,
-        notification.VariableValue,
-        notification.VariablesNotification,
-        notification.VariableValuesNotification,
-        notification.DatasetsNotification,
-        notification.DataColumnPreviewNotification,
-        notification.SQLTablePreviewNotification,
-        notification.SQLTableListPreviewNotification,
-        notification.DataSourceConnectionsNotification,
-        notification.SecretKeysResultNotification,
-        notification.CacheClearedNotification,
-        notification.CacheInfoNotification,
-        notification.QueryParamsSetNotification,
-        notification.QueryParamsAppendNotification,
-        notification.QueryParamsDeleteNotification,
-        notification.QueryParamsClearNotification,
-        notification.UpdateCellCodesNotification,
-        notification.UpdateCellIdsNotification,
-        notification.FocusCellNotification,
-        notification.NotificationMessage,
+        notifications.CellNotification,
+        notifications.HumanReadableStatus,
+        notifications.FunctionCallResultNotification,
+        notifications.UIElementMessageNotification,
+        notifications.RemoveUIElementsNotification,
+        notifications.InterruptedNotification,
+        notifications.CompletedRunNotification,
+        notifications.KernelReadyNotification,
+        notifications.CompletionResultNotification,
+        notifications.AlertNotification,
+        notifications.MissingPackageAlertNotification,
+        notifications.InstallingPackageAlertNotification,
+        notifications.ReconnectedNotification,
+        notifications.BannerNotification,
+        notifications.ReloadNotification,
+        notifications.VariableDeclarationNotification,
+        notifications.VariableValue,
+        notifications.VariablesNotification,
+        notifications.VariableValuesNotification,
+        notifications.DatasetsNotification,
+        notifications.DataColumnPreviewNotification,
+        notifications.SQLTablePreviewNotification,
+        notifications.SQLTableListPreviewNotification,
+        notifications.DataSourceConnectionsNotification,
+        notifications.SecretKeysResultNotification,
+        notifications.CacheClearedNotification,
+        notifications.CacheInfoNotification,
+        notifications.QueryParamsSetNotification,
+        notifications.QueryParamsAppendNotification,
+        notifications.QueryParamsDeleteNotification,
+        notifications.QueryParamsClearNotification,
+        notifications.UpdateCellCodesNotification,
+        notifications.UpdateCellIdsNotification,
+        notifications.FocusCellNotification,
+        notifications.NotificationMessage,
         # ai
         ChatMessage,
         ToolDefinition,
@@ -180,6 +175,10 @@ def _generate_server_api_schema() -> dict[str, Any]:
         packages.PackageOperationResponse,
         packages.RemovePackageRequest,
         packages.DependencyTreeResponse,
+        lsp.LspHealthResponse,
+        lsp.LspRestartRequest,
+        lsp.LspRestartResponse,
+        lsp.LspServerHealth,
         home.OpenTutorialRequest,
         home.RecentFilesResponse,
         home.RunningNotebooksResponse,
@@ -341,6 +340,8 @@ def list_processes() -> None:
 
         marimo development ps list
     """
+    from marimo._cli.print import orange
+
     # pretty print processes
     result = get_marimo_processes()
     for proc in result:
@@ -536,6 +537,11 @@ def preview(file_path: Path, port: int, host: str, headless: bool) -> None:
         from marimo._server.export import run_app_until_completion
         from marimo._server.file_router import AppFileRouter
         from marimo._server.utils import asyncio_run
+        from marimo._session.state.serialize import (
+            serialize_notebook,
+            serialize_session_view,
+        )
+        from marimo._utils.code import hash_code
         from marimo._utils.marimo_path import MarimoPath
 
         # Create file manager for the notebook
