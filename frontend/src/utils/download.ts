@@ -100,11 +100,19 @@ export async function downloadCellOutputAsImage(
   cellId: CellId,
   filename: string,
 ) {
-  const dataUrl = await getImageDataUrlForCell(cellId);
-  if (!dataUrl) {
-    return;
+  try {
+    const dataUrl = await getImageDataUrlForCell(cellId);
+    if (!dataUrl) {
+      throw new Error("Failed to get image data URL");
+    }
+    downloadByURL(dataUrl, Filenames.toPNG(filename));
+  } catch (error) {
+    toast({
+      title: "Failed to download PNG",
+      description: prettyError(error),
+      variant: "danger",
+    });
   }
-  downloadByURL(dataUrl, Filenames.toPNG(filename));
 }
 
 export const ADD_PRINTING_CLASS = (): (() => void) => {
