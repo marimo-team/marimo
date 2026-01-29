@@ -1353,7 +1353,13 @@ class table(
 
             # Do not clamp if max_columns is None
             if max_columns is not None and len(column_names) > max_columns:
-                data = data.select_columns(column_names[:max_columns])
+                columns_to_select = column_names[:max_columns]
+                # Always include _marimo_row_id so the frontend can use
+                # stable row IDs for selection, even when columns are clamped.
+                # Without this, filtering + selecting returns wrong rows.
+                if self._has_stable_row_id:
+                    columns_to_select = [INDEX_COLUMN_NAME] + columns_to_select
+                data = data.select_columns(columns_to_select)
 
             try:
                 return data.to_json_str(self._format_mapping)
