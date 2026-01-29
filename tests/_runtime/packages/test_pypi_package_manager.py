@@ -407,9 +407,7 @@ async def test_uv_install_custom_group_in_project(mock_run: MagicMock):
     mock_run.return_value = MagicMock(returncode=0)
     mgr = UvPackageManager()
 
-    result = await mgr._install(
-        "sphinx", upgrade=False, group="docs"
-    )
+    result = await mgr._install("sphinx", upgrade=False, group="docs")
 
     mock_run.assert_called_once_with(
         [
@@ -432,9 +430,7 @@ async def test_uv_install_no_group_in_project(mock_run: MagicMock):
     mock_run.return_value = MagicMock(returncode=0)
     mgr = UvPackageManager()
 
-    result = await mgr._install(
-        "requests", upgrade=False, group=None
-    )
+    result = await mgr._install("requests", upgrade=False, group=None)
 
     mock_run.assert_called_once_with(
         [
@@ -461,7 +457,6 @@ async def test_uv_uninstall_with_group_in_project(mock_run: MagicMock):
         ["uv", "remove", "--group", "docs", "sphinx", "-p", PY_EXE],
     )
     assert result is True
-
 
 
 @patch("subprocess.run")
