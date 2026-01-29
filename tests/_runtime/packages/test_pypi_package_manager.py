@@ -401,6 +401,70 @@ async def test_uv_install_dev_dependency_in_project(mock_run: MagicMock):
 
 
 @patch("subprocess.run")
+@patch.object(UvPackageManager, "is_in_uv_project", True)
+async def test_uv_install_custom_group_in_project(mock_run: MagicMock):
+    """Test UV install uses --group flag with custom dependency group"""
+    mock_run.return_value = MagicMock(returncode=0)
+    mgr = UvPackageManager()
+
+    result = await mgr._install(
+        "sphinx", upgrade=False, group="docs"
+    )
+
+    mock_run.assert_called_once_with(
+        [
+            "uv",
+            "add",
+            "--group",
+            "docs",
+            "sphinx",
+            "-p",
+            PY_EXE,
+        ],
+    )
+    assert result is True
+
+
+@patch("subprocess.run")
+@patch.object(UvPackageManager, "is_in_uv_project", True)
+async def test_uv_install_no_group_in_project(mock_run: MagicMock):
+    """Test UV install without group doesn't pass --group flag"""
+    mock_run.return_value = MagicMock(returncode=0)
+    mgr = UvPackageManager()
+
+    result = await mgr._install(
+        "requests", upgrade=False, group=None
+    )
+
+    mock_run.assert_called_once_with(
+        [
+            "uv",
+            "add",
+            "requests",
+            "-p",
+            PY_EXE,
+        ],
+    )
+    assert result is True
+
+
+@patch("subprocess.run")
+@patch.object(UvPackageManager, "is_in_uv_project", True)
+async def test_uv_uninstall_with_group_in_project(mock_run: MagicMock):
+    """Test UV uninstall uses --group flag with dependency group"""
+    mock_run.return_value = MagicMock(returncode=0)
+    mgr = UvPackageManager()
+
+    result = await mgr.uninstall("sphinx", group="docs")
+
+    mock_run.assert_called_once_with(
+        ["uv", "remove", "--group", "docs", "sphinx", "-p", PY_EXE],
+    )
+    assert result is True
+
+
+
+@patch("subprocess.run")
 @patch.object(UvPackageManager, "is_in_uv_project", False)
 async def test_uv_uninstall_not_in_project(mock_run: MagicMock):
     """Test UV uninstall uses pip subcommand when not in UV project"""
