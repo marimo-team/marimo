@@ -24,7 +24,6 @@ from marimo._utils.inline_script_metadata import (
     has_marimo_in_script_metadata,
     is_marimo_dependency,
 )
-from marimo._utils.scripts import with_python_version_requirement
 from marimo._utils.uv import find_uv_bin
 from marimo._utils.versions import is_editable
 from marimo._version import __version__
@@ -324,14 +323,12 @@ def construct_uv_command(
 def _ensure_python_version_in_script_metadata(name: str) -> None:
     """Add requires-python to script metadata if not present.
 
-    Reads the file, parses the PEP 723 metadata, adds requires-python
-    if missing, and writes the updated metadata back.
+    Inserts a requires-python line directly into the existing PEP 723
+    metadata block without re-serializing, to avoid reformatting diffs.
     """
-    from marimo._utils.scripts import (
-        REGEX,
-        read_pyproject_from_script,
-        write_pyproject_to_script,
-    )
+    import re
+
+    from marimo._utils.scripts import REGEX, read_pyproject_from_script
 
     with open(name, encoding="utf-8") as f:
         content = f.read()
@@ -342,17 +339,22 @@ def _ensure_python_version_in_script_metadata(name: str) -> None:
         return
 
     if "requires-python" in project:
-        # Already has Python version
         return
 
-    # Generate new script metadata block
-    project = with_python_version_requirement(project)
-    new_block = write_pyproject_to_script(project)
+    version_tuple = platform.python_version_tuple()
+    requires_line = (
+        f'# requires-python = ">={version_tuple[0]}.{version_tuple[1]}"\n'
+    )
 
-    # Replace the old block with the new one
-    import re
-
-    new_content = re.sub(REGEX, new_block, content, count=1)
+    # Insert directly after the opening "# /// script" marker to avoid
+    # re-serializing the entire block and causing formatting churn.
+    new_content = re.sub(
+        r"^# /// script$",
+        "# /// script\n" + requires_line.rstrip(),
+        content,
+        count=1,
+        flags=re.MULTILINE,
+    )
 
     if new_content != content:
         with open(name, "w", encoding="utf-8") as f:
