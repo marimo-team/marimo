@@ -609,6 +609,63 @@ def test_cli_run(temp_marimo_file: str) -> None:
     _check_contents(p, f'"version": "{get_version()}"'.encode(), contents)
 
 
+def test_cli_run_directory_gallery() -> None:
+    directory = tempfile.TemporaryDirectory()
+    _temp_run_file(directory)
+    port = _get_port()
+    p = subprocess.Popen(
+        ["marimo", "run", directory.name, "-p", str(port), "--headless"]
+    )
+    contents = _try_fetch(port)
+    _check_contents(p, b'"mode": "gallery"', contents)
+
+
+def test_cli_run_directory_gallery_can_open_file() -> None:
+    directory = tempfile.TemporaryDirectory()
+    _temp_run_file(directory)
+    port = _get_port()
+    p = subprocess.Popen(
+        ["marimo", "run", directory.name, "-p", str(port), "--headless"]
+    )
+    try:
+        contents = _try_fetch(port)
+        assert contents is not None
+        assert b'"mode": "gallery"' in contents
+
+        url = f"http://localhost:{port}/?file=run.py"
+        notebook_contents = urllib.request.urlopen(url).read()
+        assert b'"mode": "read"' in notebook_contents
+    finally:
+        p.kill()
+
+
+def test_cli_run_multiple_files_gallery() -> None:
+    directory = tempfile.TemporaryDirectory()
+    filecontents = codegen.generate_filecontents(
+        codes=["import marimo as mo"],
+        names=["one"],
+        cell_configs=[CellConfig()],
+    )
+    file_one = Path(directory.name) / "one.py"
+    file_two = Path(directory.name) / "two.py"
+    file_one.write_text(filecontents, encoding="utf-8")
+    file_two.write_text(filecontents, encoding="utf-8")
+    port = _get_port()
+    p = subprocess.Popen(
+        [
+            "marimo",
+            "run",
+            str(file_one),
+            str(file_two),
+            "-p",
+            str(port),
+            "--headless",
+        ]
+    )
+    contents = _try_fetch(port)
+    _check_contents(p, b'"mode": "gallery"', contents)
+
+
 def test_cli_run_with_show_code(temp_marimo_file: str) -> None:
     port = _get_port()
     p = subprocess.Popen(

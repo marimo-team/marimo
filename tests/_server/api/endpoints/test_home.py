@@ -5,10 +5,13 @@ import inspect
 import os
 import sys
 import tempfile
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pytest
 
+from marimo._server.file_router import AppFileRouter
+from marimo._session.model import SessionMode
 from tests._server.conftest import get_session_manager
 from tests._server.mocks import token_header, with_session
 
@@ -109,6 +112,52 @@ def test_cant_open_non_tutorial(client: TestClient) -> None:
     )
     assert response.status_code == 400
     assert response.json() == {"detail": "Tutorial not found"}
+
+
+@with_session(SESSION_ID)
+def test_workspace_files_in_run_mode(client: TestClient) -> None:
+    session_manager = get_session_manager(client)
+    session_manager.mode = SessionMode.RUN
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        marimo_file = Path(temp_dir) / "notebook.py"
+        marimo_file.write_text("import marimo\napp = marimo.App()")
+
+        non_marimo_file = Path(temp_dir) / "text.txt"
+        non_marimo_file.write_text("This is not a marimo file")
+
+        session_manager.file_router = AppFileRouter.from_directory(temp_dir)
+
+        response = client.post(
+            "/api/home/workspace_files",
+            headers=HEADERS,
+            json={"include_markdown": False},
+        )
+        body = response.json()
+        files = body["files"]
+
+        assert len(files) == 1
+        assert body["root"] == temp_dir
+        assert files[0]["path"] == marimo_file.name
+
+
+@with_session(SESSION_ID)
+def test_workspace_files_empty_directory(client: TestClient) -> None:
+    session_manager = get_session_manager(client)
+    session_manager.mode = SessionMode.RUN
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        session_manager.file_router = AppFileRouter.from_directory(temp_dir)
+
+        response = client.post(
+            "/api/home/workspace_files",
+            headers=HEADERS,
+            json={"include_markdown": False},
+        )
+        body = response.json()
+        files = body["files"]
+
+        assert len(files) == 0
 
 
 @with_session(SESSION_ID)
