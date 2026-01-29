@@ -194,10 +194,9 @@ export function useEnrichCellOutputs(): (
       inFlightWaiters.map(({ promise }) => promise),
     );
     for (const [i, { cellId }] of inFlightWaiters.entries()) {
-      const result =
-        settled[i].status === "fulfilled" ? settled[i].value : undefined;
-      if (result) {
-        results[cellId] = result;
+      const settledResult = settled[i];
+      if (settledResult.status === "fulfilled" && settledResult.value) {
+        results[cellId] = settledResult.value;
       }
     }
 

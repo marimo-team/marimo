@@ -65,6 +65,10 @@ function prepareCellElementForScreenshot(element: HTMLElement) {
 }
 
 const THRESHOLD_TIME_MS = 500;
+const HIDE_SCROLLBAR_STYLES = `
+  * { scrollbar-width: none; -ms-overflow-style: none; }
+  *::-webkit-scrollbar { display: none; }
+`;
 
 /**
  * Capture a cell output as a PNG data URL.
@@ -89,7 +93,9 @@ export async function getImageDataUrlForCell(
 
   try {
     const startTime = Date.now();
-    const dataUrl = await toPng(element);
+    const dataUrl = await toPng(element, {
+      extraStyleContent: HIDE_SCROLLBAR_STYLES,
+    });
     const timeTaken = Date.now() - startTime;
     if (timeTaken > THRESHOLD_TIME_MS) {
       Logger.debug(
@@ -115,7 +121,7 @@ export async function downloadCellOutputAsImage(
   if (!dataUrl) {
     return;
   }
-  return downloadByURL(dataUrl, Filenames.toPNG(filename));
+  downloadByURL(dataUrl, Filenames.toPNG(filename));
 }
 
 export const ADD_PRINTING_CLASS = (): (() => void) => {

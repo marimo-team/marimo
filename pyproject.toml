@@ -549,6 +549,7 @@ extend-exclude = [
     "**/__demo__/*",
     "base64.test.ts",
     "SECURITY.md", # Contains usernames that trigger typos
+    "patches/*", # Patches may contain typos from source code
 ]
 
 [tool.black]
