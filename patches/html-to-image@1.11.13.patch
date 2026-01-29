@@ -71,7 +71,7 @@ index 5dfcd117a1dd3d3d5cfb7c98ead3eb828085337a..8aa85ca88f84e8e64297673dcff36b21
 --- a/src/clone-node.ts
 +++ b/src/clone-node.ts
 @@ -88,11 +88,6 @@ async function cloneChildren<T extends HTMLElement>(
- 
+
    if (isSlotElement(nativeNode) && nativeNode.assignedNodes) {
      children = toArray<T>(nativeNode.assignedNodes())
 -  } else if (
@@ -89,7 +89,7 @@ index a84a699d37aeaaea19b9b31e0e98710f1e30da3c..6835efb8a2431aa8f066cd5ed0b47234
 @@ -258,9 +258,13 @@ export async function embedWebFonts<T extends HTMLElement>(
        ? null
        : await getWebFontCSS(clonedNode, options)
- 
+
 -  if (cssText) {
 +  const finalCssText = options.extraStyleContent != null
 +    ? options.extraStyleContent.concat(cssText || '')
@@ -99,9 +99,9 @@ index a84a699d37aeaaea19b9b31e0e98710f1e30da3c..6835efb8a2431aa8f066cd5ed0b47234
      const styleNode = document.createElement('style')
 -    const styleContent = document.createTextNode(cssText)
 +    const styleContent = document.createTextNode(finalCssText)
- 
+
      styleNode.appendChild(styleContent)
- 
+
 diff --git a/src/types.ts b/src/types.ts
 index 6023c3c2def1cb3ce83112c4c902997617582f59..b3cb4bd51f71ea708aab8bf616d8eef006b8dbf9 100644
 --- a/src/types.ts

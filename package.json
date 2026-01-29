@@ -23,7 +23,7 @@
   "pnpm": {
     "patchedDependencies": {
       "react-plotly.js": "patches/react-plotly.js.patch",
-      "html-to-image": "patches/html-to-image.patch"
+      "html-to-image@1.11.13": "patches/html-to-image@1.11.13.patch"
     },
     "overrides": {
       "react": "^19.2.3",
