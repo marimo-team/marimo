@@ -6,6 +6,7 @@ import json
 import os
 import sys
 import tempfile
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Optional
 
@@ -33,7 +34,9 @@ from marimo._cli.utils import (
 )
 from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._lint import run_check
-from marimo._server.file_router import AppFileRouter
+from marimo._server.file_router import AppFileRouter, flatten_files
+from marimo._server.files.directory_scanner import DirectoryScanner
+from marimo._server.models.home import MarimoFile
 from marimo._server.start import start
 from marimo._session.model import SessionMode
 from marimo._tutorials import (
@@ -41,6 +44,7 @@ from marimo._tutorials import (
     create_temp_tutorial_file,
     tutorial_order,
 )  # type: ignore
+from marimo._utils.http import HTTPException, HTTPStatus
 from marimo._utils.marimo_path import MarimoPath, create_temp_notebook_file
 from marimo._utils.platform import is_windows
 from marimo._version import __version__
@@ -783,6 +787,91 @@ def new(
     )
 
 
+@dataclass(frozen=True)
+class _CollectedRunFiles:
+    files: list[MarimoFile]
+    root_dir: str | None
+
+
+def _split_run_paths_and_args(
+    name: str, args: tuple[str, ...]
+) -> tuple[list[str], tuple[str, ...]]:
+    paths = [name]
+    for index, arg in enumerate(args):
+        if arg == "--":
+            return paths, args[index + 1 :]
+        if arg.startswith("-"):
+            return paths, args[index:]
+        paths.append(arg)
+    return paths, ()
+
+
+def _resolve_root_dir(
+    directories: list[str], files: list[MarimoFile]
+) -> str | None:
+    # Choose a "root" directory for gallery links when there is an obvious
+    # shared base directory. This lets us use relative `?file=` keys (and
+    # avoids leaking absolute paths) when possible.
+    if len(directories) == 1:
+        directory = Path(directories[0]).absolute()
+        if not files:
+            return str(directory)
+        # Only use this directory root if it contains all selected files.
+        if all(
+            Path(file.path).absolute().is_relative_to(directory)
+            for file in files
+        ):
+            return str(directory)
+        return None
+
+    if not directories:
+        if not files:
+            return None
+        parent = Path(files[0].path).absolute().parent
+        # Only use a parent root when all files are siblings.
+        if all(Path(file.path).absolute().parent == parent for file in files):
+            return str(parent)
+
+    return None
+
+
+def _collect_marimo_files(paths: list[str]) -> _CollectedRunFiles:
+    directories: list[str] = []
+    files_by_path: dict[str, MarimoFile] = {}
+
+    for path in paths:
+        if Path(path).is_dir():
+            directories.append(path)
+            directory = Path(path).absolute()
+            scanner = DirectoryScanner(path, include_markdown=False)
+            try:
+                file_infos = scanner.scan()
+            except HTTPException as exc:
+                if exc.status_code != HTTPStatus.REQUEST_TIMEOUT:
+                    raise
+                file_infos = scanner.partial_results
+            for file_info in flatten_files(file_infos):
+                if not file_info.is_marimo_file:
+                    continue
+                absolute_path = str(directory / file_info.path)
+                files_by_path[absolute_path] = MarimoFile(
+                    name=file_info.name,
+                    path=absolute_path,
+                    last_modified=file_info.last_modified,
+                )
+        else:
+            marimo_path = MarimoPath(path)
+            files_by_path[marimo_path.absolute_name] = MarimoFile(
+                name=marimo_path.relative_name,
+                path=marimo_path.absolute_name,
+                last_modified=marimo_path.last_modified,
+            )
+
+    files = sorted(files_by_path.values(), key=lambda file: file.path)
+    root_dir = _resolve_root_dir(directories, files)
+    return _CollectedRunFiles(files=files, root_dir=root_dir)
+
+
 @main.command(
     help="""Run a notebook as an app in read-only mode.
 
@@ -791,6 +880,8 @@ If NAME is a url, the notebook will be downloaded to a temporary file.
 Example:
 
     marimo run notebook.py
+    marimo run folder another_folder
+    marimo run app.py -- --arg value
 """
 )
 @click.option(
@@ -973,11 +1064,15 @@ def run(
         run_in_sandbox,
     )
 
-    if prompt_run_in_docker_container(name, trusted=trusted):
+    paths, notebook_args = _split_run_paths_and_args(name, args)
+
+    if len(paths) == 1 and prompt_run_in_docker_container(
+        paths[0], trusted=trusted
+    ):
         from marimo._cli.run_docker import run_in_docker
 
         run_in_docker(
-            name,
+            paths[0],
             "run",
             port=port,
             debug=GLOBAL_SETTINGS.DEVELOPMENT_MODE,
@@ -988,31 +1083,60 @@ def run(
     # The second return value is an optional temporary directory. It is unused,
     # but must be kept around because its lifetime on disk is bound to the life
     # of the Python object
-    name, _ = validate_name(name, allow_new_file=False, allow_directory=False)
+    validated_paths: list[str] = []
+    temp_dirs: list[tempfile.TemporaryDirectory[str]] = []
+    for path in paths:
+        validated_path, temp_dir = validate_name(
+            path, allow_new_file=False, allow_directory=True
+        )
+        if temp_dir is not None:
+            temp_dirs.append(temp_dir)
+        validated_paths.append(validated_path)
+
+    has_directory = any(Path(path).is_dir() for path in validated_paths)
+    is_multi = has_directory or len(validated_paths) > 1
 
     # correctness check - don't start the server if we can't import the module
-    check_app_correctness(name)
-    file = MarimoPath(name)
-    if check:
-        from marimo._lint import collect_messages
+    for path in validated_paths:
+        if Path(path).is_file():
+            check_app_correctness(path)
+            if check and not has_directory:
+                from marimo._lint import collect_messages
 
-        linter, message = collect_messages(file.absolute_name)
-        if linter.errored:
-            raise click.ClickException(
-                red("Failure")
-                + ": The notebook has errors, fix them before running.\n"
-                + message.strip()
-            )
+                file = MarimoPath(path)
+                linter, message = collect_messages(file.absolute_name)
+                if linter.errored:
+                    raise click.ClickException(
+                        red("Failure")
+                        + ": The notebook has errors, fix them before running.\n"
+                        + message.strip()
+                    )
 
     # We check this after name validation, because this will convert
     # URLs into local file paths
-    # For run command, only single-file sandbox is possible (no directory support)
-    if resolve_sandbox_mode(sandbox=sandbox, name=name) is SandboxMode.SINGLE:
-        run_in_sandbox(sys.argv[1:], name=name)
+    sandbox_mode = resolve_sandbox_mode(
+        sandbox=sandbox, name=validated_paths[0]
+    )
+    if sandbox_mode is SandboxMode.SINGLE and is_multi:
+        sandbox_mode = SandboxMode.MULTI
+    if sandbox_mode is SandboxMode.SINGLE:
+        run_in_sandbox(sys.argv[1:], name=validated_paths[0])
         return
 
+    if is_multi:
+        marimo_files = _collect_marimo_files(validated_paths)
+        file_router = AppFileRouter.from_files(
+            marimo_files.files,
+            directory=marimo_files.root_dir,
+            allow_single_file_key=False,
+        )
+    else:
+        file_router = AppFileRouter.from_filename(
+            MarimoPath(validated_paths[0])
+        )
+
     start(
-        file_router=AppFileRouter.from_filename(file),
+        file_router=file_router,
         development_mode=GLOBAL_SETTINGS.DEVELOPMENT_MODE,
         quiet=GLOBAL_SETTINGS.QUIET,
         host=host,
@@ -1026,8 +1150,8 @@ def run(
         skew_protection=skew_protection,
         base_url=base_url,
         allow_origins=allow_origins,
-        cli_args=parse_args(args),
-        argv=list(args),
+        cli_args=parse_args(notebook_args),
+        argv=list(notebook_args),
         auth_token=resolve_token(
             token,
             token_password=token_password,
@@ -1036,6 +1160,7 @@ def run(
         redirect_console_to_browser=redirect_console_to_browser,
         server_startup_command=server_startup_command,
         asset_url=asset_url,
+        sandbox_mode=sandbox_mode,
     )
 
 
