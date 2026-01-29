@@ -3,7 +3,6 @@
 import { SearchIcon } from "lucide-react";
 import type React from "react";
 import { Suspense, useMemo, useState } from "react";
-import { Banner } from "@/plugins/impl/common/error-banner";
 import { ErrorBoundary } from "@/components/editor/boundary/ErrorBoundary";
 import { Spinner } from "@/components/icons/spinner";
 import { Card, CardContent } from "@/components/ui/card";
@@ -11,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { getSessionId } from "@/core/kernel/session";
 import { useRequestClient } from "@/core/network/requests";
 import { useAsyncData } from "@/hooks/useAsyncData";
+import { Banner } from "@/plugins/impl/common/error-banner";
 import { prettyError } from "@/utils/errors";
 import { PathBuilder, Paths } from "@/utils/paths";
 import { asURL } from "@/utils/url";
