@@ -154,6 +154,10 @@ export interface CreateNewCellAction {
   before: boolean;
   /** Initial code content for the new cell */
   code?: string;
+  /** Optional name for the new cell */
+  name?: string;
+  /** Optional cell configuration */
+  config?: CellConfig;
   /** The last executed code for the new cell */
   lastCodeRun?: string;
   /** Timestamp of the last execution */
@@ -182,6 +186,8 @@ const {
       cellId,
       before,
       code,
+      name,
+      config,
       lastCodeRun = null,
       lastExecutionTime = null,
       autoFocus = true,
@@ -221,6 +227,12 @@ const {
     const newCellId = action.newCellId || CellId.create();
     const insertionIndex = before ? cellIndex : cellIndex + 1;
 
+    // Merge provided config with hideCode setting
+    const mergedConfig = createCellConfig({
+      ...config,
+      hide_code: hideCode || config?.hide_code,
+    });
+
     return {
       ...state,
       cellIds: state.cellIds.insertId(newCellId, columnId, insertionIndex),
@@ -229,8 +241,9 @@ const {
         [newCellId]: createCell({
           id: newCellId,
           code,
+          name,
           lastCodeRun,
-          config: createCellConfig({ hide_code: hideCode }),
+          config: mergedConfig,
           lastExecutionTime,
           edited: Boolean(code) && code !== lastCodeRun,
         }),
@@ -603,6 +616,31 @@ const {
           isSetupCell: cellId === SETUP_CELL_ID,
         },
       ],
+      scrollKey: scrollKey,
+    };
+  },
+  // Silent delete does not add to undo history (used for cut operations)
+  deleteCellSilent: (state, action: { cellId: CellId }) => {
+    const cellId = action.cellId;
+
+    // Can't delete the last cell, across all columns
+    if (state.cellIds.hasOnlyOneId()) {
+      return state;
+    }
+
+    const column = state.cellIds.findWithId(cellId);
+    const cellIndex = column.indexOfOrThrow(cellId);
+    const focusIndex = cellIndex === 0 ? 1 : cellIndex - 1;
+    let scrollKey: CellId | null = null;
+    if (column.length > 1) {
+      scrollKey = column.atOrThrow(focusIndex);
+    }
+
+    // release the granular atom(s) created for this cell
+    releaseCellAtoms(cellId);
+    return {
+      ...state,
+      cellIds: state.cellIds.deleteById(cellId),
       scrollKey: scrollKey,
     };
   },

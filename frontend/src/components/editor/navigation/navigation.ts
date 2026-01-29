@@ -185,7 +185,7 @@ export function useCellNavigationProps(
   const temporarilyShownCodeActions = useTemporarilyShownCodeActions();
   const runCells = useRunCells();
   const keymapPreset = useAtomValue(keymapPresetAtom);
-  const { copyCells, pasteAtCell } = useCellClipboard();
+  const { copyCells, pasteAtCell, cutCells } = useCellClipboard();
   const rawSelectionActions = useCellSelectionActions();
   const isSelected = useIsCellSelected(cellId);
   const pendingDeleteService = usePendingDeleteService();
@@ -508,6 +508,10 @@ export function useCellNavigationProps(
         // Command mode
         "command.copyCell": addSingleHandler((cellIds) => {
           copyCells(cellIds);
+          return true;
+        }),
+        "command.cutCell": addSingleHandler((cellIds) => {
+          cutCells(cellIds);
           return true;
         }),
         "command.pasteCell": (cellIds) => {

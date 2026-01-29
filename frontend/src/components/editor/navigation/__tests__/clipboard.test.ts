@@ -22,6 +22,10 @@ vi.mock("@/utils/Logger", () => ({
   Logger: Mocks.quietLogger(),
 }));
 
+vi.mock("@/components/editor/cell/useDeleteCell", () => ({
+  useDeleteManyCellsSilentCallback: () => vi.fn(),
+}));
+
 import { MockNotebook } from "@/__mocks__/notebook";
 import { toast } from "@/components/ui/use-toast";
 import { getNotebook, useCellActions } from "@/core/cells/cells";
@@ -199,6 +203,92 @@ describe("useCellClipboard", () => {
         title: "Cell copied",
         description: "Cell has been copied to clipboard.",
       });
+    });
+  });
+
+  describe("cutCells", () => {
+    it("should cut single cell to clipboard with custom mimetype and plain text", async () => {
+      const { result } = renderHook(() => useCellClipboard());
+
+      await act(async () => {
+        await result.current.cutCells([mockCellId1]);
+      });
+
+      expect(mockClipboard.write).toHaveBeenCalledWith([
+        expect.objectContaining({
+          types: ["web application/x-marimo-cell", "text/plain"],
+        }),
+      ]);
+
+      expect(toast).toHaveBeenCalledWith({
+        title: "Cell cut",
+        description: "Cell has been cut to clipboard.",
+      });
+    });
+
+    it("should cut multiple cells to clipboard with custom mimetype and plain text", async () => {
+      const { result } = renderHook(() => useCellClipboard());
+
+      await act(async () => {
+        await result.current.cutCells([mockCellId1, mockCellId2]);
+      });
+
+      expect(mockClipboard.write).toHaveBeenCalledWith([
+        expect.objectContaining({
+          types: ["web application/x-marimo-cell", "text/plain"],
+        }),
+      ]);
+
+      expect(toast).toHaveBeenCalledWith({
+        title: "2 cells cut",
+        description: "2 cells have been cut to clipboard.",
+      });
+    });
+
+    it("should not write when no cells found", async () => {
+      asMock(getNotebook).mockReturnValue(MockNotebook.notebookState());
+
+      const { result } = renderHook(() => useCellClipboard());
+
+      await act(async () => {
+        await result.current.cutCells([mockCellId1]);
+      });
+
+      expect(mockClipboard.write).not.toHaveBeenCalled();
+    });
+
+    it("should fallback to writeText when clipboard.write fails", async () => {
+      mockClipboard.write.mockRejectedValue(new Error("Write failed"));
+      mockClipboard.writeText.mockResolvedValue(undefined);
+
+      const { result } = renderHook(() => useCellClipboard());
+
+      await act(async () => {
+        await result.current.cutCells([mockCellId1]);
+      });
+
+      expect(mockClipboard.write).toHaveBeenCalled();
+      expect(mockClipboard.writeText).toHaveBeenCalledWith(mockCellCode1);
+      expect(toast).toHaveBeenCalledWith({
+        title: "Cell cut",
+        description: "Cell has been cut to clipboard.",
+      });
+    });
+
+    it("should show error toast when both clipboard methods fail", async () => {
+      mockClipboard.write.mockRejectedValue(new Error("Write failed"));
+      mockClipboard.writeText.mockRejectedValue(new Error("WriteText failed"));
+
+      const { result } = renderHook(() => useCellClipboard());
+
+      await act(async () => {
+        await result.current.cutCells([mockCellId1]);
+      });
+
+      expect(Logger.error).toHaveBeenCalledWith(
+        "Failed to cut cells to clipboard",
+        expect.any(Error),
+      );
     });
   });
 

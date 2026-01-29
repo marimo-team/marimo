@@ -428,6 +428,11 @@ const DEFAULT_HOT_KEY = {
     group: "Command",
     key: "c",
   },
+  "command.cutCell": {
+    name: "Cut cell",
+    group: "Command",
+    key: "x",
+  },
   "command.pasteCell": {
     name: "Paste cell",
     group: "Command",
