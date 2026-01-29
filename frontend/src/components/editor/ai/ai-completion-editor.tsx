@@ -363,6 +363,7 @@ export const AiCompletionEditor: React.FC<Props> = ({
                   iconSize="small"
                   forRole="edit"
                   displayIconOnly={true}
+                  placeholder="Edit model"
                 />
               </div>
               {completion && (

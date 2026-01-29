@@ -272,6 +272,7 @@ export const AddCellWithAI: React.FC<{
             triggerClassName="h-7 text-xs max-w-64"
             iconSize="small"
             forRole="edit"
+            showAddCustomModelDocs={true}
           />
         </div>
       </div>

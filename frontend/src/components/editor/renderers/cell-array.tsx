@@ -13,6 +13,7 @@ import {
   SquareMIcon,
 } from "lucide-react";
 import { useEffect } from "react";
+import { useOpenSettingsToTab } from "@/components/app-config/state";
 import { StartupLogsAlert } from "@/components/editor/alerts/startup-logs-alert";
 import { Cell } from "@/components/editor/notebook-cell";
 import { PackageAlert } from "@/components/editor/package-alert";
@@ -253,6 +254,7 @@ const AddCellButtons: React.FC<{
   const [isAiButtonOpen, isAiButtonOpenActions] = useBoolean(false);
   const aiEnabled = useAtomValue(aiEnabledAtom);
   const canInteractWithApp = useAtomValue(canInteractWithAppAtom);
+  const { handleClick } = useOpenSettingsToTab();
 
   const buttonClass = cn(
     "mb-0 rounded-none sm:px-4 md:px-5 lg:px-8 tracking-wide no-wrap whitespace-nowrap",
@@ -320,7 +322,9 @@ const AddCellButtons: React.FC<{
         </Button>
         <Tooltip
           content={
-            aiEnabled ? null : <span>Enable via settings under AI Assist</span>
+            aiEnabled ? null : (
+              <span>AI provider not found or Edit model not selected</span>
+            )
           }
           delayDuration={100}
           asChild={false}
@@ -329,8 +333,12 @@ const AddCellButtons: React.FC<{
             className={buttonClass}
             variant="text"
             size="sm"
-            disabled={!aiEnabled || !canInteractWithApp}
-            onClick={isAiButtonOpenActions.toggle}
+            disabled={!canInteractWithApp}
+            onClick={
+              aiEnabled
+                ? isAiButtonOpenActions.toggle
+                : () => handleClick("ai", "ai-providers")
+            }
           >
             <SparklesIcon className="mr-2 size-4 shrink-0" />
             Generate with AI
