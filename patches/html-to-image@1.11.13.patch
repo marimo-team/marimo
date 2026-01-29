@@ -27,9 +27,9 @@ index f6b0d96829c8a3301c142cacd07079e85b1f64fd..f5bfa86bc18c8314ad565c73c7dfab87
 +        : cssText
 +    if (finalCssText) {
          const styleNode = document.createElement('style');
--        const sytleContent = document.createTextNode(cssText);
-+        const sytleContent = document.createTextNode(finalCssText);
-         styleNode.appendChild(sytleContent);
+-        const styleContent = document.createTextNode(cssText);
++        const styleContent = document.createTextNode(finalCssText);
+         styleNode.appendChild(styleContent);
          if (clonedNode.firstChild) {
              clonedNode.insertBefore(styleNode, clonedNode.firstChild);
 diff --git a/es/types.d.ts b/es/types.d.ts
@@ -77,9 +77,9 @@ index c91538bd9c3afa63326a91267fb7b5b9c999cccd..f3e3bc8f0e9e254b3c10e3c317d804e3
 +                        : cssText
 +                    if (finalCssText) {
                          styleNode = document.createElement('style');
--                        sytleContent = document.createTextNode(cssText);
-+                        sytleContent = document.createTextNode(finalCssText);
-                         styleNode.appendChild(sytleContent);
+-                        styleContent = document.createTextNode(cssText);
++                        styleContent = document.createTextNode(finalCssText);
+                         styleNode.appendChild(styleContent);
                          if (clonedNode.firstChild) {
                              clonedNode.insertBefore(styleNode, clonedNode.firstChild);
 diff --git a/lib/types.d.ts b/lib/types.d.ts
@@ -129,10 +129,10 @@ index a84a699d37aeaaea19b9b31e0e98710f1e30da3c..6835efb8a2431aa8f066cd5ed0b47234
 +
 +  if (finalCssText) {
      const styleNode = document.createElement('style')
--    const sytleContent = document.createTextNode(cssText)
-+    const sytleContent = document.createTextNode(finalCssText)
+-    const styleContent = document.createTextNode(cssText)
++    const styleContent = document.createTextNode(finalCssText)
  
-     styleNode.appendChild(sytleContent)
+     styleNode.appendChild(styleContent)
  
 diff --git a/src/types.ts b/src/types.ts
 index 6023c3c2def1cb3ce83112c4c902997617582f59..ef40283ab6e47c98c7f8ea477c3ae29671682d98 100644
