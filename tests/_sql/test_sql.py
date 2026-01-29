@@ -629,3 +629,77 @@ SELECT * FROM users WHERE
                       ^
 Expected 'FROM' keyword"""
         assert strip_explain_from_error_message(multiline_error) == expected
+
+
+class TestDisplayConfigBehavior:
+    """Test that sql() respects the display.dataframes config setting."""
+
+    @patch("marimo._sql.sql.replace")
+    @patch(
+        "marimo._output.formatters.df_formatters.include_opinionated",
+        return_value=False,
+    )
+    @pytest.mark.skipif(
+        not HAS_POLARS or not HAS_DUCKDB, reason="polars and duckdb required"
+    )
+    def test_sql_plain_output_when_not_opinionated(
+        self, mock_include_opinionated, mock_replace
+    ):
+        """Test that SQL uses plain() when include_opinionated returns False."""
+        import duckdb
+        import polars as pl
+
+        from marimo._output.formatting import Plain
+
+        # Create a test table
+        duckdb.sql(
+            "CREATE OR REPLACE TABLE test_plain AS SELECT * FROM range(5)"
+        )
+
+        # Test query
+        result = sql("SELECT * FROM test_plain")
+        assert isinstance(result, pl.DataFrame)
+
+        # Should call replace with Plain object
+        mock_replace.assert_called_once()
+        call_args = mock_replace.call_args[0][0]
+
+        # The call should be a Plain object (not a table)
+        assert isinstance(call_args, Plain)
+
+        # Clean up
+        duckdb.sql("DROP TABLE test_plain")
+
+    @patch("marimo._sql.sql.replace")
+    @patch(
+        "marimo._output.formatters.df_formatters.include_opinionated",
+        return_value=True,
+    )
+    @pytest.mark.skipif(
+        not HAS_POLARS or not HAS_DUCKDB, reason="polars and duckdb required"
+    )
+    def test_sql_rich_output_when_opinionated(
+        self, mock_include_opinionated, mock_replace
+    ):
+        """Test that SQL uses table() when include_opinionated returns True."""
+        import duckdb
+        import polars as pl
+
+        # Create a test table
+        duckdb.sql(
+            "CREATE OR REPLACE TABLE test_rich AS SELECT * FROM range(5)"
+        )
+
+        # Test query
+        result = sql("SELECT * FROM test_rich")
+        assert isinstance(result, pl.DataFrame)
+
+        # Should call replace with table (not Plain)
+        mock_replace.assert_called_once()
+        call_args = mock_replace.call_args[0][0]
+
+        # The call should be a table object
+        assert isinstance(call_args, ui.table)
+
+        # Clean up
+        duckdb.sql("DROP TABLE test_rich")
