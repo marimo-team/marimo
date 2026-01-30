@@ -104,6 +104,80 @@ Or with uv:
 uv add "marimo @ git+https://github.com/try-ama/marimo.git@ama-integrations"
 ```
 
+## Build & Release Process
+
+The fork uses GitHub Actions to automatically build frontend assets and Python wheels.
+
+### Automatic Builds
+
+Every push to these branches triggers a build:
+- `main` - Auto-creates a GitHub release
+- `ama-*` - Builds only, no release
+- `feat/*`, `feature/*` - Builds only, no release
+
+### Version Format
+
+Versions follow the pattern `{upstream}-fork.{iteration}`:
+- `0.19.6-fork.1` - First fork release based on upstream 0.19.6
+- `0.19.6-fork.2` - Second iteration (e.g., fork-specific fixes)
+- `0.19.7-fork.1` - After syncing with upstream 0.19.7
+
+The iteration number is tracked in `.fork-version`.
+
+### Creating a Release
+
+**Automatic (recommended):** Push to `main` branch → release created automatically.
+
+**Manual (for feature branches):**
+1. Go to Actions → "Build & Release"
+2. Click "Run workflow"
+3. Check "Create a GitHub release"
+4. Optionally override the fork iteration number
+
+### Bumping the Fork Version
+
+When making changes that warrant a new release:
+
+```bash
+# Increment the iteration number
+echo "2" > .fork-version
+git add .fork-version
+git commit -m "chore: bump fork version to 2"
+```
+
+### Using Fork Releases
+
+**Install via pip:**
+```bash
+pip install "marimo @ https://github.com/try-ama/marimo/releases/download/v0.19.6-fork.1/marimo-0.19.6-py3-none-any.whl"
+```
+
+**Use CDN assets (for containers/deployments):**
+```bash
+marimo edit --asset-url "https://cdn.jsdelivr.net/gh/try-ama/marimo@v0.19.6-fork.1/_static"
+```
+
+### CDN Asset URL Pattern
+
+Assets are served via jsDelivr from GitHub releases:
+```
+https://cdn.jsdelivr.net/gh/try-ama/marimo@v{version}/_static
+```
+
+This is useful for:
+- Docker containers that bundle only Python (no frontend build)
+- Deployments where you want to serve assets from CDN
+- Reducing container image size
+
+### Version Reconciliation After Upstream Sync
+
+When syncing with a new upstream version:
+
+1. Sync main with upstream: `uvx hatch run fork-full-sync`
+2. Reset iteration to 1: `echo "1" > .fork-version`
+3. Rebase feature branch: `uvx hatch run fork-rebase-branch`
+4. Push to trigger new release
+
 ## Upstream Contribution Policy
 
 If a feature is general-purpose and could benefit the marimo community:

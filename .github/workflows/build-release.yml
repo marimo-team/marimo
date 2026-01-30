@@ -1,0 +1,115 @@
+name: Build & Release
+
+on:
+  push:
+    branches: [main, 'ama-*', 'feat/*', 'feature/*']
+  workflow_dispatch:
+    inputs:
+      create_release:
+        description: 'Create a GitHub release'
+        type: boolean
+        default: false
+      fork_iteration:
+        description: 'Fork iteration number (overrides .fork-version)'
+        type: string
+        default: ''
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      upstream_version: ${{ steps.version.outputs.upstream_version }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Get versions
+        id: version
+        run: |
+          UPSTREAM_VERSION=$(grep '^version = ' pyproject.toml | head -1 | cut -d'"' -f2)
+          # Use input if provided, otherwise read from file, default to 1
+          if [ -n "${{ github.event.inputs.fork_iteration }}" ]; then
+            FORK_ITERATION="${{ github.event.inputs.fork_iteration }}"
+          elif [ -f .fork-version ]; then
+            FORK_ITERATION=$(cat .fork-version | tr -d '[:space:]')
+          else
+            FORK_ITERATION="1"
+          fi
+          echo "upstream_version=${UPSTREAM_VERSION}" >> $GITHUB_OUTPUT
+          echo "version=${UPSTREAM_VERSION}-fork.${FORK_ITERATION}" >> $GITHUB_OUTPUT
+          echo "Building version: ${UPSTREAM_VERSION}-fork.${FORK_ITERATION}"
+
+      - name: Build frontend
+        uses: ./.github/actions/build-frontend
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Copy assets to marimo/_static
+        run: |
+          rm -rf marimo/_static
+          cp -R frontend/dist marimo/_static
+
+      - name: Build Python wheel
+        run: uv build --wheel
+
+      - name: Package assets tarball
+        run: |
+          mkdir -p release-assets/_static
+          cp -R frontend/dist/* release-assets/_static/
+          cd release-assets && tar -czvf ../marimo-assets-${{ steps.version.outputs.version }}.tar.gz _static
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: marimo-build-${{ steps.version.outputs.version }}
+          path: |
+            dist/*.whl
+            marimo-assets-${{ steps.version.outputs.version }}.tar.gz
+          retention-days: 30
+
+  release:
+    needs: build
+    # Auto-release on main, or manual trigger with create_release
+    if: github.ref == 'refs/heads/main' || github.event.inputs.create_release == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: marimo-build-${{ needs.build.outputs.version }}
+
+      - name: Extract assets for jsDelivr
+        run: tar -xzf marimo-assets-${{ needs.build.outputs.version }}.tar.gz
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ needs.build.outputs.version }}
+          name: Fork Release v${{ needs.build.outputs.version }}
+          body: |
+            ## Marimo Fork v${{ needs.build.outputs.version }}
+
+            Based on upstream: ${{ needs.build.outputs.upstream_version }}
+
+            ### Install via pip
+            ```bash
+            pip install "marimo @ https://github.com/try-ama/marimo/releases/download/v${{ needs.build.outputs.version }}/marimo-${{ needs.build.outputs.upstream_version }}-py3-none-any.whl"
+            ```
+
+            ### Use CDN assets
+            ```bash
+            marimo edit --asset-url "https://cdn.jsdelivr.net/gh/try-ama/marimo@v${{ needs.build.outputs.version }}/_static"
+            ```
+          files: |
+            dist/*.whl
+            marimo-assets-${{ needs.build.outputs.version }}.tar.gz
+            _static/**
+          prerelease: true
