@@ -4,7 +4,7 @@ from __future__ import annotations
 import abc
 import os
 from pathlib import Path
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 from marimo import _loggers
 from marimo._server.app_defaults import AppDefaults
@@ -15,6 +15,10 @@ from marimo._server.models.home import MarimoFile
 from marimo._session.notebook import AppFileManager
 from marimo._utils.http import HTTPException, HTTPStatus
 from marimo._utils.marimo_path import MarimoPath
+from marimo._utils.paths import normalize_path
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
 
 LOGGER = _loggers.marimo_logger()
 
@@ -190,15 +194,15 @@ class ListOfFilesAppFileRouter(AppFileRouter):
         filepath = Path(key)
         if not filepath.is_absolute() and self._directory:
             filepath = Path(self._directory) / filepath
-
-        absolute_path = str(filepath)
+        normalized_path = normalize_path(filepath)
+        absolute_path = str(normalized_path)
         if absolute_path not in self._allowed_paths:
             raise HTTPException(
                 status_code=HTTPStatus.NOT_FOUND,
                 detail=f"File {key} not found",
             )
 
-        if filepath.exists():
+        if normalized_path.exists():
             return AppFileManager(absolute_path, defaults=defaults)
 
         raise HTTPException(
@@ -354,14 +358,12 @@ def count_files(file_list: list[FileInfo]) -> int:
     return count
 
 
-def flatten_files(files: list[FileInfo]) -> list[FileInfo]:
-    """Flatten a list of files and directories into a list of files."""
+def flatten_files(files: list[FileInfo]) -> Iterator[FileInfo]:
+    """Iterate over files, skipping directories."""
     stack = files.copy()
-    result: list[FileInfo] = []
     while stack:
         file = stack.pop()
         if file.is_directory:
             stack.extend(file.children)
         else:
-            result.append(file)
-    return result
+            yield file

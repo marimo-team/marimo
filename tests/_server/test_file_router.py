@@ -241,7 +241,7 @@ def test_flatten_files() -> None:
         ],
     )
 
-    flattened = flatten_files([root])
+    flattened = list(flatten_files([root]))
     paths = {file.path for file in flattened}
     assert paths == {
         "root/file1.py",

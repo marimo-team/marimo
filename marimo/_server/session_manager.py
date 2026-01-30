@@ -104,7 +104,7 @@ class SessionManager:
                 app = file_router.get_single_app_file_manager(defaults).app
                 return "".join(code for code in app.cell_manager.codes())
 
-            files = flatten_files(file_router.files)
+            files = list(flatten_files(file_router.files))
             entries = [
                 f"{file.path}:{file.last_modified or 0.0}"
                 for file in files
