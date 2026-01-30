@@ -22,6 +22,7 @@ from marimo._runtime.commands import (
 from marimo._server.app_defaults import AppDefaults
 from marimo._server.file_router import (
     AppFileRouter,
+    ListOfFilesAppFileRouter,
     MarimoFileKey,
     flatten_files,
 )
@@ -150,6 +151,12 @@ class SessionManager:
     def app_manager(self, key: MarimoFileKey) -> AppFileManager:
         """Get the app manager for the given key."""
         defaults = AppDefaults.from_config_manager(self._config_manager)
+        if (
+            self.mode is SessionMode.EDIT
+            and isinstance(self.file_router, ListOfFilesAppFileRouter)
+            and not key.startswith(AppFileRouter.NEW_FILE)
+        ):
+            self.file_router.register_allowed_file(key)
         return self.file_router.get_file_manager(key, defaults)
 
     def create_session(
@@ -170,6 +177,12 @@ class SessionManager:
 
         # Get app file manager
         defaults = AppDefaults.from_config_manager(self._config_manager)
+        if (
+            self.mode is SessionMode.EDIT
+            and isinstance(self.file_router, ListOfFilesAppFileRouter)
+            and not file_key.startswith(AppFileRouter.NEW_FILE)
+        ):
+            self.file_router.register_allowed_file(file_key)
         app_file_manager = self.file_router.get_file_manager(
             file_key, defaults
         )
