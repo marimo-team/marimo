@@ -243,12 +243,6 @@ const {
     const newCellId = action.newCellId || CellId.create();
     const insertionIndex = before ? cellIndex : cellIndex + 1;
 
-    // Merge provided config with hideCode setting
-    const mergedConfig = createCellConfig({
-      ...config,
-      hide_code: Boolean(hideCode || config?.hide_code),
-    });
-
     return {
       ...state,
       cellIds: state.cellIds.insertId(newCellId, columnId, insertionIndex),
@@ -259,7 +253,10 @@ const {
           code,
           name,
           lastCodeRun,
-          config: mergedConfig,
+          config: createCellConfig({
+            ...config,
+            hide_code: hideCode,
+          }),
           lastExecutionTime,
           edited: Boolean(code) && code !== lastCodeRun,
         }),

@@ -42,6 +42,32 @@ const ClipboardCellDataSchema = z.object({
   version: z.literal("1.0"),
 });
 
+function buildClipboardPayload(
+  cells: Array<{ code: string; name?: string; config?: CellConfig }>,
+): { clipboardData: ClipboardCellData; plainText: string } {
+  const clipboardData: ClipboardCellData = {
+    cells: cells.map((cell) => ({
+      code: cell.code,
+      name: cell.name,
+      config: cell.config,
+    })),
+    version: "1.0",
+  };
+  const plainText = cells.map((cell) => cell.code).join("\n\n");
+  return { clipboardData, plainText };
+}
+
+async function writeCellsToClipboard(
+  clipboardData: ClipboardCellData,
+  plainText: string,
+): Promise<void> {
+  const clipboardItem = new ClipboardItemBuilder()
+    .add(MARIMO_CELL_MIMETYPE, clipboardData)
+    .add("text/plain", plainText)
+    .build();
+  await navigator.clipboard.write([clipboardItem]);
+}
+
 export function useCellClipboard() {
   const actions = useCellActions();
   const pendingCutActions = usePendingCutActions();
@@ -58,35 +84,19 @@ export function useCellClipboard() {
       return;
     }
 
+    const { clipboardData, plainText } = buildClipboardPayload(cells);
+
     try {
-      const clipboardData: ClipboardCellData = {
-        cells: cells.map((cell) => ({
-          code: cell.code,
-          name: cell.name,
-          config: cell.config,
-        })),
-        version: "1.0",
-      };
-
-      // Create plain text representation (joined by newlines)
-      const plainText = cells.map((cell) => cell.code).join("\n\n");
-
-      // Create clipboard item with both custom mimetype and plain text
-      const clipboardItem = new ClipboardItemBuilder()
-        .add(MARIMO_CELL_MIMETYPE, clipboardData)
-        .add("text/plain", plainText)
-        .build();
-
-      await navigator.clipboard.write([clipboardItem]);
-
+      await writeCellsToClipboard(clipboardData, plainText);
+      pendingCutActions.clear();
       toastSuccess(cells.length);
     } catch (error) {
       Logger.error("Failed to copy cells to clipboard", error);
 
       // Fallback to simple text copy
       try {
-        const plainText = cells.map((cell) => cell.code).join("\n\n");
         await copyToClipboard(plainText);
+        pendingCutActions.clear();
         toastSuccess(cells.length);
       } catch {
         toastError();
@@ -105,48 +115,17 @@ export function useCellClipboard() {
       return;
     }
 
+    const { clipboardData, plainText } = buildClipboardPayload(cells);
+
     try {
-      const clipboardData: ClipboardCellData = {
-        cells: cells.map((cell) => ({
-          code: cell.code,
-          name: cell.name,
-          config: cell.config,
-        })),
-        version: "1.0",
-      };
-
-      // Create plain text representation (joined by newlines)
-      const plainText = cells.map((cell) => cell.code).join("\n\n");
-
-      // Create clipboard item with both custom mimetype and plain text
-      const clipboardItem = new ClipboardItemBuilder()
-        .add(MARIMO_CELL_MIMETYPE, clipboardData)
-        .add("text/plain", plainText)
-        .build();
-
-      await navigator.clipboard.write([clipboardItem]);
-
-      // Mark cells as pending cut instead of deleting immediately
+      await writeCellsToClipboard(clipboardData, plainText);
       pendingCutActions.markForCut({ cellIds, clipboardData });
-      toastCutSuccess(cells.length);
     } catch (error) {
       Logger.error("Failed to cut cells to clipboard", error);
-
-      // Fallback to simple text copy
       try {
-        const clipboardData: ClipboardCellData = {
-          cells: cells.map((cell) => ({
-            code: cell.code,
-            name: cell.name,
-            config: cell.config,
-          })),
-          version: "1.0",
-        };
-        const plainText = cells.map((cell) => cell.code).join("\n\n");
         await copyToClipboard(plainText);
         // Mark cells as pending cut instead of deleting immediately
         pendingCutActions.markForCut({ cellIds, clipboardData });
-        toastCutSuccess(cells.length);
       } catch {
         toastError();
       }
@@ -177,7 +156,6 @@ export function useCellClipboard() {
       });
 
       pendingCutActions.clear();
-      toastPasteSuccess(pendingCellIds.length);
       return;
     }
 
@@ -210,6 +188,7 @@ export function useCellClipboard() {
                 code: cell.code,
                 name: cell.name,
                 config: cell.config,
+                hideCode: cell.config?.hide_code,
                 autoFocus: true,
               });
             }
@@ -252,22 +231,6 @@ const toastSuccess = (cellLength: number) => {
   toast({
     title: `${cellText} copied`,
     description: `${cellText} ${cellLength === 1 ? "has" : "have"} been copied to clipboard.`,
-  });
-};
-
-const toastCutSuccess = (cellLength: number) => {
-  const cellText = cellLength === 1 ? "Cell" : `${cellLength} cells`;
-  toast({
-    title: `${cellText} marked for cut`,
-    description: `${cellText} will be moved on paste.`,
-  });
-};
-
-const toastPasteSuccess = (cellLength: number) => {
-  const cellText = cellLength === 1 ? "Cell" : `${cellLength} cells`;
-  toast({
-    title: `${cellText} moved`,
-    description: `${cellText} ${cellLength === 1 ? "has" : "have"} been moved.`,
   });
 };
 

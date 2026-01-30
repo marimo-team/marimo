@@ -22,10 +22,11 @@ vi.mock("@/utils/Logger", () => ({
   Logger: Mocks.quietLogger(),
 }));
 
+const mockClearPendingCut = vi.hoisted(() => vi.fn());
 vi.mock("@/core/cells/pending-cut-service", () => ({
   usePendingCutActions: () => ({
     markForCut: vi.fn(),
-    clear: vi.fn(),
+    clear: mockClearPendingCut,
   }),
   usePendingCutState: () => ({
     cellIds: new Set(),
@@ -211,6 +212,29 @@ describe("useCellClipboard", () => {
         description: "Cell has been copied to clipboard.",
       });
     });
+
+    it("should clear pending cut when copy succeeds", async () => {
+      const { result } = renderHook(() => useCellClipboard());
+
+      await act(async () => {
+        await result.current.copyCells([mockCellId1]);
+      });
+
+      expect(mockClearPendingCut).toHaveBeenCalled();
+    });
+
+    it("should clear pending cut when copy falls back to writeText", async () => {
+      mockClipboard.write.mockRejectedValue(new Error("Write failed"));
+      mockClipboard.writeText.mockResolvedValue(undefined);
+
+      const { result } = renderHook(() => useCellClipboard());
+
+      await act(async () => {
+        await result.current.copyCells([mockCellId1]);
+      });
+
+      expect(mockClearPendingCut).toHaveBeenCalled();
+    });
   });
 
   describe("cutCells", () => {
@@ -226,11 +250,6 @@ describe("useCellClipboard", () => {
           types: ["web application/x-marimo-cell", "text/plain"],
         }),
       ]);
-
-      expect(toast).toHaveBeenCalledWith({
-        title: "Cell marked for cut",
-        description: "Cell will be moved on paste.",
-      });
     });
 
     it("should cut multiple cells to clipboard with custom mimetype and plain text", async () => {
@@ -245,11 +264,6 @@ describe("useCellClipboard", () => {
           types: ["web application/x-marimo-cell", "text/plain"],
         }),
       ]);
-
-      expect(toast).toHaveBeenCalledWith({
-        title: "2 cells marked for cut",
-        description: "2 cells will be moved on paste.",
-      });
     });
 
     it("should not write when no cells found", async () => {
@@ -276,10 +290,6 @@ describe("useCellClipboard", () => {
 
       expect(mockClipboard.write).toHaveBeenCalled();
       expect(mockClipboard.writeText).toHaveBeenCalledWith(mockCellCode1);
-      expect(toast).toHaveBeenCalledWith({
-        title: "Cell marked for cut",
-        description: "Cell will be moved on paste.",
-      });
     });
 
     it("should show error toast when both clipboard methods fail", async () => {
