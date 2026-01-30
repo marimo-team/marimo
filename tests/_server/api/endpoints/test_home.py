@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING
 import pytest
 
 from marimo._server.file_router import AppFileRouter
+from marimo._server.models.home import MarimoFile
 from marimo._session.model import SessionMode
 from tests._server.conftest import get_session_manager
 from tests._server.mocks import token_header, with_session
@@ -157,7 +158,51 @@ def test_workspace_files_empty_directory(client: TestClient) -> None:
         body = response.json()
         files = body["files"]
 
-        assert len(files) == 0
+    assert len(files) == 0
+
+
+@with_session(SESSION_ID)
+def test_workspace_files_run_mode_allowlist(client: TestClient) -> None:
+    session_manager = get_session_manager(client)
+    session_manager.mode = SessionMode.RUN
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        file_one = Path(temp_dir) / "one.py"
+        file_one.write_text("import marimo\napp = marimo.App()")
+        file_two = Path(temp_dir) / "two.py"
+        file_two.write_text("import marimo\napp = marimo.App()")
+
+        marimo_files = [
+            MarimoFile(
+                name=file_one.name,
+                path=str(file_one),
+                last_modified=file_one.stat().st_mtime,
+            ),
+            MarimoFile(
+                name=file_two.name,
+                path=str(file_two),
+                last_modified=file_two.stat().st_mtime,
+            ),
+        ]
+        session_manager.file_router = AppFileRouter.from_files(
+            marimo_files,
+            directory=temp_dir,
+            allow_single_file_key=False,
+        )
+
+        response = client.post(
+            "/api/home/workspace_files",
+            headers=HEADERS,
+            json={"include_markdown": False},
+        )
+        body = response.json()
+        files = body["files"]
+
+        assert body["root"] == temp_dir
+        assert {file["path"] for file in files} == {
+            str(file_one),
+            str(file_two),
+        }
 
 
 @with_session(SESSION_ID)
