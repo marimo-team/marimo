@@ -154,9 +154,12 @@ def _create_ipynb_cell(
     if cell is not None:
         markdown_string = get_markdown_from_cell(cell, code)
         if markdown_string is not None:
-            markdown_string = _convert_latex_delimiters_for_jupyter(
-                markdown_string
-            )
+            # Note: This handles modern LaTeX syntax like \[...\]
+            # However they are not supported by Jupyter https://github.com/jupyter/nbconvert/issues/477
+            # Hence, leaving out for now.
+            # markdown_string = _convert_latex_delimiters_for_jupyter(
+            #     markdown_string
+            # )
             node = cast(
                 nbformat.NotebookNode,
                 nbformat.v4.new_markdown_cell(markdown_string, id=cell_id),  # type: ignore[no-untyped-call]
