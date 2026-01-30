@@ -944,11 +944,7 @@ describe("MultiColumn", () => {
 
   describe("moveCellsRelativeTo", () => {
     it("moves a single cell before target in same column", () => {
-      const moved = multiColumn.moveCellsRelativeTo(
-        ["A3"],
-        "A1",
-        "before",
-      );
+      const moved = multiColumn.moveCellsRelativeTo(["A3"], "A1", "before");
       expect(moved.topLevelIds).toEqual([
         ["A3", "A1", "A2"],
         ["B1", "B2"],
@@ -957,11 +953,7 @@ describe("MultiColumn", () => {
     });
 
     it("moves a single cell after target in same column", () => {
-      const moved = multiColumn.moveCellsRelativeTo(
-        ["A1"],
-        "A3",
-        "after",
-      );
+      const moved = multiColumn.moveCellsRelativeTo(["A1"], "A3", "after");
       expect(moved.topLevelIds).toEqual([
         ["A2", "A3", "A1"],
         ["B1", "B2"],

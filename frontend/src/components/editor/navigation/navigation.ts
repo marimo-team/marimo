@@ -17,8 +17,8 @@ import { useCellFocusActions } from "@/core/cells/focus";
 import type { CellId } from "@/core/cells/ids";
 import { HTMLCellId } from "@/core/cells/ids";
 import {
-  pendingCutCellIdsAtom,
   clearPendingCutAtom,
+  pendingCutCellIdsAtom,
 } from "@/core/cells/pending-cut-service";
 import { usePendingDeleteService } from "@/core/cells/pending-delete-service";
 import { scrollCellIntoView } from "@/core/cells/scrollCellIntoView";

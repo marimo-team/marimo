@@ -1,7 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { historyField } from "@codemirror/commands";
-import type { SerializedEditorState } from "../codemirror/types";
 import { type Atom, atom, useAtom, useAtomValue } from "jotai";
 import { atomFamily, selectAtom, splitAtom } from "jotai/utils";
 import { isEqual, zip } from "lodash-es";
@@ -23,6 +22,7 @@ import {
   splitEditor,
   updateEditorCodeFromPython,
 } from "../codemirror/language/utils";
+import type { SerializedEditorState } from "../codemirror/types";
 import { findCollapseRange, mergeOutlines } from "../dom/outline";
 import type { CellMessage } from "../kernel/messages";
 import { isErrorMime } from "../mime";
@@ -46,9 +46,9 @@ import {
 } from "./types";
 import {
   canUndoDeletes,
-  getUndoLabel,
   disabledCellIds,
   enabledCellIds,
+  getUndoLabel,
   notebookIsRunning,
   notebookNeedsRun,
   notebookQueueOrRunningCount,

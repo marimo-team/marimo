@@ -39,7 +39,10 @@ describe("pending-cut-service", () => {
     );
 
     act(() => {
-      result.current.actions.markForCut({ cellIds, clipboardData: mockClipboardData });
+      result.current.actions.markForCut({
+        cellIds,
+        clipboardData: mockClipboardData,
+      });
     });
 
     const state = store.get(pendingCutStateAtom);

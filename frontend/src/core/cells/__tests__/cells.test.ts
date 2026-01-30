@@ -527,8 +527,18 @@ describe("cell reducer", () => {
 
     const col = state.cellIds.findWithId(firstCellId);
     const previousPlacements = [
-      { columnId: col.id, index: col.indexOfOrThrow(firstCellId) as import("@/utils/id-tree").CellIndex },
-      { columnId: col.id, index: col.indexOfOrThrow("1" as CellId) as import("@/utils/id-tree").CellIndex },
+      {
+        columnId: col.id,
+        index: col.indexOfOrThrow(
+          firstCellId,
+        ) as import("@/utils/id-tree").CellIndex,
+      },
+      {
+        columnId: col.id,
+        index: col.indexOfOrThrow(
+          "1" as CellId,
+        ) as import("@/utils/id-tree").CellIndex,
+      },
     ];
 
     actions.moveCellsRelativeTo({
@@ -571,8 +581,18 @@ describe("cell reducer", () => {
 
     const col = state.cellIds.findWithId(firstCellId);
     const previousPlacements = [
-      { columnId: col.id, index: col.indexOfOrThrow(firstCellId) as import("@/utils/id-tree").CellIndex },
-      { columnId: col.id, index: col.indexOfOrThrow("1" as CellId) as import("@/utils/id-tree").CellIndex },
+      {
+        columnId: col.id,
+        index: col.indexOfOrThrow(
+          firstCellId,
+        ) as import("@/utils/id-tree").CellIndex,
+      },
+      {
+        columnId: col.id,
+        index: col.indexOfOrThrow(
+          "1" as CellId,
+        ) as import("@/utils/id-tree").CellIndex,
+      },
     ];
 
     actions.moveCellsRelativeTo({
