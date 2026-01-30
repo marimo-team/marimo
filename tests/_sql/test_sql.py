@@ -634,17 +634,11 @@ Expected 'FROM' keyword"""
 class TestDisplayConfigBehavior:
     """Test that sql() respects the display.dataframes config setting."""
 
-    @patch("marimo._sql.sql.replace")
-    @patch(
-        "marimo._output.formatters.df_formatters.include_opinionated",
-        return_value=False,
-    )
     @pytest.mark.skipif(
         not HAS_POLARS or not HAS_DUCKDB, reason="polars and duckdb required"
     )
-    def test_sql_plain_output_when_not_opinionated(
-        self, _mock_opinionated, mock_replace
-    ):
+    @patch("marimo._sql.sql.replace")
+    def test_sql_plain_output_when_not_opinionated(self, mock_replace):
         """Test that SQL uses plain() when include_opinionated returns False."""
         import duckdb
         import polars as pl
@@ -656,31 +650,29 @@ class TestDisplayConfigBehavior:
             "CREATE OR REPLACE TABLE test_plain AS SELECT * FROM range(5)"
         )
 
-        # Test query
-        result = sql("SELECT * FROM test_plain")
-        assert isinstance(result, pl.DataFrame)
+        with patch(
+            "marimo._output.formatters.df_formatters.include_opinionated",
+            return_value=False,
+        ):
+            # Test query
+            result = sql("SELECT * FROM test_plain")
+            assert isinstance(result, pl.DataFrame)
 
-        # Should call replace with Plain object
-        mock_replace.assert_called_once()
-        call_args = mock_replace.call_args[0][0]
+            # Should call replace with Plain object
+            mock_replace.assert_called_once()
+            call_args = mock_replace.call_args[0][0]
 
-        # The call should be a Plain object (not a table)
-        assert isinstance(call_args, Plain)
+            # The call should be a Plain object (not a table)
+            assert isinstance(call_args, Plain)
 
         # Clean up
         duckdb.sql("DROP TABLE test_plain")
 
-    @patch("marimo._sql.sql.replace")
-    @patch(
-        "marimo._output.formatters.df_formatters.include_opinionated",
-        return_value=True,
-    )
     @pytest.mark.skipif(
         not HAS_POLARS or not HAS_DUCKDB, reason="polars and duckdb required"
     )
-    def test_sql_rich_output_when_opinionated(
-        self, _mock_opinionated, mock_replace
-    ):
+    @patch("marimo._sql.sql.replace")
+    def test_sql_rich_output_when_opinionated(self, mock_replace):
         """Test that SQL uses table() when include_opinionated returns True."""
         import duckdb
         import polars as pl
@@ -690,16 +682,20 @@ class TestDisplayConfigBehavior:
             "CREATE OR REPLACE TABLE test_rich AS SELECT * FROM range(5)"
         )
 
-        # Test query
-        result = sql("SELECT * FROM test_rich")
-        assert isinstance(result, pl.DataFrame)
+        with patch(
+            "marimo._output.formatters.df_formatters.include_opinionated",
+            return_value=True,
+        ):
+            # Test query
+            result = sql("SELECT * FROM test_rich")
+            assert isinstance(result, pl.DataFrame)
 
-        # Should call replace with table (not Plain)
-        mock_replace.assert_called_once()
-        call_args = mock_replace.call_args[0][0]
+            # Should call replace with table (not Plain)
+            mock_replace.assert_called_once()
+            call_args = mock_replace.call_args[0][0]
 
-        # The call should be a table object
-        assert isinstance(call_args, ui.table)
+            # The call should be a table object
+            assert isinstance(call_args, ui.table)
 
         # Clean up
         duckdb.sql("DROP TABLE test_rich")
