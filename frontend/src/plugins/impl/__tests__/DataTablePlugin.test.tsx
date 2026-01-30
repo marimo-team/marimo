@@ -4,9 +4,14 @@ import { TooltipProvider } from "@radix-ui/react-tooltip";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import { Provider } from "jotai";
 import { beforeAll, describe, expect, it, vi } from "vitest";
+import type { DownloadAsArgs } from "@/components/data-table/schemas";
 import type { FieldTypesWithExternalType } from "@/components/data-table/types";
 import { store } from "@/core/state/jotai";
-import { LoadingDataTableComponent } from "../DataTablePlugin";
+import {
+  type GetDataUrl,
+  type GetRowIds,
+  LoadingDataTableComponent,
+} from "../DataTablePlugin";
 
 beforeAll(() => {
   global.ResizeObserver = class ResizeObserver {
@@ -98,16 +103,16 @@ describe("LoadingDataTableComponent", () => {
       enableSearch: true,
       value: [] as (number | string | { rowId: string; columnName?: string })[],
       setValue,
-      download_as: vi.fn() as any,
+      download_as: vi.fn() as DownloadAsArgs,
       get_column_summaries: vi.fn().mockResolvedValue({
         data: null,
         stats: {},
         bin_values: {},
         value_counts: {},
         show_charts: false,
-      }) as any,
-      get_data_url: vi.fn() as any,
-      get_row_ids: vi.fn() as any,
+      }),
+      get_data_url: vi.fn() as GetDataUrl,
+      get_row_ids: vi.fn() as GetRowIds,
     };
 
     const Wrapper = ({ children }: { children: React.ReactNode }) => (
@@ -122,7 +127,7 @@ describe("LoadingDataTableComponent", () => {
         <LoadingDataTableComponent
           {...commonProps}
           data={initialPageData}
-          search={searchFn1 as any}
+          search={searchFn1}
         />
       </Wrapper>,
     );
@@ -144,7 +149,7 @@ describe("LoadingDataTableComponent", () => {
           <LoadingDataTableComponent
             {...commonProps}
             data={initialPageData}
-            search={searchFn2 as any}
+            search={searchFn2}
           />
         </Wrapper>,
       );

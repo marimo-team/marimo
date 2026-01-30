@@ -26,7 +26,7 @@ export interface MimeTypeConfig {
  */
 export interface ProcessedMimeTypes<T> {
   /** The filtered and sorted mime entries */
-  entries: Array<[MimeType, T]>;
+  entries: [MimeType, T][];
   /** Mime types that were hidden by rules */
   hidden: MimeType[];
 }
@@ -146,9 +146,9 @@ export function applyHidingRules(
  * Mime types not in the map are placed at the end, preserving their original order.
  */
 export function sortByPrecedence<T>(
-  entries: Array<[MimeType, T]>,
+  entries: [MimeType, T][],
   precedence: ReadonlyMap<MimeType, number>,
-): Array<[MimeType, T]> {
+): [MimeType, T][] {
   const unknownPrecedence = precedence.size;
 
   return [...entries].sort((a, b) => {
@@ -162,7 +162,7 @@ export function sortByPrecedence<T>(
  * Main entry point: processes mime entries by applying hiding rules and sorting.
  */
 export function processMimeBundle<T>(
-  entries: Array<[MimeType, T]>,
+  entries: [MimeType, T][],
   config: MimeTypeConfig = getDefaultMimeConfig(),
 ): ProcessedMimeTypes<T> {
   if (entries.length === 0) {
@@ -176,6 +176,6 @@ export function processMimeBundle<T>(
 
   return {
     entries: sortedEntries,
-    hidden: Array.from(hidden),
+    hidden: [...hidden],
   };
 }
