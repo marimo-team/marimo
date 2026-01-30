@@ -153,6 +153,20 @@ class TestAppFileRouter(unittest.TestCase):
             router.get_file_manager(self.test_file2.name)
         assert exc.value.status_code == HTTPStatus.NOT_FOUND
 
+    def test_list_of_files_disallows_dynamic_allowlist(self):
+        files = [
+            MarimoFile(
+                name="test.py",
+                path=self.test_file1.name,
+                last_modified=os.path.getmtime(self.test_file1.name),
+            )
+        ]
+        router = ListOfFilesAppFileRouter(files, allow_dynamic=False)
+        router.register_allowed_file(self.test_file2.name)
+        with pytest.raises(HTTPException) as exc:
+            router.get_file_manager(self.test_file2.name)
+        assert exc.value.status_code == HTTPStatus.NOT_FOUND
+
     def test_list_of_files_disallows_new_file_key(self):
         files = [
             MarimoFile(

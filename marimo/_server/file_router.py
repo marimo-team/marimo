@@ -69,11 +69,13 @@ class AppFileRouter(abc.ABC):
         *,
         directory: str | None = None,
         allow_single_file_key: bool = True,
+        allow_dynamic: bool = False,
     ) -> AppFileRouter:
         return ListOfFilesAppFileRouter(
             files,
             directory=directory,
             allow_single_file_key=allow_single_file_key,
+            allow_dynamic=allow_dynamic,
         )
 
     @staticmethod
@@ -150,10 +152,12 @@ class ListOfFilesAppFileRouter(AppFileRouter):
         files: list[MarimoFile],
         directory: str | None = None,
         allow_single_file_key: bool = True,
+        allow_dynamic: bool = False,
     ) -> None:
         self._files = files
         self._directory = directory
         self._allow_single_file_key = allow_single_file_key
+        self._allow_dynamic = allow_dynamic
         self._allowed_paths = {
             MarimoPath(file.path).absolute_name for file in files
         }
@@ -227,6 +231,8 @@ class ListOfFilesAppFileRouter(AppFileRouter):
         collection and may live outside the router's base directory (for
         example, files created at runtime in a separate location).
         """
+        if not self._allow_dynamic:
+            return
         self._allowed_paths.add(MarimoPath(filepath).absolute_name)
 
 

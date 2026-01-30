@@ -1148,6 +1148,7 @@ def run(
             marimo_files.files,
             directory=marimo_files.root_dir,
             allow_single_file_key=False,
+            allow_dynamic=False,
         )
     else:
         file_router = AppFileRouter.from_filename(
