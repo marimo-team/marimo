@@ -634,6 +634,7 @@ Expected 'FROM' keyword"""
 class TestDisplayConfigBehavior:
     """Test that sql() respects the display.dataframes config setting."""
 
+    @pytest.mark.usefixtures("_mock_include_opinionated")
     @patch("marimo._sql.sql.replace")
     @patch(
         "marimo._output.formatters.df_formatters.include_opinionated",
@@ -668,6 +669,7 @@ class TestDisplayConfigBehavior:
         # Clean up
         duckdb.sql("DROP TABLE test_plain")
 
+    @pytest.mark.usefixtures("_mock_include_opinionated")
     @patch("marimo._sql.sql.replace")
     @patch(
         "marimo._output.formatters.df_formatters.include_opinionated",
