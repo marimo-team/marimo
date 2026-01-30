@@ -1032,6 +1032,31 @@ export class MultiColumn<T> {
     return this.transformWithCellId(cellId, (c) => c.delete(cellId));
   }
 
+  /**
+   * Remove the given cells from the tree, then re-insert each at its
+   * (columnId, index). Used to undo a move (e.g. cut-paste) by restoring
+   * cells to their previous positions. Placements are sorted by
+   * (columnId, index) so insert order keeps indices valid.
+   */
+  placeCells(
+    placements: Array<{ id: T; columnId: CellColumnId; index: CellIndex }>,
+  ): MultiColumn<T> {
+    if (placements.length === 0) return this;
+    let result: MultiColumn<T> = this;
+    for (const { id } of placements) {
+      result = result.deleteById(id);
+    }
+    const sorted = [...placements].sort((a, b) => {
+      if (a.columnId !== b.columnId)
+        return a.columnId.localeCompare(b.columnId);
+      return (a.index as number) - (b.index as number);
+    });
+    for (const { id, columnId, index } of sorted) {
+      result = result.insertId(id, columnId, index);
+    }
+    return result;
+  }
+
   compact(): MultiColumn<T> {
     // Don't compact if there's only one column
     if (this.columns.length === 1) {

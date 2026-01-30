@@ -163,11 +163,17 @@ export function useCellClipboard() {
     // Check if we have pending cut cells (internal move)
     if (pendingCutState.cellIds.size > 0) {
       const pendingCellIds = [...pendingCutState.cellIds];
+      const notebook = getNotebook();
+      const previousPlacements = pendingCellIds.map((id) => {
+        const column = notebook.cellIds.findWithId(id);
+        return { columnId: column.id, index: column.indexOfOrThrow(id) };
+      });
 
       actions.moveCellsRelativeTo({
         cellIds: pendingCellIds,
         targetCellId: cellId,
         position: before ? "before" : "after",
+        previousPlacements,
       });
 
       pendingCutActions.clear();

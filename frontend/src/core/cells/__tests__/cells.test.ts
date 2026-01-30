@@ -506,6 +506,123 @@ describe("cell reducer", () => {
     `);
   });
 
+  it("can undo cut-paste (move with previousPlacements)", () => {
+    actions.createNewCell({
+      cellId: firstCellId,
+      before: false,
+    });
+    actions.createNewCell({
+      cellId: "1" as CellId,
+      before: false,
+    });
+    expect(formatCells(state)).toMatchInlineSnapshot(`
+      "
+      [0] ''
+
+      [1] ''
+
+      [2] ''
+      "
+    `);
+
+    const col = state.cellIds.findWithId(firstCellId);
+    const previousPlacements = [
+      { columnId: col.id, index: col.indexOfOrThrow(firstCellId) as import("@/utils/id-tree").CellIndex },
+      { columnId: col.id, index: col.indexOfOrThrow("1" as CellId) as import("@/utils/id-tree").CellIndex },
+    ];
+
+    actions.moveCellsRelativeTo({
+      cellIds: [firstCellId, "1" as CellId],
+      targetCellId: "2" as CellId,
+      position: "after",
+      previousPlacements,
+    });
+    expect(formatCells(state)).toMatchInlineSnapshot(`
+      "
+      [2] ''
+
+      [0] ''
+
+      [1] ''
+      "
+    `);
+
+    actions.undoDeleteCell();
+    expect(formatCells(state)).toMatchInlineSnapshot(`
+      "
+      [0] ''
+
+      [1] ''
+
+      [2] ''
+      "
+    `);
+  });
+
+  it("undo order: cut-paste then delete — first undo restores delete, second undo undoes move", () => {
+    actions.createNewCell({
+      cellId: firstCellId,
+      before: false,
+    });
+    actions.createNewCell({
+      cellId: "1" as CellId,
+      before: false,
+    });
+
+    const col = state.cellIds.findWithId(firstCellId);
+    const previousPlacements = [
+      { columnId: col.id, index: col.indexOfOrThrow(firstCellId) as import("@/utils/id-tree").CellIndex },
+      { columnId: col.id, index: col.indexOfOrThrow("1" as CellId) as import("@/utils/id-tree").CellIndex },
+    ];
+
+    actions.moveCellsRelativeTo({
+      cellIds: [firstCellId, "1" as CellId],
+      targetCellId: "2" as CellId,
+      position: "after",
+      previousPlacements,
+    });
+    expect(formatCells(state)).toMatchInlineSnapshot(`
+      "
+      [2] ''
+
+      [0] ''
+
+      [1] ''
+      "
+    `);
+
+    actions.deleteCell({ cellId: "2" as CellId });
+    expect(formatCells(state)).toMatchInlineSnapshot(`
+      "
+      [0] ''
+
+      [1] ''
+      "
+    `);
+
+    actions.undoDeleteCell();
+    expect(formatCells(state)).toMatchInlineSnapshot(`
+      "
+      [3] ''
+
+      [0] ''
+
+      [1] ''
+      "
+    `);
+
+    actions.undoDeleteCell();
+    expect(formatCells(state)).toMatchInlineSnapshot(`
+      "
+      [0] ''
+
+      [1] ''
+
+      [3] ''
+      "
+    `);
+  });
+
   it("can run cell and receive cell messages", () => {
     // HAPPY PATH
     /////////////////
