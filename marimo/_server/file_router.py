@@ -4,7 +4,7 @@ from __future__ import annotations
 import abc
 import os
 from pathlib import Path
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 from marimo import _loggers
 from marimo._server.app_defaults import AppDefaults
@@ -15,6 +15,10 @@ from marimo._server.models.home import MarimoFile
 from marimo._session.notebook import AppFileManager
 from marimo._utils.http import HTTPException, HTTPStatus
 from marimo._utils.marimo_path import MarimoPath
+from marimo._utils.paths import normalize_path
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
 
 LOGGER = _loggers.marimo_logger()
 
@@ -53,15 +57,26 @@ class AppFileRouter(abc.ABC):
                 last_modified=file.last_modified,
             )
         ]
-        return ListOfFilesAppFileRouter(files)
+        return ListOfFilesAppFileRouter(files, allow_dynamic=True)
 
     @staticmethod
     def from_directory(directory: str) -> AppFileRouter:
         return LazyListOfFilesAppFileRouter(directory, include_markdown=False)
 
     @staticmethod
-    def from_files(files: list[MarimoFile]) -> AppFileRouter:
-        return ListOfFilesAppFileRouter(files)
+    def from_files(
+        files: list[MarimoFile],
+        *,
+        directory: str | None = None,
+        allow_single_file_key: bool = True,
+        allow_dynamic: bool = False,
+    ) -> AppFileRouter:
+        return ListOfFilesAppFileRouter(
+            files,
+            directory=directory,
+            allow_single_file_key=allow_single_file_key,
+            allow_dynamic=allow_dynamic,
+        )
 
     @staticmethod
     def new_file() -> AppFileRouter:
@@ -132,8 +147,24 @@ class NewFileAppFileRouter(AppFileRouter):
 
 
 class ListOfFilesAppFileRouter(AppFileRouter):
-    def __init__(self, files: list[MarimoFile]) -> None:
+    def __init__(
+        self,
+        files: list[MarimoFile],
+        directory: str | None = None,
+        allow_single_file_key: bool = True,
+        allow_dynamic: bool = False,
+    ) -> None:
         self._files = files
+        self._directory = directory
+        self._allow_single_file_key = allow_single_file_key
+        self._allow_dynamic = allow_dynamic
+        self._allowed_paths = {
+            MarimoPath(file.path).absolute_name for file in files
+        }
+
+    @property
+    def directory(self) -> str | None:
+        return self._directory
 
     @property
     def files(self) -> list[FileInfo]:
@@ -149,20 +180,60 @@ class ListOfFilesAppFileRouter(AppFileRouter):
             for file in self._files
         ]
 
+    def get_file_manager(
+        self,
+        key: MarimoFileKey,
+        defaults: Optional[AppDefaults] = None,
+    ) -> AppFileManager:
+        defaults = defaults or AppDefaults()
+
+        if key.startswith(AppFileRouter.NEW_FILE):
+            if self._allow_single_file_key:
+                return AppFileManager(None, defaults=defaults)
+            raise HTTPException(
+                status_code=HTTPStatus.NOT_FOUND,
+                detail=f"File {key} not found",
+            )
+
+        filepath = Path(key)
+        if not filepath.is_absolute() and self._directory:
+            filepath = Path(self._directory) / filepath
+        normalized_path = normalize_path(filepath)
+        absolute_path = str(normalized_path)
+        if absolute_path not in self._allowed_paths:
+            raise HTTPException(
+                status_code=HTTPStatus.NOT_FOUND,
+                detail=f"File {key} not found",
+            )
+
+        if normalized_path.exists():
+            return AppFileManager(absolute_path, defaults=defaults)
+
+        raise HTTPException(
+            status_code=HTTPStatus.NOT_FOUND,
+            detail=f"File {key} not found",
+        )
+
     def get_unique_file_key(self) -> Optional[MarimoFileKey]:
-        if len(self.files) == 1:
-            return self.files[0].path
+        if self._allow_single_file_key and len(self._files) == 1:
+            return self._files[0].path
         return None
 
     def maybe_get_single_file(self) -> Optional[MarimoFile]:
-        if len(self.files) == 1:
-            file = self.files[0]
-            return MarimoFile(
-                name=file.name,
-                path=file.path,
-                last_modified=file.last_modified,
-            )
+        if self._allow_single_file_key and len(self._files) == 1:
+            return self._files[0]
         return None
+
+    def register_allowed_file(self, filepath: str) -> None:
+        """Allow a file path in this router.
+
+        This extends the allowlist for files that were not part of the original
+        collection and may live outside the router's base directory (for
+        example, files created at runtime in a separate location).
+        """
+        if not self._allow_dynamic:
+            return
+        self._allowed_paths.add(MarimoPath(filepath).absolute_name)
 
 
 class LazyListOfFilesAppFileRouter(AppFileRouter):
@@ -291,3 +362,14 @@ def count_files(file_list: list[FileInfo]) -> int:
         if item.children:
             count += count_files(item.children)
     return count
+
+
+def flatten_files(files: list[FileInfo]) -> Iterator[FileInfo]:
+    """Iterate over files, skipping directories."""
+    stack = files.copy()
+    while stack:
+        file = stack.pop()
+        if file.is_directory:
+            stack.extend(file.children)
+        else:
+            yield file

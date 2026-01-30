@@ -25,6 +25,7 @@ import pytest
 
 from marimo._ast import codegen
 from marimo._ast.cell import CellConfig
+from marimo._cli.cli import _collect_marimo_files
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._server.templates.templates import get_version
 from marimo._utils.platform import is_windows
@@ -607,6 +608,101 @@ def test_cli_run(temp_marimo_file: str) -> None:
     contents = _try_fetch(port)
     _check_contents(p, b'"mode": "read"', contents)
     _check_contents(p, f'"version": "{get_version()}"'.encode(), contents)
+
+
+def test_cli_run_directory_gallery() -> None:
+    directory = tempfile.TemporaryDirectory()
+    _temp_run_file(directory)
+    port = _get_port()
+    p = subprocess.Popen(
+        ["marimo", "run", directory.name, "-p", str(port), "--headless"]
+    )
+    contents = _try_fetch(port)
+    _check_contents(p, b'"mode": "gallery"', contents)
+
+
+def test_cli_run_directory_gallery_rejects_sandbox() -> None:
+    directory = tempfile.TemporaryDirectory()
+    _temp_run_file(directory)
+    result = subprocess.run(
+        ["marimo", "run", directory.name, "--sandbox"],
+        capture_output=True,
+        text=True,
+    )
+    output = result.stderr + result.stdout
+    assert result.returncode != 0
+    assert "--sandbox is not supported with gallery runs yet." in output
+
+
+def test_cli_run_directory_gallery_rejects_check() -> None:
+    directory = tempfile.TemporaryDirectory()
+    _temp_run_file(directory)
+    result = subprocess.run(
+        ["marimo", "run", directory.name, "--check"],
+        capture_output=True,
+        text=True,
+    )
+    output = result.stderr + result.stdout
+    assert result.returncode != 0
+    assert (
+        "--check is only supported when running a single notebook file."
+        in output
+    )
+
+
+def test_cli_run_directory_gallery_can_open_file() -> None:
+    directory = tempfile.TemporaryDirectory()
+    _temp_run_file(directory)
+    port = _get_port()
+    p = subprocess.Popen(
+        ["marimo", "run", directory.name, "-p", str(port), "--headless"]
+    )
+    try:
+        contents = _try_fetch(port)
+        assert contents is not None
+        assert b'"mode": "gallery"' in contents
+
+        url = f"http://localhost:{port}/?file=run.py"
+        notebook_contents = urllib.request.urlopen(url).read()
+        assert b'"mode": "read"' in notebook_contents
+    finally:
+        p.kill()
+
+
+def test_cli_run_multiple_files_gallery() -> None:
+    directory = tempfile.TemporaryDirectory()
+    filecontents = codegen.generate_filecontents(
+        codes=["import marimo as mo"],
+        names=["one"],
+        cell_configs=[CellConfig()],
+    )
+    file_one = Path(directory.name) / "one.py"
+    file_two = Path(directory.name) / "two.py"
+    file_one.write_text(filecontents, encoding="utf-8")
+    file_two.write_text(filecontents, encoding="utf-8")
+    port = _get_port()
+    p = subprocess.Popen(
+        [
+            "marimo",
+            "run",
+            str(file_one),
+            str(file_two),
+            "-p",
+            str(port),
+            "--headless",
+        ]
+    )
+    contents = _try_fetch(port)
+    _check_contents(p, b'"mode": "gallery"', contents)
+
+
+def test_collect_marimo_files_includes_markdown(
+    tmp_path: Path,
+) -> None:
+    md_file = tmp_path / "notebook.md"
+    md_file.write_text("---\nmarimo-version: 0.1.0\n---\n", encoding="utf-8")
+    collected = _collect_marimo_files([str(tmp_path)])
+    assert str(md_file) in {file.path for file in collected.files}
 
 
 def test_cli_run_with_show_code(temp_marimo_file: str) -> None:

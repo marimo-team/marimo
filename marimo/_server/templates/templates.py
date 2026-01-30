@@ -45,7 +45,7 @@ def json_script(data: Any) -> str:
 def _get_mount_config(
     *,
     filename: Optional[str],
-    mode: Literal["edit", "home", "read"],
+    mode: Literal["edit", "home", "read", "gallery"],
     server_token: SkewProtectionToken,
     user_config: MarimoConfig,
     config_overrides: PartialMarimoConfig,
@@ -100,6 +100,7 @@ def home_page_template(
     user_config: MarimoConfig,
     config_overrides: PartialMarimoConfig,
     server_token: SkewProtectionToken,
+    mode: SessionMode,
     asset_url: Optional[str] = None,
 ) -> str:
     html = html.replace("{{ base_url }}", base_url)
@@ -115,11 +116,14 @@ def home_page_template(
 
     html = _replace_asset_urls(html, asset_url)
 
+    app_mode: Literal["home", "gallery"] = (
+        "home" if mode == SessionMode.EDIT else "gallery"
+    )
     html = html.replace(
         MOUNT_CONFIG_TEMPLATE,
         _get_mount_config(
             filename=None,
-            mode="home",
+            mode=app_mode,
             server_token=server_token,
             user_config=user_config,
             config_overrides=config_overrides,

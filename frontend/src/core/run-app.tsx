@@ -56,13 +56,38 @@ export const RunApp: React.FC<AppProps> = ({ appConfig }) => {
     return <CellsRenderer appConfig={appConfig} mode="read" />;
   };
 
+  const galleryHref = (() => {
+    if (typeof window === "undefined") {
+      return null;
+    }
+    const url = new URL(window.location.href);
+    if (!url.searchParams.has("file")) {
+      return null;
+    }
+    url.searchParams.delete("file");
+    const search = url.searchParams.toString();
+    return search ? `${url.pathname}?${search}` : url.pathname;
+  })();
+
   return (
     <AppContainer
       connection={connection}
       isRunning={isRunning}
       width={appConfig.width}
     >
-      <AppHeader connection={connection} className={"sm:pt-8"} />
+      <AppHeader connection={connection} className={"sm:pt-8"}>
+        {galleryHref && (
+          <div className="flex items-center px-6 pt-4">
+            <a
+              href={galleryHref}
+              aria-label="Back to gallery"
+              className="inline-flex items-center"
+            >
+              <img src="logo.png" alt="marimo logo" className="h-6 w-auto" />
+            </a>
+          </div>
+        )}
+      </AppHeader>
       {renderCells()}
     </AppContainer>
   );

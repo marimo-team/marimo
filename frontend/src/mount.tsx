@@ -153,14 +153,16 @@ const mountOptionsSchema = z.object({
     .nullish()
     .transform((val) => val ?? "unknown"),
   /**
-   * 'edit' or 'read'/'run' or 'home'
+   * 'edit' or 'read'/'run' or 'home' or 'gallery'
    */
-  mode: z.enum(["edit", "read", "home", "run"]).transform((val): AppMode => {
-    if (val === "run") {
-      return "read";
-    }
-    return val;
-  }),
+  mode: z
+    .enum(["edit", "read", "home", "run", "gallery"])
+    .transform((val): AppMode => {
+      if (val === "run") {
+        return "read";
+      }
+      return val;
+    }),
   /**
    * marimo config
    */

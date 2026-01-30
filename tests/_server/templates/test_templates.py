@@ -317,6 +317,7 @@ class TestHomePageTemplate(unittest.TestCase):
             self.user_config,
             self.config_overrides,
             self.server_token,
+            SessionMode.EDIT,
         )
 
         assert self.base_url not in result
@@ -338,6 +339,7 @@ class TestHomePageTemplate(unittest.TestCase):
             self.user_config,
             self.config_overrides,
             self.server_token,
+            SessionMode.EDIT,
             asset_url=asset_url,
         )
 
@@ -345,6 +347,19 @@ class TestHomePageTemplate(unittest.TestCase):
         assert 'href="https://cdn.example.com/' in result
         assert 'src="https://cdn.example.com/' in result
         assert 'crossorigin="anonymous"' in result
+        _assert_no_leftover_replacements(result)
+
+    def test_home_page_template_run_mode(self) -> None:
+        result = templates.home_page_template(
+            self.html,
+            self.base_url,
+            self.user_config,
+            self.config_overrides,
+            self.server_token,
+            SessionMode.RUN,
+        )
+
+        assert "gallery" in result
         _assert_no_leftover_replacements(result)
 
 

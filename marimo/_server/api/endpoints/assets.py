@@ -136,6 +136,7 @@ async def index(request: Request) -> HTMLResponse:
             user_config=app_state.config_manager.get_user_config(),
             config_overrides=app_state.config_manager.get_config_overrides(),
             server_token=app_state.skew_protection_token,
+            mode=app_state.mode,
             asset_url=app_state.asset_url,
         )
     else:
