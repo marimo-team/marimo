@@ -844,7 +844,7 @@ def _collect_marimo_files(paths: list[str]) -> _CollectedRunFiles:
         if Path(path).is_dir():
             directories.append(path)
             directory = Path(path).absolute()
-            scanner = DirectoryScanner(path, include_markdown=False)
+            scanner = DirectoryScanner(path, include_markdown=True)
             try:
                 file_infos = scanner.scan()
             except HTTPException as exc:

@@ -25,6 +25,7 @@ import pytest
 
 from marimo._ast import codegen
 from marimo._ast.cell import CellConfig
+from marimo._cli.cli import _collect_marimo_files
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._server.templates.templates import get_version
 from marimo._utils.platform import is_windows
@@ -693,6 +694,15 @@ def test_cli_run_multiple_files_gallery() -> None:
     )
     contents = _try_fetch(port)
     _check_contents(p, b'"mode": "gallery"', contents)
+
+
+def test_collect_marimo_files_includes_markdown(
+    tmp_path: Path,
+) -> None:
+    md_file = tmp_path / "notebook.md"
+    md_file.write_text("---\nmarimo-version: 0.1.0\n---\n", encoding="utf-8")
+    collected = _collect_marimo_files([str(tmp_path)])
+    assert str(md_file) in {file.path for file in collected.files}
 
 
 def test_cli_run_with_show_code(temp_marimo_file: str) -> None:
