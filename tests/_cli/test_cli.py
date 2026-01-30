@@ -620,6 +620,35 @@ def test_cli_run_directory_gallery() -> None:
     _check_contents(p, b'"mode": "gallery"', contents)
 
 
+def test_cli_run_directory_gallery_rejects_sandbox() -> None:
+    directory = tempfile.TemporaryDirectory()
+    _temp_run_file(directory)
+    result = subprocess.run(
+        ["marimo", "run", directory.name, "--sandbox"],
+        capture_output=True,
+        text=True,
+    )
+    output = result.stderr + result.stdout
+    assert result.returncode != 0
+    assert "--sandbox is not supported with gallery runs yet." in output
+
+
+def test_cli_run_directory_gallery_rejects_check() -> None:
+    directory = tempfile.TemporaryDirectory()
+    _temp_run_file(directory)
+    result = subprocess.run(
+        ["marimo", "run", directory.name, "--check"],
+        capture_output=True,
+        text=True,
+    )
+    output = result.stderr + result.stdout
+    assert result.returncode != 0
+    assert (
+        "--check is only supported when running a single notebook file."
+        in output
+    )
+
+
 def test_cli_run_directory_gallery_can_open_file() -> None:
     directory = tempfile.TemporaryDirectory()
     _temp_run_file(directory)

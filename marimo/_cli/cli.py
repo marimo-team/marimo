@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any, Optional
 
 import click
+from click.core import ParameterSource
 
 import marimo._cli.cli_validators as validators
 from marimo import _loggers
@@ -1029,6 +1030,7 @@ Example:
     hidden=True,
     help="Custom asset URL for loading static resources. Can include {version} placeholder.",
 )
+@click.pass_context
 @click.argument(
     "name",
     required=True,
@@ -1036,6 +1038,7 @@ Example:
 )
 @click.argument("args", nargs=-1, type=click.UNPROCESSED)
 def run(
+    ctx: click.Context,
     port: Optional[int],
     host: str,
     proxy: Optional[str],
@@ -1096,6 +1099,21 @@ def run(
     has_directory = any(Path(path).is_dir() for path in validated_paths)
     is_multi = has_directory or len(validated_paths) > 1
 
+    check_source = ctx.get_parameter_source("check")
+    check_explicit = check_source not in (
+        ParameterSource.DEFAULT,
+        ParameterSource.DEFAULT_MAP,
+    )
+
+    if is_multi and check and check_explicit:
+        raise click.UsageError(
+            "--check is only supported when running a single notebook file."
+        )
+    if is_multi and sandbox:
+        raise click.UsageError(
+            "--sandbox is not supported with gallery runs yet."
+        )
+
     # correctness check - don't start the server if we can't import the module
     for path in validated_paths:
         if Path(path).is_file():
@@ -1114,14 +1132,15 @@ def run(
 
     # We check this after name validation, because this will convert
     # URLs into local file paths
-    sandbox_mode = resolve_sandbox_mode(
-        sandbox=sandbox, name=validated_paths[0]
-    )
-    if sandbox_mode is SandboxMode.SINGLE and is_multi:
-        sandbox_mode = SandboxMode.MULTI
-    if sandbox_mode is SandboxMode.SINGLE:
-        run_in_sandbox(sys.argv[1:], name=validated_paths[0])
-        return
+    if is_multi:
+        sandbox_mode = None
+    else:
+        sandbox_mode = resolve_sandbox_mode(
+            sandbox=sandbox, name=validated_paths[0]
+        )
+        if sandbox_mode is SandboxMode.SINGLE:
+            run_in_sandbox(sys.argv[1:], name=validated_paths[0])
+            return
 
     if is_multi:
         marimo_files = _collect_marimo_files(validated_paths)
