@@ -628,7 +628,15 @@ def test_cli_run_directory_gallery_with_sandbox() -> None:
     _temp_run_file(directory)
     port = _get_port()
     p = subprocess.Popen(
-        ["marimo", "run", directory.name, "--sandbox", "-p", str(port), "--headless"]
+        [
+            "marimo",
+            "run",
+            directory.name,
+            "--sandbox",
+            "-p",
+            str(port),
+            "--headless",
+        ]
     )
     contents = _try_fetch(port)
     _check_contents(p, b'"mode": "gallery"', contents)
@@ -703,7 +711,15 @@ def test_cli_run_directory_gallery_sandbox_can_open_file() -> None:
     _temp_run_file(directory)
     port = _get_port()
     p = subprocess.Popen(
-        ["marimo", "run", directory.name, "--sandbox", "-p", str(port), "--headless"]
+        [
+            "marimo",
+            "run",
+            directory.name,
+            "--sandbox",
+            "-p",
+            str(port),
+            "--headless",
+        ]
     )
     try:
         contents = _try_fetch(port)

@@ -14,7 +14,6 @@ from starlette.staticfiles import StaticFiles
 from marimo import _loggers
 from marimo._cli.sandbox import SandboxMode
 from marimo._config.manager import get_default_config_manager
-from marimo._session.model import SessionMode
 from marimo._output.utils import uri_decode_component, uri_encode_component
 from marimo._runtime.virtual_file import EMPTY_VIRTUAL_FILE, read_virtual_file
 from marimo._server.api.deps import AppState
@@ -25,6 +24,7 @@ from marimo._server.templates.templates import (
     inject_script,
     notebook_page_template,
 )
+from marimo._session.model import SessionMode
 from marimo._utils.async_path import AsyncPath
 from marimo._utils.paths import marimo_package_path, normalize_path
 
