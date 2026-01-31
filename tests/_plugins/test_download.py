@@ -127,3 +127,67 @@ def test_download_disabled():
     args = result._component_args
     assert args["disabled"] is True
     assert not args["lazy"]
+
+
+def test_download_xlsx_bytesio():
+    """Test downloading xlsx file from BytesIO with explicit filename."""
+    # Create a BytesIO object with sample data (doesn't need to be valid Excel)
+    data = io.BytesIO(b"fake excel data")
+    result = download(
+        data=data,
+        filename="out.xlsx",
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+    args = result._component_args
+    # Verify filename is set correctly
+    assert args["filename"] == "out.xlsx"
+    assert not args["disabled"]
+    assert not args["lazy"]
+    # Verify the data URL uses the xlsx mimetype (not zip)
+    assert args["data"].startswith(
+        "data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64"
+    )
+    data.close()
+
+
+def test_download_xlsx_infer_mimetype_from_filename():
+    """Test that xlsx mimetype is inferred from .xlsx filename."""
+    # When mimetype is not provided, it should be inferred from filename
+    data = io.BytesIO(b"fake excel data")
+    result = download(
+        data=data,
+        filename="out.xlsx",
+        # No mimetype provided - should infer from filename
+    )
+    args = result._component_args
+    # Verify filename is set correctly
+    assert args["filename"] == "out.xlsx"
+    # Verify the data URL uses the xlsx mimetype (inferred from filename)
+    assert args["data"].startswith(
+        "data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64"
+    )
+    data.close()
+
+
+async def test_download_xlsx_lazy_with_filename():
+    """Test lazy xlsx download with explicit filename."""
+
+    def get_xlsx_data():
+        return io.BytesIO(b"fake excel data")
+
+    result = download(
+        data=get_xlsx_data,
+        filename="output.xlsx",
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+    args = result._component_args
+    assert args["lazy"]
+    assert args["filename"] == "output.xlsx"
+
+    # Load the data
+    loaded_data = await result._load(EmptyArgs())
+    assert loaded_data.data.startswith(
+        "data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64"
+    )
+    # Verify filename is preserved in lazy load response
+    assert loaded_data.filename == "output.xlsx"
