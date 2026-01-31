@@ -186,8 +186,12 @@ class VirtualFileRegistry:
         manager = VirtualFileStorageManager()
         if manager.storage is None:
             manager.storage = self.storage
-        elif manager.storage is not self.storage:
-            # Force singleton storage for read_virtual_file()
+        elif (
+            isinstance(self.storage, InMemoryStorage)
+            and self.storage is not manager.storage
+        ):
+            # Force singleton storage for read_virtual_file().
+            # Assuming inside RUN mode context if self.storage is InMemoryStorage.
             LOGGER.warning(
                 "Expected shared global storage but VirtualFileRegistry was initialized "
                 "with new storage instance. Overriding with global storage.",
@@ -254,7 +258,7 @@ class VirtualFileRegistry:
         try:
             self.shutting_down = True
             # Remove only keys tracked by this registry
-            # NOTE: Intentially not calling `storage.shutdown()` as storage may be
+            # NOTE: Intentionally not calling `storage.shutdown()` as storage may be
             # shared across multiple registries in the same process, e.g. in concurrent
             # sessions in an embedded app
             for key in self.registry:
