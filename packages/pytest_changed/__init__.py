@@ -8,6 +8,8 @@ Usage:
     pytest --changed-from=origin/main
 """
 
+from __future__ import annotations
+
 import json
 import subprocess
 from pathlib import Path
@@ -15,6 +17,10 @@ from pathlib import Path
 import pytest
 
 print_ = print
+
+
+class UnreachableError(Exception):
+    pass
 
 
 def pytest_addoption(parser: pytest.Parser) -> None:
@@ -39,7 +45,7 @@ def pytest_addoption(parser: pytest.Parser) -> None:
     )
 
 
-def get_changed_files(ref: str, repo_root: Path) -> set[Path]:
+def get_changed_files(ref: str, repo_root: Path) -> tuple[set[Path], bool]:
     """
     Get list of changed Python files from git diff.
 
@@ -48,8 +54,12 @@ def get_changed_files(ref: str, repo_root: Path) -> set[Path]:
         repo_root: Root of the git repository
 
     Returns:
-        Set of absolute paths to changed Python files
+        Tuple of (set of changed Python files, bool indicating if critical files changed)
+        Critical files are configuration files that affect all tests (e.g., pyproject.toml)
     """
+    # Files that, if changed, should trigger all tests
+    critical_files = {"pyproject.toml"}
+
     try:
         result = subprocess.run(
             ["git", "diff", "--name-only", ref],
@@ -60,14 +70,21 @@ def get_changed_files(ref: str, repo_root: Path) -> set[Path]:
         )
 
         changed_files: set[Path] = set()
+        critical_changed = False
+
         for line in result.stdout.strip().split("\n"):
             if not line:
                 continue
             file_path = repo_root / line
+
+            # Check for critical configuration files
+            if file_path.name in critical_files:
+                critical_changed = True
+
             if file_path.suffix == ".py" and file_path.exists():
                 changed_files.add(file_path)
 
-        return changed_files
+        return changed_files, critical_changed
     except subprocess.CalledProcessError as e:
         error_msg = f"Failed to get git diff from '{ref}': {e}"
         if e.stderr:
@@ -128,6 +145,8 @@ def get_dependency_graph(
         pytest.exit(f"Failed to run ruff analyze graph: {e}", returncode=1)
     except json.JSONDecodeError as e:
         pytest.exit(f"Failed to parse ruff output: {e}", returncode=1)
+
+    raise UnreachableError("Failed to run ruff analyze graph")
 
 
 def find_affected_files(
@@ -220,6 +239,7 @@ def pytest_configure(config: pytest.Config) -> None:
         return
 
     # Get the repository root
+    repo_root: Path
     try:
         result = subprocess.run(
             ["git", "rev-parse", "--show-toplevel"],
@@ -228,14 +248,26 @@ def pytest_configure(config: pytest.Config) -> None:
             check=True,
         )
         repo_root = Path(result.stdout.strip())
-    except subprocess.CalledProcessError:
+    except subprocess.CalledProcessError as e:
         pytest.exit("Not in a git repository", returncode=1)
+        raise UnreachableError("Not in a git repository") from e
 
     # Get test base directory from args or fall back to repo root
     test_base = get_test_base(config, repo_root)
 
     # Step 1: Find changed files
-    changed_files = get_changed_files(changed_from, repo_root)
+    changed_files, critical_changed = get_changed_files(
+        changed_from, repo_root
+    )
+
+    # If critical files changed, run all tests
+    if critical_changed:
+        print_(
+            "\nCritical configuration files changed (e.g., pyproject.toml) - "
+            "running all tests"
+        )
+        config.option.changed_test_files = None  # None means run all tests
+        return
 
     if not changed_files:
         print_(f"No Python files changed from {changed_from}")
@@ -290,9 +322,14 @@ def pytest_collection_modifyitems(
     if changed_from is None:
         return
 
-    changed_test_files: set[Path] = getattr(
+    changed_test_files: set[Path] | None = getattr(
         config.option, "changed_test_files", set()
     )
+
+    # None means run all tests (critical files changed)
+    if changed_test_files is None:
+        print_(f"\nRunning all {len(items)} tests")
+        return
 
     if not changed_test_files:
         # No affected tests, skip all
