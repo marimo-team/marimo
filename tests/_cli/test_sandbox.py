@@ -633,6 +633,68 @@ import marimo
     assert f">={major}.{minor}" in content
 
 
+def test_ensure_python_version_preserves_formatting(tmp_path: Path) -> None:
+    """Test that adding requires-python preserves formatting and only modifies the header.
+
+    Regression test for #8054. Also verifies that similar patterns in file (e.g., docstrings) are not affected.
+    """
+    import platform
+
+    # Multi-line deps list that would be reformatted by re-serialization,
+    # plus a docstring with similar-looking text that should not be modified
+    original = '''# /// script
+# dependencies = [
+#     "polars",
+#     "marimo>=0.8.0",
+# ]
+# ///
+import marimo
+
+app = marimo.App()
+
+@app.cell
+def __():
+    """
+    Example of PEP 723 metadata:
+
+    # /// script
+    # requires-python = ">=3.11"
+    # ///
+    """
+    return ()
+'''
+    script_path = tmp_path / "test.py"
+    script_path.write_text(original)
+
+    _ensure_python_version_in_script_metadata(str(script_path))
+
+    content = script_path.read_text()
+    major, minor = platform.python_version_tuple()[:2]
+    expected = f'''# /// script
+# requires-python = ">={major}.{minor}"
+# dependencies = [
+#     "polars",
+#     "marimo>=0.8.0",
+# ]
+# ///
+import marimo
+
+app = marimo.App()
+
+@app.cell
+def __():
+    """
+    Example of PEP 723 metadata:
+
+    # /// script
+    # requires-python = ">=3.11"
+    # ///
+    """
+    return ()
+'''
+    assert content == expected
+
+
 def test_ensure_python_version_in_script_metadata_noop_when_present(
     tmp_path: Path,
 ) -> None:
