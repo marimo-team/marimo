@@ -3322,7 +3322,7 @@ def launch_kernel(
                 # triggered on Windows when quit with Ctrl+C
                 LOGGER.debug("kernel queue.get() failed %s", e)
                 break
-            LOGGER.info("Received control request: %s", type(request).__name__)
+            LOGGER.debug("Received control request: %s", type(request).__name__)
             if isinstance(request, StopKernelCommand):
                 break
             elif isinstance(request, UpdateUIElementCommand):
