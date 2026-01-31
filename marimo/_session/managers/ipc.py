@@ -171,6 +171,7 @@ class IPCKernelManagerImpl(KernelManager):
             log_level=GLOBAL_SETTINGS.LOG_LEVEL,
             profile_path=None,
             connection_info=self.connection_info,
+            is_run_mode=self.mode == SessionMode.RUN,
             virtual_files_supported=self.virtual_files_supported,
             redirect_console_to_browser=self.redirect_console_to_browser,
         )

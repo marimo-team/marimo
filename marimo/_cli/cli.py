@@ -1109,10 +1109,6 @@ def run(
         raise click.UsageError(
             "--check is only supported when running a single notebook file."
         )
-    if is_multi and sandbox:
-        raise click.UsageError(
-            "--sandbox is not supported with gallery runs yet."
-        )
 
     # correctness check - don't start the server if we can't import the module
     for path in validated_paths:
@@ -1133,7 +1129,8 @@ def run(
     # We check this after name validation, because this will convert
     # URLs into local file paths
     if is_multi:
-        sandbox_mode = None
+        # Gallery mode: use MULTI sandbox (IPC kernels) or None
+        sandbox_mode = SandboxMode.MULTI if sandbox else None
     else:
         sandbox_mode = resolve_sandbox_mode(
             sandbox=sandbox, name=validated_paths[0]
@@ -1141,6 +1138,18 @@ def run(
         if sandbox_mode is SandboxMode.SINGLE:
             run_in_sandbox(sys.argv[1:], name=validated_paths[0])
             return
+
+    # Multi-file sandbox: use IPC kernels with per-notebook sandboxed venvs
+    if sandbox_mode is SandboxMode.MULTI:
+        # Check for pyzmq dependency
+        from marimo._dependencies.dependencies import DependencyManager
+
+        if not DependencyManager.zmq.has():
+            raise click.UsageError(
+                "pyzmq is required when running a gallery with --sandbox.\n"
+                "Install it with: pip install 'marimo[sandbox]'\n"
+                "Or: pip install pyzmq"
+            )
 
     if is_multi:
         marimo_files = _collect_marimo_files(validated_paths)

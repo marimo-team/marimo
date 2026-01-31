@@ -3153,11 +3153,18 @@ def launch_kernel(
     interrupt_queue: QueueType[bool] | None = None,
     profile_path: Optional[str] = None,
     log_level: int | None = None,
+    is_ipc: bool = False,
 ) -> None:
     if log_level is not None:
         _loggers.set_level(log_level)
     LOGGER.debug("Launching kernel")
-    if is_edit_mode:
+
+    # Determine behavior:
+    # - is_subprocess: edit mode uses Process, IPC uses subprocess - both can receive signals
+    # - Run mode (not edit) uses autorun config regardless of IPC
+    is_subprocess = is_edit_mode or is_ipc
+
+    if is_subprocess:
         restore_signals()
 
     profiler = None
@@ -3261,7 +3268,10 @@ def launch_kernel(
         # completions only provided in edit mode
         kernel.start_completion_worker(completion_queue)
 
-        # In edit mode, kernel runs in its own process so it's interruptible.
+    if is_subprocess:
+        # Subprocess kernels (EDIT and IPC_RUN) can receive signals and need
+        # their own formatter registration since they don't share state with
+        # the host process.
         from marimo._output.formatters.formatters import register_formatters
 
         # TODO: Windows workaround -- find a way to make the process
@@ -3272,8 +3282,7 @@ def launch_kernel(
             # Ctrl+C in particular.
             os.setsid()
 
-        # kernels are processes in edit mode, and each process needs to
-        # install the formatter import hooks
+        # Each subprocess kernel needs to install the formatter import hooks
         register_formatters(theme=user_config["display"]["theme"])
 
         signal.signal(signal.SIGINT, handlers.construct_interrupt_handler(ctx))
@@ -3313,7 +3322,7 @@ def launch_kernel(
                 # triggered on Windows when quit with Ctrl+C
                 LOGGER.debug("kernel queue.get() failed %s", e)
                 break
-            LOGGER.debug("Received control request: %s", request)
+            LOGGER.info("Received control request: %s", type(request).__name__)
             if isinstance(request, StopKernelCommand):
                 break
             elif isinstance(request, UpdateUIElementCommand):
