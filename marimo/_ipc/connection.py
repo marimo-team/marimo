@@ -20,6 +20,7 @@ if typing.TYPE_CHECKING:
     from marimo._runtime.commands import (
         CodeCompletionCommand,
         CommandMessage,
+        PackagesCommand,
         UpdateUIElementCommand,
     )
 
@@ -88,6 +89,7 @@ class Connection:
     control: Channel[CommandMessage]
     ui_element: Channel[UpdateUIElementCommand]
     completion: Channel[CodeCompletionCommand]
+    packages: Channel[PackagesCommand]
     win32_interrupt: Channel[bool] | None
 
     input: Channel[str]
@@ -102,6 +104,8 @@ class Connection:
             receivers[self.ui_element.socket] = self.ui_element.queue
         if self.completion.kind == "pull":
             receivers[self.completion.socket] = self.completion.queue
+        if self.packages.kind == "pull":
+            receivers[self.packages.socket] = self.packages.queue
         if self.win32_interrupt and self.win32_interrupt.kind == "pull":
             receivers[self.win32_interrupt.socket] = self.win32_interrupt.queue
         if self.input.kind == "pull":
@@ -128,6 +132,7 @@ class Connection:
             control=Channel.Push(context),
             ui_element=Channel.Push(context),
             completion=Channel.Push(context),
+            packages=Channel.Push(context),
             win32_interrupt=(
                 Channel.Push(context) if sys.platform == "win32" else None
             ),
@@ -138,6 +143,7 @@ class Connection:
             control=conn.control.socket.bind_to_random_port(ADDR),
             ui_element=conn.ui_element.socket.bind_to_random_port(ADDR),
             completion=conn.completion.socket.bind_to_random_port(ADDR),
+            packages=conn.packages.socket.bind_to_random_port(ADDR),
             input=conn.input.socket.bind_to_random_port(ADDR),
             stream=conn.stream.socket.bind_to_random_port(ADDR),
             win32_interrupt=conn.win32_interrupt.socket.bind_to_random_port(
@@ -167,6 +173,7 @@ class Connection:
             control=Channel.Pull(context),
             ui_element=Channel.Pull(context),
             completion=Channel.Pull(context),
+            packages=Channel.Pull(context),
             win32_interrupt=Channel.Pull(context)
             if connection_info.win32_interrupt
             else None,
@@ -178,6 +185,7 @@ class Connection:
         conn.control.socket.connect(f"{ADDR}:{connection_info.control}")
         conn.ui_element.socket.connect(f"{ADDR}:{connection_info.ui_element}")
         conn.completion.socket.connect(f"{ADDR}:{connection_info.completion}")
+        conn.packages.socket.connect(f"{ADDR}:{connection_info.packages}")
         if conn.win32_interrupt:
             conn.win32_interrupt.socket.connect(
                 f"{ADDR}:{connection_info.win32_interrupt}"

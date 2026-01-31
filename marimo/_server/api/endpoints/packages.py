@@ -11,7 +11,12 @@ from marimo._runtime.packages.package_manager import PackageManager
 from marimo._runtime.packages.package_managers import create_package_manager
 from marimo._runtime.packages.utils import split_packages
 from marimo._server.api.deps import AppState
-from marimo._server.api.utils import parse_request
+from marimo._server.api.utils import dispatch_control_request, parse_request
+from marimo._server.models.models import (
+    ListPackagesRequest,
+    PackagesDependencyTreeRequest,
+    SuccessResponse,
+)
 from marimo._server.models.packages import (
     AddPackageRequest,
     DependencyTreeResponse,
@@ -177,6 +182,74 @@ async def dependency_tree(request: Request) -> DependencyTreeResponse:
     else:
         tree = await asyncio.to_thread(package_manager.dependency_tree)
     return DependencyTreeResponse(tree=tree)
+
+
+@router.post("/kernel/list")
+@requires("edit")
+async def kernel_list_packages(request: Request) -> SuccessResponse:
+    """
+    List packages via kernel IPC.
+
+    This endpoint routes the request through the kernel's packages worker,
+    which runs in the kernel's Python environment. Results are sent back
+    via WebSocket notification.
+
+    parameters:
+        - in: header
+          name: Marimo-Session-Id
+          schema:
+            type: string
+          required: true
+    requestBody:
+        required: true
+        content:
+            application/json:
+                schema:
+                    $ref: "#/components/schemas/ListPackagesRequest"
+    responses:
+        200:
+            description: Request accepted
+            content:
+                application/json:
+                    schema:
+                        $ref: "#/components/schemas/SuccessResponse"
+    """
+    return await dispatch_control_request(request, ListPackagesRequest)
+
+
+@router.post("/kernel/tree")
+@requires("edit")
+async def kernel_packages_tree(request: Request) -> SuccessResponse:
+    """
+    Get dependency tree via kernel IPC.
+
+    This endpoint routes the request through the kernel's packages worker,
+    which runs in the kernel's Python environment. Results are sent back
+    via WebSocket notification.
+
+    parameters:
+        - in: header
+          name: Marimo-Session-Id
+          schema:
+            type: string
+          required: true
+    requestBody:
+        required: true
+        content:
+            application/json:
+                schema:
+                    $ref: "#/components/schemas/PackagesDependencyTreeRequest"
+    responses:
+        200:
+            description: Request accepted
+            content:
+                application/json:
+                    schema:
+                        $ref: "#/components/schemas/SuccessResponse"
+    """
+    return await dispatch_control_request(
+        request, PackagesDependencyTreeRequest
+    )
 
 
 def _get_package_manager(request: Request) -> PackageManager:

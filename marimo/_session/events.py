@@ -6,7 +6,7 @@ Provides an event bus and listeners for session creation, closure, and resumptio
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, Union
 
 from marimo import _loggers
 from marimo._messaging.types import KernelMessage
@@ -62,7 +62,7 @@ class SessionEventListener:
     def on_received_command(
         self,
         session: Session,
-        request: commands.CommandMessage,
+        request: Union[commands.CommandMessage, commands.PackagesCommand],
         from_consumer_id: Optional[ConsumerId],
     ) -> None:
         """Called when a command is received."""
@@ -170,7 +170,7 @@ class SessionEventBus:
     def emit_received_command(
         self,
         session: Session,
-        request: commands.CommandMessage,
+        request: Union[commands.CommandMessage, commands.PackagesCommand],
         from_consumer_id: Optional[ConsumerId],
     ) -> None:
         """Emit a received command event."""

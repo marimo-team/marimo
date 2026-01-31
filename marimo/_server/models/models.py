@@ -18,8 +18,10 @@ from marimo._runtime.commands import (
     InstallPackagesCommand,
     InvokeFunctionCommand,
     ListDataSourceConnectionCommand,
+    ListPackagesCommand,
     ListSecretKeysCommand,
     ListSQLTablesCommand,
+    PackagesDependencyTreeCommand,
     PreviewDatasetColumnCommand,
     PreviewSQLTableCommand,
     UpdateCellConfigCommand,
@@ -34,6 +36,19 @@ from marimo._types.ids import CellId_t, UIElementId
 class ListSecretKeysRequest(ListSecretKeysCommand, tag=False):
     def as_command(self) -> ListSecretKeysCommand:
         return ListSecretKeysCommand(request_id=self.request_id)
+
+
+class ListPackagesRequest(ListPackagesCommand, tag=False):
+    def as_command(self) -> ListPackagesCommand:
+        return ListPackagesCommand(request_id=self.request_id)
+
+
+class PackagesDependencyTreeRequest(PackagesDependencyTreeCommand, tag=False):
+    def as_command(self) -> PackagesDependencyTreeCommand:
+        return PackagesDependencyTreeCommand(
+            request_id=self.request_id,
+            filename=self.filename,
+        )
 
 
 class ClearCacheRequest(ClearCacheCommand, tag=False):

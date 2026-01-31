@@ -41,6 +41,12 @@ class QueueManagerImpl(QueueManager):
             queue.Queue[commands.CodeCompletionCommand],
         ] = context.Queue() if context is not None else queue.Queue()
 
+        # Package listing requests are sent through a separate queue
+        self.packages_queue: Union[
+            MPQueue[commands.PackagesCommand],
+            queue.Queue[commands.PackagesCommand],
+        ] = context.Queue() if context is not None else queue.Queue()
+
         self.win32_interrupt_queue: (
             Union[MPQueue[bool], queue.Queue[bool]] | None
         )
@@ -89,15 +95,32 @@ class QueueManagerImpl(QueueManager):
             self.completion_queue.cancel_join_thread()
             self.completion_queue.close()
 
+        if isinstance(self.packages_queue, MPQueue):
+            self.packages_queue.cancel_join_thread()
+            self.packages_queue.close()
+
         if isinstance(self.win32_interrupt_queue, MPQueue):
             self.win32_interrupt_queue.cancel_join_thread()
             self.win32_interrupt_queue.close()
 
-    def put_control_request(self, request: commands.CommandMessage) -> None:
+    def put_control_request(
+        self, request: Union[commands.CommandMessage, commands.PackagesCommand]
+    ) -> None:
         """Put a control request in the control queue."""
         # Completions are on their own queue
         if isinstance(request, commands.CodeCompletionCommand):
             self.completion_queue.put(request)
+            return
+
+        # Package listing requests go to their own queue
+        if isinstance(
+            request,
+            (
+                commands.ListPackagesCommand,
+                commands.PackagesDependencyTreeCommand,
+            ),
+        ):
+            self.packages_queue.put(request)
             return
 
         self.control_queue.put(request)

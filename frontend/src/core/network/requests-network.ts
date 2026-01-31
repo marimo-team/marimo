@@ -488,5 +488,23 @@ export function createNetworkRequests(): EditRequests & RunRequests {
         })
         .then(handleResponseReturnNull);
     },
+    kernelListPackages: async (request) => {
+      await waitForConnectionOpen();
+      return getClient()
+        .POST("/api/packages/kernel/list", {
+          body: request,
+          params: getParams(),
+        })
+        .then(handleResponseReturnNull);
+    },
+    kernelPackagesTree: async (request) => {
+      await waitForConnectionOpen();
+      return getClient()
+        .POST("/api/packages/kernel/tree", {
+          body: request,
+          params: getParams(),
+        })
+        .then(handleResponseReturnNull);
+    },
   };
 }

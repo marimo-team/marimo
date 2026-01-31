@@ -29,11 +29,13 @@ from marimo._messaging.completion_option import CompletionOption
 from marimo._messaging.context import RUN_ID_CTX, RunId_t
 from marimo._plugins.core.web_component import JSONType
 from marimo._runtime.layout.layout import LayoutConfig
+from marimo._runtime.packages.utils import PackageDescription
 from marimo._secrets.models import SecretKeysWithProvider
 from marimo._sql.parse import SqlCatalogCheckResult, SqlParseResult
 from marimo._types.ids import CellId_t, RequestId, WidgetModelId
 from marimo._utils.msgspec_basestruct import BaseStruct
 from marimo._utils.platform import is_pyodide, is_windows
+from marimo._utils.uv_tree import DependencyTreeNode
 
 LOGGER = loggers.marimo_logger()
 
@@ -653,6 +655,34 @@ class UpdateCellIdsNotification(Notification, tag="update-cell-ids"):
     cell_ids: list[CellId_t]
 
 
+class ListPackagesResultNotification(Notification, tag="list-packages-result"):
+    """Result of a list packages request.
+
+    Attributes:
+        request_id: Request ID this responds to.
+        packages: List of installed packages.
+    """
+
+    name: ClassVar[str] = "list-packages-result"
+    request_id: RequestId
+    packages: list[PackageDescription]
+
+
+class PackagesDependencyTreeResultNotification(
+    Notification, tag="packages-dependency-tree-result"
+):
+    """Result of a dependency tree request.
+
+    Attributes:
+        request_id: Request ID this responds to.
+        tree: Dependency tree (None if error or not available).
+    """
+
+    name: ClassVar[str] = "packages-dependency-tree-result"
+    request_id: RequestId
+    tree: Optional[DependencyTreeNode]
+
+
 NotificationMessage = Union[
     # Cell operations
     CellNotification,
@@ -698,4 +728,7 @@ NotificationMessage = Union[
     FocusCellNotification,
     UpdateCellCodesNotification,
     UpdateCellIdsNotification,
+    # Packages
+    ListPackagesResultNotification,
+    PackagesDependencyTreeResultNotification,
 ]

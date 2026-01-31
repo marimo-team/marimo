@@ -8,7 +8,7 @@ Extensions provide a way to add cross-cutting concerns to sessions
 from __future__ import annotations
 
 import asyncio
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, Union
 
 from marimo import _loggers
 from marimo._cli.print import red
@@ -286,13 +286,20 @@ class SessionViewExtension(SessionExtension, SessionEventListener):
     def on_received_command(
         self,
         session: Session,
-        request: commands.CommandMessage,
+        request: Union[commands.CommandMessage, commands.PackagesCommand],
         from_consumer_id: Optional[ConsumerId],
     ) -> None:
         """Called when a command is received."""
         del from_consumer_id
-        # Only add control requests to session view, not completion requests
-        if not isinstance(request, commands.CodeCompletionCommand):
+        # Only add control requests to session view, not completion or packages requests
+        if not isinstance(
+            request,
+            (
+                commands.CodeCompletionCommand,
+                commands.ListPackagesCommand,
+                commands.PackagesDependencyTreeCommand,
+            ),
+        ):
             session.session_view.add_control_request(request)
 
     def on_received_stdin(self, session: Session, stdin: str) -> None:
@@ -328,7 +335,7 @@ class QueueExtension(SessionExtension, SessionEventListener):
     def on_received_command(
         self,
         session: Session,
-        request: commands.CommandMessage,
+        request: Union[commands.CommandMessage, commands.PackagesCommand],
         from_consumer_id: Optional[ConsumerId],
     ) -> None:
         """Called when a command is received."""
@@ -363,7 +370,7 @@ class ReplayExtension(SessionExtension, SessionEventListener):
     def on_received_command(
         self,
         session: Session,
-        request: commands.CommandMessage,
+        request: Union[commands.CommandMessage, commands.PackagesCommand],
         from_consumer_id: Optional[ConsumerId],
     ) -> None:
         """Called when a command is received."""

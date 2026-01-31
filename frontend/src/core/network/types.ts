@@ -194,6 +194,12 @@ export interface EditRequests {
   // Cache requests
   clearCache: () => Promise<null>;
   getCacheInfo: () => Promise<null>;
+  // Kernel package requests (via IPC)
+  kernelListPackages: (request: { requestId: string }) => Promise<null>;
+  kernelPackagesTree: (request: {
+    requestId: string;
+    filename?: string;
+  }) => Promise<null>;
 }
 
 export type RequestKey = keyof (EditRequests & RunRequests);

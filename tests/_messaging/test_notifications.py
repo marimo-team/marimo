@@ -7,6 +7,8 @@ from marimo._ast.toplevel import HINT_UNPARSABLE, TopLevelStatus
 from marimo._messaging.notification import (
     CellNotification,
     InstallingPackageAlertNotification,
+    ListPackagesResultNotification,
+    PackagesDependencyTreeResultNotification,
     StartupLogsNotification,
     UIElementMessageNotification,
 )
@@ -17,8 +19,10 @@ from marimo._messaging.notification_utils import (
 from marimo._messaging.variables import create_variable_value
 from marimo._output.hypertext import Html
 from marimo._plugins.ui._impl.input import slider
+from marimo._runtime.packages.utils import PackageDescription
 from marimo._types.ids import CellId_t
 from marimo._utils.parse_dataclass import parse_raw
+from marimo._utils.uv_tree import DependencyTreeNode
 from tests._messaging.mocks import MockStream
 
 
@@ -139,3 +143,83 @@ def test_send_ui_element_message_broadcast() -> None:
     }
 
     assert stream.parsed_operations[0] == msg
+
+
+def test_list_packages_result_notification() -> None:
+    """Test ListPackagesResultNotification creation and serialization."""
+    stream = MockStream()
+
+    packages = [
+        PackageDescription(name="numpy", version="1.24.0"),
+        PackageDescription(name="pandas", version="2.0.0"),
+    ]
+    msg = ListPackagesResultNotification(
+        request_id="test-request-id",
+        packages=packages,
+    )
+
+    assert msg.name == "list-packages-result"
+    assert msg.request_id == "test-request-id"
+    assert len(msg.packages) == 2
+    assert msg.packages[0].name == "numpy"
+
+    broadcast_notification(msg, stream)
+
+    assert len(stream.messages) == 1
+    assert stream.operations[0]["op"] == "list-packages-result"
+    assert stream.operations[0]["request_id"] == "test-request-id"
+    assert len(stream.operations[0]["packages"]) == 2
+
+
+def test_packages_dependency_tree_result_notification() -> None:
+    """Test PackagesDependencyTreeResultNotification creation and serialization."""
+    stream = MockStream()
+
+    tree = DependencyTreeNode(
+        name="marimo",
+        version="0.10.0",
+        tags=[],
+        dependencies=[
+            DependencyTreeNode(
+                name="starlette",
+                version="0.37.0",
+                tags=[],
+                dependencies=[],
+            )
+        ],
+    )
+    msg = PackagesDependencyTreeResultNotification(
+        request_id="test-request-id",
+        tree=tree,
+    )
+
+    assert msg.name == "packages-dependency-tree-result"
+    assert msg.request_id == "test-request-id"
+    assert msg.tree is not None
+    assert msg.tree.name == "marimo"
+    assert len(msg.tree.dependencies) == 1
+
+    broadcast_notification(msg, stream)
+
+    assert len(stream.messages) == 1
+    assert stream.operations[0]["op"] == "packages-dependency-tree-result"
+    assert stream.operations[0]["request_id"] == "test-request-id"
+    assert stream.operations[0]["tree"]["name"] == "marimo"
+
+
+def test_packages_dependency_tree_result_notification_none_tree() -> None:
+    """Test PackagesDependencyTreeResultNotification with None tree."""
+    stream = MockStream()
+
+    msg = PackagesDependencyTreeResultNotification(
+        request_id="test-request-id",
+        tree=None,
+    )
+
+    assert msg.tree is None
+
+    broadcast_notification(msg, stream)
+
+    assert len(stream.messages) == 1
+    assert stream.operations[0]["op"] == "packages-dependency-tree-result"
+    assert stream.operations[0]["tree"] is None

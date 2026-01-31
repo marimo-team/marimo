@@ -2426,6 +2426,8 @@ components:
           - $ref: '#/components/schemas/FocusCellNotification'
           - $ref: '#/components/schemas/UpdateCellCodesNotification'
           - $ref: '#/components/schemas/UpdateCellIdsNotification'
+          - $ref: '#/components/schemas/ListPackagesResultNotification'
+          - $ref: '#/components/schemas/PackagesDependencyTreeResultNotification'
           discriminator:
             mapping:
               alert: '#/components/schemas/AlertNotification'
@@ -2444,7 +2446,9 @@ components:
               interrupted: '#/components/schemas/InterruptedNotification'
               kernel-ready: '#/components/schemas/KernelReadyNotification'
               kernel-startup-error: '#/components/schemas/KernelStartupErrorNotification'
+              list-packages-result: '#/components/schemas/ListPackagesResultNotification'
               missing-package-alert: '#/components/schemas/MissingPackageAlertNotification'
+              packages-dependency-tree-result: '#/components/schemas/PackagesDependencyTreeResultNotification'
               query-params-append: '#/components/schemas/QueryParamsAppendNotification'
               query-params-clear: '#/components/schemas/QueryParamsClearNotification'
               query-params-delete: '#/components/schemas/QueryParamsDeleteNotification'
@@ -2526,6 +2530,26 @@ components:
       required:
       - packages
       title: ListPackagesResponse
+      type: object
+    ListPackagesResultNotification:
+      description: "Result of a list packages request.\n\n    Attributes:\n      \
+        \  request_id: Request ID this responds to.\n        packages: List of installed\
+        \ packages."
+      properties:
+        op:
+          enum:
+          - list-packages-result
+        packages:
+          items:
+            $ref: '#/components/schemas/PackageDescription'
+          type: array
+        request_id:
+          type: string
+      required:
+      - op
+      - request_id
+      - packages
+      title: ListPackagesResultNotification
       type: object
     ListSQLTablesCommand:
       description: "List tables in an SQL schema.\n\n    Retrieves names of all tables\
@@ -3017,6 +3041,7 @@ components:
       title: OpenTutorialRequest
       type: object
     PackageDescription:
+      description: Description of an installed package.
       properties:
         name:
           type: string
@@ -3054,6 +3079,26 @@ components:
       required:
       - success
       title: PackageOperationResponse
+      type: object
+    PackagesDependencyTreeResultNotification:
+      description: "Result of a dependency tree request.\n\n    Attributes:\n    \
+        \    request_id: Request ID this responds to.\n        tree: Dependency tree\
+        \ (None if error or not available)."
+      properties:
+        op:
+          enum:
+          - packages-dependency-tree-result
+        request_id:
+          type: string
+        tree:
+          anyOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/DependencyTreeNode'
+      required:
+      - op
+      - request_id
+      - tree
+      title: PackagesDependencyTreeResultNotification
       type: object
     PreviewDatasetColumnCommand:
       description: "Preview a dataset column.\n\n    Retrieves and displays data from\
@@ -4570,7 +4615,7 @@ components:
       type: object
 info:
   title: marimo API
-  version: 0.19.4
+  version: 0.19.6
 openapi: 3.1.0
 paths:
   /@file/{filename_and_length}:

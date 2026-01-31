@@ -4469,7 +4469,9 @@ export interface components {
         | components["schemas"]["CacheInfoNotification"]
         | components["schemas"]["FocusCellNotification"]
         | components["schemas"]["UpdateCellCodesNotification"]
-        | components["schemas"]["UpdateCellIdsNotification"];
+        | components["schemas"]["UpdateCellIdsNotification"]
+        | components["schemas"]["ListPackagesResultNotification"]
+        | components["schemas"]["PackagesDependencyTreeResultNotification"];
     };
     /**
      * LanguageServersConfig
@@ -4510,6 +4512,20 @@ export interface components {
     /** ListPackagesResponse */
     ListPackagesResponse: {
       packages: components["schemas"]["PackageDescription"][];
+    };
+    /**
+     * ListPackagesResultNotification
+     * @description Result of a list packages request.
+     *
+     *         Attributes:
+     *             request_id: Request ID this responds to.
+     *             packages: List of installed packages.
+     */
+    ListPackagesResultNotification: {
+      /** @enum {unknown} */
+      op: "list-packages-result";
+      packages: components["schemas"]["PackageDescription"][];
+      request_id: string;
     };
     /**
      * ListSQLTablesCommand
@@ -4785,7 +4801,10 @@ export interface components {
           )
         | "markdown-format";
     };
-    /** PackageDescription */
+    /**
+     * PackageDescription
+     * @description Description of an installed package.
+     */
     PackageDescription: {
       name: string;
       version: string;
@@ -4807,6 +4826,20 @@ export interface components {
       /** @default null */
       error?: string | null;
       success: boolean;
+    };
+    /**
+     * PackagesDependencyTreeResultNotification
+     * @description Result of a dependency tree request.
+     *
+     *         Attributes:
+     *             request_id: Request ID this responds to.
+     *             tree: Dependency tree (None if error or not available).
+     */
+    PackagesDependencyTreeResultNotification: {
+      /** @enum {unknown} */
+      op: "packages-dependency-tree-result";
+      request_id: string;
+      tree: null | components["schemas"]["DependencyTreeNode"];
     };
     /**
      * PreviewDatasetColumnCommand

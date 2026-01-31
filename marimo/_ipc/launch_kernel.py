@@ -35,6 +35,7 @@ def main() -> None:
         set_ui_element_queue=queue_manager.set_ui_element_queue,
         interrupt_queue=queue_manager.win32_interrupt_queue,
         completion_queue=queue_manager.completion_queue,
+        packages_queue=queue_manager.packages_queue,
         control_queue=queue_manager.control_queue,
         input_queue=queue_manager.input_queue,
         app_metadata=args.app_metadata,

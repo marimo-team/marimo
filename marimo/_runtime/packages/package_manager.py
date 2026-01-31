@@ -6,13 +6,11 @@ import subprocess
 import sys
 from typing import TYPE_CHECKING, Callable, Optional
 
-import msgspec
-
 from marimo import _loggers
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.notification import AlertNotification
 from marimo._messaging.notification_utils import broadcast_notification
-from marimo._runtime.packages.utils import append_version
+from marimo._runtime.packages.utils import PackageDescription, append_version
 
 if TYPE_CHECKING:
     from marimo._utils.uv_tree import DependencyTreeNode
@@ -22,10 +20,8 @@ LOGGER = _loggers.marimo_logger()
 # Type alias for log callback function
 LogCallback = Callable[[str], None]
 
-
-class PackageDescription(msgspec.Struct, rename="camel"):
-    name: str
-    version: str
+# Re-export PackageDescription for backwards compatibility
+__all__ = ["PackageDescription", "PackageManager", "LogCallback"]
 
 
 class PackageManager(abc.ABC):

@@ -7,7 +7,7 @@ and websocket for bidirectional communication.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, Union
 from uuid import uuid4
 
 from marimo import _loggers
@@ -266,7 +266,7 @@ class SessionImpl(Session):
 
     def put_control_request(
         self,
-        request: commands.CommandMessage,
+        request: Union[commands.CommandMessage, commands.PackagesCommand],
         from_consumer_id: Optional[ConsumerId],
     ) -> None:
         """Put a control request in the control queue."""

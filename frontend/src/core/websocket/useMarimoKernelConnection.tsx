@@ -55,6 +55,10 @@ import { kioskModeAtom } from "../mode";
 import { connectionAtom } from "../network/connection";
 import type { RequestId } from "../network/DeferredRequestRegistry";
 import { useRuntimeManager } from "../runtime/config";
+import {
+  PACKAGES_REGISTRY,
+  DEPENDENCY_TREE_REGISTRY,
+} from "../packages/request-registry";
 import { SECRETS_REGISTRY } from "../secrets/request-registry";
 import { isStaticNotebook } from "../static/static-state";
 import { useVariablesActions } from "../variables/state";
@@ -279,6 +283,15 @@ export function useMarimoKernelConnection(opts: {
         return;
       case "secret-keys-result":
         SECRETS_REGISTRY.resolve(msg.data.request_id as RequestId, msg.data);
+        return;
+      case "list-packages-result":
+        PACKAGES_REGISTRY.resolve(msg.data.request_id as RequestId, msg.data);
+        return;
+      case "packages-dependency-tree-result":
+        DEPENDENCY_TREE_REGISTRY.resolve(
+          msg.data.request_id as RequestId,
+          msg.data,
+        );
         return;
       case "cache-info":
         setCacheInfo(msg.data);

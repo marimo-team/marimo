@@ -25,6 +25,11 @@ import { useRequestClient } from "@/core/network/requests";
 import type { DependencyTreeNode } from "@/core/network/types";
 import { stripPackageManagerPrefix } from "@/core/packages/package-input-utils";
 import {
+  PACKAGES_REGISTRY,
+  DEPENDENCY_TREE_REGISTRY,
+} from "@/core/packages/request-registry";
+import { useFilename } from "@/core/saving/filename";
+import {
   showRemovePackageToast,
   showUpgradePackageToast,
 } from "@/core/packages/toast-components";
@@ -68,7 +73,7 @@ const PackageActionButton: React.FC<{
 const PackagesPanel: React.FC = () => {
   const [config] = useResolvedMarimoConfig();
   const packageManager = config.package_management.manager;
-  const { getDependencyTree, getPackageList } = useRequestClient();
+  const filename = useFilename();
 
   const [userViewMode, setUserViewMode] = React.useState<ViewMode | null>(null);
   const {
@@ -78,14 +83,16 @@ const PackagesPanel: React.FC = () => {
     isPending,
   } = useAsyncData(async () => {
     const [listPackagesResponse, dependencyTreeResponse] = await Promise.all([
-      getPackageList(),
-      getDependencyTree(),
+      PACKAGES_REGISTRY.request({}),
+      DEPENDENCY_TREE_REGISTRY.request({
+        filename: filename ?? undefined,
+      }),
     ]);
     return {
       list: listPackagesResponse.packages,
       tree: dependencyTreeResponse.tree,
     };
-  }, [packageManager]);
+  }, [packageManager, filename]);
 
   // Only show on the first load
   if (isPending) {

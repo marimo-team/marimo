@@ -738,6 +738,33 @@ class GetCacheInfoCommand(Command):
     pass
 
 
+class ListPackagesCommand(Command):
+    """Request to list installed packages.
+
+    Attributes:
+        request_id: Unique identifier for this request.
+    """
+
+    request_id: RequestId
+
+
+class PackagesDependencyTreeCommand(Command):
+    """Request to get the dependency tree.
+
+    Attributes:
+        request_id: Unique identifier for this request.
+        filename: Optional notebook filename to scope the dependency tree.
+    """
+
+    request_id: RequestId
+    filename: Optional[str] = None
+
+
+# Type alias for packages commands (NOT added to CommandMessage union)
+# These are handled on a separate queue by the packages worker
+PackagesCommand = Union[ListPackagesCommand, PackagesDependencyTreeCommand]
+
+
 CommandMessage = Union[
     # Notebook operations
     CreateNotebookCommand,

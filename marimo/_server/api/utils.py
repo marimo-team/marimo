@@ -15,7 +15,7 @@ from typing import (
     runtime_checkable,
 )
 
-from marimo._runtime.commands import CommandMessage
+from marimo._runtime.commands import CommandMessage, PackagesCommand
 from marimo._server.models.models import SuccessResponse
 from marimo._types.ids import ConsumerId
 from marimo._utils.parse_dataclass import parse_raw
@@ -42,7 +42,10 @@ class RequestAsCommand(Protocol):
 
 async def dispatch_control_request(
     request: Request,
-    cls: type[CommandMessage] | CommandMessage,
+    cls: type[CommandMessage]
+    | type[PackagesCommand]
+    | CommandMessage
+    | PackagesCommand,
 ) -> SuccessResponse:
     """
     Parse a request and dispatch it to the current session.

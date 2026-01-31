@@ -90,6 +90,12 @@ class IPCQueueManagerImpl(QueueManager):
         return self._ipc.completion_queue
 
     @property
+    def packages_queue(  # type: ignore[override]
+        self,
+    ) -> QueueType[commands.PackagesCommand]:
+        return self._ipc.packages_queue
+
+    @property
     def input_queue(  # type: ignore[override]
         self,
     ) -> QueueType[str]:
@@ -113,10 +119,23 @@ class IPCQueueManagerImpl(QueueManager):
     def close_queues(self) -> None:
         self._ipc.close_queues()
 
-    def put_control_request(self, request: commands.CommandMessage) -> None:
+    def put_control_request(
+        self, request: Union[commands.CommandMessage, commands.PackagesCommand]
+    ) -> None:
         # Completions are on their own queue
         if isinstance(request, commands.CodeCompletionCommand):
             self.completion_queue.put(request)
+            return
+
+        # Package listing requests go to their own queue
+        if isinstance(
+            request,
+            (
+                commands.ListPackagesCommand,
+                commands.PackagesDependencyTreeCommand,
+            ),
+        ):
+            self.packages_queue.put(request)
             return
 
         self.control_queue.put(request)

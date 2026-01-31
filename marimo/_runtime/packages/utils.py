@@ -7,7 +7,16 @@ import re
 import sys
 from typing import Optional
 
+import msgspec
+
 from marimo._utils.platform import is_pyodide
+
+
+class PackageDescription(msgspec.Struct, rename="camel"):
+    """Description of an installed package."""
+
+    name: str
+    version: str
 
 
 def in_virtual_environment() -> bool:

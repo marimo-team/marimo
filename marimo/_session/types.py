@@ -37,6 +37,7 @@ class QueueManager(Protocol):
     control_queue: QueueType[commands.CommandMessage]
     set_ui_element_queue: QueueType[commands.UpdateUIElementCommand]
     completion_queue: QueueType[commands.CodeCompletionCommand]
+    packages_queue: QueueType[commands.PackagesCommand]
     input_queue: QueueType[str]
     stream_queue: Optional[QueueType[Union[KernelMessage, None]]]
     win32_interrupt_queue: QueueType[bool] | None
@@ -45,7 +46,9 @@ class QueueManager(Protocol):
         """Close all queues."""
         ...
 
-    def put_control_request(self, request: commands.CommandMessage) -> None:
+    def put_control_request(
+        self, request: Union[commands.CommandMessage, commands.PackagesCommand]
+    ) -> None:
         """Put a control request in the control queue."""
         ...
 
@@ -136,7 +139,7 @@ class Session(Protocol):
 
     def put_control_request(
         self,
-        request: commands.CommandMessage,
+        request: Union[commands.CommandMessage, commands.PackagesCommand],
         from_consumer_id: Optional[ConsumerId],
     ) -> None:
         """Put a control request in the control queue."""

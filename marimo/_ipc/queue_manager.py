@@ -14,6 +14,7 @@ if typing.TYPE_CHECKING:
     from marimo._runtime.commands import (
         CodeCompletionCommand,
         CommandMessage,
+        PackagesCommand,
         UpdateUIElementCommand,
     )
     from marimo._session.queue import QueueType
@@ -51,6 +52,11 @@ class QueueManager:
     def completion_queue(self) -> QueueType[CodeCompletionCommand]:
         """Queue for code completion requests."""
         return self.conn.completion.queue
+
+    @property
+    def packages_queue(self) -> QueueType[PackagesCommand]:
+        """Queue for package listing requests."""
+        return self.conn.packages.queue
 
     @property
     def win32_interrupt_queue(self) -> typing.Union[QueueType[bool], None]:

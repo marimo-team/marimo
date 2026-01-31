@@ -19,6 +19,7 @@ class ConnectionInfo(msgspec.Struct):
     control: int
     ui_element: int
     completion: int
+    packages: int
     win32_interrupt: typing.Union[int, None]
 
     input: int
