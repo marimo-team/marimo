@@ -314,7 +314,7 @@ def test_virtual_file_registry_shared_inmemory_storage(
 ) -> None:
     ctx = get_context()
 
-    # Create vfile in exisiting vfile registry
+    # Create vfile in existing vfile registry
     item = VirtualFileLifecycleItem(ext="pdf", buffer=b"abc")
     item.create(context=ctx)
     vf = item.virtual_file
