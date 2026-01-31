@@ -252,6 +252,7 @@ class DependencyManager:
     )
     pydantic = Dependency("pydantic")
     zmq = Dependency("zmq")  # pyzmq for sandbox IPC kernels
+    weave = Dependency("weave")
 
     # Version requirements to properly support the new superfences introduced in
     # pymdown#2470
