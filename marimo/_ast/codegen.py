@@ -145,7 +145,7 @@ def _needs_trailing_blank_line(mod: ast.Module, code: str) -> bool:
         return False
     # Check if there's trailing content (like comments) after the last statement
     # If so, don't add a blank line - the existing formatting should be preserved
-    code_lines = len(code.rstrip().splitlines())
+    code_lines = code.rstrip().count("\n") + 1
     return last_stmt.end_lineno == code_lines
 
 
