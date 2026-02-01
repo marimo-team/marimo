@@ -2,7 +2,7 @@
 
 import marimo
 
-__generated_with = "0.17.4"
+__generated_with = "0.19.7"
 app = marimo.App()
 
 
@@ -479,6 +479,7 @@ def _(mo):
         elif value == mo.ui.text_area:
             return mo.ui.text_area()
         return None
+
     return (construct_element,)
 
 
@@ -487,6 +488,7 @@ def _(mo):
     def show_element(element):
         if element is not None:
             return mo.hstack([element], justify="center")
+
     return (show_element,)
 
 
@@ -504,6 +506,7 @@ def _(mo):
                 The element's current value is {mo.as_html(element.value)}
                 """
             )
+
     return (value,)
 
 
@@ -518,12 +521,14 @@ def _(mo):
                     )
                 }
             )
+
     return (documentation,)
 
 
 @app.cell
 def _():
     import marimo as mo
+
     return (mo,)
 
 
