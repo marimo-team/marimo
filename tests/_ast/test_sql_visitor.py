@@ -897,3 +897,32 @@ class TestFindSQLRefs:
         assert find_sql_refs(sql) == {
             SQLRef(table="test_table", schema="my_schema")
         }
+
+    def test_unnest_with_json_access(self) -> None:
+        # Regression test for issue #8080
+        # sqlglot's build_scope raises OptimizeError for unnest with JSON access
+        # because it generates duplicate empty aliases internally
+        sql = "SELECT unnest([1,2,3])->>'$' FROM (SELECT 1)"
+        # Should not raise OptimizeError; falls back to direct table extraction
+        assert find_sql_refs(sql) == set()
+
+    def test_duplicate_alias_in_subqueries(self) -> None:
+        # sqlglot's build_scope raises OptimizeError for duplicate aliases
+        # in cross-joined subqueries which is valid DuckDB syntax
+        sql = "SELECT * FROM (SELECT 1 as x), (SELECT 2 as x)"
+        # Should not raise OptimizeError; falls back to direct table extraction
+        assert find_sql_refs(sql) == set()
+
+    def test_duplicate_alias_with_table_refs(self) -> None:
+        # Test that table refs are still extracted when OptimizeError occurs
+        sql = """
+        SELECT * FROM (SELECT * FROM table1),
+        (SELECT * FROM table2 as x),
+        (SELECT * FROM table3 as x)
+        """
+        # Should not raise OptimizeError and should extract table refs
+        assert find_sql_refs(sql) == {
+            SQLRef(table="table1"),
+            SQLRef(table="table2"),
+            SQLRef(table="table3"),
+        }

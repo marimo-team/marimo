@@ -504,6 +504,7 @@ def find_sql_refs(sql_statement: str) -> set[SQLRef]:
     DependencyManager.sqlglot.require(why="SQL parsing")
 
     from sqlglot import exp, parse
+    from sqlglot.errors import OptimizeError
     from sqlglot.optimizer.scope import build_scope
 
     def get_ref_from_table(table: exp.Table) -> Optional[SQLRef]:
@@ -553,12 +554,21 @@ def find_sql_refs(sql_statement: str) -> set[SQLRef]:
                 if ref := get_ref_from_table(table):
                     refs.add(ref)
 
-        # build_scope only works for select statements
-        if root := build_scope(expression):
-            for scope in root.traverse():  # type: ignore
-                for _node, source in scope.selected_sources.values():
-                    if isinstance(source, exp.Table):
-                        if ref := get_ref_from_table(source):
-                            refs.add(ref)
+        # build_scope only works for select statements.
+        # It may raise OptimizeError for valid SQL with duplicate aliases
+        # (e.g., "SELECT * FROM (SELECT 1 as x), (SELECT 2 as x)")
+        # In that case, fall back to extracting table references directly.
+        try:
+            if root := build_scope(expression):
+                for scope in root.traverse():  # type: ignore
+                    for _node, source in scope.selected_sources.values():
+                        if isinstance(source, exp.Table):
+                            if ref := get_ref_from_table(source):
+                                refs.add(ref)
+        except OptimizeError:
+            # Fall back to extracting table references without scope analysis
+            for table in expression.find_all(exp.Table):
+                if ref := get_ref_from_table(table):
+                    refs.add(ref)
 
     return refs
