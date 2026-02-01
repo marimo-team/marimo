@@ -7,7 +7,7 @@
 
 import marimo
 
-__generated_with = "0.17.2"
+__generated_with = "0.19.7"
 app = marimo.App()
 
 
@@ -99,6 +99,7 @@ def _(functools, mnist, pymde):
         return pymde.preprocess.k_nearest_neighbors(
             mnist.data, k=n_neighbors, verbose=True
         )
+
     return (knn,)
 
 
@@ -203,6 +204,7 @@ def _(mnist, plt):
             axs[1][pair_index].set_yticks([])
         plt.tight_layout()
         return plt.gca()
+
     return (plot_pairs,)
 
 
@@ -221,6 +223,7 @@ def _():
     import torch
 
     import marimo as mo
+
     return functools, mo, plt, pymde, torch
 
 

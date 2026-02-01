@@ -8,13 +8,14 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.19.7"
 app = marimo.App()
 
 
 @app.cell
 def _():
     import marimo as mo
+
     return (mo,)
 
 
@@ -110,6 +111,7 @@ def _(json, mo, pd):
 def _():
     import pandas as pd
     import json
+
     return json, pd
 
 

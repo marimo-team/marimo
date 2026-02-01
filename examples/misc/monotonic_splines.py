@@ -13,7 +13,7 @@
 
 import marimo
 
-__generated_with = "0.17.4"
+__generated_with = "0.19.7"
 app = marimo.App(width="medium")
 
 
@@ -211,6 +211,7 @@ def _(mo):
 @app.cell
 def _():
     import pandas as pd
+
     return (pd,)
 
 

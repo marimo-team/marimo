@@ -16,7 +16,7 @@
 
 import marimo
 
-__generated_with = "0.17.4"
+__generated_with = "0.19.7"
 app = marimo.App(width="medium")
 
 
@@ -30,6 +30,7 @@ def _():
     import polars as pl
     from bs4 import BeautifulSoup
     from vega_datasets import data
+
     return BeautifulSoup, alt, data, ell, mo, pl, requests
 
 
@@ -270,6 +271,7 @@ def _(TOOLS, client, df, ell, get_dataset, mo):
                 [mo.md(f"Tool used: **{str(tool.tool.__name__)}**"), tool_response]
             )
         return mo.md(response.text)
+
     return (model,)
 
 

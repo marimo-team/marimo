@@ -15,7 +15,7 @@
 
 import marimo
 
-__generated_with = "0.17.4"
+__generated_with = "0.19.7"
 app = marimo.App(
     width="medium",
     layout_file="layouts/grid-dashboard.grid.json",
@@ -143,6 +143,7 @@ def _(dataset, np):
             dataset["gdpPercap"].min() - 100,
             dataset[dataset["gdpPercap"] < 10000].max()["gdpPercap"] + 1000,
         )
+
     return get_data, get_title, get_xlim
 
 
@@ -280,6 +281,7 @@ def _(XLABEL, YLABEL, YLIM, alt, get_data, get_title, get_xlim, go, pio, plt):
             xlabel=XLABEL,
             height=400,
         )
+
     return altair_view, hvplot_view, mpl_view, plotly_view
 
 

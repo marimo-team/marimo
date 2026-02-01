@@ -11,7 +11,7 @@
 
 import marimo
 
-__generated_with = "0.17.2"
+__generated_with = "0.19.7"
 app = marimo.App(width="medium")
 
 
@@ -20,6 +20,7 @@ def _():
     import marimo as mo
     import ell
     import textwrap
+
     return ell, mo
 
 
@@ -95,6 +96,7 @@ def _(backend, input_key, mo):
 @app.cell
 def _():
     import dagger
+
     return (dagger,)
 
 
@@ -151,6 +153,7 @@ def _(dagger, ell, files, mo, packages):
                 mo.md(result),
             ]
         )
+
     return (execute_code,)
 
 
@@ -209,6 +212,7 @@ def _(client, ell, execute_code, files, mo, model, packages):
         if response.tool_calls:
             return response.tool_calls[0]()
         return mo.md(response.text)
+
     return (my_model,)
 
 

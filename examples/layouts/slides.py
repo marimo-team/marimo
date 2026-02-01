@@ -10,7 +10,7 @@
 
 import marimo
 
-__generated_with = "0.19.6"
+__generated_with = "0.19.7"
 app = marimo.App(width="medium", layout_file="layouts/slides.slides.json")
 
 
@@ -227,6 +227,7 @@ def _(duckdb, mo):
         ```
         {mo.ui.table(result.df(), selection=None, pagination=None, show_column_summaries=False)}
         """
+
     return (print_and_run,)
 
 
@@ -234,6 +235,7 @@ def _(duckdb, mo):
 def _():
     import marimo as mo
     import duckdb
+
     return duckdb, mo
 
 

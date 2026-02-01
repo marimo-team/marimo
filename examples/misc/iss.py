@@ -11,7 +11,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.19.7"
 app = marimo.App(width="full")
 
 
@@ -122,6 +122,7 @@ def _(n_points_slider, pd, refresh_interval_slider, refresher, requests, time):
         df = pd.DataFrame(response.json())
         df['timestamp'] = pd.to_datetime(df.timestamp, unit='s')
         return df[['timestamp','latitude','longitude','altitude','velocity','visibility']]
+
     return (get_iss_positions,)
 
 

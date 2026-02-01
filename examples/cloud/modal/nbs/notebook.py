@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.17.4"
+__generated_with = "0.19.7"
 app = marimo.App()
 
 
@@ -10,6 +10,7 @@ def _():
     import sys
     import platform
     import os
+
     return mo, os, platform, sys
 
 
