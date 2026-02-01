@@ -46,6 +46,7 @@ def shadow_case(shadow):
 def _(shadow):
     def reference_case():
         return shadow
+
     return
 
 
@@ -54,6 +55,7 @@ def _(globe):
     def global_case():
         global globe
         return globe
+
     return
 
 
