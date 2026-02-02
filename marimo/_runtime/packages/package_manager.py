@@ -242,10 +242,12 @@ class CanonicalizingPackageManager(PackageManager):
     Subclasses needs to implement _construct_module_name_mapping.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, python_exe: str | None = None) -> None:
         # Initialized lazily
         self._module_name_to_repo_name: dict[str, str] | None = None
         self._repo_name_to_module_name: dict[str, str] | None = None
+        # Python executable for targeting a specific venv (used by pip/uv)
+        self._python_exe = python_exe
         super().__init__()
 
     @abc.abstractmethod

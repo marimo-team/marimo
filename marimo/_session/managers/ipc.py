@@ -159,6 +159,7 @@ class IPCKernelManagerImpl(KernelManager):
         self._process: subprocess.Popen[bytes] | None = None
         self.kernel_task: ProcessLike | None = None
         self._sandbox_dir: str | None = None
+        self._venv_python: str | None = None
 
     def start_kernel(self) -> None:
         from marimo._cli.print import echo, muted
@@ -259,6 +260,9 @@ class IPCKernelManagerImpl(KernelManager):
                 err=True,
             )
 
+        # Store the venv python for package manager targeting
+        self._venv_python = venv_python
+
         cmd = [venv_python, "-m", "marimo._ipc.launch_kernel"]
         if writable:
             # Setting this attempts to make auto-installations work even if
@@ -320,6 +324,11 @@ class IPCKernelManagerImpl(KernelManager):
     def profile_path(self) -> str | None:
         # Profiling not currently supported with IPC kernel
         return None
+
+    @property
+    def venv_python(self) -> str | None:
+        """Python executable path for the kernel's venv."""
+        return self._venv_python
 
     def is_alive(self) -> bool:
         if self._process is None:
