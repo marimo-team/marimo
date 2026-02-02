@@ -634,39 +634,30 @@ Expected 'FROM' keyword"""
 class TestDisplayConfigBehavior:
     """Test that sql() respects the display.dataframes config setting."""
 
+    @patch("marimo._sql.sql.replace")
+    @patch("marimo._output.formatters.df_formatters.include_opinionated")
     @pytest.mark.skipif(
         not HAS_POLARS or not HAS_DUCKDB, reason="polars and duckdb required"
     )
-    @patch("marimo._sql.sql.replace")
-    def test_sql_plain_output_when_not_opinionated(self, mock_replace):
+    def test_sql_plain_output_when_not_opinionated(
+        self, mock_include_opinionated, mock_replace
+    ):
         """Test that SQL uses plain() when include_opinionated returns False."""
-        import duckdb
+        mock_include_opinionated.return_value = False
         import polars as pl
 
         from marimo._output.formatting import Plain
 
-        # Create a test table
-        duckdb.sql(
-            "CREATE OR REPLACE TABLE test_plain AS SELECT * FROM range(5)"
-        )
+        # Test query
+        result = sql("SELECT 1")
+        assert isinstance(result, pl.DataFrame)
 
-        with patch(
-            "marimo._output.formatters.df_formatters.include_opinionated",
-            return_value=False,
-        ):
-            # Test query
-            result = sql("SELECT * FROM test_plain")
-            assert isinstance(result, pl.DataFrame)
+        # Should call replace with Plain object
+        mock_replace.assert_called_once()
+        call_args = mock_replace.call_args[0][0]
 
-            # Should call replace with Plain object
-            mock_replace.assert_called_once()
-            call_args = mock_replace.call_args[0][0]
-
-            # The call should be a Plain object (not a table)
-            assert isinstance(call_args, Plain)
-
-        # Clean up
-        duckdb.sql("DROP TABLE test_plain")
+        # The call should be a Plain object (not a table)
+        assert isinstance(call_args, Plain)
 
     @pytest.mark.skipif(
         not HAS_POLARS or not HAS_DUCKDB, reason="polars and duckdb required"
