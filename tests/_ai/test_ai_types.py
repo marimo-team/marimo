@@ -7,6 +7,7 @@ from typing import Any, Literal, cast
 import pytest
 
 from marimo._ai._types import (
+    ChatAttachment,
     ChatMessage,
     ChatPart,
     FilePart,
@@ -98,10 +99,6 @@ class TestChatMessageCreate:
             parts=[existing_part],  # type: ignore
         )
 
-    @pytest.mark.skipif(
-        not DependencyManager.pydantic.has(),
-        reason="pydantic is not installed",
-    )
     def test_dict_parts_with_dataclass_validator(self):
         """Test converting dict parts using a dataclass validator."""
         dict_part: dict[str, str] = {"type": "text", "text": "Hello from dict"}
@@ -121,10 +118,6 @@ class TestChatMessageCreate:
             parts=[TextPart(type="text", text="Hello from dict")],
         )
 
-    @pytest.mark.skipif(
-        not DependencyManager.pydantic.has(),
-        reason="pydantic is not installed",
-    )
     def test_mixed_parts_with_validator(self):
         """Test with a mix of already-typed and dict parts."""
 
@@ -514,3 +507,32 @@ class TestChatMessagePostInit:
         message = ChatMessage(role="user", content="Hello", id="custom-id")
 
         assert message.id == "custom-id"
+
+
+class TestChatMessageDict:
+    """Tests for ChatMessage serialization via dict()."""
+
+    def test_parts_and_attachments_serialized_to_dict(self):
+        """Parts and attachments are converted to dicts via asdict."""
+        message = ChatMessage(
+            role="user",
+            content="Hello",
+            id="msg-1",
+            parts=[TextPart(type="text", text="Part text")],
+            attachments=[
+                ChatAttachment(url="https://example.com/file.pdf", name="doc"),
+            ],
+        )
+        out = dict[str, Any](message)
+        assert out["role"] == "user"
+        assert out["id"] == "msg-1"
+        assert out["content"] == "Hello"
+        assert out["parts"] == [{"type": "text", "text": "Part text"}]
+        assert out["attachments"] == [
+            {
+                "url": "https://example.com/file.pdf",
+                "name": "doc",
+                "content_type": "application/pdf",
+            }
+        ]
+        assert "metadata" in out
