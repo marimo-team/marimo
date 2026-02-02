@@ -2471,6 +2471,88 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/packages/kernel/list": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header: {
+          "Marimo-Session-Id": string;
+        };
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["ListPackagesRequest"];
+        };
+      };
+      responses: {
+        /** @description List packages via kernel IPC */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["SuccessResponse"];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/packages/kernel/tree": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header: {
+          "Marimo-Session-Id": string;
+        };
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["PackagesDependencyTreeRequest"];
+        };
+      };
+      responses: {
+        /** @description Get dependency tree via kernel IPC */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["SuccessResponse"];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/packages/list": {
     parameters: {
       query?: never;
@@ -4509,6 +4591,10 @@ export interface components {
     ListDataSourceConnectionRequest: {
       engine: string;
     };
+    /** ListPackagesRequest */
+    ListPackagesRequest: {
+      requestId: string;
+    };
     /** ListPackagesResponse */
     ListPackagesResponse: {
       packages: components["schemas"]["PackageDescription"][];
@@ -4826,6 +4912,12 @@ export interface components {
       /** @default null */
       error?: string | null;
       success: boolean;
+    };
+    /** PackagesDependencyTreeRequest */
+    PackagesDependencyTreeRequest: {
+      /** @default null */
+      filename?: string | null;
+      requestId: string;
     };
     /**
      * PackagesDependencyTreeResultNotification

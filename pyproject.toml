@@ -50,6 +50,10 @@ dependencies = [
     # for packaging.version; not sure what the lower bound is.
     "packaging",
     "msgspec>=0.20.0",
+    "matplotlib>=3.10.8",
+    "moutils>=0.3.12",
+    "numpy>=2.2.6",
+    "scikit-learn>=1.7.2",
 ]
 readme = "README.md"
 license = { file = "LICENSE" }

@@ -2521,6 +2521,14 @@ components:
       - engine
       title: ListDataSourceConnectionRequest
       type: object
+    ListPackagesRequest:
+      properties:
+        requestId:
+          type: string
+      required:
+      - requestId
+      title: ListPackagesRequest
+      type: object
     ListPackagesResponse:
       properties:
         packages:
@@ -3079,6 +3087,19 @@ components:
       required:
       - success
       title: PackageOperationResponse
+      type: object
+    PackagesDependencyTreeRequest:
+      properties:
+        filename:
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+        requestId:
+          type: string
+      required:
+      - requestId
+      title: PackagesDependencyTreeRequest
       type: object
     PackagesDependencyTreeResultNotification:
       description: "Result of a dependency tree request.\n\n    Attributes:\n    \
