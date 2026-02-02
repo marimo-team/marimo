@@ -7,7 +7,6 @@ from dataclasses import asdict, dataclass, is_dataclass
 from typing import (
     TYPE_CHECKING,
     Any,
-    Iterator,
     Literal,
     Optional,
     TypedDict,
@@ -174,6 +173,7 @@ class StepStartPart:
 
 
 if TYPE_CHECKING:
+    from collections.abc import Iterator
     ChatPart = Union[
         TextPart,
         ReasoningPart,
