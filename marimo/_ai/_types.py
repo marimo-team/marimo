@@ -3,11 +3,11 @@ from __future__ import annotations
 
 import abc
 import mimetypes
+from collections.abc import Iterator
 from dataclasses import asdict, dataclass, is_dataclass
 from typing import (
     TYPE_CHECKING,
     Any,
-    Iterator,
     Literal,
     Optional,
     TypedDict,
@@ -257,7 +257,9 @@ class ChatMessage(msgspec.Struct):
             "id": self.id,
             "content": self.content,
             "parts": [asdict(part) for part in self.parts],
-            "attachments": [asdict(a) for a in self.attachments] if self.attachments else [],
+            "attachments": [asdict(a) for a in self.attachments]
+            if self.attachments
+            else [],
             "metadata": self.metadata,
         }
         return iter(out.items())
