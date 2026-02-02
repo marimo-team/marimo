@@ -216,7 +216,15 @@ def _(mo):
     mo.md(rf"""
     ## Markdown
 
-    marimo only has Python cells, but you can still write Markdown: `import marimo as mo` and use `mo.md` to write Markdown.
+    marimo notebooks are stored as pure Python, but you can still write Markdown:
+    `import marimo as mo` and use `mo.md`.
+
+    /// details | What about markdown & SQL "cells"?
+
+    You may notice marimo UI has markdown and SQL cells in the editor. These are
+    conveniences that use `mo.md` and `mo.sql` under the hood, with nicer
+    ergonomics for authoring.
+    ///
     """)
     return
 
