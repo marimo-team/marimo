@@ -566,7 +566,13 @@ def find_sql_refs(sql_statement: str) -> set[SQLRef]:
                             if ref := get_ref_from_table(source):
                                 refs.add(ref)
         except OptimizeError:
-            # Fall back to extracting table references without scope analysis
+            # Fall back to extracting table references without scope analysis.
+            # This can happen with valid SQL that has duplicate aliases
+            # (e.g., cross-joined subqueries with the same column alias).
+            LOGGER.debug(
+                "build_scope failed with OptimizeError, falling back to "
+                "direct table extraction"
+            )
             for table in expression.find_all(exp.Table):
                 if ref := get_ref_from_table(table):
                     refs.add(ref)

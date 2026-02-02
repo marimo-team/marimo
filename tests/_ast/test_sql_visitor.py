@@ -926,3 +926,18 @@ class TestFindSQLRefs:
             SQLRef(table="table2"),
             SQLRef(table="table3"),
         }
+
+    def test_multiple_statements_with_optimize_error(self) -> None:
+        # Verify that OptimizeError in one statement doesn't affect others.
+        # The try/except is inside the loop, so each statement is independent.
+        sql = """
+        SELECT * FROM table1;
+        SELECT * FROM (SELECT 1 as x), (SELECT 2 as x);
+        SELECT * FROM table2;
+        """
+        # table1 and table2 should be extracted normally via build_scope;
+        # the middle statement falls back but has no table refs
+        assert find_sql_refs(sql) == {
+            SQLRef(table="table1"),
+            SQLRef(table="table2"),
+        }
