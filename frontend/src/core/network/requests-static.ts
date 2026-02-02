@@ -90,5 +90,7 @@ export function createStaticRequests(): EditRequests & RunRequests {
     invokeAiTool: throwNotInEditMode,
     clearCache: throwNotInEditMode,
     getCacheInfo: throwNotInEditMode,
+    kernelListPackages: throwNotInEditMode,
+    kernelPackagesTree: throwNotInEditMode,
   };
 }

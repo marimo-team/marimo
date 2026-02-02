@@ -74,6 +74,8 @@ export const MockRequestClient = {
       invokeAiTool: vi.fn().mockResolvedValue({}),
       clearCache: vi.fn().mockResolvedValue(null),
       getCacheInfo: vi.fn().mockResolvedValue(null),
+      kernelListPackages: vi.fn().mockResolvedValue(null),
+      kernelPackagesTree: vi.fn().mockResolvedValue(null),
       ...overrides,
     };
   },

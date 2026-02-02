@@ -117,6 +117,10 @@ const ACTIONS: Record<keyof AllRequests, Action> = {
   // Sync operations that wait for connection
   syncCellIds: "waitForConnectionOpen",
   sendCodeCompletionRequest: "waitForConnectionOpen",
+
+  // Kernel package requests (IPC)
+  kernelListPackages: "waitForConnectionOpen",
+  kernelPackagesTree: "waitForConnectionOpen",
 };
 
 /**

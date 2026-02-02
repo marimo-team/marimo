@@ -194,6 +194,10 @@ export async function initialize() {
         return;
       case "kernel-startup-error":
         return;
+      case "list-packages-result":
+        return;
+      case "packages-dependency-tree-result":
+        return;
       default:
         logNever(msg.data);
     }

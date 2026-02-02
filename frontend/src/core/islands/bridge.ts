@@ -186,6 +186,8 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
   invokeAiTool = throwNotImplemented;
   clearCache = throwNotImplemented;
   getCacheInfo = throwNotImplemented;
+  kernelListPackages = throwNotImplemented;
+  kernelPackagesTree = throwNotImplemented;
 
   private async putControlRequest(operation: object) {
     await this.rpc.proxy.request.bridge({

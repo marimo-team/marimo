@@ -75,6 +75,8 @@ export function createErrorToastingRequests(
     invokeAiTool: "Failed to invoke AI tool",
     clearCache: "Failed to clear cache",
     getCacheInfo: "", // No toast
+    kernelListPackages: "Failed to list packages",
+    kernelPackagesTree: "Failed to get dependency tree",
   };
 
   const handlers = {} as EditRequests & RunRequests;

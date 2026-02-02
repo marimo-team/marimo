@@ -188,12 +188,6 @@ async def dependency_tree(request: Request) -> DependencyTreeResponse:
 @requires("edit")
 async def kernel_list_packages(request: Request) -> SuccessResponse:
     """
-    List packages via kernel IPC.
-
-    This endpoint routes the request through the kernel's packages worker,
-    which runs in the kernel's Python environment. Results are sent back
-    via WebSocket notification.
-
     parameters:
         - in: header
           name: Marimo-Session-Id
@@ -208,7 +202,7 @@ async def kernel_list_packages(request: Request) -> SuccessResponse:
                     $ref: "#/components/schemas/ListPackagesRequest"
     responses:
         200:
-            description: Request accepted
+            description: List packages via kernel IPC
             content:
                 application/json:
                     schema:
@@ -221,12 +215,6 @@ async def kernel_list_packages(request: Request) -> SuccessResponse:
 @requires("edit")
 async def kernel_packages_tree(request: Request) -> SuccessResponse:
     """
-    Get dependency tree via kernel IPC.
-
-    This endpoint routes the request through the kernel's packages worker,
-    which runs in the kernel's Python environment. Results are sent back
-    via WebSocket notification.
-
     parameters:
         - in: header
           name: Marimo-Session-Id
@@ -241,7 +229,7 @@ async def kernel_packages_tree(request: Request) -> SuccessResponse:
                     $ref: "#/components/schemas/PackagesDependencyTreeRequest"
     responses:
         200:
-            description: Request accepted
+            description: Get dependency tree via kernel IPC
             content:
                 application/json:
                     schema:
