@@ -568,7 +568,6 @@ format_on_save = true
 
 [tool.marimo.experimental]
 multi_column = true
-chat_modes = true
 cache_panel = true
 
 [tool.marimo.display]

@@ -45,7 +45,6 @@ import {
 import { useCellActions } from "@/core/cells/cells";
 import { aiAtom, aiEnabledAtom } from "@/core/config/config";
 import { DEFAULT_AI_MODEL } from "@/core/config/config-schema";
-import { FeatureFlagged } from "@/core/config/feature-flag";
 import { useRequestClient } from "@/core/network/requests";
 import { useRuntimeManager } from "@/core/runtime/config";
 import { ErrorBanner } from "@/plugins/impl/common/error-banner";
@@ -264,32 +263,30 @@ const ChatInputFooter: React.FC<ChatInputFooterProps> = memo(
       <TooltipProvider>
         <div className="px-3 py-2 border-t border-border/20 flex flex-row flex-wrap items-center justify-between gap-1">
           <div className="flex items-center gap-2">
-            <FeatureFlagged feature="chat_modes">
-              <Select value={currentMode} onValueChange={saveModeChange}>
-                <SelectTrigger className="h-6 text-xs border-border shadow-none! ring-0! bg-muted hover:bg-muted/30 py-0 px-2 gap-1 capitalize">
-                  {currentMode}
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectGroup>
-                    <SelectLabel>AI Mode</SelectLabel>
-                    {modeOptions.map((option) => (
-                      <SelectItem
-                        key={option.value}
-                        value={option.value}
-                        className="text-xs"
-                      >
-                        <div className="flex flex-col">
-                          {option.label}
-                          <div className="text-muted-foreground text-xs pt-1 block">
-                            {option.subtitle}
-                          </div>
+            <Select value={currentMode} onValueChange={saveModeChange}>
+              <SelectTrigger className="h-6 text-xs border-border shadow-none! ring-0! bg-muted hover:bg-muted/30 py-0 px-2 gap-1 capitalize">
+                {currentMode}
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  <SelectLabel>AI Mode</SelectLabel>
+                  {modeOptions.map((option) => (
+                    <SelectItem
+                      key={option.value}
+                      value={option.value}
+                      className="text-xs"
+                    >
+                      <div className="flex flex-col">
+                        {option.label}
+                        <div className="text-muted-foreground text-xs pt-1 block">
+                          {option.subtitle}
                         </div>
-                      </SelectItem>
-                    ))}
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
-            </FeatureFlagged>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
             <AIModelDropdown
               placeholder="Model"
               triggerClassName="h-6 text-xs shadow-none! ring-0! bg-muted hover:bg-muted/30 rounded-sm"
