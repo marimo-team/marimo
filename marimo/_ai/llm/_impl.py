@@ -2,12 +2,14 @@
 from __future__ import annotations
 
 import dataclasses
+import json
 import os
 import re
 from typing import TYPE_CHECKING, Any, Callable, Optional, cast
 
 from marimo import _loggers
 from marimo._ai._pydantic_ai_utils import generate_id
+from marimo._plugins.ui._impl.chat.chat import AI_SDK_VERSION, DONE_CHUNK
 from marimo._plugins.utils import remove_none_values
 
 if TYPE_CHECKING:
@@ -789,21 +791,37 @@ class pydantic_ai(ChatModel):
     ) -> dict[str, Any] | None:
         """
         Serialize vercel ai chunk to a dictionary. Skip "done" chunks - not part of Vercel AI SDK schema.
-
-        by_alias=True: Use camelCase keys expected by Vercel AI SDK.
-        exclude_none=True: Remove null values which cause validation errors.
+        We use encode as it uses Pydantic-AI's method of serializing dataclasses to JSON.
         """
         try:
-            serialized = chunk.model_dump(
-                mode="json", by_alias=True, exclude_none=True
-            )
+            encoded = chunk.encode(sdk_version=AI_SDK_VERSION)
+            if encoded == DONE_CHUNK:
+                return None
+            result = json.loads(encoded)
+            if not isinstance(result, dict):
+                LOGGER.debug(
+                    "Serialized vercel ai chunk is not a dictionary: %s",
+                    result,
+                )
+            return result  # type: ignore[no-any-return]
+        except TypeError:
+            # Fallback for pydantic-ai < 1.52.0 which doesn't have sdk_version param
+            try:
+                # by_alias=True: Use camelCase keys expected by Vercel AI SDK.
+                # exclude_none=True: Remove null values which cause validation errors.
+                serialized = chunk.model_dump(
+                    mode="json", by_alias=True, exclude_none=True
+                )
+            except Exception as e:
+                LOGGER.error("Error serializing vercel ai chunk: %s", e)
+                return None
+            else:
+                if serialized.get("type") == "done":
+                    return None
+                return serialized
         except Exception as e:
             LOGGER.error("Error serializing vercel ai chunk: %s", e)
             return None
-        else:
-            if serialized.get("type") == "done":
-                return None
-            return serialized
 
     async def _stream_response(
         self, messages: list[ChatMessage], config: ChatModelConfig

@@ -1591,6 +1591,42 @@ class TestPydanticAI:
             "input": {"query": "test"},
         }
 
+    def test_pydantic_ai_serialize_vercel_ai_chunk_v5(self) -> None:
+        """Test that tool-input-start chunks exclude providerMetadata for SDK v5.
+
+        The Vercel AI SDK v5 schema drifts from v6, so we need to use Pydantic's handling.
+
+        For tool-input-start chunks, providerMetadata must be excluded.
+        See: https://github.com/pydantic/pydantic-ai/pull/4166
+        """
+        from pydantic_ai.ui.vercel_ai.response_types import ToolInputStartChunk
+
+        mock_agent = MagicMock()
+        model = pydantic_ai(mock_agent)
+
+        # Create chunk with providerMetadata (like Google Gemini produces)
+        chunk = ToolInputStartChunk(
+            tool_call_id="tc_1",
+            tool_name="my_tool",
+            provider_metadata={
+                "pydantic_ai": {
+                    "id": "test_id",
+                    "provider_name": "google-gla",
+                    "provider_details": {
+                        "thought_signature": "encrypted_data"
+                    },
+                }
+            },
+        )
+        result = model._serialize_vercel_ai_chunk(chunk)
+
+        # providerMetadata should be excluded for SDK v5 compatibility
+        assert result == {
+            "type": "tool-input-start",
+            "toolCallId": "tc_1",
+            "toolName": "my_tool",
+        }
+
     def test_pydantic_ai_serialize_vercel_ai_chunk_done_type(self) -> None:
         """Test that 'done' type chunks are skipped."""
         from pydantic_ai.ui.vercel_ai.response_types import DoneChunk

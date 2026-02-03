@@ -25,6 +25,7 @@ from marimo._ai._pydantic_ai_utils import (
     generate_id,
 )
 from marimo._dependencies.dependencies import Dependency, DependencyManager
+from marimo._plugins.ui._impl.chat.chat import AI_SDK_VERSION
 from marimo._server.ai.config import AnyProviderConfig
 from marimo._server.ai.ids import AiModelId
 from marimo._server.ai.tools.tool_manager import get_tool_manager
@@ -166,9 +167,17 @@ class PydanticProvider(ABC, Generic[ProviderT]):
         stream_options = stream_options or StreamOptions()
 
         vercel_adapter = self.get_vercel_adapter()
-        adapter = vercel_adapter(
-            agent=agent, run_input=run_input, accept=stream_options.accept
-        )
+        if DependencyManager.pydantic_ai.has_at_version(min_version="1.52.0"):
+            adapter = vercel_adapter(
+                agent=agent,
+                run_input=run_input,
+                accept=stream_options.accept,
+                sdk_version=AI_SDK_VERSION,
+            )
+        else:
+            adapter = vercel_adapter(
+                agent=agent, run_input=run_input, accept=stream_options.accept
+            )
         event_stream = adapter.run_stream()
         return adapter.streaming_response(event_stream)
 
