@@ -22,14 +22,27 @@ from marimo._plugins.core.media import io_to_data_url
 LOGGER = _loggers.marimo_logger()
 
 
+def getcallable(obj: object, name: str) -> Any | None:
+    """Get a callable attribute from an object, or None if not callable.
+
+    This safely handles objects that implement __getattr__ and return
+    non-callable values for any attribute name (e.g., rdflib.Namespace).
+    """
+    if hasattr(obj, name):
+        attr = getattr(obj, name)
+        if callable(attr):
+            return attr
+    return None
+
+
 def enc_hook(obj: Any) -> Any:
     """Custom encoding hook for marimo types."""
 
-    if hasattr(obj, "_marimo_serialize_"):
-        return obj._marimo_serialize_()
+    if serialize := getcallable(obj, "_marimo_serialize_"):
+        return serialize()
 
-    if hasattr(obj, "_mime_"):
-        mimetype, data = obj._mime_()
+    if mime := getcallable(obj, "_mime_"):
+        mimetype, data = mime()
         return {"mimetype": mimetype, "data": data}
 
     if isinstance(obj, range):
@@ -181,7 +194,9 @@ def enc_hook(obj: Any) -> Any:
             )
 
     # Handle objects with __slots__
-    slots = getattr(obj, "__slots__", None)
+    # Check on type(obj) to avoid triggering __getattr__ on objects that
+    # implement it
+    slots = getattr(type(obj), "__slots__", None)
     if slots is not None:
         try:
             slots = iter(slots)
