@@ -262,8 +262,7 @@ def thumbnail(
     return Response(
         content=placeholder.content,
         media_type=placeholder.media_type,
-        # Avoid caching placeholders so newly-generated screenshots show up
-        # immediately on refresh.
+        # Avoid caching placeholders so newly-generated screenshots show up immediately on refresh.
         headers={"Cache-Control": "no-store"},
     )
 

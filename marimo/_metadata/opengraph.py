@@ -344,7 +344,7 @@ def _load_generator_from_notebook_source(
         return None
 
     # Ignore decorators so we don't execute notebook/app registration logic.
-    # Generators are treated as plain Python functions.
+    # Metadata generators are treated as plain Python functions.
     if getattr(target, "decorator_list", None):
         target.decorator_list = []
 
@@ -399,8 +399,7 @@ def _load_opengraph_generator(
     if not module_spec or not name:
         return None
 
-    # Explicitly disallow filesystem-based generator specs to keep behavior
-    # predictable and avoid surprising imports.
+    # Disallow filesystem-based generator specs to keep behavior predictable
     if (
         module_spec.endswith(".py")
         or "/" in module_spec
@@ -586,7 +585,6 @@ class DefaultOpenGraphPlaceholderImageGenerator:
 
         text_svg = "\n    ".join(text_nodes)
 
-        # Note: The font stack intentionally avoids relying on custom fonts.
         return f"""<svg xmlns="http://www.w3.org/2000/svg" width="{self.width}" height="{self.height}" viewBox="0 0 {self.width} {self.height}">
   <defs>
     <clipPath id="card">
