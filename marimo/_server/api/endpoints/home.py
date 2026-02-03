@@ -8,7 +8,12 @@ import tempfile
 from typing import TYPE_CHECKING
 
 from starlette.authentication import requires
-from starlette.responses import JSONResponse
+from starlette.responses import (
+    FileResponse,
+    JSONResponse,
+    RedirectResponse,
+    Response,
+)
 
 from marimo import _loggers
 from marimo._server.api.deps import AppState
@@ -20,6 +25,7 @@ from marimo._server.file_router import (
     flatten_files,
 )
 from marimo._server.files.directory_scanner import DirectoryScanner
+from marimo._server.files.path_validator import PathValidator
 from marimo._server.models.home import (
     MarimoFile,
     OpenTutorialRequest,
@@ -91,15 +97,56 @@ async def workspace_files(
                         $ref: "#/components/schemas/WorkspaceFilesResponse"
     """
     body = await parse_request(request, cls=WorkspaceFilesRequest)
-    session_manager = AppState(request).session_manager
+    app_state = AppState(request)
+    session_manager = app_state.session_manager
 
     if session_manager.mode == SessionMode.RUN:
-        files = await asyncio.to_thread(
-            lambda: session_manager.file_router.files
+        from marimo._metadata.opengraph import (
+            OpenGraphContext,
+            resolve_opengraph_metadata,
         )
-        marimo_files = [
-            file for file in flatten_files(files) if file.is_marimo_file
-        ]
+        from marimo._server.models.files import FileInfo
+
+        base_url = app_state.base_url
+        mode = session_manager.mode.value
+
+        def get_files_with_metadata() -> list[FileInfo]:
+            files = session_manager.file_router.files
+            marimo_files = [
+                file for file in flatten_files(files) if file.is_marimo_file
+            ]
+            result: list[FileInfo] = []
+            for file in marimo_files:
+                resolved_path = session_manager.file_router.resolve_file_path(
+                    file.path
+                )
+                opengraph = None
+                if resolved_path is not None:
+                    # User-defined OpenGraph generators receive this context for dynamic metadata
+                    opengraph = resolve_opengraph_metadata(
+                        resolved_path,
+                        context=OpenGraphContext(
+                            filepath=resolved_path,
+                            file_key=file.path,
+                            base_url=base_url,
+                            mode=mode,
+                        ),
+                    )
+                result.append(
+                    FileInfo(
+                        id=file.id,
+                        path=file.path,
+                        name=file.name,
+                        is_directory=file.is_directory,
+                        is_marimo_file=file.is_marimo_file,
+                        last_modified=file.last_modified,
+                        children=file.children,
+                        opengraph=opengraph,
+                    )
+                )
+            return result
+
+        marimo_files = await asyncio.to_thread(get_files_with_metadata)
         file_count = len(marimo_files)
         has_more = file_count >= MAX_FILES
         return WorkspaceFilesResponse(
@@ -131,6 +178,93 @@ async def workspace_files(
         root=root,
         has_more=has_more,
         file_count=file_count,
+    )
+
+
+@router.get("/thumbnail", include_in_schema=False)
+@requires("read")
+def thumbnail(
+    *,
+    request: Request,
+) -> Response:
+    """Serve a notebook thumbnail for gallery/OpenGraph use."""
+    from pathlib import Path
+
+    from marimo._metadata.opengraph import (
+        DEFAULT_OPENGRAPH_PLACEHOLDER_IMAGE_GENERATOR,
+        OpenGraphContext,
+        is_https_url,
+        resolve_opengraph_metadata,
+    )
+    from marimo._utils.http import HTTPException, HTTPStatus
+    from marimo._utils.paths import normalize_path
+
+    app_state = AppState(request)
+    file_key = (
+        app_state.query_params("file")
+        or app_state.session_manager.file_router.get_unique_file_key()
+    )
+    if not file_key:
+        raise HTTPException(
+            status_code=HTTPStatus.NOT_FOUND, detail="File not found"
+        )
+
+    notebook_path = app_state.session_manager.file_router.resolve_file_path(
+        file_key
+    )
+    if notebook_path is None:
+        raise HTTPException(
+            status_code=HTTPStatus.NOT_FOUND, detail="File not found"
+        )
+
+    notebook_dir = normalize_path(Path(notebook_path)).parent
+    marimo_dir = notebook_dir / "__marimo__"
+
+    # User-defined OpenGraph generators receive this context (file key, base URL, mode)
+    # so they can compute metadata dynamically for gallery cards, social previews, and other modes.
+    opengraph = resolve_opengraph_metadata(
+        notebook_path,
+        context=OpenGraphContext(
+            filepath=notebook_path,
+            file_key=file_key,
+            base_url=app_state.base_url,
+            mode=app_state.mode.value,
+        ),
+    )
+    title = opengraph.title or "marimo"
+    image = opengraph.image
+
+    validator = PathValidator()
+    if image:
+        if is_https_url(image):
+            return RedirectResponse(
+                url=image,
+                status_code=307,
+                headers={"Cache-Control": "max-age=3600"},
+            )
+
+        rel_path = Path(image)
+        if not rel_path.is_absolute():
+            file_path = normalize_path(notebook_dir / rel_path)
+            # Only allow serving from the notebook's __marimo__ directory.
+            try:
+                if file_path.is_file():
+                    validator.validate_inside_directory(marimo_dir, file_path)
+                    return FileResponse(
+                        file_path,
+                        headers={"Cache-Control": "max-age=3600"},
+                    )
+            except HTTPException:
+                # Treat invalid paths as a miss; fall back to placeholder.
+                pass
+
+    placeholder = DEFAULT_OPENGRAPH_PLACEHOLDER_IMAGE_GENERATOR(title)
+    return Response(
+        content=placeholder.content,
+        media_type=placeholder.media_type,
+        # Avoid caching placeholders so newly-generated screenshots show up
+        # immediately on refresh.
+        headers={"Cache-Control": "no-store"},
     )
 
 
