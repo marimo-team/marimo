@@ -146,6 +146,8 @@ def notebook_page_template(
     server_token: SkewProtectionToken,
     app_config: _AppConfig,
     filename: Optional[str],
+    filepath: Optional[str] = None,
+    file_key: Optional[str] = None,
     mode: SessionMode,
     session_snapshot: Optional[NotebookSessionV1] = None,
     notebook_snapshot: Optional[NotebookV1] = None,
@@ -157,10 +159,10 @@ def notebook_page_template(
     # When we have a remote URL, let's pre-populate the index.html page
     # with a view of the notebook.
     if runtime_config and filename and notebook_snapshot is None:
-        filepath = Path(filename)
-        if filepath.exists():
+        filename_path = Path(filename)
+        if filename_path.exists():
             notebook_snapshot = MarimoConvert.from_py(
-                filepath.read_text(encoding="utf-8")
+                filename_path.read_text(encoding="utf-8")
             ).to_notebook_v1()
 
     html = html.replace("{{ filename }}", _html_escape(filename or ""))
@@ -197,6 +199,67 @@ def notebook_page_template(
             else app_config.app_title
         ),
     )
+
+    # OpenGraph metadata used for social previews + gallery cards
+    try:
+        from marimo._metadata.opengraph import (
+            OpenGraphContext,
+            is_https_url,
+            resolve_opengraph_metadata,
+        )
+
+        opengraph = (
+            resolve_opengraph_metadata(
+                filepath,
+                app_title=app_config.app_title,
+                context=OpenGraphContext(
+                    filepath=filepath,
+                    file_key=file_key,
+                    base_url=base_url,
+                    mode=mode.value,
+                ),
+            )
+            if filepath
+            else None
+        )
+        opengraph_title = (
+            opengraph.title if opengraph and opengraph.title else None
+        )
+        opengraph_description = opengraph.description if opengraph else None
+        opengraph_image = opengraph.image if opengraph else None
+    except Exception:
+        opengraph_title = None
+        opengraph_description = None
+        opengraph_image = None
+
+    if opengraph_title or opengraph_description:
+        if opengraph_image and is_https_url(opengraph_image):
+            thumbnail_url = opengraph_image
+        else:
+            # Server-resolvable thumbnail URL, falling back to a placeholder when no screenshot exists.
+            thumbnail_url = f"{base_url}/api/home/thumbnail"
+            if file_key:
+                thumbnail_url = (
+                    f"{thumbnail_url}?file={uri_encode_component(file_key)}"
+                )
+
+        meta_tags: list[str] = []
+        if opengraph_title:
+            meta_tags.append(
+                f'<meta property="og:title" content="{_html_escape(opengraph_title)}" />'
+            )
+        if opengraph_description:
+            meta_tags.append(
+                f'<meta property="og:description" content="{_html_escape(opengraph_description)}" />'
+            )
+            meta_tags.append(
+                f'<meta name="description" content="{_html_escape(opengraph_description)}" />'
+            )
+        meta_tags.append(
+            f'<meta property="og:image" content="{_html_escape(thumbnail_url)}" />'
+        )
+
+        html = html.replace("</head>", "\n".join(meta_tags) + "\n</head>")
 
     # If has custom css, inline the css and add to the head
     if app_config.css_file:

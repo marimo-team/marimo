@@ -107,8 +107,9 @@ async def index(request: Request) -> HTMLResponse:
     app_state = AppState(request)
     index_html = root / "index.html"
 
+    file_key_from_query = app_state.query_params(FILE_QUERY_PARAM_KEY)
     file_key = (
-        app_state.query_params(FILE_QUERY_PARAM_KEY)
+        file_key_from_query
         or app_state.session_manager.file_router.get_unique_file_key()
     )
 
@@ -146,6 +147,7 @@ async def index(request: Request) -> HTMLResponse:
         LOGGER.debug(f"File key provided: {file_key}")
         app_manager = app_state.session_manager.app_manager(file_key)
         app_config = app_manager.app.config
+        absolute_filepath = app_manager.filename
 
         # Pre-compute notebook snapshot for faster initial render
         # Only in SandboxMode.MULTI where each notebook gets its own IPC kernel
@@ -183,6 +185,8 @@ async def index(request: Request) -> HTMLResponse:
             server_token=app_state.skew_protection_token,
             app_config=app_config,
             filename=filename,
+            filepath=absolute_filepath,
+            file_key=file_key_from_query,
             mode=app_state.mode,
             notebook_snapshot=notebook_snapshot,
             runtime_config=[{"url": app_state.remote_url}]
