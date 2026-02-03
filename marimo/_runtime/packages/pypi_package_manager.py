@@ -128,7 +128,7 @@ class PipPackageManager(PypiPackageManager):
         return [
             "pip",
             "--python",
-            self._python_exe or PY_EXE,
+            self._python_exe,
             "install",
             *(["--upgrade"] if upgrade else []),
             *split_packages(package),
@@ -142,7 +142,7 @@ class PipPackageManager(PypiPackageManager):
             [
                 "pip",
                 "--python",
-                self._python_exe or PY_EXE,
+                self._python_exe,
                 "uninstall",
                 "-y",
                 *split_packages(package),
@@ -154,7 +154,7 @@ class PipPackageManager(PypiPackageManager):
         cmd = [
             "pip",
             "--python",
-            self._python_exe or PY_EXE,
+            self._python_exe,
             "list",
             "--format=json",
         ]
@@ -282,7 +282,7 @@ class UvPackageManager(PypiPackageManager):
             # to respect the user's env (e.g. UV_COMPILE_BYTECODE)
             *split_packages(package),
             "-p",
-            self._python_exe or PY_EXE,
+            self._python_exe,
         ]
 
     async def _install(
@@ -591,7 +591,7 @@ class UvPackageManager(PypiPackageManager):
 
         return await self.run(
             uninstall_cmd
-            + [*split_packages(package), "-p", self._python_exe or PY_EXE],
+            + [*split_packages(package), "-p", self._python_exe],
             log_callback=None,
         )
 
@@ -623,7 +623,7 @@ class UvPackageManager(PypiPackageManager):
             "list",
             "--format=json",
             "-p",
-            self._python_exe or PY_EXE,
+            self._python_exe,
         ]
         return self._list_packages_from_cmd(cmd)
 

@@ -46,14 +46,14 @@ def test_create_package_manager_with_python_exe() -> None:
 
 
 def test_create_package_manager_without_python_exe() -> None:
-    """Test that create_package_manager defaults python_exe to None."""
+    """Test that create_package_manager defaults python_exe to PY_EXE."""
     pip_mgr = create_package_manager("pip")
     assert isinstance(pip_mgr, PipPackageManager)
-    assert pip_mgr._python_exe is None
+    assert pip_mgr._python_exe == PY_EXE
 
     uv_mgr = create_package_manager("uv")
     assert isinstance(uv_mgr, UvPackageManager)
-    assert uv_mgr._python_exe is None
+    assert uv_mgr._python_exe == PY_EXE
 
 
 def test_update_script_metadata() -> None:
