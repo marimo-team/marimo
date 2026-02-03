@@ -37,6 +37,73 @@ class TestIPCConnection:
 
 
 @pytest.mark.requires("zmq")
+class TestIPCKernelManagerImpl:
+    def test_venv_python_initial_value(self) -> None:
+        """Test that venv_python is None before kernel starts."""
+        from unittest.mock import MagicMock
+
+        from marimo._session.managers.ipc import (
+            IPCKernelManagerImpl,
+            IPCQueueManagerImpl,
+        )
+        from marimo._session.model import SessionMode
+
+        # Create minimal mocks for construction
+        mock_ipc = MagicMock()
+        queue_manager = IPCQueueManagerImpl(mock_ipc)
+        connection_info = MagicMock()
+        configs: dict = {}
+        app_metadata = MagicMock()
+        config_manager = MagicMock()
+
+        # Create IPCKernelManagerImpl without starting kernel
+        kernel_manager = IPCKernelManagerImpl(
+            queue_manager=queue_manager,
+            connection_info=connection_info,
+            mode=SessionMode.EDIT,
+            configs=configs,
+            app_metadata=app_metadata,
+            config_manager=config_manager,
+        )
+
+        # venv_python should be None before kernel starts
+        assert kernel_manager.venv_python is None
+
+    def test_venv_python_property_returns_stored_value(self) -> None:
+        """Test that venv_python property returns the stored _venv_python value."""
+        from unittest.mock import MagicMock
+
+        from marimo._session.managers.ipc import (
+            IPCKernelManagerImpl,
+            IPCQueueManagerImpl,
+        )
+        from marimo._session.model import SessionMode
+
+        # Create minimal mocks for construction
+        mock_ipc = MagicMock()
+        queue_manager = IPCQueueManagerImpl(mock_ipc)
+        connection_info = MagicMock()
+        configs: dict = {}
+        app_metadata = MagicMock()
+        config_manager = MagicMock()
+
+        kernel_manager = IPCKernelManagerImpl(
+            queue_manager=queue_manager,
+            connection_info=connection_info,
+            mode=SessionMode.EDIT,
+            configs=configs,
+            app_metadata=app_metadata,
+            config_manager=config_manager,
+        )
+
+        # Manually set the internal state (simulating what start_kernel does)
+        kernel_manager._venv_python = "/path/to/sandbox/venv/python"
+
+        # venv_python property should return the stored value
+        assert kernel_manager.venv_python == "/path/to/sandbox/venv/python"
+
+
+@pytest.mark.requires("zmq")
 class TestIPCQueueManagerImpl:
     def test_from_ipc_factory(self) -> None:
         """Test that IPCQueueManagerImpl.from_ipc() creates a valid instance."""

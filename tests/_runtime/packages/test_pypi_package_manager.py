@@ -816,8 +816,173 @@ async def test_uv_install_in_project_no_fallback(mock_run: MagicMock):
 # VersionMap Tests
 
 
+# Custom python_exe tests
+
+
+@patch("subprocess.run")
+async def test_pip_install_with_custom_python_exe(mock_run: MagicMock):
+    """Test that pip install uses custom python_exe when provided."""
+    custom_python = "/custom/venv/python"
+    mgr = PipPackageManager(python_exe=custom_python)
+    mock_run.return_value = MagicMock(returncode=0)
+
+    with patch.object(mgr, "is_manager_installed", return_value=True):
+        result = await mgr._install("package1", upgrade=False, dev=False)
+
+    mock_run.assert_called_once_with(
+        ["pip", "--python", custom_python, "install", "package1"],
+    )
+    assert result is True
+
+
+@patch("subprocess.run")
+async def test_pip_uninstall_with_custom_python_exe(mock_run: MagicMock):
+    """Test that pip uninstall uses custom python_exe when provided."""
+    custom_python = "/custom/venv/python"
+    mgr = PipPackageManager(python_exe=custom_python)
+    mock_run.return_value = MagicMock(returncode=0)
+
+    with patch.object(mgr, "is_manager_installed", return_value=True):
+        result = await mgr.uninstall("package1", dev=False)
+
+    mock_run.assert_called_once_with(
+        ["pip", "--python", custom_python, "uninstall", "-y", "package1"],
+    )
+    assert result is True
+
+
+@patch("subprocess.run")
+def test_pip_list_packages_with_custom_python_exe(mock_run: MagicMock):
+    """Test that pip list uses custom python_exe when provided."""
+    custom_python = "/custom/venv/python"
+    mgr = PipPackageManager(python_exe=custom_python)
+    mock_output = json.dumps(
+        [{"name": "package1", "version": "1.0.0"}]
+    )
+    mock_run.return_value = MagicMock(returncode=0, stdout=mock_output)
+
+    with patch.object(mgr, "is_manager_installed", return_value=True):
+        packages = mgr.list_packages()
+
+    mock_run.assert_called_once_with(
+        ["pip", "--python", custom_python, "list", "--format=json"],
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+    )
+    assert len(packages) == 1
+
+
+@patch("subprocess.Popen")
+@patch.object(UvPackageManager, "is_in_uv_project", False)
+async def test_uv_install_with_custom_python_exe(mock_popen: MagicMock):
+    """Test that uv install uses custom python_exe when provided (non-project mode)."""
+    custom_python = "/custom/venv/python"
+    mgr = UvPackageManager(python_exe=custom_python)
+    mock_process = MagicMock()
+    mock_process.wait.return_value = 0
+    mock_process.stdout.readline.return_value = b""
+    mock_popen.return_value = mock_process
+
+    result = await mgr._install("package1", upgrade=False, dev=False)
+
+    mock_popen.assert_called_once()
+    call_args = mock_popen.call_args[0][0]
+    # Verify the command contains pip install and custom python
+    assert "pip" in call_args
+    assert "install" in call_args
+    assert "-p" in call_args
+    assert custom_python in call_args
+    assert result is True
+
+
+@patch("subprocess.run")
+@patch.object(UvPackageManager, "is_in_uv_project", True)
+async def test_uv_install_with_custom_python_exe_in_project(
+    mock_run: MagicMock,
+):
+    """Test that uv add uses custom python_exe when in a uv project."""
+    custom_python = "/custom/venv/python"
+    mgr = UvPackageManager(python_exe=custom_python)
+    mock_run.return_value = MagicMock(returncode=0)
+
+    result = await mgr._install("package1", upgrade=False, dev=False)
+
+    mock_run.assert_called_once()
+    call_args = mock_run.call_args[0][0]
+    # Verify the command contains add and custom python
+    assert "add" in call_args
+    assert "-p" in call_args
+    assert custom_python in call_args
+    assert result is True
+
+
+@patch("subprocess.run")
+@patch.object(UvPackageManager, "is_in_uv_project", False)
+async def test_uv_uninstall_with_custom_python_exe(mock_run: MagicMock):
+    """Test that uv uninstall uses custom python_exe when provided (non-project mode)."""
+    custom_python = "/custom/venv/python"
+    mgr = UvPackageManager(python_exe=custom_python)
+    mock_run.return_value = MagicMock(returncode=0)
+
+    result = await mgr.uninstall("package1")
+
+    mock_run.assert_called_once()
+    call_args = mock_run.call_args[0][0]
+    # Verify the command contains pip uninstall and custom python
+    assert "pip" in call_args
+    assert "uninstall" in call_args
+    assert "-p" in call_args
+    assert custom_python in call_args
+    assert result is True
+
+
+@patch("subprocess.run")
+@patch.object(UvPackageManager, "is_in_uv_project", True)
+async def test_uv_uninstall_with_custom_python_exe_in_project(
+    mock_run: MagicMock,
+):
+    """Test that uv remove uses custom python_exe when in a uv project."""
+    custom_python = "/custom/venv/python"
+    mgr = UvPackageManager(python_exe=custom_python)
+    mock_run.return_value = MagicMock(returncode=0)
+
+    result = await mgr.uninstall("package1")
+
+    mock_run.assert_called_once()
+    call_args = mock_run.call_args[0][0]
+    # Verify the command contains remove and custom python
+    assert "remove" in call_args
+    assert "-p" in call_args
+    assert custom_python in call_args
+    assert result is True
+
+
+@patch("subprocess.run")
+def test_uv_list_packages_with_custom_python_exe(mock_run: MagicMock):
+    """Test that uv pip list uses custom python_exe when provided."""
+    custom_python = "/custom/venv/python"
+    mgr = UvPackageManager(python_exe=custom_python)
+    mock_output = json.dumps(
+        [{"name": "package1", "version": "1.0.0"}]
+    )
+    mock_run.return_value = MagicMock(returncode=0, stdout=mock_output)
+
+    # Mock dependency_tree to return None so it falls back to pip list
+    with patch.object(mgr, "dependency_tree", return_value=None):
+        packages = mgr.list_packages()
+
+    mock_run.assert_called_once()
+    call_args = mock_run.call_args[0][0]
+    # Verify the command contains pip list and custom python
+    assert "pip" in call_args
+    assert "list" in call_args
+    assert "-p" in call_args
+    assert custom_python in call_args
+    assert len(packages) == 1
+
+
 class TestVersionMap:
-    """Tests for VersionMap class"""
 
     def test_get_version_exact_match(self) -> None:
         """Test getting version with exact package name match"""
