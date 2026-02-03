@@ -856,9 +856,7 @@ def test_pip_list_packages_with_custom_python_exe(mock_run: MagicMock):
     """Test that pip list uses custom python_exe when provided."""
     custom_python = "/custom/venv/python"
     mgr = PipPackageManager(python_exe=custom_python)
-    mock_output = json.dumps(
-        [{"name": "package1", "version": "1.0.0"}]
-    )
+    mock_output = json.dumps([{"name": "package1", "version": "1.0.0"}])
     mock_run.return_value = MagicMock(returncode=0, stdout=mock_output)
 
     with patch.object(mgr, "is_manager_installed", return_value=True):
@@ -963,9 +961,7 @@ def test_uv_list_packages_with_custom_python_exe(mock_run: MagicMock):
     """Test that uv pip list uses custom python_exe when provided."""
     custom_python = "/custom/venv/python"
     mgr = UvPackageManager(python_exe=custom_python)
-    mock_output = json.dumps(
-        [{"name": "package1", "version": "1.0.0"}]
-    )
+    mock_output = json.dumps([{"name": "package1", "version": "1.0.0"}])
     mock_run.return_value = MagicMock(returncode=0, stdout=mock_output)
 
     # Mock dependency_tree to return None so it falls back to pip list
@@ -983,7 +979,6 @@ def test_uv_list_packages_with_custom_python_exe(mock_run: MagicMock):
 
 
 class TestVersionMap:
-
     def test_get_version_exact_match(self) -> None:
         """Test getting version with exact package name match"""
 

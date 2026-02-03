@@ -151,7 +151,13 @@ class PipPackageManager(PypiPackageManager):
         )
 
     def list_packages(self) -> list[PackageDescription]:
-        cmd = ["pip", "--python", self._python_exe or PY_EXE, "list", "--format=json"]
+        cmd = [
+            "pip",
+            "--python",
+            self._python_exe or PY_EXE,
+            "list",
+            "--format=json",
+        ]
         return self._list_packages_from_cmd(cmd)
 
 
@@ -584,7 +590,8 @@ class UvPackageManager(PypiPackageManager):
             uninstall_cmd = [self._uv_bin, "pip", "uninstall"]
 
         return await self.run(
-            uninstall_cmd + [*split_packages(package), "-p", self._python_exe or PY_EXE],
+            uninstall_cmd
+            + [*split_packages(package), "-p", self._python_exe or PY_EXE],
             log_callback=None,
         )
 
@@ -610,7 +617,14 @@ class UvPackageManager(PypiPackageManager):
             return sorted(packages, key=lambda pkg: pkg.name)
 
         LOGGER.info("Listing packages with 'uv pip list'")
-        cmd = [self._uv_bin, "pip", "list", "--format=json", "-p", self._python_exe or PY_EXE]
+        cmd = [
+            self._uv_bin,
+            "pip",
+            "list",
+            "--format=json",
+            "-p",
+            self._python_exe or PY_EXE,
+        ]
         return self._list_packages_from_cmd(cmd)
 
     def _has_script_metadata(self, filename: str) -> bool:
