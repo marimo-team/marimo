@@ -552,6 +552,7 @@ extend-exclude = [
     "base64.test.ts",
     "SECURITY.md", # Contains usernames that trigger typos
     "patches/*", # Patches may contain typos from source code
+    "tests/_sql/test_sql_parse.py", # Contains intentional invalid SQL for testing
 ]
 
 [tool.black]

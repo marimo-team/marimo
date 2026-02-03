@@ -387,8 +387,10 @@ class NarwhalsTransformHandler(TransformHandler[DataFrame]):
         if not transform.index_column_ids:
             index_columns = list(
                 filter(
-                    lambda col: col not in transform.column_ids
-                    and col not in transform.value_column_ids,
+                    lambda col: (
+                        col not in transform.column_ids
+                        and col not in transform.value_column_ids
+                    ),
                     columns,
                 )
             )
@@ -398,8 +400,10 @@ class NarwhalsTransformHandler(TransformHandler[DataFrame]):
         if not transform.value_column_ids:
             value_columns = list(
                 filter(
-                    lambda col: col not in transform.column_ids
-                    and col not in transform.index_column_ids,
+                    lambda col: (
+                        col not in transform.column_ids
+                        and col not in transform.index_column_ids
+                    ),
                     columns,
                 )
             )
