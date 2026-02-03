@@ -391,10 +391,16 @@ def _ensure_marimo_in_script_metadata(name: str | None) -> None:
             check=True,
             capture_output=True,
             text=True,
+            # stdin=DEVNULL prevents hanging on Windows when uv might
+            # wait for input
+            stdin=subprocess.DEVNULL,
+            timeout=30,
         )
         LOGGER.info(f"Added marimo to script metadata: {result.stdout}")
     except subprocess.CalledProcessError as e:
         LOGGER.warning(f"Failed to add marimo to script metadata: {e.stderr}")
+    except subprocess.TimeoutExpired:
+        LOGGER.warning("Timed out adding marimo to script metadata")
     except Exception as e:
         LOGGER.warning(f"Failed to add marimo to script metadata: {e}")
 
