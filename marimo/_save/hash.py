@@ -78,7 +78,7 @@ def hash_module(
 
     def process(code_obj: CodeType) -> None:
         # Recursively hash the constants that are also code objects
-        for const in code_obj.co_constants:
+        for const in code_obj.co_consts:
             if isinstance(const, types.CodeType):
                 process(const)
             else:
