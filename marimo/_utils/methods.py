@@ -23,7 +23,7 @@ def getcallable(obj: object, name: str) -> Callable[..., Any] | None:
     This safely handles objects that implement __getattr__ and return
     non-callable values for any attribute name.
     """
-    if (attr := getattr(obj, name)) is not None:
+    if (attr := getattr(obj, name, None)) is not None:
         if callable(attr):
             return cast(Callable[..., Any], attr)
     return None
