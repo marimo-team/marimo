@@ -6,44 +6,7 @@ import json
 import pytest
 
 from marimo._dependencies.dependencies import DependencyManager
-from marimo._messaging.msgspec_encoder import enc_hook, getcallable
-
-
-def test_getcallable() -> None:
-    """Test the getcallable utility function."""
-
-    class WithCallable:
-        def my_method(self) -> str:
-            return "called"
-
-    class WithNonCallable:
-        my_method = "not callable"
-
-    class WithGetattr:
-        def __getattr__(self, name: str) -> str:
-            return f"attr_{name}"
-
-    # Returns callable when attribute exists and is callable
-    obj_callable = WithCallable()
-    result = getcallable(obj_callable, "my_method")
-    assert result is not None
-    assert callable(result)
-    assert result() == "called"
-
-    # Returns None when attribute exists but is not callable
-    obj_non_callable = WithNonCallable()
-    result = getcallable(obj_non_callable, "my_method")
-    assert result is None
-
-    # Returns None when attribute doesn't exist
-    result = getcallable(obj_callable, "nonexistent")
-    assert result is None
-
-    # Returns None for objects with __getattr__ returning non-callable
-    obj_getattr = WithGetattr()
-    assert hasattr(obj_getattr, "any_attr")  # hasattr returns True
-    result = getcallable(obj_getattr, "any_attr")
-    assert result is None
+from marimo._messaging.msgspec_encoder import enc_hook
 
 
 def test_enc_hook() -> None:

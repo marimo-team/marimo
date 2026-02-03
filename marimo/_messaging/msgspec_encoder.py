@@ -18,21 +18,9 @@ import msgspec.json
 from marimo import _loggers
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins.core.media import io_to_data_url
+from marimo._utils.methods import getcallable
 
 LOGGER = _loggers.marimo_logger()
-
-
-def getcallable(obj: object, name: str) -> Any | None:
-    """Get a callable attribute from an object, or None if not callable.
-
-    This safely handles objects that implement __getattr__ and return
-    non-callable values for any attribute name (e.g., rdflib.Namespace).
-    """
-    if hasattr(obj, name):
-        attr = getattr(obj, name)
-        if callable(attr):
-            return attr
-    return None
 
 
 def enc_hook(obj: Any) -> Any:

@@ -48,6 +48,7 @@ from marimo._plugins.validators import (
 )
 from marimo._runtime.functions import EmptyArgs, Function
 from marimo._utils.memoize import memoize_last_value
+from marimo._utils.methods import getcallable
 from marimo._utils.narwhals_utils import is_narwhals_lazyframe, make_lazy
 from marimo._utils.parse_dataclass import parse_raw
 
@@ -234,8 +235,8 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
         if is_non_interactive():
             # Generates a plain HTML representation of the table data,
             # useful for rendering in the GitHub viewer.
-            repr_html = getattr(self._data, "_repr_html_", None)
-            if repr_html is not None and callable(repr_html):
+            repr_html = getcallable(self._data, "_repr_html_")
+            if repr_html is not None:
                 return ("text/html", cast(str, repr_html()))
             return ("text/html", str(self._data))
         return ("text/html", self.text)
