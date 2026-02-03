@@ -10,6 +10,7 @@
 }
 
 .katex * {
+  /* biome-ignore lint/complexity/noImportantStyles: override katex */
   -ms-high-contrast-adjust: none !important;
   border-color: currentcolor;
 }

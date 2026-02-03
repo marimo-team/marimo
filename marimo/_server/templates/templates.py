@@ -398,10 +398,10 @@ def wasm_notebook_template(
     # Hide save button in WASM mode
     wasm_styles = """
     <style>
-        #save-button {
+        [data-id="save-button"] {
             display: none !important;
         }
-        #filename-input {
+        [data-id="filename-input"] {
             display: none !important;
         }
     </style>

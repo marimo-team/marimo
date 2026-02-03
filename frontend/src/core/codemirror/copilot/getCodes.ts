@@ -72,7 +72,9 @@ export const topologicalCodesAtom = atom((get) => {
 export function getTopologicalCellIds(cellIds: CellId[], variables: Variables) {
   // Build adjacency list
   const adjacency = new Map<CellId, CellId[]>();
-  cellIds.forEach((id) => adjacency.set(id, []));
+  for (const id of cellIds) {
+    adjacency.set(id, []);
+  }
 
   // Start with all cells with no declaredBy or usedBy
   const noDepCells = new Set<CellId>(cellIds); // Cells with no declaredBy
@@ -94,7 +96,9 @@ export function getTopologicalCellIds(cellIds: CellId[], variables: Variables) {
 
   // Kahn's algorithm for topological sort
   const inDegree = new Map<CellId, number>();
-  cellIds.forEach((id) => inDegree.set(id, 0));
+  for (const id of cellIds) {
+    inDegree.set(id, 0);
+  }
 
   adjacency.forEach((targets) => {
     targets.forEach((t) => {

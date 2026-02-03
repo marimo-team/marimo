@@ -194,7 +194,7 @@ export class FileContextProvider extends AIContextProvider<FileContextItem> {
       boost: data.isDirectory ? Boosts.MEDIUM : Boosts.LOW,
       detail: data.path,
       displayLabel: `${icon} ${name}`,
-      apply: async (view, completion, from, to) => {
+      apply: async (view, _completion, from, to) => {
         // First try to add the file as an attachment, if the callback is provided
         // otherwise add it to the prompt
         const addAttachment = view.state.facet(contextCallbacks)?.addAttachment;

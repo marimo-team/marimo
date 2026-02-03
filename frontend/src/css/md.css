@@ -112,6 +112,7 @@ button .prose.prose {
 /* Task list */
 
 .prose .task-list-item {
+  /* biome-ignore lint/complexity/noImportantStyles: override prose styles */
   list-style-type: none !important;
   margin-top: 0.25rem;
   margin-bottom: 0.25rem;

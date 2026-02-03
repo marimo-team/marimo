@@ -1,6 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import type { Meta, StoryFn } from "@storybook/react-vite";
 import { PlayIcon } from "lucide-react";
+import { useId } from "react";
 import { Button, Input } from "../components/editor/inputs/Inputs";
 
 export default {
@@ -38,10 +39,17 @@ ButtonStory.argTypes = {
   onClick: { action: "clicked" },
 };
 
+const InputTemplateComponent = (args: React.ComponentProps<typeof Input>) => {
+  const id = useId();
+  return (
+    <div className="m-4">
+      <Input {...args} id={id} className="filename" />
+    </div>
+  );
+};
+
 const InputTemplate: StoryFn<typeof Input> = (args) => (
-  <div className="m-4">
-    <Input {...args} id="filename-input" className="filename" />
-  </div>
+  <InputTemplateComponent {...args} />
 );
 export const InputStory = InputTemplate.bind({});
 InputStory.args = {};

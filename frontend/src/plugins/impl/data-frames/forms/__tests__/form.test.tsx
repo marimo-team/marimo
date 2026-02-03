@@ -46,7 +46,7 @@ describe("renderZodSchema", () => {
   );
   it.each(
     Object.entries(options),
-  )("should render a form %s", (name, schema: z.ZodType<
+  )("should render a form %s", (_name, schema: z.ZodType<
     unknown,
     FieldValues
   >) => {
@@ -63,7 +63,7 @@ const options = [
   ["column_id_optional", column_id.optional()],
 ] as const;
 
-it.each(options)("renders custom forms %s", (key, schema) => {
+it.each(options)("renders custom forms %s", (_key, schema) => {
   const expected = render(
     <Subject schema={schema as z.ZodType<unknown, FieldValues>} />,
   );

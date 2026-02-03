@@ -1,3 +1,4 @@
+/* biome-ignore-all lint/complexity/noImportantStyles: CodeMirror overrides require !important */
 /* -- Autocomplete Styling -- */
 @reference "../../css/globals.css";
 

@@ -13,7 +13,9 @@ export const queryParamHandlers = {
     const url = new URL(window.location.href);
     if (Array.isArray(data.value)) {
       url.searchParams.delete(data.key);
-      data.value.forEach((v) => url.searchParams.append(data.key, v));
+      for (const v of data.value) {
+        url.searchParams.append(data.key, v);
+      }
     } else {
       url.searchParams.set(data.key, data.value);
     }

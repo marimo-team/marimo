@@ -17,7 +17,9 @@ export function createMockObservable<T>(
     },
     set: (newValue: T) => {
       value = newValue;
-      subscribers.forEach((callback) => callback(newValue));
+      for (const callback of subscribers) {
+        callback(newValue);
+      }
     },
   };
 }

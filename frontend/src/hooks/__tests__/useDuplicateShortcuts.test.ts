@@ -17,7 +17,6 @@ function createHotkeys(
   keys: Partial<Record<HotkeyAction, Hotkey>>,
 ): Record<HotkeyAction, Hotkey> {
   return new Proxy(keys as Record<HotkeyAction, Hotkey>, {
-    // biome-ignore lint: ok to have three arguments here (It's a web API)
     get(target, p, receiver) {
       const key = Reflect.get(target, p, receiver);
       if (key === "undefined") {

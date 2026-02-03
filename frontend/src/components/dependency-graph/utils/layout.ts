@@ -23,14 +23,16 @@ export const layoutElements = ({
     ranker: "longest-path",
   });
 
-  edges.forEach((edge) => g.setEdge(edge.source, edge.target));
-  nodes.forEach((node) =>
+  for (const edge of edges) {
+    g.setEdge(edge.source, edge.target);
+  }
+  for (const node of nodes) {
     g.setNode(node.id, {
       ...node,
       width: node.width ?? 0,
       height: node.height ?? 0,
-    }),
-  );
+    });
+  }
 
   layout(g);
 

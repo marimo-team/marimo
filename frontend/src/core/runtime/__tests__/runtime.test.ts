@@ -284,7 +284,9 @@ describe("RuntimeManager", () => {
     afterEach(() => {
       // Clean up any base elements created during tests
       const baseElements = document.querySelectorAll("base");
-      baseElements.forEach((base) => base.remove());
+      for (const base of baseElements) {
+        base.remove();
+      }
 
       // Restore original base element if it existed
       if (originalBase) {

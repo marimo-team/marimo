@@ -57,7 +57,7 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
       },
     );
 
-    worker.addEventListener("error", (e) => {
+    worker.addEventListener("error", (_e) => {
       // Fallback to cleaning up created object URL
       URL.revokeObjectURL(objURL);
     });
@@ -114,7 +114,7 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
   };
 
   sendInstantiate: RunRequests["sendInstantiate"] = async (
-    request,
+    _request,
   ): Promise<null> => {
     return null;
   };

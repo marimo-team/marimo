@@ -12,7 +12,7 @@ export function notebookScrollToRunning() {
   // find cell that is currently in "running" state
   const { cellRuntime } = store.get(notebookAtom);
   const cell = Objects.entries(cellRuntime).find(
-    ([cellid, runtimestate]) => runtimestate.status === "running",
+    ([_cellid, runtimestate]) => runtimestate.status === "running",
   );
   if (!cell) {
     return;

@@ -1,7 +1,10 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import type { JSX } from "react";
-import { FilenameInput } from "@/components/editor/header/filename-input";
+import {
+  FILENAME_INPUT_DATA_ID,
+  FilenameInput,
+} from "@/components/editor/header/filename-input";
 import { useUpdateFilename } from "@/core/saving/filename";
 import { useSaveNotebook } from "@/core/saving/save-component";
 import { Paths } from "@/utils/paths";
@@ -33,7 +36,7 @@ export const FilenameForm = ({
       onNameChange={handleNameChange}
       flexibleWidth={true}
       resetOnBlur={true}
-      data-testid="filename-input"
+      data-testid={FILENAME_INPUT_DATA_ID}
       className={filename === null ? "missing-filename" : "filename"}
     />
   );

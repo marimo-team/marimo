@@ -1,6 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-export function getMarimoWheel(version: string) {
+export function getMarimoWheel() {
   if (import.meta.env.DEV && import.meta.env.VITE_WASM_MARIMO_PREBUILT_WHEEL) {
     return "marimo-base";
   }

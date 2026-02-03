@@ -14,7 +14,7 @@ import {
   SearchIcon,
 } from "lucide-react";
 import type React from "react";
-import { Suspense, use, useEffect, useRef, useState } from "react";
+import { Suspense, use, useEffect, useId, useRef, useState } from "react";
 import {
   type NodeApi,
   type NodeRendererProps,
@@ -143,6 +143,8 @@ const WorkspaceNotebooks: React.FC = () => {
   const { getWorkspaceFiles } = useRequestClient();
   const [includeMarkdown, setIncludeMarkdown] = useAtom(includeMarkdownAtom);
   const [searchText, setSearchText] = useState("");
+  const searchId = useId();
+  const includeMarkdownId = useId();
   const {
     isPending,
     data: workspace,
@@ -180,7 +182,7 @@ const WorkspaceNotebooks: React.FC = () => {
           control={
             <div className="flex items-center gap-2">
               <Input
-                id="search"
+                id={searchId}
                 value={searchText}
                 icon={<SearchIcon size={13} />}
                 onChange={(e) => setSearchText(e.target.value)}
@@ -190,13 +192,13 @@ const WorkspaceNotebooks: React.FC = () => {
               <CollapseAllButton />
               <Checkbox
                 data-testid="include-markdown-checkbox"
-                id="include-markdown"
+                id={includeMarkdownId}
                 checked={includeMarkdown}
                 onCheckedChange={(checked) =>
                   setIncludeMarkdown(Boolean(checked))
                 }
               />
-              <Label htmlFor="include-markdown">Include markdown</Label>
+              <Label htmlFor={includeMarkdownId}>Include markdown</Label>
             </div>
           }
         >

@@ -84,7 +84,7 @@ describe("dates", () => {
       it("formats date in fr-FR locale", () => {
         // Mock toLocaleDateString to simulate fr-FR locale
         // @ts-expect-error - we are mocking the method
-        Date.prototype.toLocaleDateString = (locale, options) => {
+        Date.prototype.toLocaleDateString = (_locale, options) => {
           if (options?.timeZone === "UTC") {
             return "15 mai 2023";
           }
