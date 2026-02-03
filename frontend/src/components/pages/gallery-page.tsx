@@ -33,6 +33,15 @@ const tabTarget = (path: string): string => {
   return `${getSessionId()}-${encodeURIComponent(path)}`;
 };
 
+const isHttpsUrl = (value: string): boolean => {
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:";
+  } catch {
+    return false;
+  }
+};
+
 const SEARCH_THRESHOLD = 10;
 
 const GalleryPage: React.FC = () => {
@@ -43,10 +52,10 @@ const GalleryPage: React.FC = () => {
     [],
   );
   const workspace = response.data;
-  const files = workspace?.files ?? [];
-  const root = workspace?.root ?? "";
 
   const formattedFiles = useMemo(() => {
+    const files = workspace?.files ?? [];
+    const root = workspace?.root ?? "";
     return files
       .filter((file) => !file.isDirectory)
       .map((file) => {
@@ -54,17 +63,28 @@ const GalleryPage: React.FC = () => {
           root && Paths.isAbsolute(file.path) && file.path.startsWith(root)
             ? Paths.rest(file.path, root)
             : file.path;
-        const title = titleCase(Paths.basename(relativePath));
+        const title =
+          file.opengraph?.title ?? titleCase(Paths.basename(relativePath));
         const subtitle = titleCase(Paths.dirname(relativePath));
+        const description = file.opengraph?.description ?? "";
+        const opengraphImage = file.opengraph?.image;
+        const thumbnailUrl =
+          opengraphImage && isHttpsUrl(opengraphImage)
+            ? opengraphImage
+            : asURL(
+                `/api/home/thumbnail?file=${encodeURIComponent(relativePath)}`,
+              ).toString();
         return {
           ...file,
           relativePath,
           title,
           subtitle,
+          description,
+          thumbnailUrl,
         };
       })
       .sort((a, b) => a.relativePath.localeCompare(b.relativePath));
-  }, [files, root]);
+  }, [workspace?.files, workspace?.root]);
 
   const filteredFiles = useMemo(() => {
     if (!searchQuery) {
@@ -130,8 +150,14 @@ const GalleryPage: React.FC = () => {
                     target={tabTarget(file.path)}
                     className="no-underline"
                   >
-                    <Card className="h-full hover:bg-accent/20 transition-colors">
-                      <CardContent className="p-6">
+                    <Card className="h-full overflow-hidden hover:bg-accent/20 transition-colors">
+                      <img
+                        src={file.thumbnailUrl}
+                        alt={file.title}
+                        loading="lazy"
+                        className="w-full aspect-1200/630 object-cover border-b border-border/60"
+                      />
+                      <CardContent className="p-6 pt-4">
                         <div className="flex flex-col gap-1">
                           {file.subtitle && (
                             <div className="text-sm font-semibold text-muted-foreground">
@@ -141,6 +167,11 @@ const GalleryPage: React.FC = () => {
                           <div className="text-lg font-medium">
                             {file.title}
                           </div>
+                          {file.description && (
+                            <div className="text-sm text-muted-foreground line-clamp-3 mt-1">
+                              {file.description}
+                            </div>
+                          )}
                         </div>
                       </CardContent>
                     </Card>
