@@ -185,7 +185,7 @@ class TestDuckDBInvalidQueries:
             ("SELECT (", ["syntax", "error"]),
             ("SELECT * FROM", ["syntax", "error"]),
             ("SELECT ,", ["syntax", "error"]),
-            ("SELECT * FROM table", ["syntax", "error"]),
+            ("SELEC * FROM table", ["syntax", "error"]),
             ("SELECT * FROM table WHERE", ["syntax", "error"]),
             ("SELECT * FROM table ORDER", ["syntax", "error"]),
             ("INSERT INTO", ["syntax", "error"]),
