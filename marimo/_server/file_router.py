@@ -111,6 +111,24 @@ class AppFileRouter(abc.ABC):
             detail=f"File {key} not found",
         )
 
+    def resolve_file_path(self, key: MarimoFileKey) -> str | None:
+        """Resolve a file key to an absolute file path, without loading the app.
+
+        This is useful for endpoints that need file-backed resources (e.g. thumbnails)
+        without the overhead of parsing/loading a notebook.
+
+        Returns:
+            Absolute file path if resolvable, otherwise None (e.g. new file).
+        """
+        if key.startswith(AppFileRouter.NEW_FILE):
+            return None
+        if os.path.exists(key):
+            return key
+        raise HTTPException(
+            status_code=HTTPStatus.NOT_FOUND,
+            detail=f"File {key} not found",
+        )
+
     @abc.abstractmethod
     def get_unique_file_key(self) -> Optional[MarimoFileKey]:
         """
@@ -187,9 +205,15 @@ class ListOfFilesAppFileRouter(AppFileRouter):
     ) -> AppFileManager:
         defaults = defaults or AppDefaults()
 
+        resolved_path = self.resolve_file_path(key)
+        if resolved_path is None:
+            return AppFileManager(None, defaults=defaults)
+        return AppFileManager(resolved_path, defaults=defaults)
+
+    def resolve_file_path(self, key: MarimoFileKey) -> str | None:
         if key.startswith(AppFileRouter.NEW_FILE):
             if self._allow_single_file_key:
-                return AppFileManager(None, defaults=defaults)
+                return None
             raise HTTPException(
                 status_code=HTTPStatus.NOT_FOUND,
                 detail=f"File {key} not found",
@@ -207,7 +231,7 @@ class ListOfFilesAppFileRouter(AppFileRouter):
             )
 
         if normalized_path.exists():
-            return AppFileManager(absolute_path, defaults=defaults)
+            return absolute_path
 
         raise HTTPException(
             status_code=HTTPStatus.NOT_FOUND,
@@ -298,9 +322,14 @@ class LazyListOfFilesAppFileRouter(AppFileRouter):
         the source's directory for security.
         """
         defaults = defaults or AppDefaults()
-
-        if key.startswith(AppFileRouter.NEW_FILE):
+        resolved_path = self.resolve_file_path(key)
+        if resolved_path is None:
             return AppFileManager(None, defaults=defaults)
+        return AppFileManager(resolved_path, defaults=defaults)
+
+    def resolve_file_path(self, key: MarimoFileKey) -> str | None:
+        if key.startswith(AppFileRouter.NEW_FILE):
+            return None
 
         directory = Path(self._directory)
         filepath = Path(key)
@@ -322,7 +351,7 @@ class LazyListOfFilesAppFileRouter(AppFileRouter):
             self._validator.validate_inside_directory(directory, filepath)
 
         if filepath.exists():
-            return AppFileManager(str(filepath), defaults=defaults)
+            return str(filepath)
 
         raise HTTPException(
             status_code=HTTPStatus.NOT_FOUND,
