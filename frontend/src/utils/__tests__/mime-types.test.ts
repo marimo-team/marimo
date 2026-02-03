@@ -132,7 +132,7 @@ describe("mime-types", () => {
 
   describe("sortByPrecedence", () => {
     it("should sort entries by precedence order", () => {
-      const entries: Array<[MimeType, string]> = [
+      const entries: [MimeType, string][] = [
         ["text/plain", "plain"],
         ["text/html", "html"],
         ["image/png", "png"],
@@ -151,7 +151,7 @@ describe("mime-types", () => {
     });
 
     it("should place unknown mime types at the end", () => {
-      const entries: Array<[MimeType, string]> = [
+      const entries: [MimeType, string][] = [
         ["text/plain", "plain"],
         ["text/html", "html"],
         ["application/json", "json"],
@@ -173,7 +173,7 @@ describe("mime-types", () => {
     });
 
     it("should handle empty precedence", () => {
-      const entries: Array<[MimeType, string]> = [
+      const entries: [MimeType, string][] = [
         ["text/plain", "plain"],
         ["text/html", "html"],
       ];
@@ -184,7 +184,7 @@ describe("mime-types", () => {
     });
 
     it("should not mutate original array", () => {
-      const entries: Array<[MimeType, string]> = [
+      const entries: [MimeType, string][] = [
         ["text/plain", "plain"],
         ["text/html", "html"],
       ];
@@ -198,7 +198,7 @@ describe("mime-types", () => {
 
   describe("processMimeBundle", () => {
     it("should filter and sort mime entries", () => {
-      const entries: Array<[MimeType, string]> = [
+      const entries: [MimeType, string][] = [
         ["text/plain", "plain"],
         ["text/html", "html"],
         ["image/png", "png"],
@@ -226,7 +226,7 @@ describe("mime-types", () => {
     });
 
     it("should use default config when not provided", () => {
-      const entries: Array<[MimeType, string]> = [
+      const entries: [MimeType, string][] = [
         ["text/html", "html"],
         ["image/png", "png"],
         ["text/markdown", "md"],
@@ -240,9 +240,7 @@ describe("mime-types", () => {
 
     it("should preserve data associated with mime types", () => {
       const htmlData = { content: "<h1>Hello</h1>" };
-      const entries: Array<[MimeType, typeof htmlData]> = [
-        ["text/html", htmlData],
-      ];
+      const entries: [MimeType, typeof htmlData][] = [["text/html", htmlData]];
 
       const result = processMimeBundle(entries);
 
@@ -250,7 +248,7 @@ describe("mime-types", () => {
     });
 
     it("should sort by precedence after filtering", () => {
-      const entries: Array<[MimeType, string]> = [
+      const entries: [MimeType, string][] = [
         ["text/plain", "plain"],
         ["text/markdown", "md"],
         ["text/html", "html"],
