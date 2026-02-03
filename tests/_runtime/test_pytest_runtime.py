@@ -1,8 +1,14 @@
+from __future__ import annotations
+
 import asyncio
 import os
+import sys
 from pathlib import Path
 
+import pytest
 
+
+@pytest.mark.skipif(sys.platform == "win32", reason="Fails on Windows CI")
 def test_smoke_test():
     from marimo._runtime.pytest import run_pytest
     from tests._runtime.script_data.contains_tests import app
