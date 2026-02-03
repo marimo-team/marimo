@@ -352,6 +352,10 @@ def run_pytest(
                     "--disable-warnings",
                     "--color=yes",
                     "--code-highlight=no",
+                    "-p",
+                    "no:codecov",  # Disable codecov plugin to avoid duplicate reports
+                    "-p",
+                    "no:sugar",  # Disable sugar plugin to avoid duplicate reports
                     notebook_path,
                 ],
                 plugins=[plugin],
