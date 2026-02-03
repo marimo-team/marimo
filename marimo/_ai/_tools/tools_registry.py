@@ -9,6 +9,7 @@ from marimo._ai._tools.tools.cells import (
     GetCellRuntimeData,
     GetLightweightCellMap,
 )
+from marimo._ai._tools.tools.create_notebook import CreateNotebook
 from marimo._ai._tools.tools.datasource import GetDatabaseTables
 from marimo._ai._tools.tools.errors import GetNotebookErrors
 from marimo._ai._tools.tools.lint import LintNotebook
@@ -26,4 +27,5 @@ SUPPORTED_BACKEND_AND_MCP_TOOLS: list[type[ToolBase[Any, Any]]] = [
     GetDatabaseTables,
     GetNotebookErrors,
     LintNotebook,
+    CreateNotebook,
 ]
