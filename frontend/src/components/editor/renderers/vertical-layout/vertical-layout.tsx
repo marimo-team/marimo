@@ -7,6 +7,7 @@ import {
   CodeIcon,
   FolderDownIcon,
   ImageIcon,
+  Loader2Icon,
   MoreHorizontalIcon,
 } from "lucide-react";
 import type React from "react";
@@ -32,6 +33,7 @@ import { MarkdownLanguageAdapter } from "@/core/codemirror/language/languages/ma
 import { useResolvedMarimoConfig } from "@/core/config/config";
 import { CSSClasses, KnownQueryParams } from "@/core/constants";
 import type { OutputMessage } from "@/core/kernel/messages";
+import { kernelStateAtom } from "@/core/kernel/state";
 import { showCodeInRunModeAtom } from "@/core/meta/state";
 import { isErrorMime } from "@/core/mime";
 import { type AppMode, kioskModeAtom } from "@/core/mode";
@@ -63,6 +65,7 @@ const VerticalLayoutRenderer: React.FC<VerticalLayoutProps> = ({
 }) => {
   const { invisible } = useDelayVisibility(cells.length, mode);
   const kioskMode = useAtomValue(kioskModeAtom);
+  const kernelState = useAtomValue(kernelStateAtom);
   const [userConfig] = useResolvedMarimoConfig();
   const showCodeInRunModePreference = useAtomValue(showCodeInRunModeAtom);
 
@@ -140,6 +143,15 @@ const VerticalLayoutRenderer: React.FC<VerticalLayoutProps> = ({
     }
 
     if (cells.length === 0 && !invisible) {
+      // If kernel is not yet instantiated, show loading state
+      if (!kernelState.isInstantiated) {
+        return (
+          <div className="flex-1 flex flex-col items-center justify-center py-8">
+            <Loader2Icon className="w-8 h-8 animate-spin text-muted-foreground" />
+          </div>
+        );
+      }
+      // Kernel is ready but no cells - truly empty notebook
       return (
         <div className="flex-1 flex flex-col items-center justify-center py-8">
           <Alert variant="info">

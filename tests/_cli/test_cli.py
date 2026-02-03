@@ -621,17 +621,25 @@ def test_cli_run_directory_gallery() -> None:
     _check_contents(p, b'"mode": "gallery"', contents)
 
 
-def test_cli_run_directory_gallery_rejects_sandbox() -> None:
+@pytest.mark.skipif(not HAS_UV, reason="uv is required for sandbox tests")
+def test_cli_run_directory_gallery_with_sandbox() -> None:
+    """Test that gallery mode works with --sandbox flag."""
     directory = tempfile.TemporaryDirectory()
     _temp_run_file(directory)
-    result = subprocess.run(
-        ["marimo", "run", directory.name, "--sandbox"],
-        capture_output=True,
-        text=True,
+    port = _get_port()
+    p = subprocess.Popen(
+        [
+            "marimo",
+            "run",
+            directory.name,
+            "--sandbox",
+            "-p",
+            str(port),
+            "--headless",
+        ]
     )
-    output = result.stderr + result.stdout
-    assert result.returncode != 0
-    assert "--sandbox is not supported with gallery runs yet." in output
+    contents = _try_fetch(port)
+    _check_contents(p, b'"mode": "gallery"', contents)
 
 
 def test_cli_run_directory_gallery_rejects_check() -> None:
@@ -687,6 +695,66 @@ def test_cli_run_multiple_files_gallery() -> None:
             "run",
             str(file_one),
             str(file_two),
+            "-p",
+            str(port),
+            "--headless",
+        ]
+    )
+    contents = _try_fetch(port)
+    _check_contents(p, b'"mode": "gallery"', contents)
+
+
+@pytest.mark.skipif(not HAS_UV, reason="uv is required for sandbox tests")
+def test_cli_run_directory_gallery_sandbox_can_open_file() -> None:
+    """Test that individual notebooks can be opened from gallery in sandbox mode."""
+    directory = tempfile.TemporaryDirectory()
+    _temp_run_file(directory)
+    port = _get_port()
+    p = subprocess.Popen(
+        [
+            "marimo",
+            "run",
+            directory.name,
+            "--sandbox",
+            "-p",
+            str(port),
+            "--headless",
+        ]
+    )
+    try:
+        contents = _try_fetch(port)
+        assert contents is not None
+        assert b'"mode": "gallery"' in contents
+
+        # Open a specific notebook from gallery
+        url = f"http://localhost:{port}/?file=run.py"
+        notebook_contents = urllib.request.urlopen(url).read()
+        assert b'"mode": "read"' in notebook_contents
+    finally:
+        p.kill()
+
+
+@pytest.mark.skipif(not HAS_UV, reason="uv is required for sandbox tests")
+def test_cli_run_multiple_files_gallery_sandbox() -> None:
+    """Test gallery mode with multiple explicit files and --sandbox."""
+    directory = tempfile.TemporaryDirectory()
+    filecontents = codegen.generate_filecontents(
+        codes=["import marimo as mo"],
+        names=["one"],
+        cell_configs=[CellConfig()],
+    )
+    file_one = Path(directory.name) / "one.py"
+    file_two = Path(directory.name) / "two.py"
+    file_one.write_text(filecontents, encoding="utf-8")
+    file_two.write_text(filecontents, encoding="utf-8")
+    port = _get_port()
+    p = subprocess.Popen(
+        [
+            "marimo",
+            "run",
+            str(file_one),
+            str(file_two),
+            "--sandbox",
             "-p",
             str(port),
             "--headless",

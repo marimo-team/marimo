@@ -24,6 +24,7 @@ from marimo._server.templates.templates import (
     inject_script,
     notebook_page_template,
 )
+from marimo._session.model import SessionMode
 from marimo._utils.async_path import AsyncPath
 from marimo._utils.paths import marimo_package_path, normalize_path
 
@@ -148,10 +149,12 @@ async def index(request: Request) -> HTMLResponse:
         app_config = app_manager.app.config
 
         # Pre-compute notebook snapshot for faster initial render
-        # Only in SandboxMode.MULTI where each notebook gets its own IPC kernel
+        # Only in EDIT + SandboxMode.MULTI where each notebook gets its own IPC
+        # kernel.
         notebook_snapshot = None
         if (
             app_state.session_manager.sandbox_mode is SandboxMode.MULTI
+            and app_state.mode == SessionMode.EDIT
             and app_manager.filename
         ):
             from marimo._convert.converters import MarimoConvert
