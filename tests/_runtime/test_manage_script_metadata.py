@@ -640,8 +640,8 @@ async def test_install_missing_packages_streaming_logs_multiple_packages(
     mock_package_manager.name = "pip"
     mock_package_manager.is_manager_installed.return_value = True
     mock_package_manager.attempted_to_install.return_value = False
-    mock_package_manager.package_to_module.side_effect = (
-        lambda pkg: pkg.replace("-", "_")
+    mock_package_manager.package_to_module.side_effect = lambda pkg: (
+        pkg.replace("-", "_")
     )
 
     # Track which packages are being installed

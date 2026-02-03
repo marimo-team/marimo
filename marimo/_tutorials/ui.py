@@ -240,7 +240,7 @@ def _(mo):
     mo.md("""
     ### Composite elements
 
-        Composite elements are advanced elements
+        Composite elements are advanced elements that
         let you build UI elements out of other UI elements.
 
         Use these powerful elements to logically group together related elements,

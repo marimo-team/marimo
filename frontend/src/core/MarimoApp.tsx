@@ -39,14 +39,18 @@ const LazyGalleryPage = reactLazyWithPreload(
 );
 
 export function preloadPage(mode: string) {
-  if (mode === "home") {
-    LazyHomePage.preload();
-  } else if (mode === "gallery") {
-    LazyGalleryPage.preload();
-  } else if (mode === "read") {
-    LazyRunPage.preload();
-  } else {
-    LazyEditPage.preload();
+  switch (mode) {
+    case "home":
+      LazyHomePage.preload();
+      break;
+    case "gallery":
+      LazyGalleryPage.preload();
+      break;
+    case "read":
+      LazyRunPage.preload();
+      break;
+    default:
+      LazyEditPage.preload();
   }
 }
 

@@ -880,6 +880,64 @@ def test_serialize_only_dict_chunks():
     ]
 
 
+def test_serialize_str_subclass():
+    """Ensure str subclasses (like weave's BoxedStr) are coerced to plain str."""
+
+    class BoxedStr(str):
+        """Mock of weave's BoxedStr - a str subclass with extra attributes."""
+
+        def __new__(cls, value):
+            instance = super().__new__(cls, value)
+            instance._id = "trace_123"
+            instance.ref = "weave://entity/project/..."
+            return instance
+
+    sent_chunks: list[dict] = []
+
+    def on_send_chunk(chunk: dict):
+        sent_chunks.append(chunk)
+
+    serializer = ChunkSerializer(on_send_chunk=on_send_chunk)
+
+    boxed = BoxedStr("Hello from weave")
+    serializer.handle_chunk(boxed)
+
+    # Should have text-start and text-delta
+    assert len(sent_chunks) == 2
+    assert sent_chunks[0]["type"] == "text-start"
+    assert sent_chunks[1]["type"] == "text-delta"
+    # Critical: delta should be plain str, not BoxedStr
+    assert sent_chunks[1]["delta"] == "Hello from weave"
+    assert type(sent_chunks[1]["delta"]) is str  # Exact type check
+
+
+@pytest.mark.skipif(
+    not DependencyManager.weave.has(),
+    reason="weave is not installed",
+)
+def test_serialize_weave_boxed_str():
+    """Integration test with actual weave BoxedStr."""
+    import weave
+
+    @weave.op
+    def traced_fn() -> str:
+        return "traced response"
+
+    result = traced_fn()
+
+    sent_chunks: list[dict] = []
+
+    def on_send_chunk(chunk: dict):
+        sent_chunks.append(chunk)
+
+    serializer = ChunkSerializer(on_send_chunk=on_send_chunk)
+    serializer.handle_chunk(result)
+
+    assert len(sent_chunks) == 2
+    assert sent_chunks[1]["type"] == "text-delta"
+    assert type(sent_chunks[1]["delta"]) is str
+
+
 @pytest.mark.skipif(
     not DependencyManager.pydantic_ai.has(),
     reason="Pydantic AI is not installed",

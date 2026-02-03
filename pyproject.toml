@@ -203,6 +203,8 @@ test-optional = [
     "mcp>=1.0.0",
     # zeromq
     "pyzmq>=27.1.0",
+    # weave tracing integration
+    "weave>=0.51.0",
 ]
 
 
@@ -550,6 +552,7 @@ extend-exclude = [
     "base64.test.ts",
     "SECURITY.md", # Contains usernames that trigger typos
     "patches/*", # Patches may contain typos from source code
+    "tests/_sql/test_sql_parse.py", # Contains intentional invalid SQL for testing
 ]
 
 [tool.black]

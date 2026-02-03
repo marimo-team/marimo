@@ -475,6 +475,8 @@ class ChunkSerializer:
 
         # Handle plain text chunks
         if isinstance(chunk, str):
+            # Coerce str subclasses (like weave's BoxedStr) to plain str
+            chunk = str(chunk)
             if self._text_id is None:
                 self._text_id = f"text_{uuid.uuid4().hex}"
                 self.on_send_chunk({"type": "text-start", "id": self._text_id})

@@ -176,9 +176,11 @@ def dummy_func(arg1: str, arg2: str) -> None:
         [marimo.accordion, True],
         [dummy_func, False],
     ],
-    ids=lambda obj: f"{obj}"
-    if isinstance(obj, bool)
-    else f"{obj.__module__}.{obj.__qualname__}",
+    ids=lambda obj: (
+        f"{obj}"
+        if isinstance(obj, bool)
+        else f"{obj.__module__}.{obj.__qualname__}"
+    ),
 )
 def test_parameter_descriptions(obj: Any, runtime_inference: bool):
     patch_jedi_parameter_completion()
