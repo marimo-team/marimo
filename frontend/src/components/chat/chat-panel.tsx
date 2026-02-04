@@ -11,6 +11,7 @@ import {
   BotMessageSquareIcon,
   HatGlasses,
   Loader2,
+  type LucideIcon,
   MessageCircleIcon,
   NotebookText,
   PaperclipIcon,
@@ -240,31 +241,35 @@ const ChatInputFooter: React.FC<ChatInputFooterProps> = memo(
       value: CopilotMode;
       label: string;
       subtitle: string;
-      icon: React.ReactNode;
+      Icon: LucideIcon;
     }[] = [
       {
         value: "manual",
         label: "Manual",
         subtitle: "Pure chat, no tool usage",
-        icon: <MessageCircleIcon className="h-3 w-3" />,
+        Icon: MessageCircleIcon,
       },
       {
         value: "ask",
         label: "Ask",
         subtitle:
           "Use AI with access to read-only tools like documentation search",
-        icon: <NotebookText className="h-3 w-3" />,
+        Icon: NotebookText,
       },
       {
         value: "agent",
         label: "Agent (beta)",
         subtitle: "Use AI with access to read and write tools",
-        icon: <HatGlasses className="h-3 w-3" />,
+        Icon: HatGlasses,
       },
     ];
 
     const isAttachmentSupported =
       PROVIDERS_THAT_SUPPORT_ATTACHMENTS.has(currentProvider);
+
+    const CurrentModeIcon = modeOptions.find(
+      (o) => o.value === currentMode,
+    )?.Icon;
 
     return (
       <TooltipProvider>
@@ -272,7 +277,7 @@ const ChatInputFooter: React.FC<ChatInputFooterProps> = memo(
           <div className="flex items-center gap-2">
             <Select value={currentMode} onValueChange={saveModeChange}>
               <SelectTrigger className="h-6 text-xs border-border shadow-none! ring-0! bg-muted hover:bg-muted/30 py-0 px-2 gap-1.5">
-                {modeOptions.find((o) => o.value === currentMode)?.icon}
+                {CurrentModeIcon && <CurrentModeIcon className="h-3 w-3" />}
                 <span className="capitalize">{currentMode}</span>
               </SelectTrigger>
               <SelectContent>
@@ -288,7 +293,7 @@ const ChatInputFooter: React.FC<ChatInputFooterProps> = memo(
                     >
                       <div className="flex items-start gap-2.5">
                         <span className="mt-1 text-muted-foreground">
-                          {option.icon}
+                          <option.Icon className="h-3 w-3" />
                         </span>
                         <div className="flex flex-col gap-0.5">
                           <span className="font-semibold">{option.label}</span>
