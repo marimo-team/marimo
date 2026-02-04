@@ -817,8 +817,6 @@ async def test_uv_install_in_project_no_fallback(mock_run: MagicMock):
 
 
 class TestVersionMap:
-    """Tests for VersionMap class"""
-
     def test_get_version_exact_match(self) -> None:
         """Test getting version with exact package name match"""
 

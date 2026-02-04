@@ -19,6 +19,9 @@ if TYPE_CHECKING:
 
 LOGGER = _loggers.marimo_logger()
 
+# Default Python executable
+PY_EXE = sys.executable
+
 # Type alias for log callback function
 LogCallback = Callable[[str], None]
 
@@ -242,10 +245,13 @@ class CanonicalizingPackageManager(PackageManager):
     Subclasses needs to implement _construct_module_name_mapping.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, python_exe: str | None = None) -> None:
         # Initialized lazily
         self._module_name_to_repo_name: dict[str, str] | None = None
         self._repo_name_to_module_name: dict[str, str] | None = None
+        # Python executable for targeting a specific venv (used by pip/uv)
+        # Defaults to sys.executable if not provided
+        self._python_exe = python_exe or PY_EXE
         super().__init__()
 
     @abc.abstractmethod
