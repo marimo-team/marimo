@@ -12,6 +12,7 @@ import {
 import { maybeAddMarimoImport } from "@/core/cells/add-missing-import";
 import { useCellActions } from "@/core/cells/cells";
 import { LanguageAdapters } from "@/core/codemirror/language/LanguageAdapters";
+import { MARKDOWN_INITIAL_HIDE_CODE } from "@/core/codemirror/language/languages/markdown";
 import {
   getConnectionTooltip,
   isAppInteractionDisabled,
@@ -63,7 +64,7 @@ export const CreateCellButton = ({
     maybeAddMarimoImport({ autoInstantiate: true, createNewCell });
     onClick?.({
       code: LanguageAdapters.markdown.defaultCode,
-      hideCode: true,
+      hideCode: MARKDOWN_INITIAL_HIDE_CODE,
     });
   };
 
