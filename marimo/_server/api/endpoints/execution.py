@@ -25,9 +25,9 @@ from marimo._server.models.models import (
     ExecuteScratchpadRequest,
     InstantiateNotebookRequest,
     InvokeFunctionRequest,
+    ModelRequest,
     SuccessResponse,
     UpdateUIElementValuesRequest,
-    ModelRequest,
 )
 from marimo._server.router import APIRouter
 from marimo._server.uvicorn_utils import close_uvicorn

@@ -121,6 +121,7 @@ from marimo._runtime.commands import (
     ListDataSourceConnectionCommand,
     ListSecretKeysCommand,
     ListSQLTablesCommand,
+    ModelCommand,
     PreviewDatasetColumnCommand,
     PreviewSQLTableCommand,
     RefreshSecretsCommand,
@@ -130,7 +131,6 @@ from marimo._runtime.commands import (
     UpdateCellConfigCommand,
     UpdateUIElementCommand,
     UpdateUserConfigCommand,
-    ModelCommand,
     ValidateSQLCommand,
 )
 from marimo._runtime.context import (
@@ -2331,9 +2331,7 @@ class Kernel:
         handler.register(RenameNotebookCommand, handle_rename)
         handler.register(UpdateCellConfigCommand, self.set_cell_config)
         handler.register(UpdateUIElementCommand, handle_set_ui_element_value)
-        handler.register(
-            ModelCommand, handle_receive_model_message
-        )
+        handler.register(ModelCommand, handle_receive_model_message)
         handler.register(UpdateUserConfigCommand, handle_set_user_config)
         handler.register(StopKernelCommand, handle_stop)
         # Datasets

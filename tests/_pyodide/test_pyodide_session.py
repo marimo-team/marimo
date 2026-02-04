@@ -34,6 +34,7 @@ from marimo._runtime.commands import (
     ListDataSourceConnectionCommand,
     ListSecretKeysCommand,
     ListSQLTablesCommand,
+    ModelCommand,
     PreviewDatasetColumnCommand,
     PreviewSQLTableCommand,
     RefreshSecretsCommand,
@@ -42,7 +43,6 @@ from marimo._runtime.commands import (
     SyncGraphCommand,
     UpdateCellConfigCommand,
     UpdateUIElementCommand,
-    ModelCommand,
     ValidateSQLCommand,
 )
 from marimo._runtime.context.types import teardown_context

@@ -22,6 +22,7 @@ from marimo._runtime.commands import (
     ListOrValue,
     ListSecretKeysCommand,
     ListSQLTablesCommand,
+    ModelCommand,
     ModelMessage,
     PreviewDatasetColumnCommand,
     PreviewSQLTableCommand,
@@ -35,7 +36,6 @@ from marimo._runtime.commands import (
     UpdateCellConfigCommand,
     UpdateUIElementCommand,
     UpdateUserConfigCommand,
-    ModelCommand,
     ValidateSQLCommand,
     kebab_case,
 )

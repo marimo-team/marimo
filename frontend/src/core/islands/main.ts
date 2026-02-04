@@ -13,11 +13,11 @@ import "iconify-icon";
 
 import { toast } from "@/components/ui/use-toast";
 import { renderHTML } from "@/plugins/core/RenderHTML";
-import { initializePlugins } from "@/plugins/plugins";
 import {
   handleWidgetMessage,
   MODEL_MANAGER,
 } from "@/plugins/impl/anywidget/model";
+import { initializePlugins } from "@/plugins/plugins";
 import { logNever } from "@/utils/assertNever";
 import { Functions } from "@/utils/functions";
 import { safeExtractSetUIElementMessageBuffers } from "@/utils/json/base64";

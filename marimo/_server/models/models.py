@@ -20,12 +20,12 @@ from marimo._runtime.commands import (
     ListDataSourceConnectionCommand,
     ListSecretKeysCommand,
     ListSQLTablesCommand,
+    ModelCommand,
     PreviewDatasetColumnCommand,
     PreviewSQLTableCommand,
     UpdateCellConfigCommand,
     UpdateUIElementCommand,
     UpdateUserConfigCommand,
-    ModelCommand,
     ValidateSQLCommand,
 )
 from marimo._types.ids import CellId_t, UIElementId
