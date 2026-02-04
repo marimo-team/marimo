@@ -9,6 +9,7 @@ from typing import (
     Generic,
     TypedDict,
     TypeVar,
+    cast,
 )
 
 import marimo._output.data.data as mo_data
@@ -118,6 +119,14 @@ def get_anywidget_state(widget: AnyWidget) -> AnyWidgetState:
     return {k: v for k, v in state.items() if k not in ignored_traits}
 
 
+def get_anywidget_model_id(widget: AnyWidget) -> WidgetModelId:
+    """Get the model_id of an AnyWidget."""
+    model_id = getattr(widget, "_model_id", None)
+    if not model_id:
+        raise RuntimeError("Widget model_id is not set")
+    return WidgetModelId(model_id)
+
+
 @mddoc
 class anywidget(UIElement[ModelIdRef, AnyWidgetState]):
     """Create a UIElement from an AnyWidget.
@@ -164,9 +173,7 @@ class anywidget(UIElement[ModelIdRef, AnyWidgetState]):
         _ = widget.comm
 
         # Get the model_id from the widget (should always be set after comm init)
-        model_id: WidgetModelId = widget._model_id
-        if not model_id:
-            raise RuntimeError("Widget model_id is not set")
+        model_id = get_anywidget_model_id(widget)
 
         # Initial value is just the model_id reference
         # The frontend retrieves the actual state from the 'open' message
@@ -207,7 +214,7 @@ class anywidget(UIElement[ModelIdRef, AnyWidgetState]):
         # Otherwise, it's a state update from the frontend
         # Update the widget's state
         self.widget.set_state(value)
-        return value
+        return cast(AnyWidgetState, value)
 
     @property
     def value(self) -> AnyWidgetState:
