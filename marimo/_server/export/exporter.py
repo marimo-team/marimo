@@ -325,10 +325,15 @@ class Exporter:
         Returns:
             PDF data
         """
+        # We check for all dependencies upfront since standard export failing
+        # falls back to webpdf (which requires playwright).
+        # We don't want users to reinstall again after the first failure.
+        # Webpdf is generally more resilient to errors than standard export.
         DependencyManager.require_many(
             "for PDF export",
             DependencyManager.nbformat,
             DependencyManager.nbconvert,
+            DependencyManager.playwright,
         )
 
         ipynb_json_str = self.export_as_ipynb(
@@ -359,7 +364,6 @@ class Exporter:
                     e,
                 )
 
-        DependencyManager.playwright.require("for webpdf export")
         from nbconvert import WebPDFExporter  # type: ignore[import-not-found]
 
         web_exporter = WebPDFExporter()
