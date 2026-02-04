@@ -101,8 +101,11 @@ BufferType = Optional[list[bytes]]
 def _create_model_message(
     data: dict[str, Any],
     buffers: list[bytes],
-) -> ModelMessage:
-    """Create the appropriate ModelMessage based on the method field."""
+) -> Optional[ModelMessage]:
+    """Create the appropriate ModelMessage based on the method field.
+
+    Returns None for methods that should be skipped (e.g., echo_update).
+    """
     method = data.get("method", "update")
     state = data.get("state", {})
     buffer_paths = data.get("buffer_paths", [])
@@ -124,14 +127,12 @@ def _create_model_message(
             content=data.get("content"),
             buffers=buffers,
         )
+    elif method == "echo_update":
+        # echo_update is for multi-client sync acknowledgment, skip it
+        return None
     else:
-        # Default to update for unknown methods
-        LOGGER.warning("Unknown method: %s, defaulting to update", method)
-        return ModelUpdate(
-            state=state,
-            buffer_paths=buffer_paths,
-            buffers=buffers,
-        )
+        LOGGER.warning("Unknown method: %s, skipping", method)
+        return None
 
 
 # Compare to `ipykernel.comm.Comm`
@@ -233,6 +234,8 @@ class MarimoComm:
     def _broadcast(self, data: dict[str, Any], buffers: list[bytes]) -> None:
         """Broadcast a model lifecycle notification."""
         message = _create_model_message(data, buffers)
+        if message is None:
+            return
         broadcast_notification(
             ModelLifecycleNotification(
                 model_id=self.comm_id,
