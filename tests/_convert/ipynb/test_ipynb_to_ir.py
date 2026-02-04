@@ -443,6 +443,21 @@ def test_transform_exclamation_mark_with_indentation():
     assert result.needs_subprocess is True
 
 
+def test_transform_exclamation_mark_indented_multiline():
+    """Test indented multi-line command with backslash continuation"""
+    sources = ["if something:\n    !echo 12\\\n      34"]
+    result = transform_exclamation_mark(sources)
+    # Should handle backslash continuation and preserve indentation
+    assert "subprocess.call" in result.transformed_sources[0]
+    assert "echo" in result.transformed_sources[0]
+    assert result.needs_subprocess is True
+    # Verify indentation is preserved for the subprocess call
+    assert "    subprocess.call" in result.transformed_sources[0]
+    # The command should have combined "12" and "34" after removing continuation
+    assert "12" in result.transformed_sources[0]
+    assert "34" in result.transformed_sources[0]
+
+
 def test_transform_exclamation_mark_preserves_comments():
     sources = [
         "!ls -l  # list files",

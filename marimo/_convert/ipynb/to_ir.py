@@ -460,9 +460,7 @@ def _extract_pip_install(
 ) -> ExclamationCommandResult:
     pip_packages: list[str] = []
     if "install" not in command_tokens:
-        return _shlex_to_subprocess_call(
-            command_line, command_tokens, indent_level
-        )
+        return _shlex_to_subprocess_call(command_line, command_tokens)
 
     install_idx = command_tokens.index("install")
 
@@ -517,7 +515,7 @@ def _is_compilable_expression(expr: str) -> bool:
 
 
 def _shlex_to_subprocess_call(
-    command_line: str, command_tokens: list[str], indent_level: int = 0
+    command_line: str, command_tokens: list[str]
 ) -> ExclamationCommandResult:
     """Convert a shell command to subprocess.call([...])
 
@@ -527,7 +525,6 @@ def _shlex_to_subprocess_call(
     Args:
         command_line: The command string
         command_tokens: Tokenized command
-        indent_level: Indentation level (0 = top-level, >0 = indented)
     """
     # First pass: check if any template is invalid
     for token in command_tokens:
@@ -594,9 +591,7 @@ def _handle_exclamation_command(
             )
 
     # Replace with subprocess.call()
-    return _shlex_to_subprocess_call(
-        command_line, command_tokens, indent_level
-    )
+    return _shlex_to_subprocess_call(command_line, command_tokens)
 
 
 def _normalize_package_name(name: str) -> str:
