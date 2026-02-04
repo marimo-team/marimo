@@ -953,13 +953,57 @@ def test_serialize_pydantic_chunk():
 
     serializer = ChunkSerializer(on_send_chunk=on_send_chunk)
 
-    # Pydantic BaseChunk should be serialized with model_dump
     chunk = TextDeltaChunk(id="text-1", delta="Hello")
     serializer.handle_chunk(chunk)
 
     # Should be a dict with camelCase keys (by_alias=True)
     assert sent_chunks == [
         {"type": "text-delta", "id": "text-1", "delta": "Hello"}
+    ]
+
+
+@pytest.mark.skipif(
+    not DependencyManager.pydantic_ai.has(),
+    reason="Pydantic AI is not installed",
+)
+def test_serialize_pydantic_v5():
+    """Test ChunkSerializer excludes providerMetadata from tool-input-start for SDK v5.
+
+    The Vercel AI SDK v5 schema drifts from v6, so we need to use Pydantic's handling.
+
+    Since pydantic-ai uses toolCallId, providerMetadata must be excluded.
+    See: https://github.com/pydantic/pydantic-ai/pull/4166
+    """
+    from pydantic_ai.ui.vercel_ai.response_types import ToolInputStartChunk
+
+    sent_chunks: list[dict] = []
+
+    def on_send_chunk(chunk: dict):
+        sent_chunks.append(chunk)
+
+    serializer = ChunkSerializer(on_send_chunk=on_send_chunk)
+
+    # Create chunk with providerMetadata (like Google Gemini produces)
+    chunk = ToolInputStartChunk(
+        tool_call_id="tc_1",
+        tool_name="my_tool",
+        provider_metadata={
+            "pydantic_ai": {
+                "id": "test_id",
+                "provider_name": "google-gla",
+                "provider_details": {"thought_signature": "encrypted_data"},
+            }
+        },
+    )
+    serializer.handle_chunk(chunk)
+
+    # providerMetadata should be excluded for SDK v5 compatibility
+    assert sent_chunks == [
+        {
+            "type": "tool-input-start",
+            "toolCallId": "tc_1",
+            "toolName": "my_tool",
+        }
     ]
 
 
