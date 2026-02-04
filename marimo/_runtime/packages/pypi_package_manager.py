@@ -590,8 +590,7 @@ class UvPackageManager(PypiPackageManager):
             uninstall_cmd = [self._uv_bin, "pip", "uninstall"]
 
         return await self.run(
-            uninstall_cmd
-            + [*split_packages(package), "-p", self._python_exe],
+            uninstall_cmd + [*split_packages(package), "-p", self._python_exe],
             log_callback=None,
         )
 
