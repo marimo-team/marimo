@@ -67,21 +67,6 @@ export function serializeBuffersToBase64<T extends Record<string, unknown>>(
 }
 
 /**
- * Check if an object is in wire format.
- */
-export function isWireFormat<T = Record<string, unknown>>(
-  obj: unknown,
-): obj is WireFormat<T> {
-  return (
-    obj !== null &&
-    typeof obj === "object" &&
-    "state" in obj &&
-    "bufferPaths" in obj &&
-    "buffers" in obj
-  );
-}
-
-/**
  * Decode wire format or insert DataViews at specified paths.
  *
  * Accepts either:
@@ -111,7 +96,9 @@ export function decodeFromWire<T extends Record<string, unknown>>(input: {
     );
   }
 
-  const out = structuredClone(state);
+  // We should avoid using structuredClone if possible since
+  // it can be very slow. If mutability is a concern, we should use a different approach.
+  const out = state;
 
   for (const [i, bufferPath] of bufferPaths.entries()) {
     const buffer = buffers?.[i];

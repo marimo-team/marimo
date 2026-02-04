@@ -2,11 +2,7 @@
 import { describe, expect, it } from "vitest";
 import type { WireFormat } from "@/plugins/impl/anywidget/types";
 import type { Base64String } from "../../../../utils/json/base64";
-import {
-  decodeFromWire,
-  isWireFormat,
-  serializeBuffersToBase64,
-} from "../serialization";
+import { decodeFromWire, serializeBuffersToBase64 } from "../serialization";
 
 describe("decodeFromWire with DataViews", () => {
   it("should return the original state if bufferPaths.length === 0", () => {
@@ -339,53 +335,6 @@ describe("serializeBuffersToBase64", () => {
     expect(result.buffers).toHaveLength(2);
     expect(result.bufferPaths).toContainEqual(["array", 0, "nested"]);
     expect(result.bufferPaths).toContainEqual(["array", 1, 0]);
-  });
-});
-
-describe("isWireFormat", () => {
-  it("should return true for valid wire format", () => {
-    const wireFormat: WireFormat = {
-      state: { a: 1 },
-      bufferPaths: [],
-      buffers: [],
-    };
-    expect(isWireFormat(wireFormat)).toBe(true);
-  });
-
-  it("should return true for wire format with data", () => {
-    const wireFormat: WireFormat = {
-      state: { value: "SGVsbG8=" },
-      bufferPaths: [["value"]],
-      buffers: ["SGVsbG8=" as Base64String],
-    };
-    expect(isWireFormat(wireFormat)).toBe(true);
-  });
-
-  it("should return false for null", () => {
-    expect(isWireFormat(null)).toBe(false);
-  });
-
-  it("should return false for non-objects", () => {
-    expect(isWireFormat("string")).toBe(false);
-    expect(isWireFormat(123)).toBe(false);
-    expect(isWireFormat(true)).toBe(false);
-    expect(isWireFormat(undefined)).toBe(false);
-  });
-
-  it("should return false when missing state", () => {
-    expect(isWireFormat({ bufferPaths: [], buffers: [] })).toBe(false);
-  });
-
-  it("should return false when missing bufferPaths", () => {
-    expect(isWireFormat({ state: {}, buffers: [] })).toBe(false);
-  });
-
-  it("should return false when missing buffers", () => {
-    expect(isWireFormat({ state: {}, bufferPaths: [] })).toBe(false);
-  });
-
-  it("should return false for plain objects", () => {
-    expect(isWireFormat({ a: 1, b: 2 })).toBe(false);
   });
 });
 

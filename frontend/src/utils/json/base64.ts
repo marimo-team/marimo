@@ -56,7 +56,13 @@ export function extractBase64FromDataURL(str: DataURLString): Base64String {
  */
 export function base64ToUint8Array(bytes: Base64String): Uint8Array {
   const binary = window.atob(bytes);
-  return Uint8Array.from(binary, (c) => c.charCodeAt(0));
+  // See benchmarks/base64-conversion.bench.ts for why we use a manual loop
+  const len = binary.length;
+  const uint8Array = new Uint8Array(len);
+  for (let i = 0; i < len; i++) {
+    uint8Array[i] = binary.charCodeAt(i);
+  }
+  return uint8Array;
 }
 
 /**
@@ -71,8 +77,13 @@ export function base64ToDataView(bytes: Base64String): DataView {
  * Convert a Uint8Array to a base64 string.
  */
 export function uint8ArrayToBase64(binary: Uint8Array): Base64String {
-  const chars = Array.from(binary, (byte) => String.fromCharCode(byte));
-  return window.btoa(chars.join("")) as Base64String;
+  // See benchmarks/uint8array-to-base64.bench.ts for why we use a manual loop
+  let binaryString = "";
+  const len = binary.length;
+  for (let i = 0; i < len; i++) {
+    binaryString += String.fromCharCode(binary[i]);
+  }
+  return window.btoa(binaryString) as Base64String;
 }
 
 /**
