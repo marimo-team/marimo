@@ -35,7 +35,7 @@ from marimo._runtime.commands import (
     UpdateCellConfigCommand,
     UpdateUIElementCommand,
     UpdateUserConfigCommand,
-    UpdateWidgetModelCommand,
+    ModelCommand,
     ValidateSQLCommand,
     kebab_case,
 )
@@ -74,7 +74,7 @@ __all__ = [
     "UpdateCellConfigCommand",
     "UpdateUIElementCommand",
     "UpdateUserConfigCommand",
-    "UpdateWidgetModelCommand",
+    "ModelCommand",
     "ValidateSQLCommand",
     "kebab_case",
 ]

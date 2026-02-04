@@ -680,38 +680,49 @@ class ListSecretKeysCommand(Command):
     request_id: RequestId
 
 
-class ModelMessage(msgspec.Struct, rename="camel"):
+class ModelUpdateMessage(
+    msgspec.Struct, tag="update", tag_field="method", rename="camel"
+):
     """Widget model state update message.
-
-    State changes for anywidget models, including state dict and binary buffer paths.
 
     Attributes:
         state: Model state updates.
         buffer_paths: Paths within state dict pointing to binary buffers.
-        method: Message type - "update" for state changes, "custom" for custom messages.
-        content: Content for custom messages (when method is "custom").
     """
 
     state: dict[str, Any]
     buffer_paths: list[list[Union[str, int]]]
-    method: str = "update"
-    content: Optional[Any] = None
 
 
-class UpdateWidgetModelCommand(Command):
-    """Update anywidget model state.
+class ModelCustomMessage(
+    msgspec.Struct, tag="custom", tag_field="method", rename="camel"
+):
+    """Custom widget message.
 
-    Updates widget model state for bidirectional Python-JavaScript communication.
+    Attributes:
+        content: Arbitrary content for the custom message.
+    """
+
+    content: Any
+
+
+ModelMessage = Union[ModelUpdateMessage, ModelCustomMessage]
+
+
+class ModelCommand(Command):
+    """Widget model message command.
+
+    Handles widget model communication between frontend and backend.
 
     Attributes:
         model_id: Widget model identifier.
-        message: Model message with state updates and buffer paths.
-        buffers: Base64-encoded binary buffers referenced by buffer_paths.
+        message: Model message (update or custom).
+        buffers: Base64-encoded binary buffers.
     """
 
     model_id: WidgetModelId
     message: ModelMessage
-    buffers: Optional[list[str]] = None
+    buffers: list[bytes]
 
 
 class RefreshSecretsCommand(Command):
@@ -759,7 +770,7 @@ CommandMessage = Union[
     InstallPackagesCommand,
     # UI element and widget model operations
     UpdateUIElementCommand,
-    UpdateWidgetModelCommand,
+    ModelCommand,
     InvokeFunctionCommand,
     # User/configuration operations
     UpdateUserConfigCommand,

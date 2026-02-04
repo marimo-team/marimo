@@ -130,7 +130,7 @@ from marimo._runtime.commands import (
     UpdateCellConfigCommand,
     UpdateUIElementCommand,
     UpdateUserConfigCommand,
-    UpdateWidgetModelCommand,
+    ModelCommand,
     ValidateSQLCommand,
 )
 from marimo._runtime.context import (
@@ -2276,12 +2276,10 @@ class Kernel:
             await self.rename_file(request.filename)
 
         async def handle_receive_model_message(
-            request: UpdateWidgetModelCommand,
+            request: ModelCommand,
         ) -> None:
-            buffers = request.buffers or []
-            buffers_as_bytes = [base64.b64decode(buffer) for buffer in buffers]
             ui_element_id, state = WIDGET_COMM_MANAGER.receive_comm_message(
-                request.model_id, request.message, buffers_as_bytes
+                request.model_id, request.message, request.buffers
             )
 
             # If there's a ui_element_id, trigger a cell re-run
@@ -2334,7 +2332,7 @@ class Kernel:
         handler.register(UpdateCellConfigCommand, self.set_cell_config)
         handler.register(UpdateUIElementCommand, handle_set_ui_element_value)
         handler.register(
-            UpdateWidgetModelCommand, handle_receive_model_message
+            ModelCommand, handle_receive_model_message
         )
         handler.register(UpdateUserConfigCommand, handle_set_user_config)
         handler.register(StopKernelCommand, handle_stop)

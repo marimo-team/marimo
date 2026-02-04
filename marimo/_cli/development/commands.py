@@ -209,7 +209,7 @@ def _generate_server_api_schema() -> dict[str, Any]:
         commands.StopKernelCommand,
         commands.UpdateCellConfigCommand,
         commands.UpdateUserConfigCommand,
-        commands.UpdateWidgetModelCommand,
+        commands.ModelCommand,
         commands.ValidateSQLCommand,
         models.BaseResponse,
         models.ClearCacheRequest,
@@ -247,7 +247,7 @@ def _generate_server_api_schema() -> dict[str, Any]:
         models.UpdateUIElementValuesRequest,
         models.UpdateUIElementRequest,
         models.UpdateUserConfigRequest,
-        models.UpdateWidgetModelRequest,
+        models.ModelRequest,
         models.ValidateSQLRequest,
     ]
 

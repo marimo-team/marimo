@@ -1,17 +1,30 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Callable, Optional, cast
 
 from marimo._loggers import marimo_logger
+from marimo._messaging.notification import (
+    ModelClose,
+    ModelCustom,
+    ModelLifecycleNotification,
+    ModelMessage,
+    ModelOpen,
+    ModelUpdate,
+)
+from marimo._messaging.notification_utils import broadcast_notification
 from marimo._types.ids import WidgetModelId
 
 if TYPE_CHECKING:
     from marimo._plugins.ui._impl.anywidget.types import (
         TypedModelMessagePayload,
     )
-    from marimo._runtime.commands import ModelMessage
+
+from marimo._runtime.commands import (
+    ModelCustomMessage,
+    ModelMessage as ModelMessageCommand,
+    ModelUpdateMessage,
+)
 
 LOGGER = marimo_logger()
 
@@ -30,8 +43,8 @@ class MarimoCommManager:
     def receive_comm_message(
         self,
         comm_id: WidgetModelId,
-        message: ModelMessage,
-        buffers: Optional[list[bytes]],
+        message: ModelMessageCommand,
+        buffers: list[bytes],
     ) -> tuple[Optional[str], Optional[dict[str, Any]]]:
         """Receive a message from the frontend and forward to the comm.
 
@@ -46,25 +59,34 @@ class MarimoCommManager:
 
         comm = self.comms[comm_id]
 
-        msg: TypedModelMessagePayload = {
-            "content": {
-                "data": {
-                    "state": message.state,
-                    "method": message.method,
-                    "buffer_paths": message.buffer_paths,
-                    "content": message.content,
-                }
-            },
-            "buffers": buffers or [],
-        }
-
-        # Forward to the comm's message handler (anywidget will update its state)
-        comm.handle_msg(cast(Msg, msg))
-
-        # For "update" messages, return the ui_element_id and state
-        # so the caller can trigger a cell re-run
-        if message.method == "update" and comm.ui_element_id:
-            return (comm.ui_element_id, message.state)
+        # Build the message payload based on message type
+        if isinstance(message, ModelUpdateMessage):
+            msg: TypedModelMessagePayload = {
+                "content": {
+                    "data": {
+                        "state": message.state,
+                        "method": "update",
+                        "buffer_paths": message.buffer_paths,
+                    }
+                },
+                "buffers": buffers,
+            }
+            # Forward to the comm's message handler
+            comm.handle_msg(cast(Msg, msg))
+            # For update messages, return ui_element_id and state for cell re-run
+            if comm.ui_element_id:
+                return (comm.ui_element_id, message.state)
+        elif isinstance(message, ModelCustomMessage):
+            msg = {
+                "content": {
+                    "data": {
+                        "method": "custom",
+                        "content": message.content,
+                    }
+                },
+                "buffers": buffers,
+            }
+            comm.handle_msg(cast(Msg, msg))
 
         return (None, None)
 
@@ -75,17 +97,41 @@ DataType = Optional[dict[str, Any]]
 MetadataType = Optional[dict[str, Any]]
 BufferType = Optional[list[bytes]]
 
-COMM_MESSAGE_NAME = "marimo_comm_msg"
-COMM_OPEN_NAME = "marimo_comm_open"
-COMM_CLOSE_NAME = "marimo_comm_close"
 
+def _create_model_message(
+    data: dict[str, Any],
+    buffers: list[bytes],
+) -> ModelMessage:
+    """Create the appropriate ModelMessage based on the method field."""
+    method = data.get("method", "update")
+    state = data.get("state", {})
+    buffer_paths = data.get("buffer_paths", [])
 
-@dataclass
-class MessageBufferData:
-    data: dict[str, Any]
-    metadata: dict[str, Any]
-    buffers: list[bytes]
-    model_id: WidgetModelId
+    if method == "open":
+        return ModelOpen(
+            state=state,
+            buffer_paths=buffer_paths,
+            buffers=buffers,
+        )
+    elif method == "update":
+        return ModelUpdate(
+            state=state,
+            buffer_paths=buffer_paths,
+            buffers=buffers,
+        )
+    elif method == "custom":
+        return ModelCustom(
+            content=data.get("content"),
+            buffers=buffers,
+        )
+    else:
+        # Default to update for unknown methods
+        LOGGER.warning("Unknown method: %s, defaulting to update", method)
+        return ModelUpdate(
+            state=state,
+            buffer_paths=buffer_paths,
+            buffers=buffers,
+        )
 
 
 # Compare to `ipykernel.comm.Comm`
@@ -107,6 +153,8 @@ class MarimoComm:
         buffers: BufferType = None,
         **keys: object,
     ) -> None:
+        del keys  # unused
+        del metadata  # unused
         self._msg_callback: Optional[MsgCallback] = None
         self._close_callback: Optional[MsgCallback] = None
         self._closed: bool = False
@@ -116,9 +164,24 @@ class MarimoComm:
         self.comm_manager = comm_manager
         self.target_name = target_name
         self.ui_element_id: Optional[str] = None
-        self._publish_message_buffer: list[MessageBufferData] = []
-        self.open(data=data, metadata=metadata, buffers=buffers, **keys)
+        self._open(data=data, buffers=buffers)
 
+    def _open(
+        self,
+        data: DataType = None,
+        buffers: BufferType = None,
+    ) -> None:
+        """Open the comm and send initial state."""
+        LOGGER.debug("Opening comm %s", self.comm_id)
+        self.comm_manager.register_comm(self)
+        try:
+            self._broadcast(data or {}, buffers or [])
+            self._closed = False
+        except Exception:
+            self.comm_manager.unregister_comm(self)
+            raise
+
+    # Legacy method for ipywidgets compatibility
     def open(
         self,
         data: DataType = None,
@@ -126,38 +189,19 @@ class MarimoComm:
         buffers: BufferType = None,
         **keys: object,
     ) -> None:
-        LOGGER.debug("Opening comm %s", self.comm_id)
-        self.comm_manager.register_comm(self)
-        try:
-            self._publish_msg(
-                COMM_OPEN_NAME,
-                data=data,
-                metadata=metadata,
-                buffers=buffers,
-                target_name=self.target_name,
-                target_module=None,
-                **keys,
-            )
-            self._closed = False
-        except Exception:
-            self.comm_manager.unregister_comm(self)
-            raise
+        del metadata, keys  # unused
+        self._open(data=data, buffers=buffers)
 
-    # Inform client of any mutation(s) to the model
-    # (e.g., add a marker to a map, without a full redraw)
     def send(
         self,
         data: DataType = None,
         metadata: MetadataType = None,
         buffers: BufferType = None,
     ) -> None:
+        """Send a message to the frontend (state update or custom message)."""
+        del metadata  # unused
         LOGGER.debug("Sending comm message %s", self.comm_id)
-        self._publish_msg(
-            COMM_MESSAGE_NAME,
-            data=data,
-            metadata=metadata,
-            buffers=buffers,
-        )
+        self._broadcast(data or {}, buffers or [])
 
     def close(
         self,
@@ -166,94 +210,35 @@ class MarimoComm:
         buffers: BufferType = None,
         deleting: bool = False,
     ) -> None:
+        """Close the comm."""
+        del data, metadata, buffers  # unused for close
         LOGGER.debug("Closing comm %s", self.comm_id)
         if self._closed:
             return
         self._closed = True
-        data = self._closed_data if data is None else data
-        self._publish_msg(
-            COMM_CLOSE_NAME,
-            data=data,
-            metadata=metadata,
-            buffers=buffers,
+
+        broadcast_notification(
+            ModelLifecycleNotification(
+                model_id=self.comm_id,
+                message=ModelClose(),
+            )
         )
+
         if not deleting:
-            # If deleting, the comm can't be unregistered
             self.comm_manager.unregister_comm(self)
 
-    # trigger close on gc
     def __del__(self) -> None:
         self.close(deleting=True)
 
-    # Compare to `ipykernel.comm.Comm._publish_msg`, but...
-    # https://github.com/jupyter/jupyter_client/blob/c5c0b80/jupyter_client/session.py#L749
-    # ...the real meat of the implement
-    #   is in `jupyter_client.session.Session.send`
-    # https://github.com/jupyter/jupyter_client/blob/c5c0b8/jupyter_client/session.py#L749-L862
-    def _publish_msg(
-        self,
-        msg_type: str,
-        data: DataType = None,
-        metadata: MetadataType = None,
-        buffers: BufferType = None,
-        **keys: object,
-    ) -> None:
-        LOGGER.debug(
-            "Publishing message %s for comm %s", msg_type, self.comm_id
+    def _broadcast(self, data: dict[str, Any], buffers: list[bytes]) -> None:
+        """Broadcast a model lifecycle notification."""
+        message = _create_model_message(data, buffers)
+        broadcast_notification(
+            ModelLifecycleNotification(
+                model_id=self.comm_id,
+                message=message,
+            )
         )
-        del keys
-        data = {} if data is None else data
-        metadata = {} if metadata is None else metadata
-        buffers = [] if buffers is None else buffers
-
-        if msg_type == COMM_OPEN_NAME:
-            self._publish_message_buffer.append(
-                MessageBufferData(
-                    data, metadata, buffers, model_id=self.comm_id
-                )
-            )
-            self.flush()
-            return
-
-        if msg_type == COMM_MESSAGE_NAME:
-            self._publish_message_buffer.append(
-                MessageBufferData(
-                    data, metadata, buffers, model_id=self.comm_id
-                )
-            )
-            self.flush()
-            return
-
-        if msg_type == COMM_CLOSE_NAME:
-            self._publish_message_buffer.append(
-                MessageBufferData(
-                    data, metadata, buffers, model_id=self.comm_id
-                )
-            )
-            self.flush()
-            return
-
-        LOGGER.warning("Unknown message type: %s", msg_type)
-
-    def flush(self) -> None:
-        from marimo._messaging.notification import (
-            UIElementMessageNotification,
-        )
-        from marimo._messaging.notification_utils import broadcast_notification
-
-        while self._publish_message_buffer:
-            item = self._publish_message_buffer.pop(0)
-
-            broadcast_notification(
-                UIElementMessageNotification(
-                    # ui_element_id can be None. In this case, we are creating a model
-                    # not tied to a specific UI element
-                    ui_element=self.ui_element_id,
-                    model_id=item.model_id,
-                    message=item.data,
-                    buffers=item.buffers,
-                ),
-            )
 
     # This is the method that ipywidgets.widgets.Widget uses to respond to
     # client-side changes
