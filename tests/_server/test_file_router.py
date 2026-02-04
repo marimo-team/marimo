@@ -180,6 +180,21 @@ class TestAppFileRouter(unittest.TestCase):
             router.get_file_manager(AppFileRouter.NEW_FILE)
         assert exc.value.status_code == HTTPStatus.NOT_FOUND
 
+    def test_list_of_files_resolve_file_path_supports_relative_key(self):
+        files = [
+            MarimoFile(
+                name="test.py",
+                path=self.test_file1.name,
+                last_modified=os.path.getmtime(self.test_file1.name),
+            )
+        ]
+        router = ListOfFilesAppFileRouter(files, directory=self.test_dir)
+        relative_key = str(
+            Path(self.test_file1.name).relative_to(self.test_dir)
+        )
+        resolved = router.resolve_file_path(relative_key)
+        assert resolved == self.test_file1.name
+
     def test_lazy_list_of_get_app_file_manager(self):
         router = LazyListOfFilesAppFileRouter(
             self.test_dir, include_markdown=False

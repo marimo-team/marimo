@@ -1635,6 +1635,11 @@ components:
           default: null
         name:
           type: string
+        opengraph:
+          anyOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/OpenGraphMetadata'
+          default: null
         path:
           type: string
       required:
@@ -3083,6 +3088,29 @@ components:
           type: boolean
       required: []
       title: OpenAiConfig
+      type: object
+    OpenGraphMetadata:
+      description: "OpenGraph-style metadata for a notebook.\n\n    The `image` field\
+        \ may be either:\n    - a relative path (typically under `__marimo__/`), or\n\
+        \    - an absolute HTTPS URL."
+      properties:
+        description:
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+        image:
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+        title:
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+      required: []
+      title: OpenGraphMetadata
       type: object
     OpenTutorialRequest:
       properties:
@@ -4658,7 +4686,7 @@ components:
       type: object
 info:
   title: marimo API
-  version: 0.19.6
+  version: 0.19.7
 openapi: 3.1.0
 paths:
   /@file/{filename_and_length}:

@@ -5,6 +5,7 @@ import inspect
 import os
 import sys
 import tempfile
+import textwrap
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -203,6 +204,41 @@ def test_workspace_files_run_mode_allowlist(client: TestClient) -> None:
             str(file_one),
             str(file_two),
         }
+
+
+@with_session(SESSION_ID)
+def test_thumbnail_redirects_for_https_opengraph_image(
+    client: TestClient,
+) -> None:
+    session_manager = get_session_manager(client)
+    session_manager.mode = SessionMode.RUN
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        marimo_file = Path(temp_dir) / "notebook.py"
+        marimo_file.write_text(
+            textwrap.dedent(
+                """
+                # /// script
+                # [tool.marimo.opengraph]
+                # image = "https://example.com/opengraph.png"
+                # ///
+                import marimo
+                app = marimo.App()
+                """
+            ).lstrip()
+        )
+
+        session_manager.file_router = AppFileRouter.from_directory(temp_dir)
+
+        response = client.get(
+            "/og/thumbnail?file=notebook.py",
+            headers=HEADERS,
+            follow_redirects=False,
+        )
+        assert response.status_code == 307
+        assert (
+            response.headers["location"] == "https://example.com/opengraph.png"
+        )
 
 
 @with_session(SESSION_ID)

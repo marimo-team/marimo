@@ -13,7 +13,7 @@ from marimo._ast.app import InternalApp
 from marimo._ast.errors import CycleError, MultipleDefinitionError
 from marimo._ast.load import load_app
 from marimo._cli.print import echo
-from marimo._config.config import RuntimeConfig
+from marimo._config.config import DisplayConfig, RuntimeConfig
 from marimo._config.manager import (
     get_default_config_manager,
 )
@@ -245,6 +245,8 @@ async def run_app_then_export_as_html(
     include_code: bool,
     cli_args: SerializedCLIArgs,
     argv: list[str],
+    *,
+    asset_url: str | None = None,
 ) -> ExportResult:
     # Create a file router and file manager
     file_router = AppFileRouter.from_filename(path)
@@ -256,6 +258,7 @@ async def run_app_then_export_as_html(
     file_manager.app.inline_layout_file()
 
     config = get_default_config_manager(current_path=file_manager.path)
+    display_config = cast(DisplayConfig, config.get_config()["display"])
     session_view, did_error = await run_app_until_completion(
         file_manager,
         cli_args,
@@ -266,17 +269,65 @@ async def run_app_then_export_as_html(
         filename=file_manager.filename,
         app=file_manager.app,
         session_view=session_view,
-        display_config=config.get_config()["display"],
+        display_config=display_config,
         request=ExportAsHTMLRequest(
             include_code=include_code,
             download=False,
             files=[],
+            asset_url=asset_url,
         ),
     )
     return ExportResult(
         contents=html,
         download_filename=filename,
         did_error=did_error,
+    )
+
+
+async def export_as_html_without_execution(
+    path: MarimoPath,
+    include_code: bool,
+    *,
+    asset_url: str | None = None,
+) -> ExportResult:
+    """Export a notebook to HTML without executing its cells."""
+    from marimo._session.state.session_view import SessionView
+
+    file_router = AppFileRouter.from_filename(path)
+    file_key = file_router.get_unique_file_key()
+    if file_key is None:
+        raise RuntimeError(
+            "Expected a unique file key when exporting a single notebook: "
+            f"{path.absolute_name}"
+        )
+    file_manager = file_router.get_file_manager(file_key)
+
+    # Inline the layout file, if it exists.
+    file_manager.app.inline_layout_file()
+
+    view = SessionView()
+    for cell_data in file_manager.app.cell_manager.cell_data():
+        view.last_executed_code[cell_data.cell_id] = cell_data.code
+
+    config = get_default_config_manager(current_path=file_manager.path)
+    display_config = cast(DisplayConfig, config.get_config()["display"])
+
+    html, filename = Exporter().export_as_html(
+        filename=file_manager.filename,
+        app=file_manager.app,
+        session_view=view,
+        display_config=display_config,
+        request=ExportAsHTMLRequest(
+            include_code=include_code,
+            download=False,
+            files=[],
+            asset_url=asset_url,
+        ),
+    )
+    return ExportResult(
+        contents=html,
+        download_filename=filename,
+        did_error=False,
     )
 
 

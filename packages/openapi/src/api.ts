@@ -4040,6 +4040,8 @@ export interface components {
       /** @default null */
       lastModified?: number | null;
       name: string;
+      /** @default null */
+      opengraph?: null | components["schemas"]["OpenGraphMetadata"];
       path: string;
     };
     /** FileListRequest */
@@ -4894,6 +4896,22 @@ export interface components {
       model?: string;
       project?: string;
       ssl_verify?: boolean;
+    };
+    /**
+     * OpenGraphMetadata
+     * @description OpenGraph-style metadata for a notebook.
+     *
+     *         The `image` field may be either:
+     *         - a relative path (typically under `__marimo__/`), or
+     *         - an absolute HTTPS URL.
+     */
+    OpenGraphMetadata: {
+      /** @default null */
+      description?: string | null;
+      /** @default null */
+      image?: string | null;
+      /** @default null */
+      title?: string | null;
     };
     /** OpenTutorialRequest */
     OpenTutorialRequest: {

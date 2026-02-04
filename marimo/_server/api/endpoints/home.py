@@ -91,15 +91,56 @@ async def workspace_files(
                         $ref: "#/components/schemas/WorkspaceFilesResponse"
     """
     body = await parse_request(request, cls=WorkspaceFilesRequest)
-    session_manager = AppState(request).session_manager
+    app_state = AppState(request)
+    session_manager = app_state.session_manager
 
     if session_manager.mode == SessionMode.RUN:
-        files = await asyncio.to_thread(
-            lambda: session_manager.file_router.files
+        from marimo._metadata.opengraph import (
+            OpenGraphContext,
+            resolve_opengraph_metadata,
         )
-        marimo_files = [
-            file for file in flatten_files(files) if file.is_marimo_file
-        ]
+        from marimo._server.models.files import FileInfo
+
+        base_url = app_state.base_url
+        mode = session_manager.mode.value
+
+        def get_files_with_metadata() -> list[FileInfo]:
+            files = session_manager.file_router.files
+            marimo_files = [
+                file for file in flatten_files(files) if file.is_marimo_file
+            ]
+            result: list[FileInfo] = []
+            for file in marimo_files:
+                resolved_path = session_manager.file_router.resolve_file_path(
+                    file.path
+                )
+                opengraph = None
+                if resolved_path is not None:
+                    # User-defined OpenGraph generators receive this context for dynamic metadata
+                    opengraph = resolve_opengraph_metadata(
+                        resolved_path,
+                        context=OpenGraphContext(
+                            filepath=resolved_path,
+                            file_key=file.path,
+                            base_url=base_url,
+                            mode=mode,
+                        ),
+                    )
+                result.append(
+                    FileInfo(
+                        id=file.id,
+                        path=file.path,
+                        name=file.name,
+                        is_directory=file.is_directory,
+                        is_marimo_file=file.is_marimo_file,
+                        last_modified=file.last_modified,
+                        children=file.children,
+                        opengraph=opengraph,
+                    )
+                )
+            return result
+
+        marimo_files = await asyncio.to_thread(get_files_with_metadata)
         file_count = len(marimo_files)
         has_more = file_count >= MAX_FILES
         return WorkspaceFilesResponse(

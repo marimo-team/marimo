@@ -8,7 +8,12 @@ from typing import TYPE_CHECKING
 
 from starlette.authentication import requires
 from starlette.exceptions import HTTPException
-from starlette.responses import FileResponse, HTMLResponse, Response
+from starlette.responses import (
+    FileResponse,
+    HTMLResponse,
+    RedirectResponse,
+    Response,
+)
 from starlette.staticfiles import StaticFiles
 
 from marimo import _loggers
@@ -75,6 +80,89 @@ except RuntimeError:
 FILE_QUERY_PARAM_KEY = "file"
 
 
+@router.get("/og/thumbnail", include_in_schema=False)
+@requires("read")
+def og_thumbnail(*, request: Request) -> Response:
+    """Serve a notebook thumbnail for gallery/OpenGraph use."""
+    from pathlib import Path
+
+    from marimo._metadata.opengraph import (
+        DEFAULT_OPENGRAPH_PLACEHOLDER_IMAGE_GENERATOR,
+        OpenGraphContext,
+        is_https_url,
+        resolve_opengraph_metadata,
+    )
+    from marimo._utils.http import HTTPException, HTTPStatus
+    from marimo._utils.paths import normalize_path
+
+    app_state = AppState(request)
+    file_key = (
+        app_state.query_params(FILE_QUERY_PARAM_KEY)
+        or app_state.session_manager.file_router.get_unique_file_key()
+    )
+    if not file_key:
+        raise HTTPException(
+            status_code=HTTPStatus.NOT_FOUND, detail="File not found"
+        )
+
+    notebook_path = app_state.session_manager.file_router.resolve_file_path(
+        file_key
+    )
+    if notebook_path is None:
+        raise HTTPException(
+            status_code=HTTPStatus.NOT_FOUND, detail="File not found"
+        )
+
+    notebook_dir = normalize_path(Path(notebook_path)).parent
+    marimo_dir = notebook_dir / "__marimo__"
+
+    # User-defined OpenGraph generators receive this context (file key, base URL, mode)
+    # so they can compute metadata dynamically for gallery cards, social previews, and other modes.
+    opengraph = resolve_opengraph_metadata(
+        notebook_path,
+        context=OpenGraphContext(
+            filepath=notebook_path,
+            file_key=file_key,
+            base_url=app_state.base_url,
+            mode=app_state.mode.value,
+        ),
+    )
+    title = opengraph.title or "marimo"
+    image = opengraph.image
+
+    validator = PathValidator()
+    if image:
+        if is_https_url(image):
+            return RedirectResponse(
+                url=image,
+                status_code=307,
+                headers={"Cache-Control": "max-age=3600"},
+            )
+
+        rel_path = Path(image)
+        if not rel_path.is_absolute():
+            file_path = normalize_path(notebook_dir / rel_path)
+            # Only allow serving from the notebook's __marimo__ directory.
+            try:
+                if file_path.is_file():
+                    validator.validate_inside_directory(marimo_dir, file_path)
+                    return FileResponse(
+                        file_path,
+                        headers={"Cache-Control": "max-age=3600"},
+                    )
+            except HTTPException:
+                # Treat invalid paths as a miss; fall back to placeholder.
+                pass
+
+    placeholder = DEFAULT_OPENGRAPH_PLACEHOLDER_IMAGE_GENERATOR(title)
+    return Response(
+        content=placeholder.content,
+        media_type=placeholder.media_type,
+        # Avoid caching placeholders so newly-generated screenshots show up immediately on refresh.
+        headers={"Cache-Control": "no-store"},
+    )
+
+
 async def _fetch_index_html_from_url(asset_url: str) -> str:
     """Fetch index.html from the given asset URL."""
     import marimo._utils.requests as requests
@@ -108,8 +196,9 @@ async def index(request: Request) -> HTMLResponse:
     app_state = AppState(request)
     index_html = root / "index.html"
 
+    file_key_from_query = app_state.query_params(FILE_QUERY_PARAM_KEY)
     file_key = (
-        app_state.query_params(FILE_QUERY_PARAM_KEY)
+        file_key_from_query
         or app_state.session_manager.file_router.get_unique_file_key()
     )
 
@@ -147,6 +236,7 @@ async def index(request: Request) -> HTMLResponse:
         LOGGER.debug(f"File key provided: {file_key}")
         app_manager = app_state.session_manager.app_manager(file_key)
         app_config = app_manager.app.config
+        absolute_filepath = app_manager.filename
 
         # Pre-compute notebook snapshot for faster initial render
         # Only in EDIT + SandboxMode.MULTI where each notebook gets its own IPC
@@ -186,6 +276,7 @@ async def index(request: Request) -> HTMLResponse:
             server_token=app_state.skew_protection_token,
             app_config=app_config,
             filename=filename,
+            filepath=absolute_filepath,
             mode=app_state.mode,
             notebook_snapshot=notebook_snapshot,
             runtime_config=[{"url": app_state.remote_url}]
