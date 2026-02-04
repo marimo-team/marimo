@@ -62,8 +62,8 @@ describe("useFileState", () => {
 
     expect(result.current.files).toEqual([]);
     expect(toast).toHaveBeenCalledWith({
-      title: "Attachments too large",
-      description: "The total size must be under 50 MB.",
+      title: "File size exceeded",
+      description: "Attachments must be under 50 MB",
       variant: "danger",
     });
   });

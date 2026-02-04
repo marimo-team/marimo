@@ -702,7 +702,7 @@ const ChatPanelBody = () => {
 
         {error && (
           <div className="flex items-center justify-center space-x-2 mb-4">
-            <ErrorBanner error={error ?? new Error("Unknown error")} />
+            <ErrorBanner error={error || new Error("Unknown error")} />
             <Button variant="outline" size="sm" onClick={handleReload}>
               Retry
             </Button>

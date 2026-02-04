@@ -224,8 +224,8 @@ export function useFileState() {
     const totalSize = newFiles.reduce((size, file) => size + file.size, 0);
     if (totalSize > MAX_ATTACHMENT_SIZE) {
       toast({
-        title: "Attachments too large",
-        description: "The total size must be under 50 MB.",
+        title: "File size exceeded",
+        description: "Attachments must be under 50 MB",
         variant: "danger",
       });
       return;
