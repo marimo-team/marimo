@@ -319,7 +319,7 @@ class Exporter:
             app: The app to export
             session_view: The session view to export. If None, outputs are not included.
             webpdf: If False, tries standard PDF export (pandoc + TeX) first,
-                falling back to webpdf if deps are not installed. If True, uses webpdf
+                falling back to webpdf on failure. If True, uses webpdf
                 directly.
 
         Returns:
