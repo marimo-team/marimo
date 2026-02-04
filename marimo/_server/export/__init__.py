@@ -295,7 +295,11 @@ async def export_as_html_without_execution(
 
     file_router = AppFileRouter.from_filename(path)
     file_key = file_router.get_unique_file_key()
-    assert file_key is not None
+    if file_key is None:
+        raise RuntimeError(
+            "Expected a unique file key when exporting a single notebook: "
+            f"{path.absolute_name}"
+        )
     file_manager = file_router.get_file_manager(file_key)
 
     # Inline the layout file, if it exists.
