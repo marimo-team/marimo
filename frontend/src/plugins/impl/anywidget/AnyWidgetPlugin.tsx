@@ -2,7 +2,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import type { AnyWidget, Experimental } from "@anywidget/types";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useRef } from "react";
 import { z } from "zod";
 import { asRemoteURL } from "@/core/runtime/config";
 import { resolveVirtualFileURL } from "@/core/static/files";
@@ -133,7 +133,6 @@ export const AnyWidgetPlugin = createPlugin<ModelIdRef>("marimo-anywidget")
 const AnyWidgetSlot = (props: IPluginProps<ModelIdRef, Data>) => {
   const { css, jsUrl, jsHash } = props.data;
   const { model_id: modelId } = props.value;
-  const data = props.data;
   const host = props.host as HTMLElementNotDerivedFromRef;
 
   const { jsModule, error } = useAnyWidgetModule({ jsUrl, jsHash });
@@ -165,8 +164,6 @@ const AnyWidgetSlot = (props: IPluginProps<ModelIdRef, Data>) => {
       // Plugins may be stateful and we cannot make assumptions that we won't be
       // so it is safer to just re-render.
       key={key}
-      data={data}
-      host={host}
       widget={jsModule.default}
       modelId={modelId}
     />
@@ -213,30 +210,30 @@ async function runAnyWidgetModule<T extends AnyWidgetState>(
 }
 
 function isAnyWidgetModule(mod: any): mod is { default: AnyWidget } {
+  if (!mod.default) {
+    return false;
+  }
+
   return (
-    mod.default &&
-    (typeof mod.default === "function" ||
-      mod.default?.render ||
-      mod.default?.initialize)
+    typeof mod.default === "function" ||
+    typeof mod.default?.render === "function" ||
+    typeof mod.default?.initialize === "function"
   );
 }
 
 interface Props<T extends AnyWidgetState> {
-  data: Data;
   widget: AnyWidget<T>;
   modelId: WidgetModelId;
-  host: HTMLElementNotDerivedFromRef;
 }
 
 const LoadedSlot = <T extends AnyWidgetState>({
   widget,
-  data,
   modelId,
 }: Props<T> & { widget: AnyWidget<T> }) => {
   const htmlRef = useRef<HTMLDivElement>(null);
 
   // value is already decoded from wire format, may be null if waiting for open message
-  const model = useMemo(() => MODEL_MANAGER.getSync(modelId), [modelId]);
+  const model = MODEL_MANAGER.getSync(modelId);
 
   if (!model) {
     Logger.error("Model not found for modelId", modelId);
@@ -250,12 +247,12 @@ const LoadedSlot = <T extends AnyWidgetState>({
     return () => {
       unsubPromise.then((unsub) => unsub());
     };
-    // We re-run the widget when the jsUrl changes, which means the cell
+    // We re-run the widget when the modelId changes, which means the cell
     // that created the Widget has been re-run.
     // We need to re-run the widget because it may contain initialization code
     // that could be reset by the new widget.
     // See example: https://github.com/marimo-team/marimo/issues/3962#issuecomment-2703184123
-  }, [widget, data.jsUrl, model]);
+  }, [widget, modelId, model]);
 
   return <div ref={htmlRef} />;
 };
