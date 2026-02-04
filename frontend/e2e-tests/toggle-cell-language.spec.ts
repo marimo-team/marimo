@@ -28,8 +28,14 @@ test("change the cell to a markdown cell and toggle hide code", async ({
   await page.getByText("Convert to Markdown").click();
   await expect(title).toBeVisible();
 
-  // Code will be hidden by default (markdown initial hide code is true)
   const cellEditor = page.getByTestId("cell-editor");
+  await expect(cellEditor).toBeVisible();
+
+  // Blur the cell
+  await cellEditor.focus();
+  await cellEditor.blur();
+
+  // Expect code to be hidden (markdown initial hide code is true)
   await expect(cellEditor).toBeHidden();
 
   // Unhide code
