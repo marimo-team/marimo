@@ -688,10 +688,14 @@ class ModelMessage(msgspec.Struct, rename="camel"):
     Attributes:
         state: Model state updates.
         buffer_paths: Paths within state dict pointing to binary buffers.
+        method: Message type - "update" for state changes, "custom" for custom messages.
+        content: Content for custom messages (when method is "custom").
     """
 
     state: dict[str, Any]
     buffer_paths: list[list[Union[str, int]]]
+    method: str = "update"
+    content: Optional[Any] = None
 
 
 class UpdateWidgetModelCommand(Command):

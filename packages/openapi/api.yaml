@@ -3022,7 +3022,9 @@ components:
       description: "Widget model state update message.\n\n    State changes for anywidget\
         \ models, including state dict and binary buffer paths.\n\n    Attributes:\n\
         \        state: Model state updates.\n        buffer_paths: Paths within state\
-        \ dict pointing to binary buffers."
+        \ dict pointing to binary buffers.\n        method: Message type - \"update\"\
+        \ for state changes, \"custom\" for custom messages.\n        content: Content\
+        \ for custom messages (when method is \"custom\")."
       properties:
         bufferPaths:
           items:
@@ -3032,6 +3034,14 @@ components:
               - type: integer
             type: array
           type: array
+        content:
+          anyOf:
+          - {}
+          - type: 'null'
+          default: null
+        method:
+          default: update
+          type: string
         state:
           type: object
       required:

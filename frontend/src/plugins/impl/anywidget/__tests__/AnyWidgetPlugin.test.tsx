@@ -1,65 +1,17 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { act, render, waitFor } from "@testing-library/react";
+import { render, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { TestUtils } from "@/__tests__/test-helpers";
-import type { UIElementId } from "@/core/cells/ids";
-import { MarimoIncomingMessageEvent } from "@/core/dom/events";
-import { getDirtyFields, visibleForTesting } from "../AnyWidgetPlugin";
-import { Model } from "../model";
+import type { HTMLElementNotDerivedFromRef } from "@/hooks/useEventListener";
+import { visibleForTesting } from "../AnyWidgetPlugin";
+import { MODEL_MANAGER, Model } from "../model";
+import type { WidgetModelId } from "../types";
 
 const { LoadedSlot } = visibleForTesting;
 
-describe("getDirtyFields", () => {
-  it("should return empty set when values are equal", () => {
-    const value = { foo: "bar", baz: 123 };
-    const initialValue = { foo: "bar", baz: 123 };
-
-    const result = getDirtyFields(value, initialValue);
-
-    expect(result.size).toBe(0);
-  });
-
-  it("should return keys of changed values", () => {
-    const value = { foo: "changed", baz: 123 };
-    const initialValue = { foo: "bar", baz: 123 };
-
-    const result = getDirtyFields(value, initialValue);
-
-    expect(result.size).toBe(1);
-    expect(result.has("foo")).toBe(true);
-  });
-
-  it("should handle multiple changed values", () => {
-    const value = { foo: "changed", baz: 456, extra: "new" };
-    const initialValue = { foo: "bar", baz: 123, extra: "old" };
-
-    const result = getDirtyFields(value, initialValue);
-
-    expect(result.size).toBe(3);
-    expect(result.has("foo")).toBe(true);
-    expect(result.has("baz")).toBe(true);
-    expect(result.has("extra")).toBe(true);
-  });
-
-  it("should handle nested objects correctly", () => {
-    const value = { foo: "bar", nested: { a: 1, b: 2 } };
-    const initialValue = { foo: "bar", nested: { a: 1, b: 3 } };
-
-    const result = getDirtyFields(value, initialValue);
-
-    expect(result.size).toBe(1);
-    expect(result.has("nested")).toBe(true);
-  });
-
-  it("should handle subset of initial fields", () => {
-    const value = { foo: "bar", baz: 123 };
-    const initialValue = { foo: "bar", baz: 123, full: "value" };
-
-    const result = getDirtyFields(value, initialValue);
-    expect(result.size).toBe(0);
-  });
-});
+// Helper to create typed model IDs for tests
+const asModelId = (id: string): WidgetModelId => id as WidgetModelId;
 
 // Mock a minimal AnyWidget implementation
 const mockWidget = {
@@ -76,23 +28,26 @@ vi.mock("../AnyWidgetPlugin", async () => {
 });
 
 describe("LoadedSlot", () => {
+  const modelId = asModelId("test-model-id");
+  let mockModel: Model<{ count: number }>;
+
   const mockProps = {
-    value: { count: 0 },
-    setValue: vi.fn(),
     widget: mockWidget,
-    functions: {
-      send_to_widget: vi.fn().mockResolvedValue(null),
-    },
     data: {
       jsUrl: "http://example.com/widget.js",
       jsHash: "abc123",
-      initialValue: { count: 0 },
     },
-    host: document.createElement("div"),
+    host: document.createElement(
+      "div",
+    ) as unknown as HTMLElementNotDerivedFromRef,
+    modelId: modelId,
   };
 
   beforeEach(() => {
     vi.clearAllMocks();
+    // Create and register a mock model before each test
+    mockModel = new Model({ count: 0 }, vi.fn(), modelId);
+    MODEL_MANAGER.set(modelId, mockModel);
   });
 
   it("should render a div with ref", () => {
@@ -100,67 +55,22 @@ describe("LoadedSlot", () => {
     expect(container.querySelector("div")).not.toBeNull();
   });
 
-  it("should initialize model with merged values", () => {
-    const modelSpy = vi.spyOn(Model.prototype, "updateAndEmitDiffs");
-    render(<LoadedSlot {...mockProps} />);
-
-    expect(modelSpy).toHaveBeenCalledExactlyOnceWith({ count: 0 });
-  });
-
-  it("should update model when value prop changes", async () => {
-    const { rerender } = render(<LoadedSlot {...mockProps} />);
-    const modelSpy = vi.spyOn(Model.prototype, "updateAndEmitDiffs");
-
-    // Update the value prop
-    rerender(<LoadedSlot {...mockProps} value={{ count: 5 }} />);
-
-    // Model should be updated with the new value
-    expect(modelSpy).toHaveBeenCalledWith({ count: 5 });
-  });
-
-  it("should listen for incoming messages", async () => {
-    render(<LoadedSlot {...mockProps} />);
-
-    // Send a mock message
-    const mockMessageEvent = MarimoIncomingMessageEvent.create({
-      detail: {
-        objectId: "test-id" as UIElementId,
-        message: {
-          method: "update",
-          state: { count: 10 },
-          buffer_paths: [],
-        },
-        buffers: [],
-      },
-      bubbles: false,
-      composed: true,
-    });
-    const updateAndEmitDiffsSpy = vi.spyOn(Model.prototype, "set");
-
-    // Dispatch the event on the host element
-    act(() => {
-      mockProps.host.dispatchEvent(mockMessageEvent);
-    });
-
-    await waitFor(() => {
-      expect(updateAndEmitDiffsSpy).toHaveBeenCalledWith("count", 10);
-    });
-  });
-
   it("should call runAnyWidgetModule on initialization", async () => {
-    const { rerender } = render(<LoadedSlot {...mockProps} />);
+    render(<LoadedSlot {...mockProps} />);
 
     // Wait a render
     await waitFor(() => {
       expect(mockWidget.render).toHaveBeenCalled();
     });
+  });
 
-    // Render without any prop changes
-    rerender(<LoadedSlot {...mockProps} />);
-    await TestUtils.nextTick();
+  it("should re-run widget when jsUrl changes", async () => {
+    const { rerender } = render(<LoadedSlot {...mockProps} />);
 
-    // Still only called once
-    expect(mockWidget.render).toHaveBeenCalledTimes(1);
+    // Wait for initial render
+    await waitFor(() => {
+      expect(mockWidget.render).toHaveBeenCalled();
+    });
 
     // Change the jsUrl
     rerender(

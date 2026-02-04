@@ -9,35 +9,37 @@ import {
   vi,
 } from "vitest";
 import { TestUtils } from "@/__tests__/test-helpers";
-import type { Base64String } from "@/utils/json/base64";
 import {
   type AnyWidgetMessage,
   handleWidgetMessage,
   Model,
   visibleForTesting,
 } from "../model";
+import type { WidgetModelId } from "../types";
 
 const { ModelManager } = visibleForTesting;
+
+// Helper to create typed model IDs for tests
+const asModelId = (id: string): WidgetModelId => id as WidgetModelId;
+
+// Mock the request client
+const mockSendModelValue = vi.fn().mockResolvedValue(null);
+vi.mock("@/core/network/requests", () => ({
+  getRequestClient: () => ({
+    sendModelValue: mockSendModelValue,
+  }),
+}));
 
 describe("Model", () => {
   let model: Model<{ foo: string; bar: number }>;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let onChange: (value: any) => void;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let sendToWidget: (req: {
-    content: unknown;
-    buffers: Base64String[];
-  }) => Promise<null | undefined>;
+  const modelId = asModelId("test-model-id");
 
   beforeEach(() => {
     onChange = vi.fn();
-    sendToWidget = vi.fn().mockResolvedValue(null);
-    model = new Model(
-      { foo: "test", bar: 123 },
-      onChange,
-      sendToWidget,
-      new Set(),
-    );
+    mockSendModelValue.mockClear();
+    model = new Model({ foo: "test", bar: 123 }, onChange, modelId);
   });
 
   describe("get/set", () => {
@@ -147,10 +149,13 @@ describe("Model", () => {
       const callback = vi.fn();
       model.send({ test: true }, callback);
 
-      expect(sendToWidget).toHaveBeenCalledWith({
-        content: {
+      expect(mockSendModelValue).toHaveBeenCalledWith({
+        modelId: modelId,
+        message: {
           state: { test: true },
           bufferPaths: [],
+          method: "custom",
+          content: { test: true },
         },
         buffers: [],
       });
@@ -160,8 +165,8 @@ describe("Model", () => {
   });
 
   describe("widget_manager", () => {
-    const childModelId = "test-id";
-    const childModel = new Model({ foo: "test" }, vi.fn(), vi.fn(), new Set());
+    const childModelId = asModelId("test-id");
+    const childModel = new Model({ foo: "test" }, vi.fn(), childModelId);
     const manager = new ModelManager(10);
     let previousModelManager = Model._modelManager;
 
@@ -177,9 +182,9 @@ describe("Model", () => {
     });
 
     it("should throw error when accessing a model that is not registered", async () => {
-      await expect(model.widget_manager.get_model("random-id")).rejects.toThrow(
-        "Model not found for key: random-id",
-      );
+      await expect(
+        model.widget_manager.get_model(asModelId("random-id")),
+      ).rejects.toThrow("Model not found for key: random-id");
     });
 
     it("should return the registered model", async () => {
@@ -203,8 +208,7 @@ describe("Model", () => {
       const modelWithObject = new Model<{ foo: { nested: string } }>(
         { foo: { nested: "test" } },
         onChange,
-        sendToWidget,
-        new Set(),
+        modelId,
       );
       const callback = vi.fn();
       modelWithObject.on("change:foo", callback);
@@ -222,27 +226,13 @@ describe("Model", () => {
     });
   });
 
-  describe("receiveCustomMessage", () => {
-    it("should handle update messages", () => {
-      model.receiveCustomMessage({
-        method: "update",
-        state: {
-          foo: "updated",
-          bar: 789,
-        },
-        buffer_paths: [],
-      });
-
-      expect(model.get("foo")).toBe("updated");
-      expect(model.get("bar")).toBe(789);
-    });
-
+  describe("emitCustomMessage", () => {
     it("should handle custom messages", () => {
       const callback = vi.fn();
       model.on("msg:custom", callback);
 
       const content = { type: "test" };
-      model.receiveCustomMessage({
+      model.emitCustomMessage({
         method: "custom",
         content,
       });
@@ -256,7 +246,7 @@ describe("Model", () => {
 
       const content = { type: "test" };
       const buffer = new DataView(new ArrayBuffer(8));
-      model.receiveCustomMessage(
+      model.emitCustomMessage(
         {
           method: "custom",
           content,
@@ -266,26 +256,18 @@ describe("Model", () => {
 
       expect(callback).toHaveBeenCalledWith(content, [buffer]);
     });
-
-    it("should log error for invalid messages", () => {
-      const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {
-        // noop
-      });
-      model.receiveCustomMessage({ invalid: "message" });
-
-      expect(consoleSpy).toHaveBeenCalledTimes(2);
-    });
   });
 });
 
 describe("ModelManager", () => {
   let modelManager = new ModelManager(50);
+  const testId = asModelId("test-id");
   const handle = ({
     modelId,
     message,
     buffers,
   }: {
-    modelId: string;
+    modelId: WidgetModelId;
     message: AnyWidgetMessage;
     buffers: readonly DataView[];
   }) => {
@@ -303,23 +285,23 @@ describe("ModelManager", () => {
   });
 
   it("should set and get models", async () => {
-    const model = new Model({ count: 0 }, vi.fn(), vi.fn(), new Set());
-    modelManager.set("test-id", model);
-    const retrievedModel = await modelManager.get("test-id");
+    const model = new Model({ count: 0 }, vi.fn(), testId);
+    modelManager.set(testId, model);
+    const retrievedModel = await modelManager.get(testId);
     expect(retrievedModel).toBe(model);
   });
 
   it("should handle model not found", async () => {
-    await expect(modelManager.get("non-existent")).rejects.toThrow(
+    await expect(modelManager.get(asModelId("non-existent"))).rejects.toThrow(
       "Model not found for key: non-existent",
     );
   });
 
   it("should delete models", async () => {
-    const model = new Model({ count: 0 }, vi.fn(), vi.fn(), new Set());
-    modelManager.set("test-id", model);
-    modelManager.delete("test-id");
-    await expect(modelManager.get("test-id")).rejects.toThrow();
+    const model = new Model({ count: 0 }, vi.fn(), testId);
+    modelManager.set(testId, model);
+    modelManager.delete(testId);
+    await expect(modelManager.get(testId)).rejects.toThrow();
   });
 
   it("should handle widget messages", async () => {
@@ -329,8 +311,8 @@ describe("ModelManager", () => {
       buffer_paths: [],
     };
 
-    await handle({ modelId: "test-id", message: openMessage, buffers: [] });
-    const model = await modelManager.get("test-id");
+    await handle({ modelId: testId, message: openMessage, buffers: [] });
+    const model = await modelManager.get(testId);
     expect(model.get("count")).toBe(0);
 
     const updateMessage: AnyWidgetMessage = {
@@ -341,18 +323,18 @@ describe("ModelManager", () => {
       buffer_paths: [],
     };
 
-    await handle({ modelId: "test-id", message: updateMessage, buffers: [] });
+    await handle({ modelId: testId, message: updateMessage, buffers: [] });
     expect(model.get("count")).toBe(1);
   });
 
   it("should handle custom messages", async () => {
-    const model = new Model({ count: 0 }, vi.fn(), vi.fn(), new Set());
+    const model = new Model({ count: 0 }, vi.fn(), testId);
     const callback = vi.fn();
     model.on("msg:custom", callback);
-    modelManager.set("test-id", model);
+    modelManager.set(testId, model);
 
     await handle({
-      modelId: "test-id",
+      modelId: testId,
       message: { method: "custom", content: { count: 1 } },
       buffers: [],
     });
@@ -360,14 +342,14 @@ describe("ModelManager", () => {
   });
 
   it("should handle close messages", async () => {
-    const model = new Model({ count: 0 }, vi.fn(), vi.fn(), new Set());
-    modelManager.set("test-id", model);
+    const model = new Model({ count: 0 }, vi.fn(), testId);
+    modelManager.set(testId, model);
 
     await handle({
-      modelId: "test-id",
+      modelId: testId,
       message: { method: "close" },
       buffers: [],
     });
-    await expect(modelManager.get("test-id")).rejects.toThrow();
+    await expect(modelManager.get(testId)).rejects.toThrow();
   });
 });

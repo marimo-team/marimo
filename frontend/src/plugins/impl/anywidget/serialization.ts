@@ -1,23 +1,23 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import { get, set } from "lodash-es";
-import { invariant } from "./invariant";
+import { invariant } from "../../../utils/invariant";
 import {
   type Base64String,
   base64ToDataView,
   dataViewToBase64,
-} from "./json/base64";
-import { Logger } from "./Logger";
+} from "../../../utils/json/base64";
+import { Logger } from "../../../utils/Logger";
+import type { WireFormat } from "./types";
+
+type Path = (string | number)[];
 
 /**
  * Recursively find all DataViews in an object and return their paths.
  *
  * This mirrors ipywidgets' _separate_buffers logic.
  */
-function findDataViewPaths(
-  obj: unknown,
-  currentPath: (string | number)[] = [],
-): (string | number)[][] {
-  const paths: (string | number)[][] = [];
+function findDataViewPaths(obj: unknown, currentPath: Path = []): Path[] {
+  const paths: Path[] = [];
 
   if (obj instanceof DataView) {
     paths.push(currentPath);
@@ -51,7 +51,7 @@ export function serializeBuffersToBase64<T extends Record<string, unknown>>(
 
   const state = structuredClone(inputObject);
   const buffers: Base64String[] = [];
-  const bufferPaths: (string | number)[][] = [];
+  const bufferPaths: Path[] = [];
 
   for (const bufferPath of dataViewPaths) {
     const dataView = get(inputObject, bufferPath);
@@ -64,16 +64,6 @@ export function serializeBuffersToBase64<T extends Record<string, unknown>>(
   }
 
   return { state, buffers, bufferPaths };
-}
-
-/**
- * Wire format for anywidget state with binary data.
- * Buffers can be either base64 strings (from network) or DataViews (in-memory).
- */
-export interface WireFormat<T = Record<string, unknown>> {
-  state: T;
-  bufferPaths: (string | number)[][];
-  buffers: Base64String[];
 }
 
 /**
@@ -103,7 +93,7 @@ export function isWireFormat<T = Record<string, unknown>>(
  */
 export function decodeFromWire<T extends Record<string, unknown>>(input: {
   state: T;
-  bufferPaths?: (string | number)[][];
+  bufferPaths?: Path[];
   buffers?: readonly (DataView | Base64String)[];
 }): T {
   const { state, bufferPaths, buffers } = input;

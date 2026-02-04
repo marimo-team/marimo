@@ -14,6 +14,7 @@ import {
   isMessageWidgetState,
   MODEL_MANAGER,
 } from "@/plugins/impl/anywidget/model";
+import type { WidgetModelId } from "@/plugins/impl/anywidget/types";
 import { logNever } from "@/utils/assertNever";
 import { prettyError } from "@/utils/errors";
 import {
@@ -148,7 +149,7 @@ export function useMarimoKernelConnection(opts: {
 
         if (modelId && isMessageWidgetState(message)) {
           handleWidgetMessage({
-            modelId,
+            modelId: modelId as WidgetModelId,
             msg: message,
             buffers,
             modelManager: MODEL_MANAGER,

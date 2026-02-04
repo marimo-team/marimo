@@ -4859,9 +4859,15 @@ export interface components {
      *         Attributes:
      *             state: Model state updates.
      *             buffer_paths: Paths within state dict pointing to binary buffers.
+     *             method: Message type - "update" for state changes, "custom" for custom messages.
+     *             content: Content for custom messages (when method is "custom").
      */
     ModelMessage: {
       bufferPaths: (string | number)[][];
+      /** @default null */
+      content?: unknown | null;
+      /** @default update */
+      method?: string;
       state: Record<string, any>;
     };
     /** MultipleDefinitionError */

@@ -3,32 +3,43 @@
 
 import type { AnyModel } from "@anywidget/types";
 import { debounce } from "lodash-es";
-import { z } from "zod";
 import { getRequestClient } from "@/core/network/requests";
+import {
+  decodeFromWire,
+  serializeBuffersToBase64,
+} from "@/plugins/impl/anywidget/serialization";
 import { assertNever } from "@/utils/assertNever";
 import { Deferred } from "@/utils/Deferred";
-import { decodeFromWire, serializeBuffersToBase64 } from "@/utils/data-views";
-import { throwNotImplemented } from "@/utils/functions";
-import type { Base64String } from "@/utils/json/base64";
 import { Logger } from "@/utils/Logger";
+import { repl } from "@/utils/repl";
+import { type AnyWidgetMessage, AnyWidgetMessageSchema } from "./schemas";
+import type { EventHandler, ModelState, WidgetModelId } from "./types";
 
-export type EventHandler = (...args: any[]) => void;
+export type { AnyWidgetMessage };
 
 class ModelManager {
-  private models = new Map<string, Deferred<Model<any>>>();
+  /**
+   * Map of model ids to deferred promises
+   */
+  private models = new Map<WidgetModelId, Deferred<Model<ModelState>>>();
+
+  /**
+   * Timeout for model lookup
+   */
   private timeout: number;
+
   constructor(timeout = 10_000) {
     this.timeout = timeout;
   }
 
-  get(key: string): Promise<Model<any>> {
+  get(key: WidgetModelId): Promise<Model<any>> {
     let deferred = this.models.get(key);
     if (deferred) {
       return deferred.promise;
     }
 
     // If the model is not yet created, create the new deferred promise without resolving it
-    deferred = new Deferred<Model<any>>();
+    deferred = new Deferred<Model<ModelState>>();
     this.models.set(key, deferred);
 
     // Add timeout to prevent hanging
@@ -45,51 +56,66 @@ class ModelManager {
     return deferred.promise;
   }
 
-  set(key: string, model: Model<any>): void {
+  set(key: WidgetModelId, model: Model<any>): void {
     let deferred = this.models.get(key);
     if (!deferred) {
-      deferred = new Deferred<Model<any>>();
+      deferred = new Deferred<Model<ModelState>>();
       this.models.set(key, deferred);
     }
     deferred.resolve(model);
   }
 
-  delete(key: string): void {
+  /**
+   * Check if a model exists and has been resolved (not pending).
+   * This is useful for checking if a model was already created by the plugin
+   * before the 'open' message arrives.
+   */
+  has(key: WidgetModelId): boolean {
+    const deferred = this.models.get(key);
+    return deferred !== undefined && deferred.status === "resolved";
+  }
+
+  /**
+   * Get a model synchronously if it exists and has been resolved.
+   * Returns undefined if the model doesn't exist or is still pending.
+   */
+  getSync(key: WidgetModelId): Model<any> | undefined {
+    const deferred = this.models.get(key);
+    if (deferred && deferred.status === "resolved") {
+      return deferred.value;
+    }
+    return undefined;
+  }
+
+  delete(key: WidgetModelId): void {
     this.models.delete(key);
   }
 }
 
 export const MODEL_MANAGER = new ModelManager();
 
-export class Model<T extends Record<string, any>> implements AnyModel<T> {
+export class Model<T extends ModelState> implements AnyModel<T> {
   private ANY_CHANGE_EVENT = "change";
   private dirtyFields: Map<keyof T, unknown>;
+
   public static _modelManager: ModelManager = MODEL_MANAGER;
+
   private data: T;
   private onChange: (value: Partial<T>) => void;
-  private sendToWidget: (req: {
-    content: unknown;
-    buffers: Base64String[];
-  }) => Promise<null | undefined>;
+  private modelId: WidgetModelId;
 
   constructor(
     data: T,
     onChange: (value: Partial<T>) => void,
-    sendToWidget: (req: {
-      content: unknown;
-      buffers: Base64String[];
-    }) => Promise<null | undefined>,
-    initialDirtyFields: Set<keyof T>,
+    modelId: WidgetModelId,
   ) {
     this.data = data;
     this.onChange = onChange;
-    this.sendToWidget = sendToWidget;
-    this.dirtyFields = new Map(
-      [...initialDirtyFields].map((key) => [key, this.data[key]]),
-    );
+    this.modelId = modelId;
+    this.dirtyFields = new Map();
   }
 
-  private listeners: Record<string, Set<EventHandler>> = {};
+  private listeners: Record<string, Set<EventHandler> | undefined> = {};
 
   off(eventName?: string | null, callback?: EventHandler | null): void {
     if (!eventName) {
@@ -111,20 +137,25 @@ export class Model<T extends Record<string, any>> implements AnyModel<T> {
     _buffers?: ArrayBuffer[] | ArrayBufferView[],
   ): void {
     const { state, bufferPaths, buffers } = serializeBuffersToBase64(content);
-    this.sendToWidget({
-      content: {
-        state: state,
-        bufferPaths: bufferPaths,
-      },
-      buffers: buffers,
-    }).then(callbacks);
+    getRequestClient()
+      .sendModelValue({
+        modelId: this.modelId,
+        message: {
+          state: state,
+          bufferPaths: bufferPaths,
+          method: "custom",
+          content: content,
+        },
+        buffers: buffers,
+      })
+      .then(callbacks);
   }
 
   widget_manager = {
-    async get_model<TT extends Record<string, any>>(
-      model_id: string,
+    async get_model<TT extends ModelState>(
+      model_id: WidgetModelId,
     ): Promise<AnyModel<TT>> {
-      const model = await Model._modelManager.get(model_id);
+      const model = await Model._modelManager.get(model_id as WidgetModelId);
       if (!model) {
         throw new Error(
           `Model not found with id: ${model_id}. This is likely because the model was not registered.`,
@@ -177,47 +208,16 @@ export class Model<T extends Record<string, any>> implements AnyModel<T> {
    * When receiving a message from the backend.
    * We want to notify all listeners with `msg:custom`
    */
-  receiveCustomMessage(
-    message: unknown,
+  emitCustomMessage(
+    message: Extract<AnyWidgetMessage, { method: "custom" }>,
     buffers: readonly DataView[] = [],
   ): void {
-    const response = AnyWidgetMessageSchema.safeParse(message);
-    if (response.success) {
-      const data = response.data;
-      switch (data.method) {
-        case "update":
-          this.updateAndEmitDiffs(
-            decodeFromWire<T>({
-              state: data.state as T,
-              bufferPaths: data.buffer_paths ?? [],
-              buffers,
-            }),
-          );
-          break;
-        case "custom":
-          this.listeners["msg:custom"]?.forEach((cb) =>
-            cb(data.content, buffers),
-          );
-          break;
-        case "open":
-          this.updateAndEmitDiffs(
-            decodeFromWire<T>({
-              state: data.state as T,
-              bufferPaths: data.buffer_paths ?? [],
-              buffers,
-            }),
-          );
-          break;
-        case "echo_update":
-          // We don't need to do anything with this message
-          break;
-        default:
-          Logger.error("[anywidget] Unknown message method", data.method);
-          break;
-      }
-    } else {
-      Logger.error("Failed to parse message", response.error);
-      Logger.error("Message", message);
+    const listeners = this.listeners["msg:custom"];
+    if (!listeners) {
+      return;
+    }
+    for (const listener of listeners) {
+      listener(message.content, buffers);
     }
   }
 
@@ -232,45 +232,27 @@ export class Model<T extends Record<string, any>> implements AnyModel<T> {
     if (!this.listeners[event]) {
       return;
     }
-    this.listeners[event].forEach((cb) => cb(value));
+    const listeners = this.listeners[event];
+    for (const listener of listeners) {
+      listener(value);
+    }
   }
 
   // Debounce 0 to send off one request in a single frame
   private emitAnyChange = debounce(() => {
-    this.listeners[this.ANY_CHANGE_EVENT]?.forEach((cb) => cb());
+    const listeners = this.listeners[this.ANY_CHANGE_EVENT];
+    if (!listeners) {
+      return;
+    }
+    for (const listener of listeners) {
+      listener();
+    }
   }, 0);
 }
 
-const BufferPathSchema = z.array(z.array(z.union([z.string(), z.number()])));
-const StateSchema = z.record(z.string(), z.any());
-
-const AnyWidgetMessageSchema = z.discriminatedUnion("method", [
-  z.object({
-    method: z.literal("open"),
-    state: StateSchema,
-    buffer_paths: BufferPathSchema.optional(),
-  }),
-  z.object({
-    method: z.literal("update"),
-    state: StateSchema,
-    buffer_paths: BufferPathSchema.optional(),
-  }),
-  z.object({
-    method: z.literal("custom"),
-    content: z.any(),
-  }),
-  z.object({
-    method: z.literal("echo_update"),
-    buffer_paths: BufferPathSchema,
-    state: StateSchema,
-  }),
-  z.object({
-    method: z.literal("close"),
-  }),
-]);
-
-export type AnyWidgetMessage = z.infer<typeof AnyWidgetMessageSchema>;
-
+/**
+ * Type guard to check if a message is a valid AnyWidget message.
+ */
 export function isMessageWidgetState(msg: unknown): msg is AnyWidgetMessage {
   if (msg == null) {
     return false;
@@ -279,72 +261,100 @@ export function isMessageWidgetState(msg: unknown): msg is AnyWidgetMessage {
   return AnyWidgetMessageSchema.safeParse(msg).success;
 }
 
+/**
+ * Handle an incoming widget message from the backend.
+ *
+ * Messages are dispatched by method type:
+ * - "open": Initialize a new model or update existing one with initial state
+ * - "update": Update model state with new values
+ * - "custom": Forward custom message to model listeners
+ * - "close": Remove model from manager
+ * - "echo_update": Acknowledgment from backend (ignored)
+ */
 export async function handleWidgetMessage({
   modelId,
   msg,
   buffers,
   modelManager,
 }: {
-  modelId: string;
+  modelId: WidgetModelId;
   msg: AnyWidgetMessage;
   buffers: readonly DataView[];
   modelManager: ModelManager;
 }): Promise<void> {
-  if (msg.method === "echo_update") {
-    // We don't need to do anything with this message
-    return;
-  }
+  Logger.debug("AnyWidget message", msg);
 
-  if (msg.method === "custom") {
-    const model = await modelManager.get(modelId);
-    model.receiveCustomMessage(msg, buffers);
-    return;
-  }
-
-  if (msg.method === "close") {
-    modelManager.delete(modelId);
-    return;
-  }
-
-  const { method, state, buffer_paths = [] } = msg;
-  const stateWithBuffers = decodeFromWire({
-    state,
-    bufferPaths: buffer_paths,
-    buffers,
-  });
-
-  if (method === "open") {
-    const handleDataChange = (changeData: Record<string, any>) => {
-      const { state, buffers, bufferPaths } =
-        serializeBuffersToBase64(changeData);
-      getRequestClient().sendModelValue({
-        modelId: modelId,
-        message: {
-          state,
-          bufferPaths,
-        },
+  switch (msg.method) {
+    case "open": {
+      const { state, buffer_paths = [] } = msg;
+      const stateWithBuffers = decodeFromWire({
+        state,
+        bufferPaths: buffer_paths,
         buffers,
       });
-    };
 
-    const model = new Model(
-      stateWithBuffers,
-      handleDataChange,
-      throwNotImplemented,
-      new Set(),
-    );
-    modelManager.set(modelId, model);
-    return;
+      // Check if a model already exists (created by the plugin using model_id reference)
+      // If so, just update its state instead of creating a duplicate
+      const existingModel = modelManager.getSync(modelId);
+      if (existingModel) {
+        existingModel.updateAndEmitDiffs(stateWithBuffers);
+        return;
+      }
+
+      // Create a new model if one doesn't exist
+      const handleDataChange = (changeData: ModelState) => {
+        const { state, buffers, bufferPaths } =
+          serializeBuffersToBase64(changeData);
+        getRequestClient().sendModelValue({
+          modelId: modelId,
+          message: {
+            state,
+            bufferPaths,
+          },
+          buffers,
+        });
+      };
+
+      const model = new Model(stateWithBuffers, handleDataChange, modelId);
+      modelManager.set(modelId, model);
+      return;
+    }
+
+    case "echo_update": {
+      // We don't need to do anything with this message
+      return;
+    }
+
+    case "custom": {
+      const model = await modelManager.get(modelId);
+      model.emitCustomMessage(msg, buffers);
+      return;
+    }
+
+    case "close": {
+      modelManager.delete(modelId);
+      return;
+    }
+
+    case "update": {
+      const { state, buffer_paths = [] } = msg;
+      const stateWithBuffers = decodeFromWire({
+        state,
+        bufferPaths: buffer_paths,
+        buffers,
+      });
+      const model = await modelManager.get(modelId);
+      model.updateAndEmitDiffs(stateWithBuffers);
+      return;
+    }
+
+    default: {
+      assertNever(msg);
+    }
   }
-
-  if (method === "update") {
-    const model = await modelManager.get(modelId);
-    model.updateAndEmitDiffs(stateWithBuffers);
-    return;
-  }
-
-  assertNever(method);
 }
+
+repl(MODEL_MANAGER, "MODEL_MANAGER");
 
 export const visibleForTesting = {
   ModelManager,

@@ -15,6 +15,7 @@ from marimo._plugins.ui._impl.from_anywidget import (
     decode_from_wire,
     encode_to_wire,
     from_anywidget,
+    get_anywidget_state,
 )
 from marimo._runtime.commands import UpdateUIElementCommand
 from marimo._runtime.runtime import Kernel
@@ -189,11 +190,10 @@ x = as_marimo_element.count
     @staticmethod
     async def test_initialization() -> None:
         wrapped = anywidget(Widget(arr={"a": 1}))
-        assert wrapped._initial_value == {
-            "state": {"arr": {"a": 1}},
-            "bufferPaths": [],
-            "buffers": [],
-        }
+        # _initial_value is always a model_id reference
+        assert "model_id" in wrapped._initial_value_frontend
+        assert len(wrapped._initial_value_frontend) == 1
+        assert isinstance(wrapped._initial_value_frontend["model_id"], str)
         assert wrapped._component_args == {
             "css": "",
             "js-url": "",
@@ -202,19 +202,14 @@ x = as_marimo_element.count
 
     @staticmethod
     async def test_initialization_with_dataview() -> None:
-        # Create a simple array-like structure without numpy
-        import base64
-
         arr = [1, 2, 3]
         wrapped = anywidget(
             Widget(arr={"bytes": bytes(arr), "shape": (len(arr),)})
         )
-        # _initial_value is wire format (buffers are extracted to separate array)
-        assert wrapped._initial_value == {
-            "state": {"arr": {"shape": (3,)}},
-            "bufferPaths": [["arr", "bytes"]],
-            "buffers": [base64.b64encode(bytes([1, 2, 3])).decode("utf-8")],
-        }
+        # _initial_value is always a model_id reference
+        assert "model_id" in wrapped._initial_value_frontend
+        assert len(wrapped._initial_value_frontend) == 1
+        assert isinstance(wrapped._initial_value_frontend["model_id"], str)
         assert wrapped._component_args == {
             "css": "",
             "js-url": "",
@@ -246,14 +241,10 @@ x = as_marimo_element.count
             non_serializable = traitlets.Instance(object, sync=True)
 
         wrapped = anywidget(NonSerializableWidget())
-        assert wrapped._initial_value == {
-            "state": {
-                "serializable": 1,
-                "non_serializable": None,
-            },
-            "bufferPaths": [],
-            "buffers": [],
-        }
+        # _initial_value is always a model_id reference
+        assert "model_id" in wrapped._initial_value_frontend
+        assert len(wrapped._initial_value_frontend) == 1
+        assert isinstance(wrapped._initial_value_frontend["model_id"], str)
 
     @staticmethod
     async def test_skips_non_sync_traits() -> None:
@@ -263,13 +254,11 @@ x = as_marimo_element.count
             sync = traitlets.Int(2).tag(sync=True)
 
         wrapped = anywidget(NonSyncWidget())
-        assert wrapped._initial_value == {
-            "state": {"sync": 2},
-            "bufferPaths": [],
-            "buffers": [],
-        }
+        # _initial_value is always a model_id reference
+        assert "model_id" in wrapped._initial_value_frontend
+        assert len(wrapped._initial_value_frontend) == 1
+        assert isinstance(wrapped._initial_value_frontend["model_id"], str)
 
-    @staticmethod
     @staticmethod
     async def test_frontend_changes(
         k: Kernel, exec_req: ExecReqProvider
@@ -307,8 +296,6 @@ x = as_marimo_element.count
 
     @staticmethod
     async def test_buffers() -> None:
-        import base64
-
         class BufferWidget(_anywidget.AnyWidget):
             _esm = ""
             array = traitlets.Bytes().tag(sync=True)
@@ -316,22 +303,18 @@ x = as_marimo_element.count
         data = bytes([1, 2, 3, 4])
         wrapped = anywidget(BufferWidget(array=data))
 
-        # _initial_value is wire format (buffers are extracted to separate array)
-        assert wrapped._initial_value == {
-            "state": {},
-            "bufferPaths": [["array"]],
-            "buffers": [base64.b64encode(data).decode("utf-8")],
-        }
+        # _initial_value is always a model_id reference
+        assert "model_id" in wrapped._initial_value_frontend
+        assert len(wrapped._initial_value_frontend) == 1
+        assert isinstance(wrapped._initial_value_frontend["model_id"], str)
 
-        # test buffers are inlined as base64 in the wire format
-        assert "AQIDBA==" in wrapped.text
-        assert "array" in wrapped.text
+        # The value property reads directly from the widget
+        assert wrapped.value["array"] == data
 
-        # Test updating the buffer
+        # Test updating the buffer - now updates the widget directly
         new_data = bytes([5, 6, 7, 8])
         wrapped.array = new_data
-        # value property returns decoded state with buffers re-inserted
-        assert wrapped.value["array"] == data
+        assert wrapped.value["array"] == new_data
 
     @staticmethod
     async def test_error_handling() -> None:
@@ -348,11 +331,11 @@ x = as_marimo_element.count
 
         wrapped = anywidget(ErrorWidget())
 
-        # Test invalid update
+        # Test valid update - now the widget is updated directly
         wrapped.value = 5
-        assert wrapped.value == {"value": 0}
+        assert wrapped.value == {"value": 5}
 
-        # Test invalid update
+        # Test invalid update - should raise ValueError
         with pytest.raises(ValueError):
             wrapped.value = -1
 
@@ -493,6 +476,31 @@ x = as_marimo_element.count
         assert len(_cache) == old_len - 1
 
     @staticmethod
+    async def test_get_anywidget_state() -> None:
+        """Test get_anywidget_state filters out system traits."""
+
+        class StateWidget(_anywidget.AnyWidget):
+            _esm = "export default { render() {} }"
+            _css = "button { color: red; }"
+            count = traitlets.Int(42).tag(sync=True)
+            name = traitlets.Unicode("test").tag(sync=True)
+
+        widget = StateWidget()
+        state = get_anywidget_state(widget)
+
+        # Should include user-defined traits
+        assert state["count"] == 42
+        assert state["name"] == "test"
+
+        # Should NOT include system traits
+        assert "_esm" not in state
+        assert "_css" not in state
+        assert "comm" not in state
+        assert "layout" not in state
+        assert "_model_module" not in state
+        assert "_view_name" not in state
+
+    @staticmethod
     async def test_partial_state_updates() -> None:
         class MultiTraitWidget(_anywidget.AnyWidget):
             _esm = ""
@@ -514,10 +522,6 @@ x = as_marimo_element.count
         # Test updating all traits
         wrapped._update({"a": 100, "b": 200, "c": 300})
         assert wrapped.value == {"a": 100, "b": 200, "c": 300}
-
-        # Test updating with new traits
-        wrapped._update({"d": 4})
-        assert wrapped.value == {"a": 100, "b": 200, "c": 300, "d": 4}
 
     @staticmethod
     async def test_getitem_and_contains() -> None:

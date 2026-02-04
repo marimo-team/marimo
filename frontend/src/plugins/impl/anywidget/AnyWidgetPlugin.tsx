@@ -2,96 +2,49 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import type { AnyWidget, Experimental } from "@anywidget/types";
-import { isEqual } from "lodash-es";
 import { useEffect, useMemo, useRef } from "react";
-import useEvent from "react-use-event-hook";
 import { z } from "zod";
-import { MarimoIncomingMessageEvent } from "@/core/dom/events";
 import { asRemoteURL } from "@/core/runtime/config";
 import { resolveVirtualFileURL } from "@/core/static/files";
 import { isStaticNotebook } from "@/core/static/static-state";
 import { useAsyncData } from "@/hooks/useAsyncData";
-import { useDeepCompareMemoize } from "@/hooks/useDeepCompareMemoize";
-import {
-  type HTMLElementNotDerivedFromRef,
-  useEventListener,
-} from "@/hooks/useEventListener";
+import type { HTMLElementNotDerivedFromRef } from "@/hooks/useEventListener";
 import { createPlugin } from "@/plugins/core/builder";
-import { rpc } from "@/plugins/core/rpc";
 import type { IPluginProps } from "@/plugins/types";
-import {
-  decodeFromWire,
-  isWireFormat,
-  serializeBuffersToBase64,
-  type WireFormat,
-} from "@/utils/data-views";
 import { prettyError } from "@/utils/errors";
-import type { Base64String } from "@/utils/json/base64";
 import { Logger } from "@/utils/Logger";
 import { ErrorBanner } from "../common/error-banner";
-import { MODEL_MANAGER, Model } from "./model";
+import { MODEL_MANAGER, type Model } from "./model";
+import type { ModelState, WidgetModelId } from "./types";
 
+/**
+ * AnyWidget asset data
+ */
 interface Data {
   jsUrl: string;
   jsHash: string;
   css?: string | null;
 }
 
-type T = Record<string, unknown>;
+type AnyWidgetState = ModelState;
 
-// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
-type PluginFunctions = {
-  send_to_widget: <T>(req: {
-    content: unknown;
-    buffers: Base64String[];
-  }) => Promise<null | undefined>;
-};
+/**
+ * Initial value is a model_id reference.
+ * The backend sends just { model_id: string } and the frontend
+ * retrieves the actual state from the 'open' message.
+ */
+interface ModelIdRef {
+  model_id: WidgetModelId;
+}
 
-export const AnyWidgetPlugin = createPlugin<WireFormat<T>>("marimo-anywidget")
-  .withData(
-    z.object({
-      jsUrl: z.string(),
-      jsHash: z.string(),
-      css: z.string().nullish(),
-    }),
-  )
-  .withFunctions<PluginFunctions>({
-    send_to_widget: rpc
-      .input(
-        z.object({
-          content: z.unknown(),
-          buffers: z.array(z.string().transform((v) => v as Base64String)),
-        }),
-      )
-      .output(z.null().optional()),
-  })
-  .renderer((props) => <AnyWidgetSlot {...props} />);
-
-const AnyWidgetSlot = (
-  props: IPluginProps<WireFormat<T>, Data, PluginFunctions>,
-) => {
-  const { css, jsUrl, jsHash } = props.data;
-
-  // Decode wire format { state, bufferPaths, buffers } to state with DataViews
-  const valueWithBuffers = useMemo(() => {
-    if (isWireFormat(props.value)) {
-      const decoded = decodeFromWire(props.value);
-      Logger.debug("AnyWidget decoded wire format:", {
-        bufferPaths: props.value.bufferPaths,
-        buffersCount: props.value.buffers?.length,
-        decodedKeys: Object.keys(decoded),
-      });
-      return decoded;
-    }
-    Logger.warn("AnyWidget value is not wire format:", props.value);
-    return props.value;
-  }, [props.value]);
+export function useAnyWidgetModule(opts: { jsUrl: string; jsHash: string }) {
+  const { jsUrl, jsHash } = opts;
 
   // JS is an ESM file with a render function on it
   // export function render({ model, el }) {
   //   ...
   const {
-    data: module,
+    data: jsModule,
     error,
     refetch,
   } = useAsyncData(async () => {
@@ -117,9 +70,16 @@ const AnyWidgetSlot = (
     }
   }, [hasError, jsUrl]);
 
+  return {
+    jsModule,
+    error,
+  };
+}
+
+export function useMountCss(css: string | null | undefined, host: HTMLElement) {
   // Mount the CSS
   useEffect(() => {
-    const shadowRoot = props.host.shadowRoot;
+    const shadowRoot = host.shadowRoot;
     if (!css || !shadowRoot) {
       return;
     }
@@ -156,23 +116,39 @@ const AnyWidgetSlot = (
     return () => {
       style.remove();
     };
-  }, [css, props.host]);
+  }, [css, host]);
+}
 
-  // Wrap setValue to serialize DataViews back to base64 before sending
-  // Structure matches ipywidgets protocol: { state, bufferPaths, buffers }
-  const wrappedSetValue = useEvent((partialValue: Partial<T>) =>
-    props.setValue(serializeBuffersToBase64(partialValue)),
-  );
+export const AnyWidgetPlugin = createPlugin<ModelIdRef>("marimo-anywidget")
+  .withData(
+    z.object({
+      jsUrl: z.string(),
+      jsHash: z.string(),
+      css: z.string().nullish(),
+    }),
+  )
+  .withFunctions({})
+  .renderer((props) => <AnyWidgetSlot {...props} />);
+
+const AnyWidgetSlot = (props: IPluginProps<ModelIdRef, Data>) => {
+  const { css, jsUrl, jsHash } = props.data;
+  const { model_id: modelId } = props.value;
+  const data = props.data;
+  const host = props.host as HTMLElementNotDerivedFromRef;
+
+  const { jsModule, error } = useAnyWidgetModule({ jsUrl, jsHash });
+
+  useMountCss(css, host);
 
   if (error) {
     return <ErrorBanner error={error} />;
   }
 
-  if (!module) {
+  if (!jsModule) {
     return null;
   }
 
-  if (!isAnyWidgetModule(module)) {
+  if (!isAnyWidgetModule(jsModule)) {
     const error = new Error(
       `Module at ${jsUrl} does not appear to be a valid anywidget`,
     );
@@ -189,10 +165,10 @@ const AnyWidgetSlot = (
       // Plugins may be stateful and we cannot make assumptions that we won't be
       // so it is safer to just re-render.
       key={key}
-      {...props}
-      widget={module.default}
-      setValue={wrappedSetValue}
-      value={valueWithBuffers}
+      data={data}
+      host={host}
+      widget={jsModule.default}
+      modelId={modelId}
     />
   );
 };
@@ -203,8 +179,8 @@ const AnyWidgetSlot = (
  * @param widgetDef - The anywidget definition
  * @param model - The model to pass to the widget
  */
-async function runAnyWidgetModule(
-  widgetDef: AnyWidget,
+async function runAnyWidgetModule<T extends AnyWidgetState>(
+  widgetDef: AnyWidget<T>,
   model: Model<T>,
   el: HTMLElement,
 ): Promise<() => void> {
@@ -245,65 +221,32 @@ function isAnyWidgetModule(mod: any): mod is { default: AnyWidget } {
   );
 }
 
-export function getDirtyFields(value: T, initialValue: T): Set<keyof T> {
-  return new Set(
-    Object.keys(value).filter((key) => !isEqual(value[key], initialValue[key])),
-  );
+interface Props<T extends AnyWidgetState> {
+  data: Data;
+  widget: AnyWidget<T>;
+  modelId: WidgetModelId;
+  host: HTMLElementNotDerivedFromRef;
 }
 
-function hasModelId(message: unknown): message is { model_id: string } {
-  return (
-    typeof message === "object" && message !== null && "model_id" in message
-  );
-}
-
-interface Props
-  extends Omit<IPluginProps<T, Data, PluginFunctions>, "setValue"> {
-  widget: AnyWidget;
-  value: T;
-  setValue: (value: Partial<T>) => void;
-}
-
-const LoadedSlot = ({
-  value,
-  setValue,
+const LoadedSlot = <T extends AnyWidgetState>({
   widget,
-  functions,
   data,
-  host,
-}: Props & { widget: AnyWidget }) => {
+  modelId,
+}: Props<T> & { widget: AnyWidget<T> }) => {
   const htmlRef = useRef<HTMLDivElement>(null);
 
-  // value is already decoded from wire format
-  const model = useRef<Model<T>>(
-    new Model(value, setValue, functions.send_to_widget, new Set()),
-  );
+  // value is already decoded from wire format, may be null if waiting for open message
+  const model = useMemo(() => MODEL_MANAGER.getSync(modelId), [modelId]);
 
-  // Listen to incoming messages
-  useEventListener(
-    host as HTMLElementNotDerivedFromRef,
-    MarimoIncomingMessageEvent.TYPE,
-    (e) => {
-      const message = e.detail.message;
-      if (hasModelId(message)) {
-        MODEL_MANAGER.get(message.model_id).then((model) => {
-          model.receiveCustomMessage(message, e.detail.buffers);
-        });
-      } else {
-        model.current.receiveCustomMessage(message, e.detail.buffers);
-      }
-    },
-  );
+  if (!model) {
+    Logger.error("Model not found for modelId", modelId);
+  }
 
   useEffect(() => {
-    if (!htmlRef.current) {
+    if (!htmlRef.current || !model) {
       return;
     }
-    const unsubPromise = runAnyWidgetModule(
-      widget,
-      model.current,
-      htmlRef.current,
-    );
+    const unsubPromise = runAnyWidgetModule(widget, model, htmlRef.current);
     return () => {
       unsubPromise.then((unsub) => unsub());
     };
@@ -312,13 +255,7 @@ const LoadedSlot = ({
     // We need to re-run the widget because it may contain initialization code
     // that could be reset by the new widget.
     // See example: https://github.com/marimo-team/marimo/issues/3962#issuecomment-2703184123
-  }, [widget, data.jsUrl]);
-
-  // When the value changes, update the model
-  const valueMemo = useDeepCompareMemoize(value);
-  useEffect(() => {
-    model.current.updateAndEmitDiffs(valueMemo);
-  }, [valueMemo]);
+  }, [widget, data.jsUrl, model]);
 
   return <div ref={htmlRef} />;
 };
@@ -327,5 +264,4 @@ export const visibleForTesting = {
   LoadedSlot,
   runAnyWidgetModule,
   isAnyWidgetModule,
-  getDirtyFields,
 };

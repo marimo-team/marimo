@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import base64
 import contextlib
 import dataclasses
 import io
@@ -2278,10 +2279,19 @@ class Kernel:
             request: UpdateWidgetModelCommand,
         ) -> None:
             buffers = request.buffers or []
-            buffers_as_bytes = [buffer.encode("utf-8") for buffer in buffers]
-            WIDGET_COMM_MANAGER.receive_comm_message(
+            buffers_as_bytes = [base64.b64decode(buffer) for buffer in buffers]
+            ui_element_id, state = WIDGET_COMM_MANAGER.receive_comm_message(
                 request.model_id, request.message, buffers_as_bytes
             )
+
+            # If there's a ui_element_id, trigger a cell re-run
+            if ui_element_id and state:
+                await self.set_ui_element_value(
+                    UpdateUIElementCommand.from_ids_and_values(
+                        [(UIElementId(ui_element_id), state)]
+                    )
+                )
+                broadcast_notification(CompletedRunNotification())
 
         async def handle_function_call(request: InvokeFunctionCommand) -> None:
             status, ret, _ = await self.function_call_request(request)

@@ -38,9 +38,11 @@ class TypedModelAction(TypedModelMessage):
         method: The method to call on the model.
         state: The state of the model.
         buffer_paths: The buffer paths to update.
+        content: Content for custom messages (when method is "custom").
     """
 
     method: Literal["open", "update", "custom", "echo_update"]
+    content: Any
 
 
 class TypedModelMessageContent(TypedDict):

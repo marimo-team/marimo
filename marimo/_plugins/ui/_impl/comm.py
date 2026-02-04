@@ -32,10 +32,17 @@ class MarimoCommManager:
         comm_id: WidgetModelId,
         message: ModelMessage,
         buffers: Optional[list[bytes]],
-    ) -> None:
+    ) -> tuple[Optional[str], Optional[dict[str, Any]]]:
+        """Receive a message from the frontend and forward to the comm.
+
+        Returns:
+            A tuple of (ui_element_id, state) if this is an "update" message
+            and there's a ui_element_id, otherwise (None, None).
+            The caller can use this to trigger a cell re-run.
+        """
         if comm_id not in self.comms:
-            LOGGER.warning("Received message for unknown comm", comm_id)
-            return
+            LOGGER.warning("Received message for unknown comm: %s", comm_id)
+            return (None, None)
 
         comm = self.comms[comm_id]
 
@@ -43,14 +50,23 @@ class MarimoCommManager:
             "content": {
                 "data": {
                     "state": message.state,
-                    "method": "update",
+                    "method": message.method,
                     "buffer_paths": message.buffer_paths,
+                    "content": message.content,
                 }
             },
             "buffers": buffers or [],
         }
 
+        # Forward to the comm's message handler (anywidget will update its state)
         comm.handle_msg(cast(Msg, msg))
+
+        # For "update" messages, return the ui_element_id and state
+        # so the caller can trigger a cell re-run
+        if message.method == "update" and comm.ui_element_id:
+            return (comm.ui_element_id, message.state)
+
+        return (None, None)
 
 
 Msg = dict[str, Any]
@@ -110,6 +126,7 @@ class MarimoComm:
         buffers: BufferType = None,
         **keys: object,
     ) -> None:
+        LOGGER.debug("Opening comm %s", self.comm_id)
         self.comm_manager.register_comm(self)
         try:
             self._publish_msg(
@@ -134,6 +151,7 @@ class MarimoComm:
         metadata: MetadataType = None,
         buffers: BufferType = None,
     ) -> None:
+        LOGGER.debug("Sending comm message %s", self.comm_id)
         self._publish_msg(
             COMM_MESSAGE_NAME,
             data=data,
@@ -148,6 +166,7 @@ class MarimoComm:
         buffers: BufferType = None,
         deleting: bool = False,
     ) -> None:
+        LOGGER.debug("Closing comm %s", self.comm_id)
         if self._closed:
             return
         self._closed = True
@@ -179,6 +198,9 @@ class MarimoComm:
         buffers: BufferType = None,
         **keys: object,
     ) -> None:
+        LOGGER.debug(
+            "Publishing message %s for comm %s", msg_type, self.comm_id
+        )
         del keys
         data = {} if data is None else data
         metadata = {} if metadata is None else metadata
@@ -211,11 +233,7 @@ class MarimoComm:
             self.flush()
             return
 
-        LOGGER.warning(
-            "Unknown message type",
-            msg_type,
-            data,
-        )
+        LOGGER.warning("Unknown message type: %s", msg_type)
 
     def flush(self) -> None:
         from marimo._messaging.notification import (
@@ -246,21 +264,20 @@ class MarimoComm:
         self._close_callback = callback
 
     def handle_msg(self, msg: Msg) -> None:
+        LOGGER.debug("Handling message for comm %s", self.comm_id)
         if self._msg_callback is not None:
             self._msg_callback(msg)
         else:
             LOGGER.warning(
-                "Received message for comm but no callback registered",
+                "Received message for comm %s but no callback registered",
                 self.comm_id,
-                msg,
             )
 
     def handle_close(self, msg: Msg) -> None:
         if self._close_callback is not None:
             self._close_callback(msg)
         else:
-            LOGGER.warning(
-                "Received close for comm but no callback registered",
+            LOGGER.debug(
+                "Received close for comm %s but no callback registered",
                 self.comm_id,
-                msg,
             )

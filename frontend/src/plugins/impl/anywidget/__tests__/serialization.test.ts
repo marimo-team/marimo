@@ -1,12 +1,12 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import { describe, expect, it } from "vitest";
+import type { WireFormat } from "@/plugins/impl/anywidget/types";
+import type { Base64String } from "../../../../utils/json/base64";
 import {
   decodeFromWire,
   isWireFormat,
   serializeBuffersToBase64,
-  type WireFormat,
-} from "../data-views";
-import type { Base64String } from "../json/base64";
+} from "../serialization";
 
 describe("decodeFromWire with DataViews", () => {
   it("should return the original state if bufferPaths.length === 0", () => {
