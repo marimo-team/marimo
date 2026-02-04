@@ -8,6 +8,8 @@ import useEvent from "react-use-event-hook";
 import { z } from "zod";
 import { MarimoIncomingMessageEvent } from "@/core/dom/events";
 import { asRemoteURL } from "@/core/runtime/config";
+import { resolveVirtualFileURL } from "@/core/static/files";
+import { isStaticNotebook } from "@/core/static/static-state";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { useDeepCompareMemoize } from "@/hooks/useDeepCompareMemoize";
 import {
@@ -93,7 +95,11 @@ const AnyWidgetSlot = (
     error,
     refetch,
   } = useAsyncData(async () => {
-    const url = asRemoteURL(jsUrl).toString();
+    let url = asRemoteURL(jsUrl).toString();
+    // In static notebooks, resolve virtual files to blob URLs for import()
+    if (isStaticNotebook()) {
+      url = resolveVirtualFileURL(url);
+    }
     return await import(/* @vite-ignore */ url);
     // Re-render on jsHash change (which is a hash of the contents of the file)
     // instead of a jsUrl change because URLs may change without the contents
