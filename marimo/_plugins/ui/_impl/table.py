@@ -66,6 +66,7 @@ from marimo._runtime.context.types import (
 from marimo._runtime.context.utils import get_mode
 from marimo._runtime.functions import EmptyArgs, Function
 from marimo._utils.hashable import is_hashable
+from marimo._utils.methods import getcallable
 from marimo._utils.narwhals_utils import (
     can_narwhalify_lazyframe,
     unwrap_narwhals_dataframe,
@@ -1484,8 +1485,8 @@ class table(
             df = self.data
             # Generates a plain HTML representation of the table data,
             # useful for rendering in the GitHub viewer.
-            repr_html = getattr(df, "_repr_html_", None)
-            if repr_html is not None and callable(repr_html):
+            repr_html = getcallable(df, "_repr_html_")
+            if repr_html is not None:
                 return ("text/html", cast(str, repr_html()))
             return ("text/html", str(df))
         return ("text/html", self.text)

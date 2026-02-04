@@ -66,6 +66,44 @@ def test_serialize_matplotlib_figure() -> None:
         assert image_data["image/png"].startswith("data:image/png;base64,")
 
 
+def test_object_with_getattr_returning_non_callable() -> None:
+    """Test that objects implementing __getattr__ don't break serialization.
+
+    Some libraries (like rdflib.Namespace) implement __getattr__ to return
+    non-callable objects for any attribute name. This caused hasattr() to
+    return True for _marimo_serialize_ and _mime_, but calling them failed.
+
+    See: https://github.com/marimo-team/marimo/issues/8096
+    """
+
+    class NamespaceLike:
+        """Mimics rdflib.Namespace behavior."""
+
+        def __init__(self, base: str):
+            self.base = base
+
+        def __getattr__(self, name: str) -> str:
+            # Returns a string (non-callable) for any attribute
+            return f"{self.base}{name}"
+
+    ns = NamespaceLike("http://example.com/")
+
+    # Verify that hasattr returns True for special methods
+    assert hasattr(ns, "_marimo_serialize_")
+    assert hasattr(ns, "_mime_")
+
+    # But the attributes are not callable
+    assert not callable(ns._marimo_serialize_)
+    assert not callable(ns._mime_)
+
+    # enc_hook should handle this gracefully without raising TypeError
+    result = enc_hook(ns)
+
+    # Should fall through to __dict__ handling
+    assert isinstance(result, dict)
+    assert result["base"] == "http://example.com/"
+
+
 def test_serialize_decimal() -> None:
     decimal_obj = decimal.Decimal("123.45")
     result = enc_hook(decimal_obj)
