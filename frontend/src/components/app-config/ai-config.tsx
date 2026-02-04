@@ -609,9 +609,13 @@ export const CustomProvidersConfig: React.FC<AiConfigProps> = ({
   const isDuplicate =
     KNOWN_PROVIDERS.includes(normalizedName as KnownProviderId) ||
     (customProviders && Object.keys(customProviders).includes(normalizedName));
+  const hasInvalidChars = normalizedName.includes(".");
 
   const hasValidValues =
-    normalizedName.trim() && newProviderBaseUrl.trim() && !isDuplicate;
+    normalizedName.trim() &&
+    newProviderBaseUrl.trim() &&
+    !isDuplicate &&
+    !hasInvalidChars;
 
   const resetForm = () => {
     setNewProviderName("");
@@ -669,7 +673,12 @@ export const CustomProvidersConfig: React.FC<AiConfigProps> = ({
                   A provider with this name already exists.
                 </p>
               )}
-              {newProviderName && (
+              {hasInvalidChars && (
+                <p className="text-xs text-destructive">
+                  Provider names cannot contain '.' characters.
+                </p>
+              )}
+              {newProviderName && !hasInvalidChars && (
                 <p className="text-xs text-muted-secondary">
                   Use models with prefix:{" "}
                   <Kbd className="inline text-xs">{normalizedName}/</Kbd>
