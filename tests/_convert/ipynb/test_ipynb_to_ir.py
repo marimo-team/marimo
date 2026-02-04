@@ -278,11 +278,11 @@ def test_complex_exclamation_mark():
             openpipe-art[backend,langgraph]==0.4.11 langchain-core langgraph langchain_openai tenacity datasets pillow==11.3.0 protobuf==5.29.5 {get_vllm} {get_numpy} --prerelease allow --no-cache-dir"""
     ]
     result = transform_exclamation_mark(sources)
-    # Packages are unpinned and sorted
+    # Packages are unpinned, normalized per PEP 503, and sorted
     assert result.pip_packages == [
         "datasets",
         "langchain-core",
-        "langchain_openai",
+        "langchain-openai",  # normalized from langchain_openai
         "langgraph",
         "openpipe-art",
         "pillow",

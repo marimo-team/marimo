@@ -517,7 +517,7 @@ def _is_compilable_expression(expr: str) -> bool:
 
 
 def _shlex_to_subprocess_call(
-    command_line: str, command_tokens: list[str]
+    command_line: str, command_tokens: list[str], indent_level: int = 0
 ) -> ExclamationCommandResult:
     """Convert a shell command to subprocess.call([...])
 
@@ -599,14 +599,67 @@ def _handle_exclamation_command(
     )
 
 
+def _normalize_package_name(name: str) -> str:
+    """Normalize a package name per PEP 503.
+
+    PEP 503 specifies that package names should be normalized by:
+    - Converting to lowercase
+    - Replacing underscores, periods, and consecutive dashes with single dashes
+
+    Args:
+        name: Package name to normalize
+
+    Returns:
+        Normalized package name
+    """
+    return re.sub(r"[-_.]+", "-", name.lower())
+
+
+def _extract_package_name(pkg: str) -> str:
+    """Extract and normalize the base package name from a package specification.
+
+    Handles version specifiers, extras, and VCS URLs.
+    Returns normalized names per PEP 503.
+
+    Args:
+        pkg: Package specification (e.g., "numpy>=1.0", "package[extra]", "name @ git+...")
+
+    Returns:
+        Normalized base package name (e.g., "numpy", "package", "name")
+    """
+    # Handle PEP 508 URL format: "name @ git+..."
+    if " @ " in pkg:
+        name = pkg.split(" @ ")[0].strip()
+        return _normalize_package_name(name)
+
+    # Strip version specifiers and extras
+    name = (
+        pkg.split("==")[0]
+        .split(">=")[0]
+        .split("<=")[0]
+        .split("~=")[0]
+        .split("[")[0]
+        .split("<")[0]
+        .split(">")[0]
+        .strip()
+    )
+    return _normalize_package_name(name)
+
+
 def _resolve_pip_packages(packages: list[str]) -> list[str]:
-    """Resolve pip packages using uv, or unpin if uv unavailable.
+    """Resolve pip packages using uv for validation, returning only direct packages.
+
+    Uses uv pip compile to validate packages and resolve conflicts, but filters
+    the output to only include packages that were originally requested (not
+    transitive dependencies).
+
+    For git URLs, preserves the full PEP 508 format (e.g., "name @ git+...").
 
     Args:
         packages: List of package specifications (may have duplicates/conflicts)
 
     Returns:
-        Resolved and sorted list of packages
+        Resolved and sorted list of direct packages only
     """
     if not packages:
         return []
@@ -615,7 +668,21 @@ def _resolve_pip_packages(packages: list[str]) -> list[str]:
     import tempfile
     from pathlib import Path
 
-    # Try using uv pip compile to resolve
+    # Build a mapping from normalized name to original package spec
+    # For git URLs, we want to preserve the full URL format
+    original_specs: dict[str, str] = {}
+    for pkg in packages:
+        name = _extract_package_name(pkg)
+        # For git URLs (PEP 508 format), preserve the full spec
+        if " @ " in pkg:
+            original_specs[name] = pkg
+        else:
+            # For regular packages, just use the normalized name
+            original_specs[name] = name
+
+    original_names = set(original_specs.keys())
+
+    # Try using uv pip compile to validate/resolve conflicts
     try:
         with tempfile.TemporaryDirectory() as tmpdir:
             req_file = Path(tmpdir) / "requirements.in"
@@ -640,42 +707,25 @@ def _resolve_pip_packages(packages: list[str]) -> list[str]:
             )
 
             if result.returncode == 0 and out_file.exists():
-                # Parse resolved requirements
+                # Parse resolved requirements, filtering to only direct packages
                 resolved = []
                 for line in out_file.read_text().splitlines():
                     line = line.strip()
                     # Skip comments and empty lines
                     if line and not line.startswith("#"):
-                        # Extract package name (first part before any operators)
-                        pkg = (
-                            line.split("==")[0]
-                            .split(">=")[0]
-                            .split("<=")[0]
-                            .strip()
-                        )
-                        if pkg:
-                            resolved.append(pkg)
+                        # Extract package name
+                        pkg_name = _extract_package_name(line)
+                        # Only include if it was in the original request
+                        if pkg_name in original_names:
+                            # Use the original spec (preserves git URLs)
+                            resolved.append(original_specs[pkg_name])
                 return sorted(set(resolved))
     except (FileNotFoundError, subprocess.TimeoutExpired, Exception):
         # uv not available or failed, fall through to unpinning
         pass
 
-    # Fallback: unpin versions and deduplicate
-    unpinned = set()
-    for pkg in packages:
-        # Strip version specifiers
-        name = (
-            pkg.split("==")[0]
-            .split(">=")[0]
-            .split("<=")[0]
-            .split("~=")[0]
-            .split("[")[0]
-            .strip()
-        )
-        if name:
-            unpinned.add(name)
-
-    return sorted(unpinned)
+    # Fallback: deduplicate and return original specs
+    return sorted(original_specs.values())
 
 
 def transform_exclamation_mark(sources: list[str]) -> ExclamationMarkResult:
