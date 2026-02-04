@@ -17,6 +17,17 @@ marimo run notebook.py
 
 View the [CLI documentation](../cli.md#marimo-run) for more details.
 
+## Gallery mode
+
+You can run multiple notebooks (or a directory of notebooks) as a gallery:
+
+```bash
+marimo run folder/
+marimo run notebook_a.py notebook_b.py folder/
+```
+
+In gallery mode, marimo shows a page with one card per notebook. Cards can use notebook OpenGraph metadata for the title, description, and thumbnail image. Configure [OpenGraph previews](publishing/opengraph.md) and optionally generate images with [Thumbnails](cli_tools/thumbnails.md).
+
 ## Layout
 
 While editing a notebook with `marimo edit`, you can preview the notebook

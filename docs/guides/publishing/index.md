@@ -25,5 +25,6 @@ This guide provides an overview of the various ways to publish marimo notebooks.
 | [Self-host WebAssembly notebooks](self_host_wasm.md)  | Self-hosting interactive WebAssembly (HTML export) notebooks |
 | [Online playground](playground.md)                    | Share links to notebooks using our online playground         |
 | [View notebooks on GitHub](view_outputs_on_github.md) | Viewing notebook outputs on GitHub                           |
+| [OpenGraph previews](opengraph.md)                    | Configure titles, descriptions, and thumbnails for link previews |
 | [Deploy on a backend](deploy.md)                      | Deploying notebooks on backends                              |
 | [With Quarto](quarto.md)                              | Publish reactive websites with Quarto from markdown          |
