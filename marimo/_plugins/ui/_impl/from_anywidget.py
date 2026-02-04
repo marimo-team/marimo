@@ -1,7 +1,6 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-import base64
 import weakref
 from copy import deepcopy
 from typing import (
@@ -16,10 +15,6 @@ import marimo._output.data.data as mo_data
 from marimo import _loggers
 from marimo._output.rich_help import mddoc
 from marimo._plugins.ui._core.ui_element import InitializationArgs, UIElement
-from marimo._plugins.ui._impl.anywidget.utils import (
-    extract_buffer_paths,
-    insert_buffer_paths,
-)
 from marimo._plugins.ui._impl.comm import MarimoComm
 from marimo._types.ids import WidgetModelId
 from marimo._utils.code import hash_code
@@ -39,46 +34,6 @@ class ModelIdRef(TypedDict):
     """Reference to a model by its ID. The frontend retrieves state from the open message."""
 
     model_id: WidgetModelId
-
-
-def decode_from_wire(
-    wire: WireFormat | AnyWidgetState,
-) -> AnyWidgetState:
-    """Decode wire format { state, bufferPaths, buffers } to plain state with bytes."""
-    if "state" not in wire or "bufferPaths" not in wire:
-        return wire  # Not wire format, return as-is
-
-    state = wire.get("state", {})
-    buffer_paths = wire.get("bufferPaths", [])
-    buffers_base64: list[str] = wire.get("buffers", [])
-
-    if buffer_paths and buffers_base64:
-        decoded_buffers = [base64.b64decode(b) for b in buffers_base64]
-        return insert_buffer_paths(state, buffer_paths, decoded_buffers)
-
-    if buffer_paths or buffers_base64:
-        LOGGER.warning(
-            "Expected wire format to have buffers, but got %s", wire
-        )
-        return state
-
-    return state
-
-
-def encode_to_wire(
-    state: AnyWidgetState,
-) -> WireFormat:
-    """Encode plain state with bytes to wire format { state, bufferPaths, buffers }."""
-    state_no_buffers, buffer_paths, buffers = extract_buffer_paths(state)
-
-    # Convert bytes to base64
-    buffers_base64 = [base64.b64encode(b).decode("utf-8") for b in buffers]
-
-    return WireFormat(
-        state=state_no_buffers,
-        bufferPaths=buffer_paths,
-        buffers=buffers_base64,
-    )
 
 
 if TYPE_CHECKING:
