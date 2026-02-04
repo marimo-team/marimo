@@ -23,6 +23,7 @@ import { Tooltip } from "@/components/ui/tooltip";
 import { maybeAddMarimoImport } from "@/core/cells/add-missing-import";
 import { SETUP_CELL_ID } from "@/core/cells/ids";
 import { LanguageAdapters } from "@/core/codemirror/language/LanguageAdapters";
+import { MARKDOWN_INITIAL_HIDE_CODE } from "@/core/codemirror/language/languages/markdown";
 import { aiEnabledAtom } from "@/core/config/config";
 import { canInteractWithAppAtom } from "@/core/network/connection";
 import { useBoolean } from "@/hooks/useBoolean";
@@ -295,7 +296,7 @@ const AddCellButtons: React.FC<{
               cellId: { type: "__end__", columnId },
               before: false,
               code: LanguageAdapters.markdown.defaultCode,
-              hideCode: true,
+              hideCode: MARKDOWN_INITIAL_HIDE_CODE,
             });
           }}
         >

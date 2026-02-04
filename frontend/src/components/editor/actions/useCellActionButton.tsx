@@ -43,6 +43,7 @@ import type { CellData } from "@/core/cells/types";
 import { formatEditorViews } from "@/core/codemirror/format";
 import { toggleToLanguage } from "@/core/codemirror/language/commands";
 import { switchLanguage } from "@/core/codemirror/language/extension";
+import { MARKDOWN_INITIAL_HIDE_CODE } from "@/core/codemirror/language/languages/markdown";
 import {
   aiEnabledAtom,
   appWidthAtom,
@@ -85,6 +86,7 @@ export function useCellActionButtons({ cell, closePopover }: Props) {
     sendToBottom,
     addColumnBreakpoint,
     clearCellOutput,
+    markUntouched,
   } = useCellActions();
   const splitCell = useSplitCellCallback();
   const runCell = useRunCell(cell?.cellId);
@@ -209,7 +211,7 @@ export function useCellActionButtons({ cell, closePopover }: Props) {
         icon: <MarkdownIcon />,
         label: "Convert to Markdown",
         hotkey: "cell.viewAsMarkdown",
-        handle: () => {
+        handle: async () => {
           const editorView = getEditorView();
           if (!editorView) {
             return;
@@ -219,6 +221,17 @@ export function useCellActionButtons({ cell, closePopover }: Props) {
             language: "markdown",
             keepCodeAsIs: false,
           });
+          // Code stays visible until the user blurs the cell
+          if (!config.hide_code && MARKDOWN_INITIAL_HIDE_CODE) {
+            await saveCellConfig({
+              configs: { [cellId]: { hide_code: MARKDOWN_INITIAL_HIDE_CODE } },
+            });
+            updateCellConfig({
+              cellId,
+              config: { hide_code: MARKDOWN_INITIAL_HIDE_CODE },
+            });
+            markUntouched({ cellId });
+          }
         },
         hidden: isSetupCell,
       },
