@@ -3,6 +3,7 @@
 
 import type { AnyModel } from "@anywidget/types";
 import { debounce } from "lodash-es";
+import type { NotificationMessageData } from "@/core/kernel/messages";
 import { getRequestClient } from "@/core/network/requests";
 import {
   decodeFromWire,
@@ -10,12 +11,15 @@ import {
 } from "@/plugins/impl/anywidget/serialization";
 import { assertNever } from "@/utils/assertNever";
 import { Deferred } from "@/utils/Deferred";
+import {
+  type Base64String,
+  base64ToDataView,
+  dataViewToBase64,
+} from "@/utils/json/base64";
 import { Logger } from "@/utils/Logger";
 import { repl } from "@/utils/repl";
-import { type AnyWidgetMessage, AnyWidgetMessageSchema } from "./schemas";
+import type { AnyWidgetMessage } from "./schemas";
 import type { EventHandler, ModelState, WidgetModelId } from "./types";
-
-export type { AnyWidgetMessage };
 
 class ModelManager {
   /**
@@ -92,6 +96,11 @@ class ModelManager {
   }
 }
 
+type MarimoComm<T> = {
+  sendUpdate: (value: Partial<T>) => Promise<void>;
+  sendCustomMessage: (content: unknown, buffers: DataView[]) => Promise<void>;
+};
+
 export const MODEL_MANAGER = new ModelManager();
 
 export class Model<T extends ModelState> implements AnyModel<T> {
@@ -101,17 +110,11 @@ export class Model<T extends ModelState> implements AnyModel<T> {
   public static _modelManager: ModelManager = MODEL_MANAGER;
 
   private data: T;
-  private onChange: (value: Partial<T>) => void;
-  private modelId: WidgetModelId;
+  private comm: MarimoComm<T>;
 
-  constructor(
-    data: T,
-    onChange: (value: Partial<T>) => void,
-    modelId: WidgetModelId,
-  ) {
+  constructor(data: T, comm: MarimoComm<T>) {
     this.data = data;
-    this.onChange = onChange;
-    this.modelId = modelId;
+    this.comm = comm;
     this.dirtyFields = new Map();
   }
 
@@ -134,21 +137,16 @@ export class Model<T extends ModelState> implements AnyModel<T> {
   send(
     content: any,
     callbacks?: any,
-    _buffers?: ArrayBuffer[] | ArrayBufferView[],
-  ): void {
-    const { state, bufferPaths, buffers } = serializeBuffersToBase64(content);
-    getRequestClient()
-      .sendModelValue({
-        modelId: this.modelId,
-        message: {
-          state: state,
-          bufferPaths: bufferPaths,
-          method: "custom",
-          content: content,
-        },
-        buffers: buffers,
-      })
-      .then(callbacks);
+    buffers?: ArrayBuffer[] | ArrayBufferView[],
+  ): Promise<void> {
+    const dataViews = (buffers ?? []).map((buf) =>
+      buf instanceof ArrayBuffer
+        ? new DataView(buf)
+        : new DataView(buf.buffer, buf.byteOffset, buf.byteLength),
+    );
+    return this.comm
+      .sendCustomMessage(content, dataViews)
+      .then(() => callbacks?.());
   }
 
   widget_manager = {
@@ -187,7 +185,7 @@ export class Model<T extends ModelState> implements AnyModel<T> {
 
     // Clear the dirty fields to avoid sending again.
     this.dirtyFields.clear();
-    this.onChange(partialData);
+    this.comm.sendUpdate(partialData);
   }
 
   updateAndEmitDiffs(value: T): void {
@@ -251,38 +249,27 @@ export class Model<T extends ModelState> implements AnyModel<T> {
 }
 
 /**
- * Type guard to check if a message is a valid AnyWidget message.
- */
-export function isMessageWidgetState(msg: unknown): msg is AnyWidgetMessage {
-  if (msg == null) {
-    return false;
-  }
-
-  return AnyWidgetMessageSchema.safeParse(msg).success;
-}
-
-/**
- * Handle an incoming widget message from the backend.
+ * Handle an incoming model lifecycle notification from the backend.
  *
  * Messages are dispatched by method type:
  * - "open": Initialize a new model or update existing one with initial state
  * - "update": Update model state with new values
  * - "custom": Forward custom message to model listeners
  * - "close": Remove model from manager
- * - "echo_update": Acknowledgment from backend (ignored)
  */
-export async function handleWidgetMessage({
-  modelId,
-  msg,
-  buffers,
-  modelManager,
-}: {
-  modelId: WidgetModelId;
-  msg: AnyWidgetMessage;
-  buffers: readonly DataView[];
-  modelManager: ModelManager;
-}): Promise<void> {
+export async function handleWidgetMessage(
+  modelManager: ModelManager,
+  notification: NotificationMessageData<"model-lifecycle">,
+): Promise<void> {
+  const modelId = notification.model_id as WidgetModelId;
+  const msg = notification.message;
+
   Logger.debug("AnyWidget message", msg);
+
+  // Decode base64 buffers to DataViews (present in open/update/custom messages)
+  const base64Buffers: Base64String[] =
+    "buffers" in msg ? (msg.buffers as Base64String[]) : [];
+  const buffers = base64Buffers.map(base64ToDataView);
 
   switch (msg.method) {
     case "open": {
@@ -301,33 +288,35 @@ export async function handleWidgetMessage({
         return;
       }
 
-      // Create a new model if one doesn't exist
-      const handleDataChange = (changeData: ModelState) => {
-        const { state, buffers, bufferPaths } =
-          serializeBuffersToBase64(changeData);
-        getRequestClient().sendModelValue({
-          modelId: modelId,
-          message: {
-            state,
-            bufferPaths,
-          },
-          buffers,
-        });
-      };
-
-      const model = new Model(stateWithBuffers, handleDataChange, modelId);
+      const model = new Model(stateWithBuffers, {
+        async sendUpdate(changeData) {
+          const { state, buffers, bufferPaths } =
+            serializeBuffersToBase64(changeData);
+          await getRequestClient().sendModelValue({
+            modelId,
+            message: { method: "update", state, bufferPaths },
+            buffers,
+          });
+        },
+        async sendCustomMessage(content, buffers) {
+          await getRequestClient().sendModelValue({
+            modelId,
+            message: { method: "custom", content },
+            buffers: buffers.map(dataViewToBase64),
+          });
+        },
+      });
       modelManager.set(modelId, model);
-      return;
-    }
-
-    case "echo_update": {
-      // We don't need to do anything with this message
       return;
     }
 
     case "custom": {
       const model = await modelManager.get(modelId);
-      model.emitCustomMessage(msg, buffers);
+      // For custom messages, we need to reconstruct the AnyWidgetMessage format
+      model.emitCustomMessage(
+        { method: "custom", content: msg.content },
+        buffers,
+      );
       return;
     }
 

@@ -64,8 +64,8 @@ class MarimoCommManager:
             msg: TypedModelMessagePayload = {
                 "content": {
                     "data": {
-                        "state": message.state,
                         "method": "update",
+                        "state": message.state,
                         "buffer_paths": message.buffer_paths,
                     }
                 },

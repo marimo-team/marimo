@@ -78,7 +78,7 @@ export interface SetCellConfigRequest {
   configs: Record<CellId, Partial<CellConfig>>;
 }
 export type UpdateUIElementRequest = schemas["UpdateUIElementRequest"];
-export type UpdateWidgetModelRequest = schemas["UpdateWidgetModelRequest"];
+export type ModelRequest = schemas["ModelRequest"];
 export type UpdateCellIdsRequest = schemas["UpdateCellIdsRequest"];
 export type UpdateUserConfigRequest = schemas["UpdateUserConfigRequest"];
 export type ShutdownSessionRequest = schemas["ShutdownSessionRequest"];
@@ -110,7 +110,7 @@ export type LspServerHealth = schemas["LspServerHealth"];
  */
 export interface RunRequests {
   sendComponentValues: (request: UpdateUIElementValuesRequest) => Promise<null>;
-  sendModelValue: (request: UpdateWidgetModelRequest) => Promise<null>;
+  sendModelValue: (request: ModelRequest) => Promise<null>;
   sendInstantiate: (request: InstantiateNotebookRequest) => Promise<null>;
   sendFunctionRequest: (request: InvokeFunctionRequest) => Promise<null>;
 }

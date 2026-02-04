@@ -11,10 +11,8 @@ import { useConnectionTransport } from "@/core/websocket/useWebSocket";
 import { renderHTML } from "@/plugins/core/RenderHTML";
 import {
   handleWidgetMessage,
-  isMessageWidgetState,
   MODEL_MANAGER,
 } from "@/plugins/impl/anywidget/model";
-import type { WidgetModelId } from "@/plugins/impl/anywidget/types";
 import { logNever } from "@/utils/assertNever";
 import { prettyError } from "@/utils/errors";
 import {
@@ -142,30 +140,21 @@ export function useMarimoKernelConnection(opts: {
         return;
 
       case "send-ui-element-message": {
-        const modelId = msg.data.model_id;
         const uiElement = msg.data.ui_element;
-        const message = msg.data.message;
-        const buffers = safeExtractSetUIElementMessageBuffers(msg.data);
-
-        if (modelId && isMessageWidgetState(message)) {
-          handleWidgetMessage({
-            modelId: modelId as WidgetModelId,
-            msg: message,
-            buffers,
-            modelManager: MODEL_MANAGER,
-          });
-        }
-
         if (uiElement) {
+          const buffers = safeExtractSetUIElementMessageBuffers(msg.data);
           UI_ELEMENT_REGISTRY.broadcastMessage(
             uiElement as UIElementId,
             msg.data.message,
             buffers,
           );
         }
-
         return;
       }
+
+      case "model-lifecycle":
+        handleWidgetMessage(MODEL_MANAGER, msg.data);
+        return;
 
       case "remove-ui-elements":
         handleRemoveUIElements(msg.data);

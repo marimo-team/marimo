@@ -46,7 +46,13 @@ describe("LoadedSlot", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     // Create and register a mock model before each test
-    mockModel = new Model({ count: 0 }, vi.fn(), modelId);
+    mockModel = new Model(
+      { count: 0 },
+      {
+        sendUpdate: vi.fn().mockResolvedValue(undefined),
+        sendCustomMessage: vi.fn().mockResolvedValue(undefined),
+      },
+    );
     MODEL_MANAGER.set(modelId, mockModel);
   });
 
