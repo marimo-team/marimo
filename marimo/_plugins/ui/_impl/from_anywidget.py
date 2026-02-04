@@ -165,8 +165,6 @@ class anywidget(UIElement[ModelIdRef, AnyWidgetState]):
         self._initialized = False
 
         js: str = getattr(widget, "_esm", "")  # type: ignore [unused-ignore]
-        css: str = getattr(widget, "_css", "")  # type: ignore [unused-ignore]
-
         js_hash = hash_code(js)
 
         # Trigger comm initialization early to ensure _model_id is set
@@ -184,7 +182,6 @@ class anywidget(UIElement[ModelIdRef, AnyWidgetState]):
             args={
                 "js-url": mo_data.js(js).url if js else "",  # type: ignore [unused-ignore]  # noqa: E501
                 "js-hash": js_hash,
-                "css": css,
             },
             on_change=None,
         )

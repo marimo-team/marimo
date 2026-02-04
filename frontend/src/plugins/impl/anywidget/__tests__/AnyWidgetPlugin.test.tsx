@@ -70,7 +70,7 @@ describe("LoadedSlot", () => {
     });
   });
 
-  it("should re-run widget when jsUrl changes", async () => {
+  it("should re-run widget when widget prop changes", async () => {
     const { rerender } = render(<LoadedSlot {...mockProps} />);
 
     // Wait for initial render
@@ -78,21 +78,19 @@ describe("LoadedSlot", () => {
       expect(mockWidget.render).toHaveBeenCalled();
     });
 
-    // Change the jsUrl
-    rerender(
-      <LoadedSlot
-        {...mockProps}
-        data={{
-          ...mockProps.data,
-          jsUrl: "http://example.com/widget-updated.js",
-        }}
-      />,
-    );
+    // Create a new widget mock
+    const newMockWidget = {
+      initialize: vi.fn(),
+      render: vi.fn(),
+    };
+
+    // Change the widget
+    rerender(<LoadedSlot {...mockProps} widget={newMockWidget} />);
     await TestUtils.nextTick();
 
-    // Wait a render
+    // Wait for re-render with new widget
     await waitFor(() => {
-      expect(mockWidget.render).toHaveBeenCalledTimes(2);
+      expect(newMockWidget.render).toHaveBeenCalled();
     });
   });
 });
