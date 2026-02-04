@@ -2160,6 +2160,7 @@ def test_scattermap_selection_with_customdata() -> None:
     assert result[0]["customdata"][1] == 0
 
 
+@pytest.mark.filterwarnings("ignore:.*scattermapbox.*:DeprecationWarning")
 def test_scattermapbox_selection() -> None:
     """Test scattermapbox (deprecated) selection works."""
     fig = go.Figure(

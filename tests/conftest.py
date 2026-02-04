@@ -419,6 +419,8 @@ def app() -> Generator[App, None, None]:
 
 
 class TestableModuleStub(ModuleStub):
+    __test__ = False
+
     def __eq__(self, other: Any) -> bool:
         # Used for testing, equality otherwise not useful.
         if not isinstance(other, ModuleStub):

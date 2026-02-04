@@ -50,8 +50,27 @@ def get_default_locale() -> str:
     try:
         import locale
 
-        default_locale, _ = locale.getdefaultlocale()
-        return default_locale or "--"
+        # getdefaultlocale is deprecated in 3.13+ and removed in 3.15
+        # Use getlocale() with LC_ALL as a fallback chain
+        loc = locale.getlocale(locale.LC_ALL)
+        if loc[0]:
+            return loc[0]
+        # Try LC_MESSAGES on Unix-like systems
+        try:
+            loc = locale.getlocale(locale.LC_MESSAGES)
+            if loc[0]:
+                return loc[0]
+        except AttributeError:
+            pass
+        # Fall back to environment variable check
+        import os
+
+        for env_var in ("LC_ALL", "LC_MESSAGES", "LANG", "LANGUAGE"):
+            val = os.environ.get(env_var)
+            if val:
+                # Extract locale name (e.g., "en_US" from "en_US.UTF-8")
+                return val.split(".")[0]
+        return "--"
     except Exception:
         return "--"
 
