@@ -231,7 +231,7 @@ def test_thumbnail_redirects_for_https_opengraph_image(
         session_manager.file_router = AppFileRouter.from_directory(temp_dir)
 
         response = client.get(
-            "/api/home/thumbnail?file=notebook.py",
+            "/og/thumbnail?file=notebook.py",
             headers=HEADERS,
             follow_redirects=False,
         )
