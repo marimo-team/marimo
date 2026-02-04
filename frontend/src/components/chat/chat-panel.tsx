@@ -9,7 +9,10 @@ import { useAtom, useAtomValue, useSetAtom, useStore } from "jotai";
 import {
   AtSignIcon,
   BotMessageSquareIcon,
+  HatGlasses,
   Loader2,
+  MessageCircleIcon,
+  NotebookText,
   PaperclipIcon,
   PlusIcon,
   SendIcon,
@@ -237,22 +240,26 @@ const ChatInputFooter: React.FC<ChatInputFooterProps> = memo(
       value: CopilotMode;
       label: string;
       subtitle: string;
+      icon: React.ReactNode;
     }[] = [
+      {
+        value: "manual",
+        label: "Manual",
+        subtitle: "Pure chat, no tool usage",
+        icon: <MessageCircleIcon className="h-3 w-3" />,
+      },
       {
         value: "ask",
         label: "Ask",
         subtitle:
           "Use AI with access to read-only tools like documentation search",
-      },
-      {
-        value: "manual",
-        label: "Manual",
-        subtitle: "Pure chat, no tool usage",
+        icon: <NotebookText className="h-3 w-3" />,
       },
       {
         value: "agent",
         label: "Agent (beta)",
         subtitle: "Use AI with access to read and write tools",
+        icon: <HatGlasses className="h-3 w-3" />,
       },
     ];
 
@@ -264,22 +271,30 @@ const ChatInputFooter: React.FC<ChatInputFooterProps> = memo(
         <div className="px-3 py-2 border-t border-border/20 flex flex-row flex-wrap items-center justify-between gap-1">
           <div className="flex items-center gap-2">
             <Select value={currentMode} onValueChange={saveModeChange}>
-              <SelectTrigger className="h-6 text-xs border-border shadow-none! ring-0! bg-muted hover:bg-muted/30 py-0 px-2 gap-1 capitalize">
-                {currentMode}
+              <SelectTrigger className="h-6 text-xs border-border shadow-none! ring-0! bg-muted hover:bg-muted/30 py-0 px-2 gap-1.5">
+                {modeOptions.find((o) => o.value === currentMode)?.icon}
+                <span className="capitalize">{currentMode}</span>
               </SelectTrigger>
               <SelectContent>
                 <SelectGroup>
-                  <SelectLabel>AI Mode</SelectLabel>
+                  <SelectLabel className="text-xs uppercase tracking-wider text-muted-foreground/70 font-medium">
+                    AI Mode
+                  </SelectLabel>
                   {modeOptions.map((option) => (
                     <SelectItem
                       key={option.value}
                       value={option.value}
-                      className="text-xs"
+                      className="text-xs py-1"
                     >
-                      <div className="flex flex-col">
-                        {option.label}
-                        <div className="text-muted-foreground text-xs pt-1 block">
-                          {option.subtitle}
+                      <div className="flex items-start gap-2.5">
+                        <span className="mt-1 text-muted-foreground">
+                          {option.icon}
+                        </span>
+                        <div className="flex flex-col gap-0.5">
+                          <span className="font-semibold">{option.label}</span>
+                          <span className="text-muted-foreground">
+                            {option.subtitle}
+                          </span>
                         </div>
                       </div>
                     </SelectItem>
