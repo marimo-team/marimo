@@ -65,12 +65,6 @@ def unified_load():
     return load.load_app
 
 
-@pytest.fixture
-def dynamic_load():
-    """Direct dynamic load for backward compatibility testing."""
-    return load._dynamic_load
-
-
 @pytest.fixture(params=["unified_load", "dynamic_load"])
 def load_app(request):
     """Parametrized fixture to test both load paths."""
@@ -327,8 +321,7 @@ class TestGetCodes:
             app = load_app(get_filepath("test_get_bad_kwargs"))
             assert app is not None
 
-        # Don't worry about the discrepancy since dynamic_load should not be in
-        # prod.
+        # dynamic_load is a test utility, not used in production
         if load_app == load.load_app:
             assert len(caplog.records) == 2
             assert "fake_kwarg" in caplog.text

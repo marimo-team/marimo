@@ -1,8 +1,6 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-import importlib.util
-import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal, Optional, Union
@@ -55,33 +53,6 @@ def _maybe_contents(filename: Optional[Union[str, Path]]) -> Optional[str]:
         return None
 
     return Path(filename).read_text(encoding="utf-8").strip()
-
-
-# Used in tests and current fallback
-def _dynamic_load(filename: str | Path) -> Optional[App]:
-    """Create and execute a module with the provided filename."""
-    contents = _maybe_contents(filename)
-    if not contents:
-        return None
-
-    spec = importlib.util.spec_from_file_location("marimo_app", filename)
-    if spec is None:
-        raise RuntimeError("Failed to load module spec")
-    marimo_app = importlib.util.module_from_spec(spec)
-    if spec.loader is None:
-        raise RuntimeError("Failed to load module spec's loader")
-    try:
-        sys.modules["marimo_app"] = marimo_app
-        spec.loader.exec_module(marimo_app)  # This may throw a SyntaxError
-    finally:
-        sys.modules.pop("marimo_app", None)
-    if not hasattr(marimo_app, "app"):
-        return None
-    if not isinstance(marimo_app.app, App):
-        raise MarimoFileError("`app` attribute must be of type `marimo.App`.")
-
-    app = marimo_app.app
-    return app
 
 
 def find_cell(filename: str, lineno: int) -> CellDef | None:
@@ -161,8 +132,8 @@ def get_notebook_status(filename: str) -> LoadResult:
 
 
 FAILED_LOAD_NOTEBOOK_MESSAGE = (
-    "Static loading of notebook failed; falling back to dynamic loading. "
-    "If you can, please report this issue to the marimo team and include your notebook if possible — "
+    "Static loading of notebook failed. "
+    "Please report this issue to the marimo team and include your notebook if possible — "
     "https://github.com/marimo-team/marimo/issues/new?template=bug_report.yaml"
 )
 
@@ -209,9 +180,6 @@ def load_app(filename: Optional[str | Path]) -> Optional[App]:
         app = load_notebook_ir(notebook_ir)
         app._cell_manager.ensure_one_cell()
         return app
-    except MarimoFileError:
-        # Security advantages of static load are lost here, but reasonable
-        # fallback for now.
-        _app = _dynamic_load(filename)
-        LOGGER.warning(FAILED_LOAD_NOTEBOOK_MESSAGE)
-        return _app
+    except MarimoFileError as e:
+        LOGGER.error(FAILED_LOAD_NOTEBOOK_MESSAGE)
+        raise MarimoFileError(FAILED_LOAD_NOTEBOOK_MESSAGE) from e
