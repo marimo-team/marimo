@@ -13,7 +13,7 @@
 
 import marimo
 
-__generated_with = "0.16.2"
+__generated_with = "0.19.7"
 app = marimo.App(width="medium")
 
 
@@ -40,7 +40,7 @@ def _():
         spec.pop("data")
 
     w = mo.ui.anywidget(MosaicWidget(spec, data={"weather": weather}))
-    return (w,)
+    return mo, w
 
 
 @app.cell
@@ -50,8 +50,8 @@ def _(w):
 
 
 @app.cell
-def _(w):
-    w.value
+def _():
+    # w.value
     return
 
 
@@ -62,16 +62,30 @@ def _():
 
 
 @app.cell
-def _(quak):
+def _(mo, quak):
     import polars as pl
 
-    _df = pl.read_parquet("https://github.com/uwdata/mosaic/raw/main/data/athletes.parquet")
-    quak.Widget(_df)
-    return
+    _df = pl.read_parquet(
+        "https://github.com/uwdata/mosaic/raw/main/data/athletes.parquet"
+    )
+    q = mo.ui.anywidget(quak.Widget(_df))
+    q
+    return (q,)
 
 
 @app.cell
 def _():
+    thing = {"a": 0}
+    return (thing,)
+
+
+@app.cell
+def _(q, thing):
+    # Check gets update only once
+    thing["a"] += 1
+    print(thing["a"])
+
+    q.data()
     return
 
 

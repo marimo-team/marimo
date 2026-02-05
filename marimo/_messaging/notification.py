@@ -157,6 +157,53 @@ class UIElementMessageNotification(
     buffers: Optional[list[bytes]] = None
 
 
+class ModelOpen(msgspec.Struct, tag="open", tag_field="method"):
+    """Initial widget state on creation."""
+
+    state: dict[str, Any]
+    buffer_paths: list[list[Union[str, int]]]
+    buffers: list[bytes]
+
+
+class ModelUpdate(msgspec.Struct, tag="update", tag_field="method"):
+    """State sync - changed traits only."""
+
+    state: dict[str, Any]
+    buffer_paths: list[list[Union[str, int]]]
+    buffers: list[bytes]
+
+
+class ModelCustom(msgspec.Struct, tag="custom", tag_field="method"):
+    """Custom application message."""
+
+    content: Any
+    buffers: list[bytes]
+
+
+class ModelClose(msgspec.Struct, tag="close", tag_field="method"):
+    """Widget destruction."""
+
+    pass
+
+
+ModelMessage = Union[ModelOpen, ModelUpdate, ModelCustom, ModelClose]
+
+
+class ModelLifecycleNotification(Notification, tag="model-lifecycle"):
+    """Widget model lifecycle message.
+
+    Mirrors the Jupyter widget comm protocol with open/update/custom/close.
+
+    Attributes:
+        model_id: Widget model identifier.
+        message: The lifecycle message (open/update/custom/close).
+    """
+
+    name: ClassVar[str] = "model-lifecycle"
+    model_id: WidgetModelId
+    message: ModelMessage
+
+
 class InterruptedNotification(Notification, tag="interrupted"):
     """Kernel was interrupted by user (SIGINT/Ctrl+C)."""
 
@@ -658,6 +705,7 @@ NotificationMessage = Union[
     CellNotification,
     FunctionCallResultNotification,
     UIElementMessageNotification,
+    ModelLifecycleNotification,
     RemoveUIElementsNotification,
     # Notebook lifecycle
     ReloadNotification,

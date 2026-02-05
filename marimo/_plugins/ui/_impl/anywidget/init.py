@@ -37,9 +37,7 @@ def init_marimo_widget(w: ipywidgets.Widget) -> None:
         target_name="jupyter.widgets",
         data={"state": state, "buffer_paths": buffer_paths, "method": "open"},
         buffers=cast(BufferType, buffers),
-        # TODO: should this be hard-coded?
         metadata={"version": __protocol_version__},
-        # html_deps=session._process_ui(TagList(widget_dep))["deps"],
     )
 
     # Register ipywidgets' message handler so it can process incoming messages

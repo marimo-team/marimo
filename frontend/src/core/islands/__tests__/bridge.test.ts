@@ -192,9 +192,11 @@ describe("IslandsPyodideBridge", () => {
       const request = {
         modelId: "widget-1",
         message: {
+          method: "update" as const,
           state: { value: 42 },
           bufferPaths: [],
         },
+        buffers: [],
       };
 
       await bridge.sendModelValue(request);
@@ -202,12 +204,14 @@ describe("IslandsPyodideBridge", () => {
       expect(mockBridge).toHaveBeenCalledWith({
         functionName: "put_control_request",
         payload: {
-          type: "update-widget-model",
+          type: "model",
           modelId: "widget-1",
           message: {
+            method: "update",
             state: { value: 42 },
             bufferPaths: [],
           },
+          buffers: [],
         },
       });
     });
@@ -226,7 +230,8 @@ describe("IslandsPyodideBridge", () => {
       await bridge.sendRun({ cellIds: [], codes: [] });
       await bridge.sendModelValue({
         modelId: "",
-        message: { state: {}, bufferPaths: [] },
+        message: { method: "update", state: {}, bufferPaths: [] },
+        buffers: [],
       });
 
       // All calls should have the type field

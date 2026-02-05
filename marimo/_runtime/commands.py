@@ -680,10 +680,10 @@ class ListSecretKeysCommand(Command):
     request_id: RequestId
 
 
-class ModelMessage(msgspec.Struct, rename="camel"):
+class ModelUpdateMessage(
+    msgspec.Struct, tag="update", tag_field="method", rename="camel"
+):
     """Widget model state update message.
-
-    State changes for anywidget models, including state dict and binary buffer paths.
 
     Attributes:
         state: Model state updates.
@@ -693,21 +693,59 @@ class ModelMessage(msgspec.Struct, rename="camel"):
     state: dict[str, Any]
     buffer_paths: list[list[Union[str, int]]]
 
+    def into_comm_payload_content(self) -> dict[str, Any]:
+        return {
+            "data": {
+                "method": "update",
+                "state": self.state,
+                "buffer_paths": self.buffer_paths,
+            }
+        }
 
-class UpdateWidgetModelCommand(Command):
-    """Update anywidget model state.
 
-    Updates widget model state for bidirectional Python-JavaScript communication.
+class ModelCustomMessage(
+    msgspec.Struct, tag="custom", tag_field="method", rename="camel"
+):
+    """Custom widget message.
+
+    Attributes:
+        content: Arbitrary content for the custom message.
+    """
+
+    content: Any
+
+    def into_comm_payload_content(self) -> dict[str, Any]:
+        return {
+            "data": {
+                "method": "custom",
+                "content": self.content,
+            }
+        }
+
+
+ModelMessage = Union[ModelUpdateMessage, ModelCustomMessage]
+
+
+class ModelCommand(Command):
+    """Widget model message command.
+
+    Handles widget model communication between frontend and backend.
 
     Attributes:
         model_id: Widget model identifier.
-        message: Model message with state updates and buffer paths.
-        buffers: Base64-encoded binary buffers referenced by buffer_paths.
+        message: Model message (update or custom).
+        buffers: Base64-encoded binary buffers.
     """
 
     model_id: WidgetModelId
     message: ModelMessage
-    buffers: Optional[list[str]] = None
+    buffers: list[bytes]
+
+    def into_comm_payload(self) -> dict[str, Any]:
+        return {
+            "content": self.message.into_comm_payload_content(),
+            "buffers": self.buffers,
+        }
 
 
 class RefreshSecretsCommand(Command):
@@ -755,7 +793,7 @@ CommandMessage = Union[
     InstallPackagesCommand,
     # UI element and widget model operations
     UpdateUIElementCommand,
-    UpdateWidgetModelCommand,
+    ModelCommand,
     InvokeFunctionCommand,
     # User/configuration operations
     UpdateUserConfigCommand,

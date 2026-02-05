@@ -13,6 +13,10 @@ import "iconify-icon";
 
 import { toast } from "@/components/ui/use-toast";
 import { renderHTML } from "@/plugins/core/RenderHTML";
+import {
+  handleWidgetMessage,
+  MODEL_MANAGER,
+} from "@/plugins/impl/anywidget/model";
 import { initializePlugins } from "@/plugins/plugins";
 import { logNever } from "@/utils/assertNever";
 import { Functions } from "@/utils/functions";
@@ -193,6 +197,9 @@ export async function initialize() {
       case "cache-info":
         return;
       case "kernel-startup-error":
+        return;
+      case "model-lifecycle":
+        handleWidgetMessage(MODEL_MANAGER, msg.data);
         return;
       default:
         logNever(msg.data);

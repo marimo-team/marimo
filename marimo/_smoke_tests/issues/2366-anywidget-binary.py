@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.19.7"
 app = marimo.App()
 
 
@@ -8,7 +8,6 @@ app = marimo.App()
 def _():
     import anywidget
     import traitlets
-
 
 
     class Widget(anywidget.AnyWidget):
@@ -21,7 +20,9 @@ def _():
         """
         arr = traitlets.Dict().tag(sync=True)
 
+
     import numpy as np
+
     arr = np.array([1, 2, 3])
     Widget(
         arr={

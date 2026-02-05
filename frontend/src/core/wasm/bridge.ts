@@ -541,7 +541,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
 
   sendModelValue: RunRequests["sendModelValue"] = async (request) => {
     await this.putControlRequest({
-      type: "update-widget-model",
+      type: "model",
       ...request,
     });
     return null;

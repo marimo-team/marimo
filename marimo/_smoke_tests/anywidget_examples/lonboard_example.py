@@ -14,7 +14,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.19.7"
 app = marimo.App(width="medium")
 
 
@@ -75,7 +75,7 @@ def _(Map, ScatterplotLayer, gdf, mo):
     max_bound = mo.ui.slider(
         0, 100_000, value=50_000, show_value=True, label="max bound"
     )
-    mo.vstack([min_bound, max_bound, Map(layer, _height=600)])
+    mo.vstack([min_bound, max_bound, Map(layer)])
     return layer, max_bound, min_bound
 
 

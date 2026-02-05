@@ -34,6 +34,7 @@ from marimo._runtime.commands import (
     ListDataSourceConnectionCommand,
     ListSecretKeysCommand,
     ListSQLTablesCommand,
+    ModelCommand,
     PreviewDatasetColumnCommand,
     PreviewSQLTableCommand,
     RefreshSecretsCommand,
@@ -42,7 +43,6 @@ from marimo._runtime.commands import (
     SyncGraphCommand,
     UpdateCellConfigCommand,
     UpdateUIElementCommand,
-    UpdateWidgetModelCommand,
     ValidateSQLCommand,
 )
 from marimo._runtime.context.types import teardown_context
@@ -406,8 +406,8 @@ async def test_pyodide_session_put_input(
             UpdateUIElementCommand,
         ),
         (
-            '{"type": "update-widget-model", "modelId": "model-1", "message": {"state": {}, "bufferPaths": []}}',
-            UpdateWidgetModelCommand,
+            '{"type": "model", "modelId": "model-1", "message": {"method": "update", "state": {}, "bufferPaths": []}, "buffers": []}',
+            ModelCommand,
         ),
         (
             '{"type": "invoke-function", "functionCallId": "fc-1", "namespace": "test", "functionName": "foo", "args": {}}',

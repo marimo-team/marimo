@@ -303,7 +303,9 @@ class SessionView:
                 return
             messages = self.model_messages.get(notification.model_id, [])
             messages.append(notification)
-            # TODO: cleanup/merge previous 'update' messages
+            # TODO(perf): Consider merging consecutive 'update' messages
+            # to reduce replay size. Could keep only the latest state for
+            # each model_id instead of the full message history.
             self.model_messages[notification.model_id] = messages
 
         elif isinstance(notification, StartupLogsNotification):
@@ -440,12 +442,16 @@ class SessionView:
             all_notifications.append(self.datasets)
         if self.data_connectors.connections:
             all_notifications.append(self.data_connectors)
-        all_notifications.extend(self.cell_notifications.values())
-        if self.stale_code:
-            all_notifications.append(self.stale_code)
+
+        # Model messages must come before cell notifications to ensure
+        # the model exists before the view tries to use it.
         if self.model_messages:
             for messages in self.model_messages.values():
                 all_notifications.extend(messages)
+
+        all_notifications.extend(self.cell_notifications.values())
+        if self.stale_code:
+            all_notifications.append(self.stale_code)
         # Only include startup logs if they are in progress (not done)
         if self.startup_logs and self.startup_logs.status != "done":
             all_notifications.append(self.startup_logs)

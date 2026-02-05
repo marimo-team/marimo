@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.19.7"
 app = marimo.App(width="medium")
 
 
@@ -14,7 +14,7 @@ def _():
 
 
     class ModelOnlyWidget(ipywidgets.Widget):
-        value = traitlets.Int(1).tag(sync=True)
+        value = traitlets.Int(42).tag(sync=True)
 
 
     class Widget(anywidget.AnyWidget):
@@ -56,11 +56,6 @@ def _():
 @app.cell
 def _(m):
     m.value
-    return
-
-
-@app.cell
-def _():
     return
 
 

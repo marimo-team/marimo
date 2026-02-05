@@ -2212,7 +2212,7 @@ export interface paths {
       };
       requestBody?: {
         content: {
-          "application/json": components["schemas"]["UpdateWidgetModelRequest"];
+          "application/json": components["schemas"]["ModelRequest"];
         };
       };
       responses: {
@@ -4477,7 +4477,7 @@ export interface components {
         | components["schemas"]["UpdateCellConfigCommand"]
         | components["schemas"]["InstallPackagesCommand"]
         | components["schemas"]["UpdateUIElementCommand"]
-        | components["schemas"]["UpdateWidgetModelCommand"]
+        | components["schemas"]["ModelCommand"]
         | components["schemas"]["InvokeFunctionCommand"]
         | components["schemas"]["UpdateUserConfigCommand"]
         | components["schemas"]["PreviewDatasetColumnCommand"]
@@ -4518,6 +4518,7 @@ export interface components {
         | components["schemas"]["CellNotification"]
         | components["schemas"]["FunctionCallResultNotification"]
         | components["schemas"]["UIElementMessageNotification"]
+        | components["schemas"]["ModelLifecycleNotification"]
         | components["schemas"]["RemoveUIElementsNotification"]
         | components["schemas"]["ReloadNotification"]
         | components["schemas"]["ReconnectedNotification"]
@@ -4854,17 +4855,117 @@ export interface components {
       packages: string[];
     };
     /**
-     * ModelMessage
-     * @description Widget model state update message.
+     * ModelClose
+     * @description Widget destruction.
+     */
+    ModelClose: {
+      /** @enum {unknown} */
+      method: "close";
+    };
+    /**
+     * ModelCommand
+     * @description Widget model message command.
      *
-     *         State changes for anywidget models, including state dict and binary buffer paths.
+     *         Handles widget model communication between frontend and backend.
+     *
+     *         Attributes:
+     *             model_id: Widget model identifier.
+     *             message: Model message (update or custom).
+     *             buffers: Base64-encoded binary buffers.
+     */
+    ModelCommand: {
+      buffers: string[];
+      message:
+        | components["schemas"]["ModelUpdateMessage"]
+        | components["schemas"]["ModelCustomMessage"];
+      modelId: string;
+      /** @enum {unknown} */
+      type: "model";
+    };
+    /**
+     * ModelCustom
+     * @description Custom application message.
+     */
+    ModelCustom: {
+      buffers: string[];
+      content: unknown;
+      /** @enum {unknown} */
+      method: "custom";
+    };
+    /**
+     * ModelCustomMessage
+     * @description Custom widget message.
+     *
+     *         Attributes:
+     *             content: Arbitrary content for the custom message.
+     */
+    ModelCustomMessage: {
+      content: unknown;
+      /** @enum {unknown} */
+      method: "custom";
+    };
+    /**
+     * ModelLifecycleNotification
+     * @description Widget model lifecycle message.
+     *
+     *         Mirrors the Jupyter widget comm protocol with open/update/custom/close.
+     *
+     *         Attributes:
+     *             model_id: Widget model identifier.
+     *             message: The lifecycle message (open/update/custom/close).
+     */
+    ModelLifecycleNotification: {
+      message:
+        | components["schemas"]["ModelOpen"]
+        | components["schemas"]["ModelUpdate"]
+        | components["schemas"]["ModelCustom"]
+        | components["schemas"]["ModelClose"];
+      model_id: string;
+      /** @enum {unknown} */
+      op: "model-lifecycle";
+    };
+    /**
+     * ModelOpen
+     * @description Initial widget state on creation.
+     */
+    ModelOpen: {
+      buffer_paths: (string | number)[][];
+      buffers: string[];
+      /** @enum {unknown} */
+      method: "open";
+      state: Record<string, any>;
+    };
+    /** ModelRequest */
+    ModelRequest: {
+      buffers: string[];
+      message:
+        | components["schemas"]["ModelUpdateMessage"]
+        | components["schemas"]["ModelCustomMessage"];
+      modelId: string;
+    };
+    /**
+     * ModelUpdate
+     * @description State sync - changed traits only.
+     */
+    ModelUpdate: {
+      buffer_paths: (string | number)[][];
+      buffers: string[];
+      /** @enum {unknown} */
+      method: "update";
+      state: Record<string, any>;
+    };
+    /**
+     * ModelUpdateMessage
+     * @description Widget model state update message.
      *
      *         Attributes:
      *             state: Model state updates.
      *             buffer_paths: Paths within state dict pointing to binary buffers.
      */
-    ModelMessage: {
+    ModelUpdateMessage: {
       bufferPaths: (string | number)[][];
+      /** @enum {unknown} */
+      method: "update";
       state: Record<string, any>;
     };
     /** MultipleDefinitionError */
@@ -5719,32 +5820,6 @@ export interface components {
     /** UpdateUserConfigRequest */
     UpdateUserConfigRequest: {
       config: components["schemas"]["MarimoConfig"];
-    };
-    /**
-     * UpdateWidgetModelCommand
-     * @description Update anywidget model state.
-     *
-     *         Updates widget model state for bidirectional Python-JavaScript communication.
-     *
-     *         Attributes:
-     *             model_id: Widget model identifier.
-     *             message: Model message with state updates and buffer paths.
-     *             buffers: Base64-encoded binary buffers referenced by buffer_paths.
-     */
-    UpdateWidgetModelCommand: {
-      /** @default null */
-      buffers?: string[] | null;
-      message: components["schemas"]["ModelMessage"];
-      modelId: string;
-      /** @enum {unknown} */
-      type: "update-widget-model";
-    };
-    /** UpdateWidgetModelRequest */
-    UpdateWidgetModelRequest: {
-      /** @default null */
-      buffers?: string[] | null;
-      message: components["schemas"]["ModelMessage"];
-      modelId: string;
     };
     /**
      * ValidateSQLCommand
