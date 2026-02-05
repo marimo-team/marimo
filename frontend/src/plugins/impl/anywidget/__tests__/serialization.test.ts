@@ -136,7 +136,11 @@ describe("Immutability Tests", () => {
     const bufferPaths = [["data"]];
     const buffers = [dataView];
 
-    const result = decodeFromWire({ state, bufferPaths, buffers });
+    const result = decodeFromWire({
+      state,
+      bufferPaths,
+      buffers,
+    }) as typeof state & { data: DataView };
 
     // Result should have the DataView at the path
     expect(result.data).toBe(dataView);
@@ -154,7 +158,11 @@ describe("Immutability Tests", () => {
     const bufferPaths = [["c"]];
     const buffers = [dataView];
 
-    const result = decodeFromWire({ state, bufferPaths, buffers });
+    const result = decodeFromWire({
+      state,
+      bufferPaths,
+      buffers,
+    }) as typeof state & { c: DataView };
 
     // Result should have new property
     expect("c" in result).toBe(true);
@@ -190,7 +198,11 @@ describe("Immutability Tests", () => {
     const bufferPaths = [["d"]];
     const buffers = [dataView];
 
-    const result = decodeFromWire({ state, bufferPaths, buffers });
+    const result = decodeFromWire({
+      state,
+      bufferPaths,
+      buffers,
+    }) as typeof state & { d: DataView };
 
     // Result should have the buffer inserted
     expect(result.d).toBe(dataView);
