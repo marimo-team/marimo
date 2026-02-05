@@ -8,8 +8,8 @@ import click
 from marimo._cli.config.utils import highlight_toml_headers
 from marimo._cli.print import (
     echo,
-    get_colored_command_class,
-    get_colored_group_class,
+    ColoredCommand,
+    ColoredGroup,
     green,
 )
 from marimo._config.manager import (
@@ -19,12 +19,12 @@ from marimo._config.manager import (
 from marimo._config.reader import find_nearest_pyproject_toml
 
 
-@click.group(cls=get_colored_group_class(), help="""Various commands for the marimo config.""")
+@click.group(cls=ColoredGroup, help="""Various commands for the marimo config.""")
 def config() -> None:
     pass
 
 
-@click.command(cls=get_colored_command_class(), help="""Show the marimo config.""")
+@click.command(cls=ColoredCommand, help="""Show the marimo config.""")
 def show() -> None:
     """
     Print out marimo config information.
@@ -56,7 +56,7 @@ def show() -> None:
     echo(highlight_toml_headers(tomlkit.dumps(user_config)))
 
 
-@click.command(cls=get_colored_command_class(), help="""Describe the marimo config.""")
+@click.command(cls=ColoredCommand, help="""Describe the marimo config.""")
 def describe() -> None:
     """Print documentation for all config options."""
     import inspect

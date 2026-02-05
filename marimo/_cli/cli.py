@@ -25,7 +25,7 @@ from marimo._cli.file_path import validate_name
 from marimo._cli.parse_args import parse_args
 from marimo._cli.print import (
     bright_green,
-    get_colored_group_class,
+    ColoredGroup,
     light_blue,
     red,
 )
@@ -155,7 +155,7 @@ check_message = "Disable a static check of the notebook before running."
 
 
 @click.group(
-    cls=get_colored_group_class(),
+    cls=ColoredGroup,
     help=main_help_msg,
     context_settings={"help_option_names": ["-h", "--help"]},
 )

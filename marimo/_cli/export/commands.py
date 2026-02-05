@@ -9,7 +9,12 @@ import click
 
 from marimo._cli.export.cloudflare import create_cloudflare_files
 from marimo._cli.parse_args import parse_args
-from marimo._cli.print import echo, green
+from marimo._cli.print import (
+    ColoredCommand,
+    ColoredGroup,
+    echo,
+    green,
+)
 from marimo._cli.tools.thumbnails import thumbnail
 from marimo._cli.utils import prompt_to_overwrite
 from marimo._dependencies.dependencies import DependencyManager
@@ -43,7 +48,9 @@ _sandbox_message = (
 )
 
 
-@click.group(cls=get_colored_group_class(), help="""Export a notebook to various formats.""")
+@click.group(
+    cls=ColoredGroup, help="""Export a notebook to various formats."""
+)
 def export() -> None:
     pass
 
@@ -137,7 +144,7 @@ def watch_and_export(
 
 
 @click.command(
-    cls=get_colored_command_class(),
+    cls=ColoredCommand,
     help="""Run a notebook and export it as an HTML file.
 
 Example:
@@ -236,7 +243,7 @@ def html(
 
 
 @click.command(
-    cls=get_colored_command_class(),
+    cls=ColoredCommand,
     help="""
 Export a marimo notebook as a flat script, in topological order.
 
@@ -315,7 +322,7 @@ def script(
 
 
 @click.command(
-    cls=get_colored_command_class(),
+    cls=ColoredCommand,
     help="""
 Export a marimo notebook as a code fenced Markdown file.
 
@@ -394,7 +401,7 @@ def md(
 
 
 @click.command(
-    cls=get_colored_command_class(),
+    cls=ColoredCommand,
     help="""
 Export a marimo notebook as a Jupyter notebook in topological order.
 
@@ -513,7 +520,7 @@ def ipynb(
 
 
 @click.command(
-    cls=get_colored_command_class(),
+    cls=ColoredCommand,
     help="""Export a marimo notebook as a PDF file.
 
 Example:
@@ -678,7 +685,7 @@ def pdf(
 
 
 @click.command(
-    cls=get_colored_command_class(),
+    cls=ColoredCommand,
     help="""Export a notebook as a WASM-powered standalone HTML file.
 
 Example:
