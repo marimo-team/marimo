@@ -532,15 +532,17 @@ class TestChatMessageDict:
             ],
         )
         out = dict[str, Any](message)
-        assert out["role"] == "user"
-        assert out["id"] == "msg-1"
-        assert out["content"] == "Hello"
-        assert out["parts"] == [{"type": "text", "text": "Part text"}]
-        assert out["attachments"] == [
-            {
-                "url": "https://example.com/file.pdf",
-                "name": "doc",
-                "content_type": "application/pdf",
-            }
-        ]
-        assert "metadata" in out
+        assert out == {
+            "role": "user",
+            "id": "msg-1",
+            "content": "Hello",
+            "parts": [{"type": "text", "text": "Part text"}],
+            "attachments": [
+                {
+                    "url": "https://example.com/file.pdf",
+                    "name": "doc",
+                    "content_type": "application/pdf",
+                }
+            ],
+            "metadata": None,
+        }
