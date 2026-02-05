@@ -32,7 +32,6 @@ Install [pixi](https://github.com/prefix-dev/pixi) to manage your development en
 > As an alternative to installing `pixi`, you can try developing in [Gitpod](https://gitpod.io/#https://github.com/marimo-team/marimo).
 > Note that developing in Gitpod is not officially supported by the marimo team.
 
-
 ```bash
 pixi shell
 ```
