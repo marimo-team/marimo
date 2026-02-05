@@ -1380,7 +1380,7 @@ class Kernel:
         Returns set of cells that need to be re-run due to state updates.
         """
 
-        # Some hooks that are closures and require the kernel instance
+        # Some hooks are leaky and require the kernel
         # Free cell state ahead of running to relieve memory pressure
         #
         # NB: lazy kernels don't invalidate state of cancelled cells
