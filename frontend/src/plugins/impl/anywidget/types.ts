@@ -1,6 +1,8 @@
+/* Copyright 2026 Marimo. All rights reserved. */
 import type { Base64String } from "@/utils/json/base64";
 import type { TypedString } from "@/utils/typed";
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type EventHandler = (...args: any[]) => void;
 
 /**
@@ -11,6 +13,7 @@ export type WidgetModelId = TypedString<"WidgetModelId">;
 /**
  * AnyWidget model state with buffers.
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type ModelState = Record<string | number, any>;
 
 /**

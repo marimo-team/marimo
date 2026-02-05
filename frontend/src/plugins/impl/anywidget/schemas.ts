@@ -1,3 +1,4 @@
+/* Copyright 2026 Marimo. All rights reserved. */
 import { z } from "zod";
 
 const BufferPathSchema = z.array(z.array(z.union([z.string(), z.number()])));

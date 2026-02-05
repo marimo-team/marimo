@@ -96,10 +96,10 @@ class ModelManager {
   }
 }
 
-type MarimoComm<T> = {
+interface MarimoComm<T> {
   sendUpdate: (value: Partial<T>) => Promise<void>;
   sendCustomMessage: (content: unknown, buffers: DataView[]) => Promise<void>;
-};
+}
 
 export const MODEL_MANAGER = new ModelManager();
 
@@ -153,7 +153,7 @@ export class Model<T extends ModelState> implements AnyModel<T> {
     async get_model<TT extends ModelState>(
       model_id: WidgetModelId,
     ): Promise<AnyModel<TT>> {
-      const model = await Model._modelManager.get(model_id as WidgetModelId);
+      const model = await Model._modelManager.get(model_id);
       if (!model) {
         throw new Error(
           `Model not found with id: ${model_id}. This is likely because the model was not registered.`,
@@ -320,10 +320,9 @@ export async function handleWidgetMessage(
       return;
     }
 
-    case "close": {
+    case "close":
       modelManager.delete(modelId);
       return;
-    }
 
     case "update": {
       const { state, buffer_paths = [] } = msg;
@@ -337,9 +336,8 @@ export async function handleWidgetMessage(
       return;
     }
 
-    default: {
+    default:
       assertNever(msg);
-    }
   }
 }
 
