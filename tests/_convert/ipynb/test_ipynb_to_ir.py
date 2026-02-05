@@ -557,6 +557,21 @@ def test_transform_exclamation_in_multiline_string():
     assert result.transformed_sources[0] == sources[0]
 
 
+def test_transform_exclamation_mark_pip_in_string():
+    """Ensure !pip install inside strings is NOT transformed"""
+    sources = [
+        '''"""
+!pip install numpy
+"""'''
+    ]
+    result = transform_exclamation_mark(sources)
+    # Should NOT be transformed - it's inside a string
+    assert result.transformed_sources[0] == sources[0]
+    # Should NOT extract packages from strings
+    assert result.pip_packages == []
+    assert result.needs_subprocess is False
+
+
 def test_transform_duplicate_definitions_complex():
     sources = [
         "x = 1 # comment unaffected",
