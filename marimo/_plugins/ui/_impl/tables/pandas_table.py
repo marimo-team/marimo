@@ -35,6 +35,13 @@ if TYPE_CHECKING:
     from pandas._typing import DtypeObj
 
 
+def _trivial_range_index(index: pd.Index) -> bool:
+    import pandas as pd
+
+    # A trivial index is an unnamed RangeIndex (0, 1, 2, ...)
+    return isinstance(index, pd.RangeIndex) and index.name is None
+
+
 def _maybe_convert_geopandas_to_pandas(data: pd.DataFrame) -> pd.DataFrame:
     # Convert to pandas dataframe since geopandas will fail on
     # certain operations (like to_json(orient="records"))
@@ -156,10 +163,7 @@ class PandasTableManagerFactory(TableManagerFactory):
                 # Only skip reset for unnamed default RangeIndex (0, 1, 2, ...)
                 if isinstance(result.index, pd.MultiIndex) or (
                     isinstance(result.index, pd.Index)
-                    and not (
-                        isinstance(result.index, pd.RangeIndex)
-                        and result.index.name is None
-                    )
+                    and not _trivial_range_index(result.index)
                 ):
                     index_names = result.index.names
                     unnamed_indexes = any(
@@ -296,6 +300,25 @@ class PandasTableManagerFactory(TableManagerFactory):
                     self._original_data.index
                 )
 
+            def _has_non_trivial_index(self) -> bool:
+                """Check if the DataFrame has a non-trivial index that should be searched."""
+                index = self._original_data.index
+                return not _trivial_range_index(index)
+
+            def search(self, query: str) -> PandasTableManager:
+                # If there's a non-trivial index, include it in the search
+                # by resetting the index first
+                if self._has_non_trivial_index():
+                    df_with_index = self._original_data.reset_index()
+                    manager = PandasTableManager(df_with_index)
+                    result = super(PandasTableManager, manager).search(query)
+                    # result.data is a narwhals DataFrame, convert to native pandas
+                    native_df: pd.DataFrame = nw.to_native(result.data)
+                    return PandasTableManager(native_df)
+                result = super().search(query)
+                native_df = nw.to_native(result.data)
+                return PandasTableManager(native_df)
+
             @staticmethod
             def is_type(value: Any) -> bool:
                 return isinstance(value, pd.DataFrame)
@@ -304,7 +327,7 @@ class PandasTableManagerFactory(TableManagerFactory):
                 self, index: pd.Index[Any]
             ) -> FieldTypes:
                 # Ignore if it's the default index with no name
-                if index.name is None and isinstance(index, pd.RangeIndex):
+                if _trivial_range_index(index):
                     return []
 
                 if isinstance(index, pd.MultiIndex):

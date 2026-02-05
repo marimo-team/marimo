@@ -930,6 +930,46 @@ class TestPandasTableManager(unittest.TestCase):
         assert manager.search("bob").get_num_rows() == 0
         assert manager.search("nan").get_num_rows() == 4
 
+    def test_search_with_index_columns(self) -> None:
+        """
+        Test that search works on index columns (e.g., from value_counts()).
+        See: https://github.com/marimo-team/marimo/issues/7945
+        """
+        # Test with value_counts() - the exact case from the issue
+        df = pd.DataFrame({"name": ["Alice", "Bob", "Alice", "Charlie"]})
+        value_counts_df = df["name"].value_counts().to_frame()
+        manager = self.factory.create()(value_counts_df)
+
+        # Search should find values in the index
+        assert manager.search("Alice").get_num_rows() == 1
+        assert manager.search("Bob").get_num_rows() == 1
+        assert manager.search("Dave").get_num_rows() == 0
+        # Case insensitive
+        assert manager.search("alice").get_num_rows() == 1
+        # Partial match
+        assert manager.search("li").get_num_rows() == 2  # Alice and Charlie
+
+        # Test with a named index
+        df_with_index = pd.DataFrame(
+            {"value": [10, 20, 30]},
+            index=pd.Index(["foo", "bars", "baz"], name="label"),
+        )
+        manager2 = self.factory.create()(df_with_index)
+        assert manager2.search("foo").get_num_rows() == 1
+        assert manager2.search("b").get_num_rows() == 2  # bar and baz
+
+        # Test with MultiIndex
+        df_multi = pd.DataFrame(
+            {"value": [1, 2, 3, 4]},
+            index=pd.MultiIndex.from_tuples(
+                [("A", "x"), ("A", "y"), ("B", "x"), ("B", "y")],
+                names=["letter", "symbol"],
+            ),
+        )
+        manager3 = self.factory.create()(df_multi)
+        assert manager3.search("A").get_num_rows() == 2
+        assert manager3.search("x").get_num_rows() == 2
+
     def test_apply_formatting_does_not_modify_original_data(self) -> None:
         original_data = self.data.copy()
         format_mapping = {
