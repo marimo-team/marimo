@@ -360,7 +360,8 @@ export class CollapsibleTree<T> {
   }
 
   /**
-   * Expand a node and all of its children
+   * Expand a node and all of its children.
+   * If the node is already expanded, returns the same tree (no-op).
    */
   expand(id: T): CollapsibleTree<T> {
     const nodeIndex = this.nodes.findIndex((n) => n.value === id);
@@ -373,7 +374,8 @@ export class CollapsibleTree<T> {
     let nodes = [...this.nodes];
     const node = nodes[nodeIndex];
     if (!node.isCollapsed) {
-      throw new Error(`Node ${id} is already expanded`);
+      // Already expanded, no-op
+      return this;
     }
 
     nodes[nodeIndex] = new TreeNode(node.value, false, []);
@@ -495,13 +497,9 @@ export class CollapsibleTree<T> {
    */
   deleteAtIndex(idx: number): CollapsibleTree<T> {
     const id = this.atOrThrow(idx);
-    let tree = this.withNodes(this.nodes);
-    try {
-      tree = tree.expand(id);
-    } catch {
-      // Don't care if its not expanded
-    }
-    return this.withNodes(arrayDelete(tree.nodes, idx));
+    // Expand the node first (if collapsed) to bring children back to top level
+    const tree = this.expand(id);
+    return tree.withNodes(arrayDelete(tree.nodes, idx));
   }
 
   delete(id: T): CollapsibleTree<T> {
@@ -524,15 +522,10 @@ export class CollapsibleTree<T> {
     if (found.length === 0) {
       return this;
     }
-    let result = this.withNodes(this.nodes);
+    let result: CollapsibleTree<T> = this;
     for (const node of found) {
-      try {
-        result = result.expand(node);
-      } catch {
-        // Don't care if its the last node and its not expanded
-      }
+      result = result.expand(node);
     }
-
     return result;
   }
 
