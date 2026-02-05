@@ -2035,3 +2035,250 @@ class TestWrappedFunctionCache:
             f"Expected different hashes for different impure dependencies, "
             f"got {first_hash} == {second_hash}"
         )
+
+    @staticmethod
+    async def test_default_argument_cache_invalidation(
+        k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        """Test that changing default argument values invalidates the cache (issue #7977)."""
+
+        cell_id = "test_cell"
+
+        # First execution with config_version=1
+        await k.run(
+            [
+                exec_req.get_with_id(
+                    cell_id,
+                    """
+            import marimo as mo
+
+            @mo.cache
+            def get_data_with_config(query: str, config_version=1):
+                return query, config_version
+
+            result1 = get_data_with_config("test")
+            hash1 = get_data_with_config._last_hash
+            """,
+                )
+            ]
+        )
+
+        assert not k.stderr.messages, k.stderr
+        assert k.globals["result1"] == ("test", 1)
+        first_hash = k.globals["hash1"]
+
+        # Second execution with config_version=2 (same cell, different default)
+        await k.run(
+            [
+                exec_req.get_with_id(
+                    cell_id,
+                    """
+            import marimo as mo
+
+            @mo.cache
+            def get_data_with_config(query: str, config_version=2):
+                return query, config_version
+
+            result2 = get_data_with_config("test")
+            hash2 = get_data_with_config._last_hash
+            """,
+                )
+            ]
+        )
+
+        assert not k.stderr.messages, k.stderr
+        assert k.globals["result2"] == ("test", 2)
+        second_hash = k.globals["hash2"]
+
+        # The hashes should be different because the default argument changed
+        assert first_hash != second_hash, (
+            f"Expected different hashes when default argument changes, "
+            f"got {first_hash} == {second_hash}"
+        )
+
+    @staticmethod
+    async def test_explicit_arg_matches_previous_default(
+        k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        """Test that explicit args matching defaults produce the same hash.
+
+        Calling fn() with default a=1 should produce the same hash as
+        calling fn(1) with explicit arg, because the resolved value is the same.
+        """
+
+        # Test within a single cell to verify hash computation is correct
+        await k.run(
+            [
+                exec_req.get(
+                    """
+            import marimo as mo
+
+            @mo.cache
+            def fn(a=1):
+                return a + 1
+
+            # Call with default
+            result1 = fn()
+            hash_default = fn._last_hash
+
+            # Call with explicit arg matching the default
+            result2 = fn(1)
+            hash_explicit = fn._last_hash
+
+            # Call with different value
+            result3 = fn(2)
+            hash_different = fn._last_hash
+            """,
+                )
+            ]
+        )
+
+        assert not k.stderr.messages, k.stderr
+        assert k.globals["result1"] == 2  # 1 + 1
+        assert k.globals["result2"] == 2  # 1 + 1
+        assert k.globals["result3"] == 3  # 2 + 1
+
+        # fn() and fn(1) should have the same hash (same resolved value)
+        assert k.globals["hash_default"] == k.globals["hash_explicit"], (
+            f"Expected same hash for fn() and fn(1), "
+            f"got {k.globals['hash_default']} != {k.globals['hash_explicit']}"
+        )
+        # fn(2) should have a different hash
+        assert k.globals["hash_default"] != k.globals["hash_different"], (
+            f"Expected different hash for fn() and fn(2), "
+            f"got same hash {k.globals['hash_default']}"
+        )
+
+    @staticmethod
+    async def test_various_function_signature_forms(
+        k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        """Test cache works with various function signature forms.
+
+        Tests: positional-only (/), keyword-only (*), defaults, *args, **kwargs
+        """
+
+        await k.run(
+            [
+                exec_req.get(
+                    """
+import marimo as mo
+
+# Test 1: Keyword-only parameters with defaults
+@mo.cache
+def kwonly(a, *, value=1):
+    return a + value
+
+kw_r1 = kwonly(10)           # Call with default
+kw_h1 = kwonly._last_hash
+kw_r2 = kwonly(10, value=1)  # Call with explicit same value
+kw_h2 = kwonly._last_hash
+kw_r3 = kwonly(10, value=2)  # Call with different value
+kw_h3 = kwonly._last_hash
+kw_hits = kwonly.hits
+
+# Test 2: Positional-only parameters with defaults
+@mo.cache
+def posonly(a, b=5, /):
+    return a + b
+
+po_r1 = posonly(10)      # Call with default
+po_h1 = posonly._last_hash
+po_r2 = posonly(10, 5)   # Call with explicit same value
+po_h2 = posonly._last_hash
+po_r3 = posonly(10, 7)   # Call with different value
+po_h3 = posonly._last_hash
+po_hits = posonly.hits
+
+# Test 3: Mixed positional-only, regular, and keyword-only
+@mo.cache
+def mixed(a, /, b, c=3, *, d=4):
+    return a + b + c + d
+
+mx_r1 = mixed(1, 2)          # Call with defaults for c and d
+mx_h1 = mixed._last_hash
+mx_r2 = mixed(1, 2, 3, d=4)  # Call with explicit same values
+mx_h2 = mixed._last_hash
+mx_r3 = mixed(1, 2, d=5)     # Call with different d
+mx_h3 = mixed._last_hash
+mx_hits = mixed.hits
+
+# Test 4: *args and **kwargs
+@mo.cache
+def varargs(a, *args, b=10, **kwargs):
+    return a + sum(args) + b + sum(kwargs.values())
+
+va_r1 = varargs(1, 2, 3)         # Call with default b
+va_h1 = varargs._last_hash
+va_r2 = varargs(1, 2, 3, b=10)   # Call with explicit same b
+va_h2 = varargs._last_hash
+va_r3 = varargs(1, 2, 3, b=20)   # Call with different b
+va_h3 = varargs._last_hash
+va_r4 = varargs(1, 2, 3, x=100)  # Call with kwargs
+va_h4 = varargs._last_hash
+va_hits = varargs.hits
+            """,
+                )
+            ]
+        )
+        assert not k.stderr.messages, k.stderr
+
+        # Test 1: Keyword-only assertions
+        assert k.globals["kw_r1"] == 11
+        assert k.globals["kw_r2"] == 11
+        assert k.globals["kw_r3"] == 12
+        assert k.globals["kw_h1"] == k.globals["kw_h2"], (
+            "kwonly: explicit same value should hit cache"
+        )
+        assert k.globals["kw_h1"] != k.globals["kw_h3"], (
+            "kwonly: different value should miss cache"
+        )
+        assert k.globals["kw_hits"] == 1, (
+            f"Expected 1 hit, got {k.globals['kw_hits']}"
+        )
+
+        # Test 2: Positional-only assertions
+        assert k.globals["po_r1"] == 15
+        assert k.globals["po_r2"] == 15
+        assert k.globals["po_r3"] == 17
+        assert k.globals["po_h1"] == k.globals["po_h2"], (
+            "posonly: explicit same value should hit cache"
+        )
+        assert k.globals["po_h1"] != k.globals["po_h3"], (
+            "posonly: different value should miss cache"
+        )
+        assert k.globals["po_hits"] == 1, (
+            f"Expected 1 hit, got {k.globals['po_hits']}"
+        )
+
+        # Test 3: Mixed assertions
+        assert k.globals["mx_r1"] == 10  # 1+2+3+4
+        assert k.globals["mx_r2"] == 10
+        assert k.globals["mx_r3"] == 11  # 1+2+3+5
+        assert k.globals["mx_h1"] == k.globals["mx_h2"], (
+            "mixed: explicit same values should hit cache"
+        )
+        assert k.globals["mx_h1"] != k.globals["mx_h3"], (
+            "mixed: different d should miss cache"
+        )
+        assert k.globals["mx_hits"] == 1, (
+            f"Expected 1 hit, got {k.globals['mx_hits']}"
+        )
+
+        # Test 4: Varargs assertions
+        assert k.globals["va_r1"] == 16  # 1+2+3+10
+        assert k.globals["va_r2"] == 16
+        assert k.globals["va_r3"] == 26  # 1+2+3+20
+        assert k.globals["va_r4"] == 116  # 1+2+3+10+100
+        assert k.globals["va_h1"] == k.globals["va_h2"], (
+            "varargs: explicit same b should hit cache"
+        )
+        assert k.globals["va_h1"] != k.globals["va_h3"], (
+            "varargs: different b should miss cache"
+        )
+        assert k.globals["va_h1"] != k.globals["va_h4"], (
+            "varargs: with kwargs should miss cache"
+        )
+        assert k.globals["va_hits"] == 1, (
+            f"Expected 1 hit, got {k.globals['va_hits']}"
+        )
