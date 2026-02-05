@@ -51,7 +51,10 @@ export class UIElementRegistry {
 
   set(objectId: UIElementId, value: ValueType): void {
     if (this.entries.has(objectId)) {
-      throw new Error(`UIElement ${objectId} already registered`);
+      Logger.debug(
+        "UIElementRegistry overwriting entry for objectId.",
+        objectId,
+      );
     }
     this.entries.set(objectId, {
       objectId: objectId,
