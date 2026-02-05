@@ -99,6 +99,10 @@ class TestChatMessageCreate:
             parts=[existing_part],  # type: ignore
         )
 
+    @pytest.mark.skipif(
+        not DependencyManager.pydantic.has(),
+        reason="pydantic is not installed",
+    )
     def test_dict_parts_with_dataclass_validator(self):
         """Test converting dict parts using a dataclass validator."""
         dict_part: dict[str, str] = {"type": "text", "text": "Hello from dict"}
@@ -118,6 +122,10 @@ class TestChatMessageCreate:
             parts=[TextPart(type="text", text="Hello from dict")],
         )
 
+    @pytest.mark.skipif(
+        not DependencyManager.pydantic.has(),
+        reason="pydantic is not installed",
+    )
     def test_mixed_parts_with_validator(self):
         """Test with a mix of already-typed and dict parts."""
 
