@@ -28,7 +28,7 @@ support for SQL](guides/working_with_data/sql.md).
 marimo was built from the ground up to solve <a href="faq.html#faq-jupyter">well-known problems associated with traditional notebooks</a>.
 ///
 
-_Get started instantly with [**mo**lab, our free online
+_Get started instantly with [molab, our free online
 notebook](https://molab.marimo.io/notebooks). Or get started
 locally by installing marimo with your favorite package manager:_
 
