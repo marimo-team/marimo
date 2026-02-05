@@ -27,7 +27,6 @@ from marimo._cli.print import red
 from marimo._cli.run_docker import (
     prompt_run_in_docker_container,
 )
-from marimo._cli.tools.commands import tools
 from marimo._cli.upgrade import check_for_updates, print_latest_version
 from marimo._cli.utils import (
     check_app_correctness,
@@ -1481,4 +1480,3 @@ main.command()(convert)
 main.add_command(export)
 main.add_command(config)
 main.add_command(development)
-main.add_command(tools)

@@ -36,11 +36,6 @@ _sandbox_message = (
 )
 
 
-@click.group(help="Generate and manage notebook thumbnails.")
-def thumbnails() -> None:
-    pass
-
-
 def _split_paths_and_args(
     name: str, args: tuple[str, ...]
 ) -> tuple[list[str], tuple[str, ...]]:
@@ -420,7 +415,9 @@ async def _generate_thumbnails(
         )
 
 
-@thumbnails.command(help="Generate OpenGraph thumbnails for notebooks.")
+@click.command(
+    "thumbnail", help="Generate OpenGraph thumbnails for notebooks."
+)
 @click.argument(
     "name",
     type=click.Path(
@@ -504,7 +501,7 @@ async def _generate_thumbnails(
     help="Continue processing other notebooks if one notebook fails.",
 )
 @click.argument("args", nargs=-1, type=click.UNPROCESSED)
-def generate(
+def thumbnail(
     name: Path,
     width: int,
     height: int,
