@@ -1096,6 +1096,60 @@ class TestPandasTableManager(unittest.TestCase):
         )
         assert_frame_equal(result_df, expected)
 
+    def test_search_preserves_integer_index(self) -> None:
+        """
+        Test that search preserves integer index (non-RangeIndex).
+        This tests the case where index values are integers but not a RangeIndex.
+        """
+        df_int_index = pd.DataFrame(
+            {"value": ["foo", "bars", "bare"]},
+            index=pd.Index([100, 200, 300]),
+        )
+        manager = self.factory.create()(df_int_index)
+        result = manager.search("bar")
+        result_df = nw.to_native(result.data)
+
+        expected = pd.DataFrame(
+            {"value": ["bars", "bare"]},
+            index=pd.Index([200, 300]),
+        )
+        assert_frame_equal(result_df, expected)
+
+    def test_search_preserves_multiindex_with_integer_level_names(
+        self,
+    ) -> None:
+        """
+        Test that search works with MultiIndex that has integer level names.
+        This tests the bug where non-string column names cause set_index to fail.
+
+        When reset_index() creates columns from index levels, unnamed levels get
+        default names like 'level_0', 'level_1'. But if the index had non-string
+        names (e.g., integers), those become column names. The
+        _handle_non_string_column_names method converts these to strings,
+        but we need to use the converted names when restoring the index.
+        """
+        # Create a DataFrame with integer column names that will be used as index
+        df = pd.DataFrame(
+            {
+                0: ["A", "A", "B", "B"],
+                1: ["x", "y", "x", "y"],
+                "value": [1, 2, 3, 4],
+            }
+        )
+        df = df.set_index([0, 1])
+        manager = self.factory.create()(df)
+        result = manager.search("A")
+        result_df = nw.to_native(result.data)
+
+        expected = pd.DataFrame(
+            {"value": [1, 2]},
+            index=pd.MultiIndex.from_tuples(
+                [("A", "x"), ("A", "y")],
+                names=[0, 1],
+            ),
+        )
+        assert_frame_equal(result_df, expected)
+
     def test_apply_formatting_does_not_modify_original_data(self) -> None:
         original_data = self.data.copy()
         format_mapping = {

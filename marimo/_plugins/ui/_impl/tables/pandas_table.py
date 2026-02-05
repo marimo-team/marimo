@@ -314,10 +314,15 @@ class PandasTableManagerFactory(TableManagerFactory):
                     original_names = list(index.names)
 
                     df_with_index = self._original_data.reset_index()
-                    # reset_index() puts index columns at the start
-                    index_columns = list(df_with_index.columns[:num_levels])
-
                     manager = PandasTableManager(df_with_index)
+
+                    # Get index column names AFTER manager init, since
+                    # _handle_non_string_column_names may have converted
+                    # non-string column names to strings
+                    index_columns = list(
+                        manager._original_data.columns[:num_levels]
+                    )
+
                     result = super(PandasTableManager, manager).search(query)
                     native_df: pd.DataFrame = nw.to_native(result.data)
 
