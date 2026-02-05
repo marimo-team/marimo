@@ -1915,3 +1915,29 @@ class TestPandasTableManager(unittest.TestCase):
         # Polygon geometry
         assert isinstance(json_data[2]["geometry"], str)
         assert "POLYGON" in json_data[2]["geometry"]
+
+    def test_search_with_index_column_name_conflict(self) -> None:
+        df = pd.DataFrame(
+            {"x": [10, 20, 30], "y": ["foo", "bar", "baz"]},
+        )
+        df.index = pd.Index([1, 2, 3], name="x")
+        manager = self.factory.create()(df)
+        # Should not raise ValueError: cannot insert x, already exists
+        result = manager.search("foo")
+        assert result.get_num_rows() == 1
+        # Index should be preserved
+        assert result._original_data.index.name == "x"
+
+    def test_search_with_multiindex_column_name_conflict(self) -> None:
+        df = pd.DataFrame(
+            {"x": [10, 20, 30], "y": ["foo", "bar", "baz"]},
+            index=pd.MultiIndex.from_tuples(
+                [(1, "a"), (2, "b"), (3, "c")], names=["x", "level"]
+            ),
+        )
+        manager = self.factory.create()(df)
+        # Should not raise ValueError: cannot insert x, already exists
+        result = manager.search("bar")
+        assert result.get_num_rows() == 1
+        # MultiIndex should be preserved with original names
+        assert list(result._original_data.index.names) == ["x", "level"]
