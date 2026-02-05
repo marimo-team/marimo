@@ -19,6 +19,7 @@ import msgspec
 
 from marimo import _loggers
 from marimo._dependencies.dependencies import DependencyManager
+from marimo._plugins.utils import remove_none_values
 from marimo._utils.parse_dataclass import parse_raw
 
 LOGGER = _loggers.marimo_logger()
@@ -206,12 +207,13 @@ class ChatMessage(msgspec.Struct):
     role: Literal["user", "assistant", "system"]
 
     # The content of the message.
+    # This can be a rich Python object.
     content: Any
 
     # The id of the message.
     id: str = ""
 
-    # Parts from AI SDK
+    # Parts from AI SDK Stream Protocol (must be serializable to JSON)
     parts: list[ChatPart] = []
 
     # Optional attachments to the message.
@@ -287,12 +289,15 @@ class ChatMessage(msgspec.Struct):
                 if isinstance(part, part_validator_class):
                     validated_parts.append(part)
                 elif isinstance(part, dict):
+                    sanitized_part = remove_none_values(part)
                     # Try pydantic validation for dict -> class conversion
                     try:
                         from pydantic import TypeAdapter
 
                         adapter = TypeAdapter(part_validator_class)
-                        validated_parts.append(adapter.validate_python(part))
+                        validated_parts.append(
+                            adapter.validate_python(sanitized_part)
+                        )
                     except ImportError:
                         LOGGER.debug(
                             "Pydantic not installed, skipping dict validation"
