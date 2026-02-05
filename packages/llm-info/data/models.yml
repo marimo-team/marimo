@@ -5,7 +5,7 @@
 
 - name: Claude 4.6 Opus
   model: claude-opus-4-6
-  description: Latest Opus model with enhanced capabilities and performance improvements
+  description: Strongest model for coding and long-running professional tasks
   providers: [anthropic]
   roles: [chat, edit]
   thinking: true
@@ -13,13 +13,6 @@
 - name: Claude 4.5 Opus
   model: claude-opus-4-5
   description: Frontier reasoning model optimized for complex software engineering
-  providers: [anthropic]
-  roles: [chat, edit]
-  thinking: true
-
-- name: Claude 4.5 Opus
-  model: claude-opus-4-5
-  description: Modern Opus model with enhanced capabilities and performance improvements
   providers: [anthropic]
   roles: [chat, edit]
   thinking: true
@@ -40,14 +33,7 @@
 
 - name: Claude 4.1 Opus
   model: claude-opus-4-1
-  description: Latest Opus model with enhanced capabilities and performance improvements
-  providers: [anthropic]
-  roles: [chat, edit]
-  thinking: true
-
-- name: Claude 4 Opus
-  model: claude-opus-4-0
-  description: Most capable model with superior performance on complex tasks and reasoning
+  description: Opus model with improved performance in coding, reasoning, and agentic tasks
   providers: [anthropic]
   roles: [chat, edit]
   thinking: true
@@ -178,6 +164,13 @@
   thinking: false
 
 # Bedrock
+
+- name: Claude 4.6 Opus (Bedrock)
+  model: global.anthropic.claude-opus-4-6-20260206-v1:0
+  description: Strongest model for coding and long-running professional tasks
+  providers: [bedrock]
+  roles: [chat, edit]
+  thinking: true
 
 - name: Claude 4.5 Opus (Bedrock)
   model: global.anthropic.claude-opus-4-5-20251120-v1:0
