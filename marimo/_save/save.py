@@ -80,6 +80,7 @@ class _cache_call(CacheContext):
         "pin_modules",
         "hash_type",
         "_args",
+        "_kwonly_args",
         "_defaults",
         "_var_arg",
         "_var_kwarg",
@@ -99,6 +100,7 @@ class _cache_call(CacheContext):
     pin_modules: bool
     hash_type: str
     _args: list[str]
+    _kwonly_args: list[str]
     _defaults: dict[str, Any]
     _var_arg: Optional[str]
     _var_kwarg: Optional[str]
@@ -136,6 +138,7 @@ class _cache_call(CacheContext):
         self._bound = {}
         self._external = False
         self._defaults = {}
+        self._kwonly_args = []
         if _fn is None:
             self.__wrapped__ = None
         else:
@@ -172,6 +175,12 @@ class _cache_call(CacheContext):
                 inspect.Parameter.POSITIONAL_OR_KEYWORD,
                 inspect.Parameter.POSITIONAL_ONLY,
             )
+        ]
+        # Track keyword-only parameters (those after * or *args)
+        self._kwonly_args = [
+            param.name
+            for param in sig.parameters.values()
+            if param.kind == inspect.Parameter.KEYWORD_ONLY
         ]
         # Store default values for arguments (issue #7977)
         self._defaults = {
@@ -218,6 +227,10 @@ class _cache_call(CacheContext):
         # For instance, the args of the invoked function are restricted to the
         # block.
         self.scoped_refs = set([f"{ARG_PREFIX}{k}" for k in self._args])
+        # Include keyword-only args as well
+        self.scoped_refs |= set(
+            [f"{ARG_PREFIX}{k}" for k in self._kwonly_args]
+        )
         # As are the "locals" not in globals
         self.scoped_refs |= set(f_locals.keys()) - set(glbls.keys())
         # Defined in the cell, and currently available in scope
@@ -296,7 +309,11 @@ class _cache_call(CacheContext):
             arg_dict[f"{ARG_PREFIX}{self._var_arg}"] = args[len(self._args) :]
         if self._var_kwarg is not None:
             # NB: kwargs are always a dict, so we can just copy them.
-            arg_dict[f"{ARG_PREFIX}{self._var_kwarg}"] = kwargs.copy()
+            # Filter out keyword-only args since they're handled separately
+            filtered_kwargs = {
+                k: v for k, v in kwargs.items() if k not in self._kwonly_args
+            }
+            arg_dict[f"{ARG_PREFIX}{self._var_kwarg}"] = filtered_kwargs
 
         # Capture the call case
         ctx = safe_get_context()
@@ -327,7 +344,10 @@ class _cache_call(CacheContext):
             scope,
             self.loader,
             scoped_refs=self.scoped_refs,
-            required_refs=set([f"{ARG_PREFIX}{k}" for k in self._args]),
+            required_refs=set(
+                [f"{ARG_PREFIX}{k}" for k in self._args]
+                + [f"{ARG_PREFIX}{k}" for k in self._kwonly_args]
+            ),
             as_fn=True,
         )
 
