@@ -522,11 +522,10 @@ export class CollapsibleTree<T> {
     if (found.length === 0) {
       return this;
     }
-    let result: CollapsibleTree<T> = this;
-    for (const node of found) {
-      result = result.expand(node);
-    }
-    return result;
+    return found.reduce<CollapsibleTree<T>>(
+      (acc, node) => acc.expand(node),
+      this,
+    );
   }
 
   /**
