@@ -1,7 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import type { AnyWidget, Experimental } from "@anywidget/types";
+import type { AnyWidget } from "@anywidget/types";
 import { useEffect, useRef } from "react";
 import { z } from "zod";
 import { asRemoteURL } from "@/core/runtime/config";
@@ -14,7 +14,7 @@ import type { IPluginProps } from "@/plugins/types";
 import { prettyError } from "@/utils/errors";
 import { Logger } from "@/utils/Logger";
 import { ErrorBanner } from "../common/error-banner";
-import { MODEL_MANAGER, type Model } from "./model";
+import { getMarimoInternal, MODEL_MANAGER, type Model } from "./model";
 import type { ModelState, WidgetModelId } from "./types";
 
 /**
@@ -170,39 +170,26 @@ const AnyWidgetSlot = (props: IPluginProps<ModelIdRef, Data>) => {
 /**
  * Run the anywidget module
  *
- * @param widgetDef - The anywidget definition
- * @param model - The model to pass to the widget
+ * Per AFM spec (anywidget.dev/en/afm):
+ * - initialize() is called once per model lifetime
+ * - render() is called once per view (can be multiple per model)
  */
 async function runAnyWidgetModule<T extends AnyWidgetState>(
   widgetDef: AnyWidget<T>,
   model: Model<T>,
   el: HTMLElement,
-): Promise<() => void> {
-  const experimental: Experimental = {
-    invoke: async (_name, _msg, _options) => {
-      const message =
-        "anywidget.invoke not supported in marimo. Please file an issue at https://github.com/marimo-team/marimo/issues";
-      Logger.warn(message);
-      throw new Error(message);
-    },
-  };
+  signal: AbortSignal,
+): Promise<void> {
   // Clear the element, in case the widget is re-rendering
   el.innerHTML = "";
-  const widget =
-    typeof widgetDef === "function" ? await widgetDef() : widgetDef;
-  await widget.initialize?.({ model, experimental });
+
   try {
-    const unsub = await widget.render?.({ model, el, experimental });
-    return () => {
-      unsub?.();
-    };
+    const render = await getMarimoInternal(model).resolveWidget(widgetDef);
+    await render(el, signal);
   } catch (error) {
     Logger.error("Error rendering anywidget", error);
     el.classList.add("text-error");
     el.innerHTML = `Error rendering anywidget: ${prettyError(error)}`;
-    return () => {
-      // No-op
-    };
   }
 }
 
@@ -245,10 +232,9 @@ const LoadedSlot = <T extends AnyWidgetState>({
     if (!htmlRef.current || !model) {
       return;
     }
-    const unsubPromise = runAnyWidgetModule(widget, model, htmlRef.current);
-    return () => {
-      unsubPromise.then((unsub) => unsub());
-    };
+    const controller = new AbortController();
+    runAnyWidgetModule(widget, model, htmlRef.current, controller.signal);
+    return () => controller.abort();
     // We re-run the widget when the modelId changes, which means the cell
     // that created the Widget has been re-run.
     // We need to re-run the widget because it may contain initialization code

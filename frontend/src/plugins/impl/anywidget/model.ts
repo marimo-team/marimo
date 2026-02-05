@@ -1,7 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import type { AnyModel } from "@anywidget/types";
+import type { AnyModel, AnyWidget, Experimental } from "@anywidget/types";
 import { debounce } from "lodash-es";
 import type { NotificationMessageData } from "@/core/kernel/messages";
 import { getRequestClient } from "@/core/network/requests";
@@ -25,26 +25,25 @@ class ModelManager {
   /**
    * Map of model ids to deferred promises
    */
-  private models = new Map<WidgetModelId, Deferred<Model<ModelState>>>();
-
+  #models = new Map<WidgetModelId, Deferred<Model<ModelState>>>();
   /**
    * Timeout for model lookup
    */
-  private timeout: number;
+  #timeout: number;
 
   constructor(timeout = 10_000) {
-    this.timeout = timeout;
+    this.#timeout = timeout;
   }
 
   get(key: WidgetModelId): Promise<Model<any>> {
-    let deferred = this.models.get(key);
+    let deferred = this.#models.get(key);
     if (deferred) {
       return deferred.promise;
     }
 
     // If the model is not yet created, create the new deferred promise without resolving it
     deferred = new Deferred<Model<ModelState>>();
-    this.models.set(key, deferred);
+    this.#models.set(key, deferred);
 
     // Add timeout to prevent hanging
     setTimeout(() => {
@@ -54,17 +53,17 @@ class ModelManager {
       }
 
       deferred.reject(new Error(`Model not found for key: ${key}`));
-      this.models.delete(key);
-    }, this.timeout);
+      this.#models.delete(key);
+    }, this.#timeout);
 
     return deferred.promise;
   }
 
   set(key: WidgetModelId, model: Model<any>): void {
-    let deferred = this.models.get(key);
+    let deferred = this.#models.get(key);
     if (!deferred) {
       deferred = new Deferred<Model<ModelState>>();
-      this.models.set(key, deferred);
+      this.#models.set(key, deferred);
     }
     deferred.resolve(model);
   }
@@ -75,7 +74,7 @@ class ModelManager {
    * before the 'open' message arrives.
    */
   has(key: WidgetModelId): boolean {
-    const deferred = this.models.get(key);
+    const deferred = this.#models.get(key);
     return deferred !== undefined && deferred.status === "resolved";
   }
 
@@ -84,7 +83,7 @@ class ModelManager {
    * Returns undefined if the model doesn't exist or is still pending.
    */
   getSync(key: WidgetModelId): Model<any> | undefined {
-    const deferred = this.models.get(key);
+    const deferred = this.#models.get(key);
     if (deferred && deferred.status === "resolved") {
       return deferred.value;
     }
@@ -92,7 +91,7 @@ class ModelManager {
   }
 
   delete(key: WidgetModelId): void {
-    this.models.delete(key);
+    this.#models.delete(key);
   }
 }
 
@@ -101,37 +100,149 @@ interface MarimoComm<T> {
   sendCustomMessage: (content: unknown, buffers: DataView[]) => Promise<void>;
 }
 
+const marimoSymbol = Symbol("marimo");
+
+const experimental: Experimental = {
+  invoke: async () => {
+    const message =
+      "anywidget.invoke not supported in marimo. Please file an issue at https://github.com/marimo-team/marimo/issues";
+    Logger.warn(message);
+    throw new Error(message);
+  },
+};
+
+type RenderFn = (el: HTMLElement, signal: AbortSignal) => Promise<void>;
+
+interface MarimoInternalApi<T extends ModelState> {
+  /**
+   * Resolve the widget definition and initialize if needed.
+   * Returns a render function that can be called for each view.
+   *
+   * Per AFM spec:
+   * - widgetDef() is called once per model
+   * - initialize() is called once per model
+   * - render() (the returned function) is called once per view
+   */
+  resolveWidget: (widgetDef: AnyWidget<T>) => Promise<RenderFn>;
+  /**
+   * Update model state and emit change events for any differences.
+   */
+  updateAndEmitDiffs: (value: T) => void;
+  /**
+   * Emit a custom message to listeners.
+   */
+  emitCustomMessage: (
+    message: Extract<AnyWidgetMessage, { method: "custom" }>,
+    buffers?: readonly DataView[],
+  ) => void;
+  /**
+   * Destroy the model, triggering initialize cleanup.
+   */
+  destroy: () => void;
+}
+
+/**
+ * Get the internal marimo API for a Model instance.
+ * These are not part of the public AnyModel interface.
+ */
+export function getMarimoInternal<T extends ModelState>(
+  model: Model<T>,
+): MarimoInternalApi<T> {
+  return model[marimoSymbol];
+}
+
 export const MODEL_MANAGER = new ModelManager();
 
 export class Model<T extends ModelState> implements AnyModel<T> {
-  private ANY_CHANGE_EVENT = "change";
-  private dirtyFields: Map<keyof T, unknown>;
+  #ANY_CHANGE_EVENT = "change";
+  #dirtyFields: Map<keyof T, unknown>;
+  #data: T;
+  #comm: MarimoComm<T>;
+  #listeners: Record<string, Set<EventHandler> | undefined> = {};
+  #controller = new AbortController();
+  #widgetDef: AnyWidget<T> | undefined;
+  #render:
+    | ((el: HTMLElement, signal: AbortSignal) => Promise<void>)
+    | undefined;
 
-  public static _modelManager: ModelManager = MODEL_MANAGER;
-
-  private data: T;
-  private comm: MarimoComm<T>;
+  static _modelManager: ModelManager = MODEL_MANAGER;
 
   constructor(data: T, comm: MarimoComm<T>) {
-    this.data = data;
-    this.comm = comm;
-    this.dirtyFields = new Map();
+    this.#data = data;
+    this.#comm = comm;
+    this.#dirtyFields = new Map();
   }
 
-  private listeners: Record<string, Set<EventHandler> | undefined> = {};
+  /**
+   * Internal marimo API - not part of AnyWidget AFM.
+   * Access via getMarimoInternal().
+   */
+  [marimoSymbol]: MarimoInternalApi<T> = {
+    updateAndEmitDiffs: (value: T) => this.#updateAndEmitDiffs(value),
+    emitCustomMessage: (
+      message: Extract<AnyWidgetMessage, { method: "custom" }>,
+      buffers?: readonly DataView[],
+    ) => this.#emitCustomMessage(message, buffers),
+    resolveWidget: async (widgetDef: AnyWidget<T>): Promise<RenderFn> => {
+      // Already initialized with the same widget - return cached render
+      if (this.#render && this.#widgetDef === widgetDef) {
+        return this.#render;
+      }
+
+      // If widgetDef changed (hot reload), destroy old and re-initialize
+      if (this.#render && this.#widgetDef !== widgetDef) {
+        this.#controller.abort();
+        this.#controller = new AbortController();
+        this.#render = undefined;
+      }
+
+      this.#widgetDef = widgetDef;
+
+      // Resolve the widget definition (call if it's a function)
+      const widget =
+        typeof widgetDef === "function" ? await widgetDef() : widgetDef;
+
+      // Call initialize once per model
+      const cleanup = await widget.initialize?.({ model: this, experimental });
+      if (cleanup) {
+        this.#controller.signal.addEventListener("abort", cleanup);
+      }
+
+      // Store and return the render closure
+      this.#render = async (el: HTMLElement, signal: AbortSignal) => {
+        const renderCleanup = await widget.render?.({
+          model: this,
+          el,
+          experimental,
+        });
+        if (renderCleanup) {
+          // Cleanup when either the view unmounts or the model is destroyed
+          AbortSignal.any([signal, this.#controller.signal]).addEventListener(
+            "abort",
+            renderCleanup,
+          );
+        }
+      };
+
+      return this.#render;
+    },
+    destroy: () => {
+      this.#controller.abort();
+    },
+  };
 
   off(eventName?: string | null, callback?: EventHandler | null): void {
     if (!eventName) {
-      this.listeners = {};
+      this.#listeners = {};
       return;
     }
 
     if (!callback) {
-      this.listeners[eventName] = new Set();
+      this.#listeners[eventName] = new Set();
       return;
     }
 
-    this.listeners[eventName]?.delete(callback);
+    this.#listeners[eventName]?.delete(callback);
   }
 
   send(
@@ -144,7 +255,7 @@ export class Model<T extends ModelState> implements AnyModel<T> {
         ? new DataView(buf)
         : new DataView(buf.buffer, buf.byteOffset, buf.byteLength),
     );
-    return this.comm
+    return this.#comm
       .sendCustomMessage(content, dataViews)
       .then(() => callbacks?.());
   }
@@ -164,31 +275,52 @@ export class Model<T extends ModelState> implements AnyModel<T> {
   };
 
   get<K extends keyof T>(key: K): T[K] {
-    return this.data[key];
+    return this.#data[key];
   }
 
   set<K extends keyof T>(key: K, value: T[K]): void {
-    this.data = { ...this.data, [key]: value };
-    this.dirtyFields.set(key, value);
-    this.emit(`change:${key as K & string}`, value);
-    this.emitAnyChange();
+    this.#data = { ...this.#data, [key]: value };
+    this.#dirtyFields.set(key, value);
+    this.#emit(`change:${key as K & string}`, value);
+    this.#emitAnyChange();
   }
 
   save_changes(): void {
-    if (this.dirtyFields.size === 0) {
+    if (this.#dirtyFields.size === 0) {
       return;
     }
     // Only send the dirty fields, not the entire state.
     const partialData = Object.fromEntries(
-      this.dirtyFields.entries(),
+      this.#dirtyFields.entries(),
     ) as Partial<T>;
 
     // Clear the dirty fields to avoid sending again.
-    this.dirtyFields.clear();
-    this.comm.sendUpdate(partialData);
+    this.#dirtyFields.clear();
+    this.#comm.sendUpdate(partialData);
   }
 
-  updateAndEmitDiffs(value: T): void {
+  on(eventName: string, callback: EventHandler): void {
+    if (!this.#listeners[eventName]) {
+      this.#listeners[eventName] = new Set();
+    }
+    this.#listeners[eventName].add(callback);
+  }
+
+  #emit<K extends keyof T>(event: `change:${K & string}`, value: T[K]) {
+    if (!this.#listeners[event]) {
+      return;
+    }
+    const listeners = this.#listeners[event];
+    for (const listener of listeners) {
+      try {
+        listener(value);
+      } catch (error) {
+        Logger.error("Error emitting event", error);
+      }
+    }
+  }
+
+  #updateAndEmitDiffs(value: T) {
     if (value == null) {
       return;
     }
@@ -196,7 +328,7 @@ export class Model<T extends ModelState> implements AnyModel<T> {
     Object.keys(value).forEach((key) => {
       const k = key as keyof T;
       // Shallow equal since these can be large objects
-      if (this.data[k] !== value[k]) {
+      if (this.#data[k] !== value[k]) {
         this.set(k, value[k]);
       }
     });
@@ -206,11 +338,11 @@ export class Model<T extends ModelState> implements AnyModel<T> {
    * When receiving a message from the backend.
    * We want to notify all listeners with `msg:custom`
    */
-  emitCustomMessage(
+  #emitCustomMessage(
     message: Extract<AnyWidgetMessage, { method: "custom" }>,
     buffers: readonly DataView[] = [],
-  ): void {
-    const listeners = this.listeners["msg:custom"];
+  ) {
+    const listeners = this.#listeners["msg:custom"];
     if (!listeners) {
       return;
     }
@@ -223,30 +355,9 @@ export class Model<T extends ModelState> implements AnyModel<T> {
     }
   }
 
-  on(eventName: string, callback: EventHandler): void {
-    if (!this.listeners[eventName]) {
-      this.listeners[eventName] = new Set();
-    }
-    this.listeners[eventName].add(callback);
-  }
-
-  private emit<K extends keyof T>(event: `change:${K & string}`, value: T[K]) {
-    if (!this.listeners[event]) {
-      return;
-    }
-    const listeners = this.listeners[event];
-    for (const listener of listeners) {
-      try {
-        listener(value);
-      } catch (error) {
-        Logger.error("Error emitting event", error);
-      }
-    }
-  }
-
   // Debounce 0 to send off one request in a single frame
-  private emitAnyChange = debounce(() => {
-    const listeners = this.listeners[this.ANY_CHANGE_EVENT];
+  #emitAnyChange = debounce(() => {
+    const listeners = this.#listeners[this.#ANY_CHANGE_EVENT];
     if (!listeners) {
       return;
     }
@@ -296,7 +407,7 @@ export async function handleWidgetMessage(
       // If so, just update its state instead of creating a duplicate
       const existingModel = modelManager.getSync(modelId);
       if (existingModel) {
-        existingModel.updateAndEmitDiffs(stateWithBuffers);
+        getMarimoInternal(existingModel).updateAndEmitDiffs(stateWithBuffers);
         return;
       }
 
@@ -325,16 +436,21 @@ export async function handleWidgetMessage(
     case "custom": {
       const model = await modelManager.get(modelId);
       // For custom messages, we need to reconstruct the AnyWidgetMessage format
-      model.emitCustomMessage(
+      getMarimoInternal(model).emitCustomMessage(
         { method: "custom", content: msg.content },
         buffers,
       );
       return;
     }
 
-    case "close":
+    case "close": {
+      const model = modelManager.getSync(modelId);
+      if (model) {
+        getMarimoInternal(model).destroy();
+      }
       modelManager.delete(modelId);
       return;
+    }
 
     case "update": {
       const { state, buffer_paths = [] } = msg;
@@ -344,7 +460,7 @@ export async function handleWidgetMessage(
         buffers,
       });
       const model = await modelManager.get(modelId);
-      model.updateAndEmitDiffs(stateWithBuffers);
+      getMarimoInternal(model).updateAndEmitDiffs(stateWithBuffers);
       return;
     }
 

@@ -9,7 +9,12 @@ import {
   vi,
 } from "vitest";
 import { TestUtils } from "@/__tests__/test-helpers";
-import { handleWidgetMessage, Model, visibleForTesting } from "../model";
+import {
+  getMarimoInternal,
+  handleWidgetMessage,
+  Model,
+  visibleForTesting,
+} from "../model";
 import type { WidgetModelId } from "../types";
 
 const { ModelManager } = visibleForTesting;
@@ -41,6 +46,36 @@ describe("Model", () => {
     mockComm = createMockComm();
     mockSendModelValue.mockClear();
     model = new Model({ foo: "test", bar: 123 }, mockComm);
+  });
+
+  describe("public API", () => {
+    it("should only expose AFM-compliant interface", () => {
+      // Get all enumerable own properties
+      const ownProperties = Object.keys(model).sort();
+      // Get prototype methods (excluding constructor)
+      const prototypeMethods = Object.getOwnPropertyNames(
+        Object.getPrototypeOf(model),
+      )
+        .filter((name) => name !== "constructor")
+        .sort();
+
+      // Snapshot the public API to catch accidental leaks of internal methods
+      expect({ ownProperties, prototypeMethods }).toMatchInlineSnapshot(`
+        {
+          "ownProperties": [
+            "widget_manager",
+          ],
+          "prototypeMethods": [
+            "get",
+            "off",
+            "on",
+            "save_changes",
+            "send",
+            "set",
+          ],
+        }
+      `);
+    });
   });
 
   describe("get/set", () => {
@@ -202,7 +237,7 @@ describe("Model", () => {
       const callback = vi.fn();
       model.on("change:foo", callback);
 
-      model.updateAndEmitDiffs({ foo: "test", bar: 456 });
+      getMarimoInternal(model).updateAndEmitDiffs({ foo: "test", bar: 456 });
       expect(callback).not.toHaveBeenCalled(); // foo didn't change
       expect(model.get("bar")).toBe(456);
     });
@@ -215,14 +250,16 @@ describe("Model", () => {
       const callback = vi.fn();
       modelWithObject.on("change:foo", callback);
 
-      modelWithObject.updateAndEmitDiffs({ foo: { nested: "changed" } });
+      getMarimoInternal(modelWithObject).updateAndEmitDiffs({
+        foo: { nested: "changed" },
+      });
       expect(callback).toHaveBeenCalledTimes(1);
     });
 
     it("should emit change event for any changes", async () => {
       const callback = vi.fn();
       model.on("change", callback);
-      model.updateAndEmitDiffs({ foo: "changed", bar: 456 });
+      getMarimoInternal(model).updateAndEmitDiffs({ foo: "changed", bar: 456 });
       await TestUtils.nextTick(); // flush
       expect(callback).toHaveBeenCalledTimes(1);
     });
@@ -234,7 +271,7 @@ describe("Model", () => {
       model.on("msg:custom", callback);
 
       const content = { type: "test" };
-      model.emitCustomMessage({
+      getMarimoInternal(model).emitCustomMessage({
         method: "custom",
         content,
       });
@@ -248,7 +285,7 @@ describe("Model", () => {
 
       const content = { type: "test" };
       const buffer = new DataView(new ArrayBuffer(8));
-      model.emitCustomMessage(
+      getMarimoInternal(model).emitCustomMessage(
         {
           method: "custom",
           content,
