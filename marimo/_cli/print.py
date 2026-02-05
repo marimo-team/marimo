@@ -128,44 +128,32 @@ def echo(*args: Any, **kwargs: Any) -> None:
 # - Bold bright cyan for command/option names
 
 
-def _format_usage(
-    cmd: click.Command, ctx: click.Context, formatter: click.HelpFormatter
-) -> None:
-    """Write usage line with colored 'Usage:' label."""
-    pieces = cmd.collect_usage_pieces(ctx)
-    formatter.write_usage(
-        ctx.command_path, " ".join(pieces), bright_green("Usage: ", bold=True)
-    )
-
-
-def _format_options(
-    cmd: click.Command, ctx: click.Context, formatter: click.HelpFormatter
-) -> None:
-    """Write all options with colored names."""
-    opts = []
-    for param in cmd.get_params(ctx):
-        rv = param.get_help_record(ctx)
-        if rv is not None:
-            opts.append(rv)
-
-    if opts:
-        rows = [(light_blue(opt, bold=True), desc) for opt, desc in opts]
-        with formatter.section(bright_green("Options", bold=True)):
-            formatter.write_dl(rows)
-
-
 class ColoredCommand(click.Command):
     """Click Command with colored help output (cargo-style)."""
 
     def format_usage(
         self, ctx: click.Context, formatter: click.HelpFormatter
     ) -> None:
-        _format_usage(self, ctx, formatter)
+        pieces = self.collect_usage_pieces(ctx)
+        formatter.write_usage(
+            ctx.command_path,
+            " ".join(pieces),
+            bright_green("Usage: ", bold=True),
+        )
 
     def format_options(
         self, ctx: click.Context, formatter: click.HelpFormatter
     ) -> None:
-        _format_options(self, ctx, formatter)
+        opts = []
+        for param in self.get_params(ctx):
+            rv = param.get_help_record(ctx)
+            if rv is not None:
+                opts.append(rv)
+
+        if opts:
+            rows = [(light_blue(opt, bold=True), desc) for opt, desc in opts]
+            with formatter.section(bright_green("Options", bold=True)):
+                formatter.write_dl(rows)
 
 
 class ColoredGroup(click.Group):
@@ -176,12 +164,27 @@ class ColoredGroup(click.Group):
     def format_usage(
         self, ctx: click.Context, formatter: click.HelpFormatter
     ) -> None:
-        _format_usage(self, ctx, formatter)
+        pieces = self.collect_usage_pieces(ctx)
+        formatter.write_usage(
+            ctx.command_path,
+            " ".join(pieces),
+            bright_green("Usage: ", bold=True),
+        )
 
     def format_options(
         self, ctx: click.Context, formatter: click.HelpFormatter
     ) -> None:
-        _format_options(self, ctx, formatter)
+        opts = []
+        for param in self.get_params(ctx):
+            rv = param.get_help_record(ctx)
+            if rv is not None:
+                opts.append(rv)
+
+        if opts:
+            rows = [(light_blue(opt, bold=True), desc) for opt, desc in opts]
+            with formatter.section(bright_green("Options", bold=True)):
+                formatter.write_dl(rows)
+
         # Click's MultiCommand.format_options calls format_commands internally,
         # so we must do the same since we're overriding the method completely
         self.format_commands(ctx, formatter)
