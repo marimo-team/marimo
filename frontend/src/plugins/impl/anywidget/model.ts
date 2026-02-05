@@ -215,7 +215,11 @@ export class Model<T extends ModelState> implements AnyModel<T> {
       return;
     }
     for (const listener of listeners) {
-      listener(message.content, buffers);
+      try {
+        listener(message.content, buffers);
+      } catch (error) {
+        Logger.error("Error emitting event", error);
+      }
     }
   }
 
@@ -232,7 +236,11 @@ export class Model<T extends ModelState> implements AnyModel<T> {
     }
     const listeners = this.listeners[event];
     for (const listener of listeners) {
-      listener(value);
+      try {
+        listener(value);
+      } catch (error) {
+        Logger.error("Error emitting event", error);
+      }
     }
   }
 
@@ -243,7 +251,11 @@ export class Model<T extends ModelState> implements AnyModel<T> {
       return;
     }
     for (const listener of listeners) {
-      listener();
+      try {
+        listener();
+      } catch (error) {
+        Logger.error("Error emitting event", error);
+      }
     }
   }, 0);
 }
