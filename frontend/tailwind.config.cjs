@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 const plugin = require("tailwindcss/plugin");
 const { fontFamily } = require("tailwindcss/defaultTheme");
@@ -120,6 +120,10 @@ module.exports = {
           "0%": { transform: "translateX(-100%)" },
           "100%": { transform: "translateX(400%)" },
         },
+        "progress-indeterminate": {
+          "0%": { transform: "translateX(-100%)" },
+          "100%": { transform: "translateX(400%)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
@@ -128,6 +132,8 @@ module.exports = {
         "delayed-show-400": "delayed-show 400ms ease-out",
         "ellipsis-dot": "ellipsis-dot 400ms ease-in-out infinite",
         slide: "slide 1.5s ease-in-out infinite",
+        "progress-indeterminate":
+          "progress-indeterminate 1.5s ease-in-out infinite",
       },
       gridTemplateColumns: {
         "auto-fit": "repeat(auto-fit, minmax(0, 1fr))",

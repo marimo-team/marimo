@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 
 from __future__ import annotations
 import os
@@ -19,6 +19,7 @@ from marimo._ast.app import (
     InternalApp,
 )
 from marimo._ast.app_config import _AppConfig
+from marimo._ast.cell_id import is_external_cell_id
 from marimo._ast.errors import (
     CycleError,
     IncompleteRefsError,
@@ -27,18 +28,20 @@ from marimo._ast.errors import (
     UnparsableError,
 )
 from marimo._ast.load import load_app
+from marimo._ast.names import SETUP_CELL_NAME
 from marimo._convert.converters import MarimoConvert
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins.stateless.flex import vstack
 from marimo._runtime.context.types import get_context
-from marimo._runtime.requests import SetUIElementValueRequest
+from marimo._runtime.commands import UpdateUIElementCommand, ExecuteCellCommand
 from marimo._schemas.serialization import (
     AppInstantiation,
     CellDef,
     NotebookSerializationV1,
 )
 from marimo._types.ids import CellId_t
-from tests.conftest import ExecReqProvider
+from tests.conftest import ExecReqProvider, MockedKernel
+from tests._messaging.mocks import MockStream
 
 if TYPE_CHECKING:
     from marimo._runtime.runtime import Kernel
@@ -194,6 +197,29 @@ class TestApp:
         outputs, defs = app.run(defs={"normal_var": 100})
         assert defs["normal_var"] == 100
         assert "setup_var" in defs  # setup still ran
+
+    @staticmethod
+    def test_run_with_undefined_refs_in_setup_cell() -> None:
+        """Test that overriding setup cell definitions raises IncompleteRefsError."""
+        app = App()
+
+        with app.setup:
+            import os
+            a = 1
+            if a > 2:
+                setup_var = "from_setup"
+
+        @app.cell
+        def use_setup(setup_var: str) -> tuple[str]:
+            result = f"Used {setup_var}"
+            return (result,)
+
+        # Test: Trying to override setup cell variables should fail
+        # Ensure this doesn't incorrectly raise a IncompleteRefsError
+        with pytest.raises(NameError) as exc_info:
+            app.run()
+        assert "setup_var" in str(exc_info.value)
+
 
     @staticmethod
     def test_setup() -> None:
@@ -860,6 +886,60 @@ class TestApp:
             InternalApp(app).cell_manager.cell_ids()
         )
 
+    def test_app_clone_deep_copies_cell_impl_mutable_fields(self) -> None:
+        """Test that clone() deep-copies CellImpl's mutable fields.
+
+        CellImpl has mutable fields (config, import_workspace, and private
+        runtime state) that should not be shared between the original and
+        cloned app.
+        """
+        app = App()
+
+        @app.cell
+        def __():
+            x = 1
+            return (x,)
+
+        clone = app.clone()
+
+        original_internal = InternalApp(app)
+        cloned_internal = InternalApp(clone)
+
+        # Get the cell data from both apps
+        original_cell_ids = list(original_internal.cell_manager.cell_ids())
+        cloned_cell_ids = list(cloned_internal.cell_manager.cell_ids())
+
+        original_cell = original_internal.cell_manager._cell_data[
+            original_cell_ids[0]
+        ].cell
+        cloned_cell = cloned_internal.cell_manager._cell_data[
+            cloned_cell_ids[0]
+        ].cell
+
+        assert original_cell is not None
+        assert cloned_cell is not None
+
+        original_impl = original_cell._cell
+        cloned_impl = cloned_cell._cell
+
+        # CellImpl objects should be different
+        assert original_impl is not cloned_impl
+
+        # Public mutable fields should be deep-copied, not shared
+        assert original_impl.config is not cloned_impl.config
+        assert original_impl.import_workspace is not cloned_impl.import_workspace
+
+        # Private mutable runtime state fields should also be independent
+        assert original_impl._status is not cloned_impl._status
+        assert original_impl._run_result_status is not cloned_impl._run_result_status
+        assert original_impl._stale is not cloned_impl._stale
+        assert original_impl._output is not cloned_impl._output
+
+        # Verify mutation of config doesn't affect the original
+        cloned_impl.config.configure({"disabled": True})
+        assert cloned_impl.config.disabled is True
+        assert original_impl.config.disabled is False
+
     def test_to_py(self) -> None:
         """Test that InternalApp.to_py() returns the Python code representation."""
         app = App()
@@ -1307,7 +1387,7 @@ class TestAppComposition:
         assert token[0] == 1
 
         assert await k.set_ui_element_value(
-            SetUIElementValueRequest.from_ids_and_values(
+            UpdateUIElementCommand.from_ids_and_values(
                 [(dropdown_element._id, ["second"])]
             )
         )
@@ -1361,7 +1441,7 @@ class TestAppComposition:
         # testing that only descendants of the updated UI elements run,
         # and that the other UI element is not reset
         assert await k.set_ui_element_value(
-            SetUIElementValueRequest.from_ids_and_values([(x._id, 2)])
+            UpdateUIElementCommand.from_ids_and_values([(x._id, 2)])
         )
 
         assert app_kernel_runner == app._get_kernel_runner()
@@ -1370,7 +1450,7 @@ class TestAppComposition:
         assert y.value == 1
 
         assert await k.set_ui_element_value(
-            SetUIElementValueRequest.from_ids_and_values([(y._id, 3)])
+            UpdateUIElementCommand.from_ids_and_values([(y._id, 3)])
         )
 
         assert x.value == 2
@@ -1537,6 +1617,155 @@ class TestAppComposition:
             ]
         )
         assert "App.embed() cannot be called" in k.stderr.messages[0]
+
+    async def test_imported_app_has_prefixed_setup_cell(
+        self, k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        """Verify app imported in kernel context has UUID-prefixed setup cell.
+
+        This tests the fix where setup cells get the prefix like other cells.
+        """
+        await k.run([
+            exec_req.get("""
+            # Import in kernel context; the prefix the app gets
+            # depends on whether it was first imported in a kernel context,
+            # so we reload it in case notebook_filename was loaded elsewhere
+            # in tests
+            import tests._ast.app_data.notebook_filename as mod
+            import importlib
+            # This forces the app object to be constructed in the runtime context
+            importlib.reload(mod)
+            app = mod.app
+            """)
+        ])
+        assert not k.errors
+        nb_app = k.globals["app"]
+        cell_ids = list(InternalApp(nb_app).cell_manager.cell_ids())
+        setup_cell_ids = [cid for cid in cell_ids if cid.endswith(SETUP_CELL_NAME)]
+        assert len(setup_cell_ids) == 1
+        assert is_external_cell_id(setup_cell_ids[0])
+
+
+class TestInternalAppOverrides:
+    """Tests for InternalApp.overrides() method."""
+
+    async def test_overrides_none_when_no_defs_passed(
+        self, k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        """Test that overrides() returns None when no defs are passed."""
+        await k.run(
+            [
+                exec_req.get(
+                    """
+                    from marimo import App
+                    from marimo._ast.app import InternalApp
+
+                    app = App()
+
+                    @app.cell
+                    def __() -> tuple[int]:
+                        x = 10
+                        return (x,)
+
+                    @app.cell
+                    def __(x: int) -> tuple[int]:
+                        y = x + 1
+                        return (y,)
+                    """
+                ),
+                exec_req.get(
+                    """
+                    # embed without any overrides
+                    result = await app.embed()
+                    internal_app = InternalApp(app)
+                    overrides = internal_app.overrides()
+                    """
+                ),
+            ]
+        )
+        assert not k.errors
+        assert k.globals["overrides"] is None
+
+    async def test_overrides_returns_overridden_defs_dict(
+        self, k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        """Test that overrides() returns a dict of overridden definitions."""
+        await k.run(
+            [
+                exec_req.get(
+                    """
+                    from marimo import App
+                    from marimo._ast.app import InternalApp
+
+                    app = App()
+
+                    @app.cell
+                    def __() -> tuple[int]:
+                        x = 10
+                        return (x,)
+
+                    @app.cell
+                    def __(x: int) -> tuple[int]:
+                        y = x + 1
+                        return (y,)
+                    """
+                ),
+                exec_req.get(
+                    """
+                    # embed with x overridden
+                    result = await app.embed(defs={"x": 100})
+                    internal_app = InternalApp(app)
+                    overrides = internal_app.overrides()
+                    """
+                ),
+            ]
+        )
+        assert not k.errors
+        assert k.globals["overrides"] == {"x": 100}
+
+    async def test_overrides_returns_multiple_defs(
+        self, k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        """Test that overrides() returns all overridden definitions."""
+        await k.run(
+            [
+                exec_req.get(
+                    """
+                    from marimo import App
+                    from marimo._ast.app import InternalApp
+
+                    app = App()
+
+                    @app.cell
+                    def __() -> tuple[int]:
+                        a = 1
+                        return (a,)
+
+                    @app.cell
+                    def __() -> tuple[int]:
+                        b = 2
+                        return (b,)
+
+                    @app.cell
+                    def __(a: int, b: int) -> tuple[int]:
+                        c = a + b
+                        return (c,)
+                    """
+                ),
+                exec_req.get(
+                    """
+                    # embed with both a and b overridden
+                    result = await app.embed(defs={"a": 10, "b": 20})
+                    internal_app = InternalApp(app)
+                    overrides = internal_app.overrides()
+                    """
+                ),
+            ]
+        )
+        assert not k.errors
+        assert k.globals["overrides"] == {"a": 10, "b": 20}
+
+
 
 
 class TestAppKernelRunnerRegistry:

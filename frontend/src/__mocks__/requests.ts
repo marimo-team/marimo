@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import { type Mock, vi } from "vitest";
 import type { EditRequests, RunRequests } from "@/core/network/types";
@@ -60,9 +60,11 @@ export const MockRequestClient = {
       shutdownSession: vi.fn().mockResolvedValue({}),
       exportAsHTML: vi.fn().mockResolvedValue({ html: "" }),
       exportAsMarkdown: vi.fn().mockResolvedValue({ markdown: "" }),
+      exportAsPDF: vi.fn().mockResolvedValue(new Blob()),
       autoExportAsHTML: vi.fn().mockResolvedValue({}),
       autoExportAsMarkdown: vi.fn().mockResolvedValue({}),
       autoExportAsIPYNB: vi.fn().mockResolvedValue({}),
+      updateCellOutputs: vi.fn().mockResolvedValue({}),
       addPackage: vi.fn().mockResolvedValue({}),
       removePackage: vi.fn().mockResolvedValue({}),
       getPackageList: vi.fn().mockResolvedValue({ packages: [] }),

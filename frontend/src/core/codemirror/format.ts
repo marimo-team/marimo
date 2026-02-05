@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import { getIndentUnit } from "@codemirror/language";
 import { StateEffect } from "@codemirror/state";
@@ -195,6 +195,7 @@ async function getSqlFormatterDialect(
       return duckdb;
     case "mssql":
     case "sqlserver":
+    case "microsoft sql server":
       return transactsql;
     case "athena":
     case "awsathena":
@@ -203,7 +204,10 @@ async function getSqlFormatterDialect(
     case "flink":
     case "mongodb":
     case "timescaledb":
+    case "datafusion":
       return sql;
+    case "databricks":
+      return spark;
     default:
       logNever(sqlDialect);
       return defaultDialect;

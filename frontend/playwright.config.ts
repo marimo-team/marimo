@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import { exec } from "node:child_process";
 import path from "node:path";
@@ -42,6 +42,7 @@ const appToOptions = {
   "layout_grid.py": { command: "edit" },
   "stdin.py": { command: "edit" },
   "layout_grid_with_sidebar.py": { command: "edit" },
+  "slides.py": { command: "edit" },
   // Custom server for shutdown
   "shutdown.py": { command: "edit", port: port() },
   // Run

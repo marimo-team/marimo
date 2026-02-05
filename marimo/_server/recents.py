@@ -1,14 +1,12 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-import os
 import pathlib
 from dataclasses import dataclass, field
 
 from marimo import _loggers
 from marimo._server.models.home import MarimoFile
 from marimo._utils.config.config import ConfigReader
-from marimo._utils.paths import pretty_path
 
 
 @dataclass
@@ -77,7 +75,9 @@ class RecentFilesManager:
 
             self.config.write_toml(state)
 
-    def get_recents(self) -> list[MarimoFile]:
+    def get_recents(
+        self, directory: pathlib.Path | None = None
+    ) -> list[MarimoFile]:
         if not self.config:
             return []
 
@@ -86,19 +86,21 @@ class RecentFilesManager:
         )
         files: list[MarimoFile] = []
 
-        cwd = pathlib.Path.cwd()
+        base_dir = directory or pathlib.Path.cwd()
         limited_files = state.files[: self.MAX_FILES]
         for file in limited_files:
             file_path = pathlib.Path(file)
-            if _is_tmp_file(file) or cwd not in file_path.parents:
+            if _is_tmp_file(file) or not file_path.is_relative_to(base_dir):
                 continue
-            if not os.path.exists(file):
+            if not file_path.exists():
                 continue
+            # Return path relative to base_dir
+            relative_path = file_path.relative_to(base_dir)
             files.append(
                 MarimoFile(
-                    name=os.path.basename(file),
-                    path=pretty_path(file),
-                    last_modified=os.path.getmtime(file),
+                    name=file_path.name,
+                    path=str(relative_path),
+                    last_modified=file_path.stat().st_mtime,
                 )
             )
 

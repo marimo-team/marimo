@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 
 import marimo
 
@@ -69,14 +69,14 @@ def _(mo, slider):
         {
             "Tip: assign UI elements to global variables": (
                 """
-                Interacting with a displayed UI element will only 
+                Interacting with a displayed UI element will only
                 trigger reactive execution if the UI element is assigned
                 to a global variable.
                 """
             ),
             "Tip: accessing an element's value": (
                 """
-                Every UI element has a value attribute that you can access in 
+                Every UI element has a value attribute that you can access in
                 Python.
                 """
             ),
@@ -240,7 +240,7 @@ def _(mo):
     mo.md("""
     ### Composite elements
 
-        Composite elements are advanced elements
+        Composite elements are advanced elements that
         let you build UI elements out of other UI elements.
 
         Use these powerful elements to logically group together related elements,

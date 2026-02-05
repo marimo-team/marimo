@@ -1,11 +1,11 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
 import os
 
 import pytest
 
-from marimo._server.utils import canonicalize_filename
+from marimo._session.notebook.file_manager import canonicalize_filename
 
 
 class TestCanonicalizeFilename:

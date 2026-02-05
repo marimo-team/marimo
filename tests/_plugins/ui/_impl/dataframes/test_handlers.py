@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
 from datetime import date
@@ -23,6 +23,7 @@ from marimo._plugins.ui._impl.dataframes.transforms.types import (
     ExplodeColumnsTransform,
     FilterRowsTransform,
     GroupByTransform,
+    PivotTransform,
     RenameColumnTransform,
     SampleRowsTransform,
     SelectColumnsTransform,
@@ -81,9 +82,18 @@ def assert_frame_equal(a: DataFrameType, b: DataFrameType) -> None:
     assert nw_a.to_dict(as_series=False) == nw_b.to_dict(as_series=False)
 
 
-def assert_frame_equal_with_nans(a: DataFrameType, b: DataFrameType) -> None:
+def assert_frame_equal_with_nans(
+    a: DataFrameType, b: DataFrameType, allow_nan_equals_zero: bool = False
+) -> None:
     """
     Assert two dataframes are equal, treating NaNs in the same locations as equal.
+
+    Args:
+        a: First dataframe
+        b: Second dataframe
+        allow_nan_equals_zero: If True, treat NaN and 0.0 as equivalent values.
+            This is useful for pivot operations where missing aggregations may
+            be filled with 0.0 or NaN depending on the backend.
     """
     import math
 
@@ -108,7 +118,21 @@ def assert_frame_equal_with_nans(a: DataFrameType, b: DataFrameType) -> None:
                 and math.isnan(val_a)
                 and math.isnan(val_b)
             )
-            if not (val_a == val_b or both_nan):
+            # For pivot operations, treat NaN and 0.0 as equivalent
+            nan_or_zero_match = (
+                allow_nan_equals_zero
+                and isinstance(val_a, (float, int))
+                and isinstance(val_b, (float, int))
+                and (
+                    (math.isnan(val_a) if isinstance(val_a, float) else False)
+                    or val_a == 0.0
+                )
+                and (
+                    (math.isnan(val_b) if isinstance(val_b, float) else False)
+                    or val_b == 0.0
+                )
+            )
+            if not (val_a == val_b or both_nan or nan_or_zero_match):
                 raise AssertionError(
                     f"DataFrame values differ at column '{col}', row {idx}: {val_a} != {val_b}"
                 )
@@ -1186,6 +1210,212 @@ class TestTransformHandler:
 
     @staticmethod
     @pytest.mark.parametrize(
+        ("df", "expected", "transform"),
+        [
+            *zip(
+                create_test_dataframes(
+                    {
+                        "A": [
+                            "foo",
+                            "foo",
+                            "foo",
+                            "foo",
+                            "foo",
+                            "bar",
+                            "bar",
+                            "bar",
+                            "bar",
+                        ],
+                        "B": [
+                            "one",
+                            "one",
+                            "one",
+                            "two",
+                            "two",
+                            "one",
+                            "one",
+                            "two",
+                            "two",
+                        ],
+                        "C": [
+                            "small",
+                            "large",
+                            "large",
+                            "small",
+                            "small",
+                            "large",
+                            "small",
+                            "small",
+                            "large",
+                        ],
+                        "D": [1, 2, 2, 3, 3, 4, 5, 6, 7],
+                    }
+                ),
+                create_test_dataframes(
+                    {
+                        "B": ["one", "two"],
+                        "D_foo_sum": [5, 6],
+                        "D_bar_sum": [9, 13],
+                    }
+                ),
+                [
+                    PivotTransform(
+                        type=TransformType.PIVOT,
+                        column_ids=["A"],
+                        index_column_ids=["B"],
+                        value_column_ids=["D"],
+                        aggregation="sum",
+                    )
+                ],
+            ),
+            *zip(
+                create_test_dataframes(
+                    {
+                        "A": [
+                            "foo",
+                            "foo",
+                            "foo",
+                            "foo",
+                            "foo",
+                            "bar",
+                            "bar",
+                            "bar",
+                            "bar",
+                        ],
+                        "B": [
+                            "one",
+                            "one",
+                            "one",
+                            "two",
+                            "two",
+                            "one",
+                            "one",
+                            "two",
+                            "two",
+                        ],
+                        "C": [
+                            "small",
+                            "large",
+                            "large",
+                            "small",
+                            "small",
+                            "large",
+                            "small",
+                            "small",
+                            "large",
+                        ],
+                        "D": [1, 2, 2, 3, 3, 4, 5, 6, 7],
+                    }
+                ),
+                create_test_dataframes(
+                    {
+                        "B": ["one", "one", "two", "two"],
+                        "C": ["large", "small", "large", "small"],
+                        "D_bar_sum": [4, 5, 7, 6],
+                        "D_foo_sum": [4, 1, None, 6],
+                    }
+                ),
+                [
+                    PivotTransform(
+                        type=TransformType.PIVOT,
+                        column_ids=["A"],
+                        index_column_ids=["B", "C"],
+                        value_column_ids=["D"],
+                        aggregation="sum",
+                    )
+                ],
+            ),
+            *zip(
+                create_test_dataframes(
+                    {
+                        "A": [
+                            "foo",
+                            "foo",
+                            "bar",
+                            "bar",
+                        ],
+                        "B": [
+                            "one",
+                            "two",
+                            "one",
+                            "two",
+                        ],
+                        "C": [
+                            "small",
+                            "large",
+                            "large",
+                            "small",
+                        ],
+                        "D": [1, 2, 3, 4],
+                    }
+                ),
+                create_test_dataframes(
+                    {
+                        "B": ["one", "one", "two", "two"],
+                        "C": ["large", "small", "large", "small"],
+                        "D_bar_sum": [3, None, None, 4],
+                        "D_foo_sum": [None, 1, 2, None],
+                    }
+                ),
+                [
+                    PivotTransform(
+                        type=TransformType.PIVOT,
+                        column_ids=["A"],
+                        index_column_ids=[],
+                        value_column_ids=["D"],
+                        aggregation="sum",
+                    )
+                ],
+            ),
+            *zip(
+                create_test_dataframes(
+                    {
+                        "A": [
+                            "foo",
+                            "foo",
+                            "bar",
+                            "bar",
+                        ],
+                        "B": [
+                            "one",
+                            "two",
+                            "one",
+                            "two",
+                        ],
+                        "D": [1, 2, 3, 4],
+                    }
+                ),
+                create_test_dataframes(
+                    {
+                        "B": ["one", "two"],
+                        "D_bar_sum": [3, 4],
+                        "D_foo_sum": [1, 2],
+                    }
+                ),
+                [
+                    PivotTransform(
+                        type=TransformType.PIVOT,
+                        column_ids=["A"],
+                        index_column_ids=["B"],
+                        value_column_ids=[],
+                        aggregation="sum",
+                    )
+                ],
+            ),
+        ],
+    )
+    def test_handle_pivot(
+        df: DataFrameType, expected: DataFrameType, transform: PivotTransform
+    ) -> None:
+        result = apply(df, transform)
+        # Allow NaN and 0.0 to be treated as equivalent for pivot operations
+        # since different backends may fill missing aggregations differently
+        assert_frame_equal_with_nans(
+            result, expected, allow_nan_equals_zero=True
+        )
+
+    @staticmethod
+    @pytest.mark.parametrize(
         ("df", "expected", "expected2"),
         list(
             zip(
@@ -1222,7 +1452,15 @@ class TestTransformHandler:
         )
 
         # Apply the transformations
-        result = container.apply(transformations)
+        result, field_types = container.apply(transformations)
+
+        # Verify field_types: original + 2 transforms = 3 entries
+        assert len(field_types) == 3
+        # All steps should have columns A and B
+        for ft in field_types:
+            col_names = [name for name, _ in ft]
+            assert "A" in col_names
+            assert "B" in col_names
 
         # Get the transformed dataframe
         # Check that the transformations were applied correctly
@@ -1242,9 +1480,12 @@ class TestTransformHandler:
         assert container._get_next_transformations(
             transformations
         ) == Transformations([filter_again_transform])
-        result = container.apply(
+        result, field_types = container.apply(
             transformations,
         )
+        # Verify field_types: original + 3 transforms = 4 entries
+        assert len(field_types) == 4
+
         # Check that the transformations were applied correctly
         assert_frame_equal(undo(result), expected2)
 
@@ -1256,11 +1497,81 @@ class TestTransformHandler:
             == transformations
         )
         # Reapply by removing the last transform
-        result = container.apply(
+        result, field_types = container.apply(
             transformations,
         )
+        # Verify field_types: original + 2 transforms = 3 entries
+        assert len(field_types) == 3
+
         # Check that the transformations were applied correctly
         assert_frame_equal(undo(result), expected)
+
+    @staticmethod
+    @pytest.mark.parametrize(
+        "df",
+        create_test_dataframes({"A": [1, 2, 3], "B": ["x", "y", "z"]}),
+    )
+    def test_apply_field_types_with_rename(df: DataFrameType) -> None:
+        """Test that field types correctly reflect column renames."""
+        nw_df, _ = make_lazy(df)
+        container = TransformsContainer(nw_df, NarwhalsTransformHandler())
+
+        rename_transform = RenameColumnTransform(
+            type=TransformType.RENAME_COLUMN,
+            column_id="A",
+            new_column_id="C",
+        )
+        transformations = Transformations([rename_transform])
+        _, field_types = container.apply(transformations)
+
+        # Should have 2 entries: original and after rename
+        assert len(field_types) == 2
+
+        # Original should have A and B
+        original_cols = [name for name, _ in field_types[0]]
+        assert "A" in original_cols
+        assert "B" in original_cols
+        assert "C" not in original_cols
+
+        # After rename should have C and B (no A)
+        renamed_cols = [name for name, _ in field_types[1]]
+        assert "A" not in renamed_cols
+        assert "B" in renamed_cols
+        assert "C" in renamed_cols
+
+    @staticmethod
+    @pytest.mark.parametrize(
+        "df",
+        create_test_dataframes(
+            {"group": ["a", "a", "b"], "value": [1, 2, 3]},
+        ),
+    )
+    def test_apply_field_types_with_groupby(df: DataFrameType) -> None:
+        """Test that field types correctly reflect group by aggregation."""
+        nw_df, _ = make_lazy(df)
+        container = TransformsContainer(nw_df, NarwhalsTransformHandler())
+
+        groupby_transform = GroupByTransform(
+            type=TransformType.GROUP_BY,
+            column_ids=["group"],
+            drop_na=False,
+            aggregation="sum",
+            aggregation_column_ids=[],
+        )
+        transformations = Transformations([groupby_transform])
+        _, field_types_at_steps = container.apply(transformations)
+
+        # Should have 2 entries: original and after group by
+        assert len(field_types_at_steps) == 2
+        assert field_types_at_steps == [
+            # Original should have group and value
+            [("group", ("string", "String")), ("value", ("integer", "Int64"))],
+            # After group by should have group and value_sum
+            [
+                ("group", ("string", "String")),
+                ("value_sum", ("integer", "Int64")),
+            ],
+        ]
 
     @staticmethod
     @pytest.mark.parametrize(

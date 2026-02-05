@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import type { PositionDef } from "vega-lite/types_unstable/channeldef.js";
 import { describe, expect, it } from "vitest";

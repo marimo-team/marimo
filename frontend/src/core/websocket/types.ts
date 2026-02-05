@@ -1,8 +1,8 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
-import type ReconnectingWebSocket from "partysocket/ws";
-
+// TODO: rename to ConnectionState
 export const WebSocketState = {
+  NOT_STARTED: "NOT_STARTED",
   CONNECTING: "CONNECTING",
   OPEN: "OPEN",
   CLOSING: "CLOSING",
@@ -16,6 +16,7 @@ export const WebSocketClosedReason = {
   KERNEL_DISCONNECTED: "KERNEL_DISCONNECTED",
   ALREADY_RUNNING: "ALREADY_RUNNING",
   MALFORMED_QUERY: "MALFORMED_QUERY",
+  KERNEL_STARTUP_ERROR: "KERNEL_STARTUP_ERROR",
 } as const;
 
 export type WebSocketClosedReason =
@@ -39,11 +40,6 @@ export type ConnectionStatus =
       state:
         | typeof WebSocketState.CONNECTING
         | typeof WebSocketState.OPEN
-        | typeof WebSocketState.CLOSING;
+        | typeof WebSocketState.CLOSING
+        | typeof WebSocketState.NOT_STARTED;
     };
-
-type PublicInterface<T> = {
-  [P in keyof T]: T[P];
-};
-
-export type IReconnectingWebSocket = PublicInterface<ReconnectingWebSocket>;

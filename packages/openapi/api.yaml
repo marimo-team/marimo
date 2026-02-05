@@ -19,6 +19,11 @@ components:
 
         /example/foo-0.1.0-py3-none-any.whl'
       properties:
+        dev:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          default: false
         package:
           type: string
         upgrade:
@@ -51,6 +56,9 @@ components:
       title: AiCompletionContext
       type: object
     AiCompletionRequest:
+      description: 'UIMessages are expected to be AI SDK messages.
+
+        See pydantic_ai.ui.vercel_ai.request_types.UIMessage or Vercel AI SDK documentation.'
       properties:
         code:
           type: string
@@ -67,11 +75,6 @@ components:
           - markdown
           - python
           - sql
-        messages:
-          default: []
-          items:
-            $ref: '#/components/schemas/ChatMessage'
-          type: array
         prompt:
           type: string
         selectedText:
@@ -79,6 +82,11 @@ components:
           - type: string
           - type: 'null'
           default: null
+        uiMessages:
+          default: []
+          items:
+            type: object
+          type: array
       required:
       - prompt
       - includeOtherCode
@@ -96,8 +104,9 @@ components:
         \ the Google AI config\n    - `bedrock`: the Bedrock config\n    - `azure`:\
         \ the Azure config\n    - `ollama`: the Ollama config\n    - `github`: the\
         \ GitHub config\n    - `openrouter`: the OpenRouter config\n    - `wandb`:\
-        \ the Weights & Biases config\n    - `open_ai_compatible`: the OpenAI-compatible\
-        \ config"
+        \ the Weights & Biases config\n    - `custom_providers`: a dict of custom\
+        \ OpenAI-compatible providers\n    - `open_ai_compatible`: the OpenAI-compatible\
+        \ config (deprecated, use custom_providers)"
       properties:
         anthropic:
           $ref: '#/components/schemas/AnthropicConfig'
@@ -105,6 +114,10 @@ components:
           $ref: '#/components/schemas/OpenAiConfig'
         bedrock:
           $ref: '#/components/schemas/BedrockConfig'
+        custom_providers:
+          additionalProperties:
+            $ref: '#/components/schemas/OpenAiConfig'
+          type: object
         github:
           $ref: '#/components/schemas/GitHubConfig'
         google:
@@ -179,7 +192,10 @@ components:
       - displayed_models
       title: AiModelConfig
       type: object
-    Alert:
+    AlertNotification:
+      description: "User-facing alert message.\n\n    Attributes:\n        title:\
+        \ Alert title.\n        description: Alert body (may contain HTML).\n    \
+        \    variant: Visual variant (e.g., \"danger\")."
       properties:
         description:
           type: string
@@ -198,7 +214,7 @@ components:
       - op
       - title
       - description
-      title: Alert
+      title: AlertNotification
       type: object
     AnthropicConfig:
       description: "Configuration options for Anthropic.\n\n    **Keys.**\n\n    -\
@@ -209,7 +225,11 @@ components:
       required: []
       title: AnthropicConfig
       type: object
-    Banner:
+    BannerNotification:
+      description: "Persistent banner message at top of notebook.\n\n    Attributes:\n\
+        \        title: Banner title.\n        description: Banner body (may contain\
+        \ HTML).\n        variant: Visual variant (e.g., \"danger\").\n        action:\
+        \ Optional user action (e.g., \"restart\")."
       properties:
         action:
           anyOf:
@@ -234,7 +254,7 @@ components:
       - op
       - title
       - description
-      title: Banner
+      title: BannerNotification
       type: object
     BaseResponse:
       properties:
@@ -274,8 +294,9 @@ components:
       required: []
       title: BedrockConfig
       type: object
-    CacheCleared:
-      description: Result of clearing cache.
+    CacheClearedNotification:
+      description: "Execution cache cleared result.\n\n    Attributes:\n        bytes_freed:\
+        \ Bytes freed by clearing cache."
       properties:
         bytes_freed:
           type: integer
@@ -285,10 +306,13 @@ components:
       required:
       - op
       - bytes_freed
-      title: CacheCleared
+      title: CacheClearedNotification
       type: object
-    CacheInfoFetched:
-      description: Cache statistics information.
+    CacheInfoNotification:
+      description: "Execution cache statistics.\n\n    Attributes:\n        hits:\
+        \ Cache hits.\n        misses: Cache misses.\n        time: Time spent on\
+        \ cache operations (seconds).\n        disk_to_free: Disk space that could\
+        \ be freed (bytes).\n        disk_total: Total disk space used (bytes)."
       properties:
         disk_to_free:
           type: integer
@@ -300,7 +324,7 @@ components:
           type: integer
         op:
           enum:
-          - cache-info-fetched
+          - cache-info
         time:
           type: number
       required:
@@ -310,7 +334,7 @@ components:
       - time
       - disk_to_free
       - disk_total
-      title: CacheInfoFetched
+      title: CacheInfoNotification
       type: object
     CellChannel:
       description: The channel of a cell's output.
@@ -342,15 +366,17 @@ components:
       required: []
       title: CellConfig
       type: object
-    CellOp:
-      description: "Op to transition a cell.\n\n    A CellOp's data has some optional\
-        \ fields:\n\n    output        - a CellOutput\n    console       - a CellOutput\
-        \ (console msg to append), or a list of\n                    CellOutputs\n\
-        \    status        - execution status\n    stale_inputs  - whether the cell\
-        \ has stale inputs (variables, modules, ...)\n    run_id        - the run\
-        \ associated with this cell.\n    serialization - the serialization status\
-        \ of the cell\n\n    Omitting a field means that its value should be unchanged!\n\
-        \n    And one required field:\n\n    cell_id - the cell id"
+    CellNotification:
+      description: "Updates a cell's state in the frontend.\n\n    Only fields that\
+        \ are set (not None) will update the cell state.\n    Omitting a field leaves\
+        \ that aspect unchanged.\n\n    Attributes:\n        cell_id: Unique identifier\
+        \ of the cell being updated.\n        output: Cell's output. Use CellOutput.empty()\
+        \ to clear.\n        console: Console messages. Single/list appends, [] clears,\
+        \ None unchanged.\n        status: Execution status (idle/running/stale/queued/disabled-transitively).\n\
+        \        stale_inputs: Whether cell has stale inputs from changed dependencies.\n\
+        \        run_id: Execution run ID for tracing. Auto-set from context.\n  \
+        \      serialization: Serialization status (TopLevelHints).\n        timestamp:\
+        \ Creation timestamp, auto-set."
       properties:
         cell_id:
           type: string
@@ -399,7 +425,7 @@ components:
       required:
       - op
       - cell_id
-      title: CellOp
+      title: CellNotification
       type: object
     CellOutput:
       properties:
@@ -449,7 +475,9 @@ components:
           - application/vnd.marimo+mimebundle
           - application/vnd.marimo+traceback
           - application/vnd.vega.v5+json
+          - application/vnd.vega.v6+json
           - application/vnd.vegalite.v5+json
+          - application/vnd.vegalite.v6+json
           - image/avif
           - image/bmp
           - image/gif
@@ -499,13 +527,19 @@ components:
           - type: 'null'
           default: null
         content: {}
-        parts:
+        id:
+          default: ''
+          type: string
+        metadata:
           anyOf:
-          - items:
-              type: object
-            type: array
+          - {}
           - type: 'null'
           default: null
+        parts:
+          default: []
+          items:
+            type: object
+          type: array
         role:
           enum:
           - assistant
@@ -517,15 +551,14 @@ components:
       title: ChatMessage
       type: object
     ChatRequest:
+      description: 'UIMessages are expected to be AI SDK messages.
+
+        See pydantic_ai.ui.vercel_ai.request_types.UIMessage or Vercel AI SDK documentation.'
       properties:
         context:
           $ref: '#/components/schemas/AiCompletionContext'
         includeOtherCode:
           type: string
-        messages:
-          items:
-            $ref: '#/components/schemas/ChatMessage'
-          type: array
         model:
           anyOf:
           - type: string
@@ -538,6 +571,10 @@ components:
             type: array
           - type: 'null'
           default: null
+        uiMessages:
+          items:
+            type: object
+          type: array
         variables:
           anyOf:
           - items:
@@ -550,13 +587,47 @@ components:
       required:
       - context
       - includeOtherCode
-      - messages
+      - uiMessages
       title: ChatRequest
+      type: object
+    ClearCacheCommand:
+      description: "Clear all cached data.\n\n    Clears all cache contexts, freeing\
+        \ memory and disk space.\n    Affects all cells using the @cache decorator."
+      properties:
+        type:
+          enum:
+          - clear-cache
+      required:
+      - type
+      title: ClearCacheCommand
       type: object
     ClearCacheRequest:
       properties: {}
       required: []
       title: ClearCacheRequest
+      type: object
+    CodeCompletionCommand:
+      description: "Request code completion suggestions.\n\n    Sent when the user\
+        \ requests autocomplete. Provides code context up to\n    the cursor position\
+        \ for the language server.\n\n    Attributes:\n        id: Unique identifier\
+        \ for this request.\n        document: Source code up to the cursor position.\n\
+        \        cell_id: Cell where completion is requested."
+      properties:
+        cellId:
+          type: string
+        document:
+          type: string
+        id:
+          type: string
+        type:
+          enum:
+          - code-completion
+      required:
+      - type
+      - id
+      - document
+      - cellId
+      title: CodeCompletionCommand
       type: object
     CodeCompletionRequest:
       properties:
@@ -648,15 +719,15 @@ components:
       required: []
       title: ColumnStats
       type: object
-    CompletedRun:
-      description: Written on run completion (of submitted cells and their descendants.
+    CompletedRunNotification:
+      description: Run of submitted cells and descendants completed.
       properties:
         op:
           enum:
           - completed-run
       required:
       - op
-      title: CompletedRun
+      title: CompletedRunNotification
       type: object
     CompletionConfig:
       description: "Configuration for code completion.\n\n    A dict with key/value\
@@ -716,8 +787,10 @@ components:
       - completion_info
       title: CompletionOption
       type: object
-    CompletionResult:
-      description: Code completion result.
+    CompletionResultNotification:
+      description: "Code completion result from language server.\n\n    Attributes:\n\
+        \        completion_id: Request ID this responds to.\n        prefix_length:\
+        \ Length of prefix to replace.\n        options: Completion options to display."
       properties:
         completion_id:
           type: string
@@ -735,7 +808,7 @@ components:
       - completion_id
       - prefix_length
       - options
-      title: CompletionResult
+      title: CompletionResultNotification
       type: object
     CopyNotebookRequest:
       properties:
@@ -747,6 +820,37 @@ components:
       - source
       - destination
       title: CopyNotebookRequest
+      type: object
+    CreateNotebookCommand:
+      description: "Instantiate and initialize a notebook.\n\n    Sent when a notebook\
+        \ is first loaded. Contains all cells and initial UI element values.\n\n \
+        \   Attributes:\n        execution_requests: ExecuteCellCommand for each notebook\
+        \ cell.\n        set_ui_element_value_request: Initial UI element values.\n\
+        \        auto_run: Whether to automatically execute cells on instantiation.\n\
+        \        request: HTTP request context if available."
+      properties:
+        autoRun:
+          type: boolean
+        executionRequests:
+          items:
+            $ref: '#/components/schemas/ExecuteCellCommand'
+          type: array
+        request:
+          anyOf:
+          - $ref: '#/components/schemas/HTTPRequest'
+          - type: 'null'
+          default: null
+        setUiElementValueRequest:
+          $ref: '#/components/schemas/UpdateUIElementCommand'
+        type:
+          enum:
+          - create-notebook
+      required:
+      - type
+      - executionRequests
+      - setUiElementValueRequest
+      - autoRun
+      title: CreateNotebookCommand
       type: object
     CreateSecretRequest:
       properties:
@@ -790,8 +894,10 @@ components:
       - edges_with_vars
       title: CycleError
       type: object
-    DataColumnPreview:
-      description: Preview of a column in a dataset.
+    DataColumnPreviewNotification:
+      description: "Data column preview with stats and visualization.\n\n    Inherits\
+        \ all ColumnPreview attributes.\n\n    Attributes:\n        table_name: Table\
+        \ containing the column.\n        column_name: Column being previewed."
       properties:
         chart_code:
           anyOf:
@@ -831,7 +937,7 @@ components:
       - op
       - table_name
       - column_name
-      title: DataColumnPreview
+      title: DataColumnPreviewNotification
       type: object
     DataSourceConnection:
       description: "Represents a data source connection.\n\nAttributes:\n    source\
@@ -874,7 +980,9 @@ components:
       - databases
       title: DataSourceConnection
       type: object
-    DataSourceConnections:
+    DataSourceConnectionsNotification:
+      description: "Available data source connections for SQL cells.\n\n    Attributes:\n\
+        \        connections: Available data source connections."
       properties:
         connections:
           items:
@@ -886,7 +994,7 @@ components:
       required:
       - op
       - connections
-      title: DataSourceConnections
+      title: DataSourceConnectionsNotification
       type: object
     DataTable:
       description: "Represents a data table.\n\nAttributes:\n    source_type (DataTableSource):\
@@ -1016,8 +1124,10 @@ components:
       - schemas
       title: Database
       type: object
-    Datasets:
-      description: List of datasets.
+    DatasetsNotification:
+      description: "Available datasets for data explorer.\n\n    Attributes:\n   \
+        \     tables: Available data tables/datasets.\n        clear_channel: If set,\
+        \ clears tables from this channel first."
       properties:
         clear_channel:
           anyOf:
@@ -1038,7 +1148,7 @@ components:
       required:
       - op
       - tables
-      title: Datasets
+      title: DatasetsNotification
       type: object
     DatasourcesConfig:
       description: "Configuration for datasources panel.\n\n    **Keys.**\n\n    -\
@@ -1064,6 +1174,54 @@ components:
             - auto
       required: []
       title: DatasourcesConfig
+      type: object
+    DebugCellCommand:
+      description: "Enter debugger mode for a cell.\n\n    Starts the Python debugger\
+        \ (pdb) for the specified cell.\n\n    Attributes:\n        cell_id: Cell\
+        \ to debug.\n        request: HTTP request context if available."
+      properties:
+        cellId:
+          type: string
+        request:
+          anyOf:
+          - $ref: '#/components/schemas/HTTPRequest'
+          - type: 'null'
+          default: null
+        type:
+          enum:
+          - debug-cell
+      required:
+      - type
+      - cellId
+      title: DebugCellCommand
+      type: object
+    DebugCellRequest:
+      properties:
+        cellId:
+          type: string
+        request:
+          anyOf:
+          - $ref: '#/components/schemas/HTTPRequest'
+          - type: 'null'
+          default: null
+      required:
+      - cellId
+      title: DebugCellRequest
+      type: object
+    DeleteCellCommand:
+      description: "Delete a cell from the notebook.\n\n    Removes cell from the\
+        \ dependency graph and cleans up its variables.\n    Dependent cells may become\
+        \ stale.\n\n    Attributes:\n        cell_id: Cell to delete."
+      properties:
+        cellId:
+          type: string
+        type:
+          enum:
+          - delete-cell
+      required:
+      - type
+      - cellId
+      title: DeleteCellCommand
       type: object
     DeleteCellRequest:
       properties:
@@ -1186,7 +1344,40 @@ components:
       - theme
       title: DisplayConfig
       type: object
-    ExecuteMultipleRequest:
+    ExecuteCellCommand:
+      description: "Execute a single cell.\n\n    Executes a cell with the provided\
+        \ code. Dependent cells may be\n    re-executed based on the reactive execution\
+        \ mode.\n\n    Attributes:\n        cell_id: Cell to execute.\n        code:\
+        \ Python code to execute.\n        request: HTTP request context if available.\n\
+        \        timestamp: Unix timestamp when command was created."
+      properties:
+        cellId:
+          type: string
+        code:
+          type: string
+        request:
+          anyOf:
+          - $ref: '#/components/schemas/HTTPRequest'
+          - type: 'null'
+          default: null
+        timestamp:
+          type: number
+        type:
+          enum:
+          - execute-cell
+      required:
+      - type
+      - cellId
+      - code
+      title: ExecuteCellCommand
+      type: object
+    ExecuteCellsCommand:
+      description: "Execute multiple cells in a batch.\n\n    Executes multiple cells\
+        \ with their corresponding code. The kernel manages\n    dependency tracking\
+        \ and reactive execution.\n\n    Attributes:\n        cell_ids: Cells to execute.\n\
+        \        codes: Python code for each cell. Must match length of cell_ids.\n\
+        \        request: HTTP request context if available.\n        timestamp: Unix\
+        \ timestamp when command was created."
       properties:
         cellIds:
           items:
@@ -1203,10 +1394,56 @@ components:
           default: null
         timestamp:
           type: number
+        type:
+          enum:
+          - execute-cells
+      required:
+      - type
+      - cellIds
+      - codes
+      title: ExecuteCellsCommand
+      type: object
+    ExecuteCellsRequest:
+      properties:
+        cellIds:
+          items:
+            type: string
+          type: array
+        codes:
+          items:
+            type: string
+          type: array
+        request:
+          anyOf:
+          - $ref: '#/components/schemas/HTTPRequest'
+          - type: 'null'
+          default: null
       required:
       - cellIds
       - codes
-      title: ExecuteMultipleRequest
+      title: ExecuteCellsRequest
+      type: object
+    ExecuteScratchpadCommand:
+      description: "Execute code in the scratchpad.\n\n    The scratchpad is a temporary\
+        \ execution environment that doesn't affect\n    the notebook's cells or dependencies.\
+        \ Runs in an isolated cell with a copy\n    of the global namespace, useful\
+        \ for experimentation.\n\n    Attributes:\n        code: Python code to execute.\n\
+        \        request: HTTP request context if available."
+      properties:
+        code:
+          type: string
+        request:
+          anyOf:
+          - $ref: '#/components/schemas/HTTPRequest'
+          - type: 'null'
+          default: null
+        type:
+          enum:
+          - execute-scratchpad
+      required:
+      - type
+      - code
+      title: ExecuteScratchpadCommand
       type: object
     ExecuteScratchpadRequest:
       properties:
@@ -1221,33 +1458,23 @@ components:
       - code
       title: ExecuteScratchpadRequest
       type: object
-    ExecuteStaleRequest:
+    ExecuteStaleCellsCommand:
+      description: "Execute all stale cells.\n\n    Cells become stale when their\
+        \ dependencies change but haven't been\n    re-executed yet. Brings the notebook\
+        \ to a consistent state.\n\n    Attributes:\n        request: HTTP request\
+        \ context if available."
       properties:
         request:
           anyOf:
           - $ref: '#/components/schemas/HTTPRequest'
           - type: 'null'
           default: null
-      required: []
-      title: ExecuteStaleRequest
-      type: object
-    ExecutionRequest:
-      properties:
-        cellId:
-          type: string
-        code:
-          type: string
-        request:
-          anyOf:
-          - $ref: '#/components/schemas/HTTPRequest'
-          - type: 'null'
-          default: null
-        timestamp:
-          type: number
+        type:
+          enum:
+          - execute-stale-cells
       required:
-      - cellId
-      - code
-      title: ExecutionRequest
+      - type
+      title: ExecuteStaleCellsCommand
       type: object
     ExportAsHTMLRequest:
       properties:
@@ -1285,6 +1512,14 @@ components:
       required:
       - download
       title: ExportAsMarkdownRequest
+      type: object
+    ExportAsPDFRequest:
+      properties:
+        webpdf:
+          type: boolean
+      required:
+      - webpdf
+      title: ExportAsPDFRequest
       type: object
     ExportAsScriptRequest:
       properties:
@@ -1400,6 +1635,11 @@ components:
           default: null
         name:
           type: string
+        opengraph:
+          anyOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/OpenGraphMetadata'
+          default: null
         path:
           type: string
       required:
@@ -1545,7 +1785,9 @@ components:
       - success
       title: FileUpdateResponse
       type: object
-    FocusCell:
+    FocusCellNotification:
+      description: "Focuses a cell (kiosk mode).\n\n    Attributes:\n        cell_id:\
+        \ Cell to focus."
       properties:
         cell_id:
           type: string
@@ -1555,9 +1797,9 @@ components:
       required:
       - op
       - cell_id
-      title: FocusCell
+      title: FocusCellNotification
       type: object
-    FormatRequest:
+    FormatCellsRequest:
       properties:
         codes:
           additionalProperties:
@@ -1568,7 +1810,7 @@ components:
       required:
       - codes
       - lineLength
-      title: FormatRequest
+      title: FormatCellsRequest
       type: object
     FormatResponse:
       properties:
@@ -1590,25 +1832,11 @@ components:
       - line_length
       title: FormattingConfig
       type: object
-    FunctionCallRequest:
-      properties:
-        args:
-          type: object
-        functionCallId:
-          type: string
-        functionName:
-          type: string
-        namespace:
-          type: string
-      required:
-      - functionCallId
-      - namespace
-      - functionName
-      - args
-      title: FunctionCallRequest
-      type: object
-    FunctionCallResult:
-      description: Result of calling a function.
+    FunctionCallResultNotification:
+      description: "Result of a frontend-initiated function call.\n\n    Attributes:\n\
+        \        function_call_id: ID matching the original request.\n        return_value:\
+        \ Function return value as JSON.\n        status: Human-readable success/failure\
+        \ status."
       properties:
         function_call_id:
           type: string
@@ -1623,7 +1851,18 @@ components:
       - function_call_id
       - return_value
       - status
-      title: FunctionCallResult
+      title: FunctionCallResultNotification
+      type: object
+    GetCacheInfoCommand:
+      description: "Retrieve cache statistics.\n\n    Collects cache usage info across\
+        \ all contexts (hit/miss rates, time saved, disk usage)."
+      properties:
+        type:
+          enum:
+          - get-cache-info
+      required:
+      - type
+      title: GetCacheInfoCommand
       type: object
     GetCacheInfoRequest:
       properties: {}
@@ -1656,9 +1895,18 @@ components:
       title: GoogleAiConfig
       type: object
     HTTPRequest:
+      description: "Serializable HTTP request representation.\n\n    Mimics Starlette/FastAPI\
+        \ Request but is pickle-able and contains only a safe\n    subset of data.\
+        \ Excludes session and auth to prevent exposing sensitive data.\n\n    Attributes:\n\
+        \        url: Serialized URL with path, port, scheme, netloc, query, hostname.\n\
+        \        base_url: Serialized base URL.\n        headers: Request headers\
+        \ (marimo-specific headers excluded).\n        query_params: Query parameters\
+        \ mapped to lists of values.\n        path_params: Path parameters from the\
+        \ URL route.\n        cookies: Request cookies.\n        meta: User-defined\
+        \ storage for custom data.\n        user: User info from authentication middleware\
+        \ (e.g., is_authenticated, username)."
       properties:
-        baseUrl:
-          additionalProperties: {}
+        base_url:
           type: object
         cookies:
           additionalProperties:
@@ -1669,33 +1917,33 @@ components:
             type: string
           type: object
         meta:
-          additionalProperties: {}
           type: object
-        pathParams:
-          additionalProperties: {}
+        path_params:
           type: object
-        queryParams:
+        query_params:
           additionalProperties:
             items:
               type: string
             type: array
           type: object
         url:
-          additionalProperties: {}
           type: object
         user: {}
       required:
       - url
-      - baseUrl
+      - base_url
       - headers
-      - queryParams
-      - pathParams
+      - query_params
+      - path_params
       - cookies
       - meta
       - user
+      title: HTTPRequest
       type: object
     HumanReadableStatus:
-      description: Human-readable status.
+      description: "Human-readable status for operation results.\n\n    Attributes:\n\
+        \        code: Status code (\"ok\" or \"error\").\n        title: Optional\
+        \ short title.\n        message: Optional detailed description."
       properties:
         code:
           enum:
@@ -1732,7 +1980,29 @@ components:
       - msg
       title: ImportStarError
       type: object
-    InstallMissingPackagesRequest:
+    InstallPackagesCommand:
+      description: "Install Python packages.\n\n    Installs missing packages using\
+        \ the specified package manager. Triggered\n    automatically on import errors\
+        \ or manually by the user.\n\n    Attributes:\n        manager: Package manager\
+        \ to use ('pip', 'conda', 'uv', etc.).\n        versions: Package names mapped\
+        \ to version specifiers. Empty version\n                  means install latest."
+      properties:
+        manager:
+          type: string
+        type:
+          enum:
+          - install-packages
+        versions:
+          additionalProperties:
+            type: string
+          type: object
+      required:
+      - type
+      - manager
+      - versions
+      title: InstallPackagesCommand
+      type: object
+    InstallPackagesRequest:
       properties:
         manager:
           type: string
@@ -1743,9 +2013,13 @@ components:
       required:
       - manager
       - versions
-      title: InstallMissingPackagesRequest
+      title: InstallPackagesRequest
       type: object
-    InstallingPackageAlert:
+    InstallingPackageAlertNotification:
+      description: "Package installation progress with streaming logs.\n\n    Attributes:\n\
+        \        packages: Package name to status (queued/installing/installed/failed).\n\
+        \        logs: Optional streaming logs per package.\n        log_status: Log\
+        \ stream status (append/start/done)."
       properties:
         log_status:
           anyOf:
@@ -1776,13 +2050,20 @@ components:
       required:
       - op
       - packages
-      title: InstallingPackageAlert
+      title: InstallingPackageAlertNotification
       type: object
-    InstantiateRequest:
+    InstantiateNotebookRequest:
       properties:
         autoRun:
           default: true
           type: boolean
+        codes:
+          anyOf:
+          - additionalProperties:
+              type: string
+            type: object
+          - type: 'null'
+          default: null
         objectIds:
           items:
             type: string
@@ -1792,17 +2073,17 @@ components:
       required:
       - objectIds
       - values
-      title: InstantiateRequest
+      title: InstantiateNotebookRequest
       type: object
-    Interrupted:
-      description: Written when the kernel is interrupted by the user.
+    InterruptedNotification:
+      description: Kernel was interrupted by user (SIGINT/Ctrl+C).
       properties:
         op:
           enum:
           - interrupted
       required:
       - op
-      title: Interrupted
+      title: InterruptedNotification
       type: object
     InvokeAiToolRequest:
       properties:
@@ -1833,7 +2114,55 @@ components:
       - result
       title: InvokeAiToolResponse
       type: object
-    KernelCapabilities:
+    InvokeFunctionCommand:
+      description: "Invoke a function from a UI element.\n\n    Called when a UI element\
+        \ needs to invoke a Python function.\n\n    Attributes:\n        function_call_id:\
+        \ Unique identifier for this call.\n        namespace: Namespace where the\
+        \ function is registered.\n        function_name: Function to invoke.\n  \
+        \      args: Keyword arguments for the function."
+      properties:
+        args:
+          type: object
+        functionCallId:
+          type: string
+        functionName:
+          type: string
+        namespace:
+          type: string
+        type:
+          enum:
+          - invoke-function
+      required:
+      - type
+      - functionCallId
+      - namespace
+      - functionName
+      - args
+      title: InvokeFunctionCommand
+      type: object
+    InvokeFunctionRequest:
+      properties:
+        args:
+          type: object
+        functionCallId:
+          type: string
+        functionName:
+          type: string
+        namespace:
+          type: string
+      required:
+      - functionCallId
+      - namespace
+      - functionName
+      - args
+      title: InvokeFunctionRequest
+      type: object
+    KernelCapabilitiesNotification:
+      description: "Kernel capabilities detected at startup.\n\n    All fields auto-detected\
+        \ in __post_init__.\n\n    Attributes:\n        terminal: Terminal access\
+        \ (unavailable on Windows/Pyodide).\n        pylsp: Python Language Server\
+        \ Protocol installed.\n        ty: ty type checker installed.\n        basedpyright:\
+        \ basedpyright type checker installed."
       properties:
         basedpyright:
           default: false
@@ -1851,15 +2180,28 @@ components:
           default: false
           type: boolean
       required: []
-      title: KernelCapabilities
+      title: KernelCapabilitiesNotification
       type: object
-    KernelReady:
-      description: Kernel is ready for execution.
+    KernelReadyNotification:
+      description: "Kernel ready for execution. First notification sent at startup.\n\
+        \n    Attributes:\n        cell_ids: Cell IDs in order.\n        codes: Source\
+        \ code for each cell.\n        names: Cell names/titles.\n        layout:\
+        \ Notebook layout config.\n        configs: Per-cell configuration.\n    \
+        \    resumed: Whether resumed from previous session.\n        ui_values: Previous\
+        \ UI element values if resumed.\n        last_executed_code: Last executed\
+        \ code per cell if resumed.\n        last_execution_time: Last execution time\
+        \ per cell if resumed.\n        app_config: Application configuration.\n \
+        \       kiosk: Whether running in kiosk mode.\n        capabilities: Available\
+        \ kernel capabilities.\n        auto_instantiated: Whether cells already executed\
+        \ (run mode)."
       properties:
         app_config:
           $ref: '#/components/schemas/_AppConfig'
+        auto_instantiated:
+          default: false
+          type: boolean
         capabilities:
-          $ref: '#/components/schemas/KernelCapabilities'
+          $ref: '#/components/schemas/KernelCapabilitiesNotification'
         cell_ids:
           items:
             type: string
@@ -1917,7 +2259,21 @@ components:
       - app_config
       - kiosk
       - capabilities
-      title: KernelReady
+      title: KernelReadyNotification
+      type: object
+    KernelStartupErrorNotification:
+      description: "Kernel failed to start.\n\n    Attributes:\n        error: Error\
+        \ message describing failure."
+      properties:
+        error:
+          type: string
+        op:
+          enum:
+          - kernel-startup-error
+      required:
+      - op
+      - error
+      title: KernelStartupErrorNotification
       type: object
     KeymapConfig:
       description: "Configuration for keymaps.\n\n    **Keys.**\n\n    - `preset`:\
@@ -1946,6 +2302,61 @@ components:
       type: object
     KnownUnions:
       properties:
+        command:
+          anyOf:
+          - $ref: '#/components/schemas/CreateNotebookCommand'
+          - $ref: '#/components/schemas/RenameNotebookCommand'
+          - $ref: '#/components/schemas/CodeCompletionCommand'
+          - $ref: '#/components/schemas/ExecuteCellsCommand'
+          - $ref: '#/components/schemas/ExecuteScratchpadCommand'
+          - $ref: '#/components/schemas/ExecuteStaleCellsCommand'
+          - $ref: '#/components/schemas/DebugCellCommand'
+          - $ref: '#/components/schemas/DeleteCellCommand'
+          - $ref: '#/components/schemas/SyncGraphCommand'
+          - $ref: '#/components/schemas/UpdateCellConfigCommand'
+          - $ref: '#/components/schemas/InstallPackagesCommand'
+          - $ref: '#/components/schemas/UpdateUIElementCommand'
+          - $ref: '#/components/schemas/UpdateWidgetModelCommand'
+          - $ref: '#/components/schemas/InvokeFunctionCommand'
+          - $ref: '#/components/schemas/UpdateUserConfigCommand'
+          - $ref: '#/components/schemas/PreviewDatasetColumnCommand'
+          - $ref: '#/components/schemas/PreviewSQLTableCommand'
+          - $ref: '#/components/schemas/ListSQLTablesCommand'
+          - $ref: '#/components/schemas/ValidateSQLCommand'
+          - $ref: '#/components/schemas/ListDataSourceConnectionCommand'
+          - $ref: '#/components/schemas/ListSecretKeysCommand'
+          - $ref: '#/components/schemas/RefreshSecretsCommand'
+          - $ref: '#/components/schemas/ClearCacheCommand'
+          - $ref: '#/components/schemas/GetCacheInfoCommand'
+          - $ref: '#/components/schemas/StopKernelCommand'
+          discriminator:
+            mapping:
+              clear-cache: '#/components/schemas/ClearCacheCommand'
+              code-completion: '#/components/schemas/CodeCompletionCommand'
+              create-notebook: '#/components/schemas/CreateNotebookCommand'
+              debug-cell: '#/components/schemas/DebugCellCommand'
+              delete-cell: '#/components/schemas/DeleteCellCommand'
+              execute-cells: '#/components/schemas/ExecuteCellsCommand'
+              execute-scratchpad: '#/components/schemas/ExecuteScratchpadCommand'
+              execute-stale-cells: '#/components/schemas/ExecuteStaleCellsCommand'
+              get-cache-info: '#/components/schemas/GetCacheInfoCommand'
+              install-packages: '#/components/schemas/InstallPackagesCommand'
+              invoke-function: '#/components/schemas/InvokeFunctionCommand'
+              list-data-source-connection: '#/components/schemas/ListDataSourceConnectionCommand'
+              list-secret-keys: '#/components/schemas/ListSecretKeysCommand'
+              list-sql-tables: '#/components/schemas/ListSQLTablesCommand'
+              preview-dataset-column: '#/components/schemas/PreviewDatasetColumnCommand'
+              preview-sql-table: '#/components/schemas/PreviewSQLTableCommand'
+              refresh-secrets: '#/components/schemas/RefreshSecretsCommand'
+              rename-notebook: '#/components/schemas/RenameNotebookCommand'
+              stop-kernel: '#/components/schemas/StopKernelCommand'
+              sync-graph: '#/components/schemas/SyncGraphCommand'
+              update-cell-config: '#/components/schemas/UpdateCellConfigCommand'
+              update-ui-element: '#/components/schemas/UpdateUIElementCommand'
+              update-user-config: '#/components/schemas/UpdateUserConfigCommand'
+              update-widget-model: '#/components/schemas/UpdateWidgetModelCommand'
+              validate-sql: '#/components/schemas/ValidateSQLCommand'
+            propertyName: type
         data_type:
           enum:
           - boolean
@@ -1987,79 +2398,82 @@ components:
               syntax: '#/components/schemas/MarimoSyntaxError'
               unknown: '#/components/schemas/UnknownError'
             propertyName: type
-        operation:
+        notification:
           anyOf:
-          - $ref: '#/components/schemas/CellOp'
-          - $ref: '#/components/schemas/FunctionCallResult'
-          - $ref: '#/components/schemas/SendUIElementMessage'
-          - $ref: '#/components/schemas/RemoveUIElements'
-          - $ref: '#/components/schemas/Reload'
-          - $ref: '#/components/schemas/Reconnected'
-          - $ref: '#/components/schemas/Interrupted'
-          - $ref: '#/components/schemas/CompletedRun'
-          - $ref: '#/components/schemas/KernelReady'
-          - $ref: '#/components/schemas/CompletionResult'
-          - $ref: '#/components/schemas/Alert'
-          - $ref: '#/components/schemas/Banner'
-          - $ref: '#/components/schemas/MissingPackageAlert'
-          - $ref: '#/components/schemas/InstallingPackageAlert'
-          - $ref: '#/components/schemas/StartupLogs'
-          - $ref: '#/components/schemas/Variables'
-          - $ref: '#/components/schemas/VariableValues'
-          - $ref: '#/components/schemas/QueryParamsSet'
-          - $ref: '#/components/schemas/QueryParamsAppend'
-          - $ref: '#/components/schemas/QueryParamsDelete'
-          - $ref: '#/components/schemas/QueryParamsClear'
-          - $ref: '#/components/schemas/Datasets'
-          - $ref: '#/components/schemas/DataColumnPreview'
-          - $ref: '#/components/schemas/SQLTablePreview'
-          - $ref: '#/components/schemas/SQLTableListPreview'
-          - $ref: '#/components/schemas/DataSourceConnections'
-          - $ref: '#/components/schemas/ValidateSQLResult'
-          - $ref: '#/components/schemas/SecretKeysResult'
-          - $ref: '#/components/schemas/CacheCleared'
-          - $ref: '#/components/schemas/CacheInfoFetched'
-          - $ref: '#/components/schemas/FocusCell'
-          - $ref: '#/components/schemas/UpdateCellCodes'
-          - $ref: '#/components/schemas/UpdateCellIdsRequest'
+          - $ref: '#/components/schemas/CellNotification'
+          - $ref: '#/components/schemas/FunctionCallResultNotification'
+          - $ref: '#/components/schemas/UIElementMessageNotification'
+          - $ref: '#/components/schemas/RemoveUIElementsNotification'
+          - $ref: '#/components/schemas/ReloadNotification'
+          - $ref: '#/components/schemas/ReconnectedNotification'
+          - $ref: '#/components/schemas/InterruptedNotification'
+          - $ref: '#/components/schemas/CompletedRunNotification'
+          - $ref: '#/components/schemas/KernelReadyNotification'
+          - $ref: '#/components/schemas/CompletionResultNotification'
+          - $ref: '#/components/schemas/AlertNotification'
+          - $ref: '#/components/schemas/BannerNotification'
+          - $ref: '#/components/schemas/MissingPackageAlertNotification'
+          - $ref: '#/components/schemas/InstallingPackageAlertNotification'
+          - $ref: '#/components/schemas/StartupLogsNotification'
+          - $ref: '#/components/schemas/KernelStartupErrorNotification'
+          - $ref: '#/components/schemas/VariablesNotification'
+          - $ref: '#/components/schemas/VariableValuesNotification'
+          - $ref: '#/components/schemas/QueryParamsSetNotification'
+          - $ref: '#/components/schemas/QueryParamsAppendNotification'
+          - $ref: '#/components/schemas/QueryParamsDeleteNotification'
+          - $ref: '#/components/schemas/QueryParamsClearNotification'
+          - $ref: '#/components/schemas/DatasetsNotification'
+          - $ref: '#/components/schemas/DataColumnPreviewNotification'
+          - $ref: '#/components/schemas/SQLTablePreviewNotification'
+          - $ref: '#/components/schemas/SQLTableListPreviewNotification'
+          - $ref: '#/components/schemas/DataSourceConnectionsNotification'
+          - $ref: '#/components/schemas/ValidateSQLResultNotification'
+          - $ref: '#/components/schemas/SecretKeysResultNotification'
+          - $ref: '#/components/schemas/CacheClearedNotification'
+          - $ref: '#/components/schemas/CacheInfoNotification'
+          - $ref: '#/components/schemas/FocusCellNotification'
+          - $ref: '#/components/schemas/UpdateCellCodesNotification'
+          - $ref: '#/components/schemas/UpdateCellIdsNotification'
           discriminator:
             mapping:
-              alert: '#/components/schemas/Alert'
-              banner: '#/components/schemas/Banner'
-              cache-cleared: '#/components/schemas/CacheCleared'
-              cache-info-fetched: '#/components/schemas/CacheInfoFetched'
-              cell-op: '#/components/schemas/CellOp'
-              completed-run: '#/components/schemas/CompletedRun'
-              completion-result: '#/components/schemas/CompletionResult'
-              data-column-preview: '#/components/schemas/DataColumnPreview'
-              data-source-connections: '#/components/schemas/DataSourceConnections'
-              datasets: '#/components/schemas/Datasets'
-              focus-cell: '#/components/schemas/FocusCell'
-              function-call-result: '#/components/schemas/FunctionCallResult'
-              installing-package-alert: '#/components/schemas/InstallingPackageAlert'
-              interrupted: '#/components/schemas/Interrupted'
-              kernel-ready: '#/components/schemas/KernelReady'
-              missing-package-alert: '#/components/schemas/MissingPackageAlert'
-              query-params-append: '#/components/schemas/QueryParamsAppend'
-              query-params-clear: '#/components/schemas/QueryParamsClear'
-              query-params-delete: '#/components/schemas/QueryParamsDelete'
-              query-params-set: '#/components/schemas/QueryParamsSet'
-              reconnected: '#/components/schemas/Reconnected'
-              reload: '#/components/schemas/Reload'
-              remove-ui-elements: '#/components/schemas/RemoveUIElements'
-              secret-keys-result: '#/components/schemas/SecretKeysResult'
-              send-ui-element-message: '#/components/schemas/SendUIElementMessage'
-              sql-table-list-preview: '#/components/schemas/SQLTableListPreview'
-              sql-table-preview: '#/components/schemas/SQLTablePreview'
-              startup-logs: '#/components/schemas/StartupLogs'
-              update-cell-codes: '#/components/schemas/UpdateCellCodes'
-              update-cell-ids: '#/components/schemas/UpdateCellIdsRequest'
-              validate-sql-result: '#/components/schemas/ValidateSQLResult'
-              variable-values: '#/components/schemas/VariableValues'
-              variables: '#/components/schemas/Variables'
+              alert: '#/components/schemas/AlertNotification'
+              banner: '#/components/schemas/BannerNotification'
+              cache-cleared: '#/components/schemas/CacheClearedNotification'
+              cache-info: '#/components/schemas/CacheInfoNotification'
+              cell-op: '#/components/schemas/CellNotification'
+              completed-run: '#/components/schemas/CompletedRunNotification'
+              completion-result: '#/components/schemas/CompletionResultNotification'
+              data-column-preview: '#/components/schemas/DataColumnPreviewNotification'
+              data-source-connections: '#/components/schemas/DataSourceConnectionsNotification'
+              datasets: '#/components/schemas/DatasetsNotification'
+              focus-cell: '#/components/schemas/FocusCellNotification'
+              function-call-result: '#/components/schemas/FunctionCallResultNotification'
+              installing-package-alert: '#/components/schemas/InstallingPackageAlertNotification'
+              interrupted: '#/components/schemas/InterruptedNotification'
+              kernel-ready: '#/components/schemas/KernelReadyNotification'
+              kernel-startup-error: '#/components/schemas/KernelStartupErrorNotification'
+              missing-package-alert: '#/components/schemas/MissingPackageAlertNotification'
+              query-params-append: '#/components/schemas/QueryParamsAppendNotification'
+              query-params-clear: '#/components/schemas/QueryParamsClearNotification'
+              query-params-delete: '#/components/schemas/QueryParamsDeleteNotification'
+              query-params-set: '#/components/schemas/QueryParamsSetNotification'
+              reconnected: '#/components/schemas/ReconnectedNotification'
+              reload: '#/components/schemas/ReloadNotification'
+              remove-ui-elements: '#/components/schemas/RemoveUIElementsNotification'
+              secret-keys-result: '#/components/schemas/SecretKeysResultNotification'
+              send-ui-element-message: '#/components/schemas/UIElementMessageNotification'
+              sql-table-list-preview: '#/components/schemas/SQLTableListPreviewNotification'
+              sql-table-preview: '#/components/schemas/SQLTablePreviewNotification'
+              startup-logs: '#/components/schemas/StartupLogsNotification'
+              update-cell-codes: '#/components/schemas/UpdateCellCodesNotification'
+              update-cell-ids: '#/components/schemas/UpdateCellIdsNotification'
+              validate-sql-result: '#/components/schemas/ValidateSQLResultNotification'
+              variable-values: '#/components/schemas/VariableValuesNotification'
+              variables: '#/components/schemas/VariablesNotification'
             propertyName: op
       required:
-      - operation
+      - notification
+      - command
       - error
       - data_type
       title: KnownUnions
@@ -2090,6 +2504,29 @@ components:
       - data
       title: LayoutConfig
       type: object
+    ListDataSourceConnectionCommand:
+      description: "List data source schemas.\n\n    Retrieves available schemas for\
+        \ a data source engine.\n\n    Attributes:\n        engine: Data source engine\
+        \ identifier."
+      properties:
+        engine:
+          type: string
+        type:
+          enum:
+          - list-data-source-connection
+      required:
+      - type
+      - engine
+      title: ListDataSourceConnectionCommand
+      type: object
+    ListDataSourceConnectionRequest:
+      properties:
+        engine:
+          type: string
+      required:
+      - engine
+      title: ListDataSourceConnectionRequest
+      type: object
     ListPackagesResponse:
       properties:
         packages:
@@ -2099,6 +2536,65 @@ components:
       required:
       - packages
       title: ListPackagesResponse
+      type: object
+    ListSQLTablesCommand:
+      description: "List tables in an SQL schema.\n\n    Retrieves names of all tables\
+        \ and views in a schema. Used by the SQL\n    editor for table selection.\n\
+        \n    Attributes:\n        request_id: Unique identifier for this request.\n\
+        \        engine: SQL engine ('postgresql', 'mysql', 'duckdb', etc.).\n   \
+        \     database: Database to query.\n        schema: Schema to list tables\
+        \ from."
+      properties:
+        database:
+          type: string
+        engine:
+          type: string
+        requestId:
+          type: string
+        schema:
+          type: string
+        type:
+          enum:
+          - list-sql-tables
+      required:
+      - type
+      - requestId
+      - engine
+      - database
+      - schema
+      title: ListSQLTablesCommand
+      type: object
+    ListSQLTablesRequest:
+      properties:
+        database:
+          type: string
+        engine:
+          type: string
+        requestId:
+          type: string
+        schema:
+          type: string
+      required:
+      - requestId
+      - engine
+      - database
+      - schema
+      title: ListSQLTablesRequest
+      type: object
+    ListSecretKeysCommand:
+      description: "List available secret keys.\n\n    Retrieves secret names without\
+        \ exposing values.\n\n    Attributes:\n        request_id: Unique identifier\
+        \ for this request."
+      properties:
+        requestId:
+          type: string
+        type:
+          enum:
+          - list-secret-keys
+      required:
+      - type
+      - requestId
+      title: ListSecretKeysCommand
       type: object
     ListSecretKeysRequest:
       properties:
@@ -2117,6 +2613,94 @@ components:
       required:
       - keys
       title: ListSecretKeysResponse
+      type: object
+    LspHealthResponse:
+      description: Aggregated health response for all LSP servers.
+      properties:
+        servers:
+          items:
+            $ref: '#/components/schemas/LspServerHealth'
+          type: array
+        status:
+          enum:
+          - degraded
+          - healthy
+          - unhealthy
+      required:
+      - status
+      - servers
+      title: LspHealthResponse
+      type: object
+    LspRestartRequest:
+      description: Request to restart LSP servers.
+      properties:
+        serverIds:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          default: null
+      required: []
+      title: LspRestartRequest
+      type: object
+    LspRestartResponse:
+      description: Response from restart operation.
+      properties:
+        errors:
+          additionalProperties:
+            type: string
+          default: {}
+          type: object
+        restarted:
+          items:
+            type: string
+          type: array
+        success:
+          type: boolean
+      required:
+      - success
+      - restarted
+      title: LspRestartResponse
+      type: object
+    LspServerHealth:
+      description: "Health status for a single LSP server.\n\n    Status meanings:\n\
+        \    - starting: process launched, initializing\n    - running: healthy and\
+        \ responsive to pings\n    - stopped: not running (never started or cleanly\
+        \ stopped)\n    - crashed: exited with non-zero code\n    - unresponsive:\
+        \ process alive but not responding to pings"
+      properties:
+        error:
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+        lastPingMs:
+          anyOf:
+          - type: number
+          - type: 'null'
+          default: null
+        port:
+          type: integer
+        serverId:
+          type: string
+        startedAt:
+          anyOf:
+          - type: number
+          - type: 'null'
+          default: null
+        status:
+          enum:
+          - crashed
+          - running
+          - starting
+          - stopped
+          - unresponsive
+      required:
+      - serverId
+      - status
+      - port
+      title: LspServerHealth
       type: object
     MCPConfig:
       description: 'Configuration for MCP servers
@@ -2254,6 +2838,8 @@ components:
           $ref: '#/components/schemas/SharingConfig'
         snippets:
           $ref: '#/components/schemas/SnippetsConfig'
+        venv:
+          $ref: '#/components/schemas/VenvConfig'
       required:
       - completion
       - display
@@ -2417,7 +3003,10 @@ components:
       - msg
       title: MarimoSyntaxError
       type: object
-    MissingPackageAlert:
+    MissingPackageAlertNotification:
+      description: "Alert for missing packages with install option.\n\n    Attributes:\n\
+        \        packages: Missing package names.\n        isolated: Whether in isolated\
+        \ environment."
       properties:
         isolated:
           type: boolean
@@ -2432,9 +3021,13 @@ components:
       - op
       - packages
       - isolated
-      title: MissingPackageAlert
+      title: MissingPackageAlertNotification
       type: object
     ModelMessage:
+      description: "Widget model state update message.\n\n    State changes for anywidget\
+        \ models, including state dict and binary buffer paths.\n\n    Attributes:\n\
+        \        state: Model state updates.\n        buffer_paths: Paths within state\
+        \ dict pointing to binary buffers."
       properties:
         bufferPaths:
           items:
@@ -2501,6 +3094,29 @@ components:
       required: []
       title: OpenAiConfig
       type: object
+    OpenGraphMetadata:
+      description: "OpenGraph-style metadata for a notebook.\n\n    The `image` field\
+        \ may be either:\n    - a relative path (typically under `__marimo__/`), or\n\
+        \    - an absolute HTTPS URL."
+      properties:
+        description:
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+        image:
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+        title:
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+      required: []
+      title: OpenGraphMetadata
+      type: object
     OpenTutorialRequest:
       properties:
         tutorialId:
@@ -2560,27 +3176,42 @@ components:
       - success
       title: PackageOperationResponse
       type: object
-    PdbRequest:
+    PreviewDatasetColumnCommand:
+      description: "Preview a dataset column.\n\n    Retrieves and displays data from\
+        \ a single column (dataframe or SQL table).\n    Used by the data explorer\
+        \ UI.\n\n    Attributes:\n        source_type: Data source type ('dataframe',\
+        \ 'sql', etc.).\n        source: Source identifier (connection string or variable\
+        \ name).\n        table_name: Table or dataframe variable name.\n        column_name:\
+        \ Column to preview.\n        fully_qualified_table_name: Full database.schema.table\
+        \ name for SQL."
       properties:
-        cellId:
+        columnName:
           type: string
-        request:
+        fullyQualifiedTableName:
           anyOf:
-          - $ref: '#/components/schemas/HTTPRequest'
+          - type: string
           - type: 'null'
           default: null
-      required:
-      - cellId
-      title: PdbRequest
-      type: object
-    PreviewDataSourceConnectionRequest:
-      description: Fetch a datasource connection
-      properties:
-        engine:
+        source:
           type: string
+        sourceType:
+          enum:
+          - catalog
+          - connection
+          - duckdb
+          - local
+        tableName:
+          type: string
+        type:
+          enum:
+          - preview-dataset-column
       required:
-      - engine
-      title: PreviewDataSourceConnectionRequest
+      - type
+      - sourceType
+      - source
+      - tableName
+      - columnName
+      title: PreviewDatasetColumnCommand
       type: object
     PreviewDatasetColumnRequest:
       properties:
@@ -2608,8 +3239,13 @@ components:
       - columnName
       title: PreviewDatasetColumnRequest
       type: object
-    PreviewSQLTableListRequest:
-      description: Preview list of tables in an SQL schema
+    PreviewSQLTableCommand:
+      description: "Preview SQL table details.\n\n    Retrieves metadata and sample\
+        \ data for a table. Used by the SQL editor\n    and data explorer.\n\n   \
+        \ Attributes:\n        request_id: Unique identifier for this request.\n \
+        \       engine: SQL engine ('postgresql', 'mysql', 'duckdb', etc.).\n    \
+        \    database: Database containing the table.\n        schema: Schema containing\
+        \ the table.\n        table_name: Table to preview."
       properties:
         database:
           type: string
@@ -2619,15 +3255,21 @@ components:
           type: string
         schema:
           type: string
+        tableName:
+          type: string
+        type:
+          enum:
+          - preview-sql-table
       required:
+      - type
       - requestId
       - engine
       - database
       - schema
-      title: PreviewSQLTableListRequest
+      - tableName
+      title: PreviewSQLTableCommand
       type: object
     PreviewSQLTableRequest:
-      description: Preview table details in an SQL database
       properties:
         database:
           type: string
@@ -2681,7 +3323,9 @@ components:
       required: []
       title: PythonLanguageServerConfig
       type: object
-    QueryParamsAppend:
+    QueryParamsAppendNotification:
+      description: "Appends value to URL query parameter.\n\n    Attributes:\n   \
+        \     key: Query parameter key.\n        value: Value to append."
       properties:
         key:
           type: string
@@ -2694,18 +3338,22 @@ components:
       - op
       - key
       - value
-      title: QueryParamsAppend
+      title: QueryParamsAppendNotification
       type: object
-    QueryParamsClear:
+    QueryParamsClearNotification:
+      description: Clears all URL query parameters.
       properties:
         op:
           enum:
           - query-params-clear
       required:
       - op
-      title: QueryParamsClear
+      title: QueryParamsClearNotification
       type: object
-    QueryParamsDelete:
+    QueryParamsDeleteNotification:
+      description: "Deletes URL query parameter values.\n\n    Attributes:\n     \
+        \   key: Query parameter key.\n        value: Specific value to delete. If\
+        \ None, deletes all values for key."
       properties:
         key:
           type: string
@@ -2720,10 +3368,11 @@ components:
       - op
       - key
       - value
-      title: QueryParamsDelete
+      title: QueryParamsDeleteNotification
       type: object
-    QueryParamsSet:
-      description: Set query parameters.
+    QueryParamsSetNotification:
+      description: "Sets URL query parameter, replacing existing values.\n\n    Attributes:\n\
+        \        key: Query parameter key.\n        value: Value(s) to set."
       properties:
         key:
           type: string
@@ -2740,7 +3389,7 @@ components:
       - op
       - key
       - value
-      title: QueryParamsSet
+      title: QueryParamsSetNotification
       type: object
     ReadCodeResponse:
       properties:
@@ -2760,34 +3409,54 @@ components:
       - files
       title: RecentFilesResponse
       type: object
-    Reconnected:
+    ReconnectedNotification:
+      description: WebSocket reconnection confirmed.
       properties:
         op:
           enum:
           - reconnected
       required:
       - op
-      title: Reconnected
+      title: ReconnectedNotification
       type: object
-    Reload:
+    RefreshSecretsCommand:
+      description: "Refresh secrets from the secrets store.\n\n    Reloads secrets\
+        \ from the provider without restarting the kernel."
+      properties:
+        type:
+          enum:
+          - refresh-secrets
+      required:
+      - type
+      title: RefreshSecretsCommand
+      type: object
+    ReloadNotification:
+      description: Instructs frontend to reload the page.
       properties:
         op:
           enum:
           - reload
       required:
       - op
-      title: Reload
+      title: ReloadNotification
       type: object
     RemovePackageRequest:
       properties:
+        dev:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          default: false
         package:
           type: string
       required:
       - package
       title: RemovePackageRequest
       type: object
-    RemoveUIElements:
-      description: Invalidate UI elements for a given cell.
+    RemoveUIElementsNotification:
+      description: "Removes UI elements associated with a cell.\n\n    Sent when cell\
+        \ is re-executed or deleted.\n\n    Attributes:\n        cell_id: Cell whose\
+        \ UI elements should be removed."
       properties:
         cell_id:
           type: string
@@ -2797,43 +3466,30 @@ components:
       required:
       - op
       - cell_id
-      title: RemoveUIElements
+      title: RemoveUIElementsNotification
       type: object
-    RenameFileRequest:
+    RenameNotebookCommand:
+      description: "Rename or move the notebook file.\n\n    Updates the notebook's\
+        \ filename in the kernel metadata.\n\n    Attributes:\n        filename: New\
+        \ filename or path for the notebook."
+      properties:
+        filename:
+          type: string
+        type:
+          enum:
+          - rename-notebook
+      required:
+      - type
+      - filename
+      title: RenameNotebookCommand
+      type: object
+    RenameNotebookRequest:
       properties:
         filename:
           type: string
       required:
       - filename
-      title: RenameFileRequest
-      type: object
-    RenameRequest:
-      properties:
-        filename:
-          type: string
-      required:
-      - filename
-      title: RenameRequest
-      type: object
-    RunRequest:
-      properties:
-        cellIds:
-          items:
-            type: string
-          type: array
-        codes:
-          items:
-            type: string
-          type: array
-        request:
-          anyOf:
-          - $ref: '#/components/schemas/HTTPRequest'
-          - type: 'null'
-          default: null
-      required:
-      - cellIds
-      - codes
-      title: RunRequest
+      title: RenameNotebookRequest
       type: object
     RunningNotebooksResponse:
       properties:
@@ -2876,7 +3532,8 @@ components:
         `, `\"polars\"`, `\"lazy-polars\"`, or `\"pandas\"`.\n        The default\
         \ is `\"auto\"`.\n    - `default_auto_download`: an Optional list of export\
         \ types to automatically snapshot your notebook as:\n       `html`, `markdown`,\
-        \ `ipynb`.\n       The default is None."
+        \ `ipynb`.\n       The default is None.\n    - `default_csv_encoding`: the\
+        \ default encoding for CSV exports.\n        The default is `\"utf-8\"`."
       properties:
         auto_instantiate:
           type: boolean
@@ -2892,6 +3549,8 @@ components:
             - ipynb
             - markdown
           type: array
+        default_csv_encoding:
+          type: string
         default_sql_output:
           enum:
           - auto
@@ -2933,7 +3592,9 @@ components:
       title: RuntimeConfig
       type: object
     SQLMetadata:
-      description: Metadata for a SQL database.
+      description: "SQL database and schema metadata.\n\n    Attributes:\n       \
+        \ connection: Connection identifier.\n        database: Database name.\n \
+        \       schema: Schema name."
       properties:
         connection:
           type: string
@@ -2951,8 +3612,10 @@ components:
       - schema
       title: SQLMetadata
       type: object
-    SQLTableListPreview:
-      description: Preview of a list of tables in a schema.
+    SQLTableListPreviewNotification:
+      description: "List of SQL tables in a schema.\n\n    Attributes:\n        request_id:\
+        \ Request ID this responds to.\n        metadata: Database and schema metadata.\n\
+        \        tables: Tables in schema.\n        error: Error message if failed."
       properties:
         error:
           anyOf:
@@ -2975,10 +3638,13 @@ components:
       - op
       - request_id
       - metadata
-      title: SQLTableListPreview
+      title: SQLTableListPreviewNotification
       type: object
-    SQLTablePreview:
-      description: Preview of a table in a SQL database.
+    SQLTablePreviewNotification:
+      description: "SQL table preview.\n\n    Attributes:\n        request_id: Request\
+        \ ID this responds to.\n        metadata: Database and schema metadata.\n\
+        \        table: Table data (None if error).\n        error: Error message\
+        \ if failed."
       properties:
         error:
           anyOf:
@@ -3001,7 +3667,7 @@ components:
       - request_id
       - metadata
       - table
-      title: SQLTablePreview
+      title: SQLTablePreviewNotification
       type: object
     SaveAppConfigurationRequest:
       properties:
@@ -3115,8 +3781,10 @@ components:
       - columns
       title: SchemaTable
       type: object
-    SecretKeysResult:
-      description: Result of listing secret keys.
+    SecretKeysResultNotification:
+      description: "Available secret keys from secret providers.\n\n    Attributes:\n\
+        \        request_id: Request ID this responds to.\n        secrets: Secret\
+        \ keys with provider info."
       properties:
         op:
           enum:
@@ -3131,7 +3799,7 @@ components:
       - op
       - request_id
       - secrets
-      title: SecretKeysResult
+      title: SecretKeysResultNotification
       type: object
     SecretKeysWithProvider:
       properties:
@@ -3151,111 +3819,27 @@ components:
       - keys
       title: SecretKeysWithProvider
       type: object
-    SendUIElementMessage:
-      description: Send a message to a UI element.
-      properties:
-        buffers:
-          anyOf:
-          - items:
-              contentEncoding: base64
-              type: string
-            type: array
-          - type: 'null'
-          default: null
-        message:
-          type: object
-        model_id:
-          anyOf:
-          - type: string
-          - type: 'null'
-        op:
-          enum:
-          - send-ui-element-message
-        ui_element:
-          anyOf:
-          - type: string
-          - type: 'null'
-      required:
-      - op
-      - ui_element
-      - model_id
-      - message
-      title: SendUIElementMessage
-      type: object
     ServerConfig:
       description: "Configuration for the server.\n\n    **Keys.**\n\n    - `browser`:\
         \ the web browser to use. `\"default\"` or a browser registered\n        with\
         \ Python's webbrowser module (eg, `\"firefox\"` or `\"chrome\"`)\n    - `follow_symlink`:\
         \ if true, the server will follow symlinks it finds\n        inside its static\
-        \ assets directory."
+        \ assets directory.\n    - `disable_file_downloads`: if true, the file download\
+        \ button will be\n        hidden in the file explorer."
       properties:
         browser:
           anyOf:
           - enum:
             - default
           - type: string
+        disable_file_downloads:
+          type: boolean
         follow_symlink:
           type: boolean
       required:
       - browser
       - follow_symlink
       title: ServerConfig
-      type: object
-    SetCellConfigRequest:
-      properties:
-        configs:
-          additionalProperties:
-            type: object
-          type: object
-      required:
-      - configs
-      title: SetCellConfigRequest
-      type: object
-    SetModelMessageRequest:
-      properties:
-        buffers:
-          anyOf:
-          - items:
-              type: string
-            type: array
-          - type: 'null'
-          default: null
-        message:
-          $ref: '#/components/schemas/ModelMessage'
-        modelId:
-          type: string
-      required:
-      - modelId
-      - message
-      title: SetModelMessageRequest
-      type: object
-    SetUIElementValueRequest:
-      properties:
-        objectIds:
-          items:
-            type: string
-          type: array
-        request:
-          anyOf:
-          - $ref: '#/components/schemas/HTTPRequest'
-          - type: 'null'
-          default: null
-        token:
-          type: string
-        values:
-          type: array
-      required:
-      - objectIds
-      - values
-      title: SetUIElementValueRequest
-      type: object
-    SetUserConfigRequest:
-      properties:
-        config:
-          $ref: '#/components/schemas/MarimoConfig'
-      required:
-      - config
-      title: SetUserConfigRequest
       type: object
     SetupRootError:
       properties:
@@ -3409,7 +3993,9 @@ components:
       - errors
       title: SqlParseResult
       type: object
-    StartupLogs:
+    StartupLogsNotification:
+      description: "Streaming kernel startup logs.\n\n    Attributes:\n        content:\
+        \ Log content to display.\n        status: Stream status (start/append/done)."
       properties:
         content:
           type: string
@@ -3425,7 +4011,7 @@ components:
       - op
       - content
       - status
-      title: StartupLogs
+      title: StartupLogsNotification
       type: object
     StdinRequest:
       properties:
@@ -3435,10 +4021,17 @@ components:
       - text
       title: StdinRequest
       type: object
-    StopRequest:
-      properties: {}
-      required: []
-      title: StopRequest
+    StopKernelCommand:
+      description: "Stop kernel execution.\n\n    Signals the kernel to stop processing\
+        \ and shut down gracefully.\n    Used when closing a notebook or terminating\
+        \ a session."
+      properties:
+        type:
+          enum:
+          - stop-kernel
+      required:
+      - type
+      title: StopKernelCommand
       type: object
     StoreConfig:
       description: Configuration for cache stores.
@@ -3461,6 +4054,39 @@ components:
           type: boolean
       required: []
       title: SuccessResponse
+      type: object
+    SyncGraphCommand:
+      description: "Synchronize the kernel graph with file manager state.\n\n    Used\
+        \ when the notebook file changes externally (e.g., file reload or version\
+        \ control).\n    Updates changed cells, deletes removed cells, and optionally\
+        \ executes modified cells.\n\n    Attributes:\n        cells: All cells known\
+        \ to file manager, mapping cell_id to code.\n        run_ids: Cells to execute\
+        \ or update.\n        delete_ids: Cells to delete from the graph.\n      \
+        \  timestamp: Unix timestamp when command was created."
+      properties:
+        cells:
+          additionalProperties:
+            type: string
+          type: object
+        deleteIds:
+          items:
+            type: string
+          type: array
+        runIds:
+          items:
+            type: string
+          type: array
+        timestamp:
+          type: number
+        type:
+          enum:
+          - sync-graph
+      required:
+      - type
+      - cells
+      - runIds
+      - deleteIds
+      title: SyncGraphCommand
       type: object
     ToolDefinition:
       description: Tool definition compatible with ai-sdk-ui format.
@@ -3504,6 +4130,40 @@ components:
       required: []
       title: TyLanguageServerConfig
       type: object
+    UIElementMessageNotification:
+      description: "Sends a message to a UI element/widget.\n\n    Attributes:\n \
+        \       ui_element: UI element identifier (legacy).\n        model_id: Widget\
+        \ model ID (newer architecture).\n        message: Message payload as dictionary.\n\
+        \        buffers: Optional binary buffers for large data."
+      properties:
+        buffers:
+          anyOf:
+          - items:
+              contentEncoding: base64
+              type: string
+            type: array
+          - type: 'null'
+          default: null
+        message:
+          type: object
+        model_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+        op:
+          enum:
+          - send-ui-element-message
+        ui_element:
+          anyOf:
+          - type: string
+          - type: 'null'
+      required:
+      - op
+      - ui_element
+      - model_id
+      - message
+      title: UIElementMessageNotification
+      type: object
     UnknownError:
       properties:
         error_type:
@@ -3521,7 +4181,11 @@ components:
       - msg
       title: UnknownError
       type: object
-    UpdateCellCodes:
+    UpdateCellCodesNotification:
+      description: "Updates cell code contents (kiosk mode).\n\n    Attributes:\n\
+        \        cell_ids: Cells to update.\n        codes: New code for each cell.\n\
+        \        code_is_stale: If True, code was not executed on backend (output\
+        \ may not match)."
       properties:
         cell_ids:
           items:
@@ -3541,15 +4205,39 @@ components:
       - cell_ids
       - codes
       - code_is_stale
-      title: UpdateCellCodes
+      title: UpdateCellCodesNotification
       type: object
-    UpdateCellIdsRequest:
-      description: 'Update the cell ID ordering of the cells in the notebook.
-
-
-        Right now we send the entire list of cell IDs,
-
-        but in the future we might want to send change-deltas.'
+    UpdateCellConfigCommand:
+      description: "Update cell configuration.\n\n    Updates cell-level settings\
+        \ like disabled state, hide code, etc.\n\n    Attributes:\n        configs:\
+        \ Cell IDs mapped to their config updates. Each config dict\n            \
+        \     can contain partial updates."
+      properties:
+        configs:
+          additionalProperties:
+            type: object
+          type: object
+        type:
+          enum:
+          - update-cell-config
+      required:
+      - type
+      - configs
+      title: UpdateCellConfigCommand
+      type: object
+    UpdateCellConfigRequest:
+      properties:
+        configs:
+          additionalProperties:
+            type: object
+          type: object
+      required:
+      - configs
+      title: UpdateCellConfigRequest
+      type: object
+    UpdateCellIdsNotification:
+      description: "Updates cell ordering in notebook.\n\n    Attributes:\n      \
+        \  cell_ids: Complete ordered list of cell IDs."
       properties:
         cell_ids:
           items:
@@ -3561,9 +4249,108 @@ components:
       required:
       - op
       - cell_ids
+      title: UpdateCellIdsNotification
+      type: object
+    UpdateCellIdsRequest:
+      properties:
+        cellIds:
+          items:
+            type: string
+          type: array
+      required:
+      - cellIds
       title: UpdateCellIdsRequest
       type: object
-    UpdateComponentValuesRequest:
+    UpdateCellOutputsRequest:
+      properties:
+        cellIdsToOutput:
+          additionalProperties:
+            items: false
+            maxItems: 2
+            minItems: 2
+            prefixItems:
+            - enum:
+              - application/json
+              - application/vnd.jupyter.widget-view+json
+              - application/vnd.marimo+error
+              - application/vnd.marimo+mimebundle
+              - application/vnd.marimo+traceback
+              - application/vnd.vega.v5+json
+              - application/vnd.vega.v6+json
+              - application/vnd.vegalite.v5+json
+              - application/vnd.vegalite.v6+json
+              - image/avif
+              - image/bmp
+              - image/gif
+              - image/jpeg
+              - image/png
+              - image/svg+xml
+              - image/tiff
+              - text/csv
+              - text/html
+              - text/latex
+              - text/markdown
+              - text/plain
+              - video/mp4
+              - video/mpeg
+            - {}
+            type: array
+          type: object
+      required:
+      - cellIdsToOutput
+      title: UpdateCellOutputsRequest
+      type: object
+    UpdateUIElementCommand:
+      description: "Update UI element values.\n\n    Triggered when users interact\
+        \ with UI elements (sliders, inputs, dropdowns, etc.).\n    Updates element\
+        \ values and re-executes dependent cells.\n\n    Attributes:\n        object_ids:\
+        \ UI elements to update.\n        values: New values for the elements. Must\
+        \ match length of object_ids.\n        request: HTTP request context if available.\n\
+        \        token: Unique request identifier for deduplication."
+      properties:
+        objectIds:
+          items:
+            type: string
+          type: array
+        request:
+          anyOf:
+          - $ref: '#/components/schemas/HTTPRequest'
+          - type: 'null'
+          default: null
+        token:
+          type: string
+        type:
+          enum:
+          - update-ui-element
+        values:
+          type: array
+      required:
+      - type
+      - objectIds
+      - values
+      title: UpdateUIElementCommand
+      type: object
+    UpdateUIElementRequest:
+      properties:
+        objectIds:
+          items:
+            type: string
+          type: array
+        request:
+          anyOf:
+          - $ref: '#/components/schemas/HTTPRequest'
+          - type: 'null'
+          default: null
+        token:
+          type: string
+        values:
+          type: array
+      required:
+      - objectIds
+      - values
+      title: UpdateUIElementRequest
+      type: object
+    UpdateUIElementValuesRequest:
       properties:
         objectIds:
           items:
@@ -3574,10 +4361,112 @@ components:
       required:
       - objectIds
       - values
-      title: UpdateComponentValuesRequest
+      title: UpdateUIElementValuesRequest
+      type: object
+    UpdateUserConfigCommand:
+      description: "Update user configuration.\n\n    Updates global marimo configuration\
+        \ (runtime settings, display options, editor preferences).\n\n    Attributes:\n\
+        \        config: Complete user configuration."
+      properties:
+        config:
+          $ref: '#/components/schemas/MarimoConfig'
+        type:
+          enum:
+          - update-user-config
+      required:
+      - type
+      - config
+      title: UpdateUserConfigCommand
+      type: object
+    UpdateUserConfigRequest:
+      properties:
+        config:
+          $ref: '#/components/schemas/MarimoConfig'
+      required:
+      - config
+      title: UpdateUserConfigRequest
+      type: object
+    UpdateWidgetModelCommand:
+      description: "Update anywidget model state.\n\n    Updates widget model state\
+        \ for bidirectional Python-JavaScript communication.\n\n    Attributes:\n\
+        \        model_id: Widget model identifier.\n        message: Model message\
+        \ with state updates and buffer paths.\n        buffers: Base64-encoded binary\
+        \ buffers referenced by buffer_paths."
+      properties:
+        buffers:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          default: null
+        message:
+          $ref: '#/components/schemas/ModelMessage'
+        modelId:
+          type: string
+        type:
+          enum:
+          - update-widget-model
+      required:
+      - type
+      - modelId
+      - message
+      title: UpdateWidgetModelCommand
+      type: object
+    UpdateWidgetModelRequest:
+      properties:
+        buffers:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          default: null
+        message:
+          $ref: '#/components/schemas/ModelMessage'
+        modelId:
+          type: string
+      required:
+      - modelId
+      - message
+      title: UpdateWidgetModelRequest
+      type: object
+    ValidateSQLCommand:
+      description: "Validate an SQL query.\n\n    Checks if an SQL query is valid\
+        \ by parsing against a dialect (no DB connection)\n    or validating against\
+        \ an actual database.\n\n    Attributes:\n        request_id: Unique identifier\
+        \ for this request.\n        query: SQL query to validate.\n        only_parse:\
+        \ If True, only parse using dialect. If False, validate against DB.\n    \
+        \    engine: SQL engine (required if only_parse is False).\n        dialect:\
+        \ SQL dialect for parsing (required if only_parse is True)."
+      properties:
+        dialect:
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+        engine:
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+        onlyParse:
+          type: boolean
+        query:
+          type: string
+        requestId:
+          type: string
+        type:
+          enum:
+          - validate-sql
+      required:
+      - type
+      - requestId
+      - query
+      - onlyParse
+      title: ValidateSQLCommand
       type: object
     ValidateSQLRequest:
-      description: Validate an SQL query against the engine
       properties:
         dialect:
           anyOf:
@@ -3601,7 +4490,11 @@ components:
       - onlyParse
       title: ValidateSQLRequest
       type: object
-    ValidateSQLResult:
+    ValidateSQLResultNotification:
+      description: "SQL query validation result.\n\n    Attributes:\n        request_id:\
+        \ Request ID this responds to.\n        parse_result: SQL parsing result.\n\
+        \        validate_result: Catalog validation result.\n        error: Error\
+        \ message if failed."
       properties:
         error:
           anyOf:
@@ -3626,7 +4519,7 @@ components:
       required:
       - op
       - request_id
-      title: ValidateSQLResult
+      title: ValidateSQLResultNotification
       type: object
     VariableContext:
       properties:
@@ -3641,7 +4534,10 @@ components:
       - previewValue
       title: VariableContext
       type: object
-    VariableDeclaration:
+    VariableDeclarationNotification:
+      description: "Variable declaration and usage for dataflow graph.\n\n    Attributes:\n\
+        \        name: Variable name.\n        declared_by: Cell IDs that define this\
+        \ variable.\n        used_by: Cell IDs that use this variable."
       properties:
         declared_by:
           items:
@@ -3657,9 +4553,12 @@ components:
       - name
       - declared_by
       - used_by
-      title: VariableDeclaration
+      title: VariableDeclarationNotification
       type: object
     VariableValue:
+      description: "Variable value and type for variables panel.\n\n    Attributes:\n\
+        \        name: Variable name.\n        value: String representation of value.\n\
+        \        datatype: Data type as string."
       properties:
         datatype:
           anyOf:
@@ -3677,8 +4576,9 @@ components:
       - datatype
       title: VariableValue
       type: object
-    VariableValues:
-      description: List of variables and their types/values.
+    VariableValuesNotification:
+      description: "Current variable values.\n\n    Attributes:\n        variables:\
+        \ Variables with current values and types."
       properties:
         op:
           enum:
@@ -3690,22 +4590,38 @@ components:
       required:
       - op
       - variables
-      title: VariableValues
+      title: VariableValuesNotification
       type: object
-    Variables:
-      description: List of variable declarations.
+    VariablesNotification:
+      description: "Variable dataflow graph.\n\n    Attributes:\n        variables:\
+        \ Variable declarations and usage."
       properties:
         op:
           enum:
           - variables
         variables:
           items:
-            $ref: '#/components/schemas/VariableDeclaration'
+            $ref: '#/components/schemas/VariableDeclarationNotification'
           type: array
       required:
       - op
       - variables
-      title: Variables
+      title: VariablesNotification
+      type: object
+    VenvConfig:
+      description: "Configuration for external Python environment in home sandbox\
+        \ mode.\n\n    Allows specifying an existing virtualenv to use instead of\
+        \ creating\n    ephemeral sandboxes per notebook. Only applies in home sandbox\
+        \ mode.\n\n    **Keys.**\n\n    - `path`: path to a virtualenv directory (absolute\
+        \ or relative to\n      pyproject.toml)\n    - `writable`: if true, marimo\
+        \ will manage script metadata (inline\n      dependencies). Defaults to false."
+      properties:
+        path:
+          type: string
+        writable:
+          type: boolean
+      required: []
+      title: VenvConfig
       type: object
     WorkspaceFilesRequest:
       properties:
@@ -3786,7 +4702,7 @@ components:
       type: object
 info:
   title: marimo API
-  version: 0.18.4
+  version: 0.19.7
 openapi: 3.1.0
 paths:
   /@file/{filename_and_length}:
@@ -3799,16 +4715,22 @@ paths:
         schema:
           type: string
       responses:
-        '200':
+        200:
           content:
             application/octet-stream:
               schema:
                 type: string
           description: Get a virtual file
-        '404':
+        404:
           description: Invalid byte length in virtual file request
   /api/ai/chat:
     post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
       requestBody:
         content:
           application/json:
@@ -3818,6 +4740,12 @@ paths:
         required: true
   /api/ai/completion:
     post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
       requestBody:
         content:
           application/json:
@@ -3826,7 +4754,7 @@ paths:
         description: The request body for AI completion
         required: true
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -3835,6 +4763,12 @@ paths:
           description: Get AI completion for a prompt
   /api/ai/inline_completion:
     post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
       requestBody:
         content:
           application/json:
@@ -3843,7 +4777,7 @@ paths:
         description: The request body for AI inline completion
         required: true
       responses:
-        '200':
+        200:
           content:
             text/plain:
               schema:
@@ -3851,6 +4785,12 @@ paths:
           description: Get AI inline completion for code
   /api/ai/invoke_tool:
     post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
       requestBody:
         content:
           application/json:
@@ -3859,7 +4799,7 @@ paths:
         description: The request body for tool invocation
         required: true
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -3867,8 +4807,14 @@ paths:
           description: Tool invocation result
   /api/ai/mcp/refresh:
     post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -3877,7 +4823,7 @@ paths:
   /api/ai/mcp/status:
     get:
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -3885,13 +4831,19 @@ paths:
           description: Get MCP server status
   /api/cache/clear:
     post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
       requestBody:
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/ClearCacheRequest'
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -3899,13 +4851,19 @@ paths:
           description: Clear all caches
   /api/cache/info:
     post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
       requestBody:
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/GetCacheInfoRequest'
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -3913,13 +4871,19 @@ paths:
           description: Get cache statistics
   /api/datasources/preview_column:
     post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
       requestBody:
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/PreviewDatasetColumnRequest'
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -3927,13 +4891,19 @@ paths:
           description: Preview a column in a dataset
   /api/datasources/preview_datasource_connection:
     post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
       requestBody:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/PreviewDataSourceConnectionRequest'
+              $ref: '#/components/schemas/ListDataSourceConnectionRequest'
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -3941,13 +4911,19 @@ paths:
           description: Broadcasts a datasource connection
   /api/datasources/preview_sql_table:
     post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
       requestBody:
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/PreviewSQLTableRequest'
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -3955,13 +4931,19 @@ paths:
           description: Preview a SQL table
   /api/datasources/preview_sql_table_list:
     post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
       requestBody:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/PreviewSQLTableListRequest'
+              $ref: '#/components/schemas/ListSQLTablesRequest'
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -3969,8 +4951,14 @@ paths:
           description: Preview a list of tables in an SQL schema
   /api/documentation/snippets:
     get:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -3978,99 +4966,182 @@ paths:
           description: Load the snippets for the documentation page
   /api/export/auto_export/html:
     post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
       requestBody:
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/ExportAsHTMLRequest'
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/SuccessResponse'
           description: Export the notebook as HTML
-        '400':
+        400:
           description: File must be saved before downloading
   /api/export/auto_export/ipynb:
     post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
       requestBody:
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/ExportAsIPYNBRequest'
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/SuccessResponse'
           description: Export the notebook as IPYNB
-        '400':
+        400:
           description: File must be saved before downloading
   /api/export/auto_export/markdown:
     post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
       requestBody:
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/ExportAsMarkdownRequest'
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/SuccessResponse'
           description: Export the notebook as a markdown
-        '400':
+        400:
           description: File must be saved before downloading
   /api/export/html:
     post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
       requestBody:
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/ExportAsHTMLRequest'
       responses:
-        '200':
+        200:
           content:
             text/html:
               schema:
                 type: string
           description: Export the notebook as HTML
-        '400':
+        400:
           description: File must be saved before downloading
   /api/export/markdown:
     post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
       requestBody:
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/ExportAsMarkdownRequest'
       responses:
-        '200':
+        200:
           content:
             text/plain:
               schema:
                 type: string
           description: Export the notebook as a markdown
-        '400':
+        400:
           description: File must be saved before downloading
+  /api/export/pdf:
+    post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExportAsPDFRequest'
+      responses:
+        200:
+          content:
+            application/pdf:
+              schema:
+                format: binary
+                type: string
+          description: Export the notebook as a PDF
+        400:
+          description: File must be saved before downloading
+        500:
+          description: Export failed or dependencies missing
   /api/export/script:
     post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
       requestBody:
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/ExportAsScriptRequest'
       responses:
-        '200':
+        200:
           content:
             text/plain:
               schema:
                 type: string
           description: Export the notebook as a script
-        '400':
+        400:
+          description: File must be saved before downloading
+  /api/export/update_cell_outputs:
+    post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateCellOutputsRequest'
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+          description: Update the cell outputs
+        400:
           description: File must be saved before downloading
   /api/files/create:
     post:
@@ -4080,7 +5151,7 @@ paths:
             schema:
               $ref: '#/components/schemas/FileCreateRequest'
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4094,7 +5165,7 @@ paths:
             schema:
               $ref: '#/components/schemas/FileDeleteRequest'
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4108,7 +5179,7 @@ paths:
             schema:
               $ref: '#/components/schemas/FileDetailsRequest'
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4122,7 +5193,7 @@ paths:
             schema:
               $ref: '#/components/schemas/FileListRequest'
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4136,7 +5207,7 @@ paths:
             schema:
               $ref: '#/components/schemas/FileMoveRequest'
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4150,7 +5221,7 @@ paths:
             schema:
               $ref: '#/components/schemas/FileOpenRequest'
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4164,7 +5235,7 @@ paths:
             schema:
               $ref: '#/components/schemas/FileSearchRequest'
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4178,7 +5249,7 @@ paths:
             schema:
               $ref: '#/components/schemas/FileUpdateRequest'
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4187,7 +5258,7 @@ paths:
   /api/home/recent_files:
     post:
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4196,7 +5267,7 @@ paths:
   /api/home/running_notebooks:
     post:
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4210,7 +5281,7 @@ paths:
             schema:
               $ref: '#/components/schemas/ShutdownSessionRequest'
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4224,7 +5295,7 @@ paths:
             schema:
               $ref: '#/components/schemas/OpenTutorialRequest'
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4238,7 +5309,7 @@ paths:
             schema:
               $ref: '#/components/schemas/WorkspaceFilesRequest'
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4246,13 +5317,19 @@ paths:
           description: Get the files in the workspace
   /api/kernel/code_autocomplete:
     post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
       requestBody:
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/CodeCompletionRequest'
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4260,13 +5337,19 @@ paths:
           description: Complete a code fragment
   /api/kernel/copy:
     post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
       requestBody:
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/CopyNotebookRequest'
       responses:
-        '200':
+        200:
           content:
             text/plain:
               schema:
@@ -4274,13 +5357,19 @@ paths:
           description: Copy notebook
   /api/kernel/delete:
     post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
       requestBody:
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/DeleteCellRequest'
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4292,9 +5381,9 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/FormatRequest'
+              $ref: '#/components/schemas/FormatCellsRequest'
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4302,13 +5391,19 @@ paths:
           description: Format code
   /api/kernel/function_call:
     post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
       requestBody:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/FunctionCallRequest'
+              $ref: '#/components/schemas/InvokeFunctionRequest'
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4316,13 +5411,19 @@ paths:
           description: Invoke an RPC
   /api/kernel/install_missing_packages:
     post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
       requestBody:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/InstallMissingPackagesRequest'
+              $ref: '#/components/schemas/InstallPackagesRequest'
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4330,22 +5431,35 @@ paths:
           description: Install missing packages
   /api/kernel/instantiate:
     post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
       requestBody:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/InstantiateRequest'
+              $ref: '#/components/schemas/InstantiateNotebookRequest'
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/SuccessResponse'
-          description: Instantiate a component
+          description: Instantiate a component. Only allowed in edit mode; in run
+            mode, instantiation happens server-side automatically.
   /api/kernel/interrupt:
     post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4353,13 +5467,19 @@ paths:
           description: Interrupt the kernel's execution
   /api/kernel/pdb/pm:
     post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
       requestBody:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/PdbRequest'
+              $ref: '#/components/schemas/DebugCellRequest'
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4367,24 +5487,38 @@ paths:
           description: Run a post mortem on the most recent failed cell.
   /api/kernel/read_code:
     post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ReadCodeResponse'
           description: Read the code from the server
-        '400':
+        400:
           description: File must be saved before downloading
+        403:
+          description: Code is not available in run mode
   /api/kernel/rename:
     post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
       requestBody:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/RenameFileRequest'
+              $ref: '#/components/schemas/RenameNotebookRequest'
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4392,8 +5526,14 @@ paths:
           description: Rename the current app
   /api/kernel/restart_session:
     post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4401,13 +5541,19 @@ paths:
           description: Restart the current session without affecting other sessions.
   /api/kernel/run:
     post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
       requestBody:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/RunRequest'
+              $ref: '#/components/schemas/ExecuteCellsRequest'
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4416,13 +5562,19 @@ paths:
             new cells for unseen cell IDs. Only allowed in edit mode.
   /api/kernel/save:
     post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
       requestBody:
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/SaveNotebookRequest'
       responses:
-        '200':
+        200:
           content:
             text/plain:
               schema:
@@ -4430,13 +5582,19 @@ paths:
           description: Save the current app
   /api/kernel/save_app_config:
     post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
       requestBody:
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/SaveAppConfigurationRequest'
       responses:
-        '200':
+        200:
           content:
             text/plain:
               schema:
@@ -4444,13 +5602,19 @@ paths:
           description: Save the app configuration
   /api/kernel/save_user_config:
     post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: false
+        schema:
+          type: string
       requestBody:
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/SaveUserConfigurationRequest'
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4459,13 +5623,19 @@ paths:
             in edit mode.
   /api/kernel/scratchpad/run:
     post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
       requestBody:
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/ExecuteScratchpadRequest'
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4473,13 +5643,19 @@ paths:
           description: Run the scratchpad
   /api/kernel/set_cell_config:
     post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
       requestBody:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/SetCellConfigRequest'
+              $ref: '#/components/schemas/UpdateCellConfigRequest'
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4487,13 +5663,19 @@ paths:
           description: Set the configuration of a cell
   /api/kernel/set_model_value:
     post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
       requestBody:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/SetModelMessageRequest'
+              $ref: '#/components/schemas/UpdateWidgetModelRequest'
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4501,13 +5683,19 @@ paths:
           description: Set model value
   /api/kernel/set_ui_element_value:
     post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
       requestBody:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/UpdateComponentValuesRequest'
+              $ref: '#/components/schemas/UpdateUIElementValuesRequest'
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4515,8 +5703,14 @@ paths:
           description: Set UI element values
   /api/kernel/shutdown:
     post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: false
+        schema:
+          type: string
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4524,13 +5718,19 @@ paths:
           description: Shutdown the kernel
   /api/kernel/stdin:
     post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
       requestBody:
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/StdinRequest'
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4538,13 +5738,19 @@ paths:
           description: Send input to the stdin stream
   /api/kernel/sync/cell_ids:
     post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
       requestBody:
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/UpdateCellIdsRequest'
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4552,8 +5758,14 @@ paths:
           description: Sync cell ids
   /api/kernel/takeover:
     post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4562,6 +5774,29 @@ paths:
                     type: string
                 type: object
           description: Successfully closed existing sessions
+  /api/lsp/health:
+    get:
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LspHealthResponse'
+          description: Get health status of all LSP servers
+  /api/lsp/restart:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LspRestartRequest'
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LspRestartResponse'
+          description: Restart LSP servers
   /api/packages/add:
     post:
       requestBody:
@@ -4570,7 +5805,7 @@ paths:
             schema:
               $ref: '#/components/schemas/AddPackageRequest'
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4579,7 +5814,7 @@ paths:
   /api/packages/list:
     get:
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4593,7 +5828,7 @@ paths:
             schema:
               $ref: '#/components/schemas/RemovePackageRequest'
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4602,7 +5837,7 @@ paths:
   /api/packages/tree:
     get:
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4610,6 +5845,12 @@ paths:
           description: List dependency tree
   /api/secrets/create:
     post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
       requestBody:
         content:
           application/json:
@@ -4617,7 +5858,7 @@ paths:
               $ref: '#/components/schemas/CreateSecretRequest'
         required: true
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4626,7 +5867,7 @@ paths:
   /api/secrets/delete:
     post:
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4634,6 +5875,12 @@ paths:
           description: Delete a secret
   /api/secrets/keys:
     post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
       requestBody:
         content:
           application/json:
@@ -4641,7 +5888,7 @@ paths:
               $ref: '#/components/schemas/ListSecretKeysRequest'
         required: true
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4649,13 +5896,19 @@ paths:
           description: List all secret keys
   /api/sql/validate:
     post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
       requestBody:
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/ValidateSQLRequest'
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4664,7 +5917,7 @@ paths:
   /api/status:
     get:
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4694,7 +5947,7 @@ paths:
   /api/status/connections:
     get:
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4706,7 +5959,7 @@ paths:
   /api/usage:
     get:
       responses:
-        '200':
+        200:
           content:
             application/json:
               schema:
@@ -4758,6 +6011,8 @@ paths:
                         type: integer
                       free:
                         type: integer
+                      has_cgroup_mem_limit:
+                        type: boolean
                       percent:
                         type: number
                       total:
@@ -4770,6 +6025,7 @@ paths:
                     - percent
                     - used
                     - free
+                    - has_cgroup_mem_limit
                     type: object
                   server:
                     properties:
@@ -4786,7 +6042,7 @@ paths:
   /api/version:
     get:
       responses:
-        '200':
+        200:
           content:
             text/plain:
               schema:
@@ -4804,13 +6060,13 @@ paths:
                   type: string
               type: object
       responses:
-        '200':
+        200:
           content:
             text/html:
               schema:
                 type: string
           description: Login page
-        '302':
+        302:
           description: Redirect to the next URL
           headers:
             Location:

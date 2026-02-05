@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
 import abc
@@ -66,6 +66,7 @@ class TransformType(Enum):
     EXPLODE_COLUMNS = "explode_columns"
     EXPAND_DICT = "expand_dict"
     UNIQUE = "unique"
+    PIVOT = "pivot"
 
 
 @dataclass(frozen=True)
@@ -176,10 +177,20 @@ class UniqueTransform:
     keep: UniqueKeep
 
 
+@dataclass
+class PivotTransform:
+    type: Literal[TransformType.PIVOT]
+    column_ids: ColumnIds
+    index_column_ids: ColumnIds
+    value_column_ids: ColumnIds
+    aggregation: Aggregation
+
+
 Transform = Union[
     AggregateTransform,
     ColumnConversionTransform,
     FilterRowsTransform,
+    PivotTransform,
     GroupByTransform,
     RenameColumnTransform,
     SelectColumnsTransform,
@@ -261,6 +272,11 @@ class TransformHandler(abc.ABC, Generic[T]):
     @staticmethod
     @abc.abstractmethod
     def handle_unique(df: T, transform: UniqueTransform) -> T:
+        raise NotImplementedError
+
+    @staticmethod
+    @abc.abstractmethod
+    def handle_pivot(df: T, transform: PivotTransform) -> T:
         raise NotImplementedError
 
     @staticmethod

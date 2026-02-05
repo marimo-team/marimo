@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 import { Trash2Icon } from "lucide-react";
 import type { JSX } from "react";
 import type { RuntimeState } from "@/core/network/types";

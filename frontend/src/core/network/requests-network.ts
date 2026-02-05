@@ -1,10 +1,9 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import { once } from "lodash-es";
 import { getRuntimeManager } from "../runtime/config";
-import { store } from "../state/jotai";
 import { API, createClientWithRuntimeManager } from "./api";
-import { isConnectedAtom, waitForConnectionOpen } from "./connection";
+import { waitForConnectionOpen } from "./connection";
 import type { EditRequests, RunRequests } from "./types";
 
 const { handleResponse, handleResponseReturnNull } = API;
@@ -15,11 +14,23 @@ export function createNetworkRequests(): EditRequests & RunRequests {
     return createClientWithRuntimeManager(runtimeManager);
   });
 
+  const getHeaders = () => {
+    const runtimeManager = getRuntimeManager();
+    return runtimeManager.sessionHeaders();
+  };
+
+  const getParams = () => {
+    return {
+      header: getHeaders(),
+    };
+  };
+
   return {
     sendComponentValues: (request) => {
       return getClient()
         .POST("/api/kernel/set_ui_element_value", {
           body: request,
+          params: getParams(),
         })
         .then(handleResponseReturnNull);
     },
@@ -27,12 +38,15 @@ export function createNetworkRequests(): EditRequests & RunRequests {
       return getClient()
         .POST("/api/kernel/set_model_value", {
           body: request,
+          params: getParams(),
         })
         .then(handleResponseReturnNull);
     },
     sendRestart: () => {
       return getClient()
-        .POST("/api/kernel/restart_session")
+        .POST("/api/kernel/restart_session", {
+          params: getParams(),
+        })
         .then(handleResponseReturnNull);
     },
     syncCellIds: async (request) => {
@@ -40,6 +54,7 @@ export function createNetworkRequests(): EditRequests & RunRequests {
       return getClient()
         .POST("/api/kernel/sync/cell_ids", {
           body: request,
+          params: getParams(),
         })
         .then(handleResponseReturnNull);
     },
@@ -47,6 +62,7 @@ export function createNetworkRequests(): EditRequests & RunRequests {
       return getClient()
         .POST("/api/kernel/rename", {
           body: request,
+          params: getParams(),
         })
         .then(handleResponseReturnNull);
     },
@@ -55,6 +71,7 @@ export function createNetworkRequests(): EditRequests & RunRequests {
         .POST("/api/kernel/save", {
           body: request,
           parseAs: "text",
+          params: getParams(),
         })
         .then(handleResponseReturnNull);
     },
@@ -63,6 +80,7 @@ export function createNetworkRequests(): EditRequests & RunRequests {
         .POST("/api/kernel/copy", {
           body: request,
           parseAs: "text",
+          params: getParams(),
         })
         .then(handleResponseReturnNull);
     },
@@ -75,7 +93,9 @@ export function createNetworkRequests(): EditRequests & RunRequests {
     },
     sendInterrupt: () => {
       return getClient()
-        .POST("/api/kernel/interrupt")
+        .POST("/api/kernel/interrupt", {
+          params: getParams(),
+        })
         .then(handleResponseReturnNull);
     },
     sendShutdown: () => {
@@ -84,14 +104,11 @@ export function createNetworkRequests(): EditRequests & RunRequests {
         .then(handleResponseReturnNull);
     },
     sendRun: async (request) => {
-      // Rather than waiting, we just drop all sendRun requests if the connection is not open.
-      // Otherwise we can get into a weird state of sending requests for cells that no longer exist.
-      if (!store.get(isConnectedAtom)) {
-        return null;
-      }
+      await waitForConnectionOpen();
       return getClient()
         .POST("/api/kernel/run", {
           body: request,
+          params: getParams(),
         })
         .then(handleResponseReturnNull);
     },
@@ -100,6 +117,7 @@ export function createNetworkRequests(): EditRequests & RunRequests {
       return getClient()
         .POST("/api/kernel/scratchpad/run", {
           body: request,
+          params: getParams(),
         })
         .then(handleResponseReturnNull);
     },
@@ -108,6 +126,7 @@ export function createNetworkRequests(): EditRequests & RunRequests {
       return getClient()
         .POST("/api/kernel/instantiate", {
           body: request,
+          params: getParams(),
         })
         .then(handleResponseReturnNull);
     },
@@ -115,6 +134,7 @@ export function createNetworkRequests(): EditRequests & RunRequests {
       return getClient()
         .POST("/api/kernel/delete", {
           body: request,
+          params: getParams(),
         })
         .then(handleResponseReturnNull);
     },
@@ -123,6 +143,7 @@ export function createNetworkRequests(): EditRequests & RunRequests {
       return getClient()
         .POST("/api/kernel/code_autocomplete", {
           body: request,
+          params: getParams(),
         })
         .then(handleResponseReturnNull);
     },
@@ -138,6 +159,7 @@ export function createNetworkRequests(): EditRequests & RunRequests {
         .POST("/api/kernel/save_app_config", {
           body: request,
           parseAs: "text",
+          params: getParams(),
         })
         .then(handleResponseReturnNull);
     },
@@ -145,6 +167,7 @@ export function createNetworkRequests(): EditRequests & RunRequests {
       return getClient()
         .POST("/api/kernel/set_cell_config", {
           body: request,
+          params: getParams(),
         })
         .then(handleResponseReturnNull);
     },
@@ -152,6 +175,7 @@ export function createNetworkRequests(): EditRequests & RunRequests {
       return getClient()
         .POST("/api/kernel/function_call", {
           body: request,
+          params: getParams(),
         })
         .then(handleResponseReturnNull);
     },
@@ -159,6 +183,7 @@ export function createNetworkRequests(): EditRequests & RunRequests {
       return getClient()
         .POST("/api/kernel/stdin", {
           body: request,
+          params: getParams(),
         })
         .then(handleResponseReturnNull);
     },
@@ -166,23 +191,31 @@ export function createNetworkRequests(): EditRequests & RunRequests {
       return getClient()
         .POST("/api/kernel/install_missing_packages", {
           body: request,
+          params: getParams(),
         })
         .then(handleResponseReturnNull);
     },
     readCode: async () => {
       await waitForConnectionOpen();
-      return getClient().POST("/api/kernel/read_code").then(handleResponse);
+      return getClient()
+        .POST("/api/kernel/read_code", {
+          params: getParams(),
+        })
+        .then(handleResponse);
     },
     readSnippets: async () => {
       await waitForConnectionOpen();
       return getClient()
-        .GET("/api/documentation/snippets")
+        .GET("/api/documentation/snippets", {
+          params: getParams(),
+        })
         .then(handleResponse);
     },
     previewDatasetColumn: (request) => {
       return getClient()
         .POST("/api/datasources/preview_column", {
           body: request,
+          params: getParams(),
         })
         .then(handleResponseReturnNull);
     },
@@ -190,6 +223,7 @@ export function createNetworkRequests(): EditRequests & RunRequests {
       return getClient()
         .POST("/api/datasources/preview_sql_table", {
           body: request,
+          params: getParams(),
         })
         .then(handleResponseReturnNull);
     },
@@ -197,6 +231,7 @@ export function createNetworkRequests(): EditRequests & RunRequests {
       return getClient()
         .POST("/api/datasources/preview_sql_table_list", {
           body: request,
+          params: getParams(),
         })
         .then(handleResponseReturnNull);
     },
@@ -204,6 +239,7 @@ export function createNetworkRequests(): EditRequests & RunRequests {
       return getClient()
         .POST("/api/datasources/preview_datasource_connection", {
           body: request,
+          params: getParams(),
         })
         .then(handleResponseReturnNull);
     },
@@ -211,6 +247,7 @@ export function createNetworkRequests(): EditRequests & RunRequests {
       return getClient()
         .POST("/api/sql/validate", {
           body: request,
+          params: getParams(),
         })
         .then(handleResponseReturnNull);
     },
@@ -231,6 +268,7 @@ export function createNetworkRequests(): EditRequests & RunRequests {
       return getClient()
         .POST("/api/kernel/pdb/pm", {
           body: request,
+          params: getParams(),
         })
         .then(handleResponseReturnNull);
     },
@@ -330,6 +368,7 @@ export function createNetworkRequests(): EditRequests & RunRequests {
         .POST("/api/export/html", {
           body: request,
           parseAs: "text",
+          params: getParams(),
         })
         .then(handleResponse);
     },
@@ -338,6 +377,16 @@ export function createNetworkRequests(): EditRequests & RunRequests {
         .POST("/api/export/markdown", {
           body: request,
           parseAs: "text",
+          params: getParams(),
+        })
+        .then(handleResponse);
+    },
+    exportAsPDF: async (request) => {
+      return getClient()
+        .POST("/api/export/pdf", {
+          body: request,
+          parseAs: "blob",
+          params: getParams(),
         })
         .then(handleResponse);
     },
@@ -345,6 +394,7 @@ export function createNetworkRequests(): EditRequests & RunRequests {
       return getClient()
         .POST("/api/export/auto_export/html", {
           body: request,
+          params: getParams(),
         })
         .then(handleResponseReturnNull);
     },
@@ -352,6 +402,7 @@ export function createNetworkRequests(): EditRequests & RunRequests {
       return getClient()
         .POST("/api/export/auto_export/markdown", {
           body: request,
+          params: getParams(),
         })
         .then(handleResponseReturnNull);
     },
@@ -359,6 +410,15 @@ export function createNetworkRequests(): EditRequests & RunRequests {
       return getClient()
         .POST("/api/export/auto_export/ipynb", {
           body: request,
+          params: getParams(),
+        })
+        .then(handleResponseReturnNull);
+    },
+    updateCellOutputs: async (request) => {
+      return getClient()
+        .POST("/api/export/update_cell_outputs", {
+          body: request,
+          params: getParams(),
         })
         .then(handleResponseReturnNull);
     },
@@ -392,6 +452,7 @@ export function createNetworkRequests(): EditRequests & RunRequests {
       return getClient()
         .POST("/api/secrets/keys", {
           body: request,
+          params: getParams(),
         })
         .then(handleResponseReturnNull);
     },
@@ -399,6 +460,7 @@ export function createNetworkRequests(): EditRequests & RunRequests {
       return getClient()
         .POST("/api/secrets/create", {
           body: request,
+          params: getParams(),
         })
         .then(handleResponseReturnNull);
     },
@@ -406,6 +468,7 @@ export function createNetworkRequests(): EditRequests & RunRequests {
       return getClient()
         .POST("/api/ai/invoke_tool", {
           body: request,
+          params: getParams(),
         })
         .then(handleResponse);
     },
@@ -413,6 +476,7 @@ export function createNetworkRequests(): EditRequests & RunRequests {
       return getClient()
         .POST("/api/cache/clear", {
           body: {},
+          params: getParams(),
         })
         .then(handleResponseReturnNull);
     },
@@ -420,6 +484,7 @@ export function createNetworkRequests(): EditRequests & RunRequests {
       return getClient()
         .POST("/api/cache/info", {
           body: {},
+          params: getParams(),
         })
         .then(handleResponseReturnNull);
     },

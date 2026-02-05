@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
 from types import ModuleType
@@ -104,6 +104,12 @@ class DBAPIEngine(QueryEngine[DBAPIConnection]):
 
         # Imports like duckdb should not be treated as DB-API connections
         if isinstance(var, ModuleType):
+            return False
+
+        # Ibis Deferred expression object should not be handled as datasource #7791
+        var_type = type(var)
+        var_type_name = f"{var_type.__module__}.{var_type.__qualname__}"
+        if var_type_name == "ibis.common.deferred.Deferred":
             return False
 
         try:

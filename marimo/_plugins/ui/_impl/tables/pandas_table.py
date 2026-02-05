@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
 import functools
@@ -38,7 +38,7 @@ if TYPE_CHECKING:
 def _maybe_convert_geopandas_to_pandas(data: pd.DataFrame) -> pd.DataFrame:
     # Convert to pandas dataframe since geopandas will fail on
     # certain operations (like to_json(orient="records"))
-    if DependencyManager.geopandas.has():
+    if DependencyManager.geopandas.imported():
         import geopandas as gpd  # type: ignore
         import pandas as pd
 
@@ -151,9 +151,15 @@ class PandasTableManagerFactory(TableManagerFactory):
                     )
 
                 # Flatten row multi-index
+                # Reset index if it's a MultiIndex or a named Index
+                # (including named RangeIndex, which pandas 3.0 uses for sequential integers)
+                # Only skip reset for unnamed default RangeIndex (0, 1, 2, ...)
                 if isinstance(result.index, pd.MultiIndex) or (
                     isinstance(result.index, pd.Index)
-                    and not isinstance(result.index, pd.RangeIndex)
+                    and not (
+                        isinstance(result.index, pd.RangeIndex)
+                        and result.index.name is None
+                    )
                 ):
                     index_names = result.index.names
                     unnamed_indexes = any(

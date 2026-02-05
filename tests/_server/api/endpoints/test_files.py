@@ -1,9 +1,10 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
 import os
 import random
 import tempfile
+from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 from unittest.mock import Mock, patch
@@ -15,6 +16,7 @@ from marimo._utils.platform import is_windows
 from tests._server.conftest import get_session_manager
 from tests._server.mocks import (
     token_header,
+    with_read_session,
     with_session,
     with_websocket_session,
 )
@@ -70,6 +72,32 @@ def test_read_code(client: TestClient) -> None:
     )
     assert response.status_code == 200, response.text
     assert "import marimo" in response.json()["contents"]
+
+
+@with_read_session(SESSION_ID, include_code=True)
+def test_read_code_in_run_mode_with_include_code(client: TestClient) -> None:
+    """Test read_code works in run mode when include_code=True."""
+    response = client.post(
+        "/api/kernel/read_code",
+        headers=HEADERS,
+        json={},
+    )
+    assert response.status_code == 200, response.text
+    assert "import marimo" in response.json()["contents"]
+
+
+@with_read_session(SESSION_ID, include_code=False)
+def test_read_code_in_run_mode_without_include_code(
+    client: TestClient,
+) -> None:
+    """Test read_code is not accessible in run mode when include_code=False."""
+    response = client.post(
+        "/api/kernel/read_code",
+        headers=HEADERS,
+        json={},
+    )
+    # Should be denied 401 (unauthorized) or 403 (forbidden)
+    assert response.status_code in [401, 403]
 
 
 @pytest.mark.flaky(reruns=5)
@@ -134,8 +162,10 @@ def test_save_with_header(client: TestClient) -> None:
     path = Path(filename)
     assert path.exists()
 
+    copyright_year = datetime.now().year
     header = (
-        '"""This is a docstring"""\n\n' + "# Copyright 2024\n# Linter ignore\n"
+        '"""This is a docstring"""\n\n'
+        + f"# Copyright {copyright_year}\n# Linter ignore\n"
     )
     # Prepend a header to the file
     contents = path.read_text()
@@ -314,6 +344,52 @@ def test_copy_file(client: TestClient) -> None:
     try_assert_n_times(5, _assert_contents)
 
 
+@with_session(SESSION_ID)
+def test_copy_file_with_relative_paths(client: TestClient) -> None:
+    """Test that copy works with relative paths when file_router has a directory."""
+    filename = get_session_manager(client).file_router.get_unique_file_key()
+    assert filename
+    path = Path(filename)
+    assert path.exists()
+    file_contents = path.read_text()
+    assert "import marimo as mo" in file_contents
+
+    # Get the directory and mock the file_router.directory property to simulate
+    # running from a subdirectory (marimo edit foo/dir/)
+    directory = str(path.parent)
+    file_router = get_session_manager(client).file_router
+
+    # Use relative paths (as the frontend would send when running from a
+    # subdirectory)
+    source_relative = path.name
+    dest_relative = f"_copy_{path.name}"
+    copied_file = path.parent / dest_relative
+
+    # Mock the directory property on the file router
+    with patch.object(
+        type(file_router),
+        "directory",
+        new_callable=lambda: property(lambda _: directory),
+    ):
+        response = client.post(
+            "/api/kernel/copy",
+            headers=HEADERS,
+            json={
+                "source": source_relative,
+                "destination": dest_relative,
+            },
+        )
+        assert response.status_code == 200, response.text
+        assert dest_relative in response.text
+
+    def _assert_contents():
+        file_contents = copied_file.read_text()
+        assert "import marimo as mo" in file_contents
+        assert 'marimo.App(width="full"' in file_contents
+
+    try_assert_n_times(5, _assert_contents)
+
+
 @with_websocket_session(SESSION_ID)
 def test_rename_propagates(
     client: TestClient, websocket: WebSocketTestSession
@@ -377,7 +453,7 @@ def test_rename_propagates(
 @with_session(SESSION_ID)
 def test_read_code_without_saved_file(client: TestClient) -> None:
     """Test read_code when file hasn't been saved yet."""
-    from marimo._server.api.status import HTTPStatus
+    from marimo._utils.http import HTTPStatus
 
     # Mock the session to have no file path
     with patch("marimo._server.api.endpoints.files.AppState") as mock_state:

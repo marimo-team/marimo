@@ -1,15 +1,19 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import type { UIMessage } from "@ai-sdk/react";
 import { useChat } from "@ai-sdk/react";
 import { storePrompt } from "@marimo-team/codemirror-ai";
 import type { ReactCodeMirrorRef } from "@uiw/react-codemirror";
-import { DefaultChatTransport, type ToolUIPart } from "ai";
+import { DefaultChatTransport, type FileUIPart, type TextUIPart } from "ai";
 import { useAtom, useAtomValue, useSetAtom, useStore } from "jotai";
 import {
   AtSignIcon,
   BotMessageSquareIcon,
+  HatGlasses,
   Loader2,
+  type LucideIcon,
+  MessageCircleIcon,
+  NotebookText,
   PaperclipIcon,
   PlusIcon,
   SendIcon,
@@ -18,7 +22,6 @@ import {
 } from "lucide-react";
 import { memo, useEffect, useRef, useState } from "react";
 import useEvent from "react-use-event-hook";
-import { MarkdownRenderer } from "@/components/markdown/markdown-renderer";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -46,7 +49,6 @@ import {
 import { useCellActions } from "@/core/cells/cells";
 import { aiAtom, aiEnabledAtom } from "@/core/config/config";
 import { DEFAULT_AI_MODEL } from "@/core/config/config-schema";
-import { FeatureFlagged } from "@/core/config/feature-flag";
 import { useRequestClient } from "@/core/network/requests";
 import { useRuntimeManager } from "@/core/runtime/config";
 import { ErrorBanner } from "@/plugins/impl/common/error-banner";
@@ -66,6 +68,7 @@ import { Input } from "../ui/input";
 import { Tooltip, TooltipProvider } from "../ui/tooltip";
 import { toast } from "../ui/use-toast";
 import { AttachmentRenderer, FileAttachmentPill } from "./chat-components";
+import { renderUIMessage } from "./chat-display";
 import { ChatHistoryPopover } from "./chat-history-popover";
 import {
   buildCompletionRequestBody,
@@ -75,8 +78,6 @@ import {
   hasPendingToolCalls,
   isLastMessageReasoning,
 } from "./chat-utils";
-import { ReasoningAccordion } from "./reasoning-accordion";
-import { ToolCallAccordion } from "./tool-call-accordion";
 
 // Default mode for the AI
 const DEFAULT_MODE = "manual";
@@ -140,16 +141,16 @@ interface ChatMessageProps {
   isLast: boolean;
 }
 
-function isToolPart(part: UIMessage["parts"][number]): part is ToolUIPart {
-  return part.type.startsWith("tool-");
-}
-
 const ChatMessageDisplay: React.FC<ChatMessageProps> = memo(
   ({ message, index, onEdit, isStreamingReasoning, isLast }) => {
     const renderUserMessage = (message: UIMessage) => {
-      const textParts = message.parts?.filter((p) => p.type === "text");
+      const textParts = message.parts?.filter(
+        (p): p is TextUIPart => p.type === "text",
+      );
       const content = textParts?.map((p) => p.text).join("\n");
-      const fileParts = message.parts?.filter((p) => p.type === "file");
+      const fileParts = message.parts?.filter(
+        (p): p is FileUIPart => p.type === "file",
+      );
 
       return (
         <div className="w-[95%] bg-background border p-1 rounded-sm">
@@ -178,7 +179,9 @@ const ChatMessageDisplay: React.FC<ChatMessageProps> = memo(
     };
 
     const renderOtherMessage = (message: UIMessage) => {
-      const textParts = message.parts.filter((p) => p.type === "text");
+      const textParts = message.parts.filter(
+        (p): p is TextUIPart => p.type === "text",
+      );
       const content = textParts.map((p) => p.text).join("\n");
 
       return (
@@ -186,79 +189,7 @@ const ChatMessageDisplay: React.FC<ChatMessageProps> = memo(
           <div className="absolute right-1 top-1 opacity-0 group-hover:opacity-100 transition-opacity">
             <CopyClipboardIcon className="h-3 w-3" value={content || ""} />
           </div>
-          {message.parts.map((part, i) => {
-            if (isToolPart(part)) {
-              return (
-                <ToolCallAccordion
-                  key={i}
-                  index={i}
-                  toolName={part.type}
-                  result={part.output}
-                  className="my-2"
-                  state={part.state}
-                  input={part.input}
-                />
-              );
-            }
-
-            switch (part.type) {
-              case "text":
-                return <MarkdownRenderer key={i} content={part.text} />;
-
-              case "reasoning":
-                return (
-                  <ReasoningAccordion
-                    reasoning={part.text}
-                    key={i}
-                    index={i}
-                    isStreaming={
-                      isLast &&
-                      isStreamingReasoning &&
-                      // If there are multiple reasoning parts, only show the last one
-                      i === (message.parts.length || 0) - 1
-                    }
-                  />
-                );
-
-              case "dynamic-tool":
-                return (
-                  <ToolCallAccordion
-                    key={i}
-                    index={i}
-                    toolName={part.type}
-                    result={part.output}
-                    state={part.state}
-                    input={part.input}
-                    className="my-2"
-                  />
-                );
-
-              // These are cryptographic signatures, so we don't need to render them
-              case "data-reasoning-signature":
-                return null;
-
-              /* handle other part types … */
-              default:
-                if (part.type.startsWith("data-")) {
-                  Logger.log("Found data part", part);
-                  return null;
-                }
-
-                Logger.error("Unhandled part type:", part.type);
-                try {
-                  return (
-                    <div className="text-xs text-muted-foreground" key={i}>
-                      <MarkdownRenderer
-                        content={JSON.stringify(part, null, 2)}
-                      />
-                    </div>
-                  );
-                } catch (error) {
-                  Logger.error("Error rendering part:", part.type, error);
-                  return null;
-                }
-            }
-          })}
+          {renderUIMessage({ message, isStreamingReasoning, isLast })}
         </div>
       );
     };
@@ -310,58 +241,72 @@ const ChatInputFooter: React.FC<ChatInputFooterProps> = memo(
       value: CopilotMode;
       label: string;
       subtitle: string;
+      Icon: LucideIcon;
     }[] = [
+      {
+        value: "manual",
+        label: "Manual",
+        subtitle: "Pure chat, no tool usage",
+        Icon: MessageCircleIcon,
+      },
       {
         value: "ask",
         label: "Ask",
         subtitle:
           "Use AI with access to read-only tools like documentation search",
-      },
-      {
-        value: "manual",
-        label: "Manual",
-        subtitle: "Pure chat, no tool usage",
+        Icon: NotebookText,
       },
       {
         value: "agent",
         label: "Agent (beta)",
         subtitle: "Use AI with access to read and write tools",
+        Icon: HatGlasses,
       },
     ];
 
     const isAttachmentSupported =
       PROVIDERS_THAT_SUPPORT_ATTACHMENTS.has(currentProvider);
 
+    const CurrentModeIcon = modeOptions.find(
+      (o) => o.value === currentMode,
+    )?.Icon;
+
     return (
       <TooltipProvider>
-        <div className="px-3 py-2 border-t border-border/20 flex flex-row items-center justify-between">
+        <div className="px-3 py-2 border-t border-border/20 flex flex-row flex-wrap items-center justify-between gap-1">
           <div className="flex items-center gap-2">
-            <FeatureFlagged feature="chat_modes">
-              <Select value={currentMode} onValueChange={saveModeChange}>
-                <SelectTrigger className="h-6 text-xs border-border shadow-none! ring-0! bg-muted hover:bg-muted/30 py-0 px-2 gap-1 capitalize">
-                  {currentMode}
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectGroup>
-                    <SelectLabel>AI Mode</SelectLabel>
-                    {modeOptions.map((option) => (
-                      <SelectItem
-                        key={option.value}
-                        value={option.value}
-                        className="text-xs"
-                      >
-                        <div className="flex flex-col">
-                          {option.label}
-                          <div className="text-muted-foreground text-xs pt-1 block">
+            <Select value={currentMode} onValueChange={saveModeChange}>
+              <SelectTrigger className="h-6 text-xs border-border shadow-none! ring-0! bg-muted hover:bg-muted/30 py-0 px-2 gap-1.5">
+                {CurrentModeIcon && <CurrentModeIcon className="h-3 w-3" />}
+                <span className="capitalize">{currentMode}</span>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  <SelectLabel className="text-xs uppercase tracking-wider text-muted-foreground/70 font-medium">
+                    AI Mode
+                  </SelectLabel>
+                  {modeOptions.map((option) => (
+                    <SelectItem
+                      key={option.value}
+                      value={option.value}
+                      className="text-xs py-1"
+                    >
+                      <div className="flex items-start gap-2.5">
+                        <span className="mt-1 text-muted-foreground">
+                          <option.Icon className="h-3 w-3" />
+                        </span>
+                        <div className="flex flex-col gap-0.5">
+                          <span className="font-semibold">{option.label}</span>
+                          <span className="text-muted-foreground">
                             {option.subtitle}
-                          </div>
+                          </span>
                         </div>
-                      </SelectItem>
-                    ))}
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
-            </FeatureFlagged>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
             <AIModelDropdown
               placeholder="Model"
               triggerClassName="h-6 text-xs shadow-none! ring-0! bg-muted hover:bg-muted/30 rounded-sm"
@@ -498,16 +443,20 @@ const ChatInput: React.FC<ChatInputProps> = memo(
 ChatInput.displayName = "ChatInput";
 
 const ChatPanel = () => {
-  const aiEnabled = useAtomValue(aiEnabledAtom);
+  const aiConfigured = useAtomValue(aiEnabledAtom);
   const { handleClick } = useOpenSettingsToTab();
 
-  if (!aiEnabled) {
+  if (!aiConfigured) {
     return (
       <PanelEmptyState
         title="Chat with AI"
-        description="AI is currently disabled. Add your API key to enable."
+        description="No AI provider configured or Chat model not selected"
         action={
-          <Button variant="outline" size="sm" onClick={() => handleClick("ai")}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => handleClick("ai", "ai-providers")}
+          >
             Edit AI settings
           </Button>
         }
@@ -553,7 +502,7 @@ const ChatPanelBody = () => {
     status,
     regenerate,
     stop,
-    addToolResult,
+    addToolOutput,
     id: chatId,
   } = useChat({
     id: activeChatId,
@@ -599,7 +548,7 @@ const ChatPanelBody = () => {
 
       await handleToolCall({
         invokeAiTool,
-        addToolResult,
+        addToolOutput,
         toolCall: {
           toolName: toolCall.toolName,
           toolCallId: toolCall.toolCallId,

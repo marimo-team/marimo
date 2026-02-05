@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 import { historyField } from "@codemirror/commands";
 import { EditorState, StateEffect } from "@codemirror/state";
 import { EditorView, ViewPlugin } from "@codemirror/view";
@@ -19,6 +19,7 @@ import {
   reconfigureLanguageEffect,
   switchLanguage,
 } from "@/core/codemirror/language/extension";
+import { MARKDOWN_INITIAL_HIDE_CODE } from "@/core/codemirror/language/languages/markdown";
 import type { LanguageAdapterType } from "@/core/codemirror/language/types";
 import {
   connectedDocAtom,
@@ -31,13 +32,12 @@ import { connectionAtom } from "@/core/network/connection";
 import { useRequestClient } from "@/core/network/requests";
 import { isRtcEnabled } from "@/core/rtc/state";
 import { useSaveNotebook } from "@/core/saving/save-component";
-import { WebSocketState } from "@/core/websocket/types";
+import { isAppConnecting } from "@/core/websocket/connection-utils";
 import type { Theme } from "@/theme/useTheme";
 import { cn } from "@/utils/cn";
 import { invariant } from "@/utils/invariant";
 import { mergeRefs } from "@/utils/mergeRefs";
 import { AiCompletionEditor } from "../../ai/ai-completion-editor";
-import { HideCodeButton } from "../../code/readonly-python-code";
 import {
   closeSignatureHelp,
   useCellEditorNavigationProps,
@@ -150,6 +150,17 @@ const CellEditorInternal = ({
       autoInstantiate,
       createNewCell: cellActions.createNewCell,
     });
+    // Code stays visible until the user blurs the cell
+    if (!cellConfig.hide_code && MARKDOWN_INITIAL_HIDE_CODE) {
+      void saveCellConfig({
+        configs: { [cellId]: { hide_code: MARKDOWN_INITIAL_HIDE_CODE } },
+      });
+      cellActions.updateCellConfig({
+        cellId,
+        config: { hide_code: MARKDOWN_INITIAL_HIDE_CODE },
+      });
+      cellActions.markUntouched({ cellId });
+    }
   });
 
   const aiEnabled = isAiEnabled(userConfig);
@@ -401,10 +412,6 @@ const CellEditorInternal = ({
 
   const navigationProps = useCellEditorNavigationProps(cellId, editorViewRef);
 
-  // Completely hide the editor & icons if it's markdown and hidden. If there is output, we show.
-  const showHideButton =
-    (hidden && !isMarkdown) || (hidden && isMarkdown && !hasOutput);
-
   let editorClassName = "";
   if (isMarkdown && hidden && hasOutput) {
     editorClassName = "h-0 overflow-hidden";
@@ -448,17 +455,12 @@ const CellEditorInternal = ({
       outputArea={outputArea}
     >
       <div className="relative w-full" {...navigationProps}>
-        {showHideButton && (
-          <HideCodeButton
-            tooltip="Edit code"
-            className="absolute inset-0 z-10"
-            onClick={showHiddenCode}
-          />
-        )}
         <CellCodeMirrorEditor
           className={editorClassName}
           editorView={editorViewRef.current}
           ref={editorViewParentRef}
+          hidden={hidden}
+          showHiddenCode={showHiddenCode}
         />
         {!hidden && showLanguageToggles && (
           <div className="absolute top-1 right-5">
@@ -480,10 +482,12 @@ const CellCodeMirrorEditor = React.forwardRef(
     props: {
       className?: string;
       editorView: EditorView | null;
+      hidden?: boolean;
+      showHiddenCode?: (opts?: { focus?: boolean }) => void;
     },
     ref?: React.Ref<HTMLDivElement>,
   ) => {
-    const { className, editorView } = props;
+    const { className, editorView, hidden, showHiddenCode } = props;
     const internalRef = useRef<HTMLDivElement>(null);
 
     // If this gets unmounted/remounted, we need to re-append the editorView
@@ -503,6 +507,12 @@ const CellCodeMirrorEditor = React.forwardRef(
     return (
       <div
         className={cn("cm mathjax_ignore", className)}
+        onDoubleClick={(e) => {
+          if (hidden && showHiddenCode) {
+            e.stopPropagation();
+            showHiddenCode({ focus: true });
+          }
+        }}
         ref={(r) => {
           if (ref) {
             mergeRefs(ref, internalRef)(r);
@@ -527,10 +537,7 @@ function WithWaitUntilConnected<T extends {}>(
     const connection = useAtomValue(connectionAtom);
     const [rtcDoc, setRtcDoc] = useAtom(connectedDocAtom);
 
-    if (
-      connection.state === WebSocketState.CONNECTING ||
-      rtcDoc === undefined
-    ) {
+    if (isAppConnecting(connection.state) || rtcDoc === undefined) {
       return (
         <div className="flex h-full w-full items-baseline p-4">
           <DelayMount milliseconds={1000} fallback={null}>

@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import type { EditorView } from "@codemirror/view";
 import type * as LSP from "vscode-languageserver-protocol";
@@ -9,6 +9,7 @@ import { invariant } from "@/utils/invariant";
 import { Logger } from "@/utils/Logger";
 import { LRUCache } from "@/utils/lru";
 import { Objects } from "@/utils/objects";
+import { getPositionAtWordBounds } from "../completion/hints";
 import { topologicalCodesAtom } from "../copilot/getCodes";
 import {
   getEditorCodeAsPython,
@@ -21,6 +22,14 @@ import {
   isClientWithNotify,
 } from "./types";
 import { getLSPDocument } from "./utils";
+
+/**
+ * Check if a variable name is private (starts with underscore but not dunder).
+ * Private variables in marimo are cell-local and should not be renamed across cells.
+ */
+function isPrivateVariable(name: string): boolean {
+  return name.startsWith("_") && !name.startsWith("__");
+}
 
 class Snapshotter {
   private documentVersion = 0;
@@ -37,13 +46,6 @@ class Snapshotter {
   ) {
     this.getNotebookCode = getNotebookCode;
   }
-
-  /**
-   * Map from the global document version to the cell id and version.
-   */
-  private versionToCellNumberAndVersion = new LRUCache<number, NotebookLens>(
-    20,
-  );
 
   private lastSnapshot: NotebookLens | null = null;
 
@@ -67,14 +69,6 @@ class Snapshotter {
       didChange,
       version: this.documentVersion,
     };
-  }
-
-  public getSnapshot(version: number) {
-    const snapshot = this.versionToCellNumberAndVersion.get(version);
-    if (!snapshot) {
-      throw new Error(`No snapshot for version ${version}`);
-    }
-    return snapshot;
   }
 
   public getLatestSnapshot() {
@@ -104,7 +98,27 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
     EditorView | null | undefined
   >;
   private readonly initialSettings: Record<string, unknown>;
+  /**
+   * Tracks which cell document URIs have been opened with the LSP server.
+   * Used to clear diagnostics for cells that no longer have any.
+   *
+   * This set is pruned when diagnostics are processed to only include
+   * cells that exist in the current notebook snapshot.
+   */
   private static readonly SEEN_CELL_DOCUMENT_URIS = new Set<CellDocumentUri>();
+
+  /**
+   * Remove cell URIs that are no longer in the notebook.
+   * Called during diagnostic processing to prevent memory leaks.
+   */
+  private static pruneSeenCellUris(currentCellIds: Set<CellId>): void {
+    for (const uri of NotebookLanguageServerClient.SEEN_CELL_DOCUMENT_URIS) {
+      const cellId = CellDocumentUri.parse(uri);
+      if (!currentCellIds.has(cellId)) {
+        NotebookLanguageServerClient.SEEN_CELL_DOCUMENT_URIS.delete(uri);
+      }
+    }
+  }
 
   /**
    * Cache of completion items to avoid jitter while typing in the same completion item
@@ -265,26 +279,30 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
     };
   }
 
-  async sync(): Promise<LSP.DidChangeTextDocumentParams> {
+  /**
+   * Synchronize the document with the LSP server and return the lens used.
+   * This ensures the caller uses the same lens that was sent to the server,
+   * avoiding race conditions if cells change between sync and subsequent operations.
+   */
+  async sync(): Promise<{
+    params: LSP.DidChangeTextDocumentParams;
+    lens: NotebookLens;
+  }> {
     const { lens, version, didChange } = this.snapshotter.snapshot();
-    if (!didChange) {
-      return {
-        textDocument: {
-          uri: this.documentUri,
-          version: version,
-        },
-        contentChanges: [{ text: lens.mergedText }],
-      };
-    }
-
-    // Update changes for merged doc, etc.
-    return this.client.textDocumentDidChange({
+    const params: LSP.DidChangeTextDocumentParams = {
       textDocument: {
         uri: this.documentUri,
         version: version,
       },
       contentChanges: [{ text: lens.mergedText }],
-    });
+    };
+
+    if (didChange) {
+      // Update changes for merged doc
+      await this.client.textDocumentDidChange(params);
+    }
+
+    return { params, lens };
   }
 
   public async textDocumentDidChange(params: LSP.DidChangeTextDocumentParams) {
@@ -292,7 +310,8 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
     // We know how to only handle single content changes
     // But that is all we expect to receive
     if (params.contentChanges.length === 1) {
-      return this.sync();
+      const { params: syncParams } = await this.sync();
+      return syncParams;
     }
 
     Logger.warn("[lsp] Unhandled textDocumentDidChange", params);
@@ -310,9 +329,8 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
       return null;
     }
 
-    // This LSP method has no version, so lets sync and then get the latest snapshot
-    await this.sync();
-    const { lens } = this.snapshotter.getLatestSnapshot();
+    // Sync and use the same lens that was sent to the server
+    const { lens } = await this.sync();
 
     // Find the lens for this cell
     const cellId = CellDocumentUri.parse(cellDocumentUri);
@@ -336,9 +354,8 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
       return null;
     }
 
-    // This LSP method has no version, so lets sync and then get the latest snapshot
-    await this.sync();
-    const { lens } = this.snapshotter.getLatestSnapshot();
+    // Sync and use the same lens that was sent to the server
+    const { lens } = await this.sync();
 
     const cellId = CellDocumentUri.parse(cellDocumentUri);
 
@@ -358,6 +375,23 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
     return response;
   }
 
+  /**
+   * Code actions are currently disabled because mapping code action edits
+   * back to individual cells is complex and error-prone.
+   *
+   * The LSP server returns edits in merged document coordinates, but we need
+   * to apply them to individual cell editors. Unlike simple position transforms
+   * (hover, completion), code actions can include arbitrary text edits that
+   * may span multiple cells or change line counts, making the reverse mapping
+   * unreliable.
+   *
+   * To enable this, we would need to:
+   * 1. Transform edit ranges from merged doc coordinates to cell coordinates
+   * 2. Handle edits that span cell boundaries (split or reject them)
+   * 3. Apply edits atomically across multiple cell editors
+   *
+   * See textDocumentRename for a similar workaround that manually applies edits.
+   */
   textDocumentCodeAction(
     params: LSP.CodeActionParams,
   ): Promise<(LSP.Command | LSP.CodeAction)[] | null> {
@@ -369,12 +403,23 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
   }
 
   /**
-   * HACK
-   * This whole function is a hack to work around the fact that we don't have
-   * a great way to map the edits back to the appropriate LSP view plugin.
+   * Rename implementation with manual edit application.
    *
-   * Instead, we parse out the new text from the response and then update the
-   * code in the plugins manually, instead of using the LSP.
+   * This is a workaround because the standard LSP rename flow doesn't work well
+   * with our notebook architecture. The LSP server returns a WorkspaceEdit with
+   * edits in merged document coordinates, but CodeMirror's LSP plugin expects
+   * edits for individual cell documents.
+   *
+   * Instead of trying to transform the WorkspaceEdit (which is complex because
+   * edits can span cells, change line counts, etc.), we:
+   * 1. Request the rename from the LSP server
+   * 2. Extract the new merged text from the response
+   * 3. Split it back into per-cell text using the lens
+   * 4. Manually update each cell's editor
+   *
+   * This approach is simpler and more reliable, though it bypasses the normal
+   * LSP edit application flow. The trade-off is that we lose undo grouping
+   * across cells.
    */
   async textDocumentRename(
     params: LSP.RenameParams,
@@ -388,9 +433,8 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
 
     const cellId = CellDocumentUri.parse(cellDocumentUri);
 
-    // This LSP method has no version, so lets sync and then get the latest snapshot
-    await this.sync();
-    const { lens } = this.snapshotter.getLatestSnapshot();
+    // Sync and use the same lens that was sent to the server
+    const { lens } = await this.sync();
 
     const transformedPosition = lens.transformPosition(params.position, cellId);
 
@@ -433,15 +477,54 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
 
     // Update the code in the plugins manually
     const editors = this.getNotebookEditors();
-    for (const [cellId, ev] of Objects.entries(editors)) {
-      const newCode = editsToNewCode.get(cellId);
+
+    // Check if this is a private variable rename (should only affect current cell)
+    // Private variables in marimo are cell-local and should not be renamed across cells
+    const originEditor = editors[cellId];
+    let isPrivateRename = false;
+    if (originEditor) {
+      // Convert LSP position (line, character) to CodeMirror position
+      const line = originEditor.state.doc.line(params.position.line + 1);
+      const cmPosition = line.from + params.position.character;
+      const { startToken, endToken } = getPositionAtWordBounds(
+        originEditor.state.doc,
+        cmPosition,
+      );
+      const originalName = originEditor.state.doc.sliceString(
+        startToken,
+        endToken,
+      );
+      isPrivateRename = isPrivateVariable(originalName);
+      if (isPrivateRename) {
+        Logger.debug(
+          "[lsp] Private variable rename detected, limiting to current cell",
+          originalName,
+        );
+      }
+    }
+
+    const failedCells: CellId[] = [];
+    let updatedCount = 0;
+
+    for (const [currentCellId, ev] of Objects.entries(editors)) {
+      // For private variable renames, only update the originating cell
+      if (isPrivateRename && currentCellId !== cellId) {
+        continue;
+      }
+
+      const newCode = editsToNewCode.get(currentCellId);
       if (newCode == null) {
-        Logger.warn("No new code for cell", cellId);
+        Logger.warn("[lsp] No new code for cell during rename", currentCellId);
+        failedCells.push(currentCellId);
         continue;
       }
 
       if (!ev) {
-        Logger.warn("No view for plugin", cellId);
+        Logger.warn(
+          "[lsp] No editor view for cell during rename",
+          currentCellId,
+        );
+        failedCells.push(currentCellId);
         continue;
       }
 
@@ -449,8 +532,18 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
       const code = getEditorCodeAsPython(ev);
       if (code !== newCode) {
         updateEditorCodeFromPython(ev, newCode);
+        updatedCount++;
       }
     }
+
+    if (failedCells.length > 0) {
+      Logger.error(
+        `[lsp] Rename partially failed: could not update ${failedCells.length} cell(s)`,
+        failedCells,
+      );
+    }
+
+    Logger.debug(`[lsp] Rename completed: updated ${updatedCount} cell(s)`);
 
     return {
       ...response,
@@ -491,9 +584,8 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
       return null;
     }
 
-    // This LSP method has no version, so lets sync and then get the latest snapshot
-    await this.sync();
-    const { lens } = this.snapshotter.getLatestSnapshot();
+    // Sync and use the same lens that was sent to the server
+    const { lens } = await this.sync();
 
     const cellId = CellDocumentUri.parse(cellDocumentUri);
 
@@ -509,9 +601,8 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
   public async textDocumentHover(params: LSP.HoverParams) {
     Logger.debug("[lsp] textDocumentHover", params);
 
-    // This LSP method has no version, so lets sync and then get the latest snapshot
-    await this.sync();
-    const { lens } = this.snapshotter.getLatestSnapshot();
+    // Sync and use the same lens that was sent to the server
+    const { lens } = await this.sync();
 
     const cellId = CellDocumentUri.parse(params.textDocument.uri);
 
@@ -551,14 +642,49 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
 
   public async textDocumentCompletion(params: LSP.CompletionParams) {
     const { lens } = this.snapshotter.getLatestSnapshot();
+
+    // Check if URI is valid
+    if (!CellDocumentUri.is(params.textDocument.uri)) {
+      Logger.error(
+        "[lsp] Invalid cell document URI in completion request",
+        params.textDocument.uri,
+      );
+      return null;
+    }
+
     const cellId = CellDocumentUri.parse(params.textDocument.uri);
+
+    // Check if cellId is valid (not undefined string)
+    if (!cellId || cellId === "undefined") {
+      Logger.error("[lsp] Invalid cellId 'undefined' in completion request", {
+        cellId,
+        uri: params.textDocument.uri,
+        availableCellIds: lens.cellIds,
+      });
+      // Return null to fail gracefully instead of sending wrong position
+      return null;
+    }
+
+    // Warn if cellId not found in lens (might be okay if cell was just added)
+    if (!lens.cellIds.includes(cellId)) {
+      Logger.warn(
+        "[lsp] CellId in completion request not found in current lens",
+        {
+          cellId,
+          uri: params.textDocument.uri,
+          availableCellIds: lens.cellIds,
+        },
+      );
+    }
+
+    const transformedPosition = lens.transformPosition(params.position, cellId);
 
     return this.client.textDocumentCompletion({
       ...params,
       textDocument: {
         uri: this.documentUri,
       },
-      position: lens.transformPosition(params.position, cellId),
+      position: transformedPosition,
     });
   }
 
@@ -614,6 +740,10 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
             }
           }
         }
+
+        // Prune any cell URIs for cells that no longer exist
+        const currentCellIds = new Set(lens.cellIds);
+        NotebookLanguageServerClient.pruneSeenCellUris(currentCellIds);
 
         const cellsToClear = new Set(
           NotebookLanguageServerClient.SEEN_CELL_DOCUMENT_URIS,

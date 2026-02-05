@@ -1,182 +1,201 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import {
   ActivityIcon,
   BotIcon,
   BoxIcon,
-  DatabaseIcon,
   DatabaseZapIcon,
   FileTextIcon,
   FolderTreeIcon,
-  FunctionSquareIcon,
   KeyRoundIcon,
   type LucideIcon,
   NetworkIcon,
   NotebookPenIcon,
   ScrollTextIcon,
   SquareDashedBottomCodeIcon,
+  TerminalSquareIcon,
   TextSearchIcon,
+  VariableIcon,
   XCircleIcon,
 } from "lucide-react";
 import { getFeatureFlag } from "@/core/config/feature-flag";
+import type { Capabilities } from "@/core/kernel/messages";
 import { isWasm } from "@/core/wasm/utils";
 
+/**
+ * Unified panel ID for all panels in sidebar and developer panel
+ */
 export type PanelType =
+  // Sidebar defaults
   | "files"
-  | "errors"
   | "variables"
   | "outline"
   | "dependencies"
-  | "tracing"
   | "packages"
   | "documentation"
   | "snippets"
-  | "datasources"
-  | "scratchpad"
   | "ai"
-  | "cache"
+  // Developer panel defaults
+  | "errors"
+  | "scratchpad"
+  | "tracing"
   | "secrets"
-  | "logs";
+  | "logs"
+  | "terminal"
+  | "cache";
+
+export type PanelSection = "sidebar" | "developer-panel";
 
 export interface PanelDescriptor {
   type: PanelType;
   Icon: LucideIcon;
-  hidden?: boolean;
+  /** Short label for developer panel tabs */
+  label: string;
+  /** Descriptive tooltip for sidebar icons */
   tooltip: string;
-  position: "sidebar" | "footer";
+  /** If true, the panel is completely unavailable */
+  hidden?: boolean;
+  /** Which section this panel belongs to by default */
+  defaultSection: PanelSection;
+  /** Capability required for this panel to be visible. If the capability is false, the panel is hidden. */
+  requiredCapability?: keyof Capabilities;
 }
 
-/* Panels are ordered in roughly decreasing order of importance as well as
- * logically grouped.
- *
- * 1. Must-have panels first.
- * 2. Panels that can add cells to the editor.
- * 3. Nice-to-have observability panels.
+/**
+ * All panels in the application.
+ * Panels can be in either sidebar or developer panel, configurable by user.
  */
 export const PANELS: PanelDescriptor[] = [
-  // 1. Must-have panels.
-  //
-  // The files panel is at the top to orient
-  // users within their filesystem and give
-  // them a quick glance at their project structure,
-  // without having to leave their editor.
+  // Sidebar defaults
   {
     type: "files",
     Icon: FolderTreeIcon,
+    label: "Files",
     tooltip: "View files",
-    position: "sidebar",
+    defaultSection: "sidebar",
   },
-  // Because notebooks uniquely have data in RAM,
-  // it's important to give humans visibility into
-  // what that data is.
   {
     type: "variables",
-    Icon: FunctionSquareIcon,
-    tooltip: "Explore variables",
-    position: "sidebar",
+    Icon: VariableIcon,
+    label: "Variables",
+    tooltip: "Explore variables and data sources",
+    defaultSection: "sidebar",
   },
-  {
-    type: "datasources",
-    Icon: DatabaseIcon,
-    tooltip: "Explore data sources",
-    position: "sidebar",
-  },
-  // Every notebook has a package environment that must
-  // be managed.
   {
     type: "packages",
     Icon: BoxIcon,
+    label: "Packages",
     tooltip: "Manage packages",
-    position: "sidebar",
+    defaultSection: "sidebar",
   },
-  // 2. "AI" panel.
-  //
-  // The AI panel holds both agents and in-editor chat.
   {
     type: "ai",
     Icon: BotIcon,
+    label: "AI",
     tooltip: "Chat & Agents",
-    position: "sidebar",
+    defaultSection: "sidebar",
   },
-  // Scratchpad is the only way users can
-  // code without DAG restrictions, so it is
-  // privileged.
-  {
-    type: "scratchpad",
-    Icon: NotebookPenIcon,
-    tooltip: "Scratchpad",
-    position: "sidebar",
-  },
-  {
-    // TODO(akshayka): Consider making snippets default
-    // off, user configuration to enable.
-    type: "snippets",
-    Icon: SquareDashedBottomCodeIcon,
-    tooltip: "Snippets",
-    position: "sidebar",
-  },
-  // 3. Nice-to-have observability panels.
-  //
-  // Utility panels that provide observability
-  // into the state or structure of the notebook. These
-  // observability panels are less crucial than variables
-  // or datasets, so they are positioned at the end of the
-  // sidebar.
   {
     type: "outline",
     Icon: ScrollTextIcon,
+    label: "Outline",
     tooltip: "View outline",
-    position: "sidebar",
+    defaultSection: "sidebar",
   },
   {
     type: "documentation",
     Icon: TextSearchIcon,
+    label: "Docs",
     tooltip: "View live docs",
-    position: "sidebar",
+    defaultSection: "sidebar",
   },
   {
-    type: "logs",
-    Icon: FileTextIcon,
-    tooltip: "Notebook logs",
-    position: "sidebar",
-  },
-  {
-    // TODO(akshayka): Consider making dependencies
-    // default off; the minimap is a more effective
-    // overview.
     type: "dependencies",
     Icon: NetworkIcon,
+    label: "Dependencies",
     tooltip: "Explore dependencies",
-    position: "sidebar",
+    defaultSection: "sidebar",
+  },
+  // Developer panel defaults
+  {
+    type: "errors",
+    Icon: XCircleIcon,
+    label: "Errors",
+    tooltip: "View errors",
+    defaultSection: "developer-panel",
+  },
+  {
+    type: "scratchpad",
+    Icon: NotebookPenIcon,
+    label: "Scratchpad",
+    tooltip: "Scratchpad",
+    defaultSection: "developer-panel",
   },
   {
     type: "tracing",
     Icon: ActivityIcon,
-    tooltip: "Tracing",
-    position: "sidebar",
+    label: "Tracing",
+    tooltip: "View tracing",
+    defaultSection: "developer-panel",
   },
   {
-    // Not supported in WebAssembly yet
     type: "secrets",
     Icon: KeyRoundIcon,
-    tooltip: "Secrets",
+    label: "Secrets",
+    tooltip: "Manage secrets",
+    defaultSection: "developer-panel",
     hidden: isWasm(),
-    position: "sidebar",
   },
-  // TODO(akshayka): The cache panel should not be default shown,
-  // even when it's out of feature flag. (User config to
-  // turn it on.)
+  {
+    type: "logs",
+    Icon: FileTextIcon,
+    label: "Logs",
+    tooltip: "View logs",
+    defaultSection: "developer-panel",
+  },
+  {
+    type: "terminal",
+    Icon: TerminalSquareIcon,
+    label: "Terminal",
+    tooltip: "Terminal",
+    hidden: isWasm(),
+    defaultSection: "developer-panel",
+    requiredCapability: "terminal",
+  },
+  {
+    type: "snippets",
+    Icon: SquareDashedBottomCodeIcon,
+    label: "Snippets",
+    tooltip: "Snippets",
+    defaultSection: "developer-panel",
+  },
   {
     type: "cache",
     Icon: DatabaseZapIcon,
-    tooltip: "Manage cache",
-    position: "sidebar",
+    label: "Cache",
+    tooltip: "View cache",
+    defaultSection: "developer-panel",
     hidden: !getFeatureFlag("cache_panel"),
   },
-  {
-    type: "errors",
-    Icon: XCircleIcon,
-    tooltip: "View errors",
-    position: "footer",
-  },
 ];
+
+export const PANEL_MAP = new Map<PanelType, PanelDescriptor>(
+  PANELS.map((p) => [p.type, p]),
+);
+
+/**
+ * Check if a panel should be hidden based on its `hidden` property
+ * and `requiredCapability`.
+ */
+export function isPanelHidden(
+  panel: PanelDescriptor,
+  capabilities: Capabilities,
+): boolean {
+  if (panel.hidden) {
+    return true;
+  }
+  if (panel.requiredCapability && !capabilities[panel.requiredCapability]) {
+    return true;
+  }
+  return false;
+}

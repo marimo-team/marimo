@@ -1,11 +1,13 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import { useAtomValue } from "jotai";
 import {
   Check,
   Code2Icon,
+  CodeIcon,
   FolderDownIcon,
   ImageIcon,
+  Loader2Icon,
   MoreHorizontalIcon,
 } from "lucide-react";
 import type React from "react";
@@ -31,15 +33,22 @@ import { MarkdownLanguageAdapter } from "@/core/codemirror/language/languages/ma
 import { useResolvedMarimoConfig } from "@/core/config/config";
 import { CSSClasses, KnownQueryParams } from "@/core/constants";
 import type { OutputMessage } from "@/core/kernel/messages";
+import { kernelStateAtom } from "@/core/kernel/state";
 import { showCodeInRunModeAtom } from "@/core/meta/state";
 import { isErrorMime } from "@/core/mime";
 import { type AppMode, kioskModeAtom } from "@/core/mode";
+import { useRequestClient } from "@/core/network/requests";
 import type { CellConfig } from "@/core/network/types";
 import { downloadAsHTML } from "@/core/static/download-html";
 import { isStaticNotebook } from "@/core/static/static-state";
 import { isWasm } from "@/core/wasm/utils";
 import { cn } from "@/utils/cn";
-import { downloadHTMLAsImage } from "@/utils/download";
+import {
+  ADD_PRINTING_CLASS,
+  downloadBlob,
+  downloadHTMLAsImage,
+} from "@/utils/download";
+import { Filenames } from "@/utils/filenames";
 import { FloatingOutline } from "../../chrome/panels/outline/floating-outline";
 import { cellDomProps } from "../../common";
 import type { ICellRendererPlugin, ICellRendererProps } from "../types";
@@ -56,6 +65,7 @@ const VerticalLayoutRenderer: React.FC<VerticalLayoutProps> = ({
 }) => {
   const { invisible } = useDelayVisibility(cells.length, mode);
   const kioskMode = useAtomValue(kioskModeAtom);
+  const kernelState = useAtomValue(kernelStateAtom);
   const [userConfig] = useResolvedMarimoConfig();
   const showCodeInRunModePreference = useAtomValue(showCodeInRunModeAtom);
 
@@ -133,6 +143,15 @@ const VerticalLayoutRenderer: React.FC<VerticalLayoutProps> = ({
     }
 
     if (cells.length === 0 && !invisible) {
+      // If kernel is not yet instantiated, show loading state
+      if (!kernelState.isInstantiated) {
+        return (
+          <div className="flex-1 flex flex-col items-center justify-center py-8">
+            <Loader2Icon className="w-8 h-8 animate-spin text-muted-foreground" />
+          </div>
+        );
+      }
+      // Kernel is ready but no cells - truly empty notebook
       return (
         <div className="flex-1 flex flex-col items-center justify-center py-8">
           <Alert variant="info">
@@ -175,12 +194,19 @@ const ActionButtons: React.FC<{
   showCode: boolean;
   onToggleShowCode: () => void;
 }> = ({ canShowCode, showCode, onToggleShowCode }) => {
+  const { readCode } = useRequestClient();
+
   const handleDownloadAsPNG = async () => {
     const app = document.getElementById("App");
     if (!app) {
       return;
     }
-    await downloadHTMLAsImage(app, document.title);
+    await downloadHTMLAsImage({
+      element: app,
+      filename: document.title,
+      // Add body.printing ONLY when converting the whole notebook to a screenshot
+      prepare: ADD_PRINTING_CLASS,
+    });
   };
 
   const handleDownloadAsHTML = async () => {
@@ -189,6 +215,14 @@ const ActionButtons: React.FC<{
       return;
     }
     await downloadAsHTML({ filename: document.title, includeCode: true });
+  };
+
+  const handleDownloadAsPython = async () => {
+    const code = await readCode();
+    downloadBlob(
+      new Blob([code.contents], { type: "text/plain" }),
+      Filenames.toPY(document.title),
+    );
   };
 
   const isStatic = isStaticNotebook();
@@ -219,7 +253,24 @@ const ActionButtons: React.FC<{
         <FolderDownIcon className="mr-2" size={14} strokeWidth={1.5} />
         Download as HTML
       </DropdownMenuItem>,
-      <DropdownMenuSeparator key="download-html-separator" />,
+    );
+
+    // Only show download as Python if code is available
+    if (canShowCode) {
+      actions.push(
+        <DropdownMenuItem
+          onSelect={handleDownloadAsPython}
+          data-testid="notebook-action-download-python"
+          key="download-python"
+        >
+          <CodeIcon className="mr-2" size={14} strokeWidth={1.5} />
+          Download as .py
+        </DropdownMenuItem>,
+      );
+    }
+
+    actions.push(
+      <DropdownMenuSeparator key="download-separator" />,
       <DropdownMenuItem
         onSelect={handleDownloadAsPNG}
         data-testid="notebook-action-download-png"
@@ -241,7 +292,7 @@ const ActionButtons: React.FC<{
     <div
       data-testid="notebook-actions-dropdown"
       className={cn(
-        "right-0 top-0 z-50 m-4 no-print flex gap-2 print:hidden",
+        "right-0 top-0 z-50 m-4 print:hidden flex gap-2",
         // If the notebook is static, we have a banner at the top, so
         // we can't use fixed positioning. Ideally this is sticky, but the
         // current dom structure makes that difficult.
@@ -254,7 +305,7 @@ const ActionButtons: React.FC<{
             <MoreHorizontalIcon className="w-4 h-4" />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="no-print w-[220px]">
+        <DropdownMenuContent align="end" className="print:hidden w-[220px]">
           {actions}
         </DropdownMenuContent>
       </DropdownMenu>

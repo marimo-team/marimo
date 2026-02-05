@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 
 import marimo
 
@@ -12,7 +12,7 @@ def _(mo):
         r"""
         # Polars: Reshaping Data
 
-        This snippet demonstrates reshaping data in Polars using `pivot()` and `unpivot()` 
+        This snippet demonstrates reshaping data in Polars using `pivot()` and `unpivot()`
         operations for transforming between wide and long formats.
 
         Example: `df.pivot(values="value", index=["date"], on="category")`

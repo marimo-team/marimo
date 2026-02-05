@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import {
   BracesIcon,
@@ -87,7 +87,12 @@ export const DownloadAs: React.FC<DownloadActionProps> = (props) => {
   const { locale } = useLocale();
 
   const button = (
-    <Button data-testid="download-as-button" size="xs" variant="link">
+    <Button
+      data-testid="download-as-button"
+      size="xs"
+      variant="link"
+      className="print:hidden"
+    >
       Download <ChevronDownIcon className="w-3 h-3 ml-1" />
     </Button>
   );
@@ -146,7 +151,7 @@ export const DownloadAs: React.FC<DownloadActionProps> = (props) => {
   return (
     <DropdownMenu modal={false}>
       <DropdownMenuTrigger asChild={true}>{button}</DropdownMenuTrigger>
-      <DropdownMenuContent side="bottom" className="no-print">
+      <DropdownMenuContent side="bottom" className="print:hidden">
         {options.map((option) => (
           <DropdownMenuItem
             key={option.label}

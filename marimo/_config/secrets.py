@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
 from typing import Any, TypeVar, cast
@@ -45,6 +45,7 @@ def mask_secrets(config: MarimoConfig) -> MarimoConfig:
 
     secrets = (
         ("ai", "*", "api_key"),
+        ("ai", "custom_providers", "*", "api_key"),
         ("ai", "bedrock", "aws_access_key_id"),
         ("ai", "bedrock", "aws_secret_access_key"),
         ("runtime", "dotenv"),

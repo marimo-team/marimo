@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import { getNotebook } from "@/core/cells/cells";
 import type { CellId } from "@/core/cells/ids";
@@ -19,6 +19,12 @@ export function useFocusFirstEditor() {
     const timeout = setTimeout(() => {
       // Let the DOM render
       requestAnimationFrame(() => {
+        // Skip auto-focus if the document doesn't have focus to avoid
+        // stealing focus from outside (e.g., when embedded in an iframe)
+        if (!document.hasFocus()) {
+          return;
+        }
+
         // Check if the URL contains a scrollTo parameter
         const hash = window.location.hash;
         const cellName = extractCellNameFromHash(hash);

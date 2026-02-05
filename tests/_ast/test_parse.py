@@ -1,10 +1,17 @@
-# Copyright 2025 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
 import ast
 from pathlib import Path
 
-from marimo._ast.parse import Parser, _eval_kwargs, parse_notebook
+from inline_snapshot import snapshot
+
+from marimo._ast.parse import (
+    Parser,
+    _eval_kwargs,
+    fixed_dedent,
+    parse_notebook,
+)
 
 DIR_PATH = Path(__file__).parent
 
@@ -209,3 +216,407 @@ class TestParser:
         assert "@my_decorator" in function_cell.code, (
             f"Expected @my_decorator in extracted code, but got: {function_cell.code!r}"
         )
+
+    @staticmethod
+    def test_unparsable_cell_with_non_string_creates_violation() -> None:
+        """Test that unparsable cells with non-string args create violations."""
+        code = """
+import marimo
+__generated_with = "0.0.0"
+app = marimo.App()
+
+app._unparsable_cell(123, name="_")
+
+if __name__ == "__main__":
+    app.run()
+"""
+        notebook = parse_notebook(code)
+        assert notebook is not None
+        assert len(notebook.violations) == 1
+        assert "Expected string constant" in notebook.violations[0].description
+
+
+class TestTrailingComments:
+    """Tests for trailing comment preservation in @app.function and @app.class_definition."""
+
+    @staticmethod
+    def test_function_with_trailing_comment() -> None:
+        """@app.function should preserve trailing comments at body indentation."""
+        code = """import marimo
+
+__generated_with = "0.0.0"
+app = marimo.App()
+
+
+@app.function
+def f():
+    # start
+    pass
+    # end
+
+
+if __name__ == "__main__":
+    app.run()
+"""
+        notebook = parse_notebook(code)
+        assert len(notebook.cells) == 1
+        assert "# end" in notebook.cells[0].code
+
+    @staticmethod
+    def test_function_with_trailing_comment_and_empty_line() -> None:
+        """@app.function should preserve trailing comments at body indentation."""
+        code = """import marimo
+
+__generated_with = "0.0.0"
+app = marimo.App()
+
+
+@app.function
+def f():
+    # start
+    pass
+
+    # end
+
+
+if __name__ == "__main__":
+    app.run()
+"""
+        notebook = parse_notebook(code)
+        assert len(notebook.cells) == 1
+        assert "# end" in notebook.cells[0].code
+
+    @staticmethod
+    def test_two_functions() -> None:
+        """@app.function should preserve trailing comments at body indentation."""
+        code = """import marimo
+
+__generated_with = "0.0.0"
+app = marimo.App()
+
+
+@app.function
+def f():
+    # start
+    pass
+
+    # end
+
+@app.function
+def g():
+    # start 1
+    pass
+    # end 1
+
+
+if __name__ == "__main__":
+    app.run()
+"""
+        notebook = parse_notebook(code)
+        assert len(notebook.cells) == 2
+        assert (
+            notebook.cells[0].code
+            == """def f():
+    # start
+    pass
+
+    # end"""
+        )
+
+        assert (
+            notebook.cells[1].code
+            == """def g():
+    # start 1
+    pass
+    # end 1"""
+        )
+
+    @staticmethod
+    def test_class_definition_with_trailing_comment() -> None:
+        """@app.class_definition should preserve trailing comments at body indentation."""
+        code = """import marimo
+
+__generated_with = "0.0.0"
+app = marimo.App()
+
+
+@app.class_definition
+class MyClass:
+    def method(self):
+        pass
+    # trailing class comment
+
+
+if __name__ == "__main__":
+    app.run()
+"""
+        notebook = parse_notebook(code)
+        assert len(notebook.cells) == 1
+        assert "# trailing class comment" in notebook.cells[0].code
+
+    @staticmethod
+    def test_function_with_multiple_trailing_comments() -> None:
+        """@app.function should preserve multiple trailing comments."""
+        code = """import marimo
+
+__generated_with = "0.0.0"
+app = marimo.App()
+
+
+@app.function
+def g():
+    x = 1
+    # comment 1
+    # comment 2
+
+
+if __name__ == "__main__":
+    app.run()
+"""
+        notebook = parse_notebook(code)
+        assert len(notebook.cells) == 1
+        assert "# comment 1" in notebook.cells[0].code
+        assert "# comment 2" in notebook.cells[0].code
+
+    @staticmethod
+    def test_function_without_trailing_comment() -> None:
+        """@app.function without trailing comments should work as before."""
+        code = """import marimo
+
+__generated_with = "0.0.0"
+app = marimo.App()
+
+
+@app.function
+def h():
+    return 42
+
+
+if __name__ == "__main__":
+    app.run()
+"""
+        notebook = parse_notebook(code)
+        assert len(notebook.cells) == 1
+        assert notebook.cells[0].code == "def h():\n    return 42"
+
+    @staticmethod
+    def test_function_with_tab_indentation() -> None:
+        """@app.function should preserve trailing comments with tab indentation."""
+        # Use explicit tab characters
+        code = 'import marimo\n\n__generated_with = "0.0.0"\napp = marimo.App()\n\n\n@app.function\ndef f():\n\tpass\n\t# trailing comment\n\n\nif __name__ == "__main__":\n\tapp.run()\n'
+        notebook = parse_notebook(code)
+        assert len(notebook.cells) == 1
+        assert "# trailing comment" in notebook.cells[0].code
+
+    @staticmethod
+    def test_setup_cell_with_trailing_comment() -> None:
+        """Setup cells should preserve trailing comments."""
+        code = """import marimo
+
+__generated_with = "0.0.0"
+app = marimo.App()
+
+with app.setup:
+    import os
+    # trailing setup comment
+
+@app.cell
+def _():
+    pass
+
+if __name__ == "__main__":
+    app.run()
+"""
+        notebook = parse_notebook(code)
+        assert len(notebook.cells) == 2
+        assert notebook.cells[0].name == "setup"
+        assert notebook.cells[0].code == "import os\n# trailing setup comment"
+
+    @staticmethod
+    def test_single_line_function_no_trailing_capture() -> None:
+        """Single-line functions should not capture content from next cell."""
+        code = """import marimo
+
+__generated_with = "0.0.0"
+app = marimo.App()
+
+
+@app.function
+def f(): pass
+
+
+@app.function
+def g():
+    return 42
+
+
+if __name__ == "__main__":
+    app.run()
+"""
+        notebook = parse_notebook(code)
+        assert len(notebook.cells) == 2
+        assert notebook.cells[0].code == "def f(): pass"
+        assert notebook.cells[1].code == "def g():\n    return 42"
+
+    @staticmethod
+    def test_single_line_class_no_trailing_capture() -> None:
+        """Single-line classes should not capture content from next cell."""
+        code = """import marimo
+
+__generated_with = "0.0.0"
+app = marimo.App()
+
+
+@app.class_definition
+class Foo: ...
+
+
+@app.cell
+def _():
+    x = 1
+
+
+if __name__ == "__main__":
+    app.run()
+"""
+        notebook = parse_notebook(code)
+        assert len(notebook.cells) == 2
+        assert notebook.cells[0].code == "class Foo: ..."
+        assert notebook.cells[1].code == "x = 1"
+
+
+def test_fixed_dedent() -> None:
+    # Basic dedent
+    assert fixed_dedent("    x = 1\n    y = 2") == snapshot("""\
+x = 1
+y = 2\
+""")
+
+    # No indentation
+    assert fixed_dedent("x = 1\ny = 2") == snapshot("""\
+x = 1
+y = 2\
+""")
+
+    # Mixed indentation levels
+    assert fixed_dedent("    def foo():\n        return 1") == snapshot("""\
+def foo():
+    return 1\
+""")
+
+    # Inconsistent indentation (main difference from textwrap.dedent)
+    assert fixed_dedent("    x = 1\ny = 2") == snapshot("""\
+x = 1
+y = 2\
+""")
+
+    # Empty string
+    assert fixed_dedent("") == snapshot("")
+
+    # Only whitespace
+    assert fixed_dedent("    ") == snapshot("")
+
+    # Blank lines in middle
+    assert fixed_dedent("    x = 1\n\n    y = 2") == snapshot("""\
+x = 1
+
+y = 2\
+""")
+
+    # Leading blank lines
+    assert fixed_dedent("\n\n    x = 1") == snapshot("""\
+
+
+x = 1\
+""")
+
+    # Trailing blank lines
+    assert fixed_dedent("    x = 1\n\n") == snapshot("x = 1\n")
+
+    # Tabs as indentation
+    assert fixed_dedent("\tx = 1\n\ty = 2") == snapshot("""\
+x = 1
+y = 2\
+""")
+
+    # Mixed tabs and spaces
+    assert fixed_dedent("\t    x = 1\n\t    y = 2") == snapshot("""\
+x = 1
+y = 2\
+""")
+
+    # Deeply nested code
+    assert fixed_dedent(
+        "        def foo():\n            if True:\n                return 1"
+    ) == snapshot("""\
+def foo():
+    if True:
+        return 1\
+""")
+
+    # Multiline string preserved
+    assert fixed_dedent('    x = """hello\n    world"""') == snapshot('''\
+x = """hello
+world"""\
+''')
+
+    # Code with comments
+    assert fixed_dedent("    # comment\n    x = 1") == snapshot("""\
+# comment
+x = 1\
+""")
+
+    # Comment line without expected indent
+    assert fixed_dedent(
+        "    x = 1\n# comment with no indent\n    y = 2"
+    ) == snapshot("""\
+x = 1
+# comment with no indent
+y = 2\
+""")
+
+    # Escaped characters preserved
+    assert fixed_dedent('    x = "hello\\nworld"') == snapshot(
+        'x = "hello\\nworld"'
+    )
+
+    # Unicode content
+    assert fixed_dedent('    x = "héllo wörld 🎉"') == snapshot(
+        'x = "héllo wörld 🎉"'
+    )
+
+    # Docstring style content
+    assert fixed_dedent(
+        '    """This is a docstring.\n\n    Args:\n        x: something\n    """'
+    ) == snapshot('''\
+"""This is a docstring.
+
+Args:
+    x: something
+"""\
+''')
+
+    # Single line with indentation
+    assert fixed_dedent("        single_line_code()") == snapshot(
+        "single_line_code()"
+    )
+
+    # Only blank lines
+    assert fixed_dedent("\n\n\n") == snapshot("\n\n\n")
+
+    # AI-generated code pattern with inconsistent indentation
+    assert fixed_dedent("    x = 1\n    if True:\nreturn x") == snapshot(
+        "x = 1\nif True:\nreturn x"
+    )
+
+    # Class definition
+    assert fixed_dedent(
+        "    class MyClass:\n        def method(self):\n            return 1"
+    ) == snapshot("""\
+class MyClass:
+    def method(self):
+        return 1\
+""")
+
+    # Two-space indentation
+    assert fixed_dedent("  x = 1\n  y = 2") == snapshot("x = 1\ny = 2")

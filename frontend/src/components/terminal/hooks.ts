@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import { useChromeActions } from "../editor/chrome/state";
 import { useTerminalActions } from "./state";
@@ -25,11 +25,11 @@ import { useTerminalActions } from "./state";
  */
 export function useTerminalCommands() {
   const { addCommand } = useTerminalActions();
-  const { setIsTerminalOpen } = useChromeActions();
+  const { openApplication } = useChromeActions();
 
   const sendCommand = (text: string) => {
     // First, ensure the terminal is open
-    setIsTerminalOpen(true);
+    openApplication("terminal");
 
     // Add the command to the queue
     addCommand(text);

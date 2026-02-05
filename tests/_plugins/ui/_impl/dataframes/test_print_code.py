@@ -30,6 +30,7 @@ from marimo._plugins.ui._impl.dataframes.transforms.types import (
     ExplodeColumnsTransform,
     FilterRowsTransform,
     GroupByTransform,
+    PivotTransform,
     RenameColumnTransform,
     SampleRowsTransform,
     SelectColumnsTransform,
@@ -75,10 +76,14 @@ def create_transform_strategy(
     list_column_id: Optional[st.SearchStrategy[str | int] | None] = None,
     df_size: int = 3,
 ) -> st.SearchStrategy[Transform]:
-    column_ids = st.lists(column_id, min_size=1)
+    column_ids = st.lists(column_id, min_size=1, unique=True)
     aggregation_column_ids = st.one_of(
         st.just([]),
-        st.lists(column_id, min_size=1),
+        st.lists(column_id, min_size=1, unique=True),
+    )
+    index_column_ids = st.one_of(
+        st.just([]),
+        st.lists(column_id, min_size=1, unique=True),
     )
 
     if string_column_id is None:
@@ -220,6 +225,15 @@ def create_transform_strategy(
         column_id=column_id,
     )
 
+    pivot_transform_strategy = st.builds(
+        PivotTransform,
+        type=st.just(TransformType.PIVOT),
+        column_ids=column_ids,
+        index_column_ids=index_column_ids,
+        aggregation=aggregation,
+        value_column_ids=aggregation_column_ids,
+    )
+
     # Combine all transform strategies
     transform_strategy = st.one_of(
         column_conversion_transform_strategy,
@@ -233,6 +247,7 @@ def create_transform_strategy(
         sample_rows_transform_strategy,
         explode_columns_transform_strategy,
         expand_dict_transform_strategy,
+        pivot_transform_strategy,
     )
 
     return transform_strategy
@@ -366,6 +381,42 @@ def test_print_code_result_matches_actual_transform_pandas(
     # Ignore groupby mean
     if transform.type == TransformType.GROUP_BY:
         assume(transform.aggregation != "mean")
+        assume("dict" not in transform.aggregation_column_ids)
+
+    if transform.type == TransformType.PIVOT:
+        assume(
+            (
+                set(transform.column_ids) & set(transform.index_column_ids)
+                == set()
+            )
+            and (
+                set(transform.column_ids) & set(transform.value_column_ids)
+                == set()
+            )
+            and (
+                set(transform.index_column_ids)
+                & set(transform.value_column_ids)
+                == set()
+            )
+        )
+        assume(
+            not any(
+                column_id in {"lists", "dicts", "datetimes"}
+                for column_id in transform.column_ids
+            )
+        )
+        assume(
+            not any(
+                column_id in {"lists", "dicts", "datetimes"}
+                for column_id in transform.index_column_ids
+            )
+        )
+        assume(
+            not any(
+                column_id in {"lists", "dicts", "datetimes"}
+                for column_id in transform.value_column_ids
+            )
+        )
 
     # Pandas
     pandas_code = python_print_transforms(
@@ -422,11 +473,37 @@ def test_print_code_result_matches_actual_transform_pandas(
             code_result = code_result.to_frame()
         if isinstance(real_result, pd.Series):
             real_result = real_result.to_frame()
-        # Remove index to compare
-        pd.testing.assert_frame_equal(
-            cast(pd.DataFrame, code_result).reset_index(drop=True),
-            real_result.reset_index(drop=True),
-        )
+
+        # For pivot transform the column order can be different, enforce column order by sorting.
+        if transform.type == TransformType.PIVOT:
+            code_result = code_result.loc[:, list(sorted(code_result.columns))]
+            real_result = real_result.loc[:, list(sorted(real_result.columns))]
+
+        code_result = cast(pd.DataFrame, code_result).reset_index(drop=True)
+        real_result = real_result.reset_index(drop=True)
+
+        # For group_by transforms, the row order might differ
+        # Sort both dataframes by all columns before comparing
+        if transform.type == TransformType.GROUP_BY:
+            # Filter out columns with unhashable types (dicts, lists)
+            sortable_cols = [
+                col
+                for col in code_result.columns
+                if not any(
+                    isinstance(val, (dict, list))
+                    for val in code_result[col]
+                    if val is not None
+                )
+            ]
+            if sortable_cols:
+                code_result = code_result.sort_values(
+                    by=sortable_cols
+                ).reset_index(drop=True)
+                real_result = real_result.sort_values(
+                    by=sortable_cols
+                ).reset_index(drop=True)
+
+        pd.testing.assert_frame_equal(code_result, real_result)
 
 
 @given(
@@ -495,6 +572,70 @@ def test_print_code_result_matches_actual_transform_polars(
     # TODO: unimplemented
     if transform.type == TransformType.AGGREGATE:
         assume(False)
+    # Don't group by unhashable types (lists, dicts) as ordering is non-deterministic
+    if transform.type == TransformType.GROUP_BY:
+        assume(
+            not any(
+                column_id in {"lists", "dicts"}
+                for column_id in transform.column_ids
+            )
+        )
+        # When aggregation_column_ids is empty, all remaining columns become
+        # aggregation columns. sum/mean fail on non-numeric columns (strings, etc.)
+        if not transform.aggregation_column_ids and transform.aggregation in {
+            "sum",
+            "mean",
+        }:
+            assume(False)
+    if transform.type == TransformType.PIVOT:
+        assume(
+            (
+                set(transform.column_ids) & set(transform.index_column_ids)
+                == set()
+            )
+            and (
+                set(transform.column_ids) & set(transform.value_column_ids)
+                == set()
+            )
+            and (
+                set(transform.index_column_ids)
+                & set(transform.value_column_ids)
+                == set()
+            )
+        )
+        # Exclude lists, dicts, datetimes from pivot columns
+        assume(
+            not any(
+                column_id in {"lists", "dicts", "datetimes"}
+                for column_id in transform.column_ids
+            )
+        )
+        assume(
+            not any(
+                column_id in {"lists", "dicts", "datetimes"}
+                for column_id in transform.index_column_ids
+            )
+        )
+        assume(
+            not any(
+                column_id in {"lists", "dicts", "datetimes"}
+                for column_id in transform.value_column_ids
+            )
+        )
+        # Exclude booleans from pivot column_ids - polars uses lowercase (true/false)
+        # while narwhals uses Python's str() which gives True/False
+        assume(
+            not any(
+                column_id in {"booleans"} for column_id in transform.column_ids
+            )
+        )
+        # When value_column_ids is empty, all remaining columns become values.
+        # sum/mean aggregations fail on non-numeric columns (strings, booleans)
+        if not transform.value_column_ids and transform.aggregation in {
+            "sum",
+            "mean",
+        }:
+            assume(False)
 
     # Polars
     polars_code = python_print_transforms(
@@ -554,15 +695,36 @@ def test_print_code_result_matches_actual_transform_polars(
             code_result = code_result.to_frame()
         if isinstance(real_result, pl.Series):
             real_result = real_result.to_frame()
+
+        # For pivot transform the column order can be different, enforce column order by sorting.
+        if transform.type == TransformType.PIVOT:
+            code_result = code_result.select(
+                *sorted(code_result.collect_schema().names())
+            )
+            real_result = real_result.select(
+                *sorted(real_result.collect_schema().names())
+            )
+
         code_result = cast(pl.DataFrame, code_result)
         # Compare column names
         assert code_result.columns == real_result.columns
 
         # For group_by transforms, the row order might differ even with maintain_order=True
         # Sort both dataframes by all columns before comparing
+        # Note: We exclude grouping by unhashable types (lists, dicts) via assume() above,
+        # so all columns should be sortable
         if transform.type == TransformType.GROUP_BY:
-            code_result = code_result.sort(code_result.columns)
-            real_result = real_result.sort(real_result.columns)
+            import polars.datatypes as pl_dtypes
+
+            sortable_cols = [
+                col
+                for col in code_result.columns
+                if code_result[col].dtype
+                not in (pl_dtypes.List, pl_dtypes.Struct, pl_dtypes.Object)
+            ]
+            if sortable_cols:
+                code_result = code_result.sort(sortable_cols)
+                real_result = real_result.sort(sortable_cols)
 
         pl_testing.assert_frame_equal(code_result, real_result)
 
@@ -621,6 +783,41 @@ def test_print_code_result_matches_actual_transform_ibis(
     if transform.type == TransformType.COLUMN_CONVERSION:
         assume(transform.errors != "ignore")
 
+    if transform.type == TransformType.PIVOT:
+        assume(
+            (
+                set(transform.column_ids) & set(transform.index_column_ids)
+                == set()
+            )
+            and (
+                set(transform.column_ids) & set(transform.value_column_ids)
+                == set()
+            )
+            and (
+                set(transform.index_column_ids)
+                & set(transform.value_column_ids)
+                == set()
+            )
+        )
+        assume(
+            not any(
+                column_id in {"lists", "dicts", "datetimes"}
+                for column_id in transform.column_ids
+            )
+        )
+        assume(
+            not any(
+                column_id in {"lists", "dicts", "datetimes"}
+                for column_id in transform.index_column_ids
+            )
+        )
+        assume(
+            not any(
+                column_id in {"lists", "dicts", "datetimes"}
+                for column_id in transform.value_column_ids
+            )
+        )
+
     try:
         nw_df = nw.from_native(my_df).lazy()
         result_nw = _apply_transforms(
@@ -649,6 +846,11 @@ def test_print_code_result_matches_actual_transform_ibis(
     loc = {"ibis": ibis, "my_df": my_df}
     exec(ibis_code, {}, loc)
     code_result = loc.get("my_df_next")
+
+    # For pivot transform the column order can be different, enforce column order by sorting.
+    if transform.type == TransformType.PIVOT:
+        code_result = code_result.select(*sorted(code_result.columns))
+        real_result = real_result.select(*sorted(real_result.columns))
 
     print("code_result", code_result)
     print("real_result", real_result)
@@ -726,15 +928,36 @@ class TestCombinedTransforms:
         )
         if has_groupby:
             if isinstance(code_result, pl.DataFrame):
-                code_result = code_result.sort(code_result.columns)
-                result = result.sort(result.columns)
+                import polars.datatypes as pl_dtypes
+
+                # Filter out columns with unhashable types (dicts, lists)
+                sortable_cols = [
+                    col
+                    for col in code_result.columns
+                    if code_result[col].dtype
+                    not in (pl_dtypes.List, pl_dtypes.Struct, pl_dtypes.Object)
+                ]
+                if sortable_cols:
+                    code_result = code_result.sort(sortable_cols)
+                    result = result.sort(sortable_cols)
             elif isinstance(code_result, pd.DataFrame):
-                code_result = code_result.sort_values(
-                    by=list(code_result.columns)
-                ).reset_index(drop=True)
-                result = result.sort_values(
-                    by=list(result.columns)
-                ).reset_index(drop=True)
+                # Filter out columns with unhashable types (dicts, lists)
+                sortable_cols = [
+                    col
+                    for col in code_result.columns
+                    if not any(
+                        isinstance(val, (dict, list))
+                        for val in code_result[col]
+                        if val is not None
+                    )
+                ]
+                if sortable_cols:
+                    code_result = code_result.sort_values(
+                        by=sortable_cols
+                    ).reset_index(drop=True)
+                    result = result.sort_values(by=sortable_cols).reset_index(
+                        drop=True
+                    )
 
         # Test that the result matches the actual result
         testing_func(code_result, result)
@@ -808,3 +1031,80 @@ class TestCombinedTransforms:
 
         self._test_transforms(pl_dataframe, transforms)
         self._test_transforms(pd_dataframe, transforms)
+
+    def test_pivot_count_fills_null_with_zero(self):
+        """Test that pivot with count aggregation fills null values with 0.
+
+        When pivoting, some combinations may not exist in the data, resulting
+        in null values. For count and sum aggregations, these should be filled
+        with 0 to match narwhals behavior.
+        """
+        import pandas as pd
+        import polars as pl
+
+        # Create data where pivot will produce nulls
+        # Only 'x' has values for group 'a', only 'y' has values for group 'b'
+        pd_df = pd.DataFrame(
+            {
+                "group": ["a", "a", "b", "b"],
+                "category": ["x", "x", "y", "y"],
+                "value": [1, 2, 3, 4],
+            }
+        )
+        pl_df = pl.DataFrame(
+            {
+                "group": ["a", "a", "b", "b"],
+                "category": ["x", "x", "y", "y"],
+                "value": [1, 2, 3, 4],
+            }
+        )
+
+        transforms = Transformations(
+            [
+                PivotTransform(
+                    type=TransformType.PIVOT,
+                    column_ids=["category"],
+                    index_column_ids=["group"],
+                    aggregation="count",
+                    value_column_ids=["value"],
+                ),
+            ]
+        )
+
+        self._test_transforms(pd_df, transforms)
+        self._test_transforms(pl_df, transforms)
+
+    def test_pivot_sum_fills_null_with_zero(self):
+        """Test that pivot with sum aggregation fills null values with 0."""
+        import pandas as pd
+        import polars as pl
+
+        pd_df = pd.DataFrame(
+            {
+                "group": ["a", "a", "b", "b"],
+                "category": ["x", "x", "y", "y"],
+                "value": [1, 2, 3, 4],
+            }
+        )
+        pl_df = pl.DataFrame(
+            {
+                "group": ["a", "a", "b", "b"],
+                "category": ["x", "x", "y", "y"],
+                "value": [1, 2, 3, 4],
+            }
+        )
+
+        transforms = Transformations(
+            [
+                PivotTransform(
+                    type=TransformType.PIVOT,
+                    column_ids=["category"],
+                    index_column_ids=["group"],
+                    aggregation="sum",
+                    value_column_ids=["value"],
+                ),
+            ]
+        )
+
+        self._test_transforms(pd_df, transforms)
+        self._test_transforms(pl_df, transforms)

@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
 import os
@@ -7,7 +7,7 @@ from typing import Optional
 
 from marimo._cli.print import bold, green, muted
 from marimo._config.config import MarimoConfig, MCPConfig
-from marimo._server.utils import print_, print_tabbed
+from marimo._utils.print import print_, print_tabbed
 
 UTF8_SUPPORTED = False
 
@@ -150,6 +150,8 @@ def print_experimental_features(config: MarimoConfig) -> None:
         "mcp_docs",
         "sql_linter",
         "sql_mode",
+        "performant_table_charts",
+        "chat_modes",
     }
     keys = keys - finished_experiments
 

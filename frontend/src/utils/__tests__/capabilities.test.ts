@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import { beforeEach, describe, expect, it, type Mock, vi } from "vitest";
 import type { IframeCapabilities } from "../capabilities";
@@ -325,17 +325,19 @@ describe("capabilities", () => {
 
   describe("complete capability detection scenarios", () => {
     it("should handle fully sandboxed iframe", async () => {
-      const mockWindow = {
-        ...window,
-        parent: {} as Window,
-      };
-
       const mockStorage: Partial<Storage> = {
         setItem: vi.fn(() => {
           throw new Error("blocked");
         }),
         getItem: vi.fn(),
         removeItem: vi.fn(),
+      };
+
+      const mockWindow = {
+        ...window,
+        parent: {} as Window,
+        localStorage: mockStorage,
+        sessionStorage: mockStorage,
       };
 
       vi.stubGlobal("window", mockWindow);

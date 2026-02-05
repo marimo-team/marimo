@@ -1,5 +1,6 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
+import { useAtom } from "jotai";
 import {
   BotIcon,
   BrainIcon,
@@ -34,7 +35,8 @@ import { Textarea } from "@/components/ui/textarea";
 import type { SupportedRole } from "@/core/ai/config";
 import {
   AiModelId,
-  PROVIDERS,
+  KNOWN_PROVIDERS,
+  type KnownProviderId,
   type ProviderId,
   type QualifiedModelId,
   type ShortModelId,
@@ -78,6 +80,7 @@ import { AWS_REGIONS } from "./constants";
 import { IncorrectModelId } from "./incorrect-model-id";
 import { IsOverridden } from "./is-overridden";
 import { MCPConfig } from "./mcp-config";
+import { aiSettingsSubTabAtom } from "./state";
 
 interface AiConfigProps {
   form: UseFormReturn<UserConfig>;
@@ -88,6 +91,11 @@ interface AiConfigProps {
 interface AiProviderTitleProps {
   provider?: AiProviderIconProps["provider"];
   children: React.ReactNode;
+}
+
+interface CustomProviderConfig {
+  api_key?: string;
+  base_url?: string;
 }
 
 export const AiProviderTitle: React.FC<AiProviderTitleProps> = ({
@@ -109,6 +117,7 @@ interface ApiKeyProps {
   placeholder: string;
   testId: string;
   description?: React.ReactNode;
+  onChange?: (value: string) => void;
 }
 
 export const ApiKey: React.FC<ApiKeyProps> = ({
@@ -118,6 +127,7 @@ export const ApiKey: React.FC<ApiKeyProps> = ({
   placeholder,
   testId,
   description,
+  onChange,
 }) => {
   return (
     <FormField
@@ -135,11 +145,12 @@ export const ApiKey: React.FC<ApiKeyProps> = ({
                 placeholder={placeholder}
                 type="password"
                 {...field}
-                value={asStringOrUndefined(field.value)}
+                value={asStringOrEmpty(field.value)}
                 onChange={(e) => {
                   const value = e.target.value;
                   if (!value.includes("*")) {
                     field.onChange(value);
+                    onChange?.(value);
                   }
                 }}
               />
@@ -162,12 +173,12 @@ interface BaseUrlProps {
   testId: string;
   description?: React.ReactNode;
   disabled?: boolean;
-  defaultValue?: string;
+  onChange?: (value: string) => void;
 }
 
-function asStringOrUndefined<T>(value: T): string | undefined {
+function asStringOrEmpty<T>(value: T): string {
   if (value == null) {
-    return undefined;
+    return "";
   }
 
   if (typeof value === "string") {
@@ -185,13 +196,12 @@ export const BaseUrl: React.FC<BaseUrlProps> = ({
   testId,
   description,
   disabled = false,
-  defaultValue,
+  onChange,
 }) => {
   return (
     <FormField
       control={form.control}
       name={name}
-      disabled={disabled}
       render={({ field }) => (
         <div className="flex flex-col space-y-1">
           <FormItem className={formItemClasses}>
@@ -202,9 +212,13 @@ export const BaseUrl: React.FC<BaseUrlProps> = ({
                 rootClassName="flex-1"
                 className="m-0 inline-flex h-7"
                 placeholder={placeholder}
-                defaultValue={defaultValue}
                 {...field}
-                value={asStringOrUndefined(field.value)}
+                value={asStringOrEmpty(field.value)}
+                disabled={disabled}
+                onChange={(e) => {
+                  field.onChange(e.target.value);
+                  onChange?.(e.target.value);
+                }}
               />
             </FormControl>
             <FormMessage />
@@ -222,9 +236,7 @@ interface ModelSelectorProps {
   config: UserConfig;
   name: FieldPath<UserConfig>;
   placeholder: string;
-  testId: string;
   description?: React.ReactNode;
-  disabled?: boolean;
   label: string;
   forRole: SupportedRole;
   onSubmit: (values: UserConfig) => void;
@@ -235,9 +247,7 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
   config,
   name,
   placeholder,
-  testId,
   description,
-  disabled = false,
   label,
   forRole,
   onSubmit,
@@ -246,9 +256,8 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
     <FormField
       control={form.control}
       name={name}
-      disabled={disabled}
       render={({ field }) => {
-        const value = asStringOrUndefined(field.value);
+        const value = asStringOrEmpty(field.value);
 
         const selectModel = (modelId: QualifiedModelId) => {
           field.onChange(modelId);
@@ -276,11 +285,10 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
                     </p>
                     <div className="px-2 py-1">
                       <Input
-                        data-testid={testId}
                         className="w-full border-border shadow-none focus-visible:shadow-xs"
                         placeholder={placeholder}
                         {...field}
-                        value={asStringOrUndefined(field.value)}
+                        value={asStringOrEmpty(field.value)}
                         onKeyDown={Events.stopPropagation()}
                       />
                       {value && (
@@ -333,7 +341,6 @@ export const ProviderSelect: React.FC<ProviderSelectProps> = ({
     <FormField
       control={form.control}
       name={name}
-      disabled={disabled}
       render={({ field }) => (
         <div className="flex flex-col space-y-1">
           <FormItem className={formItemClasses}>
@@ -348,14 +355,14 @@ export const ProviderSelect: React.FC<ProviderSelectProps> = ({
                     field.onChange(e.target.value);
                   }
                 }}
-                value={asStringOrUndefined(
+                value={asStringOrEmpty(
                   field.value === true
                     ? "github"
                     : field.value === false
                       ? "none"
                       : field.value,
                 )}
-                disabled={field.disabled}
+                disabled={disabled}
                 className="inline-flex mr-2"
               >
                 {options.map((option) => (
@@ -421,7 +428,6 @@ const renderCopilotProvider = ({
         config={config}
         name="ai.models.autocomplete_model"
         placeholder="ollama/qwen2.5-coder:1.5b"
-        testId="custom-model-input"
         description="Model to use for code completion when using a custom provider."
         onSubmit={onSubmit}
         forRole="autocomplete"
@@ -555,15 +561,18 @@ const AccordionFormItem = ({
   provider,
   children,
   isConfigured,
+  value,
 }: {
   title: string;
   triggerClassName?: string;
   provider: AiProviderIconProps["provider"];
   children: React.ReactNode;
   isConfigured: boolean;
+  /** Custom value for the accordion item. Defaults to provider. */
+  value?: string;
 }) => {
   return (
-    <AccordionItem value={provider}>
+    <AccordionItem value={value ?? provider}>
       <AccordionTrigger className={triggerClassName}>
         <AiProviderTitle provider={provider}>
           {title}
@@ -581,9 +590,267 @@ const AccordionFormItem = ({
   );
 };
 
+export const CustomProvidersConfig: React.FC<AiConfigProps> = ({
+  form,
+  config,
+  onSubmit,
+}) => {
+  const [isAddingProvider, setIsAddingProvider] = useState(false);
+  const [newProviderName, setNewProviderName] = useState("");
+  const [newProviderApiKey, setNewProviderApiKey] = useState("");
+  const [newProviderBaseUrl, setNewProviderBaseUrl] = useState("");
+
+  const providerNameInputId = useId();
+  const apiKeyInputId = useId();
+  const baseUrlInputId = useId();
+
+  const normalizedName = newProviderName.toLowerCase().replaceAll(/\s+/g, "_");
+  const customProviders = form.watch("ai.custom_providers");
+  const isDuplicate =
+    KNOWN_PROVIDERS.includes(normalizedName as KnownProviderId) ||
+    (customProviders && Object.keys(customProviders).includes(normalizedName));
+  const hasInvalidChars = normalizedName.includes(".");
+
+  const hasValidValues =
+    normalizedName.trim() &&
+    newProviderBaseUrl.trim() &&
+    !isDuplicate &&
+    !hasInvalidChars;
+
+  const resetForm = () => {
+    setNewProviderName("");
+    setNewProviderApiKey("");
+    setNewProviderBaseUrl("");
+    setIsAddingProvider(false);
+  };
+
+  return (
+    <FormField
+      control={form.control}
+      name="ai.custom_providers"
+      render={({ field }) => {
+        const customProviders = (field.value || {}) as Record<
+          string,
+          CustomProviderConfig
+        >;
+        const customProviderEntries = Object.entries(customProviders);
+
+        const addProvider = () => {
+          if (!hasValidValues) {
+            return;
+          }
+          field.onChange({
+            ...customProviders,
+            [normalizedName]: {
+              api_key: newProviderApiKey || undefined,
+              base_url: newProviderBaseUrl,
+            },
+          });
+          onSubmit(form.getValues());
+          resetForm();
+        };
+
+        const removeProvider = (providerName: string) => {
+          const { [providerName]: _, ...rest } = customProviders;
+          // Reset to clear nested dirty state, then set new value
+          form.resetField("ai.custom_providers");
+          form.setValue("ai.custom_providers", rest, { shouldDirty: true });
+          onSubmit(form.getValues());
+        };
+
+        const providerForm = (
+          <div className="flex flex-col gap-3 p-4 border border-border rounded-md bg-muted/20">
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor={providerNameInputId}>Provider Name</Label>
+              <Input
+                id={providerNameInputId}
+                placeholder="e.g., together, groq, mistral"
+                value={newProviderName}
+                onChange={(e) => setNewProviderName(e.target.value)}
+              />
+              {isDuplicate && (
+                <p className="text-xs text-destructive">
+                  A provider with this name already exists.
+                </p>
+              )}
+              {hasInvalidChars && (
+                <p className="text-xs text-destructive">
+                  Provider names cannot contain '.' characters.
+                </p>
+              )}
+              {newProviderName && !hasInvalidChars && (
+                <p className="text-xs text-muted-secondary">
+                  Use models with prefix:{" "}
+                  <Kbd className="inline text-xs">{normalizedName}/</Kbd>
+                </p>
+              )}
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor={baseUrlInputId}>
+                Base URL <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                id={baseUrlInputId}
+                placeholder="e.g., https://api.together.xyz/v1"
+                value={newProviderBaseUrl}
+                onChange={(e) => setNewProviderBaseUrl(e.target.value)}
+              />
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor={apiKeyInputId}>API Key (optional)</Label>
+              <Input
+                id={apiKeyInputId}
+                placeholder="sk-..."
+                type="password"
+                value={newProviderApiKey}
+                onChange={(e) => setNewProviderApiKey(e.target.value)}
+              />
+            </div>
+
+            <div className="flex gap-2 mt-1">
+              <Button
+                onClick={addProvider}
+                disabled={!hasValidValues}
+                size="xs"
+              >
+                Add Provider
+              </Button>
+              <Button variant="outline" onClick={resetForm} size="xs">
+                Cancel
+              </Button>
+            </div>
+          </div>
+        );
+
+        // Update a provider field by updating the entire custom_providers object.
+        // As this config will be replaced, it needs to be sent in its entirety.
+        const updateProviderField = (opts: {
+          providerName: string;
+          fieldName: keyof CustomProviderConfig;
+          value: string;
+        }) => {
+          field.onChange({
+            ...customProviders,
+            [opts.providerName]: {
+              ...customProviders[opts.providerName],
+              [opts.fieldName]: opts.value || undefined,
+            },
+          });
+        };
+
+        const renderAccordionItem = ({
+          providerName,
+          providerConfig,
+          onRemove,
+        }: {
+          providerName: string;
+          providerConfig: CustomProviderConfig;
+          onRemove: (name: string) => void;
+        }) => {
+          const displayName = Strings.startCase(providerName);
+          const isConfigured =
+            !!providerConfig.api_key || !!providerConfig.base_url;
+
+          return (
+            <AccordionFormItem
+              key={`custom-${providerName}`}
+              title={displayName}
+              provider={providerName}
+              value={`custom-${providerName}`}
+              isConfigured={isConfigured}
+            >
+              <ApiKey
+                form={form}
+                config={config}
+                name={
+                  `ai.custom_providers.${providerName}.api_key` as FieldPath<UserConfig>
+                }
+                placeholder="sk-..."
+                testId={`custom-provider-${providerName}-api-key`}
+                onChange={(value) =>
+                  updateProviderField({
+                    providerName,
+                    fieldName: "api_key",
+                    value,
+                  })
+                }
+              />
+              <BaseUrl
+                form={form}
+                config={config}
+                name={
+                  `ai.custom_providers.${providerName}.base_url` as FieldPath<UserConfig>
+                }
+                placeholder="https://api.example.com/v1"
+                testId={`custom-provider-${providerName}-base-url`}
+                onChange={(value) =>
+                  updateProviderField({
+                    providerName,
+                    fieldName: "base_url",
+                    value,
+                  })
+                }
+              />
+              <Button
+                variant="destructive"
+                size="xs"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  onRemove(providerName);
+                }}
+                className="w-fit self-end"
+              >
+                <Trash2Icon className="h-4 w-4 mr-2" />
+                Remove Provider
+              </Button>
+            </AccordionFormItem>
+          );
+        };
+
+        return (
+          <SettingGroup>
+            <SettingSubtitle>Custom Providers</SettingSubtitle>
+            <p className="text-sm text-muted-secondary">
+              Add your own OpenAI-compatible provider. Once added, you can
+              configure models in the AI Models tab.
+            </p>
+
+            {customProviderEntries.length > 0 && (
+              <Accordion type="multiple" className="-mt-4">
+                {customProviderEntries.map(([name, providerConfig]) =>
+                  renderAccordionItem({
+                    providerName: name,
+                    providerConfig,
+                    onRemove: removeProvider,
+                  }),
+                )}
+              </Accordion>
+            )}
+
+            {isAddingProvider ? (
+              providerForm
+            ) : (
+              <AddButton
+                className="self-start"
+                isFormOpen={isAddingProvider}
+                setIsFormOpen={setIsAddingProvider}
+                label="Add Provider"
+              />
+            )}
+          </SettingGroup>
+        );
+      }}
+    />
+  );
+};
+
 export const AiProvidersConfig: React.FC<AiConfigProps> = ({
   form,
   config,
+  onSubmit,
 }) => {
   const isWasmRuntime = isWasm();
 
@@ -690,7 +957,6 @@ export const AiProvidersConfig: React.FC<AiConfigProps> = ({
             config={config}
             name="ai.ollama.base_url"
             placeholder="http://localhost:11434/v1"
-            defaultValue="http://localhost:11434/v1"
             testId="ollama-base-url-input"
           />
         </AccordionFormItem>
@@ -810,7 +1076,6 @@ export const AiProvidersConfig: React.FC<AiConfigProps> = ({
             config={config}
             name="ai.azure.base_url"
             placeholder="https://<your-resource-name>.openai.azure.com/openai/deployments/<deployment-name>?api-version=<api-version>"
-            defaultValue="https://<your-resource-name>.openai.azure.com/openai/deployments/<deployment-name>?api-version=<api-version>"
             testId="ai-azure-base-url-input"
           />
         </AccordionFormItem>
@@ -903,13 +1168,17 @@ export const AiProvidersConfig: React.FC<AiConfigProps> = ({
         </AccordionFormItem>
 
         <AccordionFormItem
-          title="OpenAI-Compatible"
+          title="OpenAI-Compatible (Legacy)"
           provider="openai-compatible"
           isConfigured={
             hasValue("ai.open_ai_compatible.api_key") &&
             hasValue("ai.open_ai_compatible.base_url")
           }
         >
+          <p className="text-sm text-amber-600 dark:text-amber-400 mb-2">
+            Consider using Custom Providers instead, which allows you to add
+            multiple providers with distinct names.
+          </p>
           <ApiKey
             form={form}
             config={config}
@@ -933,6 +1202,8 @@ export const AiProvidersConfig: React.FC<AiConfigProps> = ({
           />
         </AccordionFormItem>
       </Accordion>
+
+      <CustomProvidersConfig form={form} config={config} onSubmit={onSubmit} />
     </SettingGroup>
   );
 };
@@ -942,8 +1213,6 @@ export const AiAssistConfig: React.FC<AiConfigProps> = ({
   config,
   onSubmit,
 }) => {
-  const isWasmRuntime = isWasm();
-
   return (
     <SettingGroup>
       <SettingSubtitle>AI Assistant</SettingSubtitle>
@@ -977,8 +1246,6 @@ export const AiAssistConfig: React.FC<AiConfigProps> = ({
         config={config}
         name="ai.models.chat_model"
         placeholder={DEFAULT_AI_MODEL}
-        testId="ai-chat-model-input"
-        disabled={isWasmRuntime}
         description={
           <span>Model to use for chat conversations in the Chat panel.</span>
         }
@@ -991,8 +1258,6 @@ export const AiAssistConfig: React.FC<AiConfigProps> = ({
         config={config}
         name="ai.models.edit_model"
         placeholder={DEFAULT_AI_MODEL}
-        testId="ai-edit-model-input"
-        disabled={isWasmRuntime}
         description={
           <span>
             Model to use for code editing with the{" "}
@@ -1002,18 +1267,6 @@ export const AiAssistConfig: React.FC<AiConfigProps> = ({
         forRole="edit"
         onSubmit={onSubmit}
       />
-
-      <ul className="bg-muted p-2 rounded-md list-disc space-y-1 pl-6">
-        <li className="text-xs text-muted-secondary">
-          Models should include the provider name and model name separated by a
-          slash. For example, "anthropic/claude-3-5-sonnet-latest" or
-          "google/gemini-2.0-flash-exp"
-        </li>
-        <li className="text-xs text-muted-secondary">
-          Depending on the provider, we will use the respective API key and
-          additional configuration.
-        </li>
-      </ul>
 
       <FormField
         control={form.control}
@@ -1133,6 +1386,16 @@ export const AiModelDisplayConfig: React.FC<AiConfigProps> = ({
     name: "ai.models.custom_models",
   }) as QualifiedModelId[];
 
+  const customProviders = useWatch({
+    control: form.control,
+    name: "ai.custom_providers",
+  }) as Record<string, CustomProviderConfig> | undefined;
+
+  const customProviderNames = useMemo(
+    () => Object.keys(customProviders || {}),
+    [customProviders],
+  );
+
   const aiModelRegistry = useMemo(
     () =>
       AiModelRegistry.create({
@@ -1155,7 +1418,10 @@ export const AiModelDisplayConfig: React.FC<AiConfigProps> = ({
       ? currentDisplayedModels.filter((id) => id !== modelId)
       : [...currentDisplayedModels, modelId];
 
-    form.setValue("ai.models.displayed_models", newModels);
+    form.setValue("ai.models.displayed_models", newModels, {
+      shouldDirty: true,
+      shouldTouch: true,
+    });
     onSubmit(form.getValues());
   });
 
@@ -1172,14 +1438,28 @@ export const AiModelDisplayConfig: React.FC<AiConfigProps> = ({
         ? [...new Set([...currentDisplayedModels, ...qualifiedModelIds])]
         : currentDisplayedModels.filter((id) => !qualifiedModelIds.has(id));
 
-      form.setValue("ai.models.displayed_models", newModels);
+      form.setValue("ai.models.displayed_models", newModels, {
+        shouldDirty: true,
+        shouldTouch: true,
+      });
       onSubmit(form.getValues());
     },
   );
 
   const deleteModel = useEvent((modelId: QualifiedModelId) => {
     const newModels = customModels.filter((id) => id !== modelId);
-    form.setValue("ai.models.custom_models", newModels);
+    // Remove from displayed models if it's in there
+    const newDisplayedModels = currentDisplayedModels.filter(
+      (id) => id !== modelId,
+    );
+    form.setValue("ai.models.displayed_models", newDisplayedModels, {
+      shouldDirty: true,
+      shouldTouch: true,
+    });
+    form.setValue("ai.models.custom_models", newModels, {
+      shouldDirty: true,
+      shouldTouch: true,
+    });
     onSubmit(form.getValues());
   });
 
@@ -1212,6 +1492,7 @@ export const AiModelDisplayConfig: React.FC<AiConfigProps> = ({
       <AddModelForm
         form={form}
         customModels={customModels}
+        customProviderNames={customProviderNames}
         onSubmit={onSubmit}
       />
     </SettingGroup>
@@ -1221,8 +1502,9 @@ export const AiModelDisplayConfig: React.FC<AiConfigProps> = ({
 export const AddModelForm: React.FC<{
   form: UseFormReturn<UserConfig>;
   customModels: QualifiedModelId[];
+  customProviderNames: string[];
   onSubmit: (values: UserConfig) => void;
-}> = ({ form, customModels, onSubmit }) => {
+}> = ({ form, customModels, customProviderNames, onSubmit }) => {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [modelAdded, setModelAdded] = useState(false);
   const [provider, setProvider] = useState<ProviderId | "custom" | null>(null);
@@ -1254,7 +1536,10 @@ export const AddModelForm: React.FC<{
       modelName as ShortModelId,
     );
 
-    form.setValue("ai.models.custom_models", [newModel.id, ...customModels]);
+    form.setValue("ai.models.custom_models", [newModel.id, ...customModels], {
+      shouldDirty: true,
+      shouldTouch: true,
+    });
     onSubmit(form.getValues());
     resetForm();
 
@@ -1293,16 +1578,27 @@ export const AddModelForm: React.FC<{
           </SelectTrigger>
           <SelectContent>
             <SelectGroup>
-              <SelectItem value="custom">
-                <div className="flex items-center gap-2">
-                  <AiProviderIcon
-                    provider="openai-compatible"
-                    className="h-4 w-4"
-                  />
-                  <span>Custom</span>
-                </div>
-              </SelectItem>
-              {PROVIDERS.filter((p) => p !== "marimo").map((p) => (
+              {customProviderNames.length > 0 && (
+                <>
+                  <p className="px-2 py-1 text-xs text-muted-secondary font-medium">
+                    Custom Providers
+                  </p>
+                  {customProviderNames.map((p) => (
+                    <SelectItem key={p} value={p}>
+                      <div className="flex items-center gap-2">
+                        <AiProviderIcon provider={p} className="h-4 w-4" />
+                        <span>{Strings.startCase(p)}</span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                  <p className="px-2 py-1 text-xs text-muted-secondary font-medium mt-1">
+                    Built-in Providers
+                  </p>
+                </>
+              )}
+              {KNOWN_PROVIDERS.filter(
+                (p) => p !== "marimo" && !customProviderNames.includes(p),
+              ).map((p) => (
                 <SelectItem key={p} value={p}>
                   <div className="flex items-center gap-2">
                     <AiProviderIcon provider={p} className="h-4 w-4" />
@@ -1310,6 +1606,18 @@ export const AddModelForm: React.FC<{
                   </div>
                 </SelectItem>
               ))}
+              <p className="px-2 py-1 text-xs text-muted-secondary font-medium mt-1">
+                Other
+              </p>
+              <SelectItem value="custom">
+                <div className="flex items-center gap-2">
+                  <AiProviderIcon
+                    provider="openai-compatible"
+                    className="h-4 w-4"
+                  />
+                  <span>Enter provider name</span>
+                </div>
+              </SelectItem>
             </SelectGroup>
           </SelectContent>
         </Select>
@@ -1379,17 +1687,12 @@ export const AddModelForm: React.FC<{
     <div>
       {isFormOpen && inputForm}
       <div className="flex flex-row text-sm">
-        <Button
-          onClick={(e) => {
-            e.preventDefault();
-            setIsFormOpen(true);
-          }}
-          variant="link"
-          disabled={isFormOpen}
-        >
-          <PlusIcon className="h-4 w-4 mr-2 mb-0.5" />
-          Add Model
-        </Button>
+        <AddButton
+          isFormOpen={isFormOpen}
+          setIsFormOpen={setIsFormOpen}
+          label="Add Model"
+          className="pl-2"
+        />
         {modelAdded && (
           <div className="flex items-center gap-1 text-green-700 bg-green-500/10 px-2 py-1 rounded-md ml-auto">
             ✓ Model added
@@ -1400,6 +1703,40 @@ export const AddModelForm: React.FC<{
   );
 };
 
+const AddButton = ({
+  isFormOpen,
+  setIsFormOpen,
+  label,
+  className,
+}: {
+  isFormOpen: boolean;
+  setIsFormOpen: (isOpen: boolean) => void;
+  label: string;
+  className?: string;
+}) => {
+  return (
+    <Button
+      onClick={(e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        setIsFormOpen(true);
+      }}
+      variant="link"
+      disabled={isFormOpen}
+      className={cn("px-0", className)}
+    >
+      <PlusIcon className="h-4 w-4 mr-2 mb-0.5" />
+      {label}
+    </Button>
+  );
+};
+
+export type AiSettingsSubTab =
+  | "ai-features"
+  | "ai-providers"
+  | "ai-models"
+  | "mcp";
+
 export const AiConfig: React.FC<AiConfigProps> = ({
   form,
   config,
@@ -1407,8 +1744,14 @@ export const AiConfig: React.FC<AiConfigProps> = ({
 }) => {
   // MCP is not supported in WASM
   const wasm = isWasm();
+  const [activeTab, setActiveTab] = useAtom(aiSettingsSubTabAtom);
+
   return (
-    <Tabs defaultValue="ai-features" className="flex-1">
+    <Tabs
+      value={activeTab}
+      onValueChange={(value) => setActiveTab(value as AiSettingsSubTab)}
+      className="flex-1"
+    >
       <TabsList className="mb-2">
         <TabsTrigger value="ai-features">AI Features</TabsTrigger>
         <TabsTrigger value="ai-providers">AI Providers</TabsTrigger>

@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 import { useCallback, useState } from "react";
 
 type Event = Partial<Pick<React.MouseEvent, "stopPropagation">>;

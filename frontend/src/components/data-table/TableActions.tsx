@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 "use no memo";
 
 import type { RowSelectionState, Table } from "@tanstack/react-table";
@@ -113,7 +113,7 @@ export const TableActions = <TData,>({
           <Button
             variant="text"
             size="xs"
-            className="mb-0"
+            className="mb-0 print:hidden"
             onClick={() => setIsSearchEnabled(!isSearchEnabled)}
           >
             <SearchIcon className="w-4 h-4 text-muted-foreground" />
@@ -125,7 +125,7 @@ export const TableActions = <TData,>({
           <Button
             variant="text"
             size="xs"
-            className="mb-0"
+            className="mb-0 print:hidden"
             onClick={toggleDisplayHeader}
           >
             <ChartSplineIcon className="w-4 h-4 text-muted-foreground" />
@@ -140,6 +140,7 @@ export const TableActions = <TData,>({
                 variant="text"
                 size="xs"
                 onClick={() => togglePanel("row-viewer")}
+                className="print:hidden"
               >
                 <PanelRightIcon
                   className={cn(
@@ -156,6 +157,7 @@ export const TableActions = <TData,>({
                 variant="text"
                 size="xs"
                 onClick={() => togglePanel("column-explorer")}
+                className="print:hidden"
               >
                 <ChartColumnStacked
                   className={cn(

@@ -1,6 +1,7 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import asyncio
 from contextlib import contextmanager
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Optional
@@ -11,12 +12,19 @@ from starlette.websockets import WebSocketDisconnect
 from marimo._config.config import ExperimentalConfig
 from marimo._config.manager import UserConfigManager
 from marimo._messaging.msgspec_encoder import asdict
-from marimo._messaging.ops import KernelCapabilities, KernelReady
+from marimo._messaging.notification import (
+    KernelCapabilitiesNotification,
+    KernelReadyNotification,
+)
 from marimo._server.codes import WebSocketCodes
-from marimo._server.model import SessionMode
-from marimo._server.sessions import SessionManager
+from marimo._server.session_manager import SessionManager
+from marimo._session.model import SessionMode
 from marimo._utils.parse_dataclass import parse_raw
-from tests._server.conftest import get_session_manager, get_user_config_manager
+from tests._server.conftest import (
+    get_kernel_tasks,
+    get_session_manager,
+    get_user_config_manager,
+)
 from tests._server.mocks import token_header
 
 if TYPE_CHECKING:
@@ -38,7 +46,7 @@ def create_response(
         "kiosk": False,
         "configs": [{"disabled": False, "hide_code": False}],
         "app_config": {"width": "full"},
-        "capabilities": asdict(KernelCapabilities()),
+        "capabilities": asdict(KernelCapabilitiesNotification()),
     }
     response.update(partial_response)
     return response
@@ -69,8 +77,8 @@ def assert_kernel_ready_response(
 ) -> None:
     if response is None:
         response = create_response({})
-    data = parse_raw(raw_data["data"], KernelReady)
-    expected = parse_raw(response, KernelReady)
+    data = parse_raw(raw_data["data"], KernelReadyNotification)
+    expected = parse_raw(response, KernelReadyNotification)
     assert data.cell_ids == expected.cell_ids
     assert data.codes == expected.codes
     assert data.names == expected.names
@@ -84,7 +92,7 @@ def assert_kernel_ready_response(
 
 
 def assert_parse_ready_response(raw_data: dict[str, Any]) -> None:
-    data = parse_raw(raw_data["data"], KernelReady)
+    data = parse_raw(raw_data["data"], KernelReadyNotification)
     assert data is not None
 
 
@@ -92,9 +100,6 @@ def test_ws(client: TestClient) -> None:
     with client.websocket_connect(WS_URL) as websocket:
         data = websocket.receive_json()
         assert_kernel_ready_response(data)
-    # shut down after websocket context manager exists, otherwise
-    # the test fails on windows (event loop closed twice)
-    client.post("/api/kernel/shutdown", headers=HEADERS)
 
 
 def test_without_session(client: TestClient) -> None:
@@ -103,7 +108,6 @@ def test_without_session(client: TestClient) -> None:
             raise AssertionError()
     assert exc_info.value.code == 1000
     assert exc_info.value.reason == "MARIMO_NO_SESSION_ID"
-    client.post("/api/kernel/shutdown", headers=HEADERS)
 
 
 def test_disconnect_and_reconnect(client: TestClient) -> None:
@@ -116,8 +120,6 @@ def test_disconnect_and_reconnect(client: TestClient) -> None:
         assert data == {"op": "reconnected", "data": {"op": "reconnected"}}
         data = websocket.receive_json()
         assert data["op"] == "alert"
-
-    client.post("/api/kernel/shutdown", headers=HEADERS)
 
 
 def test_disconnect_then_reconnect_then_refresh(client: TestClient) -> None:
@@ -138,8 +140,6 @@ def test_disconnect_then_reconnect_then_refresh(client: TestClient) -> None:
         data = websocket.receive_json()
         assert_kernel_ready_response(data, create_response({"resumed": True}))
 
-    client.post("/api/kernel/shutdown", headers=HEADERS)
-
 
 def test_allows_multiple_connections_with_other_sessions(
     client: TestClient,
@@ -154,7 +154,6 @@ def test_allows_multiple_connections_with_other_sessions(
                 assert_kernel_ready_response(
                     data, create_response({"resumed": True})
                 )
-    client.post("/api/kernel/shutdown", headers=HEADERS)
 
 
 def test_fails_on_multiple_connections_with_other_sessions(
@@ -169,7 +168,6 @@ def test_fails_on_multiple_connections_with_other_sessions(
                 raise AssertionError()
         assert exc_info.value.code == 1003
         assert exc_info.value.reason == "MARIMO_ALREADY_CONNECTED"
-    client.post("/api/kernel/shutdown", headers=HEADERS)
 
 
 def test_allows_multiple_connections_with_same_file(
@@ -187,7 +185,6 @@ def test_allows_multiple_connections_with_same_file(
             with client.websocket_connect(ws_2) as other_websocket:
                 data = other_websocket.receive_json()
                 assert_parse_ready_response(data)
-    client.post("/api/kernel/shutdown", headers=HEADERS)
 
 
 def test_fails_on_multiple_connections_with_same_file(
@@ -205,15 +202,16 @@ def test_fails_on_multiple_connections_with_same_file(
                 raise AssertionError()
         assert exc_info.value.code == 1003
         assert exc_info.value.reason == "MARIMO_ALREADY_CONNECTED"
-    client.post("/api/kernel/shutdown", headers=HEADERS)
 
 
-@pytest.mark.flaky(reruns=3)
 async def test_file_watcher_calls_reload(client: TestClient) -> None:
     session_manager: SessionManager = get_session_manager(client)
     session_manager.mode = SessionMode.RUN
+    # Recreate the file change coordinator with the new mode's strategy
+    session_manager._file_change_coordinator = (
+        session_manager._create_file_change_coordinator()
+    )
     session_manager.watch = True
-    session_manager._setup_file_watching()
     with client.websocket_connect(WS_URL) as websocket:
         data = websocket.receive_json()
         assert_kernel_ready_response(data)
@@ -222,14 +220,19 @@ async def test_file_watcher_calls_reload(client: TestClient) -> None:
         with open(filename, "a") as f:  # noqa: ASYNC230
             f.write("\n# test")
             f.close()
-        assert session_manager.watcher_manager._watchers
-        watcher = list(session_manager.watcher_manager._watchers.values())[0]
+        assert session_manager._watcher_manager._watchers
+        watcher = list(session_manager._watcher_manager._watchers.values())[0]
         await watcher.callback(Path(filename))
-        data = websocket.receive_json()
-        assert data == {"op": "reload", "data": {"op": "reload"}}
-        session_manager.mode = SessionMode.EDIT
+        # Drain messages until we get the reload message
+        # (other messages like 'variables' may arrive first)
+        expected = {"op": "reload", "data": {"op": "reload"}}
+        for _ in range(10):
+            data = websocket.receive_json()
+            if data == expected:
+                break
+        else:
+            raise AssertionError(f"Expected {expected}, but never received it")
         session_manager.watch = False
-    client.post("/api/kernel/shutdown", headers=HEADERS)
 
 
 async def test_query_params(client: TestClient) -> None:
@@ -241,12 +244,11 @@ async def test_query_params(client: TestClient) -> None:
 
         session = get_session_manager(client).get_session("123")
         assert session
-        assert session.kernel_manager.app_metadata.query_params == {
+        assert session._kernel_manager.app_metadata.query_params == {
             "foo": "1",
             "bar": ["2", "3"],
             "baz": "4",
         }
-    client.post("/api/kernel/shutdown", headers=HEADERS)
 
 
 async def test_connect_kiosk_without_session(client: TestClient) -> None:
@@ -258,7 +260,6 @@ async def test_connect_kiosk_without_session(client: TestClient) -> None:
             raise AssertionError()
     assert exc_info.value.code == WebSocketCodes.NORMAL_CLOSE
     assert exc_info.value.reason == "MARIMO_NO_SESSION"
-    client.post("/api/kernel/shutdown", headers=HEADERS)
 
 
 async def test_connect_kiosk_with_session(client: TestClient) -> None:
@@ -275,7 +276,6 @@ async def test_connect_kiosk_with_session(client: TestClient) -> None:
             assert_kernel_ready_response(
                 data, create_response({"kiosk": True, "resumed": True})
             )
-    client.post("/api/kernel/shutdown", headers=HEADERS)
 
 
 async def test_cannot_connect_kiosk_with_run_session(
@@ -297,9 +297,6 @@ async def test_cannot_connect_kiosk_with_run_session(
                 raise AssertionError()
         assert exc_info.value.code == WebSocketCodes.FORBIDDEN
         assert exc_info.value.reason == "MARIMO_KIOSK_NOT_ALLOWED"
-
-    client.post("/api/kernel/shutdown", headers=HEADERS)
-    session_manager.mode = SessionMode.EDIT
 
 
 async def test_connects_to_existing_session_with_same_file(
@@ -344,8 +341,6 @@ async def test_connects_to_existing_session_with_same_file(
                 assert len(messages2) == 4
                 assert messages2[0]["op"] == "variables"
 
-    client.post("/api/kernel/shutdown", headers=HEADERS)
-
 
 def flush_messages(
     websocket: WebSocketTestSession, at_least: int = 0
@@ -380,12 +375,6 @@ def test_ws_requires_authentication(client: TestClient) -> None:
     assert exc_info.value.code == WebSocketCodes.UNAUTHORIZED
     assert exc_info.value.reason == "MARIMO_UNAUTHORIZED"
 
-    # Ensure shutdown
-    try:
-        client.post("/api/kernel/shutdown", headers=HEADERS)
-    except Exception:
-        pass
-
 
 def test_ws_sync_requires_authentication(client: TestClient) -> None:
     """Test that WebSocket sync endpoint requires authentication."""
@@ -406,4 +395,244 @@ def test_ws_with_valid_authentication(client: TestClient) -> None:
         assert_kernel_ready_response(data)
 
     # Clean up
-    client.post("/api/kernel/shutdown", headers=HEADERS)
+
+
+# ==============================================================================
+# Edge Cases - Session Resumption
+# ==============================================================================
+
+
+async def test_session_resumption(client: TestClient) -> None:
+    """Test that session resumption restores state and replays operations."""
+    # Create a session and instantiate it
+    with client.websocket_connect(WS_URL) as websocket:
+        data = websocket.receive_json()
+        assert_kernel_ready_response(data)
+
+        # Instantiate to generate some operations
+        client.post(
+            "/api/kernel/instantiate",
+            headers=headers("123"),
+            json={"objectIds": [], "values": [], "auto_run": True},
+        )
+
+        # Flush initial messages
+        flush_messages(websocket, at_least=1)
+
+    await asyncio.sleep(0.2)
+
+    # Resume with new session ID (simulates browser refresh)
+    with client.websocket_connect(OTHER_WS_URL) as websocket:
+        # Should receive reconnected + resumed state
+        reconnect_msg = websocket.receive_json()
+        assert reconnect_msg["op"] == "reconnected"
+
+        kernel_ready_msg = websocket.receive_json()
+        assert kernel_ready_msg["op"] == "kernel-ready"
+
+        # Verify resumed flag is True
+        data = parse_raw(kernel_ready_msg["data"], KernelReadyNotification)
+        assert data.resumed is True
+
+        # Should replay operations - collect some messages
+        replayed = flush_messages(websocket, at_least=1)
+        assert len(replayed) >= 1
+
+
+# ==============================================================================
+# Edge Cases - Disconnection/Reconnection
+# ==============================================================================
+
+
+async def test_reconnection_cancels_close_handle(client: TestClient) -> None:
+    """Test that reconnection properly cancels pending close handle."""
+    session_manager = get_session_manager(client)
+    session_manager.mode = SessionMode.RUN
+
+    with client.websocket_connect(WS_URL) as websocket:
+        data = websocket.receive_json()
+        assert_kernel_ready_response(data)
+
+        # Close the websocket
+        websocket.close()
+
+        # Wait briefly for disconnect handling
+        await asyncio.sleep(0.1)
+
+        # Reconnect immediately (before TTL expires)
+        with client.websocket_connect(WS_URL) as new_websocket:
+            data = new_websocket.receive_json()
+            # Should get reconnected message
+            assert data["op"] == "reconnected"
+
+            # Session should still exist (TTL was canceled)
+            session = session_manager.get_session("123")
+            assert session is not None
+
+
+@pytest.mark.parametrize(
+    ("mode", "manager_ttl"),
+    [
+        (
+            SessionMode.RUN,
+            120,
+        ),  # RUN mode always uses TTL which has to be integer: default 120.
+        (SessionMode.EDIT, 120),  # EDIT mode with --session-ttl
+    ],
+)
+async def test_session_ttl_expiration(
+    client: TestClient, mode: SessionMode, manager_ttl: int | None
+) -> None:
+    """Test that sessions expire after TTL in RUN mode or when TTL cleanup applies in EDIT mode."""
+    session_manager = get_session_manager(client)
+    session_manager.mode = mode
+    session_manager.ttl_seconds = manager_ttl
+
+    with client.websocket_connect(WS_URL) as websocket:
+        data = websocket.receive_json()
+        assert_kernel_ready_response(data)
+
+        session = session_manager.get_session("123")
+        assert session is not None
+
+        # Override TTL to be very short for testing
+        kernel_tasks = get_kernel_tasks(session_manager)
+        session.ttl_seconds = 0.01
+
+        websocket.close()
+
+        # Wait for TTL to expire, which should close the session
+        await asyncio.sleep(0.3)
+        session = session_manager.get_session("123")
+        assert session is None
+
+        # We join on kernel threads to make sure that the main module
+        # is restored correctly.
+        for task in kernel_tasks:
+            task.join()
+
+
+async def test_edit_mode_without_session_ttl_no_delayed_cleanup(
+    client: TestClient,
+) -> None:
+    """Test that EDIT mode without --session-ttl doesn't use TTL-based cleanup.
+
+    This is the default behavior for `marimo edit` (without --session-ttl flag).
+    Sessions persist for reconnection - no delayed TTL cleanup is scheduled.
+    """
+    session_manager = get_session_manager(client)
+    session_manager.mode = SessionMode.EDIT
+    # Default: no --session-ttl flag passed
+    assert session_manager.ttl_seconds is None
+
+    with client.websocket_connect(WS_URL) as websocket:
+        data = websocket.receive_json()
+        assert_kernel_ready_response(data)
+
+        session = session_manager.get_session("123")
+        assert session is not None
+
+    # Wait for disconnect handling
+    await asyncio.sleep(0.1)
+
+    # Session should still exist
+    session = session_manager.get_session("123")
+    assert session is not None
+
+
+# ==============================================================================
+# Edge Cases - Connection Validation
+# ==============================================================================
+
+
+def test_missing_file_key_closes_connection(client: TestClient) -> None:
+    """Test that missing file key causes connection to close.
+
+    This can happen when file_router.get_unique_file_key() returns None.
+    """
+    from unittest.mock import patch
+
+    session_manager = get_session_manager(client)
+
+    # Mock get_unique_file_key to return None
+    with patch.object(
+        session_manager.file_router,
+        "get_unique_file_key",
+        return_value=None,
+    ):
+        with pytest.raises(WebSocketDisconnect) as exc_info:
+            with client.websocket_connect(
+                "/ws?session_id=123&access_token=fake-token"
+            ):
+                pass
+
+        assert exc_info.value.code == WebSocketCodes.NORMAL_CLOSE
+        assert exc_info.value.reason == "MARIMO_NO_FILE_KEY"
+
+
+async def test_rtc_config_with_loro_unavailable(client: TestClient) -> None:
+    """Regression test: connection works when RTC enabled but Loro unavailable."""
+    from unittest.mock import patch
+
+    # Enable RTC in config but mock Loro as unavailable
+    with (
+        rtc_enabled(get_user_config_manager(client)),
+        patch(
+            "marimo._server.api.endpoints.ws.ws_kernel_ready.is_rtc_available",
+            return_value=False,
+        ),
+    ):
+        # Connection should succeed without errors
+        with client.websocket_connect(WS_URL) as websocket:
+            data = websocket.receive_json()
+            assert_kernel_ready_response(data)
+
+
+# ============================================================================
+# Advanced WebSocket State Machine Tests
+# ============================================================================
+
+
+async def test_rapid_reconnection_cancels_ttl_cleanup(
+    client: TestClient,
+) -> None:
+    """Test that rapid reconnection cancels the TTL cleanup timer."""
+    with client.websocket_connect(WS_URL) as websocket:
+        data = websocket.receive_json()
+        assert_kernel_ready_response(data)
+
+    # Disconnect and immediately reconnect (before TTL expires)
+    await asyncio.sleep(0.1)
+
+    with client.websocket_connect(WS_URL) as websocket:
+        data = websocket.receive_json()
+        assert data["op"] == "reconnected"
+        data = websocket.receive_json()
+        assert data["op"] == "alert"
+
+
+async def test_multiple_rapid_reconnections(client: TestClient) -> None:
+    """Test multiple rapid connect/disconnect cycles don't break session."""
+    for i in range(5):
+        with client.websocket_connect(WS_URL) as websocket:
+            data = websocket.receive_json()
+            if i == 0:
+                assert_kernel_ready_response(data)
+            else:
+                assert data["op"] == "reconnected"
+
+
+async def test_websocket_message_queue_delivery(client: TestClient) -> None:
+    """Test that kernel messages are queued and delivered."""
+    with client.websocket_connect(WS_URL) as websocket:
+        data = websocket.receive_json()
+        assert_kernel_ready_response(data)
+
+        client.post(
+            "/api/kernel/instantiate",
+            headers=headers("123"),
+            json={"objectIds": [], "values": [], "autoRun": True},
+        )
+
+        messages = flush_messages(websocket, at_least=1)
+        assert len(messages) >= 1

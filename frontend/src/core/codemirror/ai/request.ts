@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import { waitForConnectionOpen } from "@/core/network/connection";
 import type { AiCompletionRequest } from "@/core/network/types";

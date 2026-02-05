@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
 import re
@@ -7,6 +7,7 @@ from typing import Any, cast
 
 from marimo import _loggers
 from marimo._cli.file_path import FileContentReader
+from marimo._utils.paths import normalize_path
 from marimo._utils.scripts import read_pyproject_from_script
 
 LOGGER = _loggers.marimo_logger()
@@ -184,7 +185,7 @@ def _pyproject_toml_to_requirements_txt(
             # If path is relative and we have a config path, resolve it relative to the config path
             if not source_path.is_absolute() and config_path:
                 config_dir = Path(config_path).parent
-                source_path = (config_dir / source_path).resolve()
+                source_path = normalize_path(config_dir / source_path)
             new_dependency = f"{dependency} @ {str(source_path)}"
 
         # Handle URLs
@@ -208,7 +209,7 @@ def is_marimo_dependency(dependency: str) -> bool:
 
 
 def get_headers_from_markdown(contents: str) -> dict[str, str]:
-    from marimo._convert.markdown.markdown import extract_frontmatter
+    from marimo._convert.markdown.to_ir import extract_frontmatter
 
     frontmatter, _ = extract_frontmatter(contents)
     return get_headers_from_frontmatter(frontmatter)
@@ -229,3 +230,20 @@ def get_headers_from_frontmatter(
         headers["pyproject"] = pyproject
     headers["header"] = frontmatter.get("header", "")
     return headers
+
+
+def has_marimo_in_script_metadata(filepath: str) -> bool | None:
+    """Check if marimo is in the file's PEP 723 script metadata dependencies.
+
+    Returns:
+        True if marimo is in dependencies
+        False if script metadata exists but marimo is not in dependencies
+        None if file has no script metadata
+    """
+
+    project = _get_pyproject_from_filename(filepath)
+    if project is None:
+        return None
+
+    dependencies = project.get("dependencies", [])
+    return any(is_marimo_dependency(dep) for dep in dependencies)

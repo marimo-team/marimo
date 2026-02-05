@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 import React from "react";
 import { AiModelId, type QualifiedModelId } from "@/core/ai/ids/ids";
 import { Banner } from "@/plugins/impl/common/error-banner";

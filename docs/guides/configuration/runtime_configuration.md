@@ -1,32 +1,19 @@
 # Runtime configuration
 
-Through the notebook settings menu, you can configure how and when marimo runs
-cells.
+Through the notebook settings menu or notebook footer, you can configure how
+and when marimo runs cells.
 
 <video controls width="100%" height="100%" align="center" src="/_static/docs-runtime-config.mp4"> </video>
 
-## Disable autorun on startup { #on-startup }
+## On startup { #on-startup }
 
-By default, marimo notebooks run automatically on startup; just how the command
-
-```bash
-python main.py
-```
-
-executes a script,
-
-```bash
-marimo edit notebook.py
-```
-
-executes the notebook.
-
-Disable this behavior by unchecking "Autorun on startup".
+Toggle this setting to control whether marimo notebooks opened with `marimo
+edit` automatically run on startup
 
 _When sharing a notebook as an app with `marimo run`, this setting has
 no effect._
 
-## Disable autorun on cell change (lazy execution)
+## On cell change: disabling autorun on cell change (lazy execution)
 
 <video controls width="100%" height="100%" align="center" src="/_static/docs-lazy-execution.mp4"> </video>
 

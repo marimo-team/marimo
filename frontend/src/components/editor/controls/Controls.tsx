@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import { useAtomValue } from "jotai";
 import {
@@ -15,7 +15,7 @@ import { ShutdownButton } from "@/components/editor/controls/shutdown-button";
 import { Button } from "@/components/editor/inputs/Inputs";
 import { FindReplace } from "@/components/find-replace/find-replace";
 import type { AppConfig } from "@/core/config/config-schema";
-import { isConnectedAtom } from "@/core/network/connection";
+import { canInteractWithAppAtom } from "@/core/network/connection";
 import { SaveComponent } from "@/core/saving/save-component";
 import {
   getConnectionTooltip,
@@ -54,9 +54,7 @@ export const Controls = ({
   onRun,
   connectionState,
   running,
-  appConfig,
 }: ControlsProps): JSX.Element => {
-  const appWidth = appConfig.width;
   const undoAvailable = useAtomValue(canUndoDeletesAtom);
   const needsRun = useAtomValue(needsRunAtom);
   const { undoDeleteCell } = useCellActions();
@@ -103,12 +101,7 @@ export const Controls = ({
         </div>
       )}
 
-      <div
-        className={cn(
-          bottomRightControls,
-          appWidth === "compact" && "xl:flex-row items-end",
-        )}
-      >
+      <div className={cn(bottomRightControls)}>
         <HideInKioskMode>
           <SaveComponent kioskMode={false} />
         </HideInKioskMode>
@@ -155,7 +148,7 @@ const RunControlButton = ({
   needsRun: boolean;
   onRun: () => void;
 }) => {
-  const isConnected = useAtomValue(isConnectedAtom);
+  const canInteractWithApp = useAtomValue(canInteractWithAppAtom);
 
   if (needsRun) {
     return (
@@ -165,8 +158,8 @@ const RunControlButton = ({
           size="medium"
           color="yellow"
           shape="circle"
-          onClick={isConnected ? onRun : undefined}
-          disabled={!isConnected}
+          onClick={onRun}
+          disabled={!canInteractWithApp}
         >
           <PlayIcon strokeWidth={1.5} size={16} />
         </Button>
@@ -182,7 +175,7 @@ const RunControlButton = ({
         color="disabled"
         size="medium"
         shape="circle"
-        disabled={!isConnected}
+        disabled={!canInteractWithApp}
       >
         <PlayIcon strokeWidth={1.5} size={16} />
       </Button>
@@ -219,7 +212,7 @@ const StopControlButton = ({
 };
 
 const topRightControls =
-  "absolute top-3 right-5 m-0 flex items-center gap-2 min-h-[28px] no-print pointer-events-auto z-30 print:hidden";
+  "absolute top-3 right-5 m-0 flex items-center gap-2 min-h-[28px] print:hidden pointer-events-auto z-30";
 
 const bottomRightControls =
-  "absolute bottom-5 right-5 flex flex-col gap-2 items-center no-print pointer-events-auto z-30 print:hidden";
+  "absolute bottom-5 right-5 flex flex-col gap-2 items-center print:hidden pointer-events-auto z-30";

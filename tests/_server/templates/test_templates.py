@@ -27,9 +27,9 @@ from marimo._schemas.session import (
     NotebookSessionV1,
     StreamOutput,
 )
-from marimo._server.model import SessionMode
 from marimo._server.templates import templates
 from marimo._server.tokens import SkewProtectionToken
+from marimo._session.model import SessionMode
 from marimo._utils.code import hash_code
 from tests._server.templates.utils import normalize_index_html
 from tests.mocks import snapshotter
@@ -64,14 +64,14 @@ class TestNotebookPageTemplate(unittest.TestCase):
 
     def test_notebook_page_template(self) -> None:
         result = templates.notebook_page_template(
-            self.html,
-            self.base_url,
-            self.user_config,
-            self.config_overrides,
-            self.server_token,
-            self.app_config,
-            str(self.filename),
-            self.mode,
+            html=self.html,
+            base_url=self.base_url,
+            user_config=self.user_config,
+            config_overrides=self.config_overrides,
+            server_token=self.server_token,
+            app_config=self.app_config,
+            filename=str(self.filename),
+            mode=self.mode,
         )
 
         assert self.base_url not in result
@@ -82,14 +82,14 @@ class TestNotebookPageTemplate(unittest.TestCase):
 
     def test_notebook_page_template_no_filename(self) -> None:
         result = templates.notebook_page_template(
-            self.html,
-            self.base_url,
-            self.user_config,
-            self.config_overrides,
-            self.server_token,
-            self.app_config,
-            None,
-            self.mode,
+            html=self.html,
+            base_url=self.base_url,
+            user_config=self.user_config,
+            config_overrides=self.config_overrides,
+            server_token=self.server_token,
+            app_config=self.app_config,
+            filename=None,
+            mode=self.mode,
         )
 
         assert self.base_url not in result
@@ -100,14 +100,14 @@ class TestNotebookPageTemplate(unittest.TestCase):
 
     def test_notebook_page_template_edit_mode(self) -> None:
         result = templates.notebook_page_template(
-            self.html,
-            self.base_url,
-            self.user_config,
-            self.config_overrides,
-            self.server_token,
-            self.app_config,
-            str(self.filename),
-            SessionMode.EDIT,
+            html=self.html,
+            base_url=self.base_url,
+            user_config=self.user_config,
+            config_overrides=self.config_overrides,
+            server_token=self.server_token,
+            app_config=self.app_config,
+            filename=str(self.filename),
+            mode=SessionMode.EDIT,
         )
 
         assert self.base_url not in result
@@ -124,14 +124,14 @@ class TestNotebookPageTemplate(unittest.TestCase):
         css_file.write_text(css)
 
         result = templates.notebook_page_template(
-            self.html,
-            self.base_url,
-            self.user_config,
-            self.config_overrides,
-            self.server_token,
-            _AppConfig(css_file="custom.css"),
-            str(self.filename),
-            self.mode,
+            html=self.html,
+            base_url=self.base_url,
+            user_config=self.user_config,
+            config_overrides=self.config_overrides,
+            server_token=self.server_token,
+            app_config=_AppConfig(css_file="custom.css"),
+            filename=str(self.filename),
+            mode=self.mode,
         )
 
         assert css in result
@@ -155,14 +155,14 @@ class TestNotebookPageTemplate(unittest.TestCase):
         head_file.write_text(head)
 
         result = templates.notebook_page_template(
-            self.html,
-            self.base_url,
-            self.user_config,
-            self.config_overrides,
-            self.server_token,
-            _AppConfig(html_head_file="head.html"),
-            str(self.filename),
-            self.mode,
+            html=self.html,
+            base_url=self.base_url,
+            user_config=self.user_config,
+            config_overrides=self.config_overrides,
+            server_token=self.server_token,
+            app_config=_AppConfig(html_head_file="head.html"),
+            filename=str(self.filename),
+            mode=self.mode,
         )
 
         assert head in result.split("</head>", 1)[0]
@@ -183,14 +183,14 @@ class TestNotebookPageTemplate(unittest.TestCase):
         config["display"]["custom_css"] = ["custom1.css", "custom2.css"]
 
         result = templates.notebook_page_template(
-            self.html,
-            self.base_url,
-            config,
-            self.config_overrides,
-            self.server_token,
-            self.app_config,
-            str(self.filename),
-            self.mode,
+            html=self.html,
+            base_url=self.base_url,
+            user_config=config,
+            config_overrides=self.config_overrides,
+            server_token=self.server_token,
+            app_config=self.app_config,
+            filename=str(self.filename),
+            mode=self.mode,
         )
 
         assert css1 in result
@@ -209,14 +209,14 @@ class TestNotebookPageTemplate(unittest.TestCase):
         config["display"]["custom_css"] = [str(css_file)]
 
         result = templates.notebook_page_template(
-            self.html,
-            self.base_url,
-            config,
-            self.config_overrides,
-            self.server_token,
-            self.app_config,
-            str(self.filename),
-            self.mode,
+            html=self.html,
+            base_url=self.base_url,
+            user_config=config,
+            config_overrides=self.config_overrides,
+            server_token=self.server_token,
+            app_config=self.app_config,
+            filename=str(self.filename),
+            mode=self.mode,
         )
 
         assert css in result
@@ -236,14 +236,14 @@ class TestNotebookPageTemplate(unittest.TestCase):
         config_overrides["display"] = {"custom_css": ["override.css"]}
 
         result = templates.notebook_page_template(
-            self.html,
-            self.base_url,
-            self.user_config,
-            config_overrides,
-            self.server_token,
-            self.app_config,
-            str(self.filename),
-            self.mode,
+            html=self.html,
+            base_url=self.base_url,
+            user_config=self.user_config,
+            config_overrides=config_overrides,
+            server_token=self.server_token,
+            app_config=self.app_config,
+            filename=str(self.filename),
+            mode=self.mode,
         )
 
         assert css1 in result
@@ -256,14 +256,14 @@ class TestNotebookPageTemplate(unittest.TestCase):
         config["display"]["custom_css"] = ["nonexistent.css"]
 
         result = templates.notebook_page_template(
-            self.html,
-            self.base_url,
-            config,
-            self.config_overrides,
-            self.server_token,
-            self.app_config,
-            str(self.filename),
-            self.mode,
+            html=self.html,
+            base_url=self.base_url,
+            user_config=config,
+            config_overrides=self.config_overrides,
+            server_token=self.server_token,
+            app_config=self.app_config,
+            filename=str(self.filename),
+            mode=self.mode,
         )
 
         assert "nonexistent.css" in result
@@ -275,14 +275,14 @@ class TestNotebookPageTemplate(unittest.TestCase):
         asset_url = "https://cdn.example.com/v{version}"
 
         result = templates.notebook_page_template(
-            self.html,
-            self.base_url,
-            self.user_config,
-            self.config_overrides,
-            self.server_token,
-            self.app_config,
-            str(self.filename),
-            self.mode,
+            html=self.html,
+            base_url=self.base_url,
+            user_config=self.user_config,
+            config_overrides=self.config_overrides,
+            server_token=self.server_token,
+            app_config=self.app_config,
+            filename=str(self.filename),
+            mode=self.mode,
             asset_url=asset_url,
         )
 
@@ -317,6 +317,7 @@ class TestHomePageTemplate(unittest.TestCase):
             self.user_config,
             self.config_overrides,
             self.server_token,
+            SessionMode.EDIT,
         )
 
         assert self.base_url not in result
@@ -338,6 +339,7 @@ class TestHomePageTemplate(unittest.TestCase):
             self.user_config,
             self.config_overrides,
             self.server_token,
+            SessionMode.EDIT,
             asset_url=asset_url,
         )
 
@@ -345,6 +347,19 @@ class TestHomePageTemplate(unittest.TestCase):
         assert 'href="https://cdn.example.com/' in result
         assert 'src="https://cdn.example.com/' in result
         assert 'crossorigin="anonymous"' in result
+        _assert_no_leftover_replacements(result)
+
+    def test_home_page_template_run_mode(self) -> None:
+        result = templates.home_page_template(
+            self.html,
+            self.base_url,
+            self.user_config,
+            self.config_overrides,
+            self.server_token,
+            SessionMode.RUN,
+        )
+
+        assert "gallery" in result
         _assert_no_leftover_replacements(result)
 
 

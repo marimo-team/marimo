@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -12,6 +12,8 @@ describe("useFocusFirstEditor", () => {
       cb(0);
       return 0;
     });
+    // Mock document.hasFocus() to return true so focus logic runs
+    vi.spyOn(document, "hasFocus").mockReturnValue(true);
   });
 
   afterEach(() => {
@@ -119,5 +121,30 @@ describe("useFocusFirstEditor", () => {
       value: { hash: originalHash },
       writable: true,
     });
+  });
+
+  it("should not focus when document does not have focus", () => {
+    // Mock document.hasFocus() to return false (e.g., when embedded in iframe)
+    vi.spyOn(document, "hasFocus").mockReturnValue(false);
+
+    const mockEditor = { focus: vi.fn() };
+    vi.spyOn(cellsModule, "getNotebook").mockReturnValue({
+      cellIds: { iterateTopLevelIds: ["cell-1"] },
+      cellData: {
+        "cell-1": { config: { hide_code: false } },
+      },
+      cellHandles: {
+        "cell-1": { current: { editorView: mockEditor } },
+      },
+    } as unknown as cellsModule.NotebookState);
+
+    renderHook(() => useFocusFirstEditor());
+
+    act(() => {
+      vi.advanceTimersByTime(100);
+    });
+
+    // Focus should NOT be called when document doesn't have focus
+    expect(mockEditor.focus).not.toHaveBeenCalled();
   });
 });

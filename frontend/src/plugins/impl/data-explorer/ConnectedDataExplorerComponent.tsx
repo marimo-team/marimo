@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 /* eslint-disable @typescript-eslint/no-base-to-string */
 import * as cql from "compassql/build/src";
 import { createStore, Provider, useAtomValue } from "jotai";
@@ -214,7 +214,7 @@ export const DataExplorerComponent = ({
               <VegaEmbed
                 options={chartOptions(theme)}
                 key={idx}
-                spec={plot.spec}
+                spec={augmentSpecWithData(plot.spec, chartData)}
               />
             </HorizontalCarouselItem>
           ))}

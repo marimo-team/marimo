@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
 import uuid
@@ -6,7 +6,7 @@ from contextvars import ContextVar
 from dataclasses import dataclass
 from typing import Any, Optional
 
-from marimo._runtime.requests import HTTPRequest
+from marimo._runtime.commands import HTTPRequest
 
 RunId_t = str
 RUN_ID_CTX = ContextVar[Optional[RunId_t]]("run_id")

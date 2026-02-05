@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import type { EditorView } from "@codemirror/view";
 import { useAtomValue, useSetAtom } from "jotai";
@@ -26,7 +26,6 @@ import {
   ZapIcon,
   ZapOffIcon,
 } from "lucide-react";
-import { downloadCellOutput } from "@/components/export/export-output-button";
 import { MultiIcon } from "@/components/icons/multi-icon";
 import { useImperativeModal } from "@/components/modal/ImperativeModal";
 import {
@@ -44,6 +43,7 @@ import type { CellData } from "@/core/cells/types";
 import { formatEditorViews } from "@/core/codemirror/format";
 import { toggleToLanguage } from "@/core/codemirror/language/commands";
 import { switchLanguage } from "@/core/codemirror/language/extension";
+import { MARKDOWN_INITIAL_HIDE_CODE } from "@/core/codemirror/language/languages/markdown";
 import {
   aiEnabledAtom,
   appWidthAtom,
@@ -54,6 +54,7 @@ import { useRequestClient } from "@/core/network/requests";
 import type { CellConfig, RuntimeState } from "@/core/network/types";
 import { canLinkToCell, createCellLink } from "@/utils/cell-urls";
 import { copyToClipboard } from "@/utils/copy";
+import { downloadCellOutputAsImage } from "@/utils/download";
 import { MarkdownIcon, PythonIcon } from "../cell/code/icons";
 import { useDeleteCellCallback } from "../cell/useDeleteCell";
 import { useRunCell } from "../cell/useRunCells";
@@ -85,6 +86,7 @@ export function useCellActionButtons({ cell, closePopover }: Props) {
     sendToBottom,
     addColumnBreakpoint,
     clearCellOutput,
+    markUntouched,
   } = useCellActions();
   const splitCell = useSplitCellCallback();
   const runCell = useRunCell(cell?.cellId);
@@ -209,7 +211,7 @@ export function useCellActionButtons({ cell, closePopover }: Props) {
         icon: <MarkdownIcon />,
         label: "Convert to Markdown",
         hotkey: "cell.viewAsMarkdown",
-        handle: () => {
+        handle: async () => {
           const editorView = getEditorView();
           if (!editorView) {
             return;
@@ -219,6 +221,17 @@ export function useCellActionButtons({ cell, closePopover }: Props) {
             language: "markdown",
             keepCodeAsIs: false,
           });
+          // Code stays visible until the user blurs the cell
+          if (!config.hide_code && MARKDOWN_INITIAL_HIDE_CODE) {
+            await saveCellConfig({
+              configs: { [cellId]: { hide_code: MARKDOWN_INITIAL_HIDE_CODE } },
+            });
+            updateCellConfig({
+              cellId,
+              config: { hide_code: MARKDOWN_INITIAL_HIDE_CODE },
+            });
+            markUntouched({ cellId });
+          }
         },
         hidden: isSetupCell,
       },
@@ -341,7 +354,7 @@ export function useCellActionButtons({ cell, closePopover }: Props) {
         icon: <ImageIcon size={13} strokeWidth={1.5} />,
         label: "Export output as PNG",
         hidden: !hasOutput,
-        handle: () => downloadCellOutput(cellId),
+        handle: () => downloadCellOutputAsImage(cellId, "result"),
       },
       {
         icon: <XCircleIcon size={13} strokeWidth={1.5} />,

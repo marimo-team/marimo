@@ -49,6 +49,23 @@ message string) attributes; `config` is a
 [`ChatModelConfig`][marimo.ai.ChatModelConfig] object with various
 configuration parameters, which you are free to ignore.
 
+## Using Pydantic AI
+
+marimo has first class support for [pydantic-ai](https://ai.pydantic.dev). Use the [`Agent`](https://ai.pydantic.dev/agents) class to build your chatbot and the Chat UI will display reasoning steps, tool calls and more.
+
+```python
+from pydantic_ai import Agent
+import marimo as mo
+
+assistant = Agent(
+    "openai:gpt-5",
+    system_prompt="You are a helpful assistant.",
+)
+
+chat = mo.ui.chat(mo.ai.llm.pydantic_ai(assistant))
+chat
+```
+
 ## Using a Built-in AI Model
 
 You can use marimo's built-in AI models, such as OpenAI's GPT:
@@ -75,7 +92,18 @@ chat.value
 ```
 
 This returns a list of [`ChatMessage`][marimo.ai.ChatMessage] objects, each
-containing `role`, `content`, and optional `attachments` attributes.
+containing `id`, `role`, `parts` and `metadata` attributes. The `content` and `attachments` attributes are supported for basic models.
+
+???+ note
+
+    For pydantic-ai, the messages are mapped to [Vercel UI messages](https://github.com/pydantic/pydantic-ai/blob/9aa6dd40efafd93c04c19c2ef5596a454906ca53/pydantic_ai_slim/pydantic_ai/ui/vercel_ai/request_types.py). To convert to Pydantic messages, use the
+    adapter function.
+
+    ```python
+    from pydantic_ai.ui.vercel_ai import VercelAIAdapter
+
+    messages = VercelAIAdapter.load_messages(chat.value)
+    ```
 
 ::: marimo.ai.ChatMessage
 
@@ -134,7 +162,7 @@ mo.ui.chat(
 
 ## Streaming Responses
 
-Chatbots can stream responses in real-time, creating a more interactive experience 
+Chatbots can stream responses in real-time, creating a more interactive experience
 similar to ChatGPT where you see the response appear word-by-word as it's generated.
 
 Responses from built-in models (OpenAI, Anthropic, Google, Groq, Bedrock) are streamed by default.
@@ -157,7 +185,7 @@ def streaming_model(messages, config):
     """Stream responses word by word."""
     response = "This response will appear word by word!"
     words = response.split()
-    
+
     for word in words:
         yield word + " "  # Yield delta chunks
         time.sleep(0.1)  # Simulate processing delay
@@ -176,7 +204,7 @@ async def async_streaming_model(messages, config):
     """Stream responses word by word asynchronously."""
     response = "This response will appear word by word!"
     words = response.split()
-    
+
     for word in words:
         yield word + " "  # Yield delta chunks
         await asyncio.sleep(0.1)  # Async processing delay
@@ -190,7 +218,7 @@ the progressively building response in real-time.
 
 !!! tip "Delta vs Accumulated"
     **Yield deltas, not accumulated text.** Each yield should be **new content only**:
-    
+
     ✅ **Correct (delta mode):**
     ```python
     yield "Hello"
@@ -198,7 +226,7 @@ the progressively building response in real-time.
     yield "world"
     # Result: "Hello world"
     ```
-    
+
     ❌ **Incorrect (accumulated mode, deprecated):**
     ```python
     yield "Hello"
@@ -206,12 +234,12 @@ the progressively building response in real-time.
     yield "Hello world"
     # Inefficient: sends duplicate content
     ```
-    
+
     Delta mode is more efficient (reduces bandwidth by ~99% for long responses) and aligns with standard streaming APIs.
 
 !!! tip "See streaming examples"
     For complete working examples, check out:
-    
+
     - [`openai_example.py`](https://github.com/marimo-team/marimo/blob/main/examples/ai/chat/openai_example.py) - OpenAI chatbot with streaming (default)
     - [`streaming_custom.py`](https://github.com/marimo-team/marimo/blob/main/examples/ai/chat/streaming_custom.py) - Custom streaming chatbot
 
@@ -219,6 +247,22 @@ the progressively building response in real-time.
 
 marimo provides several built-in AI models that you can use with the chat UI
 element.
+
+### Pydantic AI
+
+```python
+import marimo as mo
+from pydantic_ai import Agent
+
+assistant = Agent(
+    "openai:gpt-5",
+    system_prompt="You are a helpful assistant.",
+)
+
+mo.ui.chat(mo.ai.llm.pydantic_ai(assistant))
+```
+
+::: marimo.ai.llm.pydantic_ai
 
 ### OpenAI
 

@@ -1,5 +1,7 @@
-# Copyright 2025 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 from marimo import _loggers
 from marimo._config.config import MarimoConfig
@@ -8,9 +10,11 @@ from marimo._secrets.env_provider import (
     EnvSecretsProvider,
 )
 from marimo._secrets.models import SecretKeysWithProvider, SecretProvider
-from marimo._server.models.secrets import CreateSecretRequest
 
 LOGGER = _loggers.marimo_logger()
+
+if TYPE_CHECKING:
+    from marimo._server.models.secrets import CreateSecretRequest
 
 
 def _get_providers(

@@ -14,19 +14,16 @@ For more information about plotting, see the [plotting guide](../guides/working_
 ```python
 @app.cell
 async def __():
-    import pandas as pd
-    import pyodide
-    import micropip
-    import json
-    await micropip.install('altair')
     import altair as alt
+    import pandas as pd
+    import json
     return
 
 @app.cell
 def __():
-    cars = pd.DataFrame(json.loads(
-      pyodide.http.open_url('https://vega.github.io/vega-datasets/data/cars.json').read()
-    ))
+    cars = pd.read_json(
+      'https://vega.github.io/vega-datasets/data/cars.json'
+    )
 
     chart = mo.ui.altair_chart(alt.Chart(cars).mark_point().encode(
         x='Horsepower',
@@ -92,10 +89,12 @@ alt.data_transformers.enable('marimo_csv')
 
 ## Reactive plots with Plotly
 
-!!! warning "mo.ui.plotly only supports scatter plots, treemaps charts, and sunbursts charts."
+!!! warning "Supported charts"
+
     marimo can render any Plotly plot, but [`mo.ui.plotly`][marimo.ui.plotly] only
-    supports reactive selections for scatter plots, treemaps charts, and sunbursts charts. If you require other kinds of
-    selection, consider using [`mo.ui.altair_chart`][marimo.ui.altair_chart].
+    supports reactive selections for scatter plots, bar charts, heatmaps,
+    treemaps, and sunburst charts. If you require other kinds of selection,
+    please [file an issue](https://github.com/marimo-team/marimo/issues).
 
 ::: marimo.ui.plotly
 

@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
 import html
@@ -15,9 +15,9 @@ from marimo._output.utils import uri_encode_component
 from marimo._schemas.notebook import NotebookV1
 from marimo._schemas.session import NotebookSessionV1
 from marimo._server.api.utils import parse_title
-from marimo._server.model import SessionMode
-from marimo._server.notebook import read_css_file, read_html_head_file
 from marimo._server.tokens import SkewProtectionToken
+from marimo._session.model import SessionMode
+from marimo._session.notebook import read_css_file, read_html_head_file
 from marimo._utils.versions import is_editable
 from marimo._version import __version__
 
@@ -45,7 +45,7 @@ def json_script(data: Any) -> str:
 def _get_mount_config(
     *,
     filename: Optional[str],
-    mode: Literal["edit", "home", "read"],
+    mode: Literal["edit", "home", "read", "gallery"],
     server_token: SkewProtectionToken,
     user_config: MarimoConfig,
     config_overrides: PartialMarimoConfig,
@@ -54,7 +54,7 @@ def _get_mount_config(
     show_app_code: bool = True,
     session_snapshot: Optional[NotebookSessionV1] = None,
     notebook_snapshot: Optional[NotebookV1] = None,
-    remote_url: Optional[str] = None,
+    runtime_config: Optional[list[dict[str, Any]]] = None,
 ) -> str:
     """
     Return a JSON string with custom indentation and sorting.
@@ -75,7 +75,7 @@ def _get_mount_config(
         },
         "notebook": notebook_snapshot,
         "session": session_snapshot,
-        "runtime_config": [{"url": remote_url}] if remote_url else None,
+        "runtime_config": runtime_config,
     }
 
     return """{{
@@ -100,6 +100,7 @@ def home_page_template(
     user_config: MarimoConfig,
     config_overrides: PartialMarimoConfig,
     server_token: SkewProtectionToken,
+    mode: SessionMode,
     asset_url: Optional[str] = None,
 ) -> str:
     html = html.replace("{{ base_url }}", base_url)
@@ -115,16 +116,18 @@ def home_page_template(
 
     html = _replace_asset_urls(html, asset_url)
 
+    app_mode: Literal["home", "gallery"] = (
+        "home" if mode == SessionMode.EDIT else "gallery"
+    )
     html = html.replace(
         MOUNT_CONFIG_TEMPLATE,
         _get_mount_config(
             filename=None,
-            mode="home",
+            mode=app_mode,
             server_token=server_token,
             user_config=user_config,
             config_overrides=config_overrides,
             app_config=None,
-            remote_url=None,
         ),
     )
 
@@ -134,7 +137,78 @@ def home_page_template(
     return html
 
 
+def opengraph_metadata_template(
+    *,
+    base_url: str,
+    mode: SessionMode,
+    app_config: _AppConfig,
+    filename: Optional[str],
+    filepath: Optional[str],
+) -> str:
+    """Return OpenGraph `<meta>` tags for a notebook, or an empty string."""
+    if not filepath:
+        return ""
+
+    try:
+        from marimo._metadata.opengraph import (
+            OpenGraphContext,
+            is_https_url,
+            resolve_opengraph_metadata,
+        )
+
+        file_key = (
+            filename if filename and not Path(filename).is_absolute() else None
+        )
+        opengraph = resolve_opengraph_metadata(
+            filepath,
+            app_title=app_config.app_title,
+            context=OpenGraphContext(
+                filepath=filepath,
+                file_key=file_key,
+                base_url=base_url,
+                mode=mode.value,
+            ),
+        )
+    except Exception:
+        return ""
+
+    if not opengraph.title and not opengraph.description:
+        return ""
+
+    if opengraph.image and is_https_url(opengraph.image):
+        thumbnail_url = opengraph.image
+    else:
+        # Server-resolvable thumbnail URL, falling back to a placeholder when
+        # no screenshot exists.
+        thumbnail_url = f"{base_url}/og/thumbnail"
+        if filename and not Path(filename).is_absolute():
+            thumbnail_url = (
+                f"{thumbnail_url}?file={uri_encode_component(filename)}"
+            )
+
+    meta_tags: list[str] = []
+    if opengraph.title:
+        meta_tags.append(
+            f'<meta property="og:title" content="{_html_escape(opengraph.title)}" />'
+        )
+    if opengraph.description:
+        meta_tags.append(
+            f'<meta property="og:description" content="{_html_escape(opengraph.description)}" />'
+        )
+        meta_tags.append(
+            f'<meta name="description" content="{_html_escape(opengraph.description)}" />'
+        )
+    meta_tags.append(
+        f'<meta property="og:image" content="{_html_escape(thumbnail_url)}" />'
+    )
+    meta_tags.append(
+        '<meta name="twitter:card" content="summary_large_image" />'
+    )
+    return "\n".join(meta_tags)
+
+
 def notebook_page_template(
+    *,
     html: str,
     base_url: str,
     user_config: MarimoConfig,
@@ -142,21 +216,27 @@ def notebook_page_template(
     server_token: SkewProtectionToken,
     app_config: _AppConfig,
     filename: Optional[str],
+    filepath: Optional[str] = None,
     mode: SessionMode,
-    remote_url: Optional[str] = None,
+    session_snapshot: Optional[NotebookSessionV1] = None,
+    notebook_snapshot: Optional[NotebookV1] = None,
+    runtime_config: Optional[list[dict[str, Any]]] = None,
     asset_url: Optional[str] = None,
 ) -> str:
     html = html.replace("{{ base_url }}", base_url)
 
     # When we have a remote URL, let's pre-populate the index.html page
     # with a view of the notebook.
-    notebook_snapshot = None
-    if remote_url and filename:
-        filepath = Path(filename)
-        if filepath.exists():
-            notebook_snapshot = MarimoConvert.from_py(
-                filepath.read_text(encoding="utf-8")
-            ).to_notebook_v1()
+    if runtime_config and notebook_snapshot is None:
+        # Prefer the absolute path for IO, since `filename` can be a display
+        # path (workspace-relative) in gallery mode.
+        path = filepath or filename
+        if path:
+            path_obj = Path(path)
+            if path_obj.exists():
+                notebook_snapshot = MarimoConvert.from_py(
+                    path_obj.read_text(encoding="utf-8")
+                ).to_notebook_v1()
 
     html = html.replace("{{ filename }}", _html_escape(filename or ""))
 
@@ -178,8 +258,9 @@ def notebook_page_template(
             user_config=user_config,
             config_overrides=config_overrides,
             app_config=app_config,
-            remote_url=remote_url,
+            runtime_config=runtime_config,
             notebook_snapshot=notebook_snapshot,
+            session_snapshot=session_snapshot,
         ),
     )
 
@@ -191,6 +272,16 @@ def notebook_page_template(
             else app_config.app_title
         ),
     )
+
+    opengraph_tags = opengraph_metadata_template(
+        base_url=base_url,
+        mode=mode,
+        app_config=app_config,
+        filename=filename,
+        filepath=filepath,
+    )
+    if opengraph_tags:
+        html = html.replace("</head>", f"{opengraph_tags}\n</head>")
 
     # If has custom css, inline the css and add to the head
     if app_config.css_file:
@@ -252,7 +343,7 @@ def static_notebook_template(
             app_config=app_config,
             session_snapshot=session_snapshot,
             notebook_snapshot=notebook_snapshot,
-            remote_url=None,
+            runtime_config=None,
         ),
     )
 
@@ -372,7 +463,7 @@ def wasm_notebook_template(
             app_config=app_config,
             version=version,
             show_app_code=show_code,
-            remote_url=None,
+            runtime_config=None,
         ),
     )
 

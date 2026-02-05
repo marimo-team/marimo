@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 
 import marimo
 
@@ -12,7 +12,7 @@ def _(mo):
         r"""
         # Polars: Lazy Evaluation
 
-        This snippet shows how to use Polars' `lazy()` evaluation for optimized query planning, 
+        This snippet shows how to use Polars' `lazy()` evaluation for optimized query planning,
         expression-based operations, and memory-efficient data processing. See example below.
         """
     )

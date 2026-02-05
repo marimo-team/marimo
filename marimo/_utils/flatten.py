@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 """Flatten and repack nested structures of lists, tuples, and dicts
 
 Adapted from https://github.com/ericmjl/pyflatten/tree/master; changed

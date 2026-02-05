@@ -1,16 +1,15 @@
 """Tests for the LLM providers in marimo._server.ai.providers."""
 
-from unittest.mock import AsyncMock, MagicMock, patch
-
 import pytest
 
-from marimo._ai._types import ChatMessage
 from marimo._config.config import AiConfig
+from marimo._dependencies.dependencies import Dependency, DependencyManager
 from marimo._server.ai.config import AnyProviderConfig
 from marimo._server.ai.providers import (
     AnthropicProvider,
     AzureOpenAIProvider,
     BedrockProvider,
+    CustomProvider,
     GoogleProvider,
     OpenAIProvider,
     get_completion_provider,
@@ -60,94 +59,52 @@ def test_anyprovider_for_model(model_name: str, provider_name: str) -> None:
 
 
 @pytest.mark.parametrize(
-    ("model_name", "provider_type"),
+    ("model_name", "provider_type", "dependency"),
     [
-        pytest.param("gpt-4", OpenAIProvider, id="openai"),
+        pytest.param("gpt-4", OpenAIProvider, None, id="openai"),
         pytest.param(
-            "claude-3-opus-20240229", AnthropicProvider, id="anthropic"
+            "claude-3-opus-20240229",
+            AnthropicProvider,
+            DependencyManager.anthropic,
+            id="anthropic",
         ),
-        pytest.param("gemini-1.5-flash", GoogleProvider, id="google"),
+        pytest.param(
+            "gemini-1.5-flash",
+            GoogleProvider,
+            DependencyManager.google_ai,
+            id="google",
+        ),
         pytest.param(
             "bedrock/anthropic.claude-3-sonnet-20240229",
             BedrockProvider,
+            DependencyManager.boto3,
             id="bedrock",
         ),
-        pytest.param("openrouter/gpt-4", OpenAIProvider, id="openrouter"),
-    ],
-)
-def test_get_completion_provider(model_name: str, provider_type: type) -> None:
-    """Test that the correct provider is returned for a given model."""
-    config = AnyProviderConfig(api_key="test-key", base_url="http://test-url")
-    provider = get_completion_provider(config, model_name)
-    assert isinstance(provider, provider_type)
-
-
-@pytest.mark.parametrize(
-    ("model_name", "expected_params"),
-    [
         pytest.param(
-            "o1-mini",
-            {"max_completion_tokens": 1000, "reasoning_effort": "medium"},
-            id="reasoning_model_o1_mini",
-        ),
-        pytest.param(
-            "o1-preview",
-            {"max_completion_tokens": 1000, "reasoning_effort": "medium"},
-            id="reasoning_model_o1_preview",
-        ),
-        pytest.param(
-            "gpt-4",
-            {"max_tokens": 1000},
-            id="non_reasoning_model_gpt4",
-        ),
-        pytest.param(
-            "gpt-3.5-turbo",
-            {"max_tokens": 1000},
-            id="non_reasoning_model_gpt35",
+            "openrouter/gpt-4", CustomProvider, None, id="openrouter"
         ),
     ],
 )
-@patch("openai.AsyncOpenAI")
-async def test_openai_provider_max_tokens_parameter(
-    mock_openai_class, model_name: str, expected_params: dict
+def test_get_completion_provider(
+    model_name: str, provider_type: type, dependency: Dependency | None
 ) -> None:
-    """Test that OpenAI provider uses correct token parameter for reasoning vs non-reasoning models."""
-    # Setup mock
-    mock_client = AsyncMock()
-    mock_openai_class.return_value = mock_client
-    mock_stream = AsyncMock()
-    mock_client.chat.completions.create.return_value = mock_stream
+    """Test that the correct provider is returned for a given model."""
 
-    # Create provider
-    config = AnyProviderConfig(
-        api_key="test-key", base_url="https://api.openai.com/v1"
-    )
-    provider = OpenAIProvider(model_name, config)
+    if dependency and not dependency.has():
+        pytest.skip(f"{dependency.pkg} is not installed")
 
-    # Call stream_completion
-    messages = [ChatMessage(role="user", content="test message")]
-    await provider.stream_completion(messages, "system prompt", 1000, [])
-
-    # Verify the correct parameters were passed
-    mock_client.chat.completions.create.assert_called_once()
-    call_kwargs = mock_client.chat.completions.create.call_args[1]
-
-    # Check that the expected parameters are present
-    for param_name, param_value in expected_params.items():
-        assert param_name in call_kwargs, (
-            f"Expected parameter {param_name} not found"
-        )
-        assert call_kwargs[param_name] == param_value
-
-    # Ensure mutually exclusive parameters are not both present
-    if "max_completion_tokens" in expected_params:
-        assert "max_tokens" not in call_kwargs, (
-            "max_tokens should not be present for reasoning models"
+    if provider_type == BedrockProvider:
+        # For Bedrock, we pass bedrock-required details through the config
+        config = AnyProviderConfig(
+            api_key="aws_access_key_id:aws_secret_access_key",  # credentials
+            base_url="us-east-1",  # region name
         )
     else:
-        assert "max_completion_tokens" not in call_kwargs, (
-            "max_completion_tokens should not be present for non-reasoning models"
+        config = AnyProviderConfig(
+            api_key="test-key", base_url="http://test-url"
         )
+    provider = get_completion_provider(config, model_name)
+    assert isinstance(provider, provider_type)
 
 
 async def test_azure_openai_provider() -> None:
@@ -173,153 +130,39 @@ async def test_azure_openai_provider() -> None:
     assert endpoint == "https://unknown_domain.openai"
 
 
-@pytest.mark.parametrize(
-    "provider_type",
-    [
-        pytest.param(OpenAIProvider, id="openai"),
-        pytest.param(BedrockProvider, id="bedrock"),
-    ],
+@pytest.mark.skipif(
+    not DependencyManager.anthropic.has()
+    or not DependencyManager.pydantic_ai.has(),
+    reason="anthropic or pydantic_ai not installed",
 )
-def test_extract_content_with_none_tool_call_ids(
-    provider_type: type,
-) -> None:
-    """Test extract_content handles None tool_call_ids without errors."""
-    config = AnyProviderConfig(api_key="test-key", base_url="http://test")
-    provider = provider_type("test-model", config)
-
-    mock_response = MagicMock()
-    mock_delta = MagicMock()
-    mock_delta.content = "Hello"
-    mock_delta.tool_calls = None
-    mock_choice = MagicMock()
-    mock_choice.delta = mock_delta
-    mock_response.choices = [mock_choice]
-
-    result = provider.extract_content(mock_response, None)
-    assert result == [("Hello", "text")]
-
-
-def test_google_extract_content_with_none_tool_call_ids() -> None:
-    """Test Google extract_content handles None tool_call_ids without errors."""
-    config = AnyProviderConfig(api_key="test-key", base_url="http://test")
-    provider = GoogleProvider("gemini-1.5-flash", config)
-
-    mock_response = MagicMock()
-    mock_candidate = MagicMock()
-    mock_content = MagicMock()
-    mock_part = MagicMock()
-    mock_part.text = "Hello"
-    mock_part.thought = False
-    mock_part.function_call = None
-    mock_content.parts = [mock_part]
-    mock_candidate.content = mock_content
-    mock_response.candidates = [mock_candidate]
-
-    result = provider.extract_content(mock_response, None)
-    assert result == [("Hello", "text")]
-
-
-def test_openai_extract_content_multiple_tool_calls() -> None:
-    """Test OpenAI extracts multiple tool calls correctly."""
-    config = AnyProviderConfig(api_key="test-key", base_url="http://test")
-    provider = OpenAIProvider("gpt-4", config)
-
-    mock_response = MagicMock()
-    mock_delta = MagicMock()
-    mock_delta.content = None
-
-    mock_tool_1 = MagicMock()
-    mock_tool_1.index = 0
-    mock_tool_1.id = "call_1"
-    mock_tool_1.function = MagicMock()
-    mock_tool_1.function.name = "get_weather"
-    mock_tool_1.function.arguments = None
-
-    mock_tool_2 = MagicMock()
-    mock_tool_2.index = 1
-    mock_tool_2.id = "call_2"
-    mock_tool_2.function = MagicMock()
-    mock_tool_2.function.name = "get_time"
-    mock_tool_2.function.arguments = None
-
-    mock_delta.tool_calls = [mock_tool_1, mock_tool_2]
-    mock_choice = MagicMock()
-    mock_choice.delta = mock_delta
-    mock_response.choices = [mock_choice]
-
-    result = provider.extract_content(mock_response, None)
-    assert result is not None
-    assert len(result) == 2
-    tool_data_0, _ = result[0]
-    tool_data_1, _ = result[1]
-    assert isinstance(tool_data_0, dict)
-    assert isinstance(tool_data_1, dict)
-    assert tool_data_0["toolName"] == "get_weather"
-    assert tool_data_1["toolName"] == "get_time"
-
-
-def test_google_extract_content_id_rectification() -> None:
-    """Test Google uses provided tool_call_ids for ID rectification."""
-    config = AnyProviderConfig(api_key="test-key", base_url="http://test")
-    provider = GoogleProvider("gemini-1.5-flash", config)
-
-    mock_response = MagicMock()
-    mock_candidate = MagicMock()
-    mock_content = MagicMock()
-    mock_func_call = MagicMock()
-    mock_func_call.name = "get_weather"
-    mock_func_call.args = {"location": "SF"}
-    mock_func_call.id = None
-    mock_part = MagicMock()
-    mock_part.text = None
-    mock_part.function_call = mock_func_call
-    mock_content.parts = [mock_part]
-    mock_candidate.content = mock_content
-    mock_response.candidates = [mock_candidate]
-
-    result = provider.extract_content(mock_response, ["stable_id"])
-    assert result is not None
-    tool_data, _ = result[0]
-    assert isinstance(tool_data, dict)
-    assert tool_data["toolCallId"] == "stable_id"
-
-
-def test_anthropic_extract_content_tool_call_id_mapping() -> None:
-    """Test Anthropic maps tool call IDs via block index."""
-    try:
-        from anthropic.types import (
-            InputJSONDelta,
-            RawContentBlockDeltaEvent,
-            RawContentBlockStartEvent,
-            ToolUseBlock,
-        )
-    except ImportError:
-        pytest.skip("Anthropic not installed")
+def test_anthropic_process_part_text_file() -> None:
+    """Test Anthropic converts text file parts to text parts."""
+    from pydantic_ai.ui.vercel_ai.request_types import FileUIPart, TextUIPart
 
     config = AnyProviderConfig(api_key="test-key", base_url="http://test")
     provider = AnthropicProvider("claude-3-opus-20240229", config)
 
-    start_event = RawContentBlockStartEvent(
-        type="content_block_start",
-        index=0,
-        content_block=ToolUseBlock(
-            type="tool_use", id="toolu_123", name="get_weather", input={}
-        ),
+    # Test text file conversion - base64 encoded "Hello, World!"
+    text_file_part = FileUIPart(
+        type="file",
+        media_type="text/plain",
+        url="data:text/plain;base64,SGVsbG8sIFdvcmxkIQ==",
+        filename="test.txt",
     )
-    provider.extract_content(start_event, None)
+    result = provider.process_part(text_file_part)
+    assert isinstance(result, TextUIPart)
+    assert result.text == "Hello, World!"
 
-    delta_event = RawContentBlockDeltaEvent(
-        type="content_block_delta",
-        index=0,
-        delta=InputJSONDelta(
-            type="input_json_delta", partial_json='{"location": "SF"}'
-        ),
+    # Test image file is not converted
+    image_file_part = FileUIPart(
+        type="file",
+        media_type="image/png",
+        url="data:image/png;base64,iVBORw0KGgo=",
+        filename="test.png",
     )
-    result = provider.extract_content(delta_event, None)
-    assert result is not None
-    tool_data, _ = result[0]
-    assert isinstance(tool_data, dict)
-    assert tool_data["toolCallId"] == "toolu_123"
+    result = provider.process_part(image_file_part)
+    assert isinstance(result, FileUIPart)
+    assert result.media_type == "image/png"
 
 
 @pytest.mark.parametrize(
@@ -439,129 +282,49 @@ def test_is_reasoning_model(
 
 
 @pytest.mark.parametrize(
-    ("model_name", "base_url", "expected_params"),
+    ("model_name", "expected"),
     [
         pytest.param(
-            "o1-mini",
-            "https://custom-openai-compatible.com/v1",
-            {"max_tokens": 1000},
-            id="reasoning_model_name_custom_api_no_reasoning",
+            "claude-opus-4-20250514",
+            True,
+            id="claude_opus_4",
         ),
         pytest.param(
-            "o1-preview",
-            "https://litellm.proxy.com/api/v1",
-            {"max_tokens": 1000},
-            id="o1_preview_litellm_proxy_no_reasoning",
+            "claude-sonnet-4-20250514",
+            True,
+            id="claude_sonnet_4",
         ),
         pytest.param(
-            "o3-mini",
-            "https://corporate-llm.internal/api",
-            {"max_tokens": 1000},
-            id="o3_mini_corporate_proxy_no_reasoning",
+            "claude-haiku-4-5-20250514",
+            True,
+            id="claude_haiku_4_5",
+        ),
+        pytest.param(
+            "claude-3-7-sonnet-20250219",
+            True,
+            id="claude_3_7_sonnet",
+        ),
+        pytest.param(
+            "claude-3-5-sonnet-20241022",
+            False,
+            id="claude_3_5_sonnet_not_thinking",
+        ),
+        pytest.param(
+            "claude-3-opus-20240229",
+            False,
+            id="claude_3_opus_not_thinking",
         ),
     ],
 )
-@patch("openai.AsyncOpenAI")
-async def test_openai_compatible_api_no_reasoning_effort(
-    mock_openai_class, model_name: str, base_url: str, expected_params: dict
+@pytest.mark.skipif(
+    not DependencyManager.anthropic.has()
+    or not DependencyManager.pydantic_ai.has(),
+    reason="anthropic or pydantic_ai not installed",
+)
+def test_anthropic_is_extended_thinking_model(
+    model_name: str, expected: bool
 ) -> None:
-    """Test that OpenAI-compatible APIs don't get reasoning_effort even with reasoning model names."""
-    # Setup mock
-    mock_client = AsyncMock()
-    mock_openai_class.return_value = mock_client
-    mock_stream = AsyncMock()
-    mock_client.chat.completions.create.return_value = mock_stream
-
-    # Create provider with custom base_url (simulating OpenAI-compatible API)
-    config = AnyProviderConfig(api_key="test-key", base_url=base_url)
-    provider = OpenAIProvider(model_name, config)
-
-    # Call stream_completion
-    messages = [ChatMessage(role="user", content="test message")]
-    await provider.stream_completion(messages, "system prompt", 1000, [])
-
-    # Verify the correct parameters were passed
-    mock_client.chat.completions.create.assert_called_once()
-    call_kwargs = mock_client.chat.completions.create.call_args[1]
-
-    # Check that reasoning_effort is NOT present
-    assert "reasoning_effort" not in call_kwargs, (
-        "reasoning_effort should not be present for OpenAI-compatible APIs"
-    )
-
-    # Check that the expected parameters are present
-    for param_name, param_value in expected_params.items():
-        assert param_name in call_kwargs, (
-            f"Expected parameter {param_name} not found"
-        )
-        assert call_kwargs[param_name] == param_value
-
-    # Ensure max_completion_tokens is not present when reasoning_effort is not used
-    assert "max_completion_tokens" not in call_kwargs, (
-        "max_completion_tokens should not be present when reasoning_effort is not used"
-    )
-
-
-def test_openai_extract_content_tool_delta_out_of_bounds() -> None:
-    """Test OpenAI handles tool call delta with out-of-bounds index gracefully.
-
-    This reproduces the issue reported in #7330 where some OpenAI-compatible
-    providers (like deepseek) may send tool call deltas before the tool call
-    start, causing an IndexError.
-    """
-    config = AnyProviderConfig(api_key="test-key", base_url="http://test")
-    provider = OpenAIProvider("gpt-4", config)
-
-    mock_response = MagicMock()
-    mock_delta = MagicMock()
-    mock_delta.content = None
-
-    # Create a tool call delta with index 0, but tool_call_ids is empty
-    mock_tool_delta = MagicMock()
-    mock_tool_delta.index = 0
-    mock_tool_delta.id = None  # No id for delta chunks
-    mock_tool_delta.function = MagicMock()
-    mock_tool_delta.function.name = None  # No name for delta chunks
-    mock_tool_delta.function.arguments = '{"location": "SF"}'
-
-    mock_delta.tool_calls = [mock_tool_delta]
-    mock_choice = MagicMock()
-    mock_choice.delta = mock_delta
-    mock_response.choices = [mock_choice]
-
-    # Call with empty tool_call_ids - this should not crash
-    result = provider.extract_content(mock_response, [])
-    # Should return None or empty list since we can't process the delta
-    assert result is None or result == []
-
-
-def test_bedrock_extract_content_tool_delta_out_of_bounds() -> None:
-    """Test Bedrock handles tool call delta with out-of-bounds index gracefully.
-
-    This reproduces the issue reported in #7330 where some providers may send
-    tool call deltas before the tool call start, causing an IndexError.
-    """
-    config = AnyProviderConfig(api_key="test-key", base_url="http://test")
-    provider = BedrockProvider("bedrock/anthropic.claude-3-sonnet", config)
-
-    mock_response = MagicMock()
-    mock_delta = MagicMock()
-    mock_delta.content = None
-
-    # Create a tool call delta with index 0, but tool_call_ids is empty
-    mock_tool_delta = MagicMock()
-    mock_tool_delta.index = 0
-    mock_tool_delta.id = None  # No id for delta chunks
-    mock_tool_delta.function = MagicMock()
-    mock_tool_delta.function.name = None  # No name for delta chunks
-    mock_tool_delta.function.arguments = '{"location": "SF"}'
-
-    mock_delta.tool_calls = [mock_tool_delta]
-    mock_choice = MagicMock()
-    mock_choice.delta = mock_delta
-    mock_response.choices = [mock_choice]
-
-    # Call with empty tool_call_ids - this should not crash
-    result = provider.extract_content(mock_response, [])
-    # Should return None or empty list since we can't process the delta
-    assert result is None or result == []
+    """Test that is_extended_thinking_model correctly identifies thinking models."""
+    config = AnyProviderConfig(api_key="test-key", base_url=None)
+    provider = AnthropicProvider(model_name, config)
+    assert provider.is_extended_thinking_model(model_name) == expected

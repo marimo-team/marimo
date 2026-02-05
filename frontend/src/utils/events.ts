@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 export const Events = {
   stopPropagation: <
     E extends Pick<Event, "stopPropagation" | "preventDefault">,
@@ -42,6 +42,7 @@ export const Events = {
       target.tagName === "INPUT" ||
       target.tagName === "TEXTAREA" ||
       target.tagName.startsWith("MARIMO") ||
+      target.isContentEditable ||
       Events.fromCodeMirror(e)
     );
   },

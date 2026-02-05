@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import { BigQueryDialect } from "@marimo-team/codemirror-sql/dialects";
 import { isKnownDialect } from "@/core/codemirror/language/languages/sql/utils";
@@ -47,6 +47,7 @@ function getFormatter(dialect: string): SqlCodeFormatter {
     }
     case "mssql":
     case "sqlserver":
+    case "microsoft sql server":
       return {
         formatTableName: defaultFormatter.formatTableName,
         formatSelectClause: (columnName: string, tableName: string) =>
@@ -86,6 +87,8 @@ function getFormatter(dialect: string): SqlCodeFormatter {
     case "spark":
     case "trino":
     case "singlestoredb":
+    case "databricks":
+    case "datafusion":
       return defaultFormatter;
     default:
       logNever(dialect);

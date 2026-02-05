@@ -1,14 +1,22 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import * as ProgressPrimitive from "@radix-ui/react-progress";
 import * as React from "react";
 
 import { cn } from "@/utils/cn";
 
+interface ProgressProps
+  extends React.ComponentPropsWithoutRef<typeof ProgressPrimitive.Root> {
+  /**
+   * When true, shows an indeterminate animated progress bar.
+   */
+  indeterminate?: boolean;
+}
+
 const Progress = React.forwardRef<
-  React.ElementRef<typeof ProgressPrimitive.Root>,
-  React.ComponentPropsWithoutRef<typeof ProgressPrimitive.Root>
->(({ className, value, ...props }, ref) => (
+  React.ComponentRef<typeof ProgressPrimitive.Root>,
+  ProgressProps
+>(({ className, value, indeterminate, ...props }, ref) => (
   <ProgressPrimitive.Root
     ref={ref}
     className={cn(
@@ -18,8 +26,17 @@ const Progress = React.forwardRef<
     {...props}
   >
     <ProgressPrimitive.Indicator
-      className="h-full w-full flex-1 bg-primary transition-all pulse"
-      style={{ transform: `translateX(-${100 - (value || 0)}%)` }}
+      className={cn(
+        "h-full flex-1 bg-primary",
+        indeterminate
+          ? "w-1/3 animate-progress-indeterminate"
+          : "w-full transition-transform duration-300 ease-out",
+      )}
+      style={
+        indeterminate
+          ? undefined
+          : { transform: `translateX(-${100 - (value || 0)}%)` }
+      }
     />
   </ProgressPrimitive.Root>
 ));

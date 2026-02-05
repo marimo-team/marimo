@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import {
   Cassandra,
@@ -49,6 +49,9 @@ const KNOWN_DIALECTS_ARRAY = [
   "oracledb",
   "singlestoredb",
   "timescaledb",
+  "databricks",
+  "datafusion",
+  "microsoft sql server",
 ] as const;
 const KNOWN_DIALECTS: ReadonlySet<string> = new Set(KNOWN_DIALECTS_ARRAY);
 type KnownDialect = (typeof KNOWN_DIALECTS_ARRAY)[number];
@@ -80,6 +83,7 @@ export function guessDialect(
       return SQLite;
     case "mssql":
     case "sqlserver":
+    case "microsoft sql server":
       return MSSQL;
     case "duckdb":
       return DuckDBDialect;
@@ -109,6 +113,8 @@ export function guessDialect(
     case "tidb":
     case "singlestoredb":
     case "spark":
+    case "databricks":
+    case "datafusion":
       Logger.debug("Unsupported dialect", { dialect });
       return ModifiedStandardSQL;
     default:

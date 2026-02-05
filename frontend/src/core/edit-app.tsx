@@ -1,9 +1,10 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import { usePrevious } from "@dnd-kit/utilities";
 import { TooltipProvider } from "@radix-ui/react-tooltip";
 import { useAtomValue, useSetAtom } from "jotai";
 import { useEffect } from "react";
+import { NotStartedConnectionAlert } from "@/components/editor/alerts/connecting-alert";
 import { Controls } from "@/components/editor/controls/Controls";
 import { AppHeader } from "@/components/editor/header/app-header";
 import { FilenameForm } from "@/components/editor/header/filename-form";
@@ -35,7 +36,7 @@ import { useRequestClient } from "./network/requests";
 import { useFilename } from "./saving/filename";
 import { lastSavedNotebookAtom } from "./saving/state";
 import { useJotaiEffect } from "./state/jotai";
-import { useMarimoWebSocket } from "./websocket/useMarimoWebSocket";
+import { useMarimoKernelConnection } from "./websocket/useMarimoKernelConnection";
 
 interface AppProps {
   /**
@@ -80,7 +81,7 @@ export const EditApp: React.FC<AppProps> = ({
     };
   }, []);
 
-  const { connection } = useMarimoWebSocket({
+  const { connection } = useMarimoKernelConnection({
     autoInstantiate: userConfig.runtime.auto_instantiate,
     setCells: (cells, layout) => {
       setCells(cells);
@@ -169,6 +170,7 @@ export const EditApp: React.FC<AppProps> = ({
             {editableCellsArray}
           </CellsRenderer>
         )}
+        {!hasCells && <NotStartedConnectionAlert />}
       </AppContainer>
       <MultiCellActionToolbar />
       {!hideControls && (

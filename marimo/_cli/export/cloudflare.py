@@ -1,10 +1,11 @@
-# Copyright 2025 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
 from pathlib import Path
 
 from marimo._cli.print import bold, echo, green
 from marimo._server.print import _utf8
+from marimo._utils.paths import normalize_path
 
 
 def create_cloudflare_files(title: str, out_dir: Path) -> None:
@@ -17,7 +18,7 @@ def create_cloudflare_files(title: str, out_dir: Path) -> None:
 
     if index_js.exists():
         echo(
-            f"Cloudflare {index_js.name} already exists at {green(str(index_js.absolute()))}. Skipping..."
+            f"Cloudflare {index_js.name} already exists at {green(str(normalize_path(index_js)))}. Skipping..."
         )
     else:
         created_files = True
@@ -41,7 +42,7 @@ export default {
 
     if wrangler_jsonc.exists():
         echo(
-            f"Cloudflare {wrangler_jsonc.name} already exists at {green(str(wrangler_jsonc.absolute()))}. Skipping..."
+            f"Cloudflare {wrangler_jsonc.name} already exists at {green(str(normalize_path(wrangler_jsonc)))}. Skipping..."
         )
     else:
         created_files = True
@@ -65,7 +66,7 @@ export default {
 
     if created_files:
         echo(
-            f"Cloudflare configuration files created at {green(str(parent_dir.absolute()))}."
+            f"Cloudflare configuration files created at {green(str(normalize_path(parent_dir)))}."
         )
 
     echo(

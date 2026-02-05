@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import { MenuIcon } from "lucide-react";
 import React from "react";
@@ -111,7 +111,7 @@ export const NotebookMenuDropdown: React.FC<Props> = ({
       <DropdownMenuTrigger asChild={true} disabled={disabled}>
         {button}
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="no-print w-[240px]">
+      <DropdownMenuContent align="end" className="print:hidden w-[240px]">
         {actions.map((action) => {
           if (action.hidden || action.redundant) {
             return null;

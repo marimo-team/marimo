@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import {
   type Completion,
@@ -237,7 +237,7 @@ export class FileContextProvider extends AIContextProvider<FileContextItem> {
                 fileDetails.contents as Base64String,
                 mimeType,
               );
-              blob = await deserializeBlob(dataURL);
+              blob = deserializeBlob(dataURL);
             } catch {
               // Fallback to treating as text
               blob = new Blob([fileDetails.contents], { type: mimeType });

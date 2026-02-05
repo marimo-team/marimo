@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 """
 Interactive matplotlib plots, based on WebAgg.
 
@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Optional, Union
 
 from marimo import _loggers
+from marimo._messaging.mimetypes import KnownMimeType
 from marimo._output.builder import h
 from marimo._output.formatting import as_html
 from marimo._output.hypertext import Html
@@ -29,7 +30,6 @@ from marimo._runtime.context import (
 )
 from marimo._runtime.context.kernel_context import KernelRuntimeContext
 from marimo._runtime.runtime import app_meta
-from marimo._server.utils import find_free_port
 from marimo._utils.platform import is_pyodide
 
 LOGGER = _loggers.marimo_logger()
@@ -95,6 +95,8 @@ class MplServerManager:
 
         # Find a free port, with some randomization to avoid conflicts
         import random
+
+        from marimo._utils.net import find_free_port
 
         base_port = 10_000 + random.randint(0, 1000)  # Add some randomization
         port = (
@@ -443,6 +445,45 @@ def new_figure_manager_given_figure(
     return manager
 
 
+def png_bytes(figure: Union[Figure, SubFigure, Axes]) -> bytes:
+    """Convert a matplotlib figure to base64-encoded PNG bytes.
+
+    The Html._mime_ method expects _repr_png_ to return bytes that
+    can be decoded to a UTF-8 string, so we return base64-encoded data.
+    """
+    import base64
+
+    from matplotlib.figure import Figure
+
+    buf = io.BytesIO()
+    if isinstance(figure, Figure):
+        figure.savefig(buf, format="png", bbox_inches="tight")
+    else:
+        figure.figure.canvas.print_figure(buf, format="png")
+    return base64.b64encode(buf.getvalue())
+
+
+class NonInteractiveMplHtml(Html):
+    def __init__(self, figure: Union[Figure, SubFigure, Axes]) -> None:
+        self._figure = figure
+        super().__init__(as_html(figure).text)
+
+    def _mime_(self) -> tuple[KnownMimeType, str]:
+        return ("image/png", png_bytes(self._figure).decode())
+
+
+class InteractiveMplHtml(Html):
+    """Html subclass that provides PNG fallback for ipynb export."""
+
+    def __init__(self, text: str, figure: Union[Figure, SubFigure]) -> None:
+        self._figure = figure
+        super().__init__(text)
+
+    def _repr_png_(self) -> bytes:
+        """Return base64-encoded PNG bytes for ipynb export fallback."""
+        return png_bytes(self._figure)
+
+
 @mddoc
 def interactive(figure: Union[Figure, SubFigure, Axes]) -> Html:
     """Render a matplotlib figure using an interactive viewer.
@@ -463,14 +504,6 @@ def interactive(figure: Union[Figure, SubFigure, Axes]) -> Html:
     Returns:
         Html: An interactive matplotlib figure as an `Html` object.
     """
-    # We can't support interactive plots in Pyodide
-    # since they require a WebSocket connection
-    if is_pyodide():
-        LOGGER.error(
-            "Interactive plots are not supported in Pyodide/WebAssembly"
-        )
-        return as_html(figure)
-
     # No top-level imports of matplotlib, since it isn't a required
     # dependency
     from matplotlib.axes import Axes
@@ -480,9 +513,22 @@ def interactive(figure: Union[Figure, SubFigure, Axes]) -> Html:
         assert maybe_figure is not None, "Axes object does not have a Figure"
         figure = maybe_figure
 
+    # We can't support interactive plots in Pyodide
+    # since they require a WebSocket connection
+    if is_pyodide():
+        LOGGER.warning(
+            "Interactive plots are not supported in Pyodide/WebAssembly"
+        )
+        return NonInteractiveMplHtml(figure)
+
     ctx = get_context()
     if not isinstance(ctx, KernelRuntimeContext):
-        return as_html(figure)
+        return NonInteractiveMplHtml(figure)
+
+    # When virtual files are not supported (e.g., during HTML export),
+    # fall back to static PNG instead of interactive plot
+    if not ctx.virtual_files_supported:
+        return NonInteractiveMplHtml(figure)
 
     # Figure Manager, Any type because matplotlib doesn't have typings
     figure_manager = new_figure_manager_given_figure(id(figure), figure)
@@ -509,13 +555,14 @@ def interactive(figure: Union[Figure, SubFigure, Axes]) -> Html:
 
     content = _template(str(figure_manager.num), port)
 
-    return Html(
+    return InteractiveMplHtml(
         h.iframe(
             srcdoc=html.escape(content),
             width="100%",
             height="550px",
             onload="__resizeIframe(this)",
-        )
+        ),
+        figure,
     )
 
 

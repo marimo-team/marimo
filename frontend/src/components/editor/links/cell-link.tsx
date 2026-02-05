@@ -1,6 +1,6 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
-import type { JSX } from "react"; /* Copyright 2024 Marimo. All rights reserved. */
+import type { JSX } from "react"; /* Copyright 2026 Marimo. All rights reserved. */
 import { useCellActions, useCellIds, useCellNames } from "@/core/cells/cells";
 import { type CellId, HTMLCellId, SCRATCH_CELL_ID } from "@/core/cells/ids";
 import { displayCellName } from "@/core/cells/names";

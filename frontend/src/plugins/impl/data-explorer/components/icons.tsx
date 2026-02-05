@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 import { PrimitiveType } from "compassql/build/src/schema";
 import {
   CalendarIcon,

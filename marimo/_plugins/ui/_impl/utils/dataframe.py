@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
 from typing import Any, TypeVar, Union
@@ -11,8 +11,31 @@ from marimo._output.mime import MIME
 from marimo._plugins.core.web_component import JSONType
 from marimo._plugins.ui._impl.tables.selection import INDEX_COLUMN_NAME
 from marimo._plugins.ui._impl.tables.table_manager import TableManager
+from marimo._runtime.context.types import (
+    ContextNotInitializedError,
+    get_context,
+)
 
 LOGGER = _loggers.marimo_logger()
+
+DEFAULT_CSV_ENCODING = "utf-8"
+
+
+def get_default_csv_encoding() -> str:
+    """Get the default CSV encoding from config.
+
+    Returns:
+        str: The default CSV encoding, falling back to "utf-8" if not configured.
+    """
+    try:
+        return (
+            get_context()
+            .marimo_config["runtime"]
+            .get("default_csv_encoding", DEFAULT_CSV_ENCODING)
+        )
+    except ContextNotInitializedError:
+        return DEFAULT_CSV_ENCODING
+
 
 T = TypeVar("T")
 Numeric = Union[int, float]
@@ -32,7 +55,7 @@ def download_as(
     manager: TableManager[Any],
     ext: str,
     drop_marimo_index: bool = False,
-    csv_encoding: str | None = "utf-8",
+    csv_encoding: str | None = None,
     json_ensure_ascii: bool = True,
 ) -> str:
     """Download the table data in the specified format.
@@ -43,7 +66,8 @@ def download_as(
         drop_marimo_index (bool, optional): Whether to drop the marimo selection column.
             Defaults to False.
         csv_encoding (str | None, optional): Encoding used when generating CSV bytes.
-            Defaults to "utf-8". Ignored for non-CSV formats.
+            Defaults to the runtime config value (or "utf-8" if not configured).
+            Ignored for non-CSV formats.
         json_ensure_ascii (bool, optional): Whether to escape non-ASCII characters
             in JSON output. Defaults to True.
 
@@ -59,7 +83,12 @@ def download_as(
         manager = manager.drop_columns([INDEX_COLUMN_NAME])
 
     if ext == "csv":
-        return mo_data.csv(manager.to_csv(encoding=csv_encoding)).url
+        encoding = (
+            csv_encoding
+            if csv_encoding is not None
+            else get_default_csv_encoding()
+        )
+        return mo_data.csv(manager.to_csv(encoding=encoding)).url
     elif ext == "json":
         # Use strict JSON to ensure compliance with JSON spec
         return mo_data.json(

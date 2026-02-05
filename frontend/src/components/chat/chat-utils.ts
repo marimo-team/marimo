@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import type { components } from "@marimo-team/marimo-api";
 import type { FileUIPart, ToolUIPart, UIMessage } from "ai";
@@ -8,7 +8,6 @@ import type {
   InvokeAiToolRequest,
   InvokeAiToolResponse,
 } from "@/core/network/types";
-import type { ChatMessage } from "@/plugins/impl/chat/types";
 import { blobToString } from "@/utils/fileToBase64";
 import { Logger } from "@/utils/Logger";
 import { getAICompletionBodyWithAttachments } from "../editor/ai/completion-utils";
@@ -68,7 +67,7 @@ function stringifyTextParts(parts: UIMessage["parts"]): string {
 export async function buildCompletionRequestBody(
   messages: UIMessage[],
 ): Promise<{
-  messages: ChatMessage[];
+  uiMessages: UIMessage[];
   context?: (null | components["schemas"]["AiCompletionContext"]) | undefined;
   includeOtherCode: string;
   selectedText?: string | null | undefined;
@@ -76,30 +75,29 @@ export async function buildCompletionRequestBody(
   const input = stringifyTextParts(messages.flatMap((m) => m.parts));
   const completionBody = await getAICompletionBodyWithAttachments({ input });
 
-  // Map from UIMessage to our ChatMessage type
   // If it's the last message, add the attachments from the completion body
-  function toChatMessage(message: UIMessage, isLast: boolean): ChatMessage {
-    // Clone parts to avoid mutating the original message
-    const parts = [...message.parts];
-    if (isLast) {
-      parts.push(...completionBody.attachments);
+  function addAttachmentsToMessage(
+    message: UIMessage,
+    isLast: boolean,
+  ): UIMessage {
+    if (!isLast) {
+      return message;
     }
     return {
-      role: message.role,
-      content: stringifyTextParts(message.parts), // This is no longer used in the backend
-      parts,
+      ...message,
+      parts: [...message.parts, ...completionBody.attachments],
     };
   }
 
   return {
     ...completionBody.body,
-    messages: messages.map((m, idx) =>
-      toChatMessage(m, idx === messages.length - 1),
+    uiMessages: messages.map((m, idx) =>
+      addAttachmentsToMessage(m, idx === messages.length - 1),
     ),
   };
 }
 
-interface AddToolResult {
+interface AddToolOutput {
   tool: string;
   toolCallId: string;
   output: unknown;
@@ -107,12 +105,12 @@ interface AddToolResult {
 
 export async function handleToolCall({
   invokeAiTool,
-  addToolResult, // Important that we don't await addToolResult to prevent potential deadlocks
+  addToolOutput, // Important that we don't await addToolOutput to prevent potential deadlocks
   toolCall,
   toolContext,
 }: {
   invokeAiTool: (request: InvokeAiToolRequest) => Promise<InvokeAiToolResponse>;
-  addToolResult: (result: AddToolResult) => Promise<void>;
+  addToolOutput: (output: AddToolOutput) => Promise<void>;
   toolCall: {
     toolName: string;
     toolCallId: string;
@@ -128,7 +126,7 @@ export async function handleToolCall({
         toolCall.input,
         toolContext,
       );
-      addToolResult({
+      addToolOutput({
         tool: toolCall.toolName,
         toolCallId: toolCall.toolCallId,
         output: response.result || response.error,
@@ -137,9 +135,9 @@ export async function handleToolCall({
       // Invoke the backend/mcp tool
       const response = await invokeAiTool({
         toolName: toolCall.toolName,
-        arguments: toolCall.input,
+        arguments: toolCall.input ?? {}, // Some models pass in null, so we default to an empty object
       });
-      addToolResult({
+      addToolOutput({
         tool: toolCall.toolName,
         toolCallId: toolCall.toolCallId,
         output: response.result || response.error,
@@ -147,7 +145,7 @@ export async function handleToolCall({
     }
   } catch (error) {
     Logger.error("Tool call failed:", error);
-    addToolResult({
+    addToolOutput({
       tool: toolCall.toolName,
       toolCallId: toolCall.toolCallId,
       output: `Error: ${error instanceof Error ? error.message : String(error)}`,

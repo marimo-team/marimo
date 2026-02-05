@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 // Edge case filenames for testing unicode, spaces, and special characters
 export const EDGE_CASE_FILENAMES = [

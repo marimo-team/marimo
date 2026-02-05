@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 import { type Table as ArrowTable, tableFromIPC } from "@uwdata/flechette";
 
 // Adapted from https://github.com/vega/vega-loader-arrow/blob/main/src/index.js

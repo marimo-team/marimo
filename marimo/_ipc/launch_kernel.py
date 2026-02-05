@@ -1,4 +1,4 @@
-# Copyright 2025 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 """Standalone kernel server entry point for IPC (using ZeroMQ)."""
 
 from __future__ import annotations
@@ -45,15 +45,13 @@ def main() -> None:
         # Virtual files require a web server to serve file URLs. Since we're
         # not running one, content must be embedded as data URLs instead.
         virtual_files_supported=False,
-        # NB: Unique parameter combination required for ZeroMQ. The `stream_queue`
-        # and `socket_addr` are mutually exclusive. Normally RUN mode doesn't
-        # redirect console, while EDIT mode does. Our ZeroMQ proxy needs both
-        # `stream_queue` AND console redirection, but also other behavior of
-        # EDIT, so we require this combination.
+        # NB: IPC kernels are always subprocesses (is_ipc=True) but may be
+        # edit or run mode based on is_edit_mode.
         stream_queue=queue_manager.stream_queue,
         socket_addr=None,
-        is_edit_mode=True,
-        redirect_console_to_browser=True,
+        is_edit_mode=not args.is_run_mode,
+        is_ipc=True,
+        redirect_console_to_browser=args.redirect_console_to_browser,
     )
 
 

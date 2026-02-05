@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 
 import marimo
 
@@ -12,7 +12,7 @@ def _(mo):
         r"""
         # Matplotlib: Heatmaps with Colormaps
 
-        Create heatmaps using `imshow()` with custom colormaps. 
+        Create heatmaps using `imshow()` with custom colormaps.
         Common for visualizing matrices, correlations, and grid data.
         """
     )

@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 import { Facet } from "@codemirror/state";
 
 /**
@@ -14,6 +14,9 @@ import { Facet } from "@codemirror/state";
  */
 export function singleFacet<T>() {
   return Facet.define<T, T>({
-    combine: (values) => values[0],
+    combine: (values) => {
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      return values.find((v) => v !== undefined)!;
+    },
   });
 }

@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import { PinLeftIcon, PinRightIcon } from "@radix-ui/react-icons";
 import type { Column, SortDirection, Table } from "@tanstack/react-table";

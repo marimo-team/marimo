@@ -4,11 +4,11 @@
 #     "marimo",
 # ]
 # ///
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.19.6"
 app = marimo.App()
 
 
@@ -22,7 +22,6 @@ def _():
 def _(mo):
     kinds = [
         # ---
-        "info",
         "note",
         # ---
         "danger",
@@ -42,10 +41,10 @@ def _(mo):
 
     def create(kind):
         return mo.md(
-            rf"""
-
-            !!! {kind} "{kind} admonition"
-                This is an admonition for {kind}
+            f"""
+    /// {kind} | {kind} admonition
+    This is an admonition for {kind}
+    ///
             """
         )
 
@@ -56,37 +55,37 @@ def _(mo):
 
 @app.cell
 def _(mo):
-    mo.md("""# Misc""")
+    mo.md("""
+    # Misc
+    """)
     return
 
 
 @app.cell
 def _(mo):
-    mo.md(
-        rf"""
-        !!! important ""
-            This is an admonition box without a title.
-        """
-    )
+    mo.md("""
+    /// important |
+    This is an admonition box without a title.
+    ///
+    """)
     return
 
 
 @app.cell
 def _(mo):
-    mo.md(
-        r"""
-        !!! tip ""
-            Importa recordar as seguintes regras de diferenciação de matrizes:
+    mo.md(r"""
+    /// tip |
+    Importa recordar as seguintes regras de diferenciação de matrizes:
 
-            $$\frac{\partial\, u'v}{\partial\, v} = \frac{\partial\, v'u}{\partial\, v} = u$$
+    $$\frac{\partial\, u'v}{\partial\, v} = \frac{\partial\, v'u}{\partial\, v} = u$$
 
-            sendo $u$ e $v$ dois vetores.
+    sendo $u$ e $v$ dois vetores.
 
-            $$\frac{\partial\, v'Av}{\partial\, v}=2Av=2v'A$$
+    $$\frac{\partial\, v'Av}{\partial\, v}=2Av=2v'A$$
 
-            em que $A$ é uma matriz simétrica. No nosso caso, $A=X'X$ e $v=\hat{\boldsymbol{\beta}}$.import marimo as mo
-        """
-    )
+    em que $A$ é uma matriz simétrica. No nosso caso, $A=X'X$ e $v=\hat{\boldsymbol{\beta}}$.
+    ///
+    """)
     return
 
 

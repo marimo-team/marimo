@@ -341,6 +341,48 @@ def test_repr_mimebundle_with_exclude():
     assert content == {"application/json": {"message": "Hello, World!"}}
 
 
+def test_repr_mimebundle_empty_include_fallback():
+    """Test that _repr_mimebundle_ with empty include falls back."""
+
+    class GraphvizLikeObject:
+        def _repr_mimebundle_(self, include=None, exclude=None):  # noqa: ARG002
+            # Simulate graphviz (https://github.com/xflr6/graphviz) behavior: empty include means empty result
+            if include is not None and len(include) == 0:
+                return {}
+            return {
+                "image/svg+xml": "<svg>test content</svg>",
+                "text/plain": "test content",
+            }
+
+        def __repr__(self):
+            return "GraphvizLikeObject()"
+
+    obj = GraphvizLikeObject()
+    formatter = get_formatter(obj)
+    assert formatter is not None
+    mime, content = formatter(obj)
+    assert mime == "application/vnd.marimo+mimebundle"
+    assert content == {"image/svg+xml": "<svg>test content</svg>"}
+
+
+def test_repr_mimebundle_type_error_fallback():
+    """Test that _repr_mimebundle_ TypeError falls back to no-param version."""
+
+    class LegacyMimeBundle:
+        def _repr_mimebundle_(self):
+            return {
+                "application/json": {"message": "Legacy format"},
+                "text/plain": "Legacy format",
+            }
+
+    obj = LegacyMimeBundle()
+    formatter = get_formatter(obj)
+    assert formatter is not None
+    mime, content = formatter(obj)
+    assert mime == "application/vnd.marimo+mimebundle"
+    assert content == {"application/json": {"message": "Legacy format"}}
+
+
 def test_repr_returns_none():
     class ReprNone:
         def _repr_html_(self):

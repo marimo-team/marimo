@@ -1,6 +1,11 @@
-/* Copyright 2024 Marimo. All rights reserved. */
-import type { ColumnDef, RowSelectionState } from "@tanstack/react-table";
-import { render, screen } from "@testing-library/react";
+/* Copyright 2026 Marimo. All rights reserved. */
+import type {
+  ColumnDef,
+  PaginationState,
+  RowSelectionState,
+  SortingState,
+} from "@tanstack/react-table";
+import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { DataTable } from "../data-table";
@@ -94,5 +99,92 @@ describe("DataTable", () => {
     // The first row is header; subsequent rows correspond to data
     expect(rows[1]).toHaveAttribute("title", "Michael Scott");
     expect(rows[2]).toHaveAttribute("title", "Jim Halpert");
+  });
+
+  it("should display updated data after rerender with manual sorting and pagination", () => {
+    // Simulates the bug from issue #8023:
+    // When a user sorts a table, rows that moved from page 2 to page 1
+    // don't visually refresh after the underlying data is updated.
+
+    interface RowData {
+      id: number;
+      status: string;
+      value: number;
+    }
+
+    // Initial data: 4 rows, page_size=3
+    const initialData: RowData[] = [
+      { id: 4, status: "pending", value: 40 },
+      { id: 3, status: "pending", value: 30 },
+      { id: 2, status: "pending", value: 20 },
+    ];
+
+    const columns: ColumnDef<RowData>[] = [
+      { id: "id", accessorFn: (row) => row.id, header: "id" },
+      { id: "status", accessorFn: (row) => row.status, header: "status" },
+      { id: "value", accessorFn: (row) => row.value, header: "value" },
+    ];
+
+    // Simulate sorted state (value descending) - manual sorting means
+    // data comes pre-sorted from backend
+    const sorting: SortingState = [{ id: "value", desc: true }];
+    const setSorting = vi.fn();
+
+    const paginationState: PaginationState = { pageIndex: 0, pageSize: 3 };
+    const setPaginationState = vi.fn();
+
+    const commonProps = {
+      columns,
+      selection: null as "single" | "multi" | null,
+      totalRows: 4,
+      totalColumns: 3,
+      pagination: true,
+      manualPagination: true,
+      paginationState,
+      setPaginationState,
+      manualSorting: true,
+      sorting,
+      setSorting,
+    };
+
+    const { rerender } = render(
+      <TooltipProvider>
+        <DataTable {...commonProps} data={initialData} />
+      </TooltipProvider>,
+    );
+
+    // Verify initial data is displayed - look for "pending" in cells
+    const rows = screen.getAllByRole("row");
+    // Row 0 is header, rows 1-3 are data rows
+    expect(rows).toHaveLength(4); // 1 header + 3 data rows
+    // All rows should show "pending"
+    expect(within(rows[1]).getByText("pending")).toBeTruthy();
+    expect(within(rows[2]).getByText("pending")).toBeTruthy();
+    expect(within(rows[3]).getByText("pending")).toBeTruthy();
+
+    // Now simulate data update: row with id=4 is now "approved"
+    // Backend returns sorted data with the update applied
+    const updatedData: RowData[] = [
+      { id: 4, status: "approved", value: 40 },
+      { id: 3, status: "pending", value: 30 },
+      { id: 2, status: "pending", value: 20 },
+    ];
+
+    // Rerender with updated data (same sorting, same pagination)
+    rerender(
+      <TooltipProvider>
+        <DataTable {...commonProps} data={updatedData} />
+      </TooltipProvider>,
+    );
+
+    // BUG: The row should show "approved" but might show stale "pending"
+    const updatedRows = screen.getAllByRole("row");
+    expect(updatedRows).toHaveLength(4);
+
+    // The first data row (id=4) should now show "approved"
+    expect(within(updatedRows[1]).getByText("approved")).toBeTruthy();
+    // Other rows should still show "pending"
+    expect(within(updatedRows[2]).getByText("pending")).toBeTruthy();
+    expect(within(updatedRows[3]).getByText("pending")).toBeTruthy();
   });
 });

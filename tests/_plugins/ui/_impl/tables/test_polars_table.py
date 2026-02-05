@@ -799,9 +799,9 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
             "integers": lambda x: -100 if x is None else x * 2,
             "floats": lambda x: "---" if x is None else f"{x:.1f}",
             "booleans": lambda x: "MISSING" if x is None else str(x).upper(),
-            "dates": lambda x: "No Date"
-            if x is None
-            else x.strftime("%Y-%m-%d"),
+            "dates": lambda x: (
+                "No Date" if x is None else x.strftime("%Y-%m-%d")
+            ),
             "lists": lambda x: "Empty" if x is None else f"List({len(x)})",
         }
 

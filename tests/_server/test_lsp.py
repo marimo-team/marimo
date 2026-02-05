@@ -16,7 +16,7 @@ from marimo._config.manager import (
     MarimoConfigReaderWithOverrides,
 )
 from marimo._loggers import get_log_directory
-from marimo._messaging.ops import Alert
+from marimo._messaging.notification import AlertNotification
 from marimo._server.lsp import (
     BasedpyrightServer,
     BaseLspServer,
@@ -61,8 +61,10 @@ class MockLspServer(BaseLspServer):
     def get_command(self) -> list[str]:
         return ["mock_binary", "--port", str(self.port)]
 
-    def missing_binary_alert(self) -> Alert:
-        return Alert(title="Mock Alert", description="Mock missing binary")
+    def missing_binary_alert(self) -> AlertNotification:
+        return AlertNotification(
+            title="Mock Alert", description="Mock missing binary"
+        )
 
 
 async def test_base_lsp_server_start_stop(
@@ -91,7 +93,63 @@ async def test_base_lsp_server_start_stop(
     # Test stop
     server.stop()
     mock_process.terminate.assert_called_once()
+    # Verify wait was called with timeout for graceful shutdown
+    mock_process.wait.assert_called_once_with(timeout=5)
     assert server.process is None
+
+
+async def test_base_lsp_server_stop_force_kill_on_timeout(
+    mock_popen: mock.MagicMock,
+    mock_process: mock.MagicMock,
+):
+    """Test that stop() force kills the process if it doesn't respond to terminate."""
+    del mock_popen
+    import subprocess
+
+    server = MockLspServer(port=8000)
+    server.validate_requirements = mock.MagicMock(return_value=True)
+
+    # Start the server
+    await server.start()
+
+    # Make wait() raise TimeoutExpired to simulate hung process
+    mock_process.wait.side_effect = [
+        subprocess.TimeoutExpired("cmd", 5),  # First wait (terminate)
+        None,  # Second wait (after kill)
+    ]
+
+    # Test stop with force kill
+    server.stop()
+
+    mock_process.terminate.assert_called_once()
+    mock_process.kill.assert_called_once()
+    # wait should be called twice: once after terminate, once after kill
+    assert mock_process.wait.call_count == 2
+    assert server.process is None
+
+
+async def test_base_lsp_server_start_lock_prevents_concurrent_starts(
+    mock_popen: mock.MagicMock,
+    mock_process: mock.MagicMock,
+):
+    """Test that start() uses a lock to prevent race conditions."""
+    del mock_process
+    import asyncio
+
+    server = MockLspServer(port=8000)
+    server.validate_requirements = mock.MagicMock(return_value=True)
+
+    # Call start() multiple times concurrently
+    results = await asyncio.gather(
+        server.start(),
+        server.start(),
+        server.start(),
+    )
+
+    # All should succeed (return None), but Popen should only be called once
+    assert all(r is None for r in results)
+    # Only one Popen call due to the lock
+    mock_popen.assert_called_once()
 
 
 async def test_base_lsp_server_missing_binary(mock_which: mock.MagicMock):

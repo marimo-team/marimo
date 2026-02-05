@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import { BoxIcon, CheckCircleIcon, XCircleIcon } from "lucide-react";
 import React from "react";
@@ -211,7 +211,7 @@ const InstallButton: React.FC<{
           return pkg.name;
         })
         .join(" ");
-      const response = await addPackage({ package: packageSpec });
+      const response = await addPackage({ package: packageSpec, dev: true });
       if (response.success) {
         onSuccess();
         toast({

@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
 import os
@@ -22,6 +22,7 @@ from marimo._ast.compiler import (
 )
 from marimo._ast.models import CellData
 from marimo._ast.names import DEFAULT_CELL_NAME, SETUP_CELL_NAME
+from marimo._ast.parse import fixed_dedent
 from marimo._ast.pytest import process_for_pytest
 from marimo._schemas.serialization import (
     CellDef,
@@ -164,7 +165,7 @@ class CellManager:
     ) -> Cell:
         """Registers cells when called through a context block."""
         cell = context_cell_factory(
-            cell_id=CellId_t(SETUP_CELL_NAME),
+            cell_id=self.setup_cell_id,
             # NB. carry along the frame from the initial call.
             frame=frame,
         )
@@ -220,7 +221,7 @@ class CellManager:
         self, cell_def: CellDef, app: InternalApp | None = None
     ) -> None:
         if isinstance(cell_def, SetupCell):
-            cell_id = CellId_t(SETUP_CELL_NAME)
+            cell_id = self.setup_cell_id
         else:
             cell_id = self.create_cell_id()
         filename = app.filename if app is not None else None
@@ -264,22 +265,13 @@ class CellManager:
         # If this is the first cell, and its name is setup, assume that it's
         # the setup cell.
         if len(self._cell_data) == 0 and name == SETUP_CELL_NAME:
-            cell_id = CellId_t(SETUP_CELL_NAME)
+            cell_id = self.setup_cell_id
         else:
             cell_id = self.create_cell_id()
 
-        # - code.split("\n")[1:-1] disregards first and last lines, which are
-        #   empty
-        # - line[4:] removes leading indent in multiline string
-        # - replace(...) unescapes double quotes
-        # - rstrip() removes an extra newline
-        code = "\n".join(
-            [line[4:].replace('\\"', '"') for line in code.split("\n")[1:-1]]
-        )
-
         self.register_cell(
             cell_id=cell_id,
-            code=code,
+            code=fixed_dedent(code).strip(),
             config=cell_config,
             name=name or DEFAULT_CELL_NAME,
             cell=None,
@@ -419,6 +411,14 @@ class CellManager:
         """
         return self._cell_data.values()
 
+    def code_map(self) -> dict[CellId_t, str]:
+        """Get a mapping of cell IDs to their codes.
+
+        Returns:
+            dict[CellId_t, str]: Dictionary mapping cell IDs to their codes
+        """
+        return {cid: cd.code for cid, cd in self._cell_data.items()}
+
     def cell_data_at(self, cell_id: CellId_t) -> CellData:
         """Get the cell data for a specific cell ID.
 
@@ -518,3 +518,7 @@ class CellManager:
     @property
     def seen_ids(self) -> set[CellId_t]:
         return self._cell_id_generator.seen_ids
+
+    @property
+    def setup_cell_id(self) -> CellId_t:
+        return CellId_t(self.prefix + SETUP_CELL_NAME)

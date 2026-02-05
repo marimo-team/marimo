@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
 import json
@@ -1284,6 +1284,14 @@ def test_download_as(df: Any) -> None:
                 import polars as pl
 
                 return pl.read_json(buffer)
+            elif DependencyManager.pyarrow.has():
+                import json
+
+                import pyarrow as pa
+
+                rows = json.loads(data_bytes)
+                assert isinstance(rows, list)
+                return pa.Table.from_pylist(rows)
         elif format_type == "parquet":
             if DependencyManager.pandas.has():
                 import pandas as pd
@@ -1293,6 +1301,10 @@ def test_download_as(df: Any) -> None:
                 import polars as pl
 
                 return pl.read_parquet(buffer)
+            elif DependencyManager.pyarrow.has():
+                import pyarrow.parquet as pq
+
+                return pq.read_table(buffer)
         elif format_type == "csv":
             if DependencyManager.pandas.has():
                 import pandas as pd
@@ -1302,6 +1314,10 @@ def test_download_as(df: Any) -> None:
                 import polars as pl
 
                 return pl.read_csv(buffer)
+            elif DependencyManager.pyarrow.has():
+                import pyarrow.csv as pacsv
+
+                return pacsv.read_csv(buffer)
         raise ValueError(f"Unsupported format: {format_type}")
 
     # Test base downloads (full data)
@@ -1566,7 +1582,9 @@ def test_column_clamping_with_dataframes(df: Any):
     assert table._component_args["max-columns"] == DEFAULT_MAX_COLUMNS
     json_data = json.loads(table._component_args["data"])
     headers = json_data[0].keys()
-    assert len(headers) == DEFAULT_MAX_COLUMNS  # 50 columns
+    assert (
+        len(headers) == DEFAULT_MAX_COLUMNS + 1
+    )  # 50 columns + _marimo_row_id
     # Field types are not clamped
     assert len(table._component_args["field-types"]) == 60
 
@@ -1578,7 +1596,7 @@ def test_column_clamping_with_dataframes(df: Any):
     assert table._component_args["max-columns"] == 40
     json_data = json.loads(table._component_args["data"])
     headers = json_data[0].keys()
-    assert len(headers) == 40  # 40 columns
+    assert len(headers) == 41  # 40 columns + _marimo_row_id
     # Field types aren't clamped
     assert len(table._component_args["field-types"]) == 60
 
@@ -1593,6 +1611,57 @@ def test_column_clamping_with_dataframes(df: Any):
 
     assert len(headers) == 61  # 60 columns + 1 selection column
     assert len(table._component_args["field-types"]) == 60
+
+
+@pytest.mark.parametrize(
+    "df",
+    create_dataframes(
+        {
+            "person": ["Alice", "Bob", "Charlie"],
+            "age": [20, 30, 40],
+            **{f"col{i}": [1, 2, 3] for i in range(49)},
+        },
+        exclude=NON_EAGER_LIBS,
+    ),
+)
+def test_selection_with_clamped_columns_and_filter(df: Any):
+    """Regression test for #8029: selection returns wrong row when table
+    has more columns than max_columns and is filtered."""
+    import narwhals as nw
+
+    table = ui.table(df, max_columns=50)
+
+    # The data sent to frontend should include _marimo_row_id
+    # even when columns are clamped
+    json_data = json.loads(table._component_args["data"])
+    assert INDEX_COLUMN_NAME in json_data[0]
+
+    # Apply a filter to show only rows where age >= 30
+    # (should return Bob and Charlie, with _marimo_row_id 1 and 2)
+    search_args = SearchTableArgs(
+        page_size=10,
+        page_number=0,
+        filters=[Condition(column_id="age", operator=">=", value=30)],
+    )
+    response = table._search(search_args)
+    result_data = json.loads(response.data)
+
+    # Filtered data should still include _marimo_row_id
+    assert INDEX_COLUMN_NAME in result_data[0]
+    assert len(result_data) == 2  # Bob and Charlie
+
+    # Select row with _marimo_row_id=2 (Charlie)
+    value = table._convert_value(["2"])
+    assert not isinstance(value, nw.DataFrame)
+    nw_value = nw.from_native(value)
+    assert nw_value["person"][0] == "Charlie"
+    assert nw_value["age"][0] == 40
+
+    # Select row with _marimo_row_id=1 (Bob)
+    value = table._convert_value(["1"])
+    nw_value = nw.from_native(value)
+    assert nw_value["person"][0] == "Bob"
+    assert nw_value["age"][0] == 30
 
 
 @pytest.mark.skipif(

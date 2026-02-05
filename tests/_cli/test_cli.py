@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 """
 Crude CLI tests
 
@@ -25,11 +25,11 @@ import pytest
 
 from marimo._ast import codegen
 from marimo._ast.cell import CellConfig
+from marimo._cli.cli import _collect_marimo_files
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._server.templates.templates import get_version
 from marimo._utils.platform import is_windows
 from marimo._utils.toml import read_toml
-from tests.utils import try_assert_n_times
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -610,6 +610,169 @@ def test_cli_run(temp_marimo_file: str) -> None:
     _check_contents(p, f'"version": "{get_version()}"'.encode(), contents)
 
 
+def test_cli_run_directory_gallery() -> None:
+    directory = tempfile.TemporaryDirectory()
+    _temp_run_file(directory)
+    port = _get_port()
+    p = subprocess.Popen(
+        ["marimo", "run", directory.name, "-p", str(port), "--headless"]
+    )
+    contents = _try_fetch(port)
+    _check_contents(p, b'"mode": "gallery"', contents)
+
+
+@pytest.mark.skipif(not HAS_UV, reason="uv is required for sandbox tests")
+def test_cli_run_directory_gallery_with_sandbox() -> None:
+    """Test that gallery mode works with --sandbox flag."""
+    directory = tempfile.TemporaryDirectory()
+    _temp_run_file(directory)
+    port = _get_port()
+    p = subprocess.Popen(
+        [
+            "marimo",
+            "run",
+            directory.name,
+            "--sandbox",
+            "-p",
+            str(port),
+            "--headless",
+        ]
+    )
+    contents = _try_fetch(port)
+    _check_contents(p, b'"mode": "gallery"', contents)
+
+
+def test_cli_run_directory_gallery_rejects_check() -> None:
+    directory = tempfile.TemporaryDirectory()
+    _temp_run_file(directory)
+    result = subprocess.run(
+        ["marimo", "run", directory.name, "--check"],
+        capture_output=True,
+        text=True,
+    )
+    output = result.stderr + result.stdout
+    assert result.returncode != 0
+    assert (
+        "--check is only supported when running a single notebook file."
+        in output
+    )
+
+
+def test_cli_run_directory_gallery_can_open_file() -> None:
+    directory = tempfile.TemporaryDirectory()
+    _temp_run_file(directory)
+    port = _get_port()
+    p = subprocess.Popen(
+        ["marimo", "run", directory.name, "-p", str(port), "--headless"]
+    )
+    try:
+        contents = _try_fetch(port)
+        assert contents is not None
+        assert b'"mode": "gallery"' in contents
+
+        url = f"http://localhost:{port}/?file=run.py"
+        notebook_contents = urllib.request.urlopen(url).read()
+        assert b'"mode": "read"' in notebook_contents
+    finally:
+        p.kill()
+
+
+def test_cli_run_multiple_files_gallery() -> None:
+    directory = tempfile.TemporaryDirectory()
+    filecontents = codegen.generate_filecontents(
+        codes=["import marimo as mo"],
+        names=["one"],
+        cell_configs=[CellConfig()],
+    )
+    file_one = Path(directory.name) / "one.py"
+    file_two = Path(directory.name) / "two.py"
+    file_one.write_text(filecontents, encoding="utf-8")
+    file_two.write_text(filecontents, encoding="utf-8")
+    port = _get_port()
+    p = subprocess.Popen(
+        [
+            "marimo",
+            "run",
+            str(file_one),
+            str(file_two),
+            "-p",
+            str(port),
+            "--headless",
+        ]
+    )
+    contents = _try_fetch(port)
+    _check_contents(p, b'"mode": "gallery"', contents)
+
+
+@pytest.mark.skipif(not HAS_UV, reason="uv is required for sandbox tests")
+def test_cli_run_directory_gallery_sandbox_can_open_file() -> None:
+    """Test that individual notebooks can be opened from gallery in sandbox mode."""
+    directory = tempfile.TemporaryDirectory()
+    _temp_run_file(directory)
+    port = _get_port()
+    p = subprocess.Popen(
+        [
+            "marimo",
+            "run",
+            directory.name,
+            "--sandbox",
+            "-p",
+            str(port),
+            "--headless",
+        ]
+    )
+    try:
+        contents = _try_fetch(port)
+        assert contents is not None
+        assert b'"mode": "gallery"' in contents
+
+        # Open a specific notebook from gallery
+        url = f"http://localhost:{port}/?file=run.py"
+        notebook_contents = urllib.request.urlopen(url).read()
+        assert b'"mode": "read"' in notebook_contents
+    finally:
+        p.kill()
+
+
+@pytest.mark.skipif(not HAS_UV, reason="uv is required for sandbox tests")
+def test_cli_run_multiple_files_gallery_sandbox() -> None:
+    """Test gallery mode with multiple explicit files and --sandbox."""
+    directory = tempfile.TemporaryDirectory()
+    filecontents = codegen.generate_filecontents(
+        codes=["import marimo as mo"],
+        names=["one"],
+        cell_configs=[CellConfig()],
+    )
+    file_one = Path(directory.name) / "one.py"
+    file_two = Path(directory.name) / "two.py"
+    file_one.write_text(filecontents, encoding="utf-8")
+    file_two.write_text(filecontents, encoding="utf-8")
+    port = _get_port()
+    p = subprocess.Popen(
+        [
+            "marimo",
+            "run",
+            str(file_one),
+            str(file_two),
+            "--sandbox",
+            "-p",
+            str(port),
+            "--headless",
+        ]
+    )
+    contents = _try_fetch(port)
+    _check_contents(p, b'"mode": "gallery"', contents)
+
+
+def test_collect_marimo_files_includes_markdown(
+    tmp_path: Path,
+) -> None:
+    md_file = tmp_path / "notebook.md"
+    md_file.write_text("---\nmarimo-version: 0.1.0\n---\n", encoding="utf-8")
+    collected = _collect_marimo_files([str(tmp_path)])
+    assert str(md_file) in {file.path for file in collected.files}
+
+
 def test_cli_run_with_show_code(temp_marimo_file: str) -> None:
     port = _get_port()
     p = subprocess.Popen(
@@ -795,64 +958,14 @@ def test_cli_sandbox_edit_new_file() -> None:
 
 
 @pytest.mark.skipif(not HAS_UV, reason="uv is required for sandbox tests")
-def test_cli_sandbox_edit_none_not_supported() -> None:
+def test_cli_edit_sandbox_multi_notebook() -> None:
+    # With IPC-based kernel, sandbox now works with multi-notebook servers
     port = _get_port()
     p = subprocess.Popen(
         [
             "marimo",
             "edit",
-            "-p",
-            str(port),
-            "--headless",
-            "--no-token",
             "--sandbox",
-        ],
-        stderr=subprocess.PIPE,
-    )
-
-    def _assert():
-        assert p.returncode != 0
-
-    try_assert_n_times(5, _assert)
-    assert p.stderr is not None
-    assert "not supported" in p.stderr.read().decode()
-
-
-@pytest.mark.skipif(not HAS_UV, reason="uv is required for sandbox tests")
-def test_cli_sandbox_edit_directory_not_supported() -> None:
-    port = _get_port()
-    p = subprocess.Popen(
-        [
-            "marimo",
-            "edit",
-            "../",
-            "-p",
-            str(port),
-            "--headless",
-            "--no-token",
-            "--sandbox",
-        ],
-        stderr=subprocess.PIPE,
-    )
-
-    def _assert():
-        assert p.returncode != 0
-
-    try_assert_n_times(5, _assert)
-    assert p.stderr is not None
-    assert "not supported" in p.stderr.read().decode()
-
-
-@pytest.mark.skipif(not HAS_UV, reason="uv is required for sandbox tests")
-def test_cli_edit_none_dangerous_sandbox_allowed() -> None:
-    # sandbox is disallowed in a multi-notebook edit server,
-    # but can be overridden with --dangerous-sandbox.
-    port = _get_port()
-    p = subprocess.Popen(
-        [
-            "marimo",
-            "edit",
-            "--dangerous-sandbox",
             "-p",
             str(port),
             "--headless",
@@ -871,16 +984,15 @@ def test_cli_edit_none_dangerous_sandbox_allowed() -> None:
 
 
 @pytest.mark.skipif(not HAS_UV, reason="uv is required for sandbox tests")
-def test_cli_edit_directory_dangerous_sandbox_allowed() -> None:
-    # sandbox is disallowed in a multi-notebook edit server,
-    # but can be overridden with --dangerous-sandbox.
+def test_cli_edit_directory_sandbox() -> None:
+    # With IPC-based kernel, sandbox now works with directories
     port = _get_port()
     p = subprocess.Popen(
         [
             "marimo",
             "edit",
             "../",
-            "--dangerous-sandbox",
+            "--sandbox",
             "-p",
             str(port),
             "--headless",
@@ -1237,14 +1349,13 @@ def test_cli_with_custom_pyproject_config_no_file(tmp_path: Path) -> None:
         # TODO: fix this, it does not get overridden in tests (maybe it is using a different marimo version that the one in CI)
         # assert b'"manager": "uv"' in contents
 
-    # marimo edit --dangerous-sandbox, in the directory with pyproject.toml,
-    # for vscode extension compatibility
+    # marimo edit --sandbox, in the directory with pyproject.toml
     port = _get_port()
     p = subprocess.Popen(
         [
             "marimo",
             "edit",
-            "--dangerous-sandbox",
+            "--sandbox",
             "-p",
             str(port),
             "--headless",
@@ -1345,6 +1456,87 @@ def test_cli_run_docker_remote_url():
     assert "Docker is not installed" in p.stdout.read().decode()
 
 
+def test_cli_edit_trusted(temp_marimo_file: str) -> None:
+    # --trusted should work normally with local files
+    port = _get_port()
+    p = subprocess.Popen(
+        [
+            "marimo",
+            "edit",
+            temp_marimo_file,
+            "-p",
+            str(port),
+            "--headless",
+            "--no-token",
+            "--trusted",
+        ]
+    )
+    contents = _try_fetch(port)
+    _check_contents(p, b'"mode": "edit"', contents)
+
+
+@pytest.mark.skipif(
+    HAS_DOCKER, reason="docker is required to be not installed"
+)
+def test_cli_edit_no_trusted(temp_marimo_file: str) -> None:
+    # --untrusted should try to use Docker, fail if not installed
+    p = subprocess.Popen(
+        [
+            "marimo",
+            "edit",
+            temp_marimo_file,
+            "--untrusted",
+        ],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+
+    # Should fail with missing docker
+    assert p.returncode != 0
+    assert p.stdout is not None
+    assert "Docker is not installed" in p.stdout.read().decode()
+
+
+def test_cli_run_trusted(temp_marimo_file: str) -> None:
+    # --trusted should work normally with local files
+    port = _get_port()
+    p = subprocess.Popen(
+        [
+            "marimo",
+            "run",
+            temp_marimo_file,
+            "-p",
+            str(port),
+            "--headless",
+            "--trusted",
+        ]
+    )
+    contents = _try_fetch(port)
+    _check_contents(p, b'"mode": "read"', contents)
+
+
+@pytest.mark.skipif(
+    HAS_DOCKER, reason="docker is required to be not installed"
+)
+def test_cli_run_no_trusted(temp_marimo_file: str) -> None:
+    # --untrusted should try to use Docker, fail if not installed
+    p = subprocess.Popen(
+        [
+            "marimo",
+            "run",
+            temp_marimo_file,
+            "--untrusted",
+        ],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+
+    # Should fail with missing docker
+    assert p.returncode != 0
+    assert p.stdout is not None
+    assert "Docker is not installed" in p.stdout.read().decode()
+
+
 def test_cli_edit_with_convert(
     temp_possible_file: str,
 ) -> None:
@@ -1399,3 +1591,29 @@ def test_cli_edit_with_timeout() -> None:
 
     stdout, _ = p.communicate(timeout=5)
     assert "Timeout due to inactivity" in stdout
+
+
+def test_cli_edit_with_session_ttl() -> None:
+    """Test that --session-ttl option is accepted by edit command."""
+    port = _get_port()
+    p = subprocess.Popen(
+        [
+            "marimo",
+            "edit",
+            "--no-token",
+            "--headless",
+            "-p",
+            str(port),
+            "--session-ttl",
+            "300",
+            "--skip-update-check",
+        ],
+        stderr=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+    )
+    try:
+        contents = _try_fetch(port)
+        _check_contents(p, b'"mode": "home"', contents)
+    finally:
+        p.kill()
+        p.wait(timeout=5)

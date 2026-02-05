@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import { autocompletion } from "@codemirror/autocomplete";
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
@@ -27,6 +27,13 @@ import { languageMetadataField } from "../metadata";
 import type { LanguageAdapter } from "../types";
 
 export type MarkdownLanguageAdapterMetadata = MarkdownMetadata;
+
+/**
+ * Default hide_code setting for markdown cells.
+ * When true, the markdown code is hidden after the cell is blurred,
+ * showing only the rendered output.
+ */
+export const MARKDOWN_INITIAL_HIDE_CODE = true;
 
 /**
  * Language adapter for Markdown.

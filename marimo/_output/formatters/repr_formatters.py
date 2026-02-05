@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
 from typing import Any, Callable, Optional, cast
@@ -55,7 +55,10 @@ def maybe_get_repr_formatter(
                 # Try to call _repr_mimebundle_ with include/exclude parameters
                 if attr == "_repr_mimebundle_":
                     try:
-                        contents = method(include=[], exclude=[])
+                        contents = method(include=None, exclude=None)
+                        # Check if we got an empty result and retry without params
+                        if not contents:
+                            contents = method()
                     except TypeError:
                         # If that fails, call the method without parameters
                         contents = method()

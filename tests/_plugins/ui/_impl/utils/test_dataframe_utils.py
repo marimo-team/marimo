@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
 from typing import Any
@@ -8,6 +8,10 @@ import pytest
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins.ui._impl.tables.table_manager import FieldTypes
 from marimo._plugins.ui._impl.tables.utils import get_table_manager
+from marimo._plugins.ui._impl.utils.dataframe import (
+    DEFAULT_CSV_ENCODING,
+    get_default_csv_encoding,
+)
 
 HAS_PANDAS = DependencyManager.pandas.has()
 HAS_NARWHALS = DependencyManager.narwhals.has()
@@ -83,3 +87,7 @@ def test_get_table_manager() -> None:
     assert get_table_manager(nw.from_native(df)) is not None
     assert get_table_manager(nw.from_native(pa.table(df))) is not None
     assert get_table_manager(nw.from_native(pl.from_pandas(df))) is not None
+
+
+def test_get_default_csv_encoding():
+    assert get_default_csv_encoding() == DEFAULT_CSV_ENCODING

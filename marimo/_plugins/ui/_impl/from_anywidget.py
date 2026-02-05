@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
 import base64
@@ -330,3 +330,11 @@ class anywidget(UIElement[WireFormat, T]):
             except AttributeError:
                 return None
         return getattr(self.widget, name)
+
+    def __getitem__(self, key: Any) -> Any:
+        """Forward __getitem__ to the wrapped widget."""
+        return self.widget[key]
+
+    def __contains__(self, key: Any) -> bool:
+        """Forward __contains__ to the wrapped widget."""
+        return key in self.widget

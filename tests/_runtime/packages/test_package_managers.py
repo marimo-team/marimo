@@ -15,6 +15,7 @@ from marimo._runtime.packages.pypi_package_manager import (
     PipPackageManager,
     RyePackageManager,
     UvPackageManager,
+    VersionMap,
 )
 
 
@@ -29,6 +30,30 @@ def test_create_package_managers() -> None:
     with pytest.raises(RuntimeError) as e:
         create_package_manager("foobar")
     assert "Unknown package manager" in str(e)
+
+
+def test_create_package_manager_with_python_exe() -> None:
+    """Test that create_package_manager passes python_exe to package managers."""
+    custom_python = "/path/to/custom/python"
+
+    pip_mgr = create_package_manager("pip", python_exe=custom_python)
+    assert isinstance(pip_mgr, PipPackageManager)
+    assert pip_mgr._python_exe == custom_python
+
+    uv_mgr = create_package_manager("uv", python_exe=custom_python)
+    assert isinstance(uv_mgr, UvPackageManager)
+    assert uv_mgr._python_exe == custom_python
+
+
+def test_create_package_manager_without_python_exe() -> None:
+    """Test that create_package_manager defaults python_exe to PY_EXE."""
+    pip_mgr = create_package_manager("pip")
+    assert isinstance(pip_mgr, PipPackageManager)
+    assert pip_mgr._python_exe == PY_EXE
+
+    uv_mgr = create_package_manager("uv")
+    assert isinstance(uv_mgr, UvPackageManager)
+    assert uv_mgr._python_exe == PY_EXE
 
 
 def test_update_script_metadata() -> None:
@@ -48,8 +73,8 @@ def test_update_script_metadata() -> None:
             runs_calls.append(command)
             return True
 
-        def _get_version_map(self) -> dict[str, str]:
-            return {"foo": "1.0", "bar": "2.0"}
+        def _get_version_map(self) -> VersionMap:
+            return VersionMap({"foo": "1.0", "bar": "2.0"})
 
     pm = MockUvPackageManager()
     pm.update_notebook_script_metadata(
@@ -83,8 +108,8 @@ def test_update_script_metadata_with_version_map() -> None:
             runs_calls.append(command)
             return True
 
-        def _get_version_map(self) -> dict[str, str]:
-            return {"foo": "1.0", "bar": "2.0"}
+        def _get_version_map(self) -> VersionMap:
+            return VersionMap({"foo": "1.0", "bar": "2.0"})
 
     pm = MockUvPackageManager()
     # It should ignore when not in the version map
@@ -120,8 +145,10 @@ def test_update_script_metadata_with_mapping() -> None:
             runs_calls.append(command)
             return True
 
-        def _get_version_map(self) -> dict[str, str]:
-            return {"ibis": "2.0", "ibis-framework": "2.0", "pyyaml": "1.0"}
+        def _get_version_map(self) -> VersionMap:
+            return VersionMap(
+                {"ibis": "2.0", "ibis-framework": "2.0", "pyyaml": "1.0"}
+            )
 
     pm = MockUvPackageManager()
     # It should not canonicalize when passed explicitly
@@ -139,7 +166,7 @@ def test_update_script_metadata_with_mapping() -> None:
         "nb.py", import_namespaces_to_add=["yaml"], upgrade=False
     )
     assert runs_calls == [
-        ["uv", "--quiet", "add", "--script", "nb.py", "PyYAML==1.0"],
+        ["uv", "--quiet", "add", "--script", "nb.py", "pyyaml==1.0"],
     ]
     runs_calls.clear()
 
@@ -177,12 +204,14 @@ def test_update_script_metadata_marimo_packages() -> None:
             runs_calls.append(command)
             return True
 
-        def _get_version_map(self) -> dict[str, str]:
-            return {
-                "marimo": "0.1.0",
-                "marimo-ai": "0.2.0",
-                "pandas": "2.0.0",
-            }
+        def _get_version_map(self) -> VersionMap:
+            return VersionMap(
+                {
+                    "marimo": "0.1.0",
+                    "marimo-ai": "0.2.0",
+                    "pandas": "2.0.0",
+                }
+            )
 
     pm = MockUvPackageManager()
 
@@ -320,10 +349,10 @@ async def test_uv_pip_install() -> None:
         mock_popen.side_effect = capture_command
 
         pm = UvPackageManager()
-        await pm._install("foo", upgrade=False)
+        await pm._install("foo", upgrade=False, dev=False)
 
         assert runs_calls == [
-            ["uv", "pip", "install", "--compile", "foo", "-p", PY_EXE],
+            ["uv", "pip", "install", "foo", "-p", PY_EXE],
         ]
 
 
@@ -444,7 +473,7 @@ async def test_pip_install_with_log_callback() -> None:
 
     pm = MockPipPackageManager()
     result = await pm._install(
-        "numpy", upgrade=False, log_callback=log_callback
+        "numpy", upgrade=False, dev=False, log_callback=log_callback
     )
 
     assert result is True
@@ -477,7 +506,7 @@ async def test_uv_install_with_log_callback() -> None:
 
         pm = UvPackageManager()
         result = await pm._install(
-            "pandas", upgrade=False, log_callback=log_callback
+            "pandas", upgrade=False, dev=False, log_callback=log_callback
         )
 
         assert result is True
@@ -508,7 +537,7 @@ async def test_micropip_install_with_log_callback() -> None:
         patch.dict(sys.modules, {"micropip": mock_micropip}),
     ):
         result = await pm._install(
-            "requests", upgrade=False, log_callback=log_callback
+            "requests", upgrade=False, dev=False, log_callback=log_callback
         )
 
         assert result is True
@@ -530,8 +559,10 @@ async def test_package_manager_install_method_with_callback() -> None:
             package: str,
             *,
             upgrade: bool,
+            dev: bool,
             log_callback: Optional[LogCallback] = None,
         ) -> bool:
+            del dev
             del upgrade
             if log_callback:
                 log_callback(f"Installing {package}...\n")
@@ -564,9 +595,9 @@ def test_update_script_metadata_with_git_dependencies() -> None:
             runs_calls.append(command)
             return True
 
-        def _get_version_map(self) -> dict[str, str]:
+        def _get_version_map(self) -> VersionMap:
             # Git dependencies won't be in the version map with their git+ prefix
-            return {"python-gcode": "0.1.0"}
+            return VersionMap({"python-gcode": "0.1.0"})
 
     pm = MockUvPackageManager()
 

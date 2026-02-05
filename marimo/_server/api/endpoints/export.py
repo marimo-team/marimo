@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -6,23 +6,35 @@ from typing import TYPE_CHECKING
 from starlette.authentication import requires
 from starlette.background import BackgroundTask
 from starlette.exceptions import HTTPException
-from starlette.responses import HTMLResponse, JSONResponse, PlainTextResponse
+from starlette.responses import (
+    HTMLResponse,
+    JSONResponse,
+    PlainTextResponse,
+    Response,
+)
 
 from marimo import _loggers
+from marimo._convert.common.filename import (
+    get_download_filename,
+    make_download_headers,
+)
+from marimo._convert.markdown import convert_from_ir_to_markdown
+from marimo._convert.script import convert_from_ir_to_script
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.msgspec_encoder import asdict
 from marimo._server.api.deps import AppState
-from marimo._server.api.status import HTTPStatus
 from marimo._server.api.utils import parse_request
 from marimo._server.export.exporter import AutoExporter, Exporter
-from marimo._server.model import SessionMode
 from marimo._server.models.export import (
     ExportAsHTMLRequest,
     ExportAsMarkdownRequest,
+    ExportAsPDFRequest,
     ExportAsScriptRequest,
+    UpdateCellOutputsRequest,
 )
 from marimo._server.models.models import SuccessResponse
 from marimo._server.router import APIRouter
+from marimo._utils.http import HTTPStatus
 
 if TYPE_CHECKING:
     from starlette.requests import Request
@@ -42,6 +54,12 @@ async def export_as_html(
     request: Request,
 ) -> HTMLResponse:
     """
+    parameters:
+        - in: header
+          name: Marimo-Session-Id
+          schema:
+            type: string
+          required: true
     requestBody:
         content:
             application/json:
@@ -68,8 +86,8 @@ async def export_as_html(
             detail="File must have a name before exporting",
         )
 
-    # Only include the code and console if we are in edit mode
-    if app_state.mode != SessionMode.EDIT:
+    # Only include the code if allowed (edit mode or include_code=True)
+    if not app_state.session_manager.should_send_code_to_frontend():
         body.include_code = False
 
     html, filename = Exporter().export_as_html(
@@ -81,7 +99,7 @@ async def export_as_html(
     )
 
     if body.download:
-        headers = {"Content-Disposition": f"attachment; filename={filename}"}
+        headers = make_download_headers(filename)
     else:
         headers = {}
 
@@ -99,6 +117,12 @@ async def auto_export_as_html(
     request: Request,
 ) -> JSONResponse | PlainTextResponse:
     """
+    parameters:
+        - in: header
+          name: Marimo-Session-Id
+          schema:
+            type: string
+          required: true
     requestBody:
         content:
             application/json:
@@ -167,6 +191,12 @@ async def export_as_script(
     request: Request,
 ) -> PlainTextResponse:
     """
+    parameters:
+        - in: header
+          name: Marimo-Session-Id
+          schema:
+            type: string
+          required: true
     requestBody:
         content:
             application/json:
@@ -186,13 +216,13 @@ async def export_as_script(
     body = await parse_request(request, cls=ExportAsScriptRequest)
     session = app_state.require_current_session()
 
-    python, filename = Exporter().export_as_script(
-        app=session.app_file_manager.app,
-        filename=session.app_file_manager.filename,
+    python = convert_from_ir_to_script(session.app_file_manager.app.to_ir())
+    filename = get_download_filename(
+        session.app_file_manager.filename, "script.py"
     )
 
     if body.download:
-        headers = {"Content-Disposition": f"attachment; filename={filename}"}
+        headers = make_download_headers(filename)
     else:
         headers = {}
 
@@ -210,6 +240,12 @@ async def export_as_markdown(
     request: Request,
 ) -> PlainTextResponse:
     """
+    parameters:
+        - in: header
+          name: Marimo-Session-Id
+          schema:
+            type: string
+          required: true
     requestBody:
         content:
             application/json:
@@ -237,13 +273,13 @@ async def export_as_markdown(
             detail="File must be saved before downloading",
         )
 
-    markdown, filename = Exporter().export_as_md(
-        notebook=app_file_manager.app.to_ir(),
-        filename=app_file_manager.filename,
-    )
+    markdown = convert_from_ir_to_markdown(app_file_manager.app.to_ir())
 
     if body.download:
-        headers = {"Content-Disposition": f"attachment; filename={filename}"}
+        download_filename = get_download_filename(
+            app_file_manager.filename, "md"
+        )
+        headers = make_download_headers(download_filename)
     else:
         headers = {}
 
@@ -261,6 +297,12 @@ async def auto_export_as_markdown(
     request: Request,
 ) -> JSONResponse | PlainTextResponse:
     """
+    parameters:
+        - in: header
+          name: Marimo-Session-Id
+          schema:
+            type: string
+          required: true
     requestBody:
         content:
             application/json:
@@ -295,9 +337,8 @@ async def auto_export_as_markdown(
         # Reload the file manager to get the latest state
         session.app_file_manager.reload()
 
-        markdown, _filename = Exporter().export_as_md(
-            notebook=session.app_file_manager.app.to_ir(),
-            filename=session.app_file_manager.filename,
+        markdown = convert_from_ir_to_markdown(
+            session.app_file_manager.app.to_ir()
         )
 
         # Save the Markdown file to disk, at `.marimo/<filename>.md`
@@ -320,6 +361,12 @@ async def auto_export_as_ipynb(
     request: Request,
 ) -> JSONResponse | PlainTextResponse:
     """
+    parameters:
+        - in: header
+          name: Marimo-Session-Id
+          schema:
+            type: string
+          required: true
     requestBody:
         content:
             application/json:
@@ -359,9 +406,8 @@ async def auto_export_as_ipynb(
         # Reload the file manager to get the latest state
         session.app_file_manager.reload()
 
-        ipynb, _filename = Exporter().export_as_ipynb(
+        ipynb = Exporter().export_as_ipynb(
             app=session.app_file_manager.app,
-            filename=session.app_file_manager.filename,
             sort_mode="top-down",
             session_view=session_view,
         )
@@ -377,3 +423,93 @@ async def auto_export_as_ipynb(
         content=asdict(SuccessResponse()),
         background=BackgroundTask(_background_export),
     )
+
+
+@router.post("/pdf")
+@requires("edit")
+async def export_as_pdf(*, request: Request) -> Response:
+    """
+    parameters:
+        - in: header
+          name: Marimo-Session-Id
+          schema:
+            type: string
+          required: true
+    requestBody:
+        content:
+            application/json:
+                schema:
+                    $ref: "#/components/schemas/ExportAsPDFRequest"
+    responses:
+        200:
+            description: Export the notebook as a PDF
+            content:
+                application/pdf:
+                    schema:
+                        type: string
+                        format: binary
+        400:
+            description: File must be saved before downloading
+        500:
+            description: Export failed or dependencies missing
+    """
+    app_state = AppState(request)
+    body = await parse_request(request, cls=ExportAsPDFRequest)
+    session = app_state.require_current_session()
+
+    if not session.app_file_manager.is_notebook_named:
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail="File must have a name before exporting",
+        )
+
+    pdf_data = Exporter().export_as_pdf(
+        app=session.app_file_manager.app,
+        session_view=session.session_view,
+        webpdf=body.webpdf,
+    )
+    if pdf_data is None:
+        raise HTTPException(
+            status_code=HTTPStatus.SERVER_ERROR, detail="Failed to export PDF"
+        )
+    filename = get_download_filename(session.app_file_manager.filename, "pdf")
+    headers = make_download_headers(filename)
+
+    return Response(
+        content=pdf_data, media_type="application/pdf", headers=headers
+    )
+
+
+@router.post("/update_cell_outputs")
+@requires("edit")
+async def update_cell_outputs(
+    *, request: Request
+) -> JSONResponse | PlainTextResponse:
+    """
+    parameters:
+        - in: header
+          name: Marimo-Session-Id
+          schema:
+            type: string
+          required: true
+    requestBody:
+        content:
+            application/json:
+                schema:
+                    $ref: "#/components/schemas/UpdateCellOutputsRequest"
+    responses:
+        200:
+            description: Update the cell outputs
+            content:
+                application/json:
+                    schema:
+                        $ref: "#/components/schemas/SuccessResponse"
+        400:
+            description: File must be saved before downloading
+    """
+    app_state = AppState(request)
+    body = await parse_request(request, cls=UpdateCellOutputsRequest)
+    session = app_state.require_current_session()
+    session.session_view.update_cell_outputs(body.cell_ids_to_output)
+
+    return JSONResponse(content=asdict(SuccessResponse()))

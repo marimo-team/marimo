@@ -1,0 +1,6 @@
+---
+title: Test Notebook
+marimo-version: 0.0.0
+header: |-
+  #!/usr/bin/env python
+---

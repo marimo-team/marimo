@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { atom, useAtom, useAtomValue, useSetAtom } from "jotai";
@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import React, { useId, useRef } from "react";
 import { useLocale } from "react-aria";
+import type { FieldPath, FieldValues } from "react-hook-form";
 import { useForm } from "react-hook-form";
 import type z from "zod";
 import { Button } from "@/components/ui/button";
@@ -49,6 +50,7 @@ import { Banner } from "@/plugins/impl/common/error-banner";
 import { THEMES } from "@/theme/useTheme";
 import { arrayToggle } from "@/utils/arrays";
 import { cn } from "@/utils/cn";
+import { autoPopulateModels } from "../ai/ai-utils";
 import { keyboardShortcutsAtom } from "../editor/controls/keyboard-shortcuts";
 import { Badge } from "../ui/badge";
 import { ExternalLink } from "../ui/links";
@@ -58,6 +60,102 @@ import { formItemClasses, SettingGroup } from "./common";
 import { DataForm } from "./data-form";
 import { IsOverridden } from "./is-overridden";
 import { OptionalFeatures } from "./optional-features";
+
+/**
+ * Extract only the values that have been modified (dirty) from form state.
+ * This prevents sending unchanged fields that could overwrite backend values.
+ */
+export function getDirtyValues<T extends FieldValues>(
+  values: T,
+  dirtyFields: Partial<Record<keyof T, unknown>>,
+): Partial<T> {
+  const result: Partial<T> = {};
+  for (const key of Object.keys(dirtyFields) as (keyof T)[]) {
+    const dirty = dirtyFields[key];
+    const value = values[key];
+
+    // Skip if the value no longer exists (e.g., deleted from a record)
+    if (value === undefined) {
+      continue;
+    }
+
+    if (dirty === true) {
+      result[key] = value;
+    } else if (typeof dirty === "object" && dirty !== null) {
+      // Nested object - recurse
+      const nested = getDirtyValues(
+        value as FieldValues,
+        dirty as Partial<Record<string, unknown>>,
+      );
+      if (Object.keys(nested).length > 0) {
+        result[key] = nested as T[keyof T];
+      }
+    }
+  }
+  return result;
+}
+
+type ManualInjector = (
+  values: UserConfig,
+  dirtyValues: Partial<UserConfig>,
+) => void;
+
+const modelsAiInjection = (
+  values: UserConfig,
+  dirtyValues: Partial<UserConfig>,
+) => {
+  dirtyValues.ai = {
+    ...dirtyValues.ai,
+    models: {
+      ...dirtyValues.ai?.models,
+      displayed_models: values.ai?.models?.displayed_models ?? [],
+      custom_models: values.ai?.models?.custom_models ?? [],
+    },
+  };
+};
+
+// Some fields (like AI model lists) have empty arrays as default values.
+// If a user explicitly clears them, RHF won't mark them dirty, so we use
+// touchedFields to force-include those values in the payload.
+const MANUAL_INJECT_ENTRIES = [
+  ["ai.models.displayed_models", modelsAiInjection],
+  ["ai.models.custom_models", modelsAiInjection],
+] as const satisfies readonly (readonly [
+  FieldPath<UserConfig>,
+  ManualInjector,
+])[];
+
+const MANUAL_INJECT_FIELDS = new Map(MANUAL_INJECT_ENTRIES);
+
+const isTouchedPath = (
+  touched: unknown,
+  path: FieldPath<UserConfig>,
+): boolean => {
+  if (!touched) {
+    return false;
+  }
+  let current: unknown = touched;
+  for (const segment of path.split(".")) {
+    if (typeof current !== "object" || current === null) {
+      return false;
+    }
+    current = (current as Record<string, unknown>)[segment];
+  }
+  return current === true;
+};
+
+export const applyManualInjections = (opts: {
+  values: UserConfig;
+  dirtyValues: Partial<UserConfig>;
+  touchedFields: unknown;
+}) => {
+  const { values, dirtyValues, touchedFields } = opts;
+  for (const [fieldPath, injector] of MANUAL_INJECT_FIELDS) {
+    if (isTouchedPath(touchedFields, fieldPath)) {
+      injector(values, dirtyValues);
+    }
+  }
+};
 
 const categories = [
   {
@@ -146,9 +244,52 @@ export const UserConfigForm: React.FC = () => {
     defaultValues: config,
   });
 
+  const setAiModels = (
+    values: UserConfig["ai"],
+    dirtyAiConfig: UserConfig["ai"],
+  ) => {
+    const { chatModel, editModel } = autoPopulateModels(values);
+    if (chatModel || editModel) {
+      dirtyAiConfig = {
+        ...dirtyAiConfig,
+        models: {
+          ...dirtyAiConfig?.models,
+          ...(chatModel && { chat_model: chatModel }),
+          ...(editModel && { edit_model: editModel }),
+        },
+      } as typeof dirtyAiConfig;
+      if (chatModel) {
+        form.setValue("ai.models.chat_model", chatModel);
+      }
+      if (editModel) {
+        form.setValue("ai.models.edit_model", editModel);
+      }
+    }
+
+    return dirtyAiConfig;
+  };
+
   const onSubmitNotDebounced = async (values: UserConfig) => {
-    await saveUserConfig({ config: values }).then(() => {
-      setConfig(values);
+    // Only send values that were actually changed to avoid
+    // overwriting backend values the form doesn't manage
+    const dirtyValues = getDirtyValues(values, form.formState.dirtyFields);
+    applyManualInjections({
+      values,
+      dirtyValues,
+      touchedFields: form.formState.touchedFields,
+    });
+    if (Object.keys(dirtyValues).length === 0) {
+      return; // Nothing changed
+    }
+
+    // Auto-populate AI models when credentials are set, makes it easier to get started
+    if (dirtyValues.ai) {
+      dirtyValues.ai = setAiModels(values.ai, dirtyValues.ai);
+    }
+
+    await saveUserConfig({ config: dirtyValues }).then(() => {
+      // Update local state with form values
+      setConfig((prev) => ({ ...prev, ...values }));
     });
   };
   const onSubmit = useDebouncedCallback(onSubmitNotDebounced, FORM_DEBOUNCE);
@@ -994,7 +1135,7 @@ export const UserConfigForm: React.FC = () => {
                       <br />
                       <br />
                       Running marimo in a{" "}
-                      <ExternalLink href="https://docs.marimo.io/guides/editor_features/package_management.html#running-marimo-in-a-sandbox-environment-uv-only">
+                      <ExternalLink href="https://docs.marimo.io/guides/package_management/inlining_dependencies.html">
                         sandboxed environment
                       </ExternalLink>{" "}
                       is only supported by <Kbd className="inline">uv</Kbd>
@@ -1200,34 +1341,6 @@ export const UserConfigForm: React.FC = () => {
             />
             <FormField
               control={form.control}
-              name="experimental.performant_table_charts"
-              render={({ field }) => (
-                <div className="flex flex-col gap-y-1">
-                  <FormItem className={formItemClasses}>
-                    <FormLabel className="font-normal">
-                      Performant Table Charts
-                    </FormLabel>
-                    <FormControl>
-                      <Checkbox
-                        data-testid="performant-table-charts-checkbox"
-                        checked={field.value === true}
-                        onCheckedChange={field.onChange}
-                      />
-                    </FormControl>
-                  </FormItem>
-                  <IsOverridden
-                    userConfig={config}
-                    name="experimental.performant_table_charts"
-                  />
-                  <FormDescription>
-                    Enable experimental table charts which are computed on the
-                    backend.
-                  </FormDescription>
-                </div>
-              )}
-            />
-            <FormField
-              control={form.control}
               name="experimental.external_agents"
               render={({ field }) => (
                 <div className="flex flex-col gap-y-1">
@@ -1260,14 +1373,16 @@ export const UserConfigForm: React.FC = () => {
             />
             <FormField
               control={form.control}
-              name="experimental.chat_modes"
+              name="experimental.server_side_pdf_export"
               render={({ field }) => (
                 <div className="flex flex-col gap-y-1">
                   <FormItem className={formItemClasses}>
-                    <FormLabel className="font-normal">Chat Mode</FormLabel>
+                    <FormLabel className="font-normal">
+                      Better PDF Export
+                    </FormLabel>
                     <FormControl>
                       <Checkbox
-                        data-testid="chat-mode-checkbox"
+                        data-testid="server-side-pdf-export-checkbox"
                         checked={field.value === true}
                         onCheckedChange={field.onChange}
                       />
@@ -1275,11 +1390,16 @@ export const UserConfigForm: React.FC = () => {
                   </FormItem>
                   <IsOverridden
                     userConfig={config}
-                    name="experimental.chat_modes"
+                    name="experimental.server_side_pdf_export"
                   />
                   <FormDescription>
-                    Switch between different modes in the Chat sidebar, to
-                    enable tool use.
+                    Enable PDF export using{" "}
+                    <Kbd className="inline">nbconvert</Kbd> and{" "}
+                    <Kbd className="inline">playwright</Kbd>. Refer to{" "}
+                    <ExternalLink href="https://docs.marimo.io/guides/exporting/#exporting-to-pdf-slides-or-rst">
+                      the docs
+                    </ExternalLink>
+                    .
                   </FormDescription>
                 </div>
               )}

@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 
 import marimo
 
@@ -12,7 +12,7 @@ def _(mo):
         r"""
         # Matplotlib: Multiple Subplots Layout
 
-        Create multiple subplots using `plt.subplots()`. Common for comparing different 
+        Create multiple subplots using `plt.subplots()`. Common for comparing different
         views of data with `sharex` and `sharey` options.
         """
     )

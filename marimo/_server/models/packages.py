@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
 from typing import Optional
@@ -6,6 +6,7 @@ from typing import Optional
 import msgspec
 
 from marimo._runtime.packages.package_manager import PackageDescription
+from marimo._utils.uv_tree import DependencyTreeNode
 
 
 class AddPackageRequest(msgspec.Struct, rename="camel"):
@@ -24,22 +25,16 @@ class AddPackageRequest(msgspec.Struct, rename="camel"):
 
     package: str
     upgrade: Optional[bool] = False
+    dev: Optional[bool] = False
 
 
 class RemovePackageRequest(msgspec.Struct, rename="camel"):
     package: str
+    dev: Optional[bool] = False
 
 
 class ListPackagesResponse(msgspec.Struct, rename="camel"):
     packages: list[PackageDescription]
-
-
-class DependencyTreeNode(msgspec.Struct, rename="camel"):
-    name: str
-    version: Optional[str]
-    # List of {"kind": "extra"|"group", "value": str}
-    tags: list[dict[str, str]]
-    dependencies: list[DependencyTreeNode]
 
 
 class DependencyTreeResponse(msgspec.Struct, rename="camel"):

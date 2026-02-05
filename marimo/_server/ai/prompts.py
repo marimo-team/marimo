@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
 from typing import Optional, Union
@@ -27,7 +27,11 @@ language_rules: dict[Language, list[str]] = {
         "If an import already exists, do not import it again.",
         "If a variable is already defined, use another name, or make it private by adding an underscore at the beginning.",
     ],
-    "markdown": [],
+    "markdown": [
+        "Use double dollar signs ($$) for ALL mathematical expressions (both inline and block) in markdown responses.",
+        "Example: $$E=mc^2$$",
+        "Do NOT use single dollar signs or square brackets for math.",
+    ],
     "sql": [
         "The SQL must use duckdb syntax.",
     ],

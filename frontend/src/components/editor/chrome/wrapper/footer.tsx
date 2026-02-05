@@ -1,68 +1,91 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import { useAtomValue } from "jotai";
-import { TerminalSquareIcon } from "lucide-react";
+import { AlertTriangleIcon, XCircleIcon } from "lucide-react";
 import type React from "react";
+import { renderShortcut } from "@/components/shortcuts/renderShortcut";
 import { Tooltip } from "@/components/ui/tooltip";
 import { cellErrorCount } from "@/core/cells/cells";
-import { IfCapability } from "@/core/config/if-capability";
+import { isConnectingAtom } from "@/core/network/connection";
 import { useHotkey } from "@/hooks/useHotkey";
-import { cn } from "@/utils/cn";
-import { invariant } from "@/utils/invariant";
 import { ShowInKioskMode } from "../../kiosk-mode";
-import { useChromeActions, useChromeState } from "../state";
-import { PANELS, type PanelDescriptor } from "../types";
+import { panelLayoutAtom, useChromeActions, useChromeState } from "../state";
 import { FooterItem } from "./footer-item";
 import { AIStatusIcon } from "./footer-items/ai-status";
-import { BackendConnection } from "./footer-items/backend-status";
+import {
+  BackendConnectionStatus,
+  connectionStatusAtom,
+} from "./footer-items/backend-status";
 import { CopilotStatusIcon } from "./footer-items/copilot-status";
 import { MachineStats } from "./footer-items/machine-stats";
-import { MinimapStatusIcon } from "./footer-items/minimap-status";
 import { RTCStatus } from "./footer-items/rtc-status";
 import { RuntimeSettings } from "./footer-items/runtime-settings";
+import { useSetDependencyPanelTab } from "./useDependencyPanelTab";
 
 export const Footer: React.FC = () => {
-  const { selectedPanel, isTerminalOpen } = useChromeState();
-  const { toggleApplication, toggleTerminal } = useChromeActions();
+  const { isDeveloperPanelOpen } = useChromeState();
+  const { toggleDeveloperPanel, toggleApplication } = useChromeActions();
+  const setDependencyPanelTab = useSetDependencyPanelTab();
+
   const errorCount = useAtomValue(cellErrorCount);
+  const connectionStatus = useAtomValue(connectionStatusAtom);
+  const panelLayout = useAtomValue(panelLayoutAtom);
 
-  const renderIcon = ({ Icon }: PanelDescriptor, className?: string) => {
-    return <Icon className={cn("h-5 w-5", className)} />;
-  };
+  // Show issue count: cell errors + connection issues
+  // Don't include error count if errors panel is in sidebar (it shows there instead)
+  const errorsInSidebar = panelLayout.sidebar.includes("errors");
+  const hasConnectionIssue =
+    connectionStatus === "unhealthy" || connectionStatus === "disconnected";
+  const issueCount =
+    (errorsInSidebar ? 0 : errorCount) + (hasConnectionIssue ? 1 : 0);
 
-  const errorPanel = PANELS.find((p) => p.type === "errors");
-  invariant(errorPanel, "Error panel not found");
+  // TODO: Add warning count from diagnostics/linting
+  // This can signal warnings/errors with settings up AI / Copilot etc
+  const warningCount = 0;
 
   useHotkey("global.toggleTerminal", () => {
-    toggleTerminal();
+    toggleApplication("terminal");
+  });
+
+  useHotkey("global.togglePanel", () => {
+    toggleDeveloperPanel();
+  });
+
+  useHotkey("global.toggleMinimap", () => {
+    toggleApplication("dependencies");
+    setDependencyPanelTab("minimap");
   });
 
   return (
-    <footer className="h-10 py-2 bg-background flex items-center text-muted-foreground text-md px-1 border-t border-border select-none no-print text-sm shadow-[0_0_4px_1px_rgba(0,0,0,0.1)] z-50 print:hidden hide-on-fullscreen overflow-x-auto overflow-y-hidden scrollbar-thin">
+    <footer className="h-10 py-1 gap-1 bg-background flex items-center text-muted-foreground text-md pl-2 pr-1 border-t border-border select-none print:hidden text-sm z-50 hide-on-fullscreen overflow-x-auto overflow-y-hidden scrollbar-thin">
       <FooterItem
-        tooltip={errorPanel.tooltip}
-        selected={selectedPanel === errorPanel.type}
-        onClick={() => toggleApplication(errorPanel.type)}
-        data-testid="footer-errors"
+        className="h-full"
+        tooltip={
+          <span className="flex items-center gap-2">
+            Toggle developer panel {renderShortcut("global.togglePanel", false)}
+          </span>
+        }
+        selected={isDeveloperPanelOpen}
+        onClick={() => toggleDeveloperPanel()}
+        data-testid="footer-panel"
       >
-        {renderIcon(errorPanel, errorCount > 0 ? "text-destructive" : "")}
-        <span className="ml-1 font-mono mt-0.5">{errorCount}</span>
+        <div className="flex items-center gap-1 h-full">
+          <XCircleIcon
+            className={`w-4 h-4 ${issueCount > 0 ? "text-destructive" : ""}`}
+          />
+          <span>{issueCount}</span>
+          <AlertTriangleIcon
+            className={`w-4 h-4 ml-1 ${warningCount > 0 ? "text-yellow-500" : ""}`}
+          />
+          <span>{warningCount}</span>
+        </div>
       </FooterItem>
-
-      <IfCapability capability="terminal">
-        <FooterItem
-          tooltip="Open terminal"
-          selected={isTerminalOpen}
-          onClick={() => toggleTerminal()}
-          data-testid="footer-terminal"
-        >
-          <TerminalSquareIcon className="h-5 w-5" />
-        </FooterItem>
-      </IfCapability>
 
       <RuntimeSettings />
 
       <div className="mx-auto" />
+
+      <ConnectingKernelIndicatorItem />
 
       <ShowInKioskMode>
         <Tooltip
@@ -79,12 +102,21 @@ export const Footer: React.FC = () => {
 
       <div className="flex items-center shrink-0 min-w-0">
         <MachineStats />
-        <MinimapStatusIcon />
         <AIStatusIcon />
         <CopilotStatusIcon />
         <RTCStatus />
-        <BackendConnection />
       </div>
     </footer>
   );
+};
+
+/**
+ * Only show the backend connection status if we are connecting to a kernel
+ */
+const ConnectingKernelIndicatorItem: React.FC = () => {
+  const isConnecting = useAtomValue(isConnectingAtom);
+  if (!isConnecting) {
+    return null;
+  }
+  return <BackendConnectionStatus />;
 };

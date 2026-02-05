@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import { autocompletion } from "@codemirror/autocomplete";
 import {
@@ -334,7 +334,7 @@ export class PythonLanguageAdapter implements LanguageAdapter<{}> {
             client: client as unknown as LanguageServerClient,
             languageId: "python",
             allowHTMLContent: true,
-            useSnippetOnCompletion: false,
+            useSnippetOnCompletion: true,
             hoverConfig: hoverOptions,
             completionConfig: autocompleteOptions,
             // Default to false

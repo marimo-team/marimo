@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import { closeCompletion, completionStatus } from "@codemirror/autocomplete";
 import { simplifySelection } from "@codemirror/commands";
@@ -10,6 +10,7 @@ import {
 import { useAtomValue, useSetAtom, useStore } from "jotai";
 import { useMemo } from "react";
 import { mergeProps, useFocusWithin, useKeyboard } from "react-aria";
+import { DATA_FOR_CELL_ID } from "@/components/data-table/cell-utils";
 import { aiCompletionCellAtom } from "@/core/ai/state";
 import { cellIdsAtom, notebookAtom, useCellActions } from "@/core/cells/cells";
 import { useCellFocusActions } from "@/core/cells/focus";
@@ -101,7 +102,23 @@ function useCellFocusProps(
       // On focus, set the last focused cell id.
       focusActions.focusCell({ cellId });
     },
-    onBlurWithin: () => {
+    onBlurWithin: (e) => {
+      // Check if blur is happening because of vim search panel interaction
+      if (isInVimPanel(e.relatedTarget) || isInVimPanel(e.target)) {
+        // Don't hide code if we're just interacting with vim search
+        return;
+      }
+
+      // If the related target is for a cell id (data-for-cell-id), then we don't want to hide the code, otherwise it might
+      // close the dropdown.
+      if (
+        getDataForCellId(e.relatedTarget) === cellId ||
+        getDataForCellId(e.relatedTarget?.closest(`[${DATA_FOR_CELL_ID}]`)) ===
+          cellId
+      ) {
+        return;
+      }
+
       // On blur, hide the code if it was temporarily shown.
       temporarilyShownCodeActions.remove(cellId);
       actions.markTouched({ cellId });
@@ -114,6 +131,27 @@ function useCellFocusProps(
   });
 
   return focusWithinProps;
+}
+
+function isInVimPanel(element: Element | null): boolean {
+  if (!element) {
+    return false;
+  }
+  if (element instanceof HTMLElement) {
+    return element.closest(".cm-vim-panel") !== null;
+  }
+  return false;
+}
+
+function getDataForCellId(element: Element | null | undefined): CellId | null {
+  if (!element) {
+    return null;
+  }
+  const cellId = element.getAttribute(DATA_FOR_CELL_ID);
+  if (!cellId) {
+    return null;
+  }
+  return cellId as CellId;
 }
 
 type KeymapHandlers = Record<string, () => boolean>;

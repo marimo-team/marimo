@@ -6,6 +6,12 @@ app = marimo.App()
 
 @app.cell
 def _():
+    import marimo as mo
+    return (mo,)
+
+
+@app.cell
+def _():
     """Pypercent format notebook."""
 
     import numpy as np
@@ -43,12 +49,6 @@ def _(x):
     y = x * 2
     print(y)
     return
-
-
-@app.cell
-def _():
-    import marimo as mo
-    return (mo,)
 
 
 if __name__ == "__main__":

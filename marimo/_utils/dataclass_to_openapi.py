@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
 import dataclasses
@@ -33,7 +33,7 @@ import msgspec.json
 
 
 class PythonTypeToOpenAPI:
-    def __init__(self, name_overrides: dict[Any, str], camel_case: bool):
+    def __init__(self, *, name_overrides: dict[Any, str], camel_case: bool):
         self.name_overrides = name_overrides
         self.camel_case = camel_case
         self.optional_name_overrides = {

@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -29,6 +29,12 @@ async def load_snippets(
     request: Request,
 ) -> Snippets:
     """
+    parameters:
+        - in: header
+          name: Marimo-Session-Id
+          schema:
+            type: string
+          required: true
     responses:
         200:
             description: Load the snippets for the documentation page

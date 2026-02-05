@@ -9,14 +9,16 @@ import pytest
 from marimo._config.manager import get_default_config_manager
 from marimo._server.file_router import AppFileRouter
 from marimo._server.lsp import LspServer
-from marimo._server.model import ConnectionState, SessionConsumer, SessionMode
-from marimo._server.notebook import AppFileManager
-from marimo._server.sessions import (
+from marimo._server.session.listeners import RecentsTrackerListener
+from marimo._server.session_manager import SessionManager
+from marimo._server.tokens import AuthToken, SkewProtectionToken
+from marimo._session import (
     KernelManager,
     Session,
-    SessionManager,
 )
-from marimo._server.tokens import AuthToken, SkewProtectionToken
+from marimo._session.consumer import SessionConsumer
+from marimo._session.model import ConnectionState, SessionMode
+from marimo._session.notebook import AppFileManager
 from marimo._types.ids import SessionId
 
 if TYPE_CHECKING:
@@ -81,6 +83,7 @@ async def test_create_session_new(
         mock_session_consumer,
         query_params={},
         file_key=AppFileRouter.NEW_FILE,
+        auto_instantiate=False,
     )
     assert session_id in session_manager.sessions
     assert session_manager.get_session(session_id) is session
@@ -98,6 +101,7 @@ async def test_create_session_absolute_url(
         mock_session_consumer,
         query_params={},
         file_key=temp_marimo_file,
+        auto_instantiate=False,
     )
     assert session_id in session_manager.sessions
     assert session_manager.get_session(session_id) is session
@@ -241,6 +245,7 @@ async def test_create_session_with_script_config_overrides(
         mock_session_consumer,
         query_params={},
         file_key=str(tmp_path / "test.py"),
+        auto_instantiate=False,
     )
     assert session_id in session_manager.sessions
     assert session_manager.get_session(session_id) is session
@@ -391,3 +396,72 @@ def test_session_manager_auth_token_run_mode_without_provided_token(
     assert str(session_manager.skew_protection_token) == str(
         session_manager2.skew_protection_token
     )
+
+
+def test_recents_listener_subscribed_to_event_bus(
+    session_manager: SessionManager,
+) -> None:
+    """Test that RecentsTrackerListener is subscribed to session manager's event bus.
+
+    This is a regression test for a bug where the listener was moved to be a
+    session extension (subscribing to the session's event bus) but the
+    emit_session_created event was still fired on the session manager's event bus,
+    causing recent files to not be tracked.
+    """
+    # Verify that RecentsTrackerListener is in the event bus listeners
+    listeners = session_manager._event_bus._listeners
+    recents_listeners = [
+        listen
+        for listen in listeners
+        if isinstance(listen, RecentsTrackerListener)
+    ]
+    assert len(recents_listeners) == 1, (
+        "RecentsTrackerListener should be subscribed to session manager's event bus"
+    )
+
+
+async def test_recents_touch_called_on_session_create(
+    session_manager: SessionManager,
+    mock_session_consumer: SessionConsumer,
+    tmp_path: Path,
+) -> None:
+    """Test that recents.touch() is called when a session is created with a file.
+
+    This verifies the full integration: when a session is created for a file,
+    the RecentsTrackerListener receives the event and calls touch().
+    """
+    # Create a temp marimo file
+    tmp_file = tmp_path / "test_recents.py"
+    tmp_file.write_text(
+        "import marimo\napp = marimo.App()\n@app.cell\ndef _(): pass"
+    )
+
+    # Track calls to touch()
+    original_touch = session_manager.recents.touch
+    touched_files: list[str] = []
+
+    def mock_touch(filename: str) -> None:
+        touched_files.append(filename)
+        original_touch(filename)
+
+    session_manager.recents.touch = mock_touch  # type: ignore
+
+    # Create a session
+    session = session_manager.create_session(
+        SessionId("recents_test_session"),
+        mock_session_consumer,
+        query_params={},
+        file_key=str(tmp_file),
+        auto_instantiate=False,
+    )
+
+    # Allow async event to process
+    import asyncio
+
+    await asyncio.sleep(0.1)
+
+    # Verify touch was called with the file path
+    assert len(touched_files) == 1
+    assert str(tmp_file) in touched_files[0]
+
+    session.close()

@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 "use no memo";
 
 import type { Column, Table } from "@tanstack/react-table";
@@ -593,7 +593,7 @@ const PopoverFilterByValues = <TData, TValue>({
       <>
         <Command className="text-sm outline-hidden" shouldFilter={false}>
           <CommandInput
-            placeholder="Search"
+            placeholder={`Search among the top ${data.length} values`}
             autoFocus={true}
             onValueChange={(value) => setQuery(value.trim())}
           />

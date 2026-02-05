@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
 import ast
@@ -16,12 +16,13 @@ import jedi.api  # type: ignore # noqa: F401
 from marimo import _loggers as loggers
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.completion_option import CompletionOption
-from marimo._messaging.ops import CompletionResult
+from marimo._messaging.notification import CompletionResultNotification
+from marimo._messaging.notification_utils import broadcast_notification
 from marimo._messaging.types import Stream
 from marimo._output.md import _md
 from marimo._runtime import dataflow
-from marimo._runtime.requests import CodeCompletionRequest
-from marimo._server.types import QueueType
+from marimo._runtime.commands import CodeCompletionCommand
+from marimo._session.queue import QueueType
 from marimo._utils.docs import MarimoConverter
 from marimo._utils.format_signature import format_signature
 from marimo._utils.rst_to_html import convert_rst_to_html
@@ -298,11 +299,14 @@ def _write_completion_result(
     prefix_length: int,
     options: list[CompletionOption],
 ) -> None:
-    CompletionResult(
-        completion_id=completion_id,
-        prefix_length=prefix_length,
-        options=options,
-    ).broadcast(stream=stream)
+    broadcast_notification(
+        CompletionResultNotification(
+            completion_id=completion_id,
+            prefix_length=prefix_length,
+            options=options,
+        ),
+        stream,
+    )
 
 
 def _write_no_completions(stream: Stream, completion_id: str) -> None:
@@ -310,8 +314,8 @@ def _write_no_completions(stream: Stream, completion_id: str) -> None:
 
 
 def _drain_queue(
-    completion_queue: QueueType[CodeCompletionRequest],
-) -> CodeCompletionRequest:
+    completion_queue: QueueType[CodeCompletionCommand],
+) -> CodeCompletionCommand:
     """Drain the queue of completion requests, returning the most recent one"""
 
     request = completion_queue.get()
@@ -551,7 +555,7 @@ def _get_completions(
 # share the same `prefix_length`. This could happen if completion values
 # are generated via different means
 def complete(
-    request: CodeCompletionRequest,
+    request: CodeCompletionCommand,
     graph: dataflow.DirectedGraph,
     glbls: dict[str, Any],
     glbls_lock: threading.RLock,
@@ -694,7 +698,7 @@ def complete(
 
 
 def completion_worker(
-    completion_queue: QueueType[CodeCompletionRequest],
+    completion_queue: QueueType[CodeCompletionCommand],
     graph: dataflow.DirectedGraph,
     glbls: dict[str, Any],
     glbls_lock: threading.RLock,

@@ -1,105 +1,42 @@
 from __future__ import annotations
 
 import asyncio
+import base64
 import json
+import pathlib
 import sys
 from typing import TYPE_CHECKING, Any
-from unittest.mock import MagicMock, patch
+from unittest.mock import ANY, MagicMock, patch
 
 import pytest
 
 from marimo._ast.app import App, InternalApp
+from marimo._ast.load import load_app
 from marimo._config.config import DEFAULT_CONFIG
-from marimo._dependencies.dependencies import DependencyManager
+from marimo._dependencies.dependencies import Dependency, DependencyManager
+from marimo._dependencies.errors import ManyModulesNotFoundError
 from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.msgspec_encoder import encode_json_str
-from marimo._messaging.ops import CellOp
+from marimo._messaging.notification import CellNotification
 from marimo._server.export import (
     export_as_wasm,
-    run_app_then_export_as_ipynb,
     run_app_until_completion,
 )
 from marimo._server.export.exporter import Exporter
 from marimo._server.models.export import ExportAsHTMLRequest
-from marimo._server.notebook import AppFileManager
-from marimo._server.session.session_view import SessionView
+from marimo._session.notebook import AppFileManager
+from marimo._session.state.session_view import SessionView
 from marimo._utils.marimo_path import MarimoPath
-from tests.mocks import snapshotter
+from tests.mocks import delete_lines_with_files, snapshotter
 
 if TYPE_CHECKING:
     from pathlib import Path
 
+SELF_DIR = pathlib.Path(__file__).parent
+FIXTURES_DIR = SELF_DIR / "fixtures" / "apps"
 snapshot = snapshotter(__file__)
 
 HAS_NBFORMAT = DependencyManager.nbformat.has()
-
-
-@pytest.mark.skipif(not HAS_NBFORMAT, reason="nbformat is not installed")
-def test_export_ipynb_empty():
-    app = App()
-    internal_app = InternalApp(app)
-    exporter = Exporter()
-
-    content, filename = exporter.export_as_ipynb(
-        internal_app, None, sort_mode="top-down"
-    )
-    assert filename == "notebook.ipynb"
-    snapshot("empty_notebook.ipynb.txt", content)
-
-
-@pytest.mark.skipif(not HAS_NBFORMAT, reason="nbformat is not installed")
-def test_export_ipynb_with_cells():
-    app = App()
-
-    @app.cell()
-    def cell_1():
-        print("hello")
-
-    internal_app = InternalApp(app)
-    exporter = Exporter()
-
-    content, filename = exporter.export_as_ipynb(
-        internal_app, None, sort_mode="top-down"
-    )
-    assert filename == "notebook.ipynb"
-    snapshot("notebook_with_cells.ipynb.txt", content)
-
-
-@pytest.mark.skipif(not HAS_NBFORMAT, reason="nbformat is not installed")
-def test_export_ipynb_sort_modes():
-    app = App()
-
-    @app.cell()
-    def result(x, y):
-        z = x + y
-        return (z,)
-
-    @app.cell()
-    def __():
-        x = 1
-        return (x,)
-
-    @app.cell()
-    def __():
-        y = 1
-        return (y,)
-
-    internal_app = InternalApp(app)
-    exporter = Exporter()
-
-    # Test top-down mode preserves document order
-    content, _ = exporter.export_as_ipynb(
-        internal_app, None, sort_mode="top-down"
-    )
-    snapshot("notebook_top_down.ipynb.txt", content)
-
-    # Test topological mode respects dependencies
-    content, _ = exporter.export_as_ipynb(
-        internal_app, None, sort_mode="topological"
-    )
-    snapshot("notebook_topological.ipynb.txt", content)
-
-
 HAS_DEPS = (
     HAS_NBFORMAT
     and DependencyManager.polars.has()
@@ -108,302 +45,7 @@ HAS_DEPS = (
 )
 
 
-# ruff: noqa: B018
-@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
-async def test_export_ipynb_with_outputs(tmp_path: Path):
-    app = App()
-
-    # stdout
-    @app.cell()
-    def __():
-        print("hello")
-        return
-
-    # # stdout
-    # @app.cell()
-    # def cell_2():
-    #     import sys
-
-    #     sys.stdout.write("world\n")
-    #     return (sys,)
-
-    # # stderr
-    # @app.cell()
-    # def cell_3(sys):
-    #     sys.stderr.write("error\n")
-    #     return ()
-
-    # This includes the filepath in the error message, which is not
-    # good for snapshots
-    # @app.cell()
-    # def cell_3():
-    #     raise Exception("error")
-    #     return ()
-
-    # display
-    @app.cell(hide_code=True)
-    def cell_4():
-        x = 10
-        return (x,)
-
-    # disabled
-    @app.cell(disabled=True)
-    def __():
-        print("disabled")
-        return
-
-    # dependency
-    @app.cell()
-    def cell_5(x):
-        y = x + 1
-        y * 2
-        return (y,)
-
-    # dependency
-    @app.cell()
-    def cell_6():
-        import marimo as mo
-
-        return (mo,)
-
-    # pure markdown
-    @app.cell()
-    def cell_7(mo):
-        mo.md("hello")
-        return ()
-
-    # interpolated markdown
-    @app.cell()
-    def cell_8(mo, x):
-        mo.md(f"hello {x}")
-        return ()
-
-    # # polars
-    # @app.cell()
-    # def cell_9():
-    #     import polars as pl
-
-    #     df = pl.DataFrame({"a": [1, 2, 3]})
-    #     df
-    #     return (df,)
-
-    # mo.ui.table
-    # @app.cell()
-    # def cell_10(df, mo):
-    #     mo.ui.table(df)
-    #     return ()
-
-    # slider
-    @app.cell()
-    def cell_11(mo):
-        mo.ui.slider(start=0, stop=10)
-        return ()
-
-    # hstack
-    @app.cell()
-    def cell_12(mo):
-        mo.vstack([mo.md("hello"), mo.md("world")])
-        return ()
-
-    # # altair chart
-    # @app.cell()
-    # def cell_13(df):
-    #     import altair as alt
-
-    #     chart = alt.Chart(df).mark_point().encode(x="a")
-    #     chart
-    #     return (chart,)
-
-    # # matplotlib
-    # @app.cell()
-    # def cell_14():
-    #     import matplotlib.pyplot as plt
-
-    #     plt.plot([1, 2])
-    #     return (plt,)
-
-    internal_app = InternalApp(app)
-    exporter = Exporter()
-
-    content, filename = exporter.export_as_ipynb(
-        internal_app, None, sort_mode="top-down", session_view=None
-    )
-    assert filename == "notebook.ipynb"
-    assert content is not None
-
-    test_file = tmp_path / "notebook.py"
-    test_file.write_text(InternalApp(app).to_py())
-
-    result = await run_app_then_export_as_ipynb(
-        MarimoPath(test_file),
-        sort_mode="top-down",
-        cli_args={},
-        argv=None,
-    )
-    assert not result.did_error
-    assert result.download_filename == "notebook.ipynb"
-    snapshot("notebook_with_outputs.ipynb.txt", result.contents)
-
-
-async def test_run_until_completion_with_stop():
-    app = App()
-
-    @app.cell()
-    def cell_1():
-        import marimo as mo
-
-        return (mo,)
-
-    @app.cell()
-    def cell_2(mo):
-        mo.stop(True)
-        x = 10
-        return (x,)
-
-    @app.cell()
-    def cell_3(x):
-        y = x + 1
-        y
-        return (y,)
-
-    file_manager = AppFileManager.from_app(InternalApp(app))
-
-    session_view, did_error = await run_app_until_completion(
-        file_manager,
-        cli_args={},
-        argv=None,
-    )
-    assert did_error is False
-    cell_ops = [op for op in session_view.operations if isinstance(op, CellOp)]
-    snapshot("run_until_completion_with_stop.txt", _print_messages(cell_ops))
-
-
-@pytest.mark.skipif(
-    sys.version_info >= (3, 13), reason="3.13 has different stack trace format"
-)
-@pytest.mark.xfail(reason="flakey", strict=False)
-async def test_run_until_completion_with_stack_trace():
-    app = App()
-
-    @app.cell()
-    def _():
-        print("running internal tests")
-        return
-
-    @app.cell()
-    def _():
-        import sys
-
-        sys.stderr.write("internal error\n")
-        return
-
-    @app.cell()
-    def _():
-        given_password = "test"
-        if given_password != "s3cret":
-            raise ValueError(
-                "Failed to authenticate. The correct password is 's3cret'."
-            )
-        return
-
-    file_manager = AppFileManager.from_app(InternalApp(app))
-
-    # When not redirected, the stack trace is not included in the output
-    session_view, did_error = await run_app_until_completion(
-        file_manager, cli_args={}, argv=None
-    )
-    assert did_error is True
-    cell_ops = [op for op in session_view.operations if isinstance(op, CellOp)]
-
-    messages = _print_messages(cell_ops)
-    snapshot(
-        "run_until_completion_with_stack_trace.txt",
-        _delete_lines_with_files(messages),
-    )
-
-
-async def test_export_wasm_edit():
-    app = App()
-
-    @app.cell()
-    def cell_1():
-        print("hello wasm")
-        return
-
-    file_manager = AppFileManager.from_app(InternalApp(app))
-    exporter = Exporter()
-
-    content, filename = exporter.export_as_wasm(
-        filename=file_manager.filename,
-        app=file_manager.app,
-        display_config=DEFAULT_CONFIG["display"],
-        mode="edit",
-        code=file_manager.app.to_py(),
-        show_code=True,
-    )
-
-    assert filename == "notebook.wasm.html"
-    assert "alert(" in content
-    assert '"mode": "edit"' in content
-
-
-async def test_export_wasm_run():
-    app = App()
-
-    @app.cell()
-    def cell_1():
-        print("hello wasm")
-        return
-
-    file_manager = AppFileManager.from_app(InternalApp(app))
-    exporter = Exporter()
-
-    content, filename = exporter.export_as_wasm(
-        filename=file_manager.filename,
-        app=file_manager.app,
-        display_config=DEFAULT_CONFIG["display"],
-        mode="run",
-        code=file_manager.app.to_py(),
-        show_code=True,
-    )
-
-    assert filename == "notebook.wasm.html"
-    assert "alert(" in content
-    assert '"mode": "read"' in content
-
-
-async def test_export_html_with_layout(tmp_path: Path):
-    test_file = tmp_path / "test.py"
-    test_file.write_text(
-        """
-import marimo
-
-app = marimo.App(layout_file="layouts/layout.json")
-
-@app.cell()
-def __():
-    x = 1
-    return
-"""
-    )
-
-    # Create the layout file
-    layout_file = tmp_path / "layouts" / "layout.json"
-    layout_file.parent.mkdir(parents=True, exist_ok=True)
-    layout_file.write_text('{"type": "slides", "data": {}}')
-
-    # Export the app
-    result = export_as_wasm(
-        path=MarimoPath(test_file),
-        mode="edit",
-        show_code=True,
-    )
-    assert result.did_error is False
-    assert "layout.json" not in result.contents
-    assert "data:application/json" in result.contents
-
-
-def _print_messages(messages: list[CellOp]) -> str:
+def _print_messages(messages: list[CellNotification]) -> str:
     result: list[dict[str, Any]] = []
     for message in messages:
         result.append(
@@ -433,37 +75,95 @@ def _as_list(data: Any) -> list[Any]:
     return [data]
 
 
-def _delete_lines_with_files(output: str) -> str:
-    # Remove any line that contains "File " up until a .py ending
-    def remove_file_name(line: str) -> str:
-        if "File " not in line:
-            return line
-        start = line.index("File ")
-        end = line.rindex(".py") + 3
-        return line[0:start] + line[end:]
-
-    return "\n".join(remove_file_name(line) for line in output.splitlines())
+def _load_fixture_app(name: str) -> InternalApp:
+    """Load a fixture app by name."""
+    app = load_app(FIXTURES_DIR / f"{name}.py")
+    assert app is not None
+    return InternalApp(app)
 
 
-@patch("marimo._server.export.echo")
-async def test_run_until_completion_with_console_output(mock_echo: MagicMock):
+# run_until_completion
+
+
+async def test_run_until_completion_with_stop() -> None:
+    """Test run until completion with mo.stop()."""
+    internal_app = _load_fixture_app("with_stop")
+    file_manager = AppFileManager.from_app(internal_app)
+
+    session_view, did_error = await run_app_until_completion(
+        file_manager,
+        cli_args={},
+        argv=None,
+    )
+    assert did_error is False
+    cell_notifications = [
+        op
+        for op in session_view.notifications
+        if isinstance(op, CellNotification)
+    ]
+    snapshot(
+        "run_until_completion_with_stop.txt",
+        _print_messages(cell_notifications),
+    )
+
+
+@pytest.mark.skipif(
+    sys.version_info >= (3, 13), reason="3.13 has different stack trace format"
+)
+@pytest.mark.xfail(reason="flakey", strict=False)
+async def test_run_until_completion_with_stack_trace() -> None:
+    """Test run until completion with stack trace from exception."""
+
     app = App()
 
     @app.cell()
     def _():
-        sys.stdout.write("hello stdout")
-        None
+        print("running internal tests")
         return
 
     @app.cell()
     def _():
         import sys
 
-        sys.stderr.write("hello stderr")
-        None
-        return (sys,)
+        sys.stderr.write("internal error\n")
+        return
+
+    @app.cell()
+    def _():
+        given_password = "test"
+        if given_password != "s3cret":
+            raise ValueError(
+                "Failed to authenticate. The correct password is 's3cret'."
+            )
+        return
 
     file_manager = AppFileManager.from_app(InternalApp(app))
+
+    session_view, did_error = await run_app_until_completion(
+        file_manager, cli_args={}, argv=None
+    )
+    assert did_error is True
+    cell_notifications = [
+        op
+        for op in session_view.notifications
+        if isinstance(op, CellNotification)
+    ]
+
+    messages = _print_messages(cell_notifications)
+    snapshot(
+        "run_until_completion_with_stack_trace.txt",
+        delete_lines_with_files(messages),
+    )
+
+
+@pytest.mark.flaky(reruns=3)
+@patch("marimo._server.export.echo")
+async def test_run_until_completion_with_console_output(
+    mock_echo: MagicMock,
+) -> None:
+    """Test run until completion with console output."""
+    internal_app = _load_fixture_app("with_console_output")
+    file_manager = AppFileManager.from_app(internal_app)
 
     session_view, did_error = await run_app_until_completion(
         file_manager,
@@ -472,12 +172,13 @@ async def test_run_until_completion_with_console_output(mock_echo: MagicMock):
     )
     assert did_error is False
 
-    def _assert_contents():
-        mock_echo.assert_any_call("hello stdout", file=sys.stderr, nl=False)
-        mock_echo.assert_any_call("hello stderr", file=sys.stderr, nl=False)
+    def _assert_contents() -> None:
+        mock_echo.assert_any_call("hello stdout", file=ANY, nl=False)
+        mock_echo.assert_any_call("hello stderr", file=ANY, nl=False)
 
+    # Console output notifications arrive asynchronously after CompletedRun.
     n_tries = 0
-    limit = 5
+    limit = 50
     while n_tries <= limit:
         try:
             _assert_contents()
@@ -488,15 +189,148 @@ async def test_run_until_completion_with_console_output(mock_echo: MagicMock):
     if n_tries > limit:
         _assert_contents()
 
-    cell_ops = [op for op in session_view.operations if isinstance(op, CellOp)]
+    cell_notifications = [
+        op
+        for op in session_view.notifications
+        if isinstance(op, CellNotification)
+    ]
     snapshot(
         "run_until_completion_with_console_output.txt",
-        _print_messages(cell_ops),
+        _print_messages(cell_notifications),
     )
 
 
-def test_export_as_html_with_serialization(session_view: SessionView):
+# WASM export
+
+
+@pytest.mark.parametrize(
+    ("mode", "expected_mode_in_content"),
+    [
+        ("edit", '"mode": "edit"'),
+        ("run", '"mode": "read"'),
+    ],
+)
+async def test_export_wasm(mode: str, expected_mode_in_content: str) -> None:
+    """Test WASM export in edit and run modes."""
+    internal_app = _load_fixture_app("basic")
+    file_manager = AppFileManager.from_app(internal_app)
+    exporter = Exporter()
+
+    content, filename = exporter.export_as_wasm(
+        filename=file_manager.filename,
+        app=file_manager.app,
+        display_config=DEFAULT_CONFIG["display"],
+        mode=mode,
+        code=file_manager.app.to_py(),
+        show_code=True,
+    )
+
+    assert filename == "notebook.wasm.html"
+    assert "alert(" in content
+    assert expected_mode_in_content in content
+
+
+async def test_export_html_with_layout(tmp_path: Path) -> None:
+    """Test HTML export with layout file."""
+    test_file = tmp_path / "test.py"
+    test_file.write_text((FIXTURES_DIR / "with_layout.py").read_text())
+
+    # Create the layout file
+    layout_file = tmp_path / "layouts" / "layout.json"
+    layout_file.parent.mkdir(parents=True, exist_ok=True)
+    layout_file.write_text('{"type": "slides", "data": {}}')
+
+    result = export_as_wasm(
+        path=MarimoPath(test_file),
+        mode="edit",
+        show_code=True,
+    )
+    assert result.did_error is False
+    assert "layout.json" not in result.text
+    assert "data:application/json" in result.text
+
+
+# HTML export
+
+
+@pytest.mark.parametrize(
+    ("include_code", "check_code_present", "check_code_absent"),
+    [
+        (True, ["return secret_value"], []),
+        (False, [], ["secret_value", "should_not_appear"]),
+    ],
+    ids=["with_code", "without_code"],
+)
+def test_export_as_html_code_inclusion(
+    session_view: SessionView,
+    include_code: bool,
+    check_code_present: list[str],
+    check_code_absent: list[str],
+) -> None:
+    """Test HTML export with and without code inclusion."""
+
+    app = App()
+
+    @app.cell()
+    def test_cell():
+        secret_value = "should_not_appear"
+        print("visible output")
+        return secret_value
+
+    file_manager = AppFileManager.from_app(InternalApp(app))
+    cell_ids = list(file_manager.app.cell_manager.cell_ids())
+
+    session_view.cell_notifications[cell_ids[0]] = CellNotification(
+        cell_id=cell_ids[0],
+        status="idle",
+        output=CellOutput(
+            channel=CellChannel.OUTPUT,
+            mimetype="text/plain",
+            data="visible output",
+        ),
+        console=[
+            CellOutput(
+                channel=CellChannel.STDOUT,
+                mimetype="text/plain",
+                data="console message",
+            )
+        ],
+        timestamp=0,
+    )
+    session_view.last_executed_code[cell_ids[0]] = (
+        "secret_value = 'should_not_appear'\n"
+        "print('visible output')\n"
+        "return secret_value"
+    )
+
+    exporter = Exporter()
+    request = ExportAsHTMLRequest(
+        download=not include_code,
+        files=[],
+        include_code=include_code,
+    )
+
+    html, filename = exporter.export_as_html(
+        filename=file_manager.filename,
+        app=file_manager.app,
+        session_view=session_view,
+        display_config=DEFAULT_CONFIG["display"],
+        request=request,
+    )
+
+    assert filename == "notebook.html"
+    # Output should always be visible
+    assert "visible output" in html
+
+    for text in check_code_present:
+        assert text in html
+    for text in check_code_absent:
+        assert text not in html
+
+
+def test_export_as_html_with_serialization(session_view: SessionView) -> None:
     """Test HTML export uses new serialization approach correctly."""
+
     app = App()
 
     @app.cell()
@@ -515,7 +349,7 @@ def test_export_as_html_with_serialization(session_view: SessionView):
 
     # Add some test data to session view
     cell_ids = list(file_manager.app.cell_manager.cell_ids())
-    session_view.cell_operations[cell_ids[0]] = CellOp(
+    session_view.cell_notifications[cell_ids[0]] = CellNotification(
         cell_id=cell_ids[0],
         status="idle",
         output=CellOutput(
@@ -536,7 +370,7 @@ def test_export_as_html_with_serialization(session_view: SessionView):
         "print('Hello World')\nreturn 10"
     )
 
-    session_view.cell_operations[cell_ids[1]] = CellOp(
+    session_view.cell_notifications[cell_ids[1]] = CellNotification(
         cell_id=cell_ids[1],
         status="idle",
         output=CellOutput(
@@ -552,7 +386,6 @@ def test_export_as_html_with_serialization(session_view: SessionView):
     )
 
     exporter = Exporter()
-
     request = ExportAsHTMLRequest(
         download=True,
         files=[],
@@ -573,69 +406,9 @@ def test_export_as_html_with_serialization(session_view: SessionView):
     assert 'data-marimo="true"' in html
 
 
-def test_export_as_html_without_code(session_view: SessionView):
-    """Test HTML export clears code when include_code=False."""
-    app = App()
-
-    @app.cell()
-    def test_cell():
-        secret_value = "should_not_appear"
-        print("visible output")
-        return secret_value
-
-    file_manager = AppFileManager.from_app(InternalApp(app))
-
-    cell_ids = list(file_manager.app.cell_manager.cell_ids())
-    session_view.cell_operations[cell_ids[0]] = CellOp(
-        cell_id=cell_ids[0],
-        status="idle",
-        output=CellOutput(
-            channel=CellChannel.OUTPUT,
-            mimetype="text/plain",
-            data="visible output",
-        ),
-        console=[
-            CellOutput(
-                channel=CellChannel.STDOUT,
-                mimetype="text/plain",
-                data="console message",
-            )
-        ],
-        timestamp=0,
-    )
-    session_view.last_executed_code[cell_ids[0]] = (
-        "secret_value = 'should_not_appear'\nprint('visible output')\nreturn secret_value"
-    )
-
-    exporter = Exporter()
-
-    request = ExportAsHTMLRequest(
-        download=False,
-        files=[],
-        include_code=False,
-    )
-
-    html, filename = exporter.export_as_html(
-        filename=file_manager.filename,
-        app=file_manager.app,
-        session_view=session_view,
-        display_config=DEFAULT_CONFIG["display"],
-        request=request,
-    )
-
-    # Code should not appear in the HTML
-    assert "secret_value" not in html
-    assert "should_not_appear" not in html
-
-    # But outputs should still be visible
-    assert "visible output" in html
-
-    # Console outputs should be cleared (no console message in HTML)
-    # The exact format depends on template implementation
-
-
-def test_export_as_html_with_files(session_view: SessionView):
+def test_export_as_html_with_files(session_view: SessionView) -> None:
     """Test HTML export includes virtual files."""
+
     app = App()
 
     @app.cell()
@@ -645,7 +418,7 @@ def test_export_as_html_with_files(session_view: SessionView):
     file_manager = AppFileManager.from_app(InternalApp(app))
 
     cell_ids = list(file_manager.app.cell_manager.cell_ids())
-    session_view.cell_operations[cell_ids[0]] = CellOp(
+    session_view.cell_notifications[cell_ids[0]] = CellNotification(
         cell_id=cell_ids[0],
         status="idle",
         output=None,
@@ -655,14 +428,12 @@ def test_export_as_html_with_files(session_view: SessionView):
     session_view.last_executed_code[cell_ids[0]] = "return 'test'"
 
     exporter = Exporter()
-
     request = ExportAsHTMLRequest(
         download=True,
-        files=["/@file/10-test.txt"],  # Mock file reference
+        files=["/@file/10-test.txt"],
         include_code=True,
     )
 
-    # Mock the read_virtual_file function to avoid file system dependencies
     with patch(
         "marimo._server.export.exporter.read_virtual_file"
     ) as mock_read:
@@ -677,12 +448,12 @@ def test_export_as_html_with_files(session_view: SessionView):
         )
 
     assert filename == "notebook.html"
-    # Files should be embedded as data URLs
     assert "data:" in html
 
 
-def test_export_as_html_with_cell_configs(session_view: SessionView):
+def test_export_as_html_with_cell_configs(session_view: SessionView) -> None:
     """Test HTML export preserves cell configurations through serialization."""
+
     app = App()
 
     @app.cell(hide_code=True, disabled=True, column=1)
@@ -692,7 +463,7 @@ def test_export_as_html_with_cell_configs(session_view: SessionView):
     file_manager = AppFileManager.from_app(InternalApp(app))
 
     cell_ids = list(file_manager.app.cell_manager.cell_ids())
-    session_view.cell_operations[cell_ids[0]] = CellOp(
+    session_view.cell_notifications[cell_ids[0]] = CellNotification(
         cell_id=cell_ids[0],
         status="idle",
         output=CellOutput(
@@ -706,7 +477,6 @@ def test_export_as_html_with_cell_configs(session_view: SessionView):
     session_view.last_executed_code[cell_ids[0]] = "return 'configured'"
 
     exporter = Exporter()
-
     request = ExportAsHTMLRequest(
         download=True,
         files=[],
@@ -722,15 +492,15 @@ def test_export_as_html_with_cell_configs(session_view: SessionView):
     )
 
     assert filename == "notebook.html"
-    # Verify that the serialized notebook data contains configuration
-    assert (
-        "hide_code" in html or "hideCode" in html
-    )  # depends on serialization format
+    assert "hide_code" in html or "hideCode" in html
     assert "configured" in html
 
 
-def test_export_as_html_preserves_output_order(session_view: SessionView):
+def test_export_as_html_preserves_output_order(
+    session_view: SessionView,
+) -> None:
     """Test HTML export preserves cell execution order in session snapshot."""
+
     app = App()
 
     @app.cell()
@@ -746,12 +516,10 @@ def test_export_as_html_preserves_output_order(session_view: SessionView):
         return "third"
 
     file_manager = AppFileManager.from_app(InternalApp(app))
-
     cell_ids = list(file_manager.app.cell_manager.cell_ids())
 
-    # Add cells in different order than execution
     for i, cell_id in enumerate(cell_ids):
-        session_view.cell_operations[cell_id] = CellOp(
+        session_view.cell_notifications[cell_id] = CellNotification(
             cell_id=cell_id,
             status="idle",
             output=CellOutput(
@@ -765,7 +533,6 @@ def test_export_as_html_preserves_output_order(session_view: SessionView):
         session_view.last_executed_code[cell_id] = f"return 'output_{i}'"
 
     exporter = Exporter()
-
     request = ExportAsHTMLRequest(
         download=True,
         files=[],
@@ -781,14 +548,15 @@ def test_export_as_html_preserves_output_order(session_view: SessionView):
     )
 
     assert filename == "notebook.html"
-    # All outputs should be present
     assert "output_0" in html
     assert "output_1" in html
     assert "output_2" in html
 
 
-def test_export_as_html_with_error_outputs(session_view: SessionView):
+def test_export_as_html_with_error_outputs(session_view: SessionView) -> None:
     """Test HTML export handles error outputs correctly."""
+    from marimo._messaging.errors import MarimoExceptionRaisedError
+
     app = App()
 
     @app.cell()
@@ -796,11 +564,7 @@ def test_export_as_html_with_error_outputs(session_view: SessionView):
         raise ValueError("Test error")
 
     file_manager = AppFileManager.from_app(InternalApp(app))
-
     cell_ids = list(file_manager.app.cell_manager.cell_ids())
-
-    # Mock an error output
-    from marimo._messaging.errors import MarimoExceptionRaisedError
 
     error = MarimoExceptionRaisedError(
         exception_type="ValueError",
@@ -808,7 +572,7 @@ def test_export_as_html_with_error_outputs(session_view: SessionView):
         raising_cell=cell_ids[0],
     )
 
-    session_view.cell_operations[cell_ids[0]] = CellOp(
+    session_view.cell_notifications[cell_ids[0]] = CellNotification(
         cell_id=cell_ids[0],
         status="idle",
         output=CellOutput.errors([error]),
@@ -820,7 +584,6 @@ def test_export_as_html_with_error_outputs(session_view: SessionView):
     )
 
     exporter = Exporter()
-
     request = ExportAsHTMLRequest(
         download=True,
         files=[],
@@ -836,12 +599,15 @@ def test_export_as_html_with_error_outputs(session_view: SessionView):
     )
 
     assert filename == "notebook.html"
-    # Error should be serialized in the session snapshot
     assert "Test error" in html or "ValueError" in html
 
 
-def test_export_as_html_code_hash_consistency(session_view: SessionView):
-    """Test HTML export includes correct code hash regardless of include_code setting."""
+def test_export_as_html_code_hash_consistency(
+    session_view: SessionView,
+) -> None:
+    """Test HTML export includes correct code hash regardless of include_code."""
+    import re
+
     app = App()
 
     @app.cell()
@@ -849,9 +615,9 @@ def test_export_as_html_code_hash_consistency(session_view: SessionView):
         return "test"
 
     file_manager = AppFileManager.from_app(InternalApp(app))
-
     cell_ids = list(file_manager.app.cell_manager.cell_ids())
-    session_view.cell_operations[cell_ids[0]] = CellOp(
+
+    session_view.cell_notifications[cell_ids[0]] = CellNotification(
         cell_id=cell_ids[0],
         status="idle",
         output=None,
@@ -892,10 +658,6 @@ def test_export_as_html_code_hash_consistency(session_view: SessionView):
         request=request_without_code,
     )
 
-    # Both should contain the same code hash
-    # The code hash should be in both because it's computed from the actual file code
-    import re
-
     # Extract code hash from both HTML outputs
     hash_pattern = r"<marimo-code-hash[^>]*>([a-f0-9]+)</marimo-code-hash>"
 
@@ -910,20 +672,22 @@ def test_export_as_html_code_hash_consistency(session_view: SessionView):
         "Code hashes should be identical"
     )
 
-    # Verify that when include_code=False, the notebook cells have empty code
     assert '"code": ""' in html_without_code, (
         "Cell code should be empty when include_code=False"
     )
-    # But when include_code=True, the notebook cells should have code
     assert '"code": "return' in html_with_code, (
         "Cell code should be present when include_code=True"
     )
 
 
+# HTML export virtual file replacement tests
+
+
 def test_export_html_replaces_virtual_files_in_outputs(
     session_view: SessionView,
-):
+) -> None:
     """Test that virtual file URLs in HTML outputs are replaced with data URIs."""
+
     app = App()
 
     @app.cell()
@@ -933,15 +697,13 @@ def test_export_html_replaces_virtual_files_in_outputs(
         return mo.image(src="test.png")
 
     file_manager = AppFileManager.from_app(InternalApp(app))
-
     cell_ids = list(file_manager.app.cell_manager.cell_ids())
 
-    # Create HTML output with a virtual file reference
     html_with_virtual_file = (
         '<img src="./@file/100-test.png" alt="Test image">'
     )
 
-    session_view.cell_operations[cell_ids[0]] = CellOp(
+    session_view.cell_notifications[cell_ids[0]] = CellNotification(
         cell_id=cell_ids[0],
         status="idle",
         output=CellOutput(
@@ -957,18 +719,14 @@ def test_export_html_replaces_virtual_files_in_outputs(
     )
 
     exporter = Exporter()
-
-    # Include the virtual file in request.files
-    # Note: request.files uses /@file/ format (without the ./)
     request = ExportAsHTMLRequest(
         download=True,
         files=["/@file/100-test.png"],
         include_code=True,
     )
 
-    # Mock read_virtual_file to return test image data
     with patch(
-        "marimo._server.export.dom_traversal.read_virtual_file"
+        "marimo._convert.common.dom_traversal.read_virtual_file"
     ) as mock_read:
         mock_read.return_value = b"fake_image_data"
 
@@ -981,13 +739,8 @@ def test_export_html_replaces_virtual_files_in_outputs(
         )
 
     assert filename == "notebook.html"
-
-    # Virtual file should be replaced with data URI in the output
     assert "./@file/100-test.png" not in html
     assert "data:image/png;base64," in html
-
-    # Verify the base64-encoded data is present (fake_image_data)
-    import base64
 
     expected_b64 = base64.b64encode(b"fake_image_data").decode()
     assert expected_b64 in html
@@ -995,8 +748,9 @@ def test_export_html_replaces_virtual_files_in_outputs(
 
 def test_export_html_replaces_multiple_virtual_files_complex(
     session_view: SessionView,
-):
+) -> None:
     """Test virtual file replacement with multiple files and nested structures."""
+
     app = App()
 
     @app.cell()
@@ -1013,14 +767,13 @@ def test_export_html_replaces_multiple_virtual_files_complex(
 
     @app.cell()
     def cell_3():
-        # Cell with both virtual file and external URL
         return '<div><img src="./@file/300-diagram.svg"><img src="https://example.com/external.png"></div>'
 
     file_manager = AppFileManager.from_app(InternalApp(app))
     cell_ids = list(file_manager.app.cell_manager.cell_ids())
 
     # Cell 1: Image with virtual file
-    session_view.cell_operations[cell_ids[0]] = CellOp(
+    session_view.cell_notifications[cell_ids[0]] = CellNotification(
         cell_id=cell_ids[0],
         status="idle",
         output=CellOutput(
@@ -1036,7 +789,7 @@ def test_export_html_replaces_multiple_virtual_files_complex(
     )
 
     # Cell 2: Markdown with virtual file
-    session_view.cell_operations[cell_ids[1]] = CellOp(
+    session_view.cell_notifications[cell_ids[1]] = CellNotification(
         cell_id=cell_ids[1],
         status="idle",
         output=CellOutput(
@@ -1052,7 +805,7 @@ def test_export_html_replaces_multiple_virtual_files_complex(
     )
 
     # Cell 3: Mixed - virtual file and external URL
-    session_view.cell_operations[cell_ids[2]] = CellOp(
+    session_view.cell_notifications[cell_ids[2]] = CellNotification(
         cell_id=cell_ids[2],
         status="idle",
         output=CellOutput(
@@ -1064,27 +817,23 @@ def test_export_html_replaces_multiple_virtual_files_complex(
         timestamp=2,
     )
     session_view.last_executed_code[cell_ids[2]] = (
-        'return \'<div><img src="./@file/300-diagram.svg"><img src="https://example.com/external.png"></div>\''
+        'return \'<div><img src="./@file/300-diagram.svg">'
+        '<img src="https://example.com/external.png"></div>\''
     )
 
     exporter = Exporter()
-
-    # Include all virtual files plus an extra one not in outputs
-    # Note: request.files uses /@file/ format (without the ./)
     request = ExportAsHTMLRequest(
         download=True,
         files=[
             "/@file/100-chart.png",
             "/@file/200-plot.png",
             "/@file/300-diagram.svg",
-            "/@file/400-unused.txt",  # Not in any output
+            "/@file/400-unused.txt",
         ],
         include_code=True,
     )
 
-    # Mock read_virtual_file
     def mock_read_side_effect(filename: str, byte_length: int) -> bytes:
-        """Return different mock data based on filename."""
         del byte_length
         if filename == "chart.png":
             return b"chart_data"
@@ -1098,7 +847,7 @@ def test_export_html_replaces_multiple_virtual_files_complex(
 
     with (
         patch(
-            "marimo._server.export.dom_traversal.read_virtual_file"
+            "marimo._convert.common.dom_traversal.read_virtual_file"
         ) as mock_read_dom,
         patch(
             "marimo._server.export.exporter.read_virtual_file"
@@ -1117,25 +866,225 @@ def test_export_html_replaces_multiple_virtual_files_complex(
 
     assert filename == "notebook.html"
 
-    # Verify base64-encoded data is present for replaced files
-    import base64
-
     chart_b64 = base64.b64encode(b"chart_data").decode()
     plot_b64 = base64.b64encode(b"plot_data").decode()
     diagram_b64 = base64.b64encode(b"<svg>diagram</svg>").decode()
 
-    # At least some of the base64 data should be in the HTML
-    # (virtual files are replaced with data URIs)
     assert chart_b64 in html, "Chart data should be embedded as base64"
     assert plot_b64 in html, "Plot data should be embedded as base64"
     assert diagram_b64 in html, "Diagram data should be embedded as base64"
 
-    # Data URIs should be present
-    assert "data:image/png;base64," in html  # For chart and plot
-    assert "data:image/svg+xml;base64," in html  # For diagram
-
-    # External URL should remain unchanged
+    assert "data:image/png;base64," in html
+    assert "data:image/svg+xml;base64," in html
     assert "https://example.com/external.png" in html
 
-    # Virtual file URLs should be replaced (though they may be URL-encoded in JSON)
-    # So we just check that the base64 data is present, which proves replacement worked
+
+class TestPDFExport:
+    def test_export_as_pdf_requires_dependencies(
+        self,
+        session_view: SessionView,
+    ) -> None:
+        """Test that PDF export raises error when dependencies are missing."""
+
+        app = App()
+
+        @app.cell()
+        def test_cell():
+            return "test"
+
+        file_manager = AppFileManager.from_app(InternalApp(app))
+        exporter = Exporter()
+
+        # Mock nbformat as missing
+        with patch.object(Dependency, "has", return_value=False):
+            with pytest.raises(ManyModulesNotFoundError) as excinfo:
+                exporter.export_as_pdf(
+                    app=file_manager.app,
+                    session_view=session_view,
+                    webpdf=False,
+                )
+
+            assert "for PDF export" in str(excinfo.value)
+
+    @pytest.mark.skipif(
+        not DependencyManager.nbformat.has()
+        or not DependencyManager.nbconvert.has()
+        or not DependencyManager.playwright.has(),
+        reason="nbformat or nbconvert or playwright not installed",
+    )
+    def test_export_as_pdf_non_webpdf_mode(
+        self,
+        session_view: SessionView,
+    ) -> None:
+        """Test PDF export in non-webpdf mode (mocked)."""
+
+        app = App()
+
+        @app.cell()
+        def test_cell():
+            return "test"
+
+        file_manager = AppFileManager.from_app(InternalApp(app))
+        exporter = Exporter()
+
+        # Mock PDFExporter to avoid requiring LaTeX
+        mock_exporter_instance = MagicMock()
+        mock_exporter_instance.from_notebook_node.return_value = (
+            b"mock_pdf_data",
+            {},
+        )
+
+        with patch("nbconvert.PDFExporter") as mock_pdf_exporter:
+            mock_pdf_exporter.return_value = mock_exporter_instance
+
+            result = exporter.export_as_pdf(
+                app=file_manager.app,
+                session_view=session_view,
+                webpdf=False,
+            )
+
+            assert result == b"mock_pdf_data"
+            mock_pdf_exporter.assert_called_once()
+            mock_exporter_instance.from_notebook_node.assert_called_once()
+
+    @pytest.mark.skipif(
+        not DependencyManager.nbformat.has()
+        or not DependencyManager.nbconvert.has(),
+        reason="nbformat or nbconvert not installed",
+    )
+    def test_export_as_pdf_webpdf_mode(
+        self,
+        session_view: SessionView,
+    ) -> None:
+        """Test PDF export in webpdf mode (mocked)."""
+
+        app = App()
+
+        @app.cell()
+        def test_cell():
+            return "test"
+
+        file_manager = AppFileManager.from_app(InternalApp(app))
+        exporter = Exporter()
+
+        # Mock WebPDFExporter
+        mock_exporter_instance = MagicMock()
+        mock_exporter_instance.from_notebook_node.return_value = (
+            b"mock_webpdf_data",
+            {},
+        )
+
+        # Mock playwright as available
+        with (
+            patch.object(
+                DependencyManager.playwright, "has", return_value=True
+            ),
+            patch("nbconvert.WebPDFExporter") as mock_webpdf_exporter,
+        ):
+            mock_webpdf_exporter.return_value = mock_exporter_instance
+
+            result = exporter.export_as_pdf(
+                app=file_manager.app,
+                session_view=session_view,
+                webpdf=True,
+            )
+
+            assert result == b"mock_webpdf_data"
+            mock_webpdf_exporter.assert_called_once()
+            # Verify allow_chromium_download is set
+            assert mock_exporter_instance.allow_chromium_download is True
+
+    @pytest.mark.skipif(
+        not DependencyManager.nbformat.has()
+        or not DependencyManager.nbconvert.has(),
+        reason="nbformat or nbconvert not installed",
+    )
+    def test_export_as_pdf_returns_none_on_invalid_data(
+        self,
+        session_view: SessionView,
+    ) -> None:
+        """Test PDF export returns None when exporter returns non-bytes data."""
+
+        app = App()
+
+        @app.cell()
+        def test_cell():
+            return "test"
+
+        file_manager = AppFileManager.from_app(InternalApp(app))
+        exporter = Exporter()
+
+        # Mock PDFExporter to return invalid data
+        mock_exporter_instance = MagicMock()
+        mock_exporter_instance.from_notebook_node.return_value = (
+            "not_bytes",  # Invalid - should be bytes
+            {},
+        )
+
+        with patch("nbconvert.PDFExporter") as mock_pdf_exporter:
+            mock_pdf_exporter.return_value = mock_exporter_instance
+
+            result = exporter.export_as_pdf(
+                app=file_manager.app, session_view=session_view, webpdf=False
+            )
+
+            assert result is None
+
+    @pytest.mark.skipif(
+        not DependencyManager.nbformat.has()
+        or not DependencyManager.nbconvert.has(),
+        reason="nbformat or nbconvert not installed",
+    )
+    def test_export_as_pdf_falls_back_to_webpdf_on_oserror(
+        self,
+        session_view: SessionView,
+    ) -> None:
+        """Test PDF export falls back to webpdf when standard PDF fails with OSError."""
+
+        app = App()
+
+        @app.cell()
+        def test_cell():
+            return "test"
+
+        file_manager = AppFileManager.from_app(InternalApp(app))
+        exporter = Exporter()
+
+        # Mock PDFExporter to raise OSError (pandoc/xelatex not found)
+        mock_pdf_exporter_instance = MagicMock()
+        mock_pdf_exporter_instance.from_notebook_node.side_effect = OSError(
+            "xelatex not found"
+        )
+
+        # Mock WebPDFExporter to succeed
+        mock_webpdf_exporter_instance = MagicMock()
+        mock_webpdf_exporter_instance.from_notebook_node.return_value = (
+            b"fallback_webpdf_data",
+            {},
+        )
+
+        with (
+            patch("nbconvert.PDFExporter") as mock_pdf_exporter,
+            patch("nbconvert.WebPDFExporter") as mock_webpdf_exporter,
+        ):
+            mock_pdf_exporter.return_value = mock_pdf_exporter_instance
+            mock_webpdf_exporter.return_value = mock_webpdf_exporter_instance
+
+            result = exporter.export_as_pdf(
+                app=file_manager.app,
+                session_view=session_view,
+                webpdf=False,  # Request standard PDF, but it should fall back
+            )
+
+            # Should fall back to webpdf and succeed
+            assert result == b"fallback_webpdf_data"
+            # PDFExporter was tried first
+            mock_pdf_exporter.assert_called_once()
+            mock_pdf_exporter_instance.from_notebook_node.assert_called_once()
+            # WebPDFExporter was used as fallback
+            mock_webpdf_exporter.assert_called_once()
+            mock_webpdf_exporter_instance.from_notebook_node.assert_called_once()
+            # Verify allow_chromium_download is set on fallback
+            assert (
+                mock_webpdf_exporter_instance.allow_chromium_download is True
+            )

@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 
 import marimo
 
@@ -12,7 +12,7 @@ def _(mo):
         r"""
         # DuckDB: Persistent Database Connection
 
-        This snippet demonstrates connecting to a persistent DuckDB database 
+        This snippet demonstrates connecting to a persistent DuckDB database
         by specifying a database file, performing DDL/DML operations, and querying data.
         """
     )

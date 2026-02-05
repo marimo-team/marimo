@@ -1,6 +1,8 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import type { Loader } from "@/plugins/impl/vega/vega-loader";
+import { deserializeBlob } from "@/utils/blob";
+import type { DataURLString } from "@/utils/json/base64";
 import { Logger } from "@/utils/Logger";
 import { getStaticVirtualFiles } from "./static-state";
 import type { StaticVirtualFiles } from "./types";
@@ -120,6 +122,24 @@ function withoutLeadingDot(path: string): string {
   return path.startsWith(".") ? path.slice(1) : path;
 }
 
+/**
+ * Resolve a URL to a blob URL if it's a virtual file, for use with dynamic import().
+ * Unlike fetch, import() can't be patched, so we need to convert data URLs to blob URLs.
+ *
+ * @returns The original URL if not a virtual file, or a blob URL if it is
+ */
+export function resolveVirtualFileURL(
+  url: string,
+  files: StaticVirtualFiles = getStaticVirtualFiles(),
+): string {
+  const vfile = maybeGetVirtualFile(url, files);
+  if (!vfile) {
+    return url;
+  }
+  const blob = deserializeBlob(vfile as DataURLString);
+  return URL.createObjectURL(blob);
+}
+
 function maybeGetVirtualFile(
   url: string,
   files: StaticVirtualFiles,
@@ -130,14 +150,11 @@ function maybeGetVirtualFile(
   }
   const pathname = new URL(url, base).pathname;
 
-  // If if the URL starts with file://, then using the document.baseURI
-  // will not work. In this case, should just chop off from /@file/...
-  if (url.startsWith("file://")) {
-    const indexOfFile = url.indexOf("/@file/");
-    if (indexOfFile !== -1) {
-      url = url.slice(indexOfFile);
-    }
-  }
+  // Extract the /@file/... suffix from the URL or pathname
+  // This handles URLs like https://example.com/prefix/@file/foo.js
+  // or file:///path/to/@file/foo.js
+  const filePathFromUrl = extractFilePath(url);
+  const filePathFromPathname = extractFilePath(pathname);
 
   // Few variations to grab the URL.
   // This can happen if a static file was open at file:// or https://
@@ -145,6 +162,19 @@ function maybeGetVirtualFile(
     files[url] ||
     files[withoutLeadingDot(url)] ||
     files[pathname] ||
-    files[withoutLeadingDot(pathname)]
+    files[withoutLeadingDot(pathname)] ||
+    (filePathFromUrl && files[filePathFromUrl]) ||
+    (filePathFromPathname && files[filePathFromPathname])
   );
+}
+
+/**
+ * Extract the /@file/... path from a URL string
+ */
+function extractFilePath(url: string): string | null {
+  const indexOfFile = url.indexOf("/@file/");
+  if (indexOfFile !== -1) {
+    return url.slice(indexOfFile);
+  }
+  return null;
 }

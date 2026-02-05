@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 """MCP Prompts for notebook information."""
 
 from __future__ import annotations

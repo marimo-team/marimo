@@ -1,4 +1,4 @@
-# Copyright 2025 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 
 from __future__ import annotations
 
@@ -25,10 +25,7 @@ HAS_POLARS = DependencyManager.polars.has()
 UNUSED_DB_NAME = "unused_db"
 
 
-@pytest.mark.skipif(
-    not HAS_DUCKDB or not HAS_SQLALCHEMY or not HAS_PANDAS,
-    reason="Duckdb, sqlalchemy and pandas not installed",
-)
+@pytest.mark.requires("duckdb", "sqlalchemy", "pandas")
 def test_engine_compatibility() -> None:
     """Test engine compatibility checks."""
     import duckdb
@@ -49,10 +46,7 @@ def test_raise_df_import_error() -> None:
         raise_df_import_error("test_pkg")
 
 
-@pytest.mark.skipif(
-    not (HAS_DUCKDB and HAS_SQLALCHEMY),
-    reason="Duckdb, sqlalchemy, and Clickhouse not installed",
-)
+@pytest.mark.requires("duckdb", "sqlalchemy")
 def test_engine_name_initialization() -> None:
     """Test engine name initialization."""
     import duckdb
@@ -77,7 +71,7 @@ def test_engine_name_initialization() -> None:
     duckdb_conn.close()
 
 
-@pytest.mark.skipif(not HAS_CLICKHOUSE, reason="Clickhouse not installed")
+@pytest.mark.requires("chdb")
 @pytest.mark.skip("chdb is flakey")
 def test_clickhouse_engine_name_initialization() -> None:
     """Test ClickhouseEngine engine name initialization."""
@@ -92,7 +86,7 @@ def test_clickhouse_engine_name_initialization() -> None:
     clickhouse_conn.close()
 
 
-@pytest.mark.skipif(not HAS_DUCKDB, reason="Duckdb not installed")
+@pytest.mark.requires("duckdb")
 def test_duckdb_source_and_dialect() -> None:
     """Test DuckDBEngine source and dialect properties."""
     import duckdb
@@ -106,7 +100,7 @@ def test_duckdb_source_and_dialect() -> None:
     duckdb_conn.close()
 
 
-@pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")
+@pytest.mark.requires("sqlalchemy")
 def test_sqlalchemy_source_and_dialect() -> None:
     """Test SQLAlchemyEngine source and dialect properties."""
     import sqlalchemy as sa
@@ -127,7 +121,7 @@ def test_sqlalchemy_source_and_dialect() -> None:
     assert pg_engine.dialect == "postgresql"
 
 
-@pytest.mark.skipif(not HAS_DUCKDB, reason="Duckdb not installed")
+@pytest.mark.requires("duckdb")
 def test_duckdb_get_current_database_and_schema() -> None:
     """Test DuckDBEngine get_current_database and get_current_schema methods."""
     import duckdb
@@ -146,7 +140,7 @@ def test_duckdb_get_current_database_and_schema() -> None:
     # Connection already closed, no need to close again
 
 
-@pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")
+@pytest.mark.requires("sqlalchemy")
 def test_sqlalchemy_get_databases() -> None:
     """Test SQLAlchemyEngine get_databases method."""
     import sqlalchemy as sa
@@ -204,7 +198,7 @@ def test_sqlalchemy_get_databases() -> None:
     )  # SQLite is cheap discovery
 
 
-@pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")
+@pytest.mark.requires("sqlalchemy")
 def test_sqlalchemy_get_table_details() -> None:
     """Test SQLAlchemyEngine get_table_details method."""
     import sqlalchemy as sa
@@ -245,10 +239,7 @@ def test_sqlalchemy_get_table_details() -> None:
     assert "name" in column_names
 
 
-@pytest.mark.skipif(
-    not HAS_DUCKDB or not (HAS_PANDAS or HAS_POLARS),
-    reason="Duckdb and either pandas or polars not installed",
-)
+@pytest.mark.requires("duckdb", "pandas", "polars")
 def test_duckdb_execute() -> None:
     """Test DuckDBEngine execute method."""
     import duckdb
@@ -279,10 +270,7 @@ def test_duckdb_execute() -> None:
     duckdb_conn.close()
 
 
-@pytest.mark.skipif(
-    not HAS_DUCKDB or not HAS_POLARS,
-    reason="Duckdb and polars not installed",
-)
+@pytest.mark.requires("duckdb", "polars")
 def test_duckdb_execute_in_explain_mode():
     """Test DuckDBEngine execute in explain mode."""
     import duckdb
@@ -297,8 +285,8 @@ def test_duckdb_execute_in_explain_mode():
 
     # Test with invalid queries
     result, error = engine.execute_in_explain_mode(
-        "SELECT * FROM non_existent_table"  # catalog error
-    )
+        "SELECT * FROM non_existent_table"
+    )  # catalog error
     assert result is None
     assert error is not None
 
@@ -315,18 +303,22 @@ def test_duckdb_execute_in_explain_mode():
     assert result is None
     assert error is None
 
-    # Test with brackets
-    result, error = engine.execute_in_explain_mode("SELECT {1}")
+    # Test with braces - substituted from globals
+    result, error = engine.execute_in_explain_mode(
+        "SELECT {val}", {"val": "1"}
+    )
+    assert result is not None
+    assert error is None
+
+    # Test with braces
+    result, error = engine.execute_in_explain_mode("SELECT {missing}", {})
     assert result is not None
     assert error is None
 
     duckdb_conn.close()
 
 
-@pytest.mark.skipif(
-    not HAS_SQLALCHEMY or not (HAS_PANDAS or HAS_POLARS),
-    reason="SQLAlchemy and either pandas or polars not installed",
-)
+@pytest.mark.requires("sqlalchemy", "pandas", "polars")
 class TestExecuteExplainModeSQLAlchemy:
     @pytest.fixture
     def engine(self) -> SQLAlchemyEngine:
@@ -359,7 +351,7 @@ class TestExecuteExplainModeSQLAlchemy:
         assert engine.execute("PRAGMA journal_mode=WAL") is not None
 
 
-@pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")
+@pytest.mark.requires("sqlalchemy")
 def test_sqlalchemy_execute_in_explain_mode():
     """Test SQLAlchemyEngine execute in explain mode."""
     import sqlalchemy as sa
@@ -368,32 +360,33 @@ def test_sqlalchemy_execute_in_explain_mode():
     engine = SQLAlchemyEngine(sqlite_engine)
 
     # Test with valid query
-    result, error = engine.execute_in_explain_mode("SELECT 1, 2")
+    result, error = engine.execute_in_explain_mode("SELECT 1, 2", {})
     assert result is not None
     assert error is None
 
     # Test with invalid queries
     result, error = engine.execute_in_explain_mode(
-        "SELECT * FROM non_existent_table"  # catalog error
+        "SELECT * FROM non_existent_table",
+        {},  # catalog error
     )
     assert result is None
     assert error is not None
 
-    result, error = engine.execute_in_explain_mode("SELECT * FROM ")
+    result, error = engine.execute_in_explain_mode("SELECT * FROM ", {})
     assert result is None
     assert error is not None
 
     # Test with empty queries
-    result, error = engine.execute_in_explain_mode("")
+    result, error = engine.execute_in_explain_mode("", {})
     assert result is None
     assert error is None
 
-    result, error = engine.execute_in_explain_mode("-- SELECT * FROM ")
+    result, error = engine.execute_in_explain_mode("-- SELECT * FROM ", {})
     assert result is None
     assert error is None
 
-    # Test with brackets
-    result, error = engine.execute_in_explain_mode("SELECT {1}")
+    # Test with braces
+    result, error = engine.execute_in_explain_mode("SELECT {1}", {})
     assert result is not None
     assert error is None
 
@@ -430,7 +423,7 @@ def test_sql_type_to_data_type() -> None:
     assert sql_type_to_data_type("UNKNOWN_TYPE") == "string"
 
 
-@pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")
+@pytest.mark.requires("sqlalchemy")
 def test_sqlalchemy_type_conversion() -> None:
     """Test SQLAlchemyEngine _get_python_type and _get_generic_type methods."""
     import sqlalchemy as sa
@@ -457,10 +450,7 @@ def test_sqlalchemy_type_conversion() -> None:
     assert engine._get_python_type(CustomType()) is None
 
 
-@pytest.mark.skipif(
-    not HAS_POLARS and not HAS_SQLALCHEMY,
-    reason="Polars and SQLAlchemy not installed",
-)
+@pytest.mark.requires("polars", "sqlalchemy")
 def test_try_convert_to_polars() -> None:
     """Test try_convert_to_polars function."""
     import polars as pl

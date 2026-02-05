@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import { z } from "zod";
 
@@ -68,5 +68,12 @@ export class CellNotInitializedError extends Error {
   ) {
     super(message);
     this.name = "CellNotInitializedError";
+  }
+}
+
+export class NoKernelConnectedError extends Error {
+  constructor(message = "Not yet connected to a kernel.") {
+    super(message);
+    this.name = "NoKernelConnectedError";
   }
 }

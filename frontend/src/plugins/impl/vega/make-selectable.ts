@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import type { TopLevelSpec } from "vega-lite";
 import type { NonNormalizedSpec } from "vega-lite/types_unstable/spec/index.js";
@@ -301,6 +301,14 @@ export function makeSelectable<T extends VegaLiteSpec>(
   const hasChartParam = spec.params?.some((param) => !param.bind);
   if (hasChartParam) {
     chartSelection = false;
+  }
+
+  // For vconcat/hconcat with existing chart params, return unchanged.
+  // This preserves cross-view interactions (e.g., brush selections in
+  // concatenated charts). See issue #7668.
+  const isCompoundSpec = "vconcat" in spec || "hconcat" in spec;
+  if (hasChartParam && isCompoundSpec) {
+    return spec;
   }
 
   if ("vconcat" in spec) {

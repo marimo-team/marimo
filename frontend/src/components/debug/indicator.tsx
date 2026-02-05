@@ -1,11 +1,11 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 export const TailwindIndicator = () => {
   if (process.env.NODE_ENV === "production") {
     return null;
   }
 
   return (
-    <div className="fixed bottom-10 right-0 z-50 flex items-center justify-center bg-gray-800 py-[2px] px-1 font-mono text-[10px] text-white font-semibold">
+    <div className="fixed bottom-10 right-0 z-50 flex items-center justify-center bg-gray-800 py-[2px] px-1 font-mono text-[10px] text-white font-semibold print:hidden">
       <div className="block sm:hidden">xs</div>
       <div className="hidden sm:block md:hidden lg:hidden xl:hidden 2xl:hidden">
         sm

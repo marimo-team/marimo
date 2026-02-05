@@ -1,0 +1,66 @@
+{
+ "cells": [
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "Hbol",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "import marimo as mo"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "MJUe",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "slider = mo.ui.slider(0, 10)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "vblA",
+   "metadata": {},
+   "outputs": [
+    {
+     "ename": "ZeroDivisionError",
+     "evalue": "division by zero",
+     "output_type": "error",
+     "traceback": [
+      "Traceback (most recent call last):",
+      "  File \"\", line 1, in <module>",
+      "    1 / 0",
+      "    ~~^~~",
+      "ZeroDivisionError: division by zero",
+      ""
+     ]
+    }
+   ],
+   "source": [
+    "1 / 0"
+   ]
+  }
+ ],
+ "metadata": {
+  "language_info": {
+   "codemirror_mode": {
+    "name": "ipython",
+    "version": 3
+   },
+   "file_extension": ".py",
+   "mimetype": "text/x-python",
+   "name": "python",
+   "nbconvert_exporter": "python",
+   "pygments_lexer": "ipython3"
+  },
+  "marimo": {
+   "marimo_version": "0.0.0"
+  }
+ },
+ "nbformat": 4,
+ "nbformat_minor": 5
+}

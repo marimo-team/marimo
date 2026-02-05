@@ -1,11 +1,10 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 import type { Extension } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { focusPackagesInput } from "@/components/editor/chrome/panels/packages-utils";
 import { chromeAtom } from "@/components/editor/chrome/state";
 import { Kbd } from "@/components/ui/kbd";
 import { userConfigAtom } from "@/core/config/config";
-import type { UserConfig } from "@/core/config/config-schema";
 import { getRequestClient } from "@/core/network/requests";
 import { store } from "@/core/state/jotai";
 import { toast } from "../../../components/ui/use-toast";
@@ -48,15 +47,14 @@ export function jupyterHelpExtension(): Extension {
   const handleUpdateModuleReload = async (mode: "lazy" | "autorun" | "off") => {
     const config = store.get(userConfigAtom);
     const { saveUserConfig } = getRequestClient();
-    const newConfig: UserConfig = {
-      ...config,
-      runtime: {
-        ...config.runtime,
-        auto_reload: mode,
-      },
-    };
-    await saveUserConfig({ config: newConfig }).then(() =>
-      store.set(userConfigAtom, newConfig),
+    // Send only the changed portion to avoid overwriting other config values
+    await saveUserConfig({ config: { runtime: { auto_reload: mode } } }).then(
+      () =>
+        // Update local state with merged config
+        store.set(userConfigAtom, {
+          ...config,
+          runtime: { ...config.runtime, auto_reload: mode },
+        }),
     );
   };
 

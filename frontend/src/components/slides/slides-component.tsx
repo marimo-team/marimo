@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import React, { type JSX, type PropsWithChildren, useEffect } from "react";
 import {
@@ -21,6 +21,7 @@ interface SlidesComponentProps {
   forceKeyboardNavigation?: boolean;
   index?: string | null;
   height?: string | number | null;
+  wrapAround?: boolean;
 }
 
 const SlidesComponent = ({
@@ -28,6 +29,7 @@ const SlidesComponent = ({
   children,
   height,
   forceKeyboardNavigation = false,
+  wrapAround = false,
 }: PropsWithChildren<SlidesComponentProps>): JSX.Element => {
   const el = React.useRef<SwiperRef>(null);
   const [isFullscreen, setIsFullscreen] = React.useState(false);
@@ -48,6 +50,10 @@ const SlidesComponent = ({
     });
   }, [isFullscreen]);
 
+  const modules = wrapAround // virtual is incompatible with loop
+    ? [Keyboard, Pagination, Zoom, Navigation]
+    : [Virtual, Keyboard, Pagination, Zoom, Navigation];
+
   return (
     <Swiper
       ref={el}
@@ -60,7 +66,7 @@ const SlidesComponent = ({
         height: isFullscreen ? "100%" : height || "550px",
       }}
       slidesPerView={1}
-      modules={[Virtual, Keyboard, Pagination, Zoom, Navigation]}
+      modules={modules}
       zoom={{
         maxRatio: 5,
       }}
@@ -74,10 +80,11 @@ const SlidesComponent = ({
       pagination={{
         clickable: true,
       }}
-      virtual={true}
+      virtual={!wrapAround} // virtual is incompatible with loop, turn off if loop is on
       // Instant swipes, which make sequences of slides
       // that overlay content more legible
       speed={1}
+      loop={wrapAround}
     >
       {React.Children.map(children, (child, index) => {
         if (child == null) {

@@ -1,6 +1,7 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 from starlette.authentication import requires
@@ -8,20 +9,22 @@ from starlette.exceptions import HTTPException
 from starlette.responses import PlainTextResponse
 
 from marimo import _loggers
+from marimo._runtime.commands import RenameNotebookCommand
 from marimo._server.api.deps import AppState
-from marimo._server.api.status import HTTPStatus
 from marimo._server.api.utils import parse_request
 from marimo._server.models.models import (
     BaseResponse,
     CopyNotebookRequest,
     ReadCodeResponse,
-    RenameFileRequest,
+    RenameNotebookRequest,
     SaveAppConfigurationRequest,
     SaveNotebookRequest,
     SuccessResponse,
 )
 from marimo._server.router import APIRouter
 from marimo._types.ids import ConsumerId
+from marimo._utils.async_path import abspath
+from marimo._utils.http import HTTPStatus
 
 if TYPE_CHECKING:
     from starlette.requests import Request
@@ -33,12 +36,18 @@ router = APIRouter()
 
 
 @router.post("/read_code")
-@requires("edit")
+@requires("read")
 async def read_code(
     *,
     request: Request,
 ) -> ReadCodeResponse:
     """
+    parameters:
+        - in: header
+          name: Marimo-Session-Id
+          schema:
+            type: string
+          required: true
     responses:
         200:
             description: Read the code from the server
@@ -48,8 +57,18 @@ async def read_code(
                         $ref: "#/components/schemas/ReadCodeResponse"
         400:
             description: File must be saved before downloading
+        403:
+            description: Code is not available in run mode
     """
     app_state = AppState(request)
+
+    # Check if code should be visible (edit mode or include_code=True)
+    if not app_state.session_manager.should_send_code_to_frontend():
+        raise HTTPException(
+            status_code=HTTPStatus.FORBIDDEN,
+            detail="Code is not available",
+        )
+
     session = app_state.require_current_session()
 
     if not session.app_file_manager.path:
@@ -70,11 +89,17 @@ async def rename_file(
     request: Request,
 ) -> BaseResponse:
     """
+    parameters:
+        - in: header
+          name: Marimo-Session-Id
+          schema:
+            type: string
+          required: true
     requestBody:
         content:
             application/json:
                 schema:
-                    $ref: "#/components/schemas/RenameFileRequest"
+                    $ref: "#/components/schemas/RenameNotebookRequest"
     responses:
         200:
             description: Rename the current app
@@ -83,29 +108,25 @@ async def rename_file(
                     schema:
                         $ref: "#/components/schemas/SuccessResponse"
     """
-    body = await parse_request(request, cls=RenameFileRequest)
+    body = await parse_request(request, cls=RenameNotebookRequest)
     app_state = AppState(request)
-    session = app_state.require_current_session()
-    prev_path = session.app_file_manager.path
 
-    session.app_file_manager.rename(body.filename)
-    new_path = session.app_file_manager.path
+    # Resolve relative filenames against the file router's directory
+    if not Path(body.filename).is_absolute():
+        directory = app_state.session_manager.file_router.directory
+        if directory:
+            body.filename = str(Path(directory) / body.filename)
 
-    if prev_path and new_path:
-        app_state.session_manager.recents.rename(prev_path, new_path)
-    elif new_path:
-        app_state.session_manager.recents.touch(new_path)
+    filename = await abspath(body.filename)
 
     app_state.require_current_session().put_control_request(
-        body.as_execution_request(),
+        RenameNotebookCommand(filename=filename),
         from_consumer_id=ConsumerId(app_state.require_current_session_id()),
     )
 
-    if new_path:
-        # Handle rename for watch
-        app_state.session_manager.handle_file_rename_for_watch(
-            app_state.require_current_session_id(), prev_path, new_path
-        )
+    await app_state.session_manager.rename_session(
+        app_state.require_current_session_id(), body.filename
+    )
 
     return SuccessResponse()
 
@@ -117,6 +138,12 @@ async def save(
     request: Request,
 ) -> PlainTextResponse:
     """
+    parameters:
+        - in: header
+          name: Marimo-Session-Id
+          schema:
+            type: string
+          required: true
     requestBody:
         content:
             application/json:
@@ -132,6 +159,13 @@ async def save(
     """
     app_state = AppState(request)
     body = await parse_request(request, cls=SaveNotebookRequest)
+
+    # Resolve relative filenames against the file router's directory
+    if body.filename and not Path(body.filename).is_absolute():
+        directory = app_state.session_manager.file_router.directory
+        if directory:
+            body.filename = str(Path(directory) / body.filename)
+
     session = app_state.require_current_session()
     contents = session.app_file_manager.save(body)
 
@@ -145,6 +179,12 @@ async def copy(
     request: Request,
 ) -> PlainTextResponse:
     """
+    parameters:
+        - in: header
+          name: Marimo-Session-Id
+          schema:
+            type: string
+          required: true
     requestBody:
         content:
             application/json:
@@ -160,6 +200,15 @@ async def copy(
     """
     app_state = AppState(request)
     body = await parse_request(request, cls=CopyNotebookRequest)
+
+    # Resolve relative filenames against the file router's directory
+    directory = app_state.session_manager.file_router.directory
+    if directory:
+        if body.source and not Path(body.source).is_absolute():
+            body.source = str(Path(directory) / body.source)
+        if body.destination and not Path(body.destination).is_absolute():
+            body.destination = str(Path(directory) / body.destination)
+
     session = app_state.require_current_session()
     contents = session.app_file_manager.copy(body)
 
@@ -173,6 +222,12 @@ async def save_app_config(
     request: Request,
 ) -> PlainTextResponse:
     """
+    parameters:
+        - in: header
+          name: Marimo-Session-Id
+          schema:
+            type: string
+          required: true
     requestBody:
         content:
             application/json:

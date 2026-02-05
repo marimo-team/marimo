@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
 import gc
@@ -16,7 +16,7 @@ from marimo._plugins.ui._impl.from_anywidget import (
     encode_to_wire,
     from_anywidget,
 )
-from marimo._runtime.requests import SetUIElementValueRequest
+from marimo._runtime.commands import UpdateUIElementCommand
 from marimo._runtime.runtime import Kernel
 from tests.conftest import ExecReqProvider
 
@@ -134,7 +134,7 @@ x = as_marimo_element.count
         assert ui_element.value == {"count": 10}
 
         await k.set_ui_element_value(
-            SetUIElementValueRequest.from_ids_and_values(
+            UpdateUIElementCommand.from_ids_and_values(
                 [(ui_element._id, {"count": 5})]
             )
         )
@@ -297,7 +297,7 @@ x = as_marimo_element.count
 
         # Simulate a change from the frontend
         await k.set_ui_element_value(
-            SetUIElementValueRequest.from_ids_and_values(
+            UpdateUIElementCommand.from_ids_and_values(
                 [(ui_element._id, {"value": 42})]
             )
         )
@@ -518,6 +518,36 @@ x = as_marimo_element.count
         # Test updating with new traits
         wrapped._update({"d": 4})
         assert wrapped.value == {"a": 100, "b": 200, "c": 300, "d": 4}
+
+    @staticmethod
+    async def test_getitem_and_contains() -> None:
+        """Test that __getitem__ and __contains__ are forwarded to the widget."""
+        from typing import Any
+
+        class DictLikeWidget(_anywidget.AnyWidget):
+            _esm = ""
+            data = traitlets.Dict({"a": 1, "b": 2}).tag(sync=True)
+
+            def __getitem__(self, key: str) -> Any:
+                return self.data[key]
+
+            def __contains__(self, key: str) -> bool:
+                return key in self.data
+
+        wrapped = anywidget(DictLikeWidget())
+
+        # Test __getitem__ forwarding
+        assert wrapped["a"] == 1
+        assert wrapped["b"] == 2
+
+        # Test __contains__ forwarding
+        assert "a" in wrapped
+        assert "b" in wrapped
+        assert "c" not in wrapped
+
+        # Test KeyError propagation
+        with pytest.raises(KeyError):
+            _ = wrapped["nonexistent"]
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")

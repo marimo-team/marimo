@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 """Msgspec encoder with custom type support for marimo."""
 
 from __future__ import annotations
@@ -18,6 +18,7 @@ import msgspec.json
 from marimo import _loggers
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins.core.media import io_to_data_url
+from marimo._utils.methods import getcallable
 
 LOGGER = _loggers.marimo_logger()
 
@@ -25,11 +26,11 @@ LOGGER = _loggers.marimo_logger()
 def enc_hook(obj: Any) -> Any:
     """Custom encoding hook for marimo types."""
 
-    if hasattr(obj, "_marimo_serialize_"):
-        return obj._marimo_serialize_()
+    if serialize := getcallable(obj, "_marimo_serialize_"):
+        return serialize()
 
-    if hasattr(obj, "_mime_"):
-        mimetype, data = obj._mime_()
+    if mime := getcallable(obj, "_mime_"):
+        mimetype, data = mime()
         return {"mimetype": mimetype, "data": data}
 
     if isinstance(obj, range):
@@ -116,6 +117,19 @@ def enc_hook(obj: Any) -> Any:
         except AttributeError:
             pass
 
+    # Handle shapely geometry objects from geopandas
+    if DependencyManager.geopandas.imported():
+        try:
+            # Check if it's a shapely geometry object
+            # shapely.geometry.base.BaseGeometry is the base class
+            from shapely.geometry.base import BaseGeometry  # type: ignore
+
+            if isinstance(obj, BaseGeometry):
+                # Convert to WKT (Well-Known Text) string representation
+                return str(obj)
+        except (ImportError, AttributeError):
+            pass
+
     if DependencyManager.polars.imported():
         import polars as pl
 
@@ -168,7 +182,9 @@ def enc_hook(obj: Any) -> Any:
             )
 
     # Handle objects with __slots__
-    slots = getattr(obj, "__slots__", None)
+    # Check on type(obj) to avoid triggering __getattr__ on objects that
+    # implement it
+    slots = getattr(type(obj), "__slots__", None)
     if slots is not None:
         try:
             slots = iter(slots)

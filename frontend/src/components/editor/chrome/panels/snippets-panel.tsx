@@ -1,8 +1,9 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import { CommandList } from "cmdk";
 import { BetweenHorizontalStartIcon, PlusIcon, XIcon } from "lucide-react";
 import React from "react";
+import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import {
   Command,
   CommandEmpty,
@@ -29,12 +30,15 @@ import { useTheme } from "@/theme/useTheme";
 import { cn } from "@/utils/cn";
 import { HideInKioskMode } from "../../kiosk-mode";
 import { ContributeSnippetButton } from "../components/contribute-snippet-button";
+import { usePanelOrientation, usePanelSection } from "./panel-context";
 
 const extensions = [EditorView.lineWrapping];
 
 const SnippetsPanel: React.FC = () => {
   const { readSnippets } = useRequestClient();
   const [selectedSnippet, setSelectedSnippet] = React.useState<Snippet>();
+  const orientation = usePanelOrientation();
+  const section = usePanelSection();
   const {
     data: snippets,
     error,
@@ -51,49 +55,60 @@ const SnippetsPanel: React.FC = () => {
     return <Spinner size="medium" centered={true} />;
   }
 
-  return (
-    <div className="flex-1 overflow-hidden">
-      <Command
-        className={cn(
-          "border-b rounded-none",
-          selectedSnippet ? "h-1/3" : "h-full",
-        )}
-      >
-        <div className="flex items-center w-full">
-          <CommandInput
-            placeholder="Search snippets..."
-            className="h-6 m-1"
-            rootClassName="flex-1 border-r"
-          />
-          <ContributeSnippetButton>
-            <button className="float-right border-b px-2 m-0 h-full hover:bg-accent hover:text-accent-foreground">
-              <PlusIcon className="h-4 w-4" />
-            </button>
-          </ContributeSnippetButton>
-        </div>
+  const isVertical = orientation === "vertical";
 
-        <CommandEmpty>No results</CommandEmpty>
-        <SnippetList
-          onSelect={(snippet) => setSelectedSnippet(snippet)}
-          snippets={snippets.snippets}
-        />
-      </Command>
-      <Suspense>
-        <div className="h-2/3 snippet-viewer flex flex-col">
-          {selectedSnippet ? (
-            <SnippetViewer
-              key={selectedSnippet.title}
-              snippet={selectedSnippet}
-              onClose={() => setSelectedSnippet(undefined)}
+  return (
+    <div className="flex-1 overflow-hidden h-full">
+      <PanelGroup key={section} direction={orientation} className="h-full">
+        {/* Snippet list panel */}
+        <Panel defaultSize={40} minSize={20} maxSize={70}>
+          <Command className="h-full rounded-none">
+            <div className="flex items-center w-full border-b">
+              <CommandInput
+                placeholder="Search snippets..."
+                className="h-6 m-1"
+                rootClassName="flex-1 border-r"
+              />
+              <ContributeSnippetButton>
+                <button className="float-right px-2 m-0 h-full hover:bg-accent hover:text-accent-foreground">
+                  <PlusIcon className="h-4 w-4" />
+                </button>
+              </ContributeSnippetButton>
+            </div>
+
+            <CommandEmpty>No results</CommandEmpty>
+            <SnippetList
+              onSelect={(snippet) => setSelectedSnippet(snippet)}
+              snippets={snippets.snippets}
             />
-          ) : (
-            <PanelEmptyState
-              title=""
-              description="Click on a snippet to view its content."
-            />
+          </Command>
+        </Panel>
+        <PanelResizeHandle
+          className={cn(
+            "bg-border hover:bg-primary/50 transition-colors",
+            isVertical ? "h-1" : "w-1",
           )}
-        </div>
-      </Suspense>
+        />
+        {/* Snippet viewer panel */}
+        <Panel defaultSize={60} minSize={20}>
+          <Suspense>
+            <div className="h-full snippet-viewer flex flex-col overflow-hidden">
+              {selectedSnippet ? (
+                <SnippetViewer
+                  key={selectedSnippet.title}
+                  snippet={selectedSnippet}
+                  onClose={() => setSelectedSnippet(undefined)}
+                />
+              ) : (
+                <PanelEmptyState
+                  title=""
+                  description="Click on a snippet to view its content."
+                />
+              )}
+            </div>
+          </Suspense>
+        </Panel>
+      </PanelGroup>
     </div>
   );
 };

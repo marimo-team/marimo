@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import type { PyodideInterface } from "pyodide";
 import {
@@ -8,7 +8,7 @@ import {
   type RPCSchema,
 } from "rpc-anywhere";
 import type { UserConfig } from "@/core/config/config-schema";
-import type { OperationMessage } from "@/core/kernel/messages";
+import type { NotificationPayload } from "@/core/kernel/messages";
 import type {
   ListPackagesResponse,
   PackageOperationResponse,
@@ -28,7 +28,12 @@ import { getController } from "./getController";
 import { getPyodideVersion } from "./getPyodideVersion";
 import { MessageBuffer } from "./message-buffer";
 import { t } from "./tracer";
-import type { RawBridge, SerializedBridge, WasmController } from "./types";
+import type {
+  BridgePayload,
+  RawBridge,
+  SerializedBridge,
+  WasmController,
+} from "./types";
 
 /**
  * Web worker responsible for running the notebook.
@@ -64,7 +69,7 @@ async function loadPyodideAndPackages() {
 }
 
 const messageBuffer = new MessageBuffer(
-  (message: JsonString<OperationMessage>) => {
+  (message: JsonString<NotificationPayload>) => {
     rpc.send.kernelMessage({ message });
   },
 );
@@ -256,10 +261,10 @@ const requestHandler = createRPCRequestHandler({
   /**
    * Call a function on the bridge
    */
-  bridge: async (opts: {
+  async bridge<T extends keyof RawBridge>(opts: {
     functionName: keyof RawBridge;
-    payload: {} | undefined | null;
-  }) => {
+    payload: BridgePayload<T>;
+  }): Promise<unknown> {
     const span = t.startSpan("bridge", {
       functionName: opts.functionName,
     });
@@ -330,7 +335,7 @@ export type WorkerSchema = RPCSchema<
       // Emitted when the worker is ready
       ready: {};
       // Emitted when the kernel sends a message
-      kernelMessage: { message: JsonString<OperationMessage> };
+      kernelMessage: { message: JsonString<NotificationPayload> };
       // Emitted when the Pyodide is initialized
       initialized: {};
       // Emitted when the Pyodide is initializing, with new messages

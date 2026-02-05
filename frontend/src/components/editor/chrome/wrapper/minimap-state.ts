@@ -1,12 +1,10 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import { atom } from "jotai";
 import { cellIdsAtom } from "@/core/cells/cells";
 import type { CellId } from "@/core/cells/ids";
 import { variablesAtom } from "@/core/variables/state";
 import type { Variable, VariableName, Variables } from "@/core/variables/types";
-
-export const minimapOpenAtom = atom(false);
 
 export interface CellGraph {
   variables: readonly VariableName[];

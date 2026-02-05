@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 const urlRegex = /(https?:\/\/\S+)/;
 const imageRegex = /\.(png|jpe?g|gif|webp|svg|ico)(\?.*)?$/i;
@@ -19,7 +19,7 @@ export function parseContent(text: string): ContentPart[] {
     return [{ type: "image", url: text }];
   }
 
-  const parts = text.split(urlRegex).filter((part) => part.trim() !== "");
+  const parts = text.split(urlRegex).filter((part) => part !== "");
   return parts.map((part) => {
     const isUrl = urlRegex.test(part);
     if (isUrl) {

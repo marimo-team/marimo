@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 export function dbDisplayName(name: string) {
   switch (name) {
     case "duckdb":
@@ -15,6 +15,7 @@ export function dbDisplayName(name: string) {
     case "mariadb":
       return "MariaDB";
     case "mssql":
+    case "microsoft sql server":
       return "Microsoft SQL Server";
     case "oracle":
       return "Oracle";

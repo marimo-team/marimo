@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
 import asyncio
@@ -12,6 +12,7 @@ from marimo._cli.parse_args import parse_args
 from marimo._cli.print import echo, green
 from marimo._cli.utils import prompt_to_overwrite
 from marimo._dependencies.dependencies import DependencyManager
+from marimo._dependencies.errors import ManyModulesNotFoundError
 from marimo._server.api.utils import parse_title
 from marimo._server.export import (
     ExportResult,
@@ -21,6 +22,7 @@ from marimo._server.export import (
     export_as_wasm,
     run_app_then_export_as_html,
     run_app_then_export_as_ipynb,
+    run_app_then_export_as_pdf,
 )
 from marimo._server.export.exporter import Exporter
 from marimo._server.utils import asyncio_run
@@ -51,6 +53,8 @@ def watch_and_export(
     watch: bool,
     export_callback: Callable[[MarimoPath], ExportResult],
     force: bool,
+    *,
+    initial_export_in_watch: bool = False,
 ) -> None:
     if watch and not output:
         raise click.UsageError(
@@ -58,38 +62,63 @@ def watch_and_export(
             + "an output file with --output."
         )
 
-    def write_data(data: str) -> None:
+    def write_result(result: ExportResult) -> None:
         if output:
             # Make dirs if needed
             maybe_make_dirs(output)
-            output.write_text(data, encoding="utf-8")
+            output.write_bytes(result.bytez)
         else:
-            echo(data)
+            echo(result.text)
         return
 
     if output:
         output_path = Path(output)
-        if not force:
+        if not force and not watch:
             if not prompt_to_overwrite(output_path):
                 return
 
     # No watch, just run once
     if not watch:
         result = export_callback(marimo_path)
-        write_data(result.contents)
+        write_result(result)
         if result.did_error:
             raise click.ClickException(
                 "Export was successful, but some cells failed to execute."
             )
         return
 
+    # Watch mode: optionally do an initial export before waiting for changes
+    if initial_export_in_watch:
+        result = export_callback(marimo_path)
+        write_result(result)
+        if result.did_error:
+            echo(
+                "Warning: Export was successful, but some cells failed to execute.",
+                err=True,
+            )
+
     async def on_file_changed(file_path: Path) -> None:
         if output:
             echo(
                 f"File {str(file_path)} changed. Re-exporting to {green(str(output))}"
             )
-        result = export_callback(MarimoPath(file_path))
-        write_data(result.contents)
+        try:
+            # `export_callback` may call `asyncio_run()` internally. This callback
+            # runs inside the file watcher's event loop, so we must execute the
+            # export in a separate thread to avoid `asyncio.run()` nesting.
+            result = await asyncio.to_thread(
+                export_callback, MarimoPath(file_path)
+            )
+        except Exception as e:
+            echo(f"Error: {e}", err=True)
+            return
+
+        write_result(result)
+        if result.did_error:
+            echo(
+                "Warning: Export was successful, but some cells failed to execute.",
+                err=True,
+            )
 
     async def start() -> None:
         # Watch the file for changes
@@ -353,7 +382,7 @@ def md(
         return
 
     def export_callback(file_path: MarimoPath) -> ExportResult:
-        return export_as_md(file_path, new_filename=output)
+        return export_as_md(file_path)
 
     return watch_and_export(
         MarimoPath(name), output, watch, export_callback, force
@@ -475,6 +504,170 @@ def ipynb(
 
     return watch_and_export(
         MarimoPath(name), output, watch, export_callback, force
+    )
+
+
+@click.command(
+    help="""Export a marimo notebook as a PDF file.
+
+Example:
+
+    marimo export pdf notebook.py -o notebook.pdf
+
+Optionally pass CLI args to the notebook:
+
+    marimo export pdf notebook.py -o notebook.pdf -- -arg1 foo -arg2 bar
+
+Requires nbformat and nbconvert to be installed.
+"""
+)
+@click.option(
+    "--include-outputs/--no-include-outputs",
+    default=True,
+    show_default=True,
+    type=bool,
+    help="Run the notebook and include outputs in the exported PDF file.",
+)
+@click.option(
+    "--webpdf/--no-webpdf",
+    default=True,
+    show_default=True,
+    type=bool,
+    help=(
+        "Use nbconvert's WebPDF exporter (Chromium). If disabled, marimo will "
+        "try standard PDF export (pandoc + TeX) first and fall back to WebPDF."
+    ),
+)
+@click.option(
+    "--watch/--no-watch",
+    default=False,
+    show_default=True,
+    type=bool,
+    help=_watch_message,
+)
+@click.option(
+    "-o",
+    "--output",
+    type=click.Path(path_type=Path),
+    required=True,
+    help="Output PDF file to save to.",
+)
+@click.option(
+    "--sandbox/--no-sandbox",
+    is_flag=True,
+    default=None,
+    show_default=False,
+    type=bool,
+    help=_sandbox_message,
+)
+@click.option(
+    "-f",
+    "--force",
+    is_flag=True,
+    default=False,
+    help="Force overwrite of the output file if it already exists.",
+)
+@click.argument(
+    "name",
+    required=True,
+    type=click.Path(exists=True, file_okay=True, dir_okay=False),
+)
+@click.argument("args", nargs=-1, type=click.UNPROCESSED)
+def pdf(
+    name: str,
+    output: Path,
+    watch: bool,
+    include_outputs: bool,
+    webpdf: bool,
+    sandbox: Optional[bool],
+    force: bool,
+    args: tuple[str],
+) -> None:
+    """Run a notebook and export it as a PDF file."""
+    import sys
+
+    if include_outputs:
+        # Set default, if not provided
+        if sandbox is None:
+            from marimo._cli.sandbox import maybe_prompt_run_in_sandbox
+
+            sandbox = maybe_prompt_run_in_sandbox(name)
+
+        if sandbox:
+            from marimo._cli.sandbox import run_in_sandbox
+
+            export_deps = ["nbformat"]
+            # Adding webpdf extras to sandbox even if `webpdf` is False, since standard PDF export may fall back to it.
+            export_deps.append("nbconvert[webpdf]")
+            run_in_sandbox(
+                sys.argv[1:],
+                name=name,
+                additional_deps=export_deps,
+            )
+            return
+
+    try:
+        DependencyManager.require_many(
+            "for PDF export",
+            DependencyManager.nbformat,
+            DependencyManager.nbconvert,
+        )
+    except ManyModulesNotFoundError as e:
+        from marimo._cli.print import bold
+
+        pkgs = " ".join(e.package_names)
+        raise click.ClickException(
+            f"{e}\n\n"
+            f"  {green('Tip:')} Install with:\n\n"
+            f"    pip install {pkgs}\n\n"
+            f"  or rerun with {bold(f'marimo export pdf {name} --output {output} --sandbox')} (requires uv)"
+        ) from None
+
+    cli_args = parse_args(args) if include_outputs else {}
+
+    def export_callback(
+        file_path: MarimoPath,
+    ) -> tuple[bytes | None, bool]:
+        try:
+            return asyncio_run(
+                run_app_then_export_as_pdf(
+                    file_path,
+                    include_outputs=include_outputs,
+                    webpdf=webpdf,
+                    cli_args=cli_args,
+                    argv=list(args) if include_outputs else None,
+                )
+            )
+        except ModuleNotFoundError as e:
+            if getattr(e, "name", None) == "playwright":
+                raise click.ClickException(
+                    "Playwright is required for WebPDF export.\n\n"
+                    f"  {green('Tip:')} Install webpdf dependencies with:\n\n"
+                    "    pip install 'nbconvert[webpdf]'\n\n"
+                    "  and install Chromium with:\n\n"
+                    "    python -m playwright install chromium"
+                ) from None
+            raise
+        except Exception as e:
+            raise click.ClickException(f"Failed to export PDF: {e}") from None
+
+    def export_callback_impl(file_path: MarimoPath) -> ExportResult:
+        pdf_bytes, did_error = export_callback(file_path)
+        if pdf_bytes is None:
+            raise click.ClickException("Failed to export PDF.")
+        return ExportResult(
+            contents=pdf_bytes,
+            download_filename=str(output),
+            did_error=did_error,
+        )
+
+    return watch_and_export(
+        MarimoPath(name),
+        output,
+        watch,
+        export_callback_impl,
+        force,
+        initial_export_in_watch=True,
     )
 
 
@@ -634,4 +827,5 @@ export.add_command(html)
 export.add_command(script)
 export.add_command(md)
 export.add_command(ipynb)
+export.add_command(pdf)
 export.add_command(html_wasm)

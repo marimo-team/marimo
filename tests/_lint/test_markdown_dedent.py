@@ -1,4 +1,4 @@
-# Copyright 2025 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 """Tests for markdown dedent lint rule."""
 
 from marimo._ast.parse import parse_notebook

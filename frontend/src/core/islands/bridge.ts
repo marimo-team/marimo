@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { getWorkerRPC } from "@/core/wasm/rpc";
@@ -6,7 +6,8 @@ import { Deferred } from "@/utils/Deferred";
 import { throwNotImplemented } from "@/utils/functions";
 import type { JsonString } from "@/utils/json/base64";
 import { Logger } from "@/utils/Logger";
-import type { OperationMessage } from "../kernel/messages";
+import { generateUUID } from "@/utils/uuid";
+import type { CommandMessage, NotificationPayload } from "../kernel/messages";
 import { getMarimoVersion } from "../meta/globals";
 import type { EditRequests, RunRequests } from "../network/types";
 import { store } from "../state/jotai";
@@ -30,7 +31,7 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
 
   private rpc: ReturnType<typeof getWorkerRPC<WorkerSchema>>;
   private messageConsumer:
-    | ((message: JsonString<OperationMessage>) => void)
+    | ((message: JsonString<NotificationPayload>) => void)
     | undefined;
 
   public initialized = new Deferred<void>();
@@ -94,7 +95,9 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
     await this.rpc.proxy.request.startSession(opts);
   }
 
-  consumeMessages(consumer: (message: JsonString<OperationMessage>) => void) {
+  consumeMessages(
+    consumer: (message: JsonString<NotificationPayload>) => void,
+  ) {
     this.messageConsumer = consumer;
     this.rpc.proxy.send.consumerReady({});
   }
@@ -102,7 +105,11 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
   sendComponentValues: RunRequests["sendComponentValues"] = async (
     request,
   ): Promise<null> => {
-    await this.putControlRequest(request);
+    await this.putControlRequest({
+      type: "update-ui-element",
+      ...request,
+      token: generateUUID(),
+    });
     return null;
   };
 
@@ -115,18 +122,27 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
   sendFunctionRequest: RunRequests["sendFunctionRequest"] = async (
     request,
   ): Promise<null> => {
-    await this.putControlRequest(request);
+    await this.putControlRequest({
+      type: "invoke-function",
+      ...request,
+    });
     return null;
   };
 
   sendRun: EditRequests["sendRun"] = async (request): Promise<null> => {
     await this.rpc.proxy.request.loadPackages(request.codes.join("\n"));
-    await this.putControlRequest(request);
+    await this.putControlRequest({
+      type: "execute-cells",
+      ...request,
+    });
     return null;
   };
 
   sendModelValue: RunRequests["sendModelValue"] = async (request) => {
-    await this.putControlRequest(request);
+    await this.putControlRequest({
+      type: "update-widget-model",
+      ...request,
+    });
     return null;
   };
 
@@ -166,9 +182,11 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
   openTutorial = throwNotImplemented;
   exportAsHTML = throwNotImplemented;
   exportAsMarkdown = throwNotImplemented;
+  exportAsPDF = throwNotImplemented;
   autoExportAsHTML = throwNotImplemented;
   autoExportAsMarkdown = throwNotImplemented;
   autoExportAsIPYNB = throwNotImplemented;
+  updateCellOutputs = throwNotImplemented;
   addPackage = throwNotImplemented;
   removePackage = throwNotImplemented;
   getPackageList = throwNotImplemented;
@@ -183,7 +201,9 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
   clearCache = throwNotImplemented;
   getCacheInfo = throwNotImplemented;
 
-  private async putControlRequest(operation: object) {
+  // The kernel uses msgspec to parse control requests, which requires a 'type'
+  // field for discriminated union deserialization.
+  private async putControlRequest(operation: CommandMessage) {
     await this.rpc.proxy.request.bridge({
       functionName: "put_control_request",
       payload: operation,

@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
 import re
@@ -14,7 +14,7 @@ import markdown.preprocessors  # type: ignore
 import pymdownx.emoji  # type: ignore
 
 from marimo._messaging.mimetypes import KnownMimeType
-from marimo._output.hypertext import Html, is_no_js
+from marimo._output.hypertext import Html, is_non_interactive
 from marimo._output.md_extensions.breakless_lists import (
     BreaklessListsExtension,
 )
@@ -131,7 +131,7 @@ def _get_extension_configs() -> dict[str, dict[str, Any]]:
             "pygments_lang_class": True,
         },
         "pymdownx.superfences": {
-            "disable_indented_code_blocks": True,
+            "disable_indented_code_blocks": False,
             "css_class": "codehilite",
         },
         "pymdownx.emoji": {
@@ -268,7 +268,7 @@ class _md(Html):
         return self._markdown_text
 
     def _mime_(self) -> tuple[KnownMimeType, str]:
-        no_js = is_no_js()
+        no_js = is_non_interactive()
         if no_js:
             return ("text/markdown", self._markdown_text)
         # We return text/markdown instead of text/html

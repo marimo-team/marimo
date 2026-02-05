@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
 from marimo._runtime.packages.conda_package_manager import PixiPackageManager
@@ -22,13 +22,15 @@ PACKAGE_MANAGERS = {
 }
 
 
-def create_package_manager(name: str) -> PackageManager:
+def create_package_manager(
+    name: str, python_exe: str | None = None
+) -> PackageManager:
     if is_pyodide():
         # user config has name "pip", but micropip's name is "micropip" ...
         return MicropipPackageManager()
 
     if name in PACKAGE_MANAGERS:
-        return PACKAGE_MANAGERS[name]()  # type:ignore[abstract]
+        return PACKAGE_MANAGERS[name](python_exe=python_exe)  # type:ignore[abstract]
     raise RuntimeError(
         f"Unknown package manager {name}. "
         "This is a bug in marimo."

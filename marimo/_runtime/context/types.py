@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 """Thread-local context for the runtime
 
 Each client gets its own context.
@@ -30,9 +30,9 @@ if TYPE_CHECKING:
     from marimo._plugins.ui._core.registry import UIElementRegistry
     from marimo._runtime import dataflow
     from marimo._runtime.cell_lifecycle_registry import CellLifecycleRegistry
+    from marimo._runtime.commands import HTTPRequest
     from marimo._runtime.functions import FunctionRegistry
     from marimo._runtime.params import CLIArgs, QueryParams
-    from marimo._runtime.requests import HTTPRequest
     from marimo._runtime.state import State, StateRegistry
     from marimo._runtime.virtual_file import VirtualFileRegistry
     from marimo._save.stores import Store
@@ -174,6 +174,9 @@ class RuntimeContext(abc.ABC):
     @abc.abstractmethod
     def with_cell_id(self, cell_id: CellId_t) -> Iterator[None]:
         pass
+
+    def is_embedded(self) -> bool:
+        return self.parent is not None
 
     def add_child(self, runtime_context: RuntimeContext) -> None:
         if runtime_context not in self.children:

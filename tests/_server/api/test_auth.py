@@ -9,7 +9,7 @@ from starlette.authentication import SimpleUser
 from starlette.datastructures import Headers, QueryParams
 from starlette.requests import HTTPConnection
 
-from marimo._config.manager import UserConfigManager
+from marimo._config.manager import MarimoConfigManager, UserConfigManager
 from marimo._server.api.auth import (
     CustomAuthenticationMiddleware,
     CustomSessionMiddleware,
@@ -17,8 +17,12 @@ from marimo._server.api.auth import (
 )
 from marimo._server.api.deps import AppState
 from marimo._server.api.middleware import AuthBackend
+from marimo._server.config import StarletteServerStateInit
 from marimo._server.main import create_starlette_app
-from tests._server.mocks import get_mock_session_manager
+from tests._server.mocks import (
+    get_mock_session_manager,
+    get_starlette_server_state_init,
+)
 
 
 async def mock_receive() -> Any:
@@ -52,12 +56,20 @@ async def test_custom_session_middleware_call_with_port():
 @pytest.fixture
 def app() -> Starlette:
     app = create_starlette_app(base_url="", enable_auth=True)
-    app.state.session_manager = get_mock_session_manager()
-    app.state.config_manager = UserConfigManager()
-    app.state.host = "localhost"
-    app.state.port = 1234
-    app.state.base_url = ""
-    app.state.enable_auth = True
+    StarletteServerStateInit(
+        port=1234,
+        host="localhost",
+        base_url="",
+        asset_url=None,
+        headless=False,
+        quiet=False,
+        session_manager=get_mock_session_manager(),
+        config_manager=MarimoConfigManager(UserConfigManager()),
+        remote_url=None,
+        mcp_server_enabled=False,
+        skew_protection=False,
+        enable_auth=True,
+    ).apply(app.state)
     return app
 
 
@@ -148,7 +160,7 @@ async def test_validate_auth_with_no_auth(app: Starlette):
 
 async def test_custom_auth_middleware_preserves_user():
     app = Starlette()
-    app.state.session_manager = get_mock_session_manager()
+    get_starlette_server_state_init().apply(app.state)
 
     async def test_app(scope: Any, receive: Any, send: Any) -> None:
         del receive, send
@@ -176,7 +188,7 @@ async def test_custom_auth_middleware_preserves_user():
 
 async def test_custom_auth_middleware_without_user():
     app = Starlette()
-    app.state.session_manager = get_mock_session_manager()
+    get_starlette_server_state_init().apply(app.state)
 
     async def test_app(scope: Any, receive: Any, send: Any) -> None:
         del receive, send

@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import {
   NotebookPenIcon,
@@ -158,10 +158,6 @@ export const MarimoErrorOutput = ({
         !hasPipHint &&
         syntaxErrors.some((error) => error.msg.includes("use os.subprocess"));
 
-      const openTerminal = () => {
-        chromeActions.setIsTerminalOpen(true);
-      };
-
       messages.push(
         <div key="syntax-unknown">
           {syntaxErrors.map((error, idx) => (
@@ -190,7 +186,7 @@ export const MarimoErrorOutput = ({
               size="xs"
               variant="outline"
               className="mt-2 font-normal"
-              onClick={openTerminal}
+              onClick={() => chromeActions.openApplication("terminal")}
             >
               <TerminalIcon className="h-3.5 w-3.5 mr-1.5" />
               <span>Open terminal</span>

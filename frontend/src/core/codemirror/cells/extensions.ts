@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import { closeCompletion, completionStatus } from "@codemirror/autocomplete";
 import { type Extension, Prec } from "@codemirror/state";
@@ -7,6 +7,7 @@ import { createTracebackInfoAtom } from "@/core/cells/cells";
 import { type CellId, HTMLCellId, SCRATCH_CELL_ID } from "@/core/cells/ids";
 import type { KeymapConfig } from "@/core/config/config-schema";
 import type { HotkeyProvider } from "@/core/hotkeys/hotkeys";
+import { duplicateWithCtrlModifier } from "@/core/hotkeys/shortcuts";
 import { store } from "@/core/state/jotai";
 import { createObservable } from "@/core/state/observable";
 import { formatKeymapExtension } from "../extensions";
@@ -33,8 +34,9 @@ function cellKeymaps({
 }): Extension[] {
   const keybindings: KeyBinding[] = [];
 
+  // Run-related keybindings get Ctrl equivalents on macOS for Jupyter/Colab users
   keybindings.push(
-    {
+    ...duplicateWithCtrlModifier({
       key: hotkeys.getHotkey("cell.run").key,
       preventDefault: true,
       stopPropagation: true,
@@ -43,8 +45,9 @@ function cellKeymaps({
         actions.onRun();
         return true;
       },
-    },
+    }),
     {
+      // Shift-Enter has no Cmd, so no Ctrl equivalent needed
       key: hotkeys.getHotkey("cell.runAndNewBelow").key,
       preventDefault: true,
       stopPropagation: true,
@@ -59,7 +62,7 @@ function cellKeymaps({
         return true;
       },
     },
-    {
+    ...duplicateWithCtrlModifier({
       key: hotkeys.getHotkey("cell.runAndNewAbove").key,
       preventDefault: true,
       stopPropagation: true,
@@ -73,7 +76,7 @@ function cellKeymaps({
         actions.moveToNextCell({ cellId, before: true });
         return true;
       },
-    },
+    }),
     {
       key: hotkeys.getHotkey("cell.aiCompletion").key,
       preventDefault: true,

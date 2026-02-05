@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 import { ReconnectingWebSocketTransport } from "@/core/lsp/transport";
 import { waitForConnectionOpen } from "../../network/connection";
 import { getRuntimeManager } from "../../runtime/config";

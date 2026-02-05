@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import type { Field } from "vega-lite/types_unstable/channeldef.js";
 import type { Encoding } from "vega-lite/types_unstable/encoding.js";

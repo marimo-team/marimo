@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
 import asyncio
@@ -17,31 +17,37 @@ from marimo._pyodide.pyodide_session import (
     AsyncQueueManager,
     PyodideBridge,
     PyodideSession,
-    parse_wasm_control_request,
+    parse_command,
+)
+from marimo._runtime.commands import (
+    AppMetadata,
+    ClearCacheCommand,
+    CreateNotebookCommand,
+    DebugCellCommand,
+    DeleteCellCommand,
+    ExecuteCellsCommand,
+    ExecuteScratchpadCommand,
+    ExecuteStaleCellsCommand,
+    GetCacheInfoCommand,
+    InstallPackagesCommand,
+    InvokeFunctionCommand,
+    ListDataSourceConnectionCommand,
+    ListSecretKeysCommand,
+    ListSQLTablesCommand,
+    PreviewDatasetColumnCommand,
+    PreviewSQLTableCommand,
+    RefreshSecretsCommand,
+    RenameNotebookCommand,
+    StopKernelCommand,
+    SyncGraphCommand,
+    UpdateCellConfigCommand,
+    UpdateUIElementCommand,
+    UpdateWidgetModelCommand,
+    ValidateSQLCommand,
 )
 from marimo._runtime.context.types import teardown_context
-from marimo._runtime.requests import (
-    AppMetadata,
-    CreationRequest,
-    DeleteCellRequest,
-    ExecuteMultipleRequest,
-    ExecuteScratchpadRequest,
-    FunctionCallRequest,
-    InstallMissingPackagesRequest,
-    ListSecretKeysRequest,
-    PreviewDatasetColumnRequest,
-    PreviewDataSourceConnectionRequest,
-    PreviewSQLTableListRequest,
-    PreviewSQLTableRequest,
-    RenameRequest,
-    SetCellConfigRequest,
-    SetModelMessageRequest,
-    SetUIElementValueRequest,
-    StopRequest,
-    SyncGraphRequest,
-)
-from marimo._server.model import SessionMode
-from marimo._server.notebook import AppFileManager
+from marimo._session.model import SessionMode
+from marimo._session.notebook import AppFileManager
 from marimo._types.ids import CellId_t, UIElementId
 
 if TYPE_CHECKING:
@@ -87,7 +93,7 @@ def mock_pyodide() -> Generator[MagicMock, None, None]:
     mock = MagicMock(spec=ModuleType)
     mock.code = MagicMock(spec=ModuleType)
     mock.code.find_imports = MagicMock(
-        return_value=["numpy", "pandas", "sklearn"]
+        return_value=["numpy", "pandas", "sklearn", "matplotlib.pyplot"]
     )
 
     # Save original module if it exists
@@ -132,8 +138,8 @@ async def pyodide_session(
 async def test_async_queue_manager() -> None:
     async_queue_manager = AsyncQueueManager()
     # Test putting and getting from queues
-    stop_request = StopRequest()
-    set_ui_element_request = SetUIElementValueRequest(
+    stop_request = StopKernelCommand()
+    set_ui_element_request = UpdateUIElementCommand(
         object_ids=[UIElementId("test")], values=["test"]
     )
 
@@ -168,11 +174,11 @@ async def test_pyodide_session_put_control_request(
     pyodide_session: PyodideSession,
 ) -> None:
     # Test putting control requests
-    execution_request = ExecuteMultipleRequest(
+    execution_request = ExecuteCellsCommand(
         cell_ids=[CellId_t("test")],
         codes=["test"],
     )
-    set_ui_element_request = SetUIElementValueRequest(
+    set_ui_element_request = UpdateUIElementCommand(
         object_ids=[UIElementId("test")], values=["test"]
     )
 
@@ -187,19 +193,20 @@ async def test_pyodide_session_find_packages(
     pyodide_session: PyodideSession,
     mock_pyodide: MagicMock,
 ) -> None:
-    # Test finding packages in code
+    # We don't use `pyodide.code.find_imports`
+    # because this returns imports not in the lockfile (and potentially not trusted).
     code = dedent(
         """
         import numpy as np
         import pandas as pd
+        import matplotlib.pyplot as plt
         from sklearn.linear_model import LinearRegression
         """
     )
 
     packages = pyodide_session.find_packages(code)
-    # sklearn gets converted to scikit-learn
-    assert sorted(packages) == sorted(["numpy", "pandas", "scikit-learn"])
-    mock_pyodide.code.find_imports.assert_called_once_with(code)
+    assert sorted(packages) == sorted([])
+    mock_pyodide.code.find_imports.assert_not_called()
 
 
 async def test_pyodide_session_find_packages_with_script_metadata(
@@ -227,6 +234,106 @@ async def test_pyodide_session_find_packages_with_script_metadata(
     mock_pyodide.code.find_imports.assert_not_called()
 
 
+async def test_complex_find_packages(pyodide_session: PyodideSession) -> None:
+    code = dedent(
+        """
+        # /// script
+        # requires-python = ">=3.12"
+        # dependencies = [
+        #     "plotly[express]==6.5.0",
+        #     "polars==1.36.1",
+        # ]
+        # ///
+
+        import marimo
+
+        app = marimo.App()
+
+
+        @app.cell
+        def _():
+            import marimo as mo
+            return (mo,)
+        """
+    )
+    packages = pyodide_session.find_packages(code)
+    assert sorted(packages) == sorted(["plotly[express]", "polars"])
+
+
+async def test_strip_version_resilience(
+    pyodide_session: PyodideSession,
+) -> None:
+    """Test strip_version function handles various PEP 440 version specifiers and edge cases."""
+    code_templates = [
+        # Basic version specifiers
+        ('dependencies = ["package==1.0.0"]', ["package"]),
+        ('dependencies = ["package>=1.0.0"]', ["package"]),
+        ('dependencies = ["package<=2.0.0"]', ["package"]),
+        ('dependencies = ["package~=1.4"]', ["package"]),
+        ('dependencies = ["package!=1.5.0"]', ["package"]),
+        ('dependencies = ["package>1.0"]', ["package"]),
+        ('dependencies = ["package<2.0"]', ["package"]),
+        ('dependencies = ["package===1.0.0"]', ["package"]),
+        # With extras
+        ('dependencies = ["package[extra]==1.0.0"]', ["package[extra]"]),
+        (
+            'dependencies = ["package[extra1,extra2]>=1.0.0"]',
+            ["package[extra1,extra2]"],
+        ),
+        # With whitespace
+        ('dependencies = ["package >= 1.0.0"]', ["package"]),
+        ('dependencies = ["  package==1.0.0  "]', ["package"]),
+        # With environment markers
+        (
+            'dependencies = ["package>=1.0.0; python_version>=\\"3.8\\""]',
+            ["package"],
+        ),
+        (
+            'dependencies = ["package[extra]>=1.0; sys_platform==\\"linux\\""]',
+            ["package[extra]"],
+        ),
+        # URL dependencies - left as-is
+        (
+            'dependencies = ["package @ https://github.com/user/repo.git"]',
+            ["package @ https://github.com/user/repo.git"],
+        ),
+        (
+            'dependencies = ["package @ git+https://github.com/user/repo.git"]',
+            ["package @ git+https://github.com/user/repo.git"],
+        ),
+        (
+            'dependencies = ["package @ git+ssh://git@github.com/user/repo.git"]',
+            ["package @ git+ssh://git@github.com/user/repo.git"],
+        ),
+        (
+            'dependencies = ["package @ file:///path/to/local/package"]',
+            ["package @ file:///path/to/local/package"],
+        ),
+        # Multiple packages with various specifiers
+        (
+            'dependencies = ["foo==1.0", "bar>=2.0", "baz~=3.0", "qux[extra]>=4.0"]',
+            ["foo", "bar", "baz", "qux[extra]"],
+        ),
+        # No version specifier
+        ('dependencies = ["package"]', ["package"]),
+    ]
+
+    for deps_str, expected in code_templates:
+        code = dedent(
+            f"""
+            # /// script
+            # {deps_str}
+            # ///
+
+            import marimo
+            """
+        )
+        packages = pyodide_session.find_packages(code)
+        assert sorted(packages) == sorted(expected), (
+            f"Failed for {deps_str}: expected {expected}, got {packages}"
+        )
+
+
 async def test_pyodide_session_put_input(
     pyodide_session: PyodideSession,
 ) -> None:
@@ -241,84 +348,116 @@ async def test_pyodide_session_put_input(
 @pytest.mark.parametrize(
     ("json_payload", "expected_type"),
     [
-        # Most specific requests with many required fields
+        # Notebook operations
         (
-            '{"executionRequests": [{"cellId": "cell-1", "code": "print(1)"}], '
-            '"setUiElementValueRequest": {"objectIds": [], "values": []}, '
+            '{"type": "create-notebook", "executionRequests": [{"cellId": "cell-1", "code": "print(1)", "type": "execute-cell"}], '
+            '"setUiElementValueRequest": {"objectIds": [], "values": [], "type": "update-ui-element"}, '
             '"autoRun": true}',
-            CreationRequest,
+            CreateNotebookCommand,
         ),
         (
-            '{"cellIds": ["cell-1"], "codes": ["print(1)"]}',
-            ExecuteMultipleRequest,
+            '{"type": "rename-notebook", "filename": "test.py"}',
+            RenameNotebookCommand,
+        ),
+        # Cell execution and management
+        (
+            '{"type": "execute-cells", "cellIds": ["cell-1"], "codes": ["print(1)"]}',
+            ExecuteCellsCommand,
         ),
         (
-            '{"manager": "pip", "packages": ["numpy"], "versions": {}}',
-            InstallMissingPackagesRequest,
+            '{"type": "execute-cells", "cellIds": ["cell-1", "cell-2"], "codes": ["x=1", "y=2"]}',
+            ExecuteCellsCommand,
         ),
         (
-            '{"sourceType": "duckdb", "source": "test.db", "tableName": "users", "columnName": "id"}',
-            PreviewDatasetColumnRequest,
+            '{"type": "execute-scratchpad", "code": "print(1)"}',
+            ExecuteScratchpadCommand,
+        ),
+        ('{"type": "execute-stale-cells"}', ExecuteStaleCellsCommand),
+        ('{"type": "debug-cell", "cellId": "cell-1"}', DebugCellCommand),
+        ('{"type": "delete-cell", "cellId": "cell-1"}', DeleteCellCommand),
+        (
+            '{"type": "sync-graph", "cells": {"cell-1": "x=1"}, "runIds": ["cell-1"], "deleteIds": []}',
+            SyncGraphCommand,
         ),
         (
-            '{"requestId": "req-1", "engine": "duckdb", "database": "test.db", '
+            '{"type": "update-cell-config", "configs": {"cell-1": {"hide_code": true}}}',
+            UpdateCellConfigCommand,
+        ),
+        # Package management
+        (
+            '{"type": "install-packages", "manager": "pip", "versions": {}}',
+            InstallPackagesCommand,
+        ),
+        (
+            '{"type": "install-packages", "manager": "pip", "versions": {"numpy": "1.24.0"}}',
+            InstallPackagesCommand,
+        ),
+        # UI element and widget model operations
+        (
+            '{"type": "update-ui-element", "objectIds": ["test-1"], "values": [42], "token": "test-token"}',
+            UpdateUIElementCommand,
+        ),
+        (
+            '{"type": "update-ui-element", "objectIds": ["test-1"], "values": [42]}',
+            UpdateUIElementCommand,
+        ),
+        (
+            '{"type": "update-ui-element", "objectIds": [], "values": []}',
+            UpdateUIElementCommand,
+        ),
+        (
+            '{"type": "update-widget-model", "modelId": "model-1", "message": {"state": {}, "bufferPaths": []}}',
+            UpdateWidgetModelCommand,
+        ),
+        (
+            '{"type": "invoke-function", "functionCallId": "fc-1", "namespace": "test", "functionName": "foo", "args": {}}',
+            InvokeFunctionCommand,
+        ),
+        # Data/SQL operations
+        (
+            '{"type": "preview-dataset-column", "sourceType": "duckdb", "source": "test.db", "tableName": "users", "columnName": "id"}',
+            PreviewDatasetColumnCommand,
+        ),
+        (
+            '{"type": "preview-sql-table", "requestId": "req-1", "engine": "duckdb", "database": "test.db", '
             '"schema": "main", "tableName": "users"}',
-            PreviewSQLTableRequest,
+            PreviewSQLTableCommand,
         ),
         (
-            '{"requestId": "req-2", "engine": "duckdb", "database": "test.db", "schema": "main"}',
-            PreviewSQLTableListRequest,
-        ),
-        # SetUIElementValueRequest - has specific fields
-        (
-            '{"objectIds": ["test-1"], "values": [42], "token": "test-token"}',
-            SetUIElementValueRequest,
+            '{"type": "list-sql-tables", "requestId": "req-2", "engine": "duckdb", "database": "test.db", "schema": "main"}',
+            ListSQLTablesCommand,
         ),
         (
-            '{"objectIds": ["test-1"], "values": [42]}',  # Without token
-            SetUIElementValueRequest,
+            '{"type": "validate-sql", "requestId": "req-3", "query": "SELECT * FROM users", "onlyParse": false}',
+            ValidateSQLCommand,
         ),
         (
-            '{"modelId": "model-1", "message": {"state": {}, "bufferPaths": []}}',
-            SetModelMessageRequest,
+            '{"type": "validate-sql", "requestId": "req-4", "query": "SELECT * FROM users", "onlyParse": true, "dialect": "postgres"}',
+            ValidateSQLCommand,
         ),
         (
-            '{"functionCallId": "fc-1", "namespace": "test", "functionName": "foo", "args": {}}',
-            FunctionCallRequest,
+            '{"type": "list-data-source-connection", "engine": "duckdb"}',
+            ListDataSourceConnectionCommand,
         ),
-        # Requests with single or few required fields
-        # DeleteCellRequest comes before PdbRequest
-        # Note: Can't test PdbRequest since DeleteCellRequest will always match first
-        ('{"cellId": "cell-1"}', DeleteCellRequest),
-        ('{"code": "print(1)"}', ExecuteScratchpadRequest),
+        # Secrets management
         (
-            '{"cells": {"cell-1": "x=1"}, "runIds": ["cell-1"], "deleteIds": []}',
-            SyncGraphRequest,
+            '{"type": "list-secret-keys", "requestId": "req-1"}',
+            ListSecretKeysCommand,
         ),
-        ('{"filename": "test.py"}', RenameRequest),
-        ('{"configs": {"cell-1": {"hide_code": true}}}', SetCellConfigRequest),
-        ('{"requestId": "req-1"}', ListSecretKeysRequest),
-        ('{"engine": "duckdb"}', PreviewDataSourceConnectionRequest),
-        # Note: Can't test SetUserConfigRequest or ValidateSQLRequest uniquely
-        # - SetUserConfigRequest requires a full MarimoConfig which is complex
-        # - ValidateSQLRequest has requestId which matches ListSecretKeysRequest first
-        # Empty objects - StopRequest matches first among the empty requests
-        # Note: Can't test RefreshSecretsRequest, ClearCacheRequest, GetCacheInfoRequest,
-        # or ExecuteStaleRequest since StopRequest will always match first (they all have no required fields)
-        ("{}", StopRequest),
+        ('{"type": "refresh-secrets"}', RefreshSecretsCommand),
+        # Cache management
+        ('{"type": "clear-cache"}', ClearCacheCommand),
+        ('{"type": "get-cache-info"}', GetCacheInfoCommand),
+        # Kernel operations
+        ('{"type": "stop-kernel"}', StopKernelCommand),
     ],
 )
-def test_control_request_parsing_order(
+def test_command_parsing_with_discriminator(
     json_payload: str, expected_type: type
 ) -> None:
-    """Test that ControlRequest types are parsed in the correct order.
+    """Test that Command types are parsed correctly using the type discriminator."""
 
-    This is critical for WASM/Pyodide where we iterate through types until
-    one successfully parses. Types with overlapping structures must be
-    ordered correctly.
-    """
-
-    parsed = parse_wasm_control_request(json_payload)
+    parsed = parse_command(json_payload)
     assert type(parsed) is expected_type, (
         f"Expected {expected_type.__name__} but got {type(parsed).__name__} "
         f"for payload: {json_payload}"
@@ -328,7 +467,7 @@ def test_control_request_parsing_order(
 def test_control_request_parsing_invalid() -> None:
     """Test that invalid JSON raises DecodeError."""
     with pytest.raises(msgspec.DecodeError):
-        parse_wasm_control_request("invalid json")
+        parse_command("invalid json")
 
 
 async def test_async_queue_manager_close() -> None:
@@ -337,7 +476,7 @@ async def test_async_queue_manager_close() -> None:
     manager.close_queues()
 
     request = await manager.control_queue.get()
-    assert isinstance(request, StopRequest)
+    assert isinstance(request, StopKernelCommand)
 
 
 async def test_pyodide_session_on_message(
@@ -363,9 +502,9 @@ async def test_pyodide_session_put_completion_request(
     pyodide_session: PyodideSession,
 ) -> None:
     """Test putting completion requests."""
-    from marimo._runtime.requests import CodeCompletionRequest
+    from marimo._runtime.commands import CodeCompletionCommand
 
-    completion_request = CodeCompletionRequest(
+    completion_request = CodeCompletionCommand(
         id="test",
         document="test code",
         cell_id=CellId_t("test"),
@@ -399,7 +538,7 @@ def test_pyodide_bridge_put_control_request(
     pyodide_bridge: PyodideBridge,
 ) -> None:
     """Test putting control requests through the bridge."""
-    request_json = '{"cellIds": ["cell-1"], "codes": ["print(1)"]}'
+    request_json = '{"type": "execute-cells", "cellIds": ["cell-1"], "codes": ["print(1)"]}'
     pyodide_bridge.put_control_request(request_json)
 
     assert not pyodide_bridge.session._queue_manager.control_queue.empty()
@@ -500,7 +639,7 @@ def test_pyodide_bridge_save_user_config(
 
     pyodide_bridge.save_user_config(request_json)
 
-    # Should have put a SetUserConfigRequest in the queue
+    # Should have put a UpdateUserConfigRequest in the queue
     assert not pyodide_bridge.session._queue_manager.control_queue.empty()
 
 

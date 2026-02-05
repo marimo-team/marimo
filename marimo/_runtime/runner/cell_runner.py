@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
 import asyncio
@@ -28,6 +28,7 @@ from marimo._messaging.errors import (
 )
 from marimo._messaging.tracebacks import write_traceback
 from marimo._runtime import dataflow
+from marimo._runtime.context.types import safe_get_context
 from marimo._runtime.control_flow import MarimoInterrupt, MarimoStopError
 from marimo._runtime.exceptions import (
     MarimoMissingRefError,
@@ -204,10 +205,22 @@ class Runner:
                 relatives=dataflow.get_import_block_relatives(graph),
             )
 
-        return dataflow.topological_sort(
+        sorted_cells = dataflow.topological_sort(
             graph,
             cells_to_run - excluded_cells,
         )
+
+        # Overridden cells may be on the path of a UI element update.
+        if (
+            (ctx := safe_get_context()) is not None
+            and ctx.is_embedded()
+            and ((overrides := ctx.app.overrides()) is not None)
+        ):
+            sorted_cells = dataflow.prune_cells_for_overrides(
+                graph, sorted_cells, overrides
+            )
+
+        return sorted_cells
 
     # Adapted from
     # https://github.com/ipython/ipykernel/blob/eddd3e666a82ebec287168b0da7cfa03639a3772/ipykernel/ipkernel.py#L312  # noqa: E501

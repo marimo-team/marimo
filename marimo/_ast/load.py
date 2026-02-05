@@ -1,8 +1,6 @@
-# Copyright 2025 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-import importlib.util
-import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal, Optional, Union
@@ -11,14 +9,15 @@ from marimo import _loggers
 from marimo._ast.app import App, InternalApp
 from marimo._ast.parse import (
     MarimoFileError,
+    NonMarimoPythonScriptError,
     is_non_marimo_python_script,
-    parse_notebook,
 )
 from marimo._schemas.serialization import (
     CellDef,
     NotebookSerialization,
     UnparsableCell,
 )
+from marimo._session.notebook.serializer import get_notebook_serializer
 
 LOGGER = _loggers.marimo_logger()
 
@@ -56,52 +55,6 @@ def _maybe_contents(filename: Optional[Union[str, Path]]) -> Optional[str]:
     return Path(filename).read_text(encoding="utf-8").strip()
 
 
-# Used in tests and current fallback
-def _dynamic_load(filename: str | Path) -> Optional[App]:
-    """Create and execute a module with the provided filename."""
-    contents = _maybe_contents(filename)
-    if not contents:
-        return None
-
-    spec = importlib.util.spec_from_file_location("marimo_app", filename)
-    if spec is None:
-        raise RuntimeError("Failed to load module spec")
-    marimo_app = importlib.util.module_from_spec(spec)
-    if spec.loader is None:
-        raise RuntimeError("Failed to load module spec's loader")
-    try:
-        sys.modules["marimo_app"] = marimo_app
-        spec.loader.exec_module(marimo_app)  # This may throw a SyntaxError
-    finally:
-        sys.modules.pop("marimo_app", None)
-    if not hasattr(marimo_app, "app"):
-        return None
-    if not isinstance(marimo_app.app, App):
-        raise MarimoFileError("`app` attribute must be of type `marimo.App`.")
-
-    app = marimo_app.app
-    return app
-
-
-def _static_load(filepath: Path) -> Optional[App]:
-    contents = _maybe_contents(filepath)
-    if not contents:
-        return None
-
-    notebook = parse_notebook(contents, filepath=str(filepath))
-
-    if notebook and is_non_marimo_python_script(notebook):
-        # Should fail instead of overriding contents
-        raise MarimoFileError(
-            f"Python script {filepath} is not a marimo notebook."
-        )
-
-    if notebook is None or not notebook.valid:
-        return None
-
-    return load_notebook_ir(notebook, filepath=str(filepath))
-
-
 def find_cell(filename: str, lineno: int) -> CellDef | None:
     """Find the cell at the given line number in the notebook.
 
@@ -123,6 +76,7 @@ def find_cell(filename: str, lineno: int) -> CellDef | None:
 def load_notebook_ir(
     notebook: NotebookSerialization, filepath: Optional[str] = None
 ) -> App:
+    """Load a notebook IR into an App."""
     # Use filepath from notebook if not explicitly provided
     if filepath is None:
         filepath = notebook.filename
@@ -132,42 +86,9 @@ def load_notebook_ir(
             app._unparsable_cell(cell.code, **cell.options)
             continue
         app._cell_manager.register_ir_cell(cell, InternalApp(app))
+    if notebook.header and notebook.header.value:
+        app._header = notebook.header.value
     return app
-
-
-def load_notebook(filename: str) -> Optional[NotebookSerialization]:
-    """Load and return notebook serialization from a marimo notebook file.
-
-    Args:
-        filename: Path to a marimo notebook file (.py or .md)
-
-    Returns:
-        NotebookSerialization if the file exists and contains valid code,
-        None if the file is empty or contains only comments.
-
-    Raises:
-        MarimoFileError: If the file exists but doesn't define a valid marimo app
-        RuntimeError: If there are issues loading the module
-        SyntaxError: If the file contains a syntax error
-        FileNotFoundError: If the file doesn't exist
-    """
-    path = Path(filename)
-
-    contents = _maybe_contents(filename)
-    if not contents:
-        return None
-
-    if path.suffix in (".md", ".qmd"):
-        from marimo._convert.markdown.markdown import (
-            convert_from_md_to_marimo_ir,
-        )
-
-        return convert_from_md_to_marimo_ir(contents)
-
-    if path.suffix == ".py":
-        return parse_notebook(contents)
-
-    raise MarimoFileError("File must end with .py, .md, or .qmd.")
 
 
 def get_notebook_status(filename: str) -> LoadResult:
@@ -189,16 +110,8 @@ def get_notebook_status(filename: str) -> LoadResult:
         return LoadResult(status="empty", contents=contents)
 
     notebook: Optional[NotebookSerialization] = None
-    if path.suffix in (".md", ".qmd"):
-        from marimo._convert.markdown.markdown import (
-            convert_from_md_to_marimo_ir,
-        )
-
-        notebook = convert_from_md_to_marimo_ir(contents)
-    elif path.suffix == ".py":
-        notebook = parse_notebook(contents, filepath=filename)
-    else:
-        raise MarimoFileError("File must end with .py, .md, or .qmd.")
+    handler = get_notebook_serializer(path)
+    notebook = handler.deserialize(contents, filepath=filename)
 
     # NB. A invalid notebook can still be opened.
     if notebook is None:
@@ -219,8 +132,8 @@ def get_notebook_status(filename: str) -> LoadResult:
 
 
 FAILED_LOAD_NOTEBOOK_MESSAGE = (
-    "Static loading of notebook failed; falling back to dynamic loading. "
-    "If you can, please report this issue to the marimo team and include your notebook if possible — "
+    "Static loading of notebook failed. "
+    "Please report this issue to the marimo team and include your notebook if possible — "
     "https://github.com/marimo-team/marimo/issues/new?template=bug_report.yaml"
 )
 
@@ -246,22 +159,27 @@ def load_app(filename: Optional[str | Path]) -> Optional[App]:
         return None
 
     path = Path(filename)
+    handler = get_notebook_serializer(path)
 
-    if path.suffix in (".md", ".qmd"):
-        contents = _maybe_contents(filename)
-        if not contents:
-            return None
-        from marimo._convert.markdown.markdown import convert_from_md_to_app
-
-        return convert_from_md_to_app(contents) if contents else None
-    elif not path.suffix == ".py":
-        raise MarimoFileError("File must end with .py or .md")
+    contents = _maybe_contents(filename)
+    if not contents:
+        return None
 
     try:
-        return _static_load(path)
-    except MarimoFileError:
-        # Security advantages of static load are lost here, but reasonable
-        # fallback for now.
-        _app = _dynamic_load(filename)
-        LOGGER.warning(FAILED_LOAD_NOTEBOOK_MESSAGE)
-        return _app
+        notebook_ir = handler.deserialize(contents, filepath=str(path))
+        if notebook_ir and is_non_marimo_python_script(notebook_ir):
+            # Should fail instead of overriding contents
+            raise NonMarimoPythonScriptError(
+                f"Python script {path} is not a marimo notebook."
+            )
+
+        if not notebook_ir.valid:
+            LOGGER.error(f"Notebook {path} is not a valid marimo notebook.")
+            return None
+
+        app = load_notebook_ir(notebook_ir)
+        app._cell_manager.ensure_one_cell()
+        return app
+    except MarimoFileError as e:
+        LOGGER.error(FAILED_LOAD_NOTEBOOK_MESSAGE)
+        raise MarimoFileError(FAILED_LOAD_NOTEBOOK_MESSAGE) from e

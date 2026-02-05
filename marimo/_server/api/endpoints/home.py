@@ -1,8 +1,9 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
 import asyncio
 import os
+import pathlib
 import tempfile
 from typing import TYPE_CHECKING
 
@@ -13,11 +14,12 @@ from marimo import _loggers
 from marimo._server.api.deps import AppState
 from marimo._server.api.utils import parse_request
 from marimo._server.file_router import (
-    MAX_FILES,
     LazyListOfFilesAppFileRouter,
+    ListOfFilesAppFileRouter,
     count_files,
+    flatten_files,
 )
-from marimo._server.model import ConnectionState
+from marimo._server.files.directory_scanner import DirectoryScanner
 from marimo._server.models.home import (
     MarimoFile,
     OpenTutorialRequest,
@@ -28,11 +30,14 @@ from marimo._server.models.home import (
     WorkspaceFilesResponse,
 )
 from marimo._server.router import APIRouter
+from marimo._session.model import ConnectionState, SessionMode
 from marimo._tutorials import create_temp_tutorial_file  # type: ignore
 from marimo._utils.paths import pretty_path
 
 if TYPE_CHECKING:
     from starlette.requests import Request
+
+MAX_FILES = DirectoryScanner.MAX_FILES
 
 LOGGER = _loggers.marimo_logger()
 
@@ -56,12 +61,17 @@ async def read_code(
                         $ref: "#/components/schemas/RecentFilesResponse"
     """
     app_state = AppState(request)
-    files = app_state.session_manager.recents.get_recents()
+    # Pass the file router's directory to filter and relativize paths
+    directory = None
+    dir_str = app_state.session_manager.file_router.directory
+    if dir_str:
+        directory = pathlib.Path(dir_str)
+    files = app_state.session_manager.recents.get_recents(directory)
     return RecentFilesResponse(files=files)
 
 
 @router.post("/workspace_files")
-@requires("edit")
+@requires("read")
 async def workspace_files(
     *,
     request: Request,
@@ -81,7 +91,64 @@ async def workspace_files(
                         $ref: "#/components/schemas/WorkspaceFilesResponse"
     """
     body = await parse_request(request, cls=WorkspaceFilesRequest)
-    session_manager = AppState(request).session_manager
+    app_state = AppState(request)
+    session_manager = app_state.session_manager
+
+    if session_manager.mode == SessionMode.RUN:
+        from marimo._metadata.opengraph import (
+            OpenGraphContext,
+            resolve_opengraph_metadata,
+        )
+        from marimo._server.models.files import FileInfo
+
+        base_url = app_state.base_url
+        mode = session_manager.mode.value
+
+        def get_files_with_metadata() -> list[FileInfo]:
+            files = session_manager.file_router.files
+            marimo_files = [
+                file for file in flatten_files(files) if file.is_marimo_file
+            ]
+            result: list[FileInfo] = []
+            for file in marimo_files:
+                resolved_path = session_manager.file_router.resolve_file_path(
+                    file.path
+                )
+                opengraph = None
+                if resolved_path is not None:
+                    # User-defined OpenGraph generators receive this context for dynamic metadata
+                    opengraph = resolve_opengraph_metadata(
+                        resolved_path,
+                        context=OpenGraphContext(
+                            filepath=resolved_path,
+                            file_key=file.path,
+                            base_url=base_url,
+                            mode=mode,
+                        ),
+                    )
+                result.append(
+                    FileInfo(
+                        id=file.id,
+                        path=file.path,
+                        name=file.name,
+                        is_directory=file.is_directory,
+                        is_marimo_file=file.is_marimo_file,
+                        last_modified=file.last_modified,
+                        children=file.children,
+                        opengraph=opengraph,
+                    )
+                )
+            return result
+
+        marimo_files = await asyncio.to_thread(get_files_with_metadata)
+        file_count = len(marimo_files)
+        has_more = file_count >= MAX_FILES
+        return WorkspaceFilesResponse(
+            files=marimo_files,
+            root=session_manager.file_router.directory or "",
+            has_more=has_more,
+            file_count=file_count,
+        )
 
     # Maybe enable markdown
     root = ""
@@ -109,6 +176,10 @@ async def workspace_files(
 
 
 def _get_active_sessions(app_state: AppState) -> list[MarimoFile]:
+    """Get list of active sessions with prettified paths."""
+    # Get directory from file router for path relativization
+    base_dir = app_state.session_manager.file_router.directory
+
     files: list[MarimoFile] = []
     for session_id, session in app_state.session_manager.sessions.items():
         state = session.connection_state()
@@ -118,7 +189,9 @@ def _get_active_sessions(app_state: AppState) -> list[MarimoFile]:
             files.append(
                 MarimoFile(
                     name=(basename or "new notebook"),
-                    path=(pretty_path(filename) if filename else session_id),
+                    path=pretty_path(filename, base_dir)
+                    if filename
+                    else session_id,
                     last_modified=0,
                     session_id=session_id,
                     initialization_id=session.initialization_id,
@@ -214,6 +287,12 @@ async def tutorial(
         app_state.session_manager.file_router, LazyListOfFilesAppFileRouter
     ):
         app_state.session_manager.file_router.register_temp_dir(temp_dir.name)
+    elif isinstance(
+        app_state.session_manager.file_router, ListOfFilesAppFileRouter
+    ):
+        app_state.session_manager.file_router.register_allowed_file(
+            path.absolute_name
+        )
 
     return MarimoFile(
         name=os.path.basename(path.absolute_name),

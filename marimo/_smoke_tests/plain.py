@@ -6,7 +6,7 @@
 #     "polars",
 # ]
 # ///
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 
 import marimo
 

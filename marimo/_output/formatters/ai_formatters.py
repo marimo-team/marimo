@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -27,6 +27,11 @@ class GoogleAiFormatter(FormatterFactory):
                 GenerateContentResponse,
             )
         except (ImportError, ModuleNotFoundError):
+            return
+        except AttributeError:
+            # google.genai or its dependencies may use collections.MutableMapping
+            # which was removed in Python 3.10+ (moved to collections.abc)
+            LOGGER.exception("Error importing google.genai")
             return
 
         from marimo._output import formatting

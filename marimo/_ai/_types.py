@@ -1,10 +1,9 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
 import abc
-import dataclasses
 import mimetypes
-from dataclasses import dataclass
+from dataclasses import dataclass, is_dataclass
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -18,6 +17,8 @@ from typing import (
 import msgspec
 
 from marimo import _loggers
+from marimo._dependencies.dependencies import DependencyManager
+from marimo._plugins.utils import remove_none_values
 from marimo._utils.parse_dataclass import parse_raw
 
 LOGGER = _loggers.marimo_logger()
@@ -67,10 +68,12 @@ ChatPartDict = Union[
 
 
 class ChatMessageDict(TypedDict):
+    id: str
     role: Literal["user", "assistant", "system"]
-    content: str
+    content: Optional[str]
     attachments: Optional[list[ChatAttachmentDict]]
-    parts: Optional[list[ChatPartDict]]
+    parts: list[ChatPartDict]
+    metadata: Optional[Any]
 
 
 class ChatModelConfigDict(TypedDict, total=False):
@@ -165,6 +168,11 @@ class DataReasoningPart:
     data: ReasoningData
 
 
+@dataclass
+class StepStartPart:
+    type: Literal["step-start"]
+
+
 if TYPE_CHECKING:
     ChatPart = Union[
         TextPart,
@@ -172,6 +180,7 @@ if TYPE_CHECKING:
         ToolInvocationPart,
         FilePart,
         DataReasoningPart,
+        StepStartPart,
     ]
 else:
     ChatPart = dict[str, Any]
@@ -182,6 +191,7 @@ PART_TYPES = [
     ToolInvocationPart,
     FilePart,
     DataReasoningPart,
+    StepStartPart,
 ]
 
 
@@ -194,15 +204,20 @@ class ChatMessage(msgspec.Struct):
     role: Literal["user", "assistant", "system"]
 
     # The content of the message.
+    # This can be a rich Python object.
     content: Any
+
+    # The id of the message.
+    id: str = ""
+
+    # Parts from AI SDK Stream Protocol (must be serializable to JSON)
+    parts: list[ChatPart] = []
 
     # Optional attachments to the message.
     # TODO: Deprecate in favour of parts
     attachments: Optional[list[ChatAttachment]] = None
 
-    # Parts from AI SDK. (see types above)
-    # TODO: Make this required
-    parts: Optional[list[ChatPart]] = None
+    metadata: Any | None = None
 
     def __post_init__(self) -> None:
         # Hack: msgspec only supports discriminated unions. This is a hack to just
@@ -215,17 +230,73 @@ class ChatMessage(msgspec.Struct):
             self.parts = parts
 
     def _convert_part(self, part: Any) -> Optional[ChatPart]:
+        # If we receive a Vercel AI SDK part (through pydantic-ai), return it as is.
+        if DependencyManager.pydantic_ai.imported():
+            from pydantic_ai.ui.vercel_ai.request_types import UIMessagePart
+
+            if isinstance(part, UIMessagePart):
+                return cast(ChatPart, part)
+
         PartType = None
         for PartType in PART_TYPES:
             try:
-                if dataclasses.is_dataclass(part):
+                if is_dataclass(part):
                     return cast(ChatPart, part)
                 return parse_raw(part, cls=PartType, allow_unknown_keys=True)
             except Exception:
                 continue
 
-        LOGGER.error(f"Could not decode part as {PartType}, for part {part}")
+        LOGGER.debug(
+            f"Could not decode part {part}. Ignore if it's a Vercel UI message part."
+        )
         return None
+
+    @classmethod
+    def create(
+        cls,
+        *,
+        role: Literal["user", "assistant", "system"],
+        message_id: str,
+        content: Optional[str],
+        parts: list[ChatPart],
+        part_validator_class: Any | None = None,
+    ) -> ChatMessage:
+        """
+        Helper method to create a ChatMessage object.
+        If part_validator_class is provided, the parts will be converted to the given class.
+        """
+
+        if part_validator_class:
+            validated_parts = []
+            for part in parts:
+                if isinstance(part, part_validator_class):
+                    validated_parts.append(part)
+                elif isinstance(part, dict):
+                    sanitized_part = remove_none_values(part)
+                    # Try pydantic validation for dict -> class conversion
+                    try:
+                        from pydantic import TypeAdapter
+
+                        adapter = TypeAdapter(part_validator_class)
+                        validated_parts.append(
+                            adapter.validate_python(sanitized_part)
+                        )
+                    except ImportError:
+                        LOGGER.debug(
+                            "Pydantic not installed, skipping dict validation"
+                        )
+                    except Exception:
+                        LOGGER.debug("Part %r could not be validated", part)
+                else:
+                    LOGGER.debug(
+                        "Part %r (type=%s) is not an instance of %s and not a dict, dropping",
+                        part,
+                        type(part).__name__,
+                        part_validator_class.__name__,
+                    )
+            parts = validated_parts
+
+        return cls(role=role, id=message_id, content=content, parts=parts)
 
 
 @dataclass

@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import { useAtomValue } from "jotai";
 import { HourglassIcon, LockIcon, UnlinkIcon } from "lucide-react";
@@ -34,7 +34,7 @@ export const StatusOverlay: React.FC<{
   );
 };
 
-const topLeftStatus = "no-print pointer-events-auto hover:cursor-pointer";
+const topLeftStatus = "print:hidden pointer-events-auto hover:cursor-pointer";
 
 const DisconnectedIcon = () => (
   <Tooltip content="App disconnected">

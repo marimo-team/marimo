@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import {
   ArrowRightFromLineIcon,
@@ -6,7 +6,6 @@ import {
   ArrowRightToLineIcon,
   MoreVerticalIcon,
   NetworkIcon,
-  Rows3Icon,
   SettingsIcon,
   SquareFunction,
   WorkflowIcon,
@@ -26,11 +25,11 @@ import { Checkbox } from "../ui/checkbox";
 import { Label } from "../ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { VariableName } from "../variables/common";
-import type { GraphLayoutView, GraphSelection, GraphSettings } from "./types";
+import type { GraphSelection, GraphSettings, LayoutDirection } from "./types";
 
 interface Props {
-  view: GraphLayoutView;
-  onChange: (view: GraphLayoutView) => void;
+  view: LayoutDirection;
+  onChange: (view: LayoutDirection) => void;
   settings: GraphSettings;
   onSettingsChange: (settings: GraphSettings) => void;
 }
@@ -76,16 +75,6 @@ export const GraphToolbar: React.FC<Props> = memo(
           <Button
             variant="outline"
             className="bg-background"
-            aria-selected={view === "_minimap_"}
-            size="xs"
-            onClick={() => onChange("_minimap_")}
-          >
-            <Rows3Icon className="w-4 h-4 mr-1" />
-            Mini Map
-          </Button>
-          <Button
-            variant="outline"
-            className="bg-background"
             aria-selected={view === "TB"}
             size="xs"
             onClick={() => onChange("TB")}
@@ -104,7 +93,7 @@ export const GraphToolbar: React.FC<Props> = memo(
             Horizontal Tree
           </Button>
         </div>
-        {view !== "_minimap_" && settingsButton}
+        {settingsButton}
       </Panel>
     );
   },

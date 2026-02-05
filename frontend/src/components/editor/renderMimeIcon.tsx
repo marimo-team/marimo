@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 export function renderMimeIcon(mime: string) {
   switch (mime) {
     case "text/html":
@@ -29,6 +29,8 @@ export function renderMimeIcon(mime: string) {
       return "📝";
     case "application/vnd.vegalite.v5+json":
     case "application/vnd.vega.v5+json":
+    case "application/vnd.vegalite.v6+json":
+    case "application/vnd.vega.v6+json":
       return "📊";
     case "application/vnd.marimo+mimebundle":
       return "📦";

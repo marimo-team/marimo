@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
 import os
@@ -97,6 +97,26 @@ OnCellChangeType = Literal["lazy", "autorun"]
 ExecutionType = Literal["relaxed", "strict"]
 
 
+@mddoc
+@dataclass
+class VenvConfig(TypedDict, total=False):
+    """Configuration for external Python environment in home sandbox mode.
+
+    Allows specifying an existing virtualenv to use instead of creating
+    ephemeral sandboxes per notebook. Only applies in home sandbox mode.
+
+    **Keys.**
+
+    - `path`: path to a virtualenv directory (absolute or relative to
+      pyproject.toml)
+    - `writable`: if true, marimo will manage script metadata (inline
+      dependencies). Defaults to false.
+    """
+
+    path: str
+    writable: bool
+
+
 # TODO(akshayka): remove normal, migrate to compact
 # normal == compact
 WidthType = Literal["normal", "compact", "medium", "full", "columns"]
@@ -147,6 +167,8 @@ class RuntimeConfig(TypedDict):
     - `default_auto_download`: an Optional list of export types to automatically snapshot your notebook as:
        `html`, `markdown`, `ipynb`.
        The default is None.
+    - `default_csv_encoding`: the default encoding for CSV exports.
+        The default is `"utf-8"`.
     """
 
     auto_instantiate: bool
@@ -160,6 +182,7 @@ class RuntimeConfig(TypedDict):
     dotenv: NotRequired[list[str]]
     default_sql_output: SqlOutputType
     default_auto_download: NotRequired[list[ExportType]]
+    default_csv_encoding: NotRequired[str]
 
 
 @mddoc
@@ -215,10 +238,13 @@ class ServerConfig(TypedDict):
         with Python's webbrowser module (eg, `"firefox"` or `"chrome"`)
     - `follow_symlink`: if true, the server will follow symlinks it finds
         inside its static assets directory.
+    - `disable_file_downloads`: if true, the file download button will be
+        hidden in the file explorer.
     """
 
     browser: Union[Literal["default"], str]
     follow_symlink: bool
+    disable_file_downloads: NotRequired[bool]
 
 
 @dataclass
@@ -278,7 +304,8 @@ class AiConfig(TypedDict, total=False):
     - `github`: the GitHub config
     - `openrouter`: the OpenRouter config
     - `wandb`: the Weights & Biases config
-    - `open_ai_compatible`: the OpenAI-compatible config
+    - `custom_providers`: a dict of custom OpenAI-compatible providers
+    - `open_ai_compatible`: the OpenAI-compatible config (deprecated, use custom_providers)
     """
 
     rules: NotRequired[str]
@@ -297,6 +324,8 @@ class AiConfig(TypedDict, total=False):
     github: GitHubConfig
     openrouter: OpenAiConfig
     wandb: OpenAiConfig
+    custom_providers: NotRequired[dict[str, OpenAiConfig]]
+    # @deprecated: use `custom_providers` instead
     open_ai_compatible: OpenAiConfig
 
 
@@ -533,8 +562,6 @@ class ExperimentalConfig(TypedDict, total=False):
     markdown: bool  # Used in playground (community cloud)
     wasm_layouts: bool  # Used in playground (community cloud)
     rtc_v2: bool
-    performant_table_charts: bool
-    chat_modes: bool
 
     # Internal features
     cache: CacheConfig
@@ -567,6 +594,7 @@ class MarimoConfig(TypedDict):
     datasources: NotRequired[DatasourcesConfig]
     sharing: NotRequired[SharingConfig]
     mcp: NotRequired[MCPConfig]
+    venv: NotRequired[VenvConfig]
 
 
 @mddoc
@@ -634,6 +662,7 @@ class PartialMarimoConfig(TypedDict, total=False):
     snippets: SnippetsConfig
     datasources: NotRequired[DatasourcesConfig]
     sharing: NotRequired[SharingConfig]
+    venv: NotRequired[VenvConfig]
 
 
 DEFAULT_CONFIG: MarimoConfig = {
@@ -669,6 +698,7 @@ DEFAULT_CONFIG: MarimoConfig = {
             os.getenv("MARIMO_STD_STREAM_MAX_BYTES", 1_000_000)
         ),
         "default_sql_output": "auto",
+        "default_csv_encoding": "utf-8",
     },
     "save": {
         "autosave": "after_delay",
@@ -695,7 +725,8 @@ DEFAULT_CONFIG: MarimoConfig = {
         "models": {
             "displayed_models": [],
             "custom_models": [],
-        }
+        },
+        "custom_providers": {},
     },
     "snippets": {
         "custom_paths": [],
@@ -738,10 +769,17 @@ def merge_config(
         config = deep_copy(config)
         config.get("keymap", {}).pop("overrides", {})
 
+    # Fields that should be replaced instead of merged.
+    # These are "record" types where keys can be added/removed,
+    # as opposed to config objects where you only set specific fields.
+    replace_paths = frozenset({"ai.custom_providers"})
+
     merged = cast(
         MarimoConfig,
         deep_merge(
-            cast(dict[Any, Any], config), cast(dict[Any, Any], new_config)
+            cast(dict[Any, Any], config),
+            cast(dict[Any, Any], new_config),
+            replace_paths=replace_paths,
         ),
     )
 

@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
 import os
@@ -19,21 +19,28 @@ def marimo_package_path() -> Path:
     return Path(str(import_files("marimo")))
 
 
-def pretty_path(filename: str) -> str:
+def pretty_path(filename: str, base_dir: Path | str | None = None) -> str:
     """
-    If it's an absolute path, shorten to relative path if
-    we don't go outside the current directory.
-    Otherwise, return the filename as is.
+    Make a path "pretty" by converting to relative if possible.
+
+    Args:
+        filename: The path to prettify
+        base_dir: If provided, compute relative to this directory first.
+                  Falls back to CWD-relative if file is outside base_dir.
+
+    Returns:
+        A shorter, more readable path when possible.
     """
-    if os.path.isabs(filename):
-        try:
-            relpath = os.path.relpath(filename)
-        except ValueError:
-            # Windows: relpath doesn't work if filename is on a different drive
-            # than current drive
-            return filename
-        if not relpath.startswith(".."):
-            return relpath
+    if not filename:
+        return filename
+
+    file_path = Path(filename)
+
+    if base_dir is not None and file_path.is_relative_to(base_dir):
+        return str(file_path.relative_to(base_dir))
+    if file_path.is_absolute() and file_path.is_relative_to(Path.cwd()):
+        return str(file_path.relative_to(Path.cwd()))
+
     return filename
 
 
@@ -42,3 +49,38 @@ def maybe_make_dirs(filepath: Path) -> None:
     Create directories if they don't exist.
     """
     filepath.parent.mkdir(parents=True, exist_ok=True)
+
+
+def normalize_path(path: Path) -> Path:
+    """Normalize a path without resolving symlinks.
+
+    This function:
+    - Converts relative paths to absolute paths
+    - Normalizes .. and . components
+    - Does NOT resolve symlinks (unlike Path.resolve())
+    - Skips normalization for cloud paths (e.g., S3Path, GCSPath, AzurePath)
+      to avoid corrupting URI schemes like s3://
+
+    Args:
+        path: The path to normalize
+
+    Returns:
+        Normalized absolute path without symlink resolution
+
+    Example:
+        >>> normalize_path(Path("foo/../bar"))
+        Path("/current/working/dir/bar")
+    """
+    # Skip normalization for cloud paths (e.g., S3Path, GCSPath, AzurePath)
+    # os.path.normpath corrupts URI schemes like s3:// by reducing them to s3:/
+    if path.__class__.__module__.startswith("cloudpathlib"):
+        return path
+
+    # Make absolute if relative (relative to current working directory)
+    if not path.is_absolute():
+        path = Path.cwd() / path
+
+    # Use os.path.normpath to normalize .. and . without resolving symlinks
+    normalized = Path(os.path.normpath(str(path)))
+
+    return normalized

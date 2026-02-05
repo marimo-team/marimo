@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
 import re
@@ -7,13 +7,13 @@ from typing import Any
 
 import narwhals.stable.v2 as nw
 
-from marimo import _loggers
+from marimo import Html, _loggers
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._output.formatters.formatter_factory import (
     FormatterFactory,
     Unregister,
 )
-from marimo._output.hypertext import is_no_js
+from marimo._output.hypertext import is_non_interactive
 from marimo._plugins.stateless.json_output import json_output
 from marimo._plugins.stateless.mermaid import mermaid
 from marimo._plugins.stateless.plain_text import plain_text
@@ -30,7 +30,7 @@ def include_opinionated() -> bool:
         runtime_context_installed,
     )
 
-    if is_no_js():
+    if is_non_interactive():
         return False
 
     if runtime_context_installed():
@@ -242,20 +242,15 @@ class IbisFormatter(FormatterFactory):
         class IbisDisplayMode(Enum):
             """Display mode for Ibis expressions."""
 
-            INTERACTIVE = "interactive"  # Execute and show as table
-            UNBOUND = (
-                "unbound"  # Show Expression+SQL tabs (contains unbound tables)
-            )
-            LAZY = "lazy"  # Show Expression+SQL tabs (non-interactive mode)
+            INTERACTIVE = "interactive"
+            """Execute and show as tabs of interactive table, expression, and SQL."""
+            UNBOUND = "unbound"
+            """Show Expression+SQL tabs (contains unbound tables)"""
+            LAZY = "lazy"
+            """Show Expression+SQL tabs (non-interactive mode)"""
 
         def _get_display_mode(expr: ir.Expr) -> IbisDisplayMode:
-            """Get display mode for expression.
-
-            Returns:
-            - INTERACTIVE: Execute and show as interactive table
-            - UNBOUND: Show Expression+SQL tabs (contains unbound tables)
-            - LAZY: Show Expression+SQL tabs (non-interactive mode)
-            """
+            """See IbisDisplayMode docstrings for details."""
 
             # We are using _find_backends() to detect unbound expressions instead of get_backend(),
             # because the latter throws a general IbisError rather than UnboundExpressionError
@@ -297,11 +292,7 @@ class IbisFormatter(FormatterFactory):
                 LOGGER.warning("Could not generate SQL for expression: %s", e)
                 return f"Could not generate SQL: {e}"
 
-        def _format_lazy_expression(
-            expr: ir.Expr, mode: IbisDisplayMode
-        ) -> tuple[KnownMimeType, str]:
-            """Display the expression as a lazy representation with Expression and SQL."""
-
+        def _get_expr_repr(expr: ir.Expr, mode: IbisDisplayMode) -> Html:
             # We need to call _noninteractive_repr() directly instead of just relying on ir.Expr.__repr__() because
             # otherwise when the expression is unbound and interactive mode is enabled it will try to execute it.
             # https://github.com/ibis-project/ibis/blob/8a7534c8ef3c675229edd17f2f4467f314d0c143/ibis/expr/types/core.py#L53C3-L58C1
@@ -316,11 +307,30 @@ class IbisFormatter(FormatterFactory):
                 )
             else:
                 expr_content = expr_repr
+            return plain_text(expr_content)
 
-            sql_content = _get_sql_repr(expr, mode)
+        def _get_preview_repr(expr: ir.Expr) -> table:
+            # Even though interactive mode is enabled and the expression may not be unbound,
+            # it could be an extremely large query (e.g. s3 bucket)
+            # Without lazy, this tries to load the entire dataframe into memory
+            #
+            # If a user does want the full dataframe, they can call .execute() manually
+            # or use `mo.ui.table(df)`
+            return table.lazy(
+                expr,
+                # Lazy, but preload the first page of data (since interactive is true)
+                preload=True,
+            )
 
+        def _format_lazy_expression(
+            expr: ir.Expr, mode: IbisDisplayMode
+        ) -> tuple[KnownMimeType, str]:
+            """Display the expression as a lazy representation with Expression and SQL."""
             return tabs.tabs(
-                {"Expression": plain_text(expr_content), "SQL": sql_content}
+                {
+                    "Expression": _get_expr_repr(expr, mode),
+                    "SQL": _get_sql_repr(expr, mode),
+                }
             )._mime_()
 
         def _format_ibis_expression(
@@ -335,16 +345,12 @@ class IbisFormatter(FormatterFactory):
                 mode = _get_display_mode(expr)
 
                 if mode == IbisDisplayMode.INTERACTIVE:
-                    # Even though interactive mode is enabled and the expression may not be unbound,
-                    # it could be an extremely large query (e.g. s3 bucket)
-                    # Without lazy, this tries to load the entire dataframe into memory
-                    #
-                    # If a user does want the full dataframe, they can call .execute() manually
-                    # or use `mo.ui.table(df)`
-                    return table.lazy(
-                        expr,
-                        # Lazy, but preload the first page of data (since interactive is true)
-                        preload=True,
+                    return tabs.tabs(
+                        {
+                            "Preview": _get_preview_repr(expr),
+                            "Expression": _get_expr_repr(expr, mode),
+                            "SQL": _get_sql_repr(expr, mode),
+                        }
                     )._mime_()
                 else:
                     return _format_lazy_expression(expr, mode)

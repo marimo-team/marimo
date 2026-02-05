@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import type { Aggregate } from "vega-lite/types_unstable/aggregate.js";
 import type { BinParams } from "vega-lite/types_unstable/bin.js";

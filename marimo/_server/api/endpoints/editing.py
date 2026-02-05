@@ -1,25 +1,25 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
 from starlette.authentication import requires
 
-from marimo._messaging.ops import UpdateCellIdsRequest
-from marimo._runtime.requests import (
-    CodeCompletionRequest,
-    DeleteCellRequest,
-    InstallMissingPackagesRequest,
-    SetCellConfigRequest,
-)
+from marimo._cli.sandbox import SandboxMode
+from marimo._messaging.notification import UpdateCellIdsNotification
 from marimo._server.api.deps import AppState
 from marimo._server.api.utils import dispatch_control_request, parse_request
 from marimo._server.models.models import (
     BaseResponse,
-    FormatRequest,
+    CodeCompletionRequest,
+    DeleteCellRequest,
+    FormatCellsRequest,
     FormatResponse,
+    InstallPackagesRequest,
     StdinRequest,
     SuccessResponse,
+    UpdateCellConfigRequest,
+    UpdateCellIdsRequest,
 )
 from marimo._server.router import APIRouter
 from marimo._types.ids import ConsumerId
@@ -36,6 +36,12 @@ router = APIRouter()
 @requires("edit")
 async def code_complete(request: Request) -> BaseResponse:
     """
+    parameters:
+        - in: header
+          name: Marimo-Session-Id
+          schema:
+            type: string
+          required: true
     requestBody:
         content:
             application/json:
@@ -49,17 +55,19 @@ async def code_complete(request: Request) -> BaseResponse:
                     schema:
                         $ref: "#/components/schemas/SuccessResponse"
     """
-    app_state = AppState(request)
-    body = await parse_request(request, cls=CodeCompletionRequest)
-    app_state.require_current_session().put_completion_request(body)
-
-    return SuccessResponse()
+    return await dispatch_control_request(request, cls=CodeCompletionRequest)
 
 
 @router.post("/delete")
 @requires("edit")
 async def delete_cell(request: Request) -> BaseResponse:
     """
+    parameters:
+        - in: header
+          name: Marimo-Session-Id
+          schema:
+            type: string
+          required: true
     requestBody:
         content:
             application/json:
@@ -80,6 +88,12 @@ async def delete_cell(request: Request) -> BaseResponse:
 @requires("edit")
 async def sync_cell_ids(request: Request) -> BaseResponse:
     """
+    parameters:
+        - in: header
+          name: Marimo-Session-Id
+          schema:
+            type: string
+          required: true
     requestBody:
         content:
             application/json:
@@ -96,8 +110,9 @@ async def sync_cell_ids(request: Request) -> BaseResponse:
     app_state = AppState(request)
     body = await parse_request(request, cls=UpdateCellIdsRequest)
     session_id = app_state.require_current_session_id()
-    app_state.require_current_session().write_operation(
-        body, from_consumer_id=ConsumerId(session_id)
+    app_state.require_current_session().notify(
+        UpdateCellIdsNotification(cell_ids=body.cell_ids),
+        from_consumer_id=ConsumerId(session_id),
     )
     return SuccessResponse()
 
@@ -110,7 +125,7 @@ async def format_cell(request: Request) -> FormatResponse:
         content:
             application/json:
                 schema:
-                    $ref: "#/components/schemas/FormatRequest"
+                    $ref: "#/components/schemas/FormatCellsRequest"
     responses:
         200:
             description: Format code
@@ -119,21 +134,37 @@ async def format_cell(request: Request) -> FormatResponse:
                     schema:
                         $ref: "#/components/schemas/FormatResponse"
     """
-    body = await parse_request(request, cls=FormatRequest)
+    body = await parse_request(request, cls=FormatCellsRequest)
     formatter = DefaultFormatter(line_length=body.line_length)
 
-    return FormatResponse(codes=await formatter.format(body.codes))
+    try:
+        return FormatResponse(codes=await formatter.format(body.codes))
+    except ModuleNotFoundError:
+        app_state = AppState(request)
+        # Installation occurs in the kernel which is not useful for multi mode.
+        if app_state.session_manager.sandbox_mode is SandboxMode.MULTI:
+            # Re-raise without name so error handler won't send install notification
+            raise ModuleNotFoundError(
+                "Server does not have a formatter. Please install ruff"
+            ) from None
+        raise
 
 
 @router.post("/set_cell_config")
 @requires("edit")
 async def set_cell_config(request: Request) -> BaseResponse:
     """
+    parameters:
+        - in: header
+          name: Marimo-Session-Id
+          schema:
+            type: string
+          required: true
     requestBody:
         content:
             application/json:
                 schema:
-                    $ref: "#/components/schemas/SetCellConfigRequest"
+                    $ref: "#/components/schemas/UpdateCellConfigRequest"
     responses:
         200:
             description: Set the configuration of a cell
@@ -142,13 +173,19 @@ async def set_cell_config(request: Request) -> BaseResponse:
                     schema:
                         $ref: "#/components/schemas/SuccessResponse"
     """
-    return await dispatch_control_request(request, SetCellConfigRequest)
+    return await dispatch_control_request(request, UpdateCellConfigRequest)
 
 
 @router.post("/stdin")
 @requires("edit")
 async def stdin(request: Request) -> BaseResponse:
     """
+    parameters:
+        - in: header
+          name: Marimo-Session-Id
+          schema:
+            type: string
+          required: true
     requestBody:
         content:
             application/json:
@@ -173,11 +210,17 @@ async def stdin(request: Request) -> BaseResponse:
 @requires("edit")
 async def install_missing_packages(request: Request) -> BaseResponse:
     """
+    parameters:
+        - in: header
+          name: Marimo-Session-Id
+          schema:
+            type: string
+          required: true
     requestBody:
         content:
             application/json:
                 schema:
-                    $ref: "#/components/schemas/InstallMissingPackagesRequest"
+                    $ref: "#/components/schemas/InstallPackagesRequest"
     responses:
         200:
             description: Install missing packages
@@ -186,6 +229,4 @@ async def install_missing_packages(request: Request) -> BaseResponse:
                     schema:
                         $ref: "#/components/schemas/SuccessResponse"
     """
-    return await dispatch_control_request(
-        request, InstallMissingPackagesRequest
-    )
+    return await dispatch_control_request(request, InstallPackagesRequest)

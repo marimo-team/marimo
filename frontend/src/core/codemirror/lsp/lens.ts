@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import type * as LSP from "vscode-languageserver-protocol";
 import type { CellId } from "@/core/cells/ids";
@@ -68,12 +68,28 @@ export function createNotebookLens(
     reverseRange: (range: LSP.Range, cellId: CellId) =>
       shiftRange(range, -getCurrentLineOffset(cellId)),
 
+    /**
+     * Check if a range falls entirely within the given cell.
+     * Returns false for ranges that span multiple cells (cross-cell diagnostics).
+     */
     isInRange: (range: LSP.Range, cellId: CellId) => {
       const cellLines = codes[cellId].split("\n").length;
       const offset = cellLineOffsets.get(cellId) || 0;
       const startLine = range.start.line - offset;
       const endLine = range.end.line - offset;
-      return startLine >= 0 && endLine < cellLines;
+
+      const startInRange = startLine >= 0 && startLine < cellLines;
+      const endInRange = endLine >= 0 && endLine < cellLines;
+
+      // Warn about cross-cell diagnostics that start in this cell but end outside
+      if (startInRange && !endInRange) {
+        Logger.warn(
+          "[lsp] Cross-cell diagnostic detected: range starts in cell but ends outside",
+          { cellId, range, cellLines, offset },
+        );
+      }
+
+      return startInRange && endInRange;
     },
 
     getEditsForNewText: (newText: string) => {

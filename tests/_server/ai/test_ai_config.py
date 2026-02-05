@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
 import os
@@ -24,7 +24,7 @@ from marimo._server.ai.config import (
 )
 from marimo._server.ai.constants import DEFAULT_MAX_TOKENS, DEFAULT_MODEL
 from marimo._server.ai.tools.types import ToolDefinition
-from marimo._server.api.status import HTTPStatus
+from marimo._utils.http import HTTPStatus
 
 
 class TestAnyProviderConfig:
@@ -359,8 +359,7 @@ class TestAnyProviderConfig:
         provider_config = AnyProviderConfig.for_bedrock(config)
 
         assert provider_config.api_key == "profile:test-profile"
-        # Note: base_url is None because _get_base_url doesn't get "Bedrock" name parameter
-        assert provider_config.base_url is None
+        assert provider_config.base_url == "us-east-1"
 
     def test_for_bedrock_with_credentials(self):
         """Test Bedrock configuration with AWS credentials."""
@@ -375,8 +374,7 @@ class TestAnyProviderConfig:
         provider_config = AnyProviderConfig.for_bedrock(config)
 
         assert provider_config.api_key == "test-access-key:test-secret-key"
-        # Note: base_url is None because _get_base_url doesn't get "Bedrock" name parameter
-        assert provider_config.base_url is None
+        assert provider_config.base_url == "us-west-2"
 
     def test_for_model_openai(self) -> None:
         """Test for_model with OpenAI model."""

@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Literal, Optional, Union
@@ -106,8 +106,16 @@ class PyIcebergEngine(EngineCatalog["Catalog"]):
                         engine=self._engine_name,
                     )
                 )
-        except Exception:
-            LOGGER.warning("Failed to get databases", exc_info=True)
+        except Exception as e:
+            # Check if this is a permission/auth error (e.g., 403 Forbidden)
+            error_str = str(e).lower()
+            if "403" in error_str or "forbidden" in error_str:
+                LOGGER.debug(
+                    "Cannot list namespaces due to insufficient permissions. "
+                    "You can still access tables if you know the namespace name."
+                )
+            else:
+                LOGGER.warning("Failed to get databases", exc_info=True)
 
         return databases
 

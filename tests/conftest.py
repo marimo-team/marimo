@@ -1,13 +1,12 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
 import dataclasses
-import inspect
-import os
 import re
+import shutil
 import sys
 import textwrap
-from tempfile import TemporaryDirectory
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import pytest
@@ -17,13 +16,14 @@ from marimo._ast.app import App
 from marimo._ast.app_config import _AppConfig
 from marimo._ast.cell_manager import CellManager
 from marimo._config.config import DEFAULT_CONFIG
+from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.mimetypes import ConsoleMimeType
-from marimo._messaging.ops import (
-    CellOp,
-    MessageOperation,
-    deserialize_kernel_message,
+from marimo._messaging.notification import (
+    CellNotification,
+    NotificationMessage,
 )
 from marimo._messaging.print_override import print_override
+from marimo._messaging.serde import deserialize_kernel_message
 from marimo._messaging.streams import (
     ThreadSafeStderr,
     ThreadSafeStdin,
@@ -33,14 +33,15 @@ from marimo._messaging.streams import (
 from marimo._messaging.types import KernelMessage
 from marimo._output.formatters.formatters import register_formatters
 from marimo._runtime import patches
+from marimo._runtime.commands import AppMetadata, ExecuteCellCommand
 from marimo._runtime.context import teardown_context
 from marimo._runtime.context.kernel_context import initialize_kernel_context
 from marimo._runtime.input_override import input_override
 from marimo._runtime.marimo_pdb import MarimoPdb
-from marimo._runtime.requests import AppMetadata, ExecutionRequest
 from marimo._runtime.runtime import Kernel
 from marimo._save.stubs.module_stub import ModuleStub
-from marimo._server.model import SessionMode
+from marimo._server.utils import initialize_mimetypes
+from marimo._session.model import SessionMode
 from marimo._types.ids import CellId_t
 
 if TYPE_CHECKING:
@@ -49,6 +50,38 @@ if TYPE_CHECKING:
 
 # register import hooks for third-party module formatters
 register_formatters()
+
+# Initialize mimetypes for consistent behavior across platforms (especially Windows)
+initialize_mimetypes()
+
+
+def pytest_collection_modifyitems(
+    config: pytest.Config, items: list[pytest.Item]
+) -> None:
+    """Auto-skip tests based on @pytest.mark.requires() markers."""
+    del config  # Unused but required by pytest hook signature
+    for item in items:
+        requires_marker = item.get_closest_marker("requires")
+        if not requires_marker:
+            continue
+
+        missing_deps = []
+        # Get dependency names from marker args
+        for dep_name in requires_marker.args:
+            # Try to get the dependency from DependencyManager
+            dep_manager = getattr(DependencyManager, dep_name, None)
+            if dep_manager is not None:
+                if not dep_manager.has():
+                    missing_deps.append(dep_name)
+            else:
+                # Unknown dependency name
+                missing_deps.append(f"{dep_name} (unknown)")
+
+        # Skip test if any dependencies are missing
+        if missing_deps:
+            deps_str = ", ".join(missing_deps)
+            reason = f"requires {deps_str}"
+            item.add_marker(pytest.mark.skip(reason=reason))
 
 
 @pytest.fixture(autouse=True)
@@ -79,14 +112,16 @@ class _MockStream(ThreadSafeStream):
         deserialize_kernel_message(data)
 
     @property
-    def operations(self) -> list[MessageOperation]:
+    def operations(self) -> list[NotificationMessage]:
         return [
             deserialize_kernel_message(op_data) for op_data in self.messages
         ]
 
     @property
-    def cell_ops(self) -> list[CellOp]:
-        return [op for op in self.operations if isinstance(op, CellOp)]
+    def cell_notifications(self) -> list[CellNotification]:
+        return [
+            op for op in self.operations if isinstance(op, CellNotification)
+        ]
 
 
 class MockStdout(ThreadSafeStdout):
@@ -259,352 +294,101 @@ def executing_kernel() -> Generator[Kernel, None, None]:
     mocked.teardown()
 
 
-def _cleanup_tmp_dir(tmp_dir: TemporaryDirectory) -> None:
-    try:
-        # Tests shouldn't care whether temporary directory cleanup
-        # fails. Python 3.10+ has an ignore_cleanup_error argument,
-        # but we still support 3.9.
-        tmp_dir.cleanup()
-    except Exception:
-        pass
+FIXTURE_DIR = Path(__file__).parent / "fixtures"
 
 
 @pytest.fixture
-def temp_marimo_file() -> Generator[str, None, None]:
-    tmp_dir = TemporaryDirectory()
-    tmp_file = os.path.join(tmp_dir.name, "notebook.py")
-    content = inspect.cleandoc(
-        """
-        import marimo
-        app = marimo.App()
-
-        @app.cell
-        def __():
-            import marimo as mo
-            return mo,
-
-        @app.cell
-        def __(mo):
-            slider = mo.ui.slider(0, 10)
-            return slider,
-
-        if __name__ == "__main__":
-            app.run()
-        """
-    )
-
-    try:
-        with open(tmp_file, "w") as f:
-            f.write(content)
-        yield tmp_file
-    finally:
-        _cleanup_tmp_dir(tmp_dir)
+def temp_marimo_file(tmp_path: Path) -> str:
+    fixture_file = FIXTURE_DIR / "notebook.py"
+    tmp_file = tmp_path / "test" / "notebook.py"
+    tmp_file.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy(fixture_file, tmp_file)
+    return str(tmp_file)
 
 
 @pytest.fixture
-def temp_sandboxed_marimo_file() -> Generator[str, None, None]:
-    tmp_dir = TemporaryDirectory()
-    tmp_file = os.path.join(tmp_dir.name, "notebook.py")
-    content = inspect.cleandoc(
-        """
-        # Copyright 2024 Marimo. All rights reserved.
-        # /// script
-        # requires-python = ">=3.11"
-        # dependencies = [
-        #     "polars",
-        #     "marimo>=0.8.0",
-        #     "quak",
-        #     "vega-datasets",
-        # ]
-        # ///
-
-        import marimo
-        app = marimo.App()
-
-        @app.cell
-        def __():
-            import marimo as mo
-            return mo,
-
-        @app.cell
-        def __(mo):
-            slider = mo.ui.slider(0, 10)
-            return slider,
-
-        if __name__ == "__main__":
-            app.run()
-        """
-    )
-
-    try:
-        with open(tmp_file, "w") as f:
-            f.write(content)
-        yield tmp_file
-    finally:
-        _cleanup_tmp_dir(tmp_dir)
+def temp_sandboxed_marimo_file(tmp_path: Path) -> str:
+    fixture_file = FIXTURE_DIR / "notebook_sandboxed.py"
+    tmp_file = tmp_path / "sandboxed" / "notebook.py"
+    tmp_file.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy(fixture_file, tmp_file)
+    return str(tmp_file)
 
 
 @pytest.fixture
-def temp_async_marimo_file() -> Generator[str, None, None]:
-    tmp_dir = TemporaryDirectory()
-    tmp_file = os.path.join(tmp_dir.name, "notebook.py")
-    content = inspect.cleandoc(
-        """
-        import marimo
-        app = marimo.App()
-
-        @app.cell
-        async def __():
-            import asyncio
-            await asyncio.sleep(0.1)
-            return asyncio,
-
-        if __name__ == "__main__":
-            app.run()
-        """
-    )
-
-    try:
-        with open(tmp_file, "w") as f:
-            f.write(content)
-            f.flush()
-        yield tmp_file
-    finally:
-        _cleanup_tmp_dir(tmp_dir)
+def temp_async_marimo_file(tmp_path: Path) -> str:
+    fixture_file = FIXTURE_DIR / "notebook_async.py"
+    tmp_file = tmp_path / "async" / "notebook.py"
+    tmp_file.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy(fixture_file, tmp_file)
+    return str(tmp_file)
 
 
 @pytest.fixture
-def temp_unparsable_marimo_file() -> Generator[str, None, None]:
-    tmp_dir = TemporaryDirectory()
-    tmp_file = os.path.join(tmp_dir.name, "notebook.py")
-    content = inspect.cleandoc(
-        """
-        import marimo
-        app = marimo.App()
-
-        app._unparsable_cell(
-            r\"""
-            return
-            \""",
-            name="__"
-        )
-
-        app._unparsable_cell(
-            r\"""
-            partial_statement =
-            \""",
-            name="__"
-        )
-
-        @app.cell
-        def __():
-            valid_statement = 1
-            return valid_statement,
-
-        if __name__ == "__main__":
-            app.run()
-        """
-    )
-
-    try:
-        with open(tmp_file, "w") as f:
-            f.write(content)
-            f.flush()
-        yield tmp_file
-    finally:
-        _cleanup_tmp_dir(tmp_dir)
+def temp_unparsable_marimo_file(tmp_path: Path) -> str:
+    fixture_file = FIXTURE_DIR / "notebook_unparsable.py"
+    tmp_file = tmp_path / "unparsable" / "notebook.py"
+    tmp_file.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy(fixture_file, tmp_file)
+    return str(tmp_file)
 
 
 @pytest.fixture
-def temp_marimo_file_with_md() -> Generator[str, None, None]:
-    tmp_dir = TemporaryDirectory()
-    tmp_file = os.path.join(tmp_dir.name, "notebook.py")
-    content = inspect.cleandoc(
-        """
-        import marimo
-        app = marimo.App()
-
-        @app.cell
-        def __(mo):
-            control_dep = None
-            mo.md("markdown")
-            return control_dep
-
-        @app.cell
-        def __(mo, control_dep):
-            control_dep
-            mo.md(f"parameterized markdown {123}")
-            return
-
-        @app.cell
-        def __():
-            mo.md("plain markdown")
-            return mo,
-
-        @app.cell
-        def __():
-            import marimo as mo
-            return mo,
-
-        if __name__ == "__main__":
-            app.run()
-        """
-    )
-
-    try:
-        with open(tmp_file, "w") as f:
-            f.write(content)
-        yield tmp_file
-    finally:
-        _cleanup_tmp_dir(tmp_dir)
+def temp_marimo_file_with_md(tmp_path: Path) -> str:
+    fixture_file = FIXTURE_DIR / "notebook_with_md.py"
+    tmp_file = tmp_path / "with_md" / "notebook.py"
+    tmp_file.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy(fixture_file, tmp_file)
+    return str(tmp_file)
 
 
 @pytest.fixture
-def temp_md_marimo_file() -> Generator[str, None, None]:
-    tmp_dir = TemporaryDirectory()
-    tmp_file = os.path.join(tmp_dir.name, "notebook.md")
-    content = inspect.cleandoc(
-        """
-        ---
-        title: Notebook
-        marimo-version: 0.0.0
-        ---
-
-        # This is a markdown document.
-        <!---->
-        This is a another cell.
-
-        ```python {.marimo}
-        import marimo as mo
-        ```
-
-        ```python {.marimo}
-        slider = mo.ui.slider(0, 10)
-        ```
-        """
-    )
-
-    try:
-        with open(tmp_file, "w") as f:
-            f.write(content)
-        yield tmp_file
-    finally:
-        _cleanup_tmp_dir(tmp_dir)
+def temp_marimo_file_with_media(tmp_path: Path) -> str:
+    fixture_file = FIXTURE_DIR / "notebook_with_media.py"
+    tmp_file = tmp_path / "with_media" / "notebook.py"
+    tmp_file.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy(fixture_file, tmp_file)
+    return str(tmp_file)
 
 
 @pytest.fixture
-def old_temp_md_marimo_file() -> Generator[str, None, None]:
-    tmp_dir = TemporaryDirectory()
-    tmp_file = os.path.join(tmp_dir.name, "notebook.md")
-    content = inspect.cleandoc(
-        """
-        ---
-        title: Notebook
-        marimo-version: 0.0.0
-        ---
-
-        # This is a markdown document.
-        <!---->
-        This is a another cell.
-
-        ```{.python.marimo}
-        import marimo as mo
-        ```
-
-        ```{.python.marimo}
-        slider = mo.ui.slider(0, 10)
-        ```
-        """
-    )
-
-    try:
-        with open(tmp_file, "w") as f:
-            f.write(content)
-        yield tmp_file
-    finally:
-        _cleanup_tmp_dir(tmp_dir)
+def temp_md_marimo_file(tmp_path: Path) -> str:
+    fixture_file = FIXTURE_DIR / "notebook.md"
+    tmp_file = tmp_path / "with_md" / "notebook.md"
+    tmp_file.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy(fixture_file, tmp_file)
+    return str(tmp_file)
 
 
 @pytest.fixture
-def temp_marimo_file_with_errors() -> Generator[str, None, None]:
-    tmp_dir = TemporaryDirectory()
-    tmp_file = os.path.join(tmp_dir.name, "notebook.py")
-    content = inspect.cleandoc(
-        """
-        import marimo
-        app = marimo.App()
-
-        @app.cell
-        def __():
-            import marimo as mo
-            return mo,
-
-        @app.cell
-        def __(mo):
-            slider = mo.ui.slider(0, 10)
-            return slider,
-
-        @app.cell
-        def __():
-            1 / 0
-            return
-
-        if __name__ == "__main__":
-            app.run()
-        """
-    )
-
-    try:
-        with open(tmp_file, "w") as f:
-            f.write(content)
-        yield tmp_file
-    finally:
-        _cleanup_tmp_dir(tmp_dir)
+def temp_marimo_file_with_errors(tmp_path: Path) -> str:
+    fixture_file = FIXTURE_DIR / "notebook_with_errors.py"
+    tmp_file = tmp_path / "with_errors" / "notebook.py"
+    tmp_file.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy(fixture_file, tmp_file)
+    return str(tmp_file)
 
 
 @pytest.fixture
-def temp_marimo_file_with_multiple_definitions() -> Generator[str, None, None]:
-    tmp_dir = TemporaryDirectory()
-    tmp_file = os.path.join(tmp_dir.name, "notebook.py")
-    content = inspect.cleandoc(
-        """
-        import marimo
-        app = marimo.App()
-
-        @app.cell
-        def __():
-            x = 1
-            return x,
-
-        @app.cell
-        def __():
-            x = 2
-            return x,
-
-        if __name__ == "__main__":
-            app.run()
-        """
-    )
-
-    try:
-        with open(tmp_file, "w") as f:
-            f.write(content)
-        yield tmp_file
-    finally:
-        _cleanup_tmp_dir(tmp_dir)
+def temp_marimo_file_with_multiple_definitions(tmp_path: Path) -> str:
+    fixture_file = FIXTURE_DIR / "notebook_with_multiple_definitions.py"
+    tmp_file = tmp_path / "with_multiple_definitions" / "notebook.py"
+    tmp_file.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy(fixture_file, tmp_file)
+    return str(tmp_file)
 
 
-# Factory to create ExecutionRequests and abstract away cell ID
+# Factory to create ExecuteCellCommands and abstract away cell ID
 class ExecReqProvider:
     def __init__(self) -> None:
         self.cell_manager = CellManager()
 
-    def get(self, code: str) -> ExecutionRequest:
+    def get(self, code: str) -> ExecuteCellCommand:
         key = self.cell_manager.create_cell_id()
-        return ExecutionRequest(cell_id=key, code=textwrap.dedent(code))
+        return ExecuteCellCommand(cell_id=key, code=textwrap.dedent(code))
 
-    def get_with_id(self, cell_id: CellId_t, code: str) -> ExecutionRequest:
-        return ExecutionRequest(cell_id=cell_id, code=textwrap.dedent(code))
+    def get_with_id(self, cell_id: CellId_t, code: str) -> ExecuteCellCommand:
+        return ExecuteCellCommand(cell_id=cell_id, code=textwrap.dedent(code))
 
 
 # fixture that provides an ExecReqProvider
@@ -654,67 +438,78 @@ class TestableModuleStub(ModuleStub):
 #    ./test_pytest_scoped
 @pytest.hookimpl
 def pytest_make_collect_report(collector):
-    report = runner.pytest_make_collect_report(collector)
-    # If it's not a module, we can return early.
+    # If it's not a module, we must early.
     if not isinstance(collector, pytest.Module):
-        return report
+        return None
+
+    report = runner.pytest_make_collect_report(collector)
 
     # Defined within the file does not seem to hook correctly, as such filter
     # for the test_pytest specific file here.
-    if "test_pytest" in str(collector.path) and "_ast" in str(collector.path):
-        # Classes may also be registered, but they will be hidden behind a cell.
-        # As such, let's just collect functions.
-        collected = {
-            fn.originalname
-            for fn in collector.collect()
-            if isinstance(fn, pytest.Function)
-        }
-        classes = {
-            cls.name
-            for cls in collector.collect()
-            if isinstance(cls, pytest.Class)
-        }
-        from tests._ast.test_pytest import app as app_pytest
-        from tests._ast.test_pytest_scoped import app as app_scoped
-        from tests._ast.test_pytest_toplevel import app as app_toplevel
+    if not (
+        "test_pytest" in str(collector.path) and "_ast" in str(collector.path)
+    ):
+        return report
 
-        app = {
-            "test_pytest": app_pytest,
-            "test_pytest_toplevel": app_toplevel,
-            "test_pytest_scoped": app_scoped,
-        }[collector.path.stem]
+    # Classes may also be registered, but they will be hidden behind a cell.
+    # As such, let's just collect functions.
+    collected = {
+        fn.originalname
+        for fn in collector.collect()
+        if isinstance(fn, pytest.Function)
+    }
+    classes = {
+        cls.name
+        for cls in collector.collect()
+        if isinstance(cls, pytest.Class)
+    }
+    from tests._ast.test_pytest import app as app_pytest
+    from tests._ast.test_pytest_scoped import app as app_scoped
+    from tests._ast.test_pytest_toplevel import app as app_toplevel
 
-        # Just a quick check to make sure the class is actually exported.
-        if app == app_pytest:
-            if len(classes) == 0:
-                report.outcome = "failed"
-                report.longrepr = (
-                    f"Expected class in {collector.path}, found none "
-                    " (tests/conftest.py)."
-                )
-                return report
-        for cls in classes:
-            if not (
-                cls.startswith("MarimoTestBlock") or cls == "TestClassWorks"
-            ):
-                report.outcome = "failed"
-                report.longrepr = (
-                    f"Unknown class '{cls}' in {collector.path}"
-                    " (tests/conftest.py)."
-                )
+    app = {
+        "test_pytest": app_pytest,
+        "test_pytest_toplevel": app_toplevel,
+        "test_pytest_scoped": app_scoped,
+    }[collector.path.stem]
 
-                return report
-
-        # Check the functions match cells in the app.
-        invalid = []
-        for name in app._cell_manager.names():
-            if name.startswith("test_") and name not in collected:
-                invalid.append(f"'{name}'")
-        if invalid:
-            tests = ", ".join([f"'{test}'" for test in collected])
+    # Just a quick check to make sure the class is actually exported.
+    if app == app_pytest:
+        if len(classes) == 0:
             report.outcome = "failed"
             report.longrepr = (
-                f"Cannot collect test(s) {', '.join(invalid)} from {tests}"
+                f"Expected class in {collector.path}, found none "
                 " (tests/conftest.py)."
             )
+            return report
+    for cls in classes:
+        if not (
+            cls.startswith("MarimoTestBlock")
+            or cls
+            in (
+                "TestClassWorks",
+                "TestClassWithFixtures",
+                "TestClassDefinitionWithFixtures",
+            )
+        ):
+            report.outcome = "failed"
+            report.longrepr = (
+                f"Unknown class '{cls}' in {collector.path}"
+                " (tests/conftest.py)."
+            )
+
+            return report
+
+    # Check the functions match cells in the app.
+    invalid = []
+    for name in app._cell_manager.names():
+        if name.startswith("test_") and name not in collected:
+            invalid.append(f"'{name}'")
+    if invalid:
+        tests = ", ".join([f"'{test}'" for test in collected])
+        report.outcome = "failed"
+        report.longrepr = (
+            f"Cannot collect test(s) {', '.join(invalid)} from {tests}"
+            " (tests/conftest.py)."
+        )
     return report

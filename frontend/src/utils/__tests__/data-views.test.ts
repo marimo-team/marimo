@@ -1,7 +1,6 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 import { describe, expect, it } from "vitest";
 import {
-  dataViewToBase64,
   decodeFromWire,
   isWireFormat,
   serializeBuffersToBase64,
@@ -257,50 +256,6 @@ describe("Immutability Tests", () => {
     expect(input.items).toBe(originalItems);
     expect(input.items[1]).toBe(originalMiddle);
     expect(input.items[2]).toBe(originalObject);
-  });
-});
-
-describe("dataViewToBase64", () => {
-  it("should convert a DataView to a base64 string", () => {
-    const encoder = new TextEncoder();
-    const bytes = encoder.encode("Hello, World!");
-    const dataView = new DataView(bytes.buffer);
-    const base64 = dataViewToBase64(dataView);
-
-    // Decode and verify
-    const decoded = atob(base64);
-    expect(decoded).toBe("Hello, World!");
-  });
-
-  it("should handle empty DataView", () => {
-    const dataView = new DataView(new ArrayBuffer(0));
-    const base64 = dataViewToBase64(dataView);
-    expect(base64).toBe("");
-  });
-
-  it("should handle DataView with offset and length", () => {
-    const encoder = new TextEncoder();
-    const bytes = encoder.encode("Hello, World!");
-    // Create a DataView that only looks at "World!"
-    const dataView = new DataView(bytes.buffer, 7, 6);
-    const base64 = dataViewToBase64(dataView);
-
-    const decoded = atob(base64);
-    expect(decoded).toBe("World!");
-  });
-
-  it("should handle binary data", () => {
-    const bytes = new Uint8Array([0, 1, 2, 255, 254, 253]);
-    const dataView = new DataView(bytes.buffer);
-    const base64 = dataViewToBase64(dataView);
-
-    // Verify round-trip
-    const decoded = atob(base64);
-    const decodedBytes = new Uint8Array(decoded.length);
-    for (let i = 0; i < decoded.length; i++) {
-      decodedBytes[i] = decoded.charCodeAt(i);
-    }
-    expect([...decodedBytes]).toEqual([0, 1, 2, 255, 254, 253]);
   });
 });
 

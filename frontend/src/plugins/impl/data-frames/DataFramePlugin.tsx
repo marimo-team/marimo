@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import { isEqual } from "lodash-es";
 import { Code2Icon, DatabaseIcon, FunctionSquareIcon } from "lucide-react";
@@ -60,6 +60,7 @@ type PluginFunctions = {
     total_rows: number;
     row_headers: FieldTypesWithExternalType;
     field_types: FieldTypesWithExternalType | null;
+    column_types_per_step: FieldTypesWithExternalType[];
     python_code?: string | null;
     sql_code?: string | null;
   }>;
@@ -112,6 +113,7 @@ export const DataFramePlugin = createPlugin<S>("marimo-dataframe")
         total_rows: z.number(),
         row_headers: columnToFieldTypesSchema,
         field_types: columnToFieldTypesSchema,
+        column_types_per_step: z.array(columnToFieldTypesSchema),
         python_code: z.string().nullish(),
         sql_code: z.string().nullish(),
       }),
@@ -190,8 +192,17 @@ export const DataFrameComponent = memo(
       [value?.transforms],
     );
 
-    const { url, total_rows, row_headers, field_types, python_code, sql_code } =
-      data || {};
+    const {
+      url,
+      total_rows,
+      row_headers,
+      field_types,
+      column_types_per_step,
+      python_code,
+      sql_code,
+    } = data || {};
+
+    const totalColumns = field_types?.length;
 
     const [internalValue, setInternalValue] = useState<Transformations>(
       value || EMPTY,
@@ -270,6 +281,7 @@ export const DataFrameComponent = memo(
               }}
               onInvalidChange={setInternalValue}
               getColumnValues={get_column_values}
+              columnTypesPerStep={column_types_per_step}
               lazy={lazy}
             />
           </TabsContent>
@@ -307,7 +319,7 @@ export const DataFrameComponent = memo(
           data={url || ""}
           hasStableRowId={false}
           totalRows={total_rows ?? 0}
-          totalColumns={Object.keys(columns).length}
+          totalColumns={totalColumns ?? 0}
           maxColumns="all"
           pageSize={pageSize}
           pagination={true}

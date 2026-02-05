@@ -5,6 +5,10 @@ on:
     branches: [main]
   pull_request:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
@@ -39,9 +43,6 @@ jobs:
       DEBUG: "pw:webserver"
 
     steps:
-      - name: 🛑 Cancel Previous Runs
-        uses: styfle/cancel-workflow-action@0.12.1
-
       - name: ⬇️ Checkout repo
         uses: actions/checkout@v4
       - name: Write TOML
@@ -56,21 +57,11 @@ jobs:
         run: |
           sed -i 's/auto_instantiate = false/auto_instantiate = true/' pyproject.toml
 
-      - uses: pnpm/action-setup@v4
-
-      - name: ⎔ Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: "pnpm"
-          cache-dependency-path: "**/pnpm-lock.yaml"
-
       - name: 📦 Build frontend
-        run: make fe
-        env:
-          TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
-          TURBO_TEAM: marimo
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+        uses: ./.github/actions/build-frontend
+        with:
+          turbo-token: ${{ secrets.TURBO_TOKEN }}
+          codecov-token: ${{ secrets.CODECOV_TOKEN }}
 
       - name: 🐍 Setup uv
         uses: astral-sh/setup-uv@v7
@@ -137,7 +128,7 @@ jobs:
       #     path: frontend/e2e-tests/screenshots
 
       - name: 📊 Upload report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         if: always()
         with:
           name: playwright-report

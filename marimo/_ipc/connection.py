@@ -1,4 +1,4 @@
-# Copyright 2025 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 """ZeroMQ connection management for inter-process communication."""
 
 from __future__ import annotations
@@ -8,19 +8,19 @@ import queue
 import sys
 import typing
 
-import zmq
-
 from marimo import _loggers
 from marimo._ipc.queue_proxy import PushQueue, start_receiver_thread
 from marimo._ipc.types import ConnectionInfo
-from marimo._server.types import QueueType
+from marimo._session.queue import QueueType
 
 if typing.TYPE_CHECKING:
+    import zmq
+
     from marimo._messaging.types import KernelMessage
-    from marimo._runtime.requests import (
-        CodeCompletionRequest,
-        ControlRequest,
-        SetUIElementValueRequest,
+    from marimo._runtime.commands import (
+        CodeCompletionCommand,
+        CommandMessage,
+        UpdateUIElementCommand,
     )
 
 LOGGER = _loggers.marimo_logger()
@@ -50,6 +50,8 @@ class Channel(typing.Generic[T]):
 
         Note: maxsize is ignored for push channels as ZeroMQ handles buffering.
         """
+        import zmq
+
         socket = context.socket(zmq.PUSH)
         return cls(
             kind="push",
@@ -67,6 +69,8 @@ class Channel(typing.Generic[T]):
             context: ZeroMQ context for creating sockets
             maxsize: Maximum queue size (0 = unlimited)
         """
+        import zmq
+
         socket = context.socket(zmq.PULL)
         return cls(
             kind="pull",
@@ -81,9 +85,9 @@ class Connection:
 
     context: zmq.Context[zmq.Socket[bytes]]
 
-    control: Channel[ControlRequest]
-    ui_element: Channel[SetUIElementValueRequest]
-    completion: Channel[CodeCompletionRequest]
+    control: Channel[CommandMessage]
+    ui_element: Channel[UpdateUIElementCommand]
+    completion: Channel[CodeCompletionCommand]
     win32_interrupt: Channel[bool] | None
 
     input: Channel[str]
@@ -116,6 +120,8 @@ class Connection:
         Returns:
             Tuple of (Connection instance, ConnectionInfo with port numbers)
         """
+        import zmq
+
         context = zmq.Context()
         conn = cls(
             context=context,
@@ -125,7 +131,7 @@ class Connection:
             win32_interrupt=(
                 Channel.Push(context) if sys.platform == "win32" else None
             ),
-            input=Channel.Pull(context, maxsize=1),
+            input=Channel.Push(context, maxsize=1),
             stream=Channel.Pull(context),
         )
         info = ConnectionInfo(
@@ -152,6 +158,8 @@ class Connection:
         Returns:
             Connected Connection instance
         """
+        import zmq
+
         context = zmq.Context()
 
         conn = cls(
@@ -162,7 +170,7 @@ class Connection:
             win32_interrupt=Channel.Pull(context)
             if connection_info.win32_interrupt
             else None,
-            input=Channel.Push(context, maxsize=1),
+            input=Channel.Pull(context, maxsize=1),
             stream=Channel.Push(context),
         )
 

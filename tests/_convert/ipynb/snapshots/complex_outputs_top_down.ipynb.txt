@@ -1,0 +1,112 @@
+{
+  "cells": [
+    {
+      "cell_type": "code",
+      "execution_count": null,
+      "id": "Hbol",
+      "metadata": {},
+      "outputs": [],
+      "source": [
+        "import marimo as mo"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "id": "MJUe",
+      "metadata": {},
+      "source": [
+        "# Testing Various Output Types\n",
+        "\n",
+        "This notebook tests various output scenarios."
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": null,
+      "id": "vblA",
+      "metadata": {},
+      "outputs": [],
+      "source": [
+        "\"\"\"Cell with print statements.\"\"\"\n",
+        "print(\"Standard output\")\n",
+        "print(\"Multiple lines\")"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": null,
+      "id": "bkHC",
+      "metadata": {},
+      "outputs": [],
+      "source": [
+        "\"\"\"Cell with rich output.\"\"\"\n",
+        "data = {\"x\": [1, 2, 3], \"y\": [4, 5, 6]}\n",
+        "mo.ui.table(data)"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": null,
+      "id": "lEQa",
+      "metadata": {},
+      "outputs": [],
+      "source": [
+        "\"\"\"Cell with calculations and implicit output.\"\"\"\n",
+        "result = sum(data[\"x\"]) + sum(data[\"y\"])\n",
+        "result"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": null,
+      "id": "PKri",
+      "metadata": {},
+      "outputs": [],
+      "source": [
+        "\"\"\"Cell with multiple outputs.\"\"\"\n",
+        "mo.md(\"## Section 1\")\n",
+        "print(\"Debug info\")\n",
+        "value = 42\n",
+        "value"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": null,
+      "id": "Xref",
+      "metadata": {
+        "marimo": {
+          "name": "error_cell"
+        }
+      },
+      "outputs": [],
+      "source": [
+        "\"\"\"This would cause an error if run.\"\"\"\n",
+        "# Note: This is valid Python, just demonstrates error handling\n",
+        "import sys\n",
+        "\n",
+        "if hasattr(sys, \"never_exists\"):\n",
+        "    raise ValueError(\"This should not happen\")\n",
+        "success = True"
+      ]
+    }
+  ],
+  "metadata": {
+    "language_info": {
+      "codemirror_mode": {
+        "name": "ipython",
+        "version": 3
+      },
+      "file_extension": ".py",
+      "mimetype": "text/x-python",
+      "name": "python",
+      "nbconvert_exporter": "python",
+      "pygments_lexer": "ipython3"
+    },
+    "marimo": {
+      "marimo_version": "0.0.0"
+    }
+  },
+  "nbformat": 4,
+  "nbformat_minor": 5
+}

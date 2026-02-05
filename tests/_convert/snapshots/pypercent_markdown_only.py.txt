@@ -6,6 +6,12 @@ app = marimo.App()
 
 @app.cell
 def _():
+    import marimo as mo
+    return (mo,)
+
+
+@app.cell
+def _():
     """Documentation in pypercent format."""
     return
 
@@ -26,12 +32,6 @@ def _(mo):
     Here's how to use this module.
     """)
     return
-
-
-@app.cell
-def _():
-    import marimo as mo
-    return (mo,)
 
 
 if __name__ == "__main__":

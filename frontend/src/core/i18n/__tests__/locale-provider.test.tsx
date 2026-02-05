@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import { cleanup, render } from "@testing-library/react";
 import { createStore, Provider } from "jotai";

@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 interface TimedCacheOptions {
   /** Time to live for cache entries in milliseconds. */

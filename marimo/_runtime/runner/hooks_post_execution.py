@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
 import sys
@@ -19,22 +19,28 @@ from marimo._messaging.errors import (
     MarimoSQLError,
     MarimoStrictExecutionError,
 )
-from marimo._messaging.ops import (
-    CellOp,
-    Datasets,
-    DataSourceConnections,
-    VariableValue,
-    VariableValues,
+from marimo._messaging.notification import (
+    DatasetsNotification,
+    DataSourceConnectionsNotification,
+    VariableValuesNotification,
+)
+from marimo._messaging.notification_utils import (
+    CellNotificationUtils,
+    broadcast_notification,
 )
 from marimo._messaging.tracebacks import write_traceback
+from marimo._messaging.variables import create_variable_value
 from marimo._output import formatting
 from marimo._plugins.ui._core.ui_element import UIElement
 from marimo._runtime.context.kernel_context import KernelRuntimeContext
-from marimo._runtime.context.types import get_context, get_global_context
+from marimo._runtime.context.types import (
+    get_context,
+    get_global_context,
+)
 from marimo._runtime.control_flow import MarimoInterrupt, MarimoStopError
 from marimo._runtime.runner import cell_runner
 from marimo._runtime.side_effect import SideEffect
-from marimo._server.model import SessionMode
+from marimo._session.model import SessionMode
 from marimo._sql.engines.duckdb import (
     INTERNAL_DUCKDB_ENGINE,
     DuckDBEngine,
@@ -108,19 +114,29 @@ def _set_run_result_status(
         cell.set_run_result_status("success")
 
 
+def _should_broadcast_data() -> bool:
+    ctx = get_context()
+    is_edit_mode = (
+        isinstance(ctx, KernelRuntimeContext)
+        and ctx.session_mode == SessionMode.EDIT
+    )
+    # We don't broadcast data in embedded contexts, since the variables panel,
+    # etc. should only show the top-level graph's variables.
+    return is_edit_mode and not ctx.is_embedded()
+
+
 @kernel_tracer.start_as_current_span("broadcast_variables")
 def _broadcast_variables(
     cell: CellImpl,
     runner: cell_runner.Runner,
     run_result: cell_runner.RunResult,
 ) -> None:
-    # Skip if not in edit mode
-    if not _is_edit_mode():
+    if not _should_broadcast_data():
         return
 
     del run_result
     values = [
-        VariableValue.create(
+        create_variable_value(
             name=variable,
             value=(
                 runner.glbls[variable] if variable in runner.glbls else None
@@ -129,7 +145,7 @@ def _broadcast_variables(
         for variable in cell.defs
     ]
     if values:
-        VariableValues(variables=values).broadcast()
+        broadcast_notification(VariableValuesNotification(variables=values))
 
 
 @kernel_tracer.start_as_current_span("broadcast_datasets")
@@ -138,8 +154,7 @@ def _broadcast_datasets(
     runner: cell_runner.Runner,
     run_result: cell_runner.RunResult,
 ) -> None:
-    # Skip if not in edit mode
-    if not _is_edit_mode():
+    if not _should_broadcast_data():
         return
 
     del run_result
@@ -152,7 +167,7 @@ def _broadcast_datasets(
     )
     if tables:
         LOGGER.debug("Broadcasting data tables")
-        Datasets(tables=tables).broadcast()
+        broadcast_notification(DatasetsNotification(tables=tables))
 
 
 @kernel_tracer.start_as_current_span("broadcast_data_source_connection")
@@ -161,8 +176,7 @@ def _broadcast_data_source_connection(
     runner: cell_runner.Runner,
     run_result: cell_runner.RunResult,
 ) -> None:
-    # Skip if not in edit mode
-    if not _is_edit_mode():
+    if not _should_broadcast_data():
         return
 
     del run_result
@@ -178,12 +192,14 @@ def _broadcast_data_source_connection(
         return
 
     LOGGER.debug("Broadcasting data source connections")
-    DataSourceConnections(
-        connections=[
-            engine_to_data_source_connection(variable, engine)
-            for variable, engine in engines
-        ]
-    ).broadcast()
+    broadcast_notification(
+        DataSourceConnectionsNotification(
+            connections=[
+                engine_to_data_source_connection(variable, engine)
+                for variable, engine in engines
+            ]
+        )
+    )
 
 
 @kernel_tracer.start_as_current_span("broadcast_duckdb_datasource")
@@ -192,8 +208,7 @@ def _broadcast_duckdb_datasource(
     runner: cell_runner.Runner,
     run_result: cell_runner.RunResult,
 ) -> None:
-    # Skip if not in edit mode
-    if not _is_edit_mode():
+    if not _should_broadcast_data():
         return
 
     del run_result
@@ -212,13 +227,15 @@ def _broadcast_duckdb_datasource(
             return
 
         LOGGER.debug("Broadcasting internal duckdb datasource")
-        DataSourceConnections(
-            connections=[
-                engine_to_data_source_connection(
-                    INTERNAL_DUCKDB_ENGINE, DuckDBEngine()
-                )
-            ]
-        ).broadcast()
+        broadcast_notification(
+            DataSourceConnectionsNotification(
+                connections=[
+                    engine_to_data_source_connection(
+                        INTERNAL_DUCKDB_ENGINE, DuckDBEngine()
+                    )
+                ]
+            )
+        )
     except Exception:
         return
 
@@ -320,7 +337,7 @@ def _broadcast_outputs(
         if formatted_output.traceback is not None:
             write_traceback(formatted_output.traceback)
 
-        CellOp.broadcast_output(
+        CellNotificationUtils.broadcast_output(
             channel=CellChannel.OUTPUT,
             mimetype=formatted_output.mimetype,
             data=formatted_output.data,
@@ -330,7 +347,7 @@ def _broadcast_outputs(
     elif isinstance(run_result.exception, MarimoStrictExecutionError):
         LOGGER.debug("Cell %s raised a strict error", cell.cell_id)
         # Cell never runs, so clear console
-        CellOp.broadcast_error(
+        CellNotificationUtils.broadcast_error(
             data=[run_result.output],
             clear_console=True,
             cell_id=cell.cell_id,
@@ -339,20 +356,20 @@ def _broadcast_outputs(
         LOGGER.debug("Cell %s was interrupted", cell.cell_id)
         # don't clear console because this cell was running and
         # its console outputs are not stale
-        CellOp.broadcast_error(
+        CellNotificationUtils.broadcast_error(
             data=[MarimoInterruptionError()],
             clear_console=False,
             cell_id=cell.cell_id,
         )
     elif isinstance(run_result.exception, MarimoExceptionRaisedError):
-        CellOp.broadcast_error(
+        CellNotificationUtils.broadcast_error(
             data=[run_result.exception],
             clear_console=False,
             cell_id=cell.cell_id,
         )
     elif isinstance(run_result.exception, MarimoSQLError):
         LOGGER.debug("Cell %s raised a SQL error", cell.cell_id)
-        CellOp.broadcast_error(
+        CellNotificationUtils.broadcast_error(
             data=[run_result.exception],
             clear_console=True,
             cell_id=cell.cell_id,
@@ -369,7 +386,7 @@ def _broadcast_outputs(
         msg = str(run_result.exception)
         if not msg:
             msg = f"This cell raised an exception: {exception_type}"
-        CellOp.broadcast_error(
+        CellNotificationUtils.broadcast_error(
             data=[
                 MarimoExceptionRaisedError(
                     msg=msg,
@@ -393,7 +410,7 @@ def render_toplevel_defs(
     if variable is not None:
         extractor = TopLevelExtraction.from_graph(runner.graph, cell=cell)
         serialization = list(iter(extractor))[-1]
-        CellOp.broadcast_serialization(
+        CellNotificationUtils.broadcast_serialization(
             serialization=serialization,
             cell_id=cell.cell_id,
         )
@@ -430,14 +447,6 @@ def _reset_matplotlib_context(
     if get_global_context().mpl_installed:
         # ensures that every cell gets a fresh axis.
         exec("__marimo__._output.mpl.close_figures()", runner.glbls)
-
-
-def _is_edit_mode() -> bool:
-    ctx = get_context()
-    return (
-        isinstance(ctx, KernelRuntimeContext)
-        and ctx.session_mode == SessionMode.EDIT
-    )
 
 
 POST_EXECUTION_HOOKS: list[PostExecutionHookType] = [

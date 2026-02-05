@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import type { QuotePrefixKind, QuoteType } from "../types.js";
 import { QUOTE_PREFIX_KINDS } from "../types.js";

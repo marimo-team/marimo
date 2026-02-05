@@ -5,10 +5,10 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from marimo._messaging.ops import SecretKeysResult
-from marimo._runtime.requests import (
-    ListSecretKeysRequest,
-    RefreshSecretsRequest,
+from marimo._messaging.notification import SecretKeysResultNotification
+from marimo._runtime.commands import (
+    ListSecretKeysCommand,
+    RefreshSecretsCommand,
 )
 from marimo._runtime.runtime import SecretsCallbacks
 from marimo._types.ids import RequestId
@@ -30,7 +30,7 @@ async def test_list_secrets_with_values(
     mocked_kernel.k._original_environ = os.environ.copy()
 
     await secrets_callbacks.list_secrets(
-        ListSecretKeysRequest(request_id=RequestId("test"))
+        ListSecretKeysCommand(request_id=RequestId("test"))
     )
 
     # Check that the broadcast message was sent with the correct secrets
@@ -38,7 +38,7 @@ async def test_list_secrets_with_values(
     secret_messages = [
         msg
         for msg in stream.parsed_operations
-        if isinstance(msg, SecretKeysResult)
+        if isinstance(msg, SecretKeysResultNotification)
     ]
     assert len(secret_messages) == 1
     first_secret_message = secret_messages[0]
@@ -64,7 +64,7 @@ async def test_refresh_secrets(
     original_load_dotenv = mocked_kernel.k.load_dotenv
     mocked_kernel.k.load_dotenv = MagicMock(wraps=original_load_dotenv)
 
-    await secrets_callbacks.refresh_secrets(RefreshSecretsRequest())
+    await secrets_callbacks.refresh_secrets(RefreshSecretsCommand())
 
     # Check that load_dotenv was called
     assert mocked_kernel.k.load_dotenv.call_count == 1

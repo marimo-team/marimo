@@ -1,6 +1,6 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
-import { useAtom } from "jotai";
+import { useAtom, useAtomValue } from "jotai";
 import { atomWithStorage } from "jotai/utils";
 import {
   ArrowLeftIcon,
@@ -47,6 +47,7 @@ import { Tooltip } from "@/components/ui/tooltip";
 import { toast } from "@/components/ui/use-toast";
 import { useCellActions } from "@/core/cells/cells";
 import { useLastFocusedCellId } from "@/core/cells/focus";
+import { disableFileDownloadsAtom } from "@/core/config/config";
 import { useRequestClient } from "@/core/network/requests";
 import type { FileInfo } from "@/core/network/types";
 import { isWasm } from "@/core/wasm/utils";
@@ -60,6 +61,7 @@ import type { FilePath } from "@/utils/paths";
 import { fileSplit } from "@/utils/pathUtils";
 import { jotaiJsonStorage } from "@/utils/storage/jotai";
 import marimoIcon from "../../../assets/icon-32x32.png";
+import { useTreeDndManager } from "./dnd-wrapper";
 import { FileViewer } from "./file-viewer";
 import type { RequestingTree } from "./requesting-tree";
 import { openStateAtom, treeAtom } from "./state";
@@ -86,6 +88,7 @@ export const FileExplorer: React.FC<{
   height: number;
 }> = ({ height }) => {
   const treeRef = useRef<TreeApi<FileInfo>>(null);
+  const dndManager = useTreeDndManager();
   const [tree] = useAtom(treeAtom);
   const [data, setData] = useState<FileInfo[]>([]);
   const [openFile, setOpenFile] = useState<FileInfo | null>(null);
@@ -192,6 +195,8 @@ export const FileExplorer: React.FC<{
           data={visibleData}
           initialOpenState={openState}
           openByDefault={false}
+          // Use shared DnD manager to prevent "Cannot have two HTML5 backends" error
+          dndManager={dndManager}
           // Hide the drop cursor
           renderCursor={() => null}
           // Disable dropping files into files
@@ -392,6 +397,7 @@ const Edit = ({ node }: { node: NodeApi<FileInfo> }) => {
 const Node = ({ node, style, dragHandle }: NodeRendererProps<FileInfo>) => {
   const { openFile, sendCreateFileOrFolder, sendFileDetails } =
     useRequestClient();
+  const disableFileDownloads = useAtomValue(disableFileDownloadsAtom);
 
   const fileType: FileType = node.data.isDirectory
     ? "directory"
@@ -504,7 +510,7 @@ const Node = ({ node, style, dragHandle }: NodeRendererProps<FileInfo>) => {
     return (
       <DropdownMenuContent
         align="end"
-        className="no-print w-[220px]"
+        className="print:hidden w-[220px]"
         onClick={(e) => e.stopPropagation()}
         onCloseAutoFocus={(e) => e.preventDefault()}
       >
@@ -607,7 +613,7 @@ const Node = ({ node, style, dragHandle }: NodeRendererProps<FileInfo>) => {
           </>
         )}
         <DropdownMenuSeparator />
-        {!node.data.isDirectory && (
+        {!node.data.isDirectory && !disableFileDownloads && (
           <>
             <DropdownMenuItem
               onSelect={async () => {

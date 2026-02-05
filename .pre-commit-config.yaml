@@ -7,13 +7,13 @@ repos:
       - id: check-yaml
 
   - repo: https://github.com/rhysd/actionlint
-    rev: v1.7.9
+    rev: v1.7.10
     hooks:
       - id: actionlint
         args: [-ignore, SC]
 
   - repo: https://github.com/abravalheri/validate-pyproject
-    rev: v0.24.1
+    rev: v0.25
     hooks:
       - id: validate-pyproject
 
@@ -25,13 +25,13 @@ repos:
         exclude: ^marimo/_tutorials/.*\.md
 
   - repo: https://github.com/crate-ci/typos
-    rev: v1
+    rev: v1.43.1
     hooks:
       - id: typos
         pass_filenames: false
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.14.9
+    rev: v0.15.0
     hooks:
       # Run the linter
       - id: ruff
@@ -40,7 +40,7 @@ repos:
       - id: ruff-format
 
   - repo: https://github.com/biomejs/pre-commit
-    rev: v2.3.8
+    rev: v2.3.13
     hooks:
       - id: biome-check
         args: [--diagnostic-level, warn]

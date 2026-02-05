@@ -1,8 +1,8 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import { CommandList } from "cmdk";
 import { useAtomValue } from "jotai";
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 import React, {
   Fragment,
   type PropsWithChildren,
@@ -12,6 +12,7 @@ import React, {
   useState,
 } from "react";
 import useEvent from "react-use-event-hook";
+import { getCellForDomProps } from "@/components/data-table/cell-utils";
 import {
   renderMinimalShortcut,
   renderShortcut,
@@ -104,7 +105,11 @@ const CellActionsDropdownInternal = (
       {...restoreFocus}
     >
       <Command>
-        <CommandInput placeholder="Search actions..." className="h-6 m-1" />
+        <CommandInput
+          placeholder="Search actions..."
+          className="h-6 m-1"
+          {...getCellForDomProps(props.cellId)}
+        />
         <CommandList>
           <CommandEmpty>No results</CommandEmpty>
           {actions.map((group, i) => (

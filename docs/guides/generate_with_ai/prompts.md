@@ -2,11 +2,11 @@ marimo offers many tools for [AI assisted coding](../editor_features/ai_completi
 
 You can add these prompts to your [custom rules](../editor_features/ai_completion.md#custom-rules) but be mindful that doing so will make every call to the LLM more expensive because you're feeding it more tokens. That's why we generally recommend to start your conversations with these snippets if you don't plan on using them very often.
 
-## CLAUDE.md
+## AGENTS.md and CLAUDE.md
 
-You can run [claude code](https://www.anthropic.com/claude-code) in the terminal and ask it to edit a marimo notebook on your behalf. Make sure that you run your notebook with the [watch flag](../..//api/watch.md) turned on, like `marimo edit --watch notebook.py`, to see updates appear live whenever claude makes a change.
+You can run tools like [claude code](https://www.anthropic.com/claude-code) or [codex](https://openai.com/codex/) in the terminal and ask it to edit a marimo notebook on your behalf. Make sure that you run your notebook with the [watch flag](../../api/watch.md) turned on, like `marimo edit --watch notebook.py`, to see updates appear live whenever the agent makes a change.
 
-To help claude code, you might want to take the snippet below as starting context for your `CLAUDE.md` file. This snippet should be seen as a starting point and we recommend adding extra context yourself. Things like "prefer polars over pandas" to indicate your preferred libraries and tools.
+To help your agent, you might want to take the snippet below as starting context for your `CLAUDE.md`/`AGENTS.md` file. This snippet should be seen as a starting point and we recommend adding extra context yourself. Things like "prefer polars over pandas" to indicate your preferred libraries and tools.
 
 ```console
 curl https://docs.marimo.io/CLAUDE.md > CLAUDE.md

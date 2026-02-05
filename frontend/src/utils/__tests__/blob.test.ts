@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 import { beforeEach, describe, expect, test } from "vitest";
 import { deserializeBlob, serializeBlob } from "../blob";
 import { blobToString } from "../fileToBase64";
@@ -20,7 +20,7 @@ describe("Blob serialization and deserialization", () => {
 
   test("deserializeBlob should deserialize a base64 string to a Blob", async () => {
     const serialized = await serializeBlob(testBlob);
-    const deserialized = await deserializeBlob(serialized);
+    const deserialized = deserializeBlob(serialized);
     expect(deserialized).toBeDefined();
     expect(deserialized.size).toBe(testBlob.size);
     expect(deserialized.type).toBe(testBlob.type);
@@ -28,7 +28,7 @@ describe("Blob serialization and deserialization", () => {
 
   test("deserialized Blob should contain the original content", async () => {
     const serialized = await serializeBlob(testBlob);
-    const deserialized = await deserializeBlob(serialized);
+    const deserialized = deserializeBlob(serialized);
     const reader = new FileReader();
     // eslint-disable-next-line unicorn/prefer-blob-reading-methods
     reader.readAsText(deserialized);
@@ -45,7 +45,7 @@ describe("Blob serialization and deserialization", () => {
       type: "image/png",
     });
     const serialized = await serializeBlob(imageBlob);
-    const deserialized = await deserializeBlob(serialized);
+    const deserialized = deserializeBlob(serialized);
     expect(deserialized).toBeDefined();
     expect(deserialized.size).toBe(imageBlob.size);
     expect(deserialized.type).toBe(imageBlob.type);

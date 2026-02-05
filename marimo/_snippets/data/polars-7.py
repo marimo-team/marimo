@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 
 import marimo
 
@@ -12,7 +12,7 @@ def _(mo):
         r"""
         # Polars: Advanced Grouping and Window Functions
 
-        This snippet demonstrates advanced grouping operations in Polars using `group_by()`, 
+        This snippet demonstrates advanced grouping operations in Polars using `group_by()`,
         window functions, and rolling computations for time series analysis.
 
         Example: `df.group_by('category').agg([pl.col('value').mean(), pl.col('value').rolling_mean(3)])`

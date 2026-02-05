@@ -80,7 +80,7 @@ You can customize your vim experience by adding a `.vimrc` configuration in the 
 
 ```toml title="marimo.toml"
 [keymap]
-vimrc = /User/absolute/path/to/.vimrc
+vimrc = "/User/absolute/path/to/.vimrc"
 ```
 
 ///
@@ -89,7 +89,7 @@ vimrc = /User/absolute/path/to/.vimrc
 
 ```toml title="pyproject.toml"
 [tool.marimo.keymap]
-vimrc = relative/path/.vimrc
+vimrc = "relative/path/.vimrc"
 ```
 
 ///
@@ -111,23 +111,13 @@ When vim keybindings are enabled, press `Ctrl+Esc` (or `Cmd+Esc` on macOS, `Shif
 
 Press `i` or `Enter` to return to cell editing.
 
-## Overview panels
+## Sidebar and Developer Panel
 
-marimo ships with the IDE panels that provide an overview of your notebook
+marimo organizes editor tools into two areas: the **sidebar** on the left for everyday notebook tools (files, variables, packages, AI, documentation), and the **developer panel** at the bottom for debugging utilities (errors, logs, terminal, tracing).
 
-- **file explorer**: view the file tree, open other notebooks
-- **variables**: explore variable values, see where they are defined and used, with go-to-definition
-- **data explorer**: see dataframe and table schemas at a glance
-- **dataflow tools**: visualize and navigate notebook structure and cell dependencies (see [Understanding dataflow](dataflow.md))
-- **package manager**: add and remove packages, and view your current environment
-- **table of contents**: corresponding to your markdown
-- **documentation** - move your text cursor over a symbol to see its documentation
-- **logs**: a continuous stream of stdout and stderr
-- **scratchpad**: a scratchpad cell where you can execute throwaway code
-- **snippets** - searchable snippets to copy directly into your notebook
-- **feedback** - share feedback!
+You can customize both areas by dragging panels to reorder them or move them between sections. Toggle the sidebar with `Cmd/Ctrl-Shift-S` and the developer panel with `Cmd/Ctrl-J`.
 
-These panels can be toggled via the buttons in the left of the editor.
+See the [Sidebar and Developer Panel](panels.md) guide for a complete list of available panels and customization options.
 
 ## Cell actions
 

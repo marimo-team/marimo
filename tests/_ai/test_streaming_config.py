@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 """Tests for streaming delta generation and fallback behavior."""
 
 from __future__ import annotations

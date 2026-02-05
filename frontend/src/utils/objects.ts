@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 export const Objects = {
   EMPTY: Object.freeze({}) as Record<string, never>,
 
@@ -31,6 +31,9 @@ export const Objects = {
    */
   keys<K extends string | number>(obj: Record<K, unknown>): K[] {
     return Object.keys(obj) as K[];
+  },
+  size<K extends string | number>(obj: Record<K, unknown>): number {
+    return Object.keys(obj).length;
   },
   /**
    * Type-safe keyBy

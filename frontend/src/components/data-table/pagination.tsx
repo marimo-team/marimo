@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 "use no memo";
 
 import type { Table } from "@tanstack/react-table";
@@ -67,7 +67,7 @@ export const DataTablePagination = <TData,>({
             size="xs"
             data-testid="select-all-button"
             variant="link"
-            className="h-4"
+            className="h-4 print:hidden"
             onMouseDown={Events.preventFocus}
             onClick={() => {
               if (onSelectAllRowsChange) {
@@ -91,7 +91,7 @@ export const DataTablePagination = <TData,>({
             size="xs"
             data-testid="clear-selection-button"
             variant="link"
-            className="h-4"
+            className="h-4 print:hidden"
             onMouseDown={Events.preventFocus}
             onClick={() => {
               if (!isCellSelection) {
@@ -139,7 +139,7 @@ export const DataTablePagination = <TData,>({
 
   const renderPageSizeSelector = () => {
     return (
-      <div className="flex items-center gap-1 text-xs whitespace-nowrap mr-1">
+      <div className="flex items-center gap-1 text-xs whitespace-nowrap mr-1 print:hidden">
         <Select
           value={pageSize.toString()}
           onValueChange={(value) => table.setPageSize(Number(value))}
@@ -173,7 +173,7 @@ export const DataTablePagination = <TData,>({
         {showPageSizeSelector && renderPageSizeSelector()}
       </div>
 
-      <div className="flex items-end space-x-2">
+      <div className="flex items-end space-x-2 print:hidden">
         <Button
           size="xs"
           variant="outline"

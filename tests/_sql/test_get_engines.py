@@ -1,4 +1,4 @@
-# Copyright 2025 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
@@ -12,12 +12,10 @@ from marimo._data.models import (
     Schema,
 )
 from marimo._dependencies.dependencies import DependencyManager
+from marimo._sql.engines.adbc import AdbcDBAPIEngine
 from marimo._sql.engines.clickhouse import ClickhouseEmbedded
 from marimo._sql.engines.dbapi import DBAPIEngine
-from marimo._sql.engines.duckdb import (
-    INTERNAL_DUCKDB_ENGINE,
-    DuckDBEngine,
-)
+from marimo._sql.engines.duckdb import INTERNAL_DUCKDB_ENGINE, DuckDBEngine
 from marimo._sql.engines.ibis import IbisEngine
 from marimo._sql.engines.redshift import RedshiftEngine
 from marimo._sql.engines.sqlalchemy import SQLAlchemyEngine
@@ -33,6 +31,8 @@ HAS_IBIS = DependencyManager.ibis.has()
 HAS_DUCKDB = DependencyManager.duckdb.has()
 HAS_CLICKHOUSE = DependencyManager.chdb.has()
 HAS_REDSHIFT = DependencyManager.redshift_connector.has()
+HAS_PYARROW = DependencyManager.pyarrow.has()
+HAS_IBIS = DependencyManager.ibis.has()
 
 
 @pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")
@@ -285,6 +285,45 @@ def test_get_engines_dbapi_databases():
         assert connection.dialect == "sql"
 
 
+@pytest.mark.skipif(
+    not HAS_PYARROW, reason="pyarrow is required for ADBC sqlite driver"
+)
+def test_get_engines_from_variables_adbc_sqlite() -> None:
+    adbc_sqlite_dbapi = pytest.importorskip("adbc_driver_sqlite.dbapi")
+
+    # Explicitly use a fresh in-memory database per test run.
+    conn = adbc_sqlite_dbapi.connect(":memory:")
+    try:
+        variables: list[tuple[str, object]] = [("adbc_sqlite", conn)]
+        engines = get_engines_from_variables(variables)
+
+        assert len(engines) == 1
+        var_name, engine = engines[0]
+        assert var_name == "adbc_sqlite"
+        assert isinstance(engine, AdbcDBAPIEngine)
+        assert engine.source == "adbc"
+        assert engine.dialect == "sqlite"
+    finally:
+        conn.close()
+
+
+def test_get_engines_from_variables_sqlite3_is_not_adbc() -> None:
+    import sqlite3
+
+    conn = sqlite3.connect(":memory:")
+    try:
+        variables: list[tuple[str, object]] = [("sqlite3_conn", conn)]
+        engines = get_engines_from_variables(variables)
+
+        assert len(engines) == 1
+        var_name, engine = engines[0]
+        assert var_name == "sqlite3_conn"
+        assert isinstance(engine, DBAPIEngine)
+        assert not isinstance(engine, AdbcDBAPIEngine)
+    finally:
+        conn.close()
+
+
 @pytest.mark.skipif(not HAS_DUCKDB, reason="DuckDB not installed")
 def test_get_engines_duckdb_databases() -> None:
     duckdb_engine = DuckDBEngine(None)
@@ -421,3 +460,17 @@ def test_get_engines_clickhouse() -> None:
     # assert connection.default_database == "default"
     # assert connection.default_schema == "default"
     assert connection.databases == []
+
+
+@pytest.mark.skipif(
+    not HAS_IBIS,
+    reason="Ibis not installed",
+)
+def test_variables_without_datasource_engine() -> None:
+    # Ibis Deferred expression object should not be handled as a datasource engine #7791
+    import ibis
+
+    deferred_for_test = ibis._["a"]
+    variables = [("deferred_for_test", deferred_for_test)]
+    engines = get_engines_from_variables(variables)
+    assert not engines

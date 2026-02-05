@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import { historyField } from "@codemirror/commands";
 import { type Atom, atom, useAtom, useAtomValue } from "jotai";
@@ -1033,6 +1033,20 @@ const {
 
     return state;
   },
+  markUntouched: (state, action: { cellId: CellId }) => {
+    const { cellId } = action;
+
+    if (!state.untouchedNewCells.has(cellId)) {
+      const nextUntouchedNewCells = new Set(state.untouchedNewCells);
+      nextUntouchedNewCells.add(cellId);
+      return {
+        ...state,
+        untouchedNewCells: nextUntouchedNewCells,
+      };
+    }
+
+    return state;
+  },
   scrollToTarget: (state) => {
     // Scroll to the specified cell and clear the scroll key.
     const scrollKey = state.scrollKey;
@@ -1325,10 +1339,7 @@ const {
     };
   },
   addSetupCellIfDoesntExist: (state, action: { code?: string }) => {
-    let { code } = action;
-    if (code == null) {
-      code = "# Initialization code that runs before all other cells";
-    }
+    const { code } = action;
 
     if (state.cellIds.setupCellExists()) {
       // Just focus on the existing setup cell
@@ -1596,6 +1607,8 @@ const cellDataAtoms = splitAtom(
   ),
 );
 export const useCellDataAtoms = () => useAtom(cellDataAtoms);
+
+export const cellsRuntimeAtom = atom((get) => get(notebookAtom).cellRuntime);
 
 export const notebookIsRunningAtom = atom((get) =>
   notebookIsRunning(get(notebookAtom)),

@@ -14,12 +14,15 @@
   width: 100%;
   border: 1px solid var(--gray-4);
 
-  @apply divide-y divide-[var(--gray-5)] shadow-sm-solid shadow-shade;
+  @apply divide-y divide-(--gray-5);
+  &:hover {
+    border-color: var(--gray-6);
+  }
 
   &:focus-visible {
     /* focus-visible outlines the entire cell body in black, but the cell's
-         * body is an irregular shape because of pseudo-elements that extend
-         * its hit-box / hover area. */
+     * body is an irregular shape because of pseudo-elements that extend
+     * its hit-box / hover area. */
     outline: none;
   }
 
@@ -32,6 +35,10 @@
     opacity: 0.5;
     box-shadow: 0px 0px 10px 0px var(--cyan-9);
     z-index: 1;
+  }
+
+  &:has(.mo-ai-generated-cell.mo-ai-setup-cell)::before {
+    border-radius: 2px;
   }
 
   /* Styling for cells marked for deletion by AI */
@@ -106,27 +113,8 @@
       border-bottom-right-radius: 9px;
     }
 
-    &:hover {
-      @apply shadow-md-solid shadow-shade;
-    }
-
     &:focus-within {
-      border: 1px solid var(--gray-5);
-
-      /* a sharp box shadow with a slight blur to outline the element */
-      @apply shadow-lg-solid shadow-shade;
-
-      /* a little bit of motion
-            *
-            * Note: we use left/top instead of transform because transform creates a new
-            * stacking context and makes completion tooltip appear below surrounding
-            * cells/outputs. See
-            *
-            * https://stackoverflow.com/questions/20851452/z-index-is-canceled-by-setting-transformrotate,
-            * https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_Positioning/Understanding_z_index/The_stacking_context
-            * */
-      left: -1px;
-      top: -1px;
+      @apply shadow-md-solid shadow-shade;
     }
 
     .cm {
@@ -160,12 +148,6 @@
   &.disabled.has-error,
   &.disabled:hover,
   &.disabled.has-error:hover {
-    @apply shadow-sm-solid shadow-shade;
-
-    &:focus-within {
-      @apply shadow-lg-solid shadow-shade;
-    }
-
     .output-area,
     .cm-gutters,
     .cm {
@@ -174,21 +156,22 @@
     }
   }
 
+  &.disabled:hover {
+    border-color: var(--gray-6);
+  }
+
   /* Error styles for Cell, less precedence than needs run */
-
-  &.has-error,
+  &.has-error:not(.needs-run),
   &.error-outline {
-    outline: 1px solid var(--red-4);
-    @apply shadow-md-solid shadow-[var(--red-8)];
+    @apply border-error/20 border-1 divide-error/20 outline-1 outline-error/20;
   }
 
-  &.has-error:hover {
-    @apply shadow-lg-solid shadow-[var(--red-8)];
+  &.has-error:not(.needs-run):hover {
+    @apply border-error/30 outline-error/30;
   }
 
-  &.has-error:focus-within,
-  &.has-error:focus-within:hover {
-    @apply shadow-xl-solid shadow-[var(--red-8)];
+  &.has-error:not(.needs-run):focus-within {
+    @apply border-1 outline-0 shadow-md-solid divide-error/20 shadow-error/20;
   }
 
   &.error-outline,
@@ -201,20 +184,17 @@
 
   &.needs-run {
     /* TODO(akshayka): Can give this an outline to make more visible. */
-    outline: none;
-    @apply divide-stale shadow-md-solid shadow-stale;
+    @apply border-stale border-1 divide-stale outline-1 outline-stale;
 
     &:hover {
-      @apply shadow-lg-solid shadow-stale;
+      @apply border-action-foreground/30 outline-action-foreground/30;
     }
 
-    &:focus-within:hover,
     &:focus-within {
-      @apply shadow-xl-solid shadow-stale;
+      @apply border-1 outline-0 divide-stale shadow-md-solid shadow-stale;
     }
 
     &:focus-within .cm-editor {
-      box-shadow: none;
       border: 1px solid transparent;
     }
 
@@ -269,20 +249,16 @@
   }
 
   /* Borderless styles for Cell */
-
   &.borderless {
     border-color: transparent;
-    box-shadow: none;
 
     & > * {
       border-bottom: none;
     }
 
     /* Apply the original styles */
-
-    &:hover {
+    &:focus {
       border: 1px solid var(--gray-4);
-      @apply shadow-sm-solid shadow-shade;
     }
   }
 
@@ -311,21 +287,40 @@
 .dark .marimo-cell {
   @apply border-border;
 
+  &:hover {
+    border: 1px solid var(--gray-9);
+  }
+
+  &.needs-run:hover {
+    @apply border-action-foreground/30 outline-action-foreground/30;
+  }
+
+  &.has-error:hover {
+    @apply border-error/30 outline-error/30;
+  }
+
   &.borderless {
     border-color: transparent;
-    box-shadow: none;
 
     & > * {
       border-bottom: none;
     }
 
     /* Apply the original styles */
-
     &:hover {
       border: 1px solid var(--gray-4);
-      @apply shadow-sm-solid shadow-shade;
     }
   }
+
+  &.published {
+    border: none;
+  }
+}
+
+#cell-setup,
+#cell-setup .cm-editor,
+#cell-setup .cm-gutter {
+  background-color: var(--gray-2);
 }
 
 #App.disconnected {

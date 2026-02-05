@@ -13,6 +13,7 @@ from marimo._runtime.packages.pypi_package_manager import (
     PipPackageManager,
     PoetryPackageManager,
     UvPackageManager,
+    VersionMap,
 )
 
 if TYPE_CHECKING:
@@ -51,7 +52,9 @@ async def test_install(mock_run: MagicMock):
     mock_run.return_value = MagicMock(returncode=0)
 
     with patch.object(manager, "is_manager_installed", return_value=True):
-        result = await manager._install("package1 package2", upgrade=False)
+        result = await manager._install(
+            "package1 package2", upgrade=False, dev=False
+        )
 
     mock_run.assert_called_once_with(
         ["pip", "--python", PY_EXE, "install", "package1", "package2"],
@@ -63,7 +66,9 @@ async def test_install(mock_run: MagicMock):
 async def test_install_failure(mock_run: MagicMock):
     mock_run.return_value = MagicMock(returncode=1)
 
-    result = await manager._install("nonexistent-package", upgrade=False)
+    result = await manager._install(
+        "nonexistent-package", upgrade=False, dev=False
+    )
 
     assert result is False
 
@@ -73,7 +78,7 @@ async def test_uninstall(mock_run: MagicMock):
     mock_run.return_value = MagicMock(returncode=0)
 
     with patch.object(manager, "is_manager_installed", return_value=True):
-        result = await manager.uninstall("package1 package2")
+        result = await manager.uninstall("package1 package2", dev=False)
 
     mock_run.assert_called_once_with(
         [
@@ -296,14 +301,13 @@ async def test_uv_install_not_in_project(mock_popen: MagicMock):
     mock_popen.return_value = mock_process
     mgr = UvPackageManager()
 
-    result = await mgr._install("package1 package2", upgrade=False)
+    result = await mgr._install("package1 package2", upgrade=False, dev=False)
 
     mock_popen.assert_called_once_with(
         [
             "uv",
             "pip",
             "install",
-            "--compile",
             "package1",
             "package2",
             "-p",
@@ -332,7 +336,7 @@ async def test_uv_install_not_in_project_with_target(mock_popen: MagicMock):
     import os
 
     os.environ["MARIMO_UV_TARGET"] = "target_path"
-    result = await mgr._install("package1 package2", upgrade=False)
+    result = await mgr._install("package1 package2", upgrade=False, dev=False)
     del os.environ["MARIMO_UV_TARGET"]
 
     mock_popen.assert_called_once_with(
@@ -341,7 +345,6 @@ async def test_uv_install_not_in_project_with_target(mock_popen: MagicMock):
             "pip",
             "install",
             "--target=target_path",
-            "--compile",
             "package1",
             "package2",
             "-p",
@@ -362,10 +365,33 @@ async def test_uv_install_in_project(mock_run: MagicMock):
     mock_run.return_value = MagicMock(returncode=0)
     mgr = UvPackageManager()
 
-    result = await mgr._install("package1 package2", upgrade=False)
+    result = await mgr._install("package1 package2", upgrade=False, dev=False)
 
     mock_run.assert_called_once_with(
-        ["uv", "add", "--compile", "package1", "package2", "-p", PY_EXE],
+        ["uv", "add", "package1", "package2", "-p", PY_EXE],
+    )
+    assert result is True
+
+
+@patch("subprocess.run")
+@patch.object(UvPackageManager, "is_in_uv_project", True)
+async def test_uv_install_dev_dependency_in_project(mock_run: MagicMock):
+    """Test UV install uses add subcommand when in UV project"""
+    mock_run.return_value = MagicMock(returncode=0)
+    mgr = UvPackageManager()
+
+    result = await mgr._install("package1 package2", upgrade=False, dev=True)
+
+    mock_run.assert_called_once_with(
+        [
+            "uv",
+            "add",
+            "--dev",
+            "package1",
+            "package2",
+            "-p",
+            PY_EXE,
+        ],
     )
     assert result is True
 
@@ -705,7 +731,7 @@ async def test_uv_install_cache_error_fallback(
 
     mgr = UvPackageManager()
     with patch.object(mgr, "is_manager_installed", return_value=True):
-        result = await mgr._install("datamapplot", upgrade=False)
+        result = await mgr._install("datamapplot", upgrade=False, dev=False)
 
     # First attempt should use Popen
     mock_popen.assert_called_once_with(
@@ -713,7 +739,6 @@ async def test_uv_install_cache_error_fallback(
             "uv",
             "pip",
             "install",
-            "--compile",
             "datamapplot",
             "-p",
             PY_EXE,
@@ -730,7 +755,6 @@ async def test_uv_install_cache_error_fallback(
             "uv",
             "pip",
             "install",
-            "--compile",
             "datamapplot",
             "-p",
             PY_EXE,
@@ -760,7 +784,9 @@ async def test_uv_install_no_fallback_on_different_error(
 
     mgr = UvPackageManager()
     with patch.object(mgr, "is_manager_installed", return_value=True):
-        result = await mgr._install("nonexistent-package", upgrade=False)
+        result = await mgr._install(
+            "nonexistent-package", upgrade=False, dev=False
+        )
 
     # Should only call Popen once (no retry)
     mock_popen.assert_called_once()
@@ -776,12 +802,242 @@ async def test_uv_install_in_project_no_fallback(mock_run: MagicMock):
     mock_run.return_value = MagicMock(returncode=1)  # Failure
     mgr = UvPackageManager()
 
-    result = await mgr._install("package1", upgrade=False)
+    result = await mgr._install("package1", upgrade=False, dev=False)
 
     # Should only call run once (no fallback for project mode)
     mock_run.assert_called_once_with(
-        ["uv", "add", "--compile", "package1", "-p", PY_EXE],
+        ["uv", "add", "package1", "-p", PY_EXE],
     )
 
     # Should fail without retry
     assert result is False
+
+
+# VersionMap Tests
+
+
+class TestVersionMap:
+    def test_get_version_exact_match(self) -> None:
+        """Test getting version with exact package name match"""
+
+        version_map = VersionMap({"numpy": "1.24.0", "pandas": "2.0.0"})
+        assert version_map.get_version("numpy") == "1.24.0"
+        assert version_map.get_version("pandas") == "2.0.0"
+
+    def test_get_version_with_underscore_to_dash(self) -> None:
+        """Test getting version when package name uses underscore but map has dash"""
+
+        version_map = VersionMap({"some-package": "1.0.0"})
+        assert version_map.get_version("some_package") == "1.0.0"
+
+    def test_get_version_with_dash_to_underscore(self) -> None:
+        """Test getting version when package name uses dash but map has underscore"""
+
+        version_map = VersionMap({"some_package": "1.0.0"})
+        assert version_map.get_version("some-package") == "1.0.0"
+
+    def test_get_version_case_insensitive(self) -> None:
+        """Test getting version is case insensitive"""
+
+        version_map = VersionMap({"numpy": "1.24.0"})
+        assert version_map.get_version("NumPy") == "1.24.0"
+        assert version_map.get_version("NUMPY") == "1.24.0"
+
+    def test_get_version_with_extras(self) -> None:
+        """Test getting version removes extras from package name"""
+
+        version_map = VersionMap({"requests": "2.28.0"})
+        assert version_map.get_version("requests[security]") == "2.28.0"
+        assert version_map.get_version("requests[security,socks]") == "2.28.0"
+
+    def test_get_version_with_version_specifier(self) -> None:
+        """Test getting version removes version specifier from package name"""
+
+        version_map = VersionMap({"numpy": "1.24.0"})
+        assert version_map.get_version("numpy>=1.20.0") == "1.24.0"
+        assert version_map.get_version("numpy==1.24.0") == "1.24.0"
+        assert version_map.get_version("numpy<2.0.0") == "1.24.0"
+
+    def test_get_version_with_extras_and_version(self) -> None:
+        """Test getting version with both extras and version specifier"""
+
+        version_map = VersionMap({"requests": "2.28.0"})
+        assert version_map.get_version("requests[security]>=2.0.0") == "2.28.0"
+
+    def test_get_version_not_found(self) -> None:
+        """Test getting version for non-existent package returns None"""
+
+        version_map = VersionMap({"numpy": "1.24.0"})
+        assert version_map.get_version("pandas") is None
+        assert version_map.get_version("nonexistent") is None
+
+    def test_has_package_exists(self) -> None:
+        """Test has() returns True for existing packages"""
+
+        version_map = VersionMap({"numpy": "1.24.0", "pandas": "2.0.0"})
+        assert version_map.has("numpy") is True
+        assert version_map.has("pandas") is True
+
+    def test_has_package_not_exists(self) -> None:
+        """Test has() returns False for non-existent packages"""
+
+        version_map = VersionMap({"numpy": "1.24.0"})
+        assert version_map.has("pandas") is False
+        assert version_map.has("nonexistent") is False
+
+    def test_has_with_underscore_dash_normalization(self) -> None:
+        """Test has() works with underscore/dash normalization"""
+
+        version_map = VersionMap({"some-package": "1.0.0"})
+        assert version_map.has("some_package") is True
+        assert version_map.has("some-package") is True
+
+    def test_has_with_extras(self) -> None:
+        """Test has() works with extras"""
+
+        version_map = VersionMap({"requests": "2.28.0"})
+        assert version_map.has("requests[security]") is True
+
+    def test_has_with_version_specifier(self) -> None:
+        """Test has() works with version specifiers"""
+
+        version_map = VersionMap({"numpy": "1.24.0"})
+        assert version_map.has("numpy>=1.20.0") is True
+
+    def test_resolve_with_version_exact_match(self) -> None:
+        """Test resolve_with_version with exact match"""
+
+        version_map = VersionMap({"numpy": "1.24.0"})
+        assert version_map.resolve_with_version("numpy") == "numpy==1.24.0"
+
+    def test_resolve_with_version_with_underscore_to_dash(self) -> None:
+        """Test resolve_with_version handles underscore to dash conversion"""
+
+        version_map = VersionMap({"some-package": "1.0.0"})
+        assert (
+            version_map.resolve_with_version("some_package")
+            == "some-package==1.0.0"
+        )
+
+    def test_resolve_with_version_with_dash_to_underscore(self) -> None:
+        """Test resolve_with_version handles dash to underscore conversion"""
+
+        version_map = VersionMap({"some_package": "1.0.0"})
+        assert (
+            version_map.resolve_with_version("some-package")
+            == "some_package==1.0.0"
+        )
+
+    def test_resolve_with_version_not_found(self) -> None:
+        """Test resolve_with_version returns None for non-existent package"""
+
+        version_map = VersionMap({"numpy": "1.24.0"})
+        assert version_map.resolve_with_version("pandas") is None
+
+    def test_resolve_with_version_case_insensitive(self) -> None:
+        """Test resolve_with_version is case insensitive"""
+
+        version_map = VersionMap({"numpy": "1.24.0"})
+        assert version_map.resolve_with_version("NumPy") == "numpy==1.24.0"
+
+    def test_resolve_with_version_with_extras(self) -> None:
+        """Test resolve_with_version preserves extras"""
+
+        version_map = VersionMap({"requests": "2.28.0"})
+        assert (
+            version_map.resolve_with_version("requests[security]")
+            == "requests[security]==2.28.0"
+        )
+
+    def test_resolve_with_version_with_multiple_extras(self) -> None:
+        """Test resolve_with_version preserves multiple extras"""
+
+        version_map = VersionMap({"requests": "2.28.0"})
+        assert (
+            version_map.resolve_with_version("requests[security,socks]")
+            == "requests[security,socks]==2.28.0"
+        )
+
+    def test_resolve_with_version_with_extras_and_version(self) -> None:
+        """Test resolve_with_version preserves extras when version is stripped"""
+
+        version_map = VersionMap({"requests": "2.28.0"})
+        assert (
+            version_map.resolve_with_version("requests[security]>=2.0.0")
+            == "requests[security]==2.28.0"
+        )
+
+    def test_resolve_with_version_with_extras_underscore_dash(self) -> None:
+        """Test resolve_with_version preserves extras with underscore/dash normalization"""
+
+        version_map = VersionMap({"some-package": "1.0.0"})
+        assert (
+            version_map.resolve_with_version("some_package[extra]")
+            == "some-package[extra]==1.0.0"
+        )
+
+        version_map = VersionMap({"some_package": "2.0.0"})
+        assert (
+            version_map.resolve_with_version("some-package[extra]")
+            == "some_package[extra]==2.0.0"
+        )
+
+    def test_resolve_with_version_with_complex_extras(self) -> None:
+        """Test resolve_with_version handles complex extras correctly"""
+
+        version_map = VersionMap({"apache-airflow": "2.7.0"})
+        assert (
+            version_map.resolve_with_version(
+                "apache-airflow[postgres,redis]>=2.0"
+            )
+            == "apache-airflow[postgres,redis]==2.7.0"
+        )
+
+    def test_resolve_with_version_with_version_specifier(self) -> None:
+        """Test resolve_with_version removes existing version specifier"""
+
+        version_map = VersionMap({"numpy": "1.24.0"})
+        assert (
+            version_map.resolve_with_version("numpy>=1.20.0")
+            == "numpy==1.24.0"
+        )
+
+    def test_version_map_empty(self) -> None:
+        """Test VersionMap with empty dict"""
+
+        version_map = VersionMap({})
+        assert version_map.get_version("numpy") is None
+        assert version_map.has("numpy") is False
+        assert version_map.resolve_with_version("numpy") is None
+
+    def test_version_map_real_world_packages(self) -> None:
+        """Test VersionMap with real-world package names"""
+
+        version_map = VersionMap(
+            {
+                "scikit-learn": "1.3.0",
+                "typing_extensions": "4.8.0",
+                "pillow": "10.0.0",
+                "beautifulsoup4": "4.12.0",
+            }
+        )
+
+        # Test scikit-learn
+        assert version_map.get_version("scikit_learn") == "1.3.0"
+        assert version_map.has("scikit-learn") is True
+        assert (
+            version_map.resolve_with_version("scikit_learn")
+            == "scikit-learn==1.3.0"
+        )
+
+        # Test typing_extensions
+        assert version_map.get_version("typing-extensions") == "4.8.0"
+        assert version_map.has("typing_extensions") is True
+
+        # Test pillow (no dash/underscore conversion)
+        assert version_map.get_version("pillow") == "10.0.0"
+        assert version_map.has("Pillow") is True
+
+        # Test beautifulsoup4 (number in name)
+        assert version_map.get_version("beautifulsoup4") == "4.12.0"
+        assert version_map.has("beautifulsoup4") is True

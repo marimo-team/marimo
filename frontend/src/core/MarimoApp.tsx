@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 import "../css/index.css";
 import "../css/app/App.css";
 import "iconify-icon";
@@ -12,6 +12,7 @@ import { getInitialAppMode } from "@/core/mode";
 import { CssVariables } from "@/theme/ThemeProvider";
 import { reactLazyWithPreload } from "@/utils/lazy";
 import { ErrorBoundary } from "../components/editor/boundary/ErrorBoundary";
+import { KernelStartupErrorModal } from "../components/editor/KernelStartupErrorModal";
 import { ModalProvider } from "../components/modal/ImperativeModal";
 import { Toaster } from "../components/ui/toaster";
 import { TooltipProvider } from "../components/ui/tooltip";
@@ -33,14 +34,23 @@ const LazyRunPage = reactLazyWithPreload(
 const LazyEditPage = reactLazyWithPreload(
   () => import("@/components/pages/edit-page"),
 );
+const LazyGalleryPage = reactLazyWithPreload(
+  () => import("@/components/pages/gallery-page"),
+);
 
 export function preloadPage(mode: string) {
-  if (mode === "home") {
-    LazyHomePage.preload();
-  } else if (mode === "read") {
-    LazyRunPage.preload();
-  } else {
-    LazyEditPage.preload();
+  switch (mode) {
+    case "home":
+      LazyHomePage.preload();
+      break;
+    case "gallery":
+      LazyGalleryPage.preload();
+      break;
+    case "read":
+      LazyRunPage.preload();
+      break;
+    default:
+      LazyEditPage.preload();
   }
 }
 
@@ -56,6 +66,9 @@ export const MarimoApp: React.FC = memo(() => {
     const initialMode = getInitialAppMode();
     if (initialMode === "home") {
       return <LazyHomePage.Component />;
+    }
+    if (initialMode === "gallery") {
+      return <LazyGalleryPage.Component />;
     }
     if (initialMode === "read") {
       return <LazyRunPage.Component appConfig={appConfig} />;
@@ -91,6 +104,7 @@ const Providers = memo(({ children }: PropsWithChildren) => {
                 {children}
                 <Toaster />
                 <TailwindIndicator />
+                <KernelStartupErrorModal />
               </ModalProvider>
             </LocaleProvider>
           </SlotzProvider>

@@ -1,14 +1,11 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
 from starlette.authentication import requires
 
-from marimo._runtime.requests import (
-    ClearCacheRequest,
-    GetCacheInfoRequest,
-)
+from marimo._runtime.commands import ClearCacheCommand, GetCacheInfoCommand
 from marimo._server.api.utils import dispatch_control_request
 from marimo._server.models.models import SuccessResponse
 from marimo._server.router import APIRouter
@@ -24,6 +21,12 @@ router = APIRouter()
 @requires("edit")
 async def clear_cache(request: Request) -> SuccessResponse:
     """
+    parameters:
+        - in: header
+          name: Marimo-Session-Id
+          schema:
+            type: string
+          required: true
     requestBody:
         content:
             application/json:
@@ -37,13 +40,19 @@ async def clear_cache(request: Request) -> SuccessResponse:
                     schema:
                         $ref: "#/components/schemas/SuccessResponse"
     """
-    return await dispatch_control_request(request, ClearCacheRequest())
+    return await dispatch_control_request(request, ClearCacheCommand())
 
 
 @router.post("/info")
 @requires("edit")
 async def get_cache_info(request: Request) -> SuccessResponse:
     """
+    parameters:
+        - in: header
+          name: Marimo-Session-Id
+          schema:
+            type: string
+          required: true
     requestBody:
         content:
             application/json:
@@ -57,4 +66,4 @@ async def get_cache_info(request: Request) -> SuccessResponse:
                     schema:
                         $ref: "#/components/schemas/SuccessResponse"
     """
-    return await dispatch_control_request(request, GetCacheInfoRequest())
+    return await dispatch_control_request(request, GetCacheInfoCommand())

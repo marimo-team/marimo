@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import { CaretDownIcon } from "@radix-ui/react-icons";
 import {
@@ -80,7 +80,7 @@ export const OpenTutorialDropDown: React.FC = () => {
           <CaretDownIcon className="w-3 h-3 ml-1" />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent side="bottom" align="end" className="no-print">
+      <DropdownMenuContent side="bottom" align="end" className="print:hidden">
         {Objects.entries(TUTORIALS).map(
           ([tutorialId, [label, Icon, description]]) => (
             <DropdownMenuItem

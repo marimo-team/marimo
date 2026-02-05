@@ -49,7 +49,7 @@ Create your rule in the appropriate directory:
 **Template for a new rule**:
 
 ```python
-# Copyright 2025 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
 from typing import TYPE_CHECKING

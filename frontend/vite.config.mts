@@ -1,5 +1,6 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
+import { execSync } from "node:child_process";
 import { codecovVitePlugin } from "@codecov/vite-plugin";
 import react from "@vitejs/plugin-react";
 import { JSDOM } from "jsdom";
@@ -44,6 +45,9 @@ const htmlDevPlugin = (): Plugin => {
       }
 
       if (isPyodide) {
+        const marimoVersion = execSync("uv run marimo --version")
+          .toString()
+          .trim();
         const modeFromUrl = ctx.originalUrl?.includes("mode=read")
           ? "read"
           : "edit";
@@ -56,7 +60,7 @@ const htmlDevPlugin = (): Plugin => {
             mode: modeFromUrl,
             // If VITE_MARIMO_VERSION is defined, pull the local version of marimo
             // Otherwise, pull the latest version of marimo from PyPI
-            version: process.env.VITE_MARIMO_VERSION ? "local" : "latest",
+            version: process.env.VITE_MARIMO_VERSION ?? marimoVersion,
             config: {
               // Add/remove user config here while developing
               // runtime: {
@@ -229,6 +233,14 @@ export default defineConfig({
         target: TARGET,
         changeOrigin: true,
       },
+      "/mpl": {
+        target: TARGET,
+        ws: true,
+        changeOrigin: true,
+        headers: {
+          origin: TARGET,
+        },
+      },
       "/custom.css": {
         target: TARGET,
         changeOrigin: true,
@@ -292,6 +304,10 @@ export default defineConfig({
       "@emotion/cache",
       "@codemirror/view",
       "@codemirror/state",
+      // Dedupe react-dnd to prevent "Cannot have two HTML5 backends" errors
+      "react-dnd",
+      "react-dnd-html5-backend",
+      "dnd-core",
     ],
   },
   experimental: {

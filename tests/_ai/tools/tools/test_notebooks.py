@@ -9,7 +9,7 @@ import pytest
 from marimo._ai._tools.base import ToolContext
 from marimo._ai._tools.tools.notebooks import GetActiveNotebooks
 from marimo._ai._tools.types import EmptyArgs, MarimoNotebookInfo
-from marimo._server.model import ConnectionState
+from marimo._session.model import ConnectionState
 from marimo._types.ids import SessionId
 
 

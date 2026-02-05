@@ -1,10 +1,10 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import { atom, useAtomValue } from "jotai";
 import { createReducerAndAtoms } from "@/utils/createReducer";
 import type {
   DataColumnPreview,
-  OperationMessageData,
+  NotificationMessageData,
 } from "../kernel/messages";
 import { getRequestClient } from "../network/requests";
 import type { VariableName } from "../variables/types";
@@ -25,7 +25,7 @@ const {
   valueAtom: datasetsAtom,
   useActions,
 } = createReducerAndAtoms(initialState, {
-  addDatasets: (state, datasets: OperationMessageData<"datasets">) => {
+  addDatasets: (state, datasets: NotificationMessageData<"datasets">) => {
     const { previewDatasetColumn } = getRequestClient();
     // Quietly in the background make requests to get the previews for
     // opened columns, in the new tables

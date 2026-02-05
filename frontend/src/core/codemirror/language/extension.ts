@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import { history } from "@codemirror/commands";
 import {
@@ -15,6 +15,7 @@ import type {
   LSPConfig,
 } from "@/core/config/config-schema";
 import type { HotkeyProvider } from "@/core/hotkeys/hotkeys";
+import { Logger } from "@/utils/Logger";
 import { clamp } from "@/utils/math";
 import {
   cellIdState,
@@ -310,6 +311,17 @@ export function reconfigureLanguageEffect(
   const language = view.state.field(languageAdapterState);
   const placeholderType = view.state.facet(placeholderState);
   const cellId = view.state.facet(cellIdState);
+
+  if (cellId === undefined) {
+    Logger.error("Cell ID is undefined in reconfigureLanguageEffect");
+  }
+  if (placeholderType === undefined) {
+    Logger.error("Placeholder type is undefined in reconfigureLanguageEffect");
+  }
+  if (completionConfig === undefined) {
+    Logger.error("Completion config is undefined in reconfigureLanguageEffect");
+  }
+
   return languageCompartment.reconfigure(
     language.getExtension(
       cellId,

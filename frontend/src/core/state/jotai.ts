@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 import { type Atom, atom, createStore, useStore } from "jotai";
 import { isEqual } from "lodash-es";
 import { useEffect } from "react";

@@ -1,8 +1,7 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 import type { CellId } from "@/core/cells/ids";
 
 export type LayoutDirection = "TB" | "LR";
-export type GraphLayoutView = LayoutDirection | "_minimap_";
 
 export type GraphSelection =
   | {

@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
 from typing import Any, Optional, cast
@@ -11,6 +11,7 @@ from marimo._runtime.context.types import (
     ContextNotInitializedError,
     get_context,
 )
+from marimo._sql.engines.adbc import AdbcDBAPIEngine
 from marimo._sql.engines.clickhouse import (
     ClickhouseEmbedded,
     ClickhouseServer,
@@ -39,6 +40,7 @@ SUPPORTED_ENGINES: list[type[BaseEngine[Any]]] = [
     ClickhouseServer,
     PyIcebergEngine,
     RedshiftEngine,
+    AdbcDBAPIEngine,
     DBAPIEngine,
 ]
 

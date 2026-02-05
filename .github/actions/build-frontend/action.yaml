@@ -1,0 +1,36 @@
+name: Build Frontend
+description: Setup pnpm, Node.js, and build the frontend
+
+inputs:
+  node-version:
+    description: 'Node.js version to use'
+    required: false
+    default: '22'
+  turbo-token:
+    description: 'Turbo token for caching'
+    required: false
+  codecov-token:
+    description: 'Codecov token'
+    required: false
+
+runs:
+  using: 'composite'
+
+  steps:
+    - name: ⎔ Setup pnpm
+      uses: pnpm/action-setup@v4
+
+    - name: ⎔ Setup Node.js
+      uses: actions/setup-node@v6
+      with:
+        node-version: ${{ inputs.node-version }}
+        cache: pnpm
+        cache-dependency-path: '**/pnpm-lock.yaml'
+
+    - name: 📦 Build frontend
+      shell: bash
+      run: make fe
+      env:
+        TURBO_TOKEN: ${{ inputs.turbo-token }}
+        TURBO_TEAM: marimo
+        CODECOV_TOKEN: ${{ inputs.codecov-token }}

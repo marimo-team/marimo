@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 export const Filenames = {
   toMarkdown: (filename: string): string => {
     return Filenames.replace(filename, "md");
@@ -8,6 +8,9 @@ export const Filenames = {
   },
   toPNG: (filename: string): string => {
     return Filenames.replace(filename, "png");
+  },
+  toPDF: (filename: string): string => {
+    return Filenames.replace(filename, "pdf");
   },
   toPY: (filename: string): string => {
     return Filenames.replace(filename, "py");

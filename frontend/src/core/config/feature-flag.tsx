@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import { repl } from "@/utils/repl";
 import { getRequestClient } from "../network/requests";
@@ -9,10 +9,9 @@ export interface ExperimentalFeatures {
   markdown: boolean; // Used in playground (community cloud)
   wasm_layouts: boolean; // Used in playground (community cloud)
   rtc_v2: boolean;
-  performant_table_charts: boolean;
-  chat_modes: boolean;
   cache_panel: boolean;
   external_agents: boolean;
+  server_side_pdf_export: boolean;
   // Add new feature flags here
 }
 
@@ -20,10 +19,9 @@ const defaultValues: ExperimentalFeatures = {
   markdown: true,
   wasm_layouts: false,
   rtc_v2: false,
-  performant_table_charts: false,
-  chat_modes: false,
   cache_panel: false,
   external_agents: import.meta.env.DEV,
+  server_side_pdf_export: true,
 };
 
 export function getFeatureFlag<T extends keyof ExperimentalFeatures>(
@@ -37,10 +35,10 @@ export function getFeatureFlag<T extends keyof ExperimentalFeatures>(
 }
 
 function setFeatureFlag(feature: keyof ExperimentalFeatures, value: boolean) {
-  const userConfig = getResolvedMarimoConfig();
-  userConfig.experimental = userConfig.experimental ?? {};
-  userConfig.experimental[feature] = value;
-  getRequestClient().saveUserConfig({ config: userConfig });
+  // Send only the changed portion to avoid overwriting other config values
+  void getRequestClient().saveUserConfig({
+    config: { experimental: { [feature]: value } },
+  });
 }
 
 export const FeatureFlagged: React.FC<{

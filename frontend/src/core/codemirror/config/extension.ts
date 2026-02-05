@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import type { CellId } from "@/core/cells/ids";
 import type {
@@ -41,12 +41,14 @@ export const lspConfigState = singleFacet<
  * Extension for cell config
  */
 export function cellConfigExtension({
+  cellId,
   completionConfig,
   hotkeys,
   placeholderType,
   lspConfig,
   diagnosticsConfig,
 }: {
+  cellId: CellId;
   completionConfig: CompletionConfig;
   hotkeys: HotkeyProvider;
   placeholderType: PlaceholderType;
@@ -55,6 +57,7 @@ export function cellConfigExtension({
 }) {
   return [
     // Store state
+    cellIdState.of(cellId),
     completionConfigState.of(completionConfig),
     hotkeysProviderState.of(hotkeys),
     placeholderState.of(placeholderType),

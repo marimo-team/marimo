@@ -1,4 +1,4 @@
-# Copyright 2025 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 """Queue proxy for ZeroMQ sockets."""
 
 from __future__ import annotations
@@ -7,14 +7,15 @@ import pickle
 import threading
 import typing
 
-import zmq
-
 from marimo import _loggers
-from marimo._server.types import QueueType
+from marimo._session.queue import QueueType
 
 LOGGER = _loggers.marimo_logger()
 
 T = typing.TypeVar("T")
+
+if typing.TYPE_CHECKING:
+    import zmq
 
 
 class PushQueue(QueueType[T]):
@@ -65,6 +66,7 @@ def start_receiver_thread(
     receivers: dict[zmq.Socket[bytes], QueueType[typing.Any]],
 ) -> tuple[threading.Event, threading.Thread]:
     """Start receiver thread."""
+    import zmq
 
     def receive_loop(
         receivers: dict[zmq.Socket[bytes], QueueType[typing.Any]],

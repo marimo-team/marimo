@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
 import http.server
@@ -13,7 +13,7 @@ from typing import Any
 
 import pytest
 
-from marimo._server.utils import find_free_port
+from marimo._utils.net import find_free_port
 from marimo._utils.platform import is_windows
 from tests.mocks import snapshotter
 

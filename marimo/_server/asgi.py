@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
 import abc
@@ -391,11 +391,11 @@ def create_asgi_app(
     from marimo._server.file_router import AppFileRouter
     from marimo._server.lsp import NoopLspServer
     from marimo._server.main import create_starlette_app
-    from marimo._server.model import SessionMode
     from marimo._server.registry import LIFESPAN_REGISTRY
-    from marimo._server.sessions import SessionManager
+    from marimo._server.session_manager import SessionManager
     from marimo._server.tokens import AuthToken
     from marimo._server.utils import initialize_asyncio
+    from marimo._session.model import SessionMode
     from marimo._utils.lifespans import Lifespans
     from marimo._utils.marimo_path import MarimoPath
 

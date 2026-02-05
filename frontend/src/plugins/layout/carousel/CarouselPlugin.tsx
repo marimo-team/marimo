@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import React, { type JSX } from "react";
 import swiperCssNavigation from "swiper/css/navigation?inline";
@@ -7,6 +7,7 @@ import swiperCssScrollbar from "swiper/css/scrollbar?inline";
 import swiperCssVirtual from "swiper/css/virtual?inline";
 import swiperCss from "swiper/css?inline";
 import { z } from "zod";
+import slidesCss from "@/components/slides/slides.css?inline";
 import type {
   IStatelessPlugin,
   IStatelessPluginProps,
@@ -32,11 +33,12 @@ export class CarouselPlugin implements IStatelessPlugin<Data> {
     swiperCssNavigation,
     swiperCssPagination,
     swiperCssScrollbar,
+    slidesCss,
   ];
 
   render(props: IStatelessPluginProps<Data>): JSX.Element {
     return (
-      <LazySlidesComponent {...props.data}>
+      <LazySlidesComponent {...props.data} wrapAround={true}>
         {props.children}
       </LazySlidesComponent>
     );

@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 import { toast } from "@/components/ui/use-toast";
 import { Logger } from "@/utils/Logger";
 import type { EditRequests, RunRequests } from "./types";
@@ -76,9 +76,11 @@ export function createStaticRequests(): EditRequests & RunRequests {
     shutdownSession: throwNotInEditMode,
     exportAsHTML: throwNotInEditMode,
     exportAsMarkdown: throwNotInEditMode,
+    exportAsPDF: throwNotInEditMode,
     autoExportAsHTML: throwNotInEditMode,
     autoExportAsMarkdown: throwNotInEditMode,
     autoExportAsIPYNB: throwNotInEditMode,
+    updateCellOutputs: throwNotInEditMode,
     addPackage: throwNotInEditMode,
     removePackage: throwNotInEditMode,
     getPackageList: throwNotInEditMode,

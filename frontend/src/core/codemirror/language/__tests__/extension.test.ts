@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 // @vitest-environment jsdom
 
 import { EditorState } from "@codemirror/state";
@@ -49,6 +49,7 @@ function createState(content: string, selection?: { anchor: number }) {
         placeholderType: "marimo-import",
       }),
       cellConfigExtension({
+        cellId: "cell1" as CellId,
         completionConfig: {
           copilot: false,
           activate_on_typing: true,

@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
 import asyncio
@@ -7,7 +7,7 @@ import time
 from typing import Any, Callable, Generic, Protocol, TypeVar, Union
 
 from marimo import _loggers
-from marimo._server.types import QueueType
+from marimo._session.queue import QueueType
 from marimo._utils.disposable import Disposable
 from marimo._utils.typed_connection import TypedConnection
 

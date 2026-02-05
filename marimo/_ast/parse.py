@@ -1,4 +1,4 @@
-# Copyright 2025 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
 import ast
@@ -96,6 +96,10 @@ class MarimoFileError(Exception):
     pass
 
 
+class NonMarimoPythonScriptError(Exception):
+    pass
+
+
 class Extractor:
     """Helper to extract AST nodes to schema/serialization ir."""
 
@@ -176,6 +180,59 @@ class Extractor:
             _none_to_0(node.end_lineno) - 1,
             _none_to_0(node.end_col_offset),
         )
+
+        # Capture trailing comments after the AST's end position for app.function
+        # and the setup cell (which is in a with block).
+        #
+        # The AST doesn't include comments, so we look for lines after
+        # node.end_lineno that are at the body indentation level.
+        # We append trailing code BEFORE dedenting so both get dedented
+        # by the same amount, preserving relative indentation.
+        if (
+            isinstance(
+                node,
+                (
+                    ast.AsyncFunctionDef,
+                    ast.FunctionDef,
+                    ast.ClassDef,
+                    ast.With,
+                    ast.AsyncWith,
+                ),
+            )
+            and len(node.body) > 0
+        ):
+            end_lineno = _none_to_0(node.end_lineno)
+            # Extract actual indentation from the first body line
+            # (handles both tabs and spaces)
+            first_body_line = self.lines[node.body[0].lineno - 1]
+            body_indent = first_body_line[
+                : len(first_body_line) - len(first_body_line.lstrip())
+            ]
+            # Skip if body is on the same line as the definition (e.g.,
+            # `class Foo: ...` or `def f(): pass`) - empty indent would
+            # match all lines incorrectly.
+            if not body_indent:
+                return ParseResult(fixed_dedent(code), violations=violations)
+
+            # Find the extent of the body by consuming lines until we find
+            # a line that is not indented at the body level.
+            for line_idx in range(end_lineno, len(self.lines)):
+                line = self.lines[line_idx]
+                # Empty lines or lines at body indentation are included
+                if not line.strip() or line.startswith(body_indent):
+                    continue
+                # Found a line not at the right indentation
+                break
+            else:
+                line_idx = len(self.lines)
+
+            if line_idx > end_lineno:
+                trailing_code = "\n".join(
+                    self.lines[end_lineno:line_idx]
+                ).rstrip()
+                if trailing_code:
+                    code = code + "\n" + trailing_code
+
         return ParseResult(fixed_dedent(code), violations=violations)
 
     def to_cell_def(
@@ -312,7 +369,7 @@ class Extractor:
         kwargs, _violations = _maybe_kwargs(node.items[0].context_expr)  # type: ignore
         code_result = self.extract_from_code(node)
         _violations.extend(code_result.violations)
-        code = fixed_dedent(code_result.unwrap())
+        code = code_result.unwrap()
         if code.endswith("\npass"):
             code = code[: -len("\npass")]
         return ParseResult(
@@ -363,11 +420,11 @@ class Extractor:
             }
             cell_type = cell_types.get(attribute, None)
             if cell_type is not None:
-                code = self.extract_from_code(node)
-                violations.extend(code.violations)
+                code_result = self.extract_from_code(node)
+                violations.extend(code_result.violations)
                 return ParseResult(
                     cell_type(
-                        code=code.unwrap(),
+                        code=code_result.unwrap(),
                         _ast=node,
                         options=kwargs,
                     ),
@@ -380,9 +437,25 @@ class Extractor:
             # but mypy is struggling.
             kwargs, _violations = _eval_kwargs(node.value.keywords)  # type: ignore
             violations.extend(_violations)
+            raw_string_node = node.value.args[0]  # type: ignore
+            if not isinstance(raw_string_node, ast.Constant) or not isinstance(
+                raw_string_node.value, str
+            ):
+                violations.append(
+                    Violation(
+                        f"Expected string constant in unparsable cell, got {type(raw_string_node).__name__}",
+                        lineno=node.lineno,
+                        col_offset=node.col_offset,
+                    )
+                )
+                unparsable_code = ""
+            else:
+                unparsable = raw_string_node.value
+                unparsable_code = fixed_dedent(unparsable).strip()
+
             return ParseResult(
                 UnparsableCell(
-                    code=node.value.args[0].value,  # type: ignore
+                    code=unparsable_code,
                     options=kwargs,
                     _ast=node,
                 ),

@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 
 import marimo
 
@@ -12,8 +12,8 @@ def _(mo):
         r"""
         # Polars: High-Performance Joins and Aggregations
 
-        This snippet shows efficient join operations in Polars using `lazy()` evaluation. 
-        Demonstrates joining DataFrames with different strategies, aggregating results, 
+        This snippet shows efficient join operations in Polars using `lazy()` evaluation.
+        Demonstrates joining DataFrames with different strategies, aggregating results,
         and applying window functions for analysis.
         """
     )

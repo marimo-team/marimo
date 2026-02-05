@@ -1,7 +1,8 @@
+from __future__ import annotations
+
 import asyncio
 import sys
-from collections.abc import AsyncGenerator
-from typing import cast
+from typing import TYPE_CHECKING, cast
 
 import pytest
 
@@ -13,6 +14,10 @@ if sys.version_info >= (3, 11) and sys.version_info < (3, 14):
     from loro import LoroDoc, LoroText
 
 doc_manager = LoroDocManager()
+
+
+if TYPE_CHECKING:
+    from collections.abc import AsyncGenerator
 
 
 @pytest.fixture  # type: ignore

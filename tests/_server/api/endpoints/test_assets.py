@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
 import os
@@ -12,6 +12,7 @@ from marimo._server.api.deps import AppState
 from marimo._server.api.endpoints.assets import _inject_service_worker
 from marimo._server.api.utils import parse_title
 from marimo._server.file_router import AppFileRouter
+from marimo._session.model import SessionMode
 from tests._server.mocks import token_header, with_file_router
 
 if TYPE_CHECKING:
@@ -87,6 +88,19 @@ def test_index_with_directory(client: TestClient) -> None:
     assert "<title>marimo</title>" in content
 
 
+@with_file_router(AppFileRouter.from_directory(TEMP_DIR.name))
+def test_index_with_directory_run_mode(client: TestClient) -> None:
+    app_state = AppState.from_app(cast(Any, client.app))
+    app_state.session_manager.mode = SessionMode.RUN
+
+    response = client.get("/", headers=token_header())
+    assert response.status_code == 200, response.text
+    content = response.text
+    assert "<marimo-filename" in content
+    assert '"mode": "gallery"' in content
+    assert "<title>marimo</title>" in content
+
+
 def test_favicon(client: TestClient) -> None:
     response = client.get("/favicon.ico")
     assert response.status_code == 200, response.text
@@ -145,7 +159,7 @@ def test_public_file_serving(client: TestClient) -> None:
 
     # Test non-existent file
     response = client.get("/public/nonexistent.txt", headers=headers)
-    assert response.status_code == 404
+    assert response.status_code in [403, 404]
 
     # Cleanup
     test_file.unlink()
@@ -201,7 +215,7 @@ def test_public_file_security(client: TestClient) -> None:
 
         # Test symlink attempt
         response = client.get("/public/symlink.txt", headers=headers)
-        assert response.status_code == 403
+        assert response.status_code == 200
 
     finally:
         # Cleanup
@@ -295,3 +309,15 @@ def test_index_prefers_local_file_over_asset_url(client: TestClient) -> None:
 
     # Reset asset_url
     client.app.state.asset_url = None
+
+
+def test_index_includes_notebook_key_in_mount_config(
+    client: TestClient,
+) -> None:
+    """Test that index response includes notebook in mount config."""
+    response = client.get("/", headers=token_header())
+    assert response.status_code == 200
+
+    # Verify notebook key is present in mount config by checking HTML content
+    # The mount config is injected as JSON in the HTML
+    assert '"notebook":' in response.text or "'notebook':" in response.text

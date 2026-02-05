@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 import { type Platform, resolvePlatform } from "@/core/hotkeys/shortcuts";
 import { Objects } from "@/utils/objects";
 
@@ -350,6 +350,11 @@ const DEFAULT_HOT_KEY = {
     name: "Show integrated terminal",
     group: "Other",
     key: "Ctrl-`",
+  },
+  "global.togglePanel": {
+    name: "Toggle developer panel",
+    group: "Other",
+    key: "Mod-j",
   },
   "global.collapseAllSections": {
     name: "Collapse all sections",

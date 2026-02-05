@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
 import inspect
@@ -11,8 +11,11 @@ from typing import (
     Literal,
     Optional,
     Union,
+    cast,
 )
 
+from marimo._messaging.mimetypes import KnownMimeType
+from marimo._output.hypertext import is_non_interactive
 from marimo._output.rich_help import mddoc
 from marimo._plugins.ui._core.ui_element import UIElement
 from marimo._plugins.ui._impl.dataframes.transforms.apply import (
@@ -30,6 +33,7 @@ from marimo._plugins.ui._impl.table import (
     SortArgs,
     TableSearchError,
 )
+from marimo._plugins.ui._impl.tables.format import FormatMapping
 from marimo._plugins.ui._impl.tables.table_manager import (
     FieldTypes,
     TableManager,
@@ -44,6 +48,7 @@ from marimo._plugins.validators import (
 )
 from marimo._runtime.functions import EmptyArgs, Function
 from marimo._utils.memoize import memoize_last_value
+from marimo._utils.methods import getcallable
 from marimo._utils.narwhals_utils import is_narwhals_lazyframe, make_lazy
 from marimo._utils.parse_dataclass import parse_raw
 
@@ -58,6 +63,8 @@ class GetDataFrameResponse:
     # This really only applies to Pandas, that has special index columns
     row_headers: FieldTypes
     field_types: FieldTypes
+    # Column types at each transform step (index 0 = original, index N = after N transforms)
+    column_types_per_step: list[FieldTypes]
     python_code: Optional[str] = None
     sql_code: Optional[str] = None
 
@@ -108,8 +115,11 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
             dataframes via Ibis.
         show_download (bool, optional): Whether to show the download button.
             Defaults to True.
-        download_csv_encoding (str, optional): Encoding used when downloading CSV.
-            Defaults to "utf-8". Set to "utf-8-sig" to include BOM for Excel.
+        format_mapping (Optional[Dict[str, Union[str, Callable[..., Any]]]], optional): A mapping from
+            column names to formatting strings or functions.
+        download_csv_encoding (str | None, optional): Encoding used when downloading CSV.
+            Defaults to the runtime config value (or "utf-8" if not configured).
+            Set to "utf-8-sig" to include BOM for Excel.
         download_json_ensure_ascii (bool, optional): Whether to escape non-ASCII characters
             in JSON downloads. Defaults to True.
         on_change (Optional[Callable[[DataFrameType], None]], optional): Optional callback
@@ -128,7 +138,8 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
         limit: Optional[int] = None,
         show_download: bool = True,
         *,
-        download_csv_encoding: str = "utf-8",
+        format_mapping: Optional[FormatMapping] = None,
+        download_csv_encoding: str | None = None,
         download_json_ensure_ascii: bool = True,
         lazy: Optional[bool] = None,
     ) -> None:
@@ -161,9 +172,13 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
         self._download_json_ensure_ascii = download_json_ensure_ascii
         self._handler = handler
         self._manager = self._get_cached_table_manager(df, self._limit)
+        self._format_mapping = format_mapping
         self._transform_container = TransformsContainer(nw_df, handler)
         self._error: Optional[str] = None
         self._last_transforms = Transformations([])
+        self._column_types_per_step: list[FieldTypes] = [
+            self._manager.get_field_types()
+        ]
         self._page_size = page_size or 5  # Default to 5 rows (.head())
         self._show_download = show_download
         rows = self._manager.get_num_rows(force=False)
@@ -215,6 +230,17 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
             ),
         )
 
+    # Override _mime_ to return a plain HTML representation in non-interactive environments
+    def _mime_(self) -> tuple[KnownMimeType, str]:
+        if is_non_interactive():
+            # Generates a plain HTML representation of the table data,
+            # useful for rendering in the GitHub viewer.
+            repr_html = getcallable(self._data, "_repr_html_")
+            if repr_html is not None:
+                return ("text/html", cast(str, repr_html()))
+            return ("text/html", str(self._data))
+        return ("text/html", self.text)
+
     def _get_column_types(self) -> list[list[Union[str, int]]]:
         return [
             [name, dtype[0], dtype[1]]
@@ -234,6 +260,7 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
             total_rows=response.total_rows,
             row_headers=manager.get_row_headers(),
             field_types=manager.get_field_types(),
+            column_types_per_step=self._column_types_per_step,
             python_code=self._handler.as_python_code(
                 self._transform_container._snapshot_df,
                 self._dataframe_name,
@@ -277,7 +304,10 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
 
         try:
             transformations = parse_raw(value, Transformations)
-            result = self._transform_container.apply(transformations)
+            result, self._column_types_per_step = (
+                self._transform_container.apply(transformations)
+            )
+
             self._error = None
             self._last_transforms = transformations
             return self._undo(result)
@@ -295,7 +325,9 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
 
         # Save the manager to be used for selection
         try:
-            data = result.take(args.page_size, offset).to_json_str()
+            data = result.take(args.page_size, offset).to_json_str(
+                self._format_mapping
+            )
         except BaseException as e:
             # Catch and re-raise the error as a non-BaseException
             # to avoid crashing the kernel

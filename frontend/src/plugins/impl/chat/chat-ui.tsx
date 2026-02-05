@@ -1,15 +1,18 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import { type UIMessage, useChat } from "@ai-sdk/react";
 import { ChatBubbleIcon } from "@radix-ui/react-icons";
 import { PopoverAnchor } from "@radix-ui/react-popover";
 import type { ReactCodeMirrorRef } from "@uiw/react-codemirror";
-import { DefaultChatTransport, type FileUIPart } from "ai";
+import {
+  createUIMessageStreamResponse,
+  DefaultChatTransport,
+  type TextUIPart,
+  type UIMessageChunk,
+} from "ai";
 import { startCase } from "lodash-es";
 import {
   BotMessageSquareIcon,
-  ClipboardIcon,
-  DownloadIcon,
   HelpCircleIcon,
   PaperclipIcon,
   RotateCwIcon,
@@ -18,14 +21,16 @@ import {
   Trash2Icon,
   X,
 } from "lucide-react";
-import React, { lazy, useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
+import { renderUIMessage } from "@/components/chat/chat-display";
 import { convertToFileUIPart } from "@/components/chat/chat-utils";
 import {
   type AdditionalCompletions,
   PromptInput,
 } from "@/components/editor/ai/add-cell-with-ai";
+import { CopyClipboardIcon } from "@/components/icons/copy-icon";
 import { Spinner } from "@/components/icons/spinner";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -41,7 +46,6 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Tooltip } from "@/components/ui/tooltip";
-import { toast } from "@/components/ui/use-toast";
 import { moveToEndOfEditor } from "@/core/codemirror/utils";
 import { MarimoIncomingMessageEvent } from "@/core/dom/events";
 import { useAsyncData } from "@/hooks/useAsyncData";
@@ -50,16 +54,11 @@ import {
   useEventListener,
 } from "@/hooks/useEventListener";
 import { cn } from "@/utils/cn";
-import { copyToClipboard } from "@/utils/copy";
 import { Logger } from "@/utils/Logger";
 import { Objects } from "@/utils/objects";
 import { ErrorBanner } from "../common/error-banner";
 import type { PluginFunctions } from "./ChatPlugin";
-import type { ChatConfig, ChatMessage } from "./types";
-
-const LazyStreamdown = lazy(() =>
-  import("streamdown").then((module) => ({ default: module.Streamdown })),
-);
+import type { ChatConfig } from "./types";
 
 interface Props extends PluginFunctions {
   prompts: string[];
@@ -67,19 +66,37 @@ interface Props extends PluginFunctions {
   showConfigurationControls: boolean;
   maxHeight: number | undefined;
   allowAttachments: boolean | string[];
-  value: ChatMessage[];
-  setValue: (messages: ChatMessage[]) => void;
+  value: UIMessage[];
+  setValue: (messages: UIMessage[]) => void;
   host: HTMLElement;
 }
 
 export const Chatbot: React.FC<Props> = (props) => {
   const [input, setInput] = useState("");
   const [config, setConfig] = useState<ChatConfig>(props.config);
+  const [prevPropsConfig, setPrevPropsConfig] = useState<ChatConfig>(
+    props.config,
+  );
   const [files, setFiles] = useState<File[] | undefined>(undefined);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
   const codeMirrorInputRef = useRef<ReactCodeMirrorRef>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  const configChanged = Object.keys(props.config).some(
+    (key) =>
+      props.config[key as keyof ChatConfig] !==
+      prevPropsConfig[key as keyof ChatConfig],
+  );
+
+  if (configChanged) {
+    setConfig(props.config);
+    setPrevPropsConfig(props.config);
+  }
+
+  // Use a ref to avoid stale closure in the fetch callback
+  const configRef = useRef<ChatConfig>(config);
+  configRef.current = config;
 
   // Track streaming state - maps backend message_id to frontend message index
   const streamingStateRef = useRef<{
@@ -87,15 +104,20 @@ export const Chatbot: React.FC<Props> = (props) => {
     frontendMessageIndex: number | null;
   }>({ backendMessageId: null, frontendMessageIndex: null });
 
-  const { data: initialMessages } = useAsyncData(async () => {
-    const chatMessages = await props.get_chat_history({});
-    const messages: UIMessage[] = chatMessages.messages.map((message, idx) => ({
-      id: idx.toString(),
-      role: message.role,
-      parts: message.parts ?? [],
-    }));
-    return messages;
+  // For frontend-managed streaming, create a controller to enqueue chunks to.
+  const frontendStreamControllerRef =
+    useRef<ReadableStreamDefaultController<UIMessageChunk> | null>(null);
+
+  const { data: backendMessages } = useAsyncData(async () => {
+    const response = await props.get_chat_history({});
+    return response.messages;
   }, []);
+
+  // Use props.value (persisted plugin state) if available,
+  // otherwise fall back to backend messages.
+  // This ensures messages persist when switching between edit/app views.
+  const initialMessages =
+    props.value.length > 0 ? props.value : backendMessages;
 
   const {
     messages,
@@ -105,6 +127,7 @@ export const Chatbot: React.FC<Props> = (props) => {
     stop,
     error,
     regenerate,
+    clearError,
   } = useChat({
     transport: new DefaultChatTransport({
       fetch: async (
@@ -118,70 +141,80 @@ export const Chatbot: React.FC<Props> = (props) => {
         const body = JSON.parse(init.body as unknown as string) as {
           messages: UIMessage[];
         };
+
+        // Catch signals like abort to stop the stream (when stop function is called from useChat)
+        const signal = init.signal;
+
+        const chatConfig: ChatConfig = {
+          max_tokens: configRef.current.max_tokens,
+          temperature: configRef.current.temperature,
+          top_p: configRef.current.top_p,
+          top_k: configRef.current.top_k,
+          frequency_penalty: configRef.current.frequency_penalty,
+          presence_penalty: configRef.current.presence_penalty,
+        };
+
         try {
-          const messages = body.messages.map((m) => ({
-            role: m.role,
-            content: m.parts
-              ?.map((p) => ("text" in p ? p.text : ""))
-              .join("\n"),
-            parts: m.parts,
-          }));
+          // Content is added for backwards compatibility
+          const messages = body.messages.map((m) => {
+            return {
+              ...m,
+              content: m.parts
+                ?.map((p) => ("text" in p ? p.text : ""))
+                .join("\n"),
+            };
+          });
 
-          // Create a placeholder message for streaming
-          const messageId = Date.now().toString();
+          const stream = new ReadableStream<UIMessageChunk>({
+            start(controller) {
+              frontendStreamControllerRef.current = controller;
 
-          setMessages((prev) => [
-            ...prev,
-            {
-              id: messageId,
-              role: "assistant",
-              parts: [{ type: "text", text: "" }],
+              const abortHandler = () => {
+                try {
+                  controller.close();
+                } catch (error) {
+                  Logger.debug("Controller may already be closed", { error });
+                }
+                frontendStreamControllerRef.current = null;
+              };
+              signal?.addEventListener("abort", abortHandler);
+
+              return () => {
+                signal?.removeEventListener("abort", abortHandler);
+              };
             },
-          ]);
-
-          const response = await props.send_prompt({
-            messages: messages,
-            config: {
-              max_tokens: config.max_tokens,
-              temperature: config.temperature,
-              top_p: config.top_p,
-              top_k: config.top_k,
-              frequency_penalty: config.frequency_penalty,
-              presence_penalty: config.presence_penalty,
+            cancel() {
+              frontendStreamControllerRef.current = null;
             },
           });
 
-          // If streaming didn't happen (non-generator response), update the message
-          // Check if streaming state is still set (meaning no chunks were received)
-          if (
-            streamingStateRef.current.backendMessageId === null &&
-            streamingStateRef.current.frontendMessageIndex === null
-          ) {
-            setMessages((prev) => {
-              const updated = [...prev];
-              const index = updated.findIndex((m) => m.id === messageId);
-              if (index !== -1) {
-                updated[index] = {
-                  ...updated[index],
-                  parts: [{ type: "text", text: response }],
-                };
-              }
-              return updated;
+          // Start the prompt, chunks will be sent via events
+          void props
+            .send_prompt({
+              messages: messages,
+              config: chatConfig,
+            })
+            .catch((error: Error) => {
+              frontendStreamControllerRef.current?.error(error);
+              frontendStreamControllerRef.current = null;
             });
-          }
 
-          return new Response(response);
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        } catch (error: any) {
+          return createUIMessageStreamResponse({ stream });
+        } catch (error: unknown) {
           // Clear streaming state on error
           streamingStateRef.current = {
             backendMessageId: null,
             frontendMessageIndex: null,
           };
 
+          // Handle abort gracefully without showing an error
+          if (error instanceof Error && error.name === "AbortError") {
+            return new Response("Aborted", { status: 499 });
+          }
+
           // HACK: strip the error message to clean up the response
-          const strippedError = error.message
-            .split("failed with exception ")
+          const strippedError = (error as Error).message
+            ?.split("failed with exception ")
             .pop();
           return new Response(strippedError, { status: 400 });
         }
@@ -201,6 +234,8 @@ export const Chatbot: React.FC<Props> = (props) => {
         backendMessageId: null,
         frontendMessageIndex: null,
       };
+
+      props.setValue(message.messages);
     },
     onError: (error) => {
       Logger.error("An error occurred:", error);
@@ -219,71 +254,36 @@ export const Chatbot: React.FC<Props> = (props) => {
     (e) => {
       const message = e.detail.message;
       if (
-        typeof message === "object" &&
-        message !== null &&
-        "type" in message &&
-        message.type === "stream_chunk"
+        typeof message !== "object" ||
+        message === null ||
+        !("type" in message) ||
+        message.type !== "stream_chunk"
       ) {
-        const chunkMessage = message as {
-          type: string;
-          message_id: string;
-          content: string;
-          is_final: boolean;
-        };
-
-        // Initialize streaming state on first chunk if not already set
-        if (streamingStateRef.current.backendMessageId === null) {
-          // Find the last assistant message (which should be the placeholder we created)
-          setMessages((prev) => {
-            const updated = [...prev];
-            // Find the last assistant message
-            for (let i = updated.length - 1; i >= 0; i--) {
-              if (updated[i].role === "assistant") {
-                streamingStateRef.current = {
-                  backendMessageId: chunkMessage.message_id,
-                  frontendMessageIndex: i,
-                };
-                break;
-              }
-            }
-            return updated;
-          });
-        }
-
-        // Only process chunks for the current streaming message
-        const frontendIndex = streamingStateRef.current.frontendMessageIndex;
-        if (
-          streamingStateRef.current.backendMessageId ===
-            chunkMessage.message_id &&
-          frontendIndex !== null
-        ) {
-          setMessages((prev) => {
-            const updated = [...prev];
-            const index = frontendIndex;
-
-            // Update the message at the tracked index
-            if (index < updated.length) {
-              const messageToUpdate = updated[index];
-              if (messageToUpdate.role === "assistant") {
-                updated[index] = {
-                  ...messageToUpdate,
-                  parts: [{ type: "text", text: chunkMessage.content }],
-                };
-              }
-            }
-
-            return updated;
-          });
-
-          // Clear streaming state when final chunk arrives
-          if (chunkMessage.is_final) {
-            streamingStateRef.current = {
-              backendMessageId: null,
-              frontendMessageIndex: null,
-            };
-          }
-        }
+        return;
       }
+
+      // Push to the stream for useChat to process
+      const controller = frontendStreamControllerRef.current;
+      if (!controller) {
+        return;
+      }
+
+      const frontendMessage = message as {
+        type: string;
+        message_id: string;
+        content?: UIMessageChunk;
+        is_final?: boolean;
+      };
+
+      if (frontendMessage.content) {
+        controller.enqueue(frontendMessage.content);
+      }
+      if (frontendMessage.is_final) {
+        controller.close();
+        frontendStreamControllerRef.current = null;
+      }
+
+      return;
     },
   );
 
@@ -292,74 +292,12 @@ export const Chatbot: React.FC<Props> = (props) => {
   const handleDelete = (id: string) => {
     const index = messages.findIndex((message) => message.id === id);
     if (index !== -1) {
+      const newMessages = messages.filter((message) => message.id !== id);
       props.delete_chat_message({ index });
-      setMessages((prev) => prev.filter((message) => message.id !== id));
+      setMessages(newMessages);
+
+      props.setValue(newMessages);
     }
-  };
-
-  const renderAttachment = (attachment: FileUIPart) => {
-    if (attachment.mediaType?.startsWith("image")) {
-      return (
-        <img
-          src={attachment.url}
-          alt={attachment.filename || "Attachment"}
-          className="object-contain rounded-sm"
-          width={100}
-          height={100}
-        />
-      );
-    }
-
-    return (
-      <a
-        href={attachment.url}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="text-background hover:underline"
-      >
-        {attachment.filename || "Attachment"}
-      </a>
-    );
-  };
-
-  const renderMessage = (message: UIMessage) => {
-    const textParts = message.parts?.filter((p) => p.type === "text");
-    const textContent = textParts?.map((p) => p.text).join("\n");
-    const content =
-      message.role === "assistant" ? (
-        <LazyStreamdown className="mo-markdown-renderer">
-          {textContent}
-        </LazyStreamdown>
-      ) : (
-        textContent
-      );
-
-    const attachments = message.parts?.filter((p) => p.type === "file");
-
-    return (
-      <>
-        {content}
-        {attachments && attachments.length > 0 && (
-          <div className="mt-2">
-            {attachments.map((attachment, index) => (
-              <div key={index} className="flex items-baseline gap-2 ">
-                {renderAttachment(attachment)}
-                <a
-                  className={buttonVariants({
-                    variant: "text",
-                    size: "icon",
-                  })}
-                  href={attachment.url}
-                  download={attachment.filename}
-                >
-                  <DownloadIcon className="size-3" />
-                </a>
-              </div>
-            ))}
-          </div>
-        )}
-      </>
-    );
   };
 
   const shouldShowAttachments =
@@ -403,6 +341,13 @@ export const Chatbot: React.FC<Props> = (props) => {
     setInput("");
   };
 
+  const resetChatbot = () => {
+    setMessages([]);
+    props.setValue([]);
+    props.delete_chat_history({});
+    clearError();
+  };
+
   return (
     <div
       className="flex flex-col h-full bg-(--slate-1) rounded-lg shadow border border-(--slate-6) overflow-hidden relative"
@@ -413,11 +358,7 @@ export const Chatbot: React.FC<Props> = (props) => {
           variant="text"
           size="icon"
           disabled={messages.length === 0}
-          onClick={() => {
-            setMessages([]);
-            props.setValue([]);
-            props.delete_chat_history({});
-          }}
+          onClick={resetChatbot}
         >
           <RotateCwIcon className="h-3 w-3" />
         </Button>
@@ -435,15 +376,16 @@ export const Chatbot: React.FC<Props> = (props) => {
             </p>
           </div>
         )}
-        {messages.map((message) => {
+        {messages.map((message, index) => {
           const textContent = message.parts
-            ?.filter((p) => p.type === "text")
+            ?.filter((p): p is TextUIPart => p.type === "text")
             .map((p) => p.text)
             .join("\n");
+          const isLast = index === messages.length - 1;
 
           return (
             <div
-              key={message.id}
+              key={`${message.id}-${index}`}
               className={cn(
                 "flex flex-col group gap-2",
                 message.role === "user" ? "items-end" : "items-start",
@@ -456,21 +398,18 @@ export const Chatbot: React.FC<Props> = (props) => {
                     : "bg-(--slate-4) text-(--slate-12)"
                 }`}
               >
-                {renderMessage(message)}
+                {renderUIMessage({
+                  message,
+                  isStreamingReasoning: status === "streaming",
+                  isLast,
+                })}
               </div>
               <div className="flex justify-end text-xs gap-2 invisible group-hover:visible">
-                <button
-                  type="button"
-                  onClick={async () => {
-                    await copyToClipboard(textContent);
-                    toast({
-                      title: "Copied to clipboard",
-                    });
-                  }}
-                  className="text-xs text-(--slate-9) hover:text-(--slate-11)"
-                >
-                  <ClipboardIcon className="h-3 w-3" />
-                </button>
+                <CopyClipboardIcon
+                  value={textContent}
+                  className="h-3 w-3"
+                  buttonClassName="text-xs text-(--slate-9) hover:text-(--slate-11)"
+                />
                 <button
                   type="button"
                   onClick={() => handleDelete(message.id)}
@@ -673,14 +612,21 @@ const ConfigPopup: React.FC<{
   config: ChatConfig;
   onChange: (newConfig: ChatConfig) => void;
 }> = ({ config, onChange }) => {
-  const [localConfig, setLocalConfig] = useState<ChatConfig>(config);
   const [open, setOpen] = useState(false);
 
-  const handleChange = (key: keyof ChatConfig, value: number) => {
-    const { min, max } = configDescriptions[key];
-    const clampedValue = Math.max(min, Math.min(max, value));
-    const newConfig = { ...localConfig, [key]: clampedValue };
-    setLocalConfig(newConfig);
+  const handleChange = (key: keyof ChatConfig, value: number | null) => {
+    // NaN represents an empty field, treat as null
+    const normalizedValue =
+      value === null || Number.isNaN(value) ? null : value;
+    let finalValue: number | null = normalizedValue;
+
+    if (finalValue !== null) {
+      const { min, max } = configDescriptions[key];
+      const clampedValue = Math.max(min, Math.min(max, finalValue));
+      finalValue = clampedValue;
+    }
+
+    const newConfig = { ...config, [key]: finalValue };
     onChange(newConfig);
   };
 
@@ -698,7 +644,7 @@ const ConfigPopup: React.FC<{
           <Button
             variant="outline"
             size="sm"
-            className="border-none shadow-initial"
+            className="border-none shadow-none hover:bg-transparent"
           >
             <SettingsIcon className="h-3 w-3" />
           </Button>
@@ -707,7 +653,7 @@ const ConfigPopup: React.FC<{
       <PopoverContent className="w-70 border">
         <div className="grid gap-3">
           <h4 className="font-bold leading-none">Configuration</h4>
-          {Objects.entries(localConfig).map(([key, value]) => (
+          {Objects.entries(config).map(([key, value]) => (
             <div key={key} className="grid grid-cols-3 items-center gap-1">
               <Label
                 htmlFor={key}
@@ -732,7 +678,9 @@ const ConfigPopup: React.FC<{
               </Label>
               <NumberField
                 id={key}
-                value={value}
+                aria-label={key}
+                value={value ?? Number.NaN}
+                placeholder={"null"}
                 minValue={configDescriptions[key].min}
                 maxValue={configDescriptions[key].max}
                 step={configDescriptions[key].step ?? 1}
@@ -776,9 +724,9 @@ const PromptsPopover: React.FC<{
               <Button
                 variant="outline"
                 size="sm"
-                className="border-none shadow-initial"
+                className="border-none shadow-none hover:bg-transparent"
               >
-                <ChatBubbleIcon className="h-3 w-3 mx-1" />
+                <ChatBubbleIcon className="h-3 w-3" />
               </Button>
             </DropdownMenuTrigger>
           </Tooltip>

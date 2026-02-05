@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import glideCss from "@glideapps/glide-data-grid/dist/index.css?inline";
 import { TooltipProvider } from "@radix-ui/react-tooltip";
@@ -132,7 +132,7 @@ const LoadingDataEditor = (props: Props) => {
       columnFields={columnFields}
       setColumnFields={setColumnFields}
       editableColumns={props.editableColumns}
-      edits={props.edits.edits} // TODO: This is returning old edits upon refresh
+      edits={props.edits.edits}
       onAddEdits={(edits) => {
         props.onEdits((v) => ({ ...v, edits: [...v.edits, ...edits] }));
       }}

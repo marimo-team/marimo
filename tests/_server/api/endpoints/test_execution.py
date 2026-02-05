@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
 import json
@@ -126,11 +126,6 @@ class TestExecutionRoutes_EditMode:
         assert response.status_code == 200, response.text
         assert response.headers["content-type"] == "application/json"
         assert "success" in response.json()
-        auth_token = get_session_manager(client).auth_token
-        client.post(
-            "/api/kernel/shutdown",
-            headers=token_header(auth_token),
-        )
 
     @staticmethod
     @with_session(SESSION_ID)
@@ -259,9 +254,7 @@ class TestExecutionRoutes_RunMode:
                 "autoRun": True,
             },
         )
-        assert response.status_code == 200, response.text
-        assert response.headers["content-type"] == "application/json"
-        assert "success" in response.json()
+        assert response.status_code == 401, response.text
 
     @staticmethod
     @with_read_session(SESSION_ID)
@@ -275,9 +268,7 @@ class TestExecutionRoutes_RunMode:
                 "autoRun": False,
             },
         )
-        assert response.status_code == 200, response.text
-        assert response.headers["content-type"] == "application/json"
-        assert "success" in response.json()
+        assert response.status_code == 401, response.text
 
     @staticmethod
     @with_read_session(SESSION_ID)
@@ -412,10 +403,12 @@ def get_printed_object(
     start = time.time()
     console = None
     while time.time() - start < timeout:
-        if cell_id not in session.session_view.cell_operations:
+        if cell_id not in session.session_view.cell_notifications:
             time.sleep(0.1)
             continue
-        console = first(session.session_view.cell_operations[cell_id].console)
+        console = first(
+            session.session_view.cell_notifications[cell_id].console
+        )
         if console:
             break
     assert console

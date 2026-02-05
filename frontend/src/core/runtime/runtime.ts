@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import { Deferred } from "@/utils/Deferred";
 import { Logger } from "@/utils/Logger";
@@ -28,6 +28,10 @@ export class RuntimeManager {
     if (!this.lazy) {
       this.init();
     }
+  }
+
+  get isLazy(): boolean {
+    return this.lazy;
   }
 
   get httpURL(): URL {
@@ -167,6 +171,7 @@ export class RuntimeManager {
       const response = await fetch(this.healthURL().toString());
       // If there is a redirect, update the URL in the config
       if (response.redirected) {
+        Logger.debug(`Runtime redirected to ${response.url}`);
         // strip /health from the URL
         const baseUrl = response.url.replace(/\/health$/, "");
         this.config.url = baseUrl;
@@ -216,6 +221,7 @@ export class RuntimeManager {
   }
 
   async init(options?: { disableRetryDelay?: boolean }) {
+    Logger.debug("Initializing runtime...");
     let retries = 0;
     // This matches backoff logic elsewhere.
     const maxRetries = 25;
@@ -238,6 +244,7 @@ export class RuntimeManager {
       retries++;
     }
 
+    Logger.debug("Runtime is healthy");
     this.initialHealthyCheck.resolve();
   }
 
@@ -248,8 +255,8 @@ export class RuntimeManager {
     return this.initialHealthyCheck.promise;
   }
 
-  headers(): Record<string, string> {
-    const headers: Record<string, string> = {
+  headers(): KnownHeaders {
+    const headers: KnownHeaders = {
       "Marimo-Session-Id": getSessionId(),
       "Marimo-Server-Token": this.config.serverToken ?? "",
       // Needed for widgets that need absolute URLs when embedding in an iframe
@@ -264,6 +271,19 @@ export class RuntimeManager {
 
     return headers;
   }
+
+  sessionHeaders(): Pick<KnownHeaders, "Marimo-Session-Id"> {
+    return {
+      "Marimo-Session-Id": getSessionId(),
+    };
+  }
+}
+
+interface KnownHeaders {
+  "Marimo-Session-Id": SessionId;
+  "Marimo-Server-Token": string;
+  "x-runtime-url": string;
+  [key: string]: string;
 }
 
 function asWsUrl(url: string): URL {

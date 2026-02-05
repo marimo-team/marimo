@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
 import io
@@ -23,12 +23,17 @@ from marimo._server.api.middleware import (
     _AsyncHTTPClient,
     _URLRequest,
 )
+from marimo._server.config import StarletteServerStateInit
+from marimo._server.lsp import BaseLspServer
 from marimo._server.main import (
+    _create_lsps_proxy_middleware,
     create_starlette_app,
 )
-from marimo._server.model import SessionMode
+from marimo._server.session_manager import SessionManager
 from marimo._server.tokens import AuthToken
-from marimo._server.utils import find_free_port
+from marimo._session.model import SessionMode
+from marimo._utils.net import find_free_port
+from tests._server.conftest import join_kernel_thread_tasks
 from tests._server.mocks import get_mock_session_manager, token_header
 
 if TYPE_CHECKING:
@@ -38,20 +43,36 @@ if TYPE_CHECKING:
     from starlette.types import ASGIApp, Receive, Scope, Send
 
 
+def init_state(
+    *,
+    session_manager: SessionManager,
+    enable_auth: bool = True,
+    skew_protection: bool = False,
+    base_url: str = "",
+) -> StarletteServerStateInit:
+    return StarletteServerStateInit(
+        port=1234,
+        host="localhost",
+        base_url=base_url,
+        asset_url=None,
+        headless=False,
+        quiet=False,
+        session_manager=session_manager,
+        config_manager=MarimoConfigManager(UserConfigManager()),
+        remote_url=None,
+        mcp_server_enabled=False,
+        skew_protection=skew_protection,
+        enable_auth=enable_auth,
+    )
+
+
 def test_base_url() -> None:
     app = create_starlette_app(base_url="/foo")
-    app.state.session_manager = get_mock_session_manager()
-    app.state.config_manager = MarimoConfigManager(UserConfigManager())
-    client = TestClient(app)
-
-    # Mock out the server
-    uvicorn_server = uvicorn.Server(uvicorn.Config(app))
-    uvicorn_server.servers = []
-
-    app.state.server = uvicorn_server
-    app.state.host = "localhost"
-    app.state.port = 1234
-    app.state.base_url = "/foo"
+    init_state(
+        session_manager=get_mock_session_manager(mode=SessionMode.EDIT),
+        base_url="/foo",
+    ).apply(app.state)
+    with_server(app)
 
     client = TestClient(app)
 
@@ -111,19 +132,22 @@ def test_skew_protection(edit_app: Starlette) -> None:
     assert response.status_code == 401, response.text
 
 
-def test_skew_protection_disabled() -> None:
-    """Test that skew protection can be disabled via CLI flag"""
-    app = create_starlette_app(base_url="", skew_protection=False)
-    app.state.session_manager = get_mock_session_manager()
-    app.state.session_manager.mode = SessionMode.EDIT
-    app.state.config_manager = MarimoConfigManager(UserConfigManager())
-    # Mock out the server
+def with_server(app: Starlette) -> Starlette:
     uvicorn_server = uvicorn.Server(uvicorn.Config(app))
     uvicorn_server.servers = []
     app.state.server = uvicorn_server
-    app.state.host = "localhost"
-    app.state.port = 1234
-    app.state.base_url = ""
+    return app
+
+
+def test_skew_protection_disabled() -> None:
+    """Test that skew protection can be disabled via CLI flag"""
+    app = create_starlette_app(base_url="", skew_protection=False)
+    init_state(
+        session_manager=get_mock_session_manager(mode=SessionMode.EDIT),
+        skew_protection=False,
+    ).apply(app.state)
+    # Mock out the server
+    with_server(app)
 
     client = TestClient(app)
 
@@ -138,33 +162,26 @@ def test_skew_protection_disabled() -> None:
 @pytest.fixture
 def edit_app() -> Starlette:
     app = create_starlette_app(base_url="")
-    app.state.session_manager = get_mock_session_manager()
-    app.state.session_manager.mode = SessionMode.EDIT
-    app.state.config_manager = MarimoConfigManager(UserConfigManager())
-    # Mock out the server
-    uvicorn_server = uvicorn.Server(uvicorn.Config(app))
-    uvicorn_server.servers = []
-    app.state.server = uvicorn_server
-    app.state.host = "localhost"
-    app.state.port = 1234
-    app.state.base_url = ""
+    session_manager = get_mock_session_manager()
+    with_server(app)
+    init_state(session_manager=session_manager).apply(app.state)
     return app
 
 
 @pytest.fixture
 def read_app() -> Starlette:
+    main = sys.modules["__main__"]
     app = create_starlette_app(base_url="")
-    app.state.session_manager = get_mock_session_manager()
-    app.state.session_manager.mode = SessionMode.RUN
-    app.state.config_manager = MarimoConfigManager(UserConfigManager())
     # Mock out the server
-    uvicorn_server = uvicorn.Server(uvicorn.Config(app))
-    uvicorn_server.servers = []
-    app.state.server = uvicorn_server
-    app.state.host = "localhost"
-    app.state.port = 1234
-    app.state.base_url = ""
-    return app
+    with_server(app)
+    session_manager = get_mock_session_manager(mode=SessionMode.RUN)
+    init_state(session_manager=session_manager).apply(app.state)
+    yield app
+
+    try:
+        join_kernel_thread_tasks(session_manager)
+    finally:
+        sys.modules["__main__"] = main
 
 
 @pytest.fixture(params=["read_app", "edit_app"])
@@ -175,37 +192,34 @@ def app(request: Any) -> Starlette:
 @pytest.fixture
 def no_auth_edit_app() -> Starlette:
     app = create_starlette_app(base_url="", enable_auth=False)
-    app.state.session_manager = get_mock_session_manager()
-    app.state.session_manager.mode = SessionMode.EDIT
-    # no auth
-    app.state.session_manager._token_manager.auth_token = AuthToken("")
-    app.state.config_manager = MarimoConfigManager(UserConfigManager())
-    # Mock out the server
-    uvicorn_server = uvicorn.Server(uvicorn.Config(app))
-    uvicorn_server.servers = []
-    app.state.server = uvicorn_server
-    app.state.host = "localhost"
-    app.state.port = 1234
-    app.state.base_url = ""
+    session_manager = get_mock_session_manager()
+    session_manager.mode = SessionMode.EDIT
+    session_manager._token_manager.auth_token = AuthToken("")
+    with_server(app)
+    init_state(session_manager=session_manager, enable_auth=False).apply(
+        app.state
+    )
     return app
 
 
 @pytest.fixture
 def no_auth_read_app() -> Starlette:
+    main = sys.modules["__main__"]
     app = create_starlette_app(base_url="", enable_auth=False)
-    app.state.session_manager = get_mock_session_manager()
-    app.state.session_manager.mode = SessionMode.RUN
+    session_manager = get_mock_session_manager(mode=SessionMode.RUN)
     # no auth
-    app.state.session_manager._token_manager.auth_token = AuthToken("")
-    app.state.config_manager = MarimoConfigManager(UserConfigManager())
-    # Mock out the server
-    uvicorn_server = uvicorn.Server(uvicorn.Config(app))
-    uvicorn_server.servers = []
-    app.state.server = uvicorn_server
-    app.state.host = "localhost"
-    app.state.port = 1234
-    app.state.base_url = ""
-    return app
+    session_manager._token_manager.auth_token = AuthToken("")
+    with_server(app)
+    init_state(session_manager=session_manager, enable_auth=False).apply(
+        app.state
+    )
+
+    yield app
+
+    try:
+        join_kernel_thread_tasks(session_manager)
+    finally:
+        sys.modules["__main__"] = main
 
 
 @pytest.fixture(params=["no_auth_read_app", "no_auth_edit_app"])
@@ -674,3 +688,81 @@ class TestProxyMiddleware:
         assert proxy_calls[-1] == "wss://example.com/proxy/test"
 
         # Could be good to go on to test the happy path for mpl but we're already doing that with the test client above so leaving just this invalid ID test for
+
+
+def _mock_lsp_server(server_id: str, port: int):
+    """Helper to create a mock LSP server."""
+
+    class MockLspServer(BaseLspServer):
+        id = server_id
+
+        def validate_requirements(self):
+            return True
+
+        def get_command(self):
+            return []
+
+        def missing_binary_alert(self):
+            return None
+
+    return MockLspServer(port=port)
+
+
+class TestLspProxyMiddleware:
+    """Test that LSP proxy middleware respects base_url configuration."""
+
+    def test_lsp_proxy_without_base_url(self) -> None:
+        middlewares = list(
+            _create_lsps_proxy_middleware(
+                base_url="", servers=[_mock_lsp_server("test-lsp", 8888)]
+            )
+        )
+
+        assert len(middlewares) == 1
+        assert middlewares[0].kwargs["proxy_path"] == "/lsp/test-lsp"
+        assert middlewares[0].kwargs["target_url"] == "http://localhost:8888"
+
+    def test_lsp_proxy_with_base_url(self) -> None:
+        middlewares = list(
+            _create_lsps_proxy_middleware(
+                base_url="/foo", servers=[_mock_lsp_server("test-lsp", 8888)]
+            )
+        )
+
+        assert len(middlewares) == 1
+        assert middlewares[0].kwargs["proxy_path"] == "/foo/lsp/test-lsp"
+        assert middlewares[0].kwargs["target_url"] == "http://localhost:8888"
+
+    def test_lsp_proxy_multiple_servers(self) -> None:
+        middlewares = list(
+            _create_lsps_proxy_middleware(
+                base_url="/app",
+                servers=[
+                    _mock_lsp_server("pylsp", 8888),
+                    _mock_lsp_server("copilot", 8889),
+                ],
+            )
+        )
+
+        assert len(middlewares) == 2
+        assert middlewares[0].kwargs["proxy_path"] == "/app/lsp/pylsp"
+        assert middlewares[0].kwargs["target_url"] == "http://localhost:8888"
+        assert middlewares[1].kwargs["proxy_path"] == "/app/lsp/copilot"
+        assert middlewares[1].kwargs["target_url"] == "http://localhost:8889"
+
+    def test_lsp_proxy_integration(self) -> None:
+        """Verify LSP proxy works with create_starlette_app."""
+        app = create_starlette_app(
+            base_url="/marimo",
+            lsp_servers=[_mock_lsp_server("test-lsp", 8888)],
+        )
+
+        proxy_mw = [
+            mw
+            for mw in app.user_middleware
+            if mw.cls == ProxyMiddleware
+            and mw.kwargs.get("proxy_path") == "/marimo/lsp/test-lsp"
+        ]
+
+        assert len(proxy_mw) == 1
+        assert proxy_mw[0].kwargs["target_url"] == "http://localhost:8888"

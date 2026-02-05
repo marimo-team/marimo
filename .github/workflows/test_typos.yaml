@@ -4,6 +4,10 @@ name: Typos
 on:
   pull_request: {}
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
@@ -12,7 +16,5 @@ jobs:
     name: Check for typos
     runs-on: ubuntu-latest
     steps:
-      - name: 🛑 Cancel Previous Runs
-        uses: styfle/cancel-workflow-action@0.12.1
       - uses: actions/checkout@v4
       - uses: crate-ci/typos@v1.29.10

@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 import { WebSocketState } from "./types";
 
 /**
@@ -30,6 +30,13 @@ export function isAppClosing(state: WebSocketState): boolean {
 }
 
 /**
+ * Check if the app is in a not started state
+ */
+export function isAppNotStarted(state: WebSocketState): boolean {
+  return state === WebSocketState.NOT_STARTED;
+}
+
+/**
  * Check if the app is in a state where user interactions should be disabled
  */
 export function isAppInteractionDisabled(state: WebSocketState): boolean {
@@ -53,6 +60,8 @@ export function getConnectionTooltip(state: WebSocketState): string {
       return "App disconnecting...";
     case WebSocketState.OPEN:
       return "";
+    case WebSocketState.NOT_STARTED:
+      return "Click to connect to a runtime";
     default:
       return "";
   }

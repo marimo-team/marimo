@@ -1,5 +1,9 @@
-/* Copyright 2024 Marimo. All rights reserved. */
-import React, { type PropsWithChildren } from "react";
+/* Copyright 2026 Marimo. All rights reserved. */
+import React, {
+  Activity,
+  type ActivityProps,
+  type PropsWithChildren,
+} from "react";
 
 interface Props {
   isOpen: boolean;
@@ -12,13 +16,30 @@ export const LazyMount: React.FC<PropsWithChildren<Props>> = ({
   isOpen,
   children,
 }) => {
-  const [isMounted, setIsMounted] = React.useState(false);
+  const [hasMountedBefore, setHasMountedBefore] = React.useState(false);
 
-  React.useEffect(() => {
-    if (isOpen && !isMounted) {
-      setIsMounted(true);
-    }
-  }, [isOpen, isMounted]);
+  if (isOpen && !hasMountedBefore) {
+    setHasMountedBefore(true);
+  }
 
-  return isMounted ? children : null;
+  return hasMountedBefore || isOpen ? children : null;
+};
+
+/**
+ * Wraps a component in an Activity component. It is not mounted until it is open for the first time.
+ */
+export const LazyActivity: React.FC<PropsWithChildren<ActivityProps>> = (
+  props,
+) => {
+  const [hasMountedBefore, setHasMountedBefore] = React.useState(false);
+
+  if (props.mode === "visible" && !hasMountedBefore) {
+    setHasMountedBefore(true);
+  }
+
+  if (hasMountedBefore) {
+    return <Activity {...props} />;
+  }
+
+  return null;
 };

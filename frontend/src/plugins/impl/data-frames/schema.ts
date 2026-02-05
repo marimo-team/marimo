@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import { z } from "zod";
 import { FieldOptions, randomNumber } from "@/components/forms/options";
@@ -29,7 +29,7 @@ export const column_id_array = z
   .array(column_id.describe(FieldOptions.of({ special: "column_id" })))
   .min(1, "At least one column is required")
   .default([])
-  .describe(FieldOptions.of({ label: "Group by columns", minLength: 1 }));
+  .describe(FieldOptions.of({ label: "Columns", minLength: 1 }));
 
 const ColumnConversionTransformSchema = z
   .object({
@@ -107,7 +107,10 @@ const FilterRowsTransformSchema = z.object({
 const GroupByTransformSchema = z
   .object({
     type: z.literal("group_by"),
-    column_ids: column_id_array,
+    column_ids: z
+      .array(column_id.describe(FieldOptions.of({ special: "column_id" })))
+      .default([])
+      .describe(FieldOptions.of({ label: "Group by columns", minLength: 1 })),
     aggregation_column_ids: z
       .array(column_id.describe(FieldOptions.of({ special: "column_id" })))
       .default([])
@@ -193,6 +196,25 @@ const UniqueTransformSchema = z
   })
   .describe(FieldOptions.of({ direction: "row" }));
 
+const PivotTransformSchema = z
+  .object({
+    type: z.literal("pivot"),
+    column_ids: column_id_array,
+    index_column_ids: z
+      .array(column_id.describe(FieldOptions.of({ special: "column_id" })))
+      .default([])
+      .describe(FieldOptions.of({ label: "Rows" })),
+    value_column_ids: z
+      .array(column_id.describe(FieldOptions.of({ special: "column_id" })))
+      .default([])
+      .describe(FieldOptions.of({ label: "Values", minLength: 1 })),
+    aggregation: z
+      .enum(AGGREGATION_FNS)
+      .default("sum")
+      .describe(FieldOptions.of({ label: "Aggregation" })),
+  })
+  .describe(FieldOptions.of({}));
+
 export const TransformTypeSchema = z.union([
   FilterRowsTransformSchema,
   SelectColumnsTransformSchema,
@@ -206,6 +228,7 @@ export const TransformTypeSchema = z.union([
   ExplodeColumnsTransformSchema,
   ExpandDictTransformSchema,
   UniqueTransformSchema,
+  PivotTransformSchema,
 ]);
 
 export type TransformType = z.infer<typeof TransformTypeSchema>;

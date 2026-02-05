@@ -1,8 +1,9 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import React from "react";
 import useResizeObserver from "use-resize-observer";
 import { cn } from "@/utils/cn";
+import { TreeDndProvider } from "../../file-tree/dnd-wrapper";
 import { FileExplorer } from "../../file-tree/file-explorer";
 import { useFileExplorerUpload } from "../../file-tree/upload";
 
@@ -14,21 +15,23 @@ const FileExplorerPanel: React.FC = () => {
   });
 
   return (
-    <div
-      {...getRootProps()}
-      className={cn("flex flex-col flex-1 overflow-hidden relative")}
-    >
-      <input {...getInputProps()} />
-      {isDragActive && (
-        <div className="absolute inset-0 flex items-center uppercase justify-center text-xl font-bold text-primary/90 bg-accent/85 z-10 border-2 border-dashed border-primary/90 rounded-lg pointer-events-none">
-          Drop files here
-        </div>
-      )}
+    <TreeDndProvider>
+      <div
+        {...getRootProps()}
+        className={cn("flex flex-col flex-1 overflow-hidden relative")}
+      >
+        <input {...getInputProps()} />
+        {isDragActive && (
+          <div className="absolute inset-0 flex items-center uppercase justify-center text-xl font-bold text-primary/90 bg-accent/85 z-10 border-2 border-dashed border-primary/90 rounded-lg pointer-events-none">
+            Drop files here
+          </div>
+        )}
 
-      <div ref={ref} className="flex flex-col flex-1 overflow-hidden">
-        <FileExplorer height={height} />
+        <div ref={ref} className="flex flex-col flex-1 overflow-hidden">
+          <FileExplorer height={height} />
+        </div>
       </div>
-    </div>
+    </TreeDndProvider>
   );
 };
 

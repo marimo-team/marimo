@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
@@ -45,6 +45,7 @@ function createMockEditorView(code: string) {
           lspConfig: {},
         }),
         cellConfigExtension({
+          cellId: "cell1" as CellId,
           completionConfig: {
             copilot: false,
             activate_on_typing: true,

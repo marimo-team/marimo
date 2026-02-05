@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -21,7 +21,7 @@ from marimo._server.ai.constants import DEFAULT_MAX_TOKENS, DEFAULT_MODEL
 from marimo._server.ai.ids import AiModelId
 from marimo._server.ai.tools.tool_manager import get_tool_manager
 from marimo._server.ai.tools.types import ToolDefinition
-from marimo._server.api.status import HTTPStatus
+from marimo._utils.http import HTTPStatus
 
 
 @dataclass
@@ -70,6 +70,30 @@ class AnyProviderConfig:
     def for_openai_compatible(cls, config: AiConfig) -> AnyProviderConfig:
         return cls._for_openai_like(
             config, "open_ai_compatible", "OpenAI Compatible"
+        )
+
+    @classmethod
+    def for_custom_provider(
+        cls, config: AiConfig, provider_name: str
+    ) -> AnyProviderConfig:
+        """Get config for a custom provider by name."""
+        custom_providers = cast(
+            dict[str, Any], config.get("custom_providers", {})
+        )
+        if provider_name not in custom_providers:
+            raise HTTPException(
+                status_code=HTTPStatus.BAD_REQUEST,
+                detail=f"Custom provider '{provider_name}' not configured. "
+                "Go to Settings > AI to configure.",
+            )
+
+        provider_config = cast(dict[str, Any], custom_providers[provider_name])
+        return cls._for_openai_like(
+            config,
+            key=provider_name,
+            name=provider_name.replace("_", " ").title(),
+            require_key=False,
+            ai_config=provider_config,
         )
 
     @classmethod
@@ -147,8 +171,9 @@ class AnyProviderConfig:
         fallback_key: Optional[str] = None,
         fallback_base_url: Optional[str] = None,
         require_key: bool = False,
+        ai_config: dict[str, Any] | None = None,
     ) -> AnyProviderConfig:
-        ai_config: dict[str, Any] = _get_ai_config(config, key)
+        ai_config = ai_config or _get_ai_config(config, key)
         key = _get_key(
             ai_config, name, fallback_key=fallback_key, require_key=require_key
         )
@@ -211,7 +236,7 @@ class AnyProviderConfig:
         ai_config = _get_ai_config(config, "bedrock")
         key = _get_key(ai_config, "Bedrock")
         return cls(
-            base_url=_get_base_url(ai_config),
+            base_url=_get_base_url(ai_config, "Bedrock"),
             api_key=key,
             tools=_get_tools(config.get("mode", "manual")),
         )
@@ -240,6 +265,12 @@ class AnyProviderConfig:
         elif model_id.provider == "openai_compatible":
             return cls.for_openai_compatible(config)
         else:
+            custom_providers = cast(
+                dict[str, Any], config.get("custom_providers", {})
+            )
+            if model_id.provider in custom_providers:
+                return cls.for_custom_provider(config, model_id.provider)
+
             # Catch-all: try OpenAI compatible first, then OpenAI.
             try:
                 if "open_ai_compatible" in config:

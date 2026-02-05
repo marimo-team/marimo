@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 /* eslint-disable unicorn/prefer-spread */
 /**
@@ -101,10 +101,17 @@ function PluginSlotInternal<T>(
     return plugin.validator.safeParse(parseDataset(hostElement));
   });
 
+  // Incremented on each reset to invalidate memoized function references.
+  // This ensures that plugin functions (e.g., search) are re-created when
+  // the underlying UI element instance changes (new object-id), even if
+  // the element's data attributes haven't changed.
+  const [resetNonce, setResetNonce] = useState(0);
+
   useImperativeHandle(ref, () => ({
     reset: () => {
       setValue(getInitialValue());
       setParsedResult(plugin.validator.safeParse(parseDataset(hostElement)));
+      setResetNonce((n) => n + 1);
     },
     setChildren: (children) => {
       setChildNodes(children);
@@ -224,7 +231,8 @@ function PluginSlotInternal<T>(
     }
 
     return methods;
-  }, [plugin.functions, hostElement]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [plugin.functions, hostElement, resetNonce]);
 
   // If we failed to parse the initial value, render an error
   if (!parsedResult.success) {

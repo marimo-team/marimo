@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import { useAtomValue } from "jotai";
 import { CpuIcon, MemoryStickIcon, MicrochipIcon } from "lucide-react";
@@ -55,8 +55,11 @@ const MemoryUsageBar: React.FC<{
   kernel: UsageResponse["kernel"];
   server: UsageResponse["server"];
 }> = ({ memory, kernel, server }) => {
-  const { percent, total, available } = memory;
+  const { percent, total, available, has_cgroup_mem_limit } = memory;
   const roundedPercent = Math.round(percent);
+  const memoryLabel = has_cgroup_mem_limit
+    ? "container memory"
+    : "computer memory";
 
   const gbFormatter = useNumberFormatter({
     maximumFractionDigits: 2,
@@ -82,7 +85,7 @@ const MemoryUsageBar: React.FC<{
       content={
         <div className="flex flex-col gap-1">
           <span>
-            <b>computer memory:</b> {formatGB(total - available)} /{" "}
+            <b>{memoryLabel}:</b> {formatGB(total - available)} /{" "}
             {formatGB(total)} GB ({roundedPercent}%)
           </span>
           {server?.memory && (

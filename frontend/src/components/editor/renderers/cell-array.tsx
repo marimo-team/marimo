@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import {
   horizontalListSortingStrategy,
@@ -13,6 +13,7 @@ import {
   SquareMIcon,
 } from "lucide-react";
 import { useEffect } from "react";
+import { useOpenSettingsToTab } from "@/components/app-config/state";
 import { StartupLogsAlert } from "@/components/editor/alerts/startup-logs-alert";
 import { Cell } from "@/components/editor/notebook-cell";
 import { PackageAlert } from "@/components/editor/package-alert";
@@ -22,8 +23,9 @@ import { Tooltip } from "@/components/ui/tooltip";
 import { maybeAddMarimoImport } from "@/core/cells/add-missing-import";
 import { SETUP_CELL_ID } from "@/core/cells/ids";
 import { LanguageAdapters } from "@/core/codemirror/language/LanguageAdapters";
+import { MARKDOWN_INITIAL_HIDE_CODE } from "@/core/codemirror/language/languages/markdown";
 import { aiEnabledAtom } from "@/core/config/config";
-import { isConnectedAtom } from "@/core/network/connection";
+import { canInteractWithAppAtom } from "@/core/network/connection";
 import { useBoolean } from "@/hooks/useBoolean";
 import { cn } from "@/utils/cn";
 import { Functions } from "@/utils/functions";
@@ -41,7 +43,10 @@ import type { AppMode } from "../../../core/mode";
 import { useHotkey } from "../../../hooks/useHotkey";
 import { type Theme, useTheme } from "../../../theme/useTheme";
 import { AddCellWithAI } from "../ai/add-cell-with-ai";
-import { ConnectingAlert } from "../alerts/connecting-alert";
+import {
+  ConnectingAlert,
+  NotStartedConnectionAlert,
+} from "../alerts/connecting-alert";
 import { FloatingOutline } from "../chrome/panels/outline/floating-outline";
 import { useChromeActions } from "../chrome/state";
 import { Column } from "../columns/cell-column";
@@ -124,6 +129,8 @@ const CellArrayInternal: React.FC<CellArrayProps> = ({
       <StdinBlockingAlert />
       <ConnectingAlert />
       <NotebookBanner width={appConfig.width} />
+      {/* Only show if not cells, otherwise running a single cell will start the connection */}
+      {cellIds.idLength === 0 && <NotStartedConnectionAlert />}
       <div
         className={cn(
           appConfig.width === "columns" &&
@@ -247,11 +254,12 @@ const AddCellButtons: React.FC<{
   const { createNewCell } = useCellActions();
   const [isAiButtonOpen, isAiButtonOpenActions] = useBoolean(false);
   const aiEnabled = useAtomValue(aiEnabledAtom);
-  const isConnected = useAtomValue(isConnectedAtom);
+  const canInteractWithApp = useAtomValue(canInteractWithAppAtom);
+  const { handleClick } = useOpenSettingsToTab();
 
   const buttonClass = cn(
     "mb-0 rounded-none sm:px-4 md:px-5 lg:px-8 tracking-wide no-wrap whitespace-nowrap",
-    "hover:bg-accent hover:text-accent-foreground font-semibold uppercase text-xs",
+    "font-semibold opacity-70 hover:opacity-90 uppercase text-xs",
   );
 
   const renderBody = () => {
@@ -265,7 +273,7 @@ const AddCellButtons: React.FC<{
           className={buttonClass}
           variant="text"
           size="sm"
-          disabled={!isConnected}
+          disabled={!canInteractWithApp}
           onClick={() =>
             createNewCell({
               cellId: { type: "__end__", columnId },
@@ -280,7 +288,7 @@ const AddCellButtons: React.FC<{
           className={buttonClass}
           variant="text"
           size="sm"
-          disabled={!isConnected}
+          disabled={!canInteractWithApp}
           onClick={() => {
             maybeAddMarimoImport({ autoInstantiate: true, createNewCell });
 
@@ -288,7 +296,7 @@ const AddCellButtons: React.FC<{
               cellId: { type: "__end__", columnId },
               before: false,
               code: LanguageAdapters.markdown.defaultCode,
-              hideCode: true,
+              hideCode: MARKDOWN_INITIAL_HIDE_CODE,
             });
           }}
         >
@@ -299,7 +307,7 @@ const AddCellButtons: React.FC<{
           className={buttonClass}
           variant="text"
           size="sm"
-          disabled={!isConnected}
+          disabled={!canInteractWithApp}
           onClick={() => {
             maybeAddMarimoImport({ autoInstantiate: true, createNewCell });
 
@@ -315,7 +323,9 @@ const AddCellButtons: React.FC<{
         </Button>
         <Tooltip
           content={
-            aiEnabled ? null : <span>Enable via settings under AI Assist</span>
+            aiEnabled ? null : (
+              <span>AI provider not found or Edit model not selected</span>
+            )
           }
           delayDuration={100}
           asChild={false}
@@ -324,8 +334,12 @@ const AddCellButtons: React.FC<{
             className={buttonClass}
             variant="text"
             size="sm"
-            disabled={!aiEnabled || !isConnected}
-            onClick={isAiButtonOpenActions.toggle}
+            disabled={!canInteractWithApp}
+            onClick={
+              aiEnabled
+                ? isAiButtonOpenActions.toggle
+                : () => handleClick("ai", "ai-providers")
+            }
           >
             <SparklesIcon className="mr-2 size-4 shrink-0" />
             Generate with AI
@@ -339,10 +353,10 @@ const AddCellButtons: React.FC<{
     <div className="flex justify-center mt-4 pt-6 pb-32 group gap-4 w-full print:hidden">
       <div
         className={cn(
-          "shadow-sm border border-border rounded transition-all duration-200 overflow-hidden divide-x divide-border flex",
-          !isAiButtonOpen && "w-fit",
+          "border border-border rounded transition-all duration-200 overflow-hidden divide-x divide-border flex",
+          !isAiButtonOpen && "w-fit shadow-sm-solid-shade",
           isAiButtonOpen &&
-            "w-full max-w-4xl shadow-lg shadow-(color:--blue-3)",
+            "w-full max-w-4xl shadow-md-solid-shade shadow-(color:--blue-3)",
           className,
           // Always show the AI input when it's open
           isAiButtonOpen && "opacity-100",

@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -60,6 +60,8 @@ def test_memory(client: TestClient) -> None:
     assert memory["available"] > 0
     assert memory["used"] > 0
     assert memory["free"] > 0
+    assert "has_cgroup_mem_limit" in memory
+    assert isinstance(memory["has_cgroup_mem_limit"], bool)
     cpu = response.json()["cpu"]
     assert cpu["percent"] >= 0
     computer = response.json()["server"]

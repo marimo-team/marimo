@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { EditorView } from "@codemirror/view";
@@ -25,6 +25,30 @@ const Cells = {
 };
 
 describe("createNotebookLens", () => {
+  it("should produce correct lens for same inputs", () => {
+    // Use unique content for this test
+    const cellIds: CellId[] = [Cells.cell1, Cells.cell2];
+    const codes: Record<CellId, string> = {
+      [Cells.cell1]: "unique_memo_test_line1",
+      [Cells.cell2]: "unique_memo_test_line2",
+    };
+
+    const lens1 = createNotebookLens(cellIds, codes);
+    const lens2 = createNotebookLens(cellIds, codes);
+
+    // Same inputs should produce equivalent lens (same merged text)
+    expect(lens1.mergedText).toBe(lens2.mergedText);
+    expect(lens1.cellIds).toEqual(lens2.cellIds);
+
+    // Different content should produce a different lens
+    const differentCodes: Record<CellId, string> = {
+      [Cells.cell1]: "unique_memo_different",
+      [Cells.cell2]: "unique_memo_content",
+    };
+    const lens3 = createNotebookLens(cellIds, differentCodes);
+    expect(lens3.mergedText).not.toBe(lens1.mergedText);
+  });
+
   it("should calculate correct line offsets", () => {
     const cellIds: CellId[] = [Cells.cell1, Cells.cell2, Cells.cell3];
     const codes: Record<CellId, string> = {
@@ -111,6 +135,7 @@ describe("createNotebookLens", () => {
       ),
     ).toBe(true);
 
+    // This triggers the cross-cell diagnostic warning (start in range, end outside)
     expect(
       lens.isInRange(
         {
@@ -120,6 +145,24 @@ describe("createNotebookLens", () => {
         Cells.cell1,
       ),
     ).toBe(false);
+  });
+
+  it("should detect cross-cell diagnostics where start is in range but end is outside", () => {
+    const cellIds: CellId[] = [Cells.cell1, Cells.cell2];
+    const codes: Record<CellId, string> = {
+      [Cells.cell1]: "line1\nline2",
+      [Cells.cell2]: "line3",
+    };
+    const lens = createNotebookLens(cellIds, codes);
+
+    // Range that starts in cell1 (line 1) but ends in cell2 (line 2 = first line of cell2)
+    // This should return false and log a warning
+    const crossCellRange = {
+      start: { line: 1, character: 0 }, // line 1 is in cell1
+      end: { line: 2, character: 0 }, // line 2 is in cell2
+    };
+
+    expect(lens.isInRange(crossCellRange, Cells.cell1)).toBe(false);
   });
 
   it("should join all code into merged text", () => {
@@ -756,6 +799,129 @@ describe("NotebookLanguageServerClient", () => {
       // Verify that the import cell was not changed
       expect(mockView1.state.doc.toString()).toBe("import marimo as mo");
     });
+
+    it("should only rename private variables in the current cell (issue #7810)", async () => {
+      const props = {
+        workspaceFolders: null,
+        capabilities: {
+          textDocument: {
+            rename: {
+              prepareSupport: true,
+            },
+          },
+        },
+        languageId: "python",
+        transport: {
+          sendData: vi.fn(),
+          subscribe: vi.fn(),
+          connect: vi.fn(),
+          transportRequestManager: {
+            send: vi.fn(),
+          },
+        } as any,
+      };
+
+      // Setup editor views - both cells have a private variable _x
+      const cell1Code = "_x = 1\nprint(_x)";
+      const cell2Code = "_x = 2\nprint(_x)";
+
+      const mockView1 = new EditorView({
+        doc: cell1Code,
+        extensions: [
+          languageAdapterState.init(() => new PythonLanguageAdapter()),
+          languageMetadataField.init(() => ({})),
+          languageServerWithClient({
+            client: mockClient as unknown as LanguageServerClient,
+            documentUri: CellDocumentUri.of(Cells.cell1),
+            ...props,
+          }),
+        ],
+      });
+
+      const mockView2 = new EditorView({
+        doc: cell2Code,
+        extensions: [
+          languageAdapterState.init(() => new PythonLanguageAdapter()),
+          languageMetadataField.init(() => ({})),
+          languageServerWithClient({
+            client: mockClient as unknown as LanguageServerClient,
+            documentUri: CellDocumentUri.of(Cells.cell2),
+            ...props,
+          }),
+        ],
+      });
+
+      (notebookClient as any).getNotebookEditors = () => ({
+        [Cells.cell1]: mockView1,
+        [Cells.cell2]: mockView2,
+      });
+
+      // Update the mock to return the correct codes
+      vi.spyOn(store, "get").mockImplementation((atom) => {
+        if (atom === topologicalCodesAtom) {
+          return {
+            cellIds: [Cells.cell1, Cells.cell2],
+            codes: {
+              [Cells.cell1]: cell1Code,
+              [Cells.cell2]: cell2Code,
+            },
+          };
+        }
+        return undefined;
+      });
+
+      // Setup rename params - renaming _x in cell1
+      const renameParams: LSP.RenameParams = {
+        textDocument: { uri: CellDocumentUri.of(Cells.cell1) },
+        position: { line: 0, character: 0 }, // position of '_x'
+        newName: "_y",
+      };
+
+      // Open a document first to set up the lens
+      await notebookClient.textDocumentDidOpen({
+        textDocument: {
+          uri: CellDocumentUri.of(Cells.cell1),
+          languageId: "python",
+          version: 1,
+          text: cell1Code,
+        },
+      });
+
+      // Mock the response from the language server
+      // The LSP server would rename _x in BOTH cells (since it sees the merged doc)
+      const mockRenameResponse: LSP.WorkspaceEdit = {
+        documentChanges: [
+          {
+            textDocument: {
+              uri: "file:///__marimo_notebook__.py",
+              version: 1,
+            },
+            edits: [
+              {
+                range: {
+                  start: { line: 0, character: 0 },
+                  end: { line: 3, character: 10 },
+                },
+                // LSP renames _x to _y in both cells
+                newText: "_y = 1\nprint(_y)\n_y = 2\nprint(_y)",
+              },
+            ],
+          },
+        ],
+      };
+
+      mockClient.textDocumentRename = vi
+        .fn()
+        .mockResolvedValue(mockRenameResponse);
+
+      // Call rename
+      await notebookClient.textDocumentRename(renameParams);
+
+      // The fix: only cell1 should be renamed, cell2 should remain unchanged
+      // because private variables are cell-local in marimo
+      expect(mockView1.state.doc.toString()).toBe("_y = 1\nprint(_y)");
+      expect(mockView2.state.doc.toString()).toBe("_x = 2\nprint(_x)");
+    });
   });
 
   describe("diagnostics handling", () => {
@@ -994,6 +1160,83 @@ describe("NotebookLanguageServerClient", () => {
         import numpy
         print(math.sqrt(4))"
       `);
+    });
+  });
+
+  describe("sync returns lens to prevent race conditions", () => {
+    it("should return the lens used for synchronization", async () => {
+      mockClient.textDocumentDidChange = vi
+        .fn()
+        .mockImplementation((params) => params);
+
+      const result = await notebookClient.sync();
+
+      // sync() should return both params and the lens
+      expect(result).toHaveProperty("params");
+      expect(result).toHaveProperty("lens");
+      expect(result.lens.cellIds).toEqual([
+        Cells.cell1,
+        Cells.cell2,
+        Cells.cell3,
+      ]);
+      expect(result.lens.mergedText).toContain("# this is a comment");
+    });
+
+    it("should return consistent lens even when called multiple times rapidly", async () => {
+      mockClient.textDocumentDidChange = vi
+        .fn()
+        .mockImplementation((params) => params);
+
+      // Call sync multiple times rapidly
+      const [result1, result2, result3] = await Promise.all([
+        notebookClient.sync(),
+        notebookClient.sync(),
+        notebookClient.sync(),
+      ]);
+
+      // All should return the same lens content (memoized)
+      expect(result1.lens.mergedText).toBe(result2.lens.mergedText);
+      expect(result2.lens.mergedText).toBe(result3.lens.mergedText);
+    });
+  });
+
+  describe("SEEN_CELL_DOCUMENT_URIS memory management", () => {
+    it("should track opened cells in SEEN_CELL_DOCUMENT_URIS", async () => {
+      // Clear any existing state
+      const seenUris = (NotebookLanguageServerClient as any)
+        .SEEN_CELL_DOCUMENT_URIS;
+      seenUris.clear();
+
+      // Open some cells to add them to SEEN_CELL_DOCUMENT_URIS
+      await notebookClient.textDocumentDidOpen({
+        textDocument: {
+          uri: CellDocumentUri.of(Cells.cell1),
+          languageId: "python",
+          version: 1,
+          text: "code1",
+        },
+      });
+
+      await notebookClient.textDocumentDidOpen({
+        textDocument: {
+          uri: CellDocumentUri.of(Cells.cell2),
+          languageId: "python",
+          version: 1,
+          text: "code2",
+        },
+      });
+
+      // Verify cells were added
+      expect(seenUris.has(CellDocumentUri.of(Cells.cell1))).toBe(true);
+      expect(seenUris.has(CellDocumentUri.of(Cells.cell2))).toBe(true);
+      expect(seenUris.size).toBe(2);
+    });
+
+    it("should have pruneSeenCellUris static method", () => {
+      // Verify the method exists and is callable
+      expect(
+        typeof (NotebookLanguageServerClient as any).pruneSeenCellUris,
+      ).toBe("function");
     });
   });
 

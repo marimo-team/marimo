@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 import { z } from "zod";
 import { FieldOptions } from "@/components/forms/options";
 
@@ -267,6 +267,15 @@ export const ClickhouseConnectionSchema = z
       .boolean()
       .default(false)
       .describe(FieldOptions.of({ label: "Use HTTPs" })),
+    proxy_path: z
+      .string()
+      .optional()
+      .describe(
+        FieldOptions.of({
+          label: "Proxy Path",
+          placeholder: "/clickhouse",
+        }),
+      ),
   })
   .describe(FieldOptions.of({ direction: "two-columns" }));
 

@@ -21,7 +21,7 @@
       "type": "nominal"
     }
   },
-  "$schema": "https://vega.github.io/schema/vega-lite/v5.20.1.json",
+  "$schema": "https://vega.github.io/schema/vega-lite/v6.1.0.json",
   "datasets": {
     "data-cc0a8311b413c4168b2c1fac768ce667": [
       {

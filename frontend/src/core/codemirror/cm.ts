@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 import {
   acceptCompletion,
   closeBrackets,
@@ -47,7 +47,6 @@ import type {
   LSPConfig,
 } from "../config/config-schema";
 import type { HotkeyProvider } from "../hotkeys/hotkeys";
-import { store } from "../state/jotai";
 import { requestEditCompletion } from "./ai/request";
 import { cellBundle } from "./cells/extensions";
 import type { CodemirrorCellActions } from "./cells/state";
@@ -65,8 +64,8 @@ import { getCurrentLanguageAdapter } from "./language/commands";
 import { adaptiveLanguageConfiguration } from "./language/extension";
 import { dndBundle } from "./misc/dnd";
 import { pasteBundle } from "./misc/paste";
+import { stringsAutoCloseBraces } from "./misc/string-braces";
 import { reactiveReferencesBundle } from "./reactive-references/extension";
-import { dynamicReadonly } from "./readonly/extension";
 import { darkTheme } from "./theme/dark";
 import { lightTheme } from "./theme/light";
 
@@ -116,6 +115,7 @@ export const setupCodeMirror = (opts: CodeMirrorSetupOpts): Extension[] => {
     jupyterHelpExtension(),
     // Cell editing
     cellConfigExtension({
+      cellId,
       completionConfig,
       hotkeys,
       placeholderType,
@@ -147,8 +147,6 @@ export const setupCodeMirror = (opts: CodeMirrorSetupOpts): Extension[] => {
           }),
         ]
       : [],
-    // Readonly extension
-    dynamicReadonly(store),
     // Reactive references highlighting
     reactiveReferencesBundle(
       cellId,
@@ -207,6 +205,7 @@ export const basicBundle = (opts: CodeMirrorSetupOpts): Extension[] => {
     hintTooltip(lspConfig),
     copilotBundle(completionConfig),
     foldGutter(),
+    stringsAutoCloseBraces(),
     closeBrackets(),
     completionKeymap(),
     // to avoid clash with charDeleteBackward keymap

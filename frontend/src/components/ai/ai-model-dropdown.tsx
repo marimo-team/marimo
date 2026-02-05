@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import type { Role } from "@marimo-team/llm-info";
 import { useAtomValue } from "jotai";
@@ -19,6 +19,7 @@ import {
 } from "@/core/ai/ids/ids";
 import { type AiModel, AiModelRegistry } from "@/core/ai/model-registry";
 import { aiAtom, completionAtom } from "@/core/config/config";
+import { useOpenSettingsToTab } from "../app-config/state";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -62,6 +63,7 @@ export const AIModelDropdown = ({
   const ai = useAtomValue(aiAtom);
   const completion = useAtomValue(completionAtom);
   const { saveModelChange } = useModelChange();
+  const { handleClick } = useOpenSettingsToTab();
 
   // Only include autocompleteModel if copilot is set to "custom"
   const autocompleteModel =
@@ -188,16 +190,12 @@ export const AIModelDropdown = ({
         {showAddCustomModelDocs && (
           <>
             <DropdownMenuSeparator />
-            <DropdownMenuItem className="flex items-center gap-2">
-              <a
-                className="flex items-center gap-1"
-                href="https://links.marimo.app/custom-models"
-                target="_blank"
-                rel="noreferrer"
-              >
-                <CircleHelpIcon className="h-3 w-3" />
-                <span>How to add a custom model</span>
-              </a>
+            <DropdownMenuItem
+              className="h-7 flex items-center gap-2"
+              onClick={() => handleClick("ai", "ai-models")}
+            >
+              <CircleHelpIcon className="h-3 w-3" />
+              <span className="cursor-pointer text-link">Add custom model</span>
             </DropdownMenuItem>
           </>
         )}

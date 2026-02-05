@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import { MarimoIslandElement } from "@/core/islands/components/web-components";
 import { Logger } from "@/utils/Logger";

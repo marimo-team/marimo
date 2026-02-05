@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
 import asyncio
@@ -14,7 +14,6 @@ from marimo._server.api.interrupt import InterruptHandler
 from marimo._server.api.utils import open_url_in_browser
 from marimo._server.file_router import AppFileRouter
 from marimo._server.lsp import any_lsp_server_running
-from marimo._server.model import SessionMode
 from marimo._server.print import (
     print_experimental_features,
     print_mcp_client,
@@ -22,10 +21,11 @@ from marimo._server.print import (
     print_shutdown,
     print_startup,
 )
-from marimo._server.sessions import SessionManager
+from marimo._server.session_manager import SessionManager
 from marimo._server.tokens import AuthToken
 from marimo._server.utils import initialize_mimetypes
 from marimo._server.uvicorn_utils import close_uvicorn
+from marimo._session.model import SessionMode
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator

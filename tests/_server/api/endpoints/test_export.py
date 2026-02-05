@@ -1,7 +1,8 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
 import os
+import re
 import shutil
 import time
 from pathlib import Path
@@ -12,7 +13,7 @@ import pytest
 from marimo import __version__
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.cell_output import CellChannel, CellOutput
-from marimo._messaging.ops import CellOp
+from marimo._messaging.notification import CellNotification
 from marimo._output.utils import uri_encode_component
 from marimo._types.ids import CellId_t, SessionId
 from marimo._utils.platform import is_windows
@@ -22,7 +23,7 @@ from tests._server.mocks import (
     with_read_session,
     with_session,
 )
-from tests.mocks import snapshotter
+from tests.mocks import EDGE_CASE_FILENAMES, snapshotter
 
 if TYPE_CHECKING:
     from starlette.testclient import TestClient
@@ -115,12 +116,38 @@ def test_export_html_file_not_found(client: TestClient) -> None:
     assert "<marimo-code hidden=" in response.text
 
 
-# Read session forces empty code
-@with_read_session(SESSION_ID)
-def test_export_html_no_code_in_read(client: TestClient) -> None:
+# Read session with include_code=True allows code to be included
+@with_read_session(SESSION_ID, include_code=True)
+def test_export_html_with_code_in_read_with_include_code(
+    client: TestClient,
+) -> None:
+    """Test that HTML export includes code in run mode when include_code=True."""
     session = get_session_manager(client).get_session(SESSION_ID)
     assert session
     session.app_file_manager.filename = "test.py"
+    response = client.post(
+        "/api/export/html",
+        headers=HEADERS,
+        json={
+            "download": False,
+            "files": [],
+            "includeCode": True,
+        },
+    )
+    body = response.text
+    # Code should be included when include_code=True
+    assert '<marimo-code hidden=""></marimo-code>' not in body
+    assert CODE in body
+
+
+# Read session without include_code forces empty code
+@with_read_session(SESSION_ID, include_code=False)
+def test_export_html_no_code_in_read(client: TestClient) -> None:
+    """Test that HTML export excludes code in run mode when include_code=False."""
+    session = get_session_manager(client).get_session(SESSION_ID)
+    assert session
+    session.app_file_manager.filename = "test.py"
+    # Even if request asks for code, it should be denied
     response = client.post(
         "/api/export/html",
         headers=HEADERS,
@@ -177,6 +204,12 @@ def test_export_markdown(client: TestClient) -> None:
     assert response.status_code == 200
     assert f"marimo-version: {__version__}" in response.text
     assert "```python {.marimo}" in response.text
+    # Check that the Content-Disposition header has the correct .md extension
+    assert "Content-Disposition" in response.headers
+    # The temp file has .py extension, should be converted to .md
+    assert re.match(
+        r"filename=.*\.md", response.headers["Content-Disposition"]
+    )
 
 
 @with_read_session(SESSION_ID)
@@ -205,8 +238,8 @@ def test_auto_export_html(client: TestClient, temp_marimo_file: str) -> None:
     assert session
     assert temp_marimo_file is not None
     session.app_file_manager.filename = temp_marimo_file
-    session.session_view.add_operation(
-        CellOp(
+    session.session_view.add_notification(
+        CellNotification(
             cell_id=CellId_t("new_cell"),
             output=CellOutput(
                 data="hello",
@@ -253,8 +286,8 @@ def test_auto_export_html_no_code(
     session = get_session_manager(client).get_session(SESSION_ID)
     assert session
     session.app_file_manager.filename = temp_marimo_file
-    session.session_view.add_operation(
-        CellOp(
+    session.session_view.add_notification(
+        CellNotification(
             cell_id=CellId_t("new_cell"),
             output=None,
             console=[CellOutput.stdout("hello")],
@@ -445,17 +478,20 @@ def test_auto_export_ipynb_with_new_cell(
     # Wait for the cell operation to be created
     timeout = 2
     start = time.time()
-    cell_op = None
+    cell_notification = None
     while time.time() - start < timeout:
-        if "new_cell" not in session.session_view.cell_operations:
+        if "new_cell" not in session.session_view.cell_notifications:
             time.sleep(0.1)
             continue
-        cell_op = session.session_view.cell_operations["new_cell"]
-        if cell_op.output is not None and cell_op.output.data:
+        cell_notification = session.session_view.cell_notifications["new_cell"]
+        if (
+            cell_notification.output is not None
+            and cell_notification.output.data
+        ):
             break
-    assert cell_op
-    assert cell_op.output is not None
-    assert "3.14" in cell_op.output.data
+    assert cell_notification
+    assert cell_notification.output is not None
+    assert "3.14" in cell_notification.output.data
 
     # Now attempt to auto-export as ipynb
     export_response = client.post(
@@ -543,3 +579,214 @@ def test_export_html_unnamed_file(client: TestClient) -> None:
     # Should return 400 Bad Request when file is unnamed
     assert response.status_code == 400
     assert "File must have a name before exporting" in response.text
+
+
+@with_session(SESSION_ID)
+def test_export_html_download_edge_case_filenames(client: TestClient) -> None:
+    """Test that HTML export with download=True works for non-ASCII filenames."""
+    for filename in EDGE_CASE_FILENAMES:
+        session = get_session_manager(client).get_session(SESSION_ID)
+        assert session
+        session.app_file_manager.filename = filename
+        response = client.post(
+            "/api/export/html",
+            headers=HEADERS,
+            json={
+                "download": True,
+                "files": [],
+                "includeCode": True,
+            },
+        )
+        assert response.status_code == 200, f"Failed for filename: {filename}"
+        assert "Content-Disposition" in response.headers
+        assert "attachment" in response.headers["Content-Disposition"]
+
+
+@with_session(SESSION_ID)
+def test_export_script_download_edge_case_filenames(
+    client: TestClient,
+) -> None:
+    """Test that script export with download=True works for non-ASCII filenames."""
+    for filename in EDGE_CASE_FILENAMES:
+        session = get_session_manager(client).get_session(SESSION_ID)
+        assert session
+        session.app_file_manager.filename = filename
+        response = client.post(
+            "/api/export/script",
+            headers=HEADERS,
+            json={
+                "download": True,
+            },
+        )
+        assert response.status_code == 200, f"Failed for filename: {filename}"
+        assert "Content-Disposition" in response.headers
+        assert "attachment" in response.headers["Content-Disposition"]
+
+
+@with_session(SESSION_ID)
+def test_update_cell_outputs_new_cell(client: TestClient) -> None:
+    """Test updating cell outputs for a cell with no existing output."""
+    session = get_session_manager(client).get_session(SESSION_ID)
+    assert session
+
+    # Create a cell notification without output
+    cell_id = CellId_t("test_cell")
+    session.session_view.cell_notifications[cell_id] = CellNotification(
+        cell_id=cell_id,
+        output=None,
+        status="idle",
+    )
+
+    response = client.post(
+        "/api/export/update_cell_outputs",
+        headers=HEADERS,
+        json={
+            "cellIdsToOutput": {
+                cell_id: ["image/png", "data:image/png;base64,iVBORw0KGgo="]
+            }
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {"success": True}
+    assert session.session_view.needs_export("ipynb")
+
+    # Verify output was created
+    cell_notification = session.session_view.cell_notifications[cell_id]
+    assert cell_notification.output is not None
+    assert cell_notification.output == CellOutput(
+        channel=CellChannel.OUTPUT,
+        mimetype="image/png",
+        data="data:image/png;base64,iVBORw0KGgo=",
+        timestamp=cell_notification.output.timestamp,
+    )
+
+
+@with_session(SESSION_ID)
+def test_update_cell_outputs_missing_cell(client: TestClient) -> None:
+    """Test updating cell outputs for non-existent cell logs warning."""
+    response = client.post(
+        "/api/export/update_cell_outputs",
+        headers=HEADERS,
+        json={
+            "cellIdsToOutput": {
+                "nonexistent_cell": ["image/png", "data:image/png;base64,test"]
+            }
+        },
+    )
+
+    # Should succeed but log a warning
+    assert response.status_code == 200
+    assert response.json() == {"success": True}
+
+
+@with_session(SESSION_ID)
+def test_update_cell_outputs_empty_request(client: TestClient) -> None:
+    """Test updating cell outputs with empty cellIdsToOutput."""
+    response = client.post(
+        "/api/export/update_cell_outputs",
+        headers=HEADERS,
+        json={"cellIdsToOutput": {}},
+    )
+
+    # Should succeed even with empty request
+    assert response.status_code == 200
+    assert response.json() == {"success": True}
+
+
+@pytest.mark.skipif(
+    not DependencyManager.nbformat.has()
+    or not DependencyManager.nbconvert.has(),
+    reason="nbformat or nbconvert not installed",
+)
+@with_session(SESSION_ID)
+def test_export_pdf_endpoint(client: TestClient) -> None:
+    """Test PDF export endpoint."""
+    from unittest.mock import MagicMock, patch
+
+    session = get_session_manager(client).get_session(SESSION_ID)
+    assert session
+    session.app_file_manager.filename = "test.py"
+
+    # Mock the exporter to avoid needing LaTeX/Chromium
+    mock_exporter = MagicMock()
+    mock_exporter.export_as_pdf.return_value = b"mock_pdf_content"
+
+    with patch(
+        "marimo._server.api.endpoints.export.Exporter",
+        return_value=mock_exporter,
+    ):
+        response = client.post(
+            "/api/export/pdf",
+            headers=HEADERS,
+            json={"webpdf": False},
+        )
+
+    assert response.status_code == 200
+    assert response.content == b"mock_pdf_content"
+    assert response.headers["content-type"] == "application/pdf"
+
+
+@pytest.mark.skipif(
+    not DependencyManager.nbformat.has()
+    or not DependencyManager.nbconvert.has(),
+    reason="nbformat or nbconvert not installed",
+)
+@with_session(SESSION_ID)
+def test_export_pdf_endpoint_webpdf_mode(client: TestClient) -> None:
+    """Test PDF export endpoint with webpdf mode."""
+    from unittest.mock import MagicMock, patch
+
+    session = get_session_manager(client).get_session(SESSION_ID)
+    assert session
+    session.app_file_manager.filename = "test.py"
+
+    # Mock the exporter to avoid needing Chromium
+    mock_exporter = MagicMock()
+    mock_exporter.export_as_pdf.return_value = b"mock_webpdf_content"
+
+    with patch(
+        "marimo._server.api.endpoints.export.Exporter",
+        return_value=mock_exporter,
+    ):
+        response = client.post(
+            "/api/export/pdf",
+            headers=HEADERS,
+            json={"webpdf": True},
+        )
+
+    assert response.status_code == 200
+    assert response.content == b"mock_webpdf_content"
+    # Verify webpdf=True was passed to exporter
+    mock_exporter.export_as_pdf.assert_called_once()
+    call_kwargs = mock_exporter.export_as_pdf.call_args[1]
+    assert call_kwargs["webpdf"] is True
+
+
+@with_session(SESSION_ID)
+def test_export_pdf_endpoint_returns_error_on_failure(
+    client: TestClient,
+) -> None:
+    """Test PDF export endpoint returns error when export fails."""
+    from unittest.mock import MagicMock, patch
+
+    session = get_session_manager(client).get_session(SESSION_ID)
+    assert session
+    session.app_file_manager.filename = "test.py"
+
+    # Mock the exporter to return None (failure case)
+    mock_exporter = MagicMock()
+    mock_exporter.export_as_pdf.return_value = None
+
+    with patch(
+        "marimo._server.api.endpoints.export.Exporter",
+        return_value=mock_exporter,
+    ):
+        response = client.post(
+            "/api/export/pdf",
+            headers=HEADERS,
+            json={"webpdf": False},
+        )
+
+    assert response.status_code == 500
+    assert "Failed to export PDF" in response.text

@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
 import sys
@@ -6,6 +6,7 @@ import threading
 from pathlib import Path
 from typing import Any, Callable, TypeVar
 
+from marimo import _loggers
 from marimo._runtime.context import (
     ContextNotInitializedError,
     get_context,
@@ -14,6 +15,9 @@ from marimo._runtime.context import (
 from marimo._runtime.side_effect import SideEffect
 from marimo._runtime.state import State
 from marimo._runtime.threads import Thread
+from marimo._utils.platform import is_pyodide
+
+LOGGER = _loggers.marimo_logger()
 
 if sys.version_info >= (3, 11):
     from typing import Self
@@ -71,11 +75,21 @@ class PathState(State[Path]):
         # Only bother with the watcher if the context is installed
         # State is not enabled in script mode
         if runtime_context_installed():
-            Thread(
-                target=self._target,
-                args=(path, self, self._should_exit),
-                daemon=True,
-            ).start()
+            # File watching with threads is not supported in Pyodide/WASM
+            # The file can still be read/written, but won't trigger reactive
+            # updates when changed externally
+            if is_pyodide():
+                LOGGER.warning(
+                    "Reactive file watching is not supported in "
+                    "Pyodide/WebAssembly. The file can still be read/written, "
+                    "but external changes won't trigger reactive updates."
+                )
+            else:
+                Thread(
+                    target=self._target,
+                    args=(path, self, self._should_exit),
+                    daemon=True,
+                ).start()
 
     def __getattr__(self, name: str) -> Any:
         """Get an attribute from the file path."""

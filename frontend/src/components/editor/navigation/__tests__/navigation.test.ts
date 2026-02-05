@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 // @vitest-environment jsdom
 
 import type { EditorView } from "@codemirror/view";
@@ -109,6 +109,7 @@ const renderWithProvider = <T>(hook: () => T) => {
 // Shared mock setup
 const mockSaveOrNameNotebook = vi.fn();
 const mockSaveIfNotebookIsPersistent = vi.fn();
+const mockSaveNotebook = vi.fn();
 const mockRunCell = vi.fn();
 const mockCopyCell = vi.fn();
 const mockPasteCell = vi.fn();
@@ -156,6 +157,7 @@ describe("useCellNavigationProps", () => {
     mockUseSaveNotebook.mockReturnValue({
       saveOrNameNotebook: mockSaveOrNameNotebook,
       saveIfNotebookIsPersistent: mockSaveIfNotebookIsPersistent,
+      saveNotebook: mockSaveNotebook,
     });
     mockUseCellActions.mockReturnValue(
       mockCellActions as unknown as CellActions,

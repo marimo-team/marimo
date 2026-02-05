@@ -1,4 +1,4 @@
-/* Copyright 2024 Marimo. All rights reserved. */
+/* Copyright 2026 Marimo. All rights reserved. */
 
 import type * as api from "@marimo-team/marimo-api";
 import { Provider } from "jotai";
@@ -29,6 +29,7 @@ import {
 import { MarimoApp, preloadPage } from "./core/MarimoApp";
 import { type AppMode, initialModeAtom, viewStateAtom } from "./core/mode";
 import { cleanupAuthQueryParams } from "./core/network/auth";
+import { connectionAtom } from "./core/network/connection";
 import { requestClientAtom } from "./core/network/requests";
 import { resolveRequestClient } from "./core/network/resolve";
 import {
@@ -42,6 +43,7 @@ import { isStaticNotebook } from "./core/static/static-state";
 import { maybeRegisterVSCodeBindings } from "./core/vscode/vscode-bindings";
 import type { FileStore } from "./core/wasm/store";
 import { notebookFileStore } from "./core/wasm/store";
+import { WebSocketState } from "./core/websocket/types";
 import { vegaLoader } from "./plugins/impl/vega/loader";
 import { initializePlugins } from "./plugins/plugins";
 import { ThemeProvider } from "./theme/ThemeProvider";
@@ -104,8 +106,7 @@ export function mount(options: unknown, el: Element): Error | undefined {
 }
 
 const passthroughObject = z
-  .object({})
-  .passthrough() // Allow any extra fields
+  .looseObject({})
   .nullish()
   .default({}) // Default to empty object
   .transform((val) => {
@@ -152,14 +153,16 @@ const mountOptionsSchema = z.object({
     .nullish()
     .transform((val) => val ?? "unknown"),
   /**
-   * 'edit' or 'read'/'run' or 'home'
+   * 'edit' or 'read'/'run' or 'home' or 'gallery'
    */
-  mode: z.enum(["edit", "read", "home", "run"]).transform((val): AppMode => {
-    if (val === "run") {
-      return "read";
-    }
-    return val;
-  }),
+  mode: z
+    .enum(["edit", "read", "home", "run", "gallery"])
+    .transform((val): AppMode => {
+      if (val === "run") {
+        return "read";
+      }
+      return val;
+    }),
   /**
    * marimo config
    */
@@ -201,13 +204,12 @@ const mountOptionsSchema = z.object({
   session: z.union([
     z.null().optional(),
     z
-      .object({
+      .looseObject({
         // Rough shape, we don't need to validate the full schema
         version: z.literal("1"),
         metadata: z.any(),
         cells: z.array(z.any()),
       })
-      .passthrough()
       .transform((val) => val as api.Session["NotebookSessionV1"]),
   ]),
 
@@ -217,13 +219,12 @@ const mountOptionsSchema = z.object({
   notebook: z.union([
     z.null().optional(),
     z
-      .object({
+      .looseObject({
         // Rough shape, we don't need to validate the full schema
         version: z.literal("1"),
         metadata: z.any(),
         cells: z.array(z.any()),
       })
-      .passthrough()
       .transform((val) => val as api.Notebook["NotebookV1"]),
   ]),
 
@@ -232,12 +233,12 @@ const mountOptionsSchema = z.object({
    */
   runtimeConfig: z
     .array(
-      z
-        .object({
-          url: z.string(),
-          authToken: z.string().nullish(),
-        })
-        .passthrough(),
+      z.looseObject({
+        url: z.string(),
+        // Lazy by default, but can be overridden by the runtime config
+        lazy: z.boolean().default(true),
+        authToken: z.string().nullish(),
+      }),
     )
     .nullish()
     .transform((val) => val ?? []),
@@ -307,9 +308,14 @@ function initStore(options: unknown) {
       ...firstRuntimeConfig,
       serverToken: parsedOptions.data.serverToken,
     });
+    // If the remote runtime is not lazy, start it in CONNECTING
+    if (!firstRuntimeConfig.lazy && !isStaticNotebook()) {
+      store.set(connectionAtom, { state: WebSocketState.CONNECTING });
+    }
   } else {
     store.set(runtimeConfigAtom, {
       ...DEFAULT_RUNTIME_CONFIG,
+      lazy: false,
       serverToken: parsedOptions.data.serverToken,
     });
   }

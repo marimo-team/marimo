@@ -1,4 +1,4 @@
-# Copyright 2024 Marimo. All rights reserved.
+# Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
 import atexit
@@ -6,10 +6,12 @@ import json
 import os
 import sys
 import tempfile
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Optional
 
 import click
+from click.core import ParameterSource
 
 import marimo._cli.cli_validators as validators
 from marimo import _loggers
@@ -25,6 +27,7 @@ from marimo._cli.print import red
 from marimo._cli.run_docker import (
     prompt_run_in_docker_container,
 )
+from marimo._cli.tools.commands import tools
 from marimo._cli.upgrade import check_for_updates, print_latest_version
 from marimo._cli.utils import (
     check_app_correctness,
@@ -33,14 +36,17 @@ from marimo._cli.utils import (
 )
 from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._lint import run_check
-from marimo._server.file_router import AppFileRouter
-from marimo._server.model import SessionMode
+from marimo._server.file_router import AppFileRouter, flatten_files
+from marimo._server.files.directory_scanner import DirectoryScanner
+from marimo._server.models.home import MarimoFile
 from marimo._server.start import start
+from marimo._session.model import SessionMode
 from marimo._tutorials import (
     Tutorial,
     create_temp_tutorial_file,
     tutorial_order,
 )  # type: ignore
+from marimo._utils.http import HTTPException, HTTPStatus
 from marimo._utils.marimo_path import MarimoPath, create_temp_notebook_file
 from marimo._utils.platform import is_windows
 from marimo._version import __version__
@@ -327,17 +333,12 @@ edit_help_msg = "\n".join(
     help=sandbox_message,
 )
 @click.option(
-    "--dangerous-sandbox/--no-dangerous-sandbox",
+    "--trusted/--untrusted",
     is_flag=True,
     default=None,
     show_default=False,
     type=bool,
-    hidden=True,
-    help="""Enables the usage of package sandboxing when running a multi-edit
-notebook server. This behavior can lead to surprising and unintended consequences,
-such as incorrectly overwriting package requirements or failing to write out
-requirements. These and other issues are described in
-https://github.com/marimo-team/marimo/issues/5219.""",
+    help="Run notebooks hosted remotely on the host machine; if --untrusted, runs marimo in a Docker container.",
 )
 @click.option("--profile-dir", default=None, type=str, hidden=True)
 @click.option(
@@ -402,6 +403,13 @@ https://github.com/marimo-team/marimo/issues/5219.""",
     type=float,
     help="Enable a global timeout to shut down the server after specified number of minutes of no connection",
 )
+@click.option(
+    "--session-ttl",
+    default=None,
+    show_default=False,
+    type=int,
+    help="Seconds to wait before closing a session on websocket disconnect. If None is provided, sessions are not automatically closed.",
+)
 @click.argument(
     "name",
     required=False,
@@ -420,7 +428,7 @@ def edit(
     allow_origins: Optional[tuple[str, ...]],
     skip_update_check: bool,
     sandbox: Optional[bool],
-    dangerous_sandbox: Optional[bool],
+    trusted: Optional[bool],
     profile_dir: Optional[str],
     watch: bool,
     skew_protection: bool,
@@ -430,10 +438,11 @@ def edit(
     server_startup_command: Optional[str],
     asset_url: Optional[str],
     timeout: Optional[float],
+    session_ttl: Optional[int],
     name: Optional[str],
     args: tuple[str, ...],
 ) -> None:
-    from marimo._cli.sandbox import run_in_sandbox, should_run_in_sandbox
+    from marimo._cli.sandbox import SandboxMode, resolve_sandbox_mode
 
     pass_on_stdin = token_password_file == "-"
     # We support unix-style piping, e.g. cat notebook.py | marimo edit
@@ -448,10 +457,7 @@ def edit(
         )
         name = path.absolute_name
 
-    # If file is a url, we prompt to run in docker
-    # We only do this for remote files,
-    # but later we can make this a CLI flag
-    if name is not None and prompt_run_in_docker_container(name):
+    if prompt_run_in_docker_container(name, trusted=trusted):
         from marimo._cli.run_docker import run_in_docker
 
         run_in_docker(
@@ -502,14 +508,49 @@ def edit(
 
     # We check this after name validation, because this will convert
     # URLs into local file paths
-    if should_run_in_sandbox(
-        sandbox=sandbox, dangerous_sandbox=dangerous_sandbox, name=name
-    ):
+
+    # Resolve sandbox mode: None, SandboxMode.SINGLE, or SandboxMode.MULTI
+    sandbox_mode = resolve_sandbox_mode(sandbox=sandbox, name=name)
+
+    # Single-file sandbox: wrap with uv run
+    if sandbox_mode is SandboxMode.SINGLE:
         from marimo._cli.sandbox import run_in_sandbox
 
-        # TODO: consider adding recommended as well
         run_in_sandbox(sys.argv[1:], name=name, additional_features=["lsp"])
         return
+
+    # Multi-file sandbox: use IPC kernels with per-notebook sandboxed venvs
+    if sandbox_mode is SandboxMode.MULTI:
+        # Check for pyzmq dependency
+        from marimo._dependencies.dependencies import DependencyManager
+
+        if not DependencyManager.zmq.has():
+            raise click.UsageError(
+                "pyzmq is required when running the marimo edit server on a directory with --sandbox.\n"
+                "Install it with: pip install 'marimo[sandbox]'\n"
+                "Or: pip install pyzmq"
+            )
+
+        # Enable script metadata management for sandboxed notebooks
+        os.environ["MARIMO_MANAGE_SCRIPT_METADATA"] = "true"
+        GLOBAL_SETTINGS.MANAGE_SCRIPT_METADATA = True
+
+    # Check shared memory availability early (required for edit mode to
+    # communicate between the server process and kernel subprocess)
+    from marimo._utils.platform import check_shared_memory_available
+
+    shm_available, shm_error = check_shared_memory_available()
+    if not shm_available:
+        _loggers.marimo_logger().error(
+            f"marimo failed to start: marimo edit requires shared memory support for multiprocessing.\n\n"
+            f"{shm_error}\n\n"
+            "Possible solutions:\n"
+            "  - If running in Docker, ensure /dev/shm is mounted with sufficient size\n"
+            "    (e.g., --shm-size=256m or -v /dev/shm:/dev/shm)\n"
+            "  - If /dev/shm is full, clear unused shared memory segments\n"
+            "  - Use 'marimo run' instead if you only need to view notebooks"
+        )
+        sys.exit(1)
 
     start(
         file_router=AppFileRouter.infer(name),
@@ -533,12 +574,13 @@ def edit(
         base_url=base_url,
         allow_origins=allow_origins,
         redirect_console_to_browser=True,
-        ttl_seconds=None,
+        ttl_seconds=session_ttl,
         remote_url=remote_url,
         mcp=mcp,
         server_startup_command=server_startup_command,
         asset_url=asset_url,
         timeout=timeout,
+        sandbox_mode=sandbox_mode,
     )
 
 
@@ -751,6 +793,91 @@ def new(
     )
 
 
+@dataclass(frozen=True)
+class _CollectedRunFiles:
+    files: list[MarimoFile]
+    root_dir: str | None
+
+
+def _split_run_paths_and_args(
+    name: str, args: tuple[str, ...]
+) -> tuple[list[str], tuple[str, ...]]:
+    paths = [name]
+    for index, arg in enumerate(args):
+        if arg == "--":
+            return paths, args[index + 1 :]
+        if arg.startswith("-"):
+            return paths, args[index:]
+        paths.append(arg)
+    return paths, ()
+
+
+def _resolve_root_dir(
+    directories: list[str], files: list[MarimoFile]
+) -> str | None:
+    # Choose a "root" directory for gallery links when there is an obvious
+    # shared base directory. This lets us use relative `?file=` keys (and
+    # avoids leaking absolute paths) when possible.
+    if len(directories) == 1:
+        directory = Path(directories[0]).absolute()
+        if not files:
+            return str(directory)
+        # Only use this directory root if it contains all selected files.
+        if all(
+            Path(file.path).absolute().is_relative_to(directory)
+            for file in files
+        ):
+            return str(directory)
+        return None
+
+    if not directories:
+        if not files:
+            return None
+        parent = Path(files[0].path).absolute().parent
+        # Only use a parent root when all files are siblings.
+        if all(Path(file.path).absolute().parent == parent for file in files):
+            return str(parent)
+
+    return None
+
+
+def _collect_marimo_files(paths: list[str]) -> _CollectedRunFiles:
+    directories: list[str] = []
+    files_by_path: dict[str, MarimoFile] = {}
+
+    for path in paths:
+        if Path(path).is_dir():
+            directories.append(path)
+            directory = Path(path).absolute()
+            scanner = DirectoryScanner(path, include_markdown=True)
+            try:
+                file_infos = scanner.scan()
+            except HTTPException as exc:
+                if exc.status_code != HTTPStatus.REQUEST_TIMEOUT:
+                    raise
+                file_infos = scanner.partial_results
+            for file_info in flatten_files(file_infos):
+                if not file_info.is_marimo_file:
+                    continue
+                absolute_path = str(directory / file_info.path)
+                files_by_path[absolute_path] = MarimoFile(
+                    name=file_info.name,
+                    path=absolute_path,
+                    last_modified=file_info.last_modified,
+                )
+        else:
+            marimo_path = MarimoPath(path)
+            files_by_path[marimo_path.absolute_name] = MarimoFile(
+                name=marimo_path.relative_name,
+                path=marimo_path.absolute_name,
+                last_modified=marimo_path.last_modified,
+            )
+
+    files = sorted(files_by_path.values(), key=lambda file: file.path)
+    root_dir = _resolve_root_dir(directories, files)
+    return _CollectedRunFiles(files=files, root_dir=root_dir)
+
+
 @main.command(
     help="""Run a notebook as an app in read-only mode.
 
@@ -759,6 +886,8 @@ If NAME is a url, the notebook will be downloaded to a temporary file.
 Example:
 
     marimo run notebook.py
+    marimo run folder another_folder
+    marimo run app.py -- --arg value
 """
 )
 @click.option(
@@ -885,6 +1014,14 @@ Example:
     help=check_message,
 )
 @click.option(
+    "--trusted/--untrusted",
+    is_flag=True,
+    default=None,
+    show_default=False,
+    type=bool,
+    help="Run notebooks hosted remotely on the host machine; if --untrusted, runs marimo in a Docker container.",
+)
+@click.option(
     "--server-startup-command",
     default=None,
     type=str,
@@ -898,6 +1035,7 @@ Example:
     hidden=True,
     help="Custom asset URL for loading static resources. Can include {version} placeholder.",
 )
+@click.pass_context
 @click.argument(
     "name",
     required=True,
@@ -905,6 +1043,7 @@ Example:
 )
 @click.argument("args", nargs=-1, type=click.UNPROCESSED)
 def run(
+    ctx: click.Context,
     port: Optional[int],
     host: str,
     proxy: Optional[str],
@@ -921,21 +1060,27 @@ def run(
     redirect_console_to_browser: bool,
     sandbox: Optional[bool],
     check: bool,
+    trusted: Optional[bool],
     server_startup_command: Optional[str],
     asset_url: Optional[str],
     name: str,
     args: tuple[str, ...],
 ) -> None:
-    from marimo._cli.sandbox import run_in_sandbox, should_run_in_sandbox
+    from marimo._cli.sandbox import (
+        SandboxMode,
+        resolve_sandbox_mode,
+        run_in_sandbox,
+    )
 
-    # If file is a url, we prompt to run in docker
-    # We only do this for remote files,
-    # but later we can make this a CLI flag
-    if prompt_run_in_docker_container(name):
+    paths, notebook_args = _split_run_paths_and_args(name, args)
+
+    if len(paths) == 1 and prompt_run_in_docker_container(
+        paths[0], trusted=trusted
+    ):
         from marimo._cli.run_docker import run_in_docker
 
         run_in_docker(
-            name,
+            paths[0],
             "run",
             port=port,
             debug=GLOBAL_SETTINGS.DEVELOPMENT_MODE,
@@ -946,32 +1091,86 @@ def run(
     # The second return value is an optional temporary directory. It is unused,
     # but must be kept around because its lifetime on disk is bound to the life
     # of the Python object
-    name, _ = validate_name(name, allow_new_file=False, allow_directory=False)
+    validated_paths: list[str] = []
+    temp_dirs: list[tempfile.TemporaryDirectory[str]] = []
+    for path in paths:
+        validated_path, temp_dir = validate_name(
+            path, allow_new_file=False, allow_directory=True
+        )
+        if temp_dir is not None:
+            temp_dirs.append(temp_dir)
+        validated_paths.append(validated_path)
+
+    has_directory = any(Path(path).is_dir() for path in validated_paths)
+    is_multi = has_directory or len(validated_paths) > 1
+
+    check_source = ctx.get_parameter_source("check")
+    check_explicit = check_source not in (
+        ParameterSource.DEFAULT,
+        ParameterSource.DEFAULT_MAP,
+    )
+
+    if is_multi and check and check_explicit:
+        raise click.UsageError(
+            "--check is only supported when running a single notebook file."
+        )
 
     # correctness check - don't start the server if we can't import the module
-    check_app_correctness(name)
-    file = MarimoPath(name)
-    if check:
-        from marimo._lint import collect_messages
+    for path in validated_paths:
+        if Path(path).is_file():
+            check_app_correctness(path)
+            if check and not has_directory:
+                from marimo._lint import collect_messages
 
-        linter, message = collect_messages(file.absolute_name)
-        if linter.errored:
-            raise click.ClickException(
-                red("Failure")
-                + ": The notebook has errors, fix them before running.\n"
-                + message.strip()
-            )
+                file = MarimoPath(path)
+                linter, message = collect_messages(file.absolute_name)
+                if linter.errored:
+                    raise click.ClickException(
+                        red("Failure")
+                        + ": The notebook has errors, fix them before running.\n"
+                        + message.strip()
+                    )
 
     # We check this after name validation, because this will convert
     # URLs into local file paths
-    if should_run_in_sandbox(
-        sandbox=sandbox, dangerous_sandbox=None, name=name
-    ):
-        run_in_sandbox(sys.argv[1:], name=name)
-        return
+    if is_multi:
+        # Gallery mode: use MULTI sandbox (IPC kernels) or None
+        sandbox_mode = SandboxMode.MULTI if sandbox else None
+    else:
+        sandbox_mode = resolve_sandbox_mode(
+            sandbox=sandbox, name=validated_paths[0]
+        )
+        if sandbox_mode is SandboxMode.SINGLE:
+            run_in_sandbox(sys.argv[1:], name=validated_paths[0])
+            return
+
+    # Multi-file sandbox: use IPC kernels with per-notebook sandboxed venvs
+    if sandbox_mode is SandboxMode.MULTI:
+        # Check for pyzmq dependency
+        from marimo._dependencies.dependencies import DependencyManager
+
+        if not DependencyManager.zmq.has():
+            raise click.UsageError(
+                "pyzmq is required when running a gallery with --sandbox.\n"
+                "Install it with: pip install 'marimo[sandbox]'\n"
+                "Or: pip install pyzmq"
+            )
+
+    if is_multi:
+        marimo_files = _collect_marimo_files(validated_paths)
+        file_router = AppFileRouter.from_files(
+            marimo_files.files,
+            directory=marimo_files.root_dir,
+            allow_single_file_key=False,
+            allow_dynamic=False,
+        )
+    else:
+        file_router = AppFileRouter.from_filename(
+            MarimoPath(validated_paths[0])
+        )
 
     start(
-        file_router=AppFileRouter.from_filename(file),
+        file_router=file_router,
         development_mode=GLOBAL_SETTINGS.DEVELOPMENT_MODE,
         quiet=GLOBAL_SETTINGS.QUIET,
         host=host,
@@ -985,8 +1184,8 @@ def run(
         skew_protection=skew_protection,
         base_url=base_url,
         allow_origins=allow_origins,
-        cli_args=parse_args(args),
-        argv=list(args),
+        cli_args=parse_args(notebook_args),
+        argv=list(notebook_args),
         auth_token=resolve_token(
             token,
             token_password=token_password,
@@ -995,6 +1194,7 @@ def run(
         redirect_console_to_browser=redirect_console_to_browser,
         server_startup_command=server_startup_command,
         asset_url=asset_url,
+        sandbox_mode=sandbox_mode,
     )
 
 
@@ -1281,3 +1481,4 @@ main.command()(convert)
 main.add_command(export)
 main.add_command(config)
 main.add_command(development)
+main.add_command(tools)
