@@ -120,8 +120,8 @@
   thinking: false
 
 - name: GPT-5.1
-  model: gpt-5
-  description: The best model for coding and agentic tasks across domains
+  model: gpt-5.1
+  description: Stronger general-purpose reasoning and improved instruction adherence
   providers: [openai, azure, github]
   roles: [chat, edit]
   thinking: false

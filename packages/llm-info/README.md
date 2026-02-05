@@ -9,3 +9,6 @@ Models and providers are stored in the `data` directory.
 ## Adding a New LLM Model
 
 If you want to add a new LLM model or provider, you can do so by editing the YAML files in the `data` directory (`models.yaml` or `providers.yaml`) and running `pnpm codegen`.
+
+> **Note:**
+> To make it easier for users to choose, keep the number of models to a minimum. Focus on including the latest or recommended models from each provider.
