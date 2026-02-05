@@ -120,6 +120,8 @@ export class Model<T extends ModelState> implements AnyModel<T> {
 
   private listeners: Record<string, Set<EventHandler> | undefined> = {};
 
+  hasInitialized: boolean = false;
+
   off(eventName?: string | null, callback?: EventHandler | null): void {
     if (!eventName) {
       this.listeners = {};

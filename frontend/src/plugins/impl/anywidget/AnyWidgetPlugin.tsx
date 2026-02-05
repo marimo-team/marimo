@@ -188,9 +188,17 @@ async function runAnyWidgetModule<T extends AnyWidgetState>(
   };
   // Clear the element, in case the widget is re-rendering
   el.innerHTML = "";
+
   const widget =
     typeof widgetDef === "function" ? await widgetDef() : widgetDef;
-  await widget.initialize?.({ model, experimental });
+
+  if (!model.hasInitialized) {
+    model.hasInitialized = true;
+    await widget.initialize?.({ model, experimental });
+  } else {
+    Logger.debug("Widget has already initialized");
+  }
+
   try {
     const unsub = await widget.render?.({ model, el, experimental });
     return () => {
