@@ -80,6 +80,7 @@ class _cache_call(CacheContext):
         "pin_modules",
         "hash_type",
         "_args",
+        "_defaults",
         "_var_arg",
         "_var_kwarg",
         "_misses",
@@ -98,6 +99,7 @@ class _cache_call(CacheContext):
     pin_modules: bool
     hash_type: str
     _args: list[str]
+    _defaults: dict[str, Any]
     _var_arg: Optional[str]
     _var_kwarg: Optional[str]
     _misses: int
@@ -133,6 +135,7 @@ class _cache_call(CacheContext):
         self._loader = None
         self._bound = {}
         self._external = False
+        self._defaults = {}
         if _fn is None:
             self.__wrapped__ = None
         else:
@@ -170,6 +173,12 @@ class _cache_call(CacheContext):
                 inspect.Parameter.POSITIONAL_ONLY,
             )
         ]
+        # Store default values for arguments (issue #7977)
+        self._defaults = {
+            param.name: param.default
+            for param in sig.parameters.values()
+            if param.default is not inspect.Parameter.empty
+        }
         self._var_arg = next(
             (
                 param.name
@@ -273,6 +282,15 @@ class _cache_call(CacheContext):
         # Rewrite scoped args to prevent shadowed variables
         arg_dict = {f"{ARG_PREFIX}{k}": v for (k, v) in zip(self._args, args)}
         kwargs_copy = {f"{ARG_PREFIX}{k}": v for (k, v) in kwargs.items()}
+        # Fill in default values for arguments not explicitly provided
+        # This ensures cache hashes are based on resolved argument values
+        for arg_name, default_value in self._defaults.items():
+            prefixed_name = f"{ARG_PREFIX}{arg_name}"
+            if (
+                prefixed_name not in arg_dict
+                and prefixed_name not in kwargs_copy
+            ):
+                arg_dict[prefixed_name] = default_value
         # If the function has varargs, we need to capture them as well.
         if self._var_arg is not None:
             arg_dict[f"{ARG_PREFIX}{self._var_arg}"] = args[len(self._args) :]

@@ -2035,3 +2035,134 @@ class TestWrappedFunctionCache:
             f"Expected different hashes for different impure dependencies, "
             f"got {first_hash} == {second_hash}"
         )
+
+    @staticmethod
+    async def test_default_argument_cache_invalidation(
+        k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        """Test that changing default argument values invalidates the cache (issue #7977)."""
+
+        cell_id = "test_cell"
+
+        # First execution with config_version=1
+        await k.run(
+            [
+                exec_req.get_with_id(
+                    cell_id,
+                    """
+            import marimo as mo
+
+            @mo.cache
+            def get_data_with_config(query: str, config_version=1):
+                return query, config_version
+
+            result1 = get_data_with_config("test")
+            hash1 = get_data_with_config._last_hash
+            """,
+                )
+            ]
+        )
+
+        assert not k.stderr.messages, k.stderr
+        assert k.globals["result1"] == ("test", 1)
+        first_hash = k.globals["hash1"]
+
+        # Second execution with config_version=2 (same cell, different default)
+        await k.run(
+            [
+                exec_req.get_with_id(
+                    cell_id,
+                    """
+            import marimo as mo
+
+            @mo.cache
+            def get_data_with_config(query: str, config_version=2):
+                return query, config_version
+
+            result2 = get_data_with_config("test")
+            hash2 = get_data_with_config._last_hash
+            """,
+                )
+            ]
+        )
+
+        assert not k.stderr.messages, k.stderr
+        assert k.globals["result2"] == ("test", 2)
+        second_hash = k.globals["hash2"]
+
+        # The hashes should be different because the default argument changed
+        assert first_hash != second_hash, (
+            f"Expected different hashes when default argument changes, "
+            f"got {first_hash} == {second_hash}"
+        )
+
+    @staticmethod
+    async def test_explicit_arg_matches_previous_default(
+        k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        """Test that explicit args matching previous defaults are cache hits.
+
+        When fn(a=1) is cached via fn(), then fn(a=2) is defined and fn(1) is
+        called, it should be a cache hit since the actual argument value is the same.
+        """
+
+        cell_id = "test_cell"
+
+        # First execution: fn(a=1), call fn() which uses default a=1
+        await k.run(
+            [
+                exec_req.get_with_id(
+                    cell_id,
+                    """
+            import marimo as mo
+
+            @mo.cache
+            def fn(a=1):
+                return a + 1
+
+            result1 = fn()  # uses default a=1
+            hash1 = fn._last_hash
+            hits1 = fn.hits
+            """,
+                )
+            ]
+        )
+
+        assert not k.stderr.messages, k.stderr
+        assert k.globals["result1"] == 2  # 1 + 1
+        assert k.globals["hits1"] == 0  # cache miss
+        first_hash = k.globals["hash1"]
+
+        # Second execution: fn(a=2), call fn(1) explicitly
+        await k.run(
+            [
+                exec_req.get_with_id(
+                    cell_id,
+                    """
+            import marimo as mo
+
+            @mo.cache
+            def fn(a=2):
+                return a + 1
+
+            result2 = fn(1)  # explicit a=1, same as previous default
+            hash2 = fn._last_hash
+            hits2 = fn.hits
+            """,
+                )
+            ]
+        )
+
+        assert not k.stderr.messages, k.stderr
+        assert k.globals["result2"] == 2  # 1 + 1 (cache hit)
+        second_hash = k.globals["hash2"]
+
+        # The hashes should be the SAME because the actual argument value is the same
+        assert first_hash == second_hash, (
+            f"Expected same hash when explicit arg matches previous default, "
+            f"got {first_hash} != {second_hash}"
+        )
+        # Should be a cache hit
+        assert k.globals["hits2"] == 1, (
+            f"Expected cache hit, got hits={k.globals['hits2']}"
+        )
