@@ -131,14 +131,15 @@ class _cache_call(CacheContext):
         self._frame_offset = frame_offset
         self._loader_partial = loader_partial
         self._last_hash = None
+        self._args: list[str] = []
+        self._kwonly_args: list[str] = []
+        self._defaults: dict[str, Any] = {}
         self._var_arg = None
         self._var_kwarg = None
         self._misses = 0
         self._loader = None
         self._bound = {}
         self._external = False
-        self._defaults = {}
-        self._kwonly_args = []
         if _fn is None:
             self.__wrapped__ = None
         else:
@@ -167,43 +168,28 @@ class _cache_call(CacheContext):
 
         self.__wrapped__ = fn
         sig = inspect.signature(fn)
-        self._args = [
-            param.name
-            for param in sig.parameters.values()
-            if param.kind
-            in (
+
+        self._args = []
+        self._kwonly_args = []
+        self._defaults = {}
+        self._var_arg = None
+        self._var_kwarg = None
+
+        for param in sig.parameters.values():
+            if param.kind in (
                 inspect.Parameter.POSITIONAL_OR_KEYWORD,
                 inspect.Parameter.POSITIONAL_ONLY,
-            )
-        ]
-        # Track keyword-only parameters (those after * or *args)
-        self._kwonly_args = [
-            param.name
-            for param in sig.parameters.values()
-            if param.kind == inspect.Parameter.KEYWORD_ONLY
-        ]
-        # Store default values for arguments (issue #7977)
-        self._defaults = {
-            param.name: param.default
-            for param in sig.parameters.values()
-            if param.default is not inspect.Parameter.empty
-        }
-        self._var_arg = next(
-            (
-                param.name
-                for param in sig.parameters.values()
-                if param.kind == inspect.Parameter.VAR_POSITIONAL
-            ),
-            None,
-        )
-        self._var_kwarg = next(
-            (
-                param.name
-                for param in sig.parameters.values()
-                if param.kind == inspect.Parameter.VAR_KEYWORD
-            ),
-            None,
-        )
+            ):
+                self._args.append(param.name)
+            elif param.kind == inspect.Parameter.KEYWORD_ONLY:
+                self._kwonly_args.append(param.name)
+            elif param.kind == inspect.Parameter.VAR_POSITIONAL:
+                self._var_arg = param.name
+            elif param.kind == inspect.Parameter.VAR_KEYWORD:
+                self._var_kwarg = param.name
+
+            if param.default is not inspect.Parameter.empty:
+                self._defaults[param.name] = param.default
 
         # Retrieving frame from the stack: frame is
         #
@@ -225,12 +211,10 @@ class _cache_call(CacheContext):
         # Scoped refs are references particular to this block, that may not be
         # defined out of the context of the block, or the cell.
         # For instance, the args of the invoked function are restricted to the
-        # block.
-        self.scoped_refs = set([f"{ARG_PREFIX}{k}" for k in self._args])
-        # Include keyword-only args as well
-        self.scoped_refs |= set(
-            [f"{ARG_PREFIX}{k}" for k in self._kwonly_args]
-        )
+        # block. Include both positional and keyword-only args.
+        self.scoped_refs = {
+            f"{ARG_PREFIX}{k}" for k in self._args + self._kwonly_args
+        }
         # As are the "locals" not in globals
         self.scoped_refs |= set(f_locals.keys()) - set(glbls.keys())
         # Defined in the cell, and currently available in scope
@@ -344,10 +328,9 @@ class _cache_call(CacheContext):
             scope,
             self.loader,
             scoped_refs=self.scoped_refs,
-            required_refs=set(
-                [f"{ARG_PREFIX}{k}" for k in self._args]
-                + [f"{ARG_PREFIX}{k}" for k in self._kwonly_args]
-            ),
+            required_refs={
+                f"{ARG_PREFIX}{k}" for k in self._args + self._kwonly_args
+            },
             as_fn=True,
         )
 
