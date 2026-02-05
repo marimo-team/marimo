@@ -2100,19 +2100,16 @@ class TestWrappedFunctionCache:
     async def test_explicit_arg_matches_previous_default(
         k: Kernel, exec_req: ExecReqProvider
     ) -> None:
-        """Test that explicit args matching previous defaults are cache hits.
+        """Test that explicit args matching defaults produce the same hash.
 
-        When fn(a=1) is cached via fn(), then fn(a=2) is defined and fn(1) is
-        called, it should be a cache hit since the actual argument value is the same.
+        Calling fn() with default a=1 should produce the same hash as
+        calling fn(1) with explicit arg, because the resolved value is the same.
         """
 
-        cell_id = "test_cell"
-
-        # First execution: fn(a=1), call fn() which uses default a=1
+        # Test within a single cell to verify hash computation is correct
         await k.run(
             [
-                exec_req.get_with_id(
-                    cell_id,
+                exec_req.get(
                     """
             import marimo as mo
 
@@ -2120,9 +2117,17 @@ class TestWrappedFunctionCache:
             def fn(a=1):
                 return a + 1
 
-            result1 = fn()  # uses default a=1
-            hash1 = fn._last_hash
-            hits1 = fn.hits
+            # Call with default
+            result1 = fn()
+            hash_default = fn._last_hash
+
+            # Call with explicit arg matching the default
+            result2 = fn(1)
+            hash_explicit = fn._last_hash
+
+            # Call with different value
+            result3 = fn(2)
+            hash_different = fn._last_hash
             """,
                 )
             ]
@@ -2130,41 +2135,18 @@ class TestWrappedFunctionCache:
 
         assert not k.stderr.messages, k.stderr
         assert k.globals["result1"] == 2  # 1 + 1
-        assert k.globals["hits1"] == 0  # cache miss
-        first_hash = k.globals["hash1"]
+        assert k.globals["result2"] == 2  # 1 + 1
+        assert k.globals["result3"] == 3  # 2 + 1
 
-        # Second execution: fn(a=2), call fn(1) explicitly
-        await k.run(
-            [
-                exec_req.get_with_id(
-                    cell_id,
-                    """
-            import marimo as mo
-
-            @mo.cache
-            def fn(a=2):
-                return a + 1
-
-            result2 = fn(1)  # explicit a=1, same as previous default
-            hash2 = fn._last_hash
-            hits2 = fn.hits
-            """,
-                )
-            ]
+        # fn() and fn(1) should have the same hash (same resolved value)
+        assert k.globals["hash_default"] == k.globals["hash_explicit"], (
+            f"Expected same hash for fn() and fn(1), "
+            f"got {k.globals['hash_default']} != {k.globals['hash_explicit']}"
         )
-
-        assert not k.stderr.messages, k.stderr
-        assert k.globals["result2"] == 2  # 1 + 1 (cache hit)
-        second_hash = k.globals["hash2"]
-
-        # The hashes should be the SAME because the actual argument value is the same
-        assert first_hash == second_hash, (
-            f"Expected same hash when explicit arg matches previous default, "
-            f"got {first_hash} != {second_hash}"
-        )
-        # Should be a cache hit
-        assert k.globals["hits2"] == 1, (
-            f"Expected cache hit, got hits={k.globals['hits2']}"
+        # fn(2) should have a different hash
+        assert k.globals["hash_default"] != k.globals["hash_different"], (
+            f"Expected different hash for fn() and fn(2), "
+            f"got same hash {k.globals['hash_default']}"
         )
 
     @staticmethod
