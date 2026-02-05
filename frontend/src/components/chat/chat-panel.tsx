@@ -13,7 +13,6 @@ import {
   type LucideIcon,
   MessageCircleIcon,
   NotebookText,
-  PaperclipIcon,
   PlusIcon,
   SettingsIcon,
 } from "lucide-react";
