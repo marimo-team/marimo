@@ -4,6 +4,7 @@ from __future__ import annotations
 import atexit
 import json
 import os
+import shutil
 import sys
 import tempfile
 from dataclasses import dataclass
@@ -148,10 +149,18 @@ sandbox_message = (
 
 check_message = "Disable a static check of the notebook before running."
 
+try:
+    MAX_TERM_WIDTH = shutil.get_terminal_size().columns
+except Exception:
+    MAX_TERM_WIDTH = 80
+
 
 @click.group(
     help=main_help_msg,
-    context_settings={"help_option_names": ["-h", "--help"]},
+    context_settings={
+        "help_option_names": ["-h", "--help"],
+        "max_content_width": MAX_TERM_WIDTH,
+    },
 )
 @click.version_option(version=__version__, message="%(version)s")
 @click.option(
