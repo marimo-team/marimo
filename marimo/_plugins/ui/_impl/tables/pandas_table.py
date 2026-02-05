@@ -309,11 +309,21 @@ class PandasTableManagerFactory(TableManagerFactory):
                 # If there's a non-trivial index, include it in the search
                 # by resetting the index first
                 if self._has_non_trivial_index():
+                    index = self._original_data.index
+                    num_levels = index.nlevels
+                    original_names = list(index.names)
+
                     df_with_index = self._original_data.reset_index()
+                    # reset_index() puts index columns at the start
+                    index_columns = list(df_with_index.columns[:num_levels])
+
                     manager = PandasTableManager(df_with_index)
                     result = super(PandasTableManager, manager).search(query)
-                    # result.data is a narwhals DataFrame, convert to native pandas
                     native_df: pd.DataFrame = nw.to_native(result.data)
+
+                    # Restore the original index structure
+                    native_df = native_df.set_index(index_columns)
+                    native_df.index.names = original_names
                     return PandasTableManager(native_df)
                 result = super().search(query)
                 native_df = nw.to_native(result.data)

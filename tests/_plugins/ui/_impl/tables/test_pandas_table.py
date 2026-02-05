@@ -970,6 +970,132 @@ class TestPandasTableManager(unittest.TestCase):
         assert manager3.search("A").get_num_rows() == 2
         assert manager3.search("x").get_num_rows() == 2
 
+    def test_search_preserves_index_structure(self) -> None:
+        """
+        Test that search preserves the index structure of the DataFrame.
+        The result should have the same index type and names as the original.
+        """
+        # Test with unnamed string index
+        df_unnamed = pd.DataFrame(
+            {"value": [10, 20, 30]},
+            index=pd.Index(["foo", "bars", "bare"]),
+        )
+        manager = self.factory.create()(df_unnamed)
+        result = manager.search("bar")
+        result_df = nw.to_native(result.data)
+
+        # Index should be preserved (not converted to a column)
+        expected = pd.DataFrame(
+            {"value": [20, 30]},
+            index=pd.Index(["bars", "bare"]),
+        )
+        assert_frame_equal(result_df, expected)
+
+    def test_search_preserves_named_index(self) -> None:
+        """
+        Test that search preserves named index.
+        """
+        df_named = pd.DataFrame(
+            {"value": [10, 20, 30]},
+            index=pd.Index(["foo", "bars", "bare"], name="label"),
+        )
+        manager = self.factory.create()(df_named)
+        result = manager.search("bar")
+        result_df = nw.to_native(result.data)
+
+        # Index name should be preserved
+        expected = pd.DataFrame(
+            {"value": [20, 30]},
+            index=pd.Index(["bars", "bare"], name="label"),
+        )
+        assert_frame_equal(result_df, expected)
+
+    def test_search_preserves_multiindex(self) -> None:
+        """
+        Test that search preserves MultiIndex structure.
+        """
+        df_multi = pd.DataFrame(
+            {"value": [1, 2, 3, 4]},
+            index=pd.MultiIndex.from_tuples(
+                [("A", "x"), ("A", "y"), ("B", "x"), ("B", "y")],
+                names=["letter", "symbol"],
+            ),
+        )
+        manager = self.factory.create()(df_multi)
+        result = manager.search("A")
+        result_df = nw.to_native(result.data)
+
+        # MultiIndex should be preserved
+        expected = pd.DataFrame(
+            {"value": [1, 2]},
+            index=pd.MultiIndex.from_tuples(
+                [("A", "x"), ("A", "y")],
+                names=["letter", "symbol"],
+            ),
+        )
+        assert_frame_equal(result_df, expected)
+
+    def test_search_preserves_unnamed_multiindex(self) -> None:
+        """
+        Test that search preserves unnamed MultiIndex structure.
+        """
+        df_multi_unnamed = pd.DataFrame(
+            {"value": [1, 2, 3, 4]},
+            index=pd.MultiIndex.from_tuples(
+                [("A", "x"), ("A", "y"), ("B", "x"), ("B", "y")],
+            ),
+        )
+        manager = self.factory.create()(df_multi_unnamed)
+        result = manager.search("B")
+        result_df = nw.to_native(result.data)
+
+        # MultiIndex should be preserved with None names
+        expected = pd.DataFrame(
+            {"value": [3, 4]},
+            index=pd.MultiIndex.from_tuples(
+                [("B", "x"), ("B", "y")],
+            ),
+        )
+        assert_frame_equal(result_df, expected)
+
+    def test_search_preserves_datetime_index(self) -> None:
+        """
+        Test that search preserves DatetimeIndex.
+        """
+        df_datetime = pd.DataFrame(
+            {"value": ["jan", "feb", "march"]},
+            index=pd.to_datetime(["2021-01-01", "2021-02-01", "2021-03-01"]),
+        )
+        manager = self.factory.create()(df_datetime)
+        result = manager.search("jan")
+        result_df = nw.to_native(result.data)
+
+        # DatetimeIndex should be preserved
+        expected = pd.DataFrame(
+            {"value": ["jan"]},
+            index=pd.to_datetime(["2021-01-01"]),
+        )
+        assert_frame_equal(result_df, expected)
+
+    def test_search_with_trivial_index_no_change(self) -> None:
+        """
+        Test that search with trivial RangeIndex doesn't add extra columns.
+        """
+        df_trivial = pd.DataFrame(
+            {"A": [1, 2, 3], "B": ["foo", "bars", "bare"]},
+        )
+        manager = self.factory.create()(df_trivial)
+        result = manager.search("bar")
+        result_df = nw.to_native(result.data)
+
+        # Should have no named index, no extra columns
+        # Note: filtering preserves original row indices (1, 2) not (0, 1)
+        expected = pd.DataFrame(
+            {"A": [2, 3], "B": ["bars", "bare"]},
+            index=pd.Index([1, 2]),
+        )
+        assert_frame_equal(result_df, expected)
+
     def test_apply_formatting_does_not_modify_original_data(self) -> None:
         original_data = self.data.copy()
         format_mapping = {
