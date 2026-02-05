@@ -164,18 +164,10 @@ from marimo._runtime.reload.autoreload import ModuleReloader
 from marimo._runtime.reload.module_watcher import ModuleWatcher
 from marimo._runtime.runner import cell_runner
 from marimo._runtime.runner.hooks import (
-    ON_FINISH_HOOKS,
-    POST_EXECUTION_HOOKS,
-    PRE_EXECUTION_HOOKS,
-    PREPARATION_HOOKS,
+    NotebookCellHooks,
+    Priority,
+    create_default_hooks,
 )
-from marimo._runtime.runner.hooks_on_finish import OnFinishHookType
-from marimo._runtime.runner.hooks_post_execution import (
-    PostExecutionHookType,
-    render_toplevel_defs,
-)
-from marimo._runtime.runner.hooks_pre_execution import PreExecutionHookType
-from marimo._runtime.runner.hooks_preparation import PreparationHookType
 from marimo._runtime.scratch import SCRATCH_CELL_ID
 from marimo._runtime.state import State
 from marimo._runtime.utils.set_ui_element_request_manager import (
@@ -504,11 +496,7 @@ class Kernel:
         stdin: Stdin | None,
         module: ModuleType,
         enqueue_control_request: Callable[[CommandMessage], None],
-        preparation_hooks: list[PreparationHookType] | None = None,
-        pre_execution_hooks: list[PreExecutionHookType] | None = None,
-        post_execution_hooks: list[PostExecutionHookType] | None = None,
-        on_finish_hooks: list[OnFinishHookType] | None = None,
-        render_hook: PostExecutionHookType | None = None,
+        hooks: NotebookCellHooks,
         debugger_override: marimo_pdb.MarimoPdb | None = None,
     ) -> None:
         self.app_metadata = app_metadata
@@ -552,38 +540,9 @@ class Kernel:
                 if path not in sys.path:
                     sys.path.insert(0, path)
 
-        self._preparation_hooks = (
-            preparation_hooks
-            if preparation_hooks is not None
-            else PREPARATION_HOOKS
-        )
-        self._pre_execution_hooks = (
-            pre_execution_hooks
-            if pre_execution_hooks is not None
-            else PRE_EXECUTION_HOOKS
-        )
-        self._post_execution_hooks = (
-            post_execution_hooks
-            if post_execution_hooks is not None
-            else POST_EXECUTION_HOOKS
-        )
-        self._on_finish_hooks = (
-            on_finish_hooks if on_finish_hooks is not None else ON_FINISH_HOOKS
-        )
+        self._hooks = hooks
 
         self._original_environ = os.environ.copy()
-
-        # Adds in a post_execution hook to run pytest immediately
-        if user_config["runtime"].get("reactive_tests", False):
-            from marimo._runtime.runner.hooks_post_execution import (
-                attempt_pytest,
-            )
-
-            self._post_execution_hooks.append(attempt_pytest)
-
-        # Must be last to properly trigger render.
-        if render_hook is not None:
-            self._post_execution_hooks.append(render_hook)
 
         self._globals_lock = threading.RLock()
         self._state_lock = threading.RLock()
@@ -1421,7 +1380,7 @@ class Kernel:
         Returns set of cells that need to be re-run due to state updates.
         """
 
-        # Some hooks that are leaky and require the kernel
+        # Some hooks that are closures and require the kernel instance
         # Free cell state ahead of running to relieve memory pressure
         #
         # NB: lazy kernels don't invalidate state of cancelled cells
@@ -1442,6 +1401,13 @@ class Kernel:
             if isinstance(run_result.exception, MarimoInterrupt):
                 self.last_interrupt_timestamp = time.time()
 
+        # Copy hooks and add run-specific hooks
+        run_hooks = self._hooks.copy()
+        run_hooks.add_preparation(invalidate_state)
+        run_hooks.add_post_execution(note_time_of_interruption, Priority.LATE)
+        run_hooks.add_on_finish(self.packages_callbacks.missing_packages_hook)
+        run_hooks.add_on_finish(self._propagate_kernel_errors)
+
         # Rebuild graph with sourceful positions
         # Note, this is relatively expensive, but a reasonable tradeoff
         graph = self.graph
@@ -1457,17 +1423,7 @@ class Kernel:
             execution_mode=self.reactive_execution_mode,
             execution_type=self.execution_type,
             execution_context=self._install_execution_context,
-            preparation_hooks=self._preparation_hooks + [invalidate_state],
-            pre_execution_hooks=self._pre_execution_hooks,
-            post_execution_hooks=self._post_execution_hooks
-            + [note_time_of_interruption],
-            on_finish_hooks=(
-                self._on_finish_hooks
-                + [
-                    self.packages_callbacks.missing_packages_hook,
-                    self._propagate_kernel_errors,
-                ]
-            ),
+            hooks=run_hooks,
         )
 
         # I/O
@@ -1728,6 +1684,12 @@ class Kernel:
         graph = dataflow.DirectedGraph()
         graph.register_cell(SCRATCH_CELL_ID, cell)
 
+        # Copy hooks and add scratchpad-specific hooks
+        scratchpad_hooks = self._hooks.copy()
+        scratchpad_hooks.add_on_finish(
+            self.packages_callbacks.missing_packages_hook
+        )
+
         runner = cell_runner.Runner(
             roots=roots,
             graph=graph,
@@ -1737,13 +1699,7 @@ class Kernel:
             execution_mode=self.reactive_execution_mode,
             execution_type=self.execution_type,
             execution_context=self._install_execution_context,
-            preparation_hooks=self._preparation_hooks,
-            pre_execution_hooks=self._pre_execution_hooks,
-            post_execution_hooks=self._post_execution_hooks,
-            on_finish_hooks=(
-                self._on_finish_hooks
-                + [self.packages_callbacks.missing_packages_hook]
-            ),
+            hooks=scratchpad_hooks,
         )
 
         await runner.run_all()
@@ -3228,9 +3184,6 @@ def launch_kernel(
         else None
     )
 
-    # Run mode kernels do not need additional rendering for toplevel defs
-    render_hook = render_toplevel_defs if is_edit_mode else None
-
     # In run mode, the kernel should always be in autorun, and the module
     # autoreloader is disabled
     if not is_edit_mode:
@@ -3242,6 +3195,18 @@ def launch_kernel(
         control_queue.put_nowait(req)
         if isinstance(req, UpdateUIElementCommand):
             set_ui_element_queue.put_nowait(req)
+
+    # Create hooks with mode-specific configuration
+    from marimo._runtime.runner.hooks_post_execution import (
+        attempt_pytest,
+        render_toplevel_defs,
+    )
+
+    hooks = create_default_hooks()
+    if user_config["runtime"].get("reactive_tests", False):
+        hooks.add_post_execution(attempt_pytest, Priority.LATE)
+    if is_edit_mode:
+        hooks.add_post_execution(render_toplevel_defs, Priority.LATE)
 
     kernel = Kernel(
         cell_configs=configs,
@@ -3258,7 +3223,7 @@ def launch_kernel(
         debugger_override=debugger,
         user_config=user_config,
         enqueue_control_request=_enqueue_control_request,
-        render_hook=render_hook,
+        hooks=hooks,
     )
     ctx = initialize_kernel_context(
         kernel=kernel,

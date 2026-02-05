@@ -7,6 +7,7 @@ from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.errors import MarimoSQLError
 from marimo._runtime.capture import capture_stderr
 from marimo._runtime.runner.cell_runner import Runner
+from marimo._runtime.runner.hooks import NotebookCellHooks
 from marimo._runtime.runtime import Kernel
 from tests.conftest import ExecReqProvider
 
@@ -23,6 +24,7 @@ async def test_cell_output(
         graph=k.graph,
         glbls=k.globals,
         debugger=k.debugger,
+        hooks=NotebookCellHooks(),
     )
     run_result = await runner.run(er.cell_id)
     # last expression of cell is output
@@ -55,6 +57,7 @@ async def test_traceback_includes_lineno(
         graph=k.graph,
         glbls=k.globals,
         debugger=k.debugger,
+        hooks=NotebookCellHooks(),
     )
     with capture_stderr() as buffer:
         await runner.run(er.cell_id)
@@ -93,6 +96,7 @@ async def test_base_exception_caught(
         graph=k.graph,
         glbls=k.globals,
         debugger=k.debugger,
+        hooks=NotebookCellHooks(),
     )
     with capture_stderr() as buffer:
         await runner.run(er.cell_id)
@@ -129,6 +133,7 @@ raise ParseError("malformed SQL")
         graph=k.graph,
         glbls=k.globals,
         debugger=k.debugger,
+        hooks=NotebookCellHooks(),
     )
 
     with capture_stderr() as buffer:
