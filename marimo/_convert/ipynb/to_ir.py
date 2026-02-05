@@ -403,6 +403,12 @@ class ExclamationMarkResult:
     needs_subprocess: bool
 
 
+def _pass_if_indented(indent_level: int) -> str:
+    if indent_level > 0:
+        return "pass  "
+    return ""
+
+
 def _normalize_git_url_package(package: str) -> str:
     """
     Normalize git URL packages to PEP 508 format.
@@ -460,7 +466,9 @@ def _extract_pip_install(
 ) -> ExclamationCommandResult:
     pip_packages: list[str] = []
     if "install" not in command_tokens:
-        return _shlex_to_subprocess_call(command_line, command_tokens)
+        return _shlex_to_subprocess_call(
+            command_line, command_tokens, indent_level
+        )
 
     install_idx = command_tokens.index("install")
 
@@ -485,16 +493,10 @@ def _extract_pip_install(
 
     # Comment out the pip command, showing items in comment
     # Add pass for indented commands to prevent empty blocks
-    if indent_level > 0:
-        replacement = (
-            "pass  # packages added via marimo's package management: "
-            f"{' '.join(display_items)} !{command_line}"
-        )
-    else:
-        replacement = (
-            "# packages added via marimo's package management: "
-            f"{' '.join(display_items)} !{command_line}"
-        )
+    replacement = (
+        f"{_pass_if_indented(indent_level)}# packages added via marimo's "
+        f"package management: {' '.join(display_items)} !{command_line}"
+    )
     return ExclamationCommandResult(replacement, pip_packages, False)
 
 
@@ -515,7 +517,7 @@ def _is_compilable_expression(expr: str) -> bool:
 
 
 def _shlex_to_subprocess_call(
-    command_line: str, command_tokens: list[str]
+    command_line: str, command_tokens: list[str], indent_level: int = 0
 ) -> ExclamationCommandResult:
     """Convert a shell command to subprocess.call([...])
 
@@ -525,6 +527,7 @@ def _shlex_to_subprocess_call(
     Args:
         command_line: The command string
         command_tokens: Tokenized command
+        indent_level: Number of indents for the examined line.
     """
     # First pass: check if any template is invalid
     for token in command_tokens:
@@ -534,8 +537,8 @@ def _shlex_to_subprocess_call(
                 # Comment out entire command if any template is invalid
                 # Always add pass to prevent empty blocks
                 return ExclamationCommandResult(
-                    f"pass  # !{command_line}\n"
-                    f"# Note: Command contains invalid template expression",
+                    f"# Note: Command contains invalid template expression\n"
+                    f"{_pass_if_indented(indent_level)}# !{command_line}",
                     [],
                     False,  # No subprocess needed
                 )
@@ -591,7 +594,9 @@ def _handle_exclamation_command(
             )
 
     # Replace with subprocess.call()
-    return _shlex_to_subprocess_call(command_line, command_tokens)
+    return _shlex_to_subprocess_call(
+        command_line, command_tokens, indent_level
+    )
 
 
 def _normalize_package_name(name: str) -> str:
@@ -628,16 +633,7 @@ def _extract_package_name(pkg: str) -> str:
         return _normalize_package_name(name)
 
     # Strip version specifiers and extras
-    name = (
-        pkg.split("==")[0]
-        .split(">=")[0]
-        .split("<=")[0]
-        .split("~=")[0]
-        .split("[")[0]
-        .split("<")[0]
-        .split(">")[0]
-        .strip()
-    )
+    name = re.split(r"[=<>~\[]+", pkg)[0].strip()
     return _normalize_package_name(name)
 
 

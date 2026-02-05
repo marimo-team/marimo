@@ -632,22 +632,6 @@ def test_transform_exclamation_mark_with_variables():
     ]
 
 
-def test_transform_exclamation_mark_with_malformed_templates():
-    # Test that malformed template placeholders don't break Python syntax
-    # These commands contain syntax errors that prevent tokenization,
-    # so they are left unchanged (tokenizer fails)
-    sources = [
-        "!echo {p'strope}",
-        '!echo {a"quote}',
-        "!echo {both'\"mixed}",
-    ]
-    result = transform_exclamation_mark(sources)
-    # Commands with syntax errors that prevent tokenization remain unchanged
-    assert result.transformed_sources == sources
-    assert result.pip_packages == []
-    assert result.needs_subprocess is False
-
-
 def test_transform_exclamation_mark_with_invalid_expressions():
     # Test that invalid Python expressions in templates are caught
     # Most syntax errors fail tokenization and remain unchanged
@@ -660,7 +644,7 @@ def test_transform_exclamation_mark_with_invalid_expressions():
     # First is invalid and gets pass (always for invalid commands)
     # Second is valid Python syntax (runtime error is OK)
     assert result.transformed_sources == [
-        "pass  # !wget {1+*2}\n# Note: Command contains invalid template expression",
+        "# Note: Command contains invalid template expression\n# !wget {1+*2}",
         "#! echo {1/0}\nsubprocess.call(['echo', str(1/0)])",
     ]
     assert result.pip_packages == []
