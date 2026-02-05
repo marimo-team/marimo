@@ -157,10 +157,14 @@ def _format_options(
 class ColoredCommand(click.Command):
     """Click Command with colored help output (cargo-style)."""
 
-    def format_usage(self, ctx: click.Context, formatter: click.HelpFormatter) -> None:
+    def format_usage(
+        self, ctx: click.Context, formatter: click.HelpFormatter
+    ) -> None:
         _format_usage(self, ctx, formatter)
 
-    def format_options(self, ctx: click.Context, formatter: click.HelpFormatter) -> None:
+    def format_options(
+        self, ctx: click.Context, formatter: click.HelpFormatter
+    ) -> None:
         _format_options(self, ctx, formatter)
 
 
@@ -169,16 +173,22 @@ class ColoredGroup(click.Group):
 
     command_class = ColoredCommand
 
-    def format_usage(self, ctx: click.Context, formatter: click.HelpFormatter) -> None:
+    def format_usage(
+        self, ctx: click.Context, formatter: click.HelpFormatter
+    ) -> None:
         _format_usage(self, ctx, formatter)
 
-    def format_options(self, ctx: click.Context, formatter: click.HelpFormatter) -> None:
+    def format_options(
+        self, ctx: click.Context, formatter: click.HelpFormatter
+    ) -> None:
         _format_options(self, ctx, formatter)
         # Click's MultiCommand.format_options calls format_commands internally,
         # so we must do the same since we're overriding the method completely
         self.format_commands(ctx, formatter)
 
-    def format_commands(self, ctx: click.Context, formatter: click.HelpFormatter) -> None:
+    def format_commands(
+        self, ctx: click.Context, formatter: click.HelpFormatter
+    ) -> None:
         """Write all commands with colored names."""
         commands = []
         for subcommand in self.list_commands(ctx):

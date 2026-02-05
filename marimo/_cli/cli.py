@@ -24,8 +24,8 @@ from marimo._cli.export.commands import export
 from marimo._cli.file_path import validate_name
 from marimo._cli.parse_args import parse_args
 from marimo._cli.print import (
-    bright_green,
     ColoredGroup,
+    bright_green,
     light_blue,
     red,
 )

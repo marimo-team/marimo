@@ -289,9 +289,9 @@ def test_cli_help_colored_output() -> None:
         assert result_color.exit_code == 0
         # Verify ANSI escape codes are present when colors are enabled
         # \033[ is the ANSI escape sequence prefix
-        assert (
-            "\033[" in result_color.output
-        ), "Expected ANSI color codes in help output"
+        assert "\033[" in result_color.output, (
+            "Expected ANSI color codes in help output"
+        )
     finally:
         print_module._USE_COLOR = original_use_color
 

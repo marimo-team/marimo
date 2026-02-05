@@ -7,9 +7,9 @@ import click
 
 from marimo._cli.config.utils import highlight_toml_headers
 from marimo._cli.print import (
-    echo,
     ColoredCommand,
     ColoredGroup,
+    echo,
     green,
 )
 from marimo._config.manager import (
@@ -19,7 +19,9 @@ from marimo._config.manager import (
 from marimo._config.reader import find_nearest_pyproject_toml
 
 
-@click.group(cls=ColoredGroup, help="""Various commands for the marimo config.""")
+@click.group(
+    cls=ColoredGroup, help="""Various commands for the marimo config."""
+)
 def config() -> None:
     pass
 
