@@ -10,6 +10,7 @@ import click
 from marimo._cli.export.cloudflare import create_cloudflare_files
 from marimo._cli.parse_args import parse_args
 from marimo._cli.print import echo, green
+from marimo._cli.tools.thumbnails import thumbnail
 from marimo._cli.utils import prompt_to_overwrite
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._dependencies.errors import ManyModulesNotFoundError
@@ -829,3 +830,4 @@ export.add_command(md)
 export.add_command(ipynb)
 export.add_command(pdf)
 export.add_command(html_wasm)
+export.add_command(thumbnail)
