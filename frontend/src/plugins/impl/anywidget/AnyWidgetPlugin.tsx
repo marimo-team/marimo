@@ -23,6 +23,7 @@ import type { ModelState, WidgetModelId } from "./types";
 interface Data {
   jsUrl: string;
   jsHash: string;
+  css?: string | null;
 }
 
 type AnyWidgetState = ModelState;
@@ -123,17 +124,20 @@ export const AnyWidgetPlugin = createPlugin<ModelIdRef>("marimo-anywidget")
     z.object({
       jsUrl: z.string(),
       jsHash: z.string(),
+      css: z.string().nullish(),
     }),
   )
   .withFunctions({})
   .renderer((props) => <AnyWidgetSlot {...props} />);
 
 const AnyWidgetSlot = (props: IPluginProps<ModelIdRef, Data>) => {
-  const { jsUrl, jsHash } = props.data;
+  const { css, jsUrl, jsHash } = props.data;
   const { model_id: modelId } = props.value;
   const host = props.host as HTMLElementNotDerivedFromRef;
 
   const { jsModule, error } = useAnyWidgetModule({ jsUrl, jsHash });
+
+  useMountCss(css, host);
 
   if (error) {
     return <ErrorBanner error={error} />;
@@ -162,7 +166,6 @@ const AnyWidgetSlot = (props: IPluginProps<ModelIdRef, Data>) => {
       key={key}
       widget={jsModule.default}
       modelId={modelId}
-      host={host}
     />
   );
 };
@@ -208,13 +211,11 @@ function isAnyWidgetModule(mod: any): mod is { default: AnyWidget } {
 interface Props<T extends AnyWidgetState> {
   widget: AnyWidget<T>;
   modelId: WidgetModelId;
-  host: HTMLElementNotDerivedFromRef;
 }
 
 const LoadedSlot = <T extends AnyWidgetState>({
   widget,
   modelId,
-  host,
 }: Props<T> & { widget: AnyWidget<T> }) => {
   const htmlRef = useRef<HTMLDivElement>(null);
 
@@ -224,9 +225,6 @@ const LoadedSlot = <T extends AnyWidgetState>({
   if (!model) {
     Logger.error("Model not found for modelId", modelId);
   }
-
-  const css = model?.get("_css");
-  useMountCss(css, host);
 
   useEffect(() => {
     if (!htmlRef.current || !model) {
