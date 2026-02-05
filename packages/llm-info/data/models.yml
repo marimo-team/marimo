@@ -191,7 +191,7 @@
   description: Most advanced Sonnet model to date, optimized for real-world agents
   providers: [bedrock]
   roles: [chat, edit]
-  thinking: false
+  thinking: true
 
 - name: Claude 4.5 Haiku (Bedrock)
   model: global.anthropic.claude-haiku-4-5-latest-v1:0
