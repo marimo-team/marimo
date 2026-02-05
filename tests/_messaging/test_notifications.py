@@ -118,7 +118,6 @@ def test_send_ui_element_message_broadcast() -> None:
 
     msg = UIElementMessageNotification(
         ui_element="test_element",
-        model_id=None,
         message={"action": "update", "value": 42},
         buffers=[b"buffer1", b"buffer2"],
     )
@@ -130,7 +129,6 @@ def test_send_ui_element_message_broadcast() -> None:
     assert stream.operations[0] == {
         "op": "send-ui-element-message",
         "ui_element": "test_element",
-        "model_id": None,
         "message": {"action": "update", "value": 42},
         "buffers": [
             "YnVmZmVyMQ==",

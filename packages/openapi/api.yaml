@@ -4313,9 +4313,8 @@ components:
       type: object
     UIElementMessageNotification:
       description: "Sends a message to a UI element/widget.\n\n    Attributes:\n \
-        \       ui_element: UI element identifier (legacy).\n        model_id: Widget\
-        \ model ID (newer architecture).\n        message: Message payload as dictionary.\n\
-        \        buffers: Optional binary buffers for large data."
+        \       ui_element: UI element identifier.\n        message: Message payload\
+        \ as dictionary.\n        buffers: Optional binary buffers for large data."
       properties:
         buffers:
           anyOf:
@@ -4327,21 +4326,14 @@ components:
           default: null
         message:
           type: object
-        model_id:
-          anyOf:
-          - type: string
-          - type: 'null'
         op:
           enum:
           - send-ui-element-message
         ui_element:
-          anyOf:
-          - type: string
-          - type: 'null'
+          type: string
       required:
       - op
       - ui_element
-      - model_id
       - message
       title: UIElementMessageNotification
       type: object
