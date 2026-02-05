@@ -80,7 +80,8 @@ _cache: WeakCache[AnyWidget, UIElement[Any, Any]] = WeakCache()  # type: ignore[
 
 def from_anywidget(widget: AnyWidget) -> UIElement[Any, Any]:
     """Create a UIElement from an AnyWidget."""
-    if not (el := _cache.get(widget)):
+    el = _cache.get(widget)
+    if el is None:
         el = anywidget(widget)
         _cache.add(widget, el)  # type: ignore[no-untyped-call, unused-ignore, assignment]  # noqa: E501
     return el
