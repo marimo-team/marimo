@@ -14,7 +14,6 @@ from marimo._messaging.mimetypes import KnownMimeType
 from marimo._runtime.cell_lifecycle_item import CellLifecycleItem
 from marimo._runtime.context import ContextNotInitializedError
 from marimo._runtime.virtual_file.storage import (
-    InMemoryStorage,
     VirtualFileStorage,
     VirtualFileStorageManager,
 )
@@ -185,13 +184,9 @@ class VirtualFileRegistry:
         # Set singleton reference for read_virtual_file()
         manager = VirtualFileStorageManager()
         if manager.storage is None:
+            # Not set yet, _or_ was stale
             manager.storage = self.storage
-        elif (
-            isinstance(self.storage, InMemoryStorage)
-            and self.storage is not manager.storage
-        ):
-            # Force singleton storage for read_virtual_file().
-            # Assuming inside RUN mode context if self.storage is InMemoryStorage.
+        elif self.storage is not manager.storage:
             LOGGER.warning(
                 "Expected shared global storage but VirtualFileRegistry was initialized "
                 "with new storage instance. Overriding with global storage.",
@@ -257,17 +252,7 @@ class VirtualFileRegistry:
             return
         try:
             self.shutting_down = True
-            # Remove only keys tracked by this registry
-            # NOTE: Intentionally not calling `storage.shutdown()` as storage may be
-            # shared across multiple registries in the same process, e.g. in concurrent
-            # sessions in an embedded app
-            for key in self.registry:
-                try:
-                    self.storage.remove(key)
-                except Exception:
-                    LOGGER.exception(
-                        "Failed to remove virtual file %s during shutdown", key
-                    )
+            self.storage.shutdown(keys=self.registry.keys())
             self.registry.clear()
         finally:
             self.shutting_down = False

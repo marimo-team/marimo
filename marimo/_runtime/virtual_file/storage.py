@@ -2,9 +2,12 @@
 from __future__ import annotations
 
 import sys
-from typing import Protocol
+from typing import TYPE_CHECKING, Protocol
 
 from marimo._utils.platform import is_pyodide
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
 
 if not is_pyodide():
     # the shared_memory module is not supported in the Pyodide distribution
@@ -30,12 +33,22 @@ class VirtualFileStorage(Protocol):
         """Remove stored data by key."""
         ...
 
-    def shutdown(self) -> None:
-        """Clean up all storage resources."""
+    def shutdown(self, keys: Iterable[str] | None = None) -> None:
+        """Clean up storage resources.
+
+        Args:
+            keys: If provided, only remove these keys. If None, clear all.
+                  Implementations may ignore this if storage is not shared.
+        """
         ...
 
     def has(self, key: str) -> bool:
         """Check if key exists in storage."""
+        ...
+
+    @property
+    def stale(self) -> bool:
+        """Whether storage has been fully shut down and is no longer usable."""
         ...
 
 
@@ -48,6 +61,11 @@ class SharedMemoryStorage(VirtualFileStorage):
     def __init__(self) -> None:
         self._storage: dict[str, shared_memory.SharedMemory] = {}
         self._shutting_down = False
+        self._stale = False
+
+    @property
+    def stale(self) -> bool:
+        return self._stale
 
     def store(self, key: str, buffer: bytes) -> None:
         if key in self._storage:
@@ -107,7 +125,8 @@ class SharedMemoryStorage(VirtualFileStorage):
             self._storage[key].unlink()
             del self._storage[key]
 
-    def shutdown(self) -> None:
+    def shutdown(self, keys: Iterable[str] | None = None) -> None:
+        del keys  # Always clear all - not shared
         if self._shutting_down:
             return
         try:
@@ -118,6 +137,7 @@ class SharedMemoryStorage(VirtualFileStorage):
                 shm.unlink()
             self._storage.clear()
         finally:
+            self._stale = True
             self._shutting_down = False
 
     def has(self, key: str) -> bool:
@@ -133,6 +153,10 @@ class InMemoryStorage(VirtualFileStorage):
     def __init__(self) -> None:
         self._storage: dict[str, bytes] = {}
 
+    @property
+    def stale(self) -> bool:
+        return False  # Never stale - can be shared
+
     def store(self, key: str, buffer: bytes) -> None:
         self._storage[key] = buffer
 
@@ -145,8 +169,12 @@ class InMemoryStorage(VirtualFileStorage):
         if key in self._storage:
             del self._storage[key]
 
-    def shutdown(self) -> None:
-        self._storage.clear()
+    def shutdown(self, keys: Iterable[str] | None = None) -> None:
+        if keys is not None:
+            for key in keys:
+                self.remove(key)
+        else:
+            self._storage.clear()
 
     def has(self, key: str) -> bool:
         return key in self._storage
@@ -165,6 +193,8 @@ class VirtualFileStorageManager:
 
     @property
     def storage(self) -> VirtualFileStorage | None:
+        if self._storage is not None and self._storage.stale:
+            self._storage = None
         return self._storage
 
     @storage.setter
