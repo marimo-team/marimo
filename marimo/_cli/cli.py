@@ -23,7 +23,12 @@ from marimo._cli.envinfo import get_system_info
 from marimo._cli.export.commands import export
 from marimo._cli.file_path import validate_name
 from marimo._cli.parse_args import parse_args
-from marimo._cli.print import red
+from marimo._cli.print import (
+    bright_green,
+    get_colored_group_class,
+    light_blue,
+    red,
+)
 from marimo._cli.run_docker import (
     prompt_run_in_docker_container,
 )
@@ -80,7 +85,7 @@ def _key_value_bullets(items: list[tuple[str, str]]) -> str:
         lines.append("\b")
         lines.append(
             "  * "
-            + key
+            + light_blue(key, bold=True)
             + _sep(desc)
             + " " * (max_length - len(key) + 2)
             + desc
@@ -93,7 +98,7 @@ main_help_msg = "\n".join(
         "\b",
         "Welcome to marimo!",
         "\b",
-        "Getting started:",
+        bright_green("Getting started:", bold=True),
         "",
         _key_value_bullets(
             [
@@ -102,7 +107,7 @@ main_help_msg = "\n".join(
         ),
         "\b",
         "",
-        "Example usage:",
+        bright_green("Example usage:", bold=True),
         "",
         _key_value_bullets(
             [
@@ -150,6 +155,7 @@ check_message = "Disable a static check of the notebook before running."
 
 
 @click.group(
+    cls=get_colored_group_class(),
     help=main_help_msg,
     context_settings={"help_option_names": ["-h", "--help"]},
 )

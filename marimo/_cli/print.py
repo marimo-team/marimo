@@ -4,7 +4,12 @@ from __future__ import annotations
 
 import os
 import sys
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
+
+import click
+
+if TYPE_CHECKING:
+    from click import Command, Context, HelpFormatter
 
 from marimo._config.settings import GLOBAL_SETTINGS
 
@@ -47,6 +52,13 @@ def green(text: str, bold: bool = False) -> str:
     if not _USE_COLOR:
         return text
     prefix = "\033[32m" if not bold else "\033[1;32m"
+    return prefix + text + "\033[0m"
+
+
+def bright_green(text: str, bold: bool = False) -> str:
+    if not _USE_COLOR:
+        return text
+    prefix = "\033[92m" if not bold else "\033[1;92m"
     return prefix + text + "\033[0m"
 
 
@@ -119,3 +131,97 @@ def echo(*args: Any, **kwargs: Any) -> None:
             else:
                 ascii_args.append(arg)
         _echo_or_print(*ascii_args, **kwargs)
+
+
+# --- Colored Click classes for CLI help formatting ---
+# These follow cargo's color conventions:
+# - Bold bright green for section headers (Usage:, Options:, Commands:)
+# - Bold bright cyan for command/option names
+
+
+def _format_usage(
+    cmd: "Command", ctx: "Context", formatter: "HelpFormatter"
+) -> None:
+    """Write usage line with colored 'Usage:' label."""
+    pieces = cmd.collect_usage_pieces(ctx)
+    formatter.write_usage(
+        ctx.command_path, " ".join(pieces), bright_green("Usage: ", bold=True)
+    )
+
+
+def _format_options(
+    cmd: "Command", ctx: "Context", formatter: "HelpFormatter"
+) -> None:
+    """Write all options with colored names."""
+    opts = []
+    for param in cmd.get_params(ctx):
+        rv = param.get_help_record(ctx)
+        if rv is not None:
+            opts.append(rv)
+
+    if opts:
+        rows = [(light_blue(opt, bold=True), desc) for opt, desc in opts]
+        with formatter.section(bright_green("Options", bold=True)):
+            formatter.write_dl(rows)
+
+
+class ColoredCommand:
+    """Click Command with colored help output (cargo-style)."""
+
+    def format_usage(self, ctx: "Context", formatter: "HelpFormatter") -> None:
+        _format_usage(self, ctx, formatter)  # type: ignore[arg-type]
+
+    def format_options(self, ctx: "Context", formatter: "HelpFormatter") -> None:
+        _format_options(self, ctx, formatter)  # type: ignore[arg-type]
+
+
+class ColoredGroup:
+    """Click Group with colored help output (cargo-style)."""
+
+    def format_usage(self, ctx: "Context", formatter: "HelpFormatter") -> None:
+        _format_usage(self, ctx, formatter)  # type: ignore[arg-type]
+
+    def format_options(self, ctx: "Context", formatter: "HelpFormatter") -> None:
+        _format_options(self, ctx, formatter)  # type: ignore[arg-type]
+        # Click's MultiCommand.format_options calls format_commands internally,
+        # so we must do the same since we're overriding the method completely
+        self.format_commands(ctx, formatter)  # type: ignore[attr-defined]
+
+    def format_commands(self, ctx: "Context", formatter: "HelpFormatter") -> None:
+        """Write all commands with colored names."""
+        commands = []
+        for subcommand in self.list_commands(ctx):  # type: ignore[attr-defined]
+            cmd = self.get_command(ctx, subcommand)  # type: ignore[attr-defined]
+            if cmd is None or cmd.hidden:
+                continue
+            commands.append((subcommand, cmd))
+
+        if commands:
+            rows = [
+                (light_blue(subcommand, bold=True), cmd.get_short_help_str())
+                for subcommand, cmd in commands
+            ]
+            with formatter.section(bright_green("Commands", bold=True)):
+                formatter.write_dl(rows)
+
+
+class _ColoredCommand(ColoredCommand, click.Command):
+    """Concrete colored command class."""
+
+    pass
+
+
+class _ColoredGroup(ColoredGroup, click.Group):
+    """Concrete colored group class."""
+
+    command_class = _ColoredCommand
+
+
+def get_colored_command_class() -> type:
+    """Get ColoredCommand class that inherits from click.Command."""
+    return _ColoredCommand
+
+
+def get_colored_group_class() -> type:
+    """Get ColoredGroup class that inherits from click.Group."""
+    return _ColoredGroup

@@ -258,6 +258,44 @@ def test_cli_help_exit_code() -> None:
     assert p.returncode == 0
 
 
+def test_cli_help_colored_output() -> None:
+    """Test that help output renders correctly with colored classes."""
+    from click.testing import CliRunner
+
+    from marimo._cli.cli import main
+
+    runner = CliRunner()
+    result = runner.invoke(main, ["--help"])
+    assert result.exit_code == 0
+    # Verify key sections appear in output
+    assert "Usage:" in result.output or "Usage" in result.output
+    assert "Options" in result.output
+    assert "Commands" in result.output
+
+    # Test subcommand help as well
+    result = runner.invoke(main, ["export", "--help"])
+    assert result.exit_code == 0
+    assert "Usage" in result.output
+    assert "Options" in result.output
+
+    # Test with colors enabled by patching _USE_COLOR
+    # The color module checks for TTY at import time, so we need to patch it
+    import marimo._cli.print as print_module
+
+    original_use_color = print_module._USE_COLOR
+    try:
+        print_module._USE_COLOR = True
+        result_color = runner.invoke(main, ["--help"], color=True)
+        assert result_color.exit_code == 0
+        # Verify ANSI escape codes are present when colors are enabled
+        # \033[ is the ANSI escape sequence prefix
+        assert (
+            "\033[" in result_color.output
+        ), "Expected ANSI color codes in help output"
+    finally:
+        print_module._USE_COLOR = original_use_color
+
+
 def test_cli_edit_none() -> None:
     # smoke test: makes sure CLI starts and has basic things we expect
     # helpful for catching issues related to
