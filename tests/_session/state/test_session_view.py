@@ -20,11 +20,12 @@ from marimo._messaging.notification import (
     DatasetsNotification,
     DataSourceConnectionsNotification,
     InstallingPackageAlertNotification,
+    ModelLifecycleNotification,
+    ModelUpdate,
     SQLMetadata,
     SQLTableListPreviewNotification,
     SQLTablePreviewNotification,
     StartupLogsNotification,
-    UIElementMessageNotification,
     UpdateCellCodesNotification,
     UpdateCellIdsNotification,
     VariableDeclarationNotification,
@@ -190,40 +191,51 @@ def test_model_message_values(session_view: SessionView) -> None:
     model_id2 = WidgetModelId("test_model2")
 
     session_view.add_notification(
-        UIElementMessageNotification(
+        ModelLifecycleNotification(
             model_id=model_id,
-            message={"key": "value"},
-            ui_element=None,
+            message=ModelUpdate(
+                state={"key": "value"},
+                buffer_paths=[],
+                buffers=[],
+            ),
         )
     )
     assert model_id in session_view.model_messages
-    assert session_view.model_messages[model_id][0].message == {"key": "value"}
+    assert session_view.model_messages[model_id][0].message == ModelUpdate(
+        state={"key": "value"}, buffer_paths=[], buffers=[]
+    )
 
     # Can add to existing model
     session_view.add_notification(
-        UIElementMessageNotification(
+        ModelLifecycleNotification(
             model_id=model_id,
-            message={"key": "new_value"},
-            ui_element=None,
+            message=ModelUpdate(
+                state={"key": "new_value"},
+                buffer_paths=[],
+                buffers=[],
+            ),
         )
     )
     assert len(session_view.model_messages[model_id]) == 2
-    assert session_view.model_messages[model_id][1].message == {
-        "key": "new_value"
-    }
+    assert session_view.model_messages[model_id][1].message == ModelUpdate(
+        state={"key": "new_value"}, buffer_paths=[], buffers=[]
+    )
 
     # Can add multiple models
     session_view.add_notification(
-        UIElementMessageNotification(
+        ModelLifecycleNotification(
             model_id=model_id2,
-            message={"key2": "value2"},
-            ui_element=None,
+            message=ModelUpdate(
+                state={"key2": "value2"},
+                buffer_paths=[],
+                buffers=[],
+            ),
         )
     )
     assert model_id2 in session_view.model_messages
-    assert session_view.model_messages[model_id2][0].message == {
-        "key2": "value2"
-    }
+    assert session_view.model_messages[model_id2][0].message == ModelUpdate(
+        state={"key2": "value2"}, buffer_paths=[], buffers=[]
+    )
 
 
 def test_last_run_code(session_view: SessionView) -> None:
