@@ -1,13 +1,14 @@
 # Information provided by https://hub.continue.dev/
 
 # Anthropic
+
 - name: Claude 4.6 Opus
   model: claude-opus-4-6
   description: Latest Opus model with enhanced capabilities and performance improvements
   providers: [anthropic]
   roles: [chat, edit]
   thinking: true
-  
+
 - name: Claude 4.5 Opus
   model: claude-opus-4-5
   description: Modern Opus model with enhanced capabilities and performance improvements
