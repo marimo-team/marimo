@@ -20,14 +20,18 @@ contribution._ Get in touch at
 or [on Discord](https://marimo.io/discord?ref=contributing).
 
 ## Setup
+> [!NOTE]
+>
+> Note: We recommend that Windows developers use [WSL](https://learn.microsoft.com/en-us/windows/wsl/install). When using WSL, it is important that all files in the cloned marimo repository be kept on the WSL environment and not the Windows mount, as this will both increase efficiency and prevent inter-OS conflicts ([see more on working across filesystems](https://learn.microsoft.com/en-us/windows/wsl/filesystems)).
+
 
 Install [pixi](https://github.com/prefix-dev/pixi) to manage your development environment. The following command uses `pixi` to launch a development shell with all dependencies installed, using `hatch` as the environment manager.
 
 > [!NOTE]
 >
-> As an alternative to installing `pixi`, you can try developing in
-> [Gitpod](https://gitpod.io/#https://github.com/marimo-team/marimo).
+> As an alternative to installing `pixi`, you can try developing in [Gitpod](https://gitpod.io/#https://github.com/marimo-team/marimo).
 > Note that developing in Gitpod is not officially supported by the marimo team.
+
 
 ```bash
 pixi shell
