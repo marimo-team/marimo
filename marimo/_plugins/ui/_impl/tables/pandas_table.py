@@ -413,7 +413,7 @@ class PandasTableManagerFactory(TableManagerFactory):
                     return ("string", dtype)
                 if lower_dtype == "category":
                     return ("string", dtype)
-                if lower_dtype == "string":
+                if lower_dtype == "string" or lower_dtype == "str":
                     return ("string", dtype)
                 if lower_dtype.startswith("complex"):
                     return ("unknown", dtype)

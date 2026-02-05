@@ -679,6 +679,46 @@ class TestPandasTableManager(unittest.TestCase):
             ("B", ("string", "string")),
         ]
 
+    def test_get_field_types_str_dtype(self) -> None:
+        # Test for pandas 3.0's new "str" dtype (issue #8093)
+        # In pandas 3.0, dtype="str" is the new default for string columns
+        # This test ensures we correctly identify "str" dtype as "string" field type
+        data = pd.DataFrame(
+            {
+                "A": pd.array(["a", "b", "c"], dtype="str"),
+                "B": pd.array(
+                    ["x", "y", "z"], dtype="string"
+                ),  # older StringDtype
+            }
+        )
+
+        manager = self.factory.create()(data)
+        field_types = manager.get_field_types()
+
+        # Both "str" and "string" dtypes should map to "string" field type
+        assert field_types[0][0] == "A"
+        assert (
+            field_types[0][1][0] == "string"
+        )  # field type should be "string"
+        assert field_types[1][0] == "B"
+        assert (
+            field_types[1][1][0] == "string"
+        )  # field type should be "string"
+
+    def test_get_unique_column_values_str_dtype(self) -> None:
+        # Test that unique values work correctly with pandas 3.0's "str" dtype
+        data = pd.DataFrame(
+            {
+                "A": pd.array(["a", "b", "c", "a"], dtype="str"),
+            }
+        )
+        manager = self.factory.create()(data)
+        unique_values = manager.get_unique_column_values("A")
+
+        # Should return Python strings, not pandas StringArray elements
+        assert set(unique_values) == {"a", "b", "c"}
+        assert all(isinstance(v, str) for v in unique_values)
+
     @pytest.mark.xfail(
         reason="Narwhals (wrapped pandas) doesn't support duplicate columns",
     )
