@@ -1,6 +1,6 @@
 # Thumbnails
 
-Generate screenshot-based thumbnail images for notebooks, used by [OpenGraph previews](../publishing/opengraph.md) and cards in [gallery mode](../apps.md#gallery-mode).
+Generate screenshot-based thumbnail images for notebooks, used by [OpenGraph previews](opengraph.md) and cards in [gallery mode](../apps.md#gallery-mode).
 
 ```bash
 marimo tools thumbnails generate notebook.py
@@ -14,7 +14,7 @@ By default, thumbnails are written to:
 <notebook_dir>/__marimo__/assets/<notebook_stem>/opengraph.png
 ```
 
-This is the default OpenGraph thumbnail path used by [OpenGraph previews](../publishing/opengraph.md).
+This is the default OpenGraph thumbnail path used by [OpenGraph previews](opengraph.md).
 
 ## Requirements
 
@@ -116,3 +116,4 @@ marimo tools thumbnails generate notebook.py -- --foo 123
 ```
 
 For more on passing values to notebooks, see [Command Line Arguments](../../api/cli_args.md).
+

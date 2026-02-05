@@ -50,7 +50,7 @@ marimo tools thumbnails generate notebook.py
 marimo tools thumbnails generate folder/
 ```
 
-For execution and sandbox options (and for Playwright installation instructions), see [Thumbnails](../cli_tools/thumbnails.md).
+For execution and sandbox options (and for Playwright installation instructions), see [Thumbnails](thumbnails.md).
 
 ## Dynamic metadata
 

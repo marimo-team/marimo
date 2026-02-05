@@ -26,7 +26,6 @@ These guides cover marimo's core concepts.
 | [Reusing functions and classes](reusing_functions.md) | Importing functions and classes defined in marimo notebooks |
 | [Tests](testing/index.md)                             | Running unit tests in notebooks                            |
 | [Export notebooks](exporting.md)                      | Exporting notebooks to HTML, ipynb, flat scripts, and more |
-| [marimo tools](cli_tools/index.md)                    | Command-line utilities           |
 | [Cloud notebooks with molab](molab.md)             | Share links to cloud-based marimo notebooks, similar to Google Colab                      |
 | [Publish to the web](publishing/index.md)             | Edit and publish notebooks on the web                      |
 | [Run notebooks with WebAssembly](wasm.md)             | Create notebooks in our online playground                  |
