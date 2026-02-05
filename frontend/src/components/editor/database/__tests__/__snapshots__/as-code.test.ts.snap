@@ -461,6 +461,21 @@ engine = clickhouse_connect.get_client(
 )"
 `;
 
+exports[`generateDatabaseCode > edge cases > clickhouse with proxy_path 1`] = `
+"import clickhouse_connect
+import os
+
+_password = os.environ.get("CLICKHOUSE_PASSWORD", "pass")
+engine = clickhouse_connect.get_client(
+  host="localhost",
+  user="user",
+  secure=False,
+  port=8123,
+  password=_password,
+  proxy_path="/clickhouse",
+)"
+`;
+
 exports[`generateDatabaseCode > edge cases > duckdb with relative path 1`] = `
 "import sqlmodel
 

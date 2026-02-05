@@ -533,6 +533,14 @@ describe("generateDatabaseCode", () => {
         "clickhouse_connect",
       ],
       [
+        "clickhouse with proxy_path",
+        {
+          ...clickhouseConnection,
+          proxy_path: "/clickhouse",
+        },
+        "clickhouse_connect",
+      ],
+      [
         "timeplus with no port",
         {
           ...timeplusConnection,

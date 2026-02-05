@@ -267,6 +267,15 @@ export const ClickhouseConnectionSchema = z
       .boolean()
       .default(false)
       .describe(FieldOptions.of({ label: "Use HTTPs" })),
+    proxy_path: z
+      .string()
+      .optional()
+      .describe(
+        FieldOptions.of({
+          label: "Proxy Path",
+          placeholder: "/clickhouse",
+        }),
+      ),
   })
   .describe(FieldOptions.of({ direction: "two-columns" }));
 
