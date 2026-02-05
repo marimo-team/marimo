@@ -13,7 +13,7 @@
 
 import marimo
 
-__generated_with = "0.18.4"
+__generated_with = "0.19.7"
 app = marimo.App(width="medium")
 
 
@@ -343,6 +343,7 @@ def _(mo, result, token_prefix):
         import plotly.graph_objects as go
 
         return go.Figure(data=[go.Histogram(x=result["count"])])
+
     return (render_chart,)
 
 
@@ -438,12 +439,14 @@ def _(filtered_cars, mo):
 def _():
     import marimo as mo
     import random
+
     return (mo,)
 
 
 @app.cell(hide_code=True)
 def _():
     import string
+
     return (string,)
 
 

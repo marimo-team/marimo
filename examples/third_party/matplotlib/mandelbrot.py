@@ -9,7 +9,7 @@
 
 import marimo
 
-__generated_with = "0.17.4"
+__generated_with = "0.19.7"
 app = marimo.App()
 
 
@@ -135,6 +135,7 @@ def _(np, plt):
         )
         plt.colorbar()
         return plt.gca()
+
     return (compute_mandelbrot,)
 
 
@@ -142,12 +143,14 @@ def _(np, plt):
 def _():
     import numpy as np
     import matplotlib.pyplot as plt
+
     return np, plt
 
 
 @app.cell
 def _():
     import marimo as mo
+
     return (mo,)
 
 

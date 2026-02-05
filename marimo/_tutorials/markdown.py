@@ -11,7 +11,7 @@
 
 import marimo
 
-__generated_with = "0.17.2"
+__generated_with = "0.19.7"
 app = marimo.App()
 
 
@@ -284,6 +284,7 @@ def _(mo, np, plt):
         plt.plot(x, amplitude * np.sin(2 * np.pi / period * x))
         plt.ylim(-2.2, 2.2)
         return plt.gca()
+
     return (plotsin,)
 
 
@@ -321,6 +322,7 @@ def _(amplitude, mo, period, plotsin):
 def _():
     import matplotlib.pyplot as plt
     import numpy as np
+
     return np, plt
 
 
@@ -329,6 +331,7 @@ def _():
     import math
 
     import marimo as mo
+
     return math, mo
 
 

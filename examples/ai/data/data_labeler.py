@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.17.4"
+__generated_with = "0.19.7"
 app = marimo.App()
 
 
@@ -23,6 +23,7 @@ def _(NUMBER_OF_EXAMPLES, mo):
 
     def decrement_index() -> int:
         set_index(lambda v: max(0, v - 1))
+
     return decrement_index, get_index, increment_index, set_index
 
 
@@ -87,6 +88,7 @@ def _(LABELS_PATH, labels, write_labels):
     def update_label(value, index):
         labels[index]["label"] = value
         write_labels(labels, LABELS_PATH)
+
     return (update_label,)
 
 
@@ -95,6 +97,7 @@ def _(LABELS_PATH, labels, write_labels):
     def update_notes(value, index):
         labels[index]["notes"] = value
         write_labels(labels, LABELS_PATH)
+
     return (update_notes,)
 
 
@@ -156,6 +159,7 @@ def _(json, os):
         ]
         with open(path, "w", encoding="utf-8") as f:
             f.write(json.dumps(labels))
+
     return load_labels, write_labels
 
 
@@ -174,6 +178,7 @@ def _():
 @app.cell
 def _():
     import marimo as mo
+
     return (mo,)
 
 
@@ -181,6 +186,7 @@ def _():
 def _():
     import json
     import os
+
     return json, os
 
 

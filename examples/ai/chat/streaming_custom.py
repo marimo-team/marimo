@@ -7,7 +7,7 @@
 
 import marimo
 
-__generated_with = "0.17.8"
+__generated_with = "0.19.7"
 app = marimo.App(width="medium")
 
 
@@ -15,6 +15,7 @@ app = marimo.App(width="medium")
 def _():
     import marimo as mo
     import asyncio
+
     return asyncio, mo
 
 
@@ -34,7 +35,7 @@ def _(mo):
 def _(asyncio, mo):
     async def streaming_echo_model(messages, config):
         """This chatbot echoes what the user says, word by word.
-        
+
         Yields individual delta chunks that are accumulated by marimo.
         This follows the standard streaming pattern used by OpenAI, Anthropic,
         and other AI providers.
@@ -81,7 +82,7 @@ def _(mo):
 
     Each `yield` sends a new chunk to marimo, which accumulates and displays them.
     This follows the standard streaming pattern used by OpenAI, Anthropic, and other AI providers.
-    
+
     **Important**: Yield delta chunks (new content only), not accumulated text.
     """)
     return

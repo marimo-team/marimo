@@ -297,6 +297,7 @@ def test_to_code(app_file_manager: AppFileManager) -> None:
             "@app.cell",
             "def _():",
             "    import marimo as mo",
+            "",
             "    return",
             "",
             "",

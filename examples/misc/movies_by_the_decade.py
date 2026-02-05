@@ -10,7 +10,7 @@
 
 import marimo
 
-__generated_with = "0.17.2"
+__generated_with = "0.19.7"
 app = marimo.App(width="full")
 
 
@@ -329,6 +329,7 @@ def _(datetime):
 
     def format_date(date):
         return date.strftime("%Y-%m-%d")
+
     return (
         get_average_budget,
         get_average_gross,
@@ -346,6 +347,7 @@ def _():
     import pandas as pd
     import datetime
     import altair as alt
+
     return alt, data, datetime, mo, pd
 
 

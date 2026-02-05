@@ -9,7 +9,7 @@
 
 import marimo
 
-__generated_with = "0.17.2"
+__generated_with = "0.19.7"
 app = marimo.App(width="full")
 
 
@@ -27,6 +27,7 @@ def _():
     import marimo as mo
     import altair as alt
     from vega_datasets import data
+
     return alt, data, mo
 
 
