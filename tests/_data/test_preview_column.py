@@ -566,7 +566,12 @@ def test_sanitize_dtypes_enum() -> None:
     ),
 )
 def test_preview_column_duration_dtype(df) -> None:
-    for column_name in df.columns:
+    columns = (
+        df.collect_schema().names()
+        if hasattr(df, "collect_schema")
+        else df.columns
+    )
+    for column_name in columns:
         result = get_column_preview_dataset(
             table=get_table_manager(df),
             table_name="table",
