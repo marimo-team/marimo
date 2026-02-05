@@ -2278,7 +2278,7 @@ class Kernel:
             request: ModelCommand,
         ) -> None:
             ui_element_id, state = WIDGET_COMM_MANAGER.receive_comm_message(
-                request.model_id, request.message, request.buffers
+                request
             )
 
             # If there's a ui_element_id, trigger a cell re-run

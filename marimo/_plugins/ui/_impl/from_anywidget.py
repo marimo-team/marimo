@@ -7,6 +7,7 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Generic,
+    TypeAlias,
     TypedDict,
     TypeVar,
     cast,
@@ -20,7 +21,7 @@ from marimo._plugins.ui._impl.comm import MarimoComm
 from marimo._types.ids import WidgetModelId
 from marimo._utils.code import hash_code
 
-AnyWidgetState = TypeAlias = dict[str, Any]
+AnyWidgetState: TypeAlias = dict[str, Any]
 
 
 class WireFormat(TypedDict):
