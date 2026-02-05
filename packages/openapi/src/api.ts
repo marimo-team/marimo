@@ -5658,8 +5658,7 @@ export interface components {
      * @description Sends a message to a UI element/widget.
      *
      *         Attributes:
-     *             ui_element: UI element identifier (legacy).
-     *             model_id: Widget model ID (newer architecture).
+     *             ui_element: UI element identifier.
      *             message: Message payload as dictionary.
      *             buffers: Optional binary buffers for large data.
      */
@@ -5667,10 +5666,9 @@ export interface components {
       /** @default null */
       buffers?: string[] | null;
       message: Record<string, any>;
-      model_id: string | null;
       /** @enum {unknown} */
       op: "send-ui-element-message";
-      ui_element: string | null;
+      ui_element: string;
     };
     /** UnknownError */
     UnknownError: {

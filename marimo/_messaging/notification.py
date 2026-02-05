@@ -31,7 +31,7 @@ from marimo._plugins.core.web_component import JSONType
 from marimo._runtime.layout.layout import LayoutConfig
 from marimo._secrets.models import SecretKeysWithProvider
 from marimo._sql.parse import SqlCatalogCheckResult, SqlParseResult
-from marimo._types.ids import CellId_t, RequestId, WidgetModelId
+from marimo._types.ids import CellId_t, RequestId, UIElementId, WidgetModelId
 from marimo._utils.msgspec_basestruct import BaseStruct
 from marimo._utils.platform import is_pyodide, is_windows
 
@@ -144,15 +144,13 @@ class UIElementMessageNotification(
     """Sends a message to a UI element/widget.
 
     Attributes:
-        ui_element: UI element identifier (legacy).
-        model_id: Widget model ID (newer architecture).
+        ui_element: UI element identifier.
         message: Message payload as dictionary.
         buffers: Optional binary buffers for large data.
     """
 
     name: ClassVar[str] = "send-ui-element-message"
-    ui_element: Optional[str]
-    model_id: Optional[WidgetModelId]
+    ui_element: UIElementId
     message: dict[str, Any]
     buffers: Optional[list[bytes]] = None
 
