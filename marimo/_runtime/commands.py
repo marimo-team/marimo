@@ -693,6 +693,15 @@ class ModelUpdateMessage(
     state: dict[str, Any]
     buffer_paths: list[list[Union[str, int]]]
 
+    def into_comm_payload_content(self) -> dict[str, Any]:
+        return {
+            "data": {
+                "method": "update",
+                "state": self.state,
+                "buffer_paths": self.buffer_paths,
+            }
+        }
+
 
 class ModelCustomMessage(
     msgspec.Struct, tag="custom", tag_field="method", rename="camel"
@@ -704,6 +713,14 @@ class ModelCustomMessage(
     """
 
     content: Any
+
+    def into_comm_payload_content(self) -> dict[str, Any]:
+        return {
+            "data": {
+                "method": "custom",
+                "content": self.content,
+            }
+        }
 
 
 ModelMessage = Union[ModelUpdateMessage, ModelCustomMessage]
@@ -723,6 +740,12 @@ class ModelCommand(Command):
     model_id: WidgetModelId
     message: ModelMessage
     buffers: list[bytes]
+
+    def into_comm_payload(self) -> dict[str, Any]:
+        return {
+            "content": self.message.into_comm_payload_content(),
+            "buffers": self.buffers,
+        }
 
 
 class RefreshSecretsCommand(Command):

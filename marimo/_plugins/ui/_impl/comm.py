@@ -1,7 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Callable, Optional, cast
+from typing import Any, Callable, Optional
 
 from marimo._loggers import marimo_logger
 from marimo._messaging.notification import (
@@ -13,18 +13,11 @@ from marimo._messaging.notification import (
     ModelUpdate,
 )
 from marimo._messaging.notification_utils import broadcast_notification
-from marimo._types.ids import WidgetModelId
-
-if TYPE_CHECKING:
-    from marimo._plugins.ui._impl.anywidget.types import (
-        TypedModelMessagePayload,
-    )
-
 from marimo._runtime.commands import (
-    ModelCustomMessage,
-    ModelMessage as ModelMessageCommand,
+    ModelCommand,
     ModelUpdateMessage,
 )
+from marimo._types.ids import WidgetModelId
 
 LOGGER = marimo_logger()
 
@@ -42,9 +35,7 @@ class MarimoCommManager:
 
     def receive_comm_message(
         self,
-        comm_id: WidgetModelId,
-        message: ModelMessageCommand,
-        buffers: list[bytes],
+        command: ModelCommand,
     ) -> tuple[Optional[str], Optional[dict[str, Any]]]:
         """Receive a message from the frontend and forward to the comm.
 
@@ -53,40 +44,19 @@ class MarimoCommManager:
             and there's a ui_element_id, otherwise (None, None).
             The caller can use this to trigger a cell re-run.
         """
-        if comm_id not in self.comms:
-            LOGGER.warning("Received message for unknown comm: %s", comm_id)
+        if command.model_id not in self.comms:
+            LOGGER.warning(
+                "Received message for unknown comm: %s", command.model_id
+            )
             return (None, None)
 
-        comm = self.comms[comm_id]
+        comm = self.comms[command.model_id]
+        comm.handle_msg(command.into_comm_payload())
 
-        # Build the message payload based on message type
-        if isinstance(message, ModelUpdateMessage):
-            msg: TypedModelMessagePayload = {
-                "content": {
-                    "data": {
-                        "method": "update",
-                        "state": message.state,
-                        "buffer_paths": message.buffer_paths,
-                    }
-                },
-                "buffers": buffers,
-            }
-            # Forward to the comm's message handler
-            comm.handle_msg(cast(Msg, msg))
-            # For update messages, return ui_element_id and state for cell re-run
-            if comm.ui_element_id:
-                return (comm.ui_element_id, message.state)
-        elif isinstance(message, ModelCustomMessage):
-            msg = {
-                "content": {
-                    "data": {
-                        "method": "custom",
-                        "content": message.content,
-                    }
-                },
-                "buffers": buffers,
-            }
-            comm.handle_msg(cast(Msg, msg))
+        # For update messages, return ui_element_id and state for cell re-run
+        message = command.message
+        if isinstance(message, ModelUpdateMessage) and comm.ui_element_id:
+            return (comm.ui_element_id, message.state)
 
         return (None, None)
 
