@@ -154,6 +154,9 @@ def _create_ipynb_cell(
     if cell is not None:
         markdown_string = get_markdown_from_cell(cell, code)
         if markdown_string is not None:
+            markdown_string = _convert_latex_delimiters_for_jupyter(
+                markdown_string
+            )
             node = cast(
                 nbformat.NotebookNode,
                 nbformat.v4.new_markdown_cell(markdown_string, id=cell_id),  # type: ignore[no-untyped-call]
@@ -269,10 +272,12 @@ def _get_error_info(
         return error_dict.get("type", "Error"), error.describe()
 
 
-def _convert_rich_output_to_ipynb(
+def _convert_output_to_ipynb(
     output: CellOutput,
 ) -> Optional[NotebookNode]:
-    """Convert a rich output (OUTPUT/MEDIA channel) to IPython notebook format.
+    """Convert certain outputs (OUTPUT/MEDIA channel) to IPython notebook format.
+
+    Outputs like rich elements and LaTeX are converted to ensure they are compatible with IPython notebook format.
 
     Returns None if the output should be skipped or produces no data.
     """
@@ -289,7 +294,6 @@ def _convert_rich_output_to_ipynb(
     ):
         return None
 
-    # Handle rich output
     data: dict[str, Any] = {}
     metadata: dict[str, Any] = {}
 
@@ -313,6 +317,8 @@ def _convert_rich_output_to_ipynb(
                 continue
             else:
                 data[mime] = _maybe_extract_dataurl(content)
+    elif output.mimetype == "text/markdown" and isinstance(output.data, str):
+        data[output.mimetype] = _convert_marimo_tex_to_latex(output.data)
     else:
         data[output.mimetype] = _maybe_extract_dataurl(output.data)
 
@@ -384,10 +390,9 @@ def _convert_marimo_output_to_ipynb(
                 )
             )
         elif console_out.channel in (CellChannel.OUTPUT, CellChannel.MEDIA):
-            # Handle rich outputs in console area (e.g., plt.show())
-            rich_output = _convert_rich_output_to_ipynb(console_out)
-            if rich_output is not None:
-                ipynb_outputs.append(rich_output)
+            ipynb_compatible_output = _convert_output_to_ipynb(console_out)
+            if ipynb_compatible_output is not None:
+                ipynb_outputs.append(ipynb_compatible_output)
 
     if not cell_output:
         return ipynb_outputs
@@ -415,9 +420,70 @@ def _convert_marimo_output_to_ipynb(
             )
         return ipynb_outputs
 
-    # Handle rich output from cell
-    rich_output = _convert_rich_output_to_ipynb(cell_output)
-    if rich_output is not None:
-        ipynb_outputs.append(rich_output)
+    ipynb_compatible_output = _convert_output_to_ipynb(cell_output)
+    if ipynb_compatible_output is not None:
+        ipynb_outputs.append(ipynb_compatible_output)
 
     return ipynb_outputs
+
+
+def _convert_latex_delimiters_for_jupyter(markdown_string: str) -> str:
+    """Convert LaTeX delimiters that nbconvert can't handle. See https://github.com/jupyter/nbconvert/issues/477"""
+
+    # Convert display math \[...\] to $$...$$
+    # Preserve internal whitespace but trim the delimiter boundaries
+    def replace_display(match: re.Match[str]) -> str:
+        content = match.group(1)
+        return f"$${content.strip()}$$"
+
+    markdown_string = re.sub(
+        r"\\\[(.*?)\\\]", replace_display, markdown_string, flags=re.DOTALL
+    )
+
+    # Convert inline math \(...\) to $...$
+    # Remove spaces adjacent to delimiters
+    def replace_inline(match: re.Match[str]) -> str:
+        content = match.group(1)
+        return f"${content.strip()}$"
+
+    markdown_string = re.sub(
+        r"\\\((.*?)\\\)", replace_inline, markdown_string, flags=re.DOTALL
+    )
+
+    return markdown_string
+
+
+def _convert_marimo_tex_to_latex(html_string: str) -> str:
+    """Convert marimo-tex elements back to standard LaTeX delimiters.
+    Keep in sync with TexPlugin.tsx
+
+    Converts:
+    - <marimo-tex ...>||(content||)</marimo-tex> → $content$ (inline)
+    - <marimo-tex ...>||[content||]</marimo-tex> → $$content$$ (block)
+    - <marimo-tex ...>||(||(content||)||)</marimo-tex> → $$content$$ (nested display)
+    """
+
+    def replace_tex(match: re.Match[str]) -> str:
+        content = match.group(1)
+
+        # Handle nested display math: ||(||(content||)||)
+        # Must check this FIRST and be more specific
+        if content.startswith("||(||(") and content.endswith("||)||)"):
+            inner = content[6:-6]  # Strip ||(||( and ||)||)
+            return f"$${inner}$$"
+        # Handle block math: ||[content||]
+        elif content.startswith("||[") and content.endswith("||]"):
+            inner = content[3:-3]
+            return f"$${inner}$$"
+        # Handle inline math: ||(content||)
+        elif content.startswith("||(") and content.endswith("||)"):
+            inner = content[3:-3]
+            return f"${inner}$"  # Single $ for inline!
+        else:
+            return content
+
+    # Match <marimo-tex ...>content</marimo-tex>
+    # Use non-greedy matching and handle potential attributes
+    pattern = r"<marimo-tex[^>]*>(.*?)</marimo-tex>"
+
+    return re.sub(pattern, replace_tex, html_string, flags=re.DOTALL)
