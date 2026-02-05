@@ -366,6 +366,8 @@ class PandasTableManagerFactory(TableManagerFactory):
                     return ("string", dtype)
                 if lower_dtype == "string":
                     return ("string", dtype)
+                if lower_dtype == "str":
+                    return ("string", dtype)
                 if lower_dtype.startswith("complex"):
                     return ("unknown", dtype)
                 return ("unknown", dtype)
