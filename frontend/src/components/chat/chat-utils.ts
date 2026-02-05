@@ -2,6 +2,9 @@
 
 import type { components } from "@marimo-team/marimo-api";
 import type { FileUIPart, ToolUIPart, UIMessage } from "ai";
+import { useState } from "react";
+import useEvent from "react-use-event-hook";
+import type { ProviderId } from "@/core/ai/ids/ids";
 import type { ToolNotebookContext } from "@/core/ai/tools/base";
 import { FRONTEND_TOOL_REGISTRY } from "@/core/ai/tools/registry";
 import type {
@@ -11,6 +14,17 @@ import type {
 import { blobToString } from "@/utils/fileToBase64";
 import { Logger } from "@/utils/Logger";
 import { getAICompletionBodyWithAttachments } from "../editor/ai/completion-utils";
+import { toast } from "../ui/use-toast";
+
+// We need to modify the backend to support attachments for other providers
+// And other types
+export const PROVIDERS_THAT_SUPPORT_ATTACHMENTS = new Set<ProviderId>([
+  "openai",
+  "google",
+  "anthropic",
+]);
+export const SUPPORTED_ATTACHMENT_TYPES = ["image/*", "text/*"];
+const MAX_ATTACHMENT_SIZE = 1024 * 1024 * 50; // 50MB
 
 export function generateChatTitle(message: string): string {
   return message.length > 50 ? `${message.slice(0, 50)}...` : message;
@@ -197,4 +211,32 @@ export function hasPendingToolCalls(messages: UIMessage[]): boolean {
 
   // Only auto-send if we have completed tool calls and there is no reply yet
   return allToolCallsCompleted && !hasTextContent;
+}
+
+export function useFileState() {
+  const [files, setFiles] = useState<File[]>([]);
+
+  const addFiles = useEvent((newFiles: File[]) => {
+    if (newFiles.length === 0) {
+      return;
+    }
+
+    const totalSize = newFiles.reduce((size, file) => size + file.size, 0);
+    if (totalSize > MAX_ATTACHMENT_SIZE) {
+      toast({
+        title: "File size exceeded",
+        description: "Attachments must be under 50 MB",
+        variant: "danger",
+      });
+      return;
+    }
+
+    setFiles((prev) => [...prev, ...newFiles]);
+  });
+
+  const clearFiles = () => setFiles([]);
+  const removeFile = (fileToRemove: File) =>
+    setFiles((prev) => prev.filter((f) => f !== fileToRemove));
+
+  return { files, addFiles, clearFiles, removeFile };
 }

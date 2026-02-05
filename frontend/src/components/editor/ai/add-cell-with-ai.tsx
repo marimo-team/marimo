@@ -21,8 +21,6 @@ import { atomWithStorage } from "jotai/utils";
 import {
   ChevronsUpDown,
   DatabaseIcon,
-  Loader2Icon,
-  SendHorizontal,
   SparklesIcon,
   XIcon,
 } from "lucide-react";
@@ -31,8 +29,17 @@ import useEvent from "react-use-event-hook";
 import { z } from "zod";
 import { AIModelDropdown } from "@/components/ai/ai-model-dropdown";
 import {
+  AddContextButton,
+  AttachFileButton,
+  FileAttachmentPill,
+  SendButton,
+} from "@/components/chat/chat-components";
+import {
   buildCompletionRequestBody,
+  convertToFileUIPart,
   handleToolCall,
+  PROVIDERS_THAT_SUPPORT_ATTACHMENTS,
+  useFileState,
 } from "@/components/chat/chat-utils";
 import { Button } from "@/components/ui/button";
 import {
@@ -43,10 +50,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { toast } from "@/components/ui/use-toast";
+import { AiModelId } from "@/core/ai/ids/ids";
 import { stagedAICellsAtom, useStagedCells } from "@/core/ai/staged-cells";
 import type { ToolNotebookContext } from "@/core/ai/tools/base";
 import { useCellActions } from "@/core/cells/cells";
 import { resourceExtension } from "@/core/codemirror/ai/resources";
+import { aiAtom } from "@/core/config/config";
+import { DEFAULT_AI_MODEL } from "@/core/config/config-schema";
 import { useRequestClient } from "@/core/network/requests";
 import type { AiCompletionRequest } from "@/core/network/types";
 import { useRuntimeManager } from "@/core/runtime/config";
@@ -57,7 +67,11 @@ import { jotaiJsonStorage } from "@/utils/storage/jotai";
 import { ZodLocalStorage } from "@/utils/storage/typed";
 import { PythonIcon } from "../cell/code/icons";
 import { createAiCompletionOnKeydown } from "./completion-handlers";
-import { CONTEXT_TRIGGER, mentionsCompletionSource } from "./completion-utils";
+import {
+  addContextCompletion,
+  CONTEXT_TRIGGER,
+  mentionsCompletionSource,
+} from "./completion-utils";
 import { StreamingChunkTransport } from "./transport/chat-transport";
 
 // Persist across sessions
@@ -88,6 +102,10 @@ export const AddCellWithAI: React.FC<{
 
   const stagedAICells = useAtomValue(stagedAICellsAtom);
   const inputRef = useRef<ReactCodeMirrorRef>(null);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const { files, addFiles, removeFile } = useFileState();
+  const aiConfig = useAtomValue(aiAtom);
 
   const { createNewCell, prepareForRun } = useCellActions();
   const toolContext: ToolNotebookContext = {
@@ -149,14 +167,21 @@ export const AddCellWithAI: React.FC<{
   const isLoading = status === "streaming" || status === "submitted";
   const hasCompletion = stagedAICells.size > 0;
 
-  const submit = () => {
+  const currentModel = aiConfig?.models?.edit_model || DEFAULT_AI_MODEL;
+  const currentProvider = AiModelId.parse(currentModel).providerId;
+  const isAttachmentSupported =
+    PROVIDERS_THAT_SUPPORT_ATTACHMENTS.has(currentProvider);
+
+  const submit = async () => {
     if (!isLoading) {
       if (inputRef.current?.view) {
         storePrompt(inputRef.current.view);
       }
       // TODO: When we have conversations, don't delete existing cells
       deleteAllStagedCells();
-      sendMessage({ text: input });
+
+      const fileParts = files ? await convertToFileUIPart(files) : undefined;
+      sendMessage({ text: input, files: fileParts });
     }
   };
 
@@ -176,19 +201,17 @@ export const AddCellWithAI: React.FC<{
 
   const languageDropdown = (
     <DropdownMenu modal={false}>
-      <DropdownMenuTrigger asChild={true}>
-        <Button
-          variant="text"
-          className="ml-2"
-          size="xs"
-          data-testid="language-button"
-        >
-          {language === "python" ? pythonIcon : sqlIcon}
-          <ChevronsUpDown className="ml-1 h-3.5 w-3.5 text-muted-foreground/70" />
-        </Button>
+      <DropdownMenuTrigger
+        className="flex items-center justify-between h-7 text-xs px-2 py-0.5 border rounded-md hover:text-accent-foreground"
+        data-testid="language-button"
+      >
+        {language === "python" ? pythonIcon : sqlIcon}
+        <ChevronsUpDown className="ml-1 h-3.5 w-3.5 text-muted-foreground/70" />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="center">
-        <div className="px-2 py-1 font-semibold">Select language</div>
+        <div className="px-2 py-1 text-sm text-muted-foreground">
+          Select language
+        </div>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={() => setLanguage("python")}>
           {pythonIcon}
@@ -230,52 +253,61 @@ export const AddCellWithAI: React.FC<{
           hasCompletion,
         })}
       />
-      {isLoading && (
-        <Button
-          data-testid="stop-completion-button"
-          variant="text"
-          size="sm"
-          className="mb-0"
-          onClick={stop}
-        >
-          <Loader2Icon className="animate-spin mr-1" size={14} />
-          Stop
-        </Button>
-      )}
-      <Button variant="text" size="sm" onClick={submit} title="Submit">
-        <SendHorizontal className="size-4" />
-      </Button>
       <Button variant="text" size="sm" className="mb-0 px-1" onClick={onClose}>
         <XIcon className="size-4" />
       </Button>
     </div>
   );
 
+  const footerComponent = (
+    <div className="px-3 pt-1 flex flex-row items-center justify-between">
+      <div className="flex items-center gap-2">
+        <AIModelDropdown
+          triggerClassName="h-7 text-xs max-w-64"
+          iconSize="small"
+          forRole="edit"
+          showAddCustomModelDocs={true}
+        />
+        {languageDropdown}
+      </div>
+      <div className="flex flex-row items-center">
+        {files.length > 0 && (
+          <div className="flex flex-row gap-1 flex-wrap pr-1">
+            {files?.map((file, index) => (
+              <FileAttachmentPill
+                file={file}
+                key={`${file.name}-${index}`}
+                onRemove={() => removeFile(file)}
+              />
+            ))}
+          </div>
+        )}
+        <AddContextButton
+          handleAddContext={() => addContextCompletion(inputRef)}
+          isLoading={isLoading}
+        />
+        {isAttachmentSupported && (
+          <AttachFileButton
+            fileInputRef={fileInputRef}
+            isLoading={isLoading}
+            onAddFiles={addFiles}
+          />
+        )}
+        <SendButton
+          isLoading={isLoading}
+          onStop={stop}
+          onSendClick={submit}
+          isEmpty={!input.trim()}
+          showStopLabel={true}
+        />
+      </div>
+    </div>
+  );
+
   return (
     <div className={cn("flex flex-col w-full py-2")}>
       {inputComponent}
-      <div className="flex flex-row justify-between -mt-1 ml-1 mr-3">
-        {!hasCompletion && (
-          <span className="text-xs text-muted-foreground px-3 flex flex-col gap-1 mt-2">
-            <span>
-              You can mention{" "}
-              <span className="text-(--cyan-11)">@dataframe</span> or{" "}
-              <span className="text-(--cyan-11)">@sql_table</span> to pull
-              additional context such as column names. Code from other cells is
-              automatically included.
-            </span>
-          </span>
-        )}
-        <div className="ml-auto flex items-center gap-1">
-          {languageDropdown}
-          <AIModelDropdown
-            triggerClassName="h-7 text-xs max-w-64"
-            iconSize="small"
-            forRole="edit"
-            showAddCustomModelDocs={true}
-          />
-        </div>
-      </div>
+      {footerComponent}
     </div>
   );
 };
