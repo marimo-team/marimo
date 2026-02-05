@@ -52,11 +52,11 @@ export function extractBase64FromDataURL(str: DataURLString): Base64String {
 }
 
 /**
- * Convert a base64 string to a Uint8Array.
+ * Convert a base64 string to a Uint8Array (fallback implementation).
+ * See benchmarks/base64-conversion.bench.ts for why we use a manual loop.
  */
-export function base64ToUint8Array(bytes: Base64String): Uint8Array {
-  const binary = window.atob(bytes);
-  // See benchmarks/base64-conversion.bench.ts for why we use a manual loop
+function base64ToUint8ArrayFallback(bytes: string): Uint8Array {
+  const binary = globalThis.atob(bytes);
   const len = binary.length;
   const uint8Array = new Uint8Array(len);
   for (let i = 0; i < len; i++) {
@@ -64,6 +64,14 @@ export function base64ToUint8Array(bytes: Base64String): Uint8Array {
   }
   return uint8Array;
 }
+
+/**
+ * Convert a base64 string to a Uint8Array.
+ * Uses native Uint8Array.fromBase64 if available, otherwise falls back to manual implementation.
+ */
+export const base64ToUint8Array: (bytes: Base64String) => Uint8Array =
+  // @ts-expect-error - Uint8Array.fromBase64 types coming in TypeScript 5.10+
+  Uint8Array.fromBase64 ?? base64ToUint8ArrayFallback;
 
 /**
  * Convert a base64 string to a DataView.
@@ -74,17 +82,28 @@ export function base64ToDataView(bytes: Base64String): DataView {
 }
 
 /**
- * Convert a Uint8Array to a base64 string.
+ * Convert a Uint8Array to a base64 string (fallback implementation).
+ * See benchmarks/uint8array-to-base64.bench.ts for why we use a manual loop.
  */
-export function uint8ArrayToBase64(binary: Uint8Array): Base64String {
-  // See benchmarks/uint8array-to-base64.bench.ts for why we use a manual loop
+function uint8ArrayToBase64Fallback(binary: Uint8Array): Base64String {
   let binaryString = "";
   const len = binary.length;
   for (let i = 0; i < len; i++) {
     binaryString += String.fromCharCode(binary[i]);
   }
-  return window.btoa(binaryString) as Base64String;
+  return globalThis.btoa(binaryString) as Base64String;
 }
+
+/**
+ * Convert a Uint8Array to a base64 string.
+ * Uses native Uint8Array.prototype.toBase64 if available, otherwise falls back to manual implementation.
+ */
+export const uint8ArrayToBase64: (binary: Uint8Array) => Base64String =
+  // @ts-expect-error - Uint8Array.prototype.toBase64 types coming in TypeScript 5.10+
+  Uint8Array.prototype.toBase64
+    ? // @ts-expect-error - Uint8Array.prototype.toBase64 types coming in TypeScript 5.10+
+      (binary) => binary.toBase64()
+    : uint8ArrayToBase64Fallback;
 
 /**
  * Convert a DataView to a base64 string.
