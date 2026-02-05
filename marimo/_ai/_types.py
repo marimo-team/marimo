@@ -256,14 +256,16 @@ class ChatMessage(msgspec.Struct):
 
     def __iter__(self) -> Iterator[tuple[str, Any]]:
         """Allow dict(message) to build the serialized dict."""
-        out: dict[str, Any] = {
+        out: ChatMessageDict = {
             "role": self.role,
             "id": self.id,
             "content": self.content,
-            "parts": [asdict(part) for part in self.parts],
-            "attachments": [asdict(a) for a in self.attachments]
+            "parts": [cast(ChatPartDict, asdict(part)) for part in self.parts],
+            "attachments": [
+                cast(ChatAttachmentDict, asdict(a)) for a in self.attachments
+            ]
             if self.attachments
-            else [],
+            else None,
             "metadata": self.metadata,
         }
         return iter(out.items())
