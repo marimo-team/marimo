@@ -4,7 +4,13 @@ from __future__ import annotations
 from marimo._runtime.commands import DeleteCellCommand
 from marimo._runtime.context import get_context
 from marimo._runtime.runtime import Kernel
-from tests.conftest import ExecReqProvider
+from marimo._runtime.virtual_file.storage import InMemoryStorage
+from marimo._runtime.virtual_file.virtual_file import (
+    VirtualFileLifecycleItem,
+    VirtualFileRegistry,
+    read_virtual_file,
+)
+from tests.conftest import ExecReqProvider, MockedKernel
 
 
 async def test_virtual_file_creation(
@@ -301,3 +307,22 @@ async def test_virtual_file_empty_buffer(
     )
     # Empty buffers should not be added to the registry
     assert len(get_context().virtual_file_registry.registry) == 0
+
+
+def test_virtual_file_registry_shared_inmemory_storage(
+    run_mode_kernel: MockedKernel,  # noqa: ARG001
+) -> None:
+    ctx = get_context()
+
+    # Create vfile in existing vfile registry
+    item = VirtualFileLifecycleItem(ext="pdf", buffer=b"abc")
+    item.create(context=ctx)
+    vf = item.virtual_file
+
+    assert read_virtual_file(vf.filename, 3) == b"abc"
+
+    # Simulate a second session initializing its own vfile registry
+    VirtualFileRegistry(storage=InMemoryStorage())
+
+    # Ensure old file should still readable
+    assert read_virtual_file(vf.filename, 3) == b"abc"
