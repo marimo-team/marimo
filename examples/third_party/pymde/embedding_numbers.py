@@ -7,7 +7,7 @@
 
 import marimo
 
-__generated_with = "0.17.2"
+__generated_with = "0.19.7"
 app = marimo.App()
 
 
@@ -129,6 +129,7 @@ def _(mnist, mo, pymde, torch):
         value = (mde, X)
         embedding_cache[key] = value
         return value
+
     return (compute_embedding,)
 
 
@@ -151,6 +152,7 @@ def _(mnist, plt, torch):
             ax.set_xticks([])
         plt.tight_layout()
         return fig
+
     return (show_random_images,)
 
 
@@ -161,6 +163,7 @@ def _():
     import torch
 
     import marimo as mo
+
     return mo, plt, pymde, torch
 
 

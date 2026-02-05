@@ -1033,6 +1033,20 @@ const {
 
     return state;
   },
+  markUntouched: (state, action: { cellId: CellId }) => {
+    const { cellId } = action;
+
+    if (!state.untouchedNewCells.has(cellId)) {
+      const nextUntouchedNewCells = new Set(state.untouchedNewCells);
+      nextUntouchedNewCells.add(cellId);
+      return {
+        ...state,
+        untouchedNewCells: nextUntouchedNewCells,
+      };
+    }
+
+    return state;
+  },
   scrollToTarget: (state) => {
     // Scroll to the specified cell and clear the scroll key.
     const scrollKey = state.scrollKey;

@@ -35,6 +35,41 @@ if TYPE_CHECKING:
     from pandas._typing import DtypeObj
 
 
+def _trivial_range_index(index: pd.Index) -> bool:
+    import pandas as pd
+
+    # A trivial index is an unnamed RangeIndex (0, 1, 2, ...)
+    return isinstance(index, pd.RangeIndex) and index.name is None
+
+
+def _resolve_index_column_conflicts(df: pd.DataFrame) -> pd.DataFrame:
+    """Rename index names that conflict with column names by appending '_index'.
+
+    Avoids 'ValueError: cannot insert x, already exists' on reset_index().
+    Modifies the DataFrame in-place and returns it.
+    """
+    import pandas as pd
+
+    index_names = df.index.names
+    conflicting_names = set(index_names) & set(df.columns)
+    if not conflicting_names:
+        return df
+
+    new_names: list[str] = []
+    for name in index_names:
+        if name in conflicting_names:
+            new_names.append(f"{name}_index")
+        else:
+            new_names.append(str(name))
+
+    if isinstance(df.index, pd.MultiIndex):
+        df.index = df.index.set_names(new_names)
+    else:
+        df.index = df.index.rename(new_names[0])
+
+    return df
+
+
 def _maybe_convert_geopandas_to_pandas(data: pd.DataFrame) -> pd.DataFrame:
     # Convert to pandas dataframe since geopandas will fail on
     # certain operations (like to_json(orient="records"))
@@ -156,38 +191,16 @@ class PandasTableManagerFactory(TableManagerFactory):
                 # Only skip reset for unnamed default RangeIndex (0, 1, 2, ...)
                 if isinstance(result.index, pd.MultiIndex) or (
                     isinstance(result.index, pd.Index)
-                    and not (
-                        isinstance(result.index, pd.RangeIndex)
-                        and result.index.name is None
-                    )
+                    and not _trivial_range_index(result.index)
                 ):
-                    index_names = result.index.names
                     unnamed_indexes = any(
                         idx is None for idx in result.index.names
                     )
 
                     index_levels = result.index.nlevels
 
-                    # Check for name conflicts between index names and column names
-                    # to avoid "cannot insert x, already exists" error
-                    conflicting_names = set(index_names) & set(result.columns)
-                    if conflicting_names:
-                        # Create new names, handling None values
-                        new_names: list[str] = []
-                        for name in result.index.names:
-                            if name in conflicting_names:
-                                new_names.append(f"{name}_index")
-                            else:
-                                new_names.append(str(name))
-
-                        # Rename the index to avoid conflict
-                        if isinstance(result.index, pd.MultiIndex):
-                            result.index = result.index.set_names(new_names)
-                        else:
-                            result.index = result.index.rename(new_names[0])
-
-                        # Update index_names to reflect the rename
-                        index_names = result.index.names
+                    _resolve_index_column_conflicts(result)
+                    index_names = result.index.names
 
                     result = result.reset_index()
 
@@ -296,6 +309,42 @@ class PandasTableManagerFactory(TableManagerFactory):
                     self._original_data.index
                 )
 
+            def _has_non_trivial_index(self) -> bool:
+                """Check if the DataFrame has a non-trivial index that should be searched."""
+                index = self._original_data.index
+                return not _trivial_range_index(index)
+
+            def search(self, query: str) -> PandasTableManager:
+                # If there's a non-trivial index, include it in the search
+                # by resetting the index first
+                if self._has_non_trivial_index():
+                    index = self._original_data.index
+                    num_levels = index.nlevels
+                    original_names = list(index.names)
+
+                    working = self._original_data.copy()
+                    _resolve_index_column_conflicts(working)
+                    df_with_index = working.reset_index()
+                    manager = PandasTableManager(df_with_index)
+
+                    # Get index column names AFTER manager init, since
+                    # _handle_non_string_column_names may have converted
+                    # non-string column names to strings
+                    index_columns = list(
+                        manager._original_data.columns[:num_levels]
+                    )
+
+                    result = super(PandasTableManager, manager).search(query)
+                    native_df: pd.DataFrame = nw.to_native(result.data)
+
+                    # Restore the original index structure
+                    native_df = native_df.set_index(index_columns)
+                    native_df.index.names = original_names
+                    return PandasTableManager(native_df)
+                result = super().search(query)
+                native_df = nw.to_native(result.data)
+                return PandasTableManager(native_df)
+
             @staticmethod
             def is_type(value: Any) -> bool:
                 return isinstance(value, pd.DataFrame)
@@ -304,7 +353,7 @@ class PandasTableManagerFactory(TableManagerFactory):
                 self, index: pd.Index[Any]
             ) -> FieldTypes:
                 # Ignore if it's the default index with no name
-                if index.name is None and isinstance(index, pd.RangeIndex):
+                if _trivial_range_index(index):
                     return []
 
                 if isinstance(index, pd.MultiIndex):

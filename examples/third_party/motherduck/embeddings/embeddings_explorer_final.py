@@ -16,7 +16,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.19.7"
 app = marimo.App(width="medium")
 
 
@@ -37,6 +37,7 @@ def _():
     import hdbscan  # For clustering similar embeddings
     import numpy as np
     from sklearn.decomposition import PCA
+
     return PCA, alt, hdbscan, mo, np, pl, umap
 
 
@@ -111,6 +112,7 @@ def _(PCA, hdbscan, np, umap):
         return np.where(
             hdb.labels_ == -1, "outlier", "cluster_" + hdb.labels_.astype(str)
         )
+
     return cluster_points, umap_reduce
 
 

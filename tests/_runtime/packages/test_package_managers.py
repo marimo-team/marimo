@@ -32,6 +32,30 @@ def test_create_package_managers() -> None:
     assert "Unknown package manager" in str(e)
 
 
+def test_create_package_manager_with_python_exe() -> None:
+    """Test that create_package_manager passes python_exe to package managers."""
+    custom_python = "/path/to/custom/python"
+
+    pip_mgr = create_package_manager("pip", python_exe=custom_python)
+    assert isinstance(pip_mgr, PipPackageManager)
+    assert pip_mgr._python_exe == custom_python
+
+    uv_mgr = create_package_manager("uv", python_exe=custom_python)
+    assert isinstance(uv_mgr, UvPackageManager)
+    assert uv_mgr._python_exe == custom_python
+
+
+def test_create_package_manager_without_python_exe() -> None:
+    """Test that create_package_manager defaults python_exe to PY_EXE."""
+    pip_mgr = create_package_manager("pip")
+    assert isinstance(pip_mgr, PipPackageManager)
+    assert pip_mgr._python_exe == PY_EXE
+
+    uv_mgr = create_package_manager("uv")
+    assert isinstance(uv_mgr, UvPackageManager)
+    assert uv_mgr._python_exe == PY_EXE
+
+
 def test_update_script_metadata() -> None:
     runs_calls: list[list[str]] = []
 
@@ -325,7 +349,7 @@ async def test_uv_pip_install() -> None:
         mock_popen.side_effect = capture_command
 
         pm = UvPackageManager()
-        await pm._install("foo", upgrade=False, dev=False)
+        await pm._install("foo", upgrade=False, group=None)
 
         assert runs_calls == [
             ["uv", "pip", "install", "foo", "-p", PY_EXE],
@@ -449,7 +473,7 @@ async def test_pip_install_with_log_callback() -> None:
 
     pm = MockPipPackageManager()
     result = await pm._install(
-        "numpy", upgrade=False, dev=False, log_callback=log_callback
+        "numpy", upgrade=False, group=None, log_callback=log_callback
     )
 
     assert result is True
@@ -482,7 +506,7 @@ async def test_uv_install_with_log_callback() -> None:
 
         pm = UvPackageManager()
         result = await pm._install(
-            "pandas", upgrade=False, dev=False, log_callback=log_callback
+            "pandas", upgrade=False, group=None, log_callback=log_callback
         )
 
         assert result is True
@@ -513,7 +537,7 @@ async def test_micropip_install_with_log_callback() -> None:
         patch.dict(sys.modules, {"micropip": mock_micropip}),
     ):
         result = await pm._install(
-            "requests", upgrade=False, dev=False, log_callback=log_callback
+            "requests", upgrade=False, group=None, log_callback=log_callback
         )
 
         assert result is True
@@ -535,10 +559,10 @@ async def test_package_manager_install_method_with_callback() -> None:
             package: str,
             *,
             upgrade: bool,
-            dev: bool,
+            group: Optional[str] = None,
             log_callback: Optional[LogCallback] = None,
         ) -> bool:
-            del dev
+            del group
             del upgrade
             if log_callback:
                 log_callback(f"Installing {package}...\n")

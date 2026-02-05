@@ -56,9 +56,9 @@ async def add_package(request: Request) -> PackageOperationResponse:
         )
 
     upgrade = body.upgrade or False
-    dev = body.dev or False
+    group = body.group or None
     success = await package_manager.install(
-        body.package, version=None, upgrade=upgrade, dev=dev
+        body.package, version=None, upgrade=upgrade, group=group
     )
 
     # Update the script metadata
@@ -107,8 +107,8 @@ async def remove_package(request: Request) -> PackageOperationResponse:
             f"Check out the docs for installation instructions: {package_manager.docs_url}"  # noqa: E501
         )
 
-    dev = body.dev or False
-    success = await package_manager.uninstall(body.package, dev=dev)
+    group = body.group or None
+    success = await package_manager.uninstall(body.package, group=group)
 
     # Update the script metadata
     filename = _get_filename(request)
@@ -180,13 +180,27 @@ async def dependency_tree(request: Request) -> DependencyTreeResponse:
 
 
 def _get_package_manager(request: Request) -> PackageManager:
-    if not AppState(request).get_current_session():
+    session = AppState(request).get_current_session()
+    if not session:
         return create_package_manager(
             AppState(request).config_manager.package_manager
         )
 
     config_manager = AppState(request).app_config_manager
-    return create_package_manager(config_manager.package_manager)
+
+    # Check if IPC mode - use kernel's venv Python
+    python_exe: str | None = None
+    from marimo._session.managers.ipc import IPCKernelManagerImpl
+    from marimo._session.session import SessionImpl
+
+    if isinstance(session, SessionImpl):
+        kernel_manager = session._kernel_manager
+        if isinstance(kernel_manager, IPCKernelManagerImpl):
+            python_exe = kernel_manager.venv_python
+
+    return create_package_manager(
+        config_manager.package_manager, python_exe=python_exe
+    )
 
 
 def _get_filename(request: Request) -> Optional[str]:

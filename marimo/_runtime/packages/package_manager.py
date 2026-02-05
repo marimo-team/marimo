@@ -19,6 +19,9 @@ if TYPE_CHECKING:
 
 LOGGER = _loggers.marimo_logger()
 
+# Default Python executable
+PY_EXE = sys.executable
+
 # Type alias for log callback function
 LogCallback = Callable[[str], None]
 
@@ -58,7 +61,7 @@ class PackageManager(abc.ABC):
         return False
 
     def install_command(
-        self, package: str, *, upgrade: bool, dev: bool
+        self, package: str, *, upgrade: bool, group: Optional[str] = None
     ) -> list[str]:
         """
         Get the shell command to install a package (where applicable).
@@ -74,12 +77,12 @@ class PackageManager(abc.ABC):
         package: str,
         *,
         upgrade: bool,
-        dev: bool,
+        group: Optional[str] = None,
         log_callback: Optional[LogCallback] = None,
     ) -> bool:
         """Installation logic."""
         return await self.run(
-            self.install_command(package, upgrade=upgrade, dev=dev),
+            self.install_command(package, upgrade=upgrade, group=group),
             log_callback=log_callback,
         )
 
@@ -88,7 +91,7 @@ class PackageManager(abc.ABC):
         package: str,
         version: Optional[str],
         upgrade: bool = False,
-        dev: bool = False,
+        group: Optional[str] = None,
         log_callback: Optional[LogCallback] = None,
     ) -> bool:
         """Attempt to install a package that makes this module available.
@@ -97,7 +100,7 @@ class PackageManager(abc.ABC):
             package: The package to install
             version: Optional version specification
             upgrade: Whether to upgrade the package if already installed
-            dev: Whether to install as a dev dependency (for uv projects)
+            group: Dependency group (for uv projects)
             log_callback: Optional callback to receive log output during installation
 
         Returns True if installation succeeded, else False.
@@ -106,17 +109,19 @@ class PackageManager(abc.ABC):
         return await self._install(
             append_version(package, version),
             upgrade=upgrade,
-            dev=dev,
+            group=group,
             log_callback=log_callback,
         )
 
     @abc.abstractmethod
-    async def uninstall(self, package: str, dev: bool) -> bool:
+    async def uninstall(
+        self, package: str, group: Optional[str] = None
+    ) -> bool:
         """Attempt to uninstall a package
 
         Args:
             package: The package to uninstall
-            dev: Whether this is a dev dependency
+            group: dependency group
 
         Returns True if the package was uninstalled, else False.
         """
@@ -242,10 +247,13 @@ class CanonicalizingPackageManager(PackageManager):
     Subclasses needs to implement _construct_module_name_mapping.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, python_exe: str | None = None) -> None:
         # Initialized lazily
         self._module_name_to_repo_name: dict[str, str] | None = None
         self._repo_name_to_module_name: dict[str, str] | None = None
+        # Python executable for targeting a specific venv (used by pip/uv)
+        # Defaults to sys.executable if not provided
+        self._python_exe = python_exe or PY_EXE
         super().__init__()
 
     @abc.abstractmethod

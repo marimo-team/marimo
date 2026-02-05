@@ -182,7 +182,16 @@ class VirtualFileRegistry:
 
     def __post_init__(self) -> None:
         # Set singleton reference for read_virtual_file()
-        VirtualFileStorageManager().storage = self.storage
+        manager = VirtualFileStorageManager()
+        if manager.storage is None:
+            # Not set yet, _or_ was stale
+            manager.storage = self.storage
+        elif self.storage is not manager.storage:
+            LOGGER.warning(
+                "Expected shared global storage but VirtualFileRegistry was initialized "
+                "with new storage instance. Overriding with global storage.",
+            )
+            self.storage = manager.storage
 
     def __del__(self) -> None:
         self.shutdown()
@@ -243,7 +252,7 @@ class VirtualFileRegistry:
             return
         try:
             self.shutting_down = True
-            self.storage.shutdown()
+            self.storage.shutdown(keys=self.registry.keys())
             self.registry.clear()
         finally:
             self.shutting_down = False

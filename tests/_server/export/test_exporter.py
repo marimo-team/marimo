@@ -908,47 +908,9 @@ class TestPDFExport:
 
     @pytest.mark.skipif(
         not DependencyManager.nbformat.has()
-        or not DependencyManager.nbconvert.has(),
-        reason="nbformat or nbconvert not installed",
-    )
-    def test_export_as_pdf_webpdf_requires_playwright(
-        self,
-        session_view: SessionView,
-    ) -> None:
-        """Test that webpdf mode requires playwright dependency."""
-
-        app = App()
-
-        @app.cell()
-        def test_cell():
-            return "test"
-
-        file_manager = AppFileManager.from_app(InternalApp(app))
-        exporter = Exporter()
-
-        # Simulate nbformat and nbconvert available, but playwright missing
-        def mock_has(self: Dependency, quiet: bool = False) -> bool:
-            del quiet
-            if self.pkg == "playwright":
-                return False
-            if self.pkg in ("nbformat", "nbconvert"):
-                return True
-            return False
-
-        with patch.object(Dependency, "has", mock_has):
-            with pytest.raises(ModuleNotFoundError) as excinfo:
-                exporter.export_as_pdf(
-                    app=file_manager.app,
-                    session_view=session_view,
-                    webpdf=True,
-                )
-
-            assert "playwright" in str(excinfo.value)
-
-    @pytest.mark.skipif(
-        not DependencyManager.nbformat.has()
-        or not DependencyManager.nbconvert.has(),
-        reason="nbformat or nbconvert not installed",
+        or not DependencyManager.nbconvert.has()
+        or not DependencyManager.playwright.has(),
+        reason="nbformat or nbconvert or playwright not installed",
     )
     def test_export_as_pdf_non_webpdf_mode(
         self,

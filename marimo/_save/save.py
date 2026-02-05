@@ -80,6 +80,8 @@ class _cache_call(CacheContext):
         "pin_modules",
         "hash_type",
         "_args",
+        "_kwonly_args",
+        "_defaults",
         "_var_arg",
         "_var_kwarg",
         "_misses",
@@ -98,6 +100,8 @@ class _cache_call(CacheContext):
     pin_modules: bool
     hash_type: str
     _args: list[str]
+    _kwonly_args: list[str]
+    _defaults: dict[str, Any]
     _var_arg: Optional[str]
     _var_kwarg: Optional[str]
     _misses: int
@@ -127,6 +131,9 @@ class _cache_call(CacheContext):
         self._frame_offset = frame_offset
         self._loader_partial = loader_partial
         self._last_hash = None
+        self._args: list[str] = []
+        self._kwonly_args: list[str] = []
+        self._defaults: dict[str, Any] = {}
         self._var_arg = None
         self._var_kwarg = None
         self._misses = 0
@@ -161,31 +168,28 @@ class _cache_call(CacheContext):
 
         self.__wrapped__ = fn
         sig = inspect.signature(fn)
-        self._args = [
-            param.name
-            for param in sig.parameters.values()
-            if param.kind
-            in (
+
+        self._args = []
+        self._kwonly_args = []
+        self._defaults = {}
+        self._var_arg = None
+        self._var_kwarg = None
+
+        for param in sig.parameters.values():
+            if param.kind in (
                 inspect.Parameter.POSITIONAL_OR_KEYWORD,
                 inspect.Parameter.POSITIONAL_ONLY,
-            )
-        ]
-        self._var_arg = next(
-            (
-                param.name
-                for param in sig.parameters.values()
-                if param.kind == inspect.Parameter.VAR_POSITIONAL
-            ),
-            None,
-        )
-        self._var_kwarg = next(
-            (
-                param.name
-                for param in sig.parameters.values()
-                if param.kind == inspect.Parameter.VAR_KEYWORD
-            ),
-            None,
-        )
+            ):
+                self._args.append(param.name)
+            elif param.kind == inspect.Parameter.KEYWORD_ONLY:
+                self._kwonly_args.append(param.name)
+            elif param.kind == inspect.Parameter.VAR_POSITIONAL:
+                self._var_arg = param.name
+            elif param.kind == inspect.Parameter.VAR_KEYWORD:
+                self._var_kwarg = param.name
+
+            if param.default is not inspect.Parameter.empty:
+                self._defaults[param.name] = param.default
 
         # Retrieving frame from the stack: frame is
         #
@@ -207,8 +211,10 @@ class _cache_call(CacheContext):
         # Scoped refs are references particular to this block, that may not be
         # defined out of the context of the block, or the cell.
         # For instance, the args of the invoked function are restricted to the
-        # block.
-        self.scoped_refs = set([f"{ARG_PREFIX}{k}" for k in self._args])
+        # block. Include both positional and keyword-only args.
+        self.scoped_refs = {
+            f"{ARG_PREFIX}{k}" for k in self._args + self._kwonly_args
+        }
         # As are the "locals" not in globals
         self.scoped_refs |= set(f_locals.keys()) - set(glbls.keys())
         # Defined in the cell, and currently available in scope
@@ -273,12 +279,25 @@ class _cache_call(CacheContext):
         # Rewrite scoped args to prevent shadowed variables
         arg_dict = {f"{ARG_PREFIX}{k}": v for (k, v) in zip(self._args, args)}
         kwargs_copy = {f"{ARG_PREFIX}{k}": v for (k, v) in kwargs.items()}
+        # Fill in default values for arguments not explicitly provided
+        # This ensures cache hashes are based on resolved argument values
+        for arg_name, default_value in self._defaults.items():
+            prefixed_name = f"{ARG_PREFIX}{arg_name}"
+            if (
+                prefixed_name not in arg_dict
+                and prefixed_name not in kwargs_copy
+            ):
+                arg_dict[prefixed_name] = default_value
         # If the function has varargs, we need to capture them as well.
         if self._var_arg is not None:
             arg_dict[f"{ARG_PREFIX}{self._var_arg}"] = args[len(self._args) :]
         if self._var_kwarg is not None:
             # NB: kwargs are always a dict, so we can just copy them.
-            arg_dict[f"{ARG_PREFIX}{self._var_kwarg}"] = kwargs.copy()
+            # Filter out keyword-only args since they're handled separately
+            filtered_kwargs = {
+                k: v for k, v in kwargs.items() if k not in self._kwonly_args
+            }
+            arg_dict[f"{ARG_PREFIX}{self._var_kwarg}"] = filtered_kwargs
 
         # Capture the call case
         ctx = safe_get_context()
@@ -309,7 +328,9 @@ class _cache_call(CacheContext):
             scope,
             self.loader,
             scoped_refs=self.scoped_refs,
-            required_refs=set([f"{ARG_PREFIX}{k}" for k in self._args]),
+            required_refs={
+                f"{ARG_PREFIX}{k}" for k in self._args + self._kwonly_args
+            },
             as_fn=True,
         )
 

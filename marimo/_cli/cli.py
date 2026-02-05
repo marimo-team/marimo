@@ -27,6 +27,7 @@ from marimo._cli.print import red
 from marimo._cli.run_docker import (
     prompt_run_in_docker_container,
 )
+from marimo._cli.tools.commands import tools
 from marimo._cli.upgrade import check_for_updates, print_latest_version
 from marimo._cli.utils import (
     check_app_correctness,
@@ -529,6 +530,10 @@ def edit(
                 "Install it with: pip install 'marimo[sandbox]'\n"
                 "Or: pip install pyzmq"
             )
+
+        # Enable script metadata management for sandboxed notebooks
+        os.environ["MARIMO_MANAGE_SCRIPT_METADATA"] = "true"
+        GLOBAL_SETTINGS.MANAGE_SCRIPT_METADATA = True
 
     # Check shared memory availability early (required for edit mode to
     # communicate between the server process and kernel subprocess)
@@ -1476,3 +1481,4 @@ main.command()(convert)
 main.add_command(export)
 main.add_command(config)
 main.add_command(development)
+main.add_command(tools)

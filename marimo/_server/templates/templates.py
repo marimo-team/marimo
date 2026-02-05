@@ -137,6 +137,76 @@ def home_page_template(
     return html
 
 
+def opengraph_metadata_template(
+    *,
+    base_url: str,
+    mode: SessionMode,
+    app_config: _AppConfig,
+    filename: Optional[str],
+    filepath: Optional[str],
+) -> str:
+    """Return OpenGraph `<meta>` tags for a notebook, or an empty string."""
+    if not filepath:
+        return ""
+
+    try:
+        from marimo._metadata.opengraph import (
+            OpenGraphContext,
+            is_https_url,
+            resolve_opengraph_metadata,
+        )
+
+        file_key = (
+            filename if filename and not Path(filename).is_absolute() else None
+        )
+        opengraph = resolve_opengraph_metadata(
+            filepath,
+            app_title=app_config.app_title,
+            context=OpenGraphContext(
+                filepath=filepath,
+                file_key=file_key,
+                base_url=base_url,
+                mode=mode.value,
+            ),
+        )
+    except Exception:
+        return ""
+
+    if not opengraph.title and not opengraph.description:
+        return ""
+
+    if opengraph.image and is_https_url(opengraph.image):
+        thumbnail_url = opengraph.image
+    else:
+        # Server-resolvable thumbnail URL, falling back to a placeholder when
+        # no screenshot exists.
+        thumbnail_url = f"{base_url}/og/thumbnail"
+        if filename and not Path(filename).is_absolute():
+            thumbnail_url = (
+                f"{thumbnail_url}?file={uri_encode_component(filename)}"
+            )
+
+    meta_tags: list[str] = []
+    if opengraph.title:
+        meta_tags.append(
+            f'<meta property="og:title" content="{_html_escape(opengraph.title)}" />'
+        )
+    if opengraph.description:
+        meta_tags.append(
+            f'<meta property="og:description" content="{_html_escape(opengraph.description)}" />'
+        )
+        meta_tags.append(
+            f'<meta name="description" content="{_html_escape(opengraph.description)}" />'
+        )
+    meta_tags.append(
+        f'<meta property="og:image" content="{_html_escape(thumbnail_url)}" />'
+    )
+    meta_tags.append(
+        '<meta name="twitter:card" content="summary_large_image" />'
+    )
+    return "\n".join(meta_tags)
+
+
 def notebook_page_template(
     *,
     html: str,
@@ -146,6 +216,7 @@ def notebook_page_template(
     server_token: SkewProtectionToken,
     app_config: _AppConfig,
     filename: Optional[str],
+    filepath: Optional[str] = None,
     mode: SessionMode,
     session_snapshot: Optional[NotebookSessionV1] = None,
     notebook_snapshot: Optional[NotebookV1] = None,
@@ -156,12 +227,16 @@ def notebook_page_template(
 
     # When we have a remote URL, let's pre-populate the index.html page
     # with a view of the notebook.
-    if runtime_config and filename and notebook_snapshot is None:
-        filepath = Path(filename)
-        if filepath.exists():
-            notebook_snapshot = MarimoConvert.from_py(
-                filepath.read_text(encoding="utf-8")
-            ).to_notebook_v1()
+    if runtime_config and notebook_snapshot is None:
+        # Prefer the absolute path for IO, since `filename` can be a display
+        # path (workspace-relative) in gallery mode.
+        path = filepath or filename
+        if path:
+            path_obj = Path(path)
+            if path_obj.exists():
+                notebook_snapshot = MarimoConvert.from_py(
+                    path_obj.read_text(encoding="utf-8")
+                ).to_notebook_v1()
 
     html = html.replace("{{ filename }}", _html_escape(filename or ""))
 
@@ -197,6 +272,16 @@ def notebook_page_template(
             else app_config.app_title
         ),
     )
+
+    opengraph_tags = opengraph_metadata_template(
+        base_url=base_url,
+        mode=mode,
+        app_config=app_config,
+        filename=filename,
+        filepath=filepath,
+    )
+    if opengraph_tags:
+        html = html.replace("</head>", f"{opengraph_tags}\n</head>")
 
     # If has custom css, inline the css and add to the head
     if app_config.css_file:

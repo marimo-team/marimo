@@ -11,7 +11,7 @@
 
 import marimo
 
-__generated_with = "0.15.5"
+__generated_with = "0.19.7"
 app = marimo.App(width="medium", sql_output="polars")
 
 
@@ -19,6 +19,7 @@ app = marimo.App(width="medium", sql_output="polars")
 def _():
     import marimo as mo
     import altair as alt
+
     return alt, mo
 
 

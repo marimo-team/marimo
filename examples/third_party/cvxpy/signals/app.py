@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.17.4"
+__generated_with = "0.19.7"
 app = marimo.App()
 
 
@@ -66,6 +66,7 @@ def _(complib, mo):
 def _(component_options, get_component_radio_tracker):
     def user_tried_all_components():
         return len(get_component_radio_tracker()) == len(component_options)
+
     return (user_tried_all_components,)
 
 
@@ -428,6 +429,7 @@ def _(csv_has_header, data_uploader, mo):
             """
         else:
             return ""
+
     return column_name, read_uploaded_csv, show_csv_parameters
 
 
@@ -753,6 +755,7 @@ def _(complib, problem, problems):
                 ],
             )
         )
+
     return (construct_components,)
 
 
@@ -763,6 +766,7 @@ def _(construct_components):
         f = problem.decompose(c)
         f.set_figwidth(6.4)
         return f
+
     return (decompose,)
 
 
@@ -849,6 +853,7 @@ def _():
     import numpy as np
     import marimo as mo
     import matplotlib.pyplot as plt
+
     return mo, plt
 
 
