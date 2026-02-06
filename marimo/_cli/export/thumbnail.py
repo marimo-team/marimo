@@ -298,19 +298,21 @@ async def _generate_thumbnails(
         )
     except ModuleNotFoundError as e:
         if getattr(e, "name", None) == "playwright":
-            raise click.ClickException(
-                "Playwright is required to generate thumbnails.\n\n"
-                "  Tip: Install dependencies with:\n\n"
-                "    pip install 'nbconvert[webpdf]'\n\n"
-                "  and install Chromium with:\n\n"
-                "    python -m playwright install chromium"
+            from marimo._cli.errors import MarimoCLIMissingDependencyError
+
+            raise MarimoCLIMissingDependencyError(
+                "Playwright is required to generate thumbnails.",
+                "playwright",
+                additional_tip="and install Chromium with:\n\n    python -m playwright install chromium",
             ) from None
         raise
 
     if sandbox and not DependencyManager.which("uv"):
-        raise click.ClickException(
-            "uv is required for --sandbox thumbnail generation.\n\n"
-            "  Tip: Install uv from https://github.com/astral-sh/uv"
+        from marimo._cli.errors import MarimoCLIMissingDependencyError
+
+        raise MarimoCLIMissingDependencyError(
+            "uv is required for --sandbox thumbnail generation.",
+            "uv",
         )
 
     static_dir = marimo_package_path() / "_static"
@@ -520,12 +522,12 @@ def thumbnail(
         DependencyManager.playwright.require("for thumbnail generation")
     except ModuleNotFoundError as e:
         if getattr(e, "name", None) == "playwright":
-            raise click.ClickException(
-                "Playwright is required for thumbnail generation.\n\n"
-                "  Tip: Install with:\n\n"
-                "    python -m pip install playwright\n\n"
-                "  and install Chromium with:\n\n"
-                "    python -m playwright install chromium"
+            from marimo._cli.errors import MarimoCLIMissingDependencyError
+
+            raise MarimoCLIMissingDependencyError(
+                "Playwright is required for thumbnail generation.",
+                "playwright",
+                additional_tip="and install Chromium with:\n\n    python -m playwright install chromium",
             ) from None
         raise
 

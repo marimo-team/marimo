@@ -115,12 +115,12 @@ def convert(
                 e.__cause__
                 and getattr(e.__cause__, "name", None) == "jupytext"
             ):
-                from marimo._cli.print import green
+                from marimo._cli.errors import MarimoCLIMissingDependencyError
 
-                raise click.ClickException(
-                    f"{e}\n\n"
-                    f"  {green('Tip:')} If you're using uv, run:\n\n"
-                    f"    uvx --with=jupytext marimo convert {filename}"
+                raise MarimoCLIMissingDependencyError(
+                    str(e),
+                    "jupytext",
+                    additional_tip=f"If you're using uv, run:\n\n    uvx --with=jupytext marimo convert {filename}",
                 ) from e
             raise
 

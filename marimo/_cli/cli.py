@@ -535,10 +535,11 @@ def edit(
         from marimo._dependencies.dependencies import DependencyManager
 
         if not DependencyManager.zmq.has():
-            raise click.UsageError(
-                "pyzmq is required when running the marimo edit server on a directory with --sandbox.\n"
-                "Install it with: pip install 'marimo[sandbox]'\n"
-                "Or: pip install pyzmq"
+            from marimo._cli.errors import MarimoCLIMissingDependencyError
+
+            raise MarimoCLIMissingDependencyError(
+                "pyzmq is required when running the marimo edit server on a directory with --sandbox.",
+                "'marimo[sandbox]'",
             )
 
         # Enable script metadata management for sandboxed notebooks
@@ -1160,10 +1161,11 @@ def run(
         from marimo._dependencies.dependencies import DependencyManager
 
         if not DependencyManager.zmq.has():
-            raise click.UsageError(
-                "pyzmq is required when running a gallery with --sandbox.\n"
-                "Install it with: pip install 'marimo[sandbox]'\n"
-                "Or: pip install pyzmq"
+            from marimo._cli.errors import MarimoCLIMissingDependencyError
+
+            raise MarimoCLIMissingDependencyError(
+                "pyzmq is required when running a gallery with --sandbox.",
+                "'marimo[sandbox]'",
             )
 
     if is_multi:

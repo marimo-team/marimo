@@ -625,14 +625,14 @@ def pdf(
             DependencyManager.nbconvert,
         )
     except ManyModulesNotFoundError as e:
+        from marimo._cli.errors import MarimoCLIMissingDependencyError
         from marimo._cli.print import bold
 
         pkgs = " ".join(e.package_names)
-        raise click.ClickException(
-            f"{e}\n\n"
-            f"  {green('Tip:')} Install with:\n\n"
-            f"    pip install {pkgs}\n\n"
-            f"  or rerun with {bold(f'marimo export pdf {name} --output {output} --sandbox')} (requires uv)"
+        raise MarimoCLIMissingDependencyError(
+            str(e),
+            pkgs,
+            additional_tip=f"or rerun with {bold(f'marimo export pdf {name} --output {output} --sandbox')} (requires uv)",
         ) from None
 
     cli_args = parse_args(args) if include_outputs else {}
@@ -652,12 +652,12 @@ def pdf(
             )
         except ModuleNotFoundError as e:
             if getattr(e, "name", None) == "playwright":
-                raise click.ClickException(
-                    "Playwright is required for WebPDF export.\n\n"
-                    f"  {green('Tip:')} Install webpdf dependencies with:\n\n"
-                    "    pip install 'nbconvert[webpdf]'\n\n"
-                    "  and install Chromium with:\n\n"
-                    "    python -m playwright install chromium"
+                from marimo._cli.errors import MarimoCLIMissingDependencyError
+
+                raise MarimoCLIMissingDependencyError(
+                    "Playwright is required for WebPDF export.",
+                    "'nbconvert[webpdf]'",
+                    additional_tip="and install Chromium with:\n\n    python -m playwright install chromium",
                 ) from None
             raise
         except Exception as e:
