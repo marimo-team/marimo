@@ -1,6 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+from dataclasses import dataclass, field
 from typing import Any, Callable, Optional
 
 from marimo._loggers import marimo_logger
@@ -22,8 +23,9 @@ from marimo._types.ids import WidgetModelId
 LOGGER = marimo_logger()
 
 
+@dataclass
 class MarimoCommManager:
-    comms: dict[WidgetModelId, MarimoComm] = {}
+    comms: dict[WidgetModelId, MarimoComm] = field(default_factory=dict)
 
     def register_comm(self, comm: MarimoComm) -> str:
         comm_id = comm.comm_id
