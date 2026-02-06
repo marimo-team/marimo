@@ -17,7 +17,7 @@ marimo run notebook.py
 
 View the [CLI documentation](../cli.md#marimo-run) for more details.
 
-## Gallery mode
+### Gallery
 
 You can run multiple notebooks (or a directory of notebooks) as a gallery:
 
