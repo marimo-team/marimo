@@ -348,6 +348,9 @@ export async function handleWidgetMessage(
             stateWithBuffers,
             {
               async sendUpdate(changeData) {
+                if (signal.aborted) {
+                  return;
+                }
                 const { state, buffers, bufferPaths } =
                   serializeBuffersToBase64(changeData);
                 await getRequestClient().sendModelValue({
@@ -357,6 +360,9 @@ export async function handleWidgetMessage(
                 });
               },
               async sendCustomMessage(content, buffers) {
+                if (signal.aborted) {
+                  return;
+                }
                 await getRequestClient().sendModelValue({
                   modelId,
                   message: { method: "custom", content },
