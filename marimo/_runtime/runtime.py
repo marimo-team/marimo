@@ -2281,14 +2281,17 @@ class Kernel:
                 request
             )
 
-            # If there's a ui_element_id, trigger a cell re-run
+            # If there's a ui_element_id, enqueue an UpdateUIElementCommand
+            # so it goes through the SetUIElementRequestManager's
+            # drain-and-merge path, just like direct UI element updates.
+            # This prevents rapid model updates from bombarding the kernel
+            # with individual cell re-executions.
             if ui_element_id and state:
-                await self.set_ui_element_value(
+                self.enqueue_control_request(
                     UpdateUIElementCommand.from_ids_and_values(
                         [(UIElementId(ui_element_id), state)]
                     )
                 )
-                broadcast_notification(CompletedRunNotification())
 
         async def handle_function_call(request: InvokeFunctionCommand) -> None:
             status, ret, _ = await self.function_call_request(request)
@@ -3240,7 +3243,7 @@ def launch_kernel(
 
     def _enqueue_control_request(req: CommandMessage) -> None:
         control_queue.put_nowait(req)
-        if isinstance(req, UpdateUIElementCommand):
+        if isinstance(req, (UpdateUIElementCommand, ModelCommand)):
             set_ui_element_queue.put_nowait(req)
 
     kernel = Kernel(
@@ -3332,8 +3335,14 @@ def launch_kernel(
             )
             if isinstance(request, StopKernelCommand):
                 break
-            elif isinstance(request, UpdateUIElementCommand):
-                request = ui_element_request_mgr.process_request(request)
+            elif isinstance(request, (UpdateUIElementCommand, ModelCommand)):
+                # Drain the shared queue and merge pending requests:
+                # - UI element updates: last-write-wins per element ID
+                # - Model commands: last-write-wins per model ID
+                merged = ui_element_request_mgr.process_request(request)
+                for r in merged:
+                    await kernel.handle_message(r)
+                continue
 
             if request is not None:
                 await kernel.handle_message(request)
