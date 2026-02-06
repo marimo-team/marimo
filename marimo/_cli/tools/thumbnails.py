@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING, Any, Optional
 
 import click
 
+from marimo._cli.help_formatter import ColoredGroup
 from marimo._cli.parse_args import parse_args
 from marimo._cli.print import echo, green, red
 from marimo._dependencies.dependencies import DependencyManager

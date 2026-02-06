@@ -1,12 +1,13 @@
 # Copyright 2026 Marimo. All rights reserved.
+#
+# NB: Do not import click top-level. This module is imported in WASM, which
+# does not have access to click.
 
 from __future__ import annotations
 
 import os
 import sys
-from typing import Any, cast
-
-import click
+from typing import Any, Protocol, cast
 
 from marimo._config.settings import GLOBAL_SETTINGS
 
@@ -41,54 +42,116 @@ def _supports_color() -> bool:
 _USE_COLOR = _supports_color()
 
 
+_ANSI_COLORS = {
+    "black": 30,
+    "red": 31,
+    "green": 32,
+    "yellow": 33,
+    "blue": 34,
+    "magenta": 35,
+    "cyan": 36,
+    "white": 37,
+    "bright_black": 90,
+    "bright_red": 91,
+    "bright_green": 92,
+    "bright_yellow": 93,
+    "bright_blue": 94,
+    "bright_magenta": 95,
+    "bright_cyan": 96,
+    "bright_white": 97,
+}
+
+
+class _StyleFn(Protocol):
+    def __call__(
+        self,
+        text: str,
+        *,
+        fg: str | None = ...,
+        bold: bool = ...,
+        dim: bool = ...,
+    ) -> str: ...
+
+
+def _ansi_style(
+    text: str,
+    *,
+    fg: str | None = None,
+    bold: bool = False,
+    dim: bool = False,
+) -> str:
+    """Minimal ANSI fallback for environments without click (e.g. WASM)."""
+    codes: list[int] = []
+    if fg and fg in _ANSI_COLORS:
+        codes.append(_ANSI_COLORS[fg])
+    if bold:
+        codes.append(1)
+    if dim:
+        codes.append(2)
+    if not codes:
+        return text
+    return f"\033[{';'.join(str(c) for c in codes)}m{text}\033[0m"
+
+
+def _noop_style(
+    text: str,
+    *,
+    fg: str | None = None,
+    bold: bool = False,
+    dim: bool = False,
+) -> str:
+    del fg, bold, dim
+    return text
+
+
+def _resolve_style() -> _StyleFn:
+    if not _USE_COLOR:
+        return _noop_style
+    try:
+        import click
+
+        return click.style
+    except ModuleNotFoundError:
+        return _ansi_style
+
+
+_style: _StyleFn = _resolve_style()
+
+
 def bold(text: str) -> str:
-    return click.style(text, bold=True) if _USE_COLOR else text
+    return _style(text, bold=True)
 
 
 def green(text: str, bold: bool = False) -> str:
-    if not _USE_COLOR:
-        return text
-    return click.style(text, fg="green", bold=bold)
+    return _style(text, fg="green", bold=bold)
 
 
 def bright_green(text: str, bold: bool = False) -> str:
-    if not _USE_COLOR:
-        return text
-    return click.style(text, fg="bright_green", bold=bold)
+    return _style(text, fg="bright_green", bold=bold)
 
 
 def yellow(text: str, bold: bool = False) -> str:
-    if not _USE_COLOR:
-        return text
-    return click.style(text, fg="yellow", bold=bold)
+    return _style(text, fg="yellow", bold=bold)
 
 
 def orange(text: str, bold: bool = False) -> str:
-    if not _USE_COLOR:
-        return text
-    return click.style(text, fg="yellow", bold=bold)
+    return _style(text, fg="yellow", bold=bold)
 
 
 def red(text: str, bold: bool = False) -> str:
-    if not _USE_COLOR:
-        return text
-    return click.style(text, fg="red", bold=bold)
+    return _style(text, fg="red", bold=bold)
 
 
 def cyan(text: str, bold: bool = False) -> str:
-    if not _USE_COLOR:
-        return text
-    return click.style(text, fg="bright_blue", bold=bold)
+    return _style(text, fg="bright_blue", bold=bold)
 
 
 def light_blue(text: str, bold: bool = False) -> str:
-    if not _USE_COLOR:
-        return text
-    return click.style(text, fg="bright_cyan", bold=bold)
+    return _style(text, fg="bright_cyan", bold=bold)
 
 
 def muted(text: str) -> str:
-    return click.style(text, fg="white", dim=True) if _USE_COLOR else text
+    return _style(text, fg="white", dim=True)
 
 
 def _echo_or_print(*args: Any, **kwargs: Any) -> None:
@@ -120,90 +183,3 @@ def echo(*args: Any, **kwargs: Any) -> None:
             else:
                 ascii_args.append(arg)
         _echo_or_print(*ascii_args, **kwargs)
-
-
-# --- Colored Click classes for CLI help formatting ---
-# These follow cargo's color conventions:
-# - Bold bright green for section headers (Usage:, Options:, Commands:)
-# - Bold bright cyan for command/option names
-
-
-class ColoredCommand(click.Command):
-    """Click Command with colored help output (cargo-style)."""
-
-    def format_usage(
-        self, ctx: click.Context, formatter: click.HelpFormatter
-    ) -> None:
-        pieces = self.collect_usage_pieces(ctx)
-        formatter.write_usage(
-            ctx.command_path,
-            " ".join(pieces),
-            bright_green("Usage: ", bold=True),
-        )
-
-    def format_options(
-        self, ctx: click.Context, formatter: click.HelpFormatter
-    ) -> None:
-        opts = []
-        for param in self.get_params(ctx):
-            rv = param.get_help_record(ctx)
-            if rv is not None:
-                opts.append(rv)
-
-        if opts:
-            rows = [(light_blue(opt, bold=True), desc) for opt, desc in opts]
-            with formatter.section(bright_green("Options", bold=True)):
-                formatter.write_dl(rows)
-
-
-class ColoredGroup(click.Group):
-    """Click Group with colored help output (cargo-style)."""
-
-    command_class = ColoredCommand
-
-    def format_usage(
-        self, ctx: click.Context, formatter: click.HelpFormatter
-    ) -> None:
-        pieces = self.collect_usage_pieces(ctx)
-        formatter.write_usage(
-            ctx.command_path,
-            " ".join(pieces),
-            bright_green("Usage: ", bold=True),
-        )
-
-    def format_options(
-        self, ctx: click.Context, formatter: click.HelpFormatter
-    ) -> None:
-        opts = []
-        for param in self.get_params(ctx):
-            rv = param.get_help_record(ctx)
-            if rv is not None:
-                opts.append(rv)
-
-        if opts:
-            rows = [(light_blue(opt, bold=True), desc) for opt, desc in opts]
-            with formatter.section(bright_green("Options", bold=True)):
-                formatter.write_dl(rows)
-
-        # Click's MultiCommand.format_options calls format_commands internally,
-        # so we must do the same since we're overriding the method completely
-        self.format_commands(ctx, formatter)
-
-    def format_commands(
-        self, ctx: click.Context, formatter: click.HelpFormatter
-    ) -> None:
-        """Write all commands with colored names."""
-        commands = []
-        for subcommand in self.list_commands(ctx):
-            cmd = self.get_command(ctx, subcommand)
-            if cmd is None or cmd.hidden:
-                continue
-            commands.append((subcommand, cmd))
-
-        if commands:
-            rows = [
-                (light_blue(subcommand, bold=True), cmd.get_short_help_str())
-                for subcommand, cmd in commands
-            ]
-            with formatter.section(bright_green("Commands", bold=True)):
-                formatter.write_dl(rows)

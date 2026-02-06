@@ -6,12 +6,8 @@ import os
 import click
 
 from marimo._cli.config.utils import highlight_toml_headers
-from marimo._cli.print import (
-    ColoredCommand,
-    ColoredGroup,
-    echo,
-    green,
-)
+from marimo._cli.help_formatter import ColoredCommand, ColoredGroup
+from marimo._cli.print import echo, green
 from marimo._config.manager import (
     UserConfigManager,
     get_default_config_manager,

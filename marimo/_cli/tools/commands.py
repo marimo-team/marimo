@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import click
 
-from marimo._cli.print import ColoredGroup
+from marimo._cli.help_formatter import ColoredGroup
 from marimo._cli.tools.thumbnails import thumbnails
 
 

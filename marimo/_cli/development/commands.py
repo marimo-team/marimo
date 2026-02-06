@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING, Any
 
 import click
 
-from marimo._cli.print import ColoredCommand, ColoredGroup
+from marimo._cli.help_formatter import ColoredCommand, ColoredGroup
 from marimo._data.models import DataType
 from marimo._messaging.errors import Error as MarimoError
 from marimo._messaging.notification import NotificationMessage
