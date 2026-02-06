@@ -1,13 +1,10 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Callable
-
 from marimo._ast.cell import CellImpl
 from marimo._runtime.runner.hook_context import PreExecutionHookContext
+from marimo._runtime.runner.hooks import PreExecutionHook
 from marimo._tracer import kernel_tracer
-
-PreExecutionHookType = Callable[[CellImpl, PreExecutionHookContext], None]
 
 
 @kernel_tracer.start_as_current_span("set_staleness")
@@ -36,7 +33,7 @@ def _set_status_to_running(
     cell.set_runtime_state("running")
 
 
-PRE_EXECUTION_HOOKS: list[PreExecutionHookType] = [
+PRE_EXECUTION_HOOKS: list[PreExecutionHook] = [
     _set_staleness,
     _set_status_to_running,
 ]

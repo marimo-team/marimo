@@ -43,9 +43,12 @@ class PostExecutionHookContext:
     # Dict, because errors get mutated (formatted) by hooks.
     exceptions: dict[CellId_t, ExceptionOrError]
     cells_cancelled: Mapping[CellId_t, set[CellId_t]]
+    # Whether data (variables, datasets, etc.) should be broadcast
+    # to the frontend. Computed once per run to avoid repeated checks.
+    should_broadcast_data: bool = False
 
     def cancelled(self, cell_id: CellId_t) -> bool:
-        """Check if a cell was cancelled (same API as Runner.cancelled)."""
+        """Check if a cell was cancelled."""
         return any(
             cell_id in cancelled for cancelled in self.cells_cancelled.values()
         )

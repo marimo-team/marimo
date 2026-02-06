@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import sys
-from typing import Callable
 
 from marimo import _loggers
 from marimo._ast.cell import CellImpl
@@ -32,7 +31,6 @@ from marimo._messaging.tracebacks import write_traceback
 from marimo._messaging.variables import create_variable_value
 from marimo._output import formatting
 from marimo._plugins.ui._core.ui_element import UIElement
-from marimo._runtime.context.kernel_context import KernelRuntimeContext
 from marimo._runtime.context.types import (
     get_context,
     get_global_context,
@@ -40,8 +38,8 @@ from marimo._runtime.context.types import (
 from marimo._runtime.control_flow import MarimoInterrupt, MarimoStopError
 from marimo._runtime.runner import cell_runner
 from marimo._runtime.runner.hook_context import PostExecutionHookContext
+from marimo._runtime.runner.hooks import PostExecutionHook
 from marimo._runtime.side_effect import SideEffect
-from marimo._session.model import SessionMode
 from marimo._sql.engines.duckdb import (
     INTERNAL_DUCKDB_ENGINE,
     DuckDBEngine,
@@ -55,11 +53,6 @@ from marimo._types.ids import VariableName
 from marimo._utils.flatten import contains_instance
 
 LOGGER = _loggers.marimo_logger()
-
-
-PostExecutionHookType = Callable[
-    [CellImpl, PostExecutionHookContext, cell_runner.RunResult], None
-]
 
 
 @kernel_tracer.start_as_current_span("set_imported_defs")
@@ -115,24 +108,13 @@ def _set_run_result_status(
         cell.set_run_result_status("success")
 
 
-def _should_broadcast_data() -> bool:
-    ctx = get_context()
-    is_edit_mode = (
-        isinstance(ctx, KernelRuntimeContext)
-        and ctx.session_mode == SessionMode.EDIT
-    )
-    # We don't broadcast data in embedded contexts, since the variables panel,
-    # etc. should only show the top-level graph's variables.
-    return is_edit_mode and not ctx.is_embedded()
-
-
 @kernel_tracer.start_as_current_span("broadcast_variables")
 def _broadcast_variables(
     cell: CellImpl,
     ctx: PostExecutionHookContext,
     run_result: cell_runner.RunResult,
 ) -> None:
-    if not _should_broadcast_data():
+    if not ctx.should_broadcast_data:
         return
 
     del run_result
@@ -153,7 +135,7 @@ def _broadcast_datasets(
     ctx: PostExecutionHookContext,
     run_result: cell_runner.RunResult,
 ) -> None:
-    if not _should_broadcast_data():
+    if not ctx.should_broadcast_data:
         return
 
     del run_result
@@ -175,7 +157,7 @@ def _broadcast_data_source_connection(
     ctx: PostExecutionHookContext,
     run_result: cell_runner.RunResult,
 ) -> None:
-    if not _should_broadcast_data():
+    if not ctx.should_broadcast_data:
         return
 
     del run_result
@@ -207,11 +189,10 @@ def _broadcast_duckdb_datasource(
     ctx: PostExecutionHookContext,
     run_result: cell_runner.RunResult,
 ) -> None:
-    if not _should_broadcast_data():
+    if not ctx.should_broadcast_data:
         return
 
     del run_result
-    del ctx
     if not DependencyManager.duckdb.has():
         return
 
@@ -448,7 +429,7 @@ def _reset_matplotlib_context(
         exec("__marimo__._output.mpl.close_figures()", ctx.glbls)
 
 
-POST_EXECUTION_HOOKS: list[PostExecutionHookType] = [
+POST_EXECUTION_HOOKS: list[PostExecutionHook] = [
     _set_imported_defs,
     _set_run_result_status,
     _store_reference_to_output,

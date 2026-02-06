@@ -1,13 +1,10 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Callable
-
 from marimo._runtime import dataflow
 from marimo._runtime.runner.hook_context import PreparationHookContext
+from marimo._runtime.runner.hooks import PreparationHook
 from marimo._tracer import kernel_tracer
-
-PreparationHookType = Callable[[PreparationHookContext], None]
 
 
 @kernel_tracer.start_as_current_span("update_stale_statuses")
@@ -32,4 +29,4 @@ def _update_stale_statuses(ctx: PreparationHookContext) -> None:
                 graph.cells[cid].set_stale(stale=False)
 
 
-PREPARATION_HOOKS: list[PreparationHookType] = [_update_stale_statuses]
+PREPARATION_HOOKS: list[PreparationHook] = [_update_stale_statuses]

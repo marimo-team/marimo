@@ -54,6 +54,30 @@ class _HookEntry:
 
 
 @dataclass
+class _HookList:
+    """A list of hook entries with cached priority-sorted access."""
+
+    _entries: list[_HookEntry] = field(default_factory=list)
+    _sorted: list[Callable[..., None]] | None = field(
+        default=None, init=False, repr=False
+    )
+
+    def add(self, hook: Callable[..., None], priority: Priority) -> None:
+        self._entries.append(_HookEntry(hook, priority))
+        self._sorted = None
+
+    @property
+    def sorted_hooks(self) -> Sequence[Callable[..., None]]:
+        if self._sorted is None:
+            self._sorted = [
+                e.hook for e in sorted(self._entries, key=lambda e: e.priority)
+            ]
+        return self._sorted
+
+    def copy(self) -> _HookList:
+        return _HookList(self._entries.copy())
+
+
 class NotebookCellHooks:
     """Container for cell execution hooks with priority-based ordering.
 
@@ -64,56 +88,53 @@ class NotebookCellHooks:
     4. on_finish_hooks: Run once after all cells complete
     """
 
-    _preparation: list[_HookEntry] = field(default_factory=list)
-    _pre_execution: list[_HookEntry] = field(default_factory=list)
-    _post_execution: list[_HookEntry] = field(default_factory=list)
-    _on_finish: list[_HookEntry] = field(default_factory=list)
+    def __init__(
+        self,
+        _preparation: _HookList | None = None,
+        _pre_execution: _HookList | None = None,
+        _post_execution: _HookList | None = None,
+        _on_finish: _HookList | None = None,
+    ) -> None:
+        self._preparation = _preparation or _HookList()
+        self._pre_execution = _pre_execution or _HookList()
+        self._post_execution = _post_execution or _HookList()
+        self._on_finish = _on_finish or _HookList()
 
     def add_preparation(
         self, hook: PreparationHook, priority: Priority = Priority.NORMAL
     ) -> None:
-        self._preparation.append(_HookEntry(hook, priority))
+        self._preparation.add(hook, priority)
 
     def add_pre_execution(
         self, hook: PreExecutionHook, priority: Priority = Priority.NORMAL
     ) -> None:
-        self._pre_execution.append(_HookEntry(hook, priority))
+        self._pre_execution.add(hook, priority)
 
     def add_post_execution(
         self, hook: PostExecutionHook, priority: Priority = Priority.NORMAL
     ) -> None:
-        self._post_execution.append(_HookEntry(hook, priority))
+        self._post_execution.add(hook, priority)
 
     def add_on_finish(
         self, hook: OnFinishHook, priority: Priority = Priority.NORMAL
     ) -> None:
-        self._on_finish.append(_HookEntry(hook, priority))
+        self._on_finish.add(hook, priority)
 
     @property
     def preparation_hooks(self) -> Sequence[PreparationHook]:
-        return [
-            e.hook for e in sorted(self._preparation, key=lambda e: e.priority)
-        ]
+        return self._preparation.sorted_hooks
 
     @property
     def pre_execution_hooks(self) -> Sequence[PreExecutionHook]:
-        return [
-            e.hook
-            for e in sorted(self._pre_execution, key=lambda e: e.priority)
-        ]
+        return self._pre_execution.sorted_hooks
 
     @property
     def post_execution_hooks(self) -> Sequence[PostExecutionHook]:
-        return [
-            e.hook
-            for e in sorted(self._post_execution, key=lambda e: e.priority)
-        ]
+        return self._post_execution.sorted_hooks
 
     @property
     def on_finish_hooks(self) -> Sequence[OnFinishHook]:
-        return [
-            e.hook for e in sorted(self._on_finish, key=lambda e: e.priority)
-        ]
+        return self._on_finish.sorted_hooks
 
     def copy(self) -> NotebookCellHooks:
         return NotebookCellHooks(
@@ -131,10 +152,7 @@ def create_default_hooks() -> NotebookCellHooks:
     Callers should add mode-specific hooks (e.g., render_toplevel_defs for
     edit mode, attempt_pytest for reactive tests) after calling this.
     """
-    from marimo._runtime.runner.hooks_on_finish import (
-        _send_cancellation_errors,
-        _send_interrupt_errors,
-    )
+    from marimo._runtime.runner.hooks_on_finish import ON_FINISH_HOOKS
     from marimo._runtime.runner.hooks_post_execution import (
         POST_EXECUTION_HOOKS,
     )
@@ -156,7 +174,7 @@ def create_default_hooks() -> NotebookCellHooks:
     for post_hook in POST_EXECUTION_HOOKS:
         hooks.add_post_execution(post_hook)
 
-    hooks.add_on_finish(_send_interrupt_errors)
-    hooks.add_on_finish(_send_cancellation_errors)
+    for finish_hook in ON_FINISH_HOOKS:
+        hooks.add_on_finish(finish_hook)
 
     return hooks

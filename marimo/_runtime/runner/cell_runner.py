@@ -11,7 +11,7 @@ import traceback
 from dataclasses import dataclass
 from pathlib import Path
 from types import TracebackType
-from typing import TYPE_CHECKING, Any, Optional, Union
+from typing import TYPE_CHECKING, Any, Optional
 
 from marimo._ast.variables import unmangle_local
 from marimo._config.config import ExecutionType, OnCellChangeType
@@ -19,7 +19,6 @@ from marimo._dependencies.dependencies import DependencyManager
 from marimo._dependencies.errors import ManyModulesNotFoundError
 from marimo._loggers import marimo_logger
 from marimo._messaging.errors import (
-    Error,
     MarimoExceptionRaisedError,
     MarimoSQLError,
     MarimoStrictExecutionError,
@@ -39,7 +38,10 @@ from marimo._runtime.executor import (
     get_executor,
 )
 from marimo._runtime.marimo_pdb import MarimoPdb
-from marimo._runtime.runner.hook_context import ExecutionContextManager
+from marimo._runtime.runner.hook_context import (
+    ExceptionOrError,
+    ExecutionContextManager,
+)
 from marimo._sql.error_utils import (
     create_sql_error_from_exception,
     is_sql_parse_error,
@@ -55,12 +57,28 @@ if TYPE_CHECKING:
     from marimo._runtime.state import State
 
 
+def _should_broadcast_data() -> bool:
+    """Whether data (variables, datasets, etc.) should be broadcast.
+
+    Returns True only in edit mode for non-embedded contexts.
+    """
+    from marimo._runtime.context.kernel_context import KernelRuntimeContext
+    from marimo._runtime.context.types import get_context
+    from marimo._session.model import SessionMode
+
+    ctx = get_context()
+    is_edit_mode = (
+        isinstance(ctx, KernelRuntimeContext)
+        and ctx.session_mode == SessionMode.EDIT
+    )
+    # We don't broadcast data in embedded contexts, since the variables
+    # panel, etc. should only show the top-level graph's variables.
+    return is_edit_mode and not ctx.is_embedded()
+
+
 def cell_filename(cell_id: CellId_t) -> str:
     """Filename to use when running cells through exec."""
     return f"<cell-{cell_id}>"
-
-
-ExceptionOrError = Union[BaseException, Error]
 
 
 @dataclass
@@ -670,6 +688,7 @@ class Runner:
             execution_context=self.execution_context,
             exceptions=self.exceptions,
             cells_cancelled=self.cells_cancelled,
+            should_broadcast_data=_should_broadcast_data(),
         )
 
         while self.pending():
