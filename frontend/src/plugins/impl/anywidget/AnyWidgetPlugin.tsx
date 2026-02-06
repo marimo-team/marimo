@@ -4,9 +4,6 @@
 import type { AnyWidget } from "@anywidget/types";
 import { useEffect, useRef } from "react";
 import { z } from "zod";
-import { asRemoteURL } from "@/core/runtime/config";
-import { resolveVirtualFileURL } from "@/core/static/files";
-import { isStaticNotebook } from "@/core/static/static-state";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import type { HTMLElementNotDerivedFromRef } from "@/hooks/useEventListener";
 import { createPlugin } from "@/plugins/core/builder";
@@ -14,8 +11,9 @@ import type { IPluginProps } from "@/plugins/types";
 import { prettyError } from "@/utils/errors";
 import { Logger } from "@/utils/Logger";
 import { ErrorBanner } from "../common/error-banner";
-import { getMarimoInternal, MODEL_MANAGER, type Model } from "./model";
+import { MODEL_MANAGER, type Model } from "./model";
 import type { ModelState, WidgetModelId } from "./types";
+import { BINDING_MANAGER, WIDGET_DEF_REGISTRY } from "./widget-binding";
 
 /**
  * AnyWidget asset data
@@ -48,12 +46,7 @@ export function useAnyWidgetModule(opts: { jsUrl: string; jsHash: string }) {
     error,
     refetch,
   } = useAsyncData(async () => {
-    let url = asRemoteURL(jsUrl).toString();
-    // In static notebooks, resolve virtual files to blob URLs for import()
-    if (isStaticNotebook()) {
-      url = resolveVirtualFileURL(url);
-    }
-    return await import(/* @vite-ignore */ url);
+    return await WIDGET_DEF_REGISTRY.getModule(jsUrl, jsHash);
     // Re-render on jsHash change (which is a hash of the contents of the file)
     // instead of a jsUrl change because URLs may change without the contents
     // actually changing (and we don't want to re-render on every change).
@@ -66,6 +59,7 @@ export function useAnyWidgetModule(opts: { jsUrl: string; jsHash: string }) {
   const hasError = Boolean(error);
   useEffect(() => {
     if (hasError && jsUrl) {
+      WIDGET_DEF_REGISTRY.invalidate(jsHash);
       refetch();
     }
   }, [hasError, jsUrl]);
@@ -180,6 +174,7 @@ const AnyWidgetSlot = (props: IPluginProps<ModelIdRef, Data>) => {
 async function runAnyWidgetModule<T extends AnyWidgetState>(
   widgetDef: AnyWidget<T>,
   model: Model<T>,
+  modelId: WidgetModelId,
   el: HTMLElement,
   signal: AbortSignal,
 ): Promise<void> {
@@ -187,7 +182,8 @@ async function runAnyWidgetModule<T extends AnyWidgetState>(
   el.innerHTML = "";
 
   try {
-    const render = await getMarimoInternal(model).resolveWidget(widgetDef);
+    const binding = BINDING_MANAGER.getOrCreate(modelId);
+    const render = await binding.bind(widgetDef, model);
     await render(el, signal);
   } catch (error) {
     Logger.error("Error rendering anywidget", error);
@@ -231,7 +227,13 @@ const LoadedSlot = <T extends AnyWidgetState>({
       return;
     }
     const controller = new AbortController();
-    runAnyWidgetModule(widget, model, htmlRef.current, controller.signal);
+    runAnyWidgetModule(
+      widget,
+      model,
+      modelId,
+      htmlRef.current,
+      controller.signal,
+    );
     return () => controller.abort();
     // We re-run the widget when the modelId changes, which means the cell
     // that created the Widget has been re-run.
