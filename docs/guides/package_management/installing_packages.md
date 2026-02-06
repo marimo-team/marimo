@@ -20,3 +20,9 @@ in the active virtual environment.
 (if running as part of a uv project), or whether to install it imperatively with `uv pip` (otherwise).
 * When running in a [package sandbox](inlining_dependencies.md), package installation
 and removal also updates the notebook's inline dependencies.
+* When using `uv` inside a uv project, marimo normally runs `uv add`, which updates
+`pyproject.toml` and the lockfile and triggers a full sync (which can rebuild the
+project if it has custom build steps). To install packages into the current
+environment only and avoid modifying the project or triggering a rebuild, set
+`MARIMO_UV_PIP_ONLY=1` before starting marimo. Packages will then be installed
+with `uv pip install` and will not be added to `pyproject.toml`.

@@ -262,11 +262,62 @@ class UvPackageManager(PypiPackageManager):
     def is_manager_installed(self) -> bool:
         return self._uv_bin != "uv" or super().is_manager_installed()
 
+    def _use_uv_add_for_install(self) -> bool:
+        """Use `uv add` (modify project) only when in a uv project and not opted out.
+
+        When MARIMO_UV_PIP_ONLY is set (e.g. to 1 or true), use `uv pip install`
+        instead of `uv add` so the project's pyproject.toml and lockfile are not
+        modified. This avoids triggering a full project sync/rebuild (e.g. in
+        projects with custom build steps like Cython/Rust).
+        """
+        if os.environ.get("MARIMO_UV_PIP_ONLY", "").lower() in (
+            "1",
+            "true",
+            "yes",
+        ):
+            return False
+
+        return self.is_in_uv_project
+
+    async def _run_uv_pip_with_env(
+        self,
+        cmd: list[str],
+        *,
+        env: dict[str, str],
+        log_callback: Optional[LogCallback] = None,
+    ) -> tuple[int, list[str]]:
+        """Run a uv pip command with the given env; returns (return_code, output_lines)."""
+
+        def _run() -> tuple[int, list[str]]:
+            proc = subprocess.Popen(  # noqa: ASYNC220
+                cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                universal_newlines=False,
+                bufsize=0,
+                env=env,
+            )
+            output_lines: list[str] = []
+            if proc.stdout:
+                for line in iter(proc.stdout.readline, b""):
+                    sys.stdout.buffer.write(line)
+                    sys.stdout.buffer.flush()
+                    decoded_line = line.decode("utf-8", errors="replace")
+                    if log_callback:
+                        log_callback(decoded_line)
+                    output_lines.append(decoded_line)
+                proc.stdout.close()
+            return proc.wait(), output_lines
+
+        import asyncio
+
+        return await asyncio.to_thread(_run)
+
     def install_command(
         self, package: str, *, upgrade: bool, group: Optional[str] = None
     ) -> list[str]:
         install_cmd: list[str]
-        if self.is_in_uv_project:
+        if self._use_uv_add_for_install():
             install_cmd = [self._uv_bin, "add"]
             if group:
                 install_cmd.extend(["--group", group])
@@ -299,11 +350,11 @@ class UvPackageManager(PypiPackageManager):
     ) -> bool:
         """Installation logic with fallback to --no-cache on cache write errors."""
         LOGGER.info(
-            f"Installing in {package} with 'uv {'add' if self.is_in_uv_project else 'pip install'}'"
+            f"Installing in {package} with 'uv {'add' if self._use_uv_add_for_install() else 'pip install'}'"
         )
 
-        # For uv projects, use the standard install flow without fallback
-        if self.is_in_uv_project:
+        # For uv add (project mode), use the standard install flow without fallback
+        if self._use_uv_add_for_install():
             return await super()._install(
                 package,
                 upgrade=upgrade,
@@ -316,30 +367,14 @@ class UvPackageManager(PypiPackageManager):
 
         LOGGER.info(f"Running command: {cmd}")
 
-        # Run the command and capture output
-        proc = subprocess.Popen(  # noqa: ASYNC220
-            cmd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            universal_newlines=False,
-            bufsize=0,
+        # So uv does not discover/use the project's pyproject.toml when we're
+        # in a project directory (e.g. nautilus_trader); otherwise install can
+        # fail or trigger unwanted project sync.
+        env = {**os.environ, "UV_NO_CONFIG": "1"}
+
+        return_code, output_lines = await self._run_uv_pip_with_env(
+            cmd, env=env, log_callback=log_callback
         )
-
-        output_lines: list[str] = []
-        if proc.stdout:
-            for line in iter(proc.stdout.readline, b""):
-                # Send to terminal
-                sys.stdout.buffer.write(line)
-                sys.stdout.buffer.flush()
-                decoded_line = line.decode("utf-8", errors="replace")
-                # Send to callback for streaming
-                if log_callback:
-                    log_callback(decoded_line)
-                # Store for error checking
-                output_lines.append(decoded_line)
-            proc.stdout.close()
-
-        return_code = proc.wait()
 
         # If successful, we're done
         if return_code == 0:
@@ -356,9 +391,11 @@ class UvPackageManager(PypiPackageManager):
                     "\nRetrying with --no-cache due to cache write permission error...\n"
                 )
 
-            # Retry with --no-cache flag
-            cmd_with_no_cache = cmd + ["--no-cache"]
-            return await self.run(cmd_with_no_cache, log_callback=log_callback)
+            # Retry with --no-cache flag (same env so UV_NO_CONFIG is still set)
+            retry_code, _ = await self._run_uv_pip_with_env(
+                cmd + ["--no-cache"], env=env, log_callback=log_callback
+            )
+            return retry_code == 0
 
         return False
 
@@ -586,7 +623,7 @@ class UvPackageManager(PypiPackageManager):
         self, package: str, group: Optional[str] = None
     ) -> bool:
         uninstall_cmd: list[str]
-        if self.is_in_uv_project:
+        if self._use_uv_add_for_install():
             LOGGER.info(f"Uninstalling {package} with 'uv remove'")
             uninstall_cmd = [self._uv_bin, "remove"]
             if group:

@@ -303,21 +303,20 @@ async def test_uv_install_not_in_project(mock_popen: MagicMock):
 
     result = await mgr._install("package1 package2", upgrade=False, group=None)
 
-    mock_popen.assert_called_once_with(
-        [
-            "uv",
-            "pip",
-            "install",
-            "package1",
-            "package2",
-            "-p",
-            PY_EXE,
-        ],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        universal_newlines=False,
-        bufsize=0,
-    )
+    mock_popen.assert_called_once()
+    call_args, call_kwargs = mock_popen.call_args
+    assert call_args[0] == [
+        "uv",
+        "pip",
+        "install",
+        "package1",
+        "package2",
+        "-p",
+        PY_EXE,
+    ]
+    assert call_kwargs["env"].get("UV_NO_CONFIG") == "1"
+    assert call_kwargs["stdout"] == subprocess.PIPE
+    assert call_kwargs["stderr"] == subprocess.STDOUT
     assert result is True
 
 
@@ -339,22 +338,21 @@ async def test_uv_install_not_in_project_with_target(mock_popen: MagicMock):
     result = await mgr._install("package1 package2", upgrade=False, group=None)
     del os.environ["MARIMO_UV_TARGET"]
 
-    mock_popen.assert_called_once_with(
-        [
-            "uv",
-            "pip",
-            "install",
-            "--target=target_path",
-            "package1",
-            "package2",
-            "-p",
-            PY_EXE,
-        ],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        universal_newlines=False,
-        bufsize=0,
-    )
+    mock_popen.assert_called_once()
+    call_args, call_kwargs = mock_popen.call_args
+    assert call_args[0] == [
+        "uv",
+        "pip",
+        "install",
+        "--target=target_path",
+        "package1",
+        "package2",
+        "-p",
+        PY_EXE,
+    ]
+    assert call_kwargs["env"].get("UV_NO_CONFIG") == "1"
+    assert call_kwargs["stdout"] == subprocess.PIPE
+    assert call_kwargs["stderr"] == subprocess.STDOUT
     assert result is True
 
 
@@ -771,58 +769,41 @@ def test_has_script_metadata_binary_file(tmp_path: Path):
 
 
 @patch("subprocess.Popen")
-@patch("subprocess.run")
 @patch.object(UvPackageManager, "is_in_uv_project", False)
-async def test_uv_install_cache_error_fallback(
-    mock_run: MagicMock, mock_popen: MagicMock
-):
+async def test_uv_install_cache_error_fallback(mock_popen: MagicMock):
     """Test UV install retries with --no-cache on cache write errors"""
     # Mock the first install attempt (via Popen) to fail with cache error
-    mock_process = MagicMock()
-    mock_process.wait.return_value = 1  # Failure
-    mock_process.stdout.readline.side_effect = [
+    mock_process_first = MagicMock()
+    mock_process_first.wait.return_value = 1  # Failure
+    mock_process_first.stdout.readline.side_effect = [
         b"  \xc3\x97 Failed to download and build `pyqtree==1.0.0`\n",
         b"  \xe2\x94\x9c\xe2\x94\x80\xe2\x96\xb6 Failed to write to the distribution cache\n",
         b"  \xe2\x95\xb0\xe2\x94\x80\xe2\x96\xb6 Operation not permitted (os error 1)\n",
         b"",  # End of output
     ]
-    mock_popen.return_value = mock_process
 
-    # Mock the retry (via run) to succeed
-    mock_run.return_value = MagicMock(returncode=0)
+    # Mock the retry (second Popen) to succeed
+    mock_process_retry = MagicMock()
+    mock_process_retry.wait.return_value = 0  # Success
+    mock_process_retry.stdout.readline.side_effect = [b""]
+
+    mock_popen.side_effect = [mock_process_first, mock_process_retry]
 
     mgr = UvPackageManager()
     with patch.object(mgr, "is_manager_installed", return_value=True):
         result = await mgr._install("datamapplot", upgrade=False, group=None)
 
-    # First attempt should use Popen
-    mock_popen.assert_called_once_with(
-        [
-            "uv",
-            "pip",
-            "install",
-            "datamapplot",
-            "-p",
-            PY_EXE,
-        ],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        universal_newlines=False,
-        bufsize=0,
-    )
-
-    # Retry should add --no-cache flag
-    mock_run.assert_called_once_with(
-        [
-            "uv",
-            "pip",
-            "install",
-            "datamapplot",
-            "-p",
-            PY_EXE,
-            "--no-cache",
-        ],
-    )
+    # First attempt and retry both use Popen with env (UV_NO_CONFIG)
+    assert mock_popen.call_count == 2
+    for call in mock_popen.call_args_list:
+        call_kwargs = call[1]
+        assert call_kwargs["env"].get("UV_NO_CONFIG") == "1"
+        assert call_kwargs["stdout"] == subprocess.PIPE
+        assert call_kwargs["stderr"] == subprocess.STDOUT
+    # First call: no --no-cache
+    assert "--no-cache" not in mock_popen.call_args_list[0][0][0]
+    # Second call: with --no-cache
+    assert "--no-cache" in mock_popen.call_args_list[1][0][0]
 
     # Should ultimately succeed
     assert result is True
