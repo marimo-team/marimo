@@ -37,6 +37,8 @@ files:
     failed_reason: MarimoStopError
   third_party/duckdb_example.py:
     failed_reason: MarimoStopError
+  third_party/exasol/exasol_example.py:
+    failed_reason: MarimoStopError
   third_party/ipython_display.py:
     failed_reason: "ModuleNotFoundError: No module named 'tikz'"
 
