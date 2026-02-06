@@ -48,7 +48,6 @@ def safe_popen(
     extra_groups: Sequence[str | int] | None = ...,
     umask: int = ...,
     pipesize: int = ...,
-    process_group: int | None = ...,
 ) -> subprocess.Popen[str] | None: ...
 
 
@@ -80,7 +79,6 @@ def safe_popen(
     extra_groups: Sequence[str | int] | None = ...,
     umask: int = ...,
     pipesize: int = ...,
-    process_group: int | None = ...,
 ) -> subprocess.Popen[str] | None: ...
 
 
@@ -112,7 +110,6 @@ def safe_popen(
     extra_groups: Sequence[str | int] | None = ...,
     umask: int = ...,
     pipesize: int = ...,
-    process_group: int | None = ...,
 ) -> subprocess.Popen[str] | None: ...
 
 
@@ -144,7 +141,6 @@ def safe_popen(
     extra_groups: Sequence[str | int] | None = ...,
     umask: int = ...,
     pipesize: int = ...,
-    process_group: int | None = ...,
 ) -> subprocess.Popen[str] | None: ...
 
 
@@ -176,7 +172,6 @@ def safe_popen(
     extra_groups: Sequence[str | int] | None = ...,
     umask: int = ...,
     pipesize: int = ...,
-    process_group: int | None = ...,
 ) -> subprocess.Popen[bytes] | None: ...
 
 
@@ -208,7 +203,6 @@ def safe_popen(
     extra_groups: Sequence[str | int] | None = ...,
     umask: int = ...,
     pipesize: int = ...,
-    process_group: int | None = ...,
 ) -> subprocess.Popen[Any] | None: ...
 
 
@@ -239,7 +233,7 @@ def safe_popen(
     extra_groups: Sequence[str | int] | None = None,
     umask: int = -1,
     pipesize: int = -1,
-    process_group: int | None = None,
+    # Note: process_group is omitted because it was added in Python 3.11
 ) -> subprocess.Popen[Any] | None:
     """Wrapper around subprocess.Popen that never raises.
 
@@ -273,7 +267,6 @@ def safe_popen(
             extra_groups=extra_groups,
             umask=umask,
             pipesize=pipesize,
-            process_group=process_group,
         )
     except Exception as e:
         LOGGER.error("Failed to create subprocess for command %s: %s", args, e)
