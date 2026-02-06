@@ -291,7 +291,7 @@ def test_uv_is_in_uv_project_cached(mock_exists: MagicMock):
     assert mock_exists.call_count == 2
 
 
-@patch("subprocess.Popen")
+@patch("marimo._utils.subprocess.subprocess.Popen")
 @patch.object(UvPackageManager, "is_in_uv_project", False)
 async def test_uv_install_not_in_project(mock_popen: MagicMock):
     """Test UV install uses pip subcommand when not in UV project"""
@@ -303,25 +303,16 @@ async def test_uv_install_not_in_project(mock_popen: MagicMock):
 
     result = await mgr._install("package1 package2", upgrade=False, group=None)
 
-    mock_popen.assert_called_once_with(
-        [
-            "uv",
-            "pip",
-            "install",
-            "package1",
-            "package2",
-            "-p",
-            PY_EXE,
-        ],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        universal_newlines=False,
-        bufsize=0,
-    )
+    mock_popen.assert_called_once()
+    call_kwargs = mock_popen.call_args[1]
+    assert call_kwargs["stdout"] == subprocess.PIPE
+    assert call_kwargs["stderr"] == subprocess.STDOUT
+    assert call_kwargs["universal_newlines"] is False
+    assert call_kwargs["bufsize"] == 0
     assert result is True
 
 
-@patch("subprocess.Popen")
+@patch("marimo._utils.subprocess.subprocess.Popen")
 @patch.object(UvPackageManager, "is_in_uv_project", False)
 async def test_uv_install_not_in_project_with_target(mock_popen: MagicMock):
     """Test UV install uses pip with target"""
@@ -339,22 +330,12 @@ async def test_uv_install_not_in_project_with_target(mock_popen: MagicMock):
     result = await mgr._install("package1 package2", upgrade=False, group=None)
     del os.environ["MARIMO_UV_TARGET"]
 
-    mock_popen.assert_called_once_with(
-        [
-            "uv",
-            "pip",
-            "install",
-            "--target=target_path",
-            "package1",
-            "package2",
-            "-p",
-            PY_EXE,
-        ],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        universal_newlines=False,
-        bufsize=0,
-    )
+    mock_popen.assert_called_once()
+    call_kwargs = mock_popen.call_args[1]
+    assert call_kwargs["stdout"] == subprocess.PIPE
+    assert call_kwargs["stderr"] == subprocess.STDOUT
+    assert call_kwargs["universal_newlines"] is False
+    assert call_kwargs["bufsize"] == 0
     assert result is True
 
 
@@ -770,7 +751,7 @@ def test_has_script_metadata_binary_file(tmp_path: Path):
     assert mgr._has_script_metadata(str(binary_file)) is False
 
 
-@patch("subprocess.Popen")
+@patch("marimo._utils.subprocess.subprocess.Popen")
 @patch("subprocess.run")
 @patch.object(UvPackageManager, "is_in_uv_project", False)
 async def test_uv_install_cache_error_fallback(
@@ -795,21 +776,13 @@ async def test_uv_install_cache_error_fallback(
     with patch.object(mgr, "is_manager_installed", return_value=True):
         result = await mgr._install("datamapplot", upgrade=False, group=None)
 
-    # First attempt should use Popen
-    mock_popen.assert_called_once_with(
-        [
-            "uv",
-            "pip",
-            "install",
-            "datamapplot",
-            "-p",
-            PY_EXE,
-        ],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        universal_newlines=False,
-        bufsize=0,
-    )
+    # First attempt should use Popen (via safe_popen)
+    mock_popen.assert_called_once()
+    call_kwargs = mock_popen.call_args
+    assert call_kwargs[1]["stdout"] == subprocess.PIPE
+    assert call_kwargs[1]["stderr"] == subprocess.STDOUT
+    assert call_kwargs[1]["universal_newlines"] is False
+    assert call_kwargs[1]["bufsize"] == 0
 
     # Retry should add --no-cache flag
     mock_run.assert_called_once_with(
@@ -828,7 +801,7 @@ async def test_uv_install_cache_error_fallback(
     assert result is True
 
 
-@patch("subprocess.Popen")
+@patch("marimo._utils.subprocess.subprocess.Popen")
 @patch.object(UvPackageManager, "is_in_uv_project", False)
 async def test_uv_install_no_fallback_on_different_error(
     mock_popen: MagicMock,

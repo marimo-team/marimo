@@ -21,6 +21,7 @@ from marimo._runtime.packages.package_manager import (
 )
 from marimo._runtime.packages.utils import split_packages
 from marimo._utils.platform import is_pyodide
+from marimo._utils.subprocess import safe_popen
 from marimo._utils.uv import find_uv_bin
 from marimo._utils.uv_tree import DependencyTreeNode, parse_uv_tree
 from marimo._utils.versions import (
@@ -317,13 +318,16 @@ class UvPackageManager(PypiPackageManager):
         LOGGER.info(f"Running command: {cmd}")
 
         # Run the command and capture output
-        proc = subprocess.Popen(  # noqa: ASYNC220
+        proc = safe_popen(  # noqa: ASYNC220
             cmd,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             universal_newlines=False,
             bufsize=0,
         )
+
+        if proc is None:
+            return False
 
         output_lines: list[str] = []
         if proc.stdout:
