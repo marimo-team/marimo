@@ -278,13 +278,14 @@ def test_cli_help_colored_output() -> None:
     assert "Usage" in result.output
     assert "Options" in result.output
 
-    # Test with colors enabled by patching _USE_COLOR
-    # The color module checks for TTY at import time, so we need to patch it
+    # Test with colors enabled by re-resolving _style to a color-aware
+    # implementation. _style is bound once at import time based on
+    # _USE_COLOR, so we need to swap it directly.
     import marimo._cli.print as print_module
 
-    original_use_color = print_module._USE_COLOR
+    original_style = print_module._style
     try:
-        print_module._USE_COLOR = True
+        print_module._style = print_module._ansi_style
         result_color = runner.invoke(main, ["--help"], color=True)
         assert result_color.exit_code == 0
         # Verify ANSI escape codes are present when colors are enabled
@@ -293,7 +294,7 @@ def test_cli_help_colored_output() -> None:
             "Expected ANSI color codes in help output"
         )
     finally:
-        print_module._USE_COLOR = original_use_color
+        print_module._style = original_style
 
 
 def test_cli_edit_none() -> None:
