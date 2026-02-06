@@ -43,14 +43,14 @@ import {
   getStaticModelStates,
   isStaticNotebook,
 } from "./core/static/static-state";
-import {
-  handleWidgetMessage,
-  MODEL_MANAGER,
-} from "./plugins/impl/anywidget/model";
 import { maybeRegisterVSCodeBindings } from "./core/vscode/vscode-bindings";
 import type { FileStore } from "./core/wasm/store";
 import { notebookFileStore } from "./core/wasm/store";
 import { WebSocketState } from "./core/websocket/types";
+import {
+  handleWidgetMessage,
+  MODEL_MANAGER,
+} from "./plugins/impl/anywidget/model";
 import { vegaLoader } from "./plugins/impl/vega/loader";
 import { initializePlugins } from "./plugins/plugins";
 import { ThemeProvider } from "./theme/ThemeProvider";
