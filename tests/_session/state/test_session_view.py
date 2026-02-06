@@ -20,7 +20,10 @@ from marimo._messaging.notification import (
     DatasetsNotification,
     DataSourceConnectionsNotification,
     InstallingPackageAlertNotification,
+    ModelClose,
+    ModelCustom,
     ModelLifecycleNotification,
+    ModelOpen,
     ModelUpdate,
     SQLMetadata,
     SQLTableListPreviewNotification,
@@ -41,7 +44,7 @@ from marimo._runtime.commands import (
     ExecuteCellsCommand,
     UpdateUIElementCommand,
 )
-from marimo._session.state.session_view import SessionView
+from marimo._session.state.session_view import ModelReplayState, SessionView
 from marimo._sql.engines.duckdb import INTERNAL_DUCKDB_ENGINE
 from marimo._types.ids import CellId_t, RequestId, VariableName, WidgetModelId
 from marimo._utils.parse_dataclass import parse_raw
@@ -186,9 +189,93 @@ def test_ui_values(session_view: SessionView) -> None:
     assert "test_ui3" in session_view.ui_values
 
 
-def test_model_message_values(session_view: SessionView) -> None:
+def test_model_open_stored(session_view: SessionView) -> None:
     model_id = WidgetModelId("test_model")
-    model_id2 = WidgetModelId("test_model2")
+
+    session_view.add_notification(
+        ModelLifecycleNotification(
+            model_id=model_id,
+            message=ModelOpen(
+                state={"key": "value"},
+                buffer_paths=[],
+                buffers=[],
+            ),
+        )
+    )
+    assert model_id in session_view.model_states
+    assert session_view.model_states[model_id].state == {"key": "value"}
+
+
+def test_model_update_merges_into_open(session_view: SessionView) -> None:
+    model_id = WidgetModelId("test_model")
+
+    session_view.add_notification(
+        ModelLifecycleNotification(
+            model_id=model_id,
+            message=ModelOpen(
+                state={"a": 1, "b": 2},
+                buffer_paths=[],
+                buffers=[],
+            ),
+        )
+    )
+    session_view.add_notification(
+        ModelLifecycleNotification(
+            model_id=model_id,
+            message=ModelUpdate(
+                state={"b": 99, "c": 3},
+                buffer_paths=[],
+                buffers=[],
+            ),
+        )
+    )
+    assert session_view.model_states[model_id].state == {
+        "a": 1,
+        "b": 99,
+        "c": 3,
+    }
+
+
+def test_model_close_removes(session_view: SessionView) -> None:
+    model_id = WidgetModelId("test_model")
+
+    session_view.add_notification(
+        ModelLifecycleNotification(
+            model_id=model_id,
+            message=ModelOpen(
+                state={"key": "value"},
+                buffer_paths=[],
+                buffers=[],
+            ),
+        )
+    )
+    assert model_id in session_view.model_states
+
+    session_view.add_notification(
+        ModelLifecycleNotification(
+            model_id=model_id,
+            message=ModelClose(),
+        )
+    )
+    assert model_id not in session_view.model_states
+
+
+def test_model_custom_skipped(session_view: SessionView) -> None:
+    model_id = WidgetModelId("test_model")
+
+    session_view.add_notification(
+        ModelLifecycleNotification(
+            model_id=model_id,
+            message=ModelCustom(content={"foo": "bar"}, buffers=[]),
+        )
+    )
+    assert model_id not in session_view.model_states
+
+
+def test_model_update_without_open_ignored(
+    session_view: SessionView,
+) -> None:
+    model_id = WidgetModelId("test_model")
 
     session_view.add_notification(
         ModelLifecycleNotification(
@@ -200,42 +287,133 @@ def test_model_message_values(session_view: SessionView) -> None:
             ),
         )
     )
-    assert model_id in session_view.model_messages
-    assert session_view.model_messages[model_id][0].message == ModelUpdate(
-        state={"key": "value"}, buffer_paths=[], buffers=[]
-    )
+    assert model_id not in session_view.model_states
 
-    # Can add to existing model
-    session_view.add_notification(
-        ModelLifecycleNotification(
+
+def test_model_multiple_models(session_view: SessionView) -> None:
+    model_id1 = WidgetModelId("model1")
+    model_id2 = WidgetModelId("model2")
+
+    for mid, val in [(model_id1, "v1"), (model_id2, "v2")]:
+        session_view.add_notification(
+            ModelLifecycleNotification(
+                model_id=mid,
+                message=ModelOpen(
+                    state={"key": val},
+                    buffer_paths=[],
+                    buffers=[],
+                ),
+            )
+        )
+    assert session_view.model_states[model_id1].state == {"key": "v1"}
+    assert session_view.model_states[model_id2].state == {"key": "v2"}
+
+
+class TestModelReplayState:
+    """Unit tests for ModelReplayState buffer merging."""
+
+    def test_from_open(self) -> None:
+        model_id = WidgetModelId("m")
+        view = ModelReplayState.from_open(
+            model_id,
+            ModelOpen(
+                state={"img": None, "label": "hi"},
+                buffer_paths=[["img"]],
+                buffers=[b"png"],
+            ),
+        )
+        assert view.state == {"img": None, "label": "hi"}
+        assert view.buffers == {("img",): b"png"}
+
+    def test_apply_update_merges_state(self) -> None:
+        view = ModelReplayState(
+            model_id=WidgetModelId("m"),
+            state={"a": 1, "b": 2},
+            buffers={},
+        )
+        view.apply_update(
+            ModelUpdate(state={"b": 99, "c": 3}, buffer_paths=[], buffers=[])
+        )
+        assert view.state == {"a": 1, "b": 99, "c": 3}
+
+    def test_apply_update_replaces_buffer_for_updated_key(self) -> None:
+        view = ModelReplayState(
+            model_id=WidgetModelId("m"),
+            state={"img": None, "data": None},
+            buffers={("img",): b"png", ("data",): b"old_csv"},
+        )
+        view.apply_update(
+            ModelUpdate(
+                state={"data": None},
+                buffer_paths=[["data"]],
+                buffers=[b"new_csv"],
+            )
+        )
+        assert view.buffers == {("img",): b"png", ("data",): b"new_csv"}
+
+    def test_apply_update_removes_nested_buffer_paths(self) -> None:
+        """When a state key is updated, all buffers nested under it
+        should be dropped."""
+        view = ModelReplayState(
+            model_id=WidgetModelId("m"),
+            state={"widget": {"a": None, "b": None}},
+            buffers={
+                ("widget", "a"): b"buf_a",
+                ("widget", "b"): b"buf_b",
+                ("other",): b"keep",
+            },
+        )
+        view.apply_update(
+            ModelUpdate(
+                state={"widget": {"c": None}},
+                buffer_paths=[["widget", "c"]],
+                buffers=[b"buf_c"],
+            )
+        )
+        assert view.buffers == {
+            ("other",): b"keep",
+            ("widget", "c"): b"buf_c",
+        }
+
+    def test_apply_update_adds_new_buffer(self) -> None:
+        view = ModelReplayState(
+            model_id=WidgetModelId("m"),
+            state={"label": "hi"},
+            buffers={},
+        )
+        view.apply_update(
+            ModelUpdate(
+                state={"img": None},
+                buffer_paths=[["img"]],
+                buffers=[b"png"],
+            )
+        )
+        assert view.buffers == {("img",): b"png"}
+        assert view.state == {"label": "hi", "img": None}
+
+    def test_to_notification_round_trips(self) -> None:
+        model_id = WidgetModelId("m")
+        view = ModelReplayState(
             model_id=model_id,
-            message=ModelUpdate(
-                state={"key": "new_value"},
-                buffer_paths=[],
-                buffers=[],
-            ),
+            state={"img": None, "data": None, "label": "hi"},
+            buffers={("img",): b"png", ("data",): b"csv"},
         )
-    )
-    assert len(session_view.model_messages[model_id]) == 2
-    assert session_view.model_messages[model_id][1].message == ModelUpdate(
-        state={"key": "new_value"}, buffer_paths=[], buffers=[]
-    )
-
-    # Can add multiple models
-    session_view.add_notification(
-        ModelLifecycleNotification(
-            model_id=model_id2,
-            message=ModelUpdate(
-                state={"key2": "value2"},
-                buffer_paths=[],
-                buffers=[],
-            ),
+        notif = view.to_notification()
+        assert notif.model_id == model_id
+        assert isinstance(notif.message, ModelOpen)
+        assert notif.message.state == {
+            "img": None,
+            "data": None,
+            "label": "hi",
+        }
+        # buffer_paths and buffers should be parallel and match
+        path_buf = dict(
+            zip(
+                [tuple(p) for p in notif.message.buffer_paths],
+                notif.message.buffers,
+            )
         )
-    )
-    assert model_id2 in session_view.model_messages
-    assert session_view.model_messages[model_id2][0].message == ModelUpdate(
-        state={"key2": "value2"}, buffer_paths=[], buffers=[]
-    )
+        assert path_buf == {("img",): b"png", ("data",): b"csv"}
 
 
 def test_last_run_code(session_view: SessionView) -> None:
