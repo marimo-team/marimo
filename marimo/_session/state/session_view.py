@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import time
 from dataclasses import dataclass
-from typing import Any, Literal, Optional, cast
+from typing import Any, Literal, Optional, Union, cast
 
 from marimo import _loggers
 from marimo._data.models import DataSourceConnection, DataTable
@@ -15,7 +15,10 @@ from marimo._messaging.notification import (
     DataSourceConnectionsNotification,
     InstallingPackageAlertNotification,
     InterruptedNotification,
+    ModelClose,
     ModelLifecycleNotification,
+    ModelOpen,
+    ModelUpdate,
     NotificationMessage,
     SQLTableListPreviewNotification,
     SQLTablePreviewNotification,
@@ -49,6 +52,59 @@ LOGGER = _loggers.marimo_logger()
 
 ExportType = Literal["html", "md", "ipynb", "session"]
 MIMEBUNDLE_TYPE: KnownMimeType = "application/vnd.marimo+mimebundle"
+
+
+BufferPath = tuple[Union[str, int], ...]
+
+
+@dataclass
+class ModelReplayState:
+    """Aggregated snapshot of a widget model's current state.
+
+    Internally uses a dict for buffers (path → bytes) so merging
+    updates is a simple dict operation. Converted back to the wire
+    format (parallel lists) on replay via ``to_notification()``.
+    """
+
+    model_id: WidgetModelId
+    state: dict[str, Any]
+    buffers: dict[BufferPath, bytes]
+
+    @staticmethod
+    def from_open(model_id: WidgetModelId, msg: ModelOpen) -> ModelReplayState:
+        buffers = {tuple(p): b for p, b in zip(msg.buffer_paths, msg.buffers)}
+        return ModelReplayState(
+            model_id=model_id,
+            state=dict(msg.state),
+            buffers=buffers,
+        )
+
+    def apply_update(self, msg: ModelUpdate) -> None:
+        """Merge an update into this snapshot (mutates in place)."""
+        # Drop buffers whose root key is being overridden
+        updated_keys = set(msg.state.keys())
+        self.buffers = {
+            path: buf
+            for path, buf in self.buffers.items()
+            if path[0] not in updated_keys
+        }
+        # Merge new state and buffers
+        self.state.update(msg.state)
+        for path, buf in zip(msg.buffer_paths, msg.buffers):
+            self.buffers[tuple(path)] = buf
+
+    def to_notification(self) -> ModelLifecycleNotification:
+        """Convert back to a ModelOpen notification for replay."""
+        paths = list(self.buffers.keys())
+        bufs = list(self.buffers.values())
+        return ModelLifecycleNotification(
+            model_id=self.model_id,
+            message=ModelOpen(
+                state=dict(self.state),
+                buffer_paths=[list(p) for p in paths],
+                buffers=bufs,
+            ),
+        )
 
 
 @dataclass
@@ -110,10 +166,9 @@ class SessionView:
         self.last_execution_time: dict[CellId_t, float] = {}
         # Any stale code that was read from a file-watcher
         self.stale_code: Optional[UpdateCellCodesNotification] = None
-        # Model messages
-        self.model_messages: dict[
-            WidgetModelId, list[ModelLifecycleNotification]
-        ] = {}
+        # Aggregated model state — one snapshot per live model.
+        # Updates merge in; close removes the entry.
+        self.model_states: dict[WidgetModelId, ModelReplayState] = {}
         # UI element messages
         self.ui_element_messages: dict[
             UIElementId, list[UIElementMessageNotification]
@@ -304,10 +359,11 @@ class SessionView:
             self.stale_code = notification
 
         elif isinstance(notification, UIElementMessageNotification):
-            # TODO(perf): Consider merging consecutive 'update' messages
-            # to reduce replay size. Could keep only the latest state for
-            # each model_id instead of the full message history.
-            # TODO: cleanup old UI messages
+            # TODO: Consider reducing to a single message per element
+            # (similar to ModelReplayState) instead of keeping the full
+            # history. Currently the only user is chat streaming
+            # ("stream_chunk" messages) which are ephemeral and don't
+            # need replay at all.
             ui_element_id = notification.ui_element
             if ui_element_id not in self.ui_element_messages:
                 self.ui_element_messages[ui_element_id] = []
@@ -315,13 +371,18 @@ class SessionView:
 
         elif isinstance(notification, ModelLifecycleNotification):
             model_id = notification.model_id
-            if model_id not in self.model_messages:
-                self.model_messages[model_id] = []
-            # TODO(perf): Consider merging consecutive 'update' messages
-            # to reduce replay size. Could keep only the latest state for
-            # each model_id instead of the full message history.
-            # TODO: cleanup old UI messages
-            self.model_messages[model_id].append(notification)
+            msg = notification.message
+            if isinstance(msg, ModelOpen):
+                self.model_states[model_id] = ModelReplayState.from_open(
+                    model_id, msg
+                )
+            elif isinstance(msg, ModelUpdate):
+                view = self.model_states.get(model_id)
+                if view is not None:
+                    view.apply_update(msg)
+            elif isinstance(msg, ModelClose):
+                self.model_states.pop(model_id, None)
+            # ModelCustom is ephemeral — skip for replay
 
         elif isinstance(notification, StartupLogsNotification):
             prev = self.startup_logs.content if self.startup_logs else ""
@@ -460,9 +521,8 @@ class SessionView:
 
         # Model messages must come before cell notifications to ensure
         # the model exists before the view tries to use it.
-        if self.model_messages:
-            for model_messages in self.model_messages.values():
-                all_notifications.extend(model_messages)
+        for view in self.model_states.values():
+            all_notifications.append(view.to_notification())
 
         if self.ui_element_messages:
             for ui_messages in self.ui_element_messages.values():
