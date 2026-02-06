@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING, Any
 
 import click
 
+from marimo._cli.help_formatter import ColoredCommand, ColoredGroup
 from marimo._data.models import DataType
 from marimo._messaging.errors import Error as MarimoError
 from marimo._messaging.notification import NotificationMessage
@@ -277,13 +278,15 @@ def _generate_server_api_schema() -> dict[str, Any]:
 
 
 @click.group(
-    help="""Various commands for the marimo development.""", hidden=True
+    cls=ColoredGroup,
+    help="""Various commands for the marimo development.""",
+    hidden=True,
 )
 def development() -> None:
     pass
 
 
-@click.command(help="""Print the marimo OpenAPI schema""")
+@click.command(cls=ColoredCommand, help="""Print the marimo OpenAPI schema""")
 def openapi() -> None:
     """
     Example usage:
@@ -297,7 +300,11 @@ def openapi() -> None:
     )
 
 
-@click.group(help="Various commands for the marimo processes", hidden=True)
+@click.group(
+    cls=ColoredGroup,
+    help="Various commands for the marimo processes",
+    hidden=True,
+)
 def ps() -> None:
     pass
 
@@ -371,7 +378,9 @@ def killall() -> None:
 
 
 @click.command(
-    help="Inline packages according to PEP 723", name="inline-packages"
+    cls=ColoredCommand,
+    help="Inline packages according to PEP 723",
+    name="inline-packages",
 )
 @click.argument(
     "name",
@@ -450,7 +459,7 @@ def inline_packages(name: Path) -> None:
     )
 
 
-@click.command(help="Print all routes")
+@click.command(cls=ColoredCommand, help="Print all routes")
 def print_routes() -> None:
     from starlette.applications import Starlette
     from starlette.routing import Mount, Route, Router
@@ -478,7 +487,7 @@ def print_routes() -> None:
     return
 
 
-@click.command(help="Preview a marimo file as static HTML")
+@click.command(cls=ColoredCommand, help="Preview a marimo file as static HTML")
 @click.argument(
     "file_path",
     required=True,
