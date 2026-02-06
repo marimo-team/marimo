@@ -106,6 +106,20 @@ class ModelReplayState:
             ),
         )
 
+    def to_static_wire_format(self) -> dict[str, Any]:
+        """Convert to JSON-safe wire format for static HTML embedding."""
+        import base64
+
+        paths = list(self.buffers.keys())
+        bufs = [
+            base64.b64encode(b).decode("ascii") for b in self.buffers.values()
+        ]
+        return {
+            "state": dict(self.state),
+            "buffer_paths": [list(p) for p in paths],
+            "buffers": bufs,
+        }
+
 
 @dataclass
 class AutoExportState:
@@ -535,6 +549,17 @@ class SessionView:
         if self.startup_logs and self.startup_logs.status != "done":
             all_notifications.append(self.startup_logs)
         return all_notifications
+
+    def get_static_model_states(self) -> dict[str, dict[str, Any]]:
+        """Return all live model states in a JSON-safe wire format.
+
+        Used to embed model state in static HTML exports so anywidgets
+        can render without a running kernel.
+        """
+        return {
+            str(model_id): model.to_static_wire_format()
+            for model_id, model in self.model_states.items()
+        }
 
     def is_empty(self) -> bool:
         return all(

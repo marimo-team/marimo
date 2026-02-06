@@ -319,6 +319,7 @@ def static_notebook_template(
     session_snapshot: NotebookSessionV1,
     notebook_snapshot: NotebookV1,
     files: dict[str, str],
+    model_states: Optional[dict[str, Any]] = None,
     asset_url: Optional[str] = None,
 ) -> str:
     if asset_url is None:
@@ -361,6 +362,7 @@ def static_notebook_template(
     <script data-marimo="true">
         window.__MARIMO_STATIC__ = {{}};
         window.__MARIMO_STATIC__.files = {json_script(files)};
+        window.__MARIMO_STATIC__.modelStates = {json_script(model_states or {})};
     </script>
     """
     )

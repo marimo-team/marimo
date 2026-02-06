@@ -39,7 +39,14 @@ import {
 import { codeAtom, filenameAtom } from "./core/saving/file-state";
 import { store } from "./core/state/jotai";
 import { patchFetch, patchVegaLoader } from "./core/static/files";
-import { isStaticNotebook } from "./core/static/static-state";
+import {
+  getStaticModelStates,
+  isStaticNotebook,
+} from "./core/static/static-state";
+import {
+  handleWidgetMessage,
+  MODEL_MANAGER,
+} from "./plugins/impl/anywidget/model";
 import { maybeRegisterVSCodeBindings } from "./core/vscode/vscode-bindings";
 import type { FileStore } from "./core/wasm/store";
 import { notebookFileStore } from "./core/wasm/store";
@@ -77,6 +84,7 @@ export function mount(options: unknown, el: Element): Error | undefined {
       // If we're in static mode, we need to patch fetch to use the virtual file
       patchFetch();
       patchVegaLoader(vegaLoader);
+      hydrateStaticModels();
     }
 
     // Init store
@@ -327,6 +335,23 @@ function initStore(options: unknown) {
   );
   if (notebook) {
     store.set(notebookAtom, notebook);
+  }
+}
+
+/**
+ * Hydrate anywidget models from embedded static state so widgets
+ * render immediately without a kernel connection.
+ */
+function hydrateStaticModels(): void {
+  const modelStates = getStaticModelStates();
+  if (!modelStates) {
+    return;
+  }
+  for (const [modelId, data] of Object.entries(modelStates)) {
+    handleWidgetMessage(MODEL_MANAGER, {
+      model_id: modelId,
+      message: { method: "open", ...data },
+    });
   }
 }
 

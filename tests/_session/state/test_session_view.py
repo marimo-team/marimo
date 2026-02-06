@@ -310,6 +310,58 @@ def test_model_multiple_models(session_view: SessionView) -> None:
     assert session_view.model_states[model_id2].state == {"key": "v2"}
 
 
+def test_get_static_model_states(session_view: SessionView) -> None:
+    # Empty initially
+    assert session_view.get_static_model_states() == {}
+
+    # Add two models
+    m1 = WidgetModelId("m1")
+    m2 = WidgetModelId("m2")
+    session_view.add_notification(
+        ModelLifecycleNotification(
+            model_id=m1,
+            message=ModelOpen(
+                state={"count": 0},
+                buffer_paths=[],
+                buffers=[],
+            ),
+        )
+    )
+    session_view.add_notification(
+        ModelLifecycleNotification(
+            model_id=m2,
+            message=ModelOpen(
+                state={"img": None},
+                buffer_paths=[["img"]],
+                buffers=[b"\x89PNG"],
+            ),
+        )
+    )
+
+    result = session_view.get_static_model_states()
+    assert "m1" in result
+    assert result["m1"]["state"] == {"count": 0}
+    assert result["m1"]["buffer_paths"] == []
+    assert result["m1"]["buffers"] == []
+
+    assert "m2" in result
+    assert result["m2"]["state"] == {"img": None}
+    assert result["m2"]["buffer_paths"] == [["img"]]
+    import base64
+
+    assert result["m2"]["buffers"] == [
+        base64.b64encode(b"\x89PNG").decode("ascii")
+    ]
+
+    # Close m1, only m2 remains
+    session_view.add_notification(
+        ModelLifecycleNotification(model_id=m1, message=ModelClose())
+    )
+    result = session_view.get_static_model_states()
+    assert "m1" not in result
+    assert "m2" in result
+
+
 class TestModelReplayState:
     """Unit tests for ModelReplayState buffer merging."""
 
@@ -391,6 +443,35 @@ class TestModelReplayState:
         )
         assert view.buffers == {("img",): b"png"}
         assert view.state == {"label": "hi", "img": None}
+
+    def test_to_static_wire_format_no_buffers(self) -> None:
+        view = ModelReplayState(
+            model_id=WidgetModelId("m"),
+            state={"label": "hi", "count": 42},
+            buffers={},
+        )
+        result = view.to_static_wire_format()
+        assert result == {
+            "state": {"label": "hi", "count": 42},
+            "buffer_paths": [],
+            "buffers": [],
+        }
+
+    def test_to_static_wire_format_with_buffers(self) -> None:
+        view = ModelReplayState(
+            model_id=WidgetModelId("m"),
+            state={"img": None, "label": "hi"},
+            buffers={("img",): b"\x89PNG"},
+        )
+        result = view.to_static_wire_format()
+        assert result["state"] == {"img": None, "label": "hi"}
+        assert result["buffer_paths"] == [["img"]]
+        # base64 of b"\x89PNG"
+        import base64
+
+        assert result["buffers"] == [
+            base64.b64encode(b"\x89PNG").decode("ascii")
+        ]
 
     def test_to_notification_round_trips(self) -> None:
         model_id = WidgetModelId("m")

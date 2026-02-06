@@ -31,6 +31,12 @@ vi.mock("@/core/network/requests", () => ({
   }),
 }));
 
+// Mock isStaticNotebook — default to false (normal mode)
+const mockIsStatic = vi.fn().mockReturnValue(false);
+vi.mock("@/core/static/static-state", () => ({
+  isStaticNotebook: () => mockIsStatic(),
+}));
+
 // Helper to create a mock MarimoComm
 function createMockComm<T>() {
   return {
@@ -392,5 +398,52 @@ describe("ModelManager", () => {
     });
 
     expect(BINDING_MANAGER.has(testId)).toBe(false);
+  });
+
+  describe("static mode", () => {
+    beforeEach(() => {
+      mockIsStatic.mockReturnValue(true);
+    });
+
+    afterAll(() => {
+      mockIsStatic.mockReturnValue(false);
+    });
+
+    it("should create model with no-op comm in static mode", async () => {
+      await handleWidgetMessage(modelManager, {
+        model_id: testId,
+        message: {
+          method: "open",
+          state: { count: 42 },
+          buffer_paths: [],
+          buffers: [],
+        },
+      });
+
+      const model = await modelManager.get(testId);
+      expect(model.get("count")).toBe(42);
+
+      // save_changes should not call the real request client
+      model.set("count", 100);
+      model.save_changes();
+      expect(mockSendModelValue).not.toHaveBeenCalled();
+    });
+
+    it("should not throw on send in static mode", async () => {
+      await handleWidgetMessage(modelManager, {
+        model_id: testId,
+        message: {
+          method: "open",
+          state: { count: 0 },
+          buffer_paths: [],
+          buffers: [],
+        },
+      });
+
+      const model = await modelManager.get(testId);
+      // send() should silently no-op
+      await expect(model.send({ test: true })).resolves.toBeUndefined();
+      expect(mockSendModelValue).not.toHaveBeenCalled();
+    });
   });
 });

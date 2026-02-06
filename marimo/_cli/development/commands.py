@@ -597,6 +597,9 @@ def preview(file_path: Path, port: int, host: str, headless: bool) -> None:
         asset_url = f"http://{host}:{port}"
         code = file_path.read_text(encoding="utf-8")
 
+        # Extract model states for anywidget static rendering
+        model_states = session_view.get_static_model_states()
+
         # Generate static HTML
         html_content = static_notebook_template(
             html=html_template,
@@ -610,6 +613,7 @@ def preview(file_path: Path, port: int, host: str, headless: bool) -> None:
             code_hash=hash_code(code),
             notebook_snapshot=notebook_snapshot,
             files={},
+            model_states=model_states,
             asset_url=asset_url,
         )
 
