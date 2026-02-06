@@ -3,7 +3,7 @@
 Generate screenshot-based thumbnail images for notebooks, used by [OpenGraph previews](opengraph.md) and cards in [gallery mode](../apps.md#gallery-mode).
 
 ```bash
-marimo export thumbnails generate notebook.py
+marimo export thumbnail generate notebook.py
 
 ## Output location
 
@@ -115,4 +115,3 @@ marimo tools thumbnails generate notebook.py -- --foo 123
 ```
 
 For more on passing values to notebooks, see [Command Line Arguments](../../api/cli_args.md).
-
