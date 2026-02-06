@@ -99,7 +99,7 @@ def get_system_info() -> dict[str, Union[str, bool, dict[str, Any]]]:
         # back-filled in frontend
         "Browser": get_chrome_version() or "--",
         "Node": get_node_version() or "--",
-        "UV": get_uv_version() or "--",
+        "uv": get_uv_version() or "--",
     }
 
     requirements = get_required_modules_list()
