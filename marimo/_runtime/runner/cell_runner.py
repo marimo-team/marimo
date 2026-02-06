@@ -11,7 +11,7 @@ import traceback
 from dataclasses import dataclass
 from pathlib import Path
 from types import TracebackType
-from typing import TYPE_CHECKING, Any, Callable, Optional, Union
+from typing import TYPE_CHECKING, Any, Optional, Union
 
 from marimo._ast.variables import unmangle_local
 from marimo._config.config import ExecutionType, OnCellChangeType
@@ -39,6 +39,7 @@ from marimo._runtime.executor import (
     get_executor,
 )
 from marimo._runtime.marimo_pdb import MarimoPdb
+from marimo._runtime.runner.hook_context import ExecutionContextManager
 from marimo._sql.error_utils import (
     create_sql_error_from_exception,
     is_sql_parse_error,
@@ -50,7 +51,6 @@ LOGGER = marimo_logger()
 if TYPE_CHECKING:
     from collections.abc import Iterator
 
-    from marimo._runtime.context.types import ExecutionContext
     from marimo._runtime.runner.hooks import NotebookCellHooks
     from marimo._runtime.state import State
 
@@ -114,10 +114,7 @@ class Runner:
         execution_mode: OnCellChangeType = "autorun",
         execution_type: ExecutionType = "relaxed",
         excluded_cells: set[CellId_t] | None = None,
-        execution_context: Callable[
-            [CellId_t], contextlib._GeneratorContextManager[ExecutionContext]
-        ]
-        | None = None,
+        execution_context: ExecutionContextManager | None = None,
     ):
         self.graph = graph
         self.debugger = debugger
@@ -647,9 +644,33 @@ class Runner:
         return ref, blamed_cell
 
     async def run_all(self) -> None:
+        from marimo._runtime.runner.hook_context import (
+            OnFinishHookContext,
+            PostExecutionHookContext,
+            PreExecutionHookContext,
+            PreparationHookContext,
+        )
+
+        prep_ctx = PreparationHookContext(
+            graph=self.graph,
+            execution_mode=self.execution_mode,
+            cells_to_run=self.cells_to_run,
+        )
         LOGGER.debug("Running preparation hooks")
         for prep_hook in self._hooks.preparation_hooks:
-            prep_hook(self)
+            prep_hook(prep_ctx)
+
+        pre_exec_ctx = PreExecutionHookContext(
+            graph=self.graph,
+            execution_mode=self.execution_mode,
+        )
+        post_exec_ctx = PostExecutionHookContext(
+            graph=self.graph,
+            glbls=self.glbls,
+            execution_context=self.execution_context,
+            exceptions=self.exceptions,
+            cells_cancelled=self.cells_cancelled,
+        )
 
         while self.pending():
             cell_id = self.pop_cell()
@@ -678,7 +699,7 @@ class Runner:
 
             LOGGER.debug("Running pre_execution hooks")
             for pre_hook in self._hooks.pre_execution_hooks:
-                pre_hook(cell, self)
+                pre_hook(cell, pre_exec_ctx)
             LOGGER.debug("Running cell %s", cell_id)
             if self.execution_context is not None:
                 try:
@@ -689,7 +710,7 @@ class Runner:
                         run_result.accumulated_output = exc_ctx.output
                         LOGGER.debug("Running post_execution hooks in context")
                         for post_hook in self._hooks.post_execution_hooks:
-                            post_hook(cell, self, run_result)
+                            post_hook(cell, post_exec_ctx, run_result)
                 except KeyboardInterrupt:
                     LOGGER.error(
                         """
@@ -701,8 +722,15 @@ class Runner:
                 run_result = await self.run(cell_id)
                 LOGGER.debug("Running post_execution hooks out of context")
                 for post_hook in self._hooks.post_execution_hooks:
-                    post_hook(cell, self, run_result)
+                    post_hook(cell, post_exec_ctx, run_result)
 
+        finish_ctx = OnFinishHookContext(
+            graph=self.graph,
+            cells_to_run=self.cells_to_run,
+            interrupted=self.interrupted,
+            cells_cancelled=self.cells_cancelled,
+            exceptions=self.exceptions,
+        )
         LOGGER.debug("Running on_finish hooks")
         for finish_hook in self._hooks.on_finish_hooks:
-            finish_hook(self)
+            finish_hook(finish_ctx)

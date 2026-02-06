@@ -163,7 +163,7 @@ from marimo._runtime.params import CLIArgs, QueryParams
 from marimo._runtime.redirect_streams import redirect_streams
 from marimo._runtime.reload.autoreload import ModuleReloader
 from marimo._runtime.reload.module_watcher import ModuleWatcher
-from marimo._runtime.runner import cell_runner
+from marimo._runtime.runner import cell_runner, hook_context
 from marimo._runtime.runner.hooks import (
     NotebookCellHooks,
     Priority,
@@ -1369,9 +1369,9 @@ class Kernel:
 
     def _propagate_kernel_errors(
         self,
-        runner: cell_runner.Runner,
+        ctx: hook_context.OnFinishHookContext,
     ) -> None:
-        for cell_id, error in runner.exceptions.items():
+        for cell_id, error in ctx.exceptions.items():
             if isinstance(error, MarimoStrictExecutionError):
                 self.errors[cell_id] = (error,)
 
@@ -1388,17 +1388,17 @@ class Kernel:
         # descendants (cancelled == cells that raise exceptions), whereas
         # eager kernels do (since we clear all state ahead of time, and
         # have the closure of the roots in cells to run)
-        def invalidate_state(runner: cell_runner.Runner) -> None:
-            for cid in runner.cells_to_run:
+        def invalidate_state(ctx: hook_context.PreparationHookContext) -> None:
+            for cid in ctx.cells_to_run:
                 self._invalidate_cell_state(cid)
 
         def note_time_of_interruption(
             cell_impl: CellImpl,
-            runner: cell_runner.Runner,
+            ctx: hook_context.PostExecutionHookContext,
             run_result: cell_runner.RunResult,
         ) -> None:
             del cell_impl
-            del runner
+            del ctx
             if isinstance(run_result.exception, MarimoInterrupt):
                 self.last_interrupt_timestamp = time.time()
 
@@ -2785,10 +2785,12 @@ class PackagesCallbacks:
             ),
         )
 
-    def missing_packages_hook(self, runner: cell_runner.Runner) -> None:
+    def missing_packages_hook(
+        self, ctx: hook_context.OnFinishHookContext
+    ) -> None:
         module_not_found_errors = [
             e
-            for e in runner.exceptions.values()
+            for e in ctx.exceptions.values()
             if isinstance(e, (ImportError, ManyModulesNotFoundError))
         ]
 

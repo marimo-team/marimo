@@ -10,6 +10,12 @@ if TYPE_CHECKING:
 
     from marimo._ast.cell import CellImpl
     from marimo._runtime.runner import cell_runner
+    from marimo._runtime.runner.hook_context import (
+        OnFinishHookContext,
+        PostExecutionHookContext,
+        PreExecutionHookContext,
+        PreparationHookContext,
+    )
 
 __all__ = [
     "NotebookCellHooks",
@@ -22,12 +28,12 @@ __all__ = [
 ]
 
 # Hook type aliases
-PreparationHook = Callable[["cell_runner.Runner"], None]
-PreExecutionHook = Callable[["CellImpl", "cell_runner.Runner"], None]
+PreparationHook = Callable[["PreparationHookContext"], None]
+PreExecutionHook = Callable[["CellImpl", "PreExecutionHookContext"], None]
 PostExecutionHook = Callable[
-    ["CellImpl", "cell_runner.Runner", "cell_runner.RunResult"], None
+    ["CellImpl", "PostExecutionHookContext", "cell_runner.RunResult"], None
 ]
-OnFinishHook = Callable[["cell_runner.Runner"], None]
+OnFinishHook = Callable[["OnFinishHookContext"], None]
 
 
 class Priority(IntEnum):

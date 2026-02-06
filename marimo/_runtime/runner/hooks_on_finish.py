@@ -14,21 +14,21 @@ from marimo._messaging.errors import (
 )
 from marimo._messaging.notification_utils import CellNotificationUtils
 from marimo._runtime.control_flow import MarimoStopError
-from marimo._runtime.runner import cell_runner
+from marimo._runtime.runner.hook_context import OnFinishHookContext
 from marimo._tracer import kernel_tracer
 
 LOGGER = _loggers.marimo_logger()
 
-OnFinishHookType = Callable[[cell_runner.Runner], None]
+OnFinishHookType = Callable[[OnFinishHookContext], None]
 
 
 @kernel_tracer.start_as_current_span("send_interrupt_errors")
-def _send_interrupt_errors(runner: cell_runner.Runner) -> None:
-    if runner.cells_to_run:
-        assert runner.interrupted
-        for cid in runner.cells_to_run:
+def _send_interrupt_errors(ctx: OnFinishHookContext) -> None:
+    if ctx.cells_to_run:
+        assert ctx.interrupted
+        for cid in ctx.cells_to_run:
             # `cid` was not run
-            runner.graph.cells[cid].set_runtime_state("idle")
+            ctx.graph.cells[cid].set_runtime_state("idle")
             CellNotificationUtils.broadcast_error(
                 data=[MarimoInterruptionError()],
                 # these cells are transitioning from queued to stopped
@@ -40,17 +40,17 @@ def _send_interrupt_errors(runner: cell_runner.Runner) -> None:
 
 
 @kernel_tracer.start_as_current_span("send_cancellation_errors")
-def _send_cancellation_errors(runner: cell_runner.Runner) -> None:
-    for raising_cell in runner.cells_cancelled:
-        for cid in runner.cells_cancelled[raising_cell]:
+def _send_cancellation_errors(ctx: OnFinishHookContext) -> None:
+    for raising_cell in ctx.cells_cancelled:
+        for cid in ctx.cells_cancelled[raising_cell]:
             # `cid` was not run
-            cell = runner.graph.cells[cid]
+            cell = ctx.graph.cells[cid]
             if cell.runtime_state != "idle":
                 # the cell raising an exception will already be
                 # idle, but its descendants won't be.
                 cell.set_runtime_state("idle")
 
-            exception = runner.exceptions[raising_cell]
+            exception = ctx.exceptions[raising_cell]
             data: Error
             if isinstance(exception, MarimoStopError):
                 data = MarimoAncestorStoppedError(

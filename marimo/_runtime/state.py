@@ -4,7 +4,7 @@ from __future__ import annotations
 import types
 import weakref
 from dataclasses import dataclass
-from typing import Any, Callable, Generic, Optional, TypeVar
+from typing import TYPE_CHECKING, Any, Callable, Generic, Optional, TypeVar
 from uuid import uuid4
 
 from marimo._output.rich_help import mddoc
@@ -12,6 +12,9 @@ from marimo._runtime.context import ContextNotInitializedError, get_context
 
 T = TypeVar("T")
 Id = int
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
 
 
 @dataclass
@@ -72,7 +75,7 @@ class StateRegistry:
         finalizer.atexit = False
 
     def register_scope(
-        self, glbls: dict[str, Any], defs: Optional[set[str]] = None
+        self, glbls: Mapping[str, Any], defs: Optional[set[str]] = None
     ) -> None:
         """Finds instances of state and scope, and adds them to registry if not
         already present."""
