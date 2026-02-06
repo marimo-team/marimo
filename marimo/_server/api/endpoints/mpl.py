@@ -17,6 +17,7 @@ if TYPE_CHECKING:
 
 
 from marimo import _loggers
+from marimo._server.api.auth import validate_auth
 from marimo._server.router import APIRouter
 
 LOGGER = _loggers.marimo_logger()
@@ -228,8 +229,12 @@ async def mpl_handler(request: Request) -> Response:
 async def mpl_websocket(websocket: WebSocket) -> None:
     """Proxy WebSocket connections to matplotlib server."""
     global figure_endpoints
-    port = str(websocket.path_params["port"])
+    # Only authenticated users can register figure->port mappings
+    if not validate_auth(websocket):
+        await websocket.close(code=1008, reason="Unauthorized")
+        return
 
+    port = str(websocket.path_params["port"])
     await websocket.accept()
 
     # Construct target WebSocket URL with query parameters

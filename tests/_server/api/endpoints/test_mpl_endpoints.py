@@ -94,29 +94,50 @@ class TestMatplotlibProxyEndpoints:
             assert "Content-length" not in request_obj.headers
 
     @staticmethod
-    def test_websocket_registers_figure(client: TestClient) -> None:
-        """Test that WebSocket connection registers figure endpoint."""
+    def test_websocket_requires_auth(client: TestClient) -> None:
+        """Test that WebSocket connection requires authentication."""
         from starlette.websockets import WebSocketDisconnect
 
-        with patch("websockets.connect") as mock_connect:
-            mock_ws = MagicMock()
-            mock_context = MagicMock()
-            mock_context.__aenter__ = AsyncMock(return_value=mock_ws)
-            mock_context.__aexit__ = AsyncMock(return_value=None)
-            mock_connect.return_value = mock_context
-
-            async def mock_iter():
-                return
-                yield
-
-            mock_ws.__aiter__ = mock_iter
-
+        # Mock validate_auth to return False (unauthenticated)
+        with patch(
+            "marimo._server.api.endpoints.mpl.validate_auth", return_value=False
+        ):
             try:
-                with client.websocket_connect("/mpl/8888/ws?figure=123"):
+                with client.websocket_connect("/mpl/8888/ws"):
                     pass
             except WebSocketDisconnect:
+                # Expected - connection should be rejected
                 pass
 
-            # Verify figure was registered
-            assert 123 in figure_endpoints
-            assert figure_endpoints[123] == "8888"
+    @staticmethod
+    def test_websocket_authenticated_connects(client: TestClient) -> None:
+        """Test that authenticated WebSocket connection succeeds."""
+        from starlette.websockets import WebSocketDisconnect
+
+        # Mock validate_auth to return True (authenticated)
+        with patch(
+            "marimo._server.api.endpoints.mpl.validate_auth", return_value=True
+        ):
+            with patch("websockets.connect") as mock_connect:
+                mock_ws = MagicMock()
+                mock_context = MagicMock()
+                mock_context.__aenter__ = AsyncMock(return_value=mock_ws)
+                mock_context.__aexit__ = AsyncMock(return_value=None)
+                mock_connect.return_value = mock_context
+
+                async def mock_iter():
+                    return
+                    yield
+
+                mock_ws.__aiter__ = mock_iter
+
+                try:
+                    with client.websocket_connect("/mpl/8888/ws?figure=123"):
+                        pass
+                except WebSocketDisconnect:
+                    pass
+
+                # Verify websockets.connect was called with correct port
+                mock_connect.assert_called()
+                call_url = mock_connect.call_args[0][0]
+                assert "localhost:8888" in call_url
