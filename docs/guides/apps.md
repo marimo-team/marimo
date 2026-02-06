@@ -26,7 +26,7 @@ marimo run folder/
 marimo run notebook_a.py notebook_b.py folder/
 ```
 
-In gallery mode, marimo shows a page with one card per notebook. Cards can use notebook OpenGraph metadata for the title, description, and thumbnail image. Configure [OpenGraph previews](publishing/opengraph.md) and optionally generate images with [Thumbnails](publishing/thumbnails.md).
+This shows a page with one card per notebook. Cards can use notebook OpenGraph metadata for the title, description, and thumbnail image. Configure [OpenGraph previews](publishing/opengraph.md) and optionally generate images with [Thumbnails](publishing/thumbnails.md).
 
 ## Layout
 
