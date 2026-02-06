@@ -73,6 +73,9 @@ class WidgetDefRegistry {
    * Invalidate a cached module (e.g. for hot-reload support).
    */
   invalidate(jsHash: string): void {
+    Logger.debug(
+      `[WidgetDefRegistry] Invalidating module cache for hash=${jsHash}`,
+    );
     this.#cache.delete(jsHash);
   }
 
@@ -112,6 +115,9 @@ class WidgetBinding<T extends ModelState = ModelState> {
 
     // If widgetDef changed (hot reload), destroy old and re-initialize
     if (this.#render && this.#widgetDef !== widgetDef) {
+      Logger.debug(
+        "[WidgetBinding] Hot-reload detected, aborting previous binding",
+      );
       this.#controller?.abort();
       this.#controller = undefined;
       this.#render = undefined;
@@ -140,10 +146,16 @@ class WidgetBinding<T extends ModelState = ModelState> {
       });
       if (renderCleanup) {
         // Cleanup when either the view unmounts or the binding is destroyed
-        abortSignalAny([viewSignal, bindingSignal]).addEventListener(
-          "abort",
-          renderCleanup,
-        );
+        const combined = abortSignalAny([viewSignal, bindingSignal]);
+        combined.addEventListener("abort", () => {
+          const reason = viewSignal.aborted
+            ? "view unmount"
+            : "binding destroyed";
+          Logger.debug(
+            `[WidgetBinding] Render cleanup triggered (reason: ${reason})`,
+          );
+          renderCleanup();
+        });
       }
     };
 
@@ -154,6 +166,9 @@ class WidgetBinding<T extends ModelState = ModelState> {
    * Destroy this binding, aborting the initialize lifecycle.
    */
   destroy(): void {
+    Logger.debug(
+      "[WidgetBinding] Destroying binding, aborting initialize lifecycle",
+    );
     this.#controller?.abort();
     this.#controller = undefined;
     this.#widgetDef = undefined;
@@ -180,6 +195,7 @@ class BindingManager {
   destroy(modelId: WidgetModelId): void {
     const binding = this.#bindings.get(modelId);
     if (binding) {
+      Logger.debug(`[BindingManager] Destroying binding for model=${modelId}`);
       binding.destroy();
       this.#bindings.delete(modelId);
     }

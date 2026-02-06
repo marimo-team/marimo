@@ -91,6 +91,9 @@ class ModelManager {
   }
 
   delete(key: WidgetModelId): void {
+    Logger.debug(
+      `[ModelManager] Deleting model=${key}, aborting lifecycle signal`,
+    );
     this.#entries.get(key)?.controller.abort();
     this.#entries.delete(key);
   }
@@ -144,6 +147,7 @@ export class Model<T extends ModelState> implements AnyModel<T> {
     this.#dirtyFields = new Map();
     if (signal) {
       signal.addEventListener("abort", () => {
+        Logger.debug("[Model] Signal aborted, clearing all listeners");
         this.#listeners = {};
       });
     }
@@ -317,8 +321,6 @@ export async function handleWidgetMessage(
   const modelId = notification.model_id as WidgetModelId;
   const msg = notification.message;
 
-  Logger.debug("AnyWidget message", msg);
-
   // Decode base64 buffers to DataViews (present in open/update/custom messages)
   const base64Buffers: Base64String[] =
     "buffers" in msg ? (msg.buffers as Base64String[]) : [];
@@ -349,6 +351,9 @@ export async function handleWidgetMessage(
             {
               async sendUpdate(changeData) {
                 if (signal.aborted) {
+                  Logger.debug(
+                    `[Model] sendUpdate suppressed for model=${modelId} (signal aborted)`,
+                  );
                   return;
                 }
                 const { state, buffers, bufferPaths } =
@@ -361,6 +366,9 @@ export async function handleWidgetMessage(
               },
               async sendCustomMessage(content, buffers) {
                 if (signal.aborted) {
+                  Logger.debug(
+                    `[Model] sendCustomMessage suppressed for model=${modelId} (signal aborted)`,
+                  );
                   return;
                 }
                 await getRequestClient().sendModelValue({
