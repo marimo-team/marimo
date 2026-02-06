@@ -4,6 +4,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from marimo._plugins.ui._impl.anywidget.init import CommLifecycleItem
 from marimo._plugins.ui._impl.comm import (
     MarimoComm,
     MarimoCommManager,
@@ -25,11 +26,16 @@ def comm_manager():
 def comm(comm_manager: MarimoCommManager) -> MarimoComm:
     comm_id = WidgetModelId("test-comm")
     with patch("marimo._plugins.ui._impl.comm.broadcast_notification"):
-        return MarimoComm(
+        c = MarimoComm(
             comm_id=comm_id,
             comm_manager=comm_manager,
             target_name="test_target",
         )
+    yield c  # type: ignore[misc]
+    # Ensure the comm is closed so __del__ doesn't fire broadcast_notification
+    # during garbage collection in a later test's patch scope.
+    with patch("marimo._plugins.ui._impl.comm.broadcast_notification"):
+        c._closed = True
 
 
 def test_comm_manager_register_unregister(
@@ -190,3 +196,35 @@ def test_comm_manager_receive_custom_message(
     result = comm_manager.receive_comm_message(command)
     assert result == (None, None)
     callback.assert_called_once()
+
+
+def test_comm_lifecycle_item_dispose_closes_comm(
+    comm_manager: MarimoCommManager, comm: MarimoComm
+):
+    """CommLifecycleItem.dispose() should close the comm."""
+    item = CommLifecycleItem(comm)
+    assert not comm._closed
+    assert comm.comm_id in comm_manager.comms
+
+    with patch(
+        "marimo._plugins.ui._impl.comm.broadcast_notification"
+    ) as mock_broadcast:
+        result = item.dispose(context=MagicMock(), deletion=False)
+
+    assert result is True
+    assert comm._closed
+    assert comm.comm_id not in comm_manager.comms
+    mock_broadcast.assert_called_once()
+
+
+def test_comm_lifecycle_item_dispose_idempotent(comm: MarimoComm):
+    """Calling dispose twice should not error (comm.close is idempotent)."""
+    item = CommLifecycleItem(comm)
+
+    with patch("marimo._plugins.ui._impl.comm.broadcast_notification"):
+        item.dispose(context=MagicMock(), deletion=False)
+        # Second dispose — comm is already closed, should be a no-op
+        result = item.dispose(context=MagicMock(), deletion=True)
+
+    assert result is True
+    assert comm._closed
