@@ -16,6 +16,7 @@ import {
   visibleForTesting,
 } from "../model";
 import type { WidgetModelId } from "../types";
+import { BINDING_MANAGER } from "../widget-binding";
 
 const { ModelManager } = visibleForTesting;
 
@@ -375,5 +376,21 @@ describe("ModelManager", () => {
       message: { method: "close" },
     });
     await expect(modelManager.get(testId)).rejects.toThrow();
+  });
+
+  it("should destroy binding on close message", async () => {
+    const model = new Model({ count: 0 }, createMockComm());
+    modelManager.set(testId, model);
+
+    // Create a binding for this model
+    BINDING_MANAGER.getOrCreate(testId);
+    expect(BINDING_MANAGER.has(testId)).toBe(true);
+
+    await handleWidgetMessage(modelManager, {
+      model_id: testId,
+      message: { method: "close" },
+    });
+
+    expect(BINDING_MANAGER.has(testId)).toBe(false);
   });
 });

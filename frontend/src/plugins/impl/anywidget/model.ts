@@ -1,7 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import type { AnyModel, AnyWidget, Experimental } from "@anywidget/types";
+import type { AnyModel } from "@anywidget/types";
 import { debounce } from "lodash-es";
 import type { NotificationMessageData } from "@/core/kernel/messages";
 import { getRequestClient } from "@/core/network/requests";
@@ -20,62 +20,62 @@ import { Logger } from "@/utils/Logger";
 import { repl } from "@/utils/repl";
 import type { AnyWidgetMessage } from "./schemas";
 import type { EventHandler, ModelState, WidgetModelId } from "./types";
+import { BINDING_MANAGER } from "./widget-binding";
+
+interface ModelEntry {
+  deferred: Deferred<Model<ModelState>>;
+  controller: AbortController;
+}
 
 class ModelManager {
-  /**
-   * Map of model ids to deferred promises
-   */
-  #models = new Map<WidgetModelId, Deferred<Model<ModelState>>>();
-  /**
-   * Timeout for model lookup
-   */
+  #entries = new Map<WidgetModelId, ModelEntry>();
   #timeout: number;
 
   constructor(timeout = 10_000) {
     this.#timeout = timeout;
   }
 
-  get(key: WidgetModelId): Promise<Model<any>> {
-    let deferred = this.#models.get(key);
-    if (deferred) {
-      return deferred.promise;
+  #getOrCreateEntry(key: WidgetModelId): ModelEntry {
+    let entry = this.#entries.get(key);
+    if (!entry) {
+      entry = {
+        deferred: new Deferred<Model<ModelState>>(),
+        controller: new AbortController(),
+      };
+      this.#entries.set(key, entry);
     }
-
-    // If the model is not yet created, create the new deferred promise without resolving it
-    deferred = new Deferred<Model<ModelState>>();
-    this.#models.set(key, deferred);
-
-    // Add timeout to prevent hanging
-    setTimeout(() => {
-      // Already settled
-      if (deferred.status !== "pending") {
-        return;
-      }
-
-      deferred.reject(new Error(`Model not found for key: ${key}`));
-      this.#models.delete(key);
-    }, this.#timeout);
-
-    return deferred.promise;
+    return entry;
   }
 
-  set(key: WidgetModelId, model: Model<any>): void {
-    let deferred = this.#models.get(key);
-    if (!deferred) {
-      deferred = new Deferred<Model<ModelState>>();
-      this.#models.set(key, deferred);
+  get(key: WidgetModelId): Promise<Model<any>> {
+    const entry = this.#getOrCreateEntry(key);
+    if (entry.deferred.status === "pending") {
+      // Add timeout to prevent hanging
+      setTimeout(() => {
+        if (entry.deferred.status !== "pending") {
+          return;
+        }
+        entry.deferred.reject(new Error(`Model not found for key: ${key}`));
+        this.#entries.delete(key);
+      }, this.#timeout);
     }
-    deferred.resolve(model);
+    return entry.deferred.promise;
   }
 
   /**
-   * Check if a model exists and has been resolved (not pending).
-   * This is useful for checking if a model was already created by the plugin
-   * before the 'open' message arrives.
+   * Create a model with a managed lifecycle signal.
+   * The signal is aborted when the model is deleted.
    */
-  has(key: WidgetModelId): boolean {
-    const deferred = this.#models.get(key);
-    return deferred !== undefined && deferred.status === "resolved";
+  create(
+    key: WidgetModelId,
+    factory: (signal: AbortSignal) => Model<ModelState>,
+  ): void {
+    const entry = this.#getOrCreateEntry(key);
+    entry.deferred.resolve(factory(entry.controller.signal));
+  }
+
+  set(key: WidgetModelId, model: Model<any>): void {
+    this.#getOrCreateEntry(key).deferred.resolve(model);
   }
 
   /**
@@ -83,15 +83,19 @@ class ModelManager {
    * Returns undefined if the model doesn't exist or is still pending.
    */
   getSync(key: WidgetModelId): Model<any> | undefined {
-    const deferred = this.#models.get(key);
-    if (deferred && deferred.status === "resolved") {
-      return deferred.value;
+    const entry = this.#entries.get(key);
+    if (entry && entry.deferred.status === "resolved") {
+      return entry.deferred.value;
     }
     return undefined;
   }
 
   delete(key: WidgetModelId): void {
-    this.#models.delete(key);
+    Logger.debug(
+      `[ModelManager] Deleting model=${key}, aborting lifecycle signal`,
+    );
+    this.#entries.get(key)?.controller.abort();
+    this.#entries.delete(key);
   }
 }
 
@@ -102,28 +106,7 @@ interface MarimoComm<T> {
 
 const marimoSymbol = Symbol("marimo");
 
-const experimental: Experimental = {
-  invoke: async () => {
-    const message =
-      "anywidget.invoke not supported in marimo. Please file an issue at https://github.com/marimo-team/marimo/issues";
-    Logger.warn(message);
-    throw new Error(message);
-  },
-};
-
-type RenderFn = (el: HTMLElement, signal: AbortSignal) => Promise<void>;
-
 interface MarimoInternalApi<T extends ModelState> {
-  /**
-   * Resolve the widget definition and initialize if needed.
-   * Returns a render function that can be called for each view.
-   *
-   * Per AFM spec:
-   * - widgetDef() is called once per model
-   * - initialize() is called once per model
-   * - render() (the returned function) is called once per view
-   */
-  resolveWidget: (widgetDef: AnyWidget<T>) => Promise<RenderFn>;
   /**
    * Update model state and emit change events for any differences.
    */
@@ -135,10 +118,6 @@ interface MarimoInternalApi<T extends ModelState> {
     message: Extract<AnyWidgetMessage, { method: "custom" }>,
     buffers?: readonly DataView[],
   ) => void;
-  /**
-   * Destroy the model, triggering initialize cleanup.
-   */
-  destroy: () => void;
 }
 
 /**
@@ -159,18 +138,19 @@ export class Model<T extends ModelState> implements AnyModel<T> {
   #data: T;
   #comm: MarimoComm<T>;
   #listeners: Record<string, Set<EventHandler> | undefined> = {};
-  #controller = new AbortController();
-  #widgetDef: AnyWidget<T> | undefined;
-  #render:
-    | ((el: HTMLElement, signal: AbortSignal) => Promise<void>)
-    | undefined;
 
   static _modelManager: ModelManager = MODEL_MANAGER;
 
-  constructor(data: T, comm: MarimoComm<T>) {
+  constructor(data: T, comm: MarimoComm<T>, signal?: AbortSignal) {
     this.#data = data;
     this.#comm = comm;
     this.#dirtyFields = new Map();
+    if (signal) {
+      signal.addEventListener("abort", () => {
+        Logger.debug("[Model] Signal aborted, clearing all listeners");
+        this.#listeners = {};
+      });
+    }
   }
 
   /**
@@ -183,52 +163,6 @@ export class Model<T extends ModelState> implements AnyModel<T> {
       message: Extract<AnyWidgetMessage, { method: "custom" }>,
       buffers?: readonly DataView[],
     ) => this.#emitCustomMessage(message, buffers),
-    resolveWidget: async (widgetDef: AnyWidget<T>): Promise<RenderFn> => {
-      // Already initialized with the same widget - return cached render
-      if (this.#render && this.#widgetDef === widgetDef) {
-        return this.#render;
-      }
-
-      // If widgetDef changed (hot reload), destroy old and re-initialize
-      if (this.#render && this.#widgetDef !== widgetDef) {
-        this.#controller.abort();
-        this.#controller = new AbortController();
-        this.#render = undefined;
-      }
-
-      this.#widgetDef = widgetDef;
-
-      // Resolve the widget definition (call if it's a function)
-      const widget =
-        typeof widgetDef === "function" ? await widgetDef() : widgetDef;
-
-      // Call initialize once per model
-      const cleanup = await widget.initialize?.({ model: this, experimental });
-      if (cleanup) {
-        this.#controller.signal.addEventListener("abort", cleanup);
-      }
-
-      // Store and return the render closure
-      this.#render = async (el: HTMLElement, signal: AbortSignal) => {
-        const renderCleanup = await widget.render?.({
-          model: this,
-          el,
-          experimental,
-        });
-        if (renderCleanup) {
-          // Cleanup when either the view unmounts or the model is destroyed
-          AbortSignal.any([signal, this.#controller.signal]).addEventListener(
-            "abort",
-            renderCleanup,
-          );
-        }
-      };
-
-      return this.#render;
-    },
-    destroy: () => {
-      this.#controller.abort();
-    },
   };
 
   off(eventName?: string | null, callback?: EventHandler | null): void {
@@ -387,8 +321,6 @@ export async function handleWidgetMessage(
   const modelId = notification.model_id as WidgetModelId;
   const msg = notification.message;
 
-  Logger.debug("AnyWidget message", msg);
-
   // Decode base64 buffers to DataViews (present in open/update/custom messages)
   const base64Buffers: Base64String[] =
     "buffers" in msg ? (msg.buffers as Base64String[]) : [];
@@ -411,25 +343,44 @@ export async function handleWidgetMessage(
         return;
       }
 
-      const model = new Model(stateWithBuffers, {
-        async sendUpdate(changeData) {
-          const { state, buffers, bufferPaths } =
-            serializeBuffersToBase64(changeData);
-          await getRequestClient().sendModelValue({
-            modelId,
-            message: { method: "update", state, bufferPaths },
-            buffers,
-          });
-        },
-        async sendCustomMessage(content, buffers) {
-          await getRequestClient().sendModelValue({
-            modelId,
-            message: { method: "custom", content },
-            buffers: buffers.map(dataViewToBase64),
-          });
-        },
-      });
-      modelManager.set(modelId, model);
+      modelManager.create(
+        modelId,
+        (signal) =>
+          new Model(
+            stateWithBuffers,
+            {
+              async sendUpdate(changeData) {
+                if (signal.aborted) {
+                  Logger.debug(
+                    `[Model] sendUpdate suppressed for model=${modelId} (signal aborted)`,
+                  );
+                  return;
+                }
+                const { state, buffers, bufferPaths } =
+                  serializeBuffersToBase64(changeData);
+                await getRequestClient().sendModelValue({
+                  modelId,
+                  message: { method: "update", state, bufferPaths },
+                  buffers,
+                });
+              },
+              async sendCustomMessage(content, buffers) {
+                if (signal.aborted) {
+                  Logger.debug(
+                    `[Model] sendCustomMessage suppressed for model=${modelId} (signal aborted)`,
+                  );
+                  return;
+                }
+                await getRequestClient().sendModelValue({
+                  modelId,
+                  message: { method: "custom", content },
+                  buffers: buffers.map(dataViewToBase64),
+                });
+              },
+            },
+            signal,
+          ),
+      );
       return;
     }
 
@@ -444,11 +395,8 @@ export async function handleWidgetMessage(
     }
 
     case "close": {
-      const model = modelManager.getSync(modelId);
-      if (model) {
-        getMarimoInternal(model).destroy();
-      }
-      modelManager.delete(modelId);
+      BINDING_MANAGER.destroy(modelId);
+      modelManager.delete(modelId); // aborts the model's signal, clearing listeners
       return;
     }
 
