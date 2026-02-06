@@ -13,6 +13,7 @@ from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.notification import AlertNotification
 from marimo._messaging.notification_utils import broadcast_notification
 from marimo._runtime.packages.utils import append_version
+from marimo._utils.subprocess import safe_popen
 
 if TYPE_CHECKING:
     from marimo._utils.uv_tree import DependencyTreeNode
@@ -149,13 +150,16 @@ class PackageManager(abc.ABC):
             return completed_process.returncode == 0
 
         # Stream output to both the callback and the terminal
-        proc = subprocess.Popen(  # noqa: ASYNC220
+        proc = safe_popen(  # noqa: ASYNC220
             command,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             universal_newlines=False,  # Keep as bytes to preserve ANSI codes
             bufsize=0,  # Unbuffered for real-time output
         )
+
+        if proc is None:
+            return False
 
         if proc.stdout:
             for line in iter(proc.stdout.readline, b""):

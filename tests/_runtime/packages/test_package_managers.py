@@ -333,7 +333,7 @@ async def test_uv_pip_install() -> None:
     runs_calls: list[list[str]] = []
 
     with (
-        patch("subprocess.Popen") as mock_popen,
+        patch("marimo._utils.subprocess.subprocess.Popen") as mock_popen,
         patch("sys.stdout.buffer.write"),
     ):
         mock_proc = MagicMock()
@@ -400,7 +400,7 @@ async def test_package_manager_run_with_callback() -> None:
     ]
 
     with (
-        patch("subprocess.Popen") as mock_popen,
+        patch("marimo._utils.subprocess.subprocess.Popen") as mock_popen,
         patch("sys.stdout.buffer.write") as mock_buffer_write,
         patch.object(pm, "is_manager_installed", return_value=True),
     ):
@@ -435,7 +435,7 @@ async def test_package_manager_run_with_callback_failure() -> None:
         captured_logs.append(log_line)
 
     with (
-        patch("subprocess.Popen") as mock_popen,
+        patch("marimo._utils.subprocess.subprocess.Popen") as mock_popen,
         patch.object(pm, "is_manager_installed", return_value=True),
     ):
         mock_proc = MagicMock()
@@ -496,7 +496,7 @@ async def test_uv_install_with_log_callback() -> None:
     ]
 
     with (
-        patch("subprocess.Popen") as mock_popen,
+        patch("marimo._utils.subprocess.subprocess.Popen") as mock_popen,
         patch("sys.stdout.buffer.write"),
     ):
         mock_proc = MagicMock()
