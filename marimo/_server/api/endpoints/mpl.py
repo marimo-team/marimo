@@ -133,6 +133,14 @@ async def _mpl_handler(
     """
     from starlette.responses import Response
 
+    # Validate authentication before proxying - prevents SSRF
+    if not validate_auth(request):
+        return Response(
+            content="Unauthorized",
+            status_code=401,
+            media_type="text/plain",
+        )
+
     # Proxy to matplotlib server
     # Determine the target port
     port = figure_endpoints.get(figurenum, None)
