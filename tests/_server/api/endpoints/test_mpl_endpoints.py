@@ -28,7 +28,8 @@ class TestMatplotlibProxyEndpoints:
 
         # Mock validate_auth to return False (unauthenticated)
         with patch(
-            "marimo._server.api.endpoints.mpl.validate_auth", return_value=False
+            "marimo._server.api.endpoints.mpl.validate_auth",
+            return_value=False,
         ):
             response = client.get("/mpl/1/test_path")
             assert response.status_code == 401, response.text
@@ -74,7 +75,9 @@ class TestMatplotlibProxyEndpoints:
                 mock_response.status = 200
                 mock_response.headers = {"content-type": "text/html"}
                 mock_response.read.return_value = b"<html>Success</html>"
-                mock_urlopen.return_value.__enter__.return_value = mock_response
+                mock_urlopen.return_value.__enter__.return_value = (
+                    mock_response
+                )
 
                 response = client.get("/mpl/1/test")
                 assert response.status_code == 200, response.text
@@ -93,7 +96,9 @@ class TestMatplotlibProxyEndpoints:
                 mock_response.status = 200
                 mock_response.headers = {}
                 mock_response.read.return_value = b""
-                mock_urlopen.return_value.__enter__.return_value = mock_response
+                mock_urlopen.return_value.__enter__.return_value = (
+                    mock_response
+                )
 
                 client.get("/mpl/1/test?param1=value1&param2=value2")
 
@@ -114,7 +119,9 @@ class TestMatplotlibProxyEndpoints:
                 mock_response.status = 200
                 mock_response.headers = {}
                 mock_response.read.return_value = b""
-                mock_urlopen.return_value.__enter__.return_value = mock_response
+                mock_urlopen.return_value.__enter__.return_value = (
+                    mock_response
+                )
 
                 client.get("/mpl/1/test")
 
@@ -129,7 +136,8 @@ class TestMatplotlibProxyEndpoints:
 
         # Mock validate_auth to return False (unauthenticated)
         with patch(
-            "marimo._server.api.endpoints.mpl.validate_auth", return_value=False
+            "marimo._server.api.endpoints.mpl.validate_auth",
+            return_value=False,
         ):
             try:
                 with client.websocket_connect("/mpl/8888/ws"):
